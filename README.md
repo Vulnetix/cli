@@ -1,4 +1,4 @@
-# trivial-triage
+# Trivial Triage
 
 Your Comprehensive Vulnerability Management Tool to automate decision and resolution reporting
 
