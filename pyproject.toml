@@ -13,7 +13,7 @@ pydantic = "^2.7.2"
 ssvc = "^1.0.8"
 
 [tool.poetry.group.dev.dependencies]
-uv = "^0.2.5"
+uv = "^0.2.6"
 pre-commit-uv = "^3.7.0"
 pre-commit = "^3.7.1"
 ruff = "^0.4.7"
