@@ -1,0 +1,131 @@
+name: pytest-coverage
+on:
+  pull_request:
+    branches: 
+      - '*'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install poetry flake8 pytest pytest-cov
+        poetry self add poetry-plugin-up
+        poetry self update
+        poetry install --no-root
+        poetry up
+
+    - name: Retrieve version
+      run: |
+        echo ::set-env name=APP_VERSION::$(poetry version -s)
+
+    - name: Pytest with coverage
+      run: |
+        coverage run -m pytest --nf
+
+    - name: Build coverage file
+      run: |
+        coverage report -m
+
+    - name: Build
+      run: |
+        poetry build
+
+    - name: Upload dist tar+gzip
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist_gzip
+        path: ./dist/trivial-triage-${{ env.APP_VERSION }}.tar.gz
+        retention-days: 1
+
+    - name: Upload dist whl
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist_whl
+        path: ./dist/trivial-triage-${{ env.APP_VERSION }}-py3-none-any.whl
+        retention-days: 1
+
+    - name: Coverage Badge
+      uses: tj-actions/coverage-badge-py@v2
+
+    - name: Verify Changed files
+      uses: tj-actions/verify-changed-files@v19
+      id: verify-changed-files
+      with:
+        files: coverage.svg
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [ build ]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download dist tar+gzip
+      uses: actions/download-artifact@v4
+      with:
+        name: dist_gzip
+
+    - name: Download dist whl
+      uses: actions/download-artifact@v4
+      with:
+        name: dist_whl
+
+    - name: Retrieve commit message
+      run: |
+        echo ::set-env name=COMMIT_MSG::$(git log -1 --pretty=format:"%s")
+
+    - name: Publish
+      run: |
+        poetry publish
+
+    - name: Tag
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git commit -a -s -m 'build(release): v${{ env.APP_VERSION }}'
+        git tag --force v${{ env.APP_VERSION }}
+        git push
+        git push --tags --force
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: ${{ env.COMMIT_MSG }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Source
+      id: upload-release-source
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/trivial-triage-${{ env.APP_VERSION }}.tar.gz
+        asset_name: dist/trivial-triage-${{ env.APP_VERSION }}.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload Release Wheel
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/trivial-triage-${{ env.APP_VERSION }}-py3-none-any.whl
+        asset_name: trivial-triage-${{ env.APP_VERSION }}-py3-none-any.whl
+        asset_content_type: application/octet-stream
