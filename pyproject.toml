@@ -9,7 +9,7 @@ readme = "PYPI.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 sqlmodel = "^0.0.18"
-pydantic = "^2.7.2"
+pydantic = "^2.7.3"
 ssvc = "^1.0.8"
 
 [tool.poetry.group.dev.dependencies]
