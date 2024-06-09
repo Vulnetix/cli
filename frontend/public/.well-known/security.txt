@@ -1,0 +1,21 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Contact: mailto:security@trivialsec.com
+Expires: 2050-01-01T00:00:00.000Z
+Preferred-Languages: en
+Encryption: https://www.trivialsec.com/pgp-key.txt
+-----BEGIN PGP SIGNATURE-----
+
+iQHMBAEBCAA2FiEEwIAxk6f5iu90X4EhSeHKL7HjB9EFAmPx674YHHNlY3VyaXR5
+QHRyaXZpYWxzZWMuY29tAAoJEEnhyi+x4wfRGesL/RF7+j8d4oozkx9ji+CFfcyV
+kkZLR4kpDPeEu+EsNjuinoxMNDoHmJN/6nyZsxle52BwpPuzuPBJm/G5MJJCjoJU
+Gihc3q3Qwv8JgjcJs7HV/qZGi0LSKFgMup+Hm9PsZ0kQPuxQBeZYBKWoz9xBGD+Y
+Jp0QQoxGSwfmKy0kEJb6W8P+0Fg7aSNQfjh4uh9Qn3hJXIu+/tV/NcETfbsAQOZ6
+EbgHzuSM8nH6N4jWrNikKkcCj1R8Vac/APjJAkLQR8BkVrRZyZ7ih8fzVgbzWl0t
+R1UvyHMMfhFsADDj52QqxYMsW3/URjP9xCKHrzUOSMMwwl4m3brXCvmxI61jXcnv
+lXXJURCMg7D6MbS18MAeh53JiuKoiNAExcbO69j3A45IIc6RyyqZecaiONLq1Qyg
+woMrtIRH2spsbvSXdTO2NnH4vPnHWHMIb1BDr6e80iuiowQewSpCqxTt9ZZeda6x
+mZHxONgC6rjtUPPx9Zb9VtE/iEPlsh4gOuYP5+qwew==
+=EjYC
+-----END PGP SIGNATURE-----

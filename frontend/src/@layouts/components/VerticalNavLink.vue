@@ -17,7 +17,8 @@ const props = defineProps({
       :to="item.to"
       :href="item.href"
     >
-      <VIcon
+      <img :src="item.icon_url" v-if="item.icon_url" width="20" height="20" class="nav-item-icon" />
+      <VIcon v-else
         :icon="item.icon"
         class="nav-item-icon"
       />

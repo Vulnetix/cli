@@ -75,50 +75,43 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
       <VerticalNavLink
         :item="{
           title: 'Queue',
-          icon: 'bx-log-in',
-          to: '/',
+          icon: 'fluent-mdl2:new-analytics-query',
+          to: '/triage-queue',
         }"
       />
       <VerticalNavLink
         :item="{
           title: 'Overdue',
-          icon: 'bx-user-plus',
-          to: '/register',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'Compliance',
-          icon: 'bx-info-circle',
-          to: '/no-existence',
+          icon: 'carbon:incomplete-warning',
+          to: '/triage-overdue',
         }"
       />
 
-      <!-- 👉 Files -->
+      <!-- 👉 File Management -->
       <VerticalNavSectionTitle
         :item="{
-          heading: 'Files',
+          heading: 'Import / Export',
         }"
       />
       <VerticalNavLink
         :item="{
           title: 'SARIF',
-          icon: 'mdi-alpha-t-box-outline',
-          to: '/',
+          icon_url: '/sarif-logo.png',
+          to: '/sarif-manager',
         }"
       />
       <VerticalNavLink
         :item="{
           title: 'CycloneDX',
-          icon: 'mdi-alpha-t-box-outline',
-          to: '/',
+          icon_url: '/cyclonedx-logo.png',
+          to: '/cyclonedx-manager',
         }"
       />
       <VerticalNavLink
         :item="{
           title: 'VEX',
-          icon: 'mdi-alpha-t-box-outline',
-          to: '/',
+          icon_url: '/csaf-logo.png',
+          to: '/vex-manager',
         }"
       />
 
@@ -130,16 +123,16 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
       />
       <VerticalNavLink
         :item="{
-          title: 'Import History',
-          icon: 'mdi-alpha-t-box-outline',
-          to: '/',
+          title: 'Activity History',
+          icon: 'mdi-clipboard-text-history',
+          to: '/file-audit',
         }"
       />
       <VerticalNavLink
         :item="{
           title: 'User Log',
-          icon: 'mdi-alpha-t-box-outline',
-          to: '/',
+          icon: 'hugeicons:audit-01',
+          to: '/user-audit',
         }"
       />
 
@@ -158,16 +151,23 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
       <VerticalNavLink
         :item="{
           title: 'VulnCheck',
-          icon: 'mdi-alpha-t-box-outline',
-          to: '/',
+          icon_url: '/vulncheck-logo.png',
+          to: '/vulncheck-integration',
         }"
       />
       <!-- https://docs.mend.io/bundle/mend-api-2-0/page/index.html#tag/General-Info-Vulnerabilities --> 
       <VerticalNavLink
         :item="{
           title: 'Mend.io',
-          icon: 'mdi-alpha-t-box-outline',
-          to: '/',
+          icon_url: '/mend-io-logo.png',
+          to: '/mend-integration',
+        }"
+      />
+      <VerticalNavLink
+        :item="{
+          title: 'GitHub',
+          icon: 'mdi-github',
+          to: '/github-integration',
         }"
       />
     </template>
