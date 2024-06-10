@@ -1,7 +1,7 @@
 export const staticPrimaryColor = '#696CFF'
 
 const theme = {
-  defaultTheme: 'light',
+  defaultTheme: localStorage.getItem('default-theme') || 'dark',
   themes: {
     light: {
       dark: false,

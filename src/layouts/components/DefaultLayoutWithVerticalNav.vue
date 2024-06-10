@@ -125,12 +125,12 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
         :item="{
           title: 'Activity History',
           icon: 'mdi-clipboard-text-history',
-          to: '/file-audit',
+          to: '/activity-history',
         }"
       />
       <VerticalNavLink
         :item="{
-          title: 'User Log',
+          title: 'User Audit',
           icon: 'hugeicons:audit-01',
           to: '/user-audit',
         }"

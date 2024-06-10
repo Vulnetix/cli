@@ -1,0 +1,3224 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:6a4bf65c-ab48-41aa-8c7b-eadba7d557d8",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2024-06-10T05:13:47.552Z",
+    "lifecycles": [
+      {
+        "phase": "pre-build"
+      }
+    ],
+    "tools": [
+      {
+        "vendor": "npm",
+        "name": "cli",
+        "version": "10.7.0"
+      }
+    ],
+    "component": {
+      "bom-ref": "trivial-triage-frontend@0.1.0",
+      "type": "library",
+      "name": "trivial-triage",
+      "version": "0.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/trivial-triage-frontend@0.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": ""
+        },
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        }
+      ],
+      "externalReferences": []
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "@casl/ability@6.7.1",
+      "type": "library",
+      "name": "@casl/ability",
+      "version": "6.7.1",
+      "scope": "required",
+      "purl": "pkg:npm/%40casl/ability@6.7.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@casl/ability"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@casl/ability/-/ability-6.7.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "7be560ade85dd7f973392c12a8a1ed989ea4988b996c60653362c14b922e60618a9951ee854bb28775e04e7d55230f7e4cee20a94faea6dbf17c8441504749bb"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@casl/vue@2.2.2",
+      "type": "library",
+      "name": "@casl/vue",
+      "version": "2.2.2",
+      "scope": "required",
+      "purl": "pkg:npm/%40casl/vue@2.2.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@casl/vue"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@casl/vue/-/vue-2.2.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c56cb88b9fb7f96b818043557ac3da9514caa52259d9c10c5ed6ea8d68ea8fb143be87aca3b8d3d6905593dba32a52118607d558674245bed7cde2128b654b70"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@floating-ui/dom@1.2.8",
+      "type": "library",
+      "name": "@floating-ui/dom",
+      "version": "1.2.8",
+      "scope": "required",
+      "purl": "pkg:npm/%40floating-ui/dom@1.2.8",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@floating-ui/dom"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@floating-ui/dom/-/dom-1.2.8.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "5cbc21615f743318870eae92d2bcc5663d347e70ccf80d51f638528a866832c6bb1b44348be438c78d1a8d1f051d27580c4d5b8231b8e662167ba8edbfd50f9a"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@kurkle/color@0.3.2",
+      "type": "library",
+      "name": "@kurkle/color",
+      "version": "0.3.2",
+      "scope": "required",
+      "purl": "pkg:npm/%40kurkle/color@0.3.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@kurkle/color"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@kurkle/color/-/color-0.3.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "7eeb1c75727d1b5a9bed6f157478be23046a8a3de5064a2c026e32750b4499b639f0ecc75ea421be5c6a124a33d32b2c3559f7f1b729456800f4f3fe386a22b3"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@ucast/core@1.10.2",
+      "type": "library",
+      "name": "@ucast/core",
+      "version": "1.10.2",
+      "scope": "required",
+      "purl": "pkg:npm/%40ucast/core@1.10.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@ucast/core"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@ucast/core/-/core-1.10.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a27b390b05d9ff9d70ad43dfa1db82f9c3bb012d7fc116f4c9ba5027d46bb2ca2cb03c55cb8b78f50c56a1681f043bd52accfd557cc193dcf4c2a4dd67e0aaf2"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@ucast/js@3.0.4",
+      "type": "library",
+      "name": "@ucast/js",
+      "version": "3.0.4",
+      "scope": "required",
+      "purl": "pkg:npm/%40ucast/js@3.0.4",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@ucast/js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@ucast/js/-/js-3.0.4.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "4e01b568868231d71a132724399290a339f585acc4d30f74495765a4827f7abf3156e984d7581802d49bc3f2c17949c0e1f1671564dcc37b7aadeaac79e1ffe1"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@ucast/mongo@2.4.3",
+      "type": "library",
+      "name": "@ucast/mongo",
+      "version": "2.4.3",
+      "scope": "required",
+      "purl": "pkg:npm/%40ucast/mongo@2.4.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@ucast/mongo"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@ucast/mongo/-/mongo-2.4.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "5dc23c2dc96b1d63fcdc7fbb1f66a718211e0ead27fb5d85536997093cfafd3bdaf7ff5d74afe269cbef842c96e9c8a30003882e6b74b56a6547246157264bb0"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@ucast/mongo2js@1.3.4",
+      "type": "library",
+      "name": "@ucast/mongo2js",
+      "version": "1.3.4",
+      "scope": "required",
+      "purl": "pkg:npm/%40ucast/mongo2js@1.3.4",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@ucast/mongo2js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@ucast/mongo2js/-/mongo2js-1.3.4.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "6a16b33abd47b5e940e400b5299f71d14c0f32aaa29af7e6b529bf3d145278a29e1391b6482a9383088dcceee2f634bccc0dddcd7a4a54fa573247182e7c88b4"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@vue-macros/common@1.10.4",
+      "type": "library",
+      "name": "@vue-macros/common",
+      "version": "1.10.4",
+      "scope": "required",
+      "purl": "pkg:npm/%40vue-macros/common@1.10.4",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@vue-macros/common"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@vue-macros/common/-/common-1.10.4.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "6a43ba05de94e233f4f9929b1eaea66d8930d5ca0eac9a4b7959a4b8c954b13e706518b5d418dab867191eeb014b352380206c6b59194f28a9c6bc6b581e781f"
+        }
+      ]
+    },
+    {
+      "bom-ref": "local-pkg@0.5.0",
+      "type": "library",
+      "name": "local-pkg",
+      "version": "0.5.0",
+      "scope": "required",
+      "purl": "pkg:npm/local-pkg@0.5.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@vue-macros/common/node_modules/local-pkg"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/local-pkg/-/local-pkg-0.5.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a24eb3dea958c820d2e19114dbb1da53ac7fc596bd5a17fc8c3e29b47e5465341865561e6fd6e7677a2356188934b8972b51df73418d6cb5dc999e6994b0c306"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@vueuse/math@10.10.0",
+      "type": "library",
+      "name": "@vueuse/math",
+      "version": "10.10.0",
+      "scope": "required",
+      "purl": "pkg:npm/%40vueuse/math@10.10.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@vueuse/math"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@vueuse/math/-/math-10.10.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "fa3000ef095ae53e34d1570c2cb44c328cc09282ffdcb18913ca8da2d797d581ecbe90d2374511d039200a6bbd51a9212b7256a57e125115edc1df7cac3b4cc8"
+        }
+      ]
+    },
+    {
+      "bom-ref": "vue-demi@0.14.8",
+      "type": "library",
+      "name": "vue-demi",
+      "version": "0.14.8",
+      "scope": "required",
+      "purl": "pkg:npm/vue-demi@0.14.8",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@vueuse/math/node_modules/vue-demi"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/vue-demi/-/vue-demi-0.14.8.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "52eaa793d604f52b16791798a8ad9a943239633722013134af64a403a88c02db97bcd4cc3400892c9117357684cbde040ae05ee1293a473454f3492375b228d5"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@yr/monotone-cubic-spline@1.0.3",
+      "type": "library",
+      "name": "@yr/monotone-cubic-spline",
+      "version": "1.0.3",
+      "scope": "required",
+      "purl": "pkg:npm/%40yr/monotone-cubic-spline@1.0.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@yr/monotone-cubic-spline"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@yr/monotone-cubic-spline/-/monotone-cubic-spline-1.0.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "1505e43ad6b45c14943c79dd20a38dd98f49790cf965e32a2d865554af7716588d0459bb2cd30866663a16b30407d5cf7036c4d9b7a431b643ea4cc3931c188c"
+        }
+      ]
+    },
+    {
+      "bom-ref": "apexcharts@3.49.1",
+      "type": "library",
+      "name": "apexcharts",
+      "version": "3.49.1",
+      "scope": "required",
+      "purl": "pkg:npm/apexcharts@3.49.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/apexcharts"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/apexcharts/-/apexcharts-3.49.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "32a1ad96afca42e3bc8f4041b142589511bc54172d2b061dc2e06d6a31e01d399281453739a8bef2860dfeb2825f05f3ad495803e1a2320a2d0086d76360421b"
+        }
+      ]
+    },
+    {
+      "bom-ref": "apexcharts-clevision@3.28.5",
+      "type": "library",
+      "name": "apexcharts-clevision",
+      "version": "3.28.5",
+      "scope": "required",
+      "purl": "pkg:npm/apexcharts-clevision@3.28.5",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/apexcharts-clevision"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/apexcharts-clevision/-/apexcharts-clevision-3.28.5.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "15ac6f9a9086c54caeb141b34b5880b77c8bd34506e41bacef77e11219cad50b87f9ec69cf3e777f8949171c0fd64637d6fa51f564f3671e76099cc3124e143a"
+        }
+      ]
+    },
+    {
+      "bom-ref": "ast-kit@0.12.2",
+      "type": "library",
+      "name": "ast-kit",
+      "version": "0.12.2",
+      "scope": "required",
+      "purl": "pkg:npm/ast-kit@0.12.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ast-kit"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/ast-kit/-/ast-kit-0.12.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "7acd731c5b2767863879fcf8d769e7ad4dcabd502182acbdd1aed8b7d5a98b9bd0de5e1a60c397d10c78143d1e94aaf92131218941824857201987f8613b800a"
+        }
+      ]
+    },
+    {
+      "bom-ref": "ast-walker-scope@0.6.1",
+      "type": "library",
+      "name": "ast-walker-scope",
+      "version": "0.6.1",
+      "scope": "required",
+      "purl": "pkg:npm/ast-walker-scope@0.6.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ast-walker-scope"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/ast-walker-scope/-/ast-walker-scope-0.6.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "d1975012c49f1f7997e0115b442737c4e063c796c36e6ef7f9a01d40e1deacf40d7fc2b45c5300bfbf6e71dd81a6749ce14332bc10e2c62ae84fcca39b663a6f"
+        }
+      ]
+    },
+    {
+      "bom-ref": "axios@1.7.2",
+      "type": "library",
+      "name": "axios",
+      "version": "1.7.2",
+      "scope": "required",
+      "purl": "pkg:npm/axios@1.7.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/axios"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/axios/-/axios-1.7.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "d80f1084e32b6e89a50ee88b78af5789b201cee1de45caaa34e1e9d02ca9e44a09d4814387e5d91f703a0645edbf42b880518223463804cec1d703848b446683"
+        }
+      ]
+    },
+    {
+      "bom-ref": "axios-mock-adapter@1.22.0",
+      "type": "library",
+      "name": "axios-mock-adapter",
+      "version": "1.22.0",
+      "scope": "required",
+      "purl": "pkg:npm/axios-mock-adapter@1.22.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/axios-mock-adapter"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/axios-mock-adapter/-/axios-mock-adapter-1.22.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "76623429b9320219ed511d39618f7aaa0d87ea08345cc976faa4d6d3199883a529f811410096112d138c5d174310bd3afd6ab06b44c94e1018bc5b5215d44267"
+        }
+      ]
+    },
+    {
+      "bom-ref": "caniuse-api@3.0.0",
+      "type": "library",
+      "name": "caniuse-api",
+      "version": "3.0.0",
+      "scope": "required",
+      "purl": "pkg:npm/caniuse-api@3.0.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/caniuse-api"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/caniuse-api/-/caniuse-api-3.0.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "6ec4f0b8883f05964afefade5536186d25a87b617eef53fb2b9406117fa94f6e740d96df535310e69ace2a93d1f8b2fab9628adca330302012ef8401dd49b5bb"
+        }
+      ]
+    },
+    {
+      "bom-ref": "chart.js@4.4.3",
+      "type": "library",
+      "name": "chart.js",
+      "version": "4.4.3",
+      "scope": "required",
+      "purl": "pkg:npm/chart.js@4.4.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/chart.js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/chart.js/-/chart.js-4.4.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a8ad6090649161c273aabaf3751e9af88d2f438fd1f92a0e0d7c808ec710ff89b3b8dcf249a30277e8725718ad498d7e2f67e33c3d466e7fa26cda919b041e2f"
+        }
+      ]
+    },
+    {
+      "bom-ref": "css-declaration-sorter@6.4.1",
+      "type": "library",
+      "name": "css-declaration-sorter",
+      "version": "6.4.1",
+      "scope": "required",
+      "purl": "pkg:npm/css-declaration-sorter@6.4.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/css-declaration-sorter"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/css-declaration-sorter/-/css-declaration-sorter-6.4.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "aed76d873c4abb2aba233a97ea311c233405fd8a9c725b9e7f209885ea2f04e2e1153fddad003dce3fd46d101af49ec2d28e841babb713a83ebca91acbbfe4de"
+        }
+      ]
+    },
+    {
+      "bom-ref": "cssnano@5.1.15",
+      "type": "library",
+      "name": "cssnano",
+      "version": "5.1.15",
+      "scope": "required",
+      "purl": "pkg:npm/cssnano@5.1.15",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/cssnano"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/cssnano/-/cssnano-5.1.15.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "8fe04a80370b0d003e78389f2f1d043b85d2039e9beeebaddc14051fec1b49a493b862ee8b24daff06d162d8545d7f0b0bd98b83e59629ef21faa26ec1301b1f"
+        }
+      ]
+    },
+    {
+      "bom-ref": "cssnano-preset-default@5.2.14",
+      "type": "library",
+      "name": "cssnano-preset-default",
+      "version": "5.2.14",
+      "scope": "required",
+      "purl": "pkg:npm/cssnano-preset-default@5.2.14",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/cssnano-preset-default"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/cssnano-preset-default/-/cssnano-preset-default-5.2.14.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "b744857ac8ff655d8e4f296a4153ab160121e6e6a7c5b3ba64075e0ab36c510e9f56e5f0613c493cd006bc64f11db0faf2574824d79cecfc9864306b7c343ee8"
+        }
+      ]
+    },
+    {
+      "bom-ref": "cssnano-utils@3.1.0",
+      "type": "library",
+      "name": "cssnano-utils",
+      "version": "3.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/cssnano-utils@3.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/cssnano-utils"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/cssnano-utils/-/cssnano-utils-3.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "250351d7dfd8661cf8a6c2d7feb43d33cddedf3d967ff1dd25baf2ced7b86b7352b9a7f2a7dc3f23853e871e42d92f60e35aa5b2d1fb0c45a765a6a3f373ae10"
+        }
+      ]
+    },
+    {
+      "bom-ref": "eslint-import-resolver-alias@1.1.2",
+      "type": "library",
+      "name": "eslint-import-resolver-alias",
+      "version": "1.1.2",
+      "scope": "required",
+      "purl": "pkg:npm/eslint-import-resolver-alias@1.1.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/eslint-import-resolver-alias"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/eslint-import-resolver-alias/-/eslint-import-resolver-alias-1.1.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "59dbe233512ef37e33b1f8c7b5c187b467dcbbe177d0e77757b23d162e7bba1044c0f9230dc8a2effc96f23013fa03a19f83ffbcec713405db1402acaeb735e7"
+        }
+      ]
+    },
+    {
+      "bom-ref": "flatpickr@4.6.13",
+      "type": "library",
+      "name": "flatpickr",
+      "version": "4.6.13",
+      "scope": "required",
+      "purl": "pkg:npm/flatpickr@4.6.13",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/flatpickr"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/flatpickr/-/flatpickr-4.6.13.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f7b3cc1bf6b2c2862907822f6ef5098b44508bcbde6abbd4d28a2fd565b79345993c132b4d056a7a4497e428d21bf3384378ba03fd052970bb4720280145123f"
+        }
+      ]
+    },
+    {
+      "bom-ref": "follow-redirects@1.15.6",
+      "type": "library",
+      "name": "follow-redirects",
+      "version": "1.15.6",
+      "scope": "required",
+      "purl": "pkg:npm/follow-redirects@1.15.6",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/follow-redirects"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.6.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c1637ad9821311a3a948ae7ce0465725a7c7d401a93bc45580495f92e5db4ceacf5f87c87cec84a56fc2b2235df09758ac0a0ebda7d14ce127bec3befaa0aa14"
+        }
+      ]
+    },
+    {
+      "bom-ref": "is-buffer@2.0.5",
+      "type": "library",
+      "name": "is-buffer",
+      "version": "2.0.5",
+      "scope": "required",
+      "purl": "pkg:npm/is-buffer@2.0.5",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/is-buffer"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/is-buffer/-/is-buffer-2.0.5.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "8b647accd143c20107272414b49124d17162d62d1d3c59ffa2a8cadffbcf09c0de26f5b9350f3757c41b89c7c5d52ba939a07487c9ed8010b662213b75fc9cb5"
+        }
+      ]
+    },
+    {
+      "bom-ref": "jwt-decode@3.1.2",
+      "type": "library",
+      "name": "jwt-decode",
+      "version": "3.1.2",
+      "scope": "required",
+      "purl": "pkg:npm/jwt-decode@3.1.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/jwt-decode"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/jwt-decode/-/jwt-decode-3.1.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "51fa5613f5599f488fe7477c733f4dad92ccf6549685c27ed06b7f9e6e1bcbcf142fe2754a228df3fe5d9233266c4cf02f60807beebb1ac7a009b20ab5ba7be4"
+        }
+      ]
+    },
+    {
+      "bom-ref": "lilconfig@2.1.0",
+      "type": "library",
+      "name": "lilconfig",
+      "version": "2.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/lilconfig@2.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/lilconfig"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/lilconfig/-/lilconfig-2.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "bad58eb7f187cee5319cb2b107a764f3546839ea0d78781bad78ae1a4e32c85e6a951cfe888556bb9e84d9fa861c5ad7cf440d5212c1ffc9caaaf447eba24a19"
+        }
+      ]
+    },
+    {
+      "bom-ref": "lodash.memoize@4.1.2",
+      "type": "library",
+      "name": "lodash.memoize",
+      "version": "4.1.2",
+      "scope": "required",
+      "purl": "pkg:npm/lodash.memoize@4.1.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/lodash.memoize"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/lodash.memoize/-/lodash.memoize-4.1.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "b7b8fe3739a09d0cd30185dcb0760b8229a5b4e5753171ed94e59fe868cbf4a8fc18ae45227c39268b71bdb3acf88bd5d7f0f3a34e3f7c219f2d5b3b6976f802"
+        }
+      ]
+    },
+    {
+      "bom-ref": "lodash.uniq@4.5.0",
+      "type": "library",
+      "name": "lodash.uniq",
+      "version": "4.5.0",
+      "scope": "required",
+      "purl": "pkg:npm/lodash.uniq@4.5.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/lodash.uniq"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/lodash.uniq/-/lodash.uniq-4.5.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c5f05a5d077daf277d765483be7bc8d25bf17cb2656006735e89946332cab5478e42f38fe698aa016b86b6b8567aa6972bd861a0cfe2c89739015f977ec5f71d"
+        }
+      ]
+    },
+    {
+      "bom-ref": "magic-string-ast@0.6.1",
+      "type": "library",
+      "name": "magic-string-ast",
+      "version": "0.6.1",
+      "scope": "required",
+      "purl": "pkg:npm/magic-string-ast@0.6.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/magic-string-ast"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/magic-string-ast/-/magic-string-ast-0.6.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "79ccca4140da06907f99c12a6593461141b515036c5c2ba4dee3ab0a9bbacbba93ca0232ea39e9a836bada3f4c18a4a8aa55e1335942150bf54c7b860d0b6f50"
+        }
+      ]
+    },
+    {
+      "bom-ref": "normalize-url@6.1.0",
+      "type": "library",
+      "name": "normalize-url",
+      "version": "6.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/normalize-url@6.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/normalize-url"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/normalize-url/-/normalize-url-6.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "0e52fe5f03b2dcdc4043cc6e0b4a243e02b8ea2b953402b4d5837b46e79806aa85786b018d5f5798203301d82dfbaebb6c297990f87d12a28a0f09da3c6d48ec"
+        }
+      ]
+    },
+    {
+      "bom-ref": "perfect-scrollbar@1.5.5",
+      "type": "library",
+      "name": "perfect-scrollbar",
+      "version": "1.5.5",
+      "scope": "required",
+      "purl": "pkg:npm/perfect-scrollbar@1.5.5",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/perfect-scrollbar"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/perfect-scrollbar/-/perfect-scrollbar-1.5.5.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "7736a57eeb723f77bf14ea5d96156bc8de002795c355ab955b1c9b4a42d999a905136b12df2de97382674a9af0f2d1a61ef91a1b911daf94fb2c14d9f96594da"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pify@2.3.0",
+      "type": "library",
+      "name": "pify",
+      "version": "2.3.0",
+      "scope": "required",
+      "purl": "pkg:npm/pify@2.3.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/pify"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pify/-/pify-2.3.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "b9d82c018f9f4e7befee423b69ac5bab058d6f4007881d2a04ef3d3d928f9284e618e81d6eb1c3283fb40765f8b937c9fc54f5474f6bf604ec8d48cd268b6ea2"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pinia@2.1.7",
+      "type": "library",
+      "name": "pinia",
+      "version": "2.1.7",
+      "scope": "required",
+      "purl": "pkg:npm/pinia@2.1.7",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/pinia"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/pinia/-/pinia-2.1.7.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f82d801c5b5c16a8cf8a1d33a58bafa1fdfb485c4c43b3841b6cd5f63448d768bd04ecb76105401f074ab72c9cf290dc0f221cdf758222c65a085594ed65b119"
+        }
+      ]
+    },
+    {
+      "bom-ref": "vue-demi@0.14.8",
+      "type": "library",
+      "name": "vue-demi",
+      "version": "0.14.8",
+      "scope": "required",
+      "purl": "pkg:npm/vue-demi@0.14.8",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/pinia/node_modules/vue-demi"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/vue-demi/-/vue-demi-0.14.8.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "52eaa793d604f52b16791798a8ad9a943239633722013134af64a403a88c02db97bcd4cc3400892c9117357684cbde040ae05ee1293a473454f3492375b228d5"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-calc@8.2.4",
+      "type": "library",
+      "name": "postcss-calc",
+      "version": "8.2.4",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-calc@8.2.4",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-calc"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-calc/-/postcss-calc-8.2.4.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "4a658c489981f0c4679d42e5771d25408ca148dbee0e5f477eb6646aaa84fd61c0853a18b00bc3abec80b00fe423220d0ecccea77461d0616836e1f9629b26dd"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-colormin@5.3.1",
+      "type": "library",
+      "name": "postcss-colormin",
+      "version": "5.3.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-colormin@5.3.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-colormin"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-colormin/-/postcss-colormin-5.3.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "52c5901b402a4c5426a417a078b2dcd7e7378c8a81341d33943191591f9d437a512892f5a1e333caa987de8d8f21f9fd30174dad53d68436d3efaf4bc424cb25"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-convert-values@5.1.3",
+      "type": "library",
+      "name": "postcss-convert-values",
+      "version": "5.1.3",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-convert-values@5.1.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-convert-values"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-convert-values/-/postcss-convert-values-5.1.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f36a42d7190966d70911f88bc3a5179d755749c82d06b8e53b90819ae0d073e7656fcf19621785b234e7e34fb30558b70e47c5ee27b33b49c950f2dc24ade9bc"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-discard-comments@5.1.2",
+      "type": "library",
+      "name": "postcss-discard-comments",
+      "version": "5.1.2",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-discard-comments@5.1.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-discard-comments"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-discard-comments/-/postcss-discard-comments-5.1.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f8bf36d3c3956c7545d9441fd620e645c6dd8c992e045e884b6f720434a2594233a5868086d365e89627626d7616791e0b042a1792de9253aeeab02a81f059a9"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-discard-duplicates@5.1.0",
+      "type": "library",
+      "name": "postcss-discard-duplicates",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-discard-duplicates@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-discard-duplicates"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-discard-duplicates/-/postcss-discard-duplicates-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "ce65f7228488d9aa1e9f11d5e82ee9967807596854395dec3f54fccb689fcf1cdbb67ba193511d3f09b44b56c850d689d9e35b59e18b130cf0f21b8f0faeda43"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-discard-empty@5.1.1",
+      "type": "library",
+      "name": "postcss-discard-empty",
+      "version": "5.1.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-discard-empty@5.1.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-discard-empty"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-discard-empty/-/postcss-discard-empty-5.1.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "ccfcf85a58e24ae2d6b08d22af831c9ebe2a410e5ed5491cde2ed47c4d9772bc0a2b62c83c8a84e63c4c4713ba19b23772ffffced5c3b17c04593dc11ce1a1dc"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-discard-overridden@5.1.0",
+      "type": "library",
+      "name": "postcss-discard-overridden",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-discard-overridden@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-discard-overridden"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-discard-overridden/-/postcss-discard-overridden-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "db59ce2fb46a591d646ac21574ab3c1cda902611712ecc917c09d40e6e057b8b7898258bf4e2621ef9473e371df33739332bbcf5bffbc190e73928c581e591b7"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-import@12.0.1",
+      "type": "library",
+      "name": "postcss-import",
+      "version": "12.0.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-import@12.0.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-import"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-import/-/postcss-import-12.0.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "dc6b62df77660a3c8a0608a6a86c4bdef715f30f7e6ec1f03b952b05ac29efdebe8dd6ab75b70597844fe70ffbe81c0d2fb686ce92acb487c5f48fa4744f294f"
+        }
+      ]
+    },
+    {
+      "bom-ref": "picocolors@0.2.1",
+      "type": "library",
+      "name": "picocolors",
+      "version": "0.2.1",
+      "scope": "required",
+      "purl": "pkg:npm/picocolors@0.2.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-import/node_modules/picocolors"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/picocolors/-/picocolors-0.2.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "70c943a9a2c4a9f49a5bc67b379270fa5c885bcebd1334fbdff179961b58f5c2c6a15c525f39df81f5cc3b46792b4a344364e44d7abed0a16c76749ede30d588"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss@7.0.39",
+      "type": "library",
+      "name": "postcss",
+      "version": "7.0.39",
+      "scope": "required",
+      "purl": "pkg:npm/postcss@7.0.39",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-import/node_modules/postcss"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss/-/postcss-7.0.39.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "ca2a1aca335b1e7eb3d7f072c326f6638b37caf0c079718ecb1a83f8b9d53a29eae8c76677ef925b6c14355cdabf2c87c5debe0f1cd6188ba8b20e8fd518fcb8"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-value-parser@3.3.1",
+      "type": "library",
+      "name": "postcss-value-parser",
+      "version": "3.3.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-value-parser@3.3.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-import/node_modules/postcss-value-parser"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-value-parser/-/postcss-value-parser-3.3.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a48484eba01b564a787c343b54707044d5f30002898f0e15c3b9d623ff90defba5cbb48d7e0617be6ea2e48805ca51c62b9b0fff11c06c1ecde3d392e2058dc9"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-merge-longhand@5.1.7",
+      "type": "library",
+      "name": "postcss-merge-longhand",
+      "version": "5.1.7",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-merge-longhand@5.1.7",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-merge-longhand"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-merge-longhand/-/postcss-merge-longhand-5.1.7.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "60223d81907e3cb36c92b2b4041dffd8eccf9c684f9011309b085f624d629411d8540641effb644c71410270abbc104e99e632318c370cc8d3e794b2c4c0738d"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-merge-rules@5.1.4",
+      "type": "library",
+      "name": "postcss-merge-rules",
+      "version": "5.1.4",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-merge-rules@5.1.4",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-merge-rules"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-merge-rules/-/postcss-merge-rules-5.1.4.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "d11d88b98a6053ddf2f658556cefceca54ed28c55c1dbebbce35887c288a47dad62f7194935ebbecb02a0ff05c1e2cee91d6448d3f11bb7a07468018a09cb8e2"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-minify-font-values@5.1.0",
+      "type": "library",
+      "name": "postcss-minify-font-values",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-minify-font-values@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-minify-font-values"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-minify-font-values/-/postcss-minify-font-values-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "7a5de6613831d776403cf8ab495b07a85ce5f810410eb5ef6f24af3c616741c4c8e2236c96b3da16ae26b9390b6662a51a4e20c85018501307df4f87bab444c8"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-minify-gradients@5.1.1",
+      "type": "library",
+      "name": "postcss-minify-gradients",
+      "version": "5.1.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-minify-gradients@5.1.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-minify-gradients"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-minify-gradients/-/postcss-minify-gradients-5.1.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "546bd7313a42128e2a1d33526bd0346b70fe77118564263047a268924fbfde807a7e5bb6fcf9cf5c0876c7bc79d84918e719481cb9be2def2d2717bfed3361cf"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-minify-params@5.1.4",
+      "type": "library",
+      "name": "postcss-minify-params",
+      "version": "5.1.4",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-minify-params@5.1.4",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-minify-params"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-minify-params/-/postcss-minify-params-5.1.4.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "fa678f037320766566bfa83edf4ae7e7b5128ce192032bb152691f896a736a567c6a206474f6235d6b47bb02469b5bf93a3cb46742da49884768b2500743fc27"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-minify-selectors@5.2.1",
+      "type": "library",
+      "name": "postcss-minify-selectors",
+      "version": "5.2.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-minify-selectors@5.2.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-minify-selectors"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-minify-selectors/-/postcss-minify-selectors-5.2.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "9cf26eece8d9253b155263dd9b64dc6a2a21230c4ffaff216bd35e850db27bdb33bf8a2b8ab454dd20ddb5498a1fed749f39f46c0c8e5d9d1412becea6f2de86"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-normalize-charset@5.1.0",
+      "type": "library",
+      "name": "postcss-normalize-charset",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-normalize-charset@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-normalize-charset"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-normalize-charset/-/postcss-normalize-charset-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "99281427ea5dfe5751195c76ea9db0cfd74d67b8e2e8f9fc55605a8cc5c57fc8e4eef5284ab67696dff0651ec3b6565829eb26648ebcd2a8ebd827851767db52"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-normalize-display-values@5.1.0",
+      "type": "library",
+      "name": "postcss-normalize-display-values",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-normalize-display-values@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-normalize-display-values"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-normalize-display-values/-/postcss-normalize-display-values-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "58fe0a20ce28d9d6b34175a615aa8c99cbec2a685d20d15b96049e4609fc049eafc5a332689930033a4fa6ebd22281bfae65f733e22b459133d87d2096b40d10"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-normalize-positions@5.1.1",
+      "type": "library",
+      "name": "postcss-normalize-positions",
+      "version": "5.1.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-normalize-positions@5.1.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-normalize-positions"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-normalize-positions/-/postcss-normalize-positions-5.1.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e94a426f41b87a87d30902c556e237115359cc134f88829c03500a5646bedf57d35724a986bdd552000850b061c5990a8302c89a1ccc476070d4e44afb7ec836"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-normalize-repeat-style@5.1.1",
+      "type": "library",
+      "name": "postcss-normalize-repeat-style",
+      "version": "5.1.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-normalize-repeat-style@5.1.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-normalize-repeat-style"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-normalize-repeat-style/-/postcss-normalize-repeat-style-5.1.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "985a4bb29196910b4171621114b99ec28f1a0b72263768bf277bfc602154c039cfbb75f3e2b2e88433b6ea51a3c0db10c41dd817428a470b291b3136244b92d2"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-normalize-string@5.1.0",
+      "type": "library",
+      "name": "postcss-normalize-string",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-normalize-string@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-normalize-string"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-normalize-string/-/postcss-normalize-string-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a1888824e7f84fd4f53788be69b78873b5609bfc4f0868a1e1b673e4d9b4fc045527b2bac6b0e52f0bf0a8ec9dbf22f744735ff2a664eafa3769ab62c3f828df"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-normalize-timing-functions@5.1.0",
+      "type": "library",
+      "name": "postcss-normalize-timing-functions",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-normalize-timing-functions@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-normalize-timing-functions"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-normalize-timing-functions/-/postcss-normalize-timing-functions-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "0ce124cc9e12017bf9c641e5d166bd7192c5dd6081845de8d52295c4a4006bed2960a96e793a4282f9050077e4f98eb87b35fdfa72131ab0d97951a02132578e"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-normalize-unicode@5.1.1",
+      "type": "library",
+      "name": "postcss-normalize-unicode",
+      "version": "5.1.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-normalize-unicode@5.1.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-normalize-unicode"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-normalize-unicode/-/postcss-normalize-unicode-5.1.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "aa708be63ce435498a56166810da7598988634f72c242b3569a46651199e246112db767f6a36a59fe10f4c3fab05e3644abc88fb6593756fa5c1c55d3a292ba4"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-normalize-url@5.1.0",
+      "type": "library",
+      "name": "postcss-normalize-url",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-normalize-url@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-normalize-url"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-normalize-url/-/postcss-normalize-url-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e6ea467833be3d5b613b14a676ce3765e31e65f287fbf0ca806443ed3125924c92e3a25701484ccc82a209aec169b3de232dc041c4e45f055537b0dbaac8827b"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-normalize-whitespace@5.1.1",
+      "type": "library",
+      "name": "postcss-normalize-whitespace",
+      "version": "5.1.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-normalize-whitespace@5.1.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-normalize-whitespace"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-normalize-whitespace/-/postcss-normalize-whitespace-5.1.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f37649e2ddcd5031132074dadee120e9ab168d20582f911d915074b039dcc7d111cce2815492147833bd47203d670b6283c125d5defd1c1a742448bcc2f1909c"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-ordered-values@5.1.3",
+      "type": "library",
+      "name": "postcss-ordered-values",
+      "version": "5.1.3",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-ordered-values@5.1.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-ordered-values"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-ordered-values/-/postcss-ordered-values-5.1.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f543bbf555213f0124cdb6f744da6aaa085cea57187a3d5abde42d79663ee0f388c25aa4604db51ca59a2c317a95636ea82a1b100c93a2f561b48df645bbf645"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-reduce-initial@5.1.2",
+      "type": "library",
+      "name": "postcss-reduce-initial",
+      "version": "5.1.2",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-reduce-initial@5.1.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-reduce-initial"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-reduce-initial/-/postcss-reduce-initial-5.1.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "744ff2d9745aa808ba3af8f30f6da98d3510f1e39f73a9bf9dab461e028504af43c459889baf5899a45542b1a016511f7351de3c8bab6344e60de44e2b4e6b22"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-reduce-transforms@5.1.0",
+      "type": "library",
+      "name": "postcss-reduce-transforms",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-reduce-transforms@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-reduce-transforms"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-reduce-transforms/-/postcss-reduce-transforms-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "d9f6dd6e6822af902fa56f512ed74e371d50a181b6fc4b6aa4d41b140483962c416c062e4dc2747440b096a36a1fb55b6949c49e1f12af139edac4489f6e17c9"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-svgo@5.1.0",
+      "type": "library",
+      "name": "postcss-svgo",
+      "version": "5.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-svgo@5.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-svgo/-/postcss-svgo-5.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "0fbe4ab07d739b966b1f2c4f6a4031256b64c977b0e6ac12ef4bf9e9ec70bf0e78d9df4246d4e8efc2b459e171641e06ec95ca28c6c466d65ac9319d224cbf78"
+        }
+      ]
+    },
+    {
+      "bom-ref": "css-select@4.3.0",
+      "type": "library",
+      "name": "css-select",
+      "version": "4.3.0",
+      "scope": "required",
+      "purl": "pkg:npm/css-select@4.3.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo/node_modules/css-select"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/css-select/-/css-select-4.3.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c0fa4e62d9ec5689edbb698e0e1035f49aea5b136c7dd6ad44a77ae249a945b4208752ad22d928e6c4e71293dda52689b334ce84432517f44fcf6f2a8f81ea85"
+        }
+      ]
+    },
+    {
+      "bom-ref": "css-tree@1.1.3",
+      "type": "library",
+      "name": "css-tree",
+      "version": "1.1.3",
+      "scope": "required",
+      "purl": "pkg:npm/css-tree@1.1.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo/node_modules/css-tree"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/css-tree/-/css-tree-1.1.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "b51a5da6917b4d16b366b8c9eafdecb73bfddeac51712b05996e9c5f4666d8d54aa71135595d476e59e0855bfd4eb7a2ade1e4a88fd50c4b1fa25445d69eb2ed"
+        }
+      ]
+    },
+    {
+      "bom-ref": "csso@4.2.0",
+      "type": "library",
+      "name": "csso",
+      "version": "4.2.0",
+      "scope": "required",
+      "purl": "pkg:npm/csso@4.2.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo/node_modules/csso"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/csso/-/csso-4.2.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c2f95c7486dfea9c0a124eef1e3f3f064734078ca55d9aee2ef3a0b3d7684b978eb0ea6ea1d395db3242852a64a7ea51a5840b40c785d389ebdd9ebc4ad6bd8c"
+        }
+      ]
+    },
+    {
+      "bom-ref": "dom-serializer@1.4.1",
+      "type": "library",
+      "name": "dom-serializer",
+      "version": "1.4.1",
+      "scope": "required",
+      "purl": "pkg:npm/dom-serializer@1.4.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo/node_modules/dom-serializer"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/dom-serializer/-/dom-serializer-1.4.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "547c01dca7eb70e3a47a5106d9939fc6a2d975f92297c3ed262e0ff0dd8c317b9c66adb22e9ef90a5562525395c32a071038d8538df702afb9cd63fad7e4466a"
+        }
+      ]
+    },
+    {
+      "bom-ref": "domhandler@4.3.1",
+      "type": "library",
+      "name": "domhandler",
+      "version": "4.3.1",
+      "scope": "required",
+      "purl": "pkg:npm/domhandler@4.3.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo/node_modules/domhandler"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/domhandler/-/domhandler-4.3.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "1abc28c5837eb969733bcba1517465d0ffa41c4e06b553df63354b714c4f2fb28d7472a3ebabef9618b07881ea6185d6970f93f222cca78d8b9baee0870e1631"
+        }
+      ]
+    },
+    {
+      "bom-ref": "domutils@2.8.0",
+      "type": "library",
+      "name": "domutils",
+      "version": "2.8.0",
+      "scope": "required",
+      "purl": "pkg:npm/domutils@2.8.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo/node_modules/domutils"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/domutils/-/domutils-2.8.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c3de828e87e9ef63392088698e0a1b06299811fa0f8f1d55c740525fd3f7d1605d656d9620a5344f505dd24cf678d67d8a48ca8076c4c8ac7c041e87d4bde1dc"
+        }
+      ]
+    },
+    {
+      "bom-ref": "entities@2.2.0",
+      "type": "library",
+      "name": "entities",
+      "version": "2.2.0",
+      "scope": "required",
+      "purl": "pkg:npm/entities@2.2.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo/node_modules/entities"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/entities/-/entities-2.2.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "a7dda27f9373eb5f48d30f9a909acb647d0c5f43dbe435f7f573b0413b5749d41039a607d374b5b88429e2684e66d017af1ab85623baed84e22c1a36eb7f28f4"
+        }
+      ]
+    },
+    {
+      "bom-ref": "mdn-data@2.0.14",
+      "type": "library",
+      "name": "mdn-data",
+      "version": "2.0.14",
+      "scope": "required",
+      "purl": "pkg:npm/mdn-data@2.0.14",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo/node_modules/mdn-data"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/mdn-data/-/mdn-data-2.0.14.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "767eb0774bb0e46b1db303c57ec80ca79352074fda0dee9f2bde18255fc02436172fa1d52d606cc5eabb8ecec077e994d8af4b025c2993a90dd83e66c023d5a3"
+        }
+      ]
+    },
+    {
+      "bom-ref": "svgo@2.8.0",
+      "type": "library",
+      "name": "svgo",
+      "version": "2.8.0",
+      "scope": "required",
+      "purl": "pkg:npm/svgo@2.8.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-svgo/node_modules/svgo"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/svgo/-/svgo-2.8.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f8dfd0f64575f85f947966284a250b628e316120d095381bf9ac8ca1b0173f03272efa29ee8c4a328f4ecc8ad7e71dde4b82f87f650785cf5ac57c18f03a4286"
+        }
+      ]
+    },
+    {
+      "bom-ref": "postcss-unique-selectors@5.1.1",
+      "type": "library",
+      "name": "postcss-unique-selectors",
+      "version": "5.1.1",
+      "scope": "required",
+      "purl": "pkg:npm/postcss-unique-selectors@5.1.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/postcss-unique-selectors"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/postcss-unique-selectors/-/postcss-unique-selectors-5.1.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e4988e0e510baf3f0bd87c317cf9e1396658583c551d62fcdee7cebfce0dadc822a48ed369e46c6ad0212b84ebdbf6626257692bfc01bf0e410f7a9f68af7a18"
+        }
+      ]
+    },
+    {
+      "bom-ref": "prismjs@1.29.0",
+      "type": "library",
+      "name": "prismjs",
+      "version": "1.29.0",
+      "scope": "required",
+      "purl": "pkg:npm/prismjs@1.29.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/prismjs"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/prismjs/-/prismjs-1.29.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "2b1ff5c3ceaafdea4a726b5eef92cdac4a13fa55fca41a5abee01bbc95915daafb1f3f23aed17e7b7bd8ef9d69d11f07f47740af06824cd0c3cc783f49c24ad5"
+        }
+      ]
+    },
+    {
+      "bom-ref": "proxy-from-env@1.1.0",
+      "type": "library",
+      "name": "proxy-from-env",
+      "version": "1.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/proxy-from-env@1.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/proxy-from-env"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/proxy-from-env/-/proxy-from-env-1.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "0fece439109b03d7f5b5d5912b445a091dc63efe7470cc5caf3e17f24e4b4d2503d43930e3b98a24465036e9c8b514e45b082d6944a8d515454481bd65788562"
+        }
+      ]
+    },
+    {
+      "bom-ref": "read-cache@1.0.0",
+      "type": "library",
+      "name": "read-cache",
+      "version": "1.0.0",
+      "scope": "required",
+      "purl": "pkg:npm/read-cache@1.0.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/read-cache"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/read-cache/-/read-cache-1.0.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "3b076ffc5b7b2233a09bf8b4c6f3436752eb4403517dec386f6a6b1773963102f12dfbb76d2f055610acad208c2b8951e7a63dc9af804e1a13a43093c429a944"
+        }
+      ]
+    },
+    {
+      "bom-ref": "roboto-fontface@0.10.0",
+      "type": "library",
+      "name": "roboto-fontface",
+      "version": "0.10.0",
+      "scope": "required",
+      "purl": "pkg:npm/roboto-fontface@0.10.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/roboto-fontface"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/roboto-fontface/-/roboto-fontface-0.10.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "3a5c1f604800d9175ba19a21a65765bc9d719e03a29ece5dede8ea9c8056afd29a331b2706aa2da69b515d3c9f3512e7169ab35fab130edf97f9afbab9d9d4f2"
+        }
+      ]
+    },
+    {
+      "bom-ref": "stable@0.1.8",
+      "type": "library",
+      "name": "stable",
+      "version": "0.1.8",
+      "scope": "required",
+      "purl": "pkg:npm/stable@0.1.8",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/stable"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/stable/-/stable-0.1.8.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "8e2f6ac519ce55f72e2c3c928fdab3846484155a1bcadd6420e4a48f5a99cd82f3abb4e8b3fa14516be8b543d02e5aec89daac2bab411fcf4173d90be731c0eb"
+        }
+      ]
+    },
+    {
+      "bom-ref": "stylehacks@5.1.1",
+      "type": "library",
+      "name": "stylehacks",
+      "version": "5.1.1",
+      "scope": "required",
+      "purl": "pkg:npm/stylehacks@5.1.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/stylehacks"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/stylehacks/-/stylehacks-5.1.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "b01a5c7791f1ec6eac7a8edbd4b929b6dbd3cfb8a40f42e51f946675c04d6fa7c5474165ecb4301c316bdf4d2ae1cc14aa2f8862b1469ac20789e3017e737f07"
+        }
+      ]
+    },
+    {
+      "bom-ref": "svg.draggable.js@2.2.2",
+      "type": "library",
+      "name": "svg.draggable.js",
+      "version": "2.2.2",
+      "scope": "required",
+      "purl": "pkg:npm/svg.draggable.js@2.2.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/svg.draggable.js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/svg.draggable.js/-/svg.draggable.js-2.2.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "27334705cd9f2d033360267dd0a647376a215cbd014091908a62b590693a02f49e89bb8a7087435fd2abd1d4fdf942793bc9d8034441f37f4b86f938098e0c67"
+        }
+      ]
+    },
+    {
+      "bom-ref": "svg.easing.js@2.0.0",
+      "type": "library",
+      "name": "svg.easing.js",
+      "version": "2.0.0",
+      "scope": "required",
+      "purl": "pkg:npm/svg.easing.js@2.0.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/svg.easing.js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/svg.easing.js/-/svg.easing.js-2.0.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "fff72d3dd24c1b2db662860657edc711f1db9baffaf4b2544c0a88dbfe6a06f68d1d9f6e505542f360743e5dbdf47ce01f5deb2ab0608b8f97c975f25565ad84"
+        }
+      ]
+    },
+    {
+      "bom-ref": "svg.filter.js@2.0.2",
+      "type": "library",
+      "name": "svg.filter.js",
+      "version": "2.0.2",
+      "scope": "required",
+      "purl": "pkg:npm/svg.filter.js@2.0.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/svg.filter.js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/svg.filter.js/-/svg.filter.js-2.0.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c64181c14f9d281cea8393ed8a56936f41183ea3df27d43ab1a565757fb9bc2472df53fa4e54423f753d3711f71c4b9f90a9293607532c12679a10c7793a8093"
+        }
+      ]
+    },
+    {
+      "bom-ref": "svg.js@2.7.1",
+      "type": "library",
+      "name": "svg.js",
+      "version": "2.7.1",
+      "scope": "required",
+      "purl": "pkg:npm/svg.js@2.7.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/svg.js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/svg.js/-/svg.js-2.7.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c9c6f1a62cc4424b64dc562f9fff011feebf12e59783b669411109be069caa7e3a80875d1b6e2d34d7b84a89faa267570a748e680a67a59c3a30f08103574e0c"
+        }
+      ]
+    },
+    {
+      "bom-ref": "svg.pathmorphing.js@0.1.3",
+      "type": "library",
+      "name": "svg.pathmorphing.js",
+      "version": "0.1.3",
+      "scope": "required",
+      "purl": "pkg:npm/svg.pathmorphing.js@0.1.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/svg.pathmorphing.js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/svg.pathmorphing.js/-/svg.pathmorphing.js-0.1.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e3d1d623d5f85d047f246d6a5e448357cc558ae4cb2169bf07fed8b9010b57928c38fb578e2c07e173c9bebfe08440e26e62d0f4e736d9da56a46d2f5030cdc3"
+        }
+      ]
+    },
+    {
+      "bom-ref": "svg.resize.js@1.4.3",
+      "type": "library",
+      "name": "svg.resize.js",
+      "version": "1.4.3",
+      "scope": "required",
+      "purl": "pkg:npm/svg.resize.js@1.4.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/svg.resize.js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/svg.resize.js/-/svg.resize.js-1.4.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "f64e6c5c9b8f2a9fa65735cdbf1cfb534b82f6854c42badfedc16c113ce7cd40c39b4c7cfbbeddb5991674c7d19666e410462f527f5bb4ab99de7e35a0d03ebb"
+        }
+      ]
+    },
+    {
+      "bom-ref": "svg.select.js@2.1.2",
+      "type": "library",
+      "name": "svg.select.js",
+      "version": "2.1.2",
+      "scope": "required",
+      "purl": "pkg:npm/svg.select.js@2.1.2",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/svg.resize.js/node_modules/svg.select.js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/svg.select.js/-/svg.select.js-2.1.2.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "b47e80044c89b00395021c1c0a317c9b0e1cae35d223569aee3d95411f19b89dfb1f630151bc9ea98af99c43bbb12377732f4047d0d4c0d834b7ff7ad879436d"
+        }
+      ]
+    },
+    {
+      "bom-ref": "svg.select.js@3.0.1",
+      "type": "library",
+      "name": "svg.select.js",
+      "version": "3.0.1",
+      "scope": "required",
+      "purl": "pkg:npm/svg.select.js@3.0.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/svg.select.js"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/svg.select.js/-/svg.select.js-3.0.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "879212fe12a4b9509b29289e47db900a3f70fb32c7a0f87e71ed7d6c1632a85e7783a9a73c1f2c02d21b7b5b3d761d92d9f0a6617db17a5d4b9f73c905b2b893"
+        }
+      ]
+    },
+    {
+      "bom-ref": "unplugin-vue-define-options@1.4.5",
+      "type": "library",
+      "name": "unplugin-vue-define-options",
+      "version": "1.4.5",
+      "scope": "required",
+      "purl": "pkg:npm/unplugin-vue-define-options@1.4.5",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/unplugin-vue-define-options"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/unplugin-vue-define-options/-/unplugin-vue-define-options-1.4.5.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "edce47bc2e8e804e07eee5862671d44344a17486121ffa99b8805f9438b7cdf39361215943a144950e9ffae03d81275988d163174f79249fda4706eb4eb07df2"
+        }
+      ]
+    },
+    {
+      "bom-ref": "vue-chartjs@5.3.1",
+      "type": "library",
+      "name": "vue-chartjs",
+      "version": "5.3.1",
+      "scope": "required",
+      "purl": "pkg:npm/vue-chartjs@5.3.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/vue-chartjs"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/vue-chartjs/-/vue-chartjs-5.3.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "ad98ea7070712a21eb065d0222f70e955101c1186958055feab0d4def51f6bb1ee491986b42b2573439cf26d7aa0056e9347abcdcd450ad1f5542ae21ecaf3f8"
+        }
+      ]
+    },
+    {
+      "bom-ref": "vue-flatpickr-component@11.0.3",
+      "type": "library",
+      "name": "vue-flatpickr-component",
+      "version": "11.0.3",
+      "scope": "required",
+      "purl": "pkg:npm/vue-flatpickr-component@11.0.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/vue-flatpickr-component"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/vue-flatpickr-component/-/vue-flatpickr-component-11.0.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "498356fe5a8ad6af60cebe64429343c279605080e75c9a46d409a80f157239856d503ee62da0d4d70f8c24b148eb8e0d62dc21f4dac2b792e9a2396c8ed6efa8"
+        }
+      ]
+    },
+    {
+      "bom-ref": "vue-prism-component@2.0.0",
+      "type": "library",
+      "name": "vue-prism-component",
+      "version": "2.0.0",
+      "scope": "required",
+      "purl": "pkg:npm/vue-prism-component@2.0.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/vue-prism-component"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/vue-prism-component/-/vue-prism-component-2.0.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "d687eb2fe18264ebf81eab57e56dc482485202069d49eb83f050d35dbc212f2f244bedbc44247cb764b955378cf54fe97806972c1a52811b77276e5aa3c2937a"
+        }
+      ]
+    },
+    {
+      "bom-ref": "vue3-apexcharts@1.5.3",
+      "type": "library",
+      "name": "vue3-apexcharts",
+      "version": "1.5.3",
+      "scope": "required",
+      "purl": "pkg:npm/vue3-apexcharts@1.5.3",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/vue3-apexcharts"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/vue3-apexcharts/-/vue3-apexcharts-1.5.3.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c9a1d33e88f4895280b44560f30130230c2f7f4546fa53d836e7c27f7b714736103aa74a3e865a67d3f70e3dd7fb60355d8f4ed6471393d1d5aaf2e8faba69bd"
+        }
+      ]
+    },
+    {
+      "bom-ref": "vue3-perfect-scrollbar@1.6.1",
+      "type": "library",
+      "name": "vue3-perfect-scrollbar",
+      "version": "1.6.1",
+      "scope": "required",
+      "purl": "pkg:npm/vue3-perfect-scrollbar@1.6.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/vue3-perfect-scrollbar"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/vue3-perfect-scrollbar/-/vue3-perfect-scrollbar-1.6.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "afdc1fc651705721d730f286d0f9d1edf0df24f436d0a115cca41f494e5bcb658a633d8fc15d1b4dfc9f7a3984c995ec5cbd0ef15b525ad8317cfb854760063a"
+        }
+      ]
+    },
+    {
+      "bom-ref": "webfontloader@1.6.28",
+      "type": "library",
+      "name": "webfontloader",
+      "version": "1.6.28",
+      "scope": "required",
+      "purl": "pkg:npm/webfontloader@1.6.28",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/webfontloader"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/webfontloader/-/webfontloader-1.6.28.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "1206f4a051206ba7fe9d281ab07dc4d0ce34e4fce7eb2dfff6d3956a7bff0cb7dad5804881cbfdd0bd7c6325a7bd79116c8335eefe4abfa213d8dea0d71e6dbd"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "trivial-triage-frontend@0.1.0",
+      "dependsOn": [
+        "@casl/ability@6.7.1",
+        "@casl/vue@2.2.2",
+        "@floating-ui/dom@1.2.8",
+        "@vueuse/math@10.10.0",
+        "apexcharts-clevision@3.28.5",
+        "axios@1.7.2",
+        "axios-mock-adapter@1.22.0",
+        "chart.js@4.4.3",
+        "eslint-import-resolver-alias@1.1.2",
+        "jwt-decode@3.1.2",
+        "pinia@2.1.7",
+        "prismjs@1.29.0",
+        "roboto-fontface@0.10.0",
+        "unplugin-vue-define-options@1.4.5",
+        "vue-chartjs@5.3.1",
+        "vue-flatpickr-component@11.0.3",
+        "vue-prism-component@2.0.0",
+        "vue3-apexcharts@1.5.3",
+        "vue3-perfect-scrollbar@1.6.1",
+        "webfontloader@1.6.28"
+      ]
+    },
+    {
+      "ref": "@casl/ability@6.7.1",
+      "dependsOn": [
+        "@ucast/mongo2js@1.3.4"
+      ]
+    },
+    {
+      "ref": "@casl/vue@2.2.2",
+      "dependsOn": [
+        "@casl/ability@6.7.1"
+      ]
+    },
+    {
+      "ref": "@floating-ui/dom@1.2.8",
+      "dependsOn": []
+    },
+    {
+      "ref": "@kurkle/color@0.3.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@ucast/core@1.10.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@ucast/js@3.0.4",
+      "dependsOn": [
+        "@ucast/core@1.10.2"
+      ]
+    },
+    {
+      "ref": "@ucast/mongo@2.4.3",
+      "dependsOn": [
+        "@ucast/core@1.10.2"
+      ]
+    },
+    {
+      "ref": "@ucast/mongo2js@1.3.4",
+      "dependsOn": [
+        "@ucast/core@1.10.2",
+        "@ucast/js@3.0.4",
+        "@ucast/mongo@2.4.3"
+      ]
+    },
+    {
+      "ref": "@vue-macros/common@1.10.4",
+      "dependsOn": [
+        "ast-kit@0.12.2",
+        "local-pkg@0.5.0",
+        "magic-string-ast@0.6.1"
+      ]
+    },
+    {
+      "ref": "local-pkg@0.5.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "@vueuse/math@10.10.0",
+      "dependsOn": [
+        "vue-demi@0.14.8"
+      ]
+    },
+    {
+      "ref": "vue-demi@0.14.8",
+      "dependsOn": []
+    },
+    {
+      "ref": "@yr/monotone-cubic-spline@1.0.3",
+      "dependsOn": []
+    },
+    {
+      "ref": "apexcharts@3.49.1",
+      "dependsOn": [
+        "@yr/monotone-cubic-spline@1.0.3",
+        "svg.draggable.js@2.2.2",
+        "svg.easing.js@2.0.0",
+        "svg.filter.js@2.0.2",
+        "svg.pathmorphing.js@0.1.3",
+        "svg.resize.js@1.4.3",
+        "svg.select.js@3.0.1"
+      ]
+    },
+    {
+      "ref": "apexcharts-clevision@3.28.5",
+      "dependsOn": [
+        "svg.draggable.js@2.2.2",
+        "svg.easing.js@2.0.0",
+        "svg.filter.js@2.0.2",
+        "svg.pathmorphing.js@0.1.3",
+        "svg.resize.js@1.4.3",
+        "svg.select.js@3.0.1"
+      ]
+    },
+    {
+      "ref": "ast-kit@0.12.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "ast-walker-scope@0.6.1",
+      "dependsOn": [
+        "ast-kit@0.12.2"
+      ]
+    },
+    {
+      "ref": "axios@1.7.2",
+      "dependsOn": [
+        "follow-redirects@1.15.6",
+        "proxy-from-env@1.1.0"
+      ]
+    },
+    {
+      "ref": "axios-mock-adapter@1.22.0",
+      "dependsOn": [
+        "axios@1.7.2",
+        "is-buffer@2.0.5"
+      ]
+    },
+    {
+      "ref": "caniuse-api@3.0.0",
+      "dependsOn": [
+        "lodash.memoize@4.1.2",
+        "lodash.uniq@4.5.0"
+      ]
+    },
+    {
+      "ref": "chart.js@4.4.3",
+      "dependsOn": [
+        "@kurkle/color@0.3.2"
+      ]
+    },
+    {
+      "ref": "css-declaration-sorter@6.4.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "cssnano@5.1.15",
+      "dependsOn": [
+        "cssnano-preset-default@5.2.14",
+        "lilconfig@2.1.0"
+      ]
+    },
+    {
+      "ref": "cssnano-preset-default@5.2.14",
+      "dependsOn": [
+        "css-declaration-sorter@6.4.1",
+        "cssnano-utils@3.1.0",
+        "postcss-calc@8.2.4",
+        "postcss-colormin@5.3.1",
+        "postcss-convert-values@5.1.3",
+        "postcss-discard-comments@5.1.2",
+        "postcss-discard-duplicates@5.1.0",
+        "postcss-discard-empty@5.1.1",
+        "postcss-discard-overridden@5.1.0",
+        "postcss-merge-longhand@5.1.7",
+        "postcss-merge-rules@5.1.4",
+        "postcss-minify-font-values@5.1.0",
+        "postcss-minify-gradients@5.1.1",
+        "postcss-minify-params@5.1.4",
+        "postcss-minify-selectors@5.2.1",
+        "postcss-normalize-charset@5.1.0",
+        "postcss-normalize-display-values@5.1.0",
+        "postcss-normalize-positions@5.1.1",
+        "postcss-normalize-repeat-style@5.1.1",
+        "postcss-normalize-string@5.1.0",
+        "postcss-normalize-timing-functions@5.1.0",
+        "postcss-normalize-unicode@5.1.1",
+        "postcss-normalize-url@5.1.0",
+        "postcss-normalize-whitespace@5.1.1",
+        "postcss-ordered-values@5.1.3",
+        "postcss-reduce-initial@5.1.2",
+        "postcss-reduce-transforms@5.1.0",
+        "postcss-svgo@5.1.0",
+        "postcss-unique-selectors@5.1.1"
+      ]
+    },
+    {
+      "ref": "cssnano-utils@3.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "eslint-import-resolver-alias@1.1.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "flatpickr@4.6.13",
+      "dependsOn": []
+    },
+    {
+      "ref": "follow-redirects@1.15.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "is-buffer@2.0.5",
+      "dependsOn": []
+    },
+    {
+      "ref": "jwt-decode@3.1.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "lilconfig@2.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "lodash.memoize@4.1.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "lodash.uniq@4.5.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "magic-string-ast@0.6.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "normalize-url@6.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "perfect-scrollbar@1.5.5",
+      "dependsOn": []
+    },
+    {
+      "ref": "pify@2.3.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pinia@2.1.7",
+      "dependsOn": [
+        "vue-demi@0.14.8"
+      ]
+    },
+    {
+      "ref": "vue-demi@0.14.8",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-calc@8.2.4",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-colormin@5.3.1",
+      "dependsOn": [
+        "caniuse-api@3.0.0"
+      ]
+    },
+    {
+      "ref": "postcss-convert-values@5.1.3",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-discard-comments@5.1.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-discard-duplicates@5.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-discard-empty@5.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-discard-overridden@5.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-import@12.0.1",
+      "dependsOn": [
+        "postcss@7.0.39",
+        "postcss-value-parser@3.3.1",
+        "read-cache@1.0.0"
+      ]
+    },
+    {
+      "ref": "picocolors@0.2.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss@7.0.39",
+      "dependsOn": [
+        "picocolors@0.2.1"
+      ]
+    },
+    {
+      "ref": "postcss-value-parser@3.3.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-merge-longhand@5.1.7",
+      "dependsOn": [
+        "stylehacks@5.1.1"
+      ]
+    },
+    {
+      "ref": "postcss-merge-rules@5.1.4",
+      "dependsOn": [
+        "caniuse-api@3.0.0",
+        "cssnano-utils@3.1.0"
+      ]
+    },
+    {
+      "ref": "postcss-minify-font-values@5.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-minify-gradients@5.1.1",
+      "dependsOn": [
+        "cssnano-utils@3.1.0"
+      ]
+    },
+    {
+      "ref": "postcss-minify-params@5.1.4",
+      "dependsOn": [
+        "cssnano-utils@3.1.0"
+      ]
+    },
+    {
+      "ref": "postcss-minify-selectors@5.2.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-normalize-charset@5.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-normalize-display-values@5.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-normalize-positions@5.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-normalize-repeat-style@5.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-normalize-string@5.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-normalize-timing-functions@5.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-normalize-unicode@5.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-normalize-url@5.1.0",
+      "dependsOn": [
+        "normalize-url@6.1.0"
+      ]
+    },
+    {
+      "ref": "postcss-normalize-whitespace@5.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-ordered-values@5.1.3",
+      "dependsOn": [
+        "cssnano-utils@3.1.0"
+      ]
+    },
+    {
+      "ref": "postcss-reduce-initial@5.1.2",
+      "dependsOn": [
+        "caniuse-api@3.0.0"
+      ]
+    },
+    {
+      "ref": "postcss-reduce-transforms@5.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "postcss-svgo@5.1.0",
+      "dependsOn": [
+        "svgo@2.8.0"
+      ]
+    },
+    {
+      "ref": "css-select@4.3.0",
+      "dependsOn": [
+        "domhandler@4.3.1",
+        "domutils@2.8.0"
+      ]
+    },
+    {
+      "ref": "css-tree@1.1.3",
+      "dependsOn": [
+        "mdn-data@2.0.14"
+      ]
+    },
+    {
+      "ref": "csso@4.2.0",
+      "dependsOn": [
+        "css-tree@1.1.3"
+      ]
+    },
+    {
+      "ref": "dom-serializer@1.4.1",
+      "dependsOn": [
+        "domhandler@4.3.1",
+        "entities@2.2.0"
+      ]
+    },
+    {
+      "ref": "domhandler@4.3.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "domutils@2.8.0",
+      "dependsOn": [
+        "dom-serializer@1.4.1",
+        "domhandler@4.3.1"
+      ]
+    },
+    {
+      "ref": "entities@2.2.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "mdn-data@2.0.14",
+      "dependsOn": []
+    },
+    {
+      "ref": "svgo@2.8.0",
+      "dependsOn": [
+        "css-select@4.3.0",
+        "css-tree@1.1.3",
+        "csso@4.2.0",
+        "stable@0.1.8"
+      ]
+    },
+    {
+      "ref": "postcss-unique-selectors@5.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "prismjs@1.29.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "proxy-from-env@1.1.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "read-cache@1.0.0",
+      "dependsOn": [
+        "pify@2.3.0"
+      ]
+    },
+    {
+      "ref": "roboto-fontface@0.10.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "stable@0.1.8",
+      "dependsOn": []
+    },
+    {
+      "ref": "stylehacks@5.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "svg.draggable.js@2.2.2",
+      "dependsOn": [
+        "svg.js@2.7.1"
+      ]
+    },
+    {
+      "ref": "svg.easing.js@2.0.0",
+      "dependsOn": [
+        "svg.js@2.7.1"
+      ]
+    },
+    {
+      "ref": "svg.filter.js@2.0.2",
+      "dependsOn": [
+        "svg.js@2.7.1"
+      ]
+    },
+    {
+      "ref": "svg.js@2.7.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "svg.pathmorphing.js@0.1.3",
+      "dependsOn": [
+        "svg.js@2.7.1"
+      ]
+    },
+    {
+      "ref": "svg.resize.js@1.4.3",
+      "dependsOn": [
+        "svg.js@2.7.1",
+        "svg.select.js@2.1.2"
+      ]
+    },
+    {
+      "ref": "svg.select.js@2.1.2",
+      "dependsOn": [
+        "svg.js@2.7.1"
+      ]
+    },
+    {
+      "ref": "svg.select.js@3.0.1",
+      "dependsOn": [
+        "svg.js@2.7.1"
+      ]
+    },
+    {
+      "ref": "unplugin-vue-define-options@1.4.5",
+      "dependsOn": [
+        "@vue-macros/common@1.10.4",
+        "ast-walker-scope@0.6.1"
+      ]
+    },
+    {
+      "ref": "vue-chartjs@5.3.1",
+      "dependsOn": [
+        "chart.js@4.4.3"
+      ]
+    },
+    {
+      "ref": "vue-flatpickr-component@11.0.3",
+      "dependsOn": [
+        "flatpickr@4.6.13"
+      ]
+    },
+    {
+      "ref": "vue-prism-component@2.0.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "vue3-apexcharts@1.5.3",
+      "dependsOn": [
+        "apexcharts@3.49.1"
+      ]
+    },
+    {
+      "ref": "vue3-perfect-scrollbar@1.6.1",
+      "dependsOn": [
+        "cssnano@5.1.15",
+        "perfect-scrollbar@1.5.5",
+        "postcss-import@12.0.1"
+      ]
+    },
+    {
+      "ref": "webfontloader@1.6.28",
+      "dependsOn": []
+    }
+  ]
+}

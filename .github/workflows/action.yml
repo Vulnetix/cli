@@ -1,142 +1,67 @@
-name: pytest-coverage
+name: npm-artifacts
 on:
-  pull_request:
-    branches: 
-      - '*'
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+  attestations: write
+
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.11
+      - name: Setup Node
+        uses: actions/setup-node@v3
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install poetry flake8 pytest pytest-cov
-        poetry self add poetry-plugin-up
-        poetry self update
-        poetry install --no-root
-        poetry up
+      - name: Install dependencies
+        uses: bahmutov/npm-install@v1
 
-    - name: Retrieve version
-      run: |
-        echo ::set-env name=APP_VERSION::$(poetry version -s)
+      - name: Build project
+        run: |
+          npm run build
+          npm sbom --omit dev --package-lock-only --sbom-format cyclonedx | jq >npm.cdx.json
 
-    - name: Pytest with coverage
-      run: |
-        coverage run -m pytest --nf
+      - name: Upload semgrep.sarif.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep_sarif
+          path: semgrep.sarif.json
 
-    - name: Build coverage file
-      run: |
-        coverage report -m
+      - name: Upload npm.cdx.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: npm.cdx.json
 
-    - name: Build
-      run: |
-        poetry build
+      - name: Generate SBOM attestation
+        uses: actions/attest-sbom@v1
+        with:
+          subject-path: ""
+          sbom-path: npm.cdx.json
 
-    - name: Upload dist tar+gzip
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist_gzip
-        path: ./dist/trivial-triage-${{ env.APP_VERSION }}.tar.gz
-        retention-days: 1
-
-    - name: Upload dist whl
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist_whl
-        path: ./dist/trivial-triage-${{ env.APP_VERSION }}-py3-none-any.whl
-        retention-days: 1
-
-    - name: Coverage Badge
-      uses: tj-actions/coverage-badge-py@v2
-
-    - name: Verify Changed files
-      uses: tj-actions/verify-changed-files@v19
-      id: verify-changed-files
-      with:
-        files: coverage.svg
-
-  release:
-    if: github.ref_type == 'tag'
-    needs: [ build ]
+  deploy:
+    name: Deploy
+    needs: build
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
     steps:
-    - uses: actions/checkout@v4
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: production-files
+          path: ./dist
 
-    - name: Download dist tar+gzip
-      uses: actions/download-artifact@v4
-      with:
-        name: dist_gzip
-
-    - name: Download dist whl
-      uses: actions/download-artifact@v4
-      with:
-        name: dist_whl
-
-    - name: Retrieve commit message
-      run: |
-        echo ::set-env name=COMMIT_MSG::$(git log -1 --pretty=format:"%s")
-
-    - name: Publish
-      run: |
-        poetry publish
-
-    - name: Tag
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        git commit -a -s -m 'build(release): v${{ env.APP_VERSION }}'
-        git tag --force v${{ env.APP_VERSION }}
-        git push
-        git push --tags --force
-
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: ${{ env.COMMIT_MSG }}
-        draft: false
-        prerelease: false
-
-    - name: Upload Release Source
-      id: upload-release-source
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/trivial-triage-${{ env.APP_VERSION }}.tar.gz
-        asset_name: dist/trivial-triage-${{ env.APP_VERSION }}.tar.gz
-        asset_content_type: application/gzip
-
-    - name: Upload Release Wheel
-      id: upload-release-asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/trivial-triage-${{ env.APP_VERSION }}-py3-none-any.whl
-        asset_name: trivial-triage-${{ env.APP_VERSION }}-py3-none-any.whl
-        asset_content_type: application/octet-stream
-
-    - name: Generate artifact attestation
-      uses: actions/attest-build-provenance@v1
-      with:
-        subject-path: ./dist/trivial-triage-${{ env.APP_VERSION }}-py3-none-any.whl
-
-    - name: Generate SBOM attestation
-      uses: actions/attest-sbom@v1
-      with:
-        subject-path: ./dist/trivial-triage-${{ env.APP_VERSION }}-py3-none-any.whl
-        sbom-path: ./sbom.json
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist

@@ -27,9 +27,9 @@
   "volar.preview.port": 3000,
   "volar.completion.preferredTagNameCase": "pascal",
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true,
-    "source.fixAll.stylelint": true,
-    "source.organizeImports": true
+    "source.fixAll.eslint": "explicit",
+    "source.fixAll.stylelint": "explicit",
+    "source.organizeImports": "explicit"
   },
   "eslint.alwaysShowStatus": true,
   "eslint.format.enable": true,
