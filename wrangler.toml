@@ -1,0 +1,20 @@
+name = "triage-by-trivial-security"
+main = "src/main.js"
+compatibility_date = "2024-03-20"
+compatibility_flags = ["nodejs_compat"]
+
+account_id = "e302589106b4c4287aebe65763eb4f80"
+workers_dev = true
+
+[[d1_databases]]
+binding = "d1db"
+database_name = "trivial_triage"
+database_id = "6420dc05-dcaf-43cc-b6f7-03139d6b5988"
+
+[[r2_buckets]]
+binding = 'r2icache'
+bucket_name = 'integrations-cache'
+
+[[r2_buckets]]
+binding = 'r2webhooks'
+bucket_name = 'webhooks'

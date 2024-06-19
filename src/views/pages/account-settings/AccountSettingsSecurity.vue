@@ -1,18 +1,10 @@
 <script setup>
-import { VDataTable } from 'vuetify/labs/VDataTable'
-
 const isCurrentPasswordVisible = ref(false)
 const isNewPasswordVisible = ref(false)
 const isConfirmPasswordVisible = ref(false)
 const currentPassword = ref('12345678')
 const newPassword = ref('87654321')
 const confirmPassword = ref('87654321')
-
-const passwordRequirements = [
-  'Minimum 8 characters long - the more, the better',
-  'At least one lowercase character',
-  'At least one number, symbol, or whitespace character',
-]
 
 const serverKeys = [
   {
@@ -180,15 +172,11 @@ const recentDevices = [
           <!-- 👉 Password Requirements -->
           <VCardText>
             <p class="text-base font-weight-medium mt-2">
-              Password Requirements:
+              Password Guidance:
             </p>
 
             <ul class="d-flex flex-column gap-y-3">
-              <li
-                v-for="item in passwordRequirements"
-                :key="item"
-                class="d-flex"
-              >
+              <li class="d-flex">
                 <div>
                   <VIcon
                     size="7"
@@ -196,7 +184,29 @@ const recentDevices = [
                     class="me-3"
                   />
                 </div>
-                <span class="font-weight-medium">{{ item }}</span>
+                <span class="font-weight-medium">Minimum 18 characters long - the more, the better</span>
+              </li>
+              <li class="d-flex">
+                <div>
+                  <VIcon
+                    size="7"
+                    icon="bxs-circle"
+                    class="me-3"
+                  />
+                </div>
+                <span class="font-weight-medium">Do not reuse passwords from other apps - or include guessable personal
+                  information</span>
+              </li>
+              <li class="d-flex">
+                <div>
+                  <VIcon
+                    size="7"
+                    icon="bxs-circle"
+                    class="me-3"
+                  />
+                </div>
+                <span class="font-weight-medium">Consider using a password manager - it detects the site and uses a
+                  (matching) generated password for you</span>
               </li>
             </ul>
           </VCardText>
@@ -226,7 +236,8 @@ const recentDevices = [
             Two factor authentication is not enabled yet.
           </p>
           <p>
-            Two-factor authentication adds an additional layer of security to your account by requiring more than just a password to log in.
+            Two-factor authentication adds an additional layer of security to your account by requiring more than just a
+            password to log in.
             <a
               href="javascript:void(0)"
               class="text-decoration-none"
@@ -253,7 +264,7 @@ const recentDevices = [
             order="1"
           >
             <VCardText>
-              <VForm @submit.prevent="() => {}">
+              <VForm @submit.prevent="() => { }">
                 <VRow>
                   <!-- 👉 Choose API Key -->
                   <VCol cols="12">
@@ -287,14 +298,16 @@ const recentDevices = [
           </VCol>
         </VRow>
       </VCard>
-    <!-- !SECTION -->
+      <!-- !SECTION -->
     </VCol>
 
     <VCol cols="12">
       <!-- SECTION: API Keys List -->
       <VCard title="API Key List &amp; Access">
         <VCardText>
-          An API key is a simple encrypted string that identifies an application without any principal. They are useful for accessing public data anonymously, and are used to associate API requests with your project for quota and billing.
+          An API key is a simple encrypted string that identifies an application without any principal. They are useful
+          for accessing public data anonymously, and are used to associate API requests with your project for quota and
+          billing.
         </VCardText>
 
         <!-- 👉 Server Status -->

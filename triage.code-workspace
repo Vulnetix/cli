@@ -1,0 +1,61 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"editor.formatOnSave": true,
+		"files.insertFinalNewline": true,
+		"javascript.updateImportsOnFileMove.enabled": "always",
+		"[javascript]": {
+			"editor.defaultFormatter": "vscode.typescript-language-features"
+		},
+		"[typescript]": {
+			"editor.defaultFormatter": "vscode.typescript-language-features",
+			"editor.autoClosingBrackets": "always"
+		},
+		"[markdown]": {
+			"editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
+		},
+		"[scss]": {
+			"editor.defaultFormatter": "dbaeumer.vscode-eslint"
+		},
+		"[json]": {
+			"editor.defaultFormatter": "vscode.json-language-features"
+		},
+		"[jsonc]": {
+			"editor.defaultFormatter": "vscode.json-language-features"
+		},
+		"[vue]": {
+			"editor.defaultFormatter": "Vue.volar"
+		},
+		"editor.codeActionsOnSave": {
+			"source.fixAll.eslint": "explicit",
+			"source.fixAll.stylelint": "explicit",
+			"source.organizeImports": "explicit"
+		},
+		"eslint.format.enable": true,
+		"cSpell.words": [
+			"axios",
+			"Composables",
+			"Customizer",
+			"cyclonedx",
+			"dotfile",
+			"flagpack",
+			"ghid",
+			"icache",
+			"Iconify",
+			"octodex",
+			"psudo",
+			"sarif",
+			"stylelint",
+			"touchless",
+			"triggerer",
+			"trivialsec",
+			"Vuelidate",
+			"vuetify",
+			"vulncheck"
+		]
+	}
+}

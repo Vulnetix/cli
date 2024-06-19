@@ -1,70 +1,41 @@
+import protectedRoutes from '@/router/protected-routes'
+import publicRoutes from '@/router/public-routes'
 import { createRouter, createWebHistory } from 'vue-router'
 
+const allRoutes = Array.from(publicRoutes)
+const routes = allRoutes.concat(protectedRoutes)
+
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    { path: '/', redirect: '/dashboard' },
-    {
-      path: '/',
-      component: () => import('../layouts/default.vue'),
-      children: [
-        {
-          path: 'dashboard',
-          component: () => import('../pages/Dashboard.vue'),
-        },
-        {
-          path: 'account-settings',
-          component: () => import('../pages/AccountSettings.vue'),
-        },
-        {
-          path: 'triage-queue',
-          component: () => import('../pages/TriageQueue.vue'),
-        },
-        {
-          path: 'triage-overdue',
-          component: () => import('../pages/TriageOverdue.vue'),
-        },
-        {
-          path: 'sarif-manager',
-          component: () => import('../pages/SARIFManager.vue'),
-        },
-        {
-          path: 'cyclonedx-manager',
-          component: () => import('../pages/CycloneDXManager.vue'),
-        },
-        {
-          path: 'vex-manager',
-          component: () => import('../pages/VEXManager.vue'),
-        },
-        {
-          path: 'activity-history',
-          component: () => import('../pages/ActivityHistory.vue'),
-        },
-        {
-          path: 'user-audit',
-          component: () => import('../pages/UserAudit.vue'),
-        },
-      ],
+    scrollBehavior(to, from, savedPosition) {
+        if (savedPosition) {
+            return savedPosition
+        } else if (to.hash) {
+            return {
+                el: to.hash,
+                behavior: 'smooth',
+            }
+        } else {
+            return { top: 0 }
+        }
     },
-    {
-      path: '/',
-      component: () => import('../layouts/blank.vue'),
-      children: [
-        {
-          path: 'login',
-          component: () => import('../pages/Login.vue'),
-        },
-        {
-          path: 'register',
-          component: () => import('../pages/Register.vue'),
-        },
-        {
-          path: '/:pathMatch(.*)*',
-          component: () => import('../pages/[...all].vue'),
-        },
-      ],
-    },
-  ],
+    history: createWebHistory(import.meta.env.BASE_URL),
+    routes,
 })
 
+router.beforeEach(async to => {
+    const publicPages = ["/", '/register', '/logout']
+
+    const publicPrefixes = [
+        '/login',
+    ]
+
+    const authRequired =
+        !publicPages.includes(to.path) &&
+        !publicPrefixes.map(i => to.path.startsWith(i)).includes(true)
+
+    const logged_in = !!localStorage.getItem('/session/token')
+    if (authRequired && !logged_in) {
+        return '/login'
+    }
+})
 export default router

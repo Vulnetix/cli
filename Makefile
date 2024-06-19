@@ -15,7 +15,6 @@ clean: ## Cleanup tmp files
 setup: ## FOR DOCO ONLY - Run these one at a time, do not call this target directly
 	nvm install --lts
 	nvm use --lts
-	npm i
 
 install: ## poetry install and create poetry.lock
 	npm i

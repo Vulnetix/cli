@@ -39,28 +39,21 @@ const handleNavScroll = evt => {
 </script>
 
 <template>
-  <Component
-    :is="props.tag"
-    ref="refNav"
-    class="layout-vertical-nav"
-    :class="[
-      {
-        'visible': isOverlayNavActive,
-        'scrolled': isVerticalNavScrolled,
-        'overlay-nav': mdAndDown,
-      },
-    ]"
-  >
+  <Component :is="props.tag" ref="refNav" class="layout-vertical-nav" :class="[
+    {
+      'visible': isOverlayNavActive,
+      'scrolled': isVerticalNavScrolled,
+      'overlay-nav': mdAndDown,
+    },
+  ]">
     <!-- 👉 Header -->
     <div class="nav-header">
       <slot name="nav-header">
-        <RouterLink
-          to="/"
-          class="app-logo d-flex align-center gap-x-3 app-title-wrapper"
-        >
+        <RouterLink to="/" class="app-logo d-flex align-center gap-x-3 app-title-wrapper">
           <IconTrivialSecurity class="d-flex" width="50" />
           <h1 class="leading-normal">
-            Trivial Triage
+            Triage
+            <div>By, Trivial Security</div>
           </h1>
         </RouterLink>
       </slot>
@@ -68,16 +61,9 @@ const handleNavScroll = evt => {
     <slot name="before-nav-items">
       <div class="vertical-nav-items-shadow" />
     </slot>
-    <slot
-      name="nav-items"
-      :update-is-vertical-nav-scrolled="updateIsVerticalNavScrolled"
-    >
-      <PerfectScrollbar
-        tag="ul"
-        class="nav-items"
-        :options="{ wheelPropagation: false }"
-        @ps-scroll-y="handleNavScroll"
-      >
+    <slot name="nav-items" :update-is-vertical-nav-scrolled="updateIsVerticalNavScrolled">
+      <PerfectScrollbar tag="ul" class="nav-items" :options="{ wheelPropagation: false }"
+        @ps-scroll-y="handleNavScroll">
         <slot />
       </PerfectScrollbar>
     </slot>
@@ -89,9 +75,15 @@ const handleNavScroll = evt => {
 <style lang="scss" scoped>
 @use "@configured-variables" as variables;
 @use "@layouts/styles/mixins";
+
+h1 div {
+  font-size: 0.5em;
+}
+
 .layout-nav-type-vertical .layout-vertical-nav .nav-header .app-title-wrapper h1 {
   font-size: 24px;
 }
+
 // 👉 Vertical Nav
 .layout-vertical-nav {
   position: fixed;

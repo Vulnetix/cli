@@ -1,12 +1,12 @@
-# Trivial Triage
+# Triage, by Trivial Security
 
 Your Comprehensive Vulnerability Management Tool to automate decision and resolution reporting
 
-Trivial Triage aims to provide a robust and flexible vendor independent solution for managing vulnerabilities, ensuring your applications remain secure and compliant with industry standards.
+Triage aims to provide a robust and flexible vendor independent solution for managing vulnerabilities, ensuring your applications remain secure and compliant with industry standards.
 
 ## Features
 
-Trivial Triage will offer a range of features to streamline vulnerability management:
+Triage will offer a range of features to streamline vulnerability management:
 
 1.    **SBOM**: The app takes input data from SARIF, and CycloneDX.
 2.    **Data Enrichment**: Users can add optional API keys to enrich their data.
@@ -20,7 +20,7 @@ Trivial Triage will offer a range of features to streamline vulnerability manage
 
 ## Vulnerability Management
 
-Trivial Triage is designed to handle various aspects of vulnerability management effectively. Here are the key data points the app processes:
+Triage is designed to handle various aspects of vulnerability management effectively. Here are the key data points the app processes:
 
 1.    **Fix Intel**: Determines if patching the issue is possible or if fixing requires coding.
 2.    **Patch Availability**: Checks if a patch is available now.

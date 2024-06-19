@@ -1,0 +1,93 @@
+// PRAGMA table_info(TABLE_NAME)
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model audit {
+  id             Int     @id @default(autoincrement())
+  memberEmail    String  @unique
+  action         String
+  actionTime     Int
+  additionalData String?
+}
+
+model sessions {
+  kid         String  @unique
+  memberEmail String
+  expiry      Int
+  issued      Int
+  secret      String?
+  authn_ip    String?
+  authn_ua    String?
+}
+
+model members {
+  email         String  @unique
+  orgName       String
+  passwordHash  String
+  firstName     String?
+  lastName      String?
+  phoneNumber   String?
+  alertNews     Int     @default(0)
+  alertOverdue  Int     @default(0)
+  alertFindings Int     @default(0)
+  alertType     Int     @default(0)
+}
+
+model member_keys {
+  id          Int    @id @default(autoincrement())
+  memberEmail String
+  keyType     String
+  secret      String
+  suspend     Int    @default(0)
+}
+
+model github_apps {
+  installationId String @unique
+  memberEmail    String
+  accessToken    String
+  created        Int
+  expires        Int?
+}
+
+model git_repos {
+  pk            String  @unique
+  fullName      String
+  createdAt     Int
+  updatedAt     Int
+  pushedAt      Int
+  defaultBranch String
+  ownerId       Int
+  memberEmail   String
+  licenseSpdxId String?
+  licenseName   String?
+  fork          Int     @default(0)
+  template      Int     @default(0)
+  archived      Int     @default(0)
+  visibility    String
+  avatarUrl     String?
+}
+
+model sarif {
+  sarifId      Int     @unique
+  reportId     String
+  fullName     String
+  memberEmail  String
+  commitSha    String
+  ref          String
+  createdAt    Int
+  resultsCount Int
+  rulesCount   Int
+  toolName     String?
+  toolVersion  String?
+  analysisKey  String
+  warning      String?
+}
