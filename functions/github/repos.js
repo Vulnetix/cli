@@ -1,8 +1,6 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { CloudFlare, GitHub } from "../../src/utils";
-
-const cf = new CloudFlare()
+import { App, AuthResult, GitHub } from "../../src/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -21,23 +19,9 @@ export async function onRequestGet(context) {
             timeout: 2000, // default: 5000
         },
     })
-
-    const token = request.headers.get('x-trivialsec')
-    if (!token) {
-        return Response.json({ 'err': 'Forbidden' })
-    }
-    const session = await prisma.sessions.findFirstOrThrow({
-        where: {
-            kid: token,
-        },
-    })
-
-    console.log('session expiry', session?.expiry)
-    if (!session) {
-        return Response.json({ 'err': 'Revoked' })
-    }
-    if (session?.expiry <= +new Date()) {
-        return Response.json({ 'err': 'Expired' })
+    const { err, result, session } = await (new App(request, prisma)).authenticate()
+    if (result !== AuthResult.AUTHENTICATED) {
+        return Response.json({ err, result })
     }
 
     const installs = await prisma.github_apps.findMany({
@@ -47,11 +31,10 @@ export async function onRequestGet(context) {
     })
     const githubApps = []
     const gitRepos = []
-    const uploadedAfter = new Date(Date.now() - 24 * 60 * 60 * 1000)
-    const putOptions = { httpMetadata: { contentType: 'application/json', contentEncoding: 'utf8' }, onlyIf: { uploadedAfter } }
+    const putOptions = { httpMetadata: { contentType: 'application/json', contentEncoding: 'utf8' } }
     for (const app of installs) {
         if (!app.accessToken) {
-            console.log(`github_apps kid=${token} installationId=${app.installationId}`)
+            console.log(`github_apps kid=${session.kid} installationId=${app.installationId}`)
             throw new Error('github_apps invalid')
         }
         const gh = new GitHub(app.accessToken)
@@ -117,7 +100,7 @@ export async function onRequestGet(context) {
                 )
                 .run()
 
-            console.log(`/github/repos git_repos ${data.fullName} kid=${token}`, info)
+            console.log(`/github/repos git_repos ${data.fullName} kid=${session.kid}`, info)
             gitRepos.push(data)
         }
         githubApps.push({

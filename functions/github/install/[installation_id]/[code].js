@@ -1,3 +1,6 @@
+import { PrismaD1 } from '@prisma/adapter-d1';
+import { PrismaClient } from '@prisma/client';
+import { App, AuthResult } from "../../../../src/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -8,25 +11,19 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-
-    const token = request.headers.get('x-trivialsec')
-    if (!token) {
-        return Response.json({ 'err': 'Forbidden' })
+    const adapter = new PrismaD1(env.d1db)
+    const prisma = new PrismaClient({
+        adapter,
+        transactionOptions: {
+            maxWait: 1500, // default: 2000
+            timeout: 2000, // default: 5000
+        },
+    })
+    const { err, result, session } = await (new App(request, prisma)).authenticate()
+    if (result !== AuthResult.AUTHENTICATED) {
+        return Response.json({ err, result })
     }
-    console.log('token', token)
 
-    const session = await
-    env.d1db.prepare("SELECT memberEmail, expiry FROM sessions WHERE kid = ?")
-        .bind(token)
-        .first()
-
-    console.log('session expiry', session?.expiry)
-    if (!session) {
-        return Response.json({ 'err': 'Revoked' })
-    }
-    if (session?.expiry <= +new Date()) {
-        return Response.json({ 'err': 'Expired' })
-    }
     if (params?.code && params?.installation_id) {
         const method = "POST"
         const url = new URL("https://github.com/login/oauth/access_token")
@@ -45,7 +42,7 @@ export async function onRequestGet(context) {
             throw new Error(data.error)
         }
         if (!data?.access_token) {
-            console.log('installationId', params.installation_id, 'kid', token, 'data', data)
+            console.log('installationId', params.installation_id, 'kid', session.kid, 'data', data)
             throw new Error('OAuth response invalid')
         }
         const created = +new Date()
@@ -54,7 +51,7 @@ export async function onRequestGet(context) {
             .bind(params.installation_id, session.memberEmail, data.access_token, created, (86400000 * 365 * 10) + created)
             .run()
 
-        console.log(`/github/install installationId=${params?.installation_id} kid=${token}`, info)
+        console.log(`/github/install installationId=${params?.installation_id} kid=${session.kid}`, info)
 
         return Response.json(info)
     }

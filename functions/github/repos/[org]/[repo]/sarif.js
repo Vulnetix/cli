@@ -1,6 +1,6 @@
-import { CloudFlare, GitHub } from "../../../../../src/utils"
-
-const cf = new CloudFlare()
+import { PrismaD1 } from '@prisma/adapter-d1';
+import { PrismaClient } from '@prisma/client';
+import { App, AuthResult, GitHub } from "../../../../../src/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -11,31 +11,28 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-
-    const token = request.headers.get('x-trivialsec')
-    if (!token) {
-        return Response.json({ 'err': 'Forbidden' })
+    const adapter = new PrismaD1(env.d1db)
+    const prisma = new PrismaClient({
+        adapter,
+        transactionOptions: {
+            maxWait: 1500, // default: 2000
+            timeout: 2000, // default: 5000
+        },
+    })
+    const { err, result, session } = await (new App(request, prisma)).authenticate()
+    if (result !== AuthResult.AUTHENTICATED) {
+        return Response.json({ err, result })
     }
-
-    const session = await env.d1db.prepare("SELECT memberEmail, expiry FROM sessions WHERE kid = ?")
-        .bind(token)
-        .first()
-
-    console.log('session expiry', session?.expiry)
-    if (!session) {
-        return Response.json({ 'err': 'Revoked' })
-    }
-    if (session?.expiry <= +new Date()) {
-        return Response.json({ 'err': 'Expired' })
-    }
-
-    const githubApps = await cf.d1all(env.d1db, "SELECT * FROM github_apps WHERE memberEmail = ?", session.memberEmail)
+    const githubApps = await prisma.github_apps.findMany({
+        where: {
+            memberEmail: session.memberEmail,
+        },
+    })
     const files = []
-    const uploadedAfter = new Date(Date.now() - 24 * 60 * 60 * 1000)
-    const putOptions = { httpMetadata: { contentType: 'application/json', contentEncoding: 'utf8' }, onlyIf: { uploadedAfter } }
+    const putOptions = { httpMetadata: { contentType: 'application/json', contentEncoding: 'utf8' } }
     for (const app of githubApps) {
         if (!app.accessToken) {
-            console.log(`github_apps kid=${token} installationId=${app.installationId}`)
+            console.log(`github_apps kid=${session.kid} installationId=${app.installationId}`)
             throw new Error('github_apps invalid')
         }
         const gh = new GitHub(app.accessToken)
@@ -51,6 +48,7 @@ export async function onRequestGet(context) {
                 sarifId,
                 reportId,
                 fullName,
+                source,
                 memberEmail,
                 commitSha,
                 ref,
@@ -61,12 +59,13 @@ export async function onRequestGet(context) {
                 toolVersion,
                 analysisKey,
                 warning
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-                `)
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+            `)
                 .bind(
                     data.report.sarif_id,
                     data.report.id,
                     full_name,
+                    'GitHub',
                     session.memberEmail,
                     data.report.commit_sha,
                     data.report.ref,
@@ -80,7 +79,86 @@ export async function onRequestGet(context) {
                 )
                 .run()
 
-            console.log(`/github/repos/sarif ${full_name} kid=${token}`, info)
+            console.log(`/github/repos/sarif ${full_name} kid=${session.kid}`, info)
+
+            const results = []
+            for (const run of data.sarif.runs) {
+                for (const result of run.results) {
+                    const resultData = {
+                        guid: result.guid,
+                        reportId: data.report.id,
+                        messageText: result.message.text,
+                        ruleId: result.ruleId,
+                        locations: JSON.stringify(result.locations),
+                        automationDetailsId: run.automationDetails.id,
+                    }
+                    for (const extension of run.tool.extensions) {
+                        resultData.rulesetName = extension.name
+                        for (const rule of extension.rules) {
+                            if (rule.id === result.ruleId) {
+                                resultData.level = rule.defaultConfiguration.level
+                                resultData.description = rule.fullDescription.text
+                                resultData.helpMarkdown = rule.help?.markdown || rule.help?.text
+                                resultData.securitySeverity = rule.properties['security-severity']
+                                resultData.precision = rule.properties.precision
+                                resultData.tags = JSON.stringify(rule.properties.tags)
+                                break
+                            }
+                        }
+                    }
+                    results.push(resultData)
+                    console.log(
+                        resultData.guid,
+                        resultData.reportId,
+                        resultData.messageText,
+                        resultData.ruleId,
+                        resultData.locations,
+                        resultData.automationDetailsId,
+                        resultData.rulesetName,
+                        resultData.level,
+                        resultData.description,
+                        resultData.helpMarkdown,
+                        resultData.securitySeverity,
+                        resultData.precision,
+                        resultData.tags
+                    )
+                    const reportInfo = await env.d1db.prepare(`
+                        INSERT OR REPLACE INTO sarif_results (
+                        guid,
+                        reportId,
+                        messageText,
+                        ruleId,
+                        locations,
+                        automationDetailsId,
+                        rulesetName,
+                        level,
+                        description,
+                        helpMarkdown,
+                        securitySeverity,
+                        precision,
+                        tags
+                        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                    `)
+                        .bind(
+                            resultData.guid,
+                            resultData.reportId,
+                            resultData.messageText,
+                            resultData.ruleId,
+                            resultData.locations,
+                            resultData.automationDetailsId,
+                            resultData.rulesetName,
+                            resultData.level || '',
+                            resultData.description || '',
+                            resultData.helpMarkdown || '',
+                            resultData.securitySeverity || '',
+                            resultData.precision || '',
+                            resultData.tags || ''
+                        )
+                        .run()
+
+                    console.log(`/github/repos/sarif_results ${full_name} kid=${session.kid}`, reportInfo)
+                }
+            }
 
             files.push({
                 sarifId: data.report.sarif_id,
@@ -95,7 +173,8 @@ export async function onRequestGet(context) {
                 toolName: data.report.tool.name,
                 toolVersion: data.report.tool?.version,
                 analysisKey: data.report.analysis_key,
-                warning: data.report.warning
+                warning: data.report.warning,
+                results
             })
         }
     }

@@ -1,6 +1,6 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult } from "../../../src/utils";
+import { App, AuthResult } from "../../src/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -23,16 +23,16 @@ export async function onRequestGet(context) {
     if (result !== AuthResult.AUTHENTICATED) {
         return Response.json({ err, result })
     }
-    const githubApps = await prisma.github_apps.findMany({
+
+    const sarif = await prisma.sarif.findMany({
         where: {
             memberEmail: session.memberEmail,
         },
-    })
-    const gitRepos = await prisma.git_repos.findMany({
-        where: {
-            memberEmail: session.memberEmail,
-        },
+        include: {
+            results: true,
+            repo: true
+        }
     })
 
-    return Response.json({ githubApps, gitRepos })
+    return Response.json({ sarif })
 }

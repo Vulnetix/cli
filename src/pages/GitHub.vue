@@ -71,8 +71,11 @@ class GitHub {
 
         return
       }
-      if (["Expired", "Revoked", "Forbidden"].includes(data?.err)) {
+      if (data?.err) {
         state.error = data.err
+      }
+      if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+        state.info = data.result
 
         return setTimeout(router.push('/logout'), 2000)
       }
@@ -108,8 +111,11 @@ class GitHub {
 
         return
       }
-      if (["Expired", "Revoked", "Forbidden"].includes(data?.err)) {
+      if (data?.err) {
         state.error = data.err
+      }
+      if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+        state.info = data.result
 
         return setTimeout(router.push('/logout'), 2000)
       }
@@ -163,43 +169,112 @@ const gh = reactive(new GitHub())
 <template>
   <VRow>
     <VCol cols="12">
-      <VAlert v-if="state.error" color="error" icon="$error" title="Error" :text="state.error" border="start"
-        variant="tonal" />
-      <VAlert v-if="state.warning" color="warning" icon="$warning" title="Warning" :text="state.warning" border="start"
-        variant="tonal" />
-      <VAlert v-if="state.success" color="success" icon="$success" title="Success" :text="state.success" border="start"
-        variant="tonal" />
-      <VAlert v-if="state.info" color="info" icon="$info" title="Information" :text="state.info" border="start"
-        variant="tonal" />
+      <VAlert
+        v-if="state.error"
+        color="error"
+        icon="$error"
+        title="Error"
+        :text="state.error"
+        border="start"
+        variant="tonal"
+      />
+      <VAlert
+        v-if="state.warning"
+        color="warning"
+        icon="$warning"
+        title="Warning"
+        :text="state.warning"
+        border="start"
+        variant="tonal"
+      />
+      <VAlert
+        v-if="state.success"
+        color="success"
+        icon="$success"
+        title="Success"
+        :text="state.success"
+        border="start"
+        variant="tonal"
+      />
+      <VAlert
+        v-if="state.info"
+        color="info"
+        icon="$info"
+        title="Information"
+        :text="state.info"
+        border="start"
+        variant="tonal"
+      />
     </VCol>
     <VCol cols="12">
 
-      <VEmptyState v-if="!state.gitRepos.length && !state.loading" :image="state.octodexImageUrl">
+      <VEmptyState
+        v-if="!state.gitRepos.length && !state.loading"
+        :image="state.octodexImageUrl"
+      >
         <template #actions>
-          <VBtn text="Install" prepend-icon="line-md:github-loop" variant="text"
-            :color="global.name.value === 'dark' ? '#fff' : '#272727'" @click="installApp" />
-          <VBtn v-if="state.githubApps.length && !state.loading" text="Refresh Repositories" prepend-icon="mdi-refresh"
-            variant="text" :color="global.name.value === 'dark' ? '#fff' : '#272727'" @click="gh.refreshRepos" />
+          <VBtn
+            text="Install"
+            prepend-icon="line-md:github-loop"
+            variant="text"
+            :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+            @click="installApp"
+          />
+          <VBtn
+            v-if="state.githubApps.length && !state.loading"
+            text="Refresh Repositories"
+            prepend-icon="mdi-refresh"
+            variant="text"
+            :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+            @click="gh.refreshRepos"
+          />
         </template>
       </VEmptyState>
 
-      <VCard v-if="state.gitRepos.length || state.loading" title="Repositories">
+      <VCard
+        v-if="state.gitRepos.length || state.loading"
+        title="Repositories"
+      >
         <VCardText>
-          <VBtn text="Install another GitHub Account" prepend-icon="line-md:github-loop" variant="text"
-            :color="global.name.value === 'dark' ? '#fff' : '#272727'" @click="installApp" />
-          <VBtn text="Refresh Repositories" prepend-icon="mdi-refresh" variant="text"
-            :color="global.name.value === 'dark' ? '#fff' : '#272727'" :disabled="state.loading"
-            @click="gh.refreshRepos" />
+          <VBtn
+            text="Install another GitHub Account"
+            prepend-icon="line-md:github-loop"
+            variant="text"
+            :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+            @click="installApp"
+          />
+          <VBtn
+            text="Refresh Repositories"
+            prepend-icon="mdi-refresh"
+            variant="text"
+            :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+            :disabled="state.loading"
+            @click="gh.refreshRepos"
+          />
         </VCardText>
         <v-expansion-panels accordion>
-          <v-expansion-panel v-for="(group, k) in groupedRepos()" :key="k">
+          <v-expansion-panel
+            v-for="(group, k) in groupedRepos()"
+            :key="k"
+          >
             <v-expansion-panel-title class="text-subtitle-1">
-              <img :src="group.avatarUrl" width="25" class="me-3">{{ group.orgName }} ({{ group.repos.length }}
+              <img
+                :src="group.avatarUrl"
+                width="25"
+                class="me-3"
+              >{{ group.orgName }} ({{ group.repos.length }}
               repositories)
             </v-expansion-panel-title>
             <v-expansion-panel-text>
-              <VSkeletonLoader v-if="state.loading" type="table" />
-              <VTable v-else height="20rem" fixed-header>
+              <VSkeletonLoader
+                v-if="state.loading"
+                type="table"
+              />
+              <VTable
+                v-else
+                height="20rem"
+                fixed-header
+              >
                 <thead>
                   <tr>
                     <th class="text-uppercase">
@@ -230,33 +305,54 @@ const gh = reactive(new GitHub())
                 </thead>
 
                 <tbody>
-                  <tr v-for="(repo, i) in group.repos" :key="i">
+                  <tr
+                    v-for="(repo, i) in group.repos"
+                    :key="i"
+                  >
                     <td>
                       <VTooltip text="Refresh SARIF">
                         <template v-slot:activator="{ props }">
-                          <VBtn v-bind="props" icon="mdi-refresh" variant="plain" color="rgb(26, 187, 156)"
-                            @click="gh.refreshSarif(repo.fullName)" />
+                          <VBtn
+                            v-bind="props"
+                            icon="mdi-refresh"
+                            variant="plain"
+                            color="rgb(26, 187, 156)"
+                            @click="gh.refreshSarif(repo.fullName)"
+                          />
                         </template>
                       </VTooltip>
 
                       {{ repo.repoName }}
                     </td>
                     <td class="text-center">
-                      <VTooltip activator="parent" location="top">Last Updated {{ new
+                      <VTooltip
+                        activator="parent"
+                        location="top"
+                      >Last Updated {{ new
                         Date(repo.updatedAt).toLocaleDateString() }}</VTooltip>
                       {{ repo.defaultBranch }}
                     </td>
                     <td class="text-center">
                       {{ repo.visibility }}
                     </td>
-                    <td class="text-center" :class="{ 'text-secondary': repo.fork }">
+                    <td
+                      class="text-center"
+                      :class="{ 'text-secondary': repo.fork }"
+                    >
                       {{ repo.fork ? "Fork" : repo.template ? "Template" : "Source" }}
                     </td>
-                    <td class="text-center" :class="{ 'text-secondary': repo.archived }">
+                    <td
+                      class="text-center"
+                      :class="{ 'text-secondary': repo.archived }"
+                    >
                       {{ repo.archived ? "Archived" : "Active" }}
                     </td>
                     <td class="text-center">
-                      <VTooltip v-if="repo.licenseSpdxId" activator="parent" location="top">{{
+                      <VTooltip
+                        v-if="repo.licenseSpdxId"
+                        activator="parent"
+                        location="top"
+                      >{{
                         repo.licenseSpdxId }}</VTooltip>
                       {{ repo.licenseName }}
                     </td>
@@ -264,7 +360,10 @@ const gh = reactive(new GitHub())
                       {{ new Date(repo.pushedAt).toLocaleDateString() }}
                     </td>
                     <td class="text-end">
-                      <VTooltip activator="parent" location="top">{{
+                      <VTooltip
+                        activator="parent"
+                        location="top"
+                      >{{
                         repo.pk }}</VTooltip>
                       {{ new Date(repo.createdAt).toLocaleDateString() }}
                     </td>

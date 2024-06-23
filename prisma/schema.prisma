@@ -14,6 +14,7 @@ datasource db {
 model audit {
   id             Int     @id @default(autoincrement())
   memberEmail    String  @unique
+  member         members @relation(fields: [memberEmail], references: [email])
   action         String
   actionTime     Int
   additionalData String?
@@ -22,6 +23,7 @@ model audit {
 model sessions {
   kid         String  @unique
   memberEmail String
+  member      members @relation(fields: [memberEmail], references: [email])
   expiry      Int
   issued      Int
   secret      String?
@@ -30,29 +32,37 @@ model sessions {
 }
 
 model members {
-  email         String  @unique
+  email         String        @id @unique
   orgName       String
   passwordHash  String
   firstName     String?
   lastName      String?
   phoneNumber   String?
-  alertNews     Int     @default(0)
-  alertOverdue  Int     @default(0)
-  alertFindings Int     @default(0)
-  alertType     Int     @default(0)
+  alertNews     Int           @default(0)
+  alertOverdue  Int           @default(0)
+  alertFindings Int           @default(0)
+  alertType     Int           @default(0)
+  sarif         sarif[]
+  github_apps   github_apps[]
+  git_repos     git_repos[]
+  member_keys   member_keys[]
+  sessions      sessions[]
+  audit         audit?
 }
 
 model member_keys {
-  id          Int    @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   memberEmail String
   keyType     String
+  member      members @relation(fields: [memberEmail], references: [email])
   secret      String
-  suspend     Int    @default(0)
+  suspend     Int     @default(0)
 }
 
 model github_apps {
-  installationId String @unique
+  installationId String  @unique
   memberEmail    String
+  member         members @relation(fields: [memberEmail], references: [email])
   accessToken    String
   created        Int
   expires        Int?
@@ -60,13 +70,14 @@ model github_apps {
 
 model git_repos {
   pk            String  @unique
-  fullName      String
+  fullName      String  @id
   createdAt     Int
   updatedAt     Int
   pushedAt      Int
   defaultBranch String
   ownerId       Int
   memberEmail   String
+  member        members @relation(fields: [memberEmail], references: [email])
   licenseSpdxId String?
   licenseName   String?
   fork          Int     @default(0)
@@ -74,20 +85,42 @@ model git_repos {
   archived      Int     @default(0)
   visibility    String
   avatarUrl     String?
+  sarif         sarif[]
 }
 
 model sarif {
-  sarifId      Int     @unique
-  reportId     String
-  fullName     String
+  sarifId      String          @unique
+  reportId     String          @id
+  fullName     String?
+  repo         git_repos?      @relation(fields: [fullName], references: [fullName])
+  source       String
   memberEmail  String
-  commitSha    String
-  ref          String
+  member       members         @relation(fields: [memberEmail], references: [email])
+  commitSha    String?
+  ref          String?
   createdAt    Int
   resultsCount Int
   rulesCount   Int
   toolName     String?
   toolVersion  String?
-  analysisKey  String
+  analysisKey  String?
   warning      String?
+  results      sarif_results[]
+}
+
+model sarif_results {
+  guid                String  @unique
+  reportId            String
+  sarif               sarif   @relation(fields: [reportId], references: [reportId])
+  messageText         String
+  ruleId              String
+  locations           String?
+  automationDetailsId String?
+  rulesetName         String?
+  level               String?
+  description         String?
+  helpMarkdown        String?
+  securitySeverity    String?
+  precision           String?
+  tags                String?
 }
