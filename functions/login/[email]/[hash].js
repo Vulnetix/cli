@@ -1,4 +1,6 @@
-import { pbkdf2Verify } from "../../../src/utils"
+import { PrismaD1 } from '@prisma/adapter-d1';
+import { PrismaClient } from '@prisma/client';
+import { pbkdf2Verify } from "../../../src/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -14,13 +16,22 @@ export async function onRequestGet(context) {
         params?.email &&
         params?.hash
     ) {
-        const passwordHash = await env.d1db.prepare(
-            "SELECT passwordHash FROM members WHERE email = ?",
-        )
-            .bind(params.email)
-            .first('passwordHash')
+        const adapter = new PrismaD1(env.d1db)
+        const prisma = new PrismaClient({
+            adapter,
+            transactionOptions: {
+                maxWait: 1500, // default: 2000
+                timeout: 2000, // default: 5000
+            },
+        })
 
-        const verified = await pbkdf2Verify(passwordHash, params.hash)
+        const member = await prisma.members.findFirst({
+            where: {
+                email: params.email,
+            },
+        })
+
+        const verified = await pbkdf2Verify(member.passwordHash, params.hash)
         if (!verified) {
             return Response.json({ 'err': 'Forbidden' })
         }
@@ -36,9 +47,9 @@ export async function onRequestGet(context) {
             .run()
 
         console.log(`/login kid=${token}`, info)
-        
-        return Response.json({ token, expiry })
+
+        return Response.json({ token, expiry, orgName: member.orgName, firstName: member.firstName, lastName: member.lastName })
     }
-    
+
     return Response.json({ 'err': 'Authentication' })
 }

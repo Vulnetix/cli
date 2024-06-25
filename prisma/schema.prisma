@@ -11,15 +11,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model audit {
-  id             Int     @id @default(autoincrement())
-  memberEmail    String  @unique
-  member         members @relation(fields: [memberEmail], references: [email])
-  action         String
-  actionTime     Int
-  additionalData String?
-}
-
 model sessions {
   kid         String  @unique
   memberEmail String
@@ -37,7 +28,6 @@ model members {
   passwordHash  String
   firstName     String?
   lastName      String?
-  phoneNumber   String?
   alertNews     Int           @default(0)
   alertOverdue  Int           @default(0)
   alertFindings Int           @default(0)
@@ -47,7 +37,7 @@ model members {
   git_repos     git_repos[]
   member_keys   member_keys[]
   sessions      sessions[]
-  audit         audit?
+  spdx          spdx[]
 }
 
 model member_keys {
@@ -86,6 +76,7 @@ model git_repos {
   visibility    String
   avatarUrl     String?
   sarif         sarif[]
+  spdx          spdx[]
 }
 
 model sarif {
@@ -123,4 +114,21 @@ model sarif_results {
   securitySeverity    String?
   precision           String?
   tags                String?
+}
+
+model spdx {
+  spdxId            String     @unique
+  spdxVersion       String
+  source            String
+  repoName          String?
+  repo              git_repos? @relation(fields: [repoName], references: [fullName])
+  name              String?
+  dataLicense       String?
+  documentNamespace String?
+  toolName          String?
+  packageCount      Int
+  createdAt         Int
+  memberEmail       String
+  member            members    @relation(fields: [memberEmail], references: [email])
+  comment           String?
 }

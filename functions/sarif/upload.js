@@ -1,6 +1,6 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult, UUID, isSARIF } from "../../src/utils";
+import { App, AuthResult, UUID, hex, isSARIF } from "../../src/utils";
 
 
 export async function onRequestPost(context) {
@@ -35,10 +35,7 @@ export async function onRequestPost(context) {
             const sarifId = UUID()
             const createdAt = (new Date()).getTime()
             const sarifStr = JSON.stringify(sarif)
-            const reportId = [...new Uint8Array(await crypto.subtle.digest(
-                { name: 'SHA-1' },
-                new TextEncoder().encode(sarifStr)
-            ))].map(b => b.toString(16).padStart(2, '0')).join('')
+            const reportId = await hex(sarifStr)
             const objectPrefix = `uploads/${session.memberEmail}/sarif/`
             const fileName = `${reportId}.json`
             console.log(fileName, await env.r2icache.put(`${objectPrefix}${fileName}`, sarifStr, putOptions))

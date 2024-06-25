@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "npm run build && wrangler pages dev ./dist",
+    "watch": "vite build --watch",
+    "preview": "wrangler pages dev ./dist",
     "lint": "eslint . -c .eslintrc.js --fix --ext .ts,.js,.vue,.tsx,.jsx --ignore-path .gitignore",
     "build:icons": "node src/@iconify/build-icons.js",
     "postinstall": "npm run build:icons",

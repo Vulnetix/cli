@@ -8,13 +8,13 @@ Triage aims to provide a robust and flexible vendor independent solution for man
 
 Triage will offer a range of features to streamline vulnerability management:
 
-1.    **SBOM**: The app takes input data from SARIF, and CycloneDX.
+1.    **SBOM**: The app takes input data from SPDX, and CycloneDX.
 2.    **Data Enrichment**: Users can add optional API keys to enrich their data.
 3.    **Policy and Compliance**: Ensures policy and compliance adherence using OSCAL.
-4.    **GitHub Actions**: Facilitates seamless integration with GitHub Actions.
-5.    **CLI**: Provides an optional command-line interface for SBOM integration, and for auditing SBOMs to generate VEX.
+4.    **SAST**: Ingestion of SARIF format SAST scanner outputs.
+5.    **GitHub App**: Provides an optional integration interface for SBOM, SPDX, and SCA Dependabot alerts.
 6.    **Cloud Dashboard**: Offers a cloud-based dashboard for reporting and manual SBOM uploads.
-7.    **VEX**: Utilizes git commit messages following conventional commit semantics for VEX creation.
+7.    **VEX**: Utilizes git commit messages following conventional commit messages for VEX creation.
 8.    **Auditing**: Enable all auditing actions resulting in a VEX through the cloud dashboard.
 10.    **Standardized Reporting**: All reporting in the cloud dashboard uses SARIF, CycloneDX, and VEX formats, ensuring compatibility with modern tools and avoiding vendor lock-in. Tools producing SBOMs are considered modern, while others are regarded as legacy and need modernization.
 

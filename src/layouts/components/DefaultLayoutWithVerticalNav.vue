@@ -51,125 +51,83 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
     </template>
 
     <template #vertical-nav-content>
-      <VerticalNavLink
-        :item="{
-          title: 'Dashboard',
-          icon: 'bx-home',
-          to: '/dashboard',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'Account Settings',
-          icon: 'mdi-account-cog-outline',
-          to: '/account-settings',
-        }"
-      />
+      <VerticalNavLink :item="{
+        title: 'Dashboard',
+        icon: 'bx-home',
+        to: '/dashboard',
+      }" />
 
       <!-- 👉 Activities -->
-      <VerticalNavSectionTitle
-        :item="{
-          heading: 'Activities',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'Queue',
-          icon: 'fluent-mdl2:new-analytics-query',
-          to: '/triage-queue',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'Overdue',
-          icon: 'carbon:incomplete-warning',
-          to: '/triage-overdue',
-        }"
-      />
+      <VerticalNavSectionTitle :item="{
+        heading: 'Activities',
+      }" />
+      <VerticalNavLink :item="{
+        title: 'Queue',
+        icon: 'fluent-mdl2:new-analytics-query',
+        to: '/triage-queue',
+      }" />
+      <VerticalNavLink :item="{
+        title: 'Overdue',
+        icon: 'carbon:incomplete-warning',
+        to: '/triage-overdue',
+      }" />
+      <VerticalNavLink :item="{
+        title: 'History',
+        icon: 'mdi-clipboard-text-history',
+        to: '/triage-history',
+      }" />
 
       <!-- 👉 File Management -->
-      <VerticalNavSectionTitle
-        :item="{
-          heading: 'Import / Export',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'SARIF',
-          icon_url: '/sarif-logo.png',
-          to: '/sarif-manager',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'CycloneDX',
-          icon_url: '/cyclonedx-logo.png',
-          to: '/cyclonedx-manager',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'VEX',
-          icon_url: '/csaf-logo.png',
-          to: '/vex-manager',
-        }"
-      />
-
-      <!-- 👉 Audit -->
-      <VerticalNavSectionTitle
-        :item="{
-          heading: 'Audit',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'Activity History',
-          icon: 'mdi-clipboard-text-history',
-          to: '/activity-history',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'User Audit',
-          icon: 'hugeicons:audit-01',
-          to: '/user-audit',
-        }"
-      />
+      <VerticalNavSectionTitle :item="{
+        heading: 'Import Sources',
+      }" />
+      <VerticalNavLink :item="{
+        title: 'SARIF',
+        icon_url: '/sarif-logo.png',
+        to: '/sarif-manager',
+      }" />
+      <VerticalNavLink :item="{
+        title: 'CycloneDX',
+        icon_url: '/cyclonedx-logo.png',
+        to: '/cyclonedx-manager',
+      }" />
+      <VerticalNavLink :item="{
+        title: 'SPDX',
+        icon_url: '/spdx-logo.png',
+        to: '/spdx-manager',
+      }" />
+      <VerticalNavLink :item="{
+        title: 'VEX',
+        icon_url: '/csaf-logo.png',
+        to: '/vex-manager',
+      }" />
 
       <!-- 👉 Integrations -->
-      <VerticalNavSectionTitle
-        :item="{
-          heading: 'Integrations',
-        }"
-      />
+      <VerticalNavSectionTitle :item="{
+        heading: 'Integrations',
+      }" />
       <!--
         https://redocly.github.io/redoc/?url=https://api.vulncheck.com/v3/openapi#tag/endpoints/paths/~1cpe/get
         https://redocly.github.io/redoc/?url=https://api.vulncheck.com/v3/openapi#tag/endpoints/paths/~1purl/get
         https://vulncheck.com/token/newtoken
         https://rud.is/b/2024/03/23/vulnchecks-free-community-kev-cve-apis-code-golang-cli-utility/
-      --> 
-      <VerticalNavLink
-        :item="{
-          title: 'VulnCheck',
-          icon_url: '/vulncheck-logo.png',
-          to: '/vulncheck-integration',
-        }"
-      />
-      <!-- https://docs.mend.io/bundle/mend-api-2-0/page/index.html#tag/General-Info-Vulnerabilities --> 
-      <VerticalNavLink
-        :item="{
-          title: 'Mend.io',
-          icon_url: '/mend-io-logo.png',
-          to: '/mend-integration',
-        }"
-      />
-      <VerticalNavLink
-        :item="{
-          title: 'GitHub',
-          icon: 'mdi-github',
-          to: '/github-integration',
-        }"
-      />
+      -->
+      <VerticalNavLink :item="{
+        title: 'VulnCheck',
+        icon_url: '/vulncheck-logo.png',
+        to: '/vulncheck-integration',
+      }" />
+      <!-- https://docs.mend.io/bundle/mend-api-2-0/page/index.html#tag/General-Info-Vulnerabilities -->
+      <VerticalNavLink :item="{
+        title: 'Mend.io',
+        icon_url: '/mend-io-logo.png',
+        to: '/mend-integration',
+      }" />
+      <VerticalNavLink :item="{
+        title: 'GitHub',
+        icon: 'mdi-github',
+        to: '/github-integration',
+      }" />
     </template>
 
     <!-- 👉 Pages -->

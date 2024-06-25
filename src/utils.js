@@ -64,7 +64,6 @@ export class GitHub {
     }
     async fetchJSON(url) {
         try {
-            console.log(url)
             const response = await fetch(url, { headers: this.headers })
             const respText = await response.text()
             if (!response.ok) {
@@ -83,7 +82,6 @@ export class GitHub {
     }
     async fetchSARIF(url) {
         try {
-            console.log(url)
             const headers = Object.assign(this.headers, { 'Accept': 'application/sarif+json' })
             const response = await fetch(url, { headers })
             const respText = await response.text()
@@ -101,7 +99,7 @@ export class GitHub {
             return { ok: response.ok, status: response.status, statusText: response.statusText, content: await response.text(), error: { message: e.message, lineno, colno } }
         }
     }
-    async getRepoSarif(full_name, memberEmail, db) {
+    async getRepoSarif(full_name) {
         // https://docs.github.com/en/rest/code-scanning/code-scanning?apiVersion=2022-11-28#list-code-scanning-analyses-for-a-repository
         const files = []
         const perPage = 100
@@ -109,51 +107,25 @@ export class GitHub {
 
         while (true) {
             const url = `${this.baseUrl}/repos/${full_name}/code-scanning/analyses?per_page=${perPage}&page=${page}`
+            console.log(`github.getRepoSarif(${full_name}) ${url}`)
             const data = await this.fetchJSON(url)
             if (!data?.ok) {
-                data.url = url
-                const info = await db.prepare(`
-                    INSERT OR REPLACE INTO audit (
-                    memberEmail,
-                    action,
-                    actionTime,
-                    additionalData) VALUES (?1, ?2, ?3, ?4)`)
-                    .bind(
-                        memberEmail,
-                        'github_sarif',
-                        +new Date(),
-                        JSON.stringify(data)
-                    )
-                    .run()
-                console.log(`github.getRepoSarif(${full_name}) ${data.status} ${data.statusText}`, data.content, info)
                 break
             }
             for (const report of data.content) {
                 const sarifUrl = `${this.baseUrl}/repos/${full_name}/code-scanning/analyses/${report.id}`
+                console.log(`github.getRepoSarif(${full_name}) ${sarifUrl}`)
                 const sarifData = await this.fetchSARIF(sarifUrl)
                 if (!sarifData?.ok) {
-                    sarifData.url = sarifUrl
-                    const info = await db.prepare(`
-                        INSERT OR REPLACE INTO audit (
-                        memberEmail,
-                        action,
-                        actionTime,
-                        additionalData) VALUES (?1, ?2, ?3, ?4)`)
-                        .bind(
-                            memberEmail,
-                            'github_sarif',
-                            +new Date(),
-                            JSON.stringify(sarifData)
-                        )
-                        .run()
-                    console.log(`github.getRepoSarif(${full_name}) ${sarifData.status} ${sarifData.statusText}`, sarifData.content, info)
-                    break
+                    continue
                 }
-                files.push({
-                    full_name,
-                    report: Object.assign({}, report),
-                    sarif: Object.assign({}, sarifData.content)
-                })
+                if (report?.id && isSARIF(sarifData.content)) {
+                    files.push({
+                        full_name,
+                        report: Object.assign({}, report),
+                        sarif: Object.assign({}, sarifData.content)
+                    })
+                }
             }
 
             if (data.content.length < perPage) {
@@ -165,7 +137,17 @@ export class GitHub {
 
         return files
     }
-    async getRepos(memberEmail, db) {
+    async getRepoSpdx(full_name) {
+        // https://docs.github.com/en/rest/dependency-graph/sboms?apiVersion=2022-11-28#export-a-software-bill-of-materials-sbom-for-a-repository
+        const url = `${this.baseUrl}/repos/${full_name}/dependency-graph/sbom`
+        console.log(`github.getRepoSpdx(${full_name}) ${url}`)
+        const data = await this.fetchJSON(url)
+        if (!data?.ok) {
+            return null
+        }
+        return data.content
+    }
+    async getRepos() {
         // https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#list-repositories-for-the-authenticated-user
         const repos = []
         const perPage = 100
@@ -173,23 +155,9 @@ export class GitHub {
 
         while (true) {
             const url = `${this.baseUrl}/user/repos?per_page=${perPage}&page=${page}`
+            console.log(`github.getRepos() ${url}`)
             const data = await this.fetchJSON(url)
             if (!data?.ok) {
-                data.url = url
-                const info = await db.prepare(`
-                    INSERT OR REPLACE INTO audit (
-                    memberEmail,
-                    action,
-                    actionTime,
-                    additionalData) VALUES (?1, ?2, ?3, ?4)`)
-                    .bind(
-                        memberEmail,
-                        'github_repos',
-                        +new Date(),
-                        JSON.stringify(data)
-                    )
-                    .run()
-                console.log(`github.getRepos() ${data.status} ${data.statusText}`, data.content, info)
                 break
             }
             repos.push(...data.content)
@@ -348,59 +316,84 @@ export async function pbkdf2(password, iterations = 1e5, hashBits = 512) {
     return btoa('v01' + compositeStr)
 }
 
+export function isSPDX(input) {
+    const supportedVersions = ["SPDX-2.3"]
+    let spdx
+    if (typeof input === "string" && isJSON(input)) {
+        spdx = JSON.parse(input)
+    }
+    if (typeof input?.spdxVersion === 'undefined' || typeof input?.SPDXID === 'undefined') {
+        return false
+    }
+    spdx = Object.assign({}, input)
+    if (!supportedVersions.includes(spdx.spdxVersion)) {
+        throw `Provided SPDX version ${spdx.spdxVersion} is not supported. Must be one of: ${supportedVersions}`
+    }
+    if (typeof spdx?.name === 'undefined' ||
+        typeof spdx?.fullDescription?.text === 'undefined' ||
+        typeof spdx?.dataLicense === 'undefined' ||
+        typeof spdx?.documentNamespace === 'undefined' ||
+        typeof spdx?.creationInfo?.creators === 'undefined' ||
+        !spdx?.creationInfo?.creators.length
+    ) {
+        return false
+    }
+    return true
+}
+
 export function isSARIF(input) {
     const supportedVersions = ["2.1.0"]
     let sarif
     if (typeof input === "string" && isJSON(input)) {
         sarif = JSON.parse(input)
     }
-    if (!input?.$schema || !input?.version) {
+    if (typeof input?.$schema === 'undefined' || typeof input?.version === 'undefined') {
         return false
     }
     sarif = Object.assign({}, input)
     if (!supportedVersions.includes(sarif.version)) {
         throw `Provided SARIF version ${sarif.version} is not supported. Must be one of: ${supportedVersions}`
     }
-    if (!sarif?.runs || !sarif.runs.length) {
+    if (typeof sarif?.runs === 'undefined' || !sarif.runs.length) {
         throw `Provided SARIF was empty`
     }
     for (const run in sarif.runs) {
-        if (!run?.results || !run.results.length) {
+        if (typeof run?.results === 'undefined' || !run.results.length) {
             continue
         }
-        if (!run?.tool?.driver?.name) {
+        if (typeof run?.tool?.driver?.name === 'undefined') {
             return false
         }
-        if (!run?.tool?.driver?.rules ||
+        if (typeof run?.tool?.driver?.rules === 'undefined' ||
             !run.tool.driver.rules.length
         ) {
             return false
         }
         for (const rule in run.tool.driver.rules) {
-            if (!rule?.defaultConfiguration?.level ||
-                !rule?.fullDescription?.text ||
-                !rule?.help?.text ||
-                !rule?.properties?.precision ||
-                !rule?.shortDescription?.text ||
-                !rule?.name
+            if (typeof rule?.defaultConfiguration?.level === 'undefined' ||
+                typeof rule?.fullDescription?.text === 'undefined' ||
+                typeof rule?.help?.text === 'undefined' ||
+                typeof rule?.properties?.precision === 'undefined' ||
+                typeof rule?.shortDescription?.text === 'undefined' ||
+                typeof rule?.name === 'undefined'
             ) {
                 return false
             }
         }
         for (const extension in run.extensions) {
-            if (!extension?.name ||
-                !extension?.rules ||
+            if (typeof extension?.name === 'undefined' ||
+                typeof extension?.rules === 'undefined' ||
                 !extension.rules.length
             ) {
                 return false
             }
             for (const rule in extension.rules) {
-                if (!rule?.defaultConfiguration?.level ||
-                    !rule?.fullDescription?.text ||
-                    !rule?.help?.text ||
-                    !rule?.properties?.precision ||
-                    !rule?.shortDescription?.text ||
-                    !rule?.name
+                if (typeof rule?.defaultConfiguration?.level === 'undefined' ||
+                    typeof rule?.fullDescription?.text === 'undefined' ||
+                    typeof rule?.help?.text === 'undefined' ||
+                    typeof rule?.properties?.precision === 'undefined' ||
+                    typeof rule?.shortDescription?.text === 'undefined' ||
+                    typeof rule?.name === 'undefined'
                 ) {
                     return false
                 }
@@ -408,6 +401,10 @@ export function isSARIF(input) {
         }
     }
     return true
+}
+
+export async function hex(text, name = "SHA-1") {
+    return [...new Uint8Array(await crypto.subtle.digest({ name }, new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 export function UUID() {

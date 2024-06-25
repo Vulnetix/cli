@@ -3,7 +3,7 @@ import { default as axios } from 'axios'
 import { reactive } from 'vue'
 import { useTheme } from 'vuetify'
 import router from "../router"
-import { isJSON, isSARIF } from '../utils'
+import { isJSON } from '../utils'
 
 const { global } = useTheme()
 
@@ -25,7 +25,7 @@ const state = reactive({
 axios.defaults.headers.common = {
   'x-trivialsec': localStorage.getItem('/session/token') || '',
 }
-class Sarif {
+class Spdx {
   constructor() {
     this.refresh(true)
   }
@@ -34,11 +34,11 @@ class Sarif {
     clearAlerts()
     state.loading = true
     try {
-      const { data } = await axios.get(`/sarif/results`)
+      const { data } = await axios.get(`/spdx/results`)
       state.loading = false
 
       if (typeof data === "string" && !isJSON(data)) {
-        state.warning = "SARIF data could not be retrieved, please try again later."
+        state.warning = "SPDX data could not be retrieved, please try again later."
 
         return
       }
@@ -50,13 +50,13 @@ class Sarif {
 
         return setTimeout(router.push('/logout'), 2000)
       }
-      if (!data.sarif) {
-        state.info = "No SARIF data available."
+      if (!data.spdx) {
+        state.info = "No SPDX data available."
       } else {
-        state.uploads = data.sarif.filter(item => item.source === "upload")
-        state.github = data.sarif.filter(item => item.source === "GitHub")
+        state.uploads = data.spdx.filter(item => item.source === "upload")
+        state.github = data.spdx.filter(item => item.source === "GitHub")
         if (initial !== true) {
-          state.info = "Refreshed SARIF"
+          state.info = "Refreshed SPDX"
         }
       }
 
@@ -66,7 +66,7 @@ class Sarif {
       state.error = `${e.code} ${e.message}`
       state.loading = false
     }
-    state.warning = "No SARIF data available."
+    state.warning = "No SPDX data available."
   }
 
   async upload() {
@@ -80,23 +80,17 @@ class Sarif {
           state.error = "Provided file does not contain a JSON string."
           break
         }
-        const json = JSON.parse(text)
-        if (isSARIF(json)) {
-          files.push(json)
-        } else {
-          state.error = "Provided file does not contain valid SARIF."
-          break
-        }
+        files.push(JSON.parse(text))
       }
       if (!files.length) {
-        state.warning = "No SARIF files were provided."
+        state.warning = "No SPDX files were provided."
         return
       }
-      const { data } = await axios.post(`/sarif/upload`, files, { headers: { 'Content-Type': 'application/json' } })
+      const { data } = await axios.post(`/spdx/upload`, files, { headers: { 'Content-Type': 'application/json' } })
       state.loading = false
 
       if (typeof data === "string" && !isJSON(data)) {
-        state.error = "SARIF data could not be uploaded, please try again later."
+        state.error = "SPDX data could not be uploaded, please try again later."
 
         return
       }
@@ -108,12 +102,12 @@ class Sarif {
 
         return setTimeout(router.push('/logout'), 2000)
       }
-      if (!data.sarif) {
-        state.info = "No SARIF data available."
+      if (!data.spdx) {
+        state.info = "No SPDX data available."
       } else {
-        state.uploads = data.sarif.filter(item => item.source === "upload")
-        state.github = data.sarif.filter(item => item.source === "GitHub")
-        state.success = "Refreshed SARIF"
+        state.uploads = data.spdx.filter(item => item.source === "upload")
+        state.github = data.spdx.filter(item => item.source === "GitHub")
+        state.success = "Refreshed SPDX"
       }
 
       return
@@ -133,24 +127,24 @@ function clearAlerts() {
 }
 
 function groupedByOrg() {
-  return state.github.reduce((acc, sarif) => {
-    const [orgName, repoName] = sarif.fullName.split('/')
+  return state.github.reduce((acc, spdx) => {
+    const [orgName, repoName] = spdx.repoName.split('/')
     let group = acc.find(group => group.orgName === orgName)
 
     if (!group) {
       group = {
         orgName: orgName,
-        avatarUrl: sarif?.repo?.avatarUrl,
-        sarif: []
+        avatarUrl: spdx?.repo?.avatarUrl,
+        spdx: []
       };
       acc.push(group)
     }
-    group.sarif.push({ ...sarif, orgName, repoName })
+    group.spdx.push({ ...spdx, orgName, repoName })
     return acc
   }, [])
 }
 
-const sarif = reactive(new Sarif())
+const spdx = reactive(new Spdx())
 </script>
 
 <template>
@@ -201,7 +195,7 @@ const sarif = reactive(new Sarif())
         variant="text"
         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
         :disabled="state.loading"
-        @click="sarif.refresh"
+        @click="spdx.refresh"
       />
       <VDialog
         width="50%"
@@ -211,14 +205,14 @@ const sarif = reactive(new Sarif())
           <VBtn
             class="text-right"
             prepend-icon="mdi-upload"
-            text="Upload SARIF"
+            text="Upload SPDX"
             variant="text"
             :color="global.name.value === 'dark' ? '#fff' : '#272727'"
             v-bind="activatorProps"
           />
         </template>
         <template v-slot:default="{ isActive }">
-          <VCard title="Select SARIF files">
+          <VCard title="Select SPDX files">
             <VDivider class="mt-3"></VDivider>
             <VCardText class="px-4">
               <VFileInput
@@ -267,7 +261,7 @@ const sarif = reactive(new Sarif())
               <VBtn
                 text="Save"
                 variant="flat"
-                @click="sarif.upload"
+                @click="spdx.upload"
               />
             </VCard-actions>
           </VCard>
@@ -293,7 +287,7 @@ const sarif = reactive(new Sarif())
                 :src="group.avatarUrl"
                 width="25"
                 class="me-3"
-              >{{ group.orgName }} ({{ group.sarif.length }} results)
+              >{{ group.orgName }} ({{ group.spdx.length }} results)
             </VExpansionPanelTitle>
             <VExpansionPanelText>
               <VSkeletonLoader
@@ -311,22 +305,22 @@ const sarif = reactive(new Sarif())
                       Repository
                     </th>
                     <th>
-                      Ref
+                      Version
                     </th>
                     <th>
-                      Findings
+                      Name
                     </th>
                     <th>
-                      Rules Count
+                      License
                     </th>
                     <th>
                       Tool
                     </th>
                     <th>
-                      Commit SHA
+                      Packages
                     </th>
                     <th>
-                      Reports
+                      Comment
                     </th>
                     <th>
                       Created Date
@@ -336,29 +330,45 @@ const sarif = reactive(new Sarif())
 
                 <tbody>
                   <tr
-                    v-for="(result, i) in group.sarif"
+                    v-for="(result, i) in group.spdx"
                     :key="i"
                   >
-                    <td>
+                    <td class="text-center">
                       {{ result.repoName }}
                     </td>
                     <td class="text-center">
-                      {{ result.ref }}
+                      <VTooltip
+                        activator="parent"
+                        location="top"
+                      >{{ result.spdxId }}</VTooltip>
+                      {{ result.spdxVersion }}
+                    </td>
+                    <td
+                      class="text-center"
+                      v-if="result.documentNamespace"
+                    >
+                      <a
+                        :href="result.documentNamespace"
+                        target="_blank"
+                      >{{ result.name }}</a>
+                    </td>
+                    <td
+                      class="text-center"
+                      v-else
+                    >
+                      {{ result.name }}
                     </td>
                     <td class="text-center">
-                      {{ result.resultsCount }}
+                      {{ result.dataLicense }}
                     </td>
                     <td class="text-center">
-                      {{ result.rulesCount }}
+                      {{ result.toolName }}
                     </td>
                     <td class="text-center">
-                      {{ result.toolName }} {{ result.toolVersion }}
+                      {{ result.packageCount }}
                     </td>
                     <td class="text-center">
-                      {{ result.commitSha }}
-                    </td>
-                    <td class="text-center">
-                      {{ result.results.length }}
+                      {{ result.comment }}
                     </td>
                     <td class="text-center">
                       {{ new Date(result.createdAt).toLocaleDateString() }}
@@ -379,91 +389,98 @@ const sarif = reactive(new Sarif())
         title="Uploads"
         prepend-icon="uil-file-upload"
       >
-        <VExpansionPanels accordion>
-          <VExpansionPanel
-            v-for="(sarif, k) in state.uploads"
-            :key="k"
-          >
-            <VExpansionPanelTitle
-              class="text-subtitle-1"
-              v-if="sarif.results.length"
-            >
-              <img
-                src="/sarif-logo.png"
-                width="25"
-                height="25"
-                class="mr-2"
-              >
-              {{ sarif.sarifId }}.json ({{ sarif.results.length }} results)
-            </VExpansionPanelTitle>
-            <VExpansionPanelText v-if="sarif.results.length">
-              <VSkeletonLoader
-                v-if="state.loading"
-                type="table"
-              />
-              <VTable
-                v-else
-                height="20rem"
-                fixed-header
-              >
-                <thead>
-                  <tr>
-                    <th class="text-uppercase">
-                      Rule
-                    </th>
-                    <th>
-                      Level
-                    </th>
-                    <th>
-                      Precision
-                    </th>
-                    <th>
-                      Tool
-                    </th>
-                    <th>
-                      SARIF Identifier
-                    </th>
-                    <th>
-                      Message Text
-                    </th>
-                    <th>
-                      Created Date
-                    </th>
-                  </tr>
-                </thead>
+        <VSkeletonLoader
+          v-if="state.loading"
+          type="table"
+        />
+        <VTable
+          v-else
+          height="20rem"
+          fixed-header
+        >
+          <thead>
+            <tr>
+              <th class="text-uppercase">
+                File
+              </th>
+              <th>
+                Version
+              </th>
+              <th>
+                Name
+              </th>
+              <th>
+                License
+              </th>
+              <th>
+                Tool
+              </th>
+              <th>
+                Packages
+              </th>
+              <th>
+                Comment
+              </th>
+              <th>
+                Created Date
+              </th>
+            </tr>
+          </thead>
 
-                <tbody>
-                  <tr
-                    v-for="(result, i) in sarif.results"
-                    :key="i"
-                  >
-                    <td>
-                      {{ result.ruleId }}
-                    </td>
-                    <td class="text-center">
-                      {{ result.level }}
-                    </td>
-                    <td class="text-center">
-                      {{ result.precision }}
-                    </td>
-                    <td class="text-center">
-                      {{ sarif.toolName }} {{ sarif.toolVersion }}
-                    </td>
-                    <td class="text-center">
-                      {{ sarif.sarifId }}
-                    </td>
-                    <td class="text-center">
-                      {{ result.messageText }}
-                    </td>
-                    <td class="text-center">
-                      {{ new Date(sarif.createdAt).toLocaleDateString() }}
-                    </td>
-                  </tr>
-                </tbody>
-              </VTable>
-            </VExpansionPanelText>
-          </VExpansionPanel>
-        </VExpansionPanels>
+          <tbody>
+            <tr
+              v-for="(spdx, k) in state.uploads"
+              :key="k"
+            >
+              <td>
+                <VTooltip
+                  activator="parent"
+                  location="top"
+                >{{ spdx.spdxId }}</VTooltip>
+                <img
+                  src="/spdx-logo.png"
+                  width="25"
+                  height="25"
+                  class="mr-2"
+                >
+                {{ spdx.spdxId }}.json
+              </td>
+              <td class="text-center">
+                {{ spdx.spdxVersion }}
+              </td>
+              <td
+                class="text-center"
+                v-if="spdx.documentNamespace"
+              >
+                <a
+                  :href="spdx.documentNamespace"
+                  target="_blank"
+                >{{ spdx.name }}</a>
+              </td>
+              <td
+                class="text-center"
+                v-else
+              >
+                {{ spdx.name }}
+              </td>
+              <td class="text-center">
+                {{ spdx.dataLicense }}
+              </td>
+              <td class="text-center">
+                {{ spdx.toolName }}
+              </td>
+              <td class="text-center">
+                {{ spdx.packageCount }}
+              </td>
+              <td class="text-center">
+                {{ spdx.comment }}
+              </td>
+              <td class="text-center">
+                {{ new Date(spdx.createdAt).toLocaleDateString() }}
+              </td>
+            </tr>
+          </tbody>
+        </VTable>
       </VCard>
 
     </VCol>

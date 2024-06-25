@@ -39,7 +39,29 @@ const login = async () => {
                 return
             }
             localStorage.setItem('/member/email', state.email)
+            if (data.member?.orgName) {
+                localStorage.setItem('/member/orgName', data.orgName)
+            }
+            if (data.member?.firstName) {
+                localStorage.setItem('/member/firstName', data.firstName)
+            }
+            if (data.member?.lastName) {
+                localStorage.setItem('/member/lastName', data.lastName)
+            }
+            if (data.member?.alertNews) {
+                localStorage.setItem('/member/alertNews', data.alertNews)
+            }
+            if (data.member?.alertOverdue) {
+                localStorage.setItem('/member/alertOverdue', data.alertOverdue)
+            }
+            if (data.member?.alertFindings) {
+                localStorage.setItem('/member/alertFindings', data.alertFindings)
+            }
+            if (data.member?.alertType) {
+                localStorage.setItem('/member/alertType', data.alertType)
+            }
             localStorage.setItem('/session/token', data.token)
+            localStorage.setItem('/session/expiry', data.expiry)
             router.push('/dashboard')
         } catch (e) {
             console.error(e)
