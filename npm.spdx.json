@@ -3,9 +3,9 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "triage-by-trivial-security@0.1.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/triage-by-trivial-security-0.1.0-db0be1dd-3a82-4bdc-9cf9-1d69030a3430",
+  "documentNamespace": "http://spdx.org/spdxdocs/triage-by-trivial-security-0.1.0-ac72b6b4-1aa8-4628-909e-2313dc9e01b2",
   "creationInfo": {
-    "created": "2024-06-24T15:00:45.437Z",
+    "created": "2024-06-30T01:14:34.526Z",
     "creators": [
       "Tool: npm/cli-10.7.0"
     ]

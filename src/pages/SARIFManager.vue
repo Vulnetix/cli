@@ -1,9 +1,9 @@
 <script setup>
+import router from "@/router"
+import { isJSON, isSARIF } from '@/utils'
 import { default as axios } from 'axios'
 import { reactive } from 'vue'
 import { useTheme } from 'vuetify'
-import router from "../router"
-import { isJSON, isSARIF } from '../utils'
 
 const { global } = useTheme()
 

@@ -1,9 +1,9 @@
 <script setup>
+import router from "@/router"
+import { isJSON, isSPDX } from '@/utils'
 import { default as axios } from 'axios'
 import { reactive } from 'vue'
 import { useTheme } from 'vuetify'
-import router from "../router"
-import { isJSON } from '../utils'
 
 const { global } = useTheme()
 
@@ -76,8 +76,8 @@ class Spdx {
     try {
       for (const blob of state.files) {
         const text = await blob.text()
-        if (!isJSON(text)) {
-          state.error = "Provided file does not contain a JSON string."
+        if (!isSPDX(text)) {
+          state.error = "Provided file does not include SPDX required fields."
           break
         }
         files.push(JSON.parse(text))
@@ -102,11 +102,11 @@ class Spdx {
 
         return setTimeout(router.push('/logout'), 2000)
       }
-      if (!data.spdx) {
+      if (!data?.files?.length) {
         state.info = "No SPDX data available."
       } else {
-        state.uploads = data.spdx.filter(item => item.source === "upload")
-        state.github = data.spdx.filter(item => item.source === "GitHub")
+        state.uploads.concat(...data.files.filter(item => item.source === "upload"))
+        state.github.concat(...data.files.filter(item => item.source === "GitHub"))
         state.success = "Refreshed SPDX"
       }
 

@@ -81,8 +81,54 @@ export async function onRequestGet(context) {
             .run()
 
         console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)
-
         files.push(data)
+
+        const osvQueries = spdx.packages.flatMap(pkg => {
+            if (!pkg?.externalRefs) { return }
+            return pkg.externalRefs
+                .filter(ref => ref?.referenceType === 'purl')
+                .map(ref => ({
+                    purl: ref.referenceLocator,
+                    name: pkg.name,
+                    version: pkg.versionInfo,
+                    licenseDeclared: pkg.licenseDeclared
+                }))
+        })
+        const osv = new OSV()
+        const queries = osvQueries.filter(q => q?.purl).map(q => ({ package: { purl: q.purl } }))
+        const vulns = await osv.queryBatch(queries)
+        if (typeof vulns?.length !== 'undefined') {
+            let i = 0
+            for (const vuln of vulns) {
+                if (typeof vuln?.id === 'undefined') {
+                    continue
+                }
+                const findingId = await hex(`${session.memberEmail}${vuln.id}${osvQueries[i].name}${osvQueries[i].version}`)
+                const finding = await prisma.findings_sca.upsert({
+                    where: {
+                        findingId,
+                    },
+                    update: {
+                        modifiedAt: (new Date(vuln.modified)).getTime()
+                    },
+                    create: {
+                        findingId,
+                        memberEmail: session.memberEmail,
+                        source: 'osv.dev',
+                        createdAt: (new Date()).getTime(),
+                        modifiedAt: (new Date(vuln.modified)).getTime(),
+                        detectionTitle: vuln.id,
+                        purl: osvQueries[i].purl,
+                        packageName: osvQueries[i].name,
+                        packageVersion: osvQueries[i].version,
+                        licenseDeclared: osvQueries[i].licenseDeclared,
+                        spdxId
+                    }
+                })
+                console.log(`findings_sca`, finding)
+                i = i++
+            }
+        }
 
     }
 

@@ -1,9 +1,9 @@
 <script setup>
+import router from "@/router"
+import { isJSON, octodex } from '@/utils'
 import { default as axios } from 'axios'
 import { reactive } from 'vue'
 import { useTheme } from 'vuetify'
-import router from "../router"
-import { isJSON, octodex } from '../utils'
 
 //TODO https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#check-if-vulnerability-alerts-are-enabled-for-a-repository
 //TODO https://docs.github.com/en/rest/dependabot/alerts?apiVersion=2022-11-28#list-dependabot-alerts-for-a-repository

@@ -23,21 +23,23 @@ model sessions {
 }
 
 model members {
-  email         String        @id @unique
-  orgName       String
-  passwordHash  String
-  firstName     String?
-  lastName      String?
-  alertNews     Int           @default(0)
-  alertOverdue  Int           @default(0)
-  alertFindings Int           @default(0)
-  alertType     Int           @default(0)
-  sarif         sarif[]
-  github_apps   github_apps[]
-  git_repos     git_repos[]
-  member_keys   member_keys[]
-  sessions      sessions[]
-  spdx          spdx[]
+  email                 String                  @id @unique
+  orgName               String
+  passwordHash          String
+  firstName             String?
+  lastName              String?
+  alertNews             Int                     @default(0)
+  alertOverdue          Int                     @default(0)
+  alertFindings         Int                     @default(0)
+  alertType             Int                     @default(0)
+  sarif                 sarif[]
+  github_apps           github_apps[]
+  git_repos             git_repos[]
+  member_keys           member_keys[]
+  sessions              sessions[]
+  spdx                  spdx[]
+  integration_usage_log integration_usage_log[]
+  findings_sca          findings_sca[]
 }
 
 model member_keys {
@@ -131,4 +133,37 @@ model spdx {
   memberEmail       String
   member            members    @relation(fields: [memberEmail], references: [email])
   comment           String?
+}
+
+model integration_usage_log {
+  id          Int     @id @default(autoincrement())
+  memberEmail String
+  source      String
+  member      members @relation(fields: [memberEmail], references: [email])
+  request     String
+  response    String
+  statusCode  Int
+  createdAt   Int
+}
+
+model findings_sca {
+  findingId       String  @unique
+  memberEmail     String
+  source          String
+  member          members @relation(fields: [memberEmail], references: [email])
+  createdAt       Int
+  modifiedAt      Int
+  detectionTitle  String
+  purl            String?
+  cpe             String?
+  packageName     String
+  packageVersion  String?
+  licenseDeclared String?
+  fixVersion      String?
+  remediation     String?
+  maliciousSource String?
+  abandoned       Int?
+  squattedPackage String?
+  spdxId          String?
+  cdxId           String?
 }

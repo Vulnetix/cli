@@ -214,7 +214,6 @@ const profile = reactive(new Profile())
                                     v-model="state.member.firstName"
                                     placeholder="John"
                                     label="First Name"
-                                    @change="profile.changeFirstName"
                                 />
                             </VCol>
 
