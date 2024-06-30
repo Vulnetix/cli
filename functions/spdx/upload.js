@@ -1,6 +1,6 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult, OSV, VulnCheck, hex, isSPDX } from "../../src/utils";
+import { App, AuthResult, OSV, hex, isSPDX } from "../../src/utils";
 
 
 export async function onRequestPost(context) {
@@ -23,17 +23,6 @@ export async function onRequestPost(context) {
     const { err, result, session } = await (new App(request, prisma)).authenticate()
     if (result !== AuthResult.AUTHENTICATED) {
         return Response.json({ err, result })
-    }
-
-    const keyData = await prisma.member_keys.findFirst({
-        where: {
-            memberEmail: session.memberEmail,
-            keyType: 'vulncheck',
-        }
-    })
-    let vulncheck
-    if (typeof keyData?.secret !== 'undefined') {
-        vulncheck = new VulnCheck(keyData.secret)
     }
 
     const files = []

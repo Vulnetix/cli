@@ -1,6 +1,6 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult, GitHub, hex, isSPDX } from "../../../../../src/utils";
+import { App, AuthResult, GitHub, hex, isSPDX, OSV } from "../../../../../src/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -47,7 +47,6 @@ export async function onRequestGet(context) {
         const spdxId = await hex(spdxStr)
         const objectPrefix = `github/${app.installationId}/repos/${repoName}/sbom/`
         console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))
-
         const info = await env.d1db.prepare(`
             INSERT OR REPLACE INTO spdx (
             spdxId,
@@ -76,7 +75,7 @@ export async function onRequestGet(context) {
                 spdx.packages.length,
                 (new Date(spdx.creationInfo.created)).getTime(),
                 session.memberEmail,
-                spdx.creationInfo.comment
+                spdx.creationInfo?.comment
             )
             .run()
 

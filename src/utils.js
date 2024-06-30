@@ -133,6 +133,16 @@ export class VulnCheck {
     //         console.log(`findings_sca`, createFinding)
     //     }
     // }
+    // const keyData = await prisma.member_keys.findFirst({
+    //     where: {
+    //         memberEmail: session.memberEmail,
+    //         keyType: 'vulncheck',
+    //     }
+    // })
+    // let vulncheck
+    // if (typeof keyData?.secret !== 'undefined') {
+    //     vulncheck = new VulnCheck(keyData.secret)
+    // }
     constructor(BearerToken) {
         this.headers = {
             'Accept': 'application/json',
