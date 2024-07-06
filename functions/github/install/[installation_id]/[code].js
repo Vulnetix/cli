@@ -1,6 +1,8 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult } from "../../../../src/utils";
+import { App, AuthResult, GitHub, pbkdf2 } from "../../../../src/utils";
+
+const appExpiryPeriod = (86400000 * 365 * 10)  // 10 years
 
 export async function onRequestGet(context) {
     const {
@@ -19,42 +21,118 @@ export async function onRequestGet(context) {
             timeout: 2000, // default: 5000
         },
     })
-    const { err, result, session } = await (new App(request, prisma)).authenticate()
-    if (result !== AuthResult.AUTHENTICATED) {
-        return Response.json({ err, result })
-    }
-
-    if (params?.code && params?.installation_id) {
-        const method = "POST"
-        const url = new URL("https://github.com/login/oauth/access_token")
-
-        url.search = new URLSearchParams({
-            code: params.code,
-            client_id: env.GITHUB_APP_CLIENT_ID,
-            client_secret: env.GITHUB_APP_CLIENT_SECRET,
-        }).toString()
-
-        const resp = await fetch(url, { method })
-        const text = await resp.text()
-        const data = Object.fromEntries(text.split('&').map(item => item.split('=').map(decodeURIComponent)))
-        if (data?.error) {
-            console.log(data)
-            throw new Error(data.error)
+    const app = new App(request, prisma)
+    let err, result, session;
+    const authToken = request.headers.get('x-trivialsec')
+    if (!!authToken.trim()) {
+        ({ err, result, session } = await app.authenticate())
+        if (result !== AuthResult.AUTHENTICATED) {
+            return Response.json({ err, result })
         }
-        if (!data?.access_token) {
-            console.log('installationId', params.installation_id, 'kid', session.kid, 'data', data)
-            throw new Error('OAuth response invalid')
-        }
-        const created = +new Date()
-
-        const info = await env.d1db.prepare('INSERT INTO github_apps (installationId, memberEmail, accessToken, created, expires) VALUES (?1, ?2, ?3, ?4, ?5)')
-            .bind(params.installation_id, session.memberEmail, data.access_token, created, (86400000 * 365 * 10) + created)
-            .run()
-
-        console.log(`/github/install installationId=${params?.installation_id} kid=${session.kid}`, info)
-
-        return Response.json(info)
     }
+    try {
+        let gdData
+        if (params?.code && params?.installation_id) {
+            const method = "POST"
+            const url = new URL("https://github.com/login/oauth/access_token")
 
-    return Response.json({ 'err': 'OAuth authorization code not provided' })
+            url.search = new URLSearchParams({
+                code: params.code,
+                client_id: env.GITHUB_APP_CLIENT_ID,
+                client_secret: env.GITHUB_APP_CLIENT_SECRET,
+            }).toString()
+
+            const resp = await fetch(url, { method })
+            const text = await resp.text()
+            gdData = Object.fromEntries(text.split('&').map(item => item.split('=').map(decodeURIComponent)))
+            if (gdData?.error) {
+                throw new Error(gdData.error)
+            }
+            if (!gdData?.access_token) {
+                throw new Error('OAuth response invalid')
+            }
+        } else {
+            return Response.json({ 'err': 'OAuth authorization code not provided' })
+        }
+
+        if (!gdData?.access_token) {
+            return Response.json({ 'err': 'OAuth authorization failed' })
+        }
+        const created = (new Date()).getTime()
+        const expires = appExpiryPeriod + created
+        const response = { installationId: params.installation_id, session: {}, member: {} }
+        if (!session?.kid) {
+            const gh = new GitHub(gdData.access_token)
+            let ghEmail
+            for (const ghUserEmail of await gh.getUserEmails()) {
+                if (ghUserEmail?.verified === true && !!ghUserEmail?.email && !ghUserEmail.email.endsWith('@users.noreply.github.com')) {
+                    ghEmail = ghUserEmail.email
+                    break
+                }
+            }
+            const ghUserData = await gh.getUser()
+            if (ghUserData?.email && !ghEmail) {
+                ghEmail = ghUserData.email
+            }
+            const memberExists = await app.memberExists(ghEmail)
+            if (!memberExists) {
+                let firstName = ''
+                let lastName = ''
+                if (!!ghUserData?.name) {
+                    const words = ghUserData.name.split(' ')
+                    firstName = words.shift() || ''
+                    lastName = words.join(' ') || ''
+                }
+                const memberInfo = await prisma.members.create({
+                    data: {
+                        email: ghEmail,
+                        orgName: ghUserData?.company || '',
+                        passwordHash: await pbkdf2(gdData.access_token),
+                        firstName,
+                        lastName
+                    }
+                })
+                console.log(`/github/install register email=${ghEmail}`, memberInfo)
+
+                const token = crypto.randomUUID()
+                const authn_ip = request.headers.get('cf-connecting-ip')
+                const authn_ua = request.headers.get('user-agent')
+                const expiry = created + (86400000 * 30) // 30 days
+                const secret = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-1", crypto.getRandomValues(new Uint32Array(26))))).map(b => b.toString(16).padStart(2, "0")).join("")
+                session = {
+                    kid: token,
+                    memberEmail: ghEmail,
+                    expiry,
+                    issued: created,
+                    secret,
+                    authn_ip,
+                    authn_ua
+                }
+                const sessionInfo = await prisma.sessions.create({ data: session })
+                console.log(`/github/install session kid=${token}`, sessionInfo)
+                response.session.token = token
+                response.session.expiry = expiry
+                response.member.email = ghEmail
+                response.member.orgName = ghUserData.company
+                response.member.firstName = firstName
+                response.member.lastName = lastName
+            }
+        }
+        const GHAppInfo = await prisma.github_apps.create({
+            data: {
+                installationId: params.installation_id,
+                memberEmail: session.memberEmail,
+                accessToken: gdData.access_token,
+                created,
+                expires
+            }
+        })
+        console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
+        response.result = AuthResult.AUTHENTICATED
+        return Response.json(response)
+    } catch (err) {
+        console.error(err)
+
+        return Response.json({ ok: false, result: AuthResult.REVOKED })
+    }
 }

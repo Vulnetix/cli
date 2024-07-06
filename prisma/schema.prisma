@@ -24,7 +24,7 @@ model sessions {
 
 model members {
   email                 String                  @id @unique
-  orgName               String
+  orgName               String?
   passwordHash          String
   firstName             String?
   lastName              String?

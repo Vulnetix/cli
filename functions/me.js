@@ -106,6 +106,7 @@ export async function onRequestPost(context) {
         return Response.json({ ok: false, result: 'No Change' })
     } catch (err) {
         console.error(err)
+
         return Response.json({ ok: false, result: AuthResult.REVOKED })
     }
 }

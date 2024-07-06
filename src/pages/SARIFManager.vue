@@ -48,7 +48,7 @@ class Sarif {
       if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
         state.info = data.result
 
-        return setTimeout(router.push('/logout'), 2000)
+        return setTimeout(() => router.push('/logout'), 2000)
       }
       if (!data.sarif) {
         state.info = "No SARIF data available."
@@ -106,7 +106,7 @@ class Sarif {
       if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
         state.info = data.result
 
-        return setTimeout(router.push('/logout'), 2000)
+        return setTimeout(() => router.push('/logout'), 2000)
       }
       if (!data.sarif) {
         state.info = "No SARIF data available."

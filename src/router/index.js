@@ -28,10 +28,16 @@ router.beforeEach(async to => {
     const publicPrefixes = [
         '/login',
     ]
-
-    const authRequired =
+    let authRequired =
         !publicPages.includes(to.path) &&
         !publicPrefixes.map(i => to.path.startsWith(i)).includes(true)
+
+    if (to.path.startsWith('/github-integration')) {
+        const urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
+        if (urlQuery?.setup_action === 'install') {
+            authRequired = false
+        }
+    }
 
     const logged_in = !!localStorage.getItem('/session/token')
     if (authRequired && !logged_in) {

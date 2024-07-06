@@ -38,7 +38,7 @@ export async function onRequestGet(context) {
         const token = crypto.randomUUID()
         const authn_ip = request.headers.get('cf-connecting-ip')
         const authn_ua = request.headers.get('user-agent')
-        const issued = +new Date()
+        const issued = (new Date()).getTime()
         const expiry = issued + (86400000 * 30) // 30 days
         const secret = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-1", crypto.getRandomValues(new Uint32Array(26))))).map(b => b.toString(16).padStart(2, "0")).join("")
 

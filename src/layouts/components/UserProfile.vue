@@ -35,6 +35,13 @@ axios.defaults.headers.common = {
 }
 class Profile {
     constructor() {
+        const token = localStorage.getItem('/session/token')
+        if (!token && location.pathname.startsWith('/github-integration')) {
+            const urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
+            if (urlQuery?.setup_action === 'install') {
+                return
+            }
+        }
         this.refresh()
     }
 

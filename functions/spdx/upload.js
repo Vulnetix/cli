@@ -141,7 +141,7 @@ export async function onRequestPost(context) {
     } catch (err) {
         console.error(err)
 
-        return Response.json({ ok: false, err, files })
+        return Response.json({ ok: false, result: AuthResult.REVOKED, files })
     }
     if (errors.size) {
         errors = [...errors].join(' ')

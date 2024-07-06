@@ -48,7 +48,7 @@ class Spdx {
       if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
         state.info = data.result
 
-        return setTimeout(router.push('/logout'), 2000)
+        return setTimeout(() => router.push('/logout'), 2000)
       }
       if (!data.spdx) {
         state.info = "No SPDX data available."
@@ -100,7 +100,7 @@ class Spdx {
       if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
         state.info = data.result
 
-        return setTimeout(router.push('/logout'), 2000)
+        return setTimeout(() => router.push('/logout'), 2000)
       }
       if (!data?.files?.length) {
         state.info = "No SPDX data available."

@@ -35,11 +35,6 @@ class GitHub {
     constructor() {
         this.urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
 
-        const url = new URL(location)
-
-        url.search = ""
-        history.pushState({}, "", url)
-
         if (this.urlQuery?.setup_action === 'install' && this.urlQuery?.code && this.urlQuery?.installation_id) {
             this.install(this.urlQuery.code, this.urlQuery.installation_id)
         } else {
@@ -47,14 +42,41 @@ class GitHub {
         }
     }
     install = async (code, installation_id) => {
+        state.loading = true
         const { data } = await axios.get(`/github/install/${installation_id}/${code}`)
+        if (data?.err) {
+            state.error = data.err
+        }
+        if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+            state.info = data.result
 
-        console.log(data)
-        this.refreshRepos(false, true)
+            return setTimeout(() => router.push('/logout'), 2000)
+        }
+        if (data?.member?.email) {
+            localStorage.setItem('/member/email', data.member.email)
+        }
+        if (data?.member?.orgName) {
+            localStorage.setItem('/member/orgName', data.member.orgName)
+        }
+        if (data?.member?.firstName) {
+            localStorage.setItem('/member/firstName', data.member.firstName)
+        }
+        if (data?.member?.lastName) {
+            localStorage.setItem('/member/lastName', data.member.lastName)
+        }
+        if (data?.session?.token) {
+            localStorage.setItem('/session/token', data.session.token)
+            axios.defaults.headers.common = {
+                'x-trivialsec': data.session.token,
+            }
+        }
+        if (data?.session?.expiry) {
+            localStorage.setItem('/session/expiry', data.session.expiry)
+        }
 
-        return setTimeout(state.success = "GitHub App installed successfully.", 1000)
+        return this.refreshRepos(false, true, true)
     }
-    refreshRepos = async (cached = false, initial = false) => {
+    refreshRepos = async (cached = false, initial = false, install = false) => {
         clearAlerts()
         state.loading = true
         try {
@@ -77,7 +99,7 @@ class GitHub {
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 state.info = data.result
 
-                return setTimeout(router.push('/logout'), 2000)
+                return setTimeout(() => router.push('/logout'), 2000)
             }
             state.githubApps = data?.githubApps || []
             if (data.gitRepos.length === 0) {
@@ -92,6 +114,12 @@ class GitHub {
                         state.success = "Refreshed GitHub repositories"
                     }
                 }
+            }
+            if (install === true) {
+                const url = new URL(location)
+                url.search = ""
+                history.pushState({}, "", url)
+                state.success = "GitHub App installed successfully."
             }
 
             return
@@ -133,7 +161,7 @@ class GitHub {
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 state.info = data.result
 
-                return setTimeout(router.push('/logout'), 2000)
+                return setTimeout(() => router.push('/logout'), 2000)
             }
             if (alerts === true) {
                 if (!data) {
@@ -167,7 +195,7 @@ class GitHub {
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 state.info = data.result
 
-                return setTimeout(router.push('/logout'), 2000)
+                return setTimeout(() => router.push('/logout'), 2000)
             }
             if (alerts === true) {
                 if (!data) {
@@ -261,13 +289,14 @@ const gh = reactive(new GitHub())
         <VCol cols="12">
 
             <VEmptyState
-                v-if="!state.gitRepos.length && !state.loading"
+                v-if="!state.gitRepos.length"
                 :image="state.octodexImageUrl"
             >
                 <template #actions>
                     <VBtn
                         text="Install"
                         prepend-icon="line-md:github-loop"
+                        :disabled="state.loading"
                         variant="text"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                         @click="installApp"
@@ -276,13 +305,18 @@ const gh = reactive(new GitHub())
                         v-if="state.githubApps.length && !state.loading"
                         text="Refresh Repositories"
                         prepend-icon="mdi-refresh"
+                        :disabled="state.loading"
                         variant="text"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                         @click="gh.refreshRepos"
                     />
                 </template>
             </VEmptyState>
-
+            <VSkeletonLoader
+                v-if="state.loading"
+                :elevation="4"
+                type="card"
+            />
             <VCard
                 v-if="state.gitRepos.length || state.loading"
                 title="Repositories"
@@ -292,6 +326,7 @@ const gh = reactive(new GitHub())
                         text="Install another GitHub Account"
                         prepend-icon="line-md:github-loop"
                         variant="text"
+                        :disabled="state.loading"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                         @click="installApp"
                     />
