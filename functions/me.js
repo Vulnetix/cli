@@ -1,6 +1,6 @@
+import { App, AuthResult } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult } from "../src/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -30,7 +30,6 @@ export async function onRequestGet(context) {
             },
         })
         delete member.passwordHash
-        delete member.email
         return Response.json({ ok: true, member })
     } catch (err) {
         console.error(err)
@@ -78,6 +77,9 @@ export async function onRequestPost(context) {
         if (data?.lastName && original.lastName !== data.lastName) {
             member.lastName = data.lastName
         }
+        if (data?.avatarUrl && original.avatarUrl !== data.avatarUrl) {
+            member.avatarUrl = data.avatarUrl
+        }
         if (data?.orgName && original.orgName !== data.orgName) {
             member.orgName = data.orgName
         }
@@ -107,6 +109,6 @@ export async function onRequestPost(context) {
     } catch (err) {
         console.error(err)
 
-        return Response.json({ ok: false, result: AuthResult.REVOKED })
+        return Response.json({ ok: false, result: 'Bad values supplied' })
     }
 }

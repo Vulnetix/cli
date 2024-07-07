@@ -1,6 +1,6 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult, UUID, hex, isSARIF } from "../../src/utils";
+import { App, AuthResult, UUID, hex, isSARIF } from "@/utils";
 
 
 export async function onRequestPost(context) {

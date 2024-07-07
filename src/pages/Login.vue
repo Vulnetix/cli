@@ -1,14 +1,19 @@
 <script setup>
+import router from "@/router"
+import { useMemberStore } from '@/stores/member'
 import IconTrivialSecurity from '@images/IconTrivialSecurity.vue'
 import { useVuelidate } from '@vuelidate/core'
 import { email, minLength, required } from '@vuelidate/validators'
 import { default as axios } from 'axios'
 import { SHA1 } from 'crypto-es/lib/sha1'
 import { reactive } from 'vue'
-import router from "../router"
+import { useTheme } from 'vuetify'
+
+const Member = useMemberStore()
+const { global } = useTheme()
 
 const initialState = {
-    email: localStorage.getItem('/member/email') || '',
+    email: Member.email || '',
     password: '',
     error: "",
 }
@@ -38,27 +43,30 @@ const login = async () => {
 
                 return
             }
-            localStorage.setItem('/member/email', state.email)
-            if (data.member?.orgName) {
-                localStorage.setItem('/member/orgName', data.orgName)
+            Member.email = state.email
+            if (data?.avatarUrl) {
+                Member.avatarUrl = data.avatarUrl
             }
-            if (data.member?.firstName) {
-                localStorage.setItem('/member/firstName', data.firstName)
+            if (data?.orgName) {
+                Member.avatarUrl = data.avatarUrl
             }
-            if (data.member?.lastName) {
-                localStorage.setItem('/member/lastName', data.lastName)
+            if (data?.firstName) {
+                Member.firstName = data.firstName
             }
-            if (data.member?.alertNews) {
-                localStorage.setItem('/member/alertNews', data.alertNews)
+            if (data?.lastName) {
+                Member.lastName = data.lastName
             }
-            if (data.member?.alertOverdue) {
-                localStorage.setItem('/member/alertOverdue', data.alertOverdue)
+            if (data?.alertNews) {
+                Member.alertNews = data.alertNews
             }
-            if (data.member?.alertFindings) {
-                localStorage.setItem('/member/alertFindings', data.alertFindings)
+            if (data?.alertOverdue) {
+                Member.alertOverdue = data.alertOverdue
             }
-            if (data.member?.alertType) {
-                localStorage.setItem('/member/alertType', data.alertType)
+            if (data?.alertFindings) {
+                Member.alertFindings = data.alertFindings
+            }
+            if (data?.alertType) {
+                Member.alertType = data.alertType
             }
             localStorage.setItem('/session/token', data.token)
             localStorage.setItem('/session/expiry', data.expiry)
@@ -164,6 +172,27 @@ const login = async () => {
                             >
                                 Create an account
                             </RouterLink>
+                        </VCol>
+                        <VCol
+                            cols="12"
+                            class="d-flex align-center"
+                        >
+                            <VDivider />
+                            <span class="mx-4 text-high-emphasis">or</span>
+                            <VDivider />
+                        </VCol>
+                        <VCol
+                            cols="12"
+                            class="text-center "
+                        >
+                            <VBtn
+                                href="https://github.com/login/oauth/authorize?client_id=Iv23liW5R5lkjMRgFrWI&scope=user"
+                                prepend-icon="line-md:github-loop"
+                                :variant="global.name.value === 'dark' ? 'tonal' : 'outlined'"
+                                size="x-large"
+                                text="Login with GitHub"
+                                :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                            />
                         </VCol>
                     </VRow>
                 </VForm>

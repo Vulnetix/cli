@@ -1,20 +1,14 @@
 <script setup>
+import router from "@/router";
+import { useMemberStore } from '@/stores/member';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
-import router from "../../../router";
 
+const Member = useMemberStore()
 const { global } = useTheme()
 
-const email = localStorage.getItem('/member/email') || ''
-const orgName = localStorage.getItem('/member/orgName') || 'Individual'
-const firstName = localStorage.getItem('/member/firstName') || 'Demo'
-const lastName = localStorage.getItem('/member/lastName') || 'User'
-let storedAvatar = localStorage.getItem('/member/avatar')
-const defaultAvatar = firstName || lastName ?
-    `https://avatar.iran.liara.run/username?color=${global.name.value === 'dark' ? '272727' : 'fff'}&background=${global.name.value === 'dark' ? 'E2C878' : '1ABB9C'}&username=${firstName}+${lastName}` :
-    `https://avatar.iran.liara.run/public?background=${global.name.value === 'dark' ? 'E2C878' : '1ABB9C'}`
-const avatarImg = storedAvatar ? atob(storedAvatar) : defaultAvatar
+const defaultAvatar = `https://avatar.iran.liara.run/public?background=${global.name.value === 'dark' ? 'E2C878' : '1ABB9C'}`
 
 const initialState = {
     error: "",
@@ -23,13 +17,6 @@ const initialState = {
     info: "",
     loading: false,
     isAccountDelAgreed: false,
-    avatarImg,
-    member: {
-        email,
-        orgName,
-        firstName,
-        lastName,
-    },
 }
 const changePhoto = ref()
 const state = reactive({
@@ -49,7 +36,12 @@ class Profile {
         clearAlerts()
         state.loading = true
         try {
-            const member = Object.assign({}, state.member)
+            const member = {
+                email: Member.email,
+                orgName: Member.orgName,
+                firstName: Member.firstName,
+                lastName: Member.lastName,
+            }
             const { data } = await axios.post(`/me`, member, { headers: { 'Content-Type': 'application/json' } })
             state.loading = false
 
@@ -68,10 +60,6 @@ class Profile {
             }
             if (data.ok === true) {
                 state.success = "Saved successfully"
-                localStorage.setItem('/member/email', member.email)
-                localStorage.setItem('/member/orgName', member.orgName)
-                localStorage.setItem('/member/firstName', member.firstName)
-                localStorage.setItem('/member/lastName', member.lastName)
             } else {
                 state.info = data?.result || 'No change'
             }
@@ -83,25 +71,68 @@ class Profile {
             state.loading = false
         }
     }
-}
-const changeAvatar = file => {
-    const fileReader = new FileReader()
-    const { files } = file.target
-    if (files && files.length) {
-        fileReader.readAsDataURL(files[0])
-        fileReader.onload = () => {
+    resetAvatar = async () => {
+        const avatarUrl = defaultAvatar
+        try {
+            state.loading = true
+            const { data } = await axios.post(`/me`, { avatarUrl }, { headers: { 'Content-Type': 'application/json' } })
+            state.loading = false
+            handleResponse(data, avatarUrl)
+        } catch (err) {
+            handleError(err)
+        }
+    }
+    saveAvatar = async file => {
+        clearAlerts()
+
+        const handleFileLoad = async fileReader => {
             if (typeof fileReader.result === 'string') {
-                state.avatarImg = fileReader.result
-                localStorage.setItem('/member/avatar', btoa(fileReader.result))
+                const avatarUrl = fileReader.result
+                try {
+                    state.loading = true
+                    const { data } = await axios.post(`/me`, { avatarUrl }, { headers: { 'Content-Type': 'application/json' } })
+                    state.loading = false
+                    handleResponse(data, avatarUrl)
+                } catch (err) {
+                    handleError(err)
+                }
             }
+        }
+
+        const { files } = file.target
+        if (files && files.length) {
+            const fileReader = new FileReader()
+            fileReader.readAsDataURL(files[0])
+            fileReader.onload = () => handleFileLoad(fileReader)
         }
     }
 }
+const handleResponse = (data, avatarUrl) => {
+    state.loading = false
 
-const resetAvatar = () => {
-    state.avatarImg = defaultAvatar
-    localStorage.setItem('/member/avatar', btoa(defaultAvatar))
+    if (typeof data === "string" && !isJSON(data)) {
+        state.error = "Profile avatar could not be saved, please try again later."
+        return
+    }
+    if (data?.err) {
+        state.error = data.err
+    } else if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+        state.info = data.result
+        setTimeout(() => router.push('/logout'), 2000)
+    } else if (data.ok === true) {
+        state.success = "Saved avatar successfully"
+        Member.avatarUrl = avatarUrl
+    } else {
+        state.info = data?.result || 'No change'
+    }
 }
+
+const handleError = err => {
+    console.error(err)
+    state.error = typeof err === "string" ? err : `${err.code} ${err.message}`
+    state.loading = false
+}
+
 const profile = reactive(new Profile())
 </script>
 
@@ -153,7 +184,7 @@ const profile = reactive(new Profile())
                         rounded="lg"
                         size="100"
                         class="me-6"
-                        :image="state.avatarImg"
+                        :image="Member.avatarUrl"
                     />
 
                     <!-- 👉 Upload Photo -->
@@ -176,14 +207,14 @@ const profile = reactive(new Profile())
                                 name="file"
                                 accept=".jpeg,.png,.jpg,GIF"
                                 hidden
-                                @input="changeAvatar"
+                                @input="profile.saveAvatar"
                             >
 
                             <VBtn
                                 type="reset"
                                 color="error"
                                 variant="tonal"
-                                @click="resetAvatar"
+                                @click="profile.resetAvatar"
                             >
                                 <span class="d-none d-sm-block">Reset</span>
                                 <VIcon
@@ -211,7 +242,7 @@ const profile = reactive(new Profile())
                                 cols="12"
                             >
                                 <VTextField
-                                    v-model="state.member.firstName"
+                                    v-model="Member.firstName"
                                     placeholder="John"
                                     label="First Name"
                                 />
@@ -223,7 +254,7 @@ const profile = reactive(new Profile())
                                 cols="12"
                             >
                                 <VTextField
-                                    v-model="state.member.lastName"
+                                    v-model="Member.lastName"
                                     placeholder="Doe"
                                     label="Last Name"
                                 />
@@ -235,7 +266,7 @@ const profile = reactive(new Profile())
                                 md="6"
                             >
                                 <VTextField
-                                    v-model="state.member.email"
+                                    v-model="Member.email"
                                     label="E-mail"
                                     placeholder="johndoe@gmail.com"
                                     type="email"
@@ -248,7 +279,7 @@ const profile = reactive(new Profile())
                                 md="6"
                             >
                                 <VTextField
-                                    v-model="state.member.orgName"
+                                    v-model="Member.orgName"
                                     label="Organization"
                                     placeholder="Individual User"
                                 />

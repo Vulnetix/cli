@@ -1,6 +1,6 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult } from "../../src/utils";
+import { App, AuthResult } from "@/utils";
 
 export async function onRequestGet(context) {
     const {

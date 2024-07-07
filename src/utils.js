@@ -573,6 +573,8 @@ export function isSARIF(input) {
     return true
 }
 
+export const appExpiryPeriod = (86400000 * 365 * 10)  // 10 years
+
 export async function hex(text, name = "SHA-1") {
     return [...new Uint8Array(await crypto.subtle.digest({ name }, new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('')
 }

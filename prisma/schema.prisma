@@ -26,6 +26,7 @@ model members {
   email                 String                  @id @unique
   orgName               String?
   passwordHash          String
+  avatarUrl             String?
   firstName             String?
   lastName              String?
   alertNews             Int                     @default(0)
@@ -56,6 +57,7 @@ model github_apps {
   memberEmail    String
   member         members @relation(fields: [memberEmail], references: [email])
   accessToken    String
+  login          String?
   created        Int
   expires        Int?
 }

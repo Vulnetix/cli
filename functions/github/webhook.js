@@ -1,4 +1,4 @@
-import { ensureStrReqBody } from "../../src/utils"
+import { ensureStrReqBody } from "@/utils"
 
 export async function onRequestPost(context) {
     const {

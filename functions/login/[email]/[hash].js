@@ -1,6 +1,6 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { pbkdf2Verify } from "../../../src/utils";
+import { pbkdf2Verify } from "@/utils";
 
 export async function onRequestGet(context) {
     const {

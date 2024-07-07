@@ -1,5 +1,6 @@
 <script setup>
 import router from "@/router"
+import { useMemberStore } from '@/stores/member'
 import { isJSON, octodex } from '@/utils'
 import { default as axios } from 'axios'
 import { reactive } from 'vue'
@@ -9,6 +10,7 @@ import { useTheme } from 'vuetify'
 //TODO https://docs.github.com/en/rest/dependabot/alerts?apiVersion=2022-11-28#list-dependabot-alerts-for-a-repository
 //TODO https://docs.github.com/en/rest/secret-scanning/secret-scanning?apiVersion=2022-11-28#list-secret-scanning-alerts-for-a-repository
 
+const Member = useMemberStore()
 const { global } = useTheme()
 
 const initialState = {
@@ -35,8 +37,12 @@ class GitHub {
     constructor() {
         this.urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
 
-        if (this.urlQuery?.setup_action === 'install' && this.urlQuery?.code && this.urlQuery?.installation_id) {
-            this.install(this.urlQuery.code, this.urlQuery.installation_id)
+        if (this.urlQuery?.code) {
+            if (this.urlQuery?.setup_action === 'install' && this.urlQuery?.installation_id) {
+                this.install(this.urlQuery.code, this.urlQuery.installation_id)
+            } else {
+                this.login(this.urlQuery.code)
+            }
         } else {
             this.refreshRepos(true, true)
         }
@@ -52,29 +58,25 @@ class GitHub {
 
             return setTimeout(() => router.push('/logout'), 2000)
         }
-        if (data?.member?.email) {
-            localStorage.setItem('/member/email', data.member.email)
-        }
-        if (data?.member?.orgName) {
-            localStorage.setItem('/member/orgName', data.member.orgName)
-        }
-        if (data?.member?.firstName) {
-            localStorage.setItem('/member/firstName', data.member.firstName)
-        }
-        if (data?.member?.lastName) {
-            localStorage.setItem('/member/lastName', data.member.lastName)
-        }
-        if (data?.session?.token) {
-            localStorage.setItem('/session/token', data.session.token)
-            axios.defaults.headers.common = {
-                'x-trivialsec': data.session.token,
-            }
-        }
-        if (data?.session?.expiry) {
-            localStorage.setItem('/session/expiry', data.session.expiry)
-        }
+        persistData(data)
 
         return this.refreshRepos(false, true, true)
+    }
+    login = async code => {
+        state.loading = true
+        const { data } = await axios.get(`/login/github/${code}`)
+        state.loading = false
+        if (data?.err) {
+            state.error = data.err
+        }
+        if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+            state.info = data.result
+
+            return setTimeout(() => router.push('/logout'), 2000)
+        }
+        persistData(data)
+
+        return router.push('/dashboard')
     }
     refreshRepos = async (cached = false, initial = false, install = false) => {
         clearAlerts()
@@ -155,7 +157,7 @@ class GitHub {
 
                 return
             }
-            if (data?.err) {
+            if (data?.err && alerts === true) {
                 state.error = data.err
             }
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
@@ -175,9 +177,13 @@ class GitHub {
             return
         } catch (e) {
             console.error(e)
-            state.error = `${e.code} ${e.message}`
+            if (alerts === true) {
+                state.error = `${e.code} ${e.message}`
+            }
         }
-        state.warning = "No data retrieved from GitHub. Is this GitHub App uninstalled?"
+        if (alerts === true) {
+            state.warning = "No data retrieved from GitHub. Is this GitHub App uninstalled?"
+        }
     }
     refreshSarif = async (full_name, alerts = true) => {
         clearAlerts()
@@ -189,7 +195,7 @@ class GitHub {
 
                 return
             }
-            if (data?.err) {
+            if (data?.err && alerts === true) {
                 state.error = data.err
             }
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
@@ -209,13 +215,14 @@ class GitHub {
             return
         } catch (e) {
             console.error(e)
-            state.error = `${e.code} ${e.message}`
+            if (alerts === true) {
+                state.error = `${e.code} ${e.message}`
+            }
         }
-        state.warning = "No data retrieved from GitHub. Is this GitHub App uninstalled?"
+        if (alerts === true) {
+            state.warning = "No data retrieved from GitHub. Is this GitHub App uninstalled?"
+        }
     }
-}
-function installApp() {
-    location.href = 'https://github.com/apps/triage-by-trivial-security/installations/new/'
 }
 
 function clearAlerts() {
@@ -223,6 +230,33 @@ function clearAlerts() {
     state.warning = ''
     state.success = ''
     state.info = ''
+}
+
+function persistData(data) {
+    if (data?.member?.email) {
+        Member.email = data.member.email
+    }
+    if (data?.member?.avatarUrl) {
+        Member.avatarUrl = data.member.avatarUrl
+    }
+    if (data?.member?.orgName) {
+        Member.orgName = data.member.orgName
+    }
+    if (data?.member?.firstName) {
+        Member.firstName = data.member.firstName
+    }
+    if (data?.member?.lastName) {
+        Member.lastName = data.member.lastName
+    }
+    if (data?.session?.token) {
+        localStorage.setItem('/session/token', data.session.token)
+        axios.defaults.headers.common = {
+            'x-trivialsec': data.session.token,
+        }
+    }
+    if (data?.session?.expiry) {
+        localStorage.setItem('/session/expiry', data.session.expiry)
+    }
 }
 
 function groupedRepos() {
@@ -294,12 +328,12 @@ const gh = reactive(new GitHub())
             >
                 <template #actions>
                     <VBtn
+                        href="https://github.com/apps/triage-by-trivial-security/installations/new/"
                         text="Install"
                         prepend-icon="line-md:github-loop"
                         :disabled="state.loading"
                         variant="text"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
-                        @click="installApp"
                     />
                     <VBtn
                         v-if="state.githubApps.length && !state.loading"
@@ -323,12 +357,12 @@ const gh = reactive(new GitHub())
             >
                 <VCardText>
                     <VBtn
+                        href="https://github.com/apps/triage-by-trivial-security/installations/new/"
                         text="Install another GitHub Account"
                         prepend-icon="line-md:github-loop"
                         variant="text"
                         :disabled="state.loading"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
-                        @click="installApp"
                     />
                     <VBtn
                         text="Refresh Github Data"

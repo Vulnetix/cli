@@ -34,7 +34,7 @@ router.beforeEach(async to => {
 
     if (to.path.startsWith('/github-integration')) {
         const urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
-        if (urlQuery?.setup_action === 'install') {
+        if (!!urlQuery?.code) {
             authRequired = false
         }
     }

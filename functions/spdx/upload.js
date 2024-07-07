@@ -1,6 +1,6 @@
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult, OSV, hex, isSPDX } from "../../src/utils";
+import { App, AuthResult, OSV, hex, isSPDX } from "@/utils";
 
 
 export async function onRequestPost(context) {

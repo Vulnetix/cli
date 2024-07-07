@@ -1,4 +1,4 @@
-import { pbkdf2 } from "../../../../src/utils"
+import { pbkdf2 } from "@/utils"
 
 export async function onRequestGet(context) {
     const {
@@ -32,9 +32,9 @@ export async function onRequestGet(context) {
             .run()
 
         console.log(`/register email=${params.email}`, info)
-        
+
         return Response.json(info)
     }
-    
+
     return Response.json({ 'err': 'missing properties /register/[org]/[email]/[sha1]' })
 }

@@ -1,34 +1,10 @@
 <script setup>
+import router from "@/router";
+import { useMemberStore } from '@/stores/member';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
-import { useTheme } from 'vuetify';
-import router from "../../router";
 
-const { global } = useTheme()
-
-const email = localStorage.getItem('/member/email') || ''
-const orgName = localStorage.getItem('/member/orgName') || 'Individual'
-const firstName = localStorage.getItem('/member/firstName') || 'Demo'
-const lastName = localStorage.getItem('/member/lastName') || 'User'
-let storedAvatar = localStorage.getItem('/member/avatar')
-const defaultAvatar = firstName || lastName ?
-    `https://avatar.iran.liara.run/username?color=${global.name.value === 'dark' ? '272727' : 'fff'}&background=${global.name.value === 'dark' ? 'E2C878' : '1ABB9C'}&username=${firstName}+${lastName}` :
-    `https://avatar.iran.liara.run/public?background=${global.name.value === 'dark' ? 'E2C878' : '1ABB9C'}`
-const avatarImg = storedAvatar ? atob(storedAvatar) : defaultAvatar
-
-const initialState = {
-    avatarImg,
-    member: {
-        email,
-        orgName,
-        firstName,
-        lastName,
-    },
-}
-
-const state = reactive({
-    ...initialState,
-})
+const Member = useMemberStore()
 
 axios.defaults.headers.common = {
     'x-trivialsec': localStorage.getItem('/session/token') || '',
@@ -38,7 +14,7 @@ class Profile {
         const token = localStorage.getItem('/session/token')
         if (!token && location.pathname.startsWith('/github-integration')) {
             const urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
-            if (urlQuery?.setup_action === 'install') {
+            if (!!urlQuery?.code) {
                 return
             }
         }
@@ -52,33 +28,32 @@ class Profile {
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 return router.push('/logout')
             }
+            if (data.member?.email) {
+                Member.email = data.member.email
+            }
+            if (data.member?.avatarUrl) {
+                Member.avatarUrl = data.member.avatarUrl
+            }
             if (data.member?.orgName) {
-                state.member.orgName = data.member.orgName
-                localStorage.setItem('/member/orgName', data.member.orgName)
+                Member.orgName = data.member.orgName
             }
             if (data.member?.firstName) {
-                state.member.firstName = data.member.firstName
-                localStorage.setItem('/member/firstName', data.member.firstName)
+                Member.firstName = data.member.firstName
             }
             if (data.member?.lastName) {
-                state.member.lastName = data.member.lastName
-                localStorage.setItem('/member/lastName', data.member.lastName)
+                Member.lastName = data.member.lastName
             }
             if (data.member?.alertNews) {
-                state.member.alertNews = data.member.alertNews
-                localStorage.setItem('/member/alertNews', data.member.alertNews)
+                Member.alertNews = data.member.alertNews
             }
             if (data.member?.alertOverdue) {
-                state.member.alertOverdue = data.member.alertOverdue
-                localStorage.setItem('/member/alertOverdue', data.member.alertOverdue)
+                Member.alertOverdue = data.member.alertOverdue
             }
             if (data.member?.alertFindings) {
-                state.member.alertFindings = data.member.alertFindings
-                localStorage.setItem('/member/alertFindings', data.member.alertFindings)
+                Member.alertFindings = data.member.alertFindings
             }
             if (data.member?.alertType) {
-                state.member.alertType = data.member.alertType
-                localStorage.setItem('/member/alertType', data.member.alertType)
+                Member.alertType = data.member.alertType
             }
         } catch (e) {
             console.error(e)
@@ -103,7 +78,7 @@ const profile = reactive(new Profile())
             color="primary"
             variant="tonal"
         >
-            <VImg :src="state.avatarImg" />
+            <VImg :src="Member.avatarUrl" />
 
             <!-- SECTION Menu -->
             <VMenu
@@ -128,16 +103,16 @@ const profile = reactive(new Profile())
                                         color="primary"
                                         variant="tonal"
                                     >
-                                        <VImg :src="state.avatarImg" />
+                                        <VImg :src="Member.avatarUrl" />
                                     </VAvatar>
                                 </VBadge>
                             </VListItemAction>
                         </template>
 
                         <VListItemTitle class="font-weight-semibold">
-                            {{ state.member.firstName }} {{ state.member.lastName }}
+                            {{ Member.firstName }} {{ Member.lastName }}
                         </VListItemTitle>
-                        <VListItemSubtitle>{{ state.member.orgName }}</VListItemSubtitle>
+                        <VListItemSubtitle>{{ Member.orgName }}</VListItemSubtitle>
                     </VListItem>
                     <VDivider class="my-2" />
 

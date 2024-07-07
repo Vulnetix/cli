@@ -1,12 +1,10 @@
 <script setup>
+import router from "@/router";
+import { useMemberStore } from '@/stores/member';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
-import router from "../../../router";
 
-const alertNews = parseInt(localStorage.getItem('/member/alertNews') || 0, 10)
-const alertOverdue = parseInt(localStorage.getItem('/member/alertOverdue') || 0, 10)
-const alertFindings = parseInt(localStorage.getItem('/member/alertFindings') || 0, 10)
-const alertType = parseInt(localStorage.getItem('/member/alertType') || 0, 10)
+const Member = useMemberStore()
 
 const initialState = {
     error: "",
@@ -17,12 +15,6 @@ const initialState = {
     webhookEndpoint: 'not implemented yet',
     webhookSecret: 'not implemented yet',
     selectedNotification: 'Immediately, anytime',
-    member: {
-        alertNews,
-        alertOverdue,
-        alertFindings,
-        alertType
-    },
 }
 const state = reactive({
     ...initialState,
@@ -63,8 +55,7 @@ class Profile {
                 return setTimeout(() => router.push('/logout'), 2000)
             }
             if (data.ok === true) {
-                state.member[device.key] = member[device.key]
-                localStorage.setItem(`/member/${device.key}`, member[device.key])
+                Member[device.key] = member[device.key]
             } else {
                 state.info = data?.result || 'No change'
             }
@@ -86,30 +77,30 @@ const recentDevices = ref([
     {
         key: 'alertNews',
         type: 'Product News & Features',
-        email: decodeAlert(state.member.alertNews).email,
-        browser: decodeAlert(state.member.alertNews).browser,
-        webhook: decodeAlert(state.member.alertNews).webhook,
+        email: decodeAlert(Member.alertNews).email,
+        browser: decodeAlert(Member.alertNews).browser,
+        webhook: decodeAlert(Member.alertNews).webhook,
     },
     {
         key: 'alertOverdue',
         type: 'Triage Reminders',
-        email: decodeAlert(state.member.alertOverdue).email,
-        browser: decodeAlert(state.member.alertOverdue).browser,
-        webhook: decodeAlert(state.member.alertOverdue).webhook,
+        email: decodeAlert(Member.alertOverdue).email,
+        browser: decodeAlert(Member.alertOverdue).browser,
+        webhook: decodeAlert(Member.alertOverdue).webhook,
     },
     {
         key: 'alertFindings',
         type: 'New Findings, first time discovered',
-        email: decodeAlert(state.member.alertFindings).email,
-        browser: decodeAlert(state.member.alertFindings).browser,
-        webhook: decodeAlert(state.member.alertFindings).webhook,
+        email: decodeAlert(Member.alertFindings).email,
+        browser: decodeAlert(Member.alertFindings).browser,
+        webhook: decodeAlert(Member.alertFindings).webhook,
     },
     {
         key: 'alertType',
         type: 'All Finding Types, rediscovered & new instances',
-        email: decodeAlert(state.member.alertType).email,
-        browser: decodeAlert(state.member.alertType).browser,
-        webhook: decodeAlert(state.member.alertType).webhook,
+        email: decodeAlert(Member.alertType).email,
+        browser: decodeAlert(Member.alertType).browser,
+        webhook: decodeAlert(Member.alertType).webhook,
     },
 ])
 const profile = reactive(new Profile())

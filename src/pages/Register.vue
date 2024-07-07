@@ -1,15 +1,18 @@
 <script setup>
+import router from "@/router"
+import { useMemberStore } from '@/stores/member'
 import IconTrivialSecurity from '@images/IconTrivialSecurity.vue'
 import { useVuelidate } from '@vuelidate/core'
 import { email, required } from '@vuelidate/validators'
 import { default as axios } from 'axios'
 import { SHA1 } from 'crypto-es/lib/sha1'
 import { reactive } from 'vue'
-import router from "../router"
+
+const Member = useMemberStore()
 
 const initialState = {
-    org: localStorage.getItem('/account/name') || '',
-    email: localStorage.getItem('/member/email') || '',
+    org: Member.orgName || '',
+    email: Member.email || '',
     password: '',
     privacyPolicies: false,
 }
@@ -33,8 +36,8 @@ const register = () => {
         axios.get(`/register/${state.org}/${state.email}/${SHA1(state.password)}`)
             .then(console.log)
             .catch(console.log)
-        localStorage.setItem('/account/name', state.org)
-        localStorage.setItem('/member/email', state.email)
+        Member.email = state.email
+        Member.orgName = state.org
         router.push('/login')
     }
 }

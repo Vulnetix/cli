@@ -1,8 +1,6 @@
+import { App, appExpiryPeriod, AuthResult, GitHub, pbkdf2 } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult, GitHub, pbkdf2 } from "../../../../src/utils";
-
-const appExpiryPeriod = (86400000 * 365 * 10)  // 10 years
 
 export async function onRequestGet(context) {
     const {
@@ -31,7 +29,7 @@ export async function onRequestGet(context) {
         }
     }
     try {
-        let gdData
+        let oauthData
         if (params?.code && params?.installation_id) {
             const method = "POST"
             const url = new URL("https://github.com/login/oauth/access_token")
@@ -42,27 +40,25 @@ export async function onRequestGet(context) {
                 client_secret: env.GITHUB_APP_CLIENT_SECRET,
             }).toString()
 
-            const resp = await fetch(url, { method })
-            const text = await resp.text()
-            gdData = Object.fromEntries(text.split('&').map(item => item.split('=').map(decodeURIComponent)))
-            if (gdData?.error) {
-                throw new Error(gdData.error)
-            }
-            if (!gdData?.access_token) {
-                throw new Error('OAuth response invalid')
+            const headers = { 'Accept': 'application/json' }
+            const resp = await fetch(url, { headers, method })
+            oauthData = await resp.json()
+            if (oauthData?.error) {
+                throw new Error(oauthData.error)
             }
         } else {
             return Response.json({ 'err': 'OAuth authorization code not provided' })
         }
 
-        if (!gdData?.access_token) {
+        if (!oauthData?.access_token) {
             return Response.json({ 'err': 'OAuth authorization failed' })
         }
         const created = (new Date()).getTime()
         const expires = appExpiryPeriod + created
         const response = { installationId: params.installation_id, session: {}, member: {} }
+        const gh = new GitHub(oauthData.access_token)
+        const ghUserData = await gh.getUser()
         if (!session?.kid) {
-            const gh = new GitHub(gdData.access_token)
             let ghEmail
             for (const ghUserEmail of await gh.getUserEmails()) {
                 if (ghUserEmail?.verified === true && !!ghUserEmail?.email && !ghUserEmail.email.endsWith('@users.noreply.github.com')) {
@@ -70,7 +66,6 @@ export async function onRequestGet(context) {
                     break
                 }
             }
-            const ghUserData = await gh.getUser()
             if (ghUserData?.email && !ghEmail) {
                 ghEmail = ghUserData.email
             }
@@ -86,8 +81,9 @@ export async function onRequestGet(context) {
                 const memberInfo = await prisma.members.create({
                     data: {
                         email: ghEmail,
+                        avatarUrl: ghUserData?.avatar_url || '',
                         orgName: ghUserData?.company || '',
-                        passwordHash: await pbkdf2(gdData.access_token),
+                        passwordHash: await pbkdf2(oauthData.access_token),
                         firstName,
                         lastName
                     }
@@ -113,6 +109,7 @@ export async function onRequestGet(context) {
                 response.session.token = token
                 response.session.expiry = expiry
                 response.member.email = ghEmail
+                response.member.avatarUrl = ghUserData.avatar_url
                 response.member.orgName = ghUserData.company
                 response.member.firstName = firstName
                 response.member.lastName = lastName
@@ -122,7 +119,8 @@ export async function onRequestGet(context) {
             data: {
                 installationId: params.installation_id,
                 memberEmail: session.memberEmail,
-                accessToken: gdData.access_token,
+                accessToken: oauthData.access_token,
+                login: ghUserData.login,
                 created,
                 expires
             }
