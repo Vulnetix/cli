@@ -3,7 +3,7 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  previewFeatures = ["driverAdapters", "omitApi"]
 }
 
 datasource db {
@@ -121,11 +121,11 @@ model sarif_results {
 }
 
 model spdx {
-  spdxId            String     @unique
+  spdxId            String         @unique
   spdxVersion       String
   source            String
   repoName          String?
-  repo              git_repos? @relation(fields: [repoName], references: [fullName])
+  repo              git_repos?     @relation(fields: [repoName], references: [fullName])
   name              String?
   dataLicense       String?
   documentNamespace String?
@@ -133,8 +133,9 @@ model spdx {
   packageCount      Int
   createdAt         Int
   memberEmail       String
-  member            members    @relation(fields: [memberEmail], references: [email])
+  member            members        @relation(fields: [memberEmail], references: [email])
   comment           String?
+  findings_sca      findings_sca[]
 }
 
 model integration_usage_log {
@@ -167,5 +168,7 @@ model findings_sca {
   abandoned       Int?
   squattedPackage String?
   spdxId          String?
+  spdx            spdx?   @relation(fields: [spdxId], references: [spdxId])
   cdxId           String?
+  // cdx             cdx?    @relation(fields: [cdxId], references: [cdxId])
 }

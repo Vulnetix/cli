@@ -18,7 +18,8 @@ const initialState = {
     warning: "",
     success: "",
     info: "",
-    loading: false,
+    showEmptyState: false,
+    loadingBar: false,
     octodexImageUrl: `https://octodex.github.com/images/${octodex[Math.floor(Math.random() * octodex.length)]}`,
     githubApps: [],
     gitRepos: [],
@@ -48,7 +49,8 @@ class GitHub {
         }
     }
     install = async (code, installation_id) => {
-        state.loading = true
+        state.showEmptyState = true
+        state.loadingBar = true
         const { data } = await axios.get(`/github/install/${installation_id}/${code}`)
         if (data?.err) {
             state.error = data.err
@@ -63,9 +65,10 @@ class GitHub {
         return this.refreshRepos(false, true, true)
     }
     login = async code => {
-        state.loading = true
+        state.showEmptyState = true
+        state.loadingBar = true
         const { data } = await axios.get(`/login/github/${code}`)
-        state.loading = false
+        state.loadingBar = false
         if (data?.err) {
             state.error = data.err
         }
@@ -80,15 +83,14 @@ class GitHub {
     }
     refreshRepos = async (cached = false, initial = false, install = false) => {
         clearAlerts()
-        state.loading = true
+        state.loadingBar = true
         try {
             let uriPath = '/github/repos'
             if (cached === true) {
                 uriPath += '/cached'
             }
             const { data } = await axios.get(uriPath)
-
-            state.loading = false
+            state.loadingBar = false
             if (typeof data === "string" && !isJSON(data)) {
                 state.warning = cached === true ? "No cached data. Have you tried to install the GitHub App?" : "No data retrieved from GitHub. Was this GitHub App uninstalled?"
                 state.octodexImageUrl = `https://octodex.github.com/images/${octodex[Math.floor(Math.random() * octodex.length)]}`
@@ -131,7 +133,7 @@ class GitHub {
         }
         state.warning = "No data retrieved from GitHub. Is this GitHub App uninstalled?"
         state.octodexImageUrl = `https://octodex.github.com/images/${octodex[Math.floor(Math.random() * octodex.length)]}`
-        state.loading = false
+        state.loadingBar = false
     }
     refreshSecurity = async (full_name, alerts = true) => {
         state.refreshLoaders[full_name] = true
@@ -321,38 +323,53 @@ const gh = reactive(new GitHub())
             />
         </VCol>
         <VCol cols="12">
+            <VProgressLinear
+                :active="state.loadingBar"
+                :indeterminate="state.loadingBar"
+                color="primary"
+                absolute
+                bottom
+            ></VProgressLinear>
 
             <VEmptyState
-                v-if="!state.gitRepos.length"
+                v-if="state.showEmptyState"
                 :image="state.octodexImageUrl"
             >
                 <template #actions>
+                    <div v-if="state.loadingBar">
+                        <div class="d-flex justify-center mb-6">
+                            <VProgressCircular
+                                :size="18"
+                                color="primary"
+                                indeterminate
+                            />
+                            <span class="ms-4">
+                                Verifying, please wait.
+                            </span>
+                        </div>
+                    </div>
                     <VBtn
+                        v-else
                         href="https://github.com/apps/triage-by-trivial-security/installations/new/"
                         text="Install"
                         prepend-icon="line-md:github-loop"
-                        :disabled="state.loading"
+                        :disabled="state.loadingBar"
                         variant="text"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                     />
                     <VBtn
-                        v-if="state.githubApps.length && !state.loading"
+                        v-if="state.githubApps.length"
                         text="Refresh Repositories"
                         prepend-icon="mdi-refresh"
-                        :disabled="state.loading"
+                        :disabled="state.loadingBar"
                         variant="text"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                         @click="gh.refreshRepos"
                     />
                 </template>
             </VEmptyState>
-            <VSkeletonLoader
-                v-if="state.loading"
-                :elevation="4"
-                type="card"
-            />
             <VCard
-                v-if="state.gitRepos.length || state.loading"
+                v-if="!state.showEmptyState"
                 title="Repositories"
             >
                 <VCardText>
@@ -361,7 +378,7 @@ const gh = reactive(new GitHub())
                         text="Install another GitHub Account"
                         prepend-icon="line-md:github-loop"
                         variant="text"
-                        :disabled="state.loading"
+                        :disabled="state.loadingBar"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                     />
                     <VBtn
@@ -369,12 +386,17 @@ const gh = reactive(new GitHub())
                         prepend-icon="mdi-refresh"
                         variant="text"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
-                        :disabled="state.loading"
+                        :disabled="state.loadingBar"
                         @click="gh.refreshGithub"
                     />
                 </VCardText>
                 <VExpansionPanels accordion>
+                    <VSkeletonLoader
+                        v-if="state.loadingBar"
+                        type="table"
+                    />
                     <VExpansionPanel
+                        v-else
                         v-for="(group, k) in groupedRepos()"
                         :key="k"
                     >
@@ -387,12 +409,7 @@ const gh = reactive(new GitHub())
                             repositories)
                         </VExpansionPanelTitle>
                         <VExpansionPanelText>
-                            <VSkeletonLoader
-                                v-if="state.loading"
-                                type="table"
-                            />
                             <VTable
-                                v-else
                                 height="20rem"
                                 fixed-header
                             >
