@@ -1,5 +1,5 @@
 <script setup>
-import { avatarText } from '@core/utils/formatters'
+import { avatarText } from '@core/utils/formatters';
 
 const props = defineProps({
   notifications: {
