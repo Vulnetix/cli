@@ -4,18 +4,18 @@ const routes = [
         component: () => import('../pages/HomePage.vue'),
         children: [
             {
-                path: 'login',
-                component: () => import('../pages/Login.vue'),
-            },
-            {
-                path: 'register',
-                component: () => import('../pages/Register.vue'),
-            },
-            {
                 path: '/:pathMatch(.*)*',
                 component: () => import('../pages/[...all].vue'),
             },
         ],
+    },
+    {
+        path: '/login',
+        component: () => import('../pages/Login.vue'),
+    },
+    {
+        path: '/register',
+        component: () => import('../pages/Register.vue'),
     },
     {
         path: '/logout',

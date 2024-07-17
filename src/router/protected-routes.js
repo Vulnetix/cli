@@ -1,5 +1,4 @@
 const routes = [
-    { path: '/', redirect: '/dashboard' },
     {
         path: '/',
         component: () => import('../layouts/default.vue'),

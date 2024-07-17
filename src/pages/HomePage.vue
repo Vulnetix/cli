@@ -1,48 +1,9 @@
 <script setup>
-import router from "@/router"
-import { useMemberStore } from '@/stores/member'
 import IconTrivialSecurity from '@images/IconTrivialSecurity.vue'
-import { useVuelidate } from '@vuelidate/core'
-import { email, required } from '@vuelidate/validators'
-import { default as axios } from 'axios'
-import { SHA1 } from 'crypto-es/lib/sha1'
-import { reactive } from 'vue'
 import { useTheme } from 'vuetify'
 
 const { global } = useTheme()
-const Member = useMemberStore()
 
-const initialState = {
-    org: Member.orgName || '',
-    email: Member.email || '',
-    password: '',
-    privacyPolicies: false,
-}
-
-const state = reactive({
-    ...initialState,
-})
-
-const rules = {
-    org: { required },
-    email: { required, email },
-    password: { required },
-    privacyPolicies: { required },
-}
-
-const v$ = useVuelidate(rules, state)
-const isPasswordVisible = ref(false)
-
-const register = () => {
-    if (state.org && state.email && state.password && state.privacyPolicies) {
-        axios.get(`/register/${state.org}/${state.email}/${SHA1(state.password)}`)
-            .then(console.log)
-            .catch(console.log)
-        Member.email = state.email
-        Member.orgName = state.org
-        router.push('/login')
-    }
-}
 </script>
 
 <template>
