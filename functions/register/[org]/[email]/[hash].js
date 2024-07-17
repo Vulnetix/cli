@@ -1,4 +1,6 @@
-import { pbkdf2 } from "@/utils"
+import { pbkdf2 } from "@/utils";
+import { PrismaD1 } from '@prisma/adapter-d1';
+import { PrismaClient } from '@prisma/client';
 
 export async function onRequestGet(context) {
     const {
@@ -9,7 +11,14 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-
+    const adapter = new PrismaD1(env.d1db)
+    const prisma = new PrismaClient({
+        adapter,
+        transactionOptions: {
+            maxWait: 1500, // default: 2000
+            timeout: 2000, // default: 5000
+        },
+    })
     if (
         params?.org &&
         params?.email &&
@@ -17,24 +26,17 @@ export async function onRequestGet(context) {
     ) {
         console.log('org', params.org)
 
-        const exists = await env.d1db.prepare(
-            "SELECT email FROM members WHERE email = ?",
-        )
-            .bind(params.email)
-            .first('email')
-
-        if (exists === params.email) {
-            return Response.json({ 'err': 'Forbidden' })
-        }
-
-        const info = await env.d1db.prepare('INSERT INTO members (orgName, email, passwordHash) VALUES (?1, ?2, ?3)')
-            .bind(params.org, params.email, await pbkdf2(params.hash))
-            .run()
-
+        const info = await prisma.members.create({
+            data: {
+                orgName: params.org,
+                email: params.email,
+                passwordHash: await pbkdf2(params.hash)
+            }
+        })
         console.log(`/register email=${params.email}`, info)
 
         return Response.json(info)
     }
 
-    return Response.json({ 'err': 'missing properties /register/[org]/[email]/[sha1]' })
+    return Response.json({ error: { message: 'missing properties /register/[org]/[email]/[sha1]' } })
 }

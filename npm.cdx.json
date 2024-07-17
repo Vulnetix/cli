@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:fb5adb55-a227-4c63-8a73-dd83a76baded",
+  "serialNumber": "urn:uuid:88ec9670-dc23-474a-86af-f52974f93439",
   "version": 1,
   "metadata": {
-    "timestamp": "2024-06-30T01:14:34.034Z",
+    "timestamp": "2024-07-12T06:57:53.645Z",
     "lifecycles": [
       {
         "phase": "pre-build"
@@ -15,13 +15,13 @@
       {
         "vendor": "npm",
         "name": "cli",
-        "version": "10.7.0"
+        "version": "10.8.1"
       }
     ],
     "component": {
       "bom-ref": "triage-by-trivial-security@0.1.0",
       "type": "library",
-      "name": "trivial-triage",
+      "name": "triage-by-trivial-security",
       "version": "0.1.0",
       "scope": "required",
       "purl": "pkg:npm/triage-by-trivial-security@0.1.0",
@@ -224,12 +224,12 @@
       ]
     },
     {
-      "bom-ref": "@prisma/client@5.15.1",
+      "bom-ref": "@prisma/client@5.16.1",
       "type": "library",
       "name": "@prisma/client",
-      "version": "5.15.1",
+      "version": "5.16.1",
       "scope": "required",
-      "purl": "pkg:npm/%40prisma/client@5.15.1",
+      "purl": "pkg:npm/%40prisma/client@5.16.1",
       "properties": [
         {
           "name": "cdx:npm:package:path",
@@ -239,13 +239,39 @@
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@prisma/client/-/client-5.15.1.tgz"
+          "url": "https://registry.npmjs.org/@prisma/client/-/client-5.16.1.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "7e66511a6b1427df95c02fc0bdf3ff3f07690f4c401323ef36c0fdfc1dfe198a444eaf557a35514f73e2a8dbe5efaab5b986333597a8f2efcb9b3cd37ad1d212"
+          "content": "c0cf522908c5d2a2f176739921500830a8b3e87bbbbc3b7814502287ce4ad5d93f46bda675a872e9ddd03f8d4aeb637d3b40c9240fff8140c0dcca78f71b0a22"
+        }
+      ]
+    },
+    {
+      "bom-ref": "@prisma/debug@5.15.1",
+      "type": "library",
+      "name": "@prisma/debug",
+      "version": "5.15.1",
+      "scope": "required",
+      "purl": "pkg:npm/%40prisma/debug@5.15.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@prisma/debug"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@prisma/debug/-/debug-5.15.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "3508dd1299615c470fbdff38821c44c42f8b0fe8938a66e0dec66f037061c9b550228701101c457fd1931e199154f9a3ad6a01698241560104057653dbb2536d"
         }
       ]
     },
@@ -3518,7 +3544,7 @@
         "@casl/vue@2.2.2",
         "@floating-ui/dom@1.2.8",
         "@prisma/adapter-d1@5.15.1",
-        "@prisma/client@5.15.1",
+        "@prisma/client@5.16.1",
         "@vuelidate/core@2.0.3",
         "@vuelidate/validators@2.0.4",
         "@vueuse/math@10.11.0",
@@ -3572,12 +3598,18 @@
       "dependsOn": []
     },
     {
-      "ref": "@prisma/client@5.15.1",
+      "ref": "@prisma/client@5.16.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "@prisma/debug@5.15.1",
       "dependsOn": []
     },
     {
       "ref": "@prisma/driver-adapter-utils@5.15.1",
-      "dependsOn": []
+      "dependsOn": [
+        "@prisma/debug@5.15.1"
+      ]
     },
     {
       "ref": "@ucast/core@1.10.2",

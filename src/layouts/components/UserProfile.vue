@@ -7,12 +7,11 @@ import { reactive } from 'vue';
 const Member = useMemberStore()
 
 axios.defaults.headers.common = {
-    'x-trivialsec': localStorage.getItem('/session/token') || '',
+    'x-trivialsec': Member.session?.token,
 }
 class Profile {
     constructor() {
-        const token = localStorage.getItem('/session/token')
-        if (!token && location.pathname.startsWith('/github-integration')) {
+        if (!Member.session?.token && location.pathname.startsWith('/github-integration')) {
             const urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
             if (!!urlQuery?.code) {
                 return
@@ -24,7 +23,9 @@ class Profile {
     async refresh() {
         try {
             const { data } = await axios.get(`/me`)
-
+            if (data?.error?.message) {
+                state.error = data?.error?.message
+            }
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 return router.push('/logout')
             }

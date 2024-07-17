@@ -38,24 +38,32 @@
 		"eslint.format.enable": true,
 		"cSpell.words": [
 			"axios",
+			"cisa",
 			"Composables",
+			"csaf",
 			"Customizer",
+			"cwes",
 			"cyclonedx",
 			"dotfile",
+			"epss",
 			"flagpack",
 			"ghid",
 			"icache",
 			"Iconify",
 			"octodex",
+			"pinia",
 			"psudo",
 			"sarif",
+			"sast",
+			"ssvc",
 			"stylelint",
 			"touchless",
 			"triggerer",
 			"trivialsec",
 			"Vuelidate",
 			"vuetify",
-			"vulncheck"
+			"vulncheck",
+			"vulns"
 		]
 	}
 }

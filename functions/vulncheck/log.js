@@ -1,6 +1,6 @@
+import { App, AuthResult } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -22,7 +22,7 @@ export async function onRequestGet(context) {
         })
         const { err, result, session } = await (new App(request, prisma)).authenticate()
         if (result !== AuthResult.AUTHENTICATED) {
-            return Response.json({ ok: false, err, result })
+            return Response.json({ ok: false, error: { message: err }, result })
         }
         const keyData = await prisma.member_keys.findFirst({
             where: {
@@ -39,13 +39,17 @@ export async function onRequestGet(context) {
             where: {
                 memberEmail: session.memberEmail,
                 source: 'vulncheck',
-            }
+            },
+            take: 1000,
+            orderBy: {
+                createdAt: 'desc',
+            },
         })
 
         return Response.json({ ok: true, log, _meta })
     } catch (err) {
         console.error(err)
-        return Response.json({ ok: false, result: AuthResult.REVOKED })
+        return Response.json({ ok: false, error: { message: err }, result: AuthResult.REVOKED })
     }
 }
 const mask = s => s.slice(0, 10) + s.slice(10).slice(4, s.length - 4).replace(/(.)/g, '*') + s.slice(s.length - 4)

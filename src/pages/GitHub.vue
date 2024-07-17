@@ -12,15 +12,18 @@ import { useTheme } from 'vuetify'
 
 const Member = useMemberStore()
 const { global } = useTheme()
-
+const tabs = ref()
 const initialState = {
     error: "",
     warning: "",
     success: "",
     info: "",
+    patName: "",
+    pat: "",
     showEmptyState: false,
     loadingBar: false,
     octodexImageUrl: `https://octodex.github.com/images/${octodex[Math.floor(Math.random() * octodex.length)]}`,
+    patTokens: [],
     githubApps: [],
     gitRepos: [],
     refreshLoaders: {}
@@ -31,7 +34,7 @@ const state = reactive({
 })
 
 axios.defaults.headers.common = {
-    'x-trivialsec': localStorage.getItem('/session/token') || '',
+    'x-trivialsec': Member.session?.token,
 }
 
 class GitHub {
@@ -52,8 +55,15 @@ class GitHub {
         state.showEmptyState = true
         state.loadingBar = true
         const { data } = await axios.get(`/github/install/${installation_id}/${code}`)
-        if (data?.err) {
-            state.error = data.err
+        if (data?.error?.message) {
+            if (data?.app?.installationId) {
+                data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+            }
+            if (data?.app?.login) {
+                data.error.message = `${data.error.message} (${data.app.login})`
+            }
+            state.error = data.error.message
+            return
         }
         if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
             state.info = data.result
@@ -69,8 +79,15 @@ class GitHub {
         state.loadingBar = true
         const { data } = await axios.get(`/login/github/${code}`)
         state.loadingBar = false
-        if (data?.err) {
-            state.error = data.err
+        if (data?.error?.message) {
+            if (data?.app?.installationId) {
+                data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+            }
+            if (data?.app?.login) {
+                data.error.message = `${data.error.message} (${data.app.login})`
+            }
+            state.error = data.error.message
+            return
         }
         if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
             state.info = data.result
@@ -91,21 +108,33 @@ class GitHub {
             }
             const { data } = await axios.get(uriPath)
             state.loadingBar = false
+            if (data?.error?.message) {
+                if (data?.app?.installationId) {
+                    data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+                }
+                if (data?.app?.login) {
+                    data.error.message = `${data.error.message} (${data.app.login})`
+                }
+                state.error = data.error.message
+                return false
+            }
+            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+                state.info = data.result
+                setTimeout(() => router.push('/logout'), 2000)
+                return false
+            }
             if (typeof data === "string" && !isJSON(data)) {
                 state.warning = cached === true ? "No cached data. Have you tried to install the GitHub App?" : "No data retrieved from GitHub. Was this GitHub App uninstalled?"
                 state.octodexImageUrl = `https://octodex.github.com/images/${octodex[Math.floor(Math.random() * octodex.length)]}`
 
-                return
+                return false
             }
-            if (data?.err) {
-                state.error = data.err
+            if (data?.patTokens) {
+                state.patTokens = data.patTokens
             }
-            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-                state.info = data.result
-
-                return setTimeout(() => router.push('/logout'), 2000)
+            if (data?.githubApps) {
+                state.githubApps = data.githubApps
             }
-            state.githubApps = data?.githubApps || []
             if (data.gitRepos.length === 0) {
                 state.error = "No data retrieved from GitHub. Is this GitHub App installed?"
                 state.warning = "Please check the GitHub App permissions, they may have been revoked or uninstalled."
@@ -126,7 +155,7 @@ class GitHub {
                 state.success = "GitHub App installed successfully."
             }
 
-            return
+            return true
         } catch (e) {
             console.error(e)
             state.error = `${e.code} ${e.message}`
@@ -134,6 +163,7 @@ class GitHub {
         state.warning = "No data retrieved from GitHub. Is this GitHub App uninstalled?"
         state.octodexImageUrl = `https://octodex.github.com/images/${octodex[Math.floor(Math.random() * octodex.length)]}`
         state.loadingBar = false
+        return false
     }
     refreshSecurity = async (full_name, alerts = true) => {
         state.refreshLoaders[full_name] = true
@@ -144,9 +174,10 @@ class GitHub {
         state.refreshLoaders[full_name] = false
     }
     refreshGithub = async () => {
-        await this.refreshRepos(false, false)
-        for (const repo of state.gitRepos) {
-            this.refreshSecurity(repo.fullName, false)
+        if (await this.refreshRepos(false, false)) {
+            for (const repo of state.gitRepos) {
+                this.refreshSecurity(repo.fullName, false)
+            }
         }
     }
     refreshSpdx = async (full_name, alerts = true) => {
@@ -154,18 +185,24 @@ class GitHub {
         try {
             const { data } = await axios.get(`/github/repos/${full_name}/spdx`)
 
-            if (typeof data === "string" && !isJSON(data)) {
-                state.warning = "No data retrieved from GitHub. Was this GitHub App uninstalled?"
-
+            if (data?.error?.message && alerts === true) {
+                if (data?.app?.installationId) {
+                    data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+                }
+                if (data?.app?.login) {
+                    data.error.message = `${data.error.message} (${data.app.login})`
+                }
+                state.error = data.error.message
                 return
-            }
-            if (data?.err && alerts === true) {
-                state.error = data.err
             }
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 state.info = data.result
 
                 return setTimeout(() => router.push('/logout'), 2000)
+            }
+            if (typeof data === "string" && !isJSON(data)) {
+                state.warning = "No data retrieved from GitHub. Was this GitHub App uninstalled?"
+                return
             }
             if (alerts === true) {
                 if (!data) {
@@ -192,18 +229,25 @@ class GitHub {
         try {
             const { data } = await axios.get(`/github/repos/${full_name}/sarif`)
 
-            if (typeof data === "string" && !isJSON(data)) {
-                state.warning = "No data retrieved from GitHub. Was this GitHub App uninstalled?"
-
+            if (data?.error?.message && alerts === true) {
+                if (data?.app?.installationId) {
+                    data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+                }
+                if (data?.app?.login) {
+                    data.error.message = `${data.error.message} (${data.app.login})`
+                }
+                state.error = data.error.message
                 return
-            }
-            if (data?.err && alerts === true) {
-                state.error = data.err
             }
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 state.info = data.result
 
                 return setTimeout(() => router.push('/logout'), 2000)
+            }
+            if (typeof data === "string" && !isJSON(data)) {
+                state.warning = "No data retrieved from GitHub. Was this GitHub App uninstalled?"
+
+                return
             }
             if (alerts === true) {
                 if (!data) {
@@ -223,6 +267,125 @@ class GitHub {
         }
         if (alerts === true) {
             state.warning = "No data retrieved from GitHub. Is this GitHub App uninstalled?"
+        }
+    }
+    savePat = async () => {
+        clearAlerts()
+        state.loading = true
+        try {
+            const { data } = await axios.post(`/github/pat`, { token: state.pat, label: state.patName }, { headers: { 'Content-Type': 'application/json' } })
+            state.loading = false
+
+            if (data?.error?.message) {
+                if (data?.app?.installationId) {
+                    data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+                }
+                if (data?.app?.login) {
+                    data.error.message = `${data.error.message} (${data.app.login})`
+                }
+                state.error = data.error.message
+                return
+            }
+            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+                state.info = data.result
+
+                return setTimeout(() => router.push('/logout'), 2000)
+            }
+            if (typeof data === "string" && !isJSON(data)) {
+                state.error = "Data could not be saved, please try again later."
+
+                return
+            }
+            if (data) {
+                state.patTokens.push(data)
+                state.pat = ''
+                state.patName = ''
+                state.success = "Saved successfully."
+            } else {
+                state.info = data?.result || 'No change'
+            }
+
+            return
+        } catch (e) {
+            console.error(e)
+            state.error = typeof e === "string" ? e : `${e.code} ${e.message}`
+            state.loading = false
+        }
+    }
+    deletePat = async patId => {
+        clearAlerts()
+        state.loading = true
+        try {
+            const { data } = await axios.delete(`/github/${patId}/remove`)
+            state.loading = false
+
+            if (data?.error?.message) {
+                state.error = data.error.message
+                return
+            }
+            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+                state.info = data.result
+
+                return setTimeout(() => router.push('/logout'), 2000)
+            }
+            if (typeof data === "string" && !isJSON(data)) {
+                state.error = "Data could not be saved, please try again later."
+
+                return
+            }
+            if (data) {
+                state.patTokens = state.patTokens.filter(o => o.id !== patId)
+                state.success = "PAT deleted successfully."
+            } else {
+                state.info = data?.result || 'No change'
+            }
+
+            return
+        } catch (e) {
+            console.error(e)
+            state.error = typeof e === "string" ? e : `${e.code} ${e.message}`
+            state.loading = false
+        }
+    }
+    deleteApp = async installationId => {
+        clearAlerts()
+        state.loading = true
+        try {
+            const { data } = await axios.get(`/github/${installationId}/uninstall`)
+            state.loading = false
+
+            if (data?.error?.message) {
+                if (data?.app?.installationId) {
+                    data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+                }
+                if (data?.app?.login) {
+                    data.error.message = `${data.error.message} (${data.app.login})`
+                }
+                state.error = data.error.message
+                return
+            }
+            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+                state.info = data.result
+
+                return setTimeout(() => router.push('/logout'), 2000)
+            }
+            if (typeof data === "string" && !isJSON(data)) {
+                state.error = "Unable to uninstall, please try again later."
+
+                return
+            }
+            if (data) {
+                state.githubApps = state.githubApps.filter(o => o.installationId !== installationId)
+                state.success = "Uninstalled successfully."
+            } else {
+                state.info = data?.result || 'No change'
+            }
+
+            return
+        } catch (e) {
+            console.error(e)
+            state.error = typeof e === "string" ? e : `${e.code} ${e.message}`
+            state.loading = false
         }
     }
 }
@@ -251,12 +414,14 @@ function persistData(data) {
         Member.lastName = data.member.lastName
     }
     if (data?.session?.token) {
-        localStorage.setItem('/session/token', data.session.token)
+        Member.session.token = data.session.token
+        localStorage.setItem('/session/token', Member.session.token)
         axios.defaults.headers.common = {
-            'x-trivialsec': data.session.token,
+            'x-trivialsec': Member.session.token,
         }
     }
     if (data?.session?.expiry) {
+        Member.session.expiry = data.session.expiry
         localStorage.setItem('/session/expiry', data.session.expiry)
     }
 }
@@ -285,6 +450,13 @@ const gh = reactive(new GitHub())
 <template>
     <VRow>
         <VCol cols="12">
+            <VProgressLinear
+                :active="state.loadingBar"
+                :indeterminate="state.loadingBar"
+                color="primary"
+                absolute
+                bottom
+            ></VProgressLinear>
             <VAlert
                 v-if="state.error"
                 color="error"
@@ -323,14 +495,6 @@ const gh = reactive(new GitHub())
             />
         </VCol>
         <VCol cols="12">
-            <VProgressLinear
-                :active="state.loadingBar"
-                :indeterminate="state.loadingBar"
-                color="primary"
-                absolute
-                bottom
-            ></VProgressLinear>
-
             <VEmptyState
                 v-if="state.showEmptyState"
                 :image="state.octodexImageUrl"
@@ -358,7 +522,7 @@ const gh = reactive(new GitHub())
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                     />
                     <VBtn
-                        v-if="state.githubApps.length"
+                        v-if="state.gitRepos.length"
                         text="Refresh Repositories"
                         prepend-icon="mdi-refresh"
                         :disabled="state.loadingBar"
@@ -368,159 +532,402 @@ const gh = reactive(new GitHub())
                     />
                 </template>
             </VEmptyState>
-            <VCard
-                v-if="!state.showEmptyState"
-                title="Repositories"
+            <VTabs
+                v-model="tabs"
+                :bgColor="global.name.value === 'dark' ? 'rgb(var(--v-theme-primary))' : 'rgba(var(--v-theme-primary),var(--v-activated-opacity))'"
+                :color="global.name.value === 'dark' ? '#272727' : 'rgba(var(--v-theme-on-surface),var(--v-medium-emphasis-opacity))'"
+                fixed-tabs
             >
-                <VCardText>
-                    <VBtn
-                        href="https://github.com/apps/triage-by-trivial-security/installations/new/"
-                        text="Install another GitHub Account"
-                        prepend-icon="line-md:github-loop"
-                        variant="text"
-                        :disabled="state.loadingBar"
-                        :color="global.name.value === 'dark' ? '#fff' : '#272727'"
-                    />
-                    <VBtn
-                        text="Refresh Github Data"
-                        prepend-icon="mdi-refresh"
-                        variant="text"
-                        :color="global.name.value === 'dark' ? '#fff' : '#272727'"
-                        :disabled="state.loadingBar"
-                        @click="gh.refreshGithub"
-                    />
-                </VCardText>
-                <VExpansionPanels accordion>
-                    <VSkeletonLoader
-                        v-if="state.loadingBar"
-                        type="table"
-                    />
-                    <VExpansionPanel
-                        v-else
-                        v-for="(group, k) in groupedRepos()"
-                        :key="k"
+                <VTab
+                    base-color="#272727"
+                    prepend-icon="mdi:source-repository-multiple"
+                    text="Repositories"
+                    value="repos"
+                ></VTab>
+                <VTab
+                    base-color="#272727"
+                    prepend-icon="mdi:integrated-circuit"
+                    text="Integration"
+                    value="integration"
+                ></VTab>
+            </VTabs>
+            <VTabsWindow v-model="tabs">
+                <VTabsWindowItem value="repos">
+                    <VCard
+                        v-if="!state.showEmptyState"
+                        title="Organizations"
                     >
-                        <VExpansionPanelTitle class="text-subtitle-1">
-                            <img
-                                :src="group.avatarUrl"
-                                width="25"
-                                class="me-3"
-                            >{{ group.orgName }} ({{ group.repos.length }}
-                            repositories)
-                        </VExpansionPanelTitle>
-                        <VExpansionPanelText>
-                            <VTable
-                                height="20rem"
-                                fixed-header
+                        <VCardText>
+                            <VBtn
+                                text="Refresh Github Data"
+                                prepend-icon="mdi-refresh"
+                                variant="text"
+                                :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                                :disabled="state.loadingBar"
+                                @click="gh.refreshGithub"
+                            />
+                        </VCardText>
+                        <VExpansionPanels accordion>
+                            <VSkeletonLoader
+                                v-if="state.loadingBar"
+                                type="table-row@10"
+                            />
+                            <VExpansionPanel
+                                v-else
+                                v-for="(group, k) in groupedRepos()"
+                                :key="k"
                             >
-                                <thead>
-                                    <tr>
-                                        <th class="text-uppercase">
-                                            Repository
-                                        </th>
-                                        <th>
-                                            Default Branch
-                                        </th>
-                                        <th>
-                                            Visibility
-                                        </th>
-                                        <th>
-                                            Type
-                                        </th>
-                                        <th>
-                                            Archived
-                                        </th>
-                                        <th>
-                                            License
-                                        </th>
-                                        <th>
-                                            Last Pushed
-                                        </th>
-                                        <th>
-                                            Created Date
-                                        </th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    <tr
-                                        v-for="(repo, i) in group.repos"
-                                        :key="i"
+                                <VExpansionPanelTitle class="text-subtitle-1">
+                                    <img
+                                        :src="group.avatarUrl"
+                                        width="25"
+                                        class="me-3"
+                                    >{{ group.orgName }} ({{ group.repos.length
+                                    }}
+                                    repositories)
+                                </VExpansionPanelTitle>
+                                <VExpansionPanelText>
+                                    <VTable
+                                        height="20rem"
+                                        fixed-header
                                     >
-                                        <td>
-                                            <VTooltip text="Refresh Data">
-                                                <template v-slot:activator="{ props }">
-                                                    <VProgressCircular
-                                                        class="ml-4 mr-2"
-                                                        :size="18"
-                                                        color="primary"
-                                                        indeterminate
-                                                        v-if="!!state.refreshLoaders[repo.fullName]"
-                                                    />
-                                                    <VBtn
-                                                        v-if="!state.refreshLoaders[repo.fullName]"
-                                                        v-bind="props"
-                                                        icon="mdi-refresh"
-                                                        variant="plain"
-                                                        color="rgb(26, 187, 156)"
-                                                        @click="gh.refreshSecurity(repo.fullName)"
-                                                    />
-                                                </template>
-                                            </VTooltip>
+                                        <thead>
+                                            <tr>
+                                                <th class="text-uppercase">
+                                                    Repository
+                                                </th>
+                                                <th>
+                                                    Default Branch
+                                                </th>
+                                                <th>
+                                                    Visibility
+                                                </th>
+                                                <th>
+                                                    Type
+                                                </th>
+                                                <th>
+                                                    Archived
+                                                </th>
+                                                <th>
+                                                    License
+                                                </th>
+                                                <th>
+                                                    Last Pushed
+                                                </th>
+                                                <th>
+                                                    Created Date
+                                                </th>
+                                            </tr>
+                                        </thead>
 
-                                            {{ repo.repoName }}
-                                        </td>
-                                        <td class="text-center">
-                                            <VTooltip
-                                                activator="parent"
-                                                location="top"
-                                            >Last Updated {{ new
-                                                Date(repo.updatedAt).toLocaleDateString() }}</VTooltip>
-                                            {{ repo.defaultBranch }}
-                                        </td>
-                                        <td class="text-center">
-                                            {{ repo.visibility }}
-                                        </td>
-                                        <td
-                                            class="text-center"
-                                            :class="{ 'text-secondary': repo.fork }"
-                                        >
-                                            {{ repo.fork ? "Fork" : repo.template ? "Template" : "Source" }}
-                                        </td>
-                                        <td
-                                            class="text-center"
-                                            :class="{ 'text-secondary': repo.archived }"
-                                        >
-                                            {{ repo.archived ? "Archived" : "Active" }}
-                                        </td>
-                                        <td class="text-center">
-                                            <VTooltip
-                                                v-if="repo.licenseSpdxId"
-                                                activator="parent"
-                                                location="top"
-                                            >{{
-                                                repo.licenseSpdxId }}</VTooltip>
-                                            {{ repo.licenseName }}
-                                        </td>
-                                        <td class="text-center">
-                                            {{ new Date(repo.pushedAt).toLocaleDateString() }}
-                                        </td>
-                                        <td class="text-end">
-                                            <VTooltip
-                                                activator="parent"
-                                                location="top"
-                                            >{{
-                                                repo.pk }}</VTooltip>
-                                            {{ new Date(repo.createdAt).toLocaleDateString() }}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </VTable>
-                        </VExpansionPanelText>
-                    </VExpansionPanel>
-                </VExpansionPanels>
-            </VCard>
+                                        <tbody>
+                                            <tr
+                                                v-for="(repo, i) in group.repos"
+                                                :key="i"
+                                            >
+                                                <td>
+                                                    <VTooltip text="Refresh Data">
+                                                        <template v-slot:activator="{ props }">
+                                                            <VProgressCircular
+                                                                class="ml-4 mr-2"
+                                                                :size="18"
+                                                                color="primary"
+                                                                indeterminate
+                                                                v-if="!!state.refreshLoaders[repo.fullName]"
+                                                            />
+                                                            <VBtn
+                                                                v-if="!state.refreshLoaders[repo.fullName]"
+                                                                v-bind="props"
+                                                                icon="mdi-refresh"
+                                                                variant="plain"
+                                                                color="rgb(26, 187, 156)"
+                                                                @click="gh.refreshSecurity(repo.fullName)"
+                                                            />
+                                                        </template>
+                                                    </VTooltip>
 
+                                                    {{ repo.repoName }}
+                                                </td>
+                                                <td class="text-center">
+                                                    <VTooltip
+                                                        activator="parent"
+                                                        location="top"
+                                                    >Last Updated {{ new
+                                                        Date(repo.updatedAt).toLocaleDateString() }}</VTooltip>
+                                                    {{ repo.defaultBranch }}
+                                                </td>
+                                                <td class="text-center">
+                                                    {{ repo.visibility }}
+                                                </td>
+                                                <td
+                                                    class="text-center"
+                                                    :class="{ 'text-secondary': repo.fork }"
+                                                >
+                                                    {{ repo.fork ? "Fork" : repo.template ? "Template" : "Source" }}
+                                                </td>
+                                                <td
+                                                    class="text-center"
+                                                    :class="{ 'text-secondary': repo.archived }"
+                                                >
+                                                    {{ repo.archived ? "Archived" : "Active" }}
+                                                </td>
+                                                <td class="text-center">
+                                                    <VTooltip
+                                                        v-if="repo.licenseSpdxId"
+                                                        activator="parent"
+                                                        location="top"
+                                                    >{{
+                                                        repo.licenseSpdxId }}</VTooltip>
+                                                    {{ repo.licenseName }}
+                                                </td>
+                                                <td class="text-center">
+                                                    {{ new Date(repo.pushedAt).toLocaleDateString() }}
+                                                </td>
+                                                <td class="text-end">
+                                                    <VTooltip
+                                                        activator="parent"
+                                                        location="top"
+                                                    >{{
+                                                        repo.pk }}</VTooltip>
+                                                    {{ new Date(repo.createdAt).toLocaleDateString() }}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </VTable>
+                                </VExpansionPanelText>
+                            </VExpansionPanel>
+                        </VExpansionPanels>
+                    </VCard>
+                </VTabsWindowItem>
+                <VTabsWindowItem value="integration">
+                    <VCard title="GitHub Integration">
+                        <VCardText>
+                            <VBtn
+                                href="https://github.com/apps/triage-by-trivial-security/installations/new/"
+                                text="Install another GitHub Account"
+                                prepend-icon="line-md:github-loop"
+                                variant="text"
+                                :disabled="state.loadingBar"
+                                :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                            />
+                            <VForm
+                                @submit.prevent="() => { }"
+                                class="mt-4"
+                            >
+                                <VCardTitle>
+                                    Add a Personal Access Token (PAT)
+                                </VCardTitle>
+                                <VRow>
+                                    <VCol
+                                        md="6"
+                                        cols="12"
+                                    >
+                                        <VTextField
+                                            :disabled="state.loading"
+                                            v-model="state.patName"
+                                            placeholder="my token name"
+                                            label="Token Label"
+                                        />
+                                    </VCol>
+                                    <VCol
+                                        md="6"
+                                        cols="12"
+                                    >
+                                        <VTextField
+                                            :disabled="state.loading"
+                                            v-model="state.pat"
+                                            placeholder="github_pat_xxxx...xxxx"
+                                            label="GitHub Personal Access Token (PAT)"
+                                        />
+                                    </VCol>
+                                </VRow>
+                                <VRow>
+                                    <VCol
+                                        md="6"
+                                        cols="12"
+                                        class="gap-3"
+                                    >
+                                        <VBtn @click="gh.savePat">Save</VBtn>
+
+                                    </VCol>
+                                </VRow>
+                            </VForm>
+                        </VCardText>
+                        <VExpansionPanels accordion>
+                            <VSkeletonLoader
+                                v-if="state.loading"
+                                type="table-row@10"
+                            />
+                            <VExpansionPanel>
+                                <VExpansionPanelTitle class="text-subtitle-1">
+                                    {{ state.githubApps.length }} GitHub App Installations
+                                </VExpansionPanelTitle>
+                                <VExpansionPanelText>
+                                    <VTable
+                                        class="text-no-wrap"
+                                        v-if="!state.loading && state.githubApps.length"
+                                    >
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">
+                                                    Installation ID
+                                                </th>
+                                                <th scope="col">
+                                                    Handle
+                                                </th>
+                                                <th scope="col">
+                                                    Created
+                                                </th>
+                                                <th scope="col">
+                                                    Expires
+                                                </th>
+                                                <th scope="col">
+
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr
+                                                v-for="(app, i) in state.githubApps"
+                                                :key="i"
+                                            >
+                                                <td>
+                                                    {{ app.installationId }}
+                                                </td>
+                                                <td class="text-center">
+                                                    {{ app.login }}
+                                                </td>
+                                                <td class="text-center">
+                                                    {{ new Date(app.created).toLocaleDateString() }}
+                                                </td>
+                                                <td class="text-center">
+                                                    {{ new Date(app.created).toLocaleDateString() }}
+                                                </td>
+                                                <td class="text-end">
+                                                    <VTooltip
+                                                        text="Uninstall GitHub App"
+                                                        location="left"
+                                                    >
+                                                        <template v-slot:activator="{ props }">
+                                                            <VBtn
+                                                                color="error"
+                                                                variant="tonal"
+                                                                density="comfortable"
+                                                                @click="gh.deleteApp(app.installationId)"
+                                                                icon="mdi-close"
+                                                                v-bind="props"
+                                                            ></VBtn>
+                                                        </template>
+                                                    </VTooltip>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </VTable>
+                                    <VAlert
+                                        v-else
+                                        color="primary"
+                                        icon="pixelarticons-mood-sad"
+                                        text="No GitHub App Installations"
+                                        variant="tonal"
+                                    />
+                                </VExpansionPanelText>
+                            </VExpansionPanel>
+                            <VExpansionPanel>
+                                <VExpansionPanelTitle class="text-subtitle-1">
+                                    {{ state.patTokens.length }} Personal Access Tokens
+                                </VExpansionPanelTitle>
+                                <VExpansionPanelText>
+                                    <VTable
+                                        class="text-no-wrap"
+                                        v-if="!state.loading && state.patTokens.length"
+                                    >
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">
+                                                    Account
+                                                </th>
+                                                <th scope="col">
+                                                    Label
+                                                </th>
+                                                <th scope="col">
+                                                    Token
+                                                </th>
+                                                <th scope="col">
+                                                    Expires
+                                                </th>
+                                                <th scope="col">
+
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr
+                                                v-for="item in state.patTokens"
+                                                :key="item.id"
+                                            >
+                                                <td>
+                                                    <VAvatar size="36px">
+                                                        <VImg
+                                                            v-if="item?.githubPat?.avatarUrl"
+                                                            alt="Avatar"
+                                                            :src="item?.githubPat.avatarUrl"
+                                                        ></VImg>
+                                                        <VIcon
+                                                            v-else
+                                                            color="secondary"
+                                                            icon="mdi-user"
+                                                        ></VIcon>
+                                                    </VAvatar>
+                                                    <span class="ml-3">
+                                                        {{ item?.githubPat?.login }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {{ item.keyLabel }}
+                                                </td>
+                                                <td class="text-center">
+                                                    {{ item.secretMasked }}
+                                                </td>
+                                                <td
+                                                    class="text-center"
+                                                    :class="(new Date(item?.githubPat?.expires)).getTime() <= (new Date()).getTime() ? 'text-error' : 'text-success'"
+                                                >
+                                                    {{ (new Date(item?.githubPat?.expires)).toLocaleDateString() }}
+                                                </td>
+                                                <td class="text-end">
+                                                    <VTooltip
+                                                        text="Delete PAT"
+                                                        location="left"
+                                                    >
+                                                        <template v-slot:activator="{ props }">
+                                                            <VBtn
+                                                                color="error"
+                                                                variant="tonal"
+                                                                density="comfortable"
+                                                                @click="gh.deletePat(item.id)"
+                                                                icon="mdi-close"
+                                                                v-bind="props"
+                                                            ></VBtn>
+                                                        </template>
+                                                    </VTooltip>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </VTable>
+                                    <VAlert
+                                        v-else
+                                        color="primary"
+                                        icon="pixelarticons-mood-sad"
+                                        text="No saved GitHub PAT"
+                                        variant="tonal"
+                                    />
+                                </VExpansionPanelText>
+                            </VExpansionPanel>
+                        </VExpansionPanels>
+                        <VDivider />
+                    </VCard>
+                </VTabsWindowItem>
+            </VTabsWindow>
         </VCol>
     </VRow>
 </template>

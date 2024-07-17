@@ -1,6 +1,6 @@
+import { App, AuthResult } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -21,16 +21,22 @@ export async function onRequestGet(context) {
     })
     const { err, result, session } = await (new App(request, prisma)).authenticate()
     if (result !== AuthResult.AUTHENTICATED) {
-        return Response.json({ err, result })
+        return Response.json({ ok: false, error: { message: err }, result })
     }
-
     const spdx = await prisma.spdx.findMany({
         where: {
             memberEmail: session.memberEmail,
         },
+        omit: {
+            memberEmail: true,
+        },
         include: {
-            repo: true
-        }
+            repo: true,
+        },
+        take: 100,
+        orderBy: {
+            createdAt: 'desc',
+        },
     })
 
     return Response.json({ spdx })

@@ -1,6 +1,6 @@
+import { pbkdf2Verify } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { pbkdf2Verify } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -33,7 +33,7 @@ export async function onRequestGet(context) {
 
         const verified = await pbkdf2Verify(member.passwordHash, params.hash)
         if (!verified) {
-            return Response.json({ 'err': 'Forbidden' })
+            return Response.json({ error: { message: 'Forbidden' } })
         }
         const token = crypto.randomUUID()
         const authn_ip = request.headers.get('cf-connecting-ip')
@@ -51,5 +51,5 @@ export async function onRequestGet(context) {
         return Response.json({ token, expiry, orgName: member.orgName, firstName: member.firstName, lastName: member.lastName })
     }
 
-    return Response.json({ 'err': 'Authentication' })
+    return Response.json({ error: { message: 'Authentication' } })
 }

@@ -25,7 +25,7 @@ export async function onRequestGet(context) {
     if (!!authToken.trim()) {
         ({ err, result, session } = await app.authenticate())
         if (result !== AuthResult.AUTHENTICATED) {
-            return Response.json({ err, result })
+            return Response.json({ ok: false, error: { message: err }, result })
         }
     }
     try {
@@ -47,42 +47,49 @@ export async function onRequestGet(context) {
                 throw new Error(oauthData.error)
             }
         } else {
-            return Response.json({ 'err': 'OAuth authorization code not provided' })
+            return Response.json({ error: { message: 'OAuth authorization code not provided' } })
         }
 
         if (!oauthData?.access_token) {
-            return Response.json({ 'err': 'OAuth authorization failed' })
+            return Response.json({ error: { message: 'OAuth authorization failed' } })
         }
         const created = (new Date()).getTime()
         const expires = appExpiryPeriod + created
         const response = { installationId: params.installation_id, session: {}, member: {} }
         const gh = new GitHub(oauthData.access_token)
-        const ghUserData = await gh.getUser()
+        const { content, error } = await gh.getUser()
+        if (error?.message) {
+            return Response.json({ error })
+        }
         if (!session?.kid) {
             let ghEmail
-            for (const ghUserEmail of await gh.getUserEmails()) {
+            const ghUserEmails = await gh.getUserEmails()
+            if (ghUserEmails.error) {
+                return Response.json({ error: ghUserEmails.error })
+            }
+            for (const ghUserEmail of ghUserEmails.content) {
                 if (ghUserEmail?.verified === true && !!ghUserEmail?.email && !ghUserEmail.email.endsWith('@users.noreply.github.com')) {
                     ghEmail = ghUserEmail.email
                     break
                 }
             }
-            if (ghUserData?.email && !ghEmail) {
-                ghEmail = ghUserData.email
+            if (content?.email && !ghEmail) {
+                ghEmail = content.email
             }
             const memberExists = await app.memberExists(ghEmail)
             if (!memberExists) {
                 let firstName = ''
                 let lastName = ''
-                if (!!ghUserData?.name) {
-                    const words = ghUserData.name.split(' ')
+                if (!!content?.name) {
+                    const words = content.name.split(' ')
                     firstName = words.shift() || ''
                     lastName = words.join(' ') || ''
                 }
                 const memberInfo = await prisma.members.create({
                     data: {
                         email: ghEmail,
-                        avatarUrl: ghUserData?.avatar_url || '',
-                        orgName: ghUserData?.company || '',
+                        avatarUrl: content?.avatar_url || '',
+                        orgName: content?.company || '',
                         passwordHash: await pbkdf2(oauthData.access_token),
                         firstName,
                         lastName
@@ -109,8 +116,8 @@ export async function onRequestGet(context) {
                 response.session.token = token
                 response.session.expiry = expiry
                 response.member.email = ghEmail
-                response.member.avatarUrl = ghUserData.avatar_url
-                response.member.orgName = ghUserData.company
+                response.member.avatarUrl = content.avatar_url
+                response.member.orgName = content.company
                 response.member.firstName = firstName
                 response.member.lastName = lastName
             }
@@ -120,7 +127,7 @@ export async function onRequestGet(context) {
                 installationId: params.installation_id,
                 memberEmail: session.memberEmail,
                 accessToken: oauthData.access_token,
-                login: ghUserData.login,
+                login: content.login,
                 created,
                 expires
             }
@@ -131,6 +138,6 @@ export async function onRequestGet(context) {
     } catch (err) {
         console.error(err)
 
-        return Response.json({ ok: false, result: AuthResult.REVOKED })
+        return Response.json({ ok: false, error: { message: err }, result: AuthResult.REVOKED })
     }
 }

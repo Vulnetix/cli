@@ -84,7 +84,8 @@ export class OSV {
             const response = await fetch(url, { headers: this.headers, method: 'POST', body: JSON.stringify(body) })
             const respText = await response.text()
             if (!response.ok) {
-                console.error(`resp headers=${JSON.stringify(this.headers, null, 2)}`)
+                console.error(`req headers=${JSON.stringify(this.headers, null, 2)}`)
+                console.error(`resp headers=${JSON.stringify(response.headers, null, 2)}`)
                 console.error(respText)
                 console.error(`OSV error! status: ${response.status} ${response.statusText}`)
             }
@@ -94,17 +95,28 @@ export class OSV {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
-            return { ok: response.ok, status: response.status, statusText: response.statusText, error: { message: e.message, lineno, colno } }
+            return { url, status: 500, error: { message: e.message, lineno, colno } }
         }
     }
-    async queryBatch(queries) {
+    async queryBatch(prisma, memberEmail, queries) {
         // https://google.github.io/osv.dev/post-v1-querybatch/
         const url = `${this.baseUrl}/querybatch`
         const resp = await this.fetchJSON(url, { queries })
         if (resp?.content?.results) {
-            return resp.content.results.map(r => r?.vulns || [{}]).flat(1)
+            const results = resp.content.results.map(r => r?.vulns).flat(1).filter(q => q?.id)
+            const createLog = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'osv',
+                    request: JSON.stringify({ url, queries }).trim(),
+                    response: JSON.stringify({ body: results.filter(i => !!i).map(i => ({ ...i, modified: (new Date(i?.modified)).getTime() })), status: resp.status }).trim(),
+                    statusCode: resp?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`osv.queryBatch()`, createLog)
         }
-        return []
+        return resp?.content?.results || []
     }
 }
 
@@ -132,11 +144,12 @@ export class VulnCheck {
     //     })
     //     console.log(`vulncheck.getPurl(${ref.referenceLocator})`, createLog)
     //     for (const vulnerability of vc.content?.data?.vulnerabilities) {
-    //         const createFinding = await prisma.findings_sca.create({
+    //         const createFinding = await prisma.findings.create({
     //             data: {
     //                 findingId: hex(`${session.memberEmail}${vulnerability.detection}${pkg.name}${pkg.versionInfo}`),
     //                 memberEmail: session.memberEmail,
     //                 source: 'vulncheck',
+    //                 category: 'sca',
     //                 createdAt: (new Date()).getTime(),
     //                 detectionTitle: vulnerability.detection,
     //                 purl: ref.referenceLocator,
@@ -149,7 +162,7 @@ export class VulnCheck {
     //                 squattedPackage: research_attributes.squatted_package,
     //             }
     //         })
-    //         console.log(`findings_sca`, createFinding)
+    //         console.log(`findings SCA`, createFinding)
     //     }
     // }
     // const keyData = await prisma.member_keys.findFirst({
@@ -175,7 +188,8 @@ export class VulnCheck {
             const response = await fetch(url, { headers: this.headers })
             const respText = await response.text()
             if (!response.ok) {
-                console.error(`resp headers=${JSON.stringify(this.headers, null, 2)}`)
+                console.error(`req headers=${JSON.stringify(this.headers, null, 2)}`)
+                console.error(`resp headers=${JSON.stringify(response.headers, null, 2)}`)
                 console.error(respText)
                 console.error(`VulnCheck error! status: ${response.status} ${response.statusText}`)
             }
@@ -185,7 +199,7 @@ export class VulnCheck {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
-            return { ok: response.ok, status: response.status, statusText: response.statusText, error: { message: e.message, lineno, colno } }
+            return { url, error: { message: e.message, lineno, colno } }
         }
     }
     async getPurl(purl) {
@@ -217,17 +231,19 @@ export class GitHub {
             const response = await fetch(url, { headers: this.headers })
             const respText = await response.text()
             if (!response.ok) {
-                console.error(`resp headers=${JSON.stringify(this.headers, null, 2)}`)
+                console.error(`req headers=${JSON.stringify(this.headers, null, 2)}`)
+                console.error(`resp headers=${JSON.stringify(response.headers, null, 2)}`)
                 console.error(respText)
                 console.error(`GitHub error! status: ${response.status} ${response.statusText}`)
             }
+            const tokenExpiry = response.headers.get('GitHub-Authentication-Token-Expiration')
             const content = JSON.parse(respText)
-            return { ok: response.ok, status: response.status, statusText: response.statusText, content }
+            return { ok: response.ok, status: response.status, statusText: response.statusText, tokenExpiry, error: { message: content?.message }, content, url }
         } catch (e) {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
-            return { ok: response.ok, status: response.status, statusText: response.statusText, error: { message: e.message, lineno, colno } }
+            return { url, error: { message: e.message, lineno, colno } }
         }
     }
     async fetchSARIF(url) {
@@ -240,13 +256,14 @@ export class GitHub {
                 console.error(respText)
                 console.error(`GitHub error! status: ${response.status} ${response.statusText}`)
             }
+            const tokenExpiry = response.headers.get('GitHub-Authentication-Token-Expiration')
             const content = JSON.parse(respText)
-            return { ok: response.ok, status: response.status, statusText: response.statusText, content }
+            return { ok: response.ok, status: response.status, statusText: response.statusText, tokenExpiry, error: { message: content?.message }, content, url }
         } catch (e) {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
-            return { ok: response.ok, status: response.status, statusText: response.statusText, error: { message: e.message, lineno, colno } }
+            return { url, error: { message: e.message, lineno, colno } }
         }
     }
     async getRepoSarif(full_name) {
@@ -260,14 +277,14 @@ export class GitHub {
             console.log(`github.getRepoSarif(${full_name}) ${url}`)
             const data = await this.fetchJSON(url)
             if (!data?.ok) {
-                break
+                return data
             }
             for (const report of data.content) {
                 const sarifUrl = `${this.baseUrl}/repos/${full_name}/code-scanning/analyses/${report.id}`
                 console.log(`github.getRepoSarif(${full_name}) ${sarifUrl}`)
                 const sarifData = await this.fetchSARIF(sarifUrl)
                 if (!sarifData?.ok) {
-                    continue
+                    return sarifData
                 }
                 if (report?.id && isSARIF(sarifData.content)) {
                     files.push({
@@ -275,6 +292,8 @@ export class GitHub {
                         report: Object.assign({}, report),
                         sarif: Object.assign({}, sarifData.content)
                     })
+                } else {
+                    console.log(`github.getRepoSarif(${full_name})`, report?.id, isSARIF(sarifData.content), sarifData)
                 }
             }
 
@@ -285,37 +304,42 @@ export class GitHub {
             page++
         }
 
-        return files
+        return { content: files }
     }
     async getRepoSpdx(full_name) {
         // https://docs.github.com/en/rest/dependency-graph/sboms?apiVersion=2022-11-28#export-a-software-bill-of-materials-sbom-for-a-repository
         const url = `${this.baseUrl}/repos/${full_name}/dependency-graph/sbom`
         console.log(`github.getRepoSpdx(${full_name}) ${url}`)
-        const data = await this.fetchJSON(url)
-        if (!data?.ok) {
-            return null
-        }
-        return data.content
+        return this.fetchJSON(url)
     }
     async getUserEmails() {
         // https://docs.github.com/en/rest/users/emails?apiVersion=2022-11-28#list-email-addresses-for-the-authenticated-user
         const url = `${this.baseUrl}/user/emails`
         console.log(`github.getUserEmails() ${url}`)
-        const data = await this.fetchJSON(url)
-        if (!data?.ok) {
-            return null
-        }
-        return data.content
+        return this.fetchJSON(url)
     }
     async getUser() {
         // https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-the-authenticated-user
         const url = `${this.baseUrl}/user`
         console.log(`github.getUser() ${url}`)
-        const data = await this.fetchJSON(url)
-        if (!data?.ok) {
-            return null
+        return this.fetchJSON(url)
+    }
+    async revokeToken() {
+        const url = `${this.baseUrl}/installation/token`
+        try {
+            const method = "DELETE"
+            const response = await fetch(url, { headers: this.headers, method })
+            if (!response.ok) {
+                console.error(`req headers=${JSON.stringify(this.headers, null, 2)}`)
+                console.error(`GitHub error! status: ${response.status} ${response.statusText}`)
+            }
+            return { ok: response.ok, status: response.status, statusText: response.statusText, url }
+        } catch (e) {
+            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
+            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
+
+            return { url, error: { message: e.message, lineno, colno } }
         }
-        return data.content
     }
     async getRepos() {
         // https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#list-repositories-for-the-authenticated-user
@@ -328,7 +352,7 @@ export class GitHub {
             console.log(`github.getRepos() ${url}`)
             const data = await this.fetchJSON(url)
             if (!data?.ok) {
-                break
+                return data
             }
             repos.push(...data.content)
 
@@ -339,11 +363,13 @@ export class GitHub {
             page++
         }
 
-        return repos
+        return { content: repos }
     }
     async getBranch(repo, branch) {
         // https://docs.github.com/en/rest/branches/branches?apiVersion=2022-11-28#get-a-branch
-        return await this.fetchJSON(`${this.baseUrl}/repos/${repo.full_name}/branches/${branch}`)
+        const url = `${this.baseUrl}/repos/${repo.full_name}/branches/${branch}`
+        console.log(`github.getBranch() ${url}`)
+        return this.fetchJSON(url)
     }
     async getBranches(full_name) {
         // https://docs.github.com/en/rest/branches/branches?apiVersion=2022-11-28#list-branches
@@ -363,11 +389,13 @@ export class GitHub {
             page++
         }
 
-        return branches
+        return { content: branches }
     }
     async getCommit(full_name, commit_sha) {
         // https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28
-        return await this.fetchJSON(`${this.baseUrl}/repos/${full_name}/commits/${commit_sha}`)
+        const url = `${this.baseUrl}/repos/${full_name}/commits/${commit_sha}`
+        console.log(`github.getCommit() ${url}`)
+        return this.fetchJSON(url)
     }
     async getCommits(full_name, branch_name) {
         // https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28
@@ -378,7 +406,7 @@ export class GitHub {
         while (true) {
             const currentCommits = await this.fetchJSON(`${this.baseUrl}/repos/${full_name}/commits?sha=${branch_name}&per_page=${perPage}&page=${page}`)
 
-            commits.push(...currentCommits)
+            commits.push(...currentCommits.content)
 
             if (currentCommits.length < perPage) {
                 break
@@ -387,7 +415,7 @@ export class GitHub {
             page++
         }
 
-        return commits
+        return { content: commits }
     }
     async getFileContents(full_name, branch_name) {
         // https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28
@@ -502,9 +530,13 @@ export function isSPDX(input) {
     }
     if (typeof spdx?.name === 'undefined' ||
         typeof spdx?.dataLicense === 'undefined' ||
-        typeof spdx?.documentNamespace === 'undefined' ||
+        typeof spdx?.documentDescribes === 'undefined' ||
+        typeof spdx?.packages === 'undefined' ||
         typeof spdx?.creationInfo?.creators === 'undefined' ||
-        !spdx?.creationInfo?.creators.length
+        !spdx?.creationInfo?.creators.length ||
+        !spdx.documentDescribes.length ||
+        !spdx.packages.length ||
+        !spdx.relationships.length
     ) {
         return false
     }
@@ -591,6 +623,53 @@ export function isJSON(str) {
     } catch (e) {
         return false
     }
+}
+
+export function timeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+
+    const interval = Math.floor(seconds / 31536000);
+
+    if (interval > 1) {
+        return interval + " years ago";
+    }
+    if (interval === 1) {
+        return interval + " year ago";
+    }
+
+    const months = Math.floor(seconds / 2628000);
+    if (months > 1) {
+        return months + " months ago";
+    }
+    if (months === 1) {
+        return months + " month ago";
+    }
+
+    const days = Math.floor(seconds / 86400);
+    if (days > 1) {
+        return days + " days ago";
+    }
+    if (days === 1) {
+        return days + " day ago";
+    }
+
+    const hours = Math.floor(seconds / 3600);
+    if (hours > 1) {
+        return hours + " hours ago";
+    }
+    if (hours === 1) {
+        return hours + " hour ago";
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes > 1) {
+        return minutes + " minutes ago";
+    }
+    if (minutes === 1) {
+        return minutes + " minute ago";
+    }
+
+    return "just now";
 }
 
 // https://octodex.github.com/images/

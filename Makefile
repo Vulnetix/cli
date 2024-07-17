@@ -16,10 +16,15 @@ setup: ## FOR DOCO ONLY - Run these one at a time, do not call this target direc
 	nvm install --lts
 	nvm use --lts
 
-migrate: ## prisma orm
+migrate: ## migrate incoming schema changes for prisma orm
 	npm i
 	npx wrangler d1 migrations apply trivial_triage --local
 	npx prisma generate
+
+plan: ## plan a migrate for schema changes in prisma orm
+	npx prisma migrate diff \
+		--to-schema-datamodel ./prisma/schema.prisma \
+		--script --from-local-d1 >migrations/0000_plan_TMP.sql
 
 upgrades: ## get app updates, migrate should be run first
 	git submodule update
@@ -40,5 +45,12 @@ run: ## FOR DOCO ONLY - Run these one at a time, do not call this target directl
 	lsof -i tcp:8788
 	npm run preview
 
-sql: ## FOR DOCO ONLY
+_helpers: ## FOR DOCO ONLY
 	npx wrangler d1 execute trivial_triage --local --command "select * from sarif;"
+	npx wrangler d1 execute trivial_triage --local --command "PRAGMA table_info(integration_usage_log);"
+	npx prisma migrate diff \
+	--from-empty \
+	--to-schema-datamodel ./prisma/schema.prisma \
+	--script \
+	--output migrations/0001_init.sql
+	npx wrangler d1 execute trivial_triage --remote --file ./migrations/0001_init.sql

@@ -1,9 +1,13 @@
 <script setup>
-import { useTheme } from 'vuetify'
+import { useMemberStore } from '@/stores/member';
+import { useTheme } from 'vuetify';
+
+const Member = useMemberStore()
 const theme = useTheme()
 
-function toggleTheme () {
-  localStorage.setItem('default-theme', theme.global.current.value.dark ? 'dark' : 'light')
+function toggleTheme() {
+  Member.theme = theme.global.current.value.dark ? 'dark' : 'light'
+  localStorage.setItem('/member/theme', Member.theme)
 }
 
 const themes = [
@@ -19,5 +23,8 @@ const themes = [
 </script>
 
 <template>
-  <ThemeSwitcher :themes="themes" @click="toggleTheme" />
+  <ThemeSwitcher
+    :themes="themes"
+    @click="toggleTheme"
+  />
 </template>

@@ -1,0 +1,40 @@
+CREATE TABLE "new_findings" (
+    "findingId" TEXT NOT NULL,
+    "memberEmail" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "createdAt" INTEGER NOT NULL,
+    "modifiedAt" INTEGER NOT NULL,
+    "publishedAt" INTEGER,
+    "detectionTitle" TEXT NOT NULL,
+    "purl" TEXT,
+    "cpe" TEXT,
+    "databaseReviewed" INTEGER,
+    "cve" TEXT,
+    "aliases" TEXT,
+    "cwes" TEXT,
+    "packageName" TEXT NOT NULL,
+    "packageVersion" TEXT,
+    "packageLicense" TEXT,
+    "vendor" TEXT,
+    "product" TEXT,
+    "packageEcosystem" TEXT,
+    "sourceCodeUrl" TEXT,
+    "exploitsJSON" TEXT,
+    "knownExploitsJSON" TEXT,
+    "cisaDateAdded" INTEGER,
+    "knownRansomwareCampaignUse" TEXT,
+    "fixVersion" TEXT,
+    "fixAutomatable" INTEGER,
+    "vulnerableVersionRange" TEXT,
+    "maliciousSource" TEXT,
+    "abandoned" INTEGER,
+    "squattedPackage" TEXT,
+    "referencesJSON" TEXT,
+    "spdxId" TEXT,
+    "cdxId" TEXT
+);
+DROP TABLE "findings";
+ALTER TABLE "new_findings"
+    RENAME TO "findings";
+CREATE UNIQUE INDEX "findings_findingId_key" ON "findings"("findingId");

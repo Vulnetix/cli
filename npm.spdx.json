@@ -3,11 +3,11 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "triage-by-trivial-security@0.1.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/triage-by-trivial-security-0.1.0-ac72b6b4-1aa8-4628-909e-2313dc9e01b2",
+  "documentNamespace": "http://spdx.org/spdxdocs/triage-by-trivial-security-0.1.0-a32b8d9b-9742-412c-b6d3-2e1ced804223",
   "creationInfo": {
-    "created": "2024-06-30T01:14:34.526Z",
+    "created": "2024-07-12T06:57:54.182Z",
     "creators": [
-      "Tool: npm/cli-10.7.0"
+      "Tool: npm/cli-10.8.1"
     ]
   },
   "documentDescribes": [
@@ -172,10 +172,10 @@
     },
     {
       "name": "@prisma/client",
-      "SPDXID": "SPDXRef-Package-prisma.client-5.15.1",
-      "versionInfo": "5.15.1",
+      "SPDXID": "SPDXRef-Package-prisma.client-5.16.1",
+      "versionInfo": "5.16.1",
       "packageFileName": "node_modules/@prisma/client",
-      "downloadLocation": "https://registry.npmjs.org/@prisma/client/-/client-5.15.1.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@prisma/client/-/client-5.16.1.tgz",
       "filesAnalyzed": false,
       "homepage": "NOASSERTION",
       "licenseDeclared": "NOASSERTION",
@@ -183,13 +183,36 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/%40prisma/client@5.15.1"
+          "referenceLocator": "pkg:npm/%40prisma/client@5.16.1"
         }
       ],
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "7e66511a6b1427df95c02fc0bdf3ff3f07690f4c401323ef36c0fdfc1dfe198a444eaf557a35514f73e2a8dbe5efaab5b986333597a8f2efcb9b3cd37ad1d212"
+          "checksumValue": "c0cf522908c5d2a2f176739921500830a8b3e87bbbbc3b7814502287ce4ad5d93f46bda675a872e9ddd03f8d4aeb637d3b40c9240fff8140c0dcca78f71b0a22"
+        }
+      ]
+    },
+    {
+      "name": "@prisma/debug",
+      "SPDXID": "SPDXRef-Package-prisma.debug-5.15.1",
+      "versionInfo": "5.15.1",
+      "packageFileName": "node_modules/@prisma/debug",
+      "downloadLocation": "https://registry.npmjs.org/@prisma/debug/-/debug-5.15.1.tgz",
+      "filesAnalyzed": false,
+      "homepage": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40prisma/debug@5.15.1"
+        }
+      ],
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "3508dd1299615c470fbdff38821c44c42f8b0fe8938a66e0dec66f037061c9b550228701101c457fd1931e199154f9a3ad6a01698241560104057653dbb2536d"
         }
       ]
     },
@@ -2498,7 +2521,7 @@
       "relationshipType": "DEPENDENCY_OF"
     },
     {
-      "spdxElementId": "SPDXRef-Package-prisma.client-5.15.1",
+      "spdxElementId": "SPDXRef-Package-prisma.client-5.16.1",
       "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
@@ -2615,6 +2638,11 @@
     {
       "spdxElementId": "SPDXRef-Package-prisma.driver-adapter-utils-5.15.1",
       "relatedSpdxElement": "SPDXRef-Package-prisma.adapter-d1-5.15.1",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-prisma.debug-5.15.1",
+      "relatedSpdxElement": "SPDXRef-Package-prisma.driver-adapter-utils-5.15.1",
       "relationshipType": "DEPENDENCY_OF"
     },
     {

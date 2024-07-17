@@ -9,7 +9,7 @@ workers_dev = true
 [[d1_databases]]
 binding = "d1db"
 database_name = "trivial_triage"
-database_id = "6420dc05-dcaf-43cc-b6f7-03139d6b5988"
+database_id = "a3a52631-feb2-4415-aa4b-3f1c92550247"
 
 [[r2_buckets]]
 binding = 'r2icache'

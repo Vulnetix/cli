@@ -23,7 +23,7 @@ const state = reactive({
     ...initialState,
 })
 axios.defaults.headers.common = {
-    'x-trivialsec': localStorage.getItem('/session/token') || '',
+    'x-trivialsec': Member.session?.token
 }
 function clearAlerts() {
     state.error = ''
@@ -50,8 +50,8 @@ class Profile {
 
                 return
             }
-            if (data?.err) {
-                state.error = data.err
+            if (data?.error?.message) {
+                state.error = data?.error?.message
             }
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 state.info = data.result
@@ -76,6 +76,9 @@ class Profile {
         try {
             state.loading = true
             const { data } = await axios.post(`/me`, { avatarUrl }, { headers: { 'Content-Type': 'application/json' } })
+            if (data?.error?.message) {
+                state.error = data?.error?.message
+            }
             state.loading = false
             handleResponse(data, avatarUrl)
         } catch (err) {
@@ -91,6 +94,9 @@ class Profile {
                 try {
                     state.loading = true
                     const { data } = await axios.post(`/me`, { avatarUrl }, { headers: { 'Content-Type': 'application/json' } })
+                    if (data?.error?.message) {
+                        state.error = data?.error?.message
+                    }
                     state.loading = false
                     handleResponse(data, avatarUrl)
                 } catch (err) {

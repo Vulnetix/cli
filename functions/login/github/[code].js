@@ -39,11 +39,11 @@ export async function onRequestGet(context) {
                 throw new Error(oauthData.error)
             }
         } else {
-            return Response.json({ 'err': 'OAuth authorization code not provided' })
+            return Response.json({ error: { message: 'OAuth authorization code not provided' } })
         }
 
         if (!oauthData?.access_token) {
-            return Response.json({ 'err': 'OAuth authorization failed' })
+            return Response.json({ error: { message: 'OAuth authorization failed' } })
         }
         const created = (new Date()).getTime()
         const expires = appExpiryPeriod + created
@@ -75,7 +75,7 @@ export async function onRequestGet(context) {
             }
         }
         if (!ghEmail) {
-            return Response.json({ 'err': 'GitHub User has no verified email address, please verify your email with GitHub and try again.' })
+            return Response.json({ error: { message: 'GitHub User has no verified email address, please verify your email with GitHub and try again.' } })
         }
         let firstName = ''
         let lastName = ''
@@ -147,6 +147,6 @@ export async function onRequestGet(context) {
     } catch (err) {
         console.error(err)
 
-        return Response.json({ ok: false, result: AuthResult.REVOKED })
+        return Response.json({ ok: false, error: { message: err }, result: AuthResult.REVOKED })
     }
 }

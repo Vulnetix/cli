@@ -20,7 +20,7 @@ const state = reactive({
     ...initialState,
 })
 axios.defaults.headers.common = {
-    'x-trivialsec': localStorage.getItem('/session/token') || '',
+    'x-trivialsec': Member.session?.token
 }
 const clearAlerts = () => {
     state.error = ''
@@ -46,8 +46,8 @@ class Profile {
 
                 return
             }
-            if (data?.err) {
-                state.error = data.err
+            if (data?.error?.message) {
+                state.error = data?.error?.message
             }
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 state.info = data.result

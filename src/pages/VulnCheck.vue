@@ -1,10 +1,17 @@
 <script setup>
-import { isJSON } from '@/utils'
-import { default as axios } from 'axios'
-import { reactive } from 'vue'
-import { useTheme } from 'vuetify'
-import router from "../router"
+import { useMemberStore } from '@/stores/member';
+import { isJSON } from '@/utils';
+import { default as axios } from 'axios';
+import { reactive } from 'vue';
+import { useTheme } from 'vuetify';
+import router from "../router";
 
+// curl 'https://api.vulncheck.com/v3/index/vulncheck-kev' \
+//     -H 'User-Agent: Triage-by-Trivial-Security' \
+//     -H 'Accept: application/json' \
+//     -H 'Authorization: Bearer undefined' > ./vulncheck-kev.json
+
+const Member = useMemberStore()
 const { global } = useTheme()
 
 const initialState = {
@@ -20,7 +27,7 @@ const state = reactive({
     ...initialState,
 })
 axios.defaults.headers.common = {
-    'x-trivialsec': localStorage.getItem('/session/token') || '',
+    'x-trivialsec': Member.session?.token,
 }
 const clearAlerts = () => {
     state.error = ''
@@ -43,8 +50,8 @@ class VulnCheck {
 
                 return
             }
-            if (data?.err) {
-                state.error = data.err
+            if (data?.error?.message) {
+                state.error = data?.error?.message
             }
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 state.info = data.result
@@ -71,8 +78,8 @@ class VulnCheck {
 
                 return
             }
-            if (data?.err) {
-                state.error = data.err
+            if (data?.error?.message) {
+                state.error = data?.error?.message
             }
             if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
                 state.info = data.result
@@ -196,7 +203,7 @@ const vulncheck = reactive(new VulnCheck())
 
         <VSkeletonLoader
             v-if="state.loading"
-            type="table"
+            type="table-row@10"
         />
         <VTable
             class="text-no-wrap"

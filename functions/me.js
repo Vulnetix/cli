@@ -22,7 +22,7 @@ export async function onRequestGet(context) {
         })
         const { err, result, session } = await (new App(request, prisma)).authenticate()
         if (result !== AuthResult.AUTHENTICATED) {
-            return Response.json({ ok: false, err, result })
+            return Response.json({ ok: false, error: { message: err }, result })
         }
         const member = await prisma.members.findFirst({
             where: {
@@ -33,7 +33,7 @@ export async function onRequestGet(context) {
         return Response.json({ ok: true, member })
     } catch (err) {
         console.error(err)
-        return Response.json({ ok: false, result: AuthResult.REVOKED })
+        return Response.json({ ok: false, error: { message: err }, result: AuthResult.REVOKED })
     }
 }
 export async function onRequestPost(context) {
@@ -56,7 +56,7 @@ export async function onRequestPost(context) {
         })
         const { err, result, session } = await (new App(request, prisma)).authenticate()
         if (result !== AuthResult.AUTHENTICATED) {
-            return Response.json({ ok: false, err, result })
+            return Response.json({ ok: false, error: { message: err }, result })
         }
         const original = await prisma.members.findFirst({
             where: {
@@ -109,6 +109,6 @@ export async function onRequestPost(context) {
     } catch (err) {
         console.error(err)
 
-        return Response.json({ ok: false, result: 'Bad values supplied' })
+        return Response.json({ ok: false, error: { message: err }, result: 'Bad values supplied' })
     }
 }
