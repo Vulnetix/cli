@@ -21,7 +21,7 @@ const routes = [
         path: '/logout',
         component: () => import('../layouts/blank.vue'),
         beforeEnter: (to, from, next) => {
-            localStorage.setItem('/session/token', '')
+            localStorage.removeItem('/session/token')
             next('/login')
         },
     },

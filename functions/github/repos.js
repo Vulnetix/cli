@@ -85,7 +85,7 @@ export async function onRequestGet(context) {
 }
 const store = async (prisma, session, repo) => {
     const data = {
-        ghid: repo.id.toString(),
+        ghid: repo.ghid,
         fullName: repo.full_name,
         source: "GitHub",
         ownerId: repo.owner.id,
@@ -103,7 +103,8 @@ const store = async (prisma, session, repo) => {
     }
     const info = await prisma.git_repos.upsert({
         where: {
-            pk: data.ghid,
+            fullName: data.fullName,
+            AND: [{ memberEmail: session.memberEmail }],
         },
         update: {
             fullName: data.fullName,
@@ -120,8 +121,8 @@ const store = async (prisma, session, repo) => {
             avatarUrl: data.avatarUrl,
         },
         create: {
-            pk: data.ghid,
             fullName: data.fullName,
+            ghid: data.ghid,
             source: "GitHub",
             createdAt: data.createdAt,
             updatedAt: data.updatedAt,

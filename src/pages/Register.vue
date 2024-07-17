@@ -7,7 +7,9 @@ import { email, required } from '@vuelidate/validators'
 import { default as axios } from 'axios'
 import { SHA1 } from 'crypto-es/lib/sha1'
 import { reactive } from 'vue'
+import { useTheme } from 'vuetify'
 
+const { global } = useTheme()
 const Member = useMemberStore()
 
 const initialState = {
@@ -133,7 +135,27 @@ const register = () => {
                                 @click="v$.$validate"
                             />
                         </VCol>
-
+                        <VCol
+                            cols="12"
+                            class="d-flex align-center"
+                        >
+                            <VDivider />
+                            <span class="mx-4 text-high-emphasis">or</span>
+                            <VDivider />
+                        </VCol>
+                        <VCol
+                            cols="12"
+                            class="text-center"
+                        >
+                            <VBtn
+                                href="https://github.com/marketplace/triage-by-trivial-securiy/order/MLP_kgDNJys?quantity=1"
+                                prepend-icon="line-md:github-loop"
+                                :variant="global.name.value === 'dark' ? 'tonal' : 'outlined'"
+                                size="x-large"
+                                text="Install GitHub App"
+                                :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                            />
+                        </VCol>
                         <!-- login instead -->
                         <VCol
                             cols="12"

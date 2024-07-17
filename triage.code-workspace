@@ -5,6 +5,7 @@
 		}
 	],
 	"settings": {
+		"sqltools.useNodeRuntime": true,
 		"editor.formatOnSave": true,
 		"files.insertFinalNewline": true,
 		"javascript.updateImportsOnFileMove.enabled": "always",
@@ -64,6 +65,14 @@
 			"vuetify",
 			"vulncheck",
 			"vulns"
+		],
+		"sqltools.connections": [
+			{
+				"previewLimit": 50,
+				"driver": "SQLite",
+				"name": "triage",
+				"database": "${workspaceFolder:trivial-triage}/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/2f1f4a988c80a96d3ddd019a60de5a838ca6231a39a85cfa104f58943cdd5180.sqlite"
+			}
 		]
 	}
 }

@@ -65,7 +65,7 @@ model github_pat {
 }
 
 model github_apps {
-  installationId String  @unique
+  installationId Int     @unique
   memberEmail    String
   member         members @relation(fields: [memberEmail], references: [email])
   accessToken    String
@@ -75,8 +75,8 @@ model github_apps {
 }
 
 model git_repos {
-  pk            String  @unique
   fullName      String  @id
+  ghid          Int?
   source        String
   createdAt     Int
   updatedAt     Int
@@ -94,6 +94,8 @@ model git_repos {
   avatarUrl     String?
   sarif         sarif[]
   spdx          spdx[]
+
+  @@unique([fullName, memberEmail])
 }
 
 model sarif {

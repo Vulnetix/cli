@@ -21,8 +21,8 @@ export const useMemberStore = defineStore('member', {
     }),
     actions: {
         logout() {
-            localStorage.setItem('/session/token', '')
-            localStorage.setItem('/session/expiry', '')
+            localStorage.removeItem('/session/token')
+            localStorage.removeItem('/session/expiry')
             this.session.token = ''
             this.session.expiry = ''
         },

@@ -89,6 +89,9 @@ class TriageQueue {
             state.loading = false
         }
     }
+    expandRow = async (_, VEvent) => {
+        VEvent.item
+    }
 }
 
 const manager = reactive(new TriageQueue())
@@ -157,11 +160,19 @@ const manager = reactive(new TriageQueue())
             multi-sort
             hover
             expand-on-click
+            @click:row="manager.expandRow"
         >
             <template v-slot:expanded-row="{ item, columns }">
                 <tr>
                     <td :colspan="columns.length">
-                        {{ item.messageText }}
+                        <VList lines="two">
+                            <VListItem
+                                v-if="item.messageText"
+                                :subtitle="item.messageText"
+                                title="Details"
+                            >
+                            </VListItem>
+                        </VList>
                     </td>
                 </tr>
             </template>

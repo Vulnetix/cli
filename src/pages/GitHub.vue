@@ -54,7 +54,7 @@ class GitHub {
     install = async (code, installation_id) => {
         state.showEmptyState = true
         state.loadingBar = true
-        const { data } = await axios.get(`/github/install/${installation_id}/${code}`)
+        const { data } = await axios.get(`/github/${installation_id}/install/${code}`)
         if (data?.error?.message) {
             if (data?.app?.installationId) {
                 data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
@@ -71,7 +71,6 @@ class GitHub {
             return setTimeout(() => router.push('/logout'), 2000)
         }
         persistData(data)
-
         return this.refreshRepos(false, true, true)
     }
     login = async code => {
@@ -139,6 +138,7 @@ class GitHub {
                 state.error = "No data retrieved from GitHub. Is this GitHub App installed?"
                 state.warning = "Please check the GitHub App permissions, they may have been revoked or uninstalled."
             } else {
+                state.showEmptyState = false
                 state.gitRepos = data.gitRepos
                 if (initial === false) {
                     if (cached === true) {
@@ -149,10 +149,11 @@ class GitHub {
                 }
             }
             if (install === true) {
-                const url = new URL(location)
-                url.search = ""
-                history.pushState({}, "", url)
                 state.success = "GitHub App installed successfully."
+                for (const repo of state.gitRepos) {
+                    this.refreshSecurity(repo.fullName, false)
+                }
+                return router.push(`/github-integration`)
             }
 
             return true
@@ -528,7 +529,7 @@ const gh = reactive(new GitHub())
                         :disabled="state.loadingBar"
                         variant="text"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
-                        @click="gh.refreshRepos"
+                        @click="gh.refreshRepos(true, false, false)"
                     />
                 </template>
             </VEmptyState>
@@ -688,7 +689,7 @@ const gh = reactive(new GitHub())
                                                         activator="parent"
                                                         location="top"
                                                     >{{
-                                                        repo.pk }}</VTooltip>
+                                                        repo.ghid }}</VTooltip>
                                                     {{ new Date(repo.createdAt).toLocaleDateString() }}
                                                 </td>
                                             </tr>

@@ -22,7 +22,7 @@ export async function onRequestGet(context) {
     try {
         const app = new App(request, prisma)
         let oauthData
-        if (params?.code) {
+        if (params?.code && params?.installation_id) {
             const method = "POST"
             const url = new URL("https://github.com/login/oauth/access_token")
 
@@ -47,7 +47,7 @@ export async function onRequestGet(context) {
         }
         const gh = new GitHub(oauthData.access_token)
         const created = (new Date()).getTime()
-        const response = { ok: false, session: {}, member: {} }
+        const response = { ok: false, installationId: params.installation_id, session: {}, member: {} }
         const { content, error, tokenExpiry } = await gh.getUser()
         if (error?.message) {
             return Response.json({ ok: false, error })
@@ -111,49 +111,19 @@ export async function onRequestGet(context) {
         console.log(`/github/install session kid=${token}`, sessionInfo)
         response.session.token = token
         response.session.expiry = expiry
-        const githubApp = await prisma.github_apps.findFirst({
-            where: { memberEmail: response.member.email },
+        const GHAppInfo = await prisma.github_apps.create({
+            data: {
+                installationId: params.installation_id,
+                memberEmail: response.member.email,
+                accessToken: oauthData.access_token,
+                login: content.login,
+                created,
+                expires
+            }
         })
-        let installationId = githubApp?.installationId
-        if (!installationId) {
-            const ghInstalls = await gh.getInstallations()
-            if (!ghInstalls?.ok || ghInstalls?.error?.message || !ghInstalls?.content?.installations || !ghInstalls.content?.installations?.length) {
-                return Response.json({ ok: ghInstalls.ok, error: ghInstalls.error, result: `${ghInstalls.status} ${ghInstalls.statusText}` })
-            }
-            for (const install of ghInstalls.content.installations) {
-                if (install.app_slug === "triage-by-trivial-security") {
-                    installationId = install.id
-                    break
-                }
-            }
-        }
-        if (installationId) {
-            const GHAppInfo = await prisma.github_apps.upsert({
-                where: {
-                    installationId,
-                },
-                update: {
-                    accessToken: oauthData.access_token,
-                    login: content.login,
-                    expires,
-                },
-                create: {
-                    installationId: installationId,
-                    memberEmail: response.member.email,
-                    accessToken: oauthData.access_token,
-                    login: content.login,
-                    created,
-                    expires
-                }
-            })
-            console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
-            response.result = AuthResult.AUTHENTICATED
-            response.ok = true
-        } else {
-            response.result = `NOT_INSTALLED`
-            response.error.message = `Please install the GitHub App before logging in.`
-        }
-
+        console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
+        response.result = AuthResult.AUTHENTICATED
+        response.ok = true
         return Response.json(response)
     } catch (err) {
         console.error(err)

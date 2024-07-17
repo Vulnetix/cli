@@ -46,11 +46,12 @@ run: ## FOR DOCO ONLY - Run these one at a time, do not call this target directl
 	npm run preview
 
 _helpers: ## FOR DOCO ONLY
-	npx wrangler d1 execute trivial_triage --local --command "select * from sarif;"
-	npx wrangler d1 execute trivial_triage --local --command "PRAGMA table_info(integration_usage_log);"
+	npx wrangler d1 execute trivial_triage --local --file ./migrations/0001_init.sql
+	npx wrangler d1 execute trivial_triage --local --command "PRAGMA table_list;"
+	npx wrangler d1 execute trivial_triage --local --command "PRAGMA table_info(members);"
+	npx wrangler d1 execute trivial_triage --local --command "SELECT * FROM members;"
 	npx prisma migrate diff \
 	--from-empty \
 	--to-schema-datamodel ./prisma/schema.prisma \
 	--script \
 	--output migrations/0001_init.sql
-	npx wrangler d1 execute trivial_triage --remote --file ./migrations/0001_init.sql
