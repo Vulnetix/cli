@@ -26,7 +26,6 @@ export async function onRequestGet(context) {
 
     const githubApps = []
     const gitRepos = []
-    const putOptions = { httpMetadata: { contentType: 'application/json', contentEncoding: 'utf8' } }
     const installs = await prisma.github_apps.findMany({
         where: {
             memberEmail: session.memberEmail,
@@ -48,15 +47,11 @@ export async function onRequestGet(context) {
             return Response.json({ error, app })
         }
         for (const repo of content) {
-            const pathSuffix = `${repo.full_name}.json`
-            console.log(`r2icache.put ${prefixRepos}${pathSuffix}`)
-            await env.r2icache.put(`${prefixRepos}${pathSuffix}`, JSON.stringify(repo), putOptions)
-
             const data = await store(prisma, session, repo)
             gitRepos.push(data)
         }
         githubApps.push({
-            installationId: app.installationId,
+            installationId: parseInt(app.installationId, 10),
             login: app.login,
             created: app.created,
             expires: app.expires,

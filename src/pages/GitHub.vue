@@ -63,15 +63,18 @@ class GitHub {
                 data.error.message = `${data.error.message} (${data.app.login})`
             }
             state.error = data.error.message
-            return
+            return false
         }
         if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
             state.info = data.result
 
-            return setTimeout(() => router.push('/logout'), 2000)
+            setTimeout(() => router.push('/logout'), 2000)
+            return false
         }
         persistData(data)
-        return this.refreshRepos(false, true, true)
+        await this.refreshRepos(false, true, true)
+
+        return true
     }
     login = async code => {
         state.showEmptyState = true
@@ -86,16 +89,19 @@ class GitHub {
                 data.error.message = `${data.error.message} (${data.app.login})`
             }
             state.error = data.error.message
-            return
+            return false
         }
         if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
             state.info = data.result
 
-            return setTimeout(() => router.push('/logout'), 2000)
+            setTimeout(() => router.push('/logout'), 2000)
+            return false
         }
         persistData(data)
+        state.showEmptyState = false
+        await this.refreshRepos(true, true, false)
 
-        return router.push('/dashboard')
+        return true
     }
     refreshRepos = async (cached = false, initial = false, install = false) => {
         clearAlerts()

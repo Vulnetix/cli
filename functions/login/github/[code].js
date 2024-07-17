@@ -130,7 +130,7 @@ export async function onRequestGet(context) {
         if (installationId) {
             const GHAppInfo = await prisma.github_apps.upsert({
                 where: {
-                    installationId,
+                    installationId: parseInt(installationId, 10),
                 },
                 update: {
                     accessToken: oauthData.access_token,
@@ -138,7 +138,7 @@ export async function onRequestGet(context) {
                     expires,
                 },
                 create: {
-                    installationId: installationId,
+                    installationId: parseInt(installationId, 10),
                     memberEmail: response.member.email,
                     accessToken: oauthData.access_token,
                     login: content.login,
@@ -146,7 +146,7 @@ export async function onRequestGet(context) {
                     expires
                 }
             })
-            console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
+            console.log(`/github/install installationId=${installationId}`, GHAppInfo)
             response.result = AuthResult.AUTHENTICATED
             response.ok = true
         } else {

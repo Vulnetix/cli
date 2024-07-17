@@ -47,7 +47,7 @@ export async function onRequestGet(context) {
         }
         const gh = new GitHub(oauthData.access_token)
         const created = (new Date()).getTime()
-        const response = { ok: false, installationId: params.installation_id, session: {}, member: {} }
+        const response = { ok: false, installationId: parseInt(params.installation_id, 10), session: {}, member: {} }
         const { content, error, tokenExpiry } = await gh.getUser()
         if (error?.message) {
             return Response.json({ ok: false, error })
@@ -113,7 +113,7 @@ export async function onRequestGet(context) {
         response.session.expiry = expiry
         const GHAppInfo = await prisma.github_apps.create({
             data: {
-                installationId: params.installation_id,
+                installationId: parseInt(params.installation_id, 10),
                 memberEmail: response.member.email,
                 accessToken: oauthData.access_token,
                 login: content.login,
