@@ -36,11 +36,17 @@ This is a preview, under active development, so you will encounter bugs while we
 
 Check the marketplace listing above for more.
 
+![GitHub Repos](.repo/ghrepos.png)
+
+![GitHub Tokens](.repo/ghtokens.png)
+
 ![SCA queue](.repo/sca.png)
 
 ![SARIF](.repo/sarif.png)
 
 ![SPDX and upload manager](.repo/spdx-upload.png)
+
+![OSV](.repo/osv.png)
 
 ## Features
 

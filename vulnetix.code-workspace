@@ -17,7 +17,8 @@
 			"editor.autoClosingBrackets": "always"
 		},
 		"[markdown]": {
-			"editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
+			"editor.defaultFormatter": "DavidAnson.vscode-markdownlint",
+			"editor.cursorSurroundingLines": 0
 		},
 		"[scss]": {
 			"editor.defaultFormatter": "dbaeumer.vscode-eslint"
