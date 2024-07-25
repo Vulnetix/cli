@@ -121,7 +121,7 @@ export async function onRequestGet(context) {
                 return Response.json({ ok: ghInstalls.ok, error: ghInstalls.error, result: `${ghInstalls.status} ${ghInstalls.statusText}` })
             }
             for (const install of ghInstalls.content.installations) {
-                if (install.app_slug === "triage-by-trivial-security") {
+                if (install.app_slug === "vulnetix") {
                     installationId = install.id
                     break
                 }

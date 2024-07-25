@@ -4,7 +4,7 @@
     <span class="d-flex align-center">
       &copy;
       {{ new Date().getFullYear() }}
-      Trivial Security
+      Vulnetix
     </span>
     <!-- 👉 Footer: right content -->
     <span class="d-md-flex gap-x-4 text-primary d-none">

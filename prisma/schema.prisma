@@ -72,6 +72,7 @@ model github_apps {
   login          String?
   created        Int
   expires        Int?
+  avatarUrl      String?
 }
 
 model git_repos {

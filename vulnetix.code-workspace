@@ -60,18 +60,18 @@
 			"stylelint",
 			"touchless",
 			"triggerer",
-			"trivialsec",
 			"Vuelidate",
 			"vuetify",
 			"vulncheck",
+			"Vulnetix",
 			"vulns"
 		],
 		"sqltools.connections": [
 			{
 				"previewLimit": 50,
 				"driver": "SQLite",
-				"name": "triage",
-				"database": "${workspaceFolder:trivial-triage}/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/2f1f4a988c80a96d3ddd019a60de5a838ca6231a39a85cfa104f58943cdd5180.sqlite"
+				"name": "vulnetix",
+				"database": "${workspaceFolder:vulnetix}/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/2f1f4a988c80a96d3ddd019a60de5a838ca6231a39a85cfa104f58943cdd5180.sqlite"
 			}
 		]
 	}

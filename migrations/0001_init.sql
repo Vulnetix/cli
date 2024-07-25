@@ -1,4 +1,3 @@
--- CreateTable
 CREATE TABLE "sessions" (
     "kid" TEXT NOT NULL,
     "memberEmail" TEXT NOT NULL,
@@ -8,7 +7,6 @@ CREATE TABLE "sessions" (
     "authn_ip" TEXT,
     "authn_ua" TEXT
 );
--- CreateTable
 CREATE TABLE "members" (
     "email" TEXT NOT NULL PRIMARY KEY,
     "orgName" TEXT,
@@ -21,7 +19,6 @@ CREATE TABLE "members" (
     "alertFindings" INTEGER NOT NULL DEFAULT 0,
     "alertType" INTEGER NOT NULL DEFAULT 0
 );
--- CreateTable
 CREATE TABLE "member_keys" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "memberEmail" TEXT NOT NULL,
@@ -30,19 +27,26 @@ CREATE TABLE "member_keys" (
     "secret" TEXT NOT NULL,
     "suspend" INTEGER NOT NULL DEFAULT 0
 );
--- CreateTable
 CREATE TABLE "github_apps" (
-    "installationId" TEXT NOT NULL,
+    "installationId" INTEGER NOT NULL,
     "memberEmail" TEXT NOT NULL,
     "accessToken" TEXT NOT NULL,
     "login" TEXT,
     "created" INTEGER NOT NULL,
-    "expires" INTEGER
+    "expires" INTEGER,
+    "avatarUrl" TEXT
 );
--- CreateTable
+CREATE TABLE "github_pat" (
+    "keyId" INTEGER NOT NULL,
+    "login" TEXT NOT NULL,
+    "expires" INTEGER NOT NULL,
+    "created" INTEGER NOT NULL,
+    "avatarUrl" TEXT
+);
 CREATE TABLE "git_repos" (
-    "pk" TEXT NOT NULL,
     "fullName" TEXT NOT NULL PRIMARY KEY,
+    "ghid" INTEGER,
+    "source" TEXT NOT NULL,
     "createdAt" INTEGER NOT NULL,
     "updatedAt" INTEGER NOT NULL,
     "pushedAt" INTEGER NOT NULL,
@@ -57,7 +61,6 @@ CREATE TABLE "git_repos" (
     "visibility" TEXT NOT NULL,
     "avatarUrl" TEXT
 );
--- CreateTable
 CREATE TABLE "sarif" (
     "sarifId" TEXT NOT NULL,
     "reportId" TEXT NOT NULL PRIMARY KEY,
@@ -74,7 +77,6 @@ CREATE TABLE "sarif" (
     "analysisKey" TEXT,
     "warning" TEXT
 );
--- CreateTable
 CREATE TABLE "sarif_results" (
     "guid" TEXT NOT NULL,
     "reportId" TEXT NOT NULL,
@@ -90,22 +92,22 @@ CREATE TABLE "sarif_results" (
     "precision" TEXT,
     "tags" TEXT
 );
--- CreateTable
 CREATE TABLE "spdx" (
     "spdxId" TEXT NOT NULL,
-    "spdxVersion" TEXT NOT NULL,
     "source" TEXT NOT NULL,
-    "repoName" TEXT,
-    "name" TEXT,
-    "dataLicense" TEXT,
-    "documentNamespace" TEXT,
-    "toolName" TEXT,
-    "packageCount" INTEGER NOT NULL,
-    "createdAt" INTEGER NOT NULL,
     "memberEmail" TEXT NOT NULL,
+    "repoName" TEXT,
+    "spdxVersion" TEXT NOT NULL,
+    "dataLicense" TEXT,
+    "name" TEXT,
+    "documentNamespace" TEXT,
+    "createdAt" INTEGER NOT NULL,
+    "toolName" TEXT,
+    "documentDescribes" TEXT,
+    "packagesJSON" TEXT,
+    "relationshipsJSON" TEXT,
     "comment" TEXT
 );
--- CreateTable
 CREATE TABLE "integration_usage_log" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "memberEmail" TEXT NOT NULL,
@@ -115,7 +117,6 @@ CREATE TABLE "integration_usage_log" (
     "statusCode" INTEGER NOT NULL,
     "createdAt" INTEGER NOT NULL
 );
--- CreateTable
 CREATE TABLE "findings" (
     "findingId" TEXT NOT NULL,
     "memberEmail" TEXT NOT NULL,
@@ -133,6 +134,7 @@ CREATE TABLE "findings" (
     "cwes" TEXT,
     "packageName" TEXT NOT NULL,
     "packageVersion" TEXT,
+    "packageLicense" TEXT,
     "vendor" TEXT,
     "product" TEXT,
     "packageEcosystem" TEXT,
@@ -144,7 +146,6 @@ CREATE TABLE "findings" (
     "fixVersion" TEXT,
     "fixAutomatable" INTEGER,
     "vulnerableVersionRange" TEXT,
-    "licenseDeclared" TEXT,
     "maliciousSource" TEXT,
     "abandoned" INTEGER,
     "squattedPackage" TEXT,
@@ -152,7 +153,6 @@ CREATE TABLE "findings" (
     "spdxId" TEXT,
     "cdxId" TEXT
 );
--- CreateTable
 CREATE TABLE "triage_activity" (
     "findingId" TEXT NOT NULL PRIMARY KEY,
     "createdAt" INTEGER NOT NULL,
@@ -191,23 +191,14 @@ CREATE TABLE "triage_activity" (
     -- workaround_available
     "analysisDetail" TEXT -- entered by users
 );
--- CreateIndex
 CREATE UNIQUE INDEX "sessions_kid_key" ON "sessions"("kid");
--- CreateIndex
 CREATE UNIQUE INDEX "members_email_key" ON "members"("email");
--- CreateIndex
 CREATE UNIQUE INDEX "member_keys_memberEmail_secret_key" ON "member_keys"("memberEmail", "secret");
--- CreateIndex
 CREATE UNIQUE INDEX "github_apps_installationId_key" ON "github_apps"("installationId");
--- CreateIndex
-CREATE UNIQUE INDEX "git_repos_pk_key" ON "git_repos"("pk");
--- CreateIndex
+CREATE UNIQUE INDEX "github_pat_keyId_key" ON "github_pat"("keyId");
+CREATE UNIQUE INDEX "git_repos_fullName_memberEmail_key" ON "git_repos"("fullName", "memberEmail");
 CREATE UNIQUE INDEX "sarif_sarifId_key" ON "sarif"("sarifId");
--- CreateIndex
 CREATE UNIQUE INDEX "sarif_results_guid_key" ON "sarif_results"("guid");
--- CreateIndex
 CREATE UNIQUE INDEX "spdx_spdxId_key" ON "spdx"("spdxId");
--- CreateIndex
 CREATE UNIQUE INDEX "findings_findingId_key" ON "findings"("findingId");
--- CreateIndex
 CREATE UNIQUE INDEX "triage_activity_findingId_analysisState_key" ON "triage_activity"("findingId", "analysisState");

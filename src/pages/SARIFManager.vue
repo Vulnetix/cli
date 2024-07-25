@@ -27,7 +27,7 @@ const state = reactive({
 })
 
 axios.defaults.headers.common = {
-    'x-trivialsec': Member.session?.token,
+    'X-Vulnetix': Member.session?.token,
 }
 class Sarif {
     constructor() {

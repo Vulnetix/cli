@@ -1,7 +1,7 @@
 <template lang="">
   <img
     :alt="alt"
-    class="trivial-security-icon"
+    class="app-icon"
     :class="class"
     src="@images/logo.svg"
     :width="width"
@@ -19,7 +19,7 @@ export default {
 };
 </script>
 <style lang="scss">
-.trivial-security-icon {
+.app-icon {
   height: auto;
 }
 </style>

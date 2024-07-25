@@ -1,5 +1,5 @@
 {
-  "name": "triage-by-trivial-security",
+  "name": "vulnetix",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -17,6 +17,7 @@
     "@casl/ability": "^6.2.0",
     "@casl/vue": "^2.2.0",
     "@floating-ui/dom": "1.2.8",
+    "@pandatix/js-cvss": "^0.4.4",
     "@prisma/adapter-d1": "^5.15.1",
     "@prisma/client": "^5.16.1",
     "@vuelidate/core": "^2.0.3",

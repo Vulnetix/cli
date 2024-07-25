@@ -70,7 +70,27 @@ const emit = defineEmits(['click:readAllNotifications'])
           <VDivider />
 
           <!-- 👉 Notifications list -->
+          <template v-if="props.notifications">
+            <VEmptyState icon="$success">
+              <template v-slot:media>
+                <VIcon color="surface-variant"></VIcon>
+              </template>
+
+              <template v-slot:headline>
+                <div class="text-h4">
+                  All Done For Now!
+                </div>
+              </template>
+
+              <template v-slot:title>
+                <div class="text-h6">
+                  You're all caught up.
+                </div>
+              </template>
+            </VEmptyState>
+          </template>
           <template
+            v-else
             v-for="notification in props.notifications"
             :key="notification.title"
           >
@@ -106,12 +126,12 @@ const emit = defineEmits(['click:readAllNotifications'])
 
           <!-- 👉 Footer -->
           <VListItem class="notification-section">
-            <VBtn
+            <!-- <VBtn
               block
               @click="$emit('click:readAllNotifications')"
             >
               READ ALL NOTIFICATIONS
-            </VBtn>
+            </VBtn> -->
           </VListItem>
         </VList>
       </VMenu>

@@ -27,10 +27,16 @@ export async function onRequestGet(context) {
         const { searchParams } = new URL(request.url)
         const take = parseInt(searchParams.get('take'), 10) || 50
         const skip = parseInt(searchParams.get('skip'), 10) || 0
-        const sca = await prisma.findings.findMany({
+        const findings = await prisma.findings.findMany({
             where: {
                 memberEmail: session.memberEmail,
-                category: 'sca',
+                NOT: {
+                    triage: {
+                        every: {
+                            analysisState: { in: ['exploitable',] } // 'in_triage'
+                        }
+                    }
+                }
             },
             omit: {
                 memberEmail: true,
@@ -41,11 +47,7 @@ export async function onRequestGet(context) {
                         repo: true
                     }
                 },
-                triage: {
-                    where: {
-                        analysisState: { in: ['exploitable', 'in_triage'] }
-                    }
-                },
+                triage: true,
                 // cdx: true
             },
             take,
@@ -54,22 +56,42 @@ export async function onRequestGet(context) {
                 createdAt: 'asc',
             }
         })
-
-        return Response.json({
-            ok: true, sca: sca.map(result => {
-                if (result?.spdx && result.spdx?.packagesJSON && result.spdx?.relationshipsJSON) {
-                    return {
-                        ...result,
-                        spdx: {
-                            ...result.spdx,
-                            packagesJSON: JSON.parse(result.spdx.packagesJSON),
-                            relationshipsJSON: JSON.parse(result.spdx.relationshipsJSON)
-                        }
-                    };
-                }
-                return result;
-            })
+        const parsed = findings.map(result => ({
+            ...result,
+            cwes: JSON.parse(result.cwes ?? '[]'),
+            aliases: JSON.parse(result.aliases ?? '[]'),
+            referencesJSON: JSON.parse(result.referencesJSON ?? '[]'),
+            spdx: {
+                ...result?.spdx || {},
+                packagesJSON: JSON.parse(result?.spdx?.packagesJSON ?? '[]'),
+                relationshipsJSON: JSON.parse(result?.spdx?.relationshipsJSON ?? '[]')
+            }
         })
+        )
+        // const groupedByRepo = parsed.reduce((acc, result) => {
+        //     const repoFullName = result.spdx?.repo?.fullName || 'Others'
+        //     if (!acc[repoFullName]) {
+        //         acc[repoFullName] = []
+        //     }
+        //     result.fullName = repoFullName
+        //     acc[repoFullName].push(result)
+        //     return acc
+        // }, {})
+        // // Sort results within each repo group by packageName + packageVersion
+        // for (const repoFullName in groupedByRepo) {
+        //     groupedByRepo[repoFullName].sort((a, b) => {
+        //         const aPackage = `${a.packageName}${a.packageVersion}`
+        //         const bPackage = `${b.packageName}${b.packageVersion}`
+        //         return aPackage.localeCompare(bPackage)
+        //     })
+        // }
+
+        const results = parsed.map(result => {
+            result.fullName = result.spdx?.repo?.fullName || 'Others'
+            return result
+        })
+
+        return Response.json({ ok: true, results })
     } catch (err) {
         console.error(err)
         return Response.json({ ok: false, error: { message: err }, result: AuthResult.REVOKED })

@@ -1,6 +1,6 @@
 <script setup>
-import IconTrivialSecurity from '@images/IconTrivialSecurity.vue'
-import { useTheme } from 'vuetify'
+import IconVulnetix from '@images/IconVulnetix.vue';
+import { useTheme } from 'vuetify';
 
 const { global } = useTheme()
 
@@ -15,7 +15,7 @@ const { global } = useTheme()
             <VCardItem class="justify-center">
                 <template #prepend>
                     <div class="d-flex">
-                        <IconTrivialSecurity
+                        <IconVulnetix
                             class="d-flex text-primary"
                             width="150"
                         />
@@ -25,10 +25,10 @@ const { global } = useTheme()
 
             <VCardText class="pt-2">
                 <h5 class="text-h5 mb-0 text-center">
-                    Triage
+                    Vulnetix
                 </h5>
                 <div class="subheading mb-2 mt-0 text-center">
-                    By, Trivial Security
+                    Effortless Vulnerabilities
                 </div>
             </VCardText>
 
@@ -72,7 +72,7 @@ const { global } = useTheme()
                         class="text-center"
                     >
                         <VBtn
-                            href="https://github.com/marketplace/triage-by-trivial-securiy/order/MLP_kgDNJys?quantity=1"
+                            href="https://github.com/apps/vulnetix"
                             prepend-icon="line-md:github-loop"
                             :variant="global.name.value === 'dark' ? 'tonal' : 'outlined'"
                             size="x-large"

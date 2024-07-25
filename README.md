@@ -1,12 +1,36 @@
-# Triage, by Trivial Security
+# Vulnetix
 
-Your Comprehensive Vulnerability Management Tool to automate decision and resolution reporting
+### Automate vulnerability triage which prioritizes remediation over discovery
 
-Triage aims to provide a robust and flexible vendor independent solution for managing vulnerabilities, ensuring your applications remain secure and compliant with industry standards.
+#### The Problem
 
-## GitHub App (WIP) available for early testers
+Organizations producing software face an ever-growing number of vulnerabilities. Even unchanged software can encounter new vulnerabilities due to the dependencies and their own nested dependencies. This creates a deep and complex web of risks that can become unmanageable. As the codebase grows, so does the number of vulnerabilities, overwhelming vulnerability management and software development teams.
 
-[GitHub App Marketplace listing](https://github.com/marketplace/triage-by-trivial-securiy)
+#### The Challenge
+
+Globally, as more software is created, the discovery of vulnerabilities increases exponentially. Security teams struggle to keep pace with this rapid growth, losing the ability to manage and mitigate the vulnerabilities effectively. Most security vendors focus on identifying these vulnerabilities or collecting information to enhance reporting, but this approach often adds to the workload without offering a practical solution.
+
+#### The Solution
+
+Vulnetix offers a revolutionary approach to vulnerability management by shifting the focus from discovery to outcomes. Instead of just identifying vulnerabilities, Vulnetix automates the reporting and resolution processes, significantly reducing manual efforts and emphasizing remediation outcomes.
+
+#### Key Features
+
+- **Automated Remediation Reporting:** Generates VEX (Vulnerability Exploitability eXchange) documents for every finding, focusing on remediation outcomes rather than mere discovery.
+- **Efficient Triage:** Creates a queue for human review only when automation is unable to resolve an issue.
+- **Outcome-Driven Focus:** Presents only vulnerabilities to human analysts, where automation is unable to remediate them.
+
+#### Benefits
+
+With Vulnetix, streamline your vulnerability management, reduce manual efforts, and maintain a robust security posture. Embrace the future of vulnerability management where automation meets effective risk mitigation, allowing your team to focus on what truly matters: resolving vulnerabilities and securing your software.
+
+## Early Adopters
+
+Please install our [GitHub App](https://github.com/apps/vulnetix).
+
+This is a preview, under active development, so you will encounter bugs while we complete the features.
+
+> **Note**: If you install now, you will forever gain access to Vulnetix - this is by design for all GitHub Apps that add a paid plan later.
 
 ## Screenshots
 
@@ -20,7 +44,7 @@ Check the marketplace listing above for more.
 
 ## Features
 
-Triage will offer a range of features to streamline vulnerability management:
+Vulnetix will offer a range of features to streamline vulnerability management:
 
 1. **SBOM**: The app takes input data from SPDX, and CycloneDX.
 2. **Data Enrichment**: Users can add optional API keys to enrich their data.
@@ -34,7 +58,7 @@ Triage will offer a range of features to streamline vulnerability management:
 
 ## Vulnerability Management
 
-Triage is designed to handle various aspects of vulnerability management effectively. Here are the key data points the app processes:
+Vulnetix is designed to handle various aspects of vulnerability management effectively. Here are the key data points the app processes:
 
 1. **Fix Intel**: Determines if patching the issue is possible or if fixing requires coding.
 2. **Patch Availability**: Checks if a patch is available now.

@@ -41,6 +41,17 @@ export async function onRequestGet(context) {
         const gh = new GitHub(app.accessToken)
         const { content, error } = await gh.getRepoSpdx(repoName)
         if (error?.message) {
+            if ("Bad credentials" === error.message) {
+                app.expires = (new Date()).getTime()
+                await prisma.github_apps.update({
+                    where: {
+                        installationId: parseInt(app.installationId, 10),
+                        AND: { memberEmail: app.memberEmail, },
+                    },
+                    data: app,
+                })
+                continue
+            }
             delete app.accessToken
             delete app.memberEmail
             errors.push({ error, app })

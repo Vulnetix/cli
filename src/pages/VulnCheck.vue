@@ -7,7 +7,7 @@ import { useTheme } from 'vuetify';
 import router from "../router";
 
 // curl 'https://api.vulncheck.com/v3/index/vulncheck-kev' \
-//     -H 'User-Agent: Triage-by-Trivial-Security' \
+//     -H 'User-Agent: Vulnetix' \
 //     -H 'Accept: application/json' \
 //     -H 'Authorization: Bearer undefined' > ./vulncheck-kev.json
 
@@ -27,7 +27,7 @@ const state = reactive({
     ...initialState,
 })
 axios.defaults.headers.common = {
-    'x-trivialsec': Member.session?.token,
+    'X-Vulnetix': Member.session?.token,
 }
 const clearAlerts = () => {
     state.error = ''

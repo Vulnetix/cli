@@ -37,7 +37,7 @@ const state = reactive({
     ...initialState,
 })
 axios.defaults.headers.common = {
-    'x-trivialsec': Member.session?.token,
+    'X-Vulnetix': Member.session?.token,
 }
 const clearAlerts = () => {
     state.error = ''

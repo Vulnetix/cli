@@ -1,4 +1,4 @@
-name = "triage-by-trivial-security"
+name = "vulnetix"
 main = "src/main.js"
 compatibility_date = "2024-03-20"
 compatibility_flags = ["nodejs_compat"]
@@ -8,8 +8,8 @@ workers_dev = true
 
 [[d1_databases]]
 binding = "d1db"
-database_name = "trivial_triage"
-database_id = "a3a52631-feb2-4415-aa4b-3f1c92550247"
+database_name = "vulnetix"
+database_id = "15dc7c29-05a9-46c2-b87b-89b1a4f32d33"
 
 [[r2_buckets]]
 binding = 'r2icache'

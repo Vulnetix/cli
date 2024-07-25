@@ -51,7 +51,7 @@ watch(NotificationsStore, () => {
                 <VSpacer />
 
                 <IconBtn
-                    href="https://github.com/trivialsec/triage-by-trivial-security"
+                    href="https://github.com/0x73746F66/vulnetix"
                     target="_blank"
                     rel="noopener noreferrer"
                 >
@@ -81,14 +81,14 @@ watch(NotificationsStore, () => {
                 heading: 'Queue',
             }" />
             <VerticalNavLink :item="{
-                title: 'Supply Chain',
+                title: 'Dependencies',
                 icon: 'hugeicons:blockchain-07',
-                to: '/supply-chain',
+                to: '/queue/dependencies',
             }" />
             <VerticalNavLink :item="{
-                title: 'SAST',
+                title: 'Source Code',
                 icon: 'eos-icons:critical-bug-outlined',
-                to: '/queue-static',
+                to: '/queue/source-code',
             }" />
             <VerticalNavLink :item="{
                 title: 'Overdue',

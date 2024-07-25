@@ -7,7 +7,7 @@ import { reactive } from 'vue';
 const Member = useMemberStore()
 
 axios.defaults.headers.common = {
-    'x-trivialsec': Member.session?.token,
+    'X-Vulnetix': Member.session?.token,
 }
 class Profile {
     constructor() {

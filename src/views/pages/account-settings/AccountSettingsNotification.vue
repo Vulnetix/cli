@@ -20,7 +20,7 @@ const state = reactive({
     ...initialState,
 })
 axios.defaults.headers.common = {
-    'x-trivialsec': Member.session?.token
+    'X-Vulnetix': Member.session?.token
 }
 const clearAlerts = () => {
     state.error = ''
@@ -192,7 +192,7 @@ const profile = reactive(new Profile())
                     >
                         <VTextField
                             v-model="state.webhookEndpoint"
-                            placeholder="https://exampl.com/webhooks/trivialsec"
+                            placeholder="https://example.com/webhooks/vulnetix"
                             label="Webhook Endpoint"
                         />
                     </VCol>

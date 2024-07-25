@@ -47,7 +47,7 @@ export class App {
      */
     async authenticate() {
         try {
-            const token = this.request.headers.get('x-trivialsec');
+            const token = this.request.headers.get('X-Vulnetix');
 
             if (!token) {
                 return { err: null, result: AuthResult.FORBIDDEN, session: null };
@@ -75,15 +75,19 @@ export class OSV {
     constructor() {
         this.headers = {
             'Accept': 'application/json',
-            'User-Agent': 'Triage-by-Trivial-Security',
+            'User-Agent': 'Vulnetix',
         }
         this.baseUrl = "https://api.osv.dev/v1"
     }
-    async fetchJSON(url, body) {
+    async fetchJSON(url, body = null, method = 'POST') {
         try {
-            const response = await fetch(url, { headers: this.headers, method: 'POST', body: JSON.stringify(body) })
+            if (method === 'POST' && typeof body !== "string") {
+                body = JSON.stringify(body)
+            }
+            const response = await fetch(url, { headers: this.headers, method, body })
             const respText = await response.text()
             if (!response.ok) {
+                console.error(`${method} ${url}`)
                 console.error(`req headers=${JSON.stringify(this.headers, null, 2)}`)
                 console.error(`resp headers=${JSON.stringify(response.headers, null, 2)}`)
                 console.error(respText)
@@ -108,7 +112,7 @@ export class OSV {
                 data: {
                     memberEmail,
                     source: 'osv',
-                    request: JSON.stringify({ url, queries }).trim(),
+                    request: JSON.stringify({ method: 'POST', url, queries }).trim(),
                     response: JSON.stringify({ body: results.filter(i => !!i).map(i => ({ ...i, modified: (new Date(i?.modified)).getTime() })), status: resp.status }).trim(),
                     statusCode: resp?.status || 500,
                     createdAt: (new Date()).getTime(),
@@ -117,6 +121,36 @@ export class OSV {
             console.log(`osv.queryBatch()`, createLog)
         }
         return resp?.content?.results || []
+    }
+    async query(prisma, memberEmail, vulnId) {
+        // https://google.github.io/osv.dev/get-v1-vulns/
+        const url = `${this.baseUrl}/vulns/${vulnId}`
+        const resp = await this.fetchJSON(url, null, "GET")
+        if (resp?.content) {
+            const result = resp.content
+            result.modified = (new Date(result.modified)).getTime()
+            if (result?.published) {
+                result.published = (new Date(result.published)).getTime()
+            }
+            if (result?.database_specific?.nvd_published_at) {
+                result.database_specific.nvd_published_at = (new Date(result.database_specific.nvd_published_at)).getTime()
+            }
+            if (result?.database_specific?.github_reviewed_at) {
+                result.database_specific.github_reviewed_at = (new Date(result.database_specific.github_reviewed_at)).getTime()
+            }
+            const createLog = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'osv',
+                    request: JSON.stringify({ method: "GET", url, vulnId }).trim(),
+                    response: JSON.stringify({ body: result, status: resp.status }).trim(),
+                    statusCode: resp?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`osv.query()`, createLog)
+            return result
+        }
     }
 }
 
@@ -179,7 +213,7 @@ export class VulnCheck {
         this.headers = {
             'Accept': 'application/json',
             'Authorization': `Bearer ${BearerToken}`,
-            'User-Agent': 'Triage-by-Trivial-Security',
+            'User-Agent': 'Vulnetix',
         }
         this.baseUrl = "https://api.vulncheck.com/v3"
     }
@@ -222,7 +256,7 @@ export class GitHub {
             'Accept': 'application/vnd.github+json',
             'Authorization': `token ${accessToken}`,
             'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'Triage-by-Trivial-Security',
+            'User-Agent': 'Vulnetix',
         }
         this.baseUrl = "https://api.github.com"
     }
@@ -425,7 +459,7 @@ export class GitHub {
     }
     async getFileContents(full_name, branch_name) {
         // https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28
-        const fileUrl = `${this.baseUrl}/repos/${full_name}/contents/.trivialsec?ref=${branch_name}`
+        const fileUrl = `${this.baseUrl}/repos/${full_name}/contents/.vulnetix?ref=${branch_name}`
 
         console.log(fileUrl)
         try {

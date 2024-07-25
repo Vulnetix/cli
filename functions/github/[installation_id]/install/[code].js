@@ -111,15 +111,32 @@ export async function onRequestGet(context) {
         console.log(`/github/install session kid=${token}`, sessionInfo)
         response.session.token = token
         response.session.expiry = expiry
+        const AppData = {
+            installationId: parseInt(params.installation_id, 10),
+            memberEmail: response.member.email,
+            accessToken: oauthData.access_token,
+            login: content.login,
+            avatarUrl: content?.avatar_url,
+            created,
+            expires
+        }
+        try {
+            await prisma.github_apps.findUniqueOrThrow({ where: { login: AppData.login } })
+            const GHAppInfo = await prisma.git_repos.update({
+                where: { login: AppData.login },
+                data: {
+                    accessToken: AppData.accessToken,
+                    expires: AppData.expires,
+                }
+            })
+            console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
+
+            return data
+        } catch (_) {
+            // No records to update OAuth token
+        }
         const GHAppInfo = await prisma.github_apps.create({
-            data: {
-                installationId: parseInt(params.installation_id, 10),
-                memberEmail: response.member.email,
-                accessToken: oauthData.access_token,
-                login: content.login,
-                created,
-                expires
-            }
+            data: AppData
         })
         console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
         response.result = AuthResult.AUTHENTICATED

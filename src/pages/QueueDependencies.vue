@@ -36,7 +36,7 @@ const state = reactive({
     ...initialState,
 })
 axios.defaults.headers.common = {
-    'x-trivialsec': Member.session?.token,
+    'X-Vulnetix': Member.session?.token,
 }
 const clearAlerts = () => {
     state.error = ''
@@ -160,6 +160,7 @@ const manager = reactive(new TriageQueue())
             hover
             expand-on-click
             @click:row="manager.expandRow"
+            :loading="state.loading"
         >
             <template v-slot:expanded-row="{ item, columns }">
                 <tr>

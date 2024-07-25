@@ -18,7 +18,7 @@ setup: ## FOR DOCO ONLY - Run these one at a time, do not call this target direc
 
 migrate: ## migrate incoming schema changes for prisma orm
 	npm i
-	npx wrangler d1 migrations apply trivial_triage --local
+	npx wrangler d1 migrations apply vulnetix --local
 	npx prisma generate
 
 plan: ## plan a migrate for schema changes in prisma orm
@@ -39,17 +39,17 @@ sbom: clean ## generate CycloneDX from NPM for this project
 	npm sbom --omit dev --package-lock-only --sbom-format spdx | jq >npm.spdx.json
 
 deployments: ## FOR DOCO ONLY
-	npx wrangler pages deployment list --project-name triage-by-trivial-security
+	npx wrangler pages deployment list --project-name vulnetix
 
 run: ## FOR DOCO ONLY - Run these one at a time, do not call this target directly
 	lsof -i tcp:8788
 	npm run preview
 
 _helpers: ## FOR DOCO ONLY
-	npx wrangler d1 execute trivial_triage --local --file ./migrations/0001_init.sql
-	npx wrangler d1 execute trivial_triage --local --command "PRAGMA table_list;"
-	npx wrangler d1 execute trivial_triage --local --command "PRAGMA table_info(members);"
-	npx wrangler d1 execute trivial_triage --local --command "SELECT * FROM members;"
+	npx wrangler d1 execute vulnetix --local --file ./migrations/0001_init.sql
+	npx wrangler d1 execute vulnetix --local --command "PRAGMA table_list;"
+	npx wrangler d1 execute vulnetix --local --command "PRAGMA table_info(members);"
+	npx wrangler d1 execute vulnetix --local --command "SELECT * FROM members;"
 	npx prisma migrate diff \
 	--from-empty \
 	--to-schema-datamodel ./prisma/schema.prisma \

@@ -1,7 +1,7 @@
 <script setup>
 import router from "@/router"
 import { useMemberStore } from '@/stores/member'
-import IconTrivialSecurity from '@images/IconTrivialSecurity.vue'
+import IconVulnetix from '@images/IconVulnetix.vue'
 import { useVuelidate } from '@vuelidate/core'
 import { email, required } from '@vuelidate/validators'
 import { default as axios } from 'axios'
@@ -54,7 +54,7 @@ const register = () => {
             <VCardItem class="justify-center">
                 <template #prepend>
                     <div class="d-flex">
-                        <IconTrivialSecurity
+                        <IconVulnetix
                             class="d-flex text-primary"
                             width="150"
                         />
@@ -64,10 +64,10 @@ const register = () => {
 
             <VCardText class="pt-2">
                 <h5 class="text-h5 mb-0 text-center">
-                    Triage
+                    Vulnetix
                 </h5>
                 <div class="subheading mb-2 mt-0 text-center">
-                    By, Trivial Security
+                    Effortless Vulnerabilities
                 </div>
                 <p class="mb-0">
                     Make vulnerability management easy and fun!
@@ -148,7 +148,7 @@ const register = () => {
                             class="text-center"
                         >
                             <VBtn
-                                href="https://github.com/marketplace/triage-by-trivial-securiy/order/MLP_kgDNJys?quantity=1"
+                                href="https://github.com/apps/vulnetix"
                                 prepend-icon="line-md:github-loop"
                                 :variant="global.name.value === 'dark' ? 'tonal' : 'outlined'"
                                 size="x-large"
