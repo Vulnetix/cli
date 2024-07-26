@@ -1,6 +1,17 @@
-# Vulnetix
+# <img align="left" height="45" src="./src/assets/images/logo.svg"> Vulnetix
+<img align="right" height="300" src=".repo/Vulnetix.png">
+
+<br>
 
 ### Automate vulnerability triage which prioritizes remediation over discovery
+
+**Early Adopters needed**
+
+Please install our [GitHub App](https://github.com/apps/vulnetix).
+
+This is a preview, under active development, so you will encounter bugs while we complete the features.
+
+> **Note**: If you install now, you will forever gain access to Vulnetix - this is by design for all GitHub Apps that add a paid plan later.
 
 #### The Problem
 
@@ -23,14 +34,6 @@ Vulnetix offers a revolutionary approach to vulnerability management by shifting
 #### Benefits
 
 With Vulnetix, streamline your vulnerability management, reduce manual efforts, and maintain a robust security posture. Embrace the future of vulnerability management where automation meets effective risk mitigation, allowing your team to focus on what truly matters: resolving vulnerabilities and securing your software.
-
-## Early Adopters
-
-Please install our [GitHub App](https://github.com/apps/vulnetix).
-
-This is a preview, under active development, so you will encounter bugs while we complete the features.
-
-> **Note**: If you install now, you will forever gain access to Vulnetix - this is by design for all GitHub Apps that add a paid plan later.
 
 ## Screenshots
 
