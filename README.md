@@ -70,12 +70,12 @@ Vulnetix will offer a range of features to streamline vulnerability management:
 Vulnetix is designed to handle various aspects of vulnerability management effectively. Here are the key data points the app processes:
 
 1. **Fix Intel**: Determines if patching the issue is possible or if fixing requires coding.
-2. **Patch Availability**: Checks if a patch is available now.
-3. **Auto Patch**: Automatically opens a pull request for available patches.
-4. **Non-breaking changes**: Ensures auto patches are possible without causing breaking changes.
+2. **Patch Availability**: Checks if a patch is available now, provides VEX and an exception PR for CodeQL or Supported SCA functions.
+3. **Auto Patch**: Automatically opens a pull request for available patches that tools like Dependabot are unable to.
+4. **Non-breaking changes**: Ensures auto patches are possible without causing breaking changes using your existing testing workflow.
 5. **Vulnerability Enrichment**: Enhances data from CPE, CISA KEV, and published exploit PoCs.
-6. **Code Reachability**: Assesses the reachability of vulnerable code within the application.
+6. **Code Reachability**: Assesses the reachability of reported vulnerable code within the application and opens PR for false positive exception handling.
 7. **Exploit Status and Maturity**: Tracks the status and maturity of exploits.
 8. **Exploitation Awareness**: Monitors if vulnerabilities are known to be exploited via VulnCheck KEV or CISA KEV.
 9. **Exploitation Forecast**: Predicts exploitation expectations over the next 30 days using EPSS.
-10. **Triage Decisions**: Makes triage decisions using the SSVC framework.
+10. **Triage Decisions**: Makes triage decisions using the SSVC framework. Reporting VM outcomes rather than discovery metrics.
