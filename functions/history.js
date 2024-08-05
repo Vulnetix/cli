@@ -33,7 +33,7 @@ export async function onRequestGet(context) {
                 NOT: {
                     triage: {
                         every: {
-                            analysisState: { in: ['exploitable',] } // 'in_triage'
+                            analysisState: { in: ['in_triage'] }
                         }
                     }
                 }

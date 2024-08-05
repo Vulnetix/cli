@@ -9,7 +9,7 @@ const Member = useMemberStore()
 axios.defaults.headers.common = {
     'X-Vulnetix': Member.session?.token,
 }
-class Profile {
+class Controller {
     constructor() {
         if (!Member.session?.token && location.pathname.startsWith('/github-integration')) {
             const urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
@@ -62,7 +62,7 @@ class Profile {
     }
 }
 
-const profile = reactive(new Profile())
+const controller = reactive(new Controller())
 </script>
 
 <template>

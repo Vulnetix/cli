@@ -1,7 +1,7 @@
 <script setup>
-import VueApexCharts from 'vue3-apexcharts'
-import { useTheme } from 'vuetify'
-import { hexToRgb } from '@layouts/utils'
+import { hexToRgb } from '@layouts/utils';
+import VueApexCharts from 'vue3-apexcharts';
+import { useTheme } from 'vuetify';
 
 const vuetifyTheme = useTheme()
 
@@ -20,8 +20,8 @@ const series = [{
 const chartOptions = computed(() => {
   const currentTheme = vuetifyTheme.current.value.colors
   const variableTheme = vuetifyTheme.current.value.variables
-  const disabledText = `rgba(${ hexToRgb(String(currentTheme['on-surface'])) },${ variableTheme['disabled-opacity'] })`
-  
+  const disabledText = `rgba(${hexToRgb(String(currentTheme['on-surface']))},${variableTheme['disabled-opacity']})`
+
   return {
     chart: {
       parentHeightOffset: 0,
@@ -40,13 +40,13 @@ const chartOptions = computed(() => {
     tooltip: { enabled: false },
     dataLabels: { enabled: false },
     colors: [
-      `rgba(${ hexToRgb(String(currentTheme.primary)) }, 0.16)`,
-      `rgba(${ hexToRgb(String(currentTheme.primary)) }, 0.16)`,
-      `rgba(${ hexToRgb(String(currentTheme.primary)) }, 0.16)`,
-      `rgba(${ hexToRgb(String(currentTheme.primary)) }, 0.16)`,
-      `rgba(${ hexToRgb(String(currentTheme.primary)) }, 1)`,
-      `rgba(${ hexToRgb(String(currentTheme.primary)) }, 0.16)`,
-      `rgba(${ hexToRgb(String(currentTheme.primary)) }, 0.16)`,
+      `rgba(${hexToRgb(String(currentTheme.primary))}, 0.16)`,
+      `rgba(${hexToRgb(String(currentTheme.primary))}, 0.16)`,
+      `rgba(${hexToRgb(String(currentTheme.primary))}, 0.16)`,
+      `rgba(${hexToRgb(String(currentTheme.primary))}, 0.16)`,
+      `rgba(${hexToRgb(String(currentTheme.primary))}, 1)`,
+      `rgba(${hexToRgb(String(currentTheme.primary))}, 0.16)`,
+      `rgba(${hexToRgb(String(currentTheme.primary))}, 0.16)`,
     ],
     states: {
       hover: { filter: { type: 'none' } },

@@ -63,11 +63,11 @@ export async function onRequestGet(context) {
         finding.cve = vuln.aliases.filter(a => a.startsWith('CVE-')).pop()
         finding.aliases = JSON.stringify(vuln.aliases)
         finding.cwes = JSON.stringify(vuln?.database_specific?.cwe_ids || [])
-        finding.packageEcosystem = vuln.affected.filter(affected => affected.package.ecosystem).pop()
-        finding.sourceCodeUrl = vuln.affected.filter(affected => affected.database_specific.source).pop()
-        finding.fixVersion = vuln.affected.filter(affected => affected.ranges.pop()?.events.pop()?.fixed).pop()
-        finding.vulnerableVersionRange = vuln.affected.filter(affected => affected.database_specific.last_known_affected_version_range).pop()
-        finding.fixAutomatable = !!finding.vulnerableVersionRange && !!finding.fixVersion
+        finding.packageEcosystem = vuln.affected.map(affected => affected.package.ecosystem).pop()
+        finding.sourceCodeUrl = vuln.affected.map(affected => affected.database_specific.source).pop()
+        finding.fixVersion = vuln.affected.map(affected => affected.ranges.pop()?.events.pop()?.fixed).pop()
+        finding.vulnerableVersionRange = vuln.affected.map(affected => affected.database_specific.last_known_affected_version_range).pop()
+        finding.fixAutomatable = !!finding.vulnerableVersionRange && !!finding.fixVersion ? 1 : 0
         finding.referencesJSON = JSON.stringify(vuln.references.map(reference => reference.url))
         const info = await prisma.findings.update({
             where: {

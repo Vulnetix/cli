@@ -37,7 +37,7 @@ axios.defaults.headers.common = {
     'X-Vulnetix': Member.session?.token,
 }
 
-class GitHub {
+class Controller {
     constructor() {
         this.urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
 
@@ -451,7 +451,7 @@ function groupedRepos() {
     }, [])
 }
 
-const gh = reactive(new GitHub())
+const controller = reactive(new Controller())
 </script>
 
 <template>
@@ -535,7 +535,7 @@ const gh = reactive(new GitHub())
                         :disabled="state.loadingBar"
                         variant="text"
                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
-                        @click="gh.refreshRepos(true, false, false)"
+                        @click="controller.refreshRepos(true, false, false)"
                     />
                 </template>
             </VEmptyState>
@@ -571,7 +571,7 @@ const gh = reactive(new GitHub())
                                 variant="text"
                                 :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                                 :disabled="state.loadingBar"
-                                @click="gh.refreshGithub"
+                                @click="controller.refreshGithub"
                             />
                         </VCardText>
                         <VExpansionPanels accordion>
@@ -648,7 +648,7 @@ const gh = reactive(new GitHub())
                                                                 icon="mdi-refresh"
                                                                 variant="plain"
                                                                 color="rgb(26, 187, 156)"
-                                                                @click="gh.refreshSecurity(repo.fullName)"
+                                                                @click="controller.refreshSecurity(repo.fullName)"
                                                             />
                                                         </template>
                                                     </VTooltip>
@@ -754,7 +754,7 @@ const gh = reactive(new GitHub())
                                         cols="12"
                                         class="gap-3"
                                     >
-                                        <VBtn @click="gh.savePat">Save</VBtn>
+                                        <VBtn @click="controller.savePat">Save</VBtn>
 
                                     </VCol>
                                 </VRow>
@@ -870,7 +870,7 @@ const gh = reactive(new GitHub())
                                                                 color="error"
                                                                 variant="tonal"
                                                                 density="comfortable"
-                                                                @click="gh.deleteApp(item.installationId)"
+                                                                @click="controller.deleteApp(item.installationId)"
                                                                 icon="mdi-close"
                                                                 v-bind="props"
                                                             ></VBtn>
@@ -1001,7 +1001,7 @@ const gh = reactive(new GitHub())
                                                                 color="error"
                                                                 variant="tonal"
                                                                 density="comfortable"
-                                                                @click="gh.deletePat(item.id)"
+                                                                @click="controller.deletePat(item.id)"
                                                                 icon="mdi-close"
                                                                 v-bind="props"
                                                             ></VBtn>

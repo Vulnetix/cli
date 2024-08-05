@@ -1,10 +1,10 @@
 <script setup>
+import router from "@/router";
 import { useMemberStore } from '@/stores/member';
-import router from "@/router"
-import { isJSON, isSARIF } from '@/utils'
-import { default as axios } from 'axios'
-import { reactive } from 'vue'
-import { useTheme } from 'vuetify'
+import { isJSON, isSARIF } from '@/utils';
+import { default as axios } from 'axios';
+import { reactive } from 'vue';
+import { useTheme } from 'vuetify';
 
 const Member = useMemberStore()
 const { global } = useTheme()
@@ -29,7 +29,7 @@ const state = reactive({
 axios.defaults.headers.common = {
     'X-Vulnetix': Member.session?.token,
 }
-class Sarif {
+class Controller {
     constructor() {
         this.refresh(true)
     }
@@ -156,7 +156,7 @@ function groupedByOrg() {
     }, [])
 }
 
-const sarif = reactive(new Sarif())
+const controller = reactive(new Controller())
 </script>
 
 <template>
@@ -207,7 +207,7 @@ const sarif = reactive(new Sarif())
                 variant="text"
                 :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                 :disabled="state.loading"
-                @click="sarif.refresh"
+                @click="controller.refresh"
             />
             <VDialog
                 width="50%"
@@ -298,7 +298,7 @@ const sarif = reactive(new Sarif())
                             <VBtn
                                 text="Upload"
                                 variant="flat"
-                                @click="sarif.upload"
+                                @click="controller.upload"
                             />
                         </VCardActions>
                     </VCard>

@@ -1,16 +1,46 @@
 <script setup>
-import AnalyticsCongratulations from '@/views/dashboard/AnalyticsCongratulations.vue'
+import { useAnalyticsStore } from '@/stores/analytics'
 import AnalyticsFinanceTabs from '@/views/dashboard/AnalyticsFinanceTab.vue'
 import AnalyticsOrderStatistics from '@/views/dashboard/AnalyticsOrderStatistics.vue'
 import AnalyticsProfitReport from '@/views/dashboard/AnalyticsProfitReport.vue'
-import AnalyticsTotalRevenue from '@/views/dashboard/AnalyticsTotalRevenue.vue'
+import AnalyticsTriageHistory from '@/views/dashboard/AnalyticsTriageHistory.vue'
 import AnalyticsTransactions from '@/views/dashboard/AnalyticsTransactions.vue'
-
+import AnalyticsWelcome from '@/views/dashboard/AnalyticsWelcome.vue'
 // 👉 Images
-import chart from '@images/cards/chart-success.png'
-import card from '@images/cards/credit-card-primary.png'
-import paypal from '@images/cards/paypal-error.png'
-import wallet from '@images/cards/wallet-info.png'
+import chart3 from '@images/cards/chart-error.png'
+import chart1 from '@images/cards/chart-info.png'
+import chart4 from '@images/cards/chart-purple.png'
+import chart2 from '@images/cards/chart-success.png'
+
+const Analytics = useAnalyticsStore()
+const state = await Analytics.$state
+
+const categories = state.monthly.map(i => i.monthYear)
+const series = [
+  {
+    name: `${new Date().getFullYear()}`,
+    data: state.monthly.filter(i => i.monthYear.startsWith(new Date().getFullYear())).map(i => i.total_findings),
+  },
+  {
+    name: `${new Date().getFullYear() - 1}`,
+    data: state.monthly.filter(i => i.monthYear.startsWith(new Date().getFullYear() - 1)).map(i => -(i.resolved + i.resolved_with_pedigree)),
+  },
+]
+
+const totalsData = [
+  {
+    icon: 'tabler-eye-exclamation',
+    value: `${state.total.unseen_queue_percentage}%`,
+    text: `Unseen`,
+    color: state.total.unseen_queue_percentage < 20 ? 'success' : state.total.unseen_queue_percentage < 50 ? 'info' : state.total.unseen_queue_percentage < 80 ? 'warning' : 'error',
+  },
+  {
+    icon: 'solar-bug-minimalistic-broken',
+    value: `${state.total.unresolved_percentage}%`,
+    text: `Unresolved`,
+    color: state.total.unresolved_percentage < 20 ? 'success' : state.total.unresolved_percentage < 50 ? 'info' : state.total.unresolved_percentage < 80 ? 'warning' : 'error',
+  },
+]
 </script>
 
 <template>
@@ -20,7 +50,7 @@ import wallet from '@images/cards/wallet-info.png'
       cols="12"
       md="8"
     >
-      <AnalyticsCongratulations />
+      <AnalyticsWelcome />
     </VCol>
 
     <VCol
@@ -33,14 +63,18 @@ import wallet from '@images/cards/wallet-info.png'
           cols="12"
           md="6"
         >
-          <CardStatisticsVertical
-            v-bind="{
-              title: 'Profit',
-              image: chart,
-              stats: '$12,628',
-              change: 72.80,
-            }"
-          />
+          <CardStatisticsVertical v-bind="{
+            title: 'Unresolved this week',
+            image: chart1,
+            stats: state.current_week.in_triage,
+            change: state.current_week.unresolved_percentage,
+            moreList: [
+              {
+                title: 'Go to Queue',
+                value: 'queue'
+              }
+            ],
+          }" />
         </VCol>
 
         <!-- 👉 Sales -->
@@ -48,14 +82,18 @@ import wallet from '@images/cards/wallet-info.png'
           cols="12"
           md="6"
         >
-          <CardStatisticsVertical
-            v-bind="{
-              title: 'Sales',
-              image: wallet,
-              stats: '$4,679',
-              change: 28.42,
-            }"
-          />
+          <CardStatisticsVertical v-bind="{
+            title: 'Resolved this week',
+            image: chart2,
+            stats: state.current_week.resolved_all,
+            change: state.current_week.resolved_percentage,
+            moreList: [
+              {
+                title: 'Go to Queue',
+                value: 'queue'
+              }
+            ],
+          }" />
         </VCol>
       </VRow>
     </VCol>
@@ -67,7 +105,15 @@ import wallet from '@images/cards/wallet-info.png'
       order="2"
       order-md="1"
     >
-      <AnalyticsTotalRevenue />
+      <AnalyticsTriageHistory
+        :title="`Triage History`"
+        :totalsText="`Queued Issues Remaining`"
+        :totalsData="totalsData"
+        :series="series"
+        :categories="categories"
+        :radialLabel="`Triaged`"
+        :radialValue="state.total.resolved_percentage"
+      />
     </VCol>
 
     <VCol
@@ -83,14 +129,18 @@ import wallet from '@images/cards/wallet-info.png'
           cols="12"
           sm="6"
         >
-          <CardStatisticsVertical
-            v-bind=" {
-              title: 'Payments',
-              image: paypal,
-              stats: '$2,468',
-              change: -14.82,
-            }"
-          />
+          <CardStatisticsVertical v-bind="{
+            title: 'Pix Automated',
+            image: chart4,
+            stats: state.total.triage_automated,
+            change: state.total.automated_percentage,
+            moreList: [
+              {
+                title: 'Go to Queue',
+                value: 'queue'
+              }
+            ],
+          }" />
         </VCol>
 
         <!-- 👉 Revenue -->
@@ -98,30 +148,32 @@ import wallet from '@images/cards/wallet-info.png'
           cols="12"
           sm="6"
         >
-          <CardStatisticsVertical
-            v-bind="{
-              title: 'Transactions',
-              image: card,
-              stats: '$14,857',
-              change: 28.14,
-            }"
-          />
+          <CardStatisticsVertical v-bind="{
+            title: 'Queued',
+            image: chart3,
+            stats: state.total.triage_unseen,
+            change: -state.total.unseen_queue_percentage,
+            moreList: [
+              {
+                title: 'Go to Queue',
+                value: 'queue'
+              }
+            ],
+          }" />
         </VCol>
       </VRow>
 
-      <VRow>
-        <!-- 👉 Profit Report -->
+      <!-- <VRow>
         <VCol
           cols="12"
           sm="12"
         >
           <AnalyticsProfitReport />
         </VCol>
-      </VRow>
+      </VRow> -->
     </VCol>
 
-    <!-- 👉 Order Statistics -->
-    <VCol
+    <!-- <VCol
       cols="12"
       md="4"
       sm="6"
@@ -130,7 +182,6 @@ import wallet from '@images/cards/wallet-info.png'
       <AnalyticsOrderStatistics />
     </VCol>
 
-    <!-- 👉 Tabs chart -->
     <VCol
       cols="12"
       md="4"
@@ -140,7 +191,6 @@ import wallet from '@images/cards/wallet-info.png'
       <AnalyticsFinanceTabs />
     </VCol>
 
-    <!-- 👉 Transactions -->
     <VCol
       cols="12"
       md="4"
@@ -148,6 +198,6 @@ import wallet from '@images/cards/wallet-info.png'
       order="3"
     >
       <AnalyticsTransactions />
-    </VCol>
+    </VCol> -->
   </VRow>
 </template>

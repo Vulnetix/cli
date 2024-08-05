@@ -45,7 +45,7 @@ const clearAlerts = () => {
     state.success = ''
     state.info = ''
 }
-class TriageQueue {
+class Controller {
     constructor() {
         this.refresh()
     }
@@ -94,7 +94,7 @@ class TriageQueue {
     }
 }
 
-const manager = reactive(new TriageQueue())
+const controller = reactive(new Controller())
 </script>
 
 <template>
@@ -160,7 +160,7 @@ const manager = reactive(new TriageQueue())
             multi-sort
             hover
             expand-on-click
-            @click:row="manager.expandRow"
+            @click:row="controller.expandRow"
         >
             <template v-slot:expanded-row="{ item, columns }">
                 <tr>
@@ -313,7 +313,7 @@ const manager = reactive(new TriageQueue())
                                                         class="pa-4"
                                                     >{{
                                                         location.physicalLocation?.region?.snippet?.text
-                                                        }}</VCode>
+                                                    }}</VCode>
                                                 </div>
                                             </VCardSubtitle>
                                         </VCard>

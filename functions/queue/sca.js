@@ -43,7 +43,7 @@ export async function onRequestGet(context) {
                 },
                 triage: {
                     where: {
-                        analysisState: { in: ['exploitable', 'in_triage'] }
+                        analysisState: { in: ['in_triage'] }
                     }
                 },
                 // cdx: true

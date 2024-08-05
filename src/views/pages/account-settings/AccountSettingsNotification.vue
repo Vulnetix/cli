@@ -28,7 +28,7 @@ const clearAlerts = () => {
     state.success = ''
     state.info = ''
 }
-class Profile {
+class Controller {
     save = async device => {
         clearAlerts()
         state.loading = true
@@ -103,7 +103,7 @@ const recentDevices = ref([
         webhook: decodeAlert(Member.alertType).webhook,
     },
 ])
-const profile = reactive(new Profile())
+const controller = reactive(new Controller())
 </script>
 
 <template>
@@ -240,19 +240,19 @@ const profile = reactive(new Profile())
                     <td>
                         <VCheckbox
                             v-model="device.email"
-                            @change="profile.save(device)"
+                            @change="controller.save(device)"
                         />
                     </td>
                     <td>
                         <VCheckbox
                             v-model="device.browser"
-                            @change="profile.save(device)"
+                            @change="controller.save(device)"
                         />
                     </td>
                     <td>
                         <VCheckbox
                             v-model="device.webhook"
-                            @change="profile.save(device)"
+                            @change="controller.save(device)"
                         />
                     </td>
                 </tr>

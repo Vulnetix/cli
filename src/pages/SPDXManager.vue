@@ -29,7 +29,7 @@ const state = reactive({
 axios.defaults.headers.common = {
     'X-Vulnetix': Member.session?.token,
 }
-class Spdx {
+class Controller {
     constructor() {
         this.refresh(true)
     }
@@ -162,7 +162,7 @@ function groupedByOrg() {
     }, [])
 }
 
-const spdx = reactive(new Spdx())
+const controller = reactive(new Controller())
 </script>
 
 <template>
@@ -213,7 +213,7 @@ const spdx = reactive(new Spdx())
                 variant="text"
                 :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                 :disabled="state.loading"
-                @click="spdx.refresh"
+                @click="controller.refresh"
             />
             <VDialog
                 width="50%"
@@ -304,7 +304,7 @@ const spdx = reactive(new Spdx())
                             <VBtn
                                 text="Upload"
                                 variant="flat"
-                                @click="spdx.upload"
+                                @click="controller.upload"
                             />
                         </VCardActions>
                     </VCard>

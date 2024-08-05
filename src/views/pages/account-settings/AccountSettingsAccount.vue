@@ -31,7 +31,7 @@ function clearAlerts() {
     state.success = ''
     state.info = ''
 }
-class Profile {
+class Controller {
     save = async () => {
         clearAlerts()
         state.loading = true
@@ -139,7 +139,7 @@ const handleError = err => {
     state.loading = false
 }
 
-const profile = reactive(new Profile())
+const controller = reactive(new Controller())
 </script>
 
 <template>
@@ -213,14 +213,14 @@ const profile = reactive(new Profile())
                                 name="file"
                                 accept=".jpeg,.png,.jpg,GIF"
                                 hidden
-                                @input="profile.saveAvatar"
+                                @input="controller.saveAvatar"
                             >
 
                             <VBtn
                                 type="reset"
                                 color="error"
                                 variant="tonal"
-                                @click="profile.resetAvatar"
+                                @click="controller.resetAvatar"
                             >
                                 <span class="d-none d-sm-block">Reset</span>
                                 <VIcon
@@ -296,7 +296,7 @@ const profile = reactive(new Profile())
                                 cols="12"
                                 class="d-flex flex-wrap gap-4"
                             >
-                                <VBtn @click="profile.save">Save changes</VBtn>
+                                <VBtn @click="controller.save">Save changes</VBtn>
 
                             </VCol>
                         </VRow>

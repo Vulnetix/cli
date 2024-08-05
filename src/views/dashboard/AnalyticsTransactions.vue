@@ -1,16 +1,15 @@
 <script setup>
-import chartInfo from '@images/cards/chart-info.png'
-import creditCardSuccess from '@images/cards/credit-card-success.png'
-import creditCardWarning from '@images/cards/credit-card-warning.png'
-import paypalError from '@images/cards/paypal-error.png'
-import walletPrimary from '@images/cards/wallet-primary.png'
+import chartInfo from '@images/cards/chart-info.png';
+import creditCardSuccess from '@images/cards/credit-card-success.png';
+import creditCardWarning from '@images/cards/credit-card-warning.png';
+import walletPrimary from '@images/cards/wallet-primary.png';
 
 const transactions = [
   {
     amount: +82.6,
     paymentMethod: 'Paypal',
     description: 'Send money',
-    icon: paypalError,
+    icon: walletPrimary,
     color: 'error',
   },
   {
@@ -99,7 +98,8 @@ const moreList = [
 
           <template #append>
             <VListItemAction>
-              <span class="me-1">{{ item.amount > 0 ? `+$${Math.abs(item.amount)}` : `-$${Math.abs(item.amount)}` }}</span>
+              <span class="me-1">{{ item.amount > 0 ? `+$${Math.abs(item.amount)}` : `-$${Math.abs(item.amount)}`
+                }}</span>
               <span class="text-disabled">USD</span>
             </VListItemAction>
           </template>
@@ -110,7 +110,7 @@ const moreList = [
 </template>
 
 <style lang="scss" scoped>
-  .card-list {
-    --v-card-list-gap: 1.6rem;
-  }
+.card-list {
+  --v-card-list-gap: 1.6rem;
+}
 </style>

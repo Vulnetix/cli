@@ -35,7 +35,7 @@ const clearAlerts = () => {
     state.success = ''
     state.info = ''
 }
-class VulnCheck {
+class Controller {
     constructor() {
         this.refresh()
     }
@@ -101,7 +101,7 @@ class VulnCheck {
     }
 }
 
-const vulncheck = reactive(new VulnCheck())
+const controller = reactive(new Controller())
 </script>
 
 <template>
@@ -194,7 +194,7 @@ const vulncheck = reactive(new VulnCheck())
                         cols="12"
                         class="d-flex flex-wrap gap-4"
                     >
-                        <VBtn @click="vulncheck.save">Save</VBtn>
+                        <VBtn @click="controller.save">Save</VBtn>
 
                     </VCol>
                 </VRow>
@@ -236,19 +236,19 @@ const vulncheck = reactive(new VulnCheck())
                     <td>
                         <VCheckbox
                             v-model="device.email"
-                            @change="vulncheck.save(device)"
+                            @change="controller.save(device)"
                         />
                     </td>
                     <td>
                         <VCheckbox
                             v-model="device.browser"
-                            @change="vulncheck.save(device)"
+                            @change="controller.save(device)"
                         />
                     </td>
                     <td>
                         <VCheckbox
                             v-model="device.webhook"
-                            @change="vulncheck.save(device)"
+                            @change="controller.save(device)"
                         />
                     </td>
                 </tr>

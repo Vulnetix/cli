@@ -1,48 +1,54 @@
 <script setup>
-import VueApexCharts from 'vue3-apexcharts'
+import { hexToRgb } from '@layouts/utils';
+import VueApexCharts from 'vue3-apexcharts';
 import {
   useDisplay,
   useTheme,
-} from 'vuetify'
-import { hexToRgb } from '@layouts/utils'
+} from 'vuetify';
 
 const vuetifyTheme = useTheme()
 const display = useDisplay()
 
-const series = [
-  {
-    name: `${ new Date().getFullYear() - 1 }`,
-    data: [
-      18,
-      7,
-      15,
-      29,
-      18,
-      12,
-      9,
-    ],
+const props = defineProps({
+  title: {
+    type: String,
+    required: true,
   },
-  {
-    name: `${ new Date().getFullYear() - 2 }`,
-    data: [
-      -13,
-      -18,
-      -9,
-      -14,
-      -5,
-      -17,
-      -15,
-    ],
+  totalsText: {
+    type: String,
   },
-]
+  radialValue: {
+    type: Number,
+    required: true,
+  },
+  radialLabel: {
+    type: String,
+    required: true,
+  },
+  categories: {
+    type: Array,
+    required: true,
+  },
+  series: {
+    type: Array,
+    required: true,
+  },
+  totalsData: {
+    type: Array,
+    required: true,
+  },
+  moreList: {
+    type: Array
+  }
+})
 
 const chartOptions = computed(() => {
   const currentTheme = vuetifyTheme.current.value.colors
   const variableTheme = vuetifyTheme.current.value.variables
-  const disabledTextColor = `rgba(${ hexToRgb(String(currentTheme['on-surface'])) },${ variableTheme['disabled-opacity'] })`
-  const primaryTextColor = `rgba(${ hexToRgb(String(currentTheme['on-surface'])) },${ variableTheme['high-emphasis-opacity'] })`
-  const borderColor = `rgba(${ hexToRgb(String(variableTheme['border-color'])) },${ variableTheme['border-opacity'] })`
-  
+  const disabledTextColor = `rgba(${hexToRgb(String(currentTheme['on-surface']))},${variableTheme['disabled-opacity']})`
+  const primaryTextColor = `rgba(${hexToRgb(String(currentTheme['on-surface']))},${variableTheme['high-emphasis-opacity']})`
+  const borderColor = `rgba(${hexToRgb(String(variableTheme['border-color']))},${variableTheme['border-opacity']})`
+
   return {
     bar: {
       chart: {
@@ -51,14 +57,15 @@ const chartOptions = computed(() => {
         toolbar: { show: false },
       },
       dataLabels: { enabled: false },
+      tooltip: { theme: vuetifyTheme.global.name.value },
       stroke: {
         width: 6,
         lineCap: 'round',
         colors: [currentTheme.surface],
       },
       colors: [
-        `rgba(${ hexToRgb(String(currentTheme.primary)) }, 1)`,
-        `rgba(${ hexToRgb(String(currentTheme.info)) }, 1)`,
+        `rgba(${hexToRgb(String(currentTheme.primary))}, 1)`,
+        `rgba(${hexToRgb(String(currentTheme.info))}, 1)`,
       ],
       legend: {
         offsetX: -10,
@@ -98,15 +105,7 @@ const chartOptions = computed(() => {
         axisTicks: { show: false },
         crosshairs: { opacity: 0 },
         axisBorder: { show: false },
-        categories: [
-          'Jan',
-          'Feb',
-          'Mar',
-          'Apr',
-          'May',
-          'Jun',
-          'Jul',
-        ],
+        categories: props.categories,
         labels: {
           style: {
             fontSize: '14px',
@@ -145,9 +144,9 @@ const chartOptions = computed(() => {
     },
     radial: {
       chart: { sparkline: { enabled: true } },
-      labels: ['Growth'],
+      labels: [props.radialLabel],
       stroke: { dashArray: 5 },
-      colors: [`rgba(${ hexToRgb(String(currentTheme.primary)) }, 1)`],
+      colors: [`rgba(${hexToRgb(String(currentTheme.primary))}, 1)`],
       states: {
         hover: { filter: { type: 'none' } },
         active: { filter: { type: 'none' } },
@@ -213,21 +212,6 @@ const chartOptions = computed(() => {
     },
   }
 })
-
-const balanceData = [
-  {
-    icon: 'bx-dollar',
-    amount: '$32.5k',
-    year: '2023',
-    color: 'primary',
-  },
-  {
-    icon: 'bx-wallet',
-    amount: '$41.2k',
-    year: '2022',
-    color: 'info',
-  },
-]
 </script>
 
 <template>
@@ -240,11 +224,14 @@ const balanceData = [
         :class="$vuetify.display.smAndUp ? 'border-e' : 'border-b'"
       >
         <VCardItem class="pb-0">
-          <VCardTitle>Total Revenue</VCardTitle>
+          <VCardTitle>{{ title }}</VCardTitle>
 
-          <template #append>
+          <template
+            #append
+            v-if="moreList"
+          >
             <div class="me-n3">
-              <MoreBtn />
+              <MoreBtn :menu-list="moreList" />
             </div>
           </template>
         </VCardItem>
@@ -265,42 +252,24 @@ const balanceData = [
         xl="4"
       >
         <VCardText class="text-center">
-          <VBtn
-            size="small"
-            variant="tonal"
-            append-icon="bx-chevron-down"
-            class="mt-4"
-          >
-            2023
-            <VMenu activator="parent">
-              <VList>
-                <VListItem
-                  v-for="(item, index) in ['2023', '2022', '2021']"
-                  :key="index"
-                  :value="item"
-                >
-                  <VListItemTitle>{{ item }}</VListItemTitle>
-                </VListItem>
-              </VList>
-            </VMenu>
-          </VBtn>
-
-          <!-- radial chart -->
           <VueApexCharts
             type="radialBar"
             :height="200"
             :options="chartOptions.radial"
-            :series="[78]"
+            :series="[radialValue]"
             class="mt-6"
           />
 
-          <p class="font-weight-medium text-high-emphasis mb-7">
-            62% Company Growth
+          <p
+            v-if="totalsText"
+            class="font-weight-medium text-high-emphasis mb-7"
+          >
+            {{ totalsText }}
           </p>
           <div class="d-flex align-center justify-center gap-x-8 gap-y-4 flex-wrap">
             <div
-              v-for="data in balanceData"
-              :key="data.year"
+              v-for="(data, key) in totalsData"
+              :key="key"
               class="d-flex align-center gap-3"
             >
               <VAvatar
@@ -312,9 +281,9 @@ const balanceData = [
               />
 
               <div class="text-start">
-                <span class="text-sm"> {{ data.year }}</span>
+                <span class="text-sm"> {{ data.text }}</span>
                 <h6 class="text-base font-weight-medium">
-                  {{ data.amount }}
+                  {{ data.value }}
                 </h6>
               </div>
             </div>

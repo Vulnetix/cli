@@ -2,7 +2,6 @@
 import VueApexCharts from 'vue3-apexcharts'
 import { useTheme } from 'vuetify'
 import statsVerticalChart from '@images/cards/chart-success.png'
-import statsVerticalPaypal from '@images/cards/paypal-error.png'
 import statsVerticalWallet from '@images/cards/wallet-primary.png'
 import { hexToRgb } from '@layouts/utils'
 
@@ -60,7 +59,7 @@ const tabData = computed(() => {
       compareToLastWeek: '$39k',
     },
     expenses: {
-      avatar: statsVerticalPaypal,
+      avatar: statsVerticalChart,
       title: 'Total Expenses',
       stats: '$316.5k',
       profitLoss: 27.8,
@@ -76,16 +75,16 @@ const tabData = computed(() => {
       compareToLastWeek: '$28k',
     },
   }
-  
+
   return data[currentTab.value]
 })
 
 const chartConfig = computed(() => {
   const currentTheme = vuetifyTheme.current.value.colors
   const variableTheme = vuetifyTheme.current.value.variables
-  const disabledTextColor = `rgba(${ hexToRgb(String(currentTheme['on-surface'])) },${ variableTheme['disabled-opacity'] })`
-  const borderColor = `rgba(${ hexToRgb(String(variableTheme['border-color'])) },${ variableTheme['border-opacity'] })`
-  
+  const disabledTextColor = `rgba(${hexToRgb(String(currentTheme['on-surface']))},${variableTheme['disabled-opacity']})`
+  const borderColor = `rgba(${hexToRgb(String(variableTheme['border-color']))},${variableTheme['border-opacity']})`
+
   return {
     chart: {
       parentHeightOffset: 0,
