@@ -1,4 +1,4 @@
-import { App, AuthResult, OSV, hex, isSPDX } from "@/utils";
+import { App, AuthResult, hex, isCDX, OSV } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -29,57 +29,56 @@ export async function onRequestPost(context) {
     let errors = new Set()
     try {
         const inputs = await request.json()
-        for (const spdx of inputs) {
-            if (!isSPDX(spdx)) {
-                return Response.json({ ok: false, error: { message: 'SPDX is missing necessary fields.' } })
+        for (const cdx of inputs) {
+            if (!isCDX(cdx)) {
+                return Response.json({ ok: false, error: { message: 'CDX is missing necessary fields.' } })
             }
-            const spdxStr = JSON.stringify(spdx)
-            const spdxId = await hex(spdxStr)
-            const spdxData = {
-                spdxId,
+            console.log(cdx)
+            const cdxStr = JSON.stringify(cdx)
+            const cdxId = await hex(cdxStr)
+            const cdxData = {
+                cdxId,
                 source: 'upload',
                 memberEmail: session.memberEmail,
-                repoName: '',
-                spdxVersion: spdx.spdxVersion,
-                dataLicense: spdx.dataLicense,
-                name: spdx.name,
-                documentNamespace: spdx.documentNamespace,
-                createdAt: (new Date(spdx.creationInfo.created)).getTime(),
-                toolName: spdx.creationInfo.creators.join(', '),
-                documentDescribes: spdx.documentDescribes.join(','),
-                packagesJSON: JSON.stringify(spdx.packages),
-                relationshipsJSON: JSON.stringify(spdx.relationships),
-                comment: spdx.creationInfo?.comment || '',
+                cdxVersion: cdx.specVersion,
+                serialNumber: cdx.serialNumber,
+                name: cdx.metadata.component.name,
+                version: cdx.metadata.component.version,
+                createdAt: (new Date(cdx.metadata.timestamp)).getTime(),
+                toolName: cdx.metadata.tools.map(t => `${t?.vendor} ${t?.name} ${t?.version}`.trim()).join(', '),
+                externalReferencesJSON: JSON.stringify(cdx.metadata.component.externalReferences),
+                componentsJSON: JSON.stringify(cdx.components),
+                dependenciesJSON: JSON.stringify(cdx.dependencies),
             }
-            const info = await prisma.spdx.upsert({
+            const info = await prisma.cdx.upsert({
                 where: {
-                    spdxId,
+                    cdxId,
                     memberEmail: session.memberEmail,
                 },
                 update: {
-                    createdAt: spdxData.createdAt,
-                    comment: spdxData.comment
+                    createdAt: cdxData.createdAt,
+                    serialNumber: cdxData.serialNumber
                 },
-                create: spdxData
+                create: cdxData
             })
-            console.log(`/github/repos/spdx ${spdxId} kid=${session.kid}`, info)
-            spdxData.packages = JSON.parse(spdxData.packagesJSON)
-            spdxData.relationships = JSON.parse(spdxData.relationshipsJSON)
-            delete spdxData.packagesJSON
-            delete spdxData.relationshipsJSON
-            files.push(spdxData)
+            console.log(`/github/repos/cdx ${cdxId} kid=${session.kid}`, info)
+            cdxData.externalReferences = JSON.parse(cdxData.externalReferencesJSON)
+            cdxData.components = JSON.parse(cdxData.componentsJSON)
+            cdxData.dependencies = JSON.parse(cdxData.dependenciesJSON)
+            delete cdxData.externalReferencesJSON
+            delete cdxData.componentsJSON
+            delete cdxData.dependenciesJSON
+            files.push(cdxData)
 
-            const osvQueries = spdx.packages.flatMap(pkg => {
-                if (!pkg?.externalRefs) { return }
-                return pkg.externalRefs
-                    .filter(ref => ref?.referenceType === 'purl')
-                    .map(ref => ({
-                        referenceLocator: decodeURIComponent(ref.referenceLocator),
-                        name: pkg.name,
-                        version: pkg?.versionInfo,
-                        license: pkg?.licenseConcluded || pkg?.licenseDeclared,
-                    }))
-            }).filter(q => q?.referenceLocator)
+            const osvQueries = cdx.components.map(component => {
+                if (!component?.purl) { return }
+                return {
+                    referenceLocator: decodeURIComponent(component.purl),
+                    name: component.name,
+                    version: component?.version,
+                    license: component?.licenses?.map(l => l.license.id).join(' '),
+                }
+            })
             const osv = new OSV()
             const queries = osvQueries.map(q => ({ package: { purl: q?.referenceLocator } }))
             const results = await osv.queryBatch(prisma, session.memberEmail, queries)
@@ -103,12 +102,12 @@ export async function onRequestPost(context) {
                         packageName: name,
                         packageVersion: version,
                         packageLicense: license,
-                        spdxId
+                        cdxId
                     }
                     const finding = await prisma.findings.upsert({
                         where: {
                             findingId,
-                            spdxId,
+                            cdxId,
                         },
                         update: {
                             modifiedAt: findingData.modifiedAt,

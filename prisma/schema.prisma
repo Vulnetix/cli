@@ -41,6 +41,7 @@ model members {
   integration_usage_log integration_usage_log[]
   findings              findings[]
   triage_activity       triage_activity[]
+  cdx                   cdx[]
 }
 
 model member_keys {
@@ -96,6 +97,7 @@ model git_repos {
   avatarUrl     String?
   sarif         sarif[]
   spdx          spdx[]
+  cdx           cdx[]
 
   @@unique([fullName, memberEmail])
 }
@@ -135,6 +137,26 @@ model sarif_results {
   securitySeverity    String?
   precision           String?
   tags                String?
+}
+
+model cdx {
+  cdxId                  String     @unique
+  source                 String
+  memberEmail            String
+  member                 members    @relation(fields: [memberEmail], references: [email])
+  repoName               String?
+  repo                   git_repos? @relation(fields: [repoName], references: [fullName])
+  cdxVersion             String
+  serialNumber           String?
+  name                   String?
+  version                String?
+  createdAt              Int
+  toolName               String?
+  externalReferencesJSON String?
+  componentsJSON         String?
+  dependenciesJSON       String?
+
+  findings findings[]
 }
 
 model spdx {
@@ -205,7 +227,7 @@ model findings {
   spdxId                     String?
   spdx                       spdx?             @relation(fields: [spdxId], references: [spdxId])
   cdxId                      String?
-  // cdx             cdx?    @relation(fields: [cdxId], references: [cdxId])
+  cdx                        cdx?              @relation(fields: [cdxId], references: [cdxId])
   triage                     triage_activity[]
 }
 

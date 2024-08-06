@@ -2,21 +2,21 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "triage-by-trivial-security@0.1.0",
-  "documentNamespace": "http://spdx.org/spdxdocs/triage-by-trivial-security-0.1.0-a32b8d9b-9742-412c-b6d3-2e1ced804223",
+  "name": "vulnetix@0.1.0",
+  "documentNamespace": "http://spdx.org/spdxdocs/vulnetix-0.1.0-879a0d86-0ddc-4fc3-8632-5b03aa04425d",
   "creationInfo": {
-    "created": "2024-07-12T06:57:54.182Z",
+    "created": "2024-08-06T13:33:51.053Z",
     "creators": [
-      "Tool: npm/cli-10.8.1"
+      "Tool: npm/cli-10.7.0"
     ]
   },
   "documentDescribes": [
-    "SPDXRef-Package-triage-by-trivial-security-0.1.0"
+    "SPDXRef-Package-vulnetix-0.1.0"
   ],
   "packages": [
     {
-      "name": "triage-by-trivial-security",
-      "SPDXID": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "name": "vulnetix",
+      "SPDXID": "SPDXRef-Package-vulnetix-0.1.0",
       "versionInfo": "0.1.0",
       "packageFileName": "",
       "primaryPackagePurpose": "LIBRARY",
@@ -28,7 +28,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/triage-by-trivial-security@0.1.0"
+          "referenceLocator": "pkg:npm/vulnetix@0.1.0"
         }
       ]
     },
@@ -121,6 +121,29 @@
         {
           "algorithm": "SHA512",
           "checksumValue": "7eeb1c75727d1b5a9bed6f157478be23046a8a3de5064a2c026e32750b4499b639f0ecc75ea421be5c6a124a33d32b2c3559f7f1b729456800f4f3fe386a22b3"
+        }
+      ]
+    },
+    {
+      "name": "@pandatix/js-cvss",
+      "SPDXID": "SPDXRef-Package-pandatix.js-cvss-0.4.4",
+      "versionInfo": "0.4.4",
+      "packageFileName": "node_modules/@pandatix/js-cvss",
+      "downloadLocation": "https://registry.npmjs.org/@pandatix/js-cvss/-/js-cvss-0.4.4.tgz",
+      "filesAnalyzed": false,
+      "homepage": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/%40pandatix/js-cvss@0.4.4"
+        }
+      ],
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "86105b43b20a7e846857740a4cff612ca253d7aebf7b41647a25522d9648115b0eec38f156621684994fbdba7e45768ce30db5e71821b675d0bf5dc46dd963ff"
         }
       ]
     },
@@ -2103,6 +2126,29 @@
       ]
     },
     {
+      "name": "ssvc",
+      "SPDXID": "SPDXRef-Package-ssvc-0.1.1",
+      "versionInfo": "0.1.1",
+      "packageFileName": "node_modules/ssvc",
+      "downloadLocation": "https://registry.npmjs.org/ssvc/-/ssvc-0.1.1.tgz",
+      "filesAnalyzed": false,
+      "homepage": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/ssvc@0.1.1"
+        }
+      ],
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "e27675b853c8b7d6156ab67780a332b76950978429fd14c8540751e14ee4603c70af134599300ad2bafcf260f5daf42ae3b64340ab7e16ef0de7064062a92021"
+        }
+      ]
+    },
+    {
       "name": "stable",
       "SPDXID": "SPDXRef-Package-stable-0.1.8",
       "versionInfo": "0.1.8",
@@ -2333,6 +2379,29 @@
       ]
     },
     {
+      "name": "ts-enum-util",
+      "SPDXID": "SPDXRef-Package-ts-enum-util-4.1.0",
+      "versionInfo": "4.1.0",
+      "packageFileName": "node_modules/ts-enum-util",
+      "downloadLocation": "https://registry.npmjs.org/ts-enum-util/-/ts-enum-util-4.1.0.tgz",
+      "filesAnalyzed": false,
+      "homepage": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/ts-enum-util@4.1.0"
+        }
+      ],
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "908b38f22b6635e864ccb9346095bf2df236f95158972b1c1ac63ea033429f1ac37e47b1fce7d8515d62a7b2fb60837ba694aa8f656638eb2c896f35467a3d40"
+        }
+      ]
+    },
+    {
       "name": "unplugin-vue-define-options",
       "SPDXID": "SPDXRef-Package-unplugin-vue-define-options-1.4.5",
       "versionInfo": "1.4.5",
@@ -2497,127 +2566,137 @@
   "relationships": [
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DESCRIBES"
     },
     {
       "spdxElementId": "SPDXRef-Package-casl.ability-6.7.1",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-casl.vue-2.2.2",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-floating-ui.dom-1.2.8",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-pandatix.js-cvss-0.4.4",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-prisma.adapter-d1-5.15.1",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-prisma.client-5.16.1",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-vuelidate.core-2.0.3",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-vuelidate.validators-2.0.4",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-vueuse.math-10.11.0",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-apexcharts-clevision-3.28.5",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-axios-1.7.2",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-chart.js-4.4.3",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-crypto-es-2.1.0",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-eslint-import-resolver-alias-1.1.2",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-jwt-decode-3.1.2",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-pinia-2.1.7",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-prismjs-1.29.0",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-roboto-fontface-0.10.0",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-ssvc-0.1.1",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-unplugin-vue-define-options-1.4.5",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-vue-chartjs-5.3.1",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-vue-flatpickr-component-11.0.3",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-vue-prism-component-2.0.0",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-vue3-apexcharts-1.5.3",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-vue3-perfect-scrollbar-1.6.1",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
       "spdxElementId": "SPDXRef-Package-webfontloader-1.6.28",
-      "relatedSpdxElement": "SPDXRef-Package-triage-by-trivial-security-0.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-vulnetix-0.1.0",
       "relationshipType": "DEPENDENCY_OF"
     },
     {
@@ -3083,6 +3162,11 @@
     {
       "spdxElementId": "SPDXRef-Package-pify-2.3.0",
       "relatedSpdxElement": "SPDXRef-Package-read-cache-1.0.0",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-ts-enum-util-4.1.0",
+      "relatedSpdxElement": "SPDXRef-Package-ssvc-0.1.1",
       "relationshipType": "DEPENDENCY_OF"
     },
     {

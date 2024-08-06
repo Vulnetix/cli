@@ -45,6 +45,8 @@ With Vulnetix, streamline your vulnerability management, reduce manual efforts, 
 
 Check the marketplace listing above for more.
 
+![Dashboard](.repo/dashboard.png)
+
 ![GitHub Repos](.repo/ghrepos.png)
 
 ![GitHub Tokens](.repo/ghtokens.png)

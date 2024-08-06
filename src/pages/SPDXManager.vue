@@ -1,10 +1,10 @@
 <script setup>
+import router from "@/router";
 import { useMemberStore } from '@/stores/member';
-import router from "@/router"
-import { isJSON, isSPDX } from '@/utils'
-import { default as axios } from 'axios'
-import { reactive } from 'vue'
-import { useTheme } from 'vuetify'
+import { isJSON, isSPDX } from '@/utils';
+import { default as axios } from 'axios';
+import { reactive } from 'vue';
+import { useTheme } from 'vuetify';
 
 const Member = useMemberStore()
 const { global } = useTheme()
@@ -397,7 +397,7 @@ const controller = reactive(new Controller())
                                             {{ result.toolName }}
                                         </td>
                                         <td class="text-center">
-                                            {{ result.packageCount }}
+                                            {{ result.packages.length }}
                                         </td>
                                         <td class="text-center">
                                             {{ result.comment }}
@@ -490,7 +490,7 @@ const controller = reactive(new Controller())
                                 {{ spdx.toolName }}
                             </td>
                             <td class="text-center">
-                                {{ spdx.packageCount }}
+                                {{ spdx.packages.length }}
                             </td>
                             <td class="text-center">
                                 {{ spdx.comment }}

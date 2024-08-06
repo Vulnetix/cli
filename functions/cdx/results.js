@@ -23,7 +23,7 @@ export async function onRequestGet(context) {
     if (result !== AuthResult.AUTHENTICATED) {
         return Response.json({ ok: false, error: { message: err }, result })
     }
-    const res = await prisma.spdx.findMany({
+    const res = await prisma.cdx.findMany({
         where: {
             memberEmail: session.memberEmail,
         },
@@ -38,13 +38,15 @@ export async function onRequestGet(context) {
             createdAt: 'desc',
         },
     })
-    const spdx = res.map(spdxData => {
-        spdxData.packages = JSON.parse(spdxData.packagesJSON)
-        spdxData.relationships = JSON.parse(spdxData.relationshipsJSON)
-        delete spdxData.packagesJSON
-        delete spdxData.relationshipsJSON
-        return spdxData
+    const cdx = res.map(cdxData => {
+        cdxData.externalReferences = JSON.parse(cdxData.externalReferencesJSON)
+        cdxData.components = JSON.parse(cdxData.componentsJSON)
+        cdxData.dependencies = JSON.parse(cdxData.dependenciesJSON)
+        delete cdxData.externalReferencesJSON
+        delete cdxData.componentsJSON
+        delete cdxData.dependenciesJSON
+        return cdxData
     })
 
-    return Response.json({ spdx })
+    return Response.json({ cdx })
 }

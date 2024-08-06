@@ -583,6 +583,67 @@ export function isSPDX(input) {
     return true
 }
 
+function validCdxComponent(o) {
+    if (typeof o?.name === 'undefined' ||
+        typeof o?.version === 'undefined' ||
+        typeof o?.purl === 'undefined' ||
+        typeof o?.['bom-ref'] === 'undefined' ||
+        typeof o?.externalReferences === 'undefined' ||
+        typeof o?.hashes === 'undefined' ||
+        !o.externalReferences.length ||
+        !o.hashes.length
+    ) {
+        console.log(o)
+        return false
+    }
+    return true
+}
+function validCdxDependency(o) {
+    if (typeof o?.ref === 'undefined' ||
+        typeof o?.dependsOn === 'undefined'
+    ) {
+        return false
+    }
+    return true
+}
+export function isCDX(input) {
+    const supportedVersions = ["1.5"]
+    let cdx
+    if (typeof input === "string" && isJSON(input)) {
+        cdx = JSON.parse(input)
+    } else {
+        cdx = Object.assign({}, input)
+    }
+    if (typeof cdx?.specVersion === 'undefined' || typeof cdx?.serialNumber === 'undefined') {
+        return false
+    }
+    if (!supportedVersions.includes(cdx?.specVersion)) {
+        throw `Provided CDX version ${cdx?.specVersion} is not supported. Must be one of: ${supportedVersions}`
+    }
+    if (typeof cdx?.metadata?.tools === 'undefined' ||
+        typeof cdx?.metadata?.component.name === 'undefined' ||
+        typeof cdx?.metadata?.component?.version === 'undefined' ||
+        typeof cdx?.metadata?.component?.purl === 'undefined' ||
+        typeof cdx?.metadata?.component?.['bom-ref'] === 'undefined' ||
+        typeof cdx?.components === 'undefined' ||
+        typeof cdx?.dependencies === 'undefined' ||
+        !cdx?.metadata.tools.length ||
+        !cdx?.components.length ||
+        !cdx?.dependencies.length
+    ) {
+        return false
+    }
+    if (cdx.components.filter(c => !validCdxComponent(c)).length > 0) {
+        console.log(`3`)
+        return false
+    }
+    if (cdx.dependencies.filter(d => !validCdxDependency(d)).length > 0) {
+        console.log(`4`)
+        return false
+    }
+    return true
+}
+
 export function isSARIF(input) {
     const supportedVersions = ["2.1.0"]
     let sarif

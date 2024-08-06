@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:88ec9670-dc23-474a-86af-f52974f93439",
+  "serialNumber": "urn:uuid:c0d16641-a398-47be-91f7-22b35cbaa307",
   "version": 1,
   "metadata": {
-    "timestamp": "2024-07-12T06:57:53.645Z",
+    "timestamp": "2024-08-06T13:33:50.486Z",
     "lifecycles": [
       {
         "phase": "pre-build"
@@ -15,16 +15,16 @@
       {
         "vendor": "npm",
         "name": "cli",
-        "version": "10.8.1"
+        "version": "10.7.0"
       }
     ],
     "component": {
-      "bom-ref": "triage-by-trivial-security@0.1.0",
+      "bom-ref": "vulnetix@0.1.0",
       "type": "library",
-      "name": "triage-by-trivial-security",
+      "name": "vulnetix",
       "version": "0.1.0",
       "scope": "required",
-      "purl": "pkg:npm/triage-by-trivial-security@0.1.0",
+      "purl": "pkg:npm/vulnetix@0.1.0",
       "properties": [
         {
           "name": "cdx:npm:package:path",
@@ -168,6 +168,32 @@
           "license": {
             "id": "MIT"
           }
+        }
+      ]
+    },
+    {
+      "bom-ref": "@pandatix/js-cvss@0.4.4",
+      "type": "library",
+      "name": "@pandatix/js-cvss",
+      "version": "0.4.4",
+      "scope": "required",
+      "purl": "pkg:npm/%40pandatix/js-cvss@0.4.4",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@pandatix/js-cvss"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/@pandatix/js-cvss/-/js-cvss-0.4.4.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "86105b43b20a7e846857740a4cff612ca253d7aebf7b41647a25522d9648115b0eec38f156621684994fbdba7e45768ce30db5e71821b675d0bf5dc46dd963ff"
         }
       ]
     },
@@ -2975,6 +3001,32 @@
       ]
     },
     {
+      "bom-ref": "ssvc@0.1.1",
+      "type": "library",
+      "name": "ssvc",
+      "version": "0.1.1",
+      "scope": "required",
+      "purl": "pkg:npm/ssvc@0.1.1",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ssvc"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/ssvc/-/ssvc-0.1.1.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e27675b853c8b7d6156ab67780a332b76950978429fd14c8540751e14ee4603c70af134599300ad2bafcf260f5daf42ae3b64340ab7e16ef0de7064062a92021"
+        }
+      ]
+    },
+    {
       "bom-ref": "stable@0.1.8",
       "type": "library",
       "name": "stable",
@@ -3305,6 +3357,32 @@
       ]
     },
     {
+      "bom-ref": "ts-enum-util@4.1.0",
+      "type": "library",
+      "name": "ts-enum-util",
+      "version": "4.1.0",
+      "scope": "required",
+      "purl": "pkg:npm/ts-enum-util@4.1.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ts-enum-util"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/ts-enum-util/-/ts-enum-util-4.1.0.tgz"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "908b38f22b6635e864ccb9346095bf2df236f95158972b1c1ac63ea033429f1ac37e47b1fce7d8515d62a7b2fb60837ba694aa8f656638eb2c896f35467a3d40"
+        }
+      ]
+    },
+    {
       "bom-ref": "unplugin-vue-define-options@1.4.5",
       "type": "library",
       "name": "unplugin-vue-define-options",
@@ -3538,11 +3616,12 @@
   ],
   "dependencies": [
     {
-      "ref": "triage-by-trivial-security@0.1.0",
+      "ref": "vulnetix@0.1.0",
       "dependsOn": [
         "@casl/ability@6.7.1",
         "@casl/vue@2.2.2",
         "@floating-ui/dom@1.2.8",
+        "@pandatix/js-cvss@0.4.4",
         "@prisma/adapter-d1@5.15.1",
         "@prisma/client@5.16.1",
         "@vuelidate/core@2.0.3",
@@ -3557,6 +3636,7 @@
         "pinia@2.1.7",
         "prismjs@1.29.0",
         "roboto-fontface@0.10.0",
+        "ssvc@0.1.1",
         "unplugin-vue-define-options@1.4.5",
         "vue-chartjs@5.3.1",
         "vue-flatpickr-component@11.0.3",
@@ -3584,6 +3664,10 @@
     },
     {
       "ref": "@kurkle/color@0.3.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "@pandatix/js-cvss@0.4.4",
       "dependsOn": []
     },
     {
@@ -4057,6 +4141,12 @@
       "dependsOn": []
     },
     {
+      "ref": "ssvc@0.1.1",
+      "dependsOn": [
+        "ts-enum-util@4.1.0"
+      ]
+    },
+    {
       "ref": "stable@0.1.8",
       "dependsOn": []
     },
@@ -4110,6 +4200,10 @@
       "dependsOn": [
         "svg.js@2.7.1"
       ]
+    },
+    {
+      "ref": "ts-enum-util@4.1.0",
+      "dependsOn": []
     },
     {
       "ref": "unplugin-vue-define-options@1.4.5",
