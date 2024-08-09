@@ -198,16 +198,43 @@ const controller = reactive(new Controller())
             :loading="state.loading"
         >
             <template v-slot:expanded-row="{ item, columns }">
-                <tr
-                    v-for="(triage, key) in item.triage"
-                    :key="key"
-                >
+                <tr>
                     <td :colspan="columns.length">
                         <VSkeletonLoader
                             v-if="!!state.triageLoaders[item.findingId]"
                             type="list-item-three-line"
                         ></VSkeletonLoader>
-                        {{ triage.analysisState }}
+                        <VList lines="two">
+                            <VListItem
+                                v-if="item.triage.analysisState"
+                                :subtitle="item.triage.analysisState"
+                                title="Analysis State"
+                            >
+                            </VListItem>
+                            <VListItem
+                                v-if="item.triage.cvssVector"
+                                title="CVSS"
+                            >
+                                {{ item.triage.cvssVector }} ({{ item.triage.cvssScore }})</VListItem>
+                            <VListItem
+                                v-if="item.triage.epssScore"
+                                title="EPSS"
+                            >
+                                {{ item.triage.epssScore }} ({{ item.triage.epssPercentile }})
+                            </VListItem>
+                            <VListItem
+                                v-if="item.triage.ssvc"
+                                :subtitle="item.triage.ssvc"
+                                title="SSVC"
+                            >
+                            </VListItem>
+                            <VListItem
+                                v-if="item.triage.lastObserved"
+                                :subtitle="new Date(item.triage.lastObserved).toLocaleDateString()"
+                                title="Last Observed"
+                            >
+                            </VListItem>
+                        </VList>
                     </td>
                 </tr>
             </template>

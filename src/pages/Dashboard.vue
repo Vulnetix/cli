@@ -1,4 +1,5 @@
 <script setup>
+import { round } from '@/utils';
 import { useAnalyticsStore } from '@/stores/analytics'
 import AnalyticsFinanceTabs from '@/views/dashboard/AnalyticsFinanceTab.vue'
 import AnalyticsOrderStatistics from '@/views/dashboard/AnalyticsOrderStatistics.vue'
@@ -30,13 +31,13 @@ const series = [
 const totalsData = [
   {
     icon: 'tabler-eye-exclamation',
-    value: `${state.total.unseen_queue_percentage}%`,
+    value: `${round(state.total.unseen_queue_percentage)}%`,
     text: `Unseen`,
     color: state.total.unseen_queue_percentage < 20 ? 'success' : state.total.unseen_queue_percentage < 50 ? 'info' : state.total.unseen_queue_percentage < 80 ? 'warning' : 'error',
   },
   {
     icon: 'solar-bug-minimalistic-broken',
-    value: `${state.total.unresolved_percentage}%`,
+    value: `${round(state.total.unresolved_percentage)}%`,
     text: `Unresolved`,
     color: state.total.unresolved_percentage < 20 ? 'success' : state.total.unresolved_percentage < 50 ? 'info' : state.total.unresolved_percentage < 80 ? 'warning' : 'error',
   },
@@ -67,7 +68,7 @@ const totalsData = [
             title: 'Unresolved this week',
             image: chart1,
             stats: state.current_week.in_triage,
-            change: state.current_week.unresolved_percentage,
+            change: round(state.current_week.unresolved_percentage),
             moreList: [
               {
                 title: 'Go to Queue',
@@ -86,7 +87,7 @@ const totalsData = [
             title: 'Resolved this week',
             image: chart2,
             stats: state.current_week.resolved_all,
-            change: state.current_week.resolved_percentage,
+            change: round(state.current_week.resolved_percentage),
             moreList: [
               {
                 title: 'Go to Queue',
@@ -112,7 +113,7 @@ const totalsData = [
         :series="series"
         :categories="categories"
         :radialLabel="`Triaged`"
-        :radialValue="state.total.resolved_percentage"
+        :radialValue="round(state.total.resolved_percentage)"
       />
     </VCol>
 
@@ -133,7 +134,7 @@ const totalsData = [
             title: 'Pix Automated',
             image: chart4,
             stats: state.total.triage_automated,
-            change: state.total.automated_percentage,
+            change: round(state.total.automated_percentage),
             moreList: [
               {
                 title: 'Go to Queue',
@@ -152,7 +153,7 @@ const totalsData = [
             title: 'Queued',
             image: chart3,
             stats: state.total.triage_unseen,
-            change: -state.total.unseen_queue_percentage,
+            change: -round(state.total.unseen_queue_percentage),
             moreList: [
               {
                 title: 'Go to Queue',

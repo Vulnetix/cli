@@ -153,9 +153,14 @@ watch(NotificationsStore, () => {
                 to: '/github-integration',
             }" />
             <VerticalNavLink :item="{
-                title: 'OSV',
+                title: 'OSV.dev',
                 icon_url: '/osv-logo.png',
                 to: '/osv-integration',
+            }" />
+            <VerticalNavLink :item="{
+                title: 'First.org',
+                icon_url: '/1st-logo.png',
+                to: '/first-org-integration',
             }" />
         </template>
 

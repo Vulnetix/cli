@@ -39,7 +39,7 @@ export async function onRequestGet(context) {
         }
         const gh = new GitHub(app.accessToken)
 
-        const { content, error } = await gh.getRepoSarif(repoName)
+        const { content, error } = await gh.getRepoSarif(prisma, session.memberEmail, repoName)
         if (error?.message) {
             if ("Bad credentials" === error.message) {
                 app.expires = (new Date()).getTime()
@@ -73,7 +73,7 @@ export async function onRequestGet(context) {
     })
     for (const memberKey of memberKeys) {
         const gh = new GitHub(memberKey.secret)
-        const { content, error } = await gh.getRepoSarif(repoName)
+        const { content, error } = await gh.getRepoSarif(prisma, session.memberEmail, repoName)
         if (error?.message) {
             errors.push({ error, app: { login: memberKey.keyLabel } })
             continue
@@ -126,9 +126,12 @@ const process = async (prisma, session, data, fullName) => {
 
     const results = []
     for (const run of data.sarif.runs) {
+        if (Object.entries(run.results).length === 0) {
+            continue
+        }
         for (const result of run.results) {
             const resultData = {
-                guid: result.guid,
+                guid: result.guid || data.report.id.toString(),
                 reportId: data.report.id.toString(),
                 messageText: result.message.text,
                 ruleId: result.ruleId,

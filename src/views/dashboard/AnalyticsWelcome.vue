@@ -1,4 +1,5 @@
 <script setup>
+import { round } from '@/utils';
 import pixImg from '@/assets/images/pix.png';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useMemberStore } from '@/stores/member';
@@ -25,10 +26,10 @@ const state = await Analytics.$state
 
                 <VCardText>
                     <span>
-                        Pix has automated {{ state.current_week.automated_percentage }}% of issues this week.
+                        Pix has automated {{ round(state.current_week.automated_percentage) }}% of issues this week.
                         <br>
-                        The unseen issues in queue is {{ state.total.unseen_queue_percentage }}% ({{
-                            state.total.triage_unseen }}) of {{ state.total.total_findings }}
+                        The unseen issues in queue is {{ round(state.total.unseen_queue_percentage) }}% ({{
+                            state.total.triage_unseen }} of {{ state.total.total_findings }})
                     </span>
                     <br>
                     <VBtn

@@ -27,8 +27,17 @@ export async function onRequestPost(context) {
     if (!body.token.startsWith('github_pat_')) {
         return Response.json({ error: { message: `Invalid PAT provided, expected "github_pat_" prefix.` } })
     }
-    const tokenInfo = await prisma.member_keys.create({
-        data: {
+    const tokenInfo = await prisma.member_keys.upsert({
+        where: {
+            memberEmail_secret: {
+                memberEmail: session.memberEmail,
+                secret: body.token,
+            }
+        },
+        update: {
+            keyLabel: body.label,
+        },
+        create: {
             memberEmail: session.memberEmail,
             keyLabel: body.label,
             keyType: 'github_pat',
@@ -39,7 +48,7 @@ export async function onRequestPost(context) {
     delete tokenInfo.secret
     console.log(`/github/pat github_pat label=${body.label}`, tokenInfo)
     const gh = new GitHub(body.token)
-    const { content, error, tokenExpiry } = await gh.getUser()
+    const { content, error, tokenExpiry } = await gh.getUser(prisma, session.memberEmail)
     if (error?.message) {
         return Response.json({ error })
     }
@@ -50,8 +59,15 @@ export async function onRequestPost(context) {
         created: content?.created_at ? (new Date(content.created_at)).getTime() : (new Date()).getTime(),
         avatarUrl: content?.avatar_url,
     }
-    const patInfo = await prisma.github_pat.create({
-        data: tokenInfo.githubPat
+    const patInfo = await prisma.github_pat.upsert({
+        where: {
+            keyId: tokenInfo.githubPat.keyId,
+        },
+        update: {
+            expires: tokenInfo.githubPat.expires,
+            avatarUrl: tokenInfo.githubPat.avatarUrl,
+        },
+        create: tokenInfo.githubPat,
     })
     console.log(`/github/pat github_pat label=${body.label}`, patInfo)
 

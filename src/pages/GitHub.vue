@@ -22,7 +22,9 @@ const initialState = {
     pat: "",
     showEmptyState: false,
     loadingBar: false,
+    loadingLog: false,
     octodexImageUrl: `https://octodex.github.com/images/${octodex[Math.floor(Math.random() * octodex.length)]}`,
+    log: [],
     patTokens: [],
     githubApps: [],
     gitRepos: [],
@@ -308,6 +310,7 @@ class Controller {
                 state.pat = ''
                 state.patName = ''
                 state.success = "Saved successfully."
+                this.refreshLog()
             } else {
                 state.info = data?.result || 'No change'
             }
@@ -394,6 +397,46 @@ class Controller {
             state.error = typeof e === "string" ? e : `${e.code} ${e.message}`
             state.loading = false
         }
+    }
+    refreshLog = async () => {
+        clearAlerts()
+        state.loadingLog = true
+        try {
+            const limit = 150
+            const pageSize = 20
+            let hasMore = true
+            let skip = 0
+            while (hasMore && skip <= limit) {
+                const { data } = await axios.get(`/github/log?take=${pageSize}&skip=${skip}`)
+                if (data.ok) {
+                    if (data?.results) {
+                        data.results.map(r => state.log.push(r))
+                    }
+                } else if (typeof data === "string" && !isJSON(data)) {
+                    break
+                } else if (data?.error?.message) {
+                    state.loadingLog = false
+                    state.error = data.error.message
+                    return
+                } else if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+                    state.loadingLog = false
+                    state.info = data.result
+                    setTimeout(() => router.push('/logout'), 2000)
+                    return
+                } else {
+                    break
+                }
+                if (Object.keys(data.results).length < pageSize) {
+                    hasMore = false
+                } else {
+                    skip += pageSize
+                }
+            }
+        } catch (e) {
+            console.error(e)
+            state.error = `${e.code} ${e.message}`
+        }
+        state.loadingLog = false
     }
 }
 
@@ -556,6 +599,7 @@ const controller = reactive(new Controller())
                     prepend-icon="mdi:integrated-circuit"
                     text="Integration"
                     value="integration"
+                    @click="controller.refreshLog"
                 ></VTab>
             </VTabs>
             <VTabsWindow v-model="tabs">
@@ -707,7 +751,7 @@ const controller = reactive(new Controller())
                     </VCard>
                 </VTabsWindowItem>
                 <VTabsWindowItem value="integration">
-                    <VCard title="GitHub Integration">
+                    <VCard title="Integration Credentials">
                         <VCardText>
                             <VBtn
                                 href="https://github.com/apps/vulnetix/installations/new/"
@@ -944,15 +988,15 @@ const controller = reactive(new Controller())
                                                 </td>
                                                 <td class="text-center">
                                                     <VTooltip
-                                                        :text="(new Date(item.githubPat.created)).toLocaleString()"
+                                                        :text="(new Date(item?.githubPat.created)).toLocaleString()"
                                                         location="right"
                                                     >
                                                         <template v-slot:activator="{ props }">
                                                             <time
                                                                 v-bind="props"
-                                                                :datetime="(new Date(item.githubPat.created)).toISOString()"
+                                                                :datetime="(new Date(item?.githubPat.created)).toISOString()"
                                                             >
-                                                                {{ timeAgo(new Date(item.githubPat.created)) }}
+                                                                {{ timeAgo(new Date(item?.githubPat.created)) }}
                                                             </time>
                                                         </template>
                                                     </VTooltip>
@@ -965,10 +1009,10 @@ const controller = reactive(new Controller())
                                                 </td>
                                                 <td
                                                     class="text-center"
-                                                    :class="(new Date(item.githubPat.expires)).getTime() <= (new Date()).getTime() ? 'text-error' : 'text-success'"
+                                                    :class="(new Date(item?.githubPat.expires)).getTime() <= (new Date()).getTime() ? 'text-error' : 'text-success'"
                                                 >
                                                     <VTooltip
-                                                        :text="(new Date(item.githubPat.expires)).toISOString()"
+                                                        :text="(new Date(item?.githubPat.expires)).toISOString()"
                                                         location="right"
                                                     >
                                                         <template v-slot:activator="{ props }">
@@ -1021,6 +1065,133 @@ const controller = reactive(new Controller())
                                 </VExpansionPanelText>
                             </VExpansionPanel>
                         </VExpansionPanels>
+                        <VDivider />
+                    </VCard>
+                    <VCard
+                        title="Activity Log"
+                        class="mt-3"
+                    >
+                        <VSkeletonLoader
+                            v-if="state.loadingLog"
+                            type="table-row@10"
+                        />
+                        <VTable
+                            class="text-no-wrap"
+                            height="40rem"
+                            fixed-header
+                            v-if="!state.loadingLog && state.log.length"
+                        >
+                            <thead>
+                                <tr>
+                                    <th scope="col">
+                                        Event Time
+                                    </th>
+                                    <th scope="col">
+                                        URL
+                                    </th>
+                                    <th scope="col">
+                                        Status Code
+                                    </th>
+                                    <th scope="col">
+                                        Request
+                                    </th>
+                                    <th scope="col">
+                                        Response
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="(record, i) in state.log"
+                                    :key="i"
+                                >
+                                    <td>
+                                        {{ (new Date(record.createdAt)).toLocaleString() }}
+                                    </td>
+                                    <td>
+                                        {{ JSON.parse(record.request || '')?.url }}
+                                    </td>
+                                    <td>
+                                        <VChip
+                                            size="small"
+                                            variant="outlined"
+                                            :color="record.statusCode.toString()[0] === '2' ? '#35933f' : 'error'"
+                                        >
+                                            {{ record.statusCode }}
+                                        </VChip>
+                                    </td>
+                                    <td>
+                                        <VDialog max-width="800">
+                                            <template v-slot:activator="{ props: activatorProps }">
+                                                <VBtn
+                                                    v-bind="activatorProps"
+                                                    :text="`View JSON (${JSON.parse(record.request || '')?.queries?.length} queries)`"
+                                                    :color="global.name.value === 'dark' ? 'secondary' : 'primary'"
+                                                    variant="tonal"
+                                                    density="comfortable"
+                                                ></VBtn>
+                                            </template>
+                                            <template v-slot:default="{ isActive }">
+                                                <VCard title="Request">
+                                                    <VCardText>
+                                                        <pre>{{ JSON.stringify(JSON.parse(record.request || ''), null, 2) }}</pre>
+                                                    </VCardText>
+                                                    <VCardActions>
+                                                        <VSpacer></VSpacer>
+                                                        <VBtn
+                                                            text="Close"
+                                                            :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                                                            variant="tonal"
+                                                            density="comfortable"
+                                                            @click="isActive.value = false"
+                                                        ></VBtn>
+                                                    </VCardActions>
+                                                </VCard>
+                                            </template>
+                                        </VDialog>
+                                    </td>
+                                    <td>
+                                        <VDialog max-width="800">
+                                            <!-- v-if="JSON.parse(record.response || '').body.length > 0" -->
+                                            <template v-slot:activator="{ props: activatorProps }">
+                                                <VBtn
+                                                    v-bind="activatorProps"
+                                                    :text="`View JSON (${JSON.parse(record.response || '')?.body?.length} results)`"
+                                                    :color="global.name.value === 'dark' ? 'secondary' : 'primary'"
+                                                    variant="tonal"
+                                                    density="comfortable"
+                                                ></VBtn>
+                                            </template>
+                                            <template v-slot:default="{ isActive }">
+                                                <VCard title="Response">
+                                                    <VCardText>
+
+                                                        <pre>{{ JSON.stringify(JSON.parse(record.response || ''), null, 2) }}</pre>
+                                                    </VCardText>
+                                                    <VCardActions>
+                                                        <VSpacer></VSpacer>
+                                                        <VBtn
+                                                            text="Close"
+                                                            :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                                                            variant="tonal"
+                                                            density="comfortable"
+                                                            @click="isActive.value = false"
+                                                        ></VBtn>
+                                                    </VCardActions>
+                                                </VCard>
+                                            </template>
+                                        </VDialog>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </VTable>
+                        <VAlert
+                            v-else
+                            color="primary"
+                            icon="pixelarticons-mood-sad"
+                            text="No log data to display"
+                            variant="tonal"
+                        />
                         <VDivider />
                     </VCard>
                 </VTabsWindowItem>

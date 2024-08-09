@@ -53,21 +53,24 @@ export async function onRequestGet(context) {
             return Response.json({ ok: false, error })
         }
         const expires = tokenExpiry || appExpiryPeriod + created
-        let ghEmail
-        const ghUserEmails = await gh.getUserEmails()
-        if (!ghUserEmails?.ok || ghUserEmails?.error?.message || !ghUserEmails?.content || !ghUserEmails.content?.length) {
-            return Response.json({ ok: ghUserEmails.ok, error: ghUserEmails.error, result: `${ghUserEmails.status} ${ghUserEmails.statusText}` })
-        }
-        for (const ghUserEmail of ghUserEmails.content) {
-            if (ghUserEmail?.verified === true && !!ghUserEmail?.email && !ghUserEmail.email.endsWith('@users.noreply.github.com')) {
-                ghEmail = ghUserEmail.email
-                break
+        const { session } = await app.authenticate()
+        let memberEmail = session?.memberEmail
+        if (!memberEmail) {
+            const ghUserEmails = await gh.getUserEmails()
+            if (!ghUserEmails?.ok || ghUserEmails?.error?.message || !ghUserEmails?.content || !ghUserEmails.content?.length) {
+                return Response.json({ ok: ghUserEmails.ok, error: ghUserEmails.error, result: `${ghUserEmails.status} ${ghUserEmails.statusText}` })
+            }
+            for (const ghUserEmail of ghUserEmails.content) {
+                if (ghUserEmail?.verified === true && !!ghUserEmail?.email && !ghUserEmail.email.endsWith('@users.noreply.github.com')) {
+                    memberEmail = ghUserEmail.email
+                    break
+                }
+            }
+            if (content?.email && !memberEmail) {
+                memberEmail = content.email
             }
         }
-        if (content?.email && !ghEmail) {
-            ghEmail = content.email
-        }
-        const memberCheck = await app.memberExists(ghEmail)
+        const memberCheck = await app.memberExists(memberEmail)
         if (memberCheck.exists) {
             response.member = memberCheck.member
         } else {
@@ -79,7 +82,7 @@ export async function onRequestGet(context) {
                 lastName = words.join(' ') || ''
             }
             response.member = {
-                email: ghEmail,
+                email: memberEmail,
                 avatarUrl: content?.avatar_url || '',
                 orgName: content?.company || '',
                 passwordHash: await pbkdf2(oauthData.access_token),
@@ -89,7 +92,7 @@ export async function onRequestGet(context) {
             const memberInfo = await prisma.members.create({
                 data: response.member
             })
-            console.log(`/github/install register email=${ghEmail}`, memberInfo)
+            console.log(`/github/install register email=${memberEmail}`, memberInfo)
             delete response.member.passwordHash
         }
         const token = crypto.randomUUID()
@@ -111,7 +114,7 @@ export async function onRequestGet(context) {
         console.log(`/github/install session kid=${token}`, sessionInfo)
         response.session.token = token
         response.session.expiry = expiry
-        const AppData = {
+        const appData = {
             installationId: parseInt(params.installation_id, 10),
             memberEmail: response.member.email,
             accessToken: oauthData.access_token,
@@ -121,12 +124,12 @@ export async function onRequestGet(context) {
             expires
         }
         try {
-            await prisma.github_apps.findUniqueOrThrow({ where: { login: AppData.login } })
-            const GHAppInfo = await prisma.git_repos.update({
-                where: { login: AppData.login },
+            await prisma.github_apps.findUniqueOrThrow({ where: { login: appData.login } })
+            const GHAppInfo = await prisma.github_apps.update({
+                where: { login: appData.login },
                 data: {
-                    accessToken: AppData.accessToken,
-                    expires: AppData.expires,
+                    accessToken: appData.accessToken,
+                    expires: appData.expires,
                 }
             })
             console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
@@ -136,7 +139,7 @@ export async function onRequestGet(context) {
             // No records to update OAuth token
         }
         const GHAppInfo = await prisma.github_apps.create({
-            data: AppData
+            data: appData
         })
         console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
         response.result = AuthResult.AUTHENTICATED

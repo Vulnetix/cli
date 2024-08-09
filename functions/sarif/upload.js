@@ -73,6 +73,7 @@ export async function onRequestPost(context) {
                                 resultData.level = rule.defaultConfiguration.level
                                 resultData.description = rule.fullDescription.text
                                 resultData.helpMarkdown = rule.help?.markdown || rule.help?.text
+                                resultData.securitySeverity = rule.properties?.['security-severity']
                                 resultData.precision = rule.properties.precision
                                 resultData.tags = JSON.stringify(rule.properties.tags)
                                 break
@@ -87,7 +88,7 @@ export async function onRequestPost(context) {
                                     resultData.level = rule.defaultConfiguration.level
                                     resultData.description = rule.fullDescription.text
                                     resultData.helpMarkdown = rule.help?.markdown || rule.help?.text
-                                    resultData.securitySeverity = rule.properties['security-severity']
+                                    resultData.securitySeverity = rule.properties?.['security-severity']
                                     resultData.precision = rule.properties.precision
                                     resultData.tags = JSON.stringify(rule.properties.tags)
                                     break

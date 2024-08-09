@@ -1,6 +1,15 @@
-import { App, AuthResult, OSV } from "@/utils";
+import { App, AuthResult, EPSS, OSV } from "@/utils";
+import { CVSS30, CVSS31, CVSS40 } from '@pandatix/js-cvss';
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
+import {
+    Decision,
+    Methodology,
+    Exploitation,
+    TechnicalImpact,
+    Automatable,
+    MissionWellbeingImpact,
+} from "ssvc";
 
 export async function onRequestGet(context) {
     const {
@@ -25,7 +34,7 @@ export async function onRequestGet(context) {
             return Response.json({ ok: false, error: { message: err }, result })
         }
         const { findingId } = params
-        let finding = await prisma.findings.findUnique({
+        const originalFinding = await prisma.findings.findUnique({
             where: {
                 findingId,
             },
@@ -33,24 +42,28 @@ export async function onRequestGet(context) {
                 memberEmail: true,
             },
             include: {
+                triage: true,
                 spdx: {
                     include: {
                         repo: true
                     }
                 },
-                triage: true,
-                // cdx: true
+                cdx: {
+                    include: {
+                        repo: true
+                    }
+                }
             }
         })
-        finding = {
-            ...finding,
-            cwes: JSON.parse(finding.cwes ?? '[]'),
-            aliases: JSON.parse(finding.aliases ?? '[]'),
-            referencesJSON: JSON.parse(finding.referencesJSON ?? '[]'),
+        const finding = {
+            ...originalFinding,
+            cwes: JSON.parse(originalFinding.cwes ?? '[]'),
+            aliases: JSON.parse(originalFinding.aliases ?? '[]'),
+            referencesJSON: JSON.parse(originalFinding.referencesJSON ?? '[]'),
             spdx: {
-                ...finding?.spdx || {},
-                packagesJSON: JSON.parse(finding?.spdx?.packagesJSON ?? '[]'),
-                relationshipsJSON: JSON.parse(finding?.spdx?.relationshipsJSON ?? '[]')
+                ...originalFinding?.spdx || {},
+                packagesJSON: JSON.parse(originalFinding?.spdx?.packagesJSON ?? '[]'),
+                relationshipsJSON: JSON.parse(originalFinding?.spdx?.relationshipsJSON ?? '[]')
             }
         }
 
@@ -60,8 +73,8 @@ export async function onRequestGet(context) {
         finding.modifiedAt = (new Date(vuln.modified)).getTime()
         finding.publishedAt = (new Date(vuln.published)).getTime()
         finding.databaseReviewed = vuln?.database_specific?.github_reviewed ? 1 : 0
-        finding.cve = vuln.aliases.filter(a => a.startsWith('CVE-')).pop()
-        finding.aliases = JSON.stringify(vuln.aliases)
+        finding.cve = vuln?.aliases?.filter(a => a.startsWith('CVE-')).pop()
+        finding.aliases = JSON.stringify(vuln?.aliases || [])
         finding.cwes = JSON.stringify(vuln?.database_specific?.cwe_ids || [])
         finding.packageEcosystem = vuln.affected.map(affected => affected.package.ecosystem).pop()
         finding.sourceCodeUrl = vuln.affected.map(affected => affected.database_specific.source).pop()
@@ -89,32 +102,53 @@ export async function onRequestGet(context) {
             }
         })
         console.log(`Update ${finding.detectionTitle}`, info)
-
-        // const cvss4 = finding.severity.filter(i => i.score.startsWith('CVSS:4')).pop()
-        // const cvss31 = finding.severity.filter(i => i.score.startsWith('CVSS:3.1')).pop()
-        // const cvss3 = finding.severity.filter(i => i.score.startsWith('CVSS:3')).pop()
-        // const vec = !!cvss4 ? CVSS40(cvss4) : !!cvss31 ? CVSS31(cvss31) : cvss3 ? CVSS30(cvss3) : null
-        // if (
-        //     ['E:U', 'E:P', 'E:F', 'E:H'].some(substring => cvss3.includes(substring)) ||
-        //     ['E:A', 'E:P', 'E:U'].some(substring => cvss4.includes(substring))
-        // ) {
-        //     const triage_activity = {
-        //         findingId,
-        //         createdAt: new Date().getTime(),
-        //         lastObserved,
-        //         cvssVector,
-        //         cvssScore: vec.Score(),
-        //         epssPercentile,
-        //         epssScore,
-        //         ssvc,
-        //         remediation,
-        //         analysisState,
-        //         analysisJustification,
-        //         analysisResponse,
-        //         analysisDetail,
-        //     }
-
-        // }
+        let scores
+        if (finding.cve) {
+            const epss = new EPSS()
+            scores = await epss.query(prisma, session.memberEmail, finding.cve)
+        }
+        const epssScore = scores?.epss
+        const epssPercentile = scores?.percentile
+        const cvss4 = vuln?.severity?.filter(i => i.score.startsWith('CVSS:4/'))?.pop()
+        const cvss31 = vuln?.severity?.filter(i => i.score.startsWith('CVSS:3.1/'))?.pop()
+        const cvss3 = vuln?.severity?.filter(i => i.score.startsWith('CVSS:3/'))?.pop()
+        const cvssVector = !!cvss4 ? new CVSS40(cvss4.score) : !!cvss31 ? new CVSS31(cvss31.score) : cvss3 ? new CVSS30(cvss3.score) : null
+        // Decision
+        // Methodology
+        // Exploitation
+        // TechnicalImpact
+        // Automatable
+        // MissionWellbeingImpact        
+        const vexData = finding.triage
+        let { analysisState } = vexData
+        if (
+            cvssVector && (
+                ['E:U', 'E:P', 'E:F', 'E:H'].some(substring => cvss3?.score?.includes(substring)) ||
+                ['E:A', 'E:P', 'E:U'].some(substring => cvss4?.score?.includes(substring))
+            )
+        ) {
+            analysisState = 'exploitable'
+        }
+        const vexInfo = await prisma.triage_activity.update({
+            where: {
+                findingId,
+            },
+            data: {
+                analysisState,
+                cvssVector: !!cvss4 ? cvss4.score : !!cvss31 ? cvss31.score : cvss3 ? cvss3.score : null,
+                cvssScore: !!cvss4 ? cvssVector.Score().toString() : !!cvss31 ? cvssVector.BaseScore().toString() : cvss3 ? cvssVector.BaseScore().toString() : null,
+                epssPercentile,
+                epssScore,
+                seen: 1,
+                seenAt: new Date().getTime(),
+                // ssvc,
+                // remediation,
+                // analysisJustification,
+                // analysisResponse,
+                // analysisDetail,
+            }
+        })
+        console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)
 
         return Response.json({ ok: true, finding })
     } catch (err) {

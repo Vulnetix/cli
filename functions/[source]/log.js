@@ -24,21 +24,25 @@ export async function onRequestGet(context) {
         if (result !== AuthResult.AUTHENTICATED) {
             return Response.json({ ok: false, error: { message: err }, result })
         }
-        if (!['osv'].includes((params?.source || '').toLowerCase())) {
+        if (!['osv', 'first', 'vulncheck', 'github'].includes((params?.source || '').toLowerCase())) {
             return Response.json({ ok: false, error: { message: `Invalid log source` } })
         }
-        const log = await prisma.integration_usage_log.findMany({
+        const { searchParams } = new URL(request.url)
+        const take = parseInt(searchParams.get('take'), 10) || 50
+        const skip = parseInt(searchParams.get('skip'), 10) || 0
+        const results = await prisma.integration_usage_log.findMany({
             where: {
                 memberEmail: session.memberEmail,
                 source: params?.source,
             },
-            take: 1000,
+            take,
+            skip,
             orderBy: {
                 createdAt: 'desc',
             },
         })
 
-        return Response.json({ ok: true, log })
+        return Response.json({ ok: true, results })
     } catch (err) {
         console.error(err)
         return Response.json({ ok: false, error: { message: err }, result: AuthResult.REVOKED })

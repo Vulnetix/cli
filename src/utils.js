@@ -113,7 +113,7 @@ export class OSV {
                     memberEmail,
                     source: 'osv',
                     request: JSON.stringify({ method: 'POST', url, queries }).trim(),
-                    response: JSON.stringify({ body: results.filter(i => !!i).map(i => ({ ...i, modified: (new Date(i?.modified)).getTime() })), status: resp.status }).trim(),
+                    response: JSON.stringify({ body: results.filter(i => !!i).map(i => convertIsoDatesToTimestamps(i)), status: resp.status }).trim(),
                     statusCode: resp?.status || 500,
                     createdAt: (new Date()).getTime(),
                 }
@@ -128,28 +128,69 @@ export class OSV {
         const resp = await this.fetchJSON(url, null, "GET")
         if (resp?.content) {
             const result = resp.content
-            result.modified = (new Date(result.modified)).getTime()
-            if (result?.published) {
-                result.published = (new Date(result.published)).getTime()
-            }
-            if (result?.database_specific?.nvd_published_at) {
-                result.database_specific.nvd_published_at = (new Date(result.database_specific.nvd_published_at)).getTime()
-            }
-            if (result?.database_specific?.github_reviewed_at) {
-                result.database_specific.github_reviewed_at = (new Date(result.database_specific.github_reviewed_at)).getTime()
-            }
             const createLog = await prisma.integration_usage_log.create({
                 data: {
                     memberEmail,
                     source: 'osv',
                     request: JSON.stringify({ method: "GET", url, vulnId }).trim(),
-                    response: JSON.stringify({ body: result, status: resp.status }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(result), status: resp.status }).trim(),
                     statusCode: resp?.status || 500,
                     createdAt: (new Date()).getTime(),
                 }
             })
             console.log(`osv.query()`, createLog)
             return result
+        }
+    }
+}
+
+export class EPSS {
+    constructor() {
+        this.headers = {
+            'User-Agent': 'Vulnetix',
+        }
+        this.baseUrl = "https://api.first.org/data/v1"
+    }
+    async fetchJSON(url, body = null, method = 'POST') {
+        try {
+            if (method === 'POST' && typeof body !== "string") {
+                body = JSON.stringify(body)
+            }
+            const response = await fetch(url, { headers: this.headers, method, body })
+            const respText = await response.text()
+            if (!response.ok) {
+                console.error(`${method} ${url}`)
+                console.error(`req headers=${JSON.stringify(this.headers, null, 2)}`)
+                console.error(`resp headers=${JSON.stringify(response.headers, null, 2)}`)
+                console.error(respText)
+                console.error(`EPSS error! status: ${response.status} ${response.statusText}`)
+            }
+            const content = JSON.parse(respText)
+            return { ok: response.ok, status: response.status, statusText: response.statusText, content, url }
+        } catch (e) {
+            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
+            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
+
+            return { url, status: 500, error: { message: e.message, lineno, colno } }
+        }
+    }
+    async query(prisma, memberEmail, cve) {
+        // https://google.github.io/osv.dev/get-v1-vulns/
+        const url = `${this.baseUrl}/epss?cve=${cve}`
+        const resp = await this.fetchJSON(url, null, "GET")
+        if (resp?.content) {
+            const createLog = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'first',
+                    request: JSON.stringify({ method: "GET", url }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(resp.content), status: resp.status }).trim(),
+                    statusCode: resp?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`epss.query()`, createLog)
+            return resp.content.data.filter(d => d.cve === cve).pop()
         }
     }
 }
@@ -300,7 +341,7 @@ export class GitHub {
             return { url, error: { message: e.message, lineno, colno } }
         }
     }
-    async getRepoSarif(full_name) {
+    async getRepoSarif(prisma, memberEmail, full_name) {
         // https://docs.github.com/en/rest/code-scanning/code-scanning?apiVersion=2022-11-28#list-code-scanning-analyses-for-a-repository
         const files = []
         const perPage = 100
@@ -310,6 +351,17 @@ export class GitHub {
             const url = `${this.baseUrl}/repos/${full_name}/code-scanning/analyses?per_page=${perPage}&page=${page}`
             console.log(`github.getRepoSarif(${full_name}) ${url}`)
             const data = await this.fetchJSON(url)
+            const createLog0 = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'github',
+                    request: JSON.stringify({ method: "GET", url }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                    statusCode: data?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`GitHub.getRepoSarif()`, createLog0)
             if (!data?.ok) {
                 return data
             }
@@ -317,6 +369,17 @@ export class GitHub {
                 const sarifUrl = `${this.baseUrl}/repos/${full_name}/code-scanning/analyses/${report.id}`
                 console.log(`github.getRepoSarif(${full_name}) ${sarifUrl}`)
                 const sarifData = await this.fetchSARIF(sarifUrl)
+                const createLog = await prisma.integration_usage_log.create({
+                    data: {
+                        memberEmail,
+                        source: 'github',
+                        request: JSON.stringify({ method: "GET", url: sarifUrl }).trim(),
+                        response: JSON.stringify({ body: convertIsoDatesToTimestamps(sarifData.content), tokenExpiry: sarifData.tokenExpiry }).trim(),
+                        statusCode: sarifData?.status || 500,
+                        createdAt: (new Date()).getTime(),
+                    }
+                })
+                console.log(`GitHub.getRepoSarif()`, createLog)
                 if (!sarifData?.ok) {
                     return sarifData
                 }
@@ -340,31 +403,83 @@ export class GitHub {
 
         return { content: files }
     }
-    async getRepoSpdx(full_name) {
+    async getRepoSpdx(prisma, memberEmail, full_name) {
         // https://docs.github.com/en/rest/dependency-graph/sboms?apiVersion=2022-11-28#export-a-software-bill-of-materials-sbom-for-a-repository
         const url = `${this.baseUrl}/repos/${full_name}/dependency-graph/sbom`
         console.log(`github.getRepoSpdx(${full_name}) ${url}`)
-        return this.fetchJSON(url)
+        const data = await this.fetchJSON(url)
+        const createLog = await prisma.integration_usage_log.create({
+            data: {
+                memberEmail,
+                source: 'github',
+                request: JSON.stringify({ method: "GET", url }).trim(),
+                response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                statusCode: data?.status || 500,
+                createdAt: (new Date()).getTime(),
+            }
+        })
+        console.log(`GitHub.getRepoSpdx()`, createLog)
+        return data
     }
-    async getUserEmails() {
+    async getUserEmails(prisma, memberEmail) {
         // https://docs.github.com/en/rest/users/emails?apiVersion=2022-11-28#list-email-addresses-for-the-authenticated-user
         const url = `${this.baseUrl}/user/emails`
         console.log(`github.getUserEmails() ${url}`)
-        return this.fetchJSON(url)
+        const data = await this.fetchJSON(url)
+        if (!!prisma && !!memberEmail) {
+            const createLog = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'github',
+                    request: JSON.stringify({ method: "GET", url }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                    statusCode: data?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`GitHub.getUserEmails()`, createLog)
+        }
+        return data
     }
-    async getUser() {
+    async getUser(prisma, memberEmail) {
         // https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-the-authenticated-user
         const url = `${this.baseUrl}/user`
         console.log(`github.getUser() ${url}`)
-        return this.fetchJSON(url)
+        const data = await this.fetchJSON(url)
+        if (!!prisma && !!memberEmail) {
+            const createLog = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'github',
+                    request: JSON.stringify({ method: "GET", url }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                    statusCode: data?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`GitHub.getUser()`, createLog)
+        }
+        return data
     }
-    async getInstallations() {
+    async getInstallations(prisma, memberEmail) {
         // https://docs.github.com/en/rest/apps/installations?apiVersion=2022-11-28#list-app-installations-accessible-to-the-user-access-token
         const url = `${this.baseUrl}/user/installations`
         console.log(`github.getInstallations() ${url}`)
-        return this.fetchJSON(url)
+        const data = await this.fetchJSON(url)
+        const createLog = await prisma.integration_usage_log.create({
+            data: {
+                memberEmail,
+                source: 'github',
+                request: JSON.stringify({ method: "GET", url }).trim(),
+                response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                statusCode: data?.status || 500,
+                createdAt: (new Date()).getTime(),
+            }
+        })
+        console.log(`GitHub.getInstallations()`, createLog)
+        return data
     }
-    async revokeToken() {
+    async revokeToken(prisma, memberEmail) {
         const url = `${this.baseUrl}/installation/token`
         try {
             const method = "DELETE"
@@ -373,6 +488,17 @@ export class GitHub {
                 console.error(`req headers=${JSON.stringify(this.headers, null, 2)}`)
                 console.error(`GitHub error! status: ${response.status} ${response.statusText}`)
             }
+            const createLog = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'github',
+                    request: JSON.stringify({ method, url }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(response.content), tokenExpiry: response.tokenExpiry }).trim(),
+                    statusCode: response?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`GitHub.revokeToken()`, createLog)
             return { ok: response.ok, status: response.status, statusText: response.statusText, url }
         } catch (e) {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
@@ -381,7 +507,7 @@ export class GitHub {
             return { url, error: { message: e.message, lineno, colno } }
         }
     }
-    async getRepos() {
+    async getRepos(prisma, memberEmail) {
         // https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#list-repositories-for-the-authenticated-user
         const repos = []
         const perPage = 100
@@ -391,6 +517,17 @@ export class GitHub {
             const url = `${this.baseUrl}/user/repos?per_page=${perPage}&page=${page}`
             console.log(`github.getRepos() ${url}`)
             const data = await this.fetchJSON(url)
+            const createLog = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'github',
+                    request: JSON.stringify({ method: "GET", url }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                    statusCode: data?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`GitHub.getRepos()`, createLog)
             if (!data?.ok) {
                 return data
             }
@@ -405,46 +542,95 @@ export class GitHub {
 
         return { content: repos }
     }
-    async getBranch(repo, branch) {
+    async getBranch(prisma, memberEmail, repo, branch) {
         // https://docs.github.com/en/rest/branches/branches?apiVersion=2022-11-28#get-a-branch
         const url = `${this.baseUrl}/repos/${repo.full_name}/branches/${branch}`
         console.log(`github.getBranch() ${url}`)
-        return this.fetchJSON(url)
+        const data = await this.fetchJSON(url)
+        const createLog = await prisma.integration_usage_log.create({
+            data: {
+                memberEmail,
+                source: 'github',
+                request: JSON.stringify({ method: "GET", url }).trim(),
+                response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                statusCode: data?.status || 500,
+                createdAt: (new Date()).getTime(),
+            }
+        })
+        console.log(`GitHub.getBranch()`, createLog)
+        return data
     }
-    async getBranches(full_name) {
+    async getBranches(prisma, memberEmail, full_name) {
         // https://docs.github.com/en/rest/branches/branches?apiVersion=2022-11-28#list-branches
         const branches = []
         const perPage = 100
         let page = 1
+        let url;
 
         while (true) {
-            const currentBranches = await this.fetchJSON(`${this.baseUrl}/repos/${full_name}/branches?per_page=${perPage}&page=${page}`)
+            url = `${this.baseUrl}/repos/${full_name}/branches?per_page=${perPage}&page=${page}`
+            const data = await this.fetchJSON(url)
+            const createLog = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'github',
+                    request: JSON.stringify({ method: "GET", url }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                    statusCode: data?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`GitHub.getBranches()`, createLog)
 
-            branches.push(...currentBranches)
+            branches.push(...data.content)
 
-            if (currentBranches.length < perPage) {
+            if (data.content.length < perPage) {
                 break
             }
 
             page++
         }
 
-        return { content: branches }
+        return { ok: true, content: branches }
     }
-    async getCommit(full_name, commit_sha) {
+    async getCommit(prisma, memberEmail, full_name, commit_sha) {
         // https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28
         const url = `${this.baseUrl}/repos/${full_name}/commits/${commit_sha}`
         console.log(`github.getCommit() ${url}`)
-        return this.fetchJSON(url)
+        const data = await this.fetchJSON(url)
+        const createLog = await prisma.integration_usage_log.create({
+            data: {
+                memberEmail,
+                source: 'github',
+                request: JSON.stringify({ method: "GET", url }).trim(),
+                response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                statusCode: data?.status || 500,
+                createdAt: (new Date()).getTime(),
+            }
+        })
+        console.log(`GitHub.getCommit()`, createLog)
+        return data
     }
-    async getCommits(full_name, branch_name) {
+    async getCommits(prisma, memberEmail, full_name, branch_name) {
         // https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28
         const commits = []
         const perPage = 100
         let page = 1
-
+        let url;
         while (true) {
-            const currentCommits = await this.fetchJSON(`${this.baseUrl}/repos/${full_name}/commits?sha=${branch_name}&per_page=${perPage}&page=${page}`)
+            url = `${this.baseUrl}/repos/${full_name}/commits?sha=${branch_name}&per_page=${perPage}&page=${page}`
+            const data = await this.fetchJSON(url)
+            const createLog = await prisma.integration_usage_log.create({
+                data: {
+                    memberEmail,
+                    source: 'github',
+                    request: JSON.stringify({ method: "GET", url }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                    statusCode: data?.status || 500,
+                    createdAt: (new Date()).getTime(),
+                }
+            })
+            console.log(`GitHub.getCommits()`, createLog)
 
             commits.push(...currentCommits.content)
 
@@ -455,32 +641,7 @@ export class GitHub {
             page++
         }
 
-        return { content: commits }
-    }
-    async getFileContents(full_name, branch_name) {
-        // https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28
-        const fileUrl = `${this.baseUrl}/repos/${full_name}/contents/.vulnetix?ref=${branch_name}`
-
-        console.log(fileUrl)
-        try {
-            const fileResponse = await fetch(fileUrl, { headers: this.headers })
-            if (!fileResponse.ok) {
-                if (fileResponse.status === 404) {
-                    return { exists: false, content: null }
-                }
-                console.error(await response.text(), response.headers.entries().map(pair => `${pair[0]}: ${pair[1]}`))
-                throw new Error(`getFileContents error! status: ${response.status} ${response.statusText}`)
-            }
-            const file = await fileResponse.json()
-            const content = Buffer.from(file.content, file.encoding).toString('utf-8')
-
-            return { exists: true, content }
-        } catch (e) {
-            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
-            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
-
-            return { exists: false, ok: response.ok, status: response.status, statusText: response.statusText, error: { message: e.message, lineno, colno } }
-        }
+        return { ok: true, content: commits }
     }
 }
 /**
@@ -708,6 +869,27 @@ export function isSARIF(input) {
 
 export const appExpiryPeriod = (86400000 * 365 * 10)  // 10 years
 
+export function convertIsoDatesToTimestamps(obj) {
+    return Object.fromEntries(
+        Object.entries(obj).map(([key, value]) => {
+            if (typeof value === 'string' && /(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))/.test(value)) {
+                value = new Date(value).getTime()
+            } else if (!!value && typeof value === 'object') {
+                value = convertIsoDatesToTimestamps(value)
+            }
+            return [key, value]
+        })
+    )
+}
+
+export const flatten = (obj, prefix = '') =>
+    Object.entries(obj).reduce((acc, [key, value]) => {
+        const newKey = prefix ? `${prefix}_${key}` : key
+        return value && typeof value === 'object'
+            ? { ...acc, ...flatten(value, newKey) }
+            : { ...acc, [newKey]: value }
+    }, {})
+
 export async function hex(text, name = "SHA-1") {
     return [...new Uint8Array(await crypto.subtle.digest({ name }, new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('')
 }
@@ -717,6 +899,8 @@ export function UUID() {
         (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
     )
 }
+
+export const round = (n, p = 100) => Math.round((n + Number.EPSILON) * p) / p
 
 export function isJSON(str) {
     try {

@@ -4,12 +4,6 @@ import { isJSON } from '@/utils';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
-import router from "../router";
-
-// curl 'https://api.vulncheck.com/v3/index/vulncheck-kev' \
-//     -H 'User-Agent: Vulnetix' \
-//     -H 'Accept: application/json' \
-//     -H 'Authorization: Bearer undefined' > ./vulncheck-kev.json
 
 const Member = useMemberStore()
 const { global } = useTheme()
@@ -48,7 +42,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore && skip <= limit) {
-                const { data } = await axios.get(`/vulncheck/log?take=${pageSize}&skip=${skip}`)
+                const { data } = await axios.get(`/first/log?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.results) {
                         data.results.map(r => state.log.push(r))
@@ -78,39 +72,6 @@ class Controller {
             state.error = `${e.code} ${e.message}`
         }
         state.loading = false
-    }
-    save = async () => {
-        clearAlerts()
-        state.loading = true
-        try {
-            const { data } = await axios.post(`/vulncheck/integrate`, { apiKey: state.apiKey }, { headers: { 'Content-Type': 'application/json' } })
-            state.loading = false
-
-            if (typeof data === "string" && !isJSON(data)) {
-                state.error = "Data could not be saved, please try again later."
-
-                return
-            }
-            if (data?.error?.message) {
-                state.error = data?.error?.message
-            }
-            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-                state.info = data.result
-
-                return setTimeout(() => router.push('/logout'), 2000)
-            }
-            if (data.ok === true) {
-                state.success = "Saved successfully."
-            } else {
-                state.info = data?.result || 'No change'
-            }
-
-            return
-        } catch (e) {
-            console.error(e)
-            state.error = typeof e === "string" ? e : `${e.code} ${e.message}`
-            state.loading = false
-        }
     }
 }
 
@@ -158,111 +119,117 @@ const controller = reactive(new Controller())
             />
         </VCol>
     </Vrow>
-    <VCard title="VulnCheck Integration">
-        <VAlert
-            v-if="!state.loading && !state.apiKey"
-            color="info"
-            icon="$info"
-            title="Information"
-            border="start"
-            variant="tonal"
-            closable
-        >
-            Create a FREE token to use the VulnCheck API, you can
-            <a
-                :class="global.name.value === 'dark' ? 'text-secondary' : 'text-primary'"
-                href="https://vulncheck.com/settings/token/newtoken"
-                target="_blank"
-            >create API Tokens here.</a>
-        </VAlert>
-
-        <VCardText>
-            <VForm @submit.prevent="() => { }">
-                <p class="text-base font-weight-medium">
-                    Request vulnerabilities related to a CPE (Common Platform Enumeration) URI string, or Package URL
-                    Scheme (PURL)
-                </p>
-                <VRow>
-                    <VCol
-                        md="6"
-                        cols="12"
-                    >
-                        <VTextField
-                            :disabled="state.loading"
-                            v-model="state.apiKey"
-                            placeholder="vulncheck_xxxx...xxxx"
-                            label="VulnCheck API Token"
-                        />
-                    </VCol>
-                    <VCol
-                        md="6"
-                        cols="12"
-                        class="d-flex flex-wrap gap-4"
-                    >
-                    </VCol>
-                </VRow>
-                <VRow>
-                    <VCol
-                        md="6"
-                        cols="12"
-                        class="d-flex flex-wrap gap-4"
-                    >
-                        <VBtn @click="controller.save">Save</VBtn>
-
-                    </VCol>
-                </VRow>
-            </VForm>
-        </VCardText>
-
+    <VCard title="First.org">
         <VSkeletonLoader
             v-if="state.loading"
             type="table-row@10"
         />
         <VTable
             class="text-no-wrap"
+            height="40rem"
+            fixed-header
             v-if="!state.loading && state.log.length"
         >
             <thead>
                 <tr>
                     <th scope="col">
-                        Event Type
+                        Event Time
                     </th>
                     <th scope="col">
-                        Email
+                        URL
                     </th>
                     <th scope="col">
-                        Browser
+                        Status Code
                     </th>
                     <th scope="col">
-                        Webhook
+                        Request
+                    </th>
+                    <th scope="col">
+                        Response
                     </th>
                 </tr>
             </thead>
             <tbody>
                 <tr
-                    v-for="(device, i) in state.log"
+                    v-for="(record, i) in state.log"
                     :key="i"
                 >
                     <td>
-                        {{ device.type }}
+                        {{ (new Date(record.createdAt)).toLocaleString() }}
                     </td>
                     <td>
-                        <VCheckbox
-                            v-model="device.email"
-                            @change="controller.save(device)"
-                        />
+                        {{ JSON.parse(record.request || '')?.url }}
                     </td>
                     <td>
-                        <VCheckbox
-                            v-model="device.browser"
-                            @change="controller.save(device)"
-                        />
+                        <VChip
+                            size="small"
+                            variant="outlined"
+                            :color="record.statusCode.toString()[0] === '2' ? '#35933f' : 'error'"
+                        >
+                            {{ record.statusCode }}
+                        </VChip>
                     </td>
                     <td>
-                        <VCheckbox
-                            v-model="device.webhook"
-                            @change="controller.save(device)"
-                        />
+                        <VDialog max-width="800">
+                            <template v-slot:activator="{ props: activatorProps }">
+                                <VBtn
+                                    v-bind="activatorProps"
+                                    :text="`View JSON (${JSON.parse(record.request || '')?.queries?.length} queries)`"
+                                    :color="global.name.value === 'dark' ? 'secondary' : 'primary'"
+                                    variant="tonal"
+                                    density="comfortable"
+                                ></VBtn>
+                            </template>
+                            <template v-slot:default="{ isActive }">
+                                <VCard title="Request">
+                                    <VCardText>
+                                        <pre>{{ JSON.stringify(JSON.parse(record.request || ''), null, 2) }}</pre>
+                                    </VCardText>
+                                    <VCardActions>
+                                        <VSpacer></VSpacer>
+                                        <VBtn
+                                            text="Close"
+                                            :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                                            variant="tonal"
+                                            density="comfortable"
+                                            @click="isActive.value = false"
+                                        ></VBtn>
+                                    </VCardActions>
+                                </VCard>
+                            </template>
+                        </VDialog>
+                    </td>
+                    <td>
+                        <VDialog max-width="800">
+                            <!-- v-if="JSON.parse(record.response || '').body.length > 0" -->
+                            <template v-slot:activator="{ props: activatorProps }">
+                                <VBtn
+                                    v-bind="activatorProps"
+                                    :text="`View JSON (${JSON.parse(record.response || '')?.body?.length} results)`"
+                                    :color="global.name.value === 'dark' ? 'secondary' : 'primary'"
+                                    variant="tonal"
+                                    density="comfortable"
+                                ></VBtn>
+                            </template>
+                            <template v-slot:default="{ isActive }">
+                                <VCard title="Response">
+                                    <VCardText>
+
+                                        <pre>{{ JSON.stringify(JSON.parse(record.response || ''), null, 2) }}</pre>
+                                    </VCardText>
+                                    <VCardActions>
+                                        <VSpacer></VSpacer>
+                                        <VBtn
+                                            text="Close"
+                                            :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                                            variant="tonal"
+                                            density="comfortable"
+                                            @click="isActive.value = false"
+                                        ></VBtn>
+                                    </VCardActions>
+                                </VCard>
+                            </template>
+                        </VDialog>
                     </td>
                 </tr>
             </tbody>

@@ -36,17 +36,17 @@ export async function onRequestGet(context) {
                 memberEmail: true,
             },
             include: {
+                triage: true,
                 spdx: {
                     include: {
                         repo: true
                     }
                 },
-                triage: {
-                    where: {
-                        analysisState: { in: ['in_triage'] }
+                cdx: {
+                    include: {
+                        repo: true
                     }
                 },
-                // cdx: true
             },
             take,
             skip,

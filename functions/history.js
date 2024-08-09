@@ -32,9 +32,7 @@ export async function onRequestGet(context) {
                 memberEmail: session.memberEmail,
                 NOT: {
                     triage: {
-                        every: {
-                            analysisState: { in: ['in_triage'] }
-                        }
+                        analysisState: 'in_triage'
                     }
                 }
             },
@@ -42,13 +40,17 @@ export async function onRequestGet(context) {
                 memberEmail: true,
             },
             include: {
+                triage: true,
                 spdx: {
                     include: {
                         repo: true
                     }
                 },
-                triage: true,
-                // cdx: true
+                cdx: {
+                    include: {
+                        repo: true
+                    }
+                },
             },
             take,
             skip,

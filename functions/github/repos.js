@@ -38,7 +38,7 @@ export async function onRequestGet(context) {
             throw new Error('github_apps invalid')
         }
         const gh = new GitHub(app.accessToken)
-        const { content, error } = await gh.getRepos()
+        const { content, error } = await gh.getRepos(prisma, session.memberEmail)
         if (error?.message) {
             if ("Bad credentials" === error.message) {
                 app.expires = (new Date()).getTime()
@@ -76,7 +76,7 @@ export async function onRequestGet(context) {
     })
     for (const memberKey of memberKeys) {
         const gh = new GitHub(memberKey.secret)
-        const { content, error } = await gh.getRepos()
+        const { content, error } = await gh.getRepos(prisma, session.memberEmail)
         if (error?.message) {
             return Response.json({ error, app: { login: memberKey.keyLabel } })
         }
@@ -89,9 +89,10 @@ export async function onRequestGet(context) {
     return Response.json({ githubApps, gitRepos })
 }
 const store = async (prisma, session, repo) => {
-    const data = {
+    console.log('store repo', repo)
+    const create = {
         fullName: repo.full_name,
-        ghid: repo.ghid,
+        ghid: repo.id,
         source: "GitHub",
         createdAt: (new Date(repo.created_at)).getTime(),
         updatedAt: (new Date(repo.updated_at)).getTime(),
@@ -108,33 +109,29 @@ const store = async (prisma, session, repo) => {
         avatarUrl: repo.owner.avatar_url,
     }
     const where = {
-        fullName: data.fullName,
-        AND: [{ memberEmail: data.memberEmail }],
+        fullName_memberEmail: {
+            fullName: create.fullName,
+            memberEmail: create.memberEmail,
+        }
     }
     try {
-        await prisma.git_repos.findUniqueOrThrow({ where })
-        const info = await prisma.git_repos.update({
-            where, data: {
-                fullName: data.fullName,
-                updatedAt: data.updatedAt,
-                pushedAt: data.pushedAt,
-                defaultBranch: data.defaultBranch,
-                ownerId: data.ownerId,
-                licenseSpdxId: data.licenseSpdxId,
-                licenseName: data.licenseName,
-                fork: data.fork,
-                template: data.template,
-                archived: data.archived,
-                visibility: data.visibility,
-                avatarUrl: data.avatarUrl,
-            }
+        const info = await prisma.git_repos.upsert({
+            where,
+            create,
+            update: {
+                pushedAt: create.pushedAt,
+                defaultBranch: create.defaultBranch,
+                licenseSpdxId: create.licenseSpdxId,
+                licenseName: create.licenseName,
+                archived: create.archived,
+                visibility: create.visibility,
+                avatarUrl: create.avatarUrl,
+            },
         })
-        console.log(`/github/repos git_repos ${data.fullName} kid=${session.kid}`, info)
-        return data
-    } catch (_) {
-        const info = await prisma.git_repos.create({ data })
-
-        console.log(`/github/repos git_repos ${data.fullName} kid=${session.kid}`, info)
-        return data
+        console.log(`/github/repos git_repos ${create.fullName} kid=${session.kid}`, info)
+    } catch (err) {
+        console.error(err)
     }
+
+    return create
 }

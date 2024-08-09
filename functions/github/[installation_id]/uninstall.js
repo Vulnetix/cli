@@ -30,7 +30,7 @@ export async function onRequestGet(context) {
         }
         const app = await prisma.github_apps.findUniqueOrThrow({ where })
         const gh = new GitHub(app.accessToken)
-        const result = await gh.revokeToken()
+        const result = await gh.revokeToken(prisma, session.memberEmail)
         if ([204, 401].includes(result.status)) {
             const response = await prisma.github_apps.delete({ where })
             console.log(`/github/uninstall session kid=${session.token}`, response)

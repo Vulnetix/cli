@@ -34,13 +34,17 @@ export async function onRequestGet(context) {
                 memberEmail: true,
             },
             include: {
+                triage: true,
                 spdx: {
                     include: {
                         repo: true
                     }
                 },
-                triage: true,
-                // cdx: true
+                cdx: {
+                    include: {
+                        repo: true
+                    }
+                },
             }
         })
 
@@ -68,7 +72,7 @@ function calculateMonthlyCounts(parsed) {
     }
 
     // Extract all lastObserved dates
-    const lastObservedDates = parsed.flatMap(f => f.triage.map(t => t.lastObserved))
+    const lastObservedDates = parsed.map(f => f.triage.lastObserved)
 
     // Group dates by month and year
     const dateGroups = lastObservedDates.reduce((groups, date) => {
@@ -80,7 +84,7 @@ function calculateMonthlyCounts(parsed) {
 
     // Calculate counts for each month
     const monthlyResults = Object.entries(dateGroups).reduce((result, [monthYear, dates]) => {
-        const filteredData = parsed.filter(f => f.triage.some(t => dates.includes(t.lastObserved)))
+        const filteredData = parsed.filter(f => dates.includes(f.triage.lastObserved))
         result[monthYear] = makeAnalysis(filteredData)
 
         return result
@@ -104,37 +108,37 @@ function calculateMonthlyCounts(parsed) {
 function makeAnalysis(arr) {
     const data = {
         total_findings: arr.length,
-        triage_automated: arr.filter(f => f.triage.filter(t => !['in_triage', 'exploitable'].includes(t.analysisState) && t.triageAutomated === 1).length > 0).length,
-        triage_unseen: arr.filter(f => f.triage.filter(t => ['in_triage', 'exploitable'].includes(t.analysisState) && t.seen === 0).length > 0).length,
-        ssvc_act: arr.filter(f => f.triage.filter(t => t.ssvc === ActionCISA.ACT).length > 0).length,
-        ssvc_attend: arr.filter(f => f.triage.filter(t => t.ssvc === ActionCISA.ATTEND).length > 0).length,
-        ssvc_track: arr.filter(f => f.triage.filter(t => t.ssvc === ActionCISA.TRACK).length > 0).length,
-        ssvc_track_star: arr.filter(f => f.triage.filter(t => t.ssvc === ActionCISA.TRACK_STAR).length > 0).length,
-        ssvc_immediate: arr.filter(f => f.triage.filter(t => t.ssvc === ActionFIRST.IMMEDIATE).length > 0).length,
-        ssvc_oob: arr.filter(f => f.triage.filter(t => t.ssvc === ActionFIRST.OUT_OF_BAND).length > 0).length,
-        ssvc_scheduled: arr.filter(f => f.triage.filter(t => t.ssvc === ActionFIRST.SCHEDULED).length > 0).length,
-        in_triage: arr.filter(f => f.triage.filter(t => t.analysisState === 'in_triage').length > 0).length,
-        resolved: arr.filter(f => f.triage.filter(t => t.analysisState === 'resolved').length > 0).length,
-        resolved_with_pedigree: arr.filter(f => f.triage.filter(t => t.analysisState === 'resolved_with_pedigree').length > 0).length,
-        resolved_all: arr.filter(f => f.triage.filter(t => ['resolved_with_pedigree', 'resolved'].includes(t.analysisState)).length > 0).length,
-        exploitable: arr.filter(f => f.triage.filter(t => t.analysisState === 'exploitable' && t.seen === 0).length > 0).length,
-        exploitable_unseen: arr.filter(f => f.triage.filter(t => t.analysisState === 'exploitable').length > 0).length,
-        false_positive: arr.filter(f => f.triage.filter(t => t.analysisState === 'false_positive').length > 0).length,
-        not_affected: arr.filter(f => f.triage.filter(t => t.analysisState === 'not_affected').length > 0).length,
-        code_not_present: arr.filter(f => f.triage.filter(t => t.analysisJustification === 'code_not_present').length > 0).length,
-        code_not_reachable: arr.filter(f => f.triage.filter(t => t.analysisJustification === 'code_not_reachable').length > 0).length,
-        requires_configuration: arr.filter(f => f.triage.filter(t => t.analysisJustification === 'requires_configuration').length > 0).length,
-        requires_dependency: arr.filter(f => f.triage.filter(t => t.analysisJustification === 'requires_dependency').length > 0).length,
-        requires_environment: arr.filter(f => f.triage.filter(t => t.analysisJustification === 'requires_environment').length > 0).length,
-        protected_by_compiler: arr.filter(f => f.triage.filter(t => t.analysisJustification === 'protected_by_compiler').length > 0).length,
-        protected_at_runtime: arr.filter(f => f.triage.filter(t => t.analysisJustification === 'protected_at_runtime').length > 0).length,
-        protected_at_perimeter: arr.filter(f => f.triage.filter(t => t.analysisJustification === 'protected_at_perimeter').length > 0).length,
-        protected_by_mitigating_control: arr.filter(f => f.triage.filter(t => t.analysisJustification === 'protected_by_mitigating_control').length > 0).length,
-        can_not_fix: arr.filter(f => f.triage.filter(t => t.analysisResponse === 'can_not_fix').length > 0).length,
-        will_not_fix: arr.filter(f => f.triage.filter(t => t.analysisResponse === 'will_not_fix').length > 0).length,
-        update: arr.filter(f => f.triage.filter(t => t.analysisResponse === 'update').length > 0).length,
-        rollback: arr.filter(f => f.triage.filter(t => t.analysisResponse === 'rollback').length > 0).length,
-        workaround_available: arr.filter(f => f.triage.filter(t => t.analysisResponse === 'workaround_available').length > 0).length,
+        triage_automated: arr.filter(f => !['in_triage', 'exploitable'].includes(f.triage.analysisState) && f.triage.triageAutomated === 1).length,
+        triage_unseen: arr.filter(f => ['in_triage', 'exploitable'].includes(f.triage.analysisState) && f.triage.seen === 0).length,
+        ssvc_act: arr.filter(f => f.triage.ssvc === ActionCISA.ACT).length,
+        ssvc_attend: arr.filter(f => f.triage.ssvc === ActionCISA.ATTEND).length,
+        ssvc_track: arr.filter(f => f.triage.ssvc === ActionCISA.TRACK).length,
+        ssvc_track_star: arr.filter(f => f.triage.ssvc === ActionCISA.TRACK_STAR).length,
+        ssvc_immediate: arr.filter(f => f.triage.ssvc === ActionFIRST.IMMEDIATE).length,
+        ssvc_oob: arr.filter(f => f.triage.ssvc === ActionFIRST.OUT_OF_BAND).length,
+        ssvc_scheduled: arr.filter(f => f.triage.ssvc === ActionFIRST.SCHEDULED).length,
+        in_triage: arr.filter(f => f.triage.analysisState === 'in_triage').length,
+        resolved: arr.filter(f => f.triage.analysisState === 'resolved').length,
+        resolved_with_pedigree: arr.filter(f => f.triage.analysisState === 'resolved_with_pedigree').length,
+        resolved_all: arr.filter(f => ['resolved_with_pedigree', 'resolved'].includes(f.triage.analysisState)).length,
+        exploitable: arr.filter(f => f.triage.analysisState === 'exploitable' && f.triage.seen === 0).length,
+        exploitable_unseen: arr.filter(f => f.triage.analysisState === 'exploitable').length,
+        false_positive: arr.filter(f => f.triage.analysisState === 'false_positive').length,
+        not_affected: arr.filter(f => f.triage.analysisState === 'not_affected').length,
+        code_not_present: arr.filter(f => f.triage.analysisJustification === 'code_not_present').length,
+        code_not_reachable: arr.filter(f => f.triage.analysisJustification === 'code_not_reachable').length,
+        requires_configuration: arr.filter(f => f.triage.analysisJustification === 'requires_configuration').length,
+        requires_dependency: arr.filter(f => f.triage.analysisJustification === 'requires_dependency').length,
+        requires_environment: arr.filter(f => f.triage.analysisJustification === 'requires_environment').length,
+        protected_by_compiler: arr.filter(f => f.triage.analysisJustification === 'protected_by_compiler').length,
+        protected_at_runtime: arr.filter(f => f.triage.analysisJustification === 'protected_at_runtime').length,
+        protected_at_perimeter: arr.filter(f => f.triage.analysisJustification === 'protected_at_perimeter').length,
+        protected_by_mitigating_control: arr.filter(f => f.triage.analysisJustification === 'protected_by_mitigating_control').length,
+        can_not_fix: arr.filter(f => f.triage.analysisResponse === 'can_not_fix').length,
+        will_not_fix: arr.filter(f => f.triage.analysisResponse === 'will_not_fix').length,
+        update: arr.filter(f => f.triage.analysisResponse === 'update').length,
+        rollback: arr.filter(f => f.triage.analysisResponse === 'rollback').length,
+        workaround_available: arr.filter(f => f.triage.analysisResponse === 'workaround_available').length,
     }
     data['unresolved_percentage'] = calcPercent(data, ['in_triage', 'exploitable'], ['total_findings'])
     data['queue_exploitable_percentage'] = calcPercent(data, ['exploitable'], ['in_triage', 'exploitable'])
@@ -191,7 +195,7 @@ const filterFindingsByPeriod = (arr, period = 'current_week') => {
             throw new Error('Unsupported period')
     }
 
-    const filteredFindings = arr.filter(f => f.triage.some(t => isWithinPeriod(t.lastObserved, startDate, endDate)))
+    const filteredFindings = arr.filter(f => isWithinPeriod(f.triage.lastObserved, startDate, endDate))
 
     return makeAnalysis(filteredFindings)
 }

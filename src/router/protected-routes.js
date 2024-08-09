@@ -52,6 +52,10 @@ const routes = [
                 component: () => import('../pages/OSV.vue'),
             },
             {
+                path: 'first-org-integration',
+                component: () => import('../pages/FirstOrg.vue'),
+            },
+            {
                 path: 'mend-integration',
                 component: () => import('../pages/Mend.vue'),
             },

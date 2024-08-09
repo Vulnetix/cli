@@ -37,29 +37,41 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await axios.get(`/osv/log`)
-            state.loading = false
-            if (typeof data === "string" && !isJSON(data)) {
-                state.error = "Data could not be retrieved, please try again later."
-
-                return
+            const limit = 150
+            const pageSize = 20
+            let hasMore = true
+            let skip = 0
+            while (hasMore && skip <= limit) {
+                const { data } = await axios.get(`/osv/log?take=${pageSize}&skip=${skip}`)
+                if (data.ok) {
+                    if (data?.results) {
+                        data.results.map(r => state.log.push(r))
+                    }
+                } else if (typeof data === "string" && !isJSON(data)) {
+                    break
+                } else if (data?.error?.message) {
+                    state.loading = false
+                    state.error = data.error.message
+                    return
+                } else if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+                    state.loading = false
+                    state.info = data.result
+                    setTimeout(() => router.push('/logout'), 2000)
+                    return
+                } else {
+                    break
+                }
+                if (Object.keys(data.results).length < pageSize) {
+                    hasMore = false
+                } else {
+                    skip += pageSize
+                }
             }
-            if (data?.error?.message) {
-                state.error = data?.error?.message
-                return
-            }
-            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-                state.info = data.result
-
-                setTimeout(() => router.push('/logout'), 2000)
-                return
-            }
-            state.log = data.log
         } catch (e) {
             console.error(e)
             state.error = `${e.code} ${e.message}`
-            state.loading = false
         }
+        state.loading = false
     }
 }
 
