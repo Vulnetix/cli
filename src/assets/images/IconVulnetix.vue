@@ -3,7 +3,7 @@
     :alt="alt"
     class="app-icon"
     :class="class"
-    src="@images/logo.svg"
+    src="@images/pix.png"
     :width="width"
     :height="height"
   />

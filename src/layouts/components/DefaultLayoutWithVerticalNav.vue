@@ -51,7 +51,7 @@ watch(NotificationsStore, () => {
                 <VSpacer />
 
                 <IconBtn
-                    href="https://github.com/0x73746F66/vulnetix"
+                    href="https://github.com/vulnetix"
                     target="_blank"
                     rel="noopener noreferrer"
                 >

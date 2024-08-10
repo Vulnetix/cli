@@ -188,7 +188,7 @@ const login = async () => {
                             class="text-center "
                         >
                             <VBtn
-                                href="https://github.com/login/oauth/authorize?client_id=Iv23liW5R5lkjMRgFrWI&scope=user"
+                                href="https://github.com/login/oauth/authorize?client_id=Iv23ctNFqhSLAIlXRM7P&scope=user"
                                 prepend-icon="line-md:github-loop"
                                 :variant="global.name.value === 'dark' ? 'tonal' : 'outlined'"
                                 size="x-large"

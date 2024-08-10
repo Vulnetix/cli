@@ -1,6 +1,5 @@
 <script setup>
 import { round } from '@/utils';
-import pixImg from '@/assets/images/pix.png';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useMemberStore } from '@/stores/member';
 
@@ -49,12 +48,12 @@ const state = await Analytics.$state
                 order-sm="2"
                 class="text-center"
             >
-                <img
+                <!-- <img
                     :src="pixImg"
                     :height="$vuetify.display.xs ? '150' : '175'"
                     :class="$vuetify.display.xs ? 'mt-6 mb-n2' : 'position-absolute'"
                     class="john-illustration flip-in-rtl"
-                >
+                > -->
             </VCol>
         </VRow>
     </VCard>
