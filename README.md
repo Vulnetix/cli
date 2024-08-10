@@ -53,8 +53,6 @@ Check the marketplace listing above for more.
 
 ![SCA queue](.repo/sca.png)
 
-![SARIF](.repo/sarif.png)
-
 ![SPDX and upload manager](.repo/spdx-upload.png)
 
 ![OSV](.repo/osv.png)
