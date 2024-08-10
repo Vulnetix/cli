@@ -72,7 +72,7 @@ const { global } = useTheme()
                         class="text-center"
                     >
                         <VBtn
-                            href="https://github.com/apps/vulnetix"
+                            href="https://github.com/marketplace/vulnetix"
                             prepend-icon="line-md:github-loop"
                             :variant="global.name.value === 'dark' ? 'tonal' : 'outlined'"
                             size="x-large"

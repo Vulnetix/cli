@@ -564,7 +564,7 @@ const controller = reactive(new Controller())
                     </div>
                     <VBtn
                         v-else
-                        href="https://github.com/apps/vulnetix/installations/new/"
+                        href="https://github.com/marketplace/vulnetix"
                         text="Install"
                         prepend-icon="line-md:github-loop"
                         :disabled="state.loadingBar"
@@ -754,7 +754,7 @@ const controller = reactive(new Controller())
                     <VCard title="Integration Credentials">
                         <VCardText>
                             <VBtn
-                                href="https://github.com/apps/vulnetix/installations/new/"
+                                href="https://github.com/marketplace/vulnetix"
                                 text="Install another GitHub Account"
                                 prepend-icon="line-md:github-loop"
                                 variant="text"
