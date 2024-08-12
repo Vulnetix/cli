@@ -7,7 +7,7 @@
 
 **Early Adopters needed**
 
-Please install our [GitHub App](https://github.com/apps/vulnetix).
+Please install our [GitHub App](https://github.com/marketplace/vulnetix).
 
 This is a preview, under active development, so you will encounter bugs while we complete the features.
 

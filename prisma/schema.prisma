@@ -78,7 +78,7 @@ model github_apps {
 }
 
 model git_repos {
-  fullName      String  @id
+  fullName      String
   ghid          Int?
   source        String
   createdAt     Int
@@ -99,14 +99,14 @@ model git_repos {
   spdx          spdx[]
   cdx           cdx[]
 
-  @@unique([fullName, memberEmail])
+  @@id([fullName, memberEmail])
 }
 
 model sarif {
   sarifId      String          @unique
   reportId     String          @id
   fullName     String?
-  repo         git_repos?      @relation(fields: [fullName], references: [fullName])
+  repo         git_repos?      @relation(fields: [fullName, memberEmail], references: [fullName, memberEmail])
   source       String
   memberEmail  String
   member       members         @relation(fields: [memberEmail], references: [email])
@@ -145,7 +145,7 @@ model cdx {
   memberEmail            String
   member                 members    @relation(fields: [memberEmail], references: [email])
   repoName               String?
-  repo                   git_repos? @relation(fields: [repoName], references: [fullName])
+  repo                   git_repos? @relation(fields: [repoName, memberEmail], references: [fullName, memberEmail])
   cdxVersion             String
   serialNumber           String?
   name                   String?
@@ -165,7 +165,7 @@ model spdx {
   memberEmail       String
   member            members    @relation(fields: [memberEmail], references: [email])
   repoName          String?
-  repo              git_repos? @relation(fields: [repoName], references: [fullName])
+  repo              git_repos? @relation(fields: [repoName, memberEmail], references: [fullName, memberEmail])
   spdxVersion       String
   dataLicense       String?
   name              String?

@@ -89,7 +89,6 @@ export async function onRequestGet(context) {
     return Response.json({ githubApps, gitRepos })
 }
 const store = async (prisma, session, repo) => {
-    console.log('store repo', repo)
     const create = {
         fullName: repo.full_name,
         ghid: repo.id,

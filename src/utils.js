@@ -744,18 +744,37 @@ export function isSPDX(input) {
     return true
 }
 
-function validCdxComponent(o) {
-    if (typeof o?.name === 'undefined' ||
-        typeof o?.version === 'undefined' ||
-        typeof o?.purl === 'undefined' ||
-        typeof o?.['bom-ref'] === 'undefined' ||
-        typeof o?.externalReferences === 'undefined' ||
-        typeof o?.hashes === 'undefined' ||
-        !o.externalReferences.length ||
-        !o.hashes.length
-    ) {
-        console.log(o)
-        return false
+function validCdxComponent(o, specVersion) {
+    if (specVersion === "1.5") {
+        if (typeof o?.name === 'undefined' ||
+            typeof o?.version === 'undefined' ||
+            typeof o?.purl === 'undefined' ||
+            typeof o?.['bom-ref'] === 'undefined' ||
+            typeof o?.externalReferences === 'undefined' ||
+            typeof o?.hashes === 'undefined' ||
+            !o.externalReferences.length ||
+            !o.hashes.length
+        ) {
+            console.log(o)
+            return false
+        }
+    } else if (specVersion === "1.6") {
+        if (typeof o?.name === 'undefined' ||
+            typeof o?.version === 'undefined' ||
+            typeof o?.purl === 'undefined' ||
+            typeof o?.['bom-ref'] === 'undefined' ||
+            typeof o?.externalReferences === 'undefined' ||
+            !o.externalReferences.length
+        ) {
+            console.log(o)
+            return false
+        }
+        for (const ref of o.externalReferences) {
+            if (typeof ref?.type === 'undefined' || (ref.type === 'distribution' && !ref?.hashes?.length)) {
+                console.log(ref)
+                return false
+            }
+        }
     }
     return true
 }
@@ -763,12 +782,13 @@ function validCdxDependency(o) {
     if (typeof o?.ref === 'undefined' ||
         typeof o?.dependsOn === 'undefined'
     ) {
+        console.log(`invalid CycloneDX Dependency, missing dependsOn`, o)
         return false
     }
     return true
 }
 export function isCDX(input) {
-    const supportedVersions = ["1.5"]
+    const supportedVersions = ["1.5", "1.6"]
     let cdx
     if (typeof input === "string" && isJSON(input)) {
         cdx = JSON.parse(input)
@@ -776,30 +796,28 @@ export function isCDX(input) {
         cdx = Object.assign({}, input)
     }
     if (typeof cdx?.specVersion === 'undefined' || typeof cdx?.serialNumber === 'undefined') {
+        console.log(`!specVersion or serialNumber`)
         return false
     }
     if (!supportedVersions.includes(cdx?.specVersion)) {
         throw `Provided CDX version ${cdx?.specVersion} is not supported. Must be one of: ${supportedVersions}`
     }
     if (typeof cdx?.metadata?.tools === 'undefined' ||
-        typeof cdx?.metadata?.component.name === 'undefined' ||
-        typeof cdx?.metadata?.component?.version === 'undefined' ||
-        typeof cdx?.metadata?.component?.purl === 'undefined' ||
-        typeof cdx?.metadata?.component?.['bom-ref'] === 'undefined' ||
         typeof cdx?.components === 'undefined' ||
         typeof cdx?.dependencies === 'undefined' ||
         !cdx?.metadata.tools.length ||
         !cdx?.components.length ||
         !cdx?.dependencies.length
     ) {
+        console.log(`!cdx`)
         return false
     }
-    if (cdx.components.filter(c => !validCdxComponent(c)).length > 0) {
-        console.log(`3`)
+    if (cdx.components.filter(c => !validCdxComponent(c, cdx.specVersion)).length > 0) {
+        console.log(`!validCdxComponent`)
         return false
     }
     if (cdx.dependencies.filter(d => !validCdxDependency(d)).length > 0) {
-        console.log(`4`)
+        console.log(`!validCdxDependency`)
         return false
     }
     return true

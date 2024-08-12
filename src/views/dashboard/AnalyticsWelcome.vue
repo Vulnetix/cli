@@ -1,11 +1,22 @@
 <script setup>
-import { round } from '@/utils';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useMemberStore } from '@/stores/member';
+import { round } from '@/utils';
 
 const Member = useMemberStore()
 const Analytics = useAnalyticsStore()
-const state = await Analytics.$state
+const state = computed(() => {
+    return {
+        total: Analytics.total,
+        current_week: Analytics.current_week,
+        month_to_date: Analytics.month_to_date,
+        year_to_date: Analytics.year_to_date,
+        monthly: Analytics.monthly,
+    }
+})
+const refreshAnalytics = computed(() => {
+    return Analytics.fetchAnalytics
+})
 </script>
 
 <template>
@@ -35,6 +46,7 @@ const state = await Analytics.$state
                         variant="tonal"
                         class="mt-4"
                         size="small"
+                        @click="refreshAnalytics"
                     >
                         Refresh Dashboard
                     </VBtn>
@@ -48,12 +60,6 @@ const state = await Analytics.$state
                 order-sm="2"
                 class="text-center"
             >
-                <!-- <img
-                    :src="pixImg"
-                    :height="$vuetify.display.xs ? '150' : '175'"
-                    :class="$vuetify.display.xs ? 'mt-6 mb-n2' : 'position-absolute'"
-                    class="john-illustration flip-in-rtl"
-                > -->
             </VCol>
         </VRow>
     </VCard>

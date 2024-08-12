@@ -32,6 +32,7 @@ upgrades: ## get app updates, migrate should be run first
 	npm audit fix --force
 
 sarif: clean ## generate SARIF from Semgrep for this project
+	osv-scanner --format sarif --call-analysis=all -r . | jq >osv.sarif.json
 	semgrep $(SEMGREP_ARGS) $(SEMGREP_RULES) | jq >semgrep.sarif.json
 
 sbom: clean ## generate CycloneDX from NPM for this project
