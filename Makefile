@@ -46,6 +46,15 @@ run: ## FOR DOCO ONLY - Run these one at a time, do not call this target directl
 	lsof -i tcp:8788
 	npm run preview
 
+git-demo:
+	git stash save "changes for demo"
+	git checkout main
+	git branch -D demo
+	git fetch -a
+	git pull
+	git checkout -b demo main
+	git stash pop
+
 _helpers: ## FOR DOCO ONLY
 	npx wrangler d1 execute vulnetix --local --file ./migrations/0001_init.sql
 	npx wrangler d1 execute vulnetix --local --command "PRAGMA table_list;"

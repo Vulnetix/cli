@@ -23,8 +23,8 @@ onMounted(() => {
     Analytics.fetchAnalytics()
 })
 
-const categories = state.value.monthly.map(i => i.monthYear)
-const series = [
+const categories = computed(() => (state.value.monthly.map(i => i.monthYear)))
+const series = computed(() => ([
     {
         name: `${new Date().getFullYear()}`,
         data: state.value.monthly.filter(i => i.monthYear.startsWith(new Date().getFullYear())).map(i => i.total_findings),
@@ -33,9 +33,9 @@ const series = [
         name: `${new Date().getFullYear() - 1}`,
         data: state.value.monthly.filter(i => i.monthYear.startsWith(new Date().getFullYear() - 1)).map(i => -(i.resolved + i.resolved_with_pedigree)),
     },
-]
+]))
 
-const totalsData = [
+const totalsData = computed(() => ([
     {
         icon: 'tabler-eye-exclamation',
         value: `${round(state.value.total.unseen_queue_percentage)}%`,
@@ -48,7 +48,8 @@ const totalsData = [
         text: `Unresolved`,
         color: state.value.total.unresolved_percentage < 20 ? 'success' : state.value.total.unresolved_percentage < 50 ? 'info' : state.value.total.unresolved_percentage < 80 ? 'warning' : 'error',
     },
-]
+]))
+
 </script>
 
 <template>
