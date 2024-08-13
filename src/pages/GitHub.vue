@@ -193,32 +193,37 @@ class Controller {
         clearAlerts()
         try {
             const { data } = await axios.get(`/github/repos/${full_name}/spdx`)
-
-            if (data?.error?.message && alerts === true) {
-                if (data?.app?.installationId) {
-                    data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+            if (!data.ok) {
+                if (data?.error?.message && alerts === true) {
+                    if (data?.app?.installationId) {
+                        data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+                    }
+                    if (data?.app?.login) {
+                        data.error.message = `${data.error.message} (${data.app.login})`
+                    }
+                    state.error = data.error.message
+                    return
                 }
-                if (data?.app?.login) {
-                    data.error.message = `${data.error.message} (${data.app.login})`
-                }
-                state.error = data.error.message
-                return
-            }
-            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-                state.info = data.result
+                if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+                    state.info = data.result
 
-                return setTimeout(() => router.push('/logout'), 2000)
+                    return setTimeout(() => router.push('/logout'), 2000)
+                }
             }
             if (typeof data === "string" && !isJSON(data)) {
                 state.warning = "No data retrieved from GitHub. Was this GitHub App uninstalled?"
                 return
             }
             if (alerts === true) {
-                if (!data) {
-                    state.error = "No data retrieved from GitHub. Is this GitHub App installed?"
-                    state.warning = "Please check the GitHub App permissions, they may have been revoked or uninstalled."
-                } else {
-                    state.success = "Refreshed GitHub SPDX"
+                state.success = "Refreshed GitHub SPDX"
+            }
+            if (data?.findings) {
+                for (const findingId of data.findings) {
+                    try {
+                        axios.get(`/enrich/${findingId}?seen=0`)
+                    } catch (e) {
+                        console.error(e)
+                    }
                 }
             }
 

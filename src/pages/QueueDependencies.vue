@@ -82,6 +82,10 @@ class Controller {
                     skip += pageSize
                 }
             }
+            state.results.forEach((result, index) => {
+                state.results.splice(index, 1, result)
+                dialogs[result.findingId] = result
+            })
             state.loading = false
         } catch (e) {
             console.error(e)
@@ -191,6 +195,7 @@ const controller = reactive(new Controller())
         >
             <template v-slot:item.triage_seen="{ item }">
                 <VIcon
+                    v-if="[0, 1].includes(item.triage_seen)"
                     :icon="item.triage_seen === 1 ? 'tabler-eye-check' : 'mdi-eye-off-outline'"
                     :color="item.triage_seen === 1 ? 'success' : 'warning'"
                     size="23"
@@ -347,14 +352,18 @@ const controller = reactive(new Controller())
                                         title="CPE"
                                     ></VListItem>
                                     <VListItem
+                                        v-if="item.purl"
                                         :subtitle="item.purl"
                                         title="PURL"
                                     ></VListItem>
                                     <VListItem
+                                        v-if="item.createdAt"
                                         :subtitle="new Date(item.createdAt).toISOString()"
                                         title="Discovered"
-                                    ></VListItem>
+                                    >
+                                    </VListItem>
                                     <VListItem
+                                        v-if="item.triage_lastObserved"
                                         :subtitle="new Date(item.triage_lastObserved).toISOString()"
                                         title="Last Observed"
                                     >
@@ -386,6 +395,11 @@ const controller = reactive(new Controller())
                                         :subtitle="item.spdx_toolName"
                                         title="Source"
                                     ></VListItem>
+                                    <VListItem
+                                        v-if="item?.cdx_toolName"
+                                        :subtitle="item.cdx_toolName"
+                                        title="Source"
+                                    ></VListItem>
 
                                     <VListItemTitle>Source Code</VListItemTitle>
 
@@ -400,7 +414,6 @@ const controller = reactive(new Controller())
                                         >
                                             {{ item.spdx_repoName }}
                                         </a>
-
                                     </VListItem>
                                     <VListItem
                                         class="text-capitalize"
@@ -430,6 +443,47 @@ const controller = reactive(new Controller())
                                         title="Last Pushed"
                                     >
                                     </VListItem>
+
+                                    <VListItem
+                                        v-if="item?.cdx_repoName"
+                                        :title="`${item.cdx_repo_source} Repository`"
+                                    >
+                                        <a
+                                            v-if="item?.cdx_repo_source === 'GitHub'"
+                                            :href="`https://github.com/${item.cdx_repoName}`"
+                                            target="_blank"
+                                        >
+                                            {{ item.cdx_repoName }}
+                                        </a>
+                                    </VListItem>
+                                    <VListItem
+                                        class="text-capitalize"
+                                        v-if="item.cdx_repo_defaultBranch"
+                                        :subtitle="item.cdx_repo_defaultBranch"
+                                        title="Default Branch"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item.cdx_repo_licenseName"
+                                        :subtitle="item.cdx_repo_licenseName"
+                                        title="License"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        class="text-capitalize"
+                                        v-if="item.cdx_repo_visibility"
+                                        :subtitle="item.cdx_repo_visibility"
+                                        title="Visibility"
+                                    ></VListItem>
+                                    <VListItem
+                                        :subtitle="item.cdx_repo_archived ? 'Archived' : item.cdx_repo_fork ? 'Forked' : item.cdx_repo_template ? 'Template' : 'Source'"
+                                        title="Type"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item.cdx_repo_pushedAt"
+                                        :subtitle="(new Date(item.cdx_repo_pushedAt)).toLocaleDateString()"
+                                        title="Last Pushed"
+                                    >
+                                    </VListItem>
                                 </VList>
                             </VCol>
                             <VCol cols="6">
@@ -439,20 +493,21 @@ const controller = reactive(new Controller())
                                 >
                                     <VListItemTitle>Triage Detail</VListItemTitle>
                                     <VListItem
-                                        :subtitle="(new Date(item.triage_lastObserved)).toISOString()"
-                                        title="Last Observed"
-                                    >
-                                    </VListItem>
-                                    <VListItem
-                                        v-if="item.triage_triageAutomated === 1"
-                                        :subtitle="(new Date(item.triage_createdAt)).toISOString()"
+                                        v-if="item.triage_triageAutomated === '1'"
+                                        :subtitle="(new Date(item.triage_triagedAt)).toISOString()"
                                         title="Auto Triage"
                                     >
                                     </VListItem>
                                     <VListItem
-                                        v-else-if="item.triage_seen === 1"
-                                        :subtitle="(new Date(item.triage_seenAt)).toISOString()"
+                                        v-else-if="item.triage_triageAutomated === '0' && item.triage_triagedAt"
+                                        :subtitle="(new Date(item.triage_triagedAt)).toISOString()"
                                         title="Manually Triaged"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-else-if="item.triage_seen === '1'"
+                                        :subtitle="(new Date(item.triage_seenAt)).toISOString()"
+                                        title="Queue item first seen"
                                     >
                                     </VListItem>
                                     <VListItem

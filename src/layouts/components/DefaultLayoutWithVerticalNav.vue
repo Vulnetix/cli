@@ -78,7 +78,7 @@ watch(NotificationsStore, () => {
 
             <!-- 👉 Activities -->
             <VerticalNavSectionTitle :item="{
-                heading: 'Queue',
+                heading: 'Triage Queues',
             }" />
             <VerticalNavLink :item="{
                 title: 'Dependencies',

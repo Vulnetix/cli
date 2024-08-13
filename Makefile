@@ -53,6 +53,7 @@ git-demo:
 	git fetch -a
 	git pull
 	git checkout -b demo main
+	git push --set-upstream origin demo
 	git stash pop
 
 _helpers: ## FOR DOCO ONLY

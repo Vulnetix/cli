@@ -35,13 +35,24 @@ const refreshAnalytics = computed(() => {
                 </VCardItem>
 
                 <VCardText>
-                    <span>
-                        Pix has automated {{ round(state.current_week.automated_percentage) }}% of issues this week.
-                        <br>
-                        The unseen issues in queue is {{ round(state.total.unseen_queue_percentage) }}% ({{
-                            state.total.triage_unseen }} of {{ state.total.total_findings }})
-                    </span>
-                    <br>
+                    <div>
+                        You have triaged <span class="text-primary">{{ round(state.current_week.triaged_percentage)
+                            }}%</span> of issues this week. Pix
+                        has automated <span class="text-primary">{{ round(state.current_week.automated_percentage)
+                            }}%</span> of these for you.
+                    </div>
+                    <div v-if="state.total.queued_unseen_percentage > 0">
+                        You have <span class="text-primary">{{ state.total.queued_unseen }} ({{
+                            round(state.total.queued_unseen_percentage) }}%)</span>
+                        issues awaiting you in the queue.
+                    </div>
+                    <div v-if="state.total.unresolved_percentage > 0">
+                        The remaining triage queue is <span class="text-primary">{{ state.total.queued }} ({{
+                            state.total.unresolved_percentage
+                            }}%)</span>
+                        of
+                        <span class="text-primary">{{ state.total.total_findings }}</span> unresolved issues.
+                    </div>
                     <VBtn
                         variant="tonal"
                         class="mt-4"

@@ -235,6 +235,7 @@ model triage_activity {
   findingId             String    @unique
   finding               findings?
   createdAt             Int
+  triagedAt             Int?
   lastObserved          Int
   seen                  Int
   seenAt                Int?

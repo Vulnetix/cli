@@ -841,7 +841,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from functions/enrich/[findingId].js:104 to functions/enrich/[findingId].js:104"
+                "text": "Untrusted dataflow from functions/enrich/[findingId].js:96 to functions/enrich/[findingId].js:96"
               },
               "threadFlows": [
                 {
@@ -849,7 +849,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`Update ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:104'"
+                          "text": "Source: '`Update ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:96'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -857,15 +857,15 @@
                           },
                           "region": {
                             "endColumn": 53,
-                            "endLine": 104,
+                            "endLine": 96,
                             "message": {
-                              "text": "Source: '`Update ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:104'"
+                              "text": "Source: '`Update ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:96'"
                             },
                             "snippet": {
                               "text": "`Update ${finding.detectionTitle"
                             },
                             "startColumn": 21,
-                            "startLine": 104
+                            "startLine": 96
                           }
                         }
                       },
@@ -874,7 +874,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.log(`Update ${finding.detectionTitle}`, info)' @ 'functions/enrich/[findingId].js:104'"
+                          "text": "Sink: 'console.log(`Update ${finding.detectionTitle}`, info)' @ 'functions/enrich/[findingId].js:96'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -882,15 +882,15 @@
                           },
                           "region": {
                             "endColumn": 53,
-                            "endLine": 104,
+                            "endLine": 96,
                             "message": {
-                              "text": "Sink: 'console.log(`Update ${finding.detectionTitle}`, info)' @ 'functions/enrich/[findingId].js:104'"
+                              "text": "Sink: 'console.log(`Update ${finding.detectionTitle}`, info)' @ 'functions/enrich/[findingId].js:96'"
                             },
                             "snippet": {
                               "text": "        console.log(`Update ${finding.detectionTitle}`, info)"
                             },
                             "startColumn": 21,
-                            "startLine": 104
+                            "startLine": 96
                           }
                         }
                       },
@@ -913,12 +913,12 @@
                 },
                 "region": {
                   "endColumn": 53,
-                  "endLine": 104,
+                  "endLine": 96,
                   "snippet": {
                     "text": "        console.log(`Update ${finding.detectionTitle}`, info)"
                   },
                   "startColumn": 21,
-                  "startLine": 104
+                  "startLine": 96
                 }
               }
             }
@@ -933,7 +933,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from functions/enrich/[findingId].js:151 to functions/enrich/[findingId].js:151"
+                "text": "Untrusted dataflow from functions/enrich/[findingId].js:138 to functions/enrich/[findingId].js:138"
               },
               "threadFlows": [
                 {
@@ -941,7 +941,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`Seen VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:151'"
+                          "text": "Source: '`Seen VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:138'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -949,15 +949,15 @@
                           },
                           "region": {
                             "endColumn": 55,
-                            "endLine": 151,
+                            "endLine": 138,
                             "message": {
-                              "text": "Source: '`Seen VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:151'"
+                              "text": "Source: '`Seen VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:138'"
                             },
                             "snippet": {
                               "text": "`Seen VEX ${finding.detectionTitle"
                             },
                             "startColumn": 21,
-                            "startLine": 151
+                            "startLine": 138
                           }
                         }
                       },
@@ -966,7 +966,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:151'"
+                          "text": "Sink: 'console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:138'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -974,15 +974,15 @@
                           },
                           "region": {
                             "endColumn": 55,
-                            "endLine": 151,
+                            "endLine": 138,
                             "message": {
-                              "text": "Sink: 'console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:151'"
+                              "text": "Sink: 'console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:138'"
                             },
                             "snippet": {
                               "text": "        console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)"
                             },
                             "startColumn": 21,
-                            "startLine": 151
+                            "startLine": 138
                           }
                         }
                       },
@@ -1005,12 +1005,12 @@
                 },
                 "region": {
                   "endColumn": 55,
-                  "endLine": 151,
+                  "endLine": 138,
                   "snippet": {
                     "text": "        console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)"
                   },
                   "startColumn": 21,
-                  "startLine": 151
+                  "startLine": 138
                 }
               }
             }
@@ -1853,7 +1853,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from functions/github/repos.js:131 to functions/github/repos.js:131"
+                "text": "Untrusted dataflow from functions/github/repos.js:130 to functions/github/repos.js:130"
               },
               "threadFlows": [
                 {
@@ -1861,7 +1861,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`/github/repos git_repos ${create.fullName} kid=${session.kid' @ 'functions/github/repos.js:131'"
+                          "text": "Source: '`/github/repos git_repos ${create.fullName} kid=${session.kid' @ 'functions/github/repos.js:130'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -1869,15 +1869,15 @@
                           },
                           "region": {
                             "endColumn": 82,
-                            "endLine": 131,
+                            "endLine": 130,
                             "message": {
-                              "text": "Source: '`/github/repos git_repos ${create.fullName} kid=${session.kid' @ 'functions/github/repos.js:131'"
+                              "text": "Source: '`/github/repos git_repos ${create.fullName} kid=${session.kid' @ 'functions/github/repos.js:130'"
                             },
                             "snippet": {
                               "text": "`/github/repos git_repos ${create.fullName} kid=${session.kid"
                             },
                             "startColumn": 21,
-                            "startLine": 131
+                            "startLine": 130
                           }
                         }
                       },
@@ -1886,7 +1886,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.log(`/github/repos git_repos ${create.fullName} kid=${session.kid}`, info)' @ 'functions/github/repos.js:131'"
+                          "text": "Sink: 'console.log(`/github/repos git_repos ${create.fullName} kid=${session.kid}`, info)' @ 'functions/github/repos.js:130'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -1894,15 +1894,15 @@
                           },
                           "region": {
                             "endColumn": 82,
-                            "endLine": 131,
+                            "endLine": 130,
                             "message": {
-                              "text": "Sink: 'console.log(`/github/repos git_repos ${create.fullName} kid=${session.kid}`, info)' @ 'functions/github/repos.js:131'"
+                              "text": "Sink: 'console.log(`/github/repos git_repos ${create.fullName} kid=${session.kid}`, info)' @ 'functions/github/repos.js:130'"
                             },
                             "snippet": {
                               "text": "        console.log(`/github/repos git_repos ${create.fullName} kid=${session.kid}`, info)"
                             },
                             "startColumn": 21,
-                            "startLine": 131
+                            "startLine": 130
                           }
                         }
                       },
@@ -1925,12 +1925,12 @@
                 },
                 "region": {
                   "endColumn": 82,
-                  "endLine": 131,
+                  "endLine": 130,
                   "snippet": {
                     "text": "        console.log(`/github/repos git_repos ${create.fullName} kid=${session.kid}`, info)"
                   },
                   "startColumn": 21,
-                  "startLine": 131
+                  "startLine": 130
                 }
               }
             }
@@ -16268,6 +16268,34 @@
                 "level": "error"
               },
               "fullDescription": {
+                "text": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block."
+              },
+              "help": {
+                "markdown": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block.\n\n<b>References:</b>\n - [Semgrep Rule](https://semgrep.dev/r/terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny)\n - [https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account_network_rules#default_action](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account_network_rules#default_action)\n - [https://docs.microsoft.com/en-us/azure/firewall/rule-processing](https://docs.microsoft.com/en-us/azure/firewall/rule-processing)\n",
+                "text": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block."
+              },
+              "helpUri": "https://semgrep.dev/r/terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
+              "id": "terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
+              "name": "terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-16: CWE CATEGORY: Configuration",
+                  "LOW CONFIDENCE",
+                  "OWASP-A05:2021 - Security Misconfiguration",
+                  "OWASP-A06:2017 - Security Misconfiguration",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
                 "text": "A specially crafted calldata may be used to impersonate other accounts"
               },
               "help": {
@@ -16315,34 +16343,6 @@
               },
               "shortDescription": {
                 "text": "Semgrep Finding: terraform.aws.security.aws-ssm-document-logging-issues.aws-ssm-document-logging-issues"
-              }
-            },
-            {
-              "defaultConfiguration": {
-                "level": "error"
-              },
-              "fullDescription": {
-                "text": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block."
-              },
-              "help": {
-                "markdown": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block.\n\n<b>References:</b>\n - [Semgrep Rule](https://semgrep.dev/r/terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny)\n - [https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account_network_rules#default_action](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account_network_rules#default_action)\n - [https://docs.microsoft.com/en-us/azure/firewall/rule-processing](https://docs.microsoft.com/en-us/azure/firewall/rule-processing)\n",
-                "text": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block."
-              },
-              "helpUri": "https://semgrep.dev/r/terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
-              "id": "terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
-              "name": "terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
-              "properties": {
-                "precision": "very-high",
-                "tags": [
-                  "CWE-16: CWE CATEGORY: Configuration",
-                  "LOW CONFIDENCE",
-                  "OWASP-A05:2021 - Security Misconfiguration",
-                  "OWASP-A06:2017 - Security Misconfiguration",
-                  "security"
-                ]
-              },
-              "shortDescription": {
-                "text": "Semgrep Finding: terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny"
               }
             },
             {
@@ -36261,33 +36261,6 @@
             },
             {
               "defaultConfiguration": {
-                "level": "warning"
-              },
-              "fullDescription": {
-                "text": "Ensure that groups of actions that include iam:PassRole and could result in privilege escalation are not all allowed for the same user. These actions could result in an attacker gaining full admin access of an AWS account. Try not to use these actions in conjuction."
-              },
-              "help": {
-                "markdown": "Ensure that groups of actions that include iam:PassRole and could result in privilege escalation are not all allowed for the same user. These actions could result in an attacker gaining full admin access of an AWS account. Try not to use these actions in conjuction.\n\n<b>References:</b>\n - [Semgrep Rule](https://semgrep.dev/r/terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles)\n - [https://cloudsplaining.readthedocs.io/en/latest/glossary/privilege-escalation/](https://cloudsplaining.readthedocs.io/en/latest/glossary/privilege-escalation/)\n - [https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/](https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/)\n",
-                "text": "Ensure that groups of actions that include iam:PassRole and could result in privilege escalation are not all allowed for the same user. These actions could result in an attacker gaining full admin access of an AWS account. Try not to use these actions in conjuction."
-              },
-              "helpUri": "https://semgrep.dev/r/terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles",
-              "id": "terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles",
-              "name": "terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles",
-              "properties": {
-                "precision": "very-high",
-                "tags": [
-                  "CWE-269: Improper Privilege Management",
-                  "LOW CONFIDENCE",
-                  "OWASP-A04:2021 - Insecure Design",
-                  "security"
-                ]
-              },
-              "shortDescription": {
-                "text": "Semgrep Finding: terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles"
-              }
-            },
-            {
-              "defaultConfiguration": {
                 "level": "note"
               },
               "fullDescription": {
@@ -36311,6 +36284,33 @@
               },
               "shortDescription": {
                 "text": "Semgrep Finding: kotlin.lang.security.gcm-detection.gcm-detection"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Ensure that groups of actions that include iam:PassRole and could result in privilege escalation are not all allowed for the same user. These actions could result in an attacker gaining full admin access of an AWS account. Try not to use these actions in conjuction."
+              },
+              "help": {
+                "markdown": "Ensure that groups of actions that include iam:PassRole and could result in privilege escalation are not all allowed for the same user. These actions could result in an attacker gaining full admin access of an AWS account. Try not to use these actions in conjuction.\n\n<b>References:</b>\n - [Semgrep Rule](https://semgrep.dev/r/terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles)\n - [https://cloudsplaining.readthedocs.io/en/latest/glossary/privilege-escalation/](https://cloudsplaining.readthedocs.io/en/latest/glossary/privilege-escalation/)\n - [https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/](https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/)\n",
+                "text": "Ensure that groups of actions that include iam:PassRole and could result in privilege escalation are not all allowed for the same user. These actions could result in an attacker gaining full admin access of an AWS account. Try not to use these actions in conjuction."
+              },
+              "helpUri": "https://semgrep.dev/r/terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles",
+              "id": "terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles",
+              "name": "terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-269: Improper Privilege Management",
+                  "LOW CONFIDENCE",
+                  "OWASP-A04:2021 - Insecure Design",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: terraform.lang.security.iam.no-iam-priv-esc-roles.no-iam-priv-esc-roles"
               }
             },
             {
@@ -50084,33 +50084,6 @@
                 "level": "warning"
               },
               "fullDescription": {
-                "text": "Ensure IAM policies don't allow resource exposure. These actions can expose AWS resources to the public. For example `ecr:SetRepositoryPolicy` could let an attacker retrieve container images. Instead, use another action that doesn't expose AWS resources."
-              },
-              "help": {
-                "markdown": "Ensure IAM policies don't allow resource exposure. These actions can expose AWS resources to the public. For example `ecr:SetRepositoryPolicy` could let an attacker retrieve container images. Instead, use another action that doesn't expose AWS resources.\n\n<b>References:</b>\n - [Semgrep Rule](https://semgrep.dev/r/terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure)\n - [https://cloudsplaining.readthedocs.io/en/latest/glossary/resource-exposure/](https://cloudsplaining.readthedocs.io/en/latest/glossary/resource-exposure/)\n - [https://github.com/bridgecrewio/checkov/blob/ca830e14745c2c8e1b941985f305abe985d7f1f9/checkov/terraform/checks/data/aws/IAMPermissionsManagement.py](https://github.com/bridgecrewio/checkov/blob/ca830e14745c2c8e1b941985f305abe985d7f1f9/checkov/terraform/checks/data/aws/IAMPermissionsManagement.py)\n",
-                "text": "Ensure IAM policies don't allow resource exposure. These actions can expose AWS resources to the public. For example `ecr:SetRepositoryPolicy` could let an attacker retrieve container images. Instead, use another action that doesn't expose AWS resources."
-              },
-              "helpUri": "https://semgrep.dev/r/terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure",
-              "id": "terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure",
-              "name": "terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure",
-              "properties": {
-                "precision": "very-high",
-                "tags": [
-                  "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor",
-                  "LOW CONFIDENCE",
-                  "OWASP-A01:2021 - Broken Access Control",
-                  "security"
-                ]
-              },
-              "shortDescription": {
-                "text": "Semgrep Finding: terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure"
-              }
-            },
-            {
-              "defaultConfiguration": {
-                "level": "warning"
-              },
-              "fullDescription": {
                 "text": "Using a .NET remoting service can lead to RCE, even if you try to configure TypeFilterLevel. Recommended to switch from .NET Remoting to WCF https://docs.microsoft.com/en-us/dotnet/framework/wcf/migrating-from-net-remoting-to-wcf"
               },
               "help": {
@@ -50132,6 +50105,33 @@
               },
               "shortDescription": {
                 "text": "Semgrep Finding: csharp.lang.security.insecure-deserialization.insecure-typefilterlevel-full.insecure-typefilterlevel-full"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Ensure IAM policies don't allow resource exposure. These actions can expose AWS resources to the public. For example `ecr:SetRepositoryPolicy` could let an attacker retrieve container images. Instead, use another action that doesn't expose AWS resources."
+              },
+              "help": {
+                "markdown": "Ensure IAM policies don't allow resource exposure. These actions can expose AWS resources to the public. For example `ecr:SetRepositoryPolicy` could let an attacker retrieve container images. Instead, use another action that doesn't expose AWS resources.\n\n<b>References:</b>\n - [Semgrep Rule](https://semgrep.dev/r/terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure)\n - [https://cloudsplaining.readthedocs.io/en/latest/glossary/resource-exposure/](https://cloudsplaining.readthedocs.io/en/latest/glossary/resource-exposure/)\n - [https://github.com/bridgecrewio/checkov/blob/ca830e14745c2c8e1b941985f305abe985d7f1f9/checkov/terraform/checks/data/aws/IAMPermissionsManagement.py](https://github.com/bridgecrewio/checkov/blob/ca830e14745c2c8e1b941985f305abe985d7f1f9/checkov/terraform/checks/data/aws/IAMPermissionsManagement.py)\n",
+                "text": "Ensure IAM policies don't allow resource exposure. These actions can expose AWS resources to the public. For example `ecr:SetRepositoryPolicy` could let an attacker retrieve container images. Instead, use another action that doesn't expose AWS resources."
+              },
+              "helpUri": "https://semgrep.dev/r/terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure",
+              "id": "terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure",
+              "name": "terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor",
+                  "LOW CONFIDENCE",
+                  "OWASP-A01:2021 - Broken Access Control",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: terraform.lang.security.iam.no-iam-resource-exposure.no-iam-resource-exposure"
               }
             },
             {

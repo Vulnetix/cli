@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:00362f0c-5b56-4c9c-a746-729236a0bf93",
+  "serialNumber": "urn:uuid:3aa99c43-efca-470b-a3a6-bd655411a695",
   "version": 1,
   "metadata": {
-    "timestamp": "2024-08-10T16:01:40.108Z",
+    "timestamp": "2024-08-13T10:38:06.463Z",
     "lifecycles": [
       {
         "phase": "pre-build"
@@ -15,7 +15,7 @@
       {
         "vendor": "npm",
         "name": "cli",
-        "version": "10.7.0"
+        "version": "10.8.2"
       }
     ],
     "component": {
@@ -250,12 +250,12 @@
       ]
     },
     {
-      "bom-ref": "@prisma/client@5.16.1",
+      "bom-ref": "@prisma/client@5.18.0",
       "type": "library",
       "name": "@prisma/client",
-      "version": "5.16.1",
+      "version": "5.18.0",
       "scope": "required",
-      "purl": "pkg:npm/%40prisma/client@5.16.1",
+      "purl": "pkg:npm/%40prisma/client@5.18.0",
       "properties": [
         {
           "name": "cdx:npm:package:path",
@@ -265,13 +265,20 @@
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "https://registry.npmjs.org/@prisma/client/-/client-5.16.1.tgz"
+          "url": "https://registry.npmjs.org/@prisma/client/-/client-5.18.0.tgz"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "c0cf522908c5d2a2f176739921500830a8b3e87bbbbc3b7814502287ce4ad5d93f46bda675a872e9ddd03f8d4aeb637d3b40c9240fff8140c0dcca78f71b0a22"
+          "content": "0568af90b87e69fd64a82f3dcc2258907b117325ac33cfc91e9b0330cefa0e33f765d12ab898576b821e5fe1e458f9f027915a9f11091596434d6883b3f2afcb"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
         }
       ]
     },
@@ -3623,7 +3630,7 @@
         "@floating-ui/dom@1.2.8",
         "@pandatix/js-cvss@0.4.4",
         "@prisma/adapter-d1@5.15.1",
-        "@prisma/client@5.16.1",
+        "@prisma/client@5.18.0",
         "@vuelidate/core@2.0.3",
         "@vuelidate/validators@2.0.4",
         "@vueuse/math@10.11.0",
@@ -3682,7 +3689,7 @@
       "dependsOn": []
     },
     {
-      "ref": "@prisma/client@5.16.1",
+      "ref": "@prisma/client@5.18.0",
       "dependsOn": []
     },
     {
