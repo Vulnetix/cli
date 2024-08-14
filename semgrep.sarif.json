@@ -660,6 +660,122 @@
       "results": [
         {
           "fingerprints": {
+            "matchBasedId/v1": "f234d55c5514e6a86a76028d03f8cf42ee127d9293671355b99111aed5453dd20a9cfc35cbdeaa696f54e6d03a2e954a38bc886181e6015e34e9dec0be1be0aa_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "functions/analytics.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 55,
+                  "endLine": 77,
+                  "snippet": {
+                    "text": "    const parsedDates = parsed.map(f => f?.[dateField] || f.triage?.[dateField])"
+                  },
+                  "startColumn": 41,
+                  "startLine": 77
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Bracket object notation with user input is present, this might allow an attacker to access all properties of the object and even it's prototype, leading to possible code execution."
+          },
+          "properties": {},
+          "ruleId": "gitlab.eslint.detect-object-injection"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "decaa1b69cdb121c2a50642fdca83669066f38d5e99920598e0b46b5db6a7b44425a9a2fb4da65e6c4fe130e7969fe8349fc4c2ef667d047547ecc3036622b4b_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "functions/analytics.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 80,
+                  "endLine": 77,
+                  "snippet": {
+                    "text": "    const parsedDates = parsed.map(f => f?.[dateField] || f.triage?.[dateField])"
+                  },
+                  "startColumn": 59,
+                  "startLine": 77
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Bracket object notation with user input is present, this might allow an attacker to access all properties of the object and even it's prototype, leading to possible code execution."
+          },
+          "properties": {},
+          "ruleId": "gitlab.eslint.detect-object-injection"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "f234d55c5514e6a86a76028d03f8cf42ee127d9293671355b99111aed5453dd20a9cfc35cbdeaa696f54e6d03a2e954a38bc886181e6015e34e9dec0be1be0aa_1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "functions/analytics.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 78,
+                  "endLine": 89,
+                  "snippet": {
+                    "text": "        const filteredData = parsed.filter(f => dates.includes(f?.[dateField] || f.triage?.[dateField]))"
+                  },
+                  "startColumn": 64,
+                  "startLine": 89
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Bracket object notation with user input is present, this might allow an attacker to access all properties of the object and even it's prototype, leading to possible code execution."
+          },
+          "properties": {},
+          "ruleId": "gitlab.eslint.detect-object-injection"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "decaa1b69cdb121c2a50642fdca83669066f38d5e99920598e0b46b5db6a7b44425a9a2fb4da65e6c4fe130e7969fe8349fc4c2ef667d047547ecc3036622b4b_1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "functions/analytics.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 103,
+                  "endLine": 89,
+                  "snippet": {
+                    "text": "        const filteredData = parsed.filter(f => dates.includes(f?.[dateField] || f.triage?.[dateField]))"
+                  },
+                  "startColumn": 82,
+                  "startLine": 89
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Bracket object notation with user input is present, this might allow an attacker to access all properties of the object and even it's prototype, leading to possible code execution."
+          },
+          "properties": {},
+          "ruleId": "gitlab.eslint.detect-object-injection"
+        },
+        {
+          "fingerprints": {
             "matchBasedId/v1": "7dcc7da120b396e38695eb118e7f57311b88d97f4b6663efe090d81f5db869aa08807c01a6d47c7c536c08510076676cb78ee83c6eb54d130ae56c6674e5126a_0"
           },
           "locations": [
@@ -671,12 +787,12 @@
                 },
                 "region": {
                   "endColumn": 26,
-                  "endLine": 88,
+                  "endLine": 90,
                   "snippet": {
                     "text": "        result[monthYear] = makeAnalysis(filteredData)"
                   },
                   "startColumn": 9,
-                  "startLine": 88
+                  "startLine": 90
                 }
               }
             }
@@ -700,12 +816,12 @@
                 },
                 "region": {
                   "endColumn": 65,
-                  "endLine": 154,
+                  "endLine": 161,
                   "snippet": {
                     "text": "    const value = valueKeys.reduce((sum, key) => sum + data[key], 0)"
                   },
                   "startColumn": 56,
-                  "startLine": 154
+                  "startLine": 161
                 }
               }
             }
@@ -729,12 +845,12 @@
                 },
                 "region": {
                   "endColumn": 65,
-                  "endLine": 155,
+                  "endLine": 162,
                   "snippet": {
                     "text": "    const total = totalKeys.reduce((sum, key) => sum + data[key], 0)"
                   },
                   "startColumn": 56,
-                  "startLine": 155
+                  "startLine": 162
                 }
               }
             }
@@ -933,7 +1049,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from functions/enrich/[findingId].js:138 to functions/enrich/[findingId].js:138"
+                "text": "Untrusted dataflow from functions/enrich/[findingId].js:148 to functions/enrich/[findingId].js:148"
               },
               "threadFlows": [
                 {
@@ -941,23 +1057,23 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`Seen VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:138'"
+                          "text": "Source: '`Saved VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:148'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
                             "uri": "functions/enrich/[findingId].js"
                           },
                           "region": {
-                            "endColumn": 55,
-                            "endLine": 138,
+                            "endColumn": 56,
+                            "endLine": 148,
                             "message": {
-                              "text": "Source: '`Seen VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:138'"
+                              "text": "Source: '`Saved VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:148'"
                             },
                             "snippet": {
-                              "text": "`Seen VEX ${finding.detectionTitle"
+                              "text": "`Saved VEX ${finding.detectionTitle"
                             },
                             "startColumn": 21,
-                            "startLine": 138
+                            "startLine": 148
                           }
                         }
                       },
@@ -966,23 +1082,23 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:138'"
+                          "text": "Sink: 'console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:148'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
                             "uri": "functions/enrich/[findingId].js"
                           },
                           "region": {
-                            "endColumn": 55,
-                            "endLine": 138,
+                            "endColumn": 56,
+                            "endLine": 148,
                             "message": {
-                              "text": "Sink: 'console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:138'"
+                              "text": "Sink: 'console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:148'"
                             },
                             "snippet": {
-                              "text": "        console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)"
+                              "text": "        console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)"
                             },
                             "startColumn": 21,
-                            "startLine": 138
+                            "startLine": 148
                           }
                         }
                       },
@@ -994,7 +1110,7 @@
             }
           ],
           "fingerprints": {
-            "matchBasedId/v1": "b68b5b9b3fdf5e2363860c84c45b5396681451eef5d9a106a3805651a4c44d3870f5d24a23ac4b4f59359f58ffe8ffd8194e8d117c1c14d86dd3dfc7be84f386_0"
+            "matchBasedId/v1": "4cfeb3f0390b2738687a3c019536da5010a97264a88c14eedfd2f11cd1d790fda3eea3c547a486f6ec70fd0af544642b083739d45bad00bff9c772f9d0646e49_0"
           },
           "locations": [
             {
@@ -1004,13 +1120,13 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "endColumn": 55,
-                  "endLine": 138,
+                  "endColumn": 56,
+                  "endLine": 148,
                   "snippet": {
-                    "text": "        console.log(`Seen VEX ${finding.detectionTitle}`, vexInfo)"
+                    "text": "        console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)"
                   },
                   "startColumn": 21,
-                  "startLine": 138
+                  "startLine": 148
                 }
               }
             }
@@ -2597,7 +2713,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from functions/github/repos/[org]/[repo]/spdx.js:27 to functions/github/repos/[org]/[repo]/spdx.js:69"
+                "text": "Untrusted dataflow from functions/github/repos/[org]/[repo]/spdx.js:27 to functions/github/repos/[org]/[repo]/spdx.js:71"
               },
               "threadFlows": [
                 {
@@ -2655,7 +2771,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))' @ 'functions/github/repos/[org]/[repo]/spdx.js:69'"
+                          "text": "Sink: 'console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))' @ 'functions/github/repos/[org]/[repo]/spdx.js:71'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -2663,15 +2779,15 @@
                           },
                           "region": {
                             "endColumn": 53,
-                            "endLine": 69,
+                            "endLine": 71,
                             "message": {
-                              "text": "Sink: 'console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))' @ 'functions/github/repos/[org]/[repo]/spdx.js:69'"
+                              "text": "Sink: 'console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))' @ 'functions/github/repos/[org]/[repo]/spdx.js:71'"
                             },
                             "snippet": {
                               "text": "        console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))"
                             },
                             "startColumn": 21,
-                            "startLine": 69
+                            "startLine": 71
                           }
                         }
                       },
@@ -2694,12 +2810,12 @@
                 },
                 "region": {
                   "endColumn": 53,
-                  "endLine": 69,
+                  "endLine": 71,
                   "snippet": {
                     "text": "        console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))"
                   },
                   "startColumn": 21,
-                  "startLine": 69
+                  "startLine": 71
                 }
               }
             }
@@ -2714,7 +2830,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from functions/github/repos/[org]/[repo]/spdx.js:27 to functions/github/repos/[org]/[repo]/spdx.js:94"
+                "text": "Untrusted dataflow from functions/github/repos/[org]/[repo]/spdx.js:27 to functions/github/repos/[org]/[repo]/spdx.js:97"
               },
               "threadFlows": [
                 {
@@ -2772,7 +2888,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))' @ 'functions/github/repos/[org]/[repo]/spdx.js:94'"
+                          "text": "Sink: 'console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))' @ 'functions/github/repos/[org]/[repo]/spdx.js:97'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -2780,15 +2896,15 @@
                           },
                           "region": {
                             "endColumn": 53,
-                            "endLine": 94,
+                            "endLine": 97,
                             "message": {
-                              "text": "Sink: 'console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))' @ 'functions/github/repos/[org]/[repo]/spdx.js:94'"
+                              "text": "Sink: 'console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))' @ 'functions/github/repos/[org]/[repo]/spdx.js:97'"
                             },
                             "snippet": {
                               "text": "        console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))"
                             },
                             "startColumn": 21,
-                            "startLine": 94
+                            "startLine": 97
                           }
                         }
                       },
@@ -2811,12 +2927,12 @@
                 },
                 "region": {
                   "endColumn": 53,
-                  "endLine": 94,
+                  "endLine": 97,
                   "snippet": {
                     "text": "        console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))"
                   },
                   "startColumn": 21,
-                  "startLine": 94
+                  "startLine": 97
                 }
               }
             }
@@ -2831,7 +2947,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from functions/github/repos/[org]/[repo]/spdx.js:135 to functions/github/repos/[org]/[repo]/spdx.js:135"
+                "text": "Untrusted dataflow from functions/github/repos/[org]/[repo]/spdx.js:138 to functions/github/repos/[org]/[repo]/spdx.js:138"
               },
               "threadFlows": [
                 {
@@ -2839,7 +2955,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`/github/repos/spdx ${repoName} kid=${session.kid' @ 'functions/github/repos/[org]/[repo]/spdx.js:135'"
+                          "text": "Source: '`/github/repos/spdx ${repoName} kid=${session.kid' @ 'functions/github/repos/[org]/[repo]/spdx.js:138'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -2847,15 +2963,15 @@
                           },
                           "region": {
                             "endColumn": 66,
-                            "endLine": 135,
+                            "endLine": 138,
                             "message": {
-                              "text": "Source: '`/github/repos/spdx ${repoName} kid=${session.kid' @ 'functions/github/repos/[org]/[repo]/spdx.js:135'"
+                              "text": "Source: '`/github/repos/spdx ${repoName} kid=${session.kid' @ 'functions/github/repos/[org]/[repo]/spdx.js:138'"
                             },
                             "snippet": {
                               "text": "`/github/repos/spdx ${repoName} kid=${session.kid"
                             },
                             "startColumn": 17,
-                            "startLine": 135
+                            "startLine": 138
                           }
                         }
                       },
@@ -2864,7 +2980,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)' @ 'functions/github/repos/[org]/[repo]/spdx.js:135'"
+                          "text": "Sink: 'console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)' @ 'functions/github/repos/[org]/[repo]/spdx.js:138'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -2872,15 +2988,15 @@
                           },
                           "region": {
                             "endColumn": 66,
-                            "endLine": 135,
+                            "endLine": 138,
                             "message": {
-                              "text": "Sink: 'console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)' @ 'functions/github/repos/[org]/[repo]/spdx.js:135'"
+                              "text": "Sink: 'console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)' @ 'functions/github/repos/[org]/[repo]/spdx.js:138'"
                             },
                             "snippet": {
                               "text": "    console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)"
                             },
                             "startColumn": 17,
-                            "startLine": 135
+                            "startLine": 138
                           }
                         }
                       },
@@ -2903,12 +3019,12 @@
                 },
                 "region": {
                   "endColumn": 66,
-                  "endLine": 135,
+                  "endLine": 138,
                   "snippet": {
                     "text": "    console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)"
                   },
                   "startColumn": 17,
-                  "startLine": 135
+                  "startLine": 138
                 }
               }
             }
@@ -16268,34 +16384,6 @@
                 "level": "error"
               },
               "fullDescription": {
-                "text": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block."
-              },
-              "help": {
-                "markdown": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block.\n\n<b>References:</b>\n - [Semgrep Rule](https://semgrep.dev/r/terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny)\n - [https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account_network_rules#default_action](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account_network_rules#default_action)\n - [https://docs.microsoft.com/en-us/azure/firewall/rule-processing](https://docs.microsoft.com/en-us/azure/firewall/rule-processing)\n",
-                "text": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block."
-              },
-              "helpUri": "https://semgrep.dev/r/terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
-              "id": "terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
-              "name": "terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
-              "properties": {
-                "precision": "very-high",
-                "tags": [
-                  "CWE-16: CWE CATEGORY: Configuration",
-                  "LOW CONFIDENCE",
-                  "OWASP-A05:2021 - Security Misconfiguration",
-                  "OWASP-A06:2017 - Security Misconfiguration",
-                  "security"
-                ]
-              },
-              "shortDescription": {
-                "text": "Semgrep Finding: terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny"
-              }
-            },
-            {
-              "defaultConfiguration": {
-                "level": "error"
-              },
-              "fullDescription": {
                 "text": "A specially crafted calldata may be used to impersonate other accounts"
               },
               "help": {
@@ -16343,6 +16431,34 @@
               },
               "shortDescription": {
                 "text": "Semgrep Finding: terraform.aws.security.aws-ssm-document-logging-issues.aws-ssm-document-logging-issues"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block."
+              },
+              "help": {
+                "markdown": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block.\n\n<b>References:</b>\n - [Semgrep Rule](https://semgrep.dev/r/terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny)\n - [https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account_network_rules#default_action](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account_network_rules#default_action)\n - [https://docs.microsoft.com/en-us/azure/firewall/rule-processing](https://docs.microsoft.com/en-us/azure/firewall/rule-processing)\n",
+                "text": "Detected a Storage that was not configured to deny action by default. Add `default_action = \"Deny\"` in your resource block."
+              },
+              "helpUri": "https://semgrep.dev/r/terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
+              "id": "terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
+              "name": "terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-16: CWE CATEGORY: Configuration",
+                  "LOW CONFIDENCE",
+                  "OWASP-A05:2021 - Security Misconfiguration",
+                  "OWASP-A06:2017 - Security Misconfiguration",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: terraform.azure.security.storage.storage-default-action-deny.storage-default-action-deny"
               }
             },
             {

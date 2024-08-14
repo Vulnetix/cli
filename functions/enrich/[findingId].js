@@ -99,8 +99,11 @@ export async function onRequestGet(context) {
             const epss = new EPSS()
             scores = await epss.query(prisma, session.memberEmail, finding.cve)
         }
-        const epssScore = parseFloat(scores.epss)
-        const epssPercentile = parseFloat(scores.percentile)
+        let epssScore, epssPercentile = 0
+        if (scores?.epss) {
+            epssScore = parseFloat(scores.epss)
+            epssPercentile = parseFloat(scores.percentile)
+        }
         const cvss4 = vuln?.severity?.filter(i => i.score.startsWith('CVSS:4/'))?.pop()
         const cvss31 = vuln?.severity?.filter(i => i.score.startsWith('CVSS:3.1/'))?.pop()
         const cvss3 = vuln?.severity?.filter(i => i.score.startsWith('CVSS:3/'))?.pop()

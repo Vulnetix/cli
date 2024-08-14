@@ -72,7 +72,7 @@ const totalsData = computed(() => ([
                         title: 'Unresolved this week',
                         icon: 'mdi-clipboard-text-clock',
                         iconColor: 'error',
-                        stats: state.current_week.in_triage,
+                        stats: state.current_week.queued,
                         change: -round(state.current_week.unresolved_percentage),
                         moreList: [
                             {
@@ -112,7 +112,7 @@ const totalsData = computed(() => ([
             <AnalyticsTriageHistory
                 class="pb-5"
                 title="Triage History"
-                totalsText="Queued Issues Remaining"
+                totalsText="Queue Progress"
                 :totalsData="totalsData"
                 :series="series"
                 :categories="categories"
