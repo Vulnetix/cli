@@ -1,11 +1,12 @@
 <script setup>
 import { useMemberStore } from '@/stores/member';
 import { usePreferencesStore } from '@/stores/preferences';
-import { flatten, isJSON } from '@/utils';
+import { Client, flatten, isJSON } from '@/utils';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import router from "../router";
 
+const client = new Client()
 const Member = useMemberStore()
 const Preferences = usePreferencesStore()
 watch(Preferences, () => localStorage.setItem('/state/preferences/scaFilter', Preferences.scaFilter), { deep: true })
@@ -46,9 +47,6 @@ const clearAlerts = () => {
     state.info = ''
 }
 class Controller {
-    constructor() {
-        this.refresh()
-    }
     refresh = async () => {
         clearAlerts()
         state.loading = true
@@ -57,7 +55,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore) {
-                const { data } = await axios.get(`/queue/sca?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.signedFetch(`/queue/sca?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.sca) {
                         data.sca.forEach(sca => state.results.push(flatten(sca)))
@@ -97,7 +95,7 @@ class Controller {
         const findingId = item.findingId.toString()
         state.triageLoaders[findingId] = true
         try {
-            const { data } = await axios.get(`/enrich/${findingId}`)
+            const { data } = await client.signedFetch(`/enrich/${findingId}`)
             state.triageLoaders[findingId] = false
             if (data.ok) {
                 if (data?.finding) {
@@ -127,6 +125,7 @@ class Controller {
 }
 
 const controller = reactive(new Controller())
+onMounted(() => Member.ensureSession().then(controller.refresh))
 </script>
 
 <template>

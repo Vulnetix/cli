@@ -1049,7 +1049,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from functions/enrich/[findingId].js:148 to functions/enrich/[findingId].js:148"
+                "text": "Untrusted dataflow from functions/enrich/[findingId].js:155 to functions/enrich/[findingId].js:155"
               },
               "threadFlows": [
                 {
@@ -1057,7 +1057,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`Saved VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:148'"
+                          "text": "Source: '`Saved VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:155'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -1065,15 +1065,15 @@
                           },
                           "region": {
                             "endColumn": 56,
-                            "endLine": 148,
+                            "endLine": 155,
                             "message": {
-                              "text": "Source: '`Saved VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:148'"
+                              "text": "Source: '`Saved VEX ${finding.detectionTitle' @ 'functions/enrich/[findingId].js:155'"
                             },
                             "snippet": {
                               "text": "`Saved VEX ${finding.detectionTitle"
                             },
                             "startColumn": 21,
-                            "startLine": 148
+                            "startLine": 155
                           }
                         }
                       },
@@ -1082,7 +1082,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:148'"
+                          "text": "Sink: 'console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:155'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -1090,15 +1090,15 @@
                           },
                           "region": {
                             "endColumn": 56,
-                            "endLine": 148,
+                            "endLine": 155,
                             "message": {
-                              "text": "Sink: 'console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:148'"
+                              "text": "Sink: 'console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)' @ 'functions/enrich/[findingId].js:155'"
                             },
                             "snippet": {
                               "text": "        console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)"
                             },
                             "startColumn": 21,
-                            "startLine": 148
+                            "startLine": 155
                           }
                         }
                       },
@@ -1121,12 +1121,12 @@
                 },
                 "region": {
                   "endColumn": 56,
-                  "endLine": 148,
+                  "endLine": 155,
                   "snippet": {
                     "text": "        console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)"
                   },
                   "startColumn": 21,
-                  "startLine": 148
+                  "startLine": 155
                 }
               }
             }
@@ -4099,7 +4099,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from src/utils.js:100 to src/utils.js:100"
+                "text": "Untrusted dataflow from src/utils.js:449 to src/utils.js:449"
               },
               "threadFlows": [
                 {
@@ -4107,7 +4107,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:100'"
+                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:449'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4115,15 +4115,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 100,
+                            "endLine": 449,
                             "message": {
-                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:100'"
+                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:449'"
                             },
                             "snippet": {
                               "text": "`line ${lineno}, col ${colno} ${e.message"
                             },
                             "startColumn": 27,
-                            "startLine": 100
+                            "startLine": 449
                           }
                         }
                       },
@@ -4132,7 +4132,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:100'"
+                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:449'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4140,15 +4140,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 100,
+                            "endLine": 449,
                             "message": {
-                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:100'"
+                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:449'"
                             },
                             "snippet": {
                               "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                             },
                             "startColumn": 27,
-                            "startLine": 100
+                            "startLine": 449
                           }
                         }
                       },
@@ -4171,12 +4171,12 @@
                 },
                 "region": {
                   "endColumn": 68,
-                  "endLine": 100,
+                  "endLine": 449,
                   "snippet": {
                     "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                   },
                   "startColumn": 27,
-                  "startLine": 100
+                  "startLine": 449
                 }
               }
             }
@@ -4191,7 +4191,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from src/utils.js:172 to src/utils.js:172"
+                "text": "Untrusted dataflow from src/utils.js:521 to src/utils.js:521"
               },
               "threadFlows": [
                 {
@@ -4199,7 +4199,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:172'"
+                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:521'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4207,15 +4207,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 172,
+                            "endLine": 521,
                             "message": {
-                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:172'"
+                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:521'"
                             },
                             "snippet": {
                               "text": "`line ${lineno}, col ${colno} ${e.message"
                             },
                             "startColumn": 27,
-                            "startLine": 172
+                            "startLine": 521
                           }
                         }
                       },
@@ -4224,7 +4224,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:172'"
+                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:521'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4232,15 +4232,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 172,
+                            "endLine": 521,
                             "message": {
-                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:172'"
+                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:521'"
                             },
                             "snippet": {
                               "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                             },
                             "startColumn": 27,
-                            "startLine": 172
+                            "startLine": 521
                           }
                         }
                       },
@@ -4263,12 +4263,12 @@
                 },
                 "region": {
                   "endColumn": 68,
-                  "endLine": 172,
+                  "endLine": 521,
                   "snippet": {
                     "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                   },
                   "startColumn": 27,
-                  "startLine": 172
+                  "startLine": 521
                 }
               }
             }
@@ -4283,7 +4283,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from src/utils.js:275 to src/utils.js:275"
+                "text": "Untrusted dataflow from src/utils.js:624 to src/utils.js:624"
               },
               "threadFlows": [
                 {
@@ -4291,7 +4291,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:275'"
+                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:624'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4299,15 +4299,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 275,
+                            "endLine": 624,
                             "message": {
-                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:275'"
+                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:624'"
                             },
                             "snippet": {
                               "text": "`line ${lineno}, col ${colno} ${e.message"
                             },
                             "startColumn": 27,
-                            "startLine": 275
+                            "startLine": 624
                           }
                         }
                       },
@@ -4316,7 +4316,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:275'"
+                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:624'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4324,15 +4324,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 275,
+                            "endLine": 624,
                             "message": {
-                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:275'"
+                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:624'"
                             },
                             "snippet": {
                               "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                             },
                             "startColumn": 27,
-                            "startLine": 275
+                            "startLine": 624
                           }
                         }
                       },
@@ -4355,12 +4355,12 @@
                 },
                 "region": {
                   "endColumn": 68,
-                  "endLine": 275,
+                  "endLine": 624,
                   "snippet": {
                     "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                   },
                   "startColumn": 27,
-                  "startLine": 275
+                  "startLine": 624
                 }
               }
             }
@@ -4375,7 +4375,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from src/utils.js:319 to src/utils.js:319"
+                "text": "Untrusted dataflow from src/utils.js:668 to src/utils.js:668"
               },
               "threadFlows": [
                 {
@@ -4383,7 +4383,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:319'"
+                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:668'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4391,15 +4391,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 319,
+                            "endLine": 668,
                             "message": {
-                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:319'"
+                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:668'"
                             },
                             "snippet": {
                               "text": "`line ${lineno}, col ${colno} ${e.message"
                             },
                             "startColumn": 27,
-                            "startLine": 319
+                            "startLine": 668
                           }
                         }
                       },
@@ -4408,7 +4408,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:319'"
+                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:668'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4416,15 +4416,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 319,
+                            "endLine": 668,
                             "message": {
-                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:319'"
+                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:668'"
                             },
                             "snippet": {
                               "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                             },
                             "startColumn": 27,
-                            "startLine": 319
+                            "startLine": 668
                           }
                         }
                       },
@@ -4447,12 +4447,12 @@
                 },
                 "region": {
                   "endColumn": 68,
-                  "endLine": 319,
+                  "endLine": 668,
                   "snippet": {
                     "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                   },
                   "startColumn": 27,
-                  "startLine": 319
+                  "startLine": 668
                 }
               }
             }
@@ -4467,7 +4467,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from src/utils.js:339 to src/utils.js:339"
+                "text": "Untrusted dataflow from src/utils.js:688 to src/utils.js:688"
               },
               "threadFlows": [
                 {
@@ -4475,7 +4475,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:339'"
+                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:688'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4483,15 +4483,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 339,
+                            "endLine": 688,
                             "message": {
-                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:339'"
+                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:688'"
                             },
                             "snippet": {
                               "text": "`line ${lineno}, col ${colno} ${e.message"
                             },
                             "startColumn": 27,
-                            "startLine": 339
+                            "startLine": 688
                           }
                         }
                       },
@@ -4500,7 +4500,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:339'"
+                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:688'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4508,15 +4508,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 339,
+                            "endLine": 688,
                             "message": {
-                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:339'"
+                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:688'"
                             },
                             "snippet": {
                               "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                             },
                             "startColumn": 27,
-                            "startLine": 339
+                            "startLine": 688
                           }
                         }
                       },
@@ -4539,12 +4539,12 @@
                 },
                 "region": {
                   "endColumn": 68,
-                  "endLine": 339,
+                  "endLine": 688,
                   "snippet": {
                     "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                   },
                   "startColumn": 27,
-                  "startLine": 339
+                  "startLine": 688
                 }
               }
             }
@@ -4559,7 +4559,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from src/utils.js:393 to src/utils.js:393"
+                "text": "Untrusted dataflow from src/utils.js:742 to src/utils.js:742"
               },
               "threadFlows": [
                 {
@@ -4567,7 +4567,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`github.getRepoSarif(${full_name})' @ 'src/utils.js:393'"
+                          "text": "Source: '`github.getRepoSarif(${full_name})' @ 'src/utils.js:742'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4575,15 +4575,15 @@
                           },
                           "region": {
                             "endColumn": 67,
-                            "endLine": 393,
+                            "endLine": 742,
                             "message": {
-                              "text": "Source: '`github.getRepoSarif(${full_name})' @ 'src/utils.js:393'"
+                              "text": "Source: '`github.getRepoSarif(${full_name})' @ 'src/utils.js:742'"
                             },
                             "snippet": {
                               "text": "`github.getRepoSarif(${full_name})"
                             },
                             "startColumn": 33,
-                            "startLine": 393
+                            "startLine": 742
                           }
                         }
                       },
@@ -4592,7 +4592,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.log(`github.getRepoSarif(${full_name})`, report?.id, isSARIF(sarifData.content), sarifData)' @ 'src/utils.js:393'"
+                          "text": "Sink: 'console.log(`github.getRepoSarif(${full_name})`, report?.id, isSARIF(sarifData.content), sarifData)' @ 'src/utils.js:742'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4600,15 +4600,15 @@
                           },
                           "region": {
                             "endColumn": 67,
-                            "endLine": 393,
+                            "endLine": 742,
                             "message": {
-                              "text": "Sink: 'console.log(`github.getRepoSarif(${full_name})`, report?.id, isSARIF(sarifData.content), sarifData)' @ 'src/utils.js:393'"
+                              "text": "Sink: 'console.log(`github.getRepoSarif(${full_name})`, report?.id, isSARIF(sarifData.content), sarifData)' @ 'src/utils.js:742'"
                             },
                             "snippet": {
                               "text": "                    console.log(`github.getRepoSarif(${full_name})`, report?.id, isSARIF(sarifData.content), sarifData)"
                             },
                             "startColumn": 33,
-                            "startLine": 393
+                            "startLine": 742
                           }
                         }
                       },
@@ -4631,12 +4631,12 @@
                 },
                 "region": {
                   "endColumn": 67,
-                  "endLine": 393,
+                  "endLine": 742,
                   "snippet": {
                     "text": "                    console.log(`github.getRepoSarif(${full_name})`, report?.id, isSARIF(sarifData.content), sarifData)"
                   },
                   "startColumn": 33,
-                  "startLine": 393
+                  "startLine": 742
                 }
               }
             }
@@ -4651,7 +4651,7 @@
           "codeFlows": [
             {
               "message": {
-                "text": "Untrusted dataflow from src/utils.js:505 to src/utils.js:505"
+                "text": "Untrusted dataflow from src/utils.js:854 to src/utils.js:854"
               },
               "threadFlows": [
                 {
@@ -4659,7 +4659,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:505'"
+                          "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:854'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4667,15 +4667,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 505,
+                            "endLine": 854,
                             "message": {
-                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:505'"
+                              "text": "Source: '`line ${lineno}, col ${colno} ${e.message' @ 'src/utils.js:854'"
                             },
                             "snippet": {
                               "text": "`line ${lineno}, col ${colno} ${e.message"
                             },
                             "startColumn": 27,
-                            "startLine": 505
+                            "startLine": 854
                           }
                         }
                       },
@@ -4684,7 +4684,7 @@
                     {
                       "location": {
                         "message": {
-                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:505'"
+                          "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:854'"
                         },
                         "physicalLocation": {
                           "artifactLocation": {
@@ -4692,15 +4692,15 @@
                           },
                           "region": {
                             "endColumn": 68,
-                            "endLine": 505,
+                            "endLine": 854,
                             "message": {
-                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:505'"
+                              "text": "Sink: 'console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)' @ 'src/utils.js:854'"
                             },
                             "snippet": {
                               "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                             },
                             "startColumn": 27,
-                            "startLine": 505
+                            "startLine": 854
                           }
                         }
                       },
@@ -4723,12 +4723,12 @@
                 },
                 "region": {
                   "endColumn": 68,
-                  "endLine": 505,
+                  "endLine": 854,
                   "snippet": {
                     "text": "            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)"
                   },
                   "startColumn": 27,
-                  "startLine": 505
+                  "startLine": 854
                 }
               }
             }
@@ -4752,12 +4752,41 @@
                 },
                 "region": {
                   "endColumn": 27,
-                  "endLine": 664,
+                  "endLine": 1013,
                   "snippet": {
                     "text": "            body[entry[0]] = entry[1]"
                   },
                   "startColumn": 13,
-                  "startLine": 664
+                  "startLine": 1013
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Bracket object notation with user input is present, this might allow an attacker to access all properties of the object and even it's prototype, leading to possible code execution."
+          },
+          "properties": {},
+          "ruleId": "gitlab.eslint.detect-object-injection"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "998498ba00f478f6955a54c2eb77f2a703256f44c5384037d08e033a88e44bd201b16e2e0156880c78c48ed0cc54b5b915479c5a8c068affa6a65b28cde6ef72_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/utils.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 17,
+                  "endLine": 1345,
+                  "snippet": {
+                    "text": "        array[i] = parseInt(hexString.substr(i * 2, 2), 16)"
+                  },
+                  "startColumn": 9,
+                  "startLine": 1345
                 }
               }
             }

@@ -1,14 +1,11 @@
 <script setup>
-import router from "@/router";
 import { useMemberStore } from '@/stores/member';
-import { default as axios } from 'axios';
-import { reactive } from 'vue';
+import { Client } from "@/utils";
+import { onMounted, reactive } from 'vue';
 
 const Member = useMemberStore()
+const client = new Client()
 
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token,
-}
 class Controller {
     constructor() {
         if (!Member.session?.token && location.pathname.startsWith('/github-integration')) {
@@ -17,43 +14,36 @@ class Controller {
                 return
             }
         }
-        this.refresh()
     }
 
     async refresh() {
         try {
-            const { data } = await axios.get(`/me`)
-            if (data?.error?.message) {
-                state.error = data?.error?.message
-            }
-            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-                return router.push('/logout')
-            }
-            if (data.member?.email) {
+            const { data } = await client.signedFetch(`/me`)
+            if (data?.member?.email) {
                 Member.email = data.member.email
             }
-            if (data.member?.avatarUrl) {
+            if (data?.member?.avatarUrl) {
                 Member.avatarUrl = data.member.avatarUrl
             }
-            if (data.member?.orgName) {
+            if (data?.member?.orgName) {
                 Member.orgName = data.member.orgName
             }
-            if (data.member?.firstName) {
+            if (data?.member?.firstName) {
                 Member.firstName = data.member.firstName
             }
-            if (data.member?.lastName) {
+            if (data?.member?.lastName) {
                 Member.lastName = data.member.lastName
             }
-            if (data.member?.alertNews) {
+            if (data?.member?.alertNews) {
                 Member.alertNews = data.member.alertNews
             }
-            if (data.member?.alertOverdue) {
+            if (data?.member?.alertOverdue) {
                 Member.alertOverdue = data.member.alertOverdue
             }
-            if (data.member?.alertFindings) {
+            if (data?.member?.alertFindings) {
                 Member.alertFindings = data.member.alertFindings
             }
-            if (data.member?.alertType) {
+            if (data?.member?.alertType) {
                 Member.alertType = data.member.alertType
             }
         } catch (e) {
@@ -63,6 +53,7 @@ class Controller {
 }
 
 const controller = reactive(new Controller())
+onMounted(() => Member.ensureSession().then(controller.refresh))
 </script>
 
 <template>

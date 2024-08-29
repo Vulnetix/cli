@@ -1,13 +1,16 @@
+import { Client } from "@/utils"
 import { defineStore } from 'pinia'
 
-const session = {
-    token: localStorage.getItem('/session/token') || '',
-    expiry: localStorage.getItem('/session/expiry') || '',
-}
+const client = new Client()
 const theme = localStorage.getItem('/member/theme') || 'light'
+
 export const useMemberStore = defineStore('member', {
     state: () => ({
-        session,
+        session: {
+            kid: '',
+            secret: '',
+            expiry: '',
+        },
         email: '',
         avatarUrl: '',
         orgName: '',
@@ -20,15 +23,24 @@ export const useMemberStore = defineStore('member', {
         theme,
     }),
     actions: {
-        logout() {
-            localStorage.removeItem('/session/token')
-            localStorage.removeItem('/session/expiry')
-            this.session.token = ''
-            this.session.expiry = ''
+        async ensureSession() {
+            this.session = Object.assign({}, await client.retrieveKey(`session`)) || {
+                kid: '',
+                secret: '',
+                expiry: '',
+            }
+        },
+        async logout() {
+            this.session = {
+                kid: '',
+                secret: '',
+                expiry: '',
+            }
+            await client.deleteKey(`session`)
         },
         isLoggedIn() {
             //TODO: check this.session.expiry
-            return !!this.session.token
+            return !!this.session.secret
         },
     },
 })

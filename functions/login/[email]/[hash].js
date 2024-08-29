@@ -1,4 +1,4 @@
-import { pbkdf2Verify } from "@/utils";
+import { AuthResult, hex, pbkdf2Verify } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -12,6 +12,7 @@ export async function onRequestGet(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
 
+    const response = { ok: false, result: AuthResult.FORBIDDEN, session: {}, member: {} }
     if (
         params?.email &&
         params?.hash
@@ -30,26 +31,33 @@ export async function onRequestGet(context) {
                 email: params.email,
             },
         })
-
         const verified = await pbkdf2Verify(member.passwordHash, params.hash)
         if (!verified) {
-            return Response.json({ error: { message: 'Forbidden' } })
+            return Response.json(response)
         }
+        response.member = member
         const token = crypto.randomUUID()
         const authn_ip = request.headers.get('cf-connecting-ip')
         const authn_ua = request.headers.get('user-agent')
         const issued = (new Date()).getTime()
         const expiry = issued + (86400000 * 30) // 30 days
-        const secret = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-1", crypto.getRandomValues(new Uint32Array(26))))).map(b => b.toString(16).padStart(2, "0")).join("")
-
-        const info = await env.d1db.prepare('INSERT INTO sessions (kid, memberEmail, expiry, issued, secret, authn_ip, authn_ua) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)')
-            .bind(token, params.email, expiry, issued, secret, authn_ip, authn_ua)
-            .run()
-
-        console.log(`/login kid=${token}`, info)
-
-        return Response.json({ token, expiry, orgName: member.orgName, firstName: member.firstName, lastName: member.lastName })
+        const secret = await hex(crypto.getRandomValues(new Uint32Array(26)), 'SHA-1')
+        response.session = {
+            kid: token,
+            memberEmail: member.email,
+            expiry,
+            issued,
+            secret,
+            authn_ip,
+            authn_ua
+        }
+        const sessionInfo = await prisma.sessions.create({
+            data: response.session
+        })
+        console.log(`/login session kid=${token}`, sessionInfo)
+        response.result = AuthResult.AUTHENTICATED
+        response.ok = true
     }
 
-    return Response.json({ error: { message: 'Authentication' } })
+    return Response.json(response)
 }

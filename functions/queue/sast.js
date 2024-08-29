@@ -1,4 +1,4 @@
-import { App, AuthResult } from "@/utils";
+import { AuthResult, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -20,9 +20,9 @@ export async function onRequestGet(context) {
                 timeout: 2000, // default: 5000
             },
         })
-        const { err, result, session } = await (new App(request, prisma)).authenticate()
-        if (result !== AuthResult.AUTHENTICATED) {
-            return Response.json({ ok: false, error: { message: err }, result })
+        const verificationResult = await (new Server(request, prisma)).authenticate()
+        if (!verificationResult.isValid) {
+            return Response.json({ ok: false, result: verificationResult.message })
         }
         const { searchParams } = new URL(request.url)
         const take = parseInt(searchParams.get('take'), 10) || 50
@@ -30,7 +30,7 @@ export async function onRequestGet(context) {
         const sast = await prisma.sarif_results.findMany({
             where: {
                 sarif: {
-                    memberEmail: session.memberEmail,
+                    memberEmail: verificationResult.session.memberEmail,
                 },
             },
             include: {

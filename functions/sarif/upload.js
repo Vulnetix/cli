@@ -1,4 +1,4 @@
-import { App, AuthResult, UUID, hex, isSARIF } from "@/utils";
+import { Server, UUID, hex, isSARIF } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -20,9 +20,9 @@ export async function onRequestPost(context) {
             timeout: 2000, // default: 5000
         },
     })
-    const { err, result, session } = await (new App(request, prisma)).authenticate()
-    if (result !== AuthResult.AUTHENTICATED) {
-        return Response.json({ ok: false, error: { message: err }, result })
+    const verificationResult = await (new Server(request, prisma)).authenticate()
+    if (!verificationResult.isValid) {
+        return Response.json({ ok: false, result: verificationResult.message })
     }
     const files = []
     try {
@@ -48,7 +48,7 @@ export async function onRequestPost(context) {
                         sarifId,
                         reportId,
                         source: 'upload',
-                        memberEmail: session.memberEmail,
+                        memberEmail: verificationResult.session.memberEmail,
                         createdAt,
                         resultsCount: run.results.length,
                         rulesCount: run.tool.driver.rules.length,
@@ -56,7 +56,7 @@ export async function onRequestPost(context) {
                         toolVersion: run.tool.driver.semanticVersion,
                     },
                 })
-                console.log(`/sarif/upload ${sarifId} kid=${session.kid}`, info)
+                console.log(`/sarif/upload ${sarifId} kid=${verificationResult.session.kid}`, info)
                 for (const result of run.results) {
                     const resultData = {
                         guid: result.fingerprints["matchBasedId/v1"],
@@ -106,7 +106,7 @@ export async function onRequestPost(context) {
                         },
                         create: resultData,
                     })
-                    console.log(`/github/repos/sarif_results ${sarifId} kid=${session.kid}`, reportInfo)
+                    console.log(`/github/repos/sarif_results ${sarifId} kid=${verificationResult.session.kid}`, reportInfo)
                 }
             }
 
@@ -114,7 +114,7 @@ export async function onRequestPost(context) {
                 sarifId,
                 reportId,
                 fullName: '',
-                memberEmail: session.memberEmail,
+                memberEmail: verificationResult.session.memberEmail,
                 commitSha: '',
                 ref: '',
                 createdAt,

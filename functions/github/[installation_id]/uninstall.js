@@ -1,4 +1,4 @@
-import { App, AuthResult, GitHub } from "@/utils";
+import { AuthResult, GitHub, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -19,21 +19,22 @@ export async function onRequestGet(context) {
             timeout: 2000, // default: 5000
         },
     })
-    const { err, result, session } = await (new App(request, prisma)).authenticate()
-    if (result !== AuthResult.AUTHENTICATED) {
-        return Response.json({ ok: false, error: { message: err }, result })
+    const verificationResult = await (new Server(request, prisma)).authenticate()
+    if (!verificationResult.isValid) {
+        return Response.json({ ok: false, result: verificationResult.message })
     }
+
     try {
         const where = {
-            memberEmail: session.memberEmail,
+            memberEmail: verificationResult.session.memberEmail,
             installationId: parseInt(params.installation_id, 10),
         }
         const app = await prisma.github_apps.findUniqueOrThrow({ where })
         const gh = new GitHub(app.accessToken)
-        const result = await gh.revokeToken(prisma, session.memberEmail)
+        const result = await gh.revokeToken(prisma, verificationResult.session.memberEmail)
         if ([204, 401].includes(result.status)) {
             const response = await prisma.github_apps.delete({ where })
-            console.log(`/github/uninstall session kid=${session.token}`, response)
+            console.log(`/github/uninstall session kid=${verificationResult.session.token}`, response)
 
             return Response.json(response)
         }

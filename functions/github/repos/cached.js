@@ -1,4 +1,4 @@
-import { App, AuthResult } from "@/utils";
+import { Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -19,13 +19,13 @@ export async function onRequestGet(context) {
             timeout: 2000, // default: 5000
         },
     })
-    const { err, result, session } = await (new App(request, prisma)).authenticate()
-    if (result !== AuthResult.AUTHENTICATED) {
-        return Response.json({ ok: false, error: { message: err }, result })
+    const verificationResult = await (new Server(request, prisma)).authenticate()
+    if (!verificationResult.isValid) {
+        return Response.json({ ok: false, result: verificationResult.message })
     }
     const githubApps = await prisma.github_apps.findMany({
         where: {
-            memberEmail: session.memberEmail,
+            memberEmail: verificationResult.session.memberEmail,
         },
         omit: {
             memberEmail: true,
@@ -34,7 +34,7 @@ export async function onRequestGet(context) {
     })
     const gitRepos = await prisma.git_repos.findMany({
         where: {
-            memberEmail: session.memberEmail,
+            memberEmail: verificationResult.session.memberEmail,
         },
         omit: {
             memberEmail: true,
@@ -46,7 +46,7 @@ export async function onRequestGet(context) {
     })
     const patTokens = await prisma.member_keys.findMany({
         where: {
-            memberEmail: session.memberEmail,
+            memberEmail: verificationResult.session.memberEmail,
             keyType: 'github_pat',
         },
         include: {

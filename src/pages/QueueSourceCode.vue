@@ -1,11 +1,12 @@
 <script setup>
 import { useMemberStore } from '@/stores/member';
 import { usePreferencesStore } from '@/stores/preferences';
-import { isJSON } from '@/utils';
+import { Client, isJSON } from '@/utils';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import router from "../router";
 
+const client = new Client()
 const Member = useMemberStore()
 const Preferences = usePreferencesStore()
 watch(Preferences, () => localStorage.setItem('/state/preferences/sastFilter', Preferences.sastFilter), { deep: true })
@@ -57,7 +58,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore) {
-                const { data } = await axios.get(`/queue/sast?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.signedFetch(`/queue/sast?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.sast) {
                         data.sast.forEach(sast => state.sast.push(sast))

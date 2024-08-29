@@ -1,6 +1,6 @@
 <script setup>
 import { useMemberStore } from '@/stores/member';
-import { isJSON } from '@/utils';
+import { Client, isJSON } from '@/utils';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
@@ -11,6 +11,7 @@ import router from "../router";
 //     -H 'Accept: application/json' \
 //     -H 'Authorization: Bearer undefined' > ./vulncheck-kev.json
 
+const client = new Client()
 const Member = useMemberStore()
 const { global } = useTheme()
 
@@ -48,7 +49,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore && skip <= limit) {
-                const { data } = await axios.get(`/vulncheck/log?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.signedFetch(`/vulncheck/log?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.results) {
                         data.results.map(r => state.log.push(r))

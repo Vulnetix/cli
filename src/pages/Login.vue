@@ -1,6 +1,7 @@
 <script setup>
 import router from "@/router"
 import { useMemberStore } from '@/stores/member'
+import { Client } from "@/utils"
 import IconVulnetix from '@images/IconVulnetix.vue'
 import { useVuelidate } from '@vuelidate/core'
 import { email, minLength, required } from '@vuelidate/validators'
@@ -10,6 +11,7 @@ import { reactive } from 'vue'
 import { useTheme } from 'vuetify'
 
 const Member = useMemberStore()
+const client = new Client()
 const { global } = useTheme()
 
 const initialState = {
@@ -30,57 +32,65 @@ const rules = {
 const v$ = useVuelidate(rules, state)
 const isPasswordVisible = ref(false)
 
-const login = async () => {
-    state.error = ''
-    if (state.email && state.password) {
-        try {
-            const { data } = await axios.get(`/login/${state.email}/${SHA1(state.password)}`)
-            if (data?.error?.message) {
-                state.error = data?.error?.message
-            }
-            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-                state.info = data.result
-
+class Controller {
+    async login() {
+        state.error = ''
+        if (state.email && state.password) {
+            try {
+                const { data } = await axios.get(`/login/${state.email}/${SHA1(state.password)}`)
+                if (data?.error?.message) {
+                    state.error = data?.error?.message
+                }
+                if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+                    state.info = data.result
+                    return
+                }
+                Member.email = state.email
+                if (data?.member?.avatarUrl) {
+                    Member.avatarUrl = data.member.avatarUrl
+                }
+                if (data?.member?.orgName) {
+                    Member.orgName = data.member.orgName
+                }
+                if (data?.member?.firstName) {
+                    Member.firstName = data.member.firstName
+                }
+                if (data?.member?.lastName) {
+                    Member.lastName = data.member.lastName
+                }
+                if (data?.alertNews) {
+                    Member.alertNews = data.member.alertNews
+                }
+                if (data?.member?.alertOverdue) {
+                    Member.alertOverdue = data.member.alertOverdue
+                }
+                if (data?.member?.alertFindings) {
+                    Member.alertFindings = data.member.alertFindings
+                }
+                if (data?.member?.alertType) {
+                    Member.alertType = data.member.alertType
+                }
+                if (data?.session?.kid) {
+                    Member.session.kid = data?.session?.kid
+                }
+                if (data?.session?.secret) {
+                    Member.session.secret = data?.session?.secret
+                }
+                if (data?.session?.expiry) {
+                    Member.session.expiry = data.session.expiry
+                }
+                await client.storeKey(`session`, Member.session || {})
+                router.push('/dashboard')
+            } catch (e) {
+                console.log(e)
+                state.error = e.code
                 return
             }
-            Member.email = state.email
-            if (data?.avatarUrl) {
-                Member.avatarUrl = data.avatarUrl
-            }
-            if (data?.orgName) {
-                Member.avatarUrl = data.avatarUrl
-            }
-            if (data?.firstName) {
-                Member.firstName = data.firstName
-            }
-            if (data?.lastName) {
-                Member.lastName = data.lastName
-            }
-            if (data?.alertNews) {
-                Member.alertNews = data.alertNews
-            }
-            if (data?.alertOverdue) {
-                Member.alertOverdue = data.alertOverdue
-            }
-            if (data?.alertFindings) {
-                Member.alertFindings = data.alertFindings
-            }
-            if (data?.alertType) {
-                Member.alertType = data.alertType
-            }
-            Member.session.token = data.token
-            Member.session.expiry = data.expiry
-            localStorage.setItem('/session/token', data.token)
-            localStorage.setItem('/session/expiry', data.expiry)
-            router.push('/dashboard')
-        } catch (e) {
-            console.error(e)
-            state.error = e.code
-
-            return
         }
     }
 }
+
+const controller = reactive(new Controller())
 </script>
 
 <template>
@@ -113,7 +123,7 @@ const login = async () => {
             </VCardText>
 
             <VCardText>
-                <VForm @submit.prevent="login">
+                <VForm @submit.prevent="controller.login">
                     <VRow>
                         <VCol cols="12">
                             <VAlert
@@ -135,6 +145,7 @@ const login = async () => {
                                 placeholder="johndoe@email.com"
                                 label="Email"
                                 type="email"
+                                autocomplete="username"
                             />
                         </VCol>
 
@@ -145,6 +156,7 @@ const login = async () => {
                                 required
                                 label="Password"
                                 placeholder="············"
+                                autocomplete="current-password"
                                 :error-messages="v$.password.$errors.map(e => e.$message)"
                                 :type="isPasswordVisible ? 'text' : 'password'"
                                 :append-inner-icon="isPasswordVisible ? 'bx-hide' : 'bx-show'"

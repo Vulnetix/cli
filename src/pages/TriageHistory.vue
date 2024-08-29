@@ -1,11 +1,12 @@
 <script setup>
 import { useMemberStore } from '@/stores/member';
 import { usePreferencesStore } from '@/stores/preferences';
-import { isJSON } from '@/utils';
+import { Client, isJSON } from '@/utils';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import router from "../router";
 
+const client = new Client()
 const Member = useMemberStore()
 const Preferences = usePreferencesStore()
 watch(Preferences, () => localStorage.setItem('/state/preferences/issueFilter', Preferences.issueFilter), { deep: true })
@@ -53,7 +54,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore) {
-                const { data } = await axios.get(`/history?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.signedFetch(`/history?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.results) {
                         data.results.map(r => state.results.push(r))
@@ -92,7 +93,7 @@ class Controller {
         const findingId = VEvent.item.findingId.toString()
         state.triageLoaders[findingId] = true
         try {
-            const { data } = await axios.get(`/enrich/${findingId}`)
+            const { data } = await client.signedFetch(`/enrich/${findingId}`)
             state.triageLoaders[findingId] = false
             if (data.ok) {
                 if (data?.finding) {

@@ -1,4 +1,4 @@
-import { App, AuthResult, hex, isCDX, OSV } from "@/utils";
+import { AuthResult, hex, isCDX, OSV, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -20,9 +20,9 @@ export async function onRequestPost(context) {
             timeout: 2000, // default: 5000
         },
     })
-    const { err, result, session } = await (new App(request, prisma)).authenticate()
-    if (result !== AuthResult.AUTHENTICATED) {
-        return Response.json({ ok: false, error: { message: err }, result })
+    const verificationResult = await (new Server(request, prisma)).authenticate()
+    if (!verificationResult.isValid) {
+        return Response.json({ ok: false, result: verificationResult.message })
     }
 
     const files = []
@@ -39,7 +39,7 @@ export async function onRequestPost(context) {
             const cdxData = {
                 cdxId,
                 source: 'upload',
-                memberEmail: session.memberEmail,
+                memberEmail: verificationResult.session.memberEmail,
                 cdxVersion: cdx.specVersion,
                 serialNumber: cdx.serialNumber,
                 name: cdx.metadata.component.name,
@@ -53,7 +53,7 @@ export async function onRequestPost(context) {
             const info = await prisma.cdx.upsert({
                 where: {
                     cdxId,
-                    memberEmail: session.memberEmail,
+                    memberEmail: verificationResult.session.memberEmail,
                 },
                 update: {
                     createdAt: cdxData.createdAt,
@@ -61,7 +61,7 @@ export async function onRequestPost(context) {
                 },
                 create: cdxData
             })
-            console.log(`/github/repos/cdx ${cdxId} kid=${session.kid}`, info)
+            console.log(`/github/repos/cdx ${cdxId} kid=${verificationResult.session.kid}`, info)
             cdxData.externalReferences = JSON.parse(cdxData.externalReferencesJSON)
             cdxData.components = JSON.parse(cdxData.componentsJSON)
             cdxData.dependencies = JSON.parse(cdxData.dependenciesJSON)
@@ -81,7 +81,7 @@ export async function onRequestPost(context) {
             })
             const osv = new OSV()
             const queries = osvQueries.map(q => ({ package: { purl: q?.referenceLocator } }))
-            const results = await osv.queryBatch(prisma, session.memberEmail, queries)
+            const results = await osv.queryBatch(prisma, verificationResult.session.memberEmail, queries)
             let i = 0
             for (const result of results) {
                 const { referenceLocator, name, version, license } = osvQueries[i]
@@ -89,10 +89,10 @@ export async function onRequestPost(context) {
                     if (!vuln?.id) {
                         continue
                     }
-                    const findingId = await hex(`${session.memberEmail}${vuln.id}${referenceLocator}`)
+                    const findingId = await hex(`${verificationResult.session.memberEmail}${vuln.id}${referenceLocator}`)
                     const findingData = {
                         findingId,
-                        memberEmail: session.memberEmail,
+                        memberEmail: verificationResult.session.memberEmail,
                         source: 'osv.dev',
                         category: 'sca',
                         createdAt: (new Date()).getTime(),

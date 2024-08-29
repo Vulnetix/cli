@@ -1,11 +1,12 @@
 <script setup>
 import router from "@/router";
 import { useMemberStore } from '@/stores/member';
-import { isJSON, isSPDX } from '@/utils';
+import { Client, isJSON, isSPDX } from '@/utils';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
+const client = new Client()
 const Member = useMemberStore()
 const { global } = useTheme()
 
@@ -38,7 +39,7 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await axios.get(`/spdx/results`)
+            const { data } = await client.signedFetch(`/spdx/results`)
             state.loading = false
             if (data?.error?.message) {
                 state.error = data?.error?.message

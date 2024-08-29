@@ -1,12 +1,7 @@
-import { useMemberStore } from '@/stores/member';
-import { default as axios } from 'axios';
 import { defineStore } from 'pinia';
+import { Client } from "@/utils"
 
-const Member = useMemberStore()
-
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token,
-}
+const client = new Client()
 
 export const useAnalyticsStore = defineStore("analytics", {
     state: () => ({
@@ -34,7 +29,7 @@ export const useAnalyticsStore = defineStore("analytics", {
     actions: {
         async fetchAnalytics() {
             try {
-                const { data } = await axios.get(`/analytics`)
+                const { data } = await client.signedFetch(`/analytics`)
                 if (data?.error?.message) {
                     console.error('useAnalyticsStore', data.error.message)
                 } else if (data?.ok && data?.data) {

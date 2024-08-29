@@ -1,7 +1,9 @@
 import protectedRoutes from '@/router/protected-routes'
 import publicRoutes from '@/router/public-routes'
+import { Client } from "@/utils"
 import { createRouter, createWebHistory } from 'vue-router'
 
+const client = new Client()
 const allRoutes = Array.from(publicRoutes)
 const routes = allRoutes.concat(protectedRoutes)
 
@@ -38,9 +40,7 @@ router.beforeEach(async to => {
             authRequired = false
         }
     }
-
-    const logged_in = !!localStorage.getItem('/session/token')
-    if (authRequired && !logged_in) {
+    if (authRequired && !client.isLoggedIn()) {
         return '/login'
     }
 })

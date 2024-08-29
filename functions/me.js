@@ -1,4 +1,4 @@
-import { App, AuthResult } from "@/utils";
+import { AuthResult, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -20,13 +20,13 @@ export async function onRequestGet(context) {
                 timeout: 2000, // default: 5000
             },
         })
-        const { err, result, session } = await (new App(request, prisma)).authenticate()
-        if (result !== AuthResult.AUTHENTICATED) {
-            return Response.json({ ok: false, error: { message: err }, result })
+        const verificationResult = await (new Server(request, prisma)).authenticate()
+        if (!verificationResult.isValid) {
+            return Response.json({ ok: false, result: verificationResult.message })
         }
         const member = await prisma.members.findFirst({
             where: {
-                email: session.memberEmail,
+                email: verificationResult.session.memberEmail,
             },
         })
         delete member.passwordHash
@@ -54,13 +54,13 @@ export async function onRequestPost(context) {
                 timeout: 2000, // default: 5000
             },
         })
-        const { err, result, session } = await (new App(request, prisma)).authenticate()
-        if (result !== AuthResult.AUTHENTICATED) {
-            return Response.json({ ok: false, error: { message: err }, result })
+        const verificationResult = await (new Server(request, prisma)).authenticate()
+        if (!verificationResult.isValid) {
+            return Response.json({ ok: false, result: verificationResult.message })
         }
         const original = await prisma.members.findFirst({
             where: {
-                email: session.memberEmail,
+                email: verificationResult.session.memberEmail,
             },
         })
         const member = {}
@@ -98,7 +98,7 @@ export async function onRequestPost(context) {
         if (Object.keys(member).length > 0) {
             await prisma.members.update({
                 where: {
-                    email: session.memberEmail,
+                    email: verificationResult.session.memberEmail,
                 },
                 data: member
             })

@@ -1,13 +1,13 @@
 <script setup>
-import router from "@/router"
-import { useMemberStore } from '@/stores/member'
-import IconVulnetix from '@images/IconVulnetix.vue'
-import { useVuelidate } from '@vuelidate/core'
-import { email, required } from '@vuelidate/validators'
-import { default as axios } from 'axios'
-import { SHA1 } from 'crypto-es/lib/sha1'
-import { reactive } from 'vue'
-import { useTheme } from 'vuetify'
+import router from "@/router";
+import { useMemberStore } from '@/stores/member';
+import IconVulnetix from '@images/IconVulnetix.vue';
+import { useVuelidate } from '@vuelidate/core';
+import { email, required } from '@vuelidate/validators';
+import { default as axios } from 'axios';
+import { SHA1 } from 'crypto-es/lib/sha1';
+import { reactive } from 'vue';
+import { useTheme } from 'vuetify';
 
 const { global } = useTheme()
 const Member = useMemberStore()
@@ -85,6 +85,7 @@ const register = () => {
                                 autofocus
                                 label="Organization"
                                 placeholder="ACME Corp."
+                                autocomplete="organization"
                             />
                         </VCol>
                         <!-- email -->
@@ -95,6 +96,7 @@ const register = () => {
                                 label="Email"
                                 placeholder="johndoe@email.com"
                                 type="email"
+                                autocomplete="email"
                             />
                         </VCol>
 
@@ -105,6 +107,7 @@ const register = () => {
                                 required
                                 label="Password"
                                 placeholder="············"
+                                autocomplete="new-password"
                                 :type="isPasswordVisible ? 'text' : 'password'"
                                 :append-inner-icon="isPasswordVisible ? 'bx-hide' : 'bx-show'"
                                 @click:append-inner="isPasswordVisible = !isPasswordVisible"

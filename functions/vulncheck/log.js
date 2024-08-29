@@ -1,4 +1,4 @@
-import { App, AuthResult } from "@/utils";
+import { AuthResult, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -20,13 +20,13 @@ export async function onRequestGet(context) {
                 timeout: 2000, // default: 5000
             },
         })
-        const { err, result, session } = await (new App(request, prisma)).authenticate()
-        if (result !== AuthResult.AUTHENTICATED) {
-            return Response.json({ ok: false, error: { message: err }, result })
+        const verificationResult = await (new Server(request, prisma)).authenticate()
+        if (!verificationResult.isValid) {
+            return Response.json({ ok: false, result: verificationResult.message })
         }
         const keyData = await prisma.member_keys.findFirst({
             where: {
-                memberEmail: session.memberEmail,
+                memberEmail: verificationResult.session.memberEmail,
                 keyType: 'vulncheck',
             }
         })
@@ -37,7 +37,7 @@ export async function onRequestGet(context) {
 
         const log = await prisma.integration_usage_log.findMany({
             where: {
-                memberEmail: session.memberEmail,
+                memberEmail: verificationResult.session.memberEmail,
                 source: 'vulncheck',
             },
             take: 1000,

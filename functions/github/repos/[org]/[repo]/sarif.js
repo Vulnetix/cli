@@ -1,4 +1,4 @@
-import { App, AuthResult, GitHub } from "@/utils";
+import { GitHub, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -19,14 +19,14 @@ export async function onRequestGet(context) {
             timeout: 2000, // default: 5000
         },
     })
-    const { err, result, session } = await (new App(request, prisma)).authenticate()
-    if (result !== AuthResult.AUTHENTICATED) {
-        return Response.json({ ok: false, error: { message: err }, result })
+    const verificationResult = await (new Server(request, prisma)).authenticate()
+    if (!verificationResult.isValid) {
+        return Response.json({ ok: false, result: verificationResult.message })
     }
     const errors = []
     const githubApps = await prisma.github_apps.findMany({
         where: {
-            memberEmail: session.memberEmail,
+            memberEmail: verificationResult.session.memberEmail,
         },
     })
     const repoName = `${params.org}/${params.repo}`
@@ -34,12 +34,12 @@ export async function onRequestGet(context) {
     const putOptions = { httpMetadata: { contentType: 'application/json', contentEncoding: 'utf8' } }
     for (const app of githubApps) {
         if (!app.accessToken) {
-            console.error(`Invalid github_apps kid=${session.kid} installationId=${app.installationId}`)
+            console.error(`Invalid github_apps kid=${verificationResult.session.kid} installationId=${app.installationId}`)
             continue
         }
         const gh = new GitHub(app.accessToken)
 
-        const { content, error } = await gh.getRepoSarif(prisma, session.memberEmail, repoName)
+        const { content, error } = await gh.getRepoSarif(prisma, verificationResult.session.memberEmail, repoName)
         if (error?.message) {
             if ("Bad credentials" === error.message) {
                 app.expires = (new Date()).getTime()
@@ -61,19 +61,19 @@ export async function onRequestGet(context) {
             const objectPrefix = `github/${app.installationId}/repos/${repoName}/code-scanning/`
             console.log(`${repoName}/code-scanning/${data.report.id}.json`, await env.r2icache.put(`${objectPrefix}${data.report.id}.json`, JSON.stringify(data.report), putOptions))
             console.log(`${repoName}/code-scanning/${data.report.id}_${data.report.sarif_id}.json`, await env.r2icache.put(`${objectPrefix}${data.report.id}_${data.report.sarif_id}.json`, JSON.stringify(data.sarif), putOptions))
-            files.push(await process(prisma, session, data, repoName))
+            files.push(await process(prisma, verificationResult.session, data, repoName))
         }
     }
 
     const memberKeys = await prisma.member_keys.findMany({
         where: {
-            memberEmail: session.memberEmail,
+            memberEmail: verificationResult.session.memberEmail,
             keyType: 'github_pat',
         },
     })
     for (const memberKey of memberKeys) {
         const gh = new GitHub(memberKey.secret)
-        const { content, error } = await gh.getRepoSarif(prisma, session.memberEmail, repoName)
+        const { content, error } = await gh.getRepoSarif(prisma, verificationResult.session.memberEmail, repoName)
         if (error?.message) {
             errors.push({ error, app: { login: memberKey.keyLabel } })
             continue
@@ -82,7 +82,7 @@ export async function onRequestGet(context) {
             const objectPrefix = `github/pat_${memberKey.id}/repos/${repoName}/code-scanning/`
             console.log(`${repoName}/code-scanning/${data.report.id}.json`, await env.r2icache.put(`${objectPrefix}${data.report.id}.json`, JSON.stringify(data.report), putOptions))
             console.log(`${repoName}/code-scanning/${data.report.id}_${data.report.sarif_id}.json`, await env.r2icache.put(`${objectPrefix}${data.report.id}_${data.report.sarif_id}.json`, JSON.stringify(data.sarif), putOptions))
-            files.push(await process(prisma, session, data, repoName))
+            files.push(await process(prisma, verificationResult.session, data, repoName))
         }
     }
 

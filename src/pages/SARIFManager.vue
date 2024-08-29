@@ -1,11 +1,12 @@
 <script setup>
 import router from "@/router";
 import { useMemberStore } from '@/stores/member';
-import { isJSON, isSARIF } from '@/utils';
+import { Client, isJSON, isSARIF } from '@/utils';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
+const client = new Client()
 const Member = useMemberStore()
 const { global } = useTheme()
 
@@ -38,7 +39,7 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await axios.get(`/sarif/results`)
+            const { data } = await client.signedFetch(`/sarif/results`)
             state.loading = false
 
             if (typeof data === "string" && !isJSON(data)) {

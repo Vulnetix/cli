@@ -1,6 +1,6 @@
+import { AuthResult, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { App, AuthResult } from "@/utils";
 
 export async function onRequestPost(context) {
     const {
@@ -20,16 +20,16 @@ export async function onRequestPost(context) {
                 timeout: 2000, // default: 5000
             },
         })
-        const { err, result, session } = await (new App(request, prisma)).authenticate()
-        if (result !== AuthResult.AUTHENTICATED) {
-            return Response.json({ ok: false, error: { message: err }, result })
+        const verificationResult = await (new Server(request, prisma)).authenticate()
+        if (!verificationResult.isValid) {
+            return Response.json({ ok: false, result: verificationResult.message })
         }
         const data = await request.json()
         if (!data.apiKey.startsWith('vulncheck_')) {
             return Response.json({ error: { message: `Invalid API Key provided, expected "vulncheck_" prefix.` } })
         }
         const where = {
-            memberEmail: session.memberEmail,
+            memberEmail: verificationResult.session.memberEmail,
             keyType: 'vulncheck',
         }
         const original = await prisma.member_keys.findFirst({ where })

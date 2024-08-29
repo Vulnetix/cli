@@ -2,24 +2,37 @@
  * Class representing the possible results of an authentication attempt.
  */
 export class AuthResult {
-    static get FORBIDDEN() { return "Forbidden"; }
-    static get REVOKED() { return "Revoked"; }
-    static get EXPIRED() { return "Expired"; }
-    static get AUTHENTICATED() { return "Authenticated"; }
+    static get FORBIDDEN() { return "Forbidden" }
+    static get REVOKED() { return "Revoked" }
+    static get EXPIRED() { return "Expired" }
+    static get AUTHENTICATED() { return "Authenticated" }
+}
+
+/**
+ * Class representing the results of an signed request verification.
+ */
+export class SignatureVerificationResult {
+    constructor(isValid, message, signature, timestamp, session) {
+        this.isValid = isValid // Boolean indicating whether the signature is valid
+        this.message = message // Message detailing the result of the verification
+        this.signature = signature // The signature that was provided in the request
+        this.timestamp = timestamp // The timestamp provided in the request
+        this.session = session // The session object retrieved from the database
+    }
 }
 
 /**
  * Class representing an application with authentication logic.
  */
-export class App {
+export class Server {
     /**
      * Create an App instance.
      * @param {Object} request - The request object, typically containing headers.
      * @param {Object} prisma - The Prisma client instance for database interaction.
      */
     constructor(request, prisma) {
-        this.request = request;
-        this.prisma = prisma;
+        this.request = request
+        this.prisma = prisma
     }
 
     /**
@@ -29,7 +42,7 @@ export class App {
     async memberExists(memberEmail) {
         try {
             const member = await this.prisma.members.findFirstOrThrow({
-                where: { email: memberEmail },
+                where: { email: memberEmail }
             })
 
             return { exists: memberEmail === member.email, member }
@@ -37,37 +50,368 @@ export class App {
             if (err.name === 'NotFoundError') {
                 return { exists: false }
             }
-            throw err;
+            throw err
         }
     }
 
     /**
-     * Authenticate the request based on a token in the headers.
-     * @return {Promise<Object>} The authentication result.
+     * Verification of the signed request based on a session token from the session store.
+     * @return {Promise<Object>} The signature verification result.
      */
     async authenticate() {
-        try {
-            const token = this.request.headers.get('X-Vulnetix');
+        const method = this.request.method.toUpperCase()
+        const url = new URL(this.request.url)
+        const path = url.pathname + url.search
+        const body = method !== 'GET' ? await ensureStrReqBody(this.request) : null
 
-            if (!token) {
-                return { err: null, result: AuthResult.FORBIDDEN, session: null };
-            }
+        // Retrieve signature and timestamp from headers
+        const signature = this.request.headers.get('authorization')?.replace('HMAC ', '')
+        const timestampStr = this.request.headers.get('x-timestamp')
+        const kid = this.request.headers.get('x-vulnetix-kid')
 
-            const session = await this.prisma.sessions.findFirstOrThrow({
-                where: { kid: token },
-            });
-
-            if (!session.expiry || session.expiry <= Date.now()) {
-                return { err: null, result: AuthResult.EXPIRED, session: null };
-            }
-
-            return { err: null, result: AuthResult.AUTHENTICATED, session };
-        } catch (err) {
-            if (err.name === 'NotFoundError') {
-                return { err: null, result: AuthResult.REVOKED, session: null };
-            }
-            return { err, result: null, session: null };
+        if (!signature || !timestampStr || !kid) {
+            return new SignatureVerificationResult(
+                false,
+                AuthResult.FORBIDDEN,
+                signature,
+                timestampStr,
+                null
+            )
         }
+
+        // Convert timestamp from string to integer
+        const timestamp = parseInt(timestampStr, 10)
+        if (isNaN(timestamp)) {
+            return new SignatureVerificationResult(
+                false,
+                'Invalid timestamp format',
+                signature,
+                timestamp,
+                null
+            )
+        }
+        // Validate timestamp (you may want to add a check to ensure the request isn't too old)
+        const currentTimestamp = new Date().getTime()
+        if (Math.abs(currentTimestamp - timestamp) > 3e+5) { // e.g., allow a 5-minute skew
+            return new SignatureVerificationResult(
+                false,
+                AuthResult.EXPIRED,
+                signature,
+                timestamp,
+                null
+            )
+        }
+        // Retrieve the session key from the database using Prisma
+        const session = await this.prisma.sessions.findFirstOrThrow({
+            where: { kid }
+        })
+        if (!session.expiry || session.expiry <= new Date().getTime()) {
+            return new SignatureVerificationResult(
+                false,
+                AuthResult.EXPIRED,
+                signature,
+                timestamp,
+                null
+            )
+        }
+        const secretKeyBytes = new TextEncoder().encode(session.secret)
+        const payloadBytes = Client.makePayload({
+            method,
+            path,
+            kid,
+            timestamp,
+            body
+        })
+        const key = await crypto.subtle.importKey(
+            "raw",
+            secretKeyBytes,
+            { name: "HMAC", hash: "SHA-512" },
+            false,
+            ["verify"]
+        )
+
+        const signatureBytes = hexStringToUint8Array(signature)
+        const isValid = await crypto.subtle.verify("HMAC", key, signatureBytes, payloadBytes)
+
+        if (!isValid) {
+            return new SignatureVerificationResult(
+                false,
+                AuthResult.FORBIDDEN,
+                signature,
+                timestamp,
+                null
+            )
+        }
+
+        return new SignatureVerificationResult(
+            true,
+            AuthResult.AUTHENTICATED,
+            signature,
+            timestamp,
+            session
+        )
+    }
+}
+
+/**
+ * A utility class for securely storing and retrieving a single shared secret key
+ * using the IndexedDB API. This key is intended to be used for signing requests
+ * to a server using HMAC.
+ */
+export class Client {
+    #db;
+    #storeName;
+
+    /**
+     * Creates an instance of Client and initializes the connection
+     * to the IndexedDB database.
+     * 
+     * @param {string} dbName - The name of the IndexedDB database.
+     * @param {string} storeName - The name of the object store within the database.
+     */
+    constructor(dbName = 'Vulnetix', storeName = 'SecretStore') {
+        this.#storeName = storeName
+        this.#db = this.#initDB(dbName)
+    }
+
+    async #initDB(dbName) {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(dbName, 1)
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result
+                if (!db.objectStoreNames.contains(this.#storeName)) {
+                    db.createObjectStore(this.#storeName, { keyPath: 'id' })
+                }
+            }
+
+            request.onsuccess = (event) => {
+                resolve(event.target.result)
+            }
+
+            request.onerror = (event) => {
+                reject(`Error opening IndexedDB: ${event.target.error}`)
+            }
+        })
+    }
+
+    async #getDB() {
+        return this.#db
+    }
+
+    /**
+     * Checks if there is an active login by verifying the presence of a valid session secret key.
+     * 
+     * @returns {Promise<boolean>} - A promise that resolves to true if there's an active login, false otherwise.
+     */
+    async isLoggedIn() {
+        try {
+            const secretKey = await this.retrieveKey('sessionSecret')
+            return !!secretKey // Returns true if secretKey exists and is not null/undefined/empty string
+        } catch (_) {
+            return false
+        }
+    }
+
+    /**
+     * Deletes the shared secret key from the IndexedDB store.
+     * 
+     * @param {string} keyId - The id for the record of the secret key.
+     * @returns {Promise<void>} - A promise that resolves when the key is successfully deleted.
+     */
+    async deleteKey(keyId) {
+        const db = await this.#getDB()
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([this.#storeName], 'readwrite')
+            const store = transaction.objectStore(this.#storeName)
+            const request = store.delete(keyId)
+
+            request.onsuccess = () => {
+                resolve()
+            }
+
+            request.onerror = (event) => {
+                reject(`Failed to delete the ${keyId} key: ${event.target.error}`)
+            }
+        })
+    }
+
+    /**
+     * Saves the shared secret key to the IndexedDB store.
+     * 
+     * @param {string} keyId - The id for the record of the secret key.
+     * @param {Object} value - The value Object to store.
+     * @returns {Promise<void>} - A promise that resolves when the key is successfully stored.
+     */
+    async storeKey(keyId, value) {
+        const db = await this.#getDB()
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([this.#storeName], 'readwrite')
+            const store = transaction.objectStore(this.#storeName)
+            const request = store.put({ id: keyId, ...value })
+
+            request.onsuccess = () => {
+                resolve()
+            }
+
+            request.onerror = (event) => {
+                reject(`Error storing the ${keyId} key: ${event.target.error}`)
+            }
+        })
+    }
+
+    /**
+     * Retrieves the shared secret key from the IndexedDB store.
+     * 
+     * @param {string} keyId - The id for the record of the secret key.
+     * @returns {Promise<string>} - A promise that resolves to the stored secret key.
+     */
+    async retrieveKey(keyId) {
+        const db = await this.#getDB()
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([this.#storeName], 'readonly')
+            const store = transaction.objectStore(this.#storeName)
+
+            const request = store.get(keyId)
+
+            request.onsuccess = (event) => {
+                resolve(event.target.result || null)
+            }
+
+            request.onerror = (event) => {
+                reject(`Error retrieving the ${keyId} key: ${event.target.error}`)
+            }
+        })
+    }
+
+    /**
+     * Creates payload bytes for the signing or verification process
+     * 
+     * @param {string} method - The HTTP method (e.g., 'GET', 'POST') of the request.
+     * @param {string} path - The path of the request (e.g., '/api/data').
+     * @param {Object} kid - The Vulnetix KID to sign as a request header.
+     * @param {Object} timestamp - The unix timestamp to sign as a request header.
+     * @param {string} [body] - The optional body of the request. Base64 encoded if present.
+     * @returns {Promise<string>} - A promise that resolves to the generated HMAC signature.
+     */
+    static makePayload({ method = "GET", path, kid, timestamp, body = null }) {
+        // Normalize method to uppercase to handle case insensitivity
+        const normalizedMethod = method.toUpperCase()
+
+        // Determine if the method supports a body
+        const supportsBody = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(normalizedMethod)
+
+        const headers = {
+            'X-Vulnetix-KID': kid,
+            'X-Timestamp': timestamp,
+        }
+
+        const payload = {
+            method: normalizedMethod,
+            path,
+            headers,
+        }
+
+        // If the method supports a body and a body is provided, include the body in the payload
+        if (supportsBody && body) {
+            payload.body = encodeToBase64(body)
+        }
+
+        const encoder = new TextEncoder()
+        const payloadString = JSON.stringify(payload)
+        return encoder.encode(payloadString)
+    }
+
+    /**
+     * Signs a request using the stored secret key. The signature is created using
+     * HMAC with SHA-512.
+     * 
+     * @param {string} method - The HTTP method (e.g., 'GET', 'POST') of the request.
+     * @param {string} path - The path of the request (e.g., '/api/data').
+     * @param {Object} headers - The headers of the request.
+     * @param {string} [body] - The optional body of the request. Base64 encoded if present.
+     * @param {string} secretKey - The session secret key to sign requests
+     * @returns {Promise<string>} - A promise that resolves to the generated HMAC signature.
+     */
+    static async signRequest({ method = "GET", path, kid, body = null, secretKey }) {
+        if (!secretKey) {
+            throw new Error('Secret key is required.')
+        }
+        const timestamp = new Date().getTime()
+        const secretKeyBytes = new TextEncoder().encode(secretKey)
+        const payloadBytes = Client.makePayload({
+            method,
+            path,
+            kid,
+            timestamp,
+            body
+        })
+        const key = await crypto.subtle.importKey(
+            "raw",
+            secretKeyBytes,
+            { name: "HMAC", hash: "SHA-512" },
+            false,
+            ["sign"]
+        )
+        const signatureBytes = await crypto.subtle.sign("HMAC", key, payloadBytes)
+        const signature = bufferToHex(signatureBytes)
+
+        return { signature, timestamp }
+    }
+
+    /**
+     * Performs a Browser fetch request with the appropriate headers and signature using the stored secret key.
+     * 
+     * @param {string} path - The URL path segment, excluding the origin.
+     * @param {string} method - The HTTP method (e.g., 'GET', 'POST') of the request.
+     * @param {Object} [headers={}] - The extra headers to include in the request.
+     * @param {string} [body] - The optional body of the request.
+     * @returns {Promise<Response>} - A promise that resolves to the fetch API response.
+     */
+    async signedFetch(path, { method = 'GET', headers = {}, body = null } = {}) {
+        const url = `${location.origin}${path}`
+
+        const session = await this.retrieveKey(`session`)
+        if (!session?.secret) {
+            throw new Error('Secret key not found.')
+        }
+
+        // Normalize method to uppercase to handle case insensitivity
+        const normalizedMethod = method.toUpperCase()
+
+        // Determine if the method supports a body
+        const supportsBody = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(normalizedMethod)
+
+        const { signature, timestamp } = await Client.signRequest({
+            method: normalizedMethod,
+            path,
+            kid: session?.kid,
+            body,
+            secretKey: session?.secret,
+        })
+
+        const sendHeaders = {
+            ...headers,
+            'Authorization': `HMAC ${signature}`,
+            'X-Vulnetix-KID': session?.kid,
+            'X-Timestamp': timestamp,
+        }
+
+        const response = await fetch(url, {
+            method,
+            headers: sendHeaders,
+            body: supportsBody && body ? body : null,  // Include body only for methods that support it
+        })
+        const respText = await response.text()
+        if (!response.ok) {
+            console.error(`${method} ${url}`)
+            console.error(`req headers=${JSON.stringify(headers, null, 2)}`)
+            console.error(`resp headers=${JSON.stringify(response.headers, null, 2)}`)
+            console.error(respText)
+            console.error(`OSV error! status: ${response.status} ${response.statusText}`)
+        }
+        const data = JSON.parse(respText)
+        return { ok: response.ok, status: response.status, statusText: response.statusText, data, url }
     }
 }
 
@@ -96,7 +440,7 @@ export class OSV {
             const content = JSON.parse(respText)
             return { ok: response.ok, status: response.status, statusText: response.statusText, content, url }
         } catch (e) {
-            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
+            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
             return { url, status: 500, error: { message: e.message, lineno, colno } }
@@ -115,7 +459,7 @@ export class OSV {
                     request: JSON.stringify({ method: 'POST', url, queries }).trim(),
                     response: JSON.stringify({ body: results.filter(i => !!i).map(i => convertIsoDatesToTimestamps(i)), status: resp.status }).trim(),
                     statusCode: resp?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`osv.queryBatch()`, createLog)
@@ -135,7 +479,7 @@ export class OSV {
                     request: JSON.stringify({ method: "GET", url, vulnId }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(result), status: resp.status }).trim(),
                     statusCode: resp?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`osv.query()`, createLog)
@@ -168,7 +512,7 @@ export class EPSS {
             const content = JSON.parse(respText)
             return { ok: response.ok, status: response.status, statusText: response.statusText, content, url }
         } catch (e) {
-            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
+            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
             return { url, status: 500, error: { message: e.message, lineno, colno } }
@@ -186,7 +530,7 @@ export class EPSS {
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(resp.content), status: resp.status }).trim(),
                     statusCode: resp?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`epss.query()`, createLog)
@@ -214,7 +558,7 @@ export class VulnCheck {
     //             request: JSON.stringify({ url: vc.url, purl: ref.referenceLocator }),
     //             response: JSON.stringify(vc.content),
     //             statusCode: vc?.status ? parseInt(vc.status, 10) : 0,
-    //             createdAt: (new Date()).getTime(),
+    //             createdAt: new Date().getTime(),
     //         }
     //     })
     //     console.log(`vulncheck.getPurl(${ref.referenceLocator})`, createLog)
@@ -225,7 +569,7 @@ export class VulnCheck {
     //                 memberEmail: session.memberEmail,
     //                 source: 'vulncheck',
     //                 category: 'sca',
-    //                 createdAt: (new Date()).getTime(),
+    //                 createdAt: new Date().getTime(),
     //                 detectionTitle: vulnerability.detection,
     //                 purl: ref.referenceLocator,
     //                 packageName: pkg.name,
@@ -271,7 +615,7 @@ export class VulnCheck {
             const content = JSON.parse(respText)
             return { ok: response.ok, status: response.status, statusText: response.statusText, content, url }
         } catch (e) {
-            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
+            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
             return { url, error: { message: e.message, lineno, colno } }
@@ -315,7 +659,7 @@ export class GitHub {
             const content = JSON.parse(respText)
             return { ok: response.ok, status: response.status, statusText: response.statusText, tokenExpiry, error: { message: content?.message }, content, url, raw: respText }
         } catch (e) {
-            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
+            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
             return { url, error: { message: e.message, lineno, colno } }
@@ -335,7 +679,7 @@ export class GitHub {
             const content = JSON.parse(respText)
             return { ok: response.ok, status: response.status, statusText: response.statusText, tokenExpiry, error: { message: content?.message }, content, url }
         } catch (e) {
-            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
+            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
             return { url, error: { message: e.message, lineno, colno } }
@@ -358,7 +702,7 @@ export class GitHub {
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                     statusCode: data?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`GitHub.getRepoSarif()`, createLog0)
@@ -376,7 +720,7 @@ export class GitHub {
                         request: JSON.stringify({ method: "GET", url: sarifUrl }).trim(),
                         response: JSON.stringify({ body: convertIsoDatesToTimestamps(sarifData.content), tokenExpiry: sarifData.tokenExpiry }).trim(),
                         statusCode: sarifData?.status || 500,
-                        createdAt: (new Date()).getTime(),
+                        createdAt: new Date().getTime(),
                     }
                 })
                 console.log(`GitHub.getRepoSarif()`, createLog)
@@ -415,7 +759,7 @@ export class GitHub {
                 request: JSON.stringify({ method: "GET", url }).trim(),
                 response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                 statusCode: data?.status || 500,
-                createdAt: (new Date()).getTime(),
+                createdAt: new Date().getTime(),
             }
         })
         console.log(`GitHub.getRepoSpdx()`, createLog)
@@ -434,7 +778,7 @@ export class GitHub {
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                     statusCode: data?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`GitHub.getUserEmails()`, createLog)
@@ -454,7 +798,7 @@ export class GitHub {
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                     statusCode: data?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`GitHub.getUser()`, createLog)
@@ -473,7 +817,7 @@ export class GitHub {
                 request: JSON.stringify({ method: "GET", url }).trim(),
                 response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                 statusCode: data?.status || 500,
-                createdAt: (new Date()).getTime(),
+                createdAt: new Date().getTime(),
             }
         })
         console.log(`GitHub.getInstallations()`, createLog)
@@ -495,13 +839,13 @@ export class GitHub {
                     request: JSON.stringify({ method, url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(response.content), tokenExpiry: response.tokenExpiry }).trim(),
                     statusCode: response?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`GitHub.revokeToken()`, createLog)
             return { ok: response.ok, status: response.status, statusText: response.statusText, url }
         } catch (e) {
-            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/);
+            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
             return { url, error: { message: e.message, lineno, colno } }
@@ -524,7 +868,7 @@ export class GitHub {
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                     statusCode: data?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`GitHub.getRepos()`, createLog)
@@ -554,7 +898,7 @@ export class GitHub {
                 request: JSON.stringify({ method: "GET", url }).trim(),
                 response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                 statusCode: data?.status || 500,
-                createdAt: (new Date()).getTime(),
+                createdAt: new Date().getTime(),
             }
         })
         console.log(`GitHub.getBranch()`, createLog)
@@ -577,7 +921,7 @@ export class GitHub {
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                     statusCode: data?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`GitHub.getBranches()`, createLog)
@@ -605,7 +949,7 @@ export class GitHub {
                 request: JSON.stringify({ method: "GET", url }).trim(),
                 response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                 statusCode: data?.status || 500,
-                createdAt: (new Date()).getTime(),
+                createdAt: new Date().getTime(),
             }
         })
         console.log(`GitHub.getCommit()`, createLog)
@@ -627,7 +971,7 @@ export class GitHub {
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
                     statusCode: data?.status || 500,
-                    createdAt: (new Date()).getTime(),
+                    createdAt: new Date().getTime(),
                 }
             })
             console.log(`GitHub.getCommits()`, createLog)
@@ -649,7 +993,7 @@ export class GitHub {
  * Use await ensureStrReqBody(..) in an async function to get the string
  * @param {Request} request the incoming request to read from
  */
-export async function ensureStrReqBody(request) {
+export const ensureStrReqBody = async (request) => {
     const contentType = request.headers.get("content-type")
     if (contentType.includes("application/json")) {
         return JSON.stringify(await request.json())
@@ -672,9 +1016,83 @@ export async function ensureStrReqBody(request) {
     }
 }
 
-export async function pbkdf2Verify(key, password, hashBits = 512) {
+/**
+ * Converts a Buffer or ArrayBuffer to a hexadecimal string.
+ *
+ * If `Buffer` is not defined (e.g., in a browser environment), it will attempt to convert the input using
+ * `ArrayBuffer` and `Uint8Array`.
+ *
+ * @param {Buffer|ArrayBuffer} input - The input data to convert.
+ * @returns {string} The hexadecimal string representation of the input data.
+ */
+export const bufferToHex = input => {
+    if (typeof Buffer !== 'undefined') {
+        // Node.js environment or using a Buffer polyfill
+        return Buffer.from(input).toString('hex');
+    } else {
+        // Browser environment without Buffer support
+        const arrayBuffer = input instanceof ArrayBuffer ? input : new ArrayBuffer(input.byteLength);
+        const view = new Uint8Array(arrayBuffer);
+        const hexArray = Array.from(view).map(byte => byte.toString(16).padStart(2, '0'));
+        return hexArray.join('');
+    }
+}
+
+/**
+ * Encodes a given string to Base64.
+ *
+ * This function is designed to be compatible with both Node.js and browsers.
+ *
+ * @param {string} body - The string to be encoded.
+ * @returns {string} The Base64-encoded string.
+ */
+export const encodeToBase64 = body => {
+    if (typeof Buffer !== 'undefined') {
+        // Node.js environment
+        return Buffer.from(body).toString('base64')
+    } else {
+        // Browser environment
+        return btoa(body)
+    }
+}
+
+/**
+ * Decodes a Base64-encoded string into its original string.
+ *
+ * This function is designed to be compatible with both Node.js and browsers.
+ *
+ * @param {string} base64String - The Base64-encoded string.
+ * @returns {string} The decoded original string.
+ */
+export const decodeFromBase64 = base64String => {
+    if (typeof Buffer !== 'undefined') {
+        // Node.js environment
+        return Buffer.from(base64String, 'base64').toString()
+    } else {
+        // Browser environment
+        return atob(base64String)
+    }
+}
+
+/**
+ * Verifies a password against a previously generated key using PBKDF2 (Password-Based Key Derivation Function 2).
+ *
+ * This function is designed to be asynchronous and utilizes the Web Crypto API for secure key derivation.
+ *
+ * @param {string} key - The Base64-encoded composite key containing salt, iteration count, and derived key.
+ * @param {string} password - The password to be verified.
+ * @param {number} [hashBits=512] - The number of bits to use for the hash function (default: 512).
+ * @returns {Promise<boolean>} A promise that resolves to `true` if the password matches the key, otherwise `false`.
+ * @throws {Error} - Throws an error if the key is invalid or there's an issue with the Web Crypto API operations.
+ */
+export const pbkdf2Verify = async (key, password, hashBits = 512) => {
     let compositeStr = null                     // composite key is salt, iteration count, and derived key
-    try { compositeStr = atob(key) } catch (e) { throw new Error('Invalid key') }                       // decode from base64
+    try {
+        compositeStr = decodeFromBase64(key)
+    } catch (error) {
+        console.error(error)
+        throw new Error('Invalid key')
+    }
     const version = compositeStr.slice(0, 3)    //  3 bytes
     const saltStr = compositeStr.slice(3, 19)   // 16 bytes (128 bits)
     const iterStr = compositeStr.slice(19, 22)  //  3 bytes
@@ -699,7 +1117,17 @@ export async function pbkdf2Verify(key, password, hashBits = 512) {
     return keyStrNew === keyStr // test if newly generated key matches stored key
 }
 
-export async function pbkdf2(password, iterations = 1e5, hashBits = 512) {
+/**
+ * Generates a secure key using PBKDF2 (Password-Based Key Derivation Function 2) from a given password.
+ *
+ * This function is asynchronous and utilizes the Web Crypto API for secure key derivation and random salt generation.
+ *
+ * @param {string} password - The password to be used for key generation.
+ * @param {number} [iterations=100000] - The number of iterations for the PBKDF2 algorithm (default: 100,000). Higher values are more secure but take longer.
+ * @param {number} [hashBits=512] - The number of bits to use for the hash function (default: 512).
+ * @returns {Promise<string>} A promise that resolves to a Base64-encoded string containing the salt, iteration count, and derived key.
+ */
+export const pbkdf2 = async (password, iterations = 1e5, hashBits = 512) => {
     const pwUtf8 = new TextEncoder().encode(password)                                                   // encode pw as UTF-8
     const pwKey = await crypto.subtle.importKey('raw', pwUtf8, 'PBKDF2', false, ['deriveBits'])         // create pw key
     const saltUint8 = crypto.getRandomValues(new Uint8Array(16))                                        // get random salt
@@ -715,7 +1143,16 @@ export async function pbkdf2(password, iterations = 1e5, hashBits = 512) {
     return btoa('v01' + compositeStr)
 }
 
-export function isSPDX(input) {
+/**
+ * Validates if the given input is a valid SPDX document.
+ *
+ * This function checks if the input is a JSON string or an object, and then validates the required fields and versions.
+ *
+ * @param {string|object} input - The input to be validated as an SPDX document.
+ * @returns {boolean} True if the input is a valid SPDX document, false otherwise.
+ * @throws {string} Throws an error if the provided SPDX version is not supported.
+ */
+export const isSPDX = input => {
     const supportedVersions = ["SPDX-2.3"]
     let spdx
     if (typeof input === "string" && isJSON(input)) {
@@ -787,7 +1224,18 @@ function validCdxDependency(o) {
     }
     return true
 }
-export function isCDX(input) {
+
+/**
+ * Validates if the given input is a valid CycloneDX document.
+ *
+ * This function checks if the input is a JSON string or an object, and then validates the required fields and versions.
+ * Additionally, it verifies the validity of individual components and dependencies using helper functions (`validCdxComponent` and `validCdxDependency`).
+ *
+ * @param {string|object} input - The input to be validated as a CDX document.
+ * @returns {boolean} True if the input is a valid CDX document, false otherwise.
+ * @throws {string} Throws an error if the provided CDX version is not supported.
+ */
+export const isCDX = input => {
     const supportedVersions = ["1.5", "1.6"]
     let cdx
     if (typeof input === "string" && isJSON(input)) {
@@ -823,7 +1271,17 @@ export function isCDX(input) {
     return true
 }
 
-export function isSARIF(input) {
+/**
+ * Validates if the given input is a valid SARIF (Static Analysis Results Interchange Format) document.
+ *
+ * This function checks if the input is a JSON string, and then validates the required fields and versions.
+ * Additionally, it verifies the structure of the SARIF document, including runs, results, tools, rules, and extensions.
+ *
+ * @param {string|object} input - The input to be validated as a SARIF document.
+ * @returns {boolean} True if the input is a valid SARIF document, false otherwise.
+ * @throws {string} Throws an error if the provided SARIF version is not supported or if the document is empty.
+ */
+export const isSARIF = input => {
     const supportedVersions = ["2.1.0"]
     let sarif
     if (typeof input === "string" && isJSON(input)) {
@@ -887,31 +1345,77 @@ export function isSARIF(input) {
 
 export const appExpiryPeriod = (86400000 * 365 * 10)  // 10 years
 
-export function convertIsoDatesToTimestamps(obj) {
-    return Object.fromEntries(
-        Object.entries(obj).map(([key, value]) => {
-            if (typeof value === 'string' && /(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))/.test(value)) {
-                value = new Date(value).getTime()
-            } else if (!!value && typeof value === 'object') {
-                value = convertIsoDatesToTimestamps(value)
-            }
-            return [key, value]
-        })
-    )
+/**
+ * Converts ISO 8601 formatted date strings within an object or array to Unix timestamps (milliseconds since epoch).
+ *
+ * This function recursively traverses the provided object or array, converting any encountered ISO 8601 date strings
+ * to their corresponding Unix timestamps. Other data types (e.g., numbers, strings) are left unchanged.
+ *
+ * @param {object|array} obj - The object or array to be processed.
+ * @returns {object|array} A new object or array with ISO 8601 dates converted to timestamps.
+ */
+export const convertIsoDatesToTimestamps = obj => {
+    if (Array.isArray(obj)) {
+        return obj.map(item => convertIsoDatesToTimestamps(item))
+    } else if (typeof obj === 'object' && obj !== null) {
+        return Object.fromEntries(
+            Object.entries(obj).map(([key, value]) => {
+                if (typeof value === 'string' && /(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))/.test(value)) {
+                    value = new Date(value).getTime()
+                } else if (!!value && typeof value === 'object') {
+                    value = convertIsoDatesToTimestamps(value)
+                }
+                return [key, value]
+            })
+        )
+    } else {
+        return obj // Handle other data types (e.g., numbers, strings)
+    }
 }
 
-export const flatten = (obj, prefix = '') =>
+/**
+ * Flattens a nested object into a single-level object, optionally converting ISO 8601 date strings to Unix timestamps.
+ *
+ * This function recursively traverses the object, flattening nested objects and arrays. If a `convertDates` option is provided,
+ * it will convert any ISO 8601 date strings encountered to their corresponding Unix timestamps.
+ *
+ * @param {object} obj - The object to be flattened.
+ * @param {string} [prefix=''] - An optional prefix to prepend to the keys of the flattened object.
+ * @param {boolean} [convertDates=false] - An optional flag indicating whether to convert ISO 8601 dates to timestamps.
+ * @returns {object} A flattened object with all nested properties merged into a single level.
+ */
+export const flatten = (obj, prefix = '', convertDates = false) =>
     Object.entries(obj).reduce((acc, [key, value]) => {
         const newKey = prefix ? `${prefix}_${key}` : key
-        return value && typeof value === 'object'
-            ? { ...acc, ...flatten(value, newKey) }
-            : { ...acc, [newKey]: value }
+        return Array.isArray(value)
+            ? { ...acc, [newKey]: value } // Flatten array directly
+            : value && typeof value === 'object'
+                ? { ...acc, ...flatten(value, newKey, convertDates) } // Handle nested objects
+                : convertDates && typeof value === 'string' && /(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))/.test(value)
+                    ? { ...acc, [newKey]: new Date(value).getTime() } // Convert date to timestamp
+                    : { ...acc, [newKey]: value } // Handle primitives
     }, {})
 
+/**
+ * Converts a text string to a hexadecimal hash using the specified hashing algorithm.
+ *
+ * This function uses the Web Crypto API to perform the hashing operation.
+ *
+ * @param {string} text - The text string to be hashed.
+ * @param {string} [name="SHA-1"] - The name of the hashing algorithm to use (e.g., "SHA-1", "SHA-256", "SHA-384", "SHA-512").
+ * @returns {Promise<string>} A promise that resolves to the hexadecimal representation of the hash.
+ */
 export async function hex(text, name = "SHA-1") {
     return [...new Uint8Array(await crypto.subtle.digest({ name }, new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
+/**
+ * Generates a version 4 UUID (Universally Unique Identifier).
+ *
+ * This function uses a combination of a fixed template and random numbers to create a unique identifier.
+ *
+ * @returns {string} A UUID in the format "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".
+ */
 export function UUID() {
     return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
         (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
@@ -920,7 +1424,7 @@ export function UUID() {
 
 export const round = (n, p = 100) => Math.round((n + Number.EPSILON) * p) / p
 
-export function isJSON(str) {
+export const isJSON = str => {
     try {
         return (JSON.parse(str) && !!str)
     } catch (e) {
@@ -928,51 +1432,72 @@ export function isJSON(str) {
     }
 }
 
-export function timeAgo(date) {
-    const seconds = Math.floor((new Date() - date) / 1000);
+/**
+ * Calculates a human-readable time difference between the current time and a given date.
+ *
+ * This function returns a string indicating how long ago the date was, such as "2 years ago", "1 month ago", or "just now".
+ *
+ * @param {Date} date - The date to calculate the time difference from.
+ * @returns {string} A human-readable time difference string.
+ */
+export const timeAgo = date => {
+    const seconds = Math.floor((new Date() - date) / 1000)
 
-    const interval = Math.floor(seconds / 31536000);
+    const interval = Math.floor(seconds / 31536000)
 
     if (interval > 1) {
-        return interval + " years ago";
+        return interval + " years ago"
     }
     if (interval === 1) {
-        return interval + " year ago";
+        return interval + " year ago"
     }
 
-    const months = Math.floor(seconds / 2628000);
+    const months = Math.floor(seconds / 2628000)
     if (months > 1) {
-        return months + " months ago";
+        return months + " months ago"
     }
     if (months === 1) {
-        return months + " month ago";
+        return months + " month ago"
     }
 
-    const days = Math.floor(seconds / 86400);
+    const days = Math.floor(seconds / 86400)
     if (days > 1) {
-        return days + " days ago";
+        return days + " days ago"
     }
     if (days === 1) {
-        return days + " day ago";
+        return days + " day ago"
     }
 
-    const hours = Math.floor(seconds / 3600);
+    const hours = Math.floor(seconds / 3600)
     if (hours > 1) {
-        return hours + " hours ago";
+        return hours + " hours ago"
     }
     if (hours === 1) {
-        return hours + " hour ago";
+        return hours + " hour ago"
     }
 
-    const minutes = Math.floor(seconds / 60);
+    const minutes = Math.floor(seconds / 60)
     if (minutes > 1) {
-        return minutes + " minutes ago";
+        return minutes + " minutes ago"
     }
     if (minutes === 1) {
-        return minutes + " minute ago";
+        return minutes + " minute ago"
     }
 
-    return "just now";
+    return "just now"
+}
+
+/**
+ * Helper function to convert hex string to Uint8Array
+ * @return {Uint8Array<Object>}
+ */
+export const hexStringToUint8Array = hexString => {
+    const length = hexString.length / 2
+    const array = new Uint8Array(length)
+    for (let i = 0; i < length; i++) {
+        array[i] = parseInt(hexString.substr(i * 2, 2), 16)
+    }
+    return array
 }
 
 // https://octodex.github.com/images/

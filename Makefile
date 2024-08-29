@@ -17,7 +17,6 @@ setup: ## FOR DOCO ONLY - Run these one at a time, do not call this target direc
 	nvm use --lts
 
 migrate: ## migrate incoming schema changes for prisma orm
-	npm i
 	npx wrangler d1 migrations apply vulnetix --local
 	npx prisma generate
 
@@ -26,10 +25,14 @@ plan: ## plan a migrate for schema changes in prisma orm
 		--to-schema-datamodel ./prisma/schema.prisma \
 		--script --from-local-d1 >migrations/0000_plan_TMP.sql
 
-upgrades: ## get app updates, migrate should be run first
-	git submodule update
+update: ## get app updates, migrate should be run first
 	npm update --include dev
+	npm run audit
 	npm audit fix --force
+
+install: ## install deps and build icons
+	npm i
+	npm run postinstall
 
 sarif: clean ## generate SARIF from Semgrep for this project
 	osv-scanner --format sarif --call-analysis=all -r . | jq >osv.sarif.json

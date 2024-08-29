@@ -1,4 +1,4 @@
-import { App, AuthResult } from "@/utils";
+import { Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -19,9 +19,9 @@ export async function onRequestDelete(context) {
             timeout: 2000, // default: 5000
         },
     })
-    const { err, result, session } = await (new App(request, prisma)).authenticate()
-    if (result !== AuthResult.AUTHENTICATED) {
-        return Response.json({ ok: false, error: { message: err }, result })
+    const verificationResult = await (new Server(request, prisma)).authenticate()
+    if (!verificationResult.isValid) {
+        return Response.json({ ok: false, result: verificationResult.message })
     }
     const patInfo = await prisma.github_pat.delete({
         where: {
@@ -32,7 +32,7 @@ export async function onRequestDelete(context) {
     const tokenInfo = await prisma.member_keys.delete({
         where: {
             id: parseInt(params.patId, 10),
-            memberEmail: session.memberEmail,
+            memberEmail: verificationResult.session.memberEmail,
         }
     })
     tokenInfo.secretMasked = mask(tokenInfo.secret)

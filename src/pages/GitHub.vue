@@ -1,7 +1,7 @@
 <script setup>
 import router from "@/router"
 import { useMemberStore } from '@/stores/member'
-import { isJSON, octodex, timeAgo } from '@/utils'
+import { Client, isJSON, octodex, timeAgo } from '@/utils'
 import { default as axios } from 'axios'
 import { reactive } from 'vue'
 import { useTheme } from 'vuetify'
@@ -10,6 +10,7 @@ import { useTheme } from 'vuetify'
 //TODO https://docs.github.com/en/rest/dependabot/alerts?apiVersion=2022-11-28#list-dependabot-alerts-for-a-repository
 //TODO https://docs.github.com/en/rest/secret-scanning/secret-scanning?apiVersion=2022-11-28#list-secret-scanning-alerts-for-a-repository
 
+const client = new Client()
 const Member = useMemberStore()
 const { global } = useTheme()
 const tabs = ref()
@@ -56,7 +57,7 @@ class Controller {
     install = async (code, installation_id) => {
         state.showEmptyState = true
         state.loadingBar = true
-        const { data } = await axios.get(`/github/${installation_id}/install/${code}`)
+        const { data } = await client.signedFetch(`/github/${installation_id}/install/${code}`)
         if (data?.error?.message) {
             if (data?.app?.installationId) {
                 data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
@@ -74,6 +75,11 @@ class Controller {
             return false
         }
         persistData(data)
+        await client.storeKey(`session`, {
+            kid: data.session.kid,
+            secret: data.session.secret,
+            expiry: data.session.expiry,
+        })
         await this.refreshRepos(false, true, true)
 
         return true
@@ -100,6 +106,11 @@ class Controller {
             return false
         }
         persistData(data)
+        await client.storeKey(`session`, {
+            kid: data.session.kid,
+            secret: data.session.secret,
+            expiry: data.session.expiry,
+        })
         state.showEmptyState = false
         await this.refreshRepos(true, true, false)
 
@@ -113,7 +124,7 @@ class Controller {
             if (cached === true) {
                 uriPath += '/cached'
             }
-            const { data } = await axios.get(uriPath)
+            const { data } = await client.signedFetch(uriPath)
             state.loadingBar = false
             if (data?.error?.message) {
                 if (data?.app?.installationId) {
@@ -192,7 +203,7 @@ class Controller {
     refreshSpdx = async (full_name, alerts = true) => {
         clearAlerts()
         try {
-            const { data } = await axios.get(`/github/repos/${full_name}/spdx`)
+            const { data } = await client.signedFetch(`/github/repos/${full_name}/spdx`)
             if (!data.ok) {
                 if (data?.error?.message && alerts === true) {
                     if (data?.app?.installationId) {
@@ -241,7 +252,7 @@ class Controller {
     refreshSarif = async (full_name, alerts = true) => {
         clearAlerts()
         try {
-            const { data } = await axios.get(`/github/repos/${full_name}/sarif`)
+            const { data } = await client.signedFetch(`/github/repos/${full_name}/sarif`)
 
             if (data?.error?.message && alerts === true) {
                 if (data?.app?.installationId) {
@@ -366,7 +377,7 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await axios.get(`/github/${installationId}/uninstall`)
+            const { data } = await client.signedFetch(`/github/${installationId}/uninstall`)
             state.loading = false
 
             if (data?.error?.message) {
@@ -412,7 +423,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore && skip <= limit) {
-                const { data } = await axios.get(`/github/log?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.signedFetch(`/github/log?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.results) {
                         data.results.map(r => state.log.push(r))
@@ -470,14 +481,12 @@ function persistData(data) {
     }
     if (data?.session?.token) {
         Member.session.token = data.session.token
-        localStorage.setItem('/session/token', Member.session.token)
         axios.defaults.headers.common = {
             'X-Vulnetix': Member.session.token,
         }
     }
     if (data?.session?.expiry) {
         Member.session.expiry = data.session.expiry
-        localStorage.setItem('/session/expiry', data.session.expiry)
     }
 }
 

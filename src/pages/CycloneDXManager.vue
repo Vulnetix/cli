@@ -1,11 +1,12 @@
 <script setup>
 import router from "@/router";
 import { useMemberStore } from '@/stores/member';
-import { isCDX, isJSON } from '@/utils';
+import { Client, isCDX, isJSON } from '@/utils';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
+const client = new Client()
 const Member = useMemberStore()
 const { global } = useTheme()
 
@@ -37,7 +38,7 @@ class Controller {
     clearAlerts()
     state.loading = true
     try {
-      const { data } = await axios.get(`/cdx/results`)
+      const { data } = await client.signedFetch(`/cdx/results`)
       state.loading = false
       if (data?.error?.message) {
         state.error = data?.error?.message

@@ -1,4 +1,4 @@
-import { App, AuthResult, OSV, hex, isSPDX } from "@/utils";
+import { AuthResult, OSV, Server, hex, isSPDX } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -20,9 +20,9 @@ export async function onRequestPost(context) {
             timeout: 2000, // default: 5000
         },
     })
-    const { err, result, session } = await (new App(request, prisma)).authenticate()
-    if (result !== AuthResult.AUTHENTICATED) {
-        return Response.json({ ok: false, error: { message: err }, result })
+    const verificationResult = await (new Server(request, prisma)).authenticate()
+    if (!verificationResult.isValid) {
+        return Response.json({ ok: false, result: verificationResult.message })
     }
 
     const files = []
@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
             const spdxData = {
                 spdxId,
                 source: 'upload',
-                memberEmail: session.memberEmail,
+                memberEmail: verificationResult.session.memberEmail,
                 repoName: '',
                 spdxVersion: spdx.spdxVersion,
                 dataLicense: spdx.dataLicense,
@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
             const info = await prisma.spdx.upsert({
                 where: {
                     spdxId,
-                    memberEmail: session.memberEmail,
+                    memberEmail: verificationResult.session.memberEmail,
                 },
                 update: {
                     createdAt: spdxData.createdAt,
@@ -62,7 +62,7 @@ export async function onRequestPost(context) {
                 },
                 create: spdxData
             })
-            console.log(`/github/repos/spdx ${spdxId} kid=${session.kid}`, info)
+            console.log(`/github/repos/spdx ${spdxId} kid=${verificationResult.session.kid}`, info)
             spdxData.packages = JSON.parse(spdxData.packagesJSON)
             spdxData.relationships = JSON.parse(spdxData.relationshipsJSON)
             delete spdxData.packagesJSON
@@ -82,7 +82,7 @@ export async function onRequestPost(context) {
             }).filter(q => q?.referenceLocator)
             const osv = new OSV()
             const queries = osvQueries.map(q => ({ package: { purl: q?.referenceLocator } }))
-            const results = await osv.queryBatch(prisma, session.memberEmail, queries)
+            const results = await osv.queryBatch(prisma, verificationResult.session.memberEmail, queries)
             let i = 0
             for (const result of results) {
                 const { referenceLocator, name, version, license } = osvQueries[i]
@@ -90,10 +90,10 @@ export async function onRequestPost(context) {
                     if (!vuln?.id) {
                         continue
                     }
-                    const findingId = await hex(`${session.memberEmail}${vuln.id}${referenceLocator}`)
+                    const findingId = await hex(`${verificationResult.session.memberEmail}${vuln.id}${referenceLocator}`)
                     const findingData = {
                         findingId,
-                        memberEmail: session.memberEmail,
+                        memberEmail: verificationResult.session.memberEmail,
                         source: 'osv.dev',
                         category: 'sca',
                         createdAt: (new Date()).getTime(),

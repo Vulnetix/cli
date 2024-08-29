@@ -3,7 +3,6 @@ import { useAnalyticsStore } from '@/stores/analytics';
 import { round } from '@/utils';
 import AnalyticsTriageHistory from '@/views/dashboard/AnalyticsTriageHistory.vue';
 import AnalyticsWelcome from '@/views/dashboard/AnalyticsWelcome.vue';
-// 👉 Images
 
 const Analytics = useAnalyticsStore()
 const state = computed(() => {
@@ -17,9 +16,7 @@ const state = computed(() => {
         triagedMonthly: Analytics.triagedMonthly,
     }
 })
-onMounted(() => {
-    Analytics.fetchAnalytics()
-})
+onMounted(() => Analytics.fetchAnalytics())
 
 const categories = computed(() => (state.value.triagedMonthly.map(i => i.monthYear)))
 const series = computed(() => ([
@@ -47,7 +44,6 @@ const totalsData = computed(() => ([
         color: state.value.total.unresolved_percentage < 20 ? 'success' : state.value.total.unresolved_percentage < 50 ? 'info' : state.value.total.unresolved_percentage < 80 ? 'warning' : 'error',
     },
 ]))
-
 </script>
 
 <template>
