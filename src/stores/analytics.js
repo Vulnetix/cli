@@ -1,5 +1,5 @@
+import { Client } from "@/utils";
 import { defineStore } from 'pinia';
-import { Client } from "@/utils"
 
 const client = new Client()
 
@@ -29,7 +29,7 @@ export const useAnalyticsStore = defineStore("analytics", {
     actions: {
         async fetchAnalytics() {
             try {
-                const { data } = await client.signedFetch(`/analytics`)
+                const { data } = await client.get(`/analytics`)
                 if (data?.error?.message) {
                     console.error('useAnalyticsStore', data.error.message)
                 } else if (data?.ok && data?.data) {

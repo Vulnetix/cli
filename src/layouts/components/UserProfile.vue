@@ -18,7 +18,7 @@ class Controller {
 
     async refresh() {
         try {
-            const { data } = await client.signedFetch(`/me`)
+            const { data } = await client.get(`/me`)
             if (data?.member?.email) {
                 Member.email = data.member.email
             }

@@ -157,47 +157,67 @@ const process = async (prisma, session, repoName, content) => {
             if (!vuln?.id) {
                 continue
             }
-            const findingId = await hex(`${session.memberEmail}${vuln.id}${purl}`)
-            const finding = await prisma.findings.upsert({
+            const findingId = await hex(`${vuln.id}${purl}`)
+            const findingData = {
+                findingId,
+                memberEmail: session.memberEmail,
+                source: 'osv.dev',
+                category: 'sca',
+                createdAt: (new Date()).getTime(),
+                modifiedAt: (new Date(vuln.modified)).getTime(),
+                detectionTitle: vuln.id,
+                purl,
+                packageName: name,
+                packageVersion: version,
+                packageLicense: license,
+                spdxId
+            }
+            const originalFinding = await prisma.findings.findFirst({
                 where: {
                     findingId,
-                },
-                update: {
-                    modifiedAt: (new Date(vuln.modified)).getTime()
-                },
-                create: {
-                    findingId,
-                    memberEmail: session.memberEmail,
-                    source: 'osv.dev',
-                    category: 'sca',
-                    createdAt: (new Date()).getTime(),
-                    modifiedAt: (new Date(vuln.modified)).getTime(),
-                    detectionTitle: vuln.id,
-                    purl,
-                    packageName: name,
-                    packageVersion: version,
-                    packageLicense: license,
-                    spdxId
+                    AND: { spdxId },
                 }
             })
+            let finding;
+            if (originalFinding) {
+                finding = await prisma.findings.update({
+                    where: {
+                        id: originalFinding.id,
+                    },
+                    data: {
+                        modifiedAt: findingData.modifiedAt
+                    },
+                })
+            } else {
+                finding = await prisma.findings.create({ data: findingData })
+            }
             console.log(`findings SCA`, finding)
-            findingIds.push(findingId)
-            const vex = await prisma.triage_activity.upsert({
+            findingIds.push(finding.id)
+            const vexData = {
+                findingKey: finding.id,
+                createdAt: (new Date()).getTime(),
+                lastObserved: (new Date()).getTime(),
+                seen: 0,
+                analysisState: 'in_triage',
+            }
+            const originalVex = await prisma.triage_activity.findUnique({
                 where: {
-                    findingId,
-                    analysisState: 'in_triage',
-                },
-                update: {
-                    lastObserved: (new Date()).getTime()
-                },
-                create: {
-                    findingId,
-                    createdAt: (new Date()).getTime(),
-                    lastObserved: (new Date()).getTime(),
-                    seen: 0,
-                    analysisState: 'in_triage',
+                    findingKey: finding.id,
                 }
             })
+            let vex;
+            if (originalVex) {
+                vex = await prisma.triage_activity.update({
+                    where: {
+                        findingKey: finding.id,
+                    },
+                    data: {
+                        modifiedAt: vexData.lastObserved
+                    },
+                })
+            } else {
+                vex = await prisma.triage_activity.create({ data: vexData })
+            }
             console.log(`findings VEX`, vex)
         }
         i++

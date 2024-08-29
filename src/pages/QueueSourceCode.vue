@@ -58,7 +58,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore) {
-                const { data } = await client.signedFetch(`/queue/sast?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.get(`/queue/sast?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.sast) {
                         data.sast.forEach(sast => state.sast.push(sast))
@@ -314,7 +314,7 @@ const controller = reactive(new Controller())
                                                         class="pa-4"
                                                     >{{
                                                         location.physicalLocation?.region?.snippet?.text
-                                                    }}</VCode>
+                                                        }}</VCode>
                                                 </div>
                                             </VCardSubtitle>
                                         </VCard>

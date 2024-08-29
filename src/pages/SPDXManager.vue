@@ -1,13 +1,10 @@
 <script setup>
 import router from "@/router";
-import { useMemberStore } from '@/stores/member';
 import { Client, isJSON, isSPDX } from '@/utils';
-import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
 const client = new Client()
-const Member = useMemberStore()
 const { global } = useTheme()
 
 const initialState = {
@@ -27,9 +24,6 @@ const state = reactive({
     ...initialState,
 })
 
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token,
-}
 class Controller {
     constructor() {
         this.refresh(true)
@@ -39,7 +33,7 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await client.signedFetch(`/spdx/results`)
+            const { data } = await client.get(`/spdx/results`)
             state.loading = false
             if (data?.error?.message) {
                 state.error = data?.error?.message
@@ -97,7 +91,7 @@ class Controller {
                 return
             }
             state.loading = true
-            const { data } = await axios.post(`/spdx/upload`, files, { headers: { 'Content-Type': 'application/json' } })
+            const { data } = await client.post(`/spdx/upload`, files)
             state.loading = false
 
             if (data?.error?.message) {

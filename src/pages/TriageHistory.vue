@@ -54,7 +54,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore) {
-                const { data } = await client.signedFetch(`/history?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.get(`/history?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.results) {
                         data.results.map(r => state.results.push(r))
@@ -90,10 +90,10 @@ class Controller {
         if (VEvent.isExpanded(VEvent.internalItem)) {
             return
         }
-        const findingId = VEvent.item.findingId.toString()
+        const findingId = VEvent.item.id.toString()
         state.triageLoaders[findingId] = true
         try {
-            const { data } = await client.signedFetch(`/enrich/${findingId}`)
+            const { data } = await client.get(`/enrich/${findingId}`)
             state.triageLoaders[findingId] = false
             if (data.ok) {
                 if (data?.finding) {

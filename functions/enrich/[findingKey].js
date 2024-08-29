@@ -25,10 +25,10 @@ export async function onRequestGet(context) {
         if (!verificationResult.isValid) {
             return Response.json({ ok: false, result: verificationResult.message })
         }
-        const { findingId } = params
+        const { findingKey } = params
         const originalFinding = await prisma.findings.findUnique({
             where: {
-                findingId,
+                id: parseInt(findingKey, 10),
             },
             omit: {
                 memberEmail: true,
@@ -76,7 +76,7 @@ export async function onRequestGet(context) {
         finding.referencesJSON = JSON.stringify(vuln.references.map(reference => reference.url))
         const info = await prisma.findings.update({
             where: {
-                findingId,
+                id: finding.id,
             },
             data: {
                 modifiedAt: finding.modifiedAt,
@@ -117,7 +117,7 @@ export async function onRequestGet(context) {
 
         const { searchParams } = new URL(request.url)
         const seen = parseInt(searchParams.get('seen'), 10) || 1
-        let { analysisState, triageAutomated, triagedAt, seenAt } = finding.triage
+        let { analysisState = 'in_triage', triageAutomated = 0, triagedAt = null, seenAt = null } = finding?.triage || {}
         if (
             (cvssVector && (
                 ['E:U', 'E:P', 'E:F', 'E:H'].some(substring => cvss3?.score?.includes(substring)) ||
@@ -133,6 +133,13 @@ export async function onRequestGet(context) {
         if (seen === 1 && !seenAt) {
             seenAt = new Date().getTime()
         }
+        if (!finding?.triage) {
+            finding.triage = {
+                findingKey: finding.id,
+                createdAt: new Date().getTime(),
+                lastObserved: new Date().getTime(),
+            }
+        }
         finding.triage.analysisState = analysisState
         finding.triage.triageAutomated = triageAutomated
         finding.triage.triagedAt = triagedAt
@@ -146,11 +153,12 @@ export async function onRequestGet(context) {
         }
         finding.triage.seen = seen
         finding.triage.seenAt = seenAt
-        const vexInfo = await prisma.triage_activity.update({
+        const vexInfo = await prisma.triage_activity.upsert({
             where: {
-                findingId,
+                findingKey: finding.id,
             },
-            data: finding.triage
+            update: finding.triage,
+            create: finding.triage,
         })
         console.log(`Saved VEX ${finding.detectionTitle}`, vexInfo)
 

@@ -39,7 +39,7 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await client.signedFetch(`/sarif/results`)
+            const { data } = await client.get(`/sarif/results`)
             state.loading = false
 
             if (typeof data === "string" && !isJSON(data)) {

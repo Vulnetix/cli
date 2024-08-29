@@ -49,7 +49,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore && skip <= limit) {
-                const { data } = await client.signedFetch(`/vulncheck/log?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.get(`/vulncheck/log?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.results) {
                         data.results.map(r => state.log.push(r))

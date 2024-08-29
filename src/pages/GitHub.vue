@@ -57,7 +57,7 @@ class Controller {
     install = async (code, installation_id) => {
         state.showEmptyState = true
         state.loadingBar = true
-        const { data } = await client.signedFetch(`/github/${installation_id}/install/${code}`)
+        const { data } = await client.get(`/github/${installation_id}/install/${code}`)
         if (data?.error?.message) {
             if (data?.app?.installationId) {
                 data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
@@ -124,7 +124,7 @@ class Controller {
             if (cached === true) {
                 uriPath += '/cached'
             }
-            const { data } = await client.signedFetch(uriPath)
+            const { data } = await client.get(uriPath)
             state.loadingBar = false
             if (data?.error?.message) {
                 if (data?.app?.installationId) {
@@ -203,7 +203,7 @@ class Controller {
     refreshSpdx = async (full_name, alerts = true) => {
         clearAlerts()
         try {
-            const { data } = await client.signedFetch(`/github/repos/${full_name}/spdx`)
+            const { data } = await client.get(`/github/repos/${full_name}/spdx`)
             if (!data.ok) {
                 if (data?.error?.message && alerts === true) {
                     if (data?.app?.installationId) {
@@ -252,7 +252,7 @@ class Controller {
     refreshSarif = async (full_name, alerts = true) => {
         clearAlerts()
         try {
-            const { data } = await client.signedFetch(`/github/repos/${full_name}/sarif`)
+            const { data } = await client.get(`/github/repos/${full_name}/sarif`)
 
             if (data?.error?.message && alerts === true) {
                 if (data?.app?.installationId) {
@@ -377,7 +377,7 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await client.signedFetch(`/github/${installationId}/uninstall`)
+            const { data } = await client.get(`/github/${installationId}/uninstall`)
             state.loading = false
 
             if (data?.error?.message) {
@@ -423,7 +423,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore && skip <= limit) {
-                const { data } = await client.signedFetch(`/github/log?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.get(`/github/log?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.results) {
                         data.results.map(r => state.log.push(r))

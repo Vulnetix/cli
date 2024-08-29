@@ -191,9 +191,10 @@ model integration_usage_log {
 }
 
 model findings {
-  findingId                  String          @unique
+  id                         Int              @id @default(autoincrement())
+  findingId                  String
   memberEmail                String
-  member                     members         @relation(fields: [memberEmail], references: [email])
+  member                     members          @relation(fields: [memberEmail], references: [email])
   source                     String
   category                   String
   createdAt                  Int
@@ -225,14 +226,14 @@ model findings {
   squattedPackage            String?
   referencesJSON             String?
   spdxId                     String?
-  spdx                       spdx?           @relation(fields: [spdxId], references: [spdxId])
+  spdx                       spdx?            @relation(fields: [spdxId], references: [spdxId])
   cdxId                      String?
-  cdx                        cdx?            @relation(fields: [cdxId], references: [cdxId])
-  triage                     triage_activity @relation(fields: [findingId], references: [findingId])
+  cdx                        cdx?             @relation(fields: [cdxId], references: [cdxId])
+  triage                     triage_activity? @relation(fields: [id], references: [findingKey])
 }
 
 model triage_activity {
-  findingId             String    @unique
+  findingKey            Int       @id
   finding               findings?
   createdAt             Int
   triagedAt             Int?

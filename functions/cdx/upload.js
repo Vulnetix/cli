@@ -42,11 +42,11 @@ export async function onRequestPost(context) {
                 memberEmail: verificationResult.session.memberEmail,
                 cdxVersion: cdx.specVersion,
                 serialNumber: cdx.serialNumber,
-                name: cdx.metadata.component.name,
-                version: cdx.metadata.component.version,
+                name: cdx.metadata?.component?.name,
+                version: cdx.metadata?.component?.version,
                 createdAt: (new Date(cdx.metadata.timestamp)).getTime(),
                 toolName: cdx.metadata.tools.map(t => `${t?.vendor} ${t?.name} ${t?.version}`.trim()).join(', '),
-                externalReferencesJSON: JSON.stringify(cdx.metadata.component.externalReferences),
+                externalReferencesJSON: JSON.stringify(cdx.metadata.component?.externalReferences || []),
                 componentsJSON: JSON.stringify(cdx.components),
                 dependenciesJSON: JSON.stringify(cdx.dependencies),
             }
@@ -76,7 +76,7 @@ export async function onRequestPost(context) {
                     referenceLocator: decodeURIComponent(component.purl),
                     name: component.name,
                     version: component?.version,
-                    license: component?.licenses?.map(l => l.license.id).join(' '),
+                    license: component?.licenses?.map(l => l.license?.id || '').join(' '),
                 }
             })
             const osv = new OSV()
@@ -89,7 +89,7 @@ export async function onRequestPost(context) {
                     if (!vuln?.id) {
                         continue
                     }
-                    const findingId = await hex(`${verificationResult.session.memberEmail}${vuln.id}${referenceLocator}`)
+                    const findingId = await hex(`${vuln.id}${referenceLocator}`)
                     const findingData = {
                         findingId,
                         memberEmail: verificationResult.session.memberEmail,
@@ -104,33 +104,51 @@ export async function onRequestPost(context) {
                         packageLicense: license,
                         cdxId
                     }
-                    const finding = await prisma.findings.upsert({
+                    const originalFinding = await prisma.findings.findFirst({
                         where: {
                             findingId,
-                            cdxId,
-                        },
-                        update: {
-                            modifiedAt: findingData.modifiedAt,
-                        },
-                        create: findingData,
+                            AND: { cdxId },
+                        }
                     })
+                    let finding;
+                    if (originalFinding) {
+                        finding = await prisma.findings.update({
+                            where: {
+                                id: originalFinding.id,
+                            },
+                            data: {
+                                modifiedAt: findingData.modifiedAt
+                            },
+                        })
+                    } else {
+                        finding = await prisma.findings.create({ data: findingData })
+                    }
                     console.log(`findings SCA`, finding)
                     const vexData = {
-                        findingId,
+                        findingKey: finding.id,
                         createdAt: (new Date()).getTime(),
                         lastObserved: (new Date()).getTime(),
                         seen: 0,
                         analysisState: 'in_triage'
                     }
-                    const vex = await prisma.triage_activity.upsert({
+                    const originalVex = await prisma.triage_activity.findUnique({
                         where: {
-                            findingId,
-                        },
-                        update: {
-                            lastObserved: vexData.lastObserved,
-                        },
-                        create: vexData,
+                            findingKey: finding.id,
+                        }
                     })
+                    let vex;
+                    if (originalVex) {
+                        vex = await prisma.triage_activity.update({
+                            where: {
+                                findingKey: finding.id,
+                            },
+                            data: {
+                                modifiedAt: vexData.lastObserved
+                            },
+                        })
+                    } else {
+                        vex = await prisma.triage_activity.create({ data: vexData })
+                    }
                     console.log(`findings VEX`, vex)
                 }
                 i++

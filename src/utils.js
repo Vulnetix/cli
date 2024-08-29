@@ -62,7 +62,7 @@ export class Server {
         const method = this.request.method.toUpperCase()
         const url = new URL(this.request.url)
         const path = url.pathname + url.search
-        const body = method !== 'GET' ? await ensureStrReqBody(this.request) : null
+        const body = method !== 'GET' ? await ensureStrReqBody(this.request.clone()) : null
 
         // Retrieve signature and timestamp from headers
         const signature = this.request.headers.get('authorization')?.replace('HMAC ', '')
@@ -360,6 +360,33 @@ export class Client {
     }
 
     /**
+     * Performs a Browser fetch GET request with a signature using the stored secret key.
+     * 
+     * @param {string} path - The URL path segment, excluding the origin.
+     * @returns {Promise<Response>} - A promise that resolves to the fetch API response.
+     */
+    async get(path) {
+        return this.signedFetch(path)
+    }
+
+    /**
+     * Performs a Browser fetch GET request with a signature using the stored secret key.
+     * 
+     * @param {string} path - The URL path segment, excluding the origin.
+     * @param {Object} [headers={}] - The extra headers to include in the request.
+     * @param {string} [body] - The optional body of the request.
+     * @returns {Promise<Response>} - A promise that resolves to the fetch API response.
+     */
+    async post(path, body, headers = {}) {
+        if (typeof body === 'object') {
+            body = JSON.stringify(body)
+            headers = { 'Content-Type': 'application/json', ...headers }
+        }
+        const method = 'POST'
+        return this.signedFetch(path, { method, body, headers })
+    }
+
+    /**
      * Performs a Browser fetch request with the appropriate headers and signature using the stored secret key.
      * 
      * @param {string} path - The URL path segment, excluding the origin.
@@ -390,7 +417,7 @@ export class Client {
             secretKey: session?.secret,
         })
 
-        const sendHeaders = {
+        headers = {
             ...headers,
             'Authorization': `HMAC ${signature}`,
             'X-Vulnetix-KID': session?.kid,
@@ -399,7 +426,7 @@ export class Client {
 
         const response = await fetch(url, {
             method,
-            headers: sendHeaders,
+            headers,
             body: supportsBody && body ? body : null,  // Include body only for methods that support it
         })
         const respText = await response.text()
@@ -1161,7 +1188,7 @@ export const isSPDX = input => {
         spdx = Object.assign({}, input)
     }
     if (typeof spdx?.spdxVersion === 'undefined' || typeof spdx?.SPDXID === 'undefined') {
-        return false
+        throw `Missing "spdxVersion" or "SPDXID"`
     }
     if (!supportedVersions.includes(spdx.spdxVersion)) {
         throw `Provided SPDX version ${spdx.spdxVersion} is not supported. Must be one of: ${supportedVersions}`
@@ -1176,21 +1203,28 @@ export const isSPDX = input => {
         !spdx.packages.length ||
         !spdx.relationships.length
     ) {
-        return false
+        throw `SPDX is missing "dataLicense", "name", "relationships", "packages", "creationInfo.creators", or "documentDescribes"`
     }
     return true
 }
 
 function validCdxComponent(o, specVersion) {
-    if (specVersion === "1.5") {
+    if (specVersion === "1.4") {
         if (typeof o?.name === 'undefined' ||
             typeof o?.version === 'undefined' ||
             typeof o?.purl === 'undefined' ||
             typeof o?.['bom-ref'] === 'undefined' ||
-            typeof o?.externalReferences === 'undefined' ||
-            typeof o?.hashes === 'undefined' ||
-            !o.externalReferences.length ||
-            !o.hashes.length
+            typeof o?.externalReferences === 'undefined'
+        ) {
+            console.log(o)
+            return false
+        }
+    } else if (specVersion === "1.5") {
+        if (typeof o?.name === 'undefined' ||
+            typeof o?.version === 'undefined' ||
+            typeof o?.purl === 'undefined' ||
+            typeof o?.['bom-ref'] === 'undefined' ||
+            typeof o?.externalReferences === 'undefined'
         ) {
             console.log(o)
             return false
@@ -1219,7 +1253,6 @@ function validCdxDependency(o) {
     if (typeof o?.ref === 'undefined' ||
         typeof o?.dependsOn === 'undefined'
     ) {
-        console.log(`invalid CycloneDX Dependency, missing dependsOn`, o)
         return false
     }
     return true
@@ -1236,7 +1269,7 @@ function validCdxDependency(o) {
  * @throws {string} Throws an error if the provided CDX version is not supported.
  */
 export const isCDX = input => {
-    const supportedVersions = ["1.5", "1.6"]
+    const supportedVersions = ["1.4", "1.5", "1.6"]
     let cdx
     if (typeof input === "string" && isJSON(input)) {
         cdx = JSON.parse(input)
@@ -1244,11 +1277,10 @@ export const isCDX = input => {
         cdx = Object.assign({}, input)
     }
     if (typeof cdx?.specVersion === 'undefined' || typeof cdx?.serialNumber === 'undefined') {
-        console.log(`!specVersion or serialNumber`)
-        return false
+        throw 'Missing specVersion or serialNumber'
     }
     if (!supportedVersions.includes(cdx?.specVersion)) {
-        throw `Provided CDX version ${cdx?.specVersion} is not supported. Must be one of: ${supportedVersions}`
+        throw `Provided CycloneDX version ${cdx?.specVersion} is not supported. Must be one of: ${supportedVersions}`
     }
     if (typeof cdx?.metadata?.tools === 'undefined' ||
         typeof cdx?.components === 'undefined' ||
@@ -1257,16 +1289,13 @@ export const isCDX = input => {
         !cdx?.components.length ||
         !cdx?.dependencies.length
     ) {
-        console.log(`!cdx`)
-        return false
+        throw 'Provided CycloneDX "components", "dependencies", or "metadata.tools" is missing'
     }
     if (cdx.components.filter(c => !validCdxComponent(c, cdx.specVersion)).length > 0) {
-        console.log(`!validCdxComponent`)
-        return false
+        throw 'Component "name", "version", or "purl" is missing'
     }
     if (cdx.dependencies.filter(d => !validCdxDependency(d)).length > 0) {
-        console.log(`!validCdxDependency`)
-        return false
+        throw 'Dependency missing "ref" or "dependsOn"'
     }
     return true
 }

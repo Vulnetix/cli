@@ -55,7 +55,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore) {
-                const { data } = await client.signedFetch(`/queue/sca?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.get(`/queue/sca?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.sca) {
                         data.sca.forEach(sca => state.results.push(flatten(sca)))
@@ -82,7 +82,7 @@ class Controller {
             }
             state.results.forEach((result, index) => {
                 state.results.splice(index, 1, result)
-                dialogs[result.findingId] = result
+                dialogs[result.id.toString()] = result
             })
             state.loading = false
         } catch (e) {
@@ -92,19 +92,25 @@ class Controller {
         }
     }
     expandRow = async item => {
-        const findingId = item.findingId.toString()
+        const findingId = item.id.toString()
         state.triageLoaders[findingId] = true
         try {
-            const { data } = await client.signedFetch(`/enrich/${findingId}`)
+            const { data } = await client.get(`/enrich/${findingId}`)
             state.triageLoaders[findingId] = false
             if (data.ok) {
                 if (data?.finding) {
-                    state.results.forEach((result, index) => {
-                        if (result.findingId === findingId) {
+                    let found = false
+                    for (const [index, result] of state.results.entries()) {
+                        if (result.id === item.id) {
                             state.results.splice(index, 1, flatten(data.finding))
                             dialogs[findingId] = data.finding
+                            found = true
                         }
-                    })
+                    }
+                    if (!found) {
+                        dialogs[findingId] = data.finding
+                        state.results.push(flatten(data.finding))
+                    }
                 }
             } else if (typeof data === "string" && !isJSON(data)) {
                 return
@@ -184,7 +190,7 @@ onMounted(() => Member.ensureSession().then(controller.refresh))
         <VDataTable
             v-model:search="Preferences.scaFilter"
             :items="state.results"
-            item-key="findingId"
+            item-key="id"
             item-value="detectionTitle"
             :headers="scaHeadings"
             :sort-by="[{ key: 'detectionTitle', order: 'asc' }, { key: 'createdAt', order: 'desc' }]"
@@ -194,9 +200,8 @@ onMounted(() => Member.ensureSession().then(controller.refresh))
         >
             <template v-slot:item.triage_seen="{ item }">
                 <VIcon
-                    v-if="[0, 1].includes(item.triage_seen)"
-                    :icon="item.triage_seen === 1 ? 'tabler-eye-check' : 'mdi-eye-off-outline'"
-                    :color="item.triage_seen === 1 ? 'success' : 'warning'"
+                    :icon="item?.triage_seen === 1 ? 'tabler-eye-check' : 'mdi-eye-off-outline'"
+                    :color="item?.triage_seen === 1 ? 'success' : 'warning'"
                     size="23"
                 />
             </template>
@@ -235,7 +240,7 @@ onMounted(() => Member.ensureSession().then(controller.refresh))
                 >
                     <VChip
                         color="info"
-                        :text="item?.cdx_cdxVersion"
+                        :text="`CDX ${item?.cdx_cdxVersion}`"
                         size="small"
                         label
                     ></VChip>
@@ -272,7 +277,7 @@ onMounted(() => Member.ensureSession().then(controller.refresh))
             </template>
             <template v-slot:item.actions="{ item }">
                 <VDialog
-                    v-model="dialogs[item.findingId.toString()]"
+                    v-model="dialogs[item.id.toString()]"
                     transition="dialog-bottom-transition"
                     fullscreen
                 >
@@ -289,8 +294,8 @@ onMounted(() => Member.ensureSession().then(controller.refresh))
                     <VCard>
                         <VToolbar color="#000">
                             <VProgressLinear
-                                :active="!!state.triageLoaders[item.findingId]"
-                                :indeterminate="!!state.triageLoaders[item.findingId]"
+                                :active="!!state.triageLoaders[item.id.toString()]"
+                                :indeterminate="!!state.triageLoaders[item.id.toString()]"
                                 color="primary"
                                 absolute
                                 bottom
@@ -299,7 +304,7 @@ onMounted(() => Member.ensureSession().then(controller.refresh))
                             <VBtn
                                 icon="mdi-close"
                                 color="#FFF"
-                                @click="dialogs[item.findingId] = false"
+                                @click="dialogs[item.id.toString()] = false"
                             ></VBtn>
                             <VToolbarTitle>{{ item.detectionTitle }}</VToolbarTitle>
                             <VSpacer></VSpacer>
@@ -307,7 +312,7 @@ onMounted(() => Member.ensureSession().then(controller.refresh))
                                 <VBtn
                                     text="Dismiss"
                                     variant="text"
-                                    @click="dialogs[item.findingId] = false"
+                                    @click="dialogs[item.id.toString()] = false"
                                 ></VBtn>
                             </VToolbarItems>
                         </VToolbar>
