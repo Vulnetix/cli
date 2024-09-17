@@ -36,10 +36,6 @@ const state = reactive({
     ...initialState,
 })
 
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token,
-}
-
 class Controller {
     constructor() {
         this.urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
@@ -87,7 +83,7 @@ class Controller {
     login = async code => {
         state.showEmptyState = true
         state.loadingBar = true
-        const { data } = await axios.get(`/login/github/${code}`)
+        const { data } = await client.get(`/login/github/${code}`)
         state.loadingBar = false
         if (data?.error?.message) {
             if (data?.app?.installationId) {

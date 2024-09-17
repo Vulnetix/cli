@@ -397,33 +397,24 @@ export class Client {
      */
     async signedFetch(path, { method = 'GET', headers = {}, body = null } = {}) {
         const url = `${location.origin}${path}`
-
         const session = await this.retrieveKey(`session`)
-        if (!session?.secret) {
-            throw new Error('Secret key not found.')
-        }
-
-        // Normalize method to uppercase to handle case insensitivity
+        headers = { ...headers, 'X-Vulnetix-KID': session?.kid }
         const normalizedMethod = method.toUpperCase()
-
-        // Determine if the method supports a body
         const supportsBody = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(normalizedMethod)
-
-        const { signature, timestamp } = await Client.signRequest({
-            method: normalizedMethod,
-            path,
-            kid: session?.kid,
-            body,
-            secretKey: session?.secret,
-        })
-
-        headers = {
-            ...headers,
-            'Authorization': `HMAC ${signature}`,
-            'X-Vulnetix-KID': session?.kid,
-            'X-Timestamp': timestamp,
+        if (!!session?.secret) {
+            const { signature, timestamp } = await Client.signRequest({
+                method: normalizedMethod,
+                path,
+                kid: session?.kid,
+                body,
+                secretKey: session?.secret,
+            })
+            headers = {
+                ...headers,
+                'Authorization': `HMAC ${signature}`,
+                'X-Timestamp': timestamp,
+            }
         }
-
         const response = await fetch(url, {
             method,
             headers,
@@ -437,7 +428,7 @@ export class Client {
             console.error(respText)
             console.error(`OSV error! status: ${response.status} ${response.statusText}`)
         }
-        const data = JSON.parse(respText)
+        const data = JSON.parse(respText || '{}')
         return { ok: response.ok, status: response.status, statusText: response.statusText, data, url }
     }
 }
