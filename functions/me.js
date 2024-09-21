@@ -66,7 +66,7 @@ export async function onRequestPost(context) {
         const member = {}
         const data = await request.json()
         if (data?.email && original.email !== data.email) {
-            member.email = data.email
+            member.email = data.email.toLowerCase()
         }
         if (data?.passwordHash && original.passwordHash !== data.passwordHash) {
             member.passwordHash = data.passwordHash
@@ -98,7 +98,7 @@ export async function onRequestPost(context) {
         if (Object.keys(member).length > 0) {
             await prisma.members.update({
                 where: {
-                    email: verificationResult.session.memberEmail,
+                    email: verificationResult.session.memberEmail.toLowerCase(),
                 },
                 data: member
             })

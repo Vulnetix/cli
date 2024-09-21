@@ -62,12 +62,12 @@ export async function onRequestGet(context) {
             }
             for (const ghUserEmail of ghUserEmails.content) {
                 if (ghUserEmail?.verified === true && !!ghUserEmail?.email && !ghUserEmail.email.endsWith('@users.noreply.github.com')) {
-                    memberEmail = ghUserEmail.email
+                    memberEmail = ghUserEmail.email.toLowerCase()
                     break
                 }
             }
             if (content?.email && !memberEmail) {
-                memberEmail = content.email
+                memberEmail = content.email.toLowerCase()
             }
         }
         const memberCheck = await app.memberExists(memberEmail)
@@ -82,7 +82,7 @@ export async function onRequestGet(context) {
                 lastName = words.join(' ') || ''
             }
             response.member = {
-                email: memberEmail,
+                email: memberEmail.toLowerCase(),
                 avatarUrl: content?.avatar_url || '',
                 orgName: content?.company || '',
                 passwordHash: await pbkdf2(oauthData.access_token),

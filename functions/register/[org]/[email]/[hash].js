@@ -29,7 +29,7 @@ export async function onRequestGet(context) {
         const info = await prisma.members.create({
             data: {
                 orgName: params.org,
-                email: params.email,
+                email: params.email.toLowerCase(),
                 passwordHash: await pbkdf2(params.hash)
             }
         })
