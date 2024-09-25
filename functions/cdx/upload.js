@@ -34,8 +34,10 @@ export async function onRequestPost(context) {
                 return Response.json({ ok: false, error: { message: 'CDX is missing necessary fields.' } })
             }
             console.log(cdx)
-            const cdxStr = JSON.stringify(cdx)
-            const cdxId = await hex(cdxStr)
+            // const cdxStr = JSON.stringify(cdx) //TODO: Add to TEA
+            const componentsJSON = JSON.stringify(cdx.components)
+            const dependenciesJSON = JSON.stringify(cdx.dependencies)
+            const cdxId = await hex(cdx.metadata?.component?.name + componentsJSON + dependenciesJSON)
             const cdxData = {
                 cdxId,
                 source: 'upload',
@@ -47,8 +49,8 @@ export async function onRequestPost(context) {
                 createdAt: (new Date(cdx.metadata.timestamp)).getTime(),
                 toolName: cdx.metadata.tools.map(t => `${t?.vendor} ${t?.name} ${t?.version}`.trim()).join(', '),
                 externalReferencesJSON: JSON.stringify(cdx.metadata.component?.externalReferences || []),
-                componentsJSON: JSON.stringify(cdx.components),
-                dependenciesJSON: JSON.stringify(cdx.dependencies),
+                componentsJSON,
+                dependenciesJSON,
             }
             const info = await prisma.cdx.upsert({
                 where: {
@@ -107,7 +109,9 @@ export async function onRequestPost(context) {
                     const originalFinding = await prisma.findings.findFirst({
                         where: {
                             findingId,
-                            AND: { cdxId },
+                            AND: {
+                                memberEmail: session.memberEmail
+                            },
                         }
                     })
                     let finding;
@@ -143,7 +147,7 @@ export async function onRequestPost(context) {
                                 findingKey: finding.id,
                             },
                             data: {
-                                modifiedAt: vexData.lastObserved
+                                lastObserved: vexData.lastObserved
                             },
                         })
                     } else {

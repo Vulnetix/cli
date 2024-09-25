@@ -19,7 +19,7 @@
     "@floating-ui/dom": "1.2.8",
     "@pandatix/js-cvss": "^0.4.4",
     "@prisma/adapter-d1": "^5.15.1",
-    "@prisma/client": "^5.18.0",
+    "@prisma/client": "^5.19.1",
     "@vuelidate/core": "^2.0.3",
     "@vuelidate/validators": "^2.0.4",
     "@vueuse/core": "^10.1.2",
@@ -45,7 +45,8 @@
     "vue3-apexcharts": "^1.4.1",
     "vue3-perfect-scrollbar": "^1.6.1",
     "vuetify": "^3.6.0",
-    "webfontloader": "^1.6.28"
+    "webfontloader": "^1.6.28",
+    "semver": "^7.6.3"
   },
   "devDependencies": {
     "@antfu/eslint-config-vue": "^0.3.3",

@@ -2,7 +2,6 @@
 import { useMemberStore } from '@/stores/member';
 import { usePreferencesStore } from '@/stores/preferences';
 import { Client, flatten, isJSON } from '@/utils';
-import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import router from "../router";
 
@@ -37,9 +36,6 @@ const initialState = {
 const state = reactive({
     ...initialState,
 })
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token,
-}
 const clearAlerts = () => {
     state.error = ''
     state.warning = ''

@@ -109,8 +109,8 @@ class Controller {
         state.uploadError = "No CycloneDX data available."
       } else {
         for (const file of data.files) {
-          if (file.source === "upload") {
-            state.uploads.push(file)
+          if (file.source === "upload" && !data.files.some(f => f.cdxId === file.cdxId)) {
+            state.uploads.push(file);
           }
         }
         state.uploadSuccess = "Uploaded CycloneDX, you may close this dialogue now."

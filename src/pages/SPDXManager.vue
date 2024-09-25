@@ -111,11 +111,13 @@ class Controller {
                 state.uploadError = "No SPDX data available."
             } else {
                 for (const file of data.files) {
-                    if (file.source === "upload") {
-                        state.uploads.push(file)
-                    }
-                    if (file.source === "GitHub") {
-                        state.github.push(file)
+                    if (!data.files.some(f => f.spdxId === file.spdxId)) {
+                        if (file.source === "upload") {
+                            state.uploads.push(file);
+                        }
+                        if (file.source === "GitHub") {
+                            state.github.push(file);
+                        }
                     }
                 }
                 state.uploadSuccess = "Uploaded SPDX, you may close this dialogue now."

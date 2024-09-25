@@ -2,7 +2,6 @@
 import router from "@/router"
 import { useMemberStore } from '@/stores/member'
 import { Client, isJSON, octodex, timeAgo } from '@/utils'
-import { default as axios } from 'axios'
 import { reactive } from 'vue'
 import { useTheme } from 'vuetify'
 
@@ -227,7 +226,7 @@ class Controller {
             if (data?.findings) {
                 for (const findingId of data.findings) {
                     try {
-                        axios.get(`/enrich/${findingId}?seen=0`)
+                        client.get(`/enrich/${findingId}?seen=0`)
                     } catch (e) {
                         console.error(e)
                     }
@@ -294,7 +293,7 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await axios.post(`/github/pat`, { token: state.pat, label: state.patName }, { headers: { 'Content-Type': 'application/json' } })
+            const { data } = await client.post(`/github/pat`, { token: state.pat, label: state.patName })
             state.loading = false
 
             if (data?.error?.message) {
@@ -338,7 +337,7 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await axios.delete(`/github/${patId}/remove`)
+            const { data } = await client.delete(`/github/${patId}/remove`)
             state.loading = false
 
             if (data?.error?.message) {
@@ -475,15 +474,16 @@ function persistData(data) {
     if (data?.member?.lastName) {
         Member.lastName = data.member.lastName
     }
-    if (data?.session?.token) {
-        Member.session.token = data.session.token
-        axios.defaults.headers.common = {
-            'X-Vulnetix': Member.session.token,
-        }
+    if (data?.session?.kid) {
+        Member.session.kid = data.session.kid
+    }
+    if (data?.session?.secret) {
+        Member.session.secret = data.session.secret
     }
     if (data?.session?.expiry) {
         Member.session.expiry = data.session.expiry
     }
+    client.storeKey(`session`, Member.session || {})
 }
 
 function groupedRepos() {

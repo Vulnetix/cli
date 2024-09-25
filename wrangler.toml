@@ -18,3 +18,7 @@ bucket_name = 'integrations-cache'
 [[r2_buckets]]
 binding = 'r2webhooks'
 bucket_name = 'webhooks'
+
+[[r2_buckets]]
+binding = 'r2tea'
+bucket_name = 'transparency-exchange'

@@ -107,7 +107,9 @@ export async function onRequestPost(context) {
                     const originalFinding = await prisma.findings.findFirst({
                         where: {
                             findingId,
-                            AND: { spdxId },
+                            AND: {
+                                memberEmail: session.memberEmail
+                            },
                         }
                     })
                     let finding;
@@ -143,7 +145,7 @@ export async function onRequestPost(context) {
                                 findingKey: finding.id,
                             },
                             data: {
-                                modifiedAt: vexData.lastObserved
+                                lastObserved: vexData.lastObserved
                             },
                         })
                     } else {

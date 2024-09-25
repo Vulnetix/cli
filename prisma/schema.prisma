@@ -254,3 +254,73 @@ model triage_activity {
   memberEmail           String?
   member                members?  @relation(fields: [memberEmail], references: [email])
 }
+
+model Lifecycle {
+  uuid           String      @id @default(uuid())
+  event          String // list enum String
+  date           DateTime
+  Collection     Collection? @relation(fields: [collectionUuid], references: [uuid])
+  collectionUuid String?
+  Leaf           Leaf?       @relation(fields: [leafUuid], references: [uuid])
+  leafUuid       String?
+  Product        Product?    @relation(fields: [productUuid], references: [uuid])
+  productUuid    String?
+}
+
+model Link {
+  id           Int       @id @default(autoincrement())
+  uri          String
+  content      String // list enum String
+  Artifact     Artifact? @relation(fields: [artifactUuid], references: [uuid])
+  artifactUuid String?
+}
+
+model Artifact {
+  uuid              String      @id @default(uuid())
+  displayIdentifier String
+  type              String // list enum String
+  version           String
+  date              Int
+  bomFormat         String
+  downloadLinks     Link[]
+  inventoryTypes    String // list enum String
+  identities        Identity[]
+  Collection        Collection? @relation(fields: [collectionUuid], references: [uuid])
+  collectionUuid    String?
+}
+
+model Identity {
+  id             String      @id @default(cuid())
+  type           String
+  identifier     String
+  Artifact       Artifact?   @relation(fields: [artifactUuid], references: [uuid])
+  artifactUuid   String?
+  Collection     Collection? @relation(fields: [collectionUuid], references: [uuid])
+  collectionUuid String?
+}
+
+model Collection {
+  uuid       String      @id @default(uuid())
+  version    String?
+  created    Int
+  identities Identity[]
+  artifacts  Artifact[]
+  lifecycle  Lifecycle[]
+}
+
+model Leaf {
+  uuid        String      @id @default(uuid())
+  name        String
+  tei         String      @unique
+  version     String
+  lifecycle   Lifecycle[]
+  Product     Product?    @relation(fields: [productUuid], references: [uuid])
+  productUuid String?
+}
+
+model Product {
+  uuid      String      @id @default(uuid())
+  name      String
+  lifecycle Lifecycle[]
+  leafs     Leaf[]
+}

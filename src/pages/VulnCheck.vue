@@ -1,7 +1,5 @@
 <script setup>
-import { useMemberStore } from '@/stores/member';
 import { Client, isJSON } from '@/utils';
-import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 import router from "../router";
@@ -12,7 +10,6 @@ import router from "../router";
 //     -H 'Authorization: Bearer undefined' > ./vulncheck-kev.json
 
 const client = new Client()
-const Member = useMemberStore()
 const { global } = useTheme()
 
 const initialState = {
@@ -27,9 +24,6 @@ const initialState = {
 const state = reactive({
     ...initialState,
 })
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token,
-}
 const clearAlerts = () => {
     state.error = ''
     state.warning = ''
@@ -84,7 +78,7 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await axios.post(`/vulncheck/integrate`, { apiKey: state.apiKey }, { headers: { 'Content-Type': 'application/json' } })
+            const { data } = await client.post(`/vulncheck/integrate`, { apiKey: state.apiKey })
             state.loading = false
 
             if (typeof data === "string" && !isJSON(data)) {

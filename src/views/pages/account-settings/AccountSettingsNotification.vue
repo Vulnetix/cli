@@ -1,10 +1,11 @@
 <script setup>
 import router from "@/router";
+import { Client } from "@/utils";
 import { useMemberStore } from '@/stores/member';
-import { default as axios } from 'axios';
 import { reactive } from 'vue';
 
 const Member = useMemberStore()
+const client = new Client()
 
 const initialState = {
     error: "",
@@ -19,9 +20,6 @@ const initialState = {
 const state = reactive({
     ...initialState,
 })
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token
-}
 const clearAlerts = () => {
     state.error = ''
     state.warning = ''
@@ -38,7 +36,7 @@ class Controller {
                 (device.browser ? 1 << 1 : 0) |
                 (device.webhook ? 1 << 0 : 0)
 
-            const { data } = await axios.post(`/me`, member, { headers: { 'Content-Type': 'application/json' } })
+            const { data } = await client.post(`/me`, member)
             state.loading = false
 
             if (typeof data === "string" && !isJSON(data)) {

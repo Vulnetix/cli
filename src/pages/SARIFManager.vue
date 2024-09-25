@@ -1,13 +1,10 @@
 <script setup>
 import router from "@/router";
-import { useMemberStore } from '@/stores/member';
 import { Client, isJSON, isSARIF } from '@/utils';
-import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
 const client = new Client()
-const Member = useMemberStore()
 const { global } = useTheme()
 
 const initialState = {
@@ -26,10 +23,6 @@ const initialState = {
 const state = reactive({
     ...initialState,
 })
-
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token,
-}
 class Controller {
     constructor() {
         this.refresh(true)
@@ -97,7 +90,7 @@ class Controller {
                 state.uploadError = "No SARIF files were provided."
                 return
             }
-            const { data } = await axios.post(`/sarif/upload`, files, { headers: { 'Content-Type': 'application/json' } })
+            const { data } = await client.post(`/sarif/upload`, files)
             state.loading = false
 
             if (typeof data === "string" && !isJSON(data)) {

@@ -370,6 +370,16 @@ export class Client {
     }
 
     /**
+     * Performs a Browser fetch DELETE request with a signature using the stored secret key.
+     * 
+     * @param {string} path - The URL path segment, excluding the origin.
+     * @returns {Promise<Response>} - A promise that resolves to the fetch API response.
+     */
+    async delete(path) {
+        return this.signedFetch(path, { method: 'DELETE' })
+    }
+
+    /**
      * Performs a Browser fetch GET request with a signature using the stored secret key.
      * 
      * @param {string} path - The URL path segment, excluding the origin.

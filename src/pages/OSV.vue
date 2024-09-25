@@ -1,12 +1,9 @@
 <script setup>
-import { useMemberStore } from '@/stores/member';
 import { Client, isJSON } from '@/utils';
-import { default as axios } from 'axios';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
 const client = new Client()
-const Member = useMemberStore()
 const { global } = useTheme()
 
 const initialState = {
@@ -21,9 +18,6 @@ const initialState = {
 const state = reactive({
     ...initialState,
 })
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token,
-}
 const clearAlerts = () => {
     state.error = ''
     state.warning = ''

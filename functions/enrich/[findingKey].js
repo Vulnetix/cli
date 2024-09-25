@@ -116,7 +116,7 @@ export async function onRequestGet(context) {
         // MissionWellbeingImpact        
 
         const { searchParams } = new URL(request.url)
-        const seen = parseInt(searchParams.get('seen'), 10) || 1
+        const seen = parseInt(searchParams.get('seen'), 10) || 0
         let { analysisState = 'in_triage', triageAutomated = 0, triagedAt = null, seenAt = null } = finding?.triage || {}
         if (
             (cvssVector && (
@@ -130,7 +130,7 @@ export async function onRequestGet(context) {
                 triagedAt = new Date().getTime()
             }
         }
-        if (seen === 1 && !seenAt) {
+        if (seen === 1) {
             seenAt = new Date().getTime()
         }
         if (!finding?.triage) {

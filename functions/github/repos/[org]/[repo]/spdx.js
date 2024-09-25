@@ -103,8 +103,9 @@ export async function onRequestGet(context) {
 
 const process = async (prisma, session, repoName, content) => {
     const spdx = content.sbom
+    const relationshipsJSON = JSON.stringify(spdx.relationships)
     const spdxStr = JSON.stringify(spdx)
-    const spdxId = await hex(spdxStr)
+    const spdxId = await hex(spdx.name + relationshipsJSON)
     const spdxData = {
         spdxId,
         source: 'GitHub',
@@ -118,7 +119,7 @@ const process = async (prisma, session, repoName, content) => {
         toolName: spdx.creationInfo.creators.join(', '),
         documentDescribes: spdx.documentDescribes.join(','),
         packagesJSON: JSON.stringify(spdx.packages),
-        relationshipsJSON: JSON.stringify(spdx.relationships),
+        relationshipsJSON,
         comment: spdx.creationInfo?.comment || '',
     }
     const findingIds = []
@@ -175,7 +176,9 @@ const process = async (prisma, session, repoName, content) => {
             const originalFinding = await prisma.findings.findFirst({
                 where: {
                     findingId,
-                    AND: { spdxId },
+                    AND: {
+                        memberEmail: session.memberEmail
+                    },
                 }
             })
             let finding;
@@ -212,7 +215,7 @@ const process = async (prisma, session, repoName, content) => {
                         findingKey: finding.id,
                     },
                     data: {
-                        modifiedAt: vexData.lastObserved
+                        lastObserved: vexData.lastObserved
                     },
                 })
             } else {

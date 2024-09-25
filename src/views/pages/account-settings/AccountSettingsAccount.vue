@@ -1,13 +1,14 @@
 <script setup>
 import router from "@/router";
 import { useMemberStore } from '@/stores/member';
-import { default as axios } from 'axios';
+import { Client } from "@/utils";
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
 const Member = useMemberStore()
 const { global } = useTheme()
 
+const client = new Client()
 const defaultAvatar = `https://avatar.iran.liara.run/public?background=${global.name.value === 'dark' ? 'E2C878' : '1ABB9C'}`
 
 const initialState = {
@@ -22,9 +23,6 @@ const changePhoto = ref()
 const state = reactive({
     ...initialState,
 })
-axios.defaults.headers.common = {
-    'X-Vulnetix': Member.session?.token
-}
 function clearAlerts() {
     state.error = ''
     state.warning = ''
@@ -42,7 +40,7 @@ class Controller {
                 firstName: Member.firstName,
                 lastName: Member.lastName,
             }
-            const { data } = await axios.post(`/me`, member, { headers: { 'Content-Type': 'application/json' } })
+            const { data } = await client.post(`/me`, member)
             state.loading = false
 
             if (typeof data === "string" && !isJSON(data)) {
@@ -75,7 +73,7 @@ class Controller {
         const avatarUrl = defaultAvatar
         try {
             state.loading = true
-            const { data } = await axios.post(`/me`, { avatarUrl }, { headers: { 'Content-Type': 'application/json' } })
+            const { data } = await client.post(`/me`, { avatarUrl })
             if (data?.error?.message) {
                 state.error = data?.error?.message
             }
@@ -93,7 +91,7 @@ class Controller {
                 const avatarUrl = fileReader.result
                 try {
                     state.loading = true
-                    const { data } = await axios.post(`/me`, { avatarUrl }, { headers: { 'Content-Type': 'application/json' } })
+                    const { data } = await client.post(`/me`, { avatarUrl })
                     if (data?.error?.message) {
                         state.error = data?.error?.message
                     }
