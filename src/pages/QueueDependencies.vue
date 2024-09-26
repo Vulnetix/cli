@@ -127,7 +127,6 @@ class Controller {
 }
 
 const controller = reactive(new Controller())
-onMounted(() => Member.ensureSession().then(controller.refresh))
 </script>
 
 <template>

@@ -108,7 +108,7 @@ class Controller {
             expiry: data.session.expiry,
         })
         state.showEmptyState = false
-        await this.refreshRepos(true, true, false)
+        await Member.ensureSession().then(() => this.refreshRepos(true, true, false))
 
         return true
     }
