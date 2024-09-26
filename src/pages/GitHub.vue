@@ -43,6 +43,7 @@ class Controller {
             if (this.urlQuery?.setup_action === 'install' && this.urlQuery?.installation_id) {
                 this.install(this.urlQuery.code, this.urlQuery.installation_id)
             } else {
+                Member.logout()
                 this.login(this.urlQuery.code)
             }
         } else {
@@ -593,6 +594,7 @@ const controller = reactive(new Controller())
                 </template>
             </VEmptyState>
             <VTabs
+                v-if="!state.showEmptyState"
                 v-model="tabs"
                 :bgColor="global.name.value === 'dark' ? 'rgb(var(--v-theme-primary))' : 'rgba(var(--v-theme-primary),var(--v-activated-opacity))'"
                 :color="global.name.value === 'dark' ? '#272727' : 'rgba(var(--v-theme-on-surface),var(--v-medium-emphasis-opacity))'"

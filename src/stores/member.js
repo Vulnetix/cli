@@ -21,6 +21,7 @@ export const useMemberStore = defineStore('member', {
         alertFindings: 0,
         alertType: 0,
         theme,
+        isLoggedIn: client.isLoggedIn(),
     }),
     actions: {
         async ensureSession() {
@@ -29,18 +30,16 @@ export const useMemberStore = defineStore('member', {
                 secret: '',
                 expiry: '',
             }
+            this.isLoggedIn = client.isLoggedIn()
         },
         async logout() {
+            this.isLoggedIn = false
             this.session = {
                 kid: '',
                 secret: '',
                 expiry: '',
             }
             await client.deleteKey(`session`)
-        },
-        isLoggedIn() {
-            //TODO: check this.session.expiry
-            return !!this.session.secret
         },
     },
 })

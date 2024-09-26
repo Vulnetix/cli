@@ -4,6 +4,7 @@ import Footer from '@/layouts/components/Footer.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
+import { useMemberStore } from '@/stores/member'
 import { useNotificationsStore } from '@/stores/notifications'
 import { timeAgo } from '@/utils'
 import Notifications from '@core/components/Notifications.vue'
@@ -19,6 +20,8 @@ const icons = {
     'mend': mendIcon,
 }
 
+const Member = useMemberStore()
+const { isLoggedIn } = storeToRefs(Member)
 const NotificationsStore = useNotificationsStore()
 const notifications = ref(NotificationsStore.state)
 NotificationsStore.state.map(notification => {
@@ -37,7 +40,10 @@ watch(NotificationsStore, () => {
 
 <template>
     <VerticalNavLayout>
-        <template #navbar="{ toggleVerticalOverlayNavActive }">
+        <template
+            v-if="isLoggedIn"
+            #navbar="{ toggleVerticalOverlayNavActive }"
+        >
             <div class="d-flex h-100 align-center">
                 <IconBtn
                     class="ms-n3 d-lg-none"
@@ -69,7 +75,10 @@ watch(NotificationsStore, () => {
             </div>
         </template>
 
-        <template #vertical-nav-content>
+        <template
+            v-if="isLoggedIn"
+            #vertical-nav-content
+        >
             <VerticalNavLink :item="{
                 title: 'Dashboard',
                 icon: 'bx-home',
