@@ -1,6 +1,6 @@
 <script setup>
 import router from "@/router";
-import { Client, isJSON, isSARIF } from '@/utils';
+import { Client, isJSON, isSARIF, timeAgo } from '@/utils';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
@@ -90,6 +90,7 @@ class Controller {
                 state.uploadError = "No SARIF files were provided."
                 return
             }
+            console.log(files)
             const { data } = await client.post(`/sarif/upload`, files)
             state.loading = false
 
@@ -106,11 +107,17 @@ class Controller {
 
                 return setTimeout(() => router.push('/logout'), 2000)
             }
-            if (!data.sarif) {
+            if (!data?.sarif?.length) {
                 state.uploadError = "No SARIF data available."
             } else {
-                state.uploads = data.sarif.filter(item => item.source === "upload")
-                state.github = data.sarif.filter(item => item.source === "GitHub")
+                for (const file of data.sarif) {
+                    if (file.source === "upload" && !state.uploads.some(f => f.reportId === file.reportId)) {
+                        state.uploads.push(file)
+                    }
+                    if (file.source === "GitHub" && !state.github.some(f => f.reportId === file.reportId)) {
+                        state.github.push(file)
+                    }
+                }
                 state.uploadSuccess = "Uploaded SARIF, you may close this dialogue now."
             }
 
@@ -387,7 +394,19 @@ const controller = reactive(new Controller())
                                             {{ result.results.length }}
                                         </td>
                                         <td class="text-center">
-                                            {{ new Date(result.createdAt).toLocaleDateString() }}
+                                            <VTooltip
+                                                :text="(new Date(result.createdAt)).toLocaleString()"
+                                                location="left"
+                                            >
+                                                <template v-slot:activator="{ props }">
+                                                    <time
+                                                        v-bind="props"
+                                                        :datetime="(new Date(result.createdAt)).toISOString()"
+                                                    >
+                                                        {{ timeAgo(new Date(result.createdAt)) }}
+                                                    </time>
+                                                </template>
+                                            </VTooltip>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -482,7 +501,19 @@ const controller = reactive(new Controller())
                                             {{ result.messageText }}
                                         </td>
                                         <td class="text-center">
-                                            {{ new Date(sarif.createdAt).toLocaleDateString() }}
+                                            <VTooltip
+                                                :text="(new Date(sarif.createdAt)).toLocaleString()"
+                                                location="left"
+                                            >
+                                                <template v-slot:activator="{ props }">
+                                                    <time
+                                                        v-bind="props"
+                                                        :datetime="(new Date(sarif.createdAt)).toISOString()"
+                                                    >
+                                                        {{ timeAgo(new Date(sarif.createdAt)) }}
+                                                    </time>
+                                                </template>
+                                            </VTooltip>
                                         </td>
                                     </tr>
                                 </tbody>

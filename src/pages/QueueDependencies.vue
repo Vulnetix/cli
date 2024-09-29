@@ -91,7 +91,7 @@ class Controller {
         const findingId = item.id.toString()
         state.triageLoaders[findingId] = true
         try {
-            const { data } = await client.get(`/enrich/${findingId}`)
+            const { data } = await client.get(`/enrich/${findingId}?seen=1`)
             state.triageLoaders[findingId] = false
             if (data.ok) {
                 if (data?.finding) {
@@ -127,6 +127,7 @@ class Controller {
 }
 
 const controller = reactive(new Controller())
+onMounted(() => Member.ensureSession().then(controller.refresh))
 </script>
 
 <template>

@@ -56,19 +56,7 @@ export async function onRequestGet(context) {
         })
 
         return Response.json({
-            ok: true, sca: sca.map(result => {
-                if (result?.spdx && result.spdx?.packagesJSON && result.spdx?.relationshipsJSON) {
-                    return {
-                        ...result,
-                        spdx: {
-                            ...result.spdx,
-                            packagesJSON: JSON.parse(result.spdx.packagesJSON),
-                            relationshipsJSON: JSON.parse(result.spdx.relationshipsJSON)
-                        }
-                    };
-                }
-                return result;
-            })
+            ok: true, sca
         })
     } catch (err) {
         console.error(err)

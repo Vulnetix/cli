@@ -52,11 +52,6 @@ export async function onRequestGet(context) {
             cwes: JSON.parse(originalFinding.cwes ?? '[]'),
             aliases: JSON.parse(originalFinding.aliases ?? '[]'),
             referencesJSON: JSON.parse(originalFinding.referencesJSON ?? '[]'),
-            spdx: {
-                ...originalFinding?.spdx || {},
-                packagesJSON: JSON.parse(originalFinding?.spdx?.packagesJSON ?? '[]'),
-                relationshipsJSON: JSON.parse(originalFinding?.spdx?.relationshipsJSON ?? '[]')
-            }
         }
 
         finding.fullName = finding.cdx?.repo?.fullName || finding.spdx?.repo?.fullName || 'Others'

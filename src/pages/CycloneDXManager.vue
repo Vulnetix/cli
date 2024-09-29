@@ -1,6 +1,6 @@
 <script setup>
 import router from "@/router";
-import { Client, isCDX, isJSON } from '@/utils';
+import { Client, isCDX, isJSON, timeAgo } from '@/utils';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
@@ -109,8 +109,8 @@ class Controller {
         state.uploadError = "No CycloneDX data available."
       } else {
         for (const file of data.files) {
-          if (file.source === "upload" && !data.files.some(f => f.cdxId === file.cdxId)) {
-            state.uploads.push(file);
+          if (file.source === "upload" && !state.uploads.some(f => f.cdxId === file.cdxId)) {
+            state.uploads.push(file)
           }
         }
         state.uploadSuccess = "Uploaded CycloneDX, you may close this dialogue now."
@@ -354,10 +354,22 @@ const controller = reactive(new Controller())
                 {{ cdx.toolName }}
               </td>
               <td class="text-center">
-                {{ cdx.components.length }}
+                {{ cdx.componentsCount }}
               </td>
               <td class="text-center">
-                {{ new Date(cdx.createdAt).toLocaleDateString() }}
+                <VTooltip
+                  :text="(new Date(cdx.createdAt)).toLocaleString()"
+                  location="left"
+                >
+                  <template v-slot:activator="{ props }">
+                    <time
+                      v-bind="props"
+                      :datetime="(new Date(cdx.createdAt)).toISOString()"
+                    >
+                      {{ timeAgo(new Date(cdx.createdAt)) }}
+                    </time>
+                  </template>
+                </VTooltip>
               </td>
             </tr>
           </tbody>

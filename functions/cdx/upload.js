@@ -1,4 +1,4 @@
-import { AuthResult, hex, isCDX, OSV, Server } from "@/utils";
+import { AuthResult, hex, isCDX, OSV, Server, ensureStrReqBody } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -28,16 +28,15 @@ export async function onRequestPost(context) {
     const files = []
     let errors = new Set()
     try {
-        const inputs = await request.json()
+        const body = await ensureStrReqBody(request)
+        const inputs = JSON.parse(body)
         for (const cdx of inputs) {
             if (!isCDX(cdx)) {
                 return Response.json({ ok: false, error: { message: 'CDX is missing necessary fields.' } })
             }
-            console.log(cdx)
             // const cdxStr = JSON.stringify(cdx) //TODO: Add to TEA
             const componentsJSON = JSON.stringify(cdx.components)
-            const dependenciesJSON = JSON.stringify(cdx.dependencies)
-            const cdxId = await hex(cdx.metadata?.component?.name + componentsJSON + dependenciesJSON)
+            const cdxId = await hex(cdx.metadata?.component?.name + componentsJSON)
             const cdxData = {
                 cdxId,
                 source: 'upload',
@@ -48,9 +47,9 @@ export async function onRequestPost(context) {
                 version: cdx.metadata?.component?.version,
                 createdAt: (new Date(cdx.metadata.timestamp)).getTime(),
                 toolName: cdx.metadata.tools.map(t => `${t?.vendor} ${t?.name} ${t?.version}`.trim()).join(', '),
-                externalReferencesJSON: JSON.stringify(cdx.metadata.component?.externalReferences || []),
-                componentsJSON,
-                dependenciesJSON,
+                externalReferencesCount: cdx.metadata.component?.externalReferences?.length || 0,
+                componentsCount: cdx.components?.length || 0,
+                dependenciesCount: cdx.dependencies?.length || 0,
             }
             const info = await prisma.cdx.upsert({
                 where: {
@@ -64,12 +63,6 @@ export async function onRequestPost(context) {
                 create: cdxData
             })
             console.log(`/github/repos/cdx ${cdxId} kid=${verificationResult.session.kid}`, info)
-            cdxData.externalReferences = JSON.parse(cdxData.externalReferencesJSON)
-            cdxData.components = JSON.parse(cdxData.componentsJSON)
-            cdxData.dependencies = JSON.parse(cdxData.dependenciesJSON)
-            delete cdxData.externalReferencesJSON
-            delete cdxData.componentsJSON
-            delete cdxData.dependenciesJSON
             files.push(cdxData)
 
             const osvQueries = cdx.components.map(component => {
@@ -110,7 +103,7 @@ export async function onRequestPost(context) {
                         where: {
                             findingId,
                             AND: {
-                                memberEmail: session.memberEmail
+                                memberEmail: verificationResult.session.memberEmail
                             },
                         }
                     })

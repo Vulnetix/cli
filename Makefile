@@ -59,6 +59,16 @@ git-demo:
 	git push --set-upstream origin demo
 	git stash pop || true
 
+_purge_data: ## FOR DOCO ONLY
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM findings;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM triage_activity;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM git_repos;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM sarif;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM sarif_results;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM spdx;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM cdx;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM integration_usage_log;"
+
 _helpers: ## FOR DOCO ONLY
 	npx wrangler d1 execute vulnetix --local --file ./migrations/0001_init.sql
 	npx wrangler d1 execute vulnetix --local --command "PRAGMA table_list;"

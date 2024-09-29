@@ -1,6 +1,6 @@
 <script setup>
 import router from "@/router";
-import { Client, isJSON, isSPDX } from '@/utils';
+import { Client, isJSON, isSPDX, timeAgo } from '@/utils';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
 
@@ -111,13 +111,11 @@ class Controller {
                 state.uploadError = "No SPDX data available."
             } else {
                 for (const file of data.files) {
-                    if (!data.files.some(f => f.spdxId === file.spdxId)) {
-                        if (file.source === "upload") {
-                            state.uploads.push(file);
-                        }
-                        if (file.source === "GitHub") {
-                            state.github.push(file);
-                        }
+                    if (file.source === "upload" && !state.uploads.some(f => f.spdxId === file.spdxId)) {
+                        state.uploads.push(file)
+                    }
+                    if (file.source === "GitHub" && !state.github.some(f => f.spdxId === file.spdxId)) {
+                        state.github.push(file)
                     }
                 }
                 state.uploadSuccess = "Uploaded SPDX, you may close this dialogue now."
@@ -394,13 +392,25 @@ const controller = reactive(new Controller())
                                             {{ result.toolName }}
                                         </td>
                                         <td class="text-center">
-                                            {{ result.packages.length }}
+                                            {{ result.packagesCount }}
                                         </td>
                                         <td class="text-center">
                                             {{ result.comment }}
                                         </td>
                                         <td class="text-center">
-                                            {{ new Date(result.createdAt).toLocaleDateString() }}
+                                            <VTooltip
+                                                :text="(new Date(result.createdAt)).toLocaleString()"
+                                                location="left"
+                                            >
+                                                <template v-slot:activator="{ props }">
+                                                    <time
+                                                        v-bind="props"
+                                                        :datetime="(new Date(result.createdAt)).toISOString()"
+                                                    >
+                                                        {{ timeAgo(new Date(result.createdAt)) }}
+                                                    </time>
+                                                </template>
+                                            </VTooltip>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -448,9 +458,6 @@ const controller = reactive(new Controller())
                                 Packages
                             </th>
                             <th>
-                                Comment
-                            </th>
-                            <th>
                                 Created Date
                             </th>
                         </tr>
@@ -487,13 +494,22 @@ const controller = reactive(new Controller())
                                 {{ spdx.toolName }}
                             </td>
                             <td class="text-center">
-                                {{ spdx.packages.length }}
+                                {{ spdx.packagesCount }}
                             </td>
                             <td class="text-center">
-                                {{ spdx.comment }}
-                            </td>
-                            <td class="text-center">
-                                {{ new Date(spdx.createdAt).toLocaleDateString() }}
+                                <VTooltip
+                                    :text="(new Date(spdx.createdAt)).toLocaleString()"
+                                    location="left"
+                                >
+                                    <template v-slot:activator="{ props }">
+                                        <time
+                                            v-bind="props"
+                                            :datetime="(new Date(spdx.createdAt)).toISOString()"
+                                        >
+                                            {{ timeAgo(new Date(spdx.createdAt)) }}
+                                        </time>
+                                    </template>
+                                </VTooltip>
                             </td>
                         </tr>
                     </tbody>

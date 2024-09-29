@@ -103,9 +103,9 @@ export async function onRequestGet(context) {
 
 const process = async (prisma, session, repoName, content) => {
     const spdx = content.sbom
-    const relationshipsJSON = JSON.stringify(spdx.relationships)
+    const packages = JSON.stringify(spdx.packages)
     const spdxStr = JSON.stringify(spdx)
-    const spdxId = await hex(spdx.name + relationshipsJSON)
+    const spdxId = await hex(spdx.name + packages)
     const spdxData = {
         spdxId,
         source: 'GitHub',
@@ -118,8 +118,7 @@ const process = async (prisma, session, repoName, content) => {
         createdAt: (new Date(spdx.creationInfo.created)).getTime(),
         toolName: spdx.creationInfo.creators.join(', '),
         documentDescribes: spdx.documentDescribes.join(','),
-        packagesJSON: JSON.stringify(spdx.packages),
-        relationshipsJSON,
+        packagesCount: spdx.packages.length,
         comment: spdx.creationInfo?.comment || '',
     }
     const findingIds = []

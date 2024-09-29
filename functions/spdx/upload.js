@@ -1,4 +1,4 @@
-import { AuthResult, OSV, Server, hex, isSPDX } from "@/utils";
+import { AuthResult, OSV, Server, hex, isSPDX, ensureStrReqBody } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -27,7 +27,8 @@ export async function onRequestPost(context) {
     const files = []
     let errors = new Set()
     try {
-        const inputs = await request.json()
+        const body = await ensureStrReqBody(request)
+        const inputs = JSON.parse(body)
         for (const spdx of inputs) {
             if (!isSPDX(spdx)) {
                 return Response.json({ ok: false, error: { message: 'SPDX is missing necessary fields.' } })
@@ -46,8 +47,7 @@ export async function onRequestPost(context) {
                 createdAt: (new Date(spdx.creationInfo.created)).getTime(),
                 toolName: spdx.creationInfo.creators.join(', '),
                 documentDescribes: spdx.documentDescribes.join(','),
-                packagesJSON: JSON.stringify(spdx.packages),
-                relationshipsJSON: JSON.stringify(spdx.relationships),
+                packagesCount: spdx.packages.length,
                 comment: spdx.creationInfo?.comment || '',
             }
             const info = await prisma.spdx.upsert({
@@ -62,10 +62,6 @@ export async function onRequestPost(context) {
                 create: spdxData
             })
             console.log(`/github/repos/spdx ${spdxId} kid=${verificationResult.session.kid}`, info)
-            spdxData.packages = JSON.parse(spdxData.packagesJSON)
-            spdxData.relationships = JSON.parse(spdxData.relationshipsJSON)
-            delete spdxData.packagesJSON
-            delete spdxData.relationshipsJSON
             files.push(spdxData)
 
             const osvQueries = spdx.packages.flatMap(pkg => {
@@ -108,7 +104,7 @@ export async function onRequestPost(context) {
                         where: {
                             findingId,
                             AND: {
-                                memberEmail: session.memberEmail
+                                memberEmail: verificationResult.session.memberEmail
                             },
                         }
                     })
@@ -125,7 +121,7 @@ export async function onRequestPost(context) {
                     } else {
                         finding = await prisma.findings.create({ data: findingData })
                     }
-                    console.log(`findings SCA`, finding)
+                    // console.log(`findings SCA`, finding)
                     const vexData = {
                         findingKey: finding.id,
                         createdAt: (new Date()).getTime(),
@@ -151,7 +147,7 @@ export async function onRequestPost(context) {
                     } else {
                         vex = await prisma.triage_activity.create({ data: vexData })
                     }
-                    console.log(`findings VEX`, vex)
+                    // console.log(`findings VEX`, vex)
                 }
                 i++
             }

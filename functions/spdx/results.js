@@ -23,27 +23,24 @@ export async function onRequestGet(context) {
     if (!verificationResult.isValid) {
         return Response.json({ ok: false, result: verificationResult.message })
     }
-    const res = await prisma.spdx.findMany({
+    const { searchParams } = new URL(request.url)
+    const take = parseInt(searchParams.get('take'), 10) || 50
+    const skip = parseInt(searchParams.get('skip'), 10) || 0
+    const spdx = await prisma.spdx.findMany({
         where: {
             memberEmail: verificationResult.session.memberEmail,
         },
         omit: {
             memberEmail: true,
+            comment: true,
+            documentNamespace: true,
+            documentDescribes: true,
         },
-        include: {
-            repo: true,
-        },
-        take: 100,
+        take,
+        skip,
         orderBy: {
             createdAt: 'desc',
         },
-    })
-    const spdx = res.map(spdxData => {
-        spdxData.packages = JSON.parse(spdxData.packagesJSON)
-        spdxData.relationships = JSON.parse(spdxData.relationshipsJSON)
-        delete spdxData.packagesJSON
-        delete spdxData.relationshipsJSON
-        return spdxData
     })
 
     return Response.json({ spdx })

@@ -62,12 +62,7 @@ export async function onRequestGet(context) {
             ...result,
             cwes: JSON.parse(result.cwes ?? '[]'),
             aliases: JSON.parse(result.aliases ?? '[]'),
-            referencesJSON: JSON.parse(result.referencesJSON ?? '[]'),
-            spdx: {
-                ...result?.spdx || {},
-                packagesJSON: JSON.parse(result?.spdx?.packagesJSON ?? '[]'),
-                relationshipsJSON: JSON.parse(result?.spdx?.relationshipsJSON ?? '[]')
-            }
+            referencesJSON: JSON.parse(result.referencesJSON ?? '[]')
         })
         )
         // const groupedByRepo = parsed.reduce((acc, result) => {

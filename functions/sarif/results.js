@@ -23,7 +23,9 @@ export async function onRequestGet(context) {
     if (!verificationResult.isValid) {
         return Response.json({ ok: false, result: verificationResult.message })
     }
-
+    const { searchParams } = new URL(request.url)
+    const take = parseInt(searchParams.get('take'), 10) || 50
+    const skip = parseInt(searchParams.get('skip'), 10) || 0
     const sarif = await prisma.sarif.findMany({
         where: {
             memberEmail: verificationResult.session.memberEmail,
@@ -32,7 +34,8 @@ export async function onRequestGet(context) {
             results: true,
             repo: true
         },
-        take: 100,
+        take,
+        skip,
         orderBy: {
             createdAt: 'desc',
         },

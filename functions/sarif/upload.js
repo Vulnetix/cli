@@ -1,4 +1,4 @@
-import { Server, UUID, hex, isSARIF } from "@/utils";
+import { Server, UUID, hex, isSARIF, ensureStrReqBody } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -26,17 +26,27 @@ export async function onRequestPost(context) {
     }
     const files = []
     try {
-        const inputs = await request.json()
+        const body = await ensureStrReqBody(request)
+        const inputs = JSON.parse(body)
         for (const sarif of inputs) {
             if (!isSARIF(sarif)) {
                 return Response.json({ ok: false, error: { message: 'SARIF is missing necessary fields.' } })
             }
             const sarifId = UUID()
             const createdAt = (new Date()).getTime()
-            const sarifStr = JSON.stringify(sarif)
-            const reportId = await hex(sarifStr)
-            const results = []
             for (const run of sarif.runs) {
+                const reportId = await hex(run.tool.driver.name + run.tool.driver.semanticVersion + JSON.stringify(run.results))
+                const sarifData = {
+                    sarifId,
+                    reportId,
+                    source: 'upload',
+                    memberEmail: verificationResult.session.memberEmail,
+                    createdAt,
+                    resultsCount: run.results.length,
+                    rulesCount: run.tool.driver.rules.length,
+                    toolName: run.tool.driver.name,
+                    toolVersion: run.tool.driver.semanticVersion,
+                }
                 const info = await prisma.sarif.upsert({
                     where: {
                         reportId,
@@ -44,38 +54,30 @@ export async function onRequestPost(context) {
                     update: {
                         createdAt,
                     },
-                    create: {
-                        sarifId,
-                        reportId,
-                        source: 'upload',
-                        memberEmail: verificationResult.session.memberEmail,
-                        createdAt,
-                        resultsCount: run.results.length,
-                        rulesCount: run.tool.driver.rules.length,
-                        toolName: run.tool.driver.name,
-                        toolVersion: run.tool.driver.semanticVersion,
-                    },
+                    create: sarifData,
                 })
                 console.log(`/sarif/upload ${sarifId} kid=${verificationResult.session.kid}`, info)
+                sarifData.results = []
                 for (const result of run.results) {
+                    const locationsJSON = JSON.stringify(result.locations)
                     const resultData = {
-                        guid: result.fingerprints["matchBasedId/v1"],
+                        guid: result?.fingerprints?.["matchBasedId/v1"] || await hex(result.ruleId + locationsJSON),
                         reportId: reportId,
                         messageText: result.message.text,
                         ruleId: result.ruleId,
-                        locations: JSON.stringify(result.locations),
+                        locations: locationsJSON,
                         automationDetailsId: run?.automationDetails?.id,
                     }
                     if (run?.tool?.driver?.rules && run.tool.driver.rules.length) {
                         resultData.rulesetName = run.tool.driver.name
                         for (const rule of run.tool.driver.rules) {
                             if (rule.id === result.ruleId) {
-                                resultData.level = rule.defaultConfiguration.level
+                                resultData.level = rule?.defaultConfiguration?.level || 'error'
                                 resultData.description = rule.fullDescription.text
                                 resultData.helpMarkdown = rule.help?.markdown || rule.help?.text
                                 resultData.securitySeverity = rule.properties?.['security-severity']
-                                resultData.precision = rule.properties.precision
-                                resultData.tags = JSON.stringify(rule.properties.tags)
+                                resultData.precision = rule?.properties?.precision
+                                resultData.tags = JSON.stringify(rule?.properties?.tags || [])
                                 break
                             }
                         }
@@ -85,18 +87,18 @@ export async function onRequestPost(context) {
                             resultData.rulesetName = extension.name
                             for (const rule of extension.rules) {
                                 if (rule.id === result.ruleId) {
-                                    resultData.level = rule.defaultConfiguration.level
+                                    resultData.level = rule?.defaultConfiguration?.level || 'error'
                                     resultData.description = rule.fullDescription.text
                                     resultData.helpMarkdown = rule.help?.markdown || rule.help?.text
                                     resultData.securitySeverity = rule.properties?.['security-severity']
-                                    resultData.precision = rule.properties.precision
-                                    resultData.tags = JSON.stringify(rule.properties.tags)
+                                    resultData.precision = rule?.properties?.precision
+                                    resultData.tags = JSON.stringify(rule.properties.tags || [])
                                     break
                                 }
                             }
                         }
                     }
-                    results.push(resultData)
+                    sarifData.results.push(resultData)
                     const reportInfo = await prisma.sarif_results.upsert({
                         where: {
                             guid: resultData.guid,
@@ -108,24 +110,8 @@ export async function onRequestPost(context) {
                     })
                     console.log(`/github/repos/sarif_results ${sarifId} kid=${verificationResult.session.kid}`, reportInfo)
                 }
+                files.push(sarifData)
             }
-
-            files.push({
-                sarifId,
-                reportId,
-                fullName: '',
-                memberEmail: verificationResult.session.memberEmail,
-                commitSha: '',
-                ref: '',
-                createdAt,
-                resultsCount: sarif.runs.map(run => run.results.length).reduce((a, b) => a + b, 0),
-                rulesCount: sarif.runs.map(run => run.tool.driver.rules.length).reduce((a, b) => a + b, 0),
-                toolName: sarif.runs.map(run => run.tool.driver.name).pop(),
-                toolVersion: sarif.runs.map(run => run.tool.driver.semanticVersion).pop(),
-                analysisKey: '',
-                warning: '',
-                results
-            })
         }
     } catch (err) {
         console.error(err)

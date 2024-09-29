@@ -23,7 +23,10 @@ export async function onRequestGet(context) {
     if (!verificationResult.isValid) {
         return Response.json({ ok: false, result: verificationResult.message })
     }
-    const res = await prisma.cdx.findMany({
+    const { searchParams } = new URL(request.url)
+    const take = parseInt(searchParams.get('take'), 10) || 50
+    const skip = parseInt(searchParams.get('skip'), 10) || 0
+    const cdx = await prisma.cdx.findMany({
         where: {
             memberEmail: verificationResult.session.memberEmail,
         },
@@ -33,19 +36,11 @@ export async function onRequestGet(context) {
         include: {
             repo: true,
         },
-        take: 100,
+        take,
+        skip,
         orderBy: {
             createdAt: 'desc',
         },
-    })
-    const cdx = res.map(cdxData => {
-        cdxData.externalReferences = JSON.parse(cdxData.externalReferencesJSON)
-        cdxData.components = JSON.parse(cdxData.componentsJSON)
-        cdxData.dependencies = JSON.parse(cdxData.dependenciesJSON)
-        delete cdxData.externalReferencesJSON
-        delete cdxData.componentsJSON
-        delete cdxData.dependenciesJSON
-        return cdxData
     })
 
     return Response.json({ cdx })

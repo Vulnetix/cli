@@ -62,7 +62,7 @@ export class Server {
         const method = this.request.method.toUpperCase()
         const url = new URL(this.request.url)
         const path = url.pathname + url.search
-        const body = method !== 'GET' ? await ensureStrReqBody(this.request.clone()) : null
+        const body = method !== 'GET' ? await ensureStrReqBody(this.request) : null
 
         // Retrieve signature and timestamp from headers
         const signature = this.request.headers.get('authorization')?.replace('HMAC ', '')
@@ -120,7 +120,7 @@ export class Server {
             path,
             kid,
             timestamp,
-            body
+            body: encodeURIComponent(body)
         })
         const key = await crypto.subtle.importKey(
             "raw",
@@ -389,7 +389,7 @@ export class Client {
      */
     async post(path, body, headers = {}) {
         if (typeof body === 'object') {
-            body = JSON.stringify(body)
+            body = encodeURIComponent(JSON.stringify(body))
             headers = { 'Content-Type': 'application/json', ...headers }
         }
         const method = 'POST'
@@ -1024,13 +1024,18 @@ export class GitHub {
 export const ensureStrReqBody = async (request) => {
     const contentType = request.headers.get("content-type")
     if (contentType.includes("application/json")) {
-        return JSON.stringify(await request.json())
+        try {
+            return JSON.stringify(await request.clone().json())
+        } catch (e) {
+            const jsonText = await request.clone().text()
+            return decodeURIComponent(jsonText)
+        }
     } else if (contentType.includes("application/text")) {
-        return request.text()
+        return request.clone().text()
     } else if (contentType.includes("text/html")) {
-        return request.text()
+        return request.clone().text()
     } else if (contentType.includes("form")) {
-        const formData = await request.formData()
+        const formData = await request.clone().formData()
         const body = {}
         for (const entry of formData.entries()) {
             body[entry[0]] = entry[1]
@@ -1201,8 +1206,7 @@ export const isSPDX = input => {
         typeof spdx?.creationInfo?.creators === 'undefined' ||
         !spdx?.creationInfo?.creators.length ||
         !spdx.documentDescribes.length ||
-        !spdx.packages.length ||
-        !spdx.relationships.length
+        !spdx.packages.length
     ) {
         throw `SPDX is missing "dataLicense", "name", "relationships", "packages", "creationInfo.creators", or "documentDescribes"`
     }
@@ -1287,8 +1291,7 @@ export const isCDX = input => {
         typeof cdx?.components === 'undefined' ||
         typeof cdx?.dependencies === 'undefined' ||
         !cdx?.metadata.tools.length ||
-        !cdx?.components.length ||
-        !cdx?.dependencies.length
+        !cdx?.components.length
     ) {
         throw 'Provided CycloneDX "components", "dependencies", or "metadata.tools" is missing'
     }
@@ -1313,14 +1316,13 @@ export const isCDX = input => {
  */
 export const isSARIF = input => {
     const supportedVersions = ["2.1.0"]
-    let sarif
+    let sarif = input
     if (typeof input === "string" && isJSON(input)) {
         sarif = JSON.parse(input)
     }
-    if (typeof input?.$schema === 'undefined' || typeof input?.version === 'undefined') {
+    if (typeof sarif?.$schema === 'undefined' || typeof sarif?.version === 'undefined') {
         return false
     }
-    sarif = Object.assign({}, input)
     if (!supportedVersions.includes(sarif.version)) {
         throw `Provided SARIF version ${sarif.version} is not supported. Must be one of: ${supportedVersions}`
     }
@@ -1340,17 +1342,15 @@ export const isSARIF = input => {
             return false
         }
         for (const rule in run.tool.driver.rules) {
-            if (typeof rule?.defaultConfiguration?.level === 'undefined' ||
-                typeof rule?.fullDescription?.text === 'undefined' ||
+            if (typeof rule?.fullDescription?.text === 'undefined' ||
                 typeof rule?.help?.text === 'undefined' ||
-                typeof rule?.properties?.precision === 'undefined' ||
                 typeof rule?.shortDescription?.text === 'undefined' ||
                 typeof rule?.name === 'undefined'
             ) {
                 return false
             }
         }
-        for (const extension in run.extensions) {
+        for (const extension in run?.extensions || []) {
             if (typeof extension?.name === 'undefined' ||
                 typeof extension?.rules === 'undefined' ||
                 !extension.rules.length
@@ -1358,10 +1358,8 @@ export const isSARIF = input => {
                 return false
             }
             for (const rule in extension.rules) {
-                if (typeof rule?.defaultConfiguration?.level === 'undefined' ||
-                    typeof rule?.fullDescription?.text === 'undefined' ||
+                if (typeof rule?.fullDescription?.text === 'undefined' ||
                     typeof rule?.help?.text === 'undefined' ||
-                    typeof rule?.properties?.precision === 'undefined' ||
                     typeof rule?.shortDescription?.text === 'undefined' ||
                     typeof rule?.name === 'undefined'
                 ) {
