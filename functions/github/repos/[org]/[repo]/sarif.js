@@ -59,9 +59,9 @@ export async function onRequestGet(context) {
         }
         for (const data of content) {
             const objectPrefix = `github/${app.installationId}/repos/${repoName}/code-scanning/`
-            const reportInfo = await env.r2icache.put(`${objectPrefix}${data.report.id}.json`, JSON.stringify(data.report), putOptions)
+            const reportInfo = await env.r2artefact.put(`${objectPrefix}${data.report.id}.json`, JSON.stringify(data.report), putOptions)
             console.log(`${repoName}/code-scanning/${data.report.id}.json`, reportInfo)
-            const sarifInfo = await env.r2icache.put(`${objectPrefix}${data.report.id}_${data.report.sarif_id}.json`, JSON.stringify(data.sarif), putOptions)
+            const sarifInfo = await env.r2artefact.put(`${objectPrefix}${data.report.id}_${data.report.sarif_id}.json`, JSON.stringify(data.sarif), putOptions)
             console.log(`${repoName}/code-scanning/${data.report.id}_${data.report.sarif_id}.json`, sarifInfo)
             files.push(await process(prisma, verificationResult.session, data, repoName))
         }
@@ -82,9 +82,9 @@ export async function onRequestGet(context) {
         }
         for (const data of content) {
             const objectPrefix = `github/pat_${memberKey.id}/repos/${repoName}/code-scanning/`
-            const reportInfo = await env.r2icache.put(`${objectPrefix}${data.report.id}.json`, JSON.stringify(data.report), putOptions)
+            const reportInfo = await env.r2artefact.put(`${objectPrefix}${data.report.id}.json`, JSON.stringify(data.report), putOptions)
             console.log(`${repoName}/code-scanning/${data.report.id}.json`, reportInfo)
-            const sarifInfo = await env.r2icache.put(`${objectPrefix}${data.report.id}_${data.report.sarif_id}.json`, JSON.stringify(data.sarif), putOptions)
+            const sarifInfo = await env.r2artefact.put(`${objectPrefix}${data.report.id}_${data.report.sarif_id}.json`, JSON.stringify(data.sarif), putOptions)
             console.log(`${repoName}/code-scanning/${data.report.id}_${data.report.sarif_id}.json`, sarifInfo)
             files.push(await process(prisma, verificationResult.session, data, repoName))
         }

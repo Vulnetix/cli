@@ -1,4 +1,4 @@
-import { AuthResult, Server } from "@/utils";
+import { AuthResult, Server, ensureStrReqBody } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -24,7 +24,8 @@ export async function onRequestPost(context) {
         if (!verificationResult.isValid) {
             return Response.json({ ok: false, result: verificationResult.message })
         }
-        const data = await request.json()
+        const bodyStr = await ensureStrReqBody(request)
+        const data = JSON.parse(bodyStr)
         if (!data.apiKey.startsWith('vulncheck_')) {
             return Response.json({ error: { message: `Invalid API Key provided, expected "vulncheck_" prefix.` } })
         }

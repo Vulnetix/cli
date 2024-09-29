@@ -169,7 +169,7 @@ const controller = reactive(new Controller())
                             <template v-slot:activator="{ props: activatorProps }">
                                 <VBtn
                                     v-bind="activatorProps"
-                                    :text="`View JSON (${JSON.parse(record.request || '')?.queries?.length} queries)`"
+                                    :text="`View JSON`"
                                     :color="global.name.value === 'dark' ? 'secondary' : 'primary'"
                                     variant="tonal"
                                     density="comfortable"
@@ -200,7 +200,7 @@ const controller = reactive(new Controller())
                             <template v-slot:activator="{ props: activatorProps }">
                                 <VBtn
                                     v-bind="activatorProps"
-                                    :text="`View JSON (${JSON.parse(record.response || '')?.body?.length} results)`"
+                                    :text="`View JSON (${JSON.parse(record.response || '')?.body?.total} results)`"
                                     :color="global.name.value === 'dark' ? 'secondary' : 'primary'"
                                     variant="tonal"
                                     density="comfortable"

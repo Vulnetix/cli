@@ -76,15 +76,43 @@ export async function onRequestGet(context) {
         } else {
             let firstName = ''
             let lastName = ''
+            let orgId = crypto.randomUUID()
             if (!!content?.name) {
                 const words = content.name.split(' ')
                 firstName = words.shift() || ''
                 lastName = words.join(' ') || ''
             }
+            if (content?.company) {
+                const originalOrg = await prisma.orgs.findFirst({
+                    where: {
+                        name: content.company
+                    }
+                })
+                if (originalOrg?.uuid) {
+                    orgId = originalOrg.uuid
+                } else {
+                    const orgInfo = await prisma.orgs.create({
+                        data: {
+                            uuid: orgId,
+                            name: content.company,
+                        }
+                    })
+                    console.log(`/github/install register orgId=${orgId}`, orgInfo)
+                }
+            } else {
+                const orgInfo = await prisma.orgs.create({
+                    data: {
+                        uuid: orgId,
+                        name: memberEmail.toLowerCase(),
+                    }
+                })
+                console.log(`/github/install register orgId=${orgId}`, orgInfo)
+            }
+
             response.member = {
                 email: memberEmail.toLowerCase(),
                 avatarUrl: content?.avatar_url || '',
-                orgName: content?.company || '',
+                orgId,
                 passwordHash: await pbkdf2(oauthData.access_token),
                 firstName,
                 lastName

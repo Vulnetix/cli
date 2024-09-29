@@ -41,5 +41,5 @@ export async function onRequestGet(context) {
         },
     })
 
-    return Response.json({ sarif })
+    return Response.json({ ok: true, sarif })
 }

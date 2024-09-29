@@ -1,4 +1,4 @@
-import { isJSON, UUID } from '@/utils';
+import { isJSON } from '@/utils';
 import { defineStore } from 'pinia';
 
 const storedQueue = localStorage.getItem('/app/notifications') || ''
@@ -12,7 +12,7 @@ export const useNotificationsStore = defineStore('notifications', {
     }),
     actions: {
         add(item, key = 'notificationId') {
-            const notificationId = item?.[key] || UUID()
+            const notificationId = item?.[key] || crypto.randomUUID()
             const exists = this.state.filter(i => i[key] === notificationId).length > 0
             if (!exists) {
                 item.notificationId = notificationId

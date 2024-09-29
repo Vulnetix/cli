@@ -466,8 +466,8 @@ function persistData(data) {
     if (data?.member?.avatarUrl) {
         Member.avatarUrl = data.member.avatarUrl
     }
-    if (data?.member?.orgName) {
-        Member.orgName = data.member.orgName
+    if (data?.member?.org?.name) {
+        Member.orgName = data.member.org.name
     }
     if (data?.member?.firstName) {
         Member.firstName = data.member.firstName
@@ -1120,7 +1120,7 @@ const controller = reactive(new Controller())
                                     <td>
                                         {{ (new Date(record.createdAt)).toLocaleString() }}
                                     </td>
-                                    <td>
+                                    <td class=".td-wrap">
                                         {{ JSON.parse(record.request || '')?.url }}
                                     </td>
                                     <td>
@@ -1137,7 +1137,7 @@ const controller = reactive(new Controller())
                                             <template v-slot:activator="{ props: activatorProps }">
                                                 <VBtn
                                                     v-bind="activatorProps"
-                                                    :text="`View JSON (${JSON.parse(record.request || '')?.queries?.length} queries)`"
+                                                    :text="`View JSON`"
                                                     :color="global.name.value === 'dark' ? 'secondary' : 'primary'"
                                                     variant="tonal"
                                                     density="comfortable"
@@ -1168,7 +1168,7 @@ const controller = reactive(new Controller())
                                             <template v-slot:activator="{ props: activatorProps }">
                                                 <VBtn
                                                     v-bind="activatorProps"
-                                                    :text="`View JSON (${JSON.parse(record.response || '')?.body?.length} results)`"
+                                                    :text="JSON.parse(record.response || '')?.body?.runs ? `View JSON (${JSON.parse(record.response || '')?.body?.runs?.length} results)` : `View JSON`"
                                                     :color="global.name.value === 'dark' ? 'secondary' : 'primary'"
                                                     variant="tonal"
                                                     density="comfortable"
@@ -1215,5 +1215,9 @@ const controller = reactive(new Controller())
 <style lang="scss" scoped>
 .VBtn {
     text-transform: none;
+}
+
+.td-wrap {
+    word-wrap: break-word;
 }
 </style>

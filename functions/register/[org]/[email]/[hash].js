@@ -24,18 +24,45 @@ export async function onRequestGet(context) {
         params?.email &&
         params?.hash
     ) {
-        console.log('org', params.org)
-
-        const info = await prisma.members.create({
-            data: {
-                orgName: params.org,
-                email: params.email.toLowerCase(),
-                passwordHash: await pbkdf2(params.hash)
+        let orgId = crypto.randomUUID()
+        if (params?.org) {
+            const originalOrg = await prisma.orgs.findFirst({
+                where: {
+                    name: params.org
+                }
+            })
+            if (originalOrg?.uuid) {
+                orgId = originalOrg.uuid
+            } else {
+                const orgInfo = await prisma.orgs.create({
+                    data: {
+                        uuid: orgId,
+                        name: params.org,
+                    }
+                })
+                console.log(`/register orgId=${orgId}`, orgInfo)
             }
+        } else {
+            const orgInfo = await prisma.orgs.create({
+                data: {
+                    uuid: orgId,
+                    name: params.email.toLowerCase(),
+                }
+            })
+            console.log(`/register orgId=${orgId}`, orgInfo)
+        }
+        const member = {
+            uuid: crypto.randomUUID(),
+            email: params.email.toLowerCase(),
+            orgId,
+            passwordHash: await pbkdf2(params.hash)
+        }
+        const info = await prisma.members.create({
+            data: member
         })
-        console.log(`/register email=${params.email}`, info)
+        console.log(`/register email=${member.email}`, info)
 
-        return Response.json(info)
+        return Response.json({ ok: true, member })
     }
 
     return Response.json({ error: { message: 'missing properties /register/[org]/[email]/[sha1]' } })

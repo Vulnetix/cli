@@ -21,9 +21,17 @@ model sessions {
   authn_ua    String?
 }
 
+model orgs {
+  uuid    String    @id @default(uuid())
+  name    String
+  members members[]
+}
+
 model members {
-  email                 String                  @id @unique
-  orgName               String?
+  uuid                  String                  @id @default(uuid())
+  email                 String                  @unique
+  orgId                 String?
+  org                   orgs?                   @relation(fields: [orgId], references: [uuid])
   passwordHash          String
   avatarUrl             String?
   firstName             String?
@@ -34,7 +42,7 @@ model members {
   alertType             Int                     @default(0)
   sarif                 sarif[]
   github_apps           github_apps[]
-  git_repos             git_repos[]
+  repos                 git_repos[]
   member_keys           member_keys[]
   sessions              sessions[]
   spdx                  spdx[]

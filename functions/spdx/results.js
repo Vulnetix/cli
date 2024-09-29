@@ -43,5 +43,5 @@ export async function onRequestGet(context) {
         },
     })
 
-    return Response.json({ spdx })
+    return Response.json({ ok: true, spdx })
 }

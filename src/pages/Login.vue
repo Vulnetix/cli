@@ -49,8 +49,8 @@ class Controller {
                 if (data?.member?.avatarUrl) {
                     Member.avatarUrl = data.member.avatarUrl
                 }
-                if (data?.member?.orgName) {
-                    Member.orgName = data.member.orgName
+                if (data?.member?.org?.name) {
+                    Member.orgName = data.member.org.name
                 }
                 if (data?.member?.firstName) {
                     Member.firstName = data.member.firstName

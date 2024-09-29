@@ -32,31 +32,46 @@ class Controller {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await client.get(`/sarif/results`)
-            state.loading = false
-
-            if (typeof data === "string" && !isJSON(data)) {
-                state.warning = "SARIF data could not be retrieved, please try again later."
-
-                return
-            }
-            if (data?.error?.message) {
-                state.error = data?.error?.message
-            }
-            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-                state.info = data.result
-
-                return setTimeout(() => router.push('/logout'), 2000)
-            }
-            if (!data.sarif) {
-                state.info = "No SARIF data available."
-            } else {
-                state.uploads = data.sarif.filter(item => item.source === "upload")
-                state.github = data.sarif.filter(item => item.source === "GitHub")
-                if (initial !== true) {
-                    state.info = "Refreshed SARIF"
+            const pageSize = 50
+            let hasMore = true
+            let skip = 0
+            while (hasMore) {
+                const { data } = await client.get(`/sarif/results?take=${pageSize}&skip=${skip}`)
+                if (data.ok) {
+                    if (data?.sarif) {
+                        data.sarif.filter(item => item.source === "upload").forEach(sarif => state.uploads.push(sarif))
+                        data.sarif.filter(item => item.source === "GitHub").forEach(sarif => state.github.push(sarif))
+                    }
+                } else if (typeof data === "string" && !isJSON(data)) {
+                    if (initial !== true) {
+                        state.warning = "SARIF data could not be retrieved, please try again later."
+                    }
+                    break
+                } else if (data?.error?.message) {
+                    state.loading = false
+                    state.error = data.error.message
+                    return
+                } else if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
+                    state.loading = false
+                    state.info = data.result
+                    setTimeout(() => router.push('/logout'), 2000)
+                    return
+                } else {
+                    if (initial !== true) {
+                        state.info = "No SARIF data available."
+                    }
+                    break
+                }
+                if (data.sarif.length < pageSize) {
+                    hasMore = false
+                    if (initial !== true) {
+                        state.info = "Refreshed SARIF"
+                    }
+                } else {
+                    skip += pageSize
                 }
             }
+            state.loading = false
 
             return
         } catch (e) {

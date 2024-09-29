@@ -1,4 +1,4 @@
-import { Server, UUID, hex, isSARIF, ensureStrReqBody } from "@/utils";
+import { Server, hex, isSARIF, ensureStrReqBody } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -32,7 +32,7 @@ export async function onRequestPost(context) {
             if (!isSARIF(sarif)) {
                 return Response.json({ ok: false, error: { message: 'SARIF is missing necessary fields.' } })
             }
-            const sarifId = UUID()
+            const sarifId = crypto.randomUUID()
             const createdAt = (new Date()).getTime()
             for (const run of sarif.runs) {
                 const reportId = await hex(run.tool.driver.name + run.tool.driver.semanticVersion + JSON.stringify(run.results))

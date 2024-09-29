@@ -1,4 +1,4 @@
-import { GitHub, Server } from "@/utils";
+import { GitHub, Server, ensureStrReqBody } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
 
@@ -23,7 +23,8 @@ export async function onRequestPost(context) {
     if (!verificationResult.isValid) {
         return Response.json({ ok: false, result: verificationResult.message })
     }
-    const body = await request.json()
+    const bodyStr = await ensureStrReqBody(request)
+    const body = JSON.parse(bodyStr)
     if (!body.token.startsWith('github_pat_')) {
         return Response.json({ error: { message: `Invalid PAT provided, expected "github_pat_" prefix.` } })
     }

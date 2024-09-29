@@ -1437,19 +1437,6 @@ export async function hex(text, name = "SHA-1") {
     return [...new Uint8Array(await crypto.subtle.digest({ name }, new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-/**
- * Generates a version 4 UUID (Universally Unique Identifier).
- *
- * This function uses a combination of a fixed template and random numbers to create a unique identifier.
- *
- * @returns {string} A UUID in the format "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".
- */
-export function UUID() {
-    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-        (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
-    )
-}
-
 export const round = (n, p = 100) => Math.round((n + Number.EPSILON) * p) / p
 
 export const isJSON = str => {

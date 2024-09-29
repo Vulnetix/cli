@@ -68,7 +68,7 @@ export async function onRequestGet(context) {
         const { spdxId, spdxStr, findingIds } = await process(prisma, verificationResult.session, repoName, content)
         findings = [...findings, ...findingIds]
         const objectPrefix = `github/${app.installationId}/repos/${repoName}/sbom/`
-        console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))
+        console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2artefact.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))
         files.push(content)
     }
     const memberKeys = await prisma.member_keys.findMany({
@@ -94,7 +94,7 @@ export async function onRequestGet(context) {
         const { spdxId, spdxStr, findingIds } = await process(prisma, verificationResult.session, repoName, content)
         findings = [...findings, ...findingIds]
         const objectPrefix = `github/pat_${memberKey.id}/repos/${repoName}/sbom/`
-        console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2icache.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))
+        console.log(`${repoName}/sbom/${spdxId}.json`, await env.r2artefact.put(`${objectPrefix}${spdxId}.json`, spdxStr, putOptions))
         files.push({ spdx: content, errors })
     }
 
