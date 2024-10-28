@@ -207,7 +207,7 @@ export async function onRequestGet(context) {
             seenAt = new Date().getTime()
         }
         const vexExist = finding.triage.some(t => t.analysisState === analysisState).length !== 0
-        let vexData = finding.triage.filter(t => t.analysisState === analysisState).pop()
+        let vexData = finding.triage.filter(t => t.analysisState === analysisState).pop() || {}
         if (!vexExist) {
             vexData.analysisState = analysisState
             vexData.findingUuid = finding.uuid
