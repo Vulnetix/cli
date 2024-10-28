@@ -4,56 +4,90 @@ import { useMemberStore } from '@/stores/member';
 import { Client, octodex } from '@/utils';
 import { default as axios } from 'axios';
 import { reactive } from 'vue';
-//TODO https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#check-if-vulnerability-alerts-are-enabled-for-a-repository
-//TODO https://docs.github.com/en/rest/dependabot/alerts?apiVersion=2022-11-28#list-dependabot-alerts-for-a-repository
-//TODO https://docs.github.com/en/rest/secret-scanning/secret-scanning?apiVersion=2022-11-28#list-secret-scanning-alerts-for-a-repository
 
 const client = new Client()
 const Member = useMemberStore()
 
 const initialState = {
+    error: '',
+    activity: 'Verifying',
     showEmptyState: false,
     loadingBar: false,
     octodexImageUrl: `https://octodex.github.com/images/${octodex[Math.floor(Math.random() * octodex.length)]}`,
 }
 
-const state = reactive({
+const pageState = reactive({
     ...initialState,
 })
 
 class Controller {
     constructor() {
-        this.urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
-
-        if (this.urlQuery?.code) {
+        const { code, installation_id, setup_action, state } = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
+        if (code && installation_id && setup_action === 'install') {
             Member.logout()
-            this.login(this.urlQuery.code)
+            this.install(code, installation_id, state)
+        } else if (code) {
+            Member.logout()
+            this.login(code, state)
         }
     }
-    login = async code => {
-        state.showEmptyState = true
-        state.loadingBar = true
-        const { data } = await axios.get(`/v1/login/github/${code}`)
-        console.log(data)
-        state.loadingBar = false
-        if (data?.error?.message) {
-            if (data?.app?.installationId) {
-                data.error.message = `[Installation ID ${data.app.installationId}] ${data.error.message}`
+    install = async (code, installation_id, state = 'integrations') => {
+        pageState.error = ''
+        pageState.activity = 'Installing'
+        pageState.showEmptyState = true
+        pageState.loadingBar = true
+        try {
+            const { data } = await axios.get(`/v1/github/${installation_id}/install/${code}`)
+            if (!data.ok || data?.error?.message) {
+                pageState.error = data?.error?.message ? data.error.message : 'GitHub error, please check the integration logs or try again.'
+                pageState.loadingBar = false
+                pageState.showEmptyState = false
+                return
             }
-            if (data?.app?.login) {
-                data.error.message = `${data.error.message} (${data.app.login})`
-            }
-            state.error = data.error.message
-            return
+            pageState.loadingBar = false
+            persistData(data)
+            await client.storeKey(`session`, {
+                kid: data.session.kid,
+                secret: data.session.secret,
+                expiry: data.session.expiry,
+            })
+
+            return router.push(`/${state}`)
+        } catch (e) {
+            console.error(e)
+            pageState.loadingBar = false
+            pageState.showEmptyState = false
+            pageState.error = typeof e === "string" ? e : `${e.code} ${e.message}`
         }
-        persistData(data)
-        await client.storeKey(`session`, {
-            kid: data.session.kid,
-            secret: data.session.secret,
-            expiry: data.session.expiry,
-        })
-        state.showEmptyState = false
-        return router.replace(`/dashboard`)
+    }
+    login = async (code, state = 'dashboard') => {
+        pageState.error = ''
+        pageState.activity = 'Verifying'
+        pageState.showEmptyState = true
+        pageState.loadingBar = true
+        try {
+            const { data } = await axios.get(`/v1/login/github/${code}`)
+            if (!data.ok || data?.error?.message) {
+                pageState.error = data?.error?.message ? data.error.message : 'GitHub error, please check the integration logs or try again.'
+                pageState.loadingBar = false
+                pageState.showEmptyState = false
+                return
+            }
+            pageState.loadingBar = false
+            persistData(data)
+            await client.storeKey(`session`, {
+                kid: data.session.kid,
+                secret: data.session.secret,
+                expiry: data.session.expiry,
+            })
+
+            return router.push(`/${state}`)
+        } catch (e) {
+            console.error(e)
+            pageState.loadingBar = false
+            pageState.showEmptyState = false
+            pageState.error = typeof e === "string" ? e : `${e.code} ${e.message}`
+        }
     }
 }
 
@@ -92,15 +126,24 @@ const controller = reactive(new Controller())
     <VRow>
         <VCol cols="12">
             <VProgressLinear
-                :active="state.loadingBar"
-                :indeterminate="state.loadingBar"
+                :active="pageState.loadingBar"
+                :indeterminate="pageState.loadingBar"
                 color="primary"
                 absolute
                 bottom
             ></VProgressLinear>
+            <VAlert
+                v-if="pageState.error"
+                color="error"
+                icon="$error"
+                title="Error"
+                :text="pageState.error"
+                border="start"
+                variant="tonal"
+            />
             <VEmptyState
-                v-if="state.showEmptyState"
-                :image="state.octodexImageUrl"
+                v-if="pageState.showEmptyState"
+                :image="pageState.octodexImageUrl"
             >
                 <template #actions>
                     <div class="d-flex justify-center">
@@ -110,7 +153,7 @@ const controller = reactive(new Controller())
                             indeterminate
                         />
                         <span class="ms-4">
-                            Verifying, please wait.
+                            {{ pageState.activity }}, please wait.
                         </span>
                     </div>
                 </template>
@@ -118,13 +161,3 @@ const controller = reactive(new Controller())
         </VCol>
     </VRow>
 </template>
-
-<style lang="scss" scoped>
-.VBtn {
-    text-transform: none;
-}
-
-.td-wrap {
-    word-wrap: break-word;
-}
-</style>

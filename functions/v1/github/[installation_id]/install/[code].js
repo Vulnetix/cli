@@ -35,6 +35,7 @@ export async function onRequestGet(context) {
             const headers = { 'Accept': 'application/json' }
             const resp = await fetch(url, { headers, method })
             oauthData = await resp.json()
+            console.log('oauthData', JSON.stringify(oauthData))
             if (oauthData?.error) {
                 return Response.json({ ok: false, error: { message: oauthData.error } })
             }

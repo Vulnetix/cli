@@ -3,8 +3,6 @@ import router from "@/router";
 import { Client, isJSON } from '@/utils';
 import { computed, reactive } from 'vue';
 import { useTheme } from 'vuetify';
-//TODO https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#check-if-vulnerability-alerts-are-enabled-for-a-repository
-//TODO https://docs.github.com/en/rest/secret-scanning/secret-scanning?apiVersion=2022-11-28#list-secret-scanning-alerts-for-a-repository
 
 const client = new Client()
 const { global } = useTheme()
