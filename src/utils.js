@@ -960,10 +960,6 @@ export class GitHub {
     }
     async getUserEmails(prisma, orgId, memberEmail) {
         // https://docs.github.com/en/rest/users/emails?apiVersion=2022-11-28#list-email-addresses-for-the-authenticated-user
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const url = `${this.baseUrl}/user/emails`
         console.log(`github.getUserEmails() ${url}`)
         const data = await this.fetchJSON(url)
@@ -985,10 +981,6 @@ export class GitHub {
     }
     async getUser(prisma, orgId, memberEmail) {
         // https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-the-authenticated-user
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const url = `${this.baseUrl}/user`
         console.log(`github.getUser() ${url}`)
         const data = await this.fetchJSON(url)

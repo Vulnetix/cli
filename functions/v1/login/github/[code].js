@@ -56,7 +56,7 @@ export async function onRequestGet(context) {
         const verificationResult = await app.authenticate()
         let memberEmail = verificationResult?.session?.memberEmail
         if (!memberEmail) {
-            const ghUserEmails = await gh.getUserEmails()
+            const ghUserEmails = await gh.getUserEmails(prisma)
             if (!ghUserEmails?.ok || ghUserEmails?.error?.message || !ghUserEmails?.content || !ghUserEmails.content?.length) {
                 return Response.json({ ok: ghUserEmails.ok, error: ghUserEmails.error, result: `${ghUserEmails.status} ${ghUserEmails.statusText}` })
             }
@@ -147,7 +147,7 @@ export async function onRequestGet(context) {
         })
         let installationId = githubApp?.installationId
         if (!installationId) {
-            const ghInstalls = await gh.getInstallations(response.session.orgId, response.session.memberEmail)
+            const ghInstalls = await gh.getInstallations(prisma, response.session.orgId, response.session.memberEmail)
             if (!ghInstalls?.ok || ghInstalls?.error?.message || !ghInstalls?.content?.installations || !ghInstalls.content?.installations?.length) {
                 return Response.json({ ok: ghInstalls.ok, error: ghInstalls.error, result: `${ghInstalls.status} ${ghInstalls.statusText}` })
             }
