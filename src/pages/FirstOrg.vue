@@ -1,4 +1,5 @@
 <script setup>
+import router from "@/router";
 import { Client, isJSON } from '@/utils';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';

@@ -19,7 +19,6 @@
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "node",
-    "jsx": "preserve",
     "paths": {
       "@/*": [
         "src/*"

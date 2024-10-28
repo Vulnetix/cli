@@ -84,99 +84,58 @@ watch(NotificationsStore, () => {
                 icon: 'bx-home',
                 to: '/dashboard',
             }" />
+            <VerticalNavLink :item="{
+                title: 'Projects',
+                icon: 'pajamas:project',
+                to: '/projects',
+            }" />
+            <VerticalNavLink :item="{
+                title: 'Products',
+                icon: 'fluent-mdl2:product',
+                to: '/products',
+            }" />
 
-            <!-- 👉 Activities -->
             <VerticalNavSectionTitle :item="{
                 heading: 'Triage Queues',
             }" />
             <VerticalNavLink :item="{
-                title: 'Dependencies',
-                icon: 'hugeicons:blockchain-07',
-                to: '/queue/dependencies',
+                title: 'New Issues',
+                icon: 'fluent-mdl2:set-action',
+                to: '/triage',
             }" />
-            <VerticalNavLink :item="{
-                title: 'Source Code',
+            <!-- <VerticalNavLink :item="{
+                title: 'Exploitable',
                 icon: 'eos-icons:critical-bug-outlined',
-                to: '/queue/source-code',
-            }" />
-            <VerticalNavLink :item="{
-                title: 'Overdue',
-                icon: 'carbon:incomplete-warning',
-                to: '/triage-overdue',
-            }" />
+                to: '/triage/exploitable',
+            }" /> -->
             <VerticalNavLink :item="{
                 title: 'History',
                 icon: 'mdi-clipboard-text-history',
-                to: '/triage-history',
+                to: '/triage/history',
             }" />
 
-            <!-- 👉 File Management -->
             <VerticalNavSectionTitle :item="{
-                heading: 'Import Sources',
+                heading: 'Administration',
             }" />
             <VerticalNavLink :item="{
-                title: 'SARIF',
-                icon_url: '/sarif-logo.png',
-                to: '/sarif-manager',
+                title: 'Organisation',
+                icon: 'mdi:company',
+                to: '/account/organisation',
             }" />
             <VerticalNavLink :item="{
-                title: 'CycloneDX',
-                icon_url: '/cyclonedx-logo.png',
-                to: '/cyclonedx-manager',
+                title: 'Artifact Manager',
+                icon: 'eos-icons:file-system-outlined',
+                to: '/artifacts',
             }" />
             <VerticalNavLink :item="{
-                title: 'SPDX',
-                icon_url: '/spdx-logo.png',
-                to: '/spdx-manager',
-            }" />
-            <VerticalNavLink :item="{
-                title: 'VEX',
-                icon_url: '/csaf-logo.png',
-                to: '/vex-manager',
-            }" />
-
-            <!-- 👉 Integrations -->
-            <VerticalNavSectionTitle :item="{
-                heading: 'Integrations',
-            }" />
-            <!--
-        https://redocly.github.io/redoc/?url=https://api.vulncheck.com/v3/openapi#tag/endpoints/paths/~1cpe/get
-        https://redocly.github.io/redoc/?url=https://api.vulncheck.com/v3/openapi#tag/endpoints/paths/~1purl/get
-        https://vulncheck.com/token/newtoken
-        https://rud.is/b/2024/03/23/vulnchecks-free-community-kev-cve-apis-code-golang-cli-utility/
-      -->
-            <VerticalNavLink :item="{
-                title: 'VulnCheck',
-                icon_url: '/vulncheck-logo.png',
-                to: '/vulncheck-integration',
-            }" />
-            <!-- https://docs.mend.io/bundle/mend-api-2-0/page/index.html#tag/General-Info-Vulnerabilities -->
-            <VerticalNavLink :item="{
-                title: 'Mend.io',
-                icon_url: '/mend-io-logo.png',
-                to: '/mend-integration',
-            }" />
-            <VerticalNavLink :item="{
-                title: 'GitHub',
-                icon: 'mdi-github',
-                to: '/github-integration',
-            }" />
-            <VerticalNavLink :item="{
-                title: 'OSV.dev',
-                icon_url: '/osv-logo.png',
-                to: '/osv-integration',
-            }" />
-            <VerticalNavLink :item="{
-                title: 'First.org',
-                icon_url: '/1st-logo.png',
-                to: '/first-org-integration',
+                title: 'Integrations',
+                icon: 'carbon:ibm-cloud-direct-link-2-connect',
+                to: '/integrations',
             }" />
         </template>
 
-        <!-- 👉 Pages -->
         <slot />
 
-        <!-- 👉 Footer -->
         <template #footer>
             <Footer />
         </template>

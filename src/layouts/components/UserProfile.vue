@@ -108,8 +108,7 @@ onMounted(() => Member.ensureSession().then(controller.refresh))
                     </VListItem>
                     <VDivider class="my-2" />
 
-                    <!-- 👉 Settings -->
-                    <VListItem to="/account-settings">
+                    <VListItem to="/account">
                         <template #prepend>
                             <VIcon
                                 class="me-2"
@@ -121,7 +120,18 @@ onMounted(() => Member.ensureSession().then(controller.refresh))
                         <VListItemTitle>Profile</VListItemTitle>
                     </VListItem>
 
-                    <!-- 👉 Logout -->
+                    <VListItem to="/account/settings">
+                        <template #prepend>
+                            <VIcon
+                                class="me-2"
+                                icon="healthicons:ui-preferences-outline"
+                                size="22"
+                            />
+                        </template>
+
+                        <VListItemTitle>Settings</VListItemTitle>
+                    </VListItem>
+
                     <VListItem to="/logout">
                         <template #prepend>
                             <VIcon

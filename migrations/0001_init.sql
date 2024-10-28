@@ -166,30 +166,9 @@ CREATE TABLE "triage_activity" (
     "ssvc" TEXT,
     "remediation" TEXT,
     "analysisState" TEXT NOT NULL,
-    -- resolved
-    -- resolved_with_pedigree
-    -- exploitable
-    -- in_triage
-    -- false_positive
-    -- not_affected
     "analysisJustification" TEXT,
-    -- code_not_present
-    -- code_not_reachable
-    -- requires_configuration
-    -- requires_dependency
-    -- requires_environment
-    -- protected_by_compiler
-    -- protected_at_runtime
-    -- protected_at_perimeter
-    -- protected_by_mitigating_control
     "analysisResponse" TEXT,
-    -- ONE OR MORE OF:
-    -- can_not_fix
-    -- will_not_fix
-    -- update
-    -- rollback
-    -- workaround_available
-    "analysisDetail" TEXT -- entered by users
+    "analysisDetail" TEXT
 );
 CREATE UNIQUE INDEX "sessions_kid_key" ON "sessions"("kid");
 CREATE UNIQUE INDEX "members_email_key" ON "members"("email");

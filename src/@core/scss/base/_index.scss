@@ -26,6 +26,9 @@
 a {
   color: rgb(var(--v-theme-primary));
   text-decoration: none;
+  &.text-base {
+    color: rgb(var(--v-theme-on-background));
+  }
 }
 
 // Vuetify 3 don't provide margin bottom style like vuetify 2

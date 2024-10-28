@@ -1,3 +1,7 @@
+import { Client } from "@/utils"
+
+const client = new Client()
+
 const routes = [
     {
         path: '/',
@@ -8,6 +12,10 @@ const routes = [
                 component: () => import('../pages/[...all].vue'),
             },
         ],
+    },
+    {
+        path: '/sso/github',
+        component: () => import('../pages/GitHubLogin.vue'),
     },
     {
         path: '/login',
@@ -21,7 +29,7 @@ const routes = [
         path: '/logout',
         component: () => import('../layouts/blank.vue'),
         beforeEnter: (to, from, next) => {
-            localStorage.removeItem('/session/token')
+            client.deleteKey(`session`)
             next('/login')
         },
     },

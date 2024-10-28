@@ -15,13 +15,9 @@ database_name = "vulnetix"
 database_id = "15dc7c29-05a9-46c2-b87b-89b1a4f32d33"
 
 [[r2_buckets]]
-binding = 'r2artefact'
-bucket_name = 'artefact'
+binding = 'r2artifacts'
+bucket_name = 'artifacts'
 
 [[r2_buckets]]
 binding = 'r2webhooks'
 bucket_name = 'webhooks'
-
-[[r2_buckets]]
-binding = 'r2tea'
-bucket_name = 'transparency-exchange'

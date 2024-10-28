@@ -12,21 +12,21 @@ const state = computed(() => {
         month_to_date: Analytics.month_to_date,
         year_to_date: Analytics.year_to_date,
         publishedMonthly: Analytics.publishedMonthly,
-        observedMonthly: Analytics.observedMonthly,
+        discoveredMonthly: Analytics.discoveredMonthly,
         triagedMonthly: Analytics.triagedMonthly,
     }
 })
 onMounted(() => Analytics.fetchAnalytics())
 
-const categories = computed(() => (state.value.triagedMonthly.map(i => i.monthYear)))
+const categories = computed(() => (state.value.discoveredMonthly.map(i => i.monthYear)))
 const series = computed(() => ([
     {
         name: `Awaiting Triage`,
-        data: state.value.observedMonthly.map(i => -(i.in_triage)),
+        data: state.value.discoveredMonthly.map(i => -(i.in_triage_unseen)),
     },
     {
         name: `Triaged`,
-        data: state.value.triagedMonthly.map(i => (i.triaged)),
+        data: state.value.discoveredMonthly.map(i => (i.triaged)),
     },
 ]))
 

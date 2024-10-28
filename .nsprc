@@ -1,6 +1,0 @@
-{
-  "vue3-perfect-scrollbar": {
-    "active": true,
-    "notes": "Ignored since the latest version is not working with vue"
-  }
-}

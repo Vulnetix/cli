@@ -29,5 +29,14 @@
     "source.fixAll.stylelint": "explicit",
     "source.organizeImports": "explicit"
   },
-  "eslint.format.enable": true
+  "eslint.format.enable": true,
+  "sqltools.connections": [
+    {
+      "previewLimit": 1000,
+      "driver": "SQLite",
+      "name": "vulnetix",
+      "database": "${workspaceFolder:vulnetix}/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/5739f20a3d0d5e6506506143f65618856465fde8eb11c9ee70bd2ebed4ac5dd4.sqlite"
+    }
+  ],
+  "sqltools.useNodeRuntime": true
 }

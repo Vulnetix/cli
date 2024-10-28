@@ -1,6 +1,5 @@
 <script setup>
 import IconVulnetix from '@images/IconVulnetix.vue';
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar';
 import { useDisplay } from 'vuetify';
 
 const props = defineProps({
@@ -76,14 +75,12 @@ const handleNavScroll = evt => {
       name="nav-items"
       :update-is-vertical-nav-scrolled="updateIsVerticalNavScrolled"
     >
-      <PerfectScrollbar
-        tag="ul"
+      <ul
         class="nav-items"
-        :options="{ wheelPropagation: false }"
         @ps-scroll-y="handleNavScroll"
       >
         <slot />
-      </PerfectScrollbar>
+      </ul>
     </slot>
 
     <slot name="after-nav-items" />
@@ -130,12 +127,6 @@ h1 div {
 
   .nav-items {
     block-size: 100%;
-
-    // ℹ️ We no loner needs this overflow styles as perfect scrollbar applies it
-    // overflow-x: hidden;
-
-    // // ℹ️ We used `overflow-y` instead of `overflow` to mitigate overflow x. Revert back if any issue found.
-    // overflow-y: auto;
   }
 
   .nav-item-title {

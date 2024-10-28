@@ -60,20 +60,20 @@ git-demo:
 	git stash pop || true
 
 _purge_data: ## FOR DOCO ONLY
-	npx wrangler d1 execute vulnetix --local --command "DELETE FROM findings;"
-	npx wrangler d1 execute vulnetix --local --command "DELETE FROM triage_activity;"
-	npx wrangler d1 execute vulnetix --local --command "DELETE FROM git_repos;"
-	npx wrangler d1 execute vulnetix --local --command "DELETE FROM sarif;"
-	npx wrangler d1 execute vulnetix --local --command "DELETE FROM sarif_results;"
-	npx wrangler d1 execute vulnetix --local --command "DELETE FROM spdx;"
-	npx wrangler d1 execute vulnetix --local --command "DELETE FROM cdx;"
-	npx wrangler d1 execute vulnetix --local --command "DELETE FROM integration_usage_log;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM Finding;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM Triage;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM GitRepo;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM SARIFInfo;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM SarifResults;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM CycloneDXInfo;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM SPDXInfo;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM IntegrationUsageLog;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM Link;"
+	npx wrangler d1 execute vulnetix --local --command "DELETE FROM Artifact;"
 
 _helpers: ## FOR DOCO ONLY
 	npx wrangler d1 execute vulnetix --local --file ./migrations/0001_init.sql
-	npx wrangler d1 execute vulnetix --local --command "PRAGMA table_list;"
-	npx wrangler d1 execute vulnetix --local --command "PRAGMA table_info(members);"
-	npx wrangler d1 execute vulnetix --local --command "SELECT * FROM members;"
+	npx wrangler d1 execute vulnetix --local --command "SELECT * FROM Member;"
 	npx prisma migrate diff \
 	--from-empty \
 	--to-schema-datamodel ./prisma/schema.prisma \

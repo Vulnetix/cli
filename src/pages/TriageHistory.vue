@@ -1,23 +1,67 @@
 <script setup>
+import { useMemberStore } from '@/stores/member';
 import { usePreferencesStore } from '@/stores/preferences';
 import { Client, isJSON } from '@/utils';
 import { reactive } from 'vue';
 import router from "../router";
 
 const client = new Client()
+const Member = useMemberStore()
 const Preferences = usePreferencesStore()
-watch(Preferences, () => localStorage.setItem('/state/preferences/issueFilter', Preferences.issueFilter), { deep: true })
+watch(Preferences, () => localStorage.setItem('/state/preferences/scaFilter', Preferences.scaFilter), { deep: true })
 const dialogs = ref({})
-const expanded = ref([])
-const issueHeadings = [
-    { title: 'Issue', key: 'detectionTitle', align: 'end' },
-    { title: 'Discovered', key: 'createdAt', align: 'end' },
+const scaHeadings = [
+    { title: '', key: 'seen', align: 'start' },
+    { title: 'Title', key: 'detectionTitle', align: 'start' },
+    { title: 'Source', key: 'source' },
+    { title: 'Discovered', key: 'createdAt', align: 'start' },
+    { title: 'Observed', key: 'lastObserved', align: 'start' },
     { title: 'Package', key: 'packageName', align: 'end' },
-    { title: 'Source', key: 'source', align: 'end' },
-    { title: 'Category', key: 'category', align: 'end' },
+    { title: 'Version', key: 'packageVersion', align: 'start' },
+    { title: 'License', key: 'packageLicense' },
+    { title: 'Repository', key: 'repoName', align: 'start' },
+    { title: 'BOM Version', key: 'bomVersion' },
     { title: '', key: 'actions', align: 'end' },
 ]
-
+const normalise = finding => {
+    const seen = finding.triage.some(t => t.seen === 1)
+    const latestTriage = finding.triage.reduce((latest, current) => {
+        return (!latest || current.lastObserved > latest.lastObserved) ? current : latest;
+    }, null)
+    delete latestTriage.seen
+    latestTriage.triageUuid = latestTriage.uuid
+    delete latestTriage.uuid
+    latestTriage.triageCreatedAt = latestTriage.createdAt
+    delete latestTriage.createdAt
+    latestTriage.triagedBy = latestTriage.memberEmail
+    delete latestTriage.memberEmail
+    let repoName;
+    let repoSource;
+    if (finding?.repoName) {
+        repoName = finding.repoName
+        repoSource = finding.source
+    } else if (finding?.cdx?.repoName) {
+        repoName = finding.cdx.repoName
+        repoSource = finding.cdx.source
+    } else if (finding?.spdx?.repoName) {
+        repoName = finding.spdx.repoName
+        repoSource = finding.spdx.source
+    }
+    let bomVersion;
+    if (finding?.cdx?.cdxVersion) {
+        bomVersion = `CycloneDX-${finding.cdx.cdxVersion}`
+    } else if (finding?.spdx?.spdxVersion) {
+        bomVersion = finding.spdx.spdxVersion
+    }
+    return {
+        ...latestTriage,
+        ...finding,
+        seen,
+        repoName,
+        repoSource,
+        bomVersion,
+    }
+}
 const initialState = {
     error: "",
     warning: "",
@@ -37,9 +81,6 @@ const clearAlerts = () => {
     state.info = ''
 }
 class Controller {
-    constructor() {
-        this.refresh()
-    }
     refresh = async () => {
         clearAlerts()
         state.loading = true
@@ -50,8 +91,8 @@ class Controller {
             while (hasMore) {
                 const { data } = await client.get(`/history?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
-                    if (data?.results) {
-                        data.results.map(r => state.results.push(r))
+                    if (data?.findings) {
+                        data.findings.forEach(finding => state.results.push(normalise(finding)))
                     }
                 } else if (typeof data === "string" && !isJSON(data)) {
                     break
@@ -67,12 +108,16 @@ class Controller {
                 } else {
                     break
                 }
-                if (Object.keys(data.results).length < pageSize) {
+                if (data.findings.length < pageSize) {
                     hasMore = false
                 } else {
                     skip += pageSize
                 }
             }
+            state.results.forEach((result, index) => {
+                state.results.splice(index, 1, result)
+                dialogs[result.uuid] = result
+            })
             state.loading = false
         } catch (e) {
             console.error(e)
@@ -80,18 +125,26 @@ class Controller {
             state.loading = false
         }
     }
-    expandRow = async (_, VEvent) => {
-        if (VEvent.isExpanded(VEvent.internalItem)) {
-            return
-        }
-        const findingId = VEvent.item.id.toString()
+    expandRow = async item => {
+        const findingId = item.uuid
         state.triageLoaders[findingId] = true
         try {
-            const { data } = await client.get(`/enrich/${findingId}`)
+            const { data } = await client.get(`/issue/${findingId}?seen=1`)
             state.triageLoaders[findingId] = false
             if (data.ok) {
                 if (data?.finding) {
-                    state.results = state.results.map(result => result.findingId === findingId ? data.finding : result)
+                    let found = false
+                    for (const [index, result] of state.results.entries()) {
+                        if (result.uuid === item.uuid) {
+                            state.results.splice(index, 1, normalise(data.finding))
+                            dialogs[findingId] = data.finding
+                            found = true
+                        }
+                    }
+                    if (!found) {
+                        dialogs[findingId] = data.finding
+                        state.results.push(normalise(data.finding))
+                    }
                 }
             } else if (typeof data === "string" && !isJSON(data)) {
                 return
@@ -112,6 +165,7 @@ class Controller {
 }
 
 const controller = reactive(new Controller())
+onMounted(() => Member.ensureSession().then(controller.refresh))
 </script>
 
 <template>
@@ -153,11 +207,10 @@ const controller = reactive(new Controller())
     />
     <VCard flat>
         <VCardTitle class="d-flex align-center pe-2">
-            Repositories
-            <!-- {{ Object.keys(state.results).length }} Findings -->
+            {{ state.results.length }} Findings
             <VSpacer></VSpacer>
             <VTextField
-                v-model="Preferences.issueFilter"
+                v-model="Preferences.scaFilter"
                 density="compact"
                 label="Filter"
                 prepend-inner-icon="mdi-magnify"
@@ -168,150 +221,83 @@ const controller = reactive(new Controller())
             ></VTextField>
         </VCardTitle>
         <VDivider></VDivider>
-        <!-- <VExpansionPanels accordion>
-            <VSkeletonLoader
-                v-if="state.loading"
-                type="table-row@10"
-            />
-            <VExpansionPanel v-for="(results, repoFullName) in state.results">
-                <VExpansionPanelTitle class="text-subtitle-1">
-                    {{ repoFullName }}
-                </VExpansionPanelTitle>
-                <VExpansionPanelText> -->
         <VDataTable
-            class="elevation-1"
-            v-model:expanded="expanded"
-            v-model:search="Preferences.issueFilter"
+            v-model:search="Preferences.scaFilter"
             :items="state.results"
-            item-value="findingId"
-            :headers="issueHeadings"
-            :sort-by="[{ key: 'packageName', order: 'asc' }, { key: 'detectionTitle', order: 'asc' }]"
+            item-key="id"
+            item-value="detectionTitle"
+            :headers="scaHeadings"
+            :sort-by="[{ key: 'detectionTitle', order: 'asc' }, { key: 'createdAt', order: 'desc' }]"
             multi-sort
             hover
-            expand-on-click
-            @click:row="controller.expandRow"
             :loading="state.loading"
         >
-            <template v-slot:expanded-row="{ item, columns }">
-                <tr>
-                    <td :colspan="columns.length">
-                        <VSkeletonLoader
-                            v-if="!!state.triageLoaders[item.findingId]"
-                            type="list-item-three-line"
-                        ></VSkeletonLoader>
-                        <VList lines="two">
-                            <VListItem
-                                v-if="item.triage.analysisState"
-                                :subtitle="item.triage.analysisState"
-                                title="Analysis State"
-                            >
-                            </VListItem>
-                            <VListItem
-                                v-if="item.triage.cvssVector"
-                                title="CVSS"
-                            >
-                                {{ item.triage.cvssVector }} ({{ item.triage.cvssScore }})</VListItem>
-                            <VListItem
-                                v-if="item.triage.epssScore"
-                                title="EPSS"
-                            >
-                                {{ item.triage.epssScore }} ({{ item.triage.epssPercentile }})
-                            </VListItem>
-                            <VListItem
-                                v-if="item.triage.ssvc"
-                                :subtitle="item.triage.ssvc"
-                                title="SSVC"
-                            >
-                            </VListItem>
-                            <VListItem
-                                v-if="item.triage.lastObserved"
-                                :subtitle="new Date(item.triage.lastObserved).toLocaleDateString()"
-                                title="Last Observed"
-                            >
-                            </VListItem>
-                        </VList>
-                    </td>
-                </tr>
+            <template v-slot:item.seen="{ item }">
+                <VIcon
+                    :icon="item?.seen ? 'tabler-eye-check' : 'mdi-eye-off-outline'"
+                    :color="item?.seen ? 'success' : 'warning'"
+                    size="23"
+                />
             </template>
-
-            <template v-slot:item.detectionTitle="{ item }">
-                <div class="text-end">
-                    <VTooltip
-                        v-if="item.packageLicense"
-                        activator="parent"
-                        location="top"
-                    >{{ item.packageLicense }}</VTooltip>
-                    {{ item.detectionTitle }}
-                </div>
-            </template>
-
-            <template v-slot:item.packageName="{ item }">
-                <div class="text-end">
-                    <VTooltip
-                        v-if="item.purl"
-                        activator="parent"
-                        location="top"
-                    >{{ item.purl }}</VTooltip>
-                    <VTooltip
-                        v-else-if="item.cpe"
-                        activator="parent"
-                        location="top"
-                    >{{ item.cpe }}</VTooltip>
-                    {{ item.packageName }} {{ item.packageVersion }}
-                </div>
-            </template>
-
             <template v-slot:item.source="{ item }">
-                <div
-                    class="text-end"
-                    v-if="item?.cdx?.source"
-                >
-                    {{ item.cdx.source }}
-                </div>
-                <div
-                    class="text-end"
-                    v-else-if="item?.spdx?.source"
-                >
-                    {{ item.spdx.source }}
-                </div>
-                <div
-                    class="text-end"
-                    v-else
-                >
-                    {{ item.source }}
+                <div class="text-end">
+                    <VChip
+                        :color="item.source === 'GitHub' ? 'secondary' : 'plain'"
+                        :text="item.source"
+                        size="small"
+                        label
+                    ></VChip>
                 </div>
             </template>
-
-            <template v-slot:item.category="{ item }">
-                <div
-                    class="text-end"
-                    v-if="item.category === 'sast'"
-                >Static Analysis</div>
-                <div
-                    class="text-end"
-                    v-else-if="item.category === 'sca'"
-                >Package Vulnerability</div>
-                <div
-                    class="text-end"
-                    v-else
-                >Vulnerability</div>
-            </template>
-
             <template v-slot:item.createdAt="{ item }">
                 <div class="text-end">
                     <VTooltip
                         activator="parent"
                         location="top"
-                    >{{ new Date(item.createdAt).toISOString() }}</VTooltip>
-                    <time :datetime="new Date(item.createdAt).toISOString()">
-                        {{ new Date(item.createdAt).toLocaleString() }}
-                    </time>
+                    >{{ item.createdAt }}</VTooltip>
+                    {{ new Date(item.createdAt).toLocaleDateString() }}
                 </div>
             </template>
-
-            <template v-slot:item.actions="{ item, index }">
+            <template v-slot:item.lastObserved="{ item }">
+                <div class="text-end">
+                    <VTooltip
+                        activator="parent"
+                        location="top"
+                    >{{ item.lastObserved }}</VTooltip>
+                    {{ new Date(item.lastObserved).toLocaleDateString() }}
+                </div>
+            </template>
+            <template v-slot:item.bomVersion="{ item }">
+                <div class="text-end">
+                    <VChip
+                        color="secondary"
+                        :text="item?.bomVersion"
+                        size="small"
+                        label
+                    ></VChip>
+                </div>
+            </template>
+            <template v-slot:item.packageLicense="{ item }">
+                <VChip
+                    color="#232323"
+                    :text="item.packageLicense ? item.packageLicense : 'Unlicensed'"
+                    class="text-warning"
+                    size="small"
+                    label
+                ></VChip>
+            </template>
+            <template v-slot:item.repoName="{ item }">
+                <a
+                    v-if="item?.repoName && item.repoSource === 'GitHub'"
+                    :href="`https://github.com/${item.repoName}`"
+                    target="_blank"
+                >
+                    {{ item.repoName }}
+                </a>
+            </template>
+            <template v-slot:item.actions="{ item }">
                 <VDialog
-                    v-model="dialogs[index]"
+                    v-model="dialogs[item.uuid]"
                     transition="dialog-bottom-transition"
                     fullscreen
                 >
@@ -321,28 +307,46 @@ const controller = reactive(new Controller())
                             size="small"
                             text="More"
                             v-bind="activatorProps"
+                            @click="controller.expandRow(item)"
                         ></VBtn>
                     </template>
 
                     <VCard>
                         <VToolbar color="#000">
+                            <VProgressLinear
+                                :active="!!state.triageLoaders[item.uuid]"
+                                :indeterminate="!!state.triageLoaders[item.uuid]"
+                                color="primary"
+                                absolute
+                                bottom
+                            >
+                            </VProgressLinear>
                             <VBtn
                                 icon="mdi-close"
                                 color="#FFF"
-                                @click="dialogs[index] = false"
+                                @click="dialogs[item.uuid] = false"
                             ></VBtn>
-                            <VToolbarTitle>Title</VToolbarTitle>
+                            <VToolbarTitle>{{ item.detectionTitle }}</VToolbarTitle>
                             <VSpacer></VSpacer>
                             <VToolbarItems>
                                 <VBtn
                                     text="Dismiss"
                                     variant="text"
-                                    @click="dialogs[index] = false"
+                                    @click="dialogs[item.uuid] = false"
                                 ></VBtn>
                             </VToolbarItems>
                         </VToolbar>
                         <VRow>
                             <VCol cols="12">
+                                <VAlert
+                                    v-if="item?.comment"
+                                    color="info"
+                                    icon="$info"
+                                    title="Information"
+                                    :text="item?.comment"
+                                    border="start"
+                                    variant="tonal"
+                                />
                             </VCol>
                             <VCol cols="6">
                                 <VList
@@ -352,9 +356,214 @@ const controller = reactive(new Controller())
                                     <VListItemTitle>Details</VListItemTitle>
 
                                     <VListItem
+                                        v-if="item.analysisState"
+                                        :subtitle="item.analysisState"
+                                        title="Analysis State"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item?.spdxId"
+                                        :subtitle="item.spdxId"
+                                        title="SPDX Identifier"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item?.cdxId"
+                                        :subtitle="item.cdxId"
+                                        title="CycloneDX Identifier"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item.cpe"
+                                        :subtitle="item.cpe"
+                                        title="CPE"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item.purl"
+                                        :subtitle="item.purl"
+                                        title="PURL"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item.createdAt"
                                         :subtitle="new Date(item.createdAt).toISOString()"
                                         title="Discovered"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.lastObserved"
+                                        :subtitle="new Date(item.lastObserved).toISOString()"
+                                        title="Last Observed"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.fixVersion"
+                                        :subtitle="item.fixVersion"
+                                        title="Fix Version"
                                     ></VListItem>
+                                    <VListItem
+                                        v-if="item.malicious"
+                                        :subtitle="item.malicious"
+                                        title="Malicious Source"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.abandoned"
+                                        subtitle="No updates or patches are expected."
+                                        title="Abandoned"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.squattedPackage"
+                                        :subtitle="`Did you mean to install '${item.squattedPackage}'?`"
+                                        title="Squatted Package"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item?.spdx?.toolName"
+                                        :subtitle="item.spdx.toolName"
+                                        title="Source"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item?.cdx?.toolName"
+                                        :subtitle="item.cdx.toolName"
+                                        title="Source"
+                                    ></VListItem>
+
+                                    <VListItemTitle>Source Code</VListItemTitle>
+
+                                    <VListItem
+                                        v-if="item?.repoName"
+                                        :title="`${item.repoSource} Repository`"
+                                    >
+                                        <a
+                                            v-if="item.repoSource === 'GitHub'"
+                                            :href="`https://github.com/${item.repoName}`"
+                                            target="_blank"
+                                        >
+                                            {{ item.repoName }}
+                                        </a>
+                                    </VListItem>
+                                    <VListItem
+                                        class="text-capitalize"
+                                        v-if="item?.spdx?.repo?.defaultBranch"
+                                        :subtitle="item.spdx.repo.defaultBranch"
+                                        title="Default Branch"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item?.spdx?.repo?.licenseName"
+                                        :subtitle="item.spdx.repo.licenseName"
+                                        title="License"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        class="text-capitalize"
+                                        v-if="item?.spdx?.repo?.visibility"
+                                        :subtitle="item.spdx.repo.visibility"
+                                        title="Visibility"
+                                    ></VListItem>
+                                    <VListItem
+                                        :subtitle="item?.spdx?.repo?.archived ? 'Archived' : item?.spdx?.repo?.fork ? 'Forked' : item?.spdx?.repo?.template ? 'Template' : 'Source'"
+                                        title="Type"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item?.spdx?.repo?.pushedAt"
+                                        :subtitle="(new Date(item.spdx.repo.pushedAt)).toLocaleDateString()"
+                                        title="Last Pushed"
+                                    >
+                                    </VListItem>
+
+                                    <VListItem
+                                        class="text-capitalize"
+                                        v-if="item?.cdx?.repo?.defaultBranch"
+                                        :subtitle="item.cdx.repo.defaultBranch"
+                                        title="Default Branch"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item?.cdx?.repo?.licenseName"
+                                        :subtitle="item.cdx.repo.licenseName"
+                                        title="License"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        class="text-capitalize"
+                                        v-if="item?.cdx?.repo?.visibility"
+                                        :subtitle="item.cdx.repo.visibility"
+                                        title="Visibility"
+                                    ></VListItem>
+                                    <VListItem
+                                        :subtitle="item?.cdx?.repo?.archived ? 'Archived' : item?.cdx?.repo?.fork ? 'Forked' : item?.cdx?.repo?.template ? 'Template' : 'Source'"
+                                        title="Type"
+                                    ></VListItem>
+                                    <VListItem
+                                        v-if="item?.cdx?.repo?.pushedAt"
+                                        :subtitle="(new Date(item.cdx.repo.pushedAt)).toLocaleDateString()"
+                                        title="Last Pushed"
+                                    >
+                                    </VListItem>
+                                </VList>
+                            </VCol>
+                            <VCol cols="6">
+                                <VList
+                                    lines="two"
+                                    subheader
+                                >
+                                    <VListItemTitle>Triage Detail</VListItemTitle>
+                                    <VListItem
+                                        v-if="item.triageAutomated === '1'"
+                                        :subtitle="(new Date(item.triagedAt)).toISOString()"
+                                        title="Auto Triage"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-else-if="item.triageAutomated === '0' && item.triagedAt"
+                                        :subtitle="(new Date(item.triagedAt)).toISOString()"
+                                        title="Manually Triaged"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-else-if="item.seen === '1'"
+                                        :subtitle="(new Date(item.seenAt)).toISOString()"
+                                        title="Queue item first seen"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.cvssVector"
+                                        :subtitle="item.cvssVector"
+                                        title="CVSS Vector"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.cvssScore"
+                                        :subtitle="item.cvssScore"
+                                        title="CVSS Score"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.epssScore"
+                                        :subtitle="`${item.epssScore} (${item.epssPercentile})`"
+                                        title="EPSS Score"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.ssvc"
+                                        :subtitle="item.ssvc"
+                                        title="SSVC Outcome"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.remediation"
+                                        :subtitle="item.remediation"
+                                        title="Remediation"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.analysisJustification"
+                                        :subtitle="item.analysisJustification"
+                                        title="Analysis Justification"
+                                    >
+                                    </VListItem>
+                                    <VListItem
+                                        v-if="item.analysisDetail"
+                                        :subtitle="item.analysisDetail"
+                                        title="Analysis Detail"
+                                    >
+                                    </VListItem>
                                 </VList>
                             </VCol>
                         </VRow>
@@ -362,9 +571,6 @@ const controller = reactive(new Controller())
                 </VDialog>
             </template>
         </VDataTable>
-        <!-- </VExpansionPanelText>
-            </VExpansionPanel>
-        </VExpansionPanels> -->
     </VCard>
 </template>
 <style scoped>

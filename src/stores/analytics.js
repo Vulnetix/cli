@@ -10,7 +10,7 @@ export const useAnalyticsStore = defineStore("analytics", {
         month_to_date: {},
         year_to_date: {},
         publishedMonthly: [],
-        observedMonthly: [],
+        discoveredMonthly: [],
         triagedMonthly: [],
     }),
     getters: {
@@ -21,7 +21,7 @@ export const useAnalyticsStore = defineStore("analytics", {
                 month_to_date: state.month_to_date,
                 year_to_date: state.year_to_date,
                 publishedMonthly: state.publishedMonthly,
-                observedMonthly: state.observedMonthly,
+                discoveredMonthly: state.discoveredMonthly,
                 triagedMonthly: state.triagedMonthly,
             }
         }
@@ -38,7 +38,7 @@ export const useAnalyticsStore = defineStore("analytics", {
                     this.month_to_date = data.data?.month_to_date
                     this.year_to_date = data.data?.year_to_date
                     this.publishedMonthly = data.data?.publishedMonthly
-                    this.observedMonthly = data.data?.observedMonthly
+                    this.discoveredMonthly = data.data?.discoveredMonthly
                     this.triagedMonthly = data.data?.triagedMonthly
                 }
             }

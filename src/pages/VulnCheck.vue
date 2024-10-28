@@ -1,16 +1,19 @@
 <script setup>
 import { Client, isJSON } from '@/utils';
 import { reactive } from 'vue';
-import { useTheme } from 'vuetify';
 import router from "../router";
 
+// https://redocly.github.io/redoc/?url=https://api.vulncheck.com/v3/openapi#tag/endpoints/paths/~1cpe/get
+// https://redocly.github.io/redoc/?url=https://api.vulncheck.com/v3/openapi#tag/endpoints/paths/~1purl/get
+// https://vulncheck.com/token/newtoken
+// https://rud.is/b/2024/03/23/vulnchecks-free-community-kev-cve-apis-code-golang-cli-utility/
+//
 // curl 'https://api.vulncheck.com/v3/index/vulncheck-kev' \
 //     -H 'User-Agent: Vulnetix' \
 //     -H 'Accept: application/json' \
 //     -H 'Authorization: Bearer undefined' > ./vulncheck-kev.json
 
 const client = new Client()
-const { global } = useTheme()
 
 const initialState = {
     error: "",
@@ -18,7 +21,6 @@ const initialState = {
     success: "",
     info: "",
     loading: false,
-    apiKey: '',
     log: []
 }
 const state = reactive({
@@ -74,39 +76,7 @@ class Controller {
         }
         state.loading = false
     }
-    save = async () => {
-        clearAlerts()
-        state.loading = true
-        try {
-            const { data } = await client.post(`/vulncheck/integrate`, { apiKey: state.apiKey })
-            state.loading = false
 
-            if (typeof data === "string" && !isJSON(data)) {
-                state.error = "Data could not be saved, please try again later."
-
-                return
-            }
-            if (data?.error?.message) {
-                state.error = data?.error?.message
-            }
-            if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-                state.info = data.result
-
-                return setTimeout(() => router.push('/logout'), 2000)
-            }
-            if (data.ok === true) {
-                state.success = "Saved successfully."
-            } else {
-                state.info = data?.result || 'No change'
-            }
-
-            return
-        } catch (e) {
-            console.error(e)
-            state.error = typeof e === "string" ? e : `${e.code} ${e.message}`
-            state.loading = false
-        }
-    }
 }
 
 const controller = reactive(new Controller())
@@ -153,62 +123,7 @@ const controller = reactive(new Controller())
             />
         </VCol>
     </Vrow>
-    <VCard title="VulnCheck Integration">
-        <VAlert
-            v-if="!state.loading && !state.apiKey"
-            color="info"
-            icon="$info"
-            title="Information"
-            border="start"
-            variant="tonal"
-            closable
-        >
-            Create a FREE token to use the VulnCheck API, you can
-            <a
-                :class="global.name.value === 'dark' ? 'text-secondary' : 'text-primary'"
-                href="https://vulncheck.com/settings/token/newtoken"
-                target="_blank"
-            >create API Tokens here.</a>
-        </VAlert>
-
-        <VCardText>
-            <VForm @submit.prevent="() => { }">
-                <p class="text-base font-weight-medium">
-                    Request vulnerabilities related to a CPE (Common Platform Enumeration) URI string, or Package URL
-                    Scheme (PURL)
-                </p>
-                <VRow>
-                    <VCol
-                        md="6"
-                        cols="12"
-                    >
-                        <VTextField
-                            :disabled="state.loading"
-                            v-model="state.apiKey"
-                            placeholder="vulncheck_xxxx...xxxx"
-                            label="VulnCheck API Token"
-                        />
-                    </VCol>
-                    <VCol
-                        md="6"
-                        cols="12"
-                        class="d-flex flex-wrap gap-4"
-                    >
-                    </VCol>
-                </VRow>
-                <VRow>
-                    <VCol
-                        md="6"
-                        cols="12"
-                        class="d-flex flex-wrap gap-4"
-                    >
-                        <VBtn @click="controller.save">Save</VBtn>
-
-                    </VCol>
-                </VRow>
-            </VForm>
-        </VCardText>
-
+    <VCard title="VulnCheck Logs">
         <VSkeletonLoader
             v-if="state.loading"
             type="table-row@10"
