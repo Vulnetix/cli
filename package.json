@@ -44,7 +44,7 @@
     "vue-prism-component": "^2.0.0",
     "vue-router": "^4.2.1",
     "vue3-apexcharts": "^1.4.1",
-    "vuetify": "^3.7.2",
+    "vuetify": "^3.7.3",
     "webfontloader": "^1.6.28"
   },
   "devDependencies": {
