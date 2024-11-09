@@ -21,21 +21,21 @@ onMounted(() => Analytics.fetchAnalytics())
 const categories = computed(() => (state.value.discoveredMonthly.map(i => i.monthYear)))
 const series = computed(() => ([
     {
-        name: `Awaiting Triage`,
-        data: state.value.discoveredMonthly.map(i => -(i.in_triage_unseen)),
+        name: `Discovered`,
+        data: state.value.publishedMonthly.map(i => -(i.in_triage_unseen)),
     },
     {
         name: `Triaged`,
-        data: state.value.discoveredMonthly.map(i => (i.triaged)),
+        data: state.value.publishedMonthly.map(i => (i.triaged)),
     },
 ]))
 
 const totalsData = computed(() => ([
     {
         icon: 'tabler-eye-exclamation',
-        value: `${round(state.value.total.queued_unseen_percentage)}%`,
+        value: `${round(state.value.total.in_triage_unseen_percentage)}%`,
         text: `Unseen`,
-        color: state.value.total.queued_unseen_percentage < 20 ? 'success' : state.value.total.queued_unseen_percentage < 50 ? 'info' : state.value.total.queued_unseen_percentage < 80 ? 'warning' : 'error',
+        color: state.value.total.in_triage_unseen_percentage < 20 ? 'success' : state.value.total.in_triage_unseen_percentage < 50 ? 'info' : state.value.total.in_triage_unseen_percentage < 80 ? 'warning' : 'error',
     },
     {
         icon: 'solar-bug-minimalistic-broken',
@@ -107,8 +107,8 @@ const totalsData = computed(() => ([
         >
             <AnalyticsTriageHistory
                 class="pb-5"
-                title="Triage History"
-                totalsText="Queue Progress"
+                title="Discovery"
+                totalsText="Triage Progress"
                 :totalsData="totalsData"
                 :series="series"
                 :categories="categories"

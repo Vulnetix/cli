@@ -9,7 +9,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { timeAgo } from '@/utils'
 import Notifications from '@core/components/Notifications.vue'
 import mendIcon from '@images/icons/logo/mend-io-logo.png'
-import osvIcon from '@images/icons/logo/osv-logo.png'
+import osvIcon from '@images/icons/logo/osv.png'
 import vulncheckIcon from '@images/icons/logo/vulncheck-logo.png'
 import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
 import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
@@ -96,10 +96,10 @@ watch(NotificationsStore, () => {
             }" />
 
             <VerticalNavSectionTitle :item="{
-                heading: 'Triage Queues',
+                heading: 'Triage',
             }" />
             <VerticalNavLink :item="{
-                title: 'New Issues',
+                title: 'Queue',
                 icon: 'fluent-mdl2:set-action',
                 to: '/triage',
             }" />

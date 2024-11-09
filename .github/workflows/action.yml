@@ -15,24 +15,27 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".node-version"
 
       - name: Install dependencies
-        uses: bahmutov/npm-install@v1
+        run: |
+          yarn
 
       - name: Build project
         run: |
           npm run build
           npm sbom --omit dev --package-lock-only --sbom-format cyclonedx | jq >npm.cdx.json
 
-      - name: Upload semgrep.sarif.json
-        uses: actions/upload-artifact@v4
-        with:
-          name: semgrep_sarif
-          path: semgrep.sarif.json
+      # - name: Upload semgrep.sarif.json
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: semgrep_sarif
+      #     path: semgrep.sarif.json
 
       - name: Upload npm.cdx.json
         uses: actions/upload-artifact@v4
@@ -43,8 +46,8 @@ jobs:
       - name: Generate SBOM attestation
         uses: actions/attest-sbom@v1
         env:
-          INPUT_PRIVATE-SIGNING: 'true'
+          INPUT_PRIVATE-SIGNING: "true"
         with:
-          subject-digest: 'sha256:7d070f6b64d9bcc530fe99cc21eaaa4b3c364e0b2d367d7735671fa202a03b32'
-          subject-name: 'subject'
+          subject-digest: "sha256:7d070f6b64d9bcc530fe99cc21eaaa4b3c364e0b2d367d7735671fa202a03b32"
+          subject-name: "subject"
           sbom-path: npm.cdx.json

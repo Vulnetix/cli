@@ -35,7 +35,7 @@ const isPasswordVisible = ref(false)
 
 const register = () => {
     if (state.org && state.email && state.password && state.privacyPolicies) {
-        axios.get(`/v1/register/${state.org}/${state.email}/${SHA1(state.password)}`)
+        axios.get(`/api/register/${state.org}/${state.email}/${SHA1(state.password)}`)
             .then(console.log)
             .catch(console.log)
         Member.email = state.email

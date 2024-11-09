@@ -56,7 +56,7 @@ export async function onRequestGet(context) {
                 month_to_date: filterFindingsByPeriod(findings, 'month_to_date'),
                 year_to_date: filterFindingsByPeriod(findings, 'year_to_date'),
                 publishedMonthly: calculateMonthlyCounts(findings, 'publishedAt'),
-                discoveredMonthly: calculateMonthlyCounts(findings, 'createdAt'),
+                discoveredMonthly: calculateMonthlyCounts(findings, 'lastObserved'),
                 triagedMonthly: calculateMonthlyCounts(findings, 'triagedAt'),
             }
         })
@@ -86,7 +86,7 @@ function calculateMonthlyCounts(parsed, dateField) {
 
     // Calculate counts for each month
     const monthlyResults = Object.entries(dateGroups).reduce((result, [monthYear, dates]) => {
-        const filteredData = parsed.filter(f => dates.includes(f?.[dateField] || f.triage?.[dateField]))
+        const filteredData = parsed.filter(f => dates.includes(f.triage?.[dateField] || f?.[dateField]))
         result[monthYear] = makeAnalysis(filteredData)
 
         return result
@@ -112,8 +112,8 @@ function makeAnalysis(arr) {
         total_findings: arr.length,
         triage_automated: arr.filter(f => f.triage.some(t => t.analysisState !== 'in_triage' && t.triageAutomated === 1)).length,
         triaged: arr.filter(f => f.triage.some(t => t.analysisState !== 'in_triage')).length,
-        queued: arr.filter(f => f.triage.some(t => ['in_triage', 'exploitable'].includes(t.analysisState))).length,
-        queued_unseen: arr.filter(f => f.triage.some(t => ['in_triage', 'exploitable'].includes(t.analysisState) && t.seen === 0)).length,
+        queued: arr.filter(f => f.triage.some(t => ['in_triage', 'exploitable'].includes(t.analysisState) && t.triageAutomated === 0)).length,
+        queued_unseen: arr.filter(f => f.triage.some(t => ['in_triage', 'exploitable'].includes(t.analysisState) && t.triageAutomated === 0 && t.seen === 0)).length,
         ssvc_act: arr.filter(f => f.triage.some(t => t.ssvc === ActionCISA.ACT)).length,
         ssvc_attend: arr.filter(f => f.triage.some(t => t.ssvc === ActionCISA.ATTEND)).length,
         ssvc_track: arr.filter(f => f.triage.some(t => t.ssvc === ActionCISA.TRACK)).length,
@@ -125,7 +125,7 @@ function makeAnalysis(arr) {
         in_triage_unseen: arr.filter(f => f.triage.some(t => t.analysisState === 'in_triage' && t.seen === 0)).length,
         resolved: arr.filter(f => f.triage.some(t => t.analysisState === 'resolved')).length,
         resolved_with_pedigree: arr.filter(f => f.triage.some(t => t.analysisState === 'resolved_with_pedigree')).length,
-        resolved_all: arr.filter(f => f.triage.some(t => ['resolved_with_pedigree', 'resolved'].includes(t.analysisState))).length,
+        resolved_all: arr.filter(f => f.triage.some(t => ['resolved_with_pedigree', 'resolved', 'false_positive', 'not_affected'].includes(t.analysisState))).length,
         exploitable: arr.filter(f => f.triage.some(t => t.analysisState === 'exploitable')).length,
         exploitable_unseen: arr.filter(f => f.triage.some(t => t.analysisState === 'exploitable' && t.seen === 0)).length,
         false_positive: arr.filter(f => f.triage.some(t => t.analysisState === 'false_positive')).length,
@@ -146,10 +146,11 @@ function makeAnalysis(arr) {
         workaround_available: arr.filter(f => f.triage.some(t => t.analysisResponse === 'workaround_available')).length,
     }
     data.unresolved_percentage = calcPercent(data, ['queued'], ['total_findings'])
-    data.resolved_percentage = calcPercent(data, ['resolved', 'resolved_with_pedigree'], ['total_findings'])
+    data.resolved_percentage = calcPercent(data, ['resolved_all'], ['total_findings'])
     data.triaged_percentage = calcPercent(data, ['triaged'], ['total_findings'])
     data.automated_percentage = calcPercent(data, ['triage_automated'], ['total_findings'])
     data.queued_unseen_percentage = calcPercent(data, ['queued_unseen'], ['queued'])
+    data.in_triage_unseen_percentage = calcPercent(data, ['in_triage_unseen'], ['in_triage'])
     data.unseen_exploitable_percentage = calcPercent(data, ['exploitable_unseen'], ['in_triage', 'exploitable'])
     data.exploitable_percentage = calcPercent(data, ['exploitable'], ['total_findings'])
     data.can_not_fix_percentage = calcPercent(data, ['can_not_fix'], ['total_findings'])

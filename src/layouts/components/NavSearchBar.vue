@@ -3,7 +3,6 @@ import { Client } from '@/utils';
 import { watchEffect } from 'vue';
 
 const client = new Client()
-const router = useRouter()
 
 defineOptions({ inheritAttrs: false })
 

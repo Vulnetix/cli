@@ -267,11 +267,15 @@ model Finding {
   fixVersion                 String?
   fixAutomatable             Int?
   vulnerableVersionRange     String?
+  affectedFunctions          String?
   malicious                  Int?
   abandoned                  Int?
   squattedPackage            String?
   referencesJSON             String?
   timelineJSON               String?
+  confidenceScore            String?
+  confidenceLevel            String?
+  confidenceRationaleJSON    String?
   spdxId                     String?
   spdx                       SPDXInfo?      @relation(fields: [spdxId], references: [spdxId])
   cdxId                      String?

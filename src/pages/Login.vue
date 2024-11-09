@@ -37,7 +37,7 @@ class Controller {
         state.error = ''
         if (state.email && state.password) {
             try {
-                const { data } = await axios.get(`/v1/login/${state.email}/${SHA1(state.password)}`)
+                const { data } = await axios.get(`/api/login/${state.email}/${SHA1(state.password)}`)
                 if (data?.error?.message) {
                     state.error = data?.error?.message
                 }

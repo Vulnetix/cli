@@ -3,6 +3,9 @@ import router from "@/router";
 import { Client, timeAgo } from '@/utils';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
+import osvIcon from '@images/icons/logo/osv.png'
+import cveIcon from '@images/icons/logo/cve.png'
+import firstIcon from '@images/icons/logo/first.png'
 
 const client = new Client()
 const { global } = useTheme()
@@ -867,7 +870,7 @@ const controller = reactive(new Controller())
                     </template>
                     <template v-slot:prepend>
                         <VImg
-                            src="/osv-logo.png"
+                            :src="osvIcon"
                             width="50"
                         ></VImg>
                     </template>
@@ -919,7 +922,7 @@ const controller = reactive(new Controller())
                     </template>
                     <template v-slot:prepend>
                         <VImg
-                            src="/1st-logo.png"
+                            :src="firstIcon"
                             width="50"
                         ></VImg>
                     </template>
@@ -1111,7 +1114,7 @@ const controller = reactive(new Controller())
                     </template>
                     <template v-slot:prepend>
                         <VImg
-                            src="/cve-logo.png"
+                            :src="cveIcon"
                             width="50"
                         ></VImg>
                     </template>

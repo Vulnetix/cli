@@ -37,7 +37,7 @@ class Controller {
         pageState.showEmptyState = true
         pageState.loadingBar = true
         try {
-            const { data } = await axios.get(`/v1/github/${installation_id}/install/${code}`)
+            const { data } = await axios.get(`/api/github/${installation_id}/install/${code}`)
             if (!data.ok || data?.error?.message) {
                 pageState.error = data?.error?.message ? data.error.message : 'GitHub error, please check the integration logs or try again.'
                 pageState.loadingBar = false
@@ -66,7 +66,7 @@ class Controller {
         pageState.showEmptyState = true
         pageState.loadingBar = true
         try {
-            const { data } = await axios.get(`/v1/login/github/${code}`)
+            const { data } = await axios.get(`/api/login/github/${code}`)
             if (!data.ok || data?.error?.message) {
                 pageState.error = data?.error?.message ? data.error.message : 'GitHub error, please check the integration logs or try again.'
                 pageState.loadingBar = false

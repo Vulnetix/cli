@@ -39,11 +39,13 @@ const normalise = finding => {
     let repoSource;
     if (finding?.repoName) {
         repoName = finding.repoName
-        repoSource = finding.source
-    } else if (finding?.cdx?.repoName) {
+        repoSource = finding.repoSource
+    }
+    if (finding?.cdx?.repoName) {
         repoName = finding.cdx.repoName
         repoSource = finding.cdx.source
-    } else if (finding?.spdx?.repoName) {
+    }
+    if (finding?.spdx?.repoName) {
         repoName = finding.spdx.repoName
         repoSource = finding.spdx.source
     }

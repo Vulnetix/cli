@@ -91,6 +91,7 @@
   },
   "packageManager": "yarn@1.22.22",
   "resolutions": {
-    "postcss": "^8.4.31"
+    "postcss": "^8.4.31",
+    "@typescript-eslint/eslint-plugin": "^8.12.2"
   }
 }

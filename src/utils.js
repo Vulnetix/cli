@@ -393,7 +393,7 @@ export class Client {
      * @returns {Promise<Response>} - A promise that resolves to the fetch API response.
      */
     async get(path) {
-        return this.signedFetch(`/v1${path}`)
+        return this.signedFetch(`/api${path}`)
     }
 
     /**
@@ -403,15 +403,15 @@ export class Client {
      * @returns {Promise<Response>} - A promise that resolves to the fetch API response.
      */
     async delete(path) {
-        return this.signedFetch(`/v1${path}`, { method: 'DELETE' })
+        return this.signedFetch(`/api${path}`, { method: 'DELETE' })
     }
 
     /**
      * Performs a Browser fetch GET request with a signature using the stored secret key.
      * 
      * @param {string} path - The URL path segment, excluding the origin.
-     * @param {Object} [headers={}] - The extra headers to include in the request.
      * @param {string} [body] - The optional body of the request.
+     * @param {Object} [headers={}] - The extra headers to include in the request.
      * @returns {Promise<Response>} - A promise that resolves to the fetch API response.
      */
     async post(path, body, headers = {}) {
@@ -420,7 +420,7 @@ export class Client {
             headers = { 'Content-Type': 'application/json', ...headers }
         }
         const method = 'POST'
-        return this.signedFetch(`/v1${path}`, { method, body, headers })
+        return this.signedFetch(`/api${path}`, { method, body, headers })
     }
 
     /**
@@ -470,10 +470,11 @@ export class Client {
         }
         const data = JSON.parse(respText)
         if (data?.error?.message) {
-            throw new Error(data.error.message)
+            throw new Error(data.error.message.toString())
         }
         if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-            throw new Error(data.result)
+            console.error(data.result, data)
+            // window.location = `${window.location.origin}/logout`
         }
         return { ok: response.ok, status: response.status, statusText: response.statusText, result: data?.result, data, url }
     }
@@ -679,20 +680,40 @@ export class MitreCVE {
         const url = this.constructURL(cveId)
         const resp = await this.fetchJSON(url)
 
-        if (resp?.content) {
+        if (isJSON(resp?.content)) {
+            const data = JSON.parse(resp.content)
             const createLog = await prisma.IntegrationUsageLog.create({
                 data: {
                     memberEmail,
                     orgId,
                     source: 'mitre-cve',
                     request: JSON.stringify({ method: "GET", url }).trim(),
-                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(resp.content), status: resp.status }).trim(),
+                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(data), status: resp.status }).trim(),
                     statusCode: resp?.status || 500,
                     createdAt: new Date().getTime(),
                 }
             })
             console.log(`MitreCVE.query()`, createLog)
-            return resp.content
+            return data
+        } else {
+            const response = await this.fetchJSON(`https://cveawg.mitre.org/api/cve-id/${cveId}`)
+
+            if (isJSON(response?.content)) {
+                const cveData = JSON.parse(response.content)
+                const log = await prisma.IntegrationUsageLog.create({
+                    data: {
+                        memberEmail,
+                        orgId,
+                        source: 'mitre-cve',
+                        request: JSON.stringify({ method: "GET", url }).trim(),
+                        response: JSON.stringify({ body: convertIsoDatesToTimestamps(cveData), status: response.status }).trim(),
+                        statusCode: response?.status || 500,
+                        createdAt: new Date().getTime(),
+                    }
+                })
+                console.log(`MitreCVE.query()`, log)
+                return cveData
+            }
         }
     }
 }
@@ -1561,11 +1582,9 @@ export const isSPDX = input => {
     }
     if (typeof spdx?.name === 'undefined' ||
         typeof spdx?.dataLicense === 'undefined' ||
-        typeof spdx?.documentDescribes === 'undefined' ||
         typeof spdx?.packages === 'undefined' ||
         typeof spdx?.creationInfo?.creators === 'undefined' ||
         !spdx?.creationInfo?.creators.length ||
-        !spdx.documentDescribes.length ||
         !spdx.packages.length
     ) {
         throw `SPDX is missing "dataLicense", "name", "relationships", "packages", "creationInfo.creators", or "documentDescribes"`
@@ -1790,7 +1809,6 @@ export const saveArtifact = async (prisma, r2adapter, strContent, artifactUuid, 
         },
         create: artifact
     })
-    console.log(objectPath, reportInfo, linkInfo, artifactInfo)
     artifact.downloadLinks = [linkInfo]
     return artifact
 }
@@ -1823,6 +1841,266 @@ export const convertIsoDatesToTimestamps = obj => {
     } else {
         return obj // Handle other data types (e.g., numbers, strings)
     }
+}
+/**
+ * Parses a SemVer string into its components
+ * @param {string} versionString - The version string to parse
+ * @returns {Object} Object containing version components and constraints
+ */
+export function parseSemVer(versionString) {
+    // Regular expressions for different parts
+    const operatorRegex = /^([<>]=?|={1,2}|\*|~|\^)|^.*(\.x|\.\*)/;
+    const versionRegex = /^v?(\d+|[x*])(?:\.(\d+|[x*]))?(?:\.(\d+|[x*]))?(?:-?([0-9A-Za-z-.]+))?(?:\+([0-9A-Za-z-.]+))?$/;
+
+    let operator = '';
+    let version = versionString;
+
+    // Extract operator if present
+    const operatorMatch = versionString.match(operatorRegex);
+    if (operatorMatch && operatorMatch[0]) {
+        operator = operatorMatch[1];
+        version = versionString.slice(operator.length).trim();
+    } else if (operatorMatch && operatorMatch[2]) {
+        operator = operatorMatch[2];
+        version = versionString.replace(operator, '.0').trim();
+    }
+
+    // Handle "*" and "x" as a special case
+    if (['*', 'x'].includes(version)) {
+        return {
+            operator,
+            major: '*',
+            minor: '*',
+            patch: '*',
+            prerelease: null,
+            buildMetadata: null,
+            original: versionString
+        };
+    }
+
+    // Parse version parts
+    const match = version.match(versionRegex);
+    if (!match) {
+        return {
+            operator,
+            major: '',
+            minor: '',
+            patch: '',
+            prerelease: null,
+            buildMetadata: null,
+            original: versionString
+        };
+    }
+
+    const [, major, minor, patch, prerelease, buildMetadata] = match;
+
+    // Convert version parts to numbers or keep as special characters
+    const processVersionPart = (part) => {
+        if (!part) return '0';
+        if (['*', 'x'].includes(part)) return '*';
+        return part;
+    };
+
+    return {
+        operator,
+        major: processVersionPart(major),
+        minor: processVersionPart(minor),
+        patch: processVersionPart(patch),
+        prerelease: prerelease || null,
+        buildMetadata: buildMetadata || null,
+        original: versionString
+    };
+}
+export function getSemVerWithoutOperator(versionString) {
+    if (!versionString) {
+        return ''
+    }
+    // Regular expressions for different parts
+    const operatorRegex = /^([<>]=?|={1,2}|\*|~|\^)|^.*(\.x|\.\*)/;
+    let operator = '';
+    let version = versionString;
+    // Extract operator if present
+    const operatorMatch = versionString.match(operatorRegex);
+    if (operatorMatch && operatorMatch[0]) {
+        operator = operatorMatch[1];
+        version = versionString.slice(operator.length).trim();
+    } else if (operatorMatch && operatorMatch[2]) {
+        operator = operatorMatch[2];
+        version = versionString.replace(operator, '.0').trim();
+    }
+
+    return version
+}
+/**
+ * Splits a version string into comparison operator and version number
+ * @param {string} versionString - The version string to split
+ * @returns {[string, string]} Array containing [comparison, version]
+ */
+export function splitVersionComparison(versionString) {
+    const parsed = parseSemVer(versionString)
+    if (!parsed) return ['=', versionString]
+    const { operator, major, minor, patch } = parsed
+    const version = `${major}.${minor}.${patch}`
+    return [operator || '=', version]
+}
+
+export const isValidSemver = version => {
+    if (!version) return false;
+    const semverRegex = /^v?(\d+|[x*])(?:\.(\d+|[x*]))?(?:\.(\d+|[x*]))?(?:-?([0-9A-Za-z-.]+))?(?:\+([0-9A-Za-z-.]+))?$/;
+    return semverRegex.test(version);
+}
+
+export function getVersionString(versionString, majorDefault = "0", minorDefault = "0", patchDefault = "0") {
+    // Get clean version number for each part
+    const cleanVersions = versionString.split('||').map(v => v.trim()).filter(v => !!v).map(v => {
+        const [, version = ''] = splitVersionComparison(v)
+        return version.trim()
+    }).filter(i => !!i)
+    if (!cleanVersions.length) return `${majorDefault}.${minorDefault}.${patchDefault}`
+    const comp = (v1, v2) => {
+        const versionRegex = /^v?(\d+|[x*])(?:\.(\d+|[x*]))?(?:\.(\d+|[x*]))?(?:-?([0-9A-Za-z-.]+))?(?:\+([0-9A-Za-z-.]+))?$/;
+        if (v2.includes('*.*.*')) return v1
+        if (v1.includes('*.*.*')) return v2
+        if (!v1.match(versionRegex)) return v2
+        if (!v2.match(versionRegex)) return v1
+        const parse = (v) => v.split('.').map(part => ['*', 'x'].includes(part) ? Infinity : part);
+        const [major1, minor1, patch1] = parse(v1);
+        const [major2, minor2, patch2] = parse(v2);
+
+        if (major1 !== major2) return major1 > major2 ? v1 : v2;
+        if (minor1 !== minor2) return minor1 > minor2 ? v1 : v2;
+        return patch1 >= patch2 ? v1 : v2;
+    }
+    const semVer = cleanVersions.reduce((highest, current) => {
+        return comp(highest, current)
+    })
+    if (!semVer) return `${majorDefault}.${minorDefault}.${patchDefault}`
+    const { major = majorDefault, minor = minorDefault, patch = patchDefault } = parseSemVer(semVer)
+    return `${major}.${minor}.${patch}`
+}
+
+export const versionSorter = (v1, v2) => {
+    if (!v1 || !v2) return 0
+    const v1Parts = v1.split('.').map(part => {
+        const matches = part.match(/(\d+)([a-z]*)/);
+        return matches ? [parseInt(matches[1]), matches[2] || ''] : [parseInt(part), ''];
+    });
+
+    const v2Parts = v2.split('.').map(part => {
+        const matches = part.match(/(\d+)([a-z]*)/);
+        return matches ? [parseInt(matches[1]), matches[2] || ''] : [parseInt(part), ''];
+    });
+
+    for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
+        const [num1 = 0, suffix1 = ''] = v1Parts[i] || [];
+        const [num2 = 0, suffix2 = ''] = v2Parts[i] || [];
+
+        if (num1 !== num2) return num1 - num2;
+        if (suffix1 !== suffix2) return suffix1.localeCompare(suffix2);
+    }
+
+    return 0;
+}
+
+/**
+ * Determines if a version is vulnerable based on a set of version ranges
+ * 
+ * @param {string} version - The version to check (e.g., "2.10.6")
+ * @param {string} vulnerableRanges - String containing version ranges (e.g., "< 2.11.2 >= 0")
+ *                                   Multiple ranges can be separated by "||"
+ *                                   Space-separated comparisons within a range are treated as AND conditions
+ *                                   "||" separated ranges are treated as OR conditions
+ * 
+ * Examples:
+ * "< 2.11.2 >= 0" - Version must be less than 2.11.2 AND greater than or equal to 0
+ * "< 2.11.2 || >= 0 < 2.8.7" - Version must either be less than 2.11.2 OR (greater than or equal to 0 AND less than 2.8.7)
+ * 
+ * @returns {boolean} True if the version is vulnerable according to any of the ranges
+ */
+export const isVersionVulnerable = (version, vulnerableRanges) => {
+    // First normalize the version by removing any operators
+    const normalizedVersion = getSemVerWithoutOperator(version)
+
+    // Helper function to compare two version strings
+    const compareVersions = (version1, version2) => {
+        // Convert versions to arrays of numbers for comparison
+        const v1Parts = version1.split('.').map(Number)
+        const v2Parts = version2.split('.').map(Number)
+
+        // Compare each part (major, minor, patch)
+        for (let i = 0; i < 3; i++) {
+            if (v1Parts[i] !== v2Parts[i]) {
+                return v1Parts[i] - v2Parts[i]
+            }
+        }
+        return 0 // Versions are equal
+    };
+
+    // Helper function to evaluate a single comparison
+    const evaluateComparison = (comparison, targetVersion) => {
+        // Split into operator and version
+        const [operator, compareVersion] = splitVersionComparison(comparison)
+
+        // Validate both versions
+        if (!isValidSemver(targetVersion) || !isValidSemver(compareVersion)) {
+            return false
+        }
+
+        // Get the difference between versions
+        const versionDifference = compareVersions(targetVersion, compareVersion)
+
+        // Evaluate based on operator
+        switch (operator) {
+            case '<':
+                return versionDifference < 0
+            case '<=':
+                return versionDifference <= 0
+            case '>':
+                return versionDifference > 0
+            case '>=':
+                return versionDifference >= 0
+            case '=':
+            case '==':
+                return versionDifference === 0
+            default:
+                return false
+        }
+    };
+
+    // Normalize the ranges string:
+    // 1. Trim whitespace
+    // 2. Replace multiple spaces with single space
+    // 3. Remove spaces around comparison operators
+    const normalizedRanges = vulnerableRanges
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/\s*(>=|>|<=|<)\s*/g, ' $1')
+
+    // Split into individual range sets (separated by ||)
+    const rangeSets = normalizedRanges.split('||').map(range => range.trim())
+
+    // Check each range set (these are OR conditions)
+    for (const rangeSet of rangeSets) {
+        // Get all comparisons in this range set (these are AND conditions)
+        const comparisons = rangeSet.split(' ').filter(i => !!i.trim())
+
+        // Track if all comparisons in this range set are true, meaning the version is within range if all are true
+        const rangeResults = []
+
+        // Check each comparison in the current range set
+        for (const comparison of comparisons) {
+            rangeResults.push(evaluateComparison(comparison, normalizedVersion))
+        }
+
+        // If all comparisons in this range set matched, we can return true immediately
+        // (because range sets are OR conditions)
+        if (rangeResults.every(r => r === true)) {
+            return true
+        }
+    }
+
+    // If we get here, no range set was satisfied
+    return false
 }
 
 /**
@@ -1952,6 +2230,16 @@ export const hexStringToUint8Array = hexString => {
         array[i] = parseInt(hexString.substr(i * 2, 2), 16)
     }
     return array
+}
+
+export const getPastelColor = () => {
+    const red = Math.floor(Math.random() * 75 + 180)
+    const green = Math.floor(Math.random() * 75 + 180)
+    const blue = Math.floor(Math.random() * 75 + 180)
+    return '#' +
+        red.toString(16).padStart(2, '0') +
+        green.toString(16).padStart(2, '0') +
+        blue.toString(16).padStart(2, '0')
 }
 
 // https://octodex.github.com/images/
