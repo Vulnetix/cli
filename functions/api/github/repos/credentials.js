@@ -23,22 +23,36 @@ export async function onRequestGet(context) {
     if (!verificationResult.isValid) {
         return Response.json({ ok: false, result: verificationResult.message })
     }
-    const { searchParams } = new URL(request.url)
-    const take = parseInt(searchParams.get('take'), 10) || 50
-    const skip = parseInt(searchParams.get('skip'), 10) || 0
-    const gitRepos = await prisma.GitRepo.findMany({
+    const githubApps = await prisma.GitHubApp.findMany({
         where: {
-            orgId: verificationResult.session.orgId,
+            memberEmail: verificationResult.session.memberEmail,
+        },
+        omit: {
+            memberEmail: true,
+            accessToken: true,
+        },
+    })
+    const patTokens = await prisma.MemberKey.findMany({
+        where: {
+            memberEmail: verificationResult.session.memberEmail,
+            keyType: 'github_pat',
+        },
+        include: {
+            githubPat: true,
         },
         omit: {
             memberEmail: true,
         },
-        take,
-        skip,
-        orderBy: {
-            createdAt: 'asc',
-        }
     })
 
-    return Response.json({ ok: true, gitRepos })
+    return Response.json({
+        ok: true,
+        githubApps,
+        patTokens: patTokens.map(i => {
+            i.secretMasked = mask(i.secret)
+            delete i.secret
+            return i
+        })
+    })
 }
+const mask = s => s.slice(0, 11) + s.slice(10).slice(4, s.length - 4).slice(4, 12).replace(/(.)/g, '*') + s.slice(s.length - 4)

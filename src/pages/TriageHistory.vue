@@ -96,17 +96,6 @@ class Controller {
                     if (data?.findings) {
                         data.findings.forEach(finding => state.results.push(normalise(finding)))
                     }
-                } else if (typeof data === "string" && !isJSON(data)) {
-                    break
-                } else if (data?.error?.message) {
-                    state.loading = false
-                    state.error = data.error.message
-                    return
-                } else if (["Expired", "Revoked", "Forbidden"].includes(data?.result)) {
-                    state.loading = false
-                    state.info = data.result
-                    setTimeout(() => router.push('/logout'), 2000)
-                    return
                 } else {
                     break
                 }
