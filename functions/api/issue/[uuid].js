@@ -1,7 +1,15 @@
 import { processFinding } from '@/finding';
-import { AuthResult, Server, ensureStrReqBody } from "@/utils";
+import {
+    AuthResult,
+    ensureStrReqBody,
+    Server,
+    VexAnalysisJustification,
+    VexAnalysisResponse,
+    VexAnalysisState
+} from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
+import { CVSS30, CVSS31, CVSS40 } from '@pandatix/js-cvss';
 
 export async function onRequestPost(context) {
     const {
@@ -27,22 +35,95 @@ export async function onRequestPost(context) {
         }
         const body = await ensureStrReqBody(request)
         const input = JSON.parse(body)
-        if (input?.analysisState && input?.analysisResponse && input?.analysisJustification) {
-            const { uuid } = params
-            // justificationText
-            const triage = await prisma.Triage.findFirst({
-                where: {
-                    findingUuid: uuid,
+        const { uuid } = params
+        const finding = await prisma.Finding.findFirst({ where: { uuid } })
+        if (!finding) {
+            return Response.json({ ok: false, error: { message: 'Dependency failed' } })
+        }
+        // CVSS vector customisation
+        if (input?.customCvssVector) {
+            let customCvssScore
+            if (input.customCvssVector.startsWith('CVSS:4.0/')) {
+                customCvssScore = new CVSS40(input.customCvssVector).Score().toString()
+            } else if (input.customCvssVector.startsWith('CVSS:3.1/')) {
+                customCvssScore = new CVSS31(input.customCvssVector).BaseScore().toString()
+            } else if (input.customCvssVector.startsWith('CVSS:3.0/')) {
+                customCvssScore = new CVSS30(input.customCvssVector).BaseScore().toString()
+            } else {
+                return Response.json({ ok: false, error: { message: 'Invalid CVSS vectorString' } })
+            }
+            const info = await prisma.Finding.update({
+                where: { uuid },
+                data: {
+                    customCvssVector: input?.customCvssVector,
+                    customCvssScore,
+                    modifiedAt: new Date().getTime(),
                 }
             })
-            if (triage) {
-                const info = await prisma.Triage.update({
-                    where: { uuid: triage.uuid },
-                    data: input
-                })
-                console.log(`Update ${triage.uuid}`, info)
-                return Response.json({ ok: true, triage })
+            console.log(`Update Finding ${uuid}`, info)
+            return Response.json({ ok: true, result: `Update Finding ${uuid} CVSS custom vector` })
+        }
+        // Triage
+        if (
+            input?.analysisState && input?.analysisResponse && input?.analysisJustification
+            && VexAnalysisState?.[input.analysisState]
+            && VexAnalysisResponse?.[input.analysisResponse]
+            && VexAnalysisJustification?.[input.analysisJustification]
+        ) {
+            const where = {
+                findingUuid: uuid,
+                AND: {
+                    analysisState: 'in_triage'
+                }
             }
+            const triage = await prisma.Triage.findFirst({ where })
+            const triageData = {
+                findingUuid: uuid,
+                analysisState: input.analysisState,
+                analysisResponse: input.analysisResponse,
+                analysisJustification: input.analysisJustification,
+                analysisDetail: input?.analysisDetail || '', //TODO add commit hash and comment
+                triagedAt: new Date().getTime(),
+                seen: 1,
+                triageAutomated: 0,
+            }
+            if (triage) {
+                triageData.uuid = triage.uuid
+                triageData.createdAt = triage.createdAt
+                triageData.lastObserved = triage.lastObserved
+                triageData.findingUuid = uuid
+                if (!triage?.seenAt) {
+                    triageData.seenAt = new Date().getTime()
+                }
+                if (!triage?.cvssVector) {
+                    triageData.cvssVector = triage.cvssVector
+                }
+                if (!triage?.cvssScore) {
+                    triageData.cvssScore = triage.cvssScore
+                }
+                if (!triage?.epssPercentile) {
+                    triageData.epssPercentile = triage.epssPercentile
+                }
+                if (!triage?.epssScore) {
+                    triageData.epssScore = triage.epssScore
+                }
+            }
+            if (!triageData?.seenAt) {
+                triageData.seenAt = new Date().getTime()
+            }
+            const info = await prisma.Triage.upsert({
+                where: {
+                    uuid: triageData?.uuid,
+                    OR: [{
+                        findingUuid: uuid,
+                        analysisState: 'in_triage'
+                    }]
+                },
+                create: triageData,
+                update: triageData,
+            })
+            console.log(`Upsert Triage ${triage.uuid}`, info)
+            return Response.json({ ok: true, triage })
         }
 
         return Response.json({ ok: false, error: { message: "Required arguments not provided" } })

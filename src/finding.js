@@ -83,6 +83,7 @@ function addToList(inputObject, keyName, newObject) {
 }
 
 export const processFinding = async (prisma, r2adapter, verificationResult, finding, seen = 0) => {
+    const isResolved = finding.triage.filter(triage => [VexAnalysisState.resolved, VexAnalysisState.resolved_with_pedigree, VexAnalysisState.false_positive, VexAnalysisState.not_affected].includes(triage.analysisState)).length
     const osvData = await new OSV().query(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, finding.detectionTitle)
     finding.modifiedAt = (new Date(osvData.modified)).getTime()
     finding.publishedAt = (new Date(osvData.published)).getTime()
@@ -220,32 +221,34 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
     finding.confidenceLevel = confidence.confidenceLevel
     finding.confidenceRationaleJSON = JSON.stringify(confidence.evaluations.map(i => i.rationale))
     finding.timelineJSON = makeTimeline(finding)
-    const info = await prisma.Finding.update({
-        where: { uuid: finding.uuid },
-        data: {
-            detectionTitle: finding.detectionTitle,
-            createdAt: finding.createdAt,
-            modifiedAt: finding.modifiedAt,
-            publishedAt: finding.publishedAt,
-            databaseReviewed: finding.databaseReviewed,
-            cisaDateAdded: finding.cisaDateAdded,
-            aliases: finding.aliases,
-            cwes: finding.cwes,
-            packageEcosystem: finding.packageEcosystem,
-            advisoryUrl: finding.advisoryUrl,
-            fixVersion: finding.fixVersion,
-            fixAutomatable: finding.fixAutomatable,
-            vulnerableVersionRange: finding.vulnerableVersionRange,
-            affectedFunctions: finding.affectedFunctions,
-            cpe: finding.cpe,
-            vendor: finding.vendor,
-            product: finding.product,
-            malicious: finding.malicious,
-            referencesJSON: finding.referencesJSON,
-            timelineJSON: finding.timelineJSON,
-        }
-    })
-    // console.log(`Update ${finding.detectionTitle}`, info)
+    if (!isResolved) {
+        const info = await prisma.Finding.update({
+            where: { uuid: finding.uuid },
+            data: {
+                detectionTitle: finding.detectionTitle,
+                createdAt: finding.createdAt,
+                modifiedAt: finding.modifiedAt,
+                publishedAt: finding.publishedAt,
+                databaseReviewed: finding.databaseReviewed,
+                cisaDateAdded: finding.cisaDateAdded,
+                aliases: finding.aliases,
+                cwes: finding.cwes,
+                packageEcosystem: finding.packageEcosystem,
+                advisoryUrl: finding.advisoryUrl,
+                fixVersion: finding.fixVersion,
+                fixAutomatable: finding.fixAutomatable,
+                vulnerableVersionRange: finding.vulnerableVersionRange,
+                affectedFunctions: finding.affectedFunctions,
+                cpe: finding.cpe,
+                vendor: finding.vendor,
+                product: finding.product,
+                malicious: finding.malicious,
+                referencesJSON: finding.referencesJSON,
+                timelineJSON: finding.timelineJSON,
+            }
+        })
+        // console.log(`Update ${finding.detectionTitle}`, info)
+    }
     let scores
     if (cveId) {
         const epss = new EPSS()
@@ -323,17 +326,25 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
     if (seen === 1) {
         seenAt = new Date().getTime()
     }
-    const vexExist = finding.triage.filter(t => t.analysisState === analysisState).length !== 0
+    let vexExist = finding.triage.filter(t => t.analysisState === analysisState).length !== 0
     let vexData = finding.triage.filter(t => t.analysisState === analysisState).pop() || {}
-    if (!vexExist) {
+    if (!vexExist && finding.triage.length === 0) {
         vexData.analysisState = analysisState
-        vexData.findingUuid = finding.uuid
         vexData.createdAt = new Date().getTime()
         vexData.lastObserved = new Date().getTime()
+    } else {
+        vexData = finding.triage.sort((a, b) =>
+            a.lastObserved - b.lastObserved
+        ).pop()
+        vexExist = !!vexData?.uuid
     }
-    vexData.analysisDetail = analysisDetail
-    vexData.triageAutomated = triageAutomated
-    vexData.triagedAt = triagedAt
+    if (!isResolved) {
+        vexData.analysisDetail = analysisDetail
+        vexData.triageAutomated = triageAutomated
+        vexData.triagedAt = triagedAt
+        vexData.seen = seen
+        vexData.seenAt = seenAt
+    }
     vexData.cvssVector = cvssVector
     vexData.cvssScore = cvssScore
     if (epssPercentile) {
@@ -342,8 +353,6 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
     if (epssScore) {
         vexData.epssScore = epssScore.toString()
     }
-    vexData.seen = seen
-    vexData.seenAt = seenAt
     if (vexExist) {
         const vexInfo = await prisma.Triage.update({
             where: {
@@ -354,7 +363,8 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
         // console.log(`Updated VEX ${finding.detectionTitle}`, vexInfo)
         finding.triage = finding.triage.filter(f => f.uuid != vexData.uuid)
         finding.triage.push(vexData)
-    } else {
+    } else if (!isResolved) {
+        vexData.findingUuid = finding.uuid
         vexData = await prisma.Triage.create({ data: vexData })
         finding.triage = finding.triage.filter(f => f.uuid != vexData.uuid)
         finding.triage.push(vexData)
@@ -450,7 +460,7 @@ export const fetchCVE = async (prisma, r2adapter, verificationResult, cveId) => 
         containers: { cna = {}, adp = [] }
     } = cvelistv5
     // Create or connect CNA organization
-    await prisma.cVENumberingAuthrity.upsert({
+    await prisma.cCVENumberingAuthrity.upsert({
         where: { orgId: cna.providerMetadata.orgId },
         create: {
             orgId: cna.providerMetadata.orgId,

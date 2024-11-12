@@ -40,7 +40,7 @@ const routes = [
             },
             {
                 path: 'issue/:uuid',
-                component: () => import('../pages/Issue.vue'),
+                component: () => import('../pages/IssuePage.vue'),
             },
             {
                 path: 'triage/exploitable',

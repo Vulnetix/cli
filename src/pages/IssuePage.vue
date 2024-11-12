@@ -4,11 +4,12 @@ import { useMemberStore } from '@/stores/member';
 import { Client, getPastelColor, VexAnalysisState } from '@/utils';
 import IconVulnetix from '@images/IconVulnetix.vue';
 import { reactive } from 'vue';
+import { useRoute } from 'vue-router';
 
+const route = useRoute()
 const client = new Client()
 const Member = useMemberStore()
 const tab = ref('issue')
-const queueProgress = ref(1)
 
 const initialState = {
     error: "",
@@ -17,23 +18,12 @@ const initialState = {
     info: "",
     loading: false,
     finding: null,
-    triageLoaders: {},
     currentTriage: null,
-    queueTotal: 0,
 }
+
 const state = reactive({
     ...initialState,
 })
-
-const handleSkip = async () => {
-    const findingUuid = state.finding?.uuid
-    if (findingUuid) {
-        client.get(`/issue/${findingUuid}?seen=1`)
-        state.finding = null
-    }
-    state.loading = true
-    await controller.refresh()
-}
 
 const clearAlerts = () => {
     state.error = ''
@@ -41,14 +31,14 @@ const clearAlerts = () => {
     state.success = ''
     state.info = ''
 }
+
 class Controller {
-    refresh = async () => {
+    fetchIssue = async uuid => {
         clearAlerts()
         state.loading = true
         try {
-            const { data } = await client.get(`/next-issue?skip=${queueProgress.value - 1}&take=1`)
-            state.loading = false
-            if (data.ok && data?.finding) {
+            const { data } = await client.get(`/issue/${uuid}?seen=1`)
+            if (data?.finding) {
                 if (data.finding?.timeline) {
                     data.finding.timeline = data.finding.timeline.map(t => {
                         t.color = getPastelColor()
@@ -56,15 +46,14 @@ class Controller {
                     })
                 }
                 state.finding = data.finding
-                state.queueTotal = data.findingCount
                 state.currentTriage = data.finding.triage.sort((a, b) =>
                     a.lastObserved - b.lastObserved
                 ).pop()
-                window.history.replaceState({ ...history.state }, '', `${window.location.origin}/issue/${state.finding.uuid}`)
             }
+            state.loading = false
         } catch (e) {
             console.error(e)
-            state.error = `${e.code} ${e.message}`
+            state.error = `${e?.code || ''} ${e.message}`
             state.loading = false
         }
     }
@@ -77,7 +66,7 @@ class Controller {
             state.loading = true
             const { data } = await client.post(`/issue/${findingUuid}`, { customCvssVector })
             if (data?.ok) {
-                await controller.refresh()
+                await controller.fetchIssue(route.params.uuid)
             } else {
                 console.error(data)
                 state.error = "Encountered a server error, please refresh the page and try again."
@@ -110,7 +99,6 @@ class Controller {
             } else if (input.response === "workaround_available") {
                 analysisResponse = input.response
             } else {
-                state.loading = false
                 return
             }
             state.loading = true
@@ -120,28 +108,34 @@ class Controller {
                 analysisState,
                 analysisResponse,
             })
+            if (data?.ok) {
+                await controller.fetchIssue(route.params.uuid)
+            } else {
+                console.error(data)
+                state.error = "Encountered a server error, please refresh the page and try again."
+            }
+
             if (data?.error?.message) {
                 state.error = data.error.message
                 state.loading = false
                 return
             }
-            if (data.ok) {
-                queueProgress.value++
-                await controller.refresh()
-            }
-
         } catch (e) {
             console.error(e)
             state.error = `${e.code} ${e.message}`
         }
         state.loading = false
     }
+
 }
 
 const controller = reactive(new Controller())
-onMounted(() => {
-    Member.ensureSession()
-        .then(controller.refresh)
+onMounted(() => Member.ensureSession().then(() => controller.fetchIssue(route.params.uuid)))
+
+onBeforeRouteUpdate(async (to, from) => {
+    if (to.params.uuid !== from.params.uuid) {
+        await controller.fetchIssue(to.params.uuid)
+    }
 })
 </script>
 
@@ -183,30 +177,14 @@ onMounted(() => {
             </VTab>
         </VTabs>
 
-        <div
-            class="d-flex align-end"
-            v-if="state.queueTotal"
-        >
-            <VTextField
-                v-model="queueProgress"
-                density="compact"
-                variant="outlined"
-                flat
-                type="number"
-                :min="1"
-                :max="state.queueTotal"
-                class="me-2"
-                @change="handleSkip"
-            />
+        <div class="d-flex align-end">
             <span class="mr-4 text-h5">
-                of {{ state.queueTotal }}
             </span>
         </div>
     </VContainer>
 
     <VTabsWindow v-model="tab">
         <VTabsWindowItem value="issue">
-
             <VCard>
                 <VProgressLinear
                     :active="state.loading"

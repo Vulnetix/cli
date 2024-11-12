@@ -259,6 +259,8 @@ model Finding {
   vendor                     String?
   product                    String?
   packageEcosystem           String?
+  customCvssVector           String?
+  customCvssScore            String?
   advisoryUrl                String?
   exploitsJSON               String?
   knownExploitsJSON          String?
