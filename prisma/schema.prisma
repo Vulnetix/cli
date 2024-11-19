@@ -33,6 +33,7 @@ model Org {
   sarif                 SARIFInfo[]
   cdx                   CycloneDXInfo[]
   spdx                  SPDXInfo[]
+  GitHubApp             GitHubApp[]
 }
 
 model IntegrationConfig {
@@ -59,16 +60,11 @@ model Member {
   alertOverdue          Int                   @default(0)
   alertFindings         Int                   @default(0)
   alertType             Int                   @default(0)
-  sarif                 SARIFInfo[]
   github_apps           GitHubApp[]
-  repos                 GitRepo[]
   member_keys           MemberKey[]
   sessions              Session[]
-  spdx                  SPDXInfo[]
   integration_usage_log IntegrationUsageLog[]
-  findings              Finding[]
   triage_activity       Triage[]
-  cdx                   CycloneDXInfo[]
 }
 
 model MemberKey {
@@ -95,6 +91,8 @@ model GitHubPAT {
 
 model GitHubApp {
   installationId Int     @id
+  orgId          String
+  org            Org     @relation(fields: [orgId], references: [uuid])
   memberEmail    String
   member         Member  @relation(fields: [memberEmail], references: [email])
   accessToken    String
@@ -115,8 +113,6 @@ model GitRepo {
   pushedAt      Int
   defaultBranch String
   ownerId       Int
-  memberEmail   String
-  member        Member          @relation(fields: [memberEmail], references: [email])
   licenseSpdxId String?
   licenseName   String?
   fork          Int             @default(0)
@@ -140,8 +136,6 @@ model SARIFInfo {
   orgId        String
   org          Org            @relation(fields: [orgId], references: [uuid])
   source       String
-  memberEmail  String
-  member       Member         @relation(fields: [memberEmail], references: [email])
   artifactUuid String
   artifact     Artifact       @relation(fields: [artifactUuid], references: [uuid])
   commitSha    String?
@@ -174,50 +168,68 @@ model SarifResults {
 }
 
 model CycloneDXInfo {
-  cdxId                   String   @id
-  source                  String
-  memberEmail             String
-  member                  Member   @relation(fields: [memberEmail], references: [email])
-  orgId                   String
-  org                     Org      @relation(fields: [orgId], references: [uuid])
-  repoName                String?
-  repo                    GitRepo? @relation(fields: [repoName, orgId], references: [fullName, orgId])
-  artifactUuid            String
-  artifact                Artifact @relation(fields: [artifactUuid], references: [uuid])
-  cdxVersion              String
-  serialNumber            String?
-  name                    String?
-  version                 String?
-  createdAt               Int
-  toolName                String?
-  externalReferencesCount Int
-  componentsCount         Int
-  dependenciesCount       Int
-
-  findings Finding[]
+  cdxId        String       @id
+  source       String
+  orgId        String
+  org          Org          @relation(fields: [orgId], references: [uuid])
+  repoName     String?
+  repo         GitRepo?     @relation(fields: [repoName, orgId], references: [fullName, orgId])
+  artifactUuid String
+  artifact     Artifact     @relation(fields: [artifactUuid], references: [uuid])
+  cdxVersion   String
+  serialNumber String?
+  name         String?
+  version      String?
+  createdAt    Int
+  toolName     String?
+  findings     Finding[]
+  dependencies Dependency[]
 }
 
 model SPDXInfo {
-  spdxId            String    @id
+  spdxId            String       @id
   source            String
-  memberEmail       String
-  member            Member    @relation(fields: [memberEmail], references: [email])
   orgId             String
-  org               Org       @relation(fields: [orgId], references: [uuid])
+  org               Org          @relation(fields: [orgId], references: [uuid])
   repoName          String?
-  repo              GitRepo?  @relation(fields: [repoName, orgId], references: [fullName, orgId])
+  repo              GitRepo?     @relation(fields: [repoName, orgId], references: [fullName, orgId])
   artifactUuid      String
-  artifact          Artifact  @relation(fields: [artifactUuid], references: [uuid])
+  artifact          Artifact     @relation(fields: [artifactUuid], references: [uuid])
   spdxVersion       String
   dataLicense       String?
   name              String?
+  version           String?
   documentNamespace String?
   createdAt         Int
   toolName          String?
   documentDescribes String?
-  packagesCount     Int
   comment           String?
   findings          Finding[]
+  dependencies      Dependency[]
+}
+
+model Dependency {
+  uuid             String         @id @default(uuid())
+  name             String
+  version          String
+  license          String?
+  packageEcosystem String?
+  isDev            Int            @default(0)
+  isDirect         Int            @default(0)
+  isIndirect       Int            @default(0)
+  isTransitive     Int            @default(0)
+  isShared         Int            @default(0)
+  isPeer           Int            @default(0)
+  dependsOnUuid    String?
+  dependsOn        Dependency?    @relation("DependsOn", fields: [dependsOnUuid], references: [uuid])
+  dependencies     Dependency[]   @relation("DependsOn")
+  spdxId           String?
+  spdx             SPDXInfo?      @relation(fields: [spdxId], references: [spdxId])
+  cdxId            String?
+  cdx              CycloneDXInfo? @relation(fields: [cdxId], references: [cdxId])
+
+  @@unique([name, version, spdxId], name: "spdx_dep")
+  @@unique([name, version, cdxId], name: "cdx_dep")
 }
 
 model IntegrationUsageLog {
@@ -238,16 +250,15 @@ model Finding {
   findingId                  String
   orgId                      String
   org                        Org            @relation(fields: [orgId], references: [uuid])
-  memberEmail                String
-  member                     Member         @relation(fields: [memberEmail], references: [email])
   repoName                   String?
-  repo                       GitRepo?       @relation(fields: [repoName, memberEmail], references: [fullName, orgId])
+  repo                       GitRepo?       @relation(fields: [repoName, orgId], references: [fullName, orgId])
   source                     String
   category                   String
   createdAt                  Int
   modifiedAt                 Int
   publishedAt                Int?
   detectionTitle             String
+  detectionDescription       String?
   purl                       String?
   cpe                        String?
   databaseReviewed           Int?

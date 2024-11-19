@@ -37,3 +37,9 @@ src/@iconify/icons-bundle.js
 .wrangler/
 .dev.vars
 .env
+
+# Artifacts
+semgrep.sarif.json
+osv.sarif.json
+vulnetix.cdx.json
+vulnetix.spdx.json

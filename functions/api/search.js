@@ -64,7 +64,7 @@ export async function onRequestGet(context) {
                         repoName: true,
                         spdxVersion: true,
                         createdAt: true,
-                        packagesCount: true,
+                        dependencies: true,
                         artifact: {
                             select: {
                                 uuid: true,
@@ -83,7 +83,7 @@ export async function onRequestGet(context) {
                         repoName: true,
                         cdxVersion: true,
                         createdAt: true,
-                        dependenciesCount: true,
+                        dependencies: true,
                         artifact: {
                             select: {
                                 uuid: true,

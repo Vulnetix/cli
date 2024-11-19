@@ -1,3 +1,4 @@
+import { parseSPDXComponents } from "@/finding";
 import { AuthResult, OSV, Server, ensureStrReqBody, hex, isSPDX, saveArtifact } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
@@ -40,7 +41,7 @@ export async function onRequestGet(context) {
             name: true,
             createdAt: true,
             toolName: true,
-            packagesCount: true,
+            dependencies: true,
             artifact: {
                 select: {
                     downloadLinks: {
@@ -126,12 +127,30 @@ export async function onRequestPost(context) {
             const spdxStr = JSON.stringify(spdx)
             const artifact = await saveArtifact(prisma, env.r2artifacts, spdxStr, crypto.randomUUID(), `spdx`)
             const artifactUuid = originalSpdx?.artifactUuid || artifact?.uuid
+            const dependencies = []
+            for (const dep of parseSPDXComponents(spdx)) {
+                const info = await prisma.Dependency.upsert({
+                    where: {
+                        spdx_dep: {
+                            spdxId,
+                            name: dep.name,
+                            version: dep.version,
+                        }
+                    },
+                    update: {
+                        license: dep.license,
+                        dependsOnUuid: dep.dependsOnUuid
+                    },
+                    create: { ...dep, spdxId }
+                })
+                dependencies.push({ ...dep, spdxId })
+                console.log(`Dependency ${dep.name}@${dep.version}`, info)
+            }
             const spdxData = {
                 spdxId,
                 artifactUuid,
                 source: 'upload',
                 orgId: verificationResult.session.orgId,
-                memberEmail: verificationResult.session.memberEmail,
                 repoName: '',
                 spdxVersion: spdx.spdxVersion,
                 dataLicense: spdx.dataLicense,
@@ -140,7 +159,6 @@ export async function onRequestPost(context) {
                 createdAt: (new Date(spdx.creationInfo.created)).getTime(),
                 toolName: spdx.creationInfo.creators.join(', '),
                 documentDescribes: spdx?.documentDescribes?.join(','),
-                packagesCount: spdx.packages.length,
                 comment: spdx.creationInfo?.comment || '',
             }
             const info = await prisma.SPDXInfo.upsert({
@@ -155,6 +173,7 @@ export async function onRequestPost(context) {
                 create: spdxData
             })
             console.log(`/github/repos/spdx ${spdxId} kid=${verificationResult.session.kid}`, info)
+            spdxData.dependencies = dependencies
             files.push(spdxData)
 
             const osvQueries = spdx.packages.flatMap(pkg => {
@@ -182,12 +201,12 @@ export async function onRequestPost(context) {
                     const findingData = {
                         findingId,
                         orgId: verificationResult.session.orgId,
-                        memberEmail: verificationResult.session.memberEmail,
                         source: 'osv.dev',
                         category: 'sca',
                         createdAt: (new Date()).getTime(),
                         modifiedAt: (new Date(vuln.modified)).getTime(),
                         detectionTitle: vuln.id,
+                        detectionDescription: vuln.details,
                         purl: referenceLocator,
                         packageName: name,
                         packageVersion: version,

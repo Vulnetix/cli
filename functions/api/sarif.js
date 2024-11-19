@@ -31,9 +31,6 @@ export async function onRequestGet(context) {
         where: {
             orgId: verificationResult.session.orgId,
         },
-        omit: {
-            memberEmail: true,
-        },
         include: {
             results: true,
             artifact: {
@@ -102,7 +99,6 @@ export async function onRequestPost(context) {
                     reportId,
                     source: 'upload',
                     orgId: verificationResult.session.orgId,
-                    memberEmail: verificationResult.session.memberEmail,
                     createdAt,
                     resultsCount: run.results.length,
                     rulesCount: run.tool.driver.rules.length,

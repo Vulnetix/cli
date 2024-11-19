@@ -30,17 +30,16 @@ export async function onRequestGet(context) {
         const findings = await prisma.Finding.findMany({
             where: {
                 orgId: verificationResult.session.orgId,
-                NOT: {
-                    triage: {
-                        every: { analysisState: 'in_triage', }
-                    }
+                AND: {
+                    triage: { every: { analysisState: { in: ['exploitable', 'in_triage'] } } }
                 },
             },
-            omit: {
-                memberEmail: true,
-            },
             include: {
-                triage: true,
+                triage: {
+                    orderBy: {
+                        triagedAt: 'desc'
+                    }
+                },
                 spdx: {
                     include: {
                         repo: true
@@ -55,7 +54,7 @@ export async function onRequestGet(context) {
             take,
             skip,
             orderBy: {
-                createdAt: 'asc',
+                modifiedAt: 'desc',
             }
         })
 

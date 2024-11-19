@@ -26,7 +26,7 @@ export async function onRequestGet(context) {
 
     try {
         const where = {
-            memberEmail: verificationResult.session.memberEmail,
+            orgId: verificationResult.session.orgId,
             installationId: parseInt(params.installation_id, 10),
         }
         const app = await prisma.GitHubApp.findUniqueOrThrow({ where })

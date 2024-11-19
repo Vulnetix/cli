@@ -63,13 +63,13 @@ class Controller {
                             let analysis;
                             let source;
                             if (artifact?.cdx) {
-                                dependencies = artifact.cdx?.dependenciesCount
+                                dependencies = artifact.cdx?.dependencies?.length || 0
                                 repoName = artifact.cdx?.repoName
                                 source = artifact.cdx?.source
                                 versionInfo = `CycloneDX-${artifact.cdx?.cdxVersion}`
                             }
                             if (artifact?.spdx) {
-                                dependencies = artifact.spdx?.packagesCount
+                                dependencies = artifact.spdx?.dependencies?.length || 0
                                 repoName = artifact.spdx?.repoName
                                 source = artifact.spdx?.source
                                 versionInfo = artifact.spdx?.spdxVersion
@@ -154,17 +154,24 @@ class Controller {
                         if (isSARIF(json)) {
                             sarif.push(json)
                         }
-                    } catch (e) { }
+                    } catch (e) {
+                        console.log(json, e)
+                    }
                     try {
                         if (isSPDX(json)) {
                             spdx.push(json)
                         }
-                    } catch (e) { }
+                    } catch (e) {
+                        console.log(json, e)
+                    }
                     try {
                         if (isCDX(json)) {
                             cdx.push(json)
                         }
-                    } catch (e) { }
+                    } catch (e) {
+                        console.log(json, e)
+                        // state.uploadError = typeof e === "string" ? e : `${e.code} ${e.message}`
+                    }
                 }
             }
             let success = false
@@ -364,7 +371,7 @@ function updateArtifactsFromFiles(files) {
             contentType: fileData.contentType,
             uuid: fileData.artifactUuid,
             url: `https://artifacts.vulnetix.app/${artifactType.toLowerCase()}/${fileData.artifactUuid}.json`,
-            dependencies: fileData.dependenciesCount || fileData.packagesCount,
+            dependencies: fileData.dependencies.length || fileData.dependencies.length,
         }
 
         // Add type-specific properties
@@ -492,7 +499,7 @@ function updateArtifactsFromFiles(files) {
                                     <template v-slot:selection="{ fileNames }">
                                         <template
                                             v-for="(fileName, index) in fileNames"
-                                            :key="fileName"
+                                            :key="index"
                                         >
                                             <VChip
                                                 v-if="index < 2"

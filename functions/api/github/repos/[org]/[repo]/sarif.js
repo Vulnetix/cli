@@ -35,7 +35,7 @@ export async function onRequestGet(context) {
     const errors = []
     const githubApps = await prisma.GitHubApp.findMany({
         where: {
-            memberEmail: verificationResult.session.memberEmail,
+            orgId: verificationResult.session.orgId,
         },
     })
     const repoName = `${params.org}/${params.repo}`
@@ -54,14 +54,13 @@ export async function onRequestGet(context) {
                 await prisma.GitHubApp.update({
                     where: {
                         installationId: parseInt(app.installationId, 10),
-                        AND: { memberEmail: app.memberEmail, },
+                        AND: { orgId: app.orgId },
                     },
                     data: app,
                 })
                 continue
             }
             delete app.accessToken
-            delete app.memberEmail
             errors.push({ error, app })
             continue
         }
@@ -116,7 +115,6 @@ const process = async (prisma, session, data, fullName) => {
             fullName,
             source: 'GitHub',
             orgId: session.orgId,
-            memberEmail: session.memberEmail,
             commitSha: data.report.commit_sha,
             ref: data.report.ref,
             createdAt: (new Date(data.report.created_at)).getTime(),
@@ -215,7 +213,6 @@ const process = async (prisma, session, data, fullName) => {
         reportId: data.report.id.toString(),
         artifactUuid: sarifId,
         fullName,
-        memberEmail: session.memberEmail,
         commitSha: data.report.commit_sha,
         ref: data.report.commit_sha,
         createdAt: (new Date(data.report.created_at)).getTime(),

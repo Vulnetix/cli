@@ -42,14 +42,16 @@ export async function onRequestGet(context) {
         if (findingCount > 0) {
             finding = await prisma.Finding.findFirst({
                 where,
-                omit: {
-                    memberEmail: true,
-                },
                 include: {
-                    triage: true,
+                    triage: {
+                        orderBy: {
+                            lastObserved: 'desc', // newest first
+                        }
+                    },
                     spdx: {
                         include: {
                             repo: true,
+                            dependencies: true,
                             artifact: {
                                 include: {
                                     downloadLinks: true,
@@ -60,6 +62,7 @@ export async function onRequestGet(context) {
                     cdx: {
                         include: {
                             repo: true,
+                            dependencies: true,
                             artifact: {
                                 include: {
                                     downloadLinks: true,

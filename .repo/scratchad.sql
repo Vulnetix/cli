@@ -10,6 +10,13 @@
 -- SELECT *
 -- FROM Triage
 -- WHERE findingUuid = "c00f2661-a1fc-4a72-83af-5894580ee510";
-SELECT *
-FROM Finding
-WHERE affectedFunctions IS NOT NULL;
+SELECT A."accessToken",
+    A."avatarUrl",
+    A."created",
+    A."expires",
+    A."installationId",
+    A."login",
+    A."memberEmail",
+    B."orgId"
+FROM "GitHubApp" A
+    INNER JOIN "Member" B ON A."memberEmail" = B."email";

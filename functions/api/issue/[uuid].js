@@ -7,9 +7,9 @@ import {
     VexAnalysisResponse,
     VexAnalysisState
 } from "@/utils";
+import { CVSS30, CVSS31, CVSS40 } from '@pandatix/js-cvss';
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
-import { CVSS30, CVSS31, CVSS40 } from '@pandatix/js-cvss';
 
 export async function onRequestPost(context) {
     const {
@@ -163,14 +163,12 @@ export async function onRequestGet(context) {
                 uuid,
                 AND: { orgId: verificationResult.session.orgId }
             },
-            omit: {
-                memberEmail: true,
-            },
             include: {
                 triage: true,
                 spdx: {
                     include: {
                         repo: true,
+                        dependencies: true,
                         artifact: {
                             include: {
                                 downloadLinks: true,
@@ -181,6 +179,7 @@ export async function onRequestGet(context) {
                 cdx: {
                     include: {
                         repo: true,
+                        dependencies: true,
                         artifact: {
                             include: {
                                 downloadLinks: true,

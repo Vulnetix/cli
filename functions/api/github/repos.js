@@ -36,7 +36,7 @@ export async function onRequestGet(context) {
     const gitRepos = []
     const installs = await prisma.GitHubApp.findMany({
         where: {
-            memberEmail: verificationResult.session.memberEmail,
+            orgId: verificationResult.session.orgId,
             AND: { expires: { gte: (new Date()).getTime(), } }
         },
     })
@@ -53,14 +53,14 @@ export async function onRequestGet(context) {
                 await prisma.GitHubApp.update({
                     where: {
                         installationId: parseInt(app.installationId, 10),
-                        AND: { memberEmail: app.memberEmail, },
+                        AND: { orgId: app.orgId, },
                     },
                     data: app,
                 })
                 continue
             }
             delete app.accessToken
-            delete app.memberEmail
+
             return Response.json({ error, app })
         }
         for (const repo of content) {
@@ -107,7 +107,6 @@ const store = async (prisma, session, repo) => {
         pushedAt: (new Date(repo.pushed_at)).getTime(),
         defaultBranch: repo.default_branch,
         ownerId: repo.owner.id,
-        memberEmail: session.memberEmail,
         licenseSpdxId: repo.license?.spdx_id || '',
         licenseName: repo.license?.name || '',
         fork: repo.fork ? 1 : 0,

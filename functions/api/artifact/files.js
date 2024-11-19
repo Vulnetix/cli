@@ -78,7 +78,7 @@ export async function onRequestGet(context) {
                         repoName: true,
                         spdxVersion: true,
                         createdAt: true,
-                        packagesCount: true,
+                        dependencies: true,
                     },
                 },
                 sarif: {
@@ -102,7 +102,7 @@ export async function onRequestGet(context) {
                         repoName: true,
                         cdxVersion: true,
                         createdAt: true,
-                        dependenciesCount: true,
+                        dependencies: true,
                     },
                 },
                 vex: {

@@ -80,7 +80,7 @@ watchEffect(async () => {
                 for (const link of finding.spdx.artifact.downloadLinks) {
                     boms.push({
                         title: finding.spdx.spdxVersion,
-                        text: `${finding.spdx.name} (${finding.spdx.packagesCount} dependencies)`,
+                        text: `${finding.spdx.name} (${finding.spdx.dependencies.length} dependencies)`,
                         url: link.url,
                         icon: 'eos-icons:file-system-outlined',
                     })
@@ -90,7 +90,7 @@ watchEffect(async () => {
                 for (const link of finding.cdx.artifact.downloadLinks) {
                     boms.push({
                         title: `CycloneDX ${finding.cdx.cdxVersion}`,
-                        text: `${finding.cdx.name} (${finding.cdx.dependenciesCount} dependencies)`,
+                        text: `${finding.cdx.name} (${finding.cdx.dependencies.length} dependencies)`,
                         url: link.url,
                         icon: 'eos-icons:file-system-outlined',
                     })

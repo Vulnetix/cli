@@ -1,3 +1,4 @@
+import { parseCycloneDXComponents } from "@/finding";
 import { AuthResult, ensureStrReqBody, hex, isCDX, OSV, saveArtifact, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
@@ -30,9 +31,6 @@ export async function onRequestGet(context) {
     let cdx = await prisma.CycloneDXInfo.findMany({
         where: {
             orgId: verificationResult.session.orgId,
-        },
-        omit: {
-            memberEmail: true,
         },
         include: {
             repo: true,
@@ -100,8 +98,29 @@ export async function onRequestPost(context) {
                     orgId: verificationResult.session.orgId,
                 }
             })
-
-            const artifactUuid = originalCdx?.artifactUuid || cdx.serialNumber.startsWith('urn:uuid:') ? cdx.serialNumber.substring(9) : crypto.randomUUID()
+            const artifactUuid = originalCdx?.artifactUuid || (cdx?.serialNumber?.startsWith('urn:uuid:') ? cdx.serialNumber.substring(9) : crypto.randomUUID())
+            if (!cdx?.serialNumber) {
+                cdx.serialNumber = `urn:uuid:${artifactUuid}`
+            }
+            const dependencies = []
+            for (const dep of parseCycloneDXComponents(cdx)) {
+                const info = await prisma.Dependency.upsert({
+                    where: {
+                        cdx_dep: {
+                            cdxId,
+                            name: dep.name,
+                            version: dep.version,
+                        }
+                    },
+                    update: {
+                        license: dep.license,
+                        dependsOnUuid: dep.dependsOnUuid
+                    },
+                    create: { ...dep, cdxId }
+                })
+                dependencies.push({ ...dep, cdxId })
+                console.log(`Dependency ${dep.name}@${dep.version}`, info)
+            }
             const cdxStr = JSON.stringify(cdx)
             const artifact = await saveArtifact(prisma, env.r2artifacts, cdxStr, artifactUuid, `cyclonedx`)
             const cdxData = {
@@ -109,21 +128,17 @@ export async function onRequestPost(context) {
                 artifactUuid,
                 source: 'upload',
                 orgId: verificationResult.session.orgId,
-                memberEmail: verificationResult.session.memberEmail,
                 cdxVersion: cdx.specVersion,
                 serialNumber: cdx.serialNumber,
                 name: cdx.metadata?.component?.name,
                 version: cdx.metadata?.component?.version,
-                createdAt: (new Date(cdx.metadata.timestamp)).getTime(),
+                createdAt: cdx.metadata?.timestamp ? new Date(cdx.metadata.timestamp).getTime() : new Date().getTime(),
                 toolName: cdx.metadata.tools.map(t => `${t?.vendor} ${t?.name} ${t?.version}`.trim()).join(', '),
-                externalReferencesCount: cdx.metadata.component?.externalReferences?.length || 0,
-                componentsCount: cdx.components?.length || 0,
-                dependenciesCount: cdx.dependencies?.length || 0,
             }
             const info = await prisma.CycloneDXInfo.upsert({
                 where: {
                     cdxId,
-                    memberEmail: verificationResult.session.memberEmail,
+                    orgId: verificationResult.session.orgId,
                 },
                 update: {
                     createdAt: cdxData.createdAt,
@@ -132,6 +147,7 @@ export async function onRequestPost(context) {
                 create: cdxData
             })
             console.log(`/upload/cdx ${cdxId} kid=${verificationResult.session.kid}`, info)
+            cdxData.dependencies = dependencies
             files.push(cdxData)
 
             const osvQueries = cdx.components.map(component => {
@@ -157,12 +173,12 @@ export async function onRequestPost(context) {
                     const findingData = {
                         findingId,
                         orgId: verificationResult.session.orgId,
-                        memberEmail: verificationResult.session.memberEmail,
                         source: 'osv.dev',
                         category: 'sca',
                         createdAt: (new Date()).getTime(),
                         modifiedAt: (new Date(vuln.modified)).getTime(),
                         detectionTitle: vuln.id,
+                        detectionDescription: vuln.details,
                         purl: referenceLocator,
                         packageName: name,
                         packageVersion: version,

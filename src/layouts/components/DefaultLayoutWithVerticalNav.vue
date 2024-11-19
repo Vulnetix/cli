@@ -90,9 +90,9 @@ watch(NotificationsStore, () => {
                 to: '/projects',
             }" />
             <VerticalNavLink :item="{
-                title: 'Products',
+                title: 'Catalog',
                 icon: 'fluent-mdl2:product',
-                to: '/products',
+                to: '/catalog',
             }" />
 
             <VerticalNavSectionTitle :item="{
@@ -103,15 +103,20 @@ watch(NotificationsStore, () => {
                 icon: 'fluent-mdl2:set-action',
                 to: '/triage',
             }" />
-            <!-- <VerticalNavLink :item="{
+            <VerticalNavLink :item="{
                 title: 'Exploitable',
                 icon: 'eos-icons:critical-bug-outlined',
                 to: '/triage/exploitable',
-            }" /> -->
+            }" />
             <VerticalNavLink :item="{
-                title: 'History',
+                title: 'Unresolved',
                 icon: 'mdi-clipboard-text-history',
-                to: '/triage/history',
+                to: '/triage/unresolved',
+            }" />
+            <VerticalNavLink :item="{
+                title: 'Archive',
+                icon: 'mdi:archive',
+                to: '/triage/archive',
             }" />
 
             <VerticalNavSectionTitle :item="{

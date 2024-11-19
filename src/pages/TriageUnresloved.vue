@@ -92,7 +92,7 @@ class Controller {
             let hasMore = true
             let skip = 0
             while (hasMore) {
-                const { data } = await client.get(`/exploitable?take=${pageSize}&skip=${skip}`)
+                const { data } = await client.get(`/unresolved?take=${pageSize}&skip=${skip}`)
                 if (data.ok) {
                     if (data?.findings) {
                         data.findings.forEach(finding => {

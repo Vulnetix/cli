@@ -32,15 +32,16 @@ export async function onRequestGet(context) {
                 orgId: verificationResult.session.orgId,
                 AND: {
                     triage: {
-                        every: { seen: 0, analysisState: 'in_triage', }
+                        some: { analysisState: { in: ['resolved', 'resolved_with_pedigree', 'false_positive', 'not_affected'] } }
                     }
                 },
             },
-            omit: {
-                memberEmail: true,
-            },
             include: {
-                triage: true,
+                triage: {
+                    orderBy: {
+                        triagedAt: 'desc'
+                    }
+                },
                 spdx: {
                     include: {
                         repo: true
@@ -55,7 +56,7 @@ export async function onRequestGet(context) {
             take,
             skip,
             orderBy: {
-                createdAt: 'asc',
+                modifiedAt: 'desc',
             }
         })
 

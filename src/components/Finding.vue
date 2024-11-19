@@ -10,6 +10,7 @@ import {
     VexAnalysisState
 } from '@/utils';
 import { CVSS31, CVSS40 } from '@pandatix/js-cvss';
+import VCodeBlock from '@wdns/vue-code-block';
 import { onMounted } from 'vue';
 import { useTheme } from 'vuetify';
 
@@ -44,7 +45,7 @@ const props = defineProps({
         default: true,
     },
 })
-
+// Intentionally not using the VEX classes here, to provide UX that makes sense
 const Response = ref([
     { value: "false_positive", text: "False Positive" },
     { value: "not_affected", text: "Not Affected" },
@@ -52,7 +53,6 @@ const Response = ref([
     { value: "will_not_fix", text: "Will Not Fix" },
     { value: "workaround_available", text: "Workaround Available" },
 ])
-
 const Justification = ref([
     { value: "code_not_present", text: "Code Not Present" },
     { value: "code_not_reachable", text: "Code Not Reachable" },
@@ -168,6 +168,10 @@ const cvssChipColor = computed(() => {
     if (cvssVersion.value.startsWith('4')) return 'primary'
     if (cvssVersion.value.startsWith('3')) return 'secondary'
     return getPastelColor()
+})
+
+const packageString = computed(() => {
+    return [props.finding.packageEcosystem, [props.finding.packageName, getSemVerWithoutOperator(props.finding.packageVersion)].filter(i => !!i).join('@')].filter(i => !!i).join(':')
 })
 
 // CVSS v3.1 metric defaults
@@ -683,492 +687,504 @@ watch([
         class="pa-0"
         v-if="props.finding"
     >
-        <VRow>
-            <VCol cols="12">
-                <VCard>
-                    <!-- Progress Header -->
-                    <VCardTitle class="d-flex justify-space-between align-center">
-                        <div>
-                            <span class="text-h5">{{ props.finding.detectionTitle }}</span>
-                            <VChip
-                                v-if="props.showTriageState || props.currentTriage.analysisState !== 'in_triage'"
-                                color="secondary"
-                                class="ml-2"
+        <VCard>
+            <!-- Progress Header -->
+            <VCardTitle class="d-flex justify-space-between align-center">
+                <div>
+                    <span class="text-h5">{{ props.finding.detectionTitle }}</span>
+                    <VChip
+                        v-if="props.showTriageState || props.currentTriage.analysisState !== 'in_triage'"
+                        color="info"
+                        class="ml-2"
+                    >
+                        {{ VexAnalysisState[props.currentTriage.analysisState] }}
+                    </VChip>
+                    <VChip
+                        v-if="props.currentTriage.analysisResponse"
+                        color="info"
+                        class="ml-2"
+                    >
+                        {{ VexAnalysisResponse[props.currentTriage.analysisResponse] }}
+                    </VChip>
+                    <VChip
+                        v-if="props.currentTriage.analysisJustification"
+                        color="info"
+                        class="ml-2"
+                    >
+                        {{ VexAnalysisJustification[props.currentTriage.analysisJustification] }}
+                    </VChip>
+                </div>
+                <div class="d-flex align-end">
+                    <VDialog
+                        v-model="triageDialog"
+                        max-width="600"
+                    >
+                        <template v-slot:activator="{ props: activatorProps }">
+                            <VBtn
+                                class="text-none font-weight-regular"
+                                variant="outlined"
+                                v-bind="activatorProps"
                             >
-                                {{ VexAnalysisState[props.currentTriage.analysisState] }}
-                            </VChip>
-                            <VChip
-                                v-if="props.currentTriage.analysisResponse"
-                                color="info"
-                                class="ml-2"
-                            >
-                                {{ VexAnalysisResponse[props.currentTriage.analysisResponse] }}
-                            </VChip>
-                            <VChip
-                                v-if="props.currentTriage.analysisJustification"
-                                color="info"
-                                class="ml-2"
-                            >
-                                {{ VexAnalysisJustification[props.currentTriage.analysisJustification] }}
-                            </VChip>
-                        </div>
-                        <div class="d-flex align-end">
-                            <VDialog
-                                v-model="triageDialog"
-                                max-width="600"
-                            >
-                                <template v-slot:activator="{ props: activatorProps }">
-                                    <VBtn
-                                        class="text-none font-weight-regular"
-                                        variant="outlined"
-                                        v-bind="activatorProps"
+                                Triage
+                                <VChip
+                                    variant="outlined"
+                                    color="#e4e4e4"
+                                >
+                                    &#8984;X
+                                </VChip>
+                            </VBtn>
+                        </template>
+
+                        <VCard>
+                            <VCardText>
+                                <!-- Analysis Form -->
+                                <VRow dense>
+                                    <VCol
+                                        cols="12"
+                                        md="6"
                                     >
-                                        Triage
-                                        <VChip
-                                            variant="outlined"
-                                            color="#e4e4e4"
-                                        >
-                                            &#8984;X
-                                        </VChip>
-                                    </VBtn>
+                                        <VSelect
+                                            v-model="response"
+                                            :items="Response"
+                                            item-title="text"
+                                            item-value="value"
+                                            label="Response*"
+                                            required
+                                        />
+                                    </VCol>
+
+                                    <VCol
+                                        cols="12"
+                                        md="6"
+                                    >
+                                        <VSelect
+                                            v-model="justification"
+                                            :items="Justification"
+                                            item-title="text"
+                                            item-value="value"
+                                            label="Justification*"
+                                            required
+                                        />
+                                    </VCol>
+
+                                    <VCol cols="12">
+                                        <VTextarea
+                                            v-model="justificationText"
+                                            label="Additional Notes"
+                                            rows="3"
+                                        />
+                                    </VCol>
+                                </VRow>
+
+                                <small class="text-caption text-medium-emphasis">*indicates required
+                                    field</small>
+                            </VCardText>
+
+                            <VDivider />
+                            <VSpacer />
+
+                            <VCardActions>
+                                <VSpacer />
+                                <VBtn
+                                    text="Close"
+                                    variant="plain"
+                                    @click="triageDialog = false"
+                                ></VBtn>
+                                <VBtn
+                                    color="primary"
+                                    variant="plain"
+                                    text="Save"
+                                    :disabled="!response || !justification"
+                                    @click="$emit('click:saveTriage', { response, justification, justificationText }); triageDialog = false"
+                                >
+                                </VBtn>
+                            </VCardActions>
+                        </VCard>
+                    </VDialog>
+                </div>
+            </VCardTitle>
+
+            <VCardText>
+                <!-- Basic Info -->
+                <VRow>
+                    <VCol
+                        cols="12"
+                        md="6"
+                    >
+                        <VList density="compact">
+                            <VListItem>
+                                <template v-slot:prepend>
+                                    <VIcon icon="mdi-package-variant" />
                                 </template>
+                                <VListItemTitle>
+                                    Package: {{ packageString }}
+                                </VListItemTitle>
+                            </VListItem>
 
-                                <VCard>
-                                    <VCardText>
-                                        <!-- Analysis Form -->
-                                        <VRow dense>
-                                            <VCol
-                                                cols="12"
-                                                md="6"
-                                            >
-                                                <VSelect
-                                                    v-model="response"
-                                                    :items="Response"
-                                                    item-title="text"
-                                                    item-value="value"
-                                                    label="Response*"
-                                                    required
-                                                />
-                                            </VCol>
+                            <VListItem v-if="props.finding.vendor || props.finding.product">
+                                <template v-slot:prepend>
+                                    <VIcon icon="mdi-domain" />
+                                </template>
+                                <VListItemTitle>
+                                    {{ props.finding.vendor }} {{ props.finding.product }}
+                                </VListItemTitle>
+                            </VListItem>
 
-                                            <VCol
-                                                cols="12"
-                                                md="6"
-                                            >
-                                                <VSelect
-                                                    v-model="justification"
-                                                    :items="Justification"
-                                                    item-title="text"
-                                                    item-value="value"
-                                                    label="Justification*"
-                                                    required
-                                                />
-                                            </VCol>
+                            <VListItem v-if="props.finding?.cpe">
+                                <template v-slot:prepend>
+                                    <VIcon icon="hugeicons:package-search" />
+                                </template>
+                                <VListItemTitle>
+                                    CPE: {{ props.finding.cpe }}
+                                </VListItemTitle>
+                            </VListItem>
+                        </VList>
+                    </VCol>
 
-                                            <VCol cols="12">
-                                                <VTextarea
-                                                    v-model="justificationText"
-                                                    label="Additional Notes"
-                                                    rows="3"
-                                                />
-                                            </VCol>
-                                        </VRow>
-
-                                        <small class="text-caption text-medium-emphasis">*indicates required
-                                            field</small>
-                                    </VCardText>
-
-                                    <VDivider />
-                                    <VSpacer />
-
-                                    <VCardActions>
-                                        <VSpacer />
-                                        <VBtn
-                                            text="Close"
-                                            variant="plain"
-                                            @click="triageDialog = false"
-                                        ></VBtn>
-                                        <VBtn
-                                            color="primary"
-                                            variant="plain"
-                                            text="Save"
-                                            :disabled="!response || !justification"
-                                            @click="$emit('click:saveTriage', { response, justification, justificationText }); triageDialog = false"
-                                        >
-                                        </VBtn>
-                                    </VCardActions>
-                                </VCard>
-                            </VDialog>
-                        </div>
-                    </VCardTitle>
-
-                    <VCardText>
-                        <!-- Basic Info -->
-                        <VRow>
-                            <VCol
-                                cols="12"
-                                md="6"
+                    <VCol
+                        cols="12"
+                        md="6"
+                    >
+                        <div class="d-flex flex-wrap gap-2">
+                            <VChip
+                                v-for="alias in props.finding.aliases"
+                                :key="alias"
+                                color="primary"
+                                variant="outlined"
                             >
+                                {{ alias }}
+                            </VChip>
+
+                            <VChip
+                                v-for="cwe in props.finding.cwes"
+                                :key="cwe"
+                                color="info"
+                            >
+                                {{ cwe }}
+                            </VChip>
+
+                            <VChip
+                                v-if="props.finding.malicious"
+                                color="error"
+                                class="ml-2"
+                            >
+                                Malicious Package
+                                <VIcon
+                                    end
+                                    icon="mdi-alert-circle"
+                                />
+                            </VChip>
+                        </div>
+                    </VCol>
+
+                    <VCol
+                        cols="12"
+                        md="6"
+                    >
+                        <VCard
+                            variant="outlined"
+                            title="Data Sources"
+                        >
+                            <VCardText>
                                 <VList density="compact">
-                                    <VListItem>
+                                    <VListItem
+                                        v-if="props.finding.source === 'osv.dev'"
+                                        :href="`https://osv.dev/vulnerability/${props.finding.detectionTitle}`"
+                                        target="_blank"
+                                    >
                                         <template v-slot:prepend>
-                                            <VIcon icon="mdi-package-variant" />
+                                            <VIcon
+                                                aria-label="OSV.dev"
+                                                role="img"
+                                                aria-hidden="false"
+                                            >
+                                                <img
+                                                    src="@images/icons/logo/osv.png"
+                                                    width="25"
+                                                />
+                                            </VIcon>
                                         </template>
-                                        <VListItemTitle>
-                                            Package: {{ props.finding.packageEcosystem }}:{{ props.finding.packageName
-                                            }}@{{
-                                                getSemVerWithoutOperator(props.finding.packageVersion) }}
-                                        </VListItemTitle>
+                                        <template v-slot:append>
+                                            <VIcon icon="mdi:open-in-new" />
+                                        </template>
+                                        Purl: {{ props.finding.purl }}
+                                    </VListItem>
+                                    <template
+                                        v-for="(alias, k) in props.finding.aliases"
+                                        :key="k"
+                                    >
+                                        <VListItem
+                                            v-if="alias.startsWith('CVE-')"
+                                            :href="`https://www.cve.org/CVERecord?id=${alias}`"
+                                            target="_blank"
+                                        >
+                                            <template v-slot:prepend>
+                                                <VIcon
+                                                    aria-label="cve.org"
+                                                    role="img"
+                                                    aria-hidden="false"
+                                                >
+                                                    <img
+                                                        src="@images/icons/logo/cve.png"
+                                                        width="25"
+                                                    />
+                                                </VIcon>
+                                            </template>
+                                            <template v-slot:append>
+                                                <VIcon icon="mdi:open-in-new" />
+                                            </template>
+                                            {{ alias }}
+                                        </VListItem>
+                                    </template>
+
+                                    <VListItem
+                                        v-if="props.finding.cdx?.artifact?.downloadLinks?.length"
+                                        :href="props.finding.cdx.artifact.downloadLinks[0].url"
+                                        target="_blank"
+                                    >
+                                        <template v-slot:prepend>
+                                            <VIcon
+                                                aria-label="CycloneDX"
+                                                role="img"
+                                                aria-hidden="false"
+                                            >
+                                                <img
+                                                    src="@images/icons/logo/cyclonedx.png"
+                                                    width="25"
+                                                />
+                                            </VIcon>
+                                        </template>
+                                        <template v-slot:append>
+                                            <VIcon icon="mdi:download" />
+                                        </template>
+                                        <VTooltip
+                                            activator="parent"
+                                            location="top"
+                                        >Download CycloneDX Artifact</VTooltip>
+                                        {{ [props.finding.cdx.name,
+                                        props.finding.cdx?.version].filter(a => !!a).join('@') }}
                                     </VListItem>
 
-                                    <VListItem v-if="props.finding.vendor || props.finding.product">
+                                    <VListItem
+                                        v-if="props.finding.spdx?.artifact?.downloadLinks?.length"
+                                        :href="props.finding.spdx.artifact.downloadLinks[0].url"
+                                        target="_blank"
+                                    >
                                         <template v-slot:prepend>
-                                            <VIcon icon="mdi-domain" />
+                                            <VIcon
+                                                aria-label="SPDX"
+                                                role="img"
+                                                aria-hidden="false"
+                                            >
+                                                <img
+                                                    src="@images/icons/logo/spdx.png"
+                                                    width="25"
+                                                />
+                                            </VIcon>
                                         </template>
-                                        <VListItemTitle>
-                                            {{ props.finding.vendor }} {{ props.finding.product }}
-                                        </VListItemTitle>
+                                        <template v-slot:append>
+                                            <VIcon icon="mdi:download" />
+                                        </template>
+                                        <VTooltip
+                                            activator="parent"
+                                            location="top"
+                                        >Download SPDX Artifact</VTooltip>
+                                        {{ [props.finding.spdx.name,
+                                        props.finding.spdx?.version].filter(a => !!a).join('@') }}
                                     </VListItem>
 
-                                    <VListItem v-if="props.finding?.cpe">
+                                    <VListItem
+                                        v-if="props.finding?.repoSource === 'GitHub'"
+                                        :href="`https://github.com/` + props.finding.repoName"
+                                        target="_blank"
+                                    >
                                         <template v-slot:prepend>
-                                            <VIcon icon="hugeicons:package-search" />
+                                            <VIcon icon="mdi-github" />
                                         </template>
-                                        <VListItemTitle>
-                                            CPE: {{ props.finding.cpe }}
-                                        </VListItemTitle>
+                                        <template v-slot:append>
+                                            <VIcon icon="fluent-mdl2:external-git" />
+                                        </template>
+                                        <VTooltip
+                                            activator="parent"
+                                            location="top"
+                                        >Open {{ props.finding.repoSource }} in a new tab
+                                        </VTooltip>
+                                        {{ props.finding.repoName }}
+                                    </VListItem>
+
+                                    <VListItem
+                                        v-if="cvssVectorString"
+                                        :href="cvssCalculatorUrl"
+                                        target="_blank"
+                                    >
+                                        <template v-slot:prepend>
+                                            <VIcon
+                                                aria-label="NIST NVD"
+                                                role="img"
+                                                aria-hidden="false"
+                                            >
+                                                <img
+                                                    src="@images/icons/logo/nvd.png"
+                                                    width="25"
+                                                />
+                                            </VIcon>
+                                        </template>
+                                        <template v-slot:append>
+                                            <VIcon icon="hugeicons:calculate" />
+                                        </template>
+                                        <VTooltip
+                                            activator="parent"
+                                            location="top"
+                                        >Open NVD Calculator in a new tab
+                                        </VTooltip>
+                                        {{ cvssVectorString }}
+                                    </VListItem>
+
+                                    <VListItem
+                                        v-if="props.currentTriage?.epssScore"
+                                        href="https://www.first.org/epss/data_stats"
+                                        target="_blank"
+                                    >
+                                        <template v-slot:prepend>
+                                            <VIcon
+                                                aria-label="FIRST.org"
+                                                role="img"
+                                                aria-hidden="false"
+                                            >
+                                                <img
+                                                    src="@images/icons/logo/first.png"
+                                                    width="25"
+                                                />
+                                            </VIcon>
+                                        </template>
+                                        <template v-slot:append>
+                                            <VIcon icon="mdi:open-in-new" />
+                                        </template>
+                                        Exploit Prediction Scoring System
                                     </VListItem>
                                 </VList>
-                            </VCol>
+                            </VCardText>
+                        </VCard>
 
-                            <VCol
-                                cols="12"
-                                md="6"
-                            >
-                                <div class="d-flex flex-wrap gap-2">
-                                    <VChip
-                                        v-for="alias in props.finding.aliases"
-                                        :key="alias"
-                                        color="primary"
-                                        variant="outlined"
-                                    >
-                                        {{ alias }}
-                                    </VChip>
-
-                                    <VChip
-                                        v-for="cwe in props.finding.cwes"
-                                        :key="cwe"
-                                        color="info"
-                                    >
-                                        {{ cwe }}
-                                    </VChip>
-
-                                    <VChip
-                                        v-if="props.finding.malicious"
-                                        color="error"
-                                        class="ml-2"
-                                    >
-                                        Malicious Package
-                                        <VIcon
-                                            end
-                                            icon="mdi-alert-circle"
-                                        />
-                                    </VChip>
-                                </div>
-                            </VCol>
-
-                            <VCol
-                                cols="12"
-                                md="6"
-                            >
-                                <VCard
-                                    variant="outlined"
-                                    title="Data Sources"
-                                >
-                                    <VCardText>
-                                        <VList density="compact">
-                                            <VListItem v-if="props.finding.cdx?.artifact?.downloadLinks?.length">
-                                                <template v-slot:prepend>
-                                                    <VIcon
-                                                        aria-label="CycloneDX"
-                                                        role="img"
-                                                        aria-hidden="false"
-                                                    >
-                                                        <img
-                                                            src="@images/icons/logo/cyclonedx.png"
-                                                            width="25"
-                                                        />
-                                                    </VIcon>
-                                                </template>
-                                                <VListItemTitle>
-                                                    {{ [props.finding.cdx.name, props.finding.cdx?.version].filter(a =>
-                                                        !!a).join('@') }}
-                                                    <VBtn
-                                                        icon="mdi:download"
-                                                        :href="props.finding.cdx.artifact.downloadLinks[0].url"
-                                                        download
-                                                        variant="outlined"
-                                                        size="x-small"
-                                                    >
-                                                    </VBtn>
-                                                </VListItemTitle>
-                                            </VListItem>
-
-                                            <VListItem
-                                                v-if="props.finding.source === 'osv.dev'"
-                                                :href="`https://osv.dev/vulnerability/${props.finding.detectionTitle}`"
-                                                target="_blank"
-                                            >
-                                                <template v-slot:prepend>
-                                                    <VIcon
-                                                        aria-label="OSV.dev"
-                                                        role="img"
-                                                        aria-hidden="false"
-                                                    >
-                                                        <img
-                                                            src="@images/icons/logo/osv.png"
-                                                            width="25"
-                                                        />
-                                                    </VIcon>
-                                                </template>
-                                                <template v-slot:append>
-                                                    <VIcon icon="mdi:open-in-new" />
-                                                </template>
-                                                Purl: {{ props.finding.purl }}
-                                            </VListItem>
-                                            <template
-                                                v-for="(alias, k) in props.finding.aliases"
-                                                :key="k"
-                                            >
-                                                <VListItem
-                                                    v-if="alias.startsWith('CVE-')"
-                                                    :href="`https://www.cve.org/CVERecord?id=${alias}`"
-                                                    target="_blank"
-                                                >
-                                                    <template v-slot:prepend>
-                                                        <VIcon
-                                                            aria-label="cve.org"
-                                                            role="img"
-                                                            aria-hidden="false"
-                                                        >
-                                                            <img
-                                                                src="@images/icons/logo/cve.png"
-                                                                width="25"
-                                                            />
-                                                        </VIcon>
-                                                    </template>
-                                                    <template v-slot:append>
-                                                        <VIcon icon="mdi:open-in-new" />
-                                                    </template>
-                                                    {{ alias }}
-                                                </VListItem>
-
-                                            </template>
-
-                                            <VListItem
-                                                v-if="props.finding.spdx?.artifact?.downloadLinks?.length"
-                                                :href="props.finding.spdx.artifact.downloadLinks[0].url"
-                                                target="_blank"
-                                            >
-                                                <template v-slot:prepend>
-                                                    <VIcon
-                                                        aria-label="SPDX"
-                                                        role="img"
-                                                        aria-hidden="false"
-                                                    >
-                                                        <img
-                                                            src="@images/icons/logo/spdx.png"
-                                                            width="25"
-                                                        />
-                                                    </VIcon>
-                                                </template>
-                                                <template v-slot:append>
-                                                    <VIcon icon="mdi:download" />
-                                                </template>
-                                                <VTooltip
-                                                    activator="parent"
-                                                    location="top"
-                                                >Download SPDX Artifact</VTooltip>
-                                                {{ [props.finding.spdx.name,
-                                                props.finding.spdx?.version].filter(a => !!a).join('@') }}
-                                            </VListItem>
-
-                                            <VListItem
-                                                v-if="props.finding?.repoSource === 'GitHub'"
-                                                :href="`https://github.com/` + props.finding.repoName"
-                                                target="_blank"
-                                            >
-                                                <template v-slot:prepend>
-                                                    <VIcon icon="mdi-github" />
-                                                </template>
-                                                <template v-slot:append>
-                                                    <VIcon icon="fluent-mdl2:external-git" />
-                                                </template>
-                                                <VTooltip
-                                                    activator="parent"
-                                                    location="top"
-                                                >Open {{ props.finding.repoSource }} in a new tab
-                                                </VTooltip>
-                                                {{ props.finding.repoName }}
-                                            </VListItem>
-
-                                            <VListItem
-                                                v-if="cvssVectorString"
-                                                :href="cvssCalculatorUrl"
-                                                target="_blank"
-                                            >
-                                                <template v-slot:prepend>
-                                                    <VIcon
-                                                        aria-label="NIST NVD"
-                                                        role="img"
-                                                        aria-hidden="false"
-                                                    >
-                                                        <img
-                                                            src="@images/icons/logo/nvd.png"
-                                                            width="25"
-                                                        />
-                                                    </VIcon>
-                                                </template>
-                                                <template v-slot:append>
-                                                    <VIcon icon="hugeicons:calculate" />
-                                                </template>
-                                                <VTooltip
-                                                    activator="parent"
-                                                    location="top"
-                                                >Open NVD Calculator in a new tab
-                                                </VTooltip>
-                                                {{ cvssVectorString }}
-                                            </VListItem>
-
-                                            <VListItem
-                                                v-if="props.currentTriage?.epssScore"
-                                                href="https://www.first.org/epss/data_stats"
-                                                target="_blank"
-                                            >
-                                                <template v-slot:prepend>
-                                                    <VIcon
-                                                        aria-label="FIRST.org"
-                                                        role="img"
-                                                        aria-hidden="false"
-                                                    >
-                                                        <img
-                                                            src="@images/icons/logo/first.png"
-                                                            width="25"
-                                                        />
-                                                    </VIcon>
-                                                </template>
-                                                <template v-slot:append>
-                                                    <VIcon icon="mdi:open-in-new" />
-                                                </template>
-                                                Exploit Prediction Scoring System
-                                            </VListItem>
-                                        </VList>
-                                    </VCardText>
-                                </VCard>
-
-                                <VCard
-                                    variant="outlined"
-                                    title="Vulnerable Paths"
+                        <VCard
+                            variant="outlined"
+                            title="Vulnerable Paths"
+                        >
+                            <VCardText>
+                                <VCodeBlock
+                                    autodetect
+                                    highlightjs
+                                    code-block-radius="1em"
+                                    :cssPath="global.name.value === 'dark' ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/atom-one-dark.min.css' : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/atom-one-light.min.css'"
+                                    :theme="global.name.value === 'dark' ? 'atom-one-dark' : 'atom-one-light'"
                                     v-if="props.finding?.affectedFunctions"
+                                    :code="props.finding.affectedFunctions"
+                                />
+                                <VAlert
+                                    v-else
+                                    style="white-space: preserve-breaks;"
+                                    icon="mdi:warning"
+                                    color="warning"
+                                    variant="tonal"
                                 >
-                                    <VCardText>
-                                        <span style="white-space: preserve-breaks;">
-                                            {{ props.finding.affectedFunctions }}
-                                        </span>
-                                    </VCardText>
-                                </VCard>
-                            </VCol>
+                                    Advisory provided no reviewed details.
+                                </VAlert>
+                            </VCardText>
+                        </VCard>
+                    </VCol>
 
-                            <!-- Prioritisation -->
-                            <VCol
-                                cols="12"
-                                md="6"
-                            >
-                                <VCard variant="outlined">
-                                    <VCardTitle>
-                                        <div class="d-flex justify-space-between">
-                                            <div class="mt-4">Risk Scores</div>
-                                            <div>
-                                                <!-- Confidence -->
-                                                <VProgressCircular
-                                                    :model-value="props.finding.confidenceScore"
-                                                    :color="props.finding.confidenceLevel === 'Low' ? 'warning' : props.finding.confidenceLevel === 'Reasonable' ? 'info' : 'primary'"
-                                                    :size="80"
-                                                    :width="15"
-                                                >
-                                                    <div class="text-center">
-                                                        <div class="text-subtitle-2">{{ props.finding.confidenceLevel }}
-                                                        </div>
-                                                    </div>
-                                                </VProgressCircular>
-                                                <VTooltip
-                                                    v-if="props.finding?.confidenceRationale"
-                                                    activator="parent"
-                                                    location="left"
-                                                    max-width="250"
-                                                >
-                                                    <template v-slot:default>
-                                                        <span style="white-space: preserve-breaks;">
-                                                            {{ props.finding.confidenceRationale.join(`\n\n`) }}
-                                                        </span>
-                                                    </template>
-                                                </VTooltip>
+                    <!-- Prioritisation -->
+                    <VCol
+                        cols="12"
+                        md="6"
+                    >
+                        <VCard variant="outlined">
+                            <VCardTitle>
+                                <div class="d-flex justify-space-between">
+                                    <div class="mt-4">Risk Scores</div>
+                                    <div>
+                                        <!-- Confidence -->
+                                        <VProgressCircular
+                                            :model-value="props.finding.confidenceScore"
+                                            :color="props.finding.confidenceLevel === 'Low' ? 'warning' : props.finding.confidenceLevel === 'Reasonable' ? 'info' : 'primary'"
+                                            :size="80"
+                                            :width="15"
+                                        >
+                                            <div class="text-center">
+                                                <div class="text-subtitle-2">{{ props.finding.confidenceLevel }}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </VCardTitle>
-                                    <VCardText>
-                                        <!-- SSVC -->
-                                        <div v-if="props.currentTriage?.ssvc">
-                                            SSVC: {{ props.currentTriage?.ssvc }}
-                                        </div>
+                                        </VProgressCircular>
+                                        <VTooltip
+                                            v-if="props.finding?.confidenceRationale"
+                                            activator="parent"
+                                            location="left"
+                                            max-width="250"
+                                        >
+                                            <template v-slot:default>
+                                                <span style="white-space: preserve-breaks;">
+                                                    {{ props.finding.confidenceRationale.join(`\n\n`) }}
+                                                </span>
+                                            </template>
+                                        </VTooltip>
+                                    </div>
+                                </div>
+                            </VCardTitle>
+                            <VCardText>
+                                <!-- SSVC -->
+                                <div v-if="props.currentTriage?.ssvc">
+                                    SSVC: {{ props.currentTriage?.ssvc }}
+                                </div>
 
-                                        <!-- CVSS Score -->
-                                        <div class="mb-4">
-                                            <div class="d-flex justify-space-between align-center mb-2">
-                                                <div class="d-flex align-center">
-                                                    <VDialog
-                                                        v-model="cvssDialog"
-                                                        max-width="800"
-                                                    >
-                                                        <template v-slot:default="{ isActive }">
-                                                            <VCard>
-                                                                <VCardTitle
-                                                                    class="d-flex justify-space-between align-center"
-                                                                >
-                                                                    <div class="text-h5 text-medium-emphasis ps-2">
-                                                                        CVSS Calculator
-                                                                    </div>
+                                <!-- CVSS Score -->
+                                <div class="mb-4">
+                                    <div class="d-flex justify-space-between align-center mb-2">
+                                        <div class="d-flex align-center">
+                                            <VDialog
+                                                v-model="cvssDialog"
+                                                max-width="800"
+                                            >
+                                                <template v-slot:default="{ isActive }">
+                                                    <VCard>
+                                                        <VCardTitle class="d-flex justify-space-between align-center">
+                                                            <div class="text-h5 text-medium-emphasis ps-2">
+                                                                CVSS Calculator
+                                                            </div>
+                                                            <VChip
+                                                                size="large"
+                                                                class="py-3 px-4"
+                                                                :color="cvssColorCalc || 'success'"
+                                                                variant="outlined"
+                                                            >
+                                                                {{ cvssScoreCalc || 0 }}
+                                                            </VChip>
 
-                                                                    <VBtn
-                                                                        icon="mdi-close"
-                                                                        variant="text"
-                                                                        @click="isActive.value = false"
-                                                                    ></VBtn>
-                                                                </VCardTitle>
-                                                                <VDivider />
-                                                                <VCardText>
-                                                                    <VTabs
-                                                                        v-model="activeTab"
-                                                                        grow
-                                                                        fixed-tabs
-                                                                    >
-                                                                        <VTab value="v31">CVSS v3.1</VTab>
-                                                                        <VTab value="v40">CVSS v4.0</VTab>
-                                                                        <VChip
-                                                                            class="ma-2"
-                                                                            :color="cvssColorCalc"
-                                                                            variant="outlined"
-                                                                        >
-                                                                            {{ cvssScoreCalc }}
-                                                                        </VChip>
-                                                                    </VTabs>
+                                                            <VBtn
+                                                                icon="mdi-close"
+                                                                variant="text"
+                                                                @click="isActive.value = false"
+                                                            ></VBtn>
+                                                        </VCardTitle>
+                                                        <VDivider />
+                                                        <VCardText>
+                                                            <VTabs
+                                                                v-model="activeTab"
+                                                                grow
+                                                                fixed-tabs
+                                                            >
+                                                                <VTab value="v31">CVSS v3.1</VTab>
+                                                                <VTab value="v40">CVSS v4.0</VTab>
+                                                            </VTabs>
 
-                                                                    <VWindow v-model="activeTab">
-                                                                        <!-- CVSS v3.1 Tab -->
-                                                                        <VWindowItem value="v31">
-                                                                            <VContainer>
+                                                            <VWindow v-model="activeTab">
+                                                                <!-- CVSS v3.1 Tab -->
+                                                                <VWindowItem value="v31">
+                                                                    <VContainer>
+                                                                        <VRow>
+                                                                            <VCol cols="6">
                                                                                 <!-- Base Metrics Group -->
-                                                                                <div class="text-h6 mb-2">Base Metrics
+                                                                                <div class="text-h6 mb-2">
+                                                                                    Base Metrics
                                                                                 </div>
 
                                                                                 <div class="mb-4">
@@ -1274,7 +1290,8 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
-
+                                                                            </VCol>
+                                                                            <VCol cols="6">
                                                                                 <!-- Impact Metrics -->
                                                                                 <div class="text-h6 mb-2">
                                                                                     Impact Metrics
@@ -1342,13 +1359,15 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
-
+                                                                            </VCol>
+                                                                            <VCol cols="6">
                                                                                 <div class="text-h6 mb-2">
                                                                                     Temporal Score Metrics
                                                                                 </div>
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Exploit Code Maturity (E)
+                                                                                        Exploit Code Maturity
+                                                                                        (E)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v31MetricsE"
@@ -1405,7 +1424,8 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
-
+                                                                            </VCol>
+                                                                            <VCol cols="6">
                                                                                 <div class="text-h6 mb-2">
                                                                                     Environmental Score Metrics
                                                                                 </div>
@@ -1451,7 +1471,8 @@ watch([
 
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Privileges Required (MPR)
+                                                                                        Privileges Required
+                                                                                        (MPR)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v31MetricsMPR"
@@ -1511,7 +1532,8 @@ watch([
 
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Confidentiality Impact (MC)
+                                                                                        Confidentiality Impact
+                                                                                        (MC)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v31MetricsMC"
@@ -1571,7 +1593,8 @@ watch([
 
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Confidentiality Requirement (CR)
+                                                                                        Confidentiality
+                                                                                        Requirement (CR)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v31MetricsCR"
@@ -1591,7 +1614,8 @@ watch([
 
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Integrity Requirement (IR)
+                                                                                        Integrity Requirement
+                                                                                        (IR)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v31MetricsIR"
@@ -1611,7 +1635,8 @@ watch([
 
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Availability Requirement (AR)
+                                                                                        Availability Requirement
+                                                                                        (AR)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v31MetricsAR"
@@ -1628,12 +1653,16 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
-                                                                            </VContainer>
-                                                                        </VWindowItem>
+                                                                            </VCol>
+                                                                        </VRow>
+                                                                    </VContainer>
+                                                                </VWindowItem>
 
-                                                                        <!-- CVSS v4.0 Tab -->
-                                                                        <VWindowItem value="v40">
-                                                                            <VContainer>
+                                                                <!-- CVSS v4.0 Tab -->
+                                                                <VWindowItem value="v40">
+                                                                    <VContainer>
+                                                                        <VRow>
+                                                                            <VCol cols="6">
                                                                                 <div class="text-h6 mb-2">
                                                                                     Exploitability Metrics
                                                                                 </div>
@@ -1739,8 +1768,11 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
+                                                                            </VCol>
+                                                                            <VCol cols="6">
                                                                                 <div class="text-h6 mb-2">
-                                                                                    Vulnerable System Impact Metrics
+                                                                                    Vulnerable System Impact
+                                                                                    Metrics
                                                                                 </div>
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
@@ -1750,7 +1782,7 @@ watch([
                                                                                         v-model="v40MetricsVC"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.systemConfidentiality.value"
@@ -1771,7 +1803,7 @@ watch([
                                                                                         v-model="v40MetricsVI"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.systemIntegrity.value"
@@ -1792,7 +1824,7 @@ watch([
                                                                                         v-model="v40MetricsVA"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.systemAvailability.value"
@@ -1805,7 +1837,8 @@ watch([
                                                                                     </VBtnToggle>
                                                                                 </div>
                                                                                 <div class="text-h6 mb-2">
-                                                                                    Subsequent System Impact Metrics
+                                                                                    Subsequent System Impact
+                                                                                    Metrics
                                                                                 </div>
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
@@ -1815,7 +1848,7 @@ watch([
                                                                                         v-model="v40MetricsSC"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.subSystemConfidentiality.value"
@@ -1835,7 +1868,7 @@ watch([
                                                                                         v-model="v40MetricsSI"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.subSystemIntegrity.value"
@@ -1855,7 +1888,7 @@ watch([
                                                                                         v-model="v40MetricsSA"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.subSystemAvailability.value"
@@ -1867,6 +1900,8 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
+                                                                            </VCol>
+                                                                            <VCol cols="6">
                                                                                 <div class="text-h6 mb-2">
                                                                                     Supplemental Metrics
                                                                                 </div>
@@ -1878,7 +1913,7 @@ watch([
                                                                                         v-model="v40MetricsS"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.safety.value"
@@ -1898,7 +1933,7 @@ watch([
                                                                                         v-model="v40MetricsAU"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.automatable.value"
@@ -1918,7 +1953,7 @@ watch([
                                                                                         v-model="v40MetricsR"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.recovery.value"
@@ -1938,7 +1973,7 @@ watch([
                                                                                         v-model="v40MetricsV"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.valueDensity.value"
@@ -1952,14 +1987,15 @@ watch([
                                                                                 </div>
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Vulnerability Response Effort
+                                                                                        Vulnerability Response
+                                                                                        Effort
                                                                                         (RE)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v40MetricsRE"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.vulnerabilityResponseEffort.value"
@@ -1979,7 +2015,7 @@ watch([
                                                                                         v-model="v40MetricsU"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.providerUrgency.value"
@@ -1991,6 +2027,8 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
+                                                                            </VCol>
+                                                                            <VCol cols="6">
                                                                                 <div class="text-h6 mb-2">
                                                                                     Environmental (Modified Base
                                                                                     Metrics)
@@ -2003,7 +2041,6 @@ watch([
                                                                                         v-model="v40MetricsMAV"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envAttackVector.value"
@@ -2023,7 +2060,6 @@ watch([
                                                                                         v-model="v40MetricsMAC"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envAttackComplexity.value"
@@ -2037,13 +2073,13 @@ watch([
                                                                                 </div>
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Attack Requirements (MAT)
+                                                                                        Attack Requirements
+                                                                                        (MAT)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v40MetricsMAT"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envAttackRequirements.value"
@@ -2057,13 +2093,13 @@ watch([
                                                                                 </div>
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Privileges Required (MPR)
+                                                                                        Privileges Required
+                                                                                        (MPR)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v40MetricsMPR"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envPrivilegesRequired.value"
@@ -2083,7 +2119,6 @@ watch([
                                                                                         v-model="v40MetricsMUI"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envUserInteraction.value"
@@ -2103,7 +2138,6 @@ watch([
                                                                                         v-model="v40MetricsMVC"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envSystemConfidentiality.value"
@@ -2123,7 +2157,6 @@ watch([
                                                                                         v-model="v40MetricsMVI"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envSystemIntegrity.value"
@@ -2143,7 +2176,6 @@ watch([
                                                                                         v-model="v40MetricsMVA"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envSystemAvailability.value"
@@ -2163,7 +2195,6 @@ watch([
                                                                                         v-model="v40MetricsMSC"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envSubSystemConfidentiality.value"
@@ -2183,7 +2214,6 @@ watch([
                                                                                         v-model="v40MetricsMSI"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envSubSystemIntegrity.value"
@@ -2203,7 +2233,6 @@ watch([
                                                                                         v-model="v40MetricsMSA"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envSubSystemAvailability.value"
@@ -2215,20 +2244,22 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
+                                                                            </VCol>
+                                                                            <VCol cols="6">
                                                                                 <div class="text-h6 mb-2">
                                                                                     Environmental (Security
                                                                                     Requirements)
                                                                                 </div>
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Confidentiality Requirements
+                                                                                        Confidentiality
+                                                                                        Requirements
                                                                                         (CR)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v40MetricsCR"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envConfidentialityRequirement.value"
@@ -2242,13 +2273,13 @@ watch([
                                                                                 </div>
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Integrity Requirements (IR)
+                                                                                        Integrity Requirements
+                                                                                        (IR)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v40MetricsIR"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envIntegrityRequirement.value"
@@ -2262,13 +2293,13 @@ watch([
                                                                                 </div>
                                                                                 <div class="mb-4">
                                                                                     <div class="text-subtitle-2 mb-1">
-                                                                                        Availability Requirements (AR)
+                                                                                        Availability
+                                                                                        Requirements (AR)
                                                                                     </div>
                                                                                     <VBtnToggle
                                                                                         v-model="v40MetricsAR"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.envAvailabilityRequirement.value"
@@ -2280,6 +2311,8 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
+                                                                            </VCol>
+                                                                            <VCol cols="6">
                                                                                 <div class="text-h6 mb-2">
                                                                                     Threat Metrics
                                                                                 </div>
@@ -2291,7 +2324,7 @@ watch([
                                                                                         v-model="v40MetricsE"
                                                                                         mandatory
                                                                                         divided
-                                                                                        color="secondary"
+                                                                                        color="info"
                                                                                     >
                                                                                         <VBtn
                                                                                             v-for="option in v40Options.exploitMaturity.value"
@@ -2303,254 +2336,254 @@ watch([
                                                                                         </VBtn>
                                                                                     </VBtnToggle>
                                                                                 </div>
-                                                                            </VContainer>
-                                                                        </VWindowItem>
-                                                                    </VWindow>
+                                                                            </VCol>
+                                                                        </VRow>
+                                                                    </VContainer>
+                                                                </VWindowItem>
+                                                            </VWindow>
 
-                                                                    <!-- Vector String Display -->
-                                                                    <VRow class="mt-4">
-                                                                        <VCol cols="12">
-                                                                            <VTextField
-                                                                                v-model="vectorString"
-                                                                                label="CVSS Vector String"
-                                                                                readonly
-                                                                                filled
-                                                                            ></VTextField>
-                                                                        </VCol>
-                                                                    </VRow>
-                                                                </VCardText>
+                                                            <!-- Vector String Display -->
+                                                            <VRow class="mt-4">
+                                                                <VCol cols="12">
+                                                                    <VTextField
+                                                                        v-model="vectorString"
+                                                                        label="CVSS Vector String"
+                                                                        readonly
+                                                                        filled
+                                                                    ></VTextField>
+                                                                </VCol>
+                                                            </VRow>
+                                                        </VCardText>
 
-                                                                <VCardActions>
-                                                                    <VSpacer />
-                                                                    <VBtn
-                                                                        color="primary"
-                                                                        @click="saveVector"
-                                                                    >
-                                                                        Save
-                                                                    </VBtn>
-                                                                    <VBtn
-                                                                        color="grey"
-                                                                        @click="cvssDialog = false"
-                                                                    >
-                                                                        Cancel
-                                                                    </VBtn>
-                                                                </VCardActions>
-                                                            </VCard>
-                                                        </template>
-                                                        <template v-slot:activator="{ props: activatorProps }">
+                                                        <VCardActions>
+                                                            <VSpacer />
                                                             <VBtn
-                                                                class="text-none font-weight-regular"
-                                                                variant="plain"
-                                                                icon="mdi:edit"
-                                                                size="small"
-                                                                v-bind="activatorProps"
-                                                            />
-                                                        </template>
-                                                    </VDialog>
-                                                    <span class="font-weight-medium">CVSS</span>
-                                                    <VChip
-                                                        :color="cvssChipColor"
-                                                        class="ml-2"
-                                                        size="small"
-                                                        v-if="cvssVersion"
-                                                    >
-                                                        v{{ cvssVersion }}
-                                                    </VChip>
-                                                </div>
-                                                <span
-                                                    v-if="cvssScore"
-                                                    class="font-weight-bold"
-                                                >{{
-                                                    cvssScore
-                                                    }} / 10.0</span>
-                                            </div>
-                                            <VProgressLinear
-                                                :model-value="cvssScore"
-                                                :color="cvssColor"
-                                                height="10"
-                                                max="10"
-                                                rounded
-                                            />
-                                        </div>
-
-                                        <!-- EPSS Score -->
-                                        <div
-                                            class="mb-4"
-                                            v-if="props.currentTriage?.epssScore"
-                                        >
-                                            <div class="d-flex justify-space-between align-center mb-2">
-                                                <span class="font-weight-medium">EPSS Score</span>
-                                                <span class="font-monospace">{{
-                                                    parseFloat(props.currentTriage.epssScore).toFixed(5)
-                                                    }}</span>
-                                            </div>
-                                            <VProgressLinear
-                                                :model-value="parseFloat(props.currentTriage.epssScore).toFixed(5)"
-                                                :color="scoreColor"
-                                                height="10"
-                                                max="1"
-                                                rounded
-                                            >
-                                            </VProgressLinear>
-                                        </div>
-
-                                        <!-- Percentile -->
-                                        <div
-                                            class="mb-4"
-                                            v-if="props.currentTriage?.epssPercentile"
-                                        >
-                                            <div class="d-flex justify-space-between align-center mb-2">
-                                                <span class="font-weight-medium">EPSS Percentile</span>
-                                                <span class="font-monospace">{{
-                                                    parseFloat(props.currentTriage.epssPercentile).toFixed(5)
-                                                    }}%</span>
-                                            </div>
-                                            <VProgressLinear
-                                                :model-value="parseFloat(props.currentTriage.epssPercentile).toFixed(5)"
-                                                color="primary"
-                                                height="10"
-                                                max="1"
-                                                rounded
-                                            ></VProgressLinear>
-                                        </div>
-
-                                    </VCardText>
-                                </VCard>
-
-                                <VCard
-                                    variant="outlined"
-                                    title="Package Versions"
-                                >
-                                    <VCardText>
-                                        <VList density="compact">
-                                            <VListItem v-if="props.finding?.vulnerableVersionRange">
-                                                <template v-slot:prepend>
-                                                    <VIcon icon="system-uicons:versions" />
-                                                    <span class="ml-2 mr-1">
-                                                        Vulnerable Range
-                                                    </span>
-                                                </template>
-                                                {{ props.finding.vulnerableVersionRange }}
-                                            </VListItem>
-
-                                            <VListItem
-                                                v-for="{ version, isCurrentVersion, isVulnerable } in versions"
-                                                :key="version"
-                                            >
-                                                <template v-slot:prepend>
-                                                    <VIcon icon="system-uicons:version" />
-                                                    <span class="ml-2 mr-1 font-mono">
-                                                        {{ version }}
-                                                    </span>
-                                                </template>
-                                                <span
-                                                    v-if="isCurrentVersion"
-                                                    class="font-mono ml-1 text-info font-semibold"
-                                                >
-                                                    (Current)
-                                                </span>
-                                                <span
-                                                    v-if="props.finding?.fixVersion && version.startsWith(getVersionString(props.finding.fixVersion))"
-                                                    class="ml-1 text-success font-semibold"
-                                                >
-                                                    (Fix)
-                                                </span>
-                                                <span
-                                                    v-if="isVulnerable && !version.startsWith(getVersionString(props.finding?.fixVersion))"
-                                                    class="ml-1 text-error text-sm font-medium"
-                                                >
-                                                    Vulnerable
-                                                </span>
-                                            </VListItem>
-                                        </VList>
-                                    </VCardText>
-                                </VCard>
-                            </VCol>
-
-                            <!-- Timeline -->
-                            <VCol cols="8">
-                                <VCard
-                                    variant="outlined"
-                                    title="Timeline"
-                                >
-                                    <VCardText v-if="props.finding?.timeline">
-                                        <VTimeline align="center">
-                                            <VTimelineItem
-                                                v-for="(event, i) in props.finding.timeline"
-                                                :key="i"
-                                                :dot-color="event.color"
-                                                size="large"
-                                            >
-                                                <template v-slot:opposite>
-                                                    <div
-                                                        class="pt-1 headline font-weight-bold"
-                                                        :style="`color: ${global.name.value === 'dark' ? event.color : 'rgb(var(--v-theme-on-surface-bright))'};`"
-                                                        v-text="new Date(event.time).toLocaleDateString()"
-                                                    ></div>
-                                                </template>
-                                                <template v-slot:default>
-                                                    <VCard>
-                                                        <VCardTitle
-                                                            class="text-h6"
-                                                            :style="`color: rgb(var(--v-theme-on-surface-bright)); background-color: ${event.color};`"
-                                                        >
-                                                            {{ event.value }}
-                                                        </VCardTitle>
+                                                                color="primary"
+                                                                @click="saveVector"
+                                                            >
+                                                                Save
+                                                            </VBtn>
+                                                            <VBtn
+                                                                color="grey"
+                                                                @click="cvssDialog = false"
+                                                            >
+                                                                Cancel
+                                                            </VBtn>
+                                                        </VCardActions>
                                                     </VCard>
                                                 </template>
-                                            </VTimelineItem>
-                                        </VTimeline>
-                                    </VCardText>
-                                </VCard>
-                            </VCol>
-
-                            <!-- References List -->
-                            <VCol
-                                cols="4"
-                                rows="2"
-                            >
-                                <VCard
-                                    variant="outlined"
-                                    title="References"
-                                >
-                                    <VCardText>
-                                        <VList>
-                                            <VListItem
-                                                v-for="ref in [...props.finding?.references || [], props.finding?.advisoryUrl]"
-                                                :key="ref"
-                                                :href="ref"
-                                                target="_blank"
-                                            >
-                                                <template v-slot:prepend>
-                                                    <VIcon icon="mdi:open-in-new" />
-                                                </template>
-                                                {{ ref }}
-                                            </VListItem>
-
-                                            <VListItem
-                                                v-for="exploit in [...props.finding?.exploits || [], ...props.finding?.knownExploits || []]"
-                                                :key="exploit"
-                                                :href="exploit"
-                                                target="_blank"
-                                                color="error"
-                                            >
-                                                <template v-slot:prepend>
-                                                    <VIcon
-                                                        icon="mdi:alert-circle"
-                                                        color="error"
+                                                <template v-slot:activator="{ props: activatorProps }">
+                                                    <VBtn
+                                                        class="text-none font-weight-regular"
+                                                        variant="plain"
+                                                        icon="mdi:edit"
+                                                        size="small"
+                                                        v-bind="activatorProps"
                                                     />
                                                 </template>
-                                                {{ exploit }}
-                                            </VListItem>
-                                        </VList>
-                                    </VCardText>
-                                </VCard>
-                            </VCol>
-                        </VRow>
-                    </VCardText>
-                </VCard>
-            </VCol>
-        </VRow>
+                                            </VDialog>
+                                            <span class="font-weight-medium">CVSS</span>
+                                            <VChip
+                                                :color="cvssChipColor"
+                                                class="ml-2"
+                                                size="small"
+                                                v-if="cvssVersion"
+                                            >
+                                                v{{ cvssVersion }}
+                                            </VChip>
+                                        </div>
+                                        <span
+                                            v-if="cvssScore"
+                                            class="font-weight-bold"
+                                        >{{
+                                            cvssScore
+                                        }} / 10.0</span>
+                                    </div>
+                                    <VProgressLinear
+                                        :model-value="cvssScore"
+                                        :color="cvssColor"
+                                        height="10"
+                                        max="10"
+                                        rounded
+                                    />
+                                </div>
+
+                                <!-- EPSS Score -->
+                                <div
+                                    class="mb-4"
+                                    v-if="props.currentTriage?.epssScore"
+                                >
+                                    <div class="d-flex justify-space-between align-center mb-2">
+                                        <span class="font-weight-medium">EPSS Score</span>
+                                        <span class="font-monospace">{{
+                                            parseFloat(props.currentTriage.epssScore).toFixed(5)
+                                        }}</span>
+                                    </div>
+                                    <VProgressLinear
+                                        :model-value="parseFloat(props.currentTriage.epssScore).toFixed(5)"
+                                        :color="scoreColor"
+                                        height="10"
+                                        max="1"
+                                        rounded
+                                    >
+                                    </VProgressLinear>
+                                </div>
+
+                                <!-- Percentile -->
+                                <div
+                                    class="mb-4"
+                                    v-if="props.currentTriage?.epssPercentile"
+                                >
+                                    <div class="d-flex justify-space-between align-center mb-2">
+                                        <span class="font-weight-medium">EPSS Percentile</span>
+                                        <span class="font-monospace">{{
+                                            parseFloat(props.currentTriage.epssPercentile).toFixed(5)
+                                        }}%</span>
+                                    </div>
+                                    <VProgressLinear
+                                        :model-value="parseFloat(props.currentTriage.epssPercentile).toFixed(5)"
+                                        color="primary"
+                                        height="10"
+                                        max="1"
+                                        rounded
+                                    ></VProgressLinear>
+                                </div>
+
+                            </VCardText>
+                        </VCard>
+
+                        <VCard
+                            variant="outlined"
+                            title="Package Versions"
+                        >
+                            <VCardText>
+                                <VList density="compact">
+                                    <VListItem v-if="props.finding?.vulnerableVersionRange">
+                                        <template v-slot:prepend>
+                                            <VIcon icon="system-uicons:versions" />
+                                            <span class="ml-2 mr-1">
+                                                Vulnerable Range
+                                            </span>
+                                        </template>
+                                        {{ props.finding.vulnerableVersionRange }}
+                                    </VListItem>
+
+                                    <VListItem
+                                        v-for="{ version, isCurrentVersion, isVulnerable } in versions"
+                                        :key="version"
+                                    >
+                                        <template v-slot:prepend>
+                                            <VIcon icon="system-uicons:version" />
+                                            <span class="ml-2 mr-1 font-mono">
+                                                {{ version }}
+                                            </span>
+                                        </template>
+                                        <span
+                                            v-if="isCurrentVersion"
+                                            class="font-mono ml-1 text-info font-semibold"
+                                        >
+                                            (Current)
+                                        </span>
+                                        <span
+                                            v-if="props.finding?.fixVersion && version.startsWith(getVersionString(props.finding.fixVersion))"
+                                            class="ml-1 text-success font-semibold"
+                                        >
+                                            (Fix)
+                                        </span>
+                                        <span
+                                            v-if="isVulnerable && !version.startsWith(getVersionString(props.finding?.fixVersion))"
+                                            class="ml-1 text-error text-sm font-medium"
+                                        >
+                                            Vulnerable
+                                        </span>
+                                    </VListItem>
+                                </VList>
+                            </VCardText>
+                        </VCard>
+                    </VCol>
+
+                    <!-- Timeline -->
+                    <VCol cols="8">
+                        <VCard
+                            variant="outlined"
+                            title="Timeline"
+                        >
+                            <VCardText v-if="props.finding?.timeline">
+                                <VTimeline align="center">
+                                    <VTimelineItem
+                                        v-for="(event, i) in props.finding.timeline"
+                                        :key="i"
+                                        :dot-color="event.color"
+                                        size="large"
+                                    >
+                                        <template v-slot:opposite>
+                                            <div
+                                                class="pt-1 headline font-weight-bold"
+                                                :style="`color: ${global.name.value === 'dark' ? event.color : 'rgb(var(--v-theme-on-surface-bright))'};`"
+                                                v-text="new Date(event.time).toLocaleDateString()"
+                                            ></div>
+                                        </template>
+                                        <template v-slot:default>
+                                            <VCard>
+                                                <VCardTitle
+                                                    class="text-h6"
+                                                    :style="`color: rgb(var(--v-theme-on-surface-bright)); background-color: ${event.color};`"
+                                                >
+                                                    {{ event.value }}
+                                                </VCardTitle>
+                                            </VCard>
+                                        </template>
+                                    </VTimelineItem>
+                                </VTimeline>
+                            </VCardText>
+                        </VCard>
+                    </VCol>
+
+                    <!-- References List -->
+                    <VCol
+                        cols="4"
+                        rows="2"
+                    >
+                        <VCard
+                            variant="outlined"
+                            title="References"
+                        >
+                            <VCardText>
+                                <VList>
+                                    <VListItem
+                                        v-for="ref in [...props.finding?.references || [], props.finding?.advisoryUrl]"
+                                        :key="ref"
+                                        :href="ref"
+                                        target="_blank"
+                                    >
+                                        <template v-slot:prepend>
+                                            <VIcon icon="mdi:open-in-new" />
+                                        </template>
+                                        {{ ref }}
+                                    </VListItem>
+
+                                    <VListItem
+                                        v-for="exploit in [...props.finding?.exploits || [], ...props.finding?.knownExploits || []]"
+                                        :key="exploit"
+                                        :href="exploit"
+                                        target="_blank"
+                                        color="error"
+                                    >
+                                        <template v-slot:prepend>
+                                            <VIcon
+                                                icon="mdi:alert-circle"
+                                                color="error"
+                                            />
+                                        </template>
+                                        {{ exploit }}
+                                    </VListItem>
+                                </VList>
+                            </VCardText>
+                        </VCard>
+                    </VCol>
+                </VRow>
+            </VCardText>
+        </VCard>
     </VContainer>
 </template>
 

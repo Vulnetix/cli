@@ -30,9 +30,6 @@ export async function onRequestGet(context) {
             where: {
                 orgId: verificationResult.session.orgId,
             },
-            omit: {
-                memberEmail: true,
-            },
             include: {
                 triage: true,
                 spdx: {

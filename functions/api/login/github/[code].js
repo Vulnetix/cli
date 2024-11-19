@@ -143,7 +143,7 @@ export async function onRequestGet(context) {
         })
         console.log(`/github/install session kid=${token}`, sessionInfo)
         const githubApp = await prisma.GitHubApp.findFirst({
-            where: { memberEmail: response.member.email },
+            where: { orgId: response.member.orgId },
         })
         let installationId = githubApp?.installationId
         if (!installationId) {
@@ -170,7 +170,7 @@ export async function onRequestGet(context) {
                 },
                 create: {
                     installationId: parseInt(installationId, 10),
-                    memberEmail: response.member.email,
+                    orgId: response.member.orgId,
                     accessToken: oauthData.access_token,
                     login: content.login,
                     created,

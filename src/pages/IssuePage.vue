@@ -1,4 +1,5 @@
 <script setup>
+import DependencyGraph from '@/components/DependencyGraph.vue';
 import Finding from '@/components/Finding.vue';
 import { useMemberStore } from '@/stores/member';
 import { Client, getPastelColor, VexAnalysisState } from '@/utils';
@@ -126,11 +127,21 @@ class Controller {
         }
         state.loading = false
     }
+}
 
+function onTabChange() {
+    window.history.replaceState({ ...history.state }, '', `${window.location.origin}/issue/${state.finding.uuid}#${tab.value}`)
 }
 
 const controller = reactive(new Controller())
-onMounted(() => Member.ensureSession().then(() => controller.fetchIssue(route.params.uuid)))
+
+onMounted(() => {
+    const hash = window.location.hash.substring(1)
+    if (['issue', 'dependencies', 'artifacts', 'related'].includes(hash)) {
+        tab.value = hash
+    }
+    Member.ensureSession().then(() => controller.fetchIssue(route.params.uuid))
+})
 
 onBeforeRouteUpdate(async (to, from) => {
     if (to.params.uuid !== from.params.uuid) {
@@ -145,6 +156,8 @@ onBeforeRouteUpdate(async (to, from) => {
             v-model="tab"
             align-tabs="start"
             stacked
+            grow
+            @update:model-value="onTabChange"
         >
             <VTab value="issue">
                 <VIcon
@@ -173,6 +186,16 @@ onBeforeRouteUpdate(async (to, from) => {
                 ></VIcon>
                 <span class="mt-2">
                     Artifacts
+                </span>
+            </VTab>
+
+            <VTab value="related">
+                <VIcon
+                    size="large"
+                    icon="fluent-mdl2:relationship"
+                ></VIcon>
+                <span class="mt-2">
+                    Related
                 </span>
             </VTab>
         </VTabs>
@@ -262,11 +285,22 @@ onBeforeRouteUpdate(async (to, from) => {
         </VTabsWindowItem>
 
         <VTabsWindowItem value="dependencies">
-            dependencies
+            <DependencyGraph
+                v-if="state.finding?.spdx?.dependencies"
+                :dependencies="state.finding.spdx.dependencies"
+            />
+            <DependencyGraph
+                v-if="state.finding?.cdx?.dependencies"
+                :dependencies="state.finding.cdx.dependencies"
+            />
         </VTabsWindowItem>
 
         <VTabsWindowItem value="artifacts">
             artifacts
+        </VTabsWindowItem>
+
+        <VTabsWindowItem value="related">
+            related
         </VTabsWindowItem>
     </VTabsWindow>
 </template>

@@ -39,8 +39,8 @@ sarif: clean ## generate SARIF from Semgrep for this project
 	semgrep $(SEMGREP_ARGS) $(SEMGREP_RULES) | jq >semgrep.sarif.json
 
 sbom: clean ## generate CycloneDX from NPM for this project
-	npm sbom --omit dev --package-lock-only --sbom-format cyclonedx | jq >npm.cdx.json
-	npm sbom --omit dev --package-lock-only --sbom-format spdx | jq >npm.spdx.json
+	yarn cyclonedx --spec-version 1.6 --prod --output-reproducible --output-file vulnetix.cdx.json
+	yarn spdx
 
 deployments: ## FOR DOCO ONLY
 	npx wrangler pages deployment list --project-name vulnetix

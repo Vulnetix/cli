@@ -31,8 +31,8 @@ const routes = [
                 component: () => import('../pages/Projects.vue'),
             },
             {
-                path: 'products',
-                component: () => import('../pages/Products.vue'),
+                path: 'catalog',
+                component: () => import('../pages/Catalog.vue'),
             },
             {
                 path: 'triage',
@@ -47,9 +47,12 @@ const routes = [
                 component: () => import('../pages/TriageExploitable.vue'),
             },
             {
-                path: 'triage/history',
-                name: 'history',
-                component: () => import('../pages/TriageHistory.vue'),
+                path: 'triage/unresolved',
+                component: () => import('../pages/TriageUnresloved.vue'),
+            },
+            {
+                path: 'triage/archive',
+                component: () => import('../pages/TriageArchive.vue'),
             },
             {
                 path: 'integrations',

@@ -676,12 +676,11 @@ export class MitreCVE {
         if (!!mitreCveIntegration?.suspend) {
             throw new Error('Mitre CVE Integration is Disabled')
         }
-
-        const url = this.constructURL(cveId)
+        let url = `https://cveawg.mitre.org/api/cve/${cveId}`
         const resp = await this.fetchJSON(url)
 
-        if (isJSON(resp?.content)) {
-            const data = JSON.parse(resp.content)
+        if (resp?.content) {
+            const data = resp.content
             const createLog = await prisma.IntegrationUsageLog.create({
                 data: {
                     memberEmail,
@@ -696,10 +695,11 @@ export class MitreCVE {
             console.log(`MitreCVE.query()`, createLog)
             return data
         } else {
-            const response = await this.fetchJSON(`https://cveawg.mitre.org/api/cve-id/${cveId}`)
+            url = this.constructURL(cveId)
+            const response = await this.fetchJSON(url)
 
-            if (isJSON(response?.content)) {
-                const cveData = JSON.parse(response.content)
+            if (response?.content) {
+                const cveData = response.content
                 const log = await prisma.IntegrationUsageLog.create({
                     data: {
                         memberEmail,
@@ -1597,8 +1597,7 @@ function validCdxComponent(o, specVersion) {
         if (typeof o?.name === 'undefined' ||
             typeof o?.version === 'undefined' ||
             typeof o?.purl === 'undefined' ||
-            typeof o?.['bom-ref'] === 'undefined' ||
-            typeof o?.externalReferences === 'undefined'
+            typeof o?.['bom-ref'] === 'undefined'
         ) {
             console.log(o)
             return false
@@ -1607,8 +1606,7 @@ function validCdxComponent(o, specVersion) {
         if (typeof o?.name === 'undefined' ||
             typeof o?.version === 'undefined' ||
             typeof o?.purl === 'undefined' ||
-            typeof o?.['bom-ref'] === 'undefined' ||
-            typeof o?.externalReferences === 'undefined'
+            typeof o?.['bom-ref'] === 'undefined'
         ) {
             console.log(o)
             return false
@@ -1617,14 +1615,12 @@ function validCdxComponent(o, specVersion) {
         if (typeof o?.name === 'undefined' ||
             typeof o?.version === 'undefined' ||
             typeof o?.purl === 'undefined' ||
-            typeof o?.['bom-ref'] === 'undefined' ||
-            typeof o?.externalReferences === 'undefined' ||
-            !o.externalReferences.length
+            typeof o?.['bom-ref'] === 'undefined'
         ) {
             console.log(o)
             return false
         }
-        for (const ref of o.externalReferences) {
+        for (const ref of o?.externalReferences || []) {
             if (typeof ref?.type === 'undefined' || (ref.type === 'distribution' && !ref?.hashes?.length)) {
                 console.log(ref)
                 return false
@@ -1634,9 +1630,7 @@ function validCdxComponent(o, specVersion) {
     return true
 }
 function validCdxDependency(o) {
-    if (typeof o?.ref === 'undefined' ||
-        typeof o?.dependsOn === 'undefined'
-    ) {
+    if (typeof o?.ref === 'undefined') {
         return false
     }
     return true
@@ -1660,8 +1654,8 @@ export const isCDX = input => {
     } else {
         cdx = Object.assign({}, input)
     }
-    if (typeof cdx?.specVersion === 'undefined' || typeof cdx?.serialNumber === 'undefined') {
-        throw 'Missing specVersion or serialNumber'
+    if (typeof cdx?.specVersion === 'undefined') {
+        throw 'Missing specVersion'
     }
     if (!supportedVersions.includes(cdx?.specVersion)) {
         throw `Provided CycloneDX version ${cdx?.specVersion} is not supported. Must be one of: ${supportedVersions}`

@@ -1,3 +1,4 @@
+import { createPurlFromUrl, parsePackageRef, parseSPDXComponents } from "@/finding";
 import { GitHub, hex, isSPDX, OSV, saveArtifact, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
@@ -39,7 +40,7 @@ export async function onRequestGet(context) {
 
     const githubApps = await prisma.GitHubApp.findMany({
         where: {
-            memberEmail: verificationResult.session.memberEmail,
+            orgId: verificationResult.session.orgId,
         },
     })
     for (const app of githubApps) {
@@ -55,14 +56,13 @@ export async function onRequestGet(context) {
                 await prisma.GitHubApp.update({
                     where: {
                         installationId: parseInt(app.installationId, 10),
-                        AND: { memberEmail: app.memberEmail, },
+                        AND: { orgId: app.orgId },
                     },
                     data: app,
                 })
                 continue
             }
             delete app.accessToken
-            delete app.memberEmail
             errors.push({ error, app })
             continue
         }
@@ -88,6 +88,26 @@ export async function onRequestGet(context) {
         }
         const findingIds = await process(prisma, verificationResult.session, repoName, spdx, spdxId, originalSpdx?.artifactUuid || artifact?.uuid)
         findings = [...findings, ...findingIds]
+        const dependencies = []
+        for (const dep of parseSPDXComponents(spdx)) {
+            const info = await prisma.Dependency.upsert({
+                where: {
+                    spdx_dep: {
+                        spdxId,
+                        name: dep.name,
+                        version: dep.version,
+                    }
+                },
+                update: {
+                    license: dep.license,
+                    dependsOnUuid: dep.dependsOnUuid
+                },
+                create: { ...dep, spdxId }
+            })
+            dependencies.push({ ...dep, spdxId })
+            console.log(`Dependency ${dep.name}@${dep.version}`, info)
+        }
+        spdx.dependencies = dependencies
         files.push({ spdx, errors })
     }
     const memberKeys = await prisma.MemberKey.findMany({
@@ -142,7 +162,6 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
         artifactUuid,
         source: 'GitHub',
         orgId: session.orgId,
-        memberEmail: session.memberEmail,
         repoName,
         spdxVersion: spdx.spdxVersion,
         dataLicense: spdx.dataLicense,
@@ -151,7 +170,6 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
         createdAt: (new Date(spdx.creationInfo.created)).getTime(),
         toolName: spdx.creationInfo.creators.join(', '),
         documentDescribes: spdx?.documentDescribes?.join(','),
-        packagesCount: spdx.packages.length,
         comment: spdx.creationInfo?.comment || '',
     }
     const findingIds = []
@@ -169,13 +187,21 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
 
     console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)
     const osvQueries = spdx.packages.flatMap(pkg => {
-        if (!pkg?.externalRefs) { return }
+        const { version } = parsePackageRef(pkg.SPDXID, pkg.name)
+        if (!pkg?.externalRefs && pkg?.downloadLocation) {
+            return [{
+                purl: createPurlFromUrl(pkg.downloadLocation, pkg.name, pkg?.versionInfo ? pkg.versionInfo : version),
+                name: pkg.name,
+                version: pkg?.versionInfo ? pkg.versionInfo : version,
+                license: pkg?.licenseConcluded || pkg?.licenseDeclared,
+            }]
+        }
         return pkg.externalRefs
             .filter(ref => ref?.referenceType === 'purl')
             .map(ref => ({
                 purl: ref.referenceLocator,
                 name: pkg.name,
-                version: pkg?.versionInfo,
+                version: pkg?.versionInfo ? pkg.versionInfo : version,
                 license: pkg?.licenseConcluded || pkg?.licenseDeclared,
             }))
     }).filter(q => q?.purl)
@@ -193,13 +219,13 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
             const findingData = {
                 findingId,
                 orgId: session.orgId,
-                memberEmail: session.memberEmail,
                 repoName,
                 source: 'osv.dev',
                 category: 'sca',
                 createdAt: (new Date()).getTime(),
                 modifiedAt: (new Date(vuln.modified)).getTime(),
                 detectionTitle: vuln.id,
+                detectionDescription: vuln.details,
                 purl,
                 packageName: name,
                 packageVersion: version,
