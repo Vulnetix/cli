@@ -1,10 +1,12 @@
 <script setup>
 import { useAnalyticsStore } from '@/stores/analytics';
+import { useMemberStore } from '@/stores/member';
 import { round } from '@/utils';
 import AnalyticsTriageHistory from '@/views/dashboard/AnalyticsTriageHistory.vue';
 import AnalyticsWelcome from '@/views/dashboard/AnalyticsWelcome.vue';
 
 const Analytics = useAnalyticsStore()
+const Member = useMemberStore()
 const state = computed(() => {
     return {
         total: Analytics.total,
