@@ -60,7 +60,6 @@ model Member {
   alertOverdue          Int                   @default(0)
   alertFindings         Int                   @default(0)
   alertType             Int                   @default(0)
-  github_apps           GitHubApp[]
   member_keys           MemberKey[]
   sessions              Session[]
   integration_usage_log IntegrationUsageLog[]
@@ -98,8 +97,6 @@ model GitHubApp {
   created        Int
   expires        Int?
   avatarUrl      String?
-  Member         Member? @relation(fields: [memberUuid], references: [uuid])
-  memberUuid     String?
 }
 
 model GitRepo {
