@@ -16,7 +16,7 @@ const state = computed(() => {
         triagedMonthly: Analytics.triagedMonthly,
     }
 })
-onMounted(() => Analytics.fetchAnalytics())
+onMounted(() => Member.ensureSession().then(Analytics.fetchAnalytics))
 
 const categories = computed(() => (state.value.discoveredMonthly.map(i => i.monthYear)))
 const series = computed(() => ([

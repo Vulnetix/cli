@@ -2,4 +2,4 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   Permissions-Policy: document-domain=()
-  Content-Security-Policy: form-action 'self'; frame-ancestors 'none'; manifest-src 'self'; media-src 'self'; img-src 'self' data: https://avatars.githubusercontent.com; upgrade-insecure-requests;
+  Content-Security-Policy: form-action 'self'; frame-ancestors 'none'; manifest-src 'self'; media-src 'self'; img-src 'self' https://octodex.github.com data: https://avatars.githubusercontent.com; upgrade-insecure-requests;
