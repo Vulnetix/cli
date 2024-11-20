@@ -93,13 +93,13 @@ model GitHubApp {
   installationId Int     @id
   orgId          String
   org            Org     @relation(fields: [orgId], references: [uuid])
-  memberEmail    String
-  member         Member  @relation(fields: [memberEmail], references: [email])
   accessToken    String
   login          String?
   created        Int
   expires        Int?
   avatarUrl      String?
+  Member         Member? @relation(fields: [memberUuid], references: [uuid])
+  memberUuid     String?
 }
 
 model GitRepo {
