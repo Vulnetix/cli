@@ -45,7 +45,7 @@ export async function onRequestGet(context) {
     })
     for (const app of githubApps) {
         if (!app.accessToken) {
-            console.log(`github_apps kid=${verificationResult.session.kid} installationId=${app.installationId}`)
+            // console.log(`github_apps kid=${verificationResult.session.kid} installationId=${app.installationId}`)
             throw new Error('github_apps invalid')
         }
         const gh = new GitHub(app.accessToken)
@@ -105,7 +105,7 @@ export async function onRequestGet(context) {
                 create: { ...dep, spdxId }
             })
             dependencies.push({ ...dep, spdxId })
-            console.log(`Dependency ${dep.name}@${dep.version}`, info)
+            // console.log(`Dependency ${dep.name}@${dep.version}`, info)
         }
         spdx.dependencies = dependencies
         files.push({ spdx, errors })
@@ -187,7 +187,7 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
         },
     })
 
-    console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)
+    // console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)
     const osvQueries = spdx.packages.flatMap(pkg => {
         const { version } = parsePackageRef(pkg.SPDXID, pkg.name)
         if (!pkg?.externalRefs && pkg?.downloadLocation) {

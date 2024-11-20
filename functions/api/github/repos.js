@@ -42,7 +42,7 @@ export async function onRequestGet(context) {
     })
     for (const app of installs) {
         if (!app.accessToken) {
-            console.log(`github_apps kid=${verificationResult.session.kid} installationId=${app.installationId}`)
+            // console.log(`github_apps kid=${verificationResult.session.kid} installationId=${app.installationId}`)
             throw new Error('github_apps invalid')
         }
         const gh = new GitHub(app.accessToken)
@@ -135,7 +135,7 @@ const store = async (prisma, session, repo) => {
                 avatarUrl: create.avatarUrl,
             },
         })
-        console.log(`/github/repos git_repos ${create.fullName} kid=${session.kid}`, info)
+        // console.log(`/github/repos git_repos ${create.fullName} kid=${session.kid}`, info)
     } catch (err) {
         console.error(err)
     }

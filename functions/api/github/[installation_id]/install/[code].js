@@ -35,7 +35,6 @@ export async function onRequestGet(context) {
             const headers = { 'Accept': 'application/json' }
             const resp = await fetch(url, { headers, method })
             oauthData = await resp.json()
-            console.log('oauthData', JSON.stringify(oauthData))
             if (oauthData?.error) {
                 return Response.json({ ok: false, error: { message: oauthData.error } })
             }
@@ -98,7 +97,7 @@ export async function onRequestGet(context) {
                             name: content.company,
                         }
                     })
-                    console.log(`/github/install register orgId=${orgId}`, orgInfo)
+                    // console.log(`/github/install register orgId=${orgId}`, orgInfo)
                 }
             } else {
                 const orgInfo = await prisma.Org.create({
@@ -107,7 +106,7 @@ export async function onRequestGet(context) {
                         name: memberEmail.toLowerCase(),
                     }
                 })
-                console.log(`/github/install register orgId=${orgId}`, orgInfo)
+                // console.log(`/github/install register orgId=${orgId}`, orgInfo)
             }
 
             response.member = {
@@ -121,7 +120,7 @@ export async function onRequestGet(context) {
             const memberInfo = await prisma.Member.create({
                 data: response.member
             })
-            console.log(`/github/install register email=${memberEmail}`, memberInfo)
+            // console.log(`/github/install register email=${memberEmail}`, memberInfo)
             delete response.member.passwordHash
         }
         const token = crypto.randomUUID()
@@ -142,7 +141,7 @@ export async function onRequestGet(context) {
         const sessionInfo = await prisma.Session.create({
             data: response.session
         })
-        console.log(`/github/install session kid=${token}`, sessionInfo)
+        // console.log(`/github/install session kid=${token}`, sessionInfo)
         const appData = {
             installationId: parseInt(params.installation_id, 10),
             memberEmail: response.member.email,
@@ -161,7 +160,7 @@ export async function onRequestGet(context) {
                     expires: appData.expires,
                 }
             })
-            console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
+            // console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
 
             return data
         } catch (_) {
@@ -170,7 +169,7 @@ export async function onRequestGet(context) {
         const GHAppInfo = await prisma.GitHubApp.create({
             data: appData
         })
-        console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
+        // console.log(`/github/install installationId=${params.installation_id}`, GHAppInfo)
         response.result = AuthResult.AUTHENTICATED
         response.ok = true
         return Response.json(response)

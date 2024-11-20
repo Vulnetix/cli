@@ -31,12 +31,12 @@ const sources = {
         // },
     ],
     icons: [
-    // 'mdi:home',
-    // 'mdi:account',
-    // 'mdi:login',
-    // 'mdi:logout',
-    // 'octicon:book-24',
-    // 'octicon:code-square-24',
+        // 'mdi:home',
+        // 'mdi:account',
+        // 'mdi:login',
+        // 'mdi:logout',
+        // 'octicon:book-24',
+        // 'octicon:code-square-24',
     ],
     json: [
         // Custom JSON file
@@ -143,7 +143,7 @@ const target = (0, node_path_1.join)(__dirname, 'icons-bundle.js');
             removeMetaData(content);
             (0, utils_1.minifyIconSet)(content);
             bundle += `addCollection(${JSON.stringify(content)});\n`;
-            console.log(`Bundled icons from ${filename}`);
+            // console.log(`Bundled icons from ${filename}`);
         }
     }
     /**
@@ -195,7 +195,7 @@ const target = (0, node_path_1.join)(__dirname, 'icons-bundle.js');
                 // Update icon from SVG instance
                 iconSet.fromSVG(name, svg);
             });
-            console.log(`Bundled ${iconSet.count()} icons from ${source.dir}`);
+            // console.log(`Bundled ${iconSet.count()} icons from ${source.dir}`);
             // Export to JSON
             const content = iconSet.export();
             bundle += `addCollection(${JSON.stringify(content)});\n`;
@@ -203,7 +203,7 @@ const target = (0, node_path_1.join)(__dirname, 'icons-bundle.js');
     }
     // Save to file
     await node_fs_1.promises.writeFile(target, bundle, 'utf8');
-    console.log(`Saved ${target} (${bundle.length} bytes)`);
+    // console.log(`Saved ${target} (${bundle.length} bytes)`);
 })().catch(err => {
     console.error(err);
 });

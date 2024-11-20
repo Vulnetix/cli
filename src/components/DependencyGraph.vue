@@ -2,7 +2,6 @@
 import VCodeBlock from '@wdns/vue-code-block';
 import { useTheme } from 'vuetify';
 
-onMounted(() => console.log('on mount'))
 const { global } = useTheme()
 // const emit = defineEmits(["vector-updated"]);
 

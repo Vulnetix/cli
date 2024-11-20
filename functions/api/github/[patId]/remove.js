@@ -28,7 +28,7 @@ export async function onRequestDelete(context) {
             keyId: parseInt(params.patId, 10),
         }
     })
-    console.log(`/github/[${params.patId}]/remove github_pat`, patInfo)
+    // console.log(`/github/[${params.patId}]/remove github_pat`, patInfo)
     const tokenInfo = await prisma.MemberKey.delete({
         where: {
             id: parseInt(params.patId, 10),
@@ -37,7 +37,7 @@ export async function onRequestDelete(context) {
     })
     tokenInfo.secretMasked = mask(tokenInfo.secret)
     delete tokenInfo.secret
-    console.log(`/github/[${params.patId}]/remove github_pat`, tokenInfo)
+    // console.log(`/github/[${params.patId}]/remove github_pat`, tokenInfo)
     return Response.json(tokenInfo)
 }
 const mask = s => s.slice(0, 11) + s.slice(10).slice(4, s.length - 4).replace(/(.)/g, '*') + s.slice(s.length - 4)

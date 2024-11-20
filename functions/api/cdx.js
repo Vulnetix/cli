@@ -119,7 +119,6 @@ export async function onRequestPost(context) {
                     create: { ...dep, cdxId }
                 })
                 dependencies.push({ ...dep, cdxId })
-                console.log(`Dependency ${dep.name}@${dep.version}`, info)
             }
             const cdxStr = JSON.stringify(cdx)
             const artifact = await saveArtifact(prisma, env.r2artifacts, cdxStr, artifactUuid, `cyclonedx`)
@@ -148,7 +147,7 @@ export async function onRequestPost(context) {
                     artifact: { connect: { uuid: artifactUuid } },
                 }
             })
-            console.log(`/upload/cdx ${cdxId} kid=${verificationResult.session.kid}`, info)
+            // console.log(`/upload/cdx ${cdxId} kid=${verificationResult.session.kid}`, info)
             cdxData.dependencies = dependencies
             files.push(cdxData)
 
@@ -212,7 +211,7 @@ export async function onRequestPost(context) {
                     } else {
                         finding = await prisma.Finding.create({ data: findingData })
                     }
-                    console.log(`findings SCA`, finding)
+                    // console.log(`findings SCA`, finding)
                     // TODO lookup EPSS
                     const vexData = {
                         findingUuid: finding.uuid,
@@ -240,7 +239,7 @@ export async function onRequestPost(context) {
                     } else {
                         vex = await prisma.Triage.create({ data: vexData })
                     }
-                    console.log(`findings VEX`, vex)
+                    // console.log(`findings VEX`, vex)
                 }
                 i++
             }

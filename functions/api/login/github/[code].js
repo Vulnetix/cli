@@ -97,7 +97,7 @@ export async function onRequestGet(context) {
                             name: content.company,
                         }
                     })
-                    console.log(`/github/install register orgId=${orgId}`, orgInfo)
+                    // console.log(`/github/install register orgId=${orgId}`, orgInfo)
                 }
             } else {
                 const orgInfo = await prisma.Org.create({
@@ -106,7 +106,7 @@ export async function onRequestGet(context) {
                         name: memberEmail.toLowerCase(),
                     }
                 })
-                console.log(`/github/install register orgId=${orgId}`, orgInfo)
+                // console.log(`/github/install register orgId=${orgId}`, orgInfo)
             }
 
             response.member = {
@@ -120,7 +120,7 @@ export async function onRequestGet(context) {
             const memberInfo = await prisma.Member.create({
                 data: response.member
             })
-            console.log(`/github/install register email=${memberEmail}`, memberInfo)
+            // console.log(`/github/install register email=${memberEmail}`, memberInfo)
             delete response.member.passwordHash
         }
         const token = crypto.randomUUID()
@@ -141,7 +141,7 @@ export async function onRequestGet(context) {
         const sessionInfo = await prisma.Session.create({
             data: response.session
         })
-        console.log(`/github/install session kid=${token}`, sessionInfo)
+        // console.log(`/github/install session kid=${token}`, sessionInfo)
         const githubApp = await prisma.GitHubApp.findFirst({
             where: { orgId: response.member.orgId },
         })
@@ -177,7 +177,7 @@ export async function onRequestGet(context) {
                     expires
                 }
             })
-            console.log(`/github/install installationId=${installationId}`, GHAppInfo)
+            // console.log(`/github/install installationId=${installationId}`, GHAppInfo)
             response.result = AuthResult.AUTHENTICATED
             response.ok = true
         } else {

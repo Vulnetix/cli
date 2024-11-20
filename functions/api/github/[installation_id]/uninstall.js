@@ -34,7 +34,7 @@ export async function onRequestGet(context) {
         const result = await gh.revokeToken(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail)
         if ([204, 401].includes(result.status)) {
             const response = await prisma.GitHubApp.delete({ where })
-            console.log(`/github/uninstall session kid=${verificationResult.session.token}`, response)
+            // console.log(`/github/uninstall session kid=${verificationResult.session.token}`, response)
 
             return Response.json(response)
         }

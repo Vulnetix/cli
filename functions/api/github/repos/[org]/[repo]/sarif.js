@@ -126,7 +126,7 @@ const process = async (prisma, session, data, fullName, artifactUuid) => {
             org: { connect: { uuid: session.orgId } },
         },
     })
-    console.log(`/github/repos/sarif ${fullName} kid=${session.kid}`, info)
+    // console.log(`/github/repos/sarif ${fullName} kid=${session.kid}`, info)
 
     const results = []
     for (const run of data.sarif.runs) {
@@ -190,7 +190,7 @@ const process = async (prisma, session, data, fullName, artifactUuid) => {
                     tags: resultData.tags || '',
                 },
             })
-            console.log(`/github/repos/sarif_results ${fullName} kid=${session.kid}`, reportInfo)
+            // console.log(`/github/repos/sarif_results ${fullName} kid=${session.kid}`, reportInfo)
         }
     }
     const result = {

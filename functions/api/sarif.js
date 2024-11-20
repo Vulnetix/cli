@@ -116,7 +116,7 @@ export async function onRequestPost(context) {
                         artifact: { connect: { uuid: artifact.uuid } },
                     },
                 })
-                console.log(`/sarif/upload ${artifact.uuid} kid=${verificationResult.session.kid}`, info)
+                // console.log(`/sarif/upload ${artifact.uuid} kid=${verificationResult.session.kid}`, info)
                 sarifData.results = []
                 for (const result of run.results) {
                     const locationsJSON = JSON.stringify(result.locations)

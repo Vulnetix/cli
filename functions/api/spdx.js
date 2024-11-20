@@ -144,7 +144,7 @@ export async function onRequestPost(context) {
                     create: { ...dep, spdxId }
                 })
                 dependencies.push({ ...dep, spdxId })
-                console.log(`Dependency ${dep.name}@${dep.version}`, info)
+                // console.log(`Dependency ${dep.name}@${dep.version}`, info)
             }
             const spdxData = {
                 spdxId,
@@ -173,7 +173,7 @@ export async function onRequestPost(context) {
                     artifact: { connect: { uuid: artifactUuid } },
                 }
             })
-            console.log(`/github/repos/spdx ${spdxId} kid=${verificationResult.session.kid}`, info)
+            // console.log(`/github/repos/spdx ${spdxId} kid=${verificationResult.session.kid}`, info)
             spdxData.dependencies = dependencies
             files.push(spdxData)
 

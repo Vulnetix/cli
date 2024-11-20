@@ -120,7 +120,7 @@ export async function onRequestPost(context) {
                 }
             })
             updatedOrg = true
-            console.log(`/me update org ${originalMember.orgId} ${data.orgName}`, orgInfo)
+            // console.log(`/me update org ${originalMember.orgId} ${data.orgName}`, orgInfo)
         }
 
         if (Object.keys(member).length > 0) {
@@ -130,7 +130,7 @@ export async function onRequestPost(context) {
                 },
                 data: member
             })
-            console.log(`/me update member ${verificationResult.session.memberEmail}`, memberInfo)
+            // console.log(`/me update member ${verificationResult.session.memberEmail}`, memberInfo)
 
             return Response.json({ ok: true, result: 'Updated' })
         }

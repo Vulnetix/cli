@@ -535,7 +535,7 @@ export class OSV {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`osv.queryBatch()`, createLog)
+            // console.log(`osv.queryBatch()`, createLog)
         }
         return resp?.content?.results || []
     }
@@ -560,7 +560,7 @@ export class OSV {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`osv.query()`, createLog)
+            // console.log(`osv.query()`, createLog)
             return result
         }
     }
@@ -619,7 +619,7 @@ export class EPSS {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`epss.query()`, createLog)
+            // console.log(`epss.query()`, createLog)
             return resp.content.data.filter(d => d.cve === cve).pop()
         }
     }
@@ -692,7 +692,7 @@ export class MitreCVE {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`MitreCVE.query()`, createLog)
+            // console.log(`MitreCVE.query()`, createLog)
             return data
         } else {
             url = this.constructURL(cveId)
@@ -711,7 +711,7 @@ export class MitreCVE {
                         createdAt: new Date().getTime(),
                     }
                 })
-                console.log(`MitreCVE.query()`, log)
+                // console.log(`MitreCVE.query()`, log)
                 return cveData
             }
         }
@@ -762,7 +762,7 @@ export class VulnCheck {
         //     squattedPackage: vulnerability?.research_attributes.squatted_package,
         // }
         const url = `${this.baseUrl}/purl?purl=${purl}`
-        console.log(`VulnCheck.getPurl(${purl})`)
+        // console.log(`VulnCheck.getPurl(${purl})`)
         return this.fetchJSON(url)
     }
     async getCPE(cpe) {
@@ -772,7 +772,7 @@ export class VulnCheck {
             throw new Error('VulnCheck Integration is Disabled')
         }
         const url = `${this.baseUrl}/cpe?cpe=${cpe}`
-        console.log(`VulnCheck.getCPE(${cpe})`)
+        // console.log(`VulnCheck.getCPE(${cpe})`)
         return await this.fetchJSON(url)
     }
     async getCVE(cve_id) {
@@ -782,7 +782,7 @@ export class VulnCheck {
             throw new Error('VulnCheck Integration is Disabled')
         }
         const url = `${this.baseUrl}/index/nist-nvd2?cve=${cve_id}`
-        console.log(`VulnCheck.getCVE(${cve_id})`)
+        // console.log(`VulnCheck.getCVE(${cve_id})`)
         return await this.fetchJSON(url)
     }
     async getNVD() {
@@ -900,7 +900,7 @@ export class GitHub {
 
         while (true) {
             const url = `${this.baseUrl}/repos/${full_name}/code-scanning/analyses?per_page=${perPage}&page=${page}`
-            console.log(`github.getRepoSarif(${full_name}) ${url}`)
+            // console.log(`github.getRepoSarif(${full_name}) ${url}`)
             const data = await this.fetchJSON(url)
             const createLog0 = await prisma.IntegrationUsageLog.create({
                 data: {
@@ -919,7 +919,7 @@ export class GitHub {
             }
             for (const report of data.content) {
                 const sarifUrl = `${this.baseUrl}/repos/${full_name}/code-scanning/analyses/${report.id}`
-                console.log(`github.getRepoSarif(${full_name}) ${sarifUrl}`)
+                // console.log(`github.getRepoSarif(${full_name}) ${sarifUrl}`)
                 const sarifData = await this.__FetchSARIF(sarifUrl)
                 const createLog = await prisma.IntegrationUsageLog.create({
                     data: {
@@ -932,7 +932,7 @@ export class GitHub {
                         createdAt: new Date().getTime(),
                     }
                 })
-                console.log(`GitHub.getRepoSarif()`, createLog)
+                // console.log(`GitHub.getRepoSarif()`, createLog)
                 if (!sarifData?.ok) {
                     return sarifData
                 }
@@ -943,7 +943,7 @@ export class GitHub {
                         sarif: Object.assign({}, sarifData.content)
                     })
                 } else {
-                    console.log(`github.getRepoSarif(${full_name})`, report?.id, isSARIF(sarifData.content), sarifData)
+                    // console.log(`github.getRepoSarif(${full_name})`, report?.id, isSARIF(sarifData.content), sarifData)
                 }
             }
 
@@ -963,7 +963,7 @@ export class GitHub {
             throw new Error('GitHub Integration is Disabled')
         }
         const url = `${this.baseUrl}/repos/${full_name}/dependency-graph/sbom`
-        console.log(`github.getRepoSpdx(${full_name}) ${url}`)
+        // console.log(`github.getRepoSpdx(${full_name}) ${url}`)
         const data = await this.fetchJSON(url)
         const createLog = await prisma.IntegrationUsageLog.create({
             data: {
@@ -976,13 +976,13 @@ export class GitHub {
                 createdAt: new Date().getTime(),
             }
         })
-        console.log(`GitHub.getRepoSpdx()`, createLog)
+        // console.log(`GitHub.getRepoSpdx()`, createLog)
         return data
     }
     async getUserEmails(prisma, orgId, memberEmail) {
         // https://docs.github.com/en/rest/users/emails?apiVersion=2022-11-28#list-email-addresses-for-the-authenticated-user
         const url = `${this.baseUrl}/user/emails`
-        console.log(`github.getUserEmails() ${url}`)
+        // console.log(`github.getUserEmails() ${url}`)
         const data = await this.fetchJSON(url)
         if (!!prisma && !!memberEmail && !!orgId) {
             const createLog = await prisma.IntegrationUsageLog.create({
@@ -996,14 +996,14 @@ export class GitHub {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`GitHub.getUserEmails()`, createLog)
+            // console.log(`GitHub.getUserEmails()`, createLog)
         }
         return data
     }
     async getUser(prisma, orgId, memberEmail) {
         // https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-the-authenticated-user
         const url = `${this.baseUrl}/user`
-        console.log(`github.getUser() ${url}`)
+        // console.log(`github.getUser() ${url}`)
         const data = await this.fetchJSON(url)
         if (!!prisma && !!memberEmail && !!orgId) {
             const createLog = await prisma.IntegrationUsageLog.create({
@@ -1017,7 +1017,7 @@ export class GitHub {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`GitHub.getUser()`, createLog)
+            // console.log(`GitHub.getUser()`, createLog)
         }
         return data
     }
@@ -1028,7 +1028,7 @@ export class GitHub {
             throw new Error('GitHub Integration is Disabled')
         }
         const url = `${this.baseUrl}/user/installations`
-        console.log(`github.getInstallations() ${url}`)
+        // console.log(`github.getInstallations() ${url}`)
         const data = await this.fetchJSON(url)
         const createLog = await prisma.IntegrationUsageLog.create({
             data: {
@@ -1041,7 +1041,7 @@ export class GitHub {
                 createdAt: new Date().getTime(),
             }
         })
-        console.log(`GitHub.getInstallations()`, createLog)
+        // console.log(`GitHub.getInstallations()`, createLog)
         return data
     }
     async revokeToken(prisma, orgId, memberEmail) {
@@ -1068,7 +1068,7 @@ export class GitHub {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`GitHub.revokeToken()`, createLog)
+            // console.log(`GitHub.revokeToken()`, createLog)
             return { ok: response.ok, status: response.status, statusText: response.statusText, url }
         } catch (e) {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
@@ -1089,7 +1089,7 @@ export class GitHub {
 
         while (true) {
             const url = `${this.baseUrl}/user/repos?per_page=${perPage}&page=${page}`
-            console.log(`github.getRepos() ${url}`)
+            // console.log(`github.getRepos() ${url}`)
             const data = await this.fetchJSON(url)
             const createLog = await prisma.IntegrationUsageLog.create({
                 data: {
@@ -1102,7 +1102,7 @@ export class GitHub {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`GitHub.getRepos()`, createLog)
+            // console.log(`GitHub.getRepos()`, createLog)
             if (!data?.ok) {
                 return data
             }
@@ -1124,7 +1124,7 @@ export class GitHub {
             throw new Error('GitHub Integration is Disabled')
         }
         const url = `${this.baseUrl}/repos/${repo.full_name}/branches/${branch}`
-        console.log(`github.getBranch() ${url}`)
+        // console.log(`github.getBranch() ${url}`)
         const data = await this.fetchJSON(url)
         const createLog = await prisma.IntegrationUsageLog.create({
             data: {
@@ -1137,7 +1137,7 @@ export class GitHub {
                 createdAt: new Date().getTime(),
             }
         })
-        console.log(`GitHub.getBranch()`, createLog)
+        // console.log(`GitHub.getBranch()`, createLog)
         return data
     }
     async getBranches(prisma, orgId, memberEmail, full_name) {
@@ -1165,7 +1165,7 @@ export class GitHub {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`GitHub.getBranches()`, createLog)
+            // console.log(`GitHub.getBranches()`, createLog)
 
             branches.push(...data.content)
 
@@ -1185,7 +1185,7 @@ export class GitHub {
             throw new Error('GitHub Integration is Disabled')
         }
         const url = `${this.baseUrl}/repos/${full_name}/commits/${commit_sha}`
-        console.log(`github.getCommit() ${url}`)
+        // console.log(`github.getCommit() ${url}`)
         const data = await this.fetchJSON(url)
         const createLog = await prisma.IntegrationUsageLog.create({
             data: {
@@ -1198,7 +1198,7 @@ export class GitHub {
                 createdAt: new Date().getTime(),
             }
         })
-        console.log(`GitHub.getCommit()`, createLog)
+        // console.log(`GitHub.getCommit()`, createLog)
         return data
     }
     async getCommits(prisma, orgId, memberEmail, full_name, branch_name) {
@@ -1225,7 +1225,7 @@ export class GitHub {
                     createdAt: new Date().getTime(),
                 }
             })
-            console.log(`GitHub.getCommits()`, createLog)
+            // console.log(`GitHub.getCommits()`, createLog)
 
             commits.push(...currentCommits.content)
 
@@ -1599,7 +1599,7 @@ function validCdxComponent(o, specVersion) {
             typeof o?.purl === 'undefined' ||
             typeof o?.['bom-ref'] === 'undefined'
         ) {
-            console.log(o)
+            // console.log(o)
             return false
         }
     } else if (specVersion === "1.5") {
@@ -1608,7 +1608,7 @@ function validCdxComponent(o, specVersion) {
             typeof o?.purl === 'undefined' ||
             typeof o?.['bom-ref'] === 'undefined'
         ) {
-            console.log(o)
+            // console.log(o)
             return false
         }
     } else if (specVersion === "1.6") {
@@ -1617,12 +1617,12 @@ function validCdxComponent(o, specVersion) {
             typeof o?.purl === 'undefined' ||
             typeof o?.['bom-ref'] === 'undefined'
         ) {
-            console.log(o)
+            // console.log(o)
             return false
         }
         for (const ref of o?.externalReferences || []) {
             if (typeof ref?.type === 'undefined' || (ref.type === 'distribution' && !ref?.hashes?.length)) {
-                console.log(ref)
+                // console.log(ref)
                 return false
             }
         }
