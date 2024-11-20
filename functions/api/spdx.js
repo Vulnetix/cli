@@ -148,9 +148,7 @@ export async function onRequestPost(context) {
             }
             const spdxData = {
                 spdxId,
-                artifactUuid,
                 source: 'upload',
-                repoName: '',
                 spdxVersion: spdx.spdxVersion,
                 dataLicense: spdx.dataLicense,
                 name: spdx.name,
@@ -171,7 +169,8 @@ export async function onRequestPost(context) {
                 },
                 create: {
                     ...spdxData,
-                    org: { connect: { uuid: verificationResult.session.orgId } }
+                    org: { connect: { uuid: verificationResult.session.orgId } },
+                    artifact: { connect: { uuid: artifactUuid } },
                 }
             })
             console.log(`/github/repos/spdx ${spdxId} kid=${verificationResult.session.kid}`, info)

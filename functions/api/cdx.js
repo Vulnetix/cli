@@ -125,7 +125,6 @@ export async function onRequestPost(context) {
             const artifact = await saveArtifact(prisma, env.r2artifacts, cdxStr, artifactUuid, `cyclonedx`)
             const cdxData = {
                 cdxId,
-                artifactUuid,
                 source: 'upload',
                 cdxVersion: cdx.specVersion,
                 serialNumber: cdx.serialNumber,
@@ -146,6 +145,7 @@ export async function onRequestPost(context) {
                 create: {
                     ...cdxData,
                     org: { connect: { uuid: verificationResult.session.orgId } },
+                    artifact: { connect: { uuid: artifactUuid } },
                 }
             })
             console.log(`/upload/cdx ${cdxId} kid=${verificationResult.session.kid}`, info)

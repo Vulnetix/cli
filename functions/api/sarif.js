@@ -95,7 +95,6 @@ export async function onRequestPost(context) {
                 const reportId = await hex(run.tool.driver.name + run.tool.driver.semanticVersion + JSON.stringify(run.results))
                 const sarifData = {
                     sarifId: artifact.uuid,
-                    artifactUuid: artifact.uuid,
                     reportId,
                     source: 'upload',
                     createdAt,
@@ -113,7 +112,8 @@ export async function onRequestPost(context) {
                     },
                     create: {
                         ...sarifData,
-                        org: { connect: { uuid: verificationResult.session.orgId } }
+                        org: { connect: { uuid: verificationResult.session.orgId } },
+                        artifact: { connect: { uuid: artifact.uuid } },
                     },
                 })
                 console.log(`/sarif/upload ${artifact.uuid} kid=${verificationResult.session.kid}`, info)

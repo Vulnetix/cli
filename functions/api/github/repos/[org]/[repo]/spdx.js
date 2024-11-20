@@ -159,9 +159,7 @@ const makeId = async spdx => {
 const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) => {
     const spdxData = {
         spdxId,
-        artifactUuid,
         source: 'GitHub',
-        repoName,
         spdxVersion: spdx.spdxVersion,
         dataLicense: spdx.dataLicense,
         name: spdx.name,
@@ -183,6 +181,8 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
         },
         create: {
             ...spdxData,
+            artifact: { connect: { uuid: artifactUuid } },
+            repo: { connect: { fullName_orgId: { fullName: repoName, orgId: session.orgId } } },
             org: { connect: { uuid: session.orgId } },
         },
     })

@@ -65,8 +65,8 @@ export async function onRequestGet(context) {
             continue
         }
         for (const data of content) {
-            const artifact = await saveArtifact(prisma, env.r2artifacts, JSON.stringify(data.sarif), crypto.randomUUID(), `sarif`)
-            files.push(await process(prisma, verificationResult.session, data, repoName))
+            const artifact = await saveArtifact(prisma, env.r2artifacts, JSON.stringify(data.sarif), data?.report?.sarif_id ? data.report.sarif_id : crypto.randomUUID(), `sarif`)
+            files.push(await process(prisma, verificationResult.session, data, repoName, artifact.uuid))
         }
     }
 
@@ -84,15 +84,15 @@ export async function onRequestGet(context) {
             continue
         }
         for (const data of content) {
-            await saveArtifact(prisma, env.r2artifacts, JSON.stringify(data.sarif), data.report.sarif_id, `sarif`)
-            files.push(await process(prisma, verificationResult.session, data, repoName))
+            const artifact = await saveArtifact(prisma, env.r2artifacts, JSON.stringify(data.sarif), data.report.sarif_id, `sarif`)
+            files.push(await process(prisma, verificationResult.session, data, repoName, artifact.uuid))
         }
     }
 
     return Response.json({ sarif: files, errors })
 }
 
-const process = async (prisma, session, data, fullName) => {
+const process = async (prisma, session, data, fullName, artifactUuid) => {
     const sarifId = data.report.sarif_id
     const info = await prisma.SARIFInfo.upsert({
         where: {
@@ -111,8 +111,8 @@ const process = async (prisma, session, data, fullName) => {
         create: {
             sarifId,
             reportId: data.report.id.toString(),
-            artifactUuid: sarifId,
-            fullName,
+            artifact: { connect: { uuid: artifactUuid } },
+            repo: { connect: { fullName_orgId: { fullName, orgId: session.orgId } } },
             source: 'GitHub',
             commitSha: data.report.commit_sha,
             ref: data.report.ref,
@@ -157,21 +157,6 @@ const process = async (prisma, session, data, fullName) => {
                 }
             }
             results.push(resultData)
-            console.log(
-                resultData.guid,
-                resultData.reportId,
-                resultData.messageText,
-                resultData.ruleId,
-                resultData.locations,
-                resultData.automationDetailsId,
-                resultData.rulesetName,
-                resultData.level,
-                resultData.description,
-                resultData.helpMarkdown,
-                resultData.securitySeverity,
-                resultData.precision,
-                resultData.tags
-            )
             const reportInfo = await prisma.SarifResults.upsert({
                 where: {
                     guid: resultData.guid,
