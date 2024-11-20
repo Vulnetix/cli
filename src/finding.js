@@ -83,7 +83,8 @@ function addToList(inputObject, keyName, newObject) {
 }
 
 export const processFinding = async (prisma, r2adapter, verificationResult, finding, seen = 0) => {
-    const isResolved = finding.triage.filter(triage => [VexAnalysisState.resolved, VexAnalysisState.resolved_with_pedigree, VexAnalysisState.false_positive, VexAnalysisState.not_affected].includes(triage.analysisState)).length
+    const isResolved = finding.triage.filter(triage => [VexAnalysisState.resolved, VexAnalysisState.resolved_with_pedigree, VexAnalysisState.false_positive, VexAnalysisState.not_affected].includes(triage.analysisState)).length > 0
+    console.log('isResolved', isResolved)
     const osvData = await new OSV().query(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, finding.detectionTitle)
     finding.detectionDescription = osvData.details
     finding.modifiedAt = (new Date(osvData.modified)).getTime()
@@ -275,7 +276,7 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
     // TechnicalImpact
     // Automatable
     // MissionWellbeingImpact        
-    let { analysisState = 'in_triage', triageAutomated = 0, triagedAt = null, seenAt = null, analysisDetail = null } = {}
+    let { analysisState = 'in_triage', triageAutomated = 0, triagedAt = null, seenAt = null, analysisDetail = null } = (finding.triage.sort((a, b) => a.lastObserved - b.lastObserved).pop() || {})
     if (finding.exploits.length || finding.knownExploits.length) {
         analysisState = 'exploitable'
         triageAutomated = 1
@@ -368,7 +369,7 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
     } else if (!isResolved) {
         vexData.findingUuid = finding.uuid
         vexData = await prisma.Triage.create({ data: vexData })
-        console.log(`Create VEX ${finding.detectionTitle} ${analysisState}`, info)
+        console.log(`Create VEX ${finding.detectionTitle} ${analysisState}`, vexData)
         finding.triage = finding.triage.filter(f => f.uuid != vexData.uuid)
         finding.triage.push(vexData)
     }

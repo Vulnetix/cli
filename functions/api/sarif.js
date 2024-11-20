@@ -98,7 +98,6 @@ export async function onRequestPost(context) {
                     artifactUuid: artifact.uuid,
                     reportId,
                     source: 'upload',
-                    orgId: verificationResult.session.orgId,
                     createdAt,
                     resultsCount: run.results.length,
                     rulesCount: run.tool.driver.rules.length,
@@ -112,7 +111,10 @@ export async function onRequestPost(context) {
                     update: {
                         createdAt,
                     },
-                    create: sarifData,
+                    create: {
+                        ...sarifData,
+                        org: { connect: { uuid: verificationResult.session.orgId } }
+                    },
                 })
                 console.log(`/sarif/upload ${artifact.uuid} kid=${verificationResult.session.kid}`, info)
                 sarifData.results = []

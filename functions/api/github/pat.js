@@ -68,7 +68,10 @@ export async function onRequestPost(context) {
             expires: tokenInfo.githubPat.expires,
             avatarUrl: tokenInfo.githubPat.avatarUrl,
         },
-        create: tokenInfo.githubPat,
+        create: {
+            ...tokenInfo.githubPat,
+            memberEmail: verificationResult.session.memberEmail,
+        },
     })
     console.log(`/github/pat github_pat label=${body.label}`, patInfo)
 

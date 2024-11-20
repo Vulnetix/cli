@@ -114,7 +114,6 @@ const process = async (prisma, session, data, fullName) => {
             artifactUuid: sarifId,
             fullName,
             source: 'GitHub',
-            orgId: session.orgId,
             commitSha: data.report.commit_sha,
             ref: data.report.ref,
             createdAt: (new Date(data.report.created_at)).getTime(),
@@ -124,6 +123,7 @@ const process = async (prisma, session, data, fullName) => {
             toolVersion: data.report.tool?.version,
             analysisKey: data.report.analysis_key,
             warning: data.report.warning || '',
+            org: { connect: { uuid: session.orgId } },
         },
     })
     console.log(`/github/repos/sarif ${fullName} kid=${session.kid}`, info)

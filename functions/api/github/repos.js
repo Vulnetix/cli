@@ -98,7 +98,6 @@ export async function onRequestGet(context) {
 }
 const store = async (prisma, session, repo) => {
     const create = {
-        orgId: session.orgId,
         fullName: repo.full_name,
         ghid: repo.id,
         source: "GitHub",
@@ -114,6 +113,7 @@ const store = async (prisma, session, repo) => {
         archived: repo.archived ? 1 : 0,
         visibility: repo.visibility,
         avatarUrl: repo.owner.avatar_url,
+        org: { connect: { uuid: session.orgId } }
     }
     const where = {
         fullName_orgId: {

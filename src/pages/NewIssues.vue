@@ -1,4 +1,5 @@
 <script setup>
+import DependencyGraph from '@/components/DependencyGraph.vue';
 import Finding from '@/components/Finding.vue';
 import { useMemberStore } from '@/stores/member';
 import { Client, getPastelColor, VexAnalysisState } from '@/utils';
@@ -302,7 +303,14 @@ onMounted(() => {
         </VTabsWindowItem>
 
         <VTabsWindowItem value="dependencies">
-            dependencies
+            <DependencyGraph
+                v-if="state.finding?.spdx?.dependencies"
+                :dependencies="state.finding.spdx.dependencies"
+            />
+            <DependencyGraph
+                v-if="state.finding?.cdx?.dependencies"
+                :dependencies="state.finding.cdx.dependencies"
+            />
         </VTabsWindowItem>
 
         <VTabsWindowItem value="artifacts">

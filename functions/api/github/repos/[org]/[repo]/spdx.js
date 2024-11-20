@@ -161,7 +161,6 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
         spdxId,
         artifactUuid,
         source: 'GitHub',
-        orgId: session.orgId,
         repoName,
         spdxVersion: spdx.spdxVersion,
         dataLicense: spdx.dataLicense,
@@ -182,7 +181,10 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
         update: {
             comment: spdxData.comment
         },
-        create: spdxData,
+        create: {
+            ...spdxData,
+            org: { connect: { uuid: session.orgId } },
+        },
     })
 
     console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)

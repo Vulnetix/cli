@@ -78,12 +78,15 @@ export async function onRequestPost(context) {
             }
             const triage = await prisma.Triage.findFirst({ where })
             const triageData = {
+                uuid: crypto.randomUUID(),
                 findingUuid: uuid,
                 analysisState: input.analysisState,
                 analysisResponse: input.analysisResponse,
                 analysisJustification: input.analysisJustification,
                 analysisDetail: input?.analysisDetail || '', //TODO add commit hash and comment
                 triagedAt: new Date().getTime(),
+                createdAt: new Date().getTime(),
+                lastObserved: new Date().getTime(),
                 seen: 1,
                 triageAutomated: 0,
             }
@@ -111,18 +114,16 @@ export async function onRequestPost(context) {
             if (!triageData?.seenAt) {
                 triageData.seenAt = new Date().getTime()
             }
-            const info = await prisma.Triage.upsert({
-                where: {
-                    uuid: triageData?.uuid,
-                    OR: [{
-                        findingUuid: uuid,
-                        analysisState: 'in_triage'
-                    }]
-                },
-                create: triageData,
-                update: triageData,
-            })
-            console.log(`Upsert Triage ${triage.uuid}`, info)
+            let info;
+            if (triage) {
+                info = await prisma.Triage.update({
+                    where: { uuid: triageData.uuid },
+                    data: triageData,
+                })
+            } else {
+                info = await prisma.Triage.create({ data: triageData })
+            }
+            console.log(`Upsert Triage ${triageData.uuid}`, info)
             return Response.json({ ok: true, triage })
         }
 

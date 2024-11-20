@@ -170,7 +170,7 @@ export async function onRequestGet(context) {
                 },
                 create: {
                     installationId: parseInt(installationId, 10),
-                    orgId: response.member.orgId,
+                    org: { connect: { uuid: response.member.orgId } },
                     accessToken: oauthData.access_token,
                     login: content.login,
                     created,

@@ -150,7 +150,6 @@ export async function onRequestPost(context) {
                 spdxId,
                 artifactUuid,
                 source: 'upload',
-                orgId: verificationResult.session.orgId,
                 repoName: '',
                 spdxVersion: spdx.spdxVersion,
                 dataLicense: spdx.dataLicense,
@@ -170,7 +169,10 @@ export async function onRequestPost(context) {
                     createdAt: spdxData.createdAt,
                     comment: spdxData.comment
                 },
-                create: spdxData
+                create: {
+                    ...spdxData,
+                    org: { connect: { uuid: verificationResult.session.orgId } }
+                }
             })
             console.log(`/github/repos/spdx ${spdxId} kid=${verificationResult.session.kid}`, info)
             spdxData.dependencies = dependencies

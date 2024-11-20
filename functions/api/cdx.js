@@ -127,7 +127,6 @@ export async function onRequestPost(context) {
                 cdxId,
                 artifactUuid,
                 source: 'upload',
-                orgId: verificationResult.session.orgId,
                 cdxVersion: cdx.specVersion,
                 serialNumber: cdx.serialNumber,
                 name: cdx.metadata?.component?.name,
@@ -144,7 +143,10 @@ export async function onRequestPost(context) {
                     createdAt: cdxData.createdAt,
                     serialNumber: cdxData.serialNumber
                 },
-                create: cdxData
+                create: {
+                    ...cdxData,
+                    org: { connect: { uuid: verificationResult.session.orgId } },
+                }
             })
             console.log(`/upload/cdx ${cdxId} kid=${verificationResult.session.kid}`, info)
             cdxData.dependencies = dependencies

@@ -1,7 +1,5 @@
 <script setup>
-import { parseCycloneDXComponents } from '@/finding';
 import VCodeBlock from '@wdns/vue-code-block';
-import { ref } from 'vue';
 import { useTheme } from 'vuetify';
 
 onMounted(() => console.log('on mount'))
@@ -14,9 +12,6 @@ const props = defineProps({
         required: true,
     },
 })
-
-// Example usage:
-const graph = ref(parseCycloneDXComponents(props.cdx))
 </script>
 <template>
     <VContainer
