@@ -3,6 +3,7 @@ import {
     convertIsoDatesToTimestamps,
     EPSS,
     getSemVerWithoutOperator,
+    hex,
     isValidSemver,
     isVersionVulnerable,
     MitreCVE,
@@ -141,7 +142,7 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
         finding.fixVersion = fixVersions.join(' || ')
     }
     finding.fixAutomatable = !!finding.vulnerableVersionRange && !!finding.fixVersion ? 1 : 0
-    finding.malicious = osvData.id.startsWith("MAL-") ? 1 : 0
+    finding.malicious = osvData.id.startsWith("MAL-") || osvData?.aliases?.filter(a => a.startsWith("MAL-"))?.length ? 1 : 0
     finding.referencesJSON = JSON.stringify(osvData.references.map(reference => reference.url))
 
     const cveId = finding.detectionTitle.startsWith('CVE-') ? finding.detectionTitle : JSON.parse(finding?.aliases || '[]').filter(a => a.startsWith('CVE-')).pop()
@@ -438,15 +439,19 @@ export const findVectorString = (metrics = []) => {
 
 // Helper function to find valid CVSS vector string with version preference
 export const getCveData = async (prisma, r2adapter, verificationResult, cveId) => {
-    // let cve
-    let cve = await prisma.CVEMetadata.findUnique({
-        where: { cveId },
-        include: {
-            fileLink: true,
-            adp: true,
-            cna: true,
-        }
-    })
+    let cve;
+    try {
+        cve = await prisma.CVEMetadata.findUnique({
+            where: { cveId },
+            include: {
+                fileLink: true,
+                adp: true,
+                cna: true,
+            }
+        })
+    } catch (e) {
+        console.error(e)
+    }
     if (!cve) {
         cve = await fetchCVE(prisma, r2adapter, verificationResult, cveId)
     }
@@ -560,11 +565,11 @@ export const fetchCVE = async (prisma, r2adapter, verificationResult, cveId) => 
 // Core event definitions that make the timeline unique by nature
 const CORE_EVENTS = {
     discovery: finding => ({
-        value: 'First discovered in repository',
+        value: 'Reported',
         time: finding.createdAt
     }),
     sync: finding => ({
-        value: `Last synchronized with ${finding.source}`,
+        value: `Last update from ${finding.source}`,
         time: finding.modifiedAt
     }),
     advisory: finding => ({
@@ -587,8 +592,12 @@ const CORE_EVENTS = {
 
 // VEX event generators
 const getVexEvents = (vex) => [
-    vex.lastObserved && {
+    vex.createdAt && {
         value: `VEX generated as ${VexAnalysisState[vex.analysisState]}`,
+        time: vex.createdAt
+    },
+    vex.lastObserved && vex.lastObserved !== vex.createdAt && {
+        value: `Discovered`,
         time: vex.lastObserved
     },
     vex.triagedAt && vex.memberEmail && {
@@ -620,14 +629,21 @@ export const makeTimeline = finding => {
     // Add custom events that don't match core or VEX patterns
     const systemEventValues = new Set([
         ...Object.values(CORE_EVENTS).map(gen => gen(finding)?.value),
+        'First discovered in repository',
         'VEX generated as',
+        'Last synchronized with',
         'Triaged',
-        'Review'
+        'Review',
+        'Discovered'
     ].filter(Boolean));
 
     const isCustomEvent = event =>
+        event?.value &&
         !systemEventValues.has(event.value) &&
+        !event.value.startsWith('First discovered in ') &&
         !event.value.startsWith('VEX generated as') &&
+        !event.value.startsWith('Last synchronized with') &&
+        !event.value.startsWith('Discovered') &&
         !event.value.endsWith('Triaged') &&
         !event.value.endsWith('Review');
 
@@ -883,70 +899,96 @@ export function parsePackageRef(spdxId, name) {
     }
 }
 
-export function parseSPDXComponents(spdxJson) {
+export async function parseSPDXComponents(spdxJson, namespace) {
     const components = new Map()
     const relationships = []
-    const packageEcosystem = 'generic' // TODO: There may be a SPDX solution
+    const packageEcosystem = 'generic'
+    let rootPackageId = null
 
-    // First pass: Create all component records
-    spdxJson.packages.forEach(pkg => {
-        const parsedRef = parsePackageRef(pkg.SPDXID);
-        if (!parsedRef) return;
+    // First pass: Find the root package through DESCRIBES relationship
+    if (spdxJson.relationships) {
+        const describesRel = spdxJson.relationships.find(rel =>
+            rel.relationshipType === 'DESCRIBES'
+        )
+        if (describesRel) {
+            rootPackageId = describesRel.relatedSpdxElement
+        }
+    }
 
-        const { name, version } = parsedRef;
+    // Second pass: Process all packages
+    await spdxJson.packages.forEach(async pkg => {
+        const parsedRef = parsePackageRef(pkg.SPDXID)
+        if (!parsedRef) return
+
+        const { name, version } = parsedRef
         const license = extractLicense(pkg)
 
         components.set(pkg.SPDXID, {
-            uuid: crypto.randomUUID(),
+            key: await hex(`${namespace}${name}${version}`),
             name,
             version,
             license,
             packageEcosystem,
             isTransitive: 1, // Default all to transitive
-            isDirect: 0,     // We'll update direct deps later
+            isDirect: 0,    // We'll update direct deps later
+            isDev: 0        // We'll update dev deps later
         })
     })
 
-    // Second pass: Process relationships
+    // Third pass: Process relationships
     if (spdxJson.relationships) {
         spdxJson.relationships.forEach(rel => {
-            // Only process DEPENDS_ON relationships
-            if (rel.relationshipType !== 'DEPENDS_ON') return;
+            if (rel.relationshipType === 'DEPENDS_ON') {
+                const sourceComp = components.get(rel.spdxElementId)
+                const targetComp = components.get(rel.relatedSpdxElement)
 
-            const sourceComp = components.get(rel.spdxElementId)
-            const targetComp = components.get(rel.relatedSpdxElement)
+                if (!sourceComp || !targetComp) return
 
-            if (!sourceComp || !targetComp) return;
-
-            // If this is a dependency of the root package, mark as direct
-            if (sourceComp.name === spdxJson.name) {
-                targetComp.isDirect = 1
-                targetComp.isTransitive = 0
+                // If this is a dependency of the root package, mark as direct
+                if (rel.spdxElementId === rootPackageId) {
+                    targetComp.isDirect = 1
+                    targetComp.isTransitive = 0
+                }
             }
+            else if (rel.relationshipType === 'DEV_DEPENDENCY_OF') {
+                // For DEV_DEPENDENCY_OF, the spdxElementId is the dev dependency
+                const devComp = components.get(rel.spdxElementId)
+                if (!devComp) return
 
-            relationships.push({
-                uuid: crypto.randomUUID(),
-                dependsOnUuid: targetComp.uuid,
-                name: targetComp.name,
-                version: targetComp.version,
-                license: targetComp.license,
-                packageEcosystem: targetComp.packageEcosystem,
-                isTransitive: targetComp.isTransitive,
-                isDirect: targetComp.isDirect,
-            })
+                // Mark the dev dependency
+                devComp.isDev = 1
+                devComp.isDirect = 1
+                devComp.isTransitive = 0
+            }
         })
     }
+
+    // Final pass: Create relationship objects
+    await components.forEach(async comp => {
+        if (comp.isDirect || comp.isDev) {
+            relationships.push({
+                key: await hex(`${namespace}${comp.name}${comp.version}`),
+                childOfKey: comp.key,
+                name: comp.name,
+                version: comp.version,
+                license: comp.license,
+                packageEcosystem: comp.packageEcosystem,
+                isTransitive: comp.isTransitive,
+                isDirect: comp.isDirect,
+                isDev: comp.isDev
+            })
+        }
+    })
 
     return relationships
 }
 
-export function parseCycloneDXComponents(cdxJson) {
+export async function parseCycloneDXComponents(cdxJson, namespace) {
     const components = new Map()
     const dependencies = []
     const rootPackage = cdxJson.metadata.component
 
-    // First pass: Create all component records
-    cdxJson.components.forEach(component => {
+    await cdxJson.components.forEach(async component => {
         if (!component?.['bom-ref']) {
             console.log('bom-ref missing', component)
             return;
@@ -957,7 +999,7 @@ export function parseCycloneDXComponents(cdxJson) {
         const license = component.licenses.filter(l => l?.license?.id).map(l => l.license.id).join(',')
 
         components.set(component['bom-ref'], {
-            uuid: crypto.randomUUID(),
+            key: await hex(`${namespace}${name}${component.version}`),
             name,
             version: component.version,
             license,
@@ -967,11 +1009,10 @@ export function parseCycloneDXComponents(cdxJson) {
         })
     })
 
-    // Add root package if not already present
     const rootRef = rootPackage['bom-ref']
     if (!components.has(rootRef)) {
         components.set(rootRef, {
-            uuid: crypto.randomUUID(),
+            key: await hex(`${namespace}${rootPackage.name}${rootPackage.version}`),
             name: rootPackage.name,
             version: rootPackage.version,
             license: null,
@@ -981,8 +1022,7 @@ export function parseCycloneDXComponents(cdxJson) {
         })
     }
 
-    // Second pass: Process dependencies
-    cdxJson.dependencies.forEach(dep => {
+    await cdxJson.dependencies.forEach(async dep => {
         const parentRef = dep.ref
         const parentComponent = components.get(parentRef)
 
@@ -990,15 +1030,15 @@ export function parseCycloneDXComponents(cdxJson) {
 
         // If this is the root package's dependencies, mark them as direct
         if (parentRef === rootRef) {
-            dep.dependsOn?.forEach(childRef => {
+            dep.dependsOn?.forEach(async childRef => {
                 const childComponent = components.get(childRef)
                 if (childComponent) {
                     childComponent.isDirect = 1
                     childComponent.isTransitive = 0
 
                     dependencies.push({
-                        uuid: crypto.randomUUID(),
-                        dependsOnUuid: childComponent.uuid,
+                        key: await hex(`${namespace}${childComponent.name}${childComponent.version}`),
+                        childOfKey: childComponent.key,
                         name: childComponent.name,
                         version: childComponent.version,
                         license: childComponent.license,
@@ -1010,12 +1050,12 @@ export function parseCycloneDXComponents(cdxJson) {
             })
         } else {
             // Process transitive dependencies
-            dep.dependsOn?.forEach(childRef => {
+            await dep.dependsOn?.forEach(async childRef => {
                 const childComponent = components.get(childRef);
                 if (childComponent) {
                     dependencies.push({
-                        uuid: crypto.randomUUID(),
-                        dependsOnUuid: childComponent.uuid,
+                        key: await hex(`${namespace}${childComponent.name}${childComponent.version}`),
+                        childOfKey: childComponent.key,
                         name: childComponent.name,
                         version: childComponent.version,
                         license: childComponent.license,

@@ -514,30 +514,34 @@ export class OSV {
             return { url, status: 500, error: { message: e.message, lineno, colno } }
         }
     }
-    async queryBatch(prisma, orgId, memberEmail, queries) {
+    async queryBatch(prisma, orgId, memberEmail, queryArr) {
         // https://google.github.io/osv.dev/post-v1-querybatch/
         const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `osv` } } })
         if (!!githubIntegration?.suspend) {
             throw new Error('OSV.dev Integration is Disabled')
         }
         const url = `${this.baseUrl}/querybatch`
-        const resp = await this.fetchJSON(url, { queries })
-        if (resp?.content?.results) {
-            const results = resp.content.results.map(r => r?.vulns).flat(1).filter(q => q?.id)
-            const createLog = await prisma.IntegrationUsageLog.create({
-                data: {
-                    memberEmail,
-                    orgId,
-                    source: 'osv',
-                    request: JSON.stringify({ method: 'POST', url, queries }).trim(),
-                    response: JSON.stringify({ body: results.filter(i => !!i).map(i => convertIsoDatesToTimestamps(i)), status: resp.status }).trim(),
-                    statusCode: resp?.status || 500,
-                    createdAt: new Date().getTime(),
-                }
-            })
-            // console.log(`osv.queryBatch()`, createLog)
+        const results = []
+        for (const queries of chunkArray(queryArr, 1000)) {
+            const resp = await this.fetchJSON(url, { queries })
+            if (resp?.content?.results) {
+                const items = resp.content.results.map(r => r?.vulns).flat(1).filter(q => q?.id)
+                const createLog = await prisma.IntegrationUsageLog.create({
+                    data: {
+                        memberEmail,
+                        orgId,
+                        source: 'osv',
+                        request: JSON.stringify({ method: 'POST', url, queries }).trim(),
+                        response: JSON.stringify({ body: items.filter(i => !!i).map(i => convertIsoDatesToTimestamps(i)), status: resp.status }).trim(),
+                        statusCode: resp?.status || 500,
+                        createdAt: new Date().getTime(),
+                    }
+                })
+                // console.log(`osv.queryBatch()`, createLog)
+                results.push(...resp.content.results)
+            }
         }
-        return resp?.content?.results || []
+        return results
     }
     async query(prisma, orgId, memberEmail, vulnId) {
         // https://google.github.io/osv.dev/get-v1-vulns/
@@ -1996,6 +2000,12 @@ export const versionSorter = (v1, v2) => {
     return 0;
 }
 
+export function chunkArray(array, chunkSize = 1000) {
+    return Array.from(
+        { length: Math.ceil(array.length / chunkSize) },
+        (_, index) => array.slice(index * chunkSize, (index + 1) * chunkSize)
+    )
+}
 /**
  * Determines if a version is vulnerable based on a set of version ranges
  * 

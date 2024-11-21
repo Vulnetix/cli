@@ -15,6 +15,9 @@ clean: ## Cleanup tmp files
 setup: ## FOR DOCO ONLY - Run these one at a time, do not call this target directly
 	nvm install --lts
 	nvm use --lts
+	yarn set version stable
+	yarn plugin import https://raw.githubusercontent.com/spdx/yarn-plugin-spdx/main/bundles/@yarnpkg/plugin-spdx.js
+	yarn plugin import https://github.com/CycloneDX/cyclonedx-node-yarn/releases/latest/download/yarn-plugin-cyclonedx.cjs
 
 migrate: ## migrate incoming schema changes for prisma orm
 	npx wrangler d1 migrations apply vulnetix --local
@@ -26,20 +29,17 @@ plan: ## plan a migrate for schema changes in prisma orm
 		--script --from-local-d1 >migrations/0000_plan_TMP.sql
 
 update: ## get app updates, migrate should be run first
-	npm update --include dev
-	npm run audit
-	npm audit fix --force
+	yarn up
 
 install: ## install deps and build icons
-	npm i
-	npm run postinstall
+	yarn install
 
 sarif: clean ## generate SARIF from Semgrep for this project
 	osv-scanner --format sarif --call-analysis=all -r . | jq >osv.sarif.json
 	semgrep $(SEMGREP_ARGS) $(SEMGREP_RULES) | jq >semgrep.sarif.json
 
 sbom: clean ## generate CycloneDX from NPM for this project
-	yarn cyclonedx --spec-version 1.6 --prod --output-reproducible --output-file vulnetix.cdx.json
+	yarn cyclonedx --spec-version 1.6 --output-format JSON --output-file vulnetix.cdx.json
 	yarn spdx
 
 deployments: ## FOR DOCO ONLY

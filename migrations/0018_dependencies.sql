@@ -1,5 +1,5 @@
 CREATE TABLE "Dependency" (
-    "uuid" TEXT NOT NULL PRIMARY KEY,
+    "key" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "version" TEXT NOT NULL,
     "license" TEXT,
@@ -10,10 +10,11 @@ CREATE TABLE "Dependency" (
     "isTransitive" INTEGER NOT NULL DEFAULT 0,
     "isShared" INTEGER NOT NULL DEFAULT 0,
     "isPeer" INTEGER NOT NULL DEFAULT 0,
-    "dependsOnUuid" TEXT,
+    "childOfKey" TEXT,
     "spdxId" TEXT,
     "cdxId" TEXT
 );
+CREATE UNIQUE INDEX "Dependency_key_key" ON "Dependency"("key");
 CREATE UNIQUE INDEX "Dependency_name_version_spdxId_key" ON "Dependency"("name", "version", "spdxId");
 CREATE UNIQUE INDEX "Dependency_name_version_cdxId_key" ON "Dependency"("name", "version", "cdxId");
 CREATE TABLE "new_CycloneDXInfo" (

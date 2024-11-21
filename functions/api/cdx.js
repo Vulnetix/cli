@@ -103,7 +103,7 @@ export async function onRequestPost(context) {
                 cdx.serialNumber = `urn:uuid:${artifactUuid}`
             }
             const dependencies = []
-            for (const dep of parseCycloneDXComponents(cdx)) {
+            for (const dep of await parseCycloneDXComponents(cdx, cdxId)) {
                 const info = await prisma.Dependency.upsert({
                     where: {
                         cdx_dep: {
@@ -114,7 +114,7 @@ export async function onRequestPost(context) {
                     },
                     update: {
                         license: dep.license,
-                        dependsOnUuid: dep.dependsOnUuid
+                        childOfKey: dep.childOfKey
                     },
                     create: { ...dep, cdxId }
                 })
@@ -151,26 +151,38 @@ export async function onRequestPost(context) {
             cdxData.dependencies = dependencies
             files.push(cdxData)
 
-            const osvQueries = cdx.components.map(component => {
-                if (!component?.purl) { return }
-                return {
-                    referenceLocator: decodeURIComponent(component.purl),
+            const osvQueries = cdx.components.flatMap(component => {
+                const queries = [{
                     name: component.name,
                     version: component?.version,
                     license: component?.licenses?.map(l => l.license?.id || '').join(' '),
+                }]
+                if (component?.purl) {
+                    queries.push({
+                        purl: decodeURIComponent(component.purl.split('?')[0]),
+                        name: component.name,
+                        version: component?.version,
+                        license: component?.licenses?.map(l => l.license?.id || '').join(' '),
+                    })
                 }
+                return queries
             })
             const osv = new OSV()
-            const queries = osvQueries.map(q => ({ package: { purl: q?.referenceLocator } }))
+            const queries = osvQueries.map(q => {
+                if (q?.purl) {
+                    return { package: { purl: q?.purl } }
+                }
+                return { package: { name: q.name }, version: q.version }
+            })
             const results = await osv.queryBatch(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, queries)
             let i = 0
             for (const result of results) {
-                const { referenceLocator, name, version, license } = osvQueries[i]
+                const { purl = null, name, version, license } = osvQueries[i]
                 for (const vuln of result.vulns || []) {
                     if (!vuln?.id) {
                         continue
                     }
-                    const findingId = await hex(`${vuln.id}${referenceLocator}`)
+                    const findingId = await hex(`${verificationResult.session.orgId}${vuln.id}${name}${version}`)
                     const findingData = {
                         findingId,
                         orgId: verificationResult.session.orgId,
@@ -179,8 +191,7 @@ export async function onRequestPost(context) {
                         createdAt: (new Date()).getTime(),
                         modifiedAt: (new Date(vuln.modified)).getTime(),
                         detectionTitle: vuln.id,
-                        detectionDescription: vuln.details,
-                        purl: referenceLocator,
+                        purl: purl || `pkg:generic/${[name, version].join('@')}`,
                         packageName: name,
                         packageVersion: version,
                         packageLicense: license,
@@ -203,6 +214,7 @@ export async function onRequestPost(context) {
                             },
                             data: {
                                 cdxId,
+                                purl: findingData.purl,
                                 packageLicense: findingData.packageLicense,
                                 malicious: findingData.malicious,
                                 modifiedAt: findingData.modifiedAt

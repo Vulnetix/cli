@@ -1,4 +1,4 @@
-import { createPurlFromUrl, parsePackageRef, parseSPDXComponents } from "@/finding";
+import { parsePackageRef, parseSPDXComponents } from "@/finding";
 import { GitHub, hex, isSPDX, OSV, saveArtifact, Server } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
@@ -89,7 +89,7 @@ export async function onRequestGet(context) {
         const findingIds = await process(prisma, verificationResult.session, repoName, spdx, spdxId, originalSpdx?.artifactUuid || artifact?.uuid)
         findings = [...findings, ...findingIds]
         const dependencies = []
-        for (const dep of parseSPDXComponents(spdx)) {
+        for (const dep of await parseSPDXComponents(spdx, spdxId)) {
             const info = await prisma.Dependency.upsert({
                 where: {
                     spdx_dep: {
@@ -100,7 +100,7 @@ export async function onRequestGet(context) {
                 },
                 update: {
                     license: dep.license,
-                    dependsOnUuid: dep.dependsOnUuid
+                    childOfKey: dep.childOfKey
                 },
                 create: { ...dep, spdxId }
             })
@@ -190,34 +190,39 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
     // console.log(`/github/repos/spdx ${repoName} kid=${session.kid}`, info)
     const osvQueries = spdx.packages.flatMap(pkg => {
         const { version } = parsePackageRef(pkg.SPDXID, pkg.name)
-        if (!pkg?.externalRefs && pkg?.downloadLocation) {
-            return [{
-                purl: createPurlFromUrl(pkg.downloadLocation, pkg.name, pkg?.versionInfo ? pkg.versionInfo : version),
-                name: pkg.name,
-                version: pkg?.versionInfo ? pkg.versionInfo : version,
-                license: pkg?.licenseConcluded || pkg?.licenseDeclared,
-            }]
+        const queries = [{
+            name: pkg.name,
+            version: pkg?.versionInfo ? pkg.versionInfo : version,
+            license: pkg?.licenseConcluded || pkg?.licenseDeclared,
+        }]
+        if (pkg?.externalRefs) {
+            pkg.externalRefs
+                .filter(ref => ref?.referenceType === 'purl')
+                .map(ref => queries.push({
+                    purl: decodeURIComponent(ref.referenceLocator),
+                    name: pkg.name,
+                    version: pkg?.versionInfo,
+                    license: pkg?.licenseConcluded || pkg?.licenseDeclared,
+                }))
         }
-        return pkg.externalRefs
-            .filter(ref => ref?.referenceType === 'purl')
-            .map(ref => ({
-                purl: ref.referenceLocator,
-                name: pkg.name,
-                version: pkg?.versionInfo ? pkg.versionInfo : version,
-                license: pkg?.licenseConcluded || pkg?.licenseDeclared,
-            }))
-    }).filter(q => q?.purl)
+        return queries
+    })
     const osv = new OSV()
-    const queries = osvQueries.map(q => ({ package: { purl: q.purl } }))
+    const queries = osvQueries.map(q => {
+        if (q?.purl) {
+            return { package: { purl: q?.purl } }
+        }
+        return { package: { name: q.name }, version: q.version }
+    })
     const results = await osv.queryBatch(prisma, session.orgId, session.memberEmail, queries)
     let i = 0
     for (const result of results) {
-        const { purl, name, version, license } = osvQueries[i]
+        const { purl = null, name, version, license } = osvQueries[i]
         for (const vuln of result.vulns || []) {
             if (!vuln?.id) {
                 continue
             }
-            const findingId = await hex(`${vuln.id}${purl}`)
+            const findingId = await hex(`${session.orgId}${vuln.id}${name}${version}`)
             const findingData = {
                 findingId,
                 orgId: session.orgId,
@@ -227,8 +232,7 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
                 createdAt: (new Date()).getTime(),
                 modifiedAt: (new Date(vuln.modified)).getTime(),
                 detectionTitle: vuln.id,
-                detectionDescription: vuln.details,
-                purl,
+                purl: purl || `pkg:generic/${[name, version].join('@')}`,
                 packageName: name,
                 packageVersion: version,
                 packageLicense: license,
@@ -251,6 +255,9 @@ const process = async (prisma, session, repoName, spdx, spdxId, artifactUuid) =>
                     },
                     data: {
                         spdxId,
+                        purl: findingData.purl,
+                        packageLicense: findingData.packageLicense,
+                        malicious: findingData.malicious,
                         modifiedAt: findingData.modifiedAt
                     },
                 })

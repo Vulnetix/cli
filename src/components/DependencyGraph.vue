@@ -2,6 +2,7 @@
 import VCodeBlock from '@wdns/vue-code-block';
 import { useTheme } from 'vuetify';
 
+onMounted(() => console.log('on mount'))
 const { global } = useTheme()
 // const emit = defineEmits(["vector-updated"]);
 
@@ -16,7 +17,7 @@ const props = defineProps({
     <VContainer
         fluid
         class="pa-0"
-        v-if="props.cdx"
+        v-if="props.dependencies"
     >
         <VCard>
             <VCardTitle>Deps</VCardTitle>

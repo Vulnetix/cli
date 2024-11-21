@@ -180,7 +180,7 @@ model CycloneDXInfo {
   createdAt    Int
   toolName     String?
   findings     Finding[]
-  dependencies Dependency[]
+  dependencies Dependency[] @relation("depsCDX")
 }
 
 model SPDXInfo {
@@ -202,11 +202,11 @@ model SPDXInfo {
   documentDescribes String?
   comment           String?
   findings          Finding[]
-  dependencies      Dependency[]
+  dependencies      Dependency[] @relation("depsSPDX")
 }
 
 model Dependency {
-  uuid             String         @id @default(uuid())
+  key              String         @unique
   name             String
   version          String
   license          String?
@@ -217,13 +217,13 @@ model Dependency {
   isTransitive     Int            @default(0)
   isShared         Int            @default(0)
   isPeer           Int            @default(0)
-  dependsOnUuid    String?
-  dependsOn        Dependency?    @relation("DependsOn", fields: [dependsOnUuid], references: [uuid])
-  dependencies     Dependency[]   @relation("DependsOn")
+  childOfKey       String?
+  childOf          Dependency?    @relation("dependsOn", fields: [childOfKey], references: [key])
+  dependencies     Dependency[]   @relation("dependsOn")
   spdxId           String?
-  spdx             SPDXInfo?      @relation(fields: [spdxId], references: [spdxId])
+  spdx             SPDXInfo?      @relation("depsSPDX", fields: [spdxId], references: [spdxId])
   cdxId            String?
-  cdx              CycloneDXInfo? @relation(fields: [cdxId], references: [cdxId])
+  cdx              CycloneDXInfo? @relation("depsCDX", fields: [cdxId], references: [cdxId])
 
   @@unique([name, version, spdxId], name: "spdx_dep")
   @@unique([name, version, cdxId], name: "cdx_dep")

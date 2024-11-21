@@ -1,4 +1,4 @@
-import { parseSPDXComponents } from "@/finding";
+import { parsePackageRef, parseSPDXComponents } from "@/finding";
 import { AuthResult, OSV, Server, ensureStrReqBody, hex, isSPDX, saveArtifact } from "@/utils";
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { PrismaClient } from '@prisma/client';
@@ -128,7 +128,7 @@ export async function onRequestPost(context) {
             const artifact = await saveArtifact(prisma, env.r2artifacts, spdxStr, crypto.randomUUID(), `spdx`)
             const artifactUuid = originalSpdx?.artifactUuid || artifact?.uuid
             const dependencies = []
-            for (const dep of parseSPDXComponents(spdx)) {
+            for (const dep of await parseSPDXComponents(spdx, spdxId)) {
                 const info = await prisma.Dependency.upsert({
                     where: {
                         spdx_dep: {
@@ -139,7 +139,7 @@ export async function onRequestPost(context) {
                     },
                     update: {
                         license: dep.license,
-                        dependsOnUuid: dep.dependsOnUuid
+                        childOfKey: dep.childOfKey
                     },
                     create: { ...dep, spdxId }
                 })
@@ -178,27 +178,40 @@ export async function onRequestPost(context) {
             files.push(spdxData)
 
             const osvQueries = spdx.packages.flatMap(pkg => {
-                if (!pkg?.externalRefs) { return }
-                return pkg.externalRefs
-                    .filter(ref => ref?.referenceType === 'purl')
-                    .map(ref => ({
-                        referenceLocator: decodeURIComponent(ref.referenceLocator),
-                        name: pkg.name,
-                        version: pkg?.versionInfo,
-                        license: pkg?.licenseConcluded || pkg?.licenseDeclared,
-                    }))
-            }).filter(q => q?.referenceLocator)
+                const { version } = parsePackageRef(pkg.SPDXID, pkg.name)
+                const queries = [{
+                    name: pkg.name,
+                    version: pkg?.versionInfo ? pkg.versionInfo : version,
+                    license: pkg?.licenseConcluded || pkg?.licenseDeclared,
+                }]
+                if (pkg?.externalRefs) {
+                    pkg.externalRefs
+                        .filter(ref => ref?.referenceType === 'purl')
+                        .map(ref => queries.push({
+                            purl: decodeURIComponent(ref.referenceLocator),
+                            name: pkg.name,
+                            version: pkg?.versionInfo,
+                            license: pkg?.licenseConcluded || pkg?.licenseDeclared,
+                        }))
+                }
+                return queries
+            })
             const osv = new OSV()
-            const queries = osvQueries.map(q => ({ package: { purl: q?.referenceLocator } }))
+            const queries = osvQueries.map(q => {
+                if (q?.purl) {
+                    return { package: { purl: q?.purl } }
+                }
+                return { package: { name: q.name }, version: q.version }
+            })
             const results = await osv.queryBatch(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, queries)
             let i = 0
             for (const result of results) {
-                const { referenceLocator, name, version, license } = osvQueries[i]
+                const { purl = null, name, version, license } = osvQueries[i]
                 for (const vuln of result.vulns || []) {
                     if (!vuln?.id) {
                         continue
                     }
-                    const findingId = await hex(`${vuln.id}${referenceLocator}`)
+                    const findingId = await hex(`${verificationResult.session.orgId}${vuln.id}${name}${version}`)
                     const findingData = {
                         findingId,
                         orgId: verificationResult.session.orgId,
@@ -207,8 +220,7 @@ export async function onRequestPost(context) {
                         createdAt: (new Date()).getTime(),
                         modifiedAt: (new Date(vuln.modified)).getTime(),
                         detectionTitle: vuln.id,
-                        detectionDescription: vuln.details,
-                        purl: referenceLocator,
+                        purl: purl || `pkg:generic/${[name, version].join('@')}`,
                         packageName: name,
                         packageVersion: version,
                         packageLicense: license,
@@ -231,6 +243,7 @@ export async function onRequestPost(context) {
                             },
                             data: {
                                 spdxId,
+                                purl: findingData.purl,
                                 packageLicense: findingData.packageLicense,
                                 malicious: findingData.malicious,
                                 modifiedAt: findingData.modifiedAt

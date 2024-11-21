@@ -1,9 +1,9 @@
-<template lang="">
+<template>
   <img
     :alt="alt"
     class="app-icon"
     :class="class"
-    src="@images/pix.png"
+    src="@images/pix.webp"
     :width="width"
     :height="height"
   />
