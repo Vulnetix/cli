@@ -1,6 +1,4 @@
-import { GitHub, Server, ensureStrReqBody } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { GitHub } from "@/utils";
 
 export async function onRequestPost(context) {
     const {
@@ -11,45 +9,31 @@ export async function onRequestPost(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
-    const bodyStr = await ensureStrReqBody(request)
-    const body = JSON.parse(bodyStr)
-    if (!body.token.startsWith('github_pat_')) {
+    if (!data.json.token.startsWith('github_pat_')) {
         return Response.json({ error: { message: `Invalid PAT provided, expected "github_pat_" prefix.` } })
     }
-    const tokenInfo = await prisma.MemberKey.upsert({
+    const tokenInfo = await data.prisma.MemberKey.upsert({
         where: {
             memberEmail_secret: {
-                memberEmail: verificationResult.session.memberEmail,
-                secret: body.token,
+                memberEmail: data.session.memberEmail,
+                secret: data.json.token,
             }
         },
         update: {
-            keyLabel: body.label,
+            keyLabel: data.json.label,
         },
         create: {
-            memberEmail: verificationResult.session.memberEmail,
-            keyLabel: body.label,
+            memberEmail: data.session.memberEmail,
+            keyLabel: data.json.label,
             keyType: 'github_pat',
-            secret: body.token,
+            secret: data.json.token,
         }
     })
     tokenInfo.secretMasked = mask(tokenInfo.secret)
     delete tokenInfo.secret
-    // console.log(`/github/pat github_pat label=${body.label}`, tokenInfo)
-    const gh = new GitHub(body.token)
-    const { content, error, tokenExpiry } = await gh.getUser(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail)
+    data.logger(`/github/pat github_pat label=${data.json.label}`, tokenInfo)
+    const gh = new GitHub(data.prisma, data.session.orgId, data.session.memberEmail, data.json.token)
+    const { content, error, tokenExpiry } = await gh.getUser()
     if (error?.message) {
         return Response.json({ error })
     }
@@ -60,7 +44,7 @@ export async function onRequestPost(context) {
         created: content?.created_at ? (new Date(content.created_at)).getTime() : (new Date()).getTime(),
         avatarUrl: content?.avatar_url,
     }
-    const patInfo = await prisma.GitHubPAT.upsert({
+    const patInfo = await data.prisma.GitHubPAT.upsert({
         where: {
             keyId: tokenInfo.githubPat.keyId,
         },
@@ -70,10 +54,10 @@ export async function onRequestPost(context) {
         },
         create: {
             ...tokenInfo.githubPat,
-            memberEmail: verificationResult.session.memberEmail,
+            memberEmail: data.session.memberEmail,
         },
     })
-    // console.log(`/github/pat github_pat label=${body.label}`, patInfo)
+    data.logger(`/github/pat github_pat label=${data.json.label}`, patInfo)
 
     return Response.json(tokenInfo)
 }

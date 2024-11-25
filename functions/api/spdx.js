@@ -1,7 +1,5 @@
 import { parsePackageRef, parseSPDXComponents } from "@/finding";
-import { AuthResult, OSV, Server, ensureStrReqBody, hex, isSPDX, saveArtifact } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { AuthResult, OSV, hex, isSPDX, saveArtifact } from "@/utils";
 
 
 export async function onRequestGet(context) {
@@ -13,24 +11,11 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
-    const { searchParams } = new URL(request.url)
-    const take = parseInt(searchParams.get('take'), 10) || 50
-    const skip = parseInt(searchParams.get('skip'), 10) || 0
-    let spdx = await prisma.SPDXInfo.findMany({
+    const take = parseInt(data.searchParams.get('take'), 10) || 50
+    const skip = parseInt(data.searchParams.get('skip'), 10) || 0
+    let spdx = await data.prisma.SPDXInfo.findMany({
         where: {
-            orgId: verificationResult.session.orgId,
+            orgId: data.session.orgId,
         },
         select: {
             spdxId: true,
@@ -60,7 +45,7 @@ export async function onRequestGet(context) {
         },
     })
 
-    const repos = await prisma.gitRepo.findMany({
+    const repos = await data.prisma.gitRepo.findMany({
         where: {
             fullName: { in: spdx.map(s => s?.repoName).filter(s => !!s).filter((value, index, array) => array.indexOf(value) === index) },
         },
@@ -96,40 +81,26 @@ export async function onRequestPost(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
     const files = []
     let errors = new Set()
     try {
-        const body = await ensureStrReqBody(request)
-        const inputs = JSON.parse(body)
-        for (const spdx of inputs) {
+        for (const spdx of data.json) {
             if (!isSPDX(spdx)) {
                 return Response.json({ ok: false, error: { message: 'SPDX is missing necessary fields.' } })
             }
             const spdxId = await makeId(spdx)
-            const originalSpdx = await prisma.SPDXInfo.findFirst({
+            const originalSpdx = await data.prisma.SPDXInfo.findFirst({
                 where: {
                     spdxId,
-                    orgId: verificationResult.session.orgId,
+                    orgId: data.session.orgId,
                 }
             })
             const spdxStr = JSON.stringify(spdx)
-            const artifact = await saveArtifact(prisma, env.r2artifacts, spdxStr, crypto.randomUUID(), `spdx`)
+            const artifact = await saveArtifact(data.prisma, env.r2artifacts, spdxStr, crypto.randomUUID(), `spdx`)
             const artifactUuid = originalSpdx?.artifactUuid || artifact?.uuid
             const dependencies = []
             for (const dep of await parseSPDXComponents(spdx, spdxId)) {
-                const info = await prisma.Dependency.upsert({
+                const info = await data.prisma.Dependency.upsert({
                     where: {
                         spdx_dep: {
                             spdxId,
@@ -144,7 +115,7 @@ export async function onRequestPost(context) {
                     create: { ...dep, spdxId }
                 })
                 dependencies.push({ ...dep, spdxId })
-                // console.log(`Dependency ${dep.name}@${dep.version}`, info)
+                data.logger(`Dependency ${dep.name}@${dep.version}`, info)
             }
             const spdxData = {
                 spdxId,
@@ -158,10 +129,10 @@ export async function onRequestPost(context) {
                 documentDescribes: spdx?.documentDescribes?.join(','),
                 comment: spdx.creationInfo?.comment || '',
             }
-            const info = await prisma.SPDXInfo.upsert({
+            const info = await data.prisma.SPDXInfo.upsert({
                 where: {
                     spdxId,
-                    orgId: verificationResult.session.orgId,
+                    orgId: data.session.orgId,
                 },
                 update: {
                     createdAt: spdxData.createdAt,
@@ -169,11 +140,11 @@ export async function onRequestPost(context) {
                 },
                 create: {
                     ...spdxData,
-                    org: { connect: { uuid: verificationResult.session.orgId } },
+                    org: { connect: { uuid: data.session.orgId } },
                     artifact: { connect: { uuid: artifactUuid } },
                 }
             })
-            // console.log(`/github/repos/spdx ${spdxId} kid=${verificationResult.session.kid}`, info)
+            data.logger(`/github/repos/spdx ${spdxId} kid=${data.session.kid}`, info)
             spdxData.dependencies = dependencies
             files.push(spdxData)
 
@@ -203,7 +174,7 @@ export async function onRequestPost(context) {
                 }
                 return { package: { name: q.name }, version: q.version }
             })
-            const results = await osv.queryBatch(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, queries)
+            const results = await osv.queryBatch(data.prisma, data.session.orgId, data.session.memberEmail, queries)
             let i = 0
             for (const result of results) {
                 const { purl = null, name, version, license } = osvQueries[i]
@@ -211,10 +182,10 @@ export async function onRequestPost(context) {
                     if (!vuln?.id) {
                         continue
                     }
-                    const findingId = await hex(`${verificationResult.session.orgId}${vuln.id}${name}${version}`)
+                    const findingId = await hex(`${data.session.orgId}${vuln.id}${name}${version}`)
                     const findingData = {
                         findingId,
-                        orgId: verificationResult.session.orgId,
+                        orgId: data.session.orgId,
                         source: 'osv.dev',
                         category: 'sca',
                         createdAt: (new Date()).getTime(),
@@ -227,17 +198,17 @@ export async function onRequestPost(context) {
                         malicious: vuln.id.startsWith("MAL-") ? 1 : 0,
                         spdxId
                     }
-                    const originalFinding = await prisma.Finding.findFirst({
+                    const originalFinding = await data.prisma.Finding.findFirst({
                         where: {
                             findingId,
                             AND: {
-                                orgId: verificationResult.session.orgId
+                                orgId: data.session.orgId
                             },
                         }
                     })
                     let finding;
                     if (originalFinding) {
-                        finding = await prisma.Finding.update({
+                        finding = await data.prisma.Finding.update({
                             where: {
                                 uuid: originalFinding.uuid,
                             },
@@ -250,9 +221,9 @@ export async function onRequestPost(context) {
                             },
                         })
                     } else {
-                        finding = await prisma.Finding.create({ data: findingData })
+                        finding = await data.prisma.Finding.create({ data: findingData })
                     }
-                    // console.log(`findings SCA`, finding)
+                    data.logger(`findings SCA`, finding)
                     const vexData = {
                         findingUuid: finding.uuid,
                         createdAt: (new Date()).getTime(),
@@ -260,7 +231,7 @@ export async function onRequestPost(context) {
                         seen: 0,
                         analysisState: 'in_triage'
                     }
-                    const originalVex = await prisma.Triage.findFirst({
+                    const originalVex = await data.prisma.Triage.findFirst({
                         where: {
                             findingUuid: finding.uuid,
                             analysisState: 'in_triage',
@@ -268,7 +239,7 @@ export async function onRequestPost(context) {
                     })
                     let vex;
                     if (originalVex) {
-                        vex = await prisma.Triage.update({
+                        vex = await data.prisma.Triage.update({
                             where: {
                                 uuid: originalVex.uuid,
                             },
@@ -277,9 +248,9 @@ export async function onRequestPost(context) {
                             },
                         })
                     } else {
-                        vex = await prisma.Triage.create({ data: vexData })
+                        vex = await data.prisma.Triage.create({ data: vexData })
                     }
-                    // console.log(`findings VEX`, vex)
+                    data.logger(`findings VEX`, vex)
                 }
                 i++
             }

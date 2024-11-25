@@ -1,6 +1,4 @@
-import { GitHub, Server, saveArtifact } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { GitHub, saveArtifact } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -11,47 +9,26 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
-    const githubIntegration = await prisma.IntegrationConfig.findFirst({
-        where: {
-            orgId: verificationResult.session.orgId,
-            AND: { name: `github` },
-        }
-    })
-    if (!!githubIntegration?.suspend) {
-        return Response.json({ ok: false, error: { message: 'GitHub Disabled' } })
-    }
     const errors = []
-    const githubApps = await prisma.GitHubApp.findMany({
+    const githubApps = await data.prisma.GitHubApp.findMany({
         where: {
-            orgId: verificationResult.session.orgId,
+            orgId: data.session.orgId,
         },
     })
     const repoName = `${params.org}/${params.repo}`
     const files = []
     for (const app of githubApps) {
         if (!app.accessToken) {
-            console.error(`Invalid github_apps kid=${verificationResult.session.kid} installationId=${app.installationId}`)
+            console.error(`Invalid github_apps kid=${data.session.kid} installationId=${app.installationId}`)
             continue
         }
-        const gh = new GitHub(app.accessToken)
+        const gh = new GitHub(data.prisma, data.session.orgId, data.session.memberEmail, app.accessToken)
 
-        const { content, error } = await gh.getRepoSarif(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, repoName)
+        const { content, error } = await gh.getRepoSarif(repoName)
         if (error?.message) {
             if ("Bad credentials" === error.message) {
                 app.expires = (new Date()).getTime()
-                await prisma.GitHubApp.update({
+                await data.prisma.GitHubApp.update({
                     where: {
                         installationId: parseInt(app.installationId, 10),
                         AND: { orgId: app.orgId },
@@ -65,27 +42,27 @@ export async function onRequestGet(context) {
             continue
         }
         for (const data of content) {
-            const artifact = await saveArtifact(prisma, env.r2artifacts, JSON.stringify(data.sarif), data?.report?.sarif_id ? data.report.sarif_id : crypto.randomUUID(), `sarif`)
-            files.push(await process(prisma, verificationResult.session, data, repoName, artifact.uuid))
+            const artifact = await saveArtifact(data.prisma, env.r2artifacts, JSON.stringify(data.sarif), data?.report?.sarif_id ? data.report.sarif_id : crypto.randomUUID(), `sarif`)
+            files.push(await process(data.prisma, data.session, data, repoName, artifact.uuid))
         }
     }
 
-    const memberKeys = await prisma.MemberKey.findMany({
+    const memberKeys = await data.prisma.MemberKey.findMany({
         where: {
-            memberEmail: verificationResult.session.memberEmail,
+            memberEmail: data.session.memberEmail,
             keyType: 'github_pat',
         },
     })
     for (const memberKey of memberKeys) {
-        const gh = new GitHub(memberKey.secret)
-        const { content, error } = await gh.getRepoSarif(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, repoName)
+        const gh = new GitHub(data.prisma, data.session.orgId, data.session.memberEmail, memberKey.secret)
+        const { content, error } = await gh.getRepoSarif(repoName)
         if (error?.message) {
             errors.push({ error, app: { login: memberKey.keyLabel } })
             continue
         }
         for (const data of content) {
-            const artifact = await saveArtifact(prisma, env.r2artifacts, JSON.stringify(data.sarif), data.report.sarif_id, `sarif`)
-            files.push(await process(prisma, verificationResult.session, data, repoName, artifact.uuid))
+            const artifact = await saveArtifact(data.prisma, env.r2artifacts, JSON.stringify(data.sarif), data.report.sarif_id, `sarif`)
+            files.push(await process(data.prisma, data.session, data, repoName, artifact.uuid))
         }
     }
 

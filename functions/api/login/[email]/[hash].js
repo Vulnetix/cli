@@ -1,6 +1,4 @@
 import { AuthResult, hex, pbkdf2Verify } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
 
 export async function onRequestGet(context) {
     const {
@@ -17,16 +15,7 @@ export async function onRequestGet(context) {
         params?.email &&
         params?.hash
     ) {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-        })
-
-        const member = await prisma.Member.findFirst({
+        const member = await data.prisma.Member.findFirst({
             where: {
                 email: params.email,
             },
@@ -52,10 +41,10 @@ export async function onRequestGet(context) {
             authn_ip,
             authn_ua
         }
-        const sessionInfo = await prisma.Session.create({
+        const sessionInfo = await data.prisma.Session.create({
             data: response.session
         })
-        // console.log(`/login session kid=${token}`, sessionInfo)
+        data.logger(`/login session kid=${token}`, sessionInfo)
         response.result = AuthResult.AUTHENTICATED
         response.ok = true
     }

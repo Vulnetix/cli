@@ -1,6 +1,4 @@
 import { appExpiryPeriod, AuthResult, GitHub, hex, pbkdf2, Server } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
 
 export async function onRequestGet(context) {
     const {
@@ -11,16 +9,7 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
     try {
-        const app = new Server(request, prisma)
         let oauthData
         if (params?.code) {
             const method = "POST"
@@ -45,7 +34,7 @@ export async function onRequestGet(context) {
         if (!oauthData?.access_token) {
             return Response.json({ ok: false, error: { message: 'OAuth authorization failed' } })
         }
-        const gh = new GitHub(oauthData.access_token)
+        const gh = new GitHub(data.prisma, data?.session?.orgId, data?.session?.memberEmail, oauthData.access_token)
         const created = (new Date()).getTime()
         const response = { ok: false, session: {}, member: {} }
         const { content, error, tokenExpiry } = await gh.getUser()
@@ -53,10 +42,9 @@ export async function onRequestGet(context) {
             return Response.json({ ok: false, error })
         }
         const expires = tokenExpiry || appExpiryPeriod + created
-        const verificationResult = await app.authenticate()
-        let memberEmail = verificationResult?.session?.memberEmail
+        let memberEmail = data?.session?.memberEmail
         if (!memberEmail) {
-            const ghUserEmails = await gh.getUserEmails(prisma)
+            const ghUserEmails = await gh.getUserEmails()
             if (!ghUserEmails?.ok || ghUserEmails?.error?.message || !ghUserEmails?.content || !ghUserEmails.content?.length) {
                 return Response.json({ ok: ghUserEmails.ok, error: ghUserEmails.error, result: `${ghUserEmails.status} ${ghUserEmails.statusText}` })
             }
@@ -70,7 +58,7 @@ export async function onRequestGet(context) {
                 memberEmail = content.email.toLowerCase()
             }
         }
-        const memberCheck = await app.memberExists(memberEmail)
+        const memberCheck = await (new Server(request, data.prisma)).memberExists(memberEmail)
         if (memberCheck.exists) {
             response.member = memberCheck.member
         } else {
@@ -83,7 +71,7 @@ export async function onRequestGet(context) {
                 lastName = words.join(' ') || ''
             }
             if (content?.company) {
-                const originalOrg = await prisma.Org.findFirst({
+                const originalOrg = await data.prisma.Org.findFirst({
                     where: {
                         name: content.company
                     }
@@ -91,22 +79,22 @@ export async function onRequestGet(context) {
                 if (originalOrg?.uuid) {
                     orgId = originalOrg.uuid
                 } else {
-                    const orgInfo = await prisma.Org.create({
+                    const orgInfo = await data.prisma.Org.create({
                         data: {
                             uuid: orgId,
                             name: content.company,
                         }
                     })
-                    // console.log(`/github/install register orgId=${orgId}`, orgInfo)
+                    data.logger(`/github/install register orgId=${orgId}`, orgInfo)
                 }
             } else {
-                const orgInfo = await prisma.Org.create({
+                const orgInfo = await data.prisma.Org.create({
                     data: {
                         uuid: orgId,
                         name: memberEmail.toLowerCase(),
                     }
                 })
-                // console.log(`/github/install register orgId=${orgId}`, orgInfo)
+                data.logger(`/github/install register orgId=${orgId}`, orgInfo)
             }
 
             response.member = {
@@ -117,10 +105,10 @@ export async function onRequestGet(context) {
                 firstName,
                 lastName
             }
-            const memberInfo = await prisma.Member.create({
+            const memberInfo = await data.prisma.Member.create({
                 data: response.member
             })
-            // console.log(`/github/install register email=${memberEmail}`, memberInfo)
+            data.logger(`/github/install register email=${memberEmail}`, memberInfo)
             delete response.member.passwordHash
         }
         const token = crypto.randomUUID()
@@ -138,16 +126,16 @@ export async function onRequestGet(context) {
             authn_ip,
             authn_ua
         }
-        const sessionInfo = await prisma.Session.create({
+        const sessionInfo = await data.prisma.Session.create({
             data: response.session
         })
-        // console.log(`/github/install session kid=${token}`, sessionInfo)
-        const githubApp = await prisma.GitHubApp.findFirst({
+        data.logger(`/github/install session kid=${token}`, sessionInfo)
+        const githubApp = await data.prisma.GitHubApp.findFirst({
             where: { orgId: response.member.orgId },
         })
         let installationId = githubApp?.installationId
         if (!installationId) {
-            const ghInstalls = await gh.getInstallations(prisma, response.session.orgId, response.session.memberEmail)
+            const ghInstalls = await gh.getInstallations()
             if (!ghInstalls?.ok || ghInstalls?.error?.message || !ghInstalls?.content?.installations || !ghInstalls.content?.installations?.length) {
                 return Response.json({ ok: ghInstalls.ok, error: ghInstalls.error, result: `${ghInstalls.status} ${ghInstalls.statusText}` })
             }
@@ -159,7 +147,7 @@ export async function onRequestGet(context) {
             }
         }
         if (installationId) {
-            const GHAppInfo = await prisma.GitHubApp.upsert({
+            const GHAppInfo = await data.prisma.GitHubApp.upsert({
                 where: {
                     installationId: parseInt(installationId, 10),
                 },
@@ -177,7 +165,7 @@ export async function onRequestGet(context) {
                     expires
                 }
             })
-            // console.log(`/github/install installationId=${installationId}`, GHAppInfo)
+            data.logger(`/github/install installationId=${installationId}`, GHAppInfo)
             response.result = AuthResult.AUTHENTICATED
             response.ok = true
         } else {

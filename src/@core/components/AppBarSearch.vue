@@ -80,23 +80,16 @@ const dialogModelValueUpdate = val => {
 
 <template>
     <VDialog
-        max-width="600"
+        :max-width="$vuetify.display.smAndUp ? '80%' : '100%'"
         :model-value="props.isDialogVisible"
-        :height="$vuetify.display.smAndUp ? '550' : '100%'"
+        :height="$vuetify.display.smAndUp ? '80%' : '100%'"
         :fullscreen="$vuetify.display.width < 600"
         class="app-bar-search-dialog"
         @update:model-value="dialogModelValueUpdate"
         @keyup.esc="clearSearchAndCloseDialog"
     >
-        <VCard
-            height="100%"
-            width="100%"
-            class="position-relative"
-        >
-            <VCardText
-                class="pt-1"
-                style="max-height: 65px;"
-            >
+        <VCard>
+            <VCardText class="pt-1">
                 <VTextField
                     ref="refSearchInput"
                     v-model="props.searchQuery"

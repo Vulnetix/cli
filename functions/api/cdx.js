@@ -1,7 +1,5 @@
 import { parseCycloneDXComponents } from "@/finding";
-import { AuthResult, ensureStrReqBody, hex, isCDX, OSV, saveArtifact, Server } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { AuthResult, hex, isCDX, OSV, saveArtifact } from "@/utils";
 
 
 export async function onRequestGet(context) {
@@ -13,24 +11,11 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
-    const { searchParams } = new URL(request.url)
-    const take = parseInt(searchParams.get('take'), 10) || 50
-    const skip = parseInt(searchParams.get('skip'), 10) || 0
-    let cdx = await prisma.CycloneDXInfo.findMany({
+    const take = parseInt(data.searchParams.get('take'), 10) || 50
+    const skip = parseInt(data.searchParams.get('skip'), 10) || 0
+    let cdx = await data.prisma.CycloneDXInfo.findMany({
         where: {
-            orgId: verificationResult.session.orgId,
+            orgId: data.session.orgId,
         },
         include: {
             repo: true,
@@ -67,35 +52,21 @@ export async function onRequestPost(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
 
     const files = []
     let errors = new Set()
     try {
-        const body = await ensureStrReqBody(request)
-        const inputs = JSON.parse(body)
-        for (const cdx of inputs) {
+        for (const cdx of data.json) {
             if (!isCDX(cdx)) {
                 return Response.json({ ok: false, error: { message: 'CDX is missing necessary fields.' } })
             }
             const componentsJSON = JSON.stringify(cdx.components)
             const cdxId = await hex(cdx.metadata?.component?.name + componentsJSON)
 
-            const originalCdx = await prisma.CycloneDXInfo.findFirst({
+            const originalCdx = await data.prisma.CycloneDXInfo.findFirst({
                 where: {
                     cdxId,
-                    orgId: verificationResult.session.orgId,
+                    orgId: data.session.orgId,
                 }
             })
             const artifactUuid = originalCdx?.artifactUuid || (cdx?.serialNumber?.startsWith('urn:uuid:') ? cdx.serialNumber.substring(9) : crypto.randomUUID())
@@ -104,7 +75,7 @@ export async function onRequestPost(context) {
             }
             const dependencies = []
             for (const dep of await parseCycloneDXComponents(cdx, cdxId)) {
-                const info = await prisma.Dependency.upsert({
+                const info = await data.prisma.Dependency.upsert({
                     where: {
                         cdx_dep: {
                             cdxId,
@@ -118,10 +89,11 @@ export async function onRequestPost(context) {
                     },
                     create: { ...dep, cdxId }
                 })
+                data.logger(`Dependency ${cdxId}`, info)
                 dependencies.push({ ...dep, cdxId })
             }
             const cdxStr = JSON.stringify(cdx)
-            const artifact = await saveArtifact(prisma, env.r2artifacts, cdxStr, artifactUuid, `cyclonedx`)
+            const artifact = await saveArtifact(data.prisma, env.r2artifacts, cdxStr, artifactUuid, `cyclonedx`)
             const cdxData = {
                 cdxId,
                 source: 'upload',
@@ -132,10 +104,10 @@ export async function onRequestPost(context) {
                 createdAt: cdx.metadata?.timestamp ? new Date(cdx.metadata.timestamp).getTime() : new Date().getTime(),
                 toolName: cdx.metadata.tools.map(t => `${t?.vendor} ${t?.name} ${t?.version}`.trim()).join(', '),
             }
-            const info = await prisma.CycloneDXInfo.upsert({
+            const info = await data.prisma.CycloneDXInfo.upsert({
                 where: {
                     cdxId,
-                    orgId: verificationResult.session.orgId,
+                    orgId: data.session.orgId,
                 },
                 update: {
                     createdAt: cdxData.createdAt,
@@ -143,11 +115,11 @@ export async function onRequestPost(context) {
                 },
                 create: {
                     ...cdxData,
-                    org: { connect: { uuid: verificationResult.session.orgId } },
+                    org: { connect: { uuid: data.session.orgId } },
                     artifact: { connect: { uuid: artifactUuid } },
                 }
             })
-            // console.log(`/upload/cdx ${cdxId} kid=${verificationResult.session.kid}`, info)
+            data.logger(`/upload/cdx ${cdxId} kid=${data.session.kid}`, info)
             cdxData.dependencies = dependencies
             files.push(cdxData)
 
@@ -174,7 +146,7 @@ export async function onRequestPost(context) {
                 }
                 return { package: { name: q.name }, version: q.version }
             })
-            const results = await osv.queryBatch(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, queries)
+            const results = await osv.queryBatch(data.prisma, data.session.orgId, data.session.memberEmail, queries)
             let i = 0
             for (const result of results) {
                 const { purl = null, name, version, license } = osvQueries[i]
@@ -182,10 +154,10 @@ export async function onRequestPost(context) {
                     if (!vuln?.id) {
                         continue
                     }
-                    const findingId = await hex(`${verificationResult.session.orgId}${vuln.id}${name}${version}`)
+                    const findingId = await hex(`${data.session.orgId}${vuln.id}${name}${version}`)
                     const findingData = {
                         findingId,
-                        orgId: verificationResult.session.orgId,
+                        orgId: data.session.orgId,
                         source: 'osv.dev',
                         category: 'sca',
                         createdAt: (new Date()).getTime(),
@@ -198,17 +170,17 @@ export async function onRequestPost(context) {
                         malicious: vuln.id.startsWith("MAL-") ? 1 : 0,
                         cdxId
                     }
-                    const originalFinding = await prisma.Finding.findFirst({
+                    const originalFinding = await data.prisma.Finding.findFirst({
                         where: {
                             findingId,
                             AND: {
-                                orgId: verificationResult.session.orgId
+                                orgId: data.session.orgId
                             },
                         }
                     })
                     let finding;
                     if (originalFinding) {
-                        finding = await prisma.Finding.update({
+                        finding = await data.prisma.Finding.update({
                             where: {
                                 uuid: originalFinding.uuid,
                             },
@@ -221,9 +193,9 @@ export async function onRequestPost(context) {
                             },
                         })
                     } else {
-                        finding = await prisma.Finding.create({ data: findingData })
+                        finding = await data.prisma.Finding.create({ data: findingData })
                     }
-                    // console.log(`findings SCA`, finding)
+                    data.logger(`findings SCA`, finding)
                     // TODO lookup EPSS
                     const vexData = {
                         findingUuid: finding.uuid,
@@ -232,7 +204,7 @@ export async function onRequestPost(context) {
                         seen: 0,
                         analysisState: 'in_triage'
                     }
-                    const originalVex = await prisma.Triage.findFirst({
+                    const originalVex = await data.prisma.Triage.findFirst({
                         where: {
                             findingUuid: finding.uuid,
                             analysisState: 'in_triage',
@@ -240,7 +212,7 @@ export async function onRequestPost(context) {
                     })
                     let vex;
                     if (originalVex) {
-                        vex = await prisma.Triage.update({
+                        vex = await data.prisma.Triage.update({
                             where: {
                                 uuid: originalVex.uuid,
                             },
@@ -249,9 +221,9 @@ export async function onRequestPost(context) {
                             },
                         })
                     } else {
-                        vex = await prisma.Triage.create({ data: vexData })
+                        vex = await data.prisma.Triage.create({ data: vexData })
                     }
-                    // console.log(`findings VEX`, vex)
+                    data.logger(`findings VEX`, vex)
                 }
                 i++
             }

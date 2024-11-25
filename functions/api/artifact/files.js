@@ -1,6 +1,4 @@
-import { AuthResult, Server } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { AuthResult } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -12,42 +10,29 @@ export async function onRequestGet(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
     try {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            }
-        })
-        const verificationResult = await (new Server(request, prisma)).authenticate()
-        if (!verificationResult.isValid) {
-            return Response.json({ ok: false, result: verificationResult.message })
-        }
-        const { searchParams } = new URL(request.url)
-        const take = parseInt(searchParams.get('take'), 10) || 50
-        const skip = parseInt(searchParams.get('skip'), 10) || 0
-        const result = await prisma.Artifact.findMany({
+        const take = parseInt(data.searchParams.get('take'), 10) || 50
+        const skip = parseInt(data.searchParams.get('skip'), 10) || 0
+        const result = await data.prisma.Artifact.findMany({
             where: {
                 OR: [
                     {
                         spdx: {
                             some: {
-                                orgId: verificationResult.session.orgId,
+                                orgId: data.session.orgId,
                             },
                         },
                     },
                     {
                         sarif: {
                             some: {
-                                orgId: verificationResult.session.orgId,
+                                orgId: data.session.orgId,
                             },
                         },
                     },
                     {
                         cdx: {
                             some: {
-                                orgId: verificationResult.session.orgId,
+                                orgId: data.session.orgId,
                             },
                         },
                     },
@@ -56,7 +41,7 @@ export async function onRequestGet(context) {
                             some: {
                                 finding: {
                                     is: {
-                                        orgId: verificationResult.session.orgId,
+                                        orgId: data.session.orgId,
                                     },
                                 },
                             },

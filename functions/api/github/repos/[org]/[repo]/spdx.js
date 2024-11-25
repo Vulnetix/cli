@@ -1,7 +1,5 @@
 import { parsePackageRef, parseSPDXComponents } from "@/finding";
-import { GitHub, hex, isSPDX, OSV, saveArtifact, Server } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { GitHub, hex, isSPDX, OSV, saveArtifact } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -12,48 +10,27 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
-    const githubIntegration = await prisma.IntegrationConfig.findFirst({
-        where: {
-            orgId: verificationResult.session.orgId,
-            AND: { name: `github` },
-        }
-    })
-    if (!!githubIntegration?.suspend) {
-        return Response.json({ ok: false, error: { message: 'GitHub Disabled' } })
-    }
     const repoName = `${params.org}/${params.repo}`
     const errors = []
     const files = []
     let findings = []
 
-    const githubApps = await prisma.GitHubApp.findMany({
+    const githubApps = await data.prisma.GitHubApp.findMany({
         where: {
-            orgId: verificationResult.session.orgId,
+            orgId: data.session.orgId,
         },
     })
     for (const app of githubApps) {
         if (!app.accessToken) {
-            // console.log(`github_apps kid=${verificationResult.session.kid} installationId=${app.installationId}`)
+            data.logger(`github_apps kid=${data.session.kid} installationId=${app.installationId}`)
             throw new Error('github_apps invalid')
         }
-        const gh = new GitHub(app.accessToken)
-        const { content, error } = await gh.getRepoSpdx(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, repoName)
+        const gh = new GitHub(data.prisma, data.session.orgId, data.session.memberEmail, app.accessToken)
+        const { content, error } = await gh.getRepoSpdx(repoName)
         if (error?.message) {
             if ("Bad credentials" === error.message) {
                 app.expires = (new Date()).getTime()
-                await prisma.GitHubApp.update({
+                await data.prisma.GitHubApp.update({
                     where: {
                         installationId: parseInt(app.installationId, 10),
                         AND: { orgId: app.orgId },
@@ -75,22 +52,22 @@ export async function onRequestGet(context) {
         }
         const spdx = content.sbom
         const spdxId = await makeId(spdx)
-        const originalSpdx = await prisma.SPDXInfo.findFirst({
+        const originalSpdx = await data.prisma.SPDXInfo.findFirst({
             where: {
                 spdxId,
-                orgId: verificationResult.session.orgId,
+                orgId: data.session.orgId,
             }
         })
         let artifact;
         if (!originalSpdx) {
             const spdxStr = JSON.stringify(spdx)
-            artifact = await saveArtifact(prisma, env.r2artifacts, spdxStr, crypto.randomUUID(), `spdx`)
+            artifact = await saveArtifact(data.prisma, env.r2artifacts, spdxStr, crypto.randomUUID(), `spdx`)
         }
-        const findingIds = await process(prisma, verificationResult.session, repoName, spdx, spdxId, originalSpdx?.artifactUuid || artifact?.uuid)
+        const findingIds = await process(data.prisma, data.session, repoName, spdx, spdxId, originalSpdx?.artifactUuid || artifact?.uuid)
         findings = [...findings, ...findingIds]
         const dependencies = []
         for (const dep of await parseSPDXComponents(spdx, spdxId)) {
-            const info = await prisma.Dependency.upsert({
+            const info = await data.prisma.Dependency.upsert({
                 where: {
                     spdx_dep: {
                         spdxId,
@@ -105,20 +82,20 @@ export async function onRequestGet(context) {
                 create: { ...dep, spdxId }
             })
             dependencies.push({ ...dep, spdxId })
-            // console.log(`Dependency ${dep.name}@${dep.version}`, info)
+            data.logger(`Dependency ${dep.name}@${dep.version}`, info)
         }
         spdx.dependencies = dependencies
         files.push({ spdx, errors })
     }
-    const memberKeys = await prisma.MemberKey.findMany({
+    const memberKeys = await data.prisma.MemberKey.findMany({
         where: {
-            memberEmail: verificationResult.session.memberEmail,
+            memberEmail: data.session.memberEmail,
             keyType: 'github_pat',
         },
     })
     for (const memberKey of memberKeys) {
-        const gh = new GitHub(memberKey.secret)
-        const { content, error } = await gh.getRepoSpdx(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, repoName)
+        const gh = new GitHub(data.prisma, data.session.orgId, data.session.memberEmail, memberKey.secret)
+        const { content, error } = await gh.getRepoSpdx(repoName)
         if (error?.message) {
             errors.push({ error, app: { login: memberKey.keyLabel } })
             continue
@@ -132,18 +109,18 @@ export async function onRequestGet(context) {
         }
         const spdx = content.sbom
         const spdxId = await makeId(spdx)
-        const originalSpdx = await prisma.SPDXInfo.findFirst({
+        const originalSpdx = await data.prisma.SPDXInfo.findFirst({
             where: {
                 spdxId,
-                orgId: verificationResult.session.orgId,
+                orgId: data.session.orgId,
             }
         })
         let artifact;
         if (!originalSpdx) {
             const spdxStr = JSON.stringify(spdx)
-            artifact = await saveArtifact(prisma, env.r2artifacts, spdxStr, crypto.randomUUID(), `spdx`)
+            artifact = await saveArtifact(data.prisma, env.r2artifacts, spdxStr, crypto.randomUUID(), `spdx`)
         }
-        const findingIds = await process(prisma, verificationResult.session, repoName, spdx, spdxId, originalSpdx?.artifactUuid || artifact?.uuid)
+        const findingIds = await process(data.prisma, data.session, repoName, spdx, spdxId, originalSpdx?.artifactUuid || artifact?.uuid)
         findings = [...findings, ...findingIds]
         files.push({ spdx, errors })
     }

@@ -1,13 +1,15 @@
 <script setup>
 import router from "@/router";
+import { useMemberStore } from '@/stores/member';
 import { Client, timeAgo } from '@/utils';
+import cveIcon from '@images/icons/logo/cve.png';
+import firstIcon from '@images/icons/logo/first.png';
+import osvIcon from '@images/icons/logo/osv.png';
 import { reactive } from 'vue';
 import { useTheme } from 'vuetify';
-import osvIcon from '@images/icons/logo/osv.png'
-import cveIcon from '@images/icons/logo/cve.png'
-import firstIcon from '@images/icons/logo/first.png'
 
 const client = new Client()
+const Member = useMemberStore()
 const { global } = useTheme()
 
 const initialState = {
@@ -37,9 +39,6 @@ const clearAlerts = () => {
     state.info = ''
 }
 class Controller {
-    constructor() {
-        this.refresh()
-    }
     refresh = async () => {
         clearAlerts()
         state.loading = true
@@ -413,6 +412,7 @@ class Controller {
 }
 
 const controller = reactive(new Controller())
+onMounted(() => Member.ensureSession().then(() => controller.refresh()))
 </script>
 
 <template>
@@ -519,14 +519,7 @@ const controller = reactive(new Controller())
                                         <VCard rounded="lg">
                                             <VCardTitle class="d-flex justify-space-between align-center">
                                                 <div class="text-h5 text-medium-emphasis ps-2">
-                                                    <VBtn
-                                                        class="justify-end"
-                                                        href="https://github.com/marketplace/vulnetix"
-                                                        text="Connect GitHub Account"
-                                                        prepend-icon="line-md:github-loop"
-                                                        variant="outlined"
-                                                        :color="global.name.value === 'dark' ? '#fff' : '#272727'"
-                                                    ></VBtn>
+                                                    GitHub Accounts
                                                 </div>
 
                                                 <VBtn

@@ -1,3 +1,18 @@
+export const unauthenticatedRoutes = {
+    static: [
+        "/",
+        '/register',
+        '/api/register',
+        '/logout'
+    ],
+    prefixes: [
+        '/login',
+        '/sso',
+        '/api/login',
+        '/api/github/install',
+    ],
+}
+
 export class VexAnalysisState {
     static get resolved() { return "Resolved" }
     static get resolved_with_pedigree() { return "Resolved With Pedigree" }
@@ -79,104 +94,6 @@ export class Server {
             }
             throw err
         }
-    }
-
-    /**
-     * Verification of the signed request based on a session token from the session store.
-     * @return {Promise<Object>} The signature verification result.
-     */
-    async authenticate() {
-        const method = this.request.method.toUpperCase()
-        const url = new URL(this.request.url)
-        const path = url.pathname + url.search
-        const body = ['GET', 'DELETE'].includes(method.toUpperCase()) ? '' : await ensureStrReqBody(this.request)
-
-        // Retrieve signature and timestamp from headers
-        const signature = this.request.headers.get('authorization')?.replace('HMAC ', '')
-        const timestampStr = this.request.headers.get('x-timestamp')
-        const kid = this.request.headers.get('x-vulnetix-kid')
-
-        if (!signature || !timestampStr || !kid) {
-            return new SignatureVerificationResult(
-                false,
-                AuthResult.FORBIDDEN,
-                signature,
-                timestampStr,
-                null
-            )
-        }
-
-        // Convert timestamp from string to integer
-        const timestamp = parseInt(timestampStr, 10)
-        if (isNaN(timestamp)) {
-            return new SignatureVerificationResult(
-                false,
-                'Invalid timestamp format',
-                signature,
-                timestamp,
-                null
-            )
-        }
-        // Validate timestamp (you may want to add a check to ensure the request isn't too old)
-        const currentTimestamp = new Date().getTime()
-        if (Math.abs(currentTimestamp - timestamp) > 3e+5) { // e.g., allow a 5-minute skew
-            return new SignatureVerificationResult(
-                false,
-                AuthResult.EXPIRED,
-                signature,
-                timestamp,
-                null
-            )
-        }
-        // Retrieve the session key from the database using Prisma
-        const session = await this.prisma.Session.findFirstOrThrow({
-            where: { kid }
-        })
-        if (!session.expiry || session.expiry <= new Date().getTime()) {
-            return new SignatureVerificationResult(
-                false,
-                AuthResult.EXPIRED,
-                signature,
-                timestamp,
-                null
-            )
-        }
-        const secretKeyBytes = new TextEncoder().encode(session.secret)
-        const payloadBytes = Client.makePayload({
-            method,
-            path,
-            kid,
-            timestamp,
-            body: encodeURIComponent(body)
-        })
-        const key = await crypto.subtle.importKey(
-            "raw",
-            secretKeyBytes,
-            { name: "HMAC", hash: "SHA-512" },
-            false,
-            ["verify"]
-        )
-
-        const signatureBytes = hexStringToUint8Array(signature)
-        const isValid = await crypto.subtle.verify("HMAC", key, signatureBytes, payloadBytes)
-
-        if (!isValid) {
-            return new SignatureVerificationResult(
-                false,
-                AuthResult.FORBIDDEN,
-                signature,
-                timestamp,
-                null
-            )
-        }
-
-        return new SignatureVerificationResult(
-            true,
-            AuthResult.AUTHENTICATED,
-            signature,
-            timestamp,
-            session
-        )
     }
 }
 
@@ -810,7 +727,7 @@ export class VulnCheck {
 }
 
 export class GitHub {
-    constructor(accessToken) {
+    constructor(prisma, orgId, memberEmail, accessToken) {
         this.headers = {
             'Accept': 'application/vnd.github+json',
             'Authorization': `token ${accessToken}`,
@@ -818,9 +735,31 @@ export class GitHub {
             'User-Agent': 'Vulnetix',
         }
         this.baseUrl = "https://api.github.com"
+        this.prisma = prisma
+        this.orgId = orgId
+        this.memberEmail = memberEmail
+        this.integrationEnabled = false
+    }
+    async __IntegrationEnabled() {
+        if (this.integrationEnabled) {
+            return true
+        }
+        try {
+            const githubIntegration = await this.prisma.IntegrationConfig.findFirst({ where: { orgId: this.orgId, AND: { name: `github` } } })
+            this.integrationEnabled = !githubIntegration?.suspend
+        } catch (e) {
+            const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
+            console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
+            this.integrationEnabled = false
+        }
+
+        return this.integrationEnabled
     }
     async fetchJSON(url) {
         try {
+            if (!this.__IntegrationEnabled()) {
+                return { ok: false, url, error: { message: `GitHub Integrations Disabled` } }
+            }
             const response = await fetch(url, { headers: this.headers })
             const respText = await response.text()
             if (!response.ok) {
@@ -839,7 +778,7 @@ export class GitHub {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
-            return { url, error: { message: e.message, lineno, colno } }
+            return { ok: false, url, error: { message: e.message, lineno, colno } }
         }
     }
     async __FetchSARIF(url) {
@@ -862,20 +801,16 @@ export class GitHub {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
-            return { url, error: { message: e.message, lineno, colno } }
+            return { ok: false, url, error: { message: e.message, lineno, colno } }
         }
     }
-    async fetchSARIF(prisma, orgId, memberEmail, url) {
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
+    async fetchSARIF(url) {
         try {
             const response = await this.__FetchSARIF(url)
-            const createLog0 = await prisma.IntegrationUsageLog.create({
+            const createLog0 = await this.prisma.IntegrationUsageLog.create({
                 data: {
-                    memberEmail,
-                    orgId,
+                    memberEmail: this.memberEmail,
+                    orgId: this.orgId,
                     source: 'github',
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(response.content), tokenExpiry: response.tokenExpiry }).trim(),
@@ -889,15 +824,11 @@ export class GitHub {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
-            return { url, error: { message: e.message, lineno, colno } }
+            return { ok: false, url, error: { message: e.message, lineno, colno } }
         }
     }
-    async getRepoSarif(prisma, orgId, memberEmail, full_name) {
+    async getRepoSarif(full_name) {
         // https://docs.github.com/en/rest/code-scanning/code-scanning?apiVersion=2022-11-28#list-code-scanning-analyses-for-a-repository
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const files = []
         const perPage = 100
         let page = 1
@@ -906,10 +837,10 @@ export class GitHub {
             const url = `${this.baseUrl}/repos/${full_name}/code-scanning/analyses?per_page=${perPage}&page=${page}`
             // console.log(`github.getRepoSarif(${full_name}) ${url}`)
             const data = await this.fetchJSON(url)
-            const createLog0 = await prisma.IntegrationUsageLog.create({
+            const createLog0 = await this.prisma.IntegrationUsageLog.create({
                 data: {
-                    memberEmail,
-                    orgId,
+                    memberEmail: this.memberEmail,
+                    orgId: this.orgId,
                     source: 'github',
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
@@ -925,10 +856,10 @@ export class GitHub {
                 const sarifUrl = `${this.baseUrl}/repos/${full_name}/code-scanning/analyses/${report.id}`
                 // console.log(`github.getRepoSarif(${full_name}) ${sarifUrl}`)
                 const sarifData = await this.__FetchSARIF(sarifUrl)
-                const createLog = await prisma.IntegrationUsageLog.create({
+                const createLog = await this.prisma.IntegrationUsageLog.create({
                     data: {
-                        memberEmail,
-                        orgId,
+                        memberEmail: this.memberEmail,
+                        orgId: this.orgId,
                         source: 'github',
                         request: JSON.stringify({ method: "GET", url: sarifUrl }).trim(),
                         response: JSON.stringify({ body: convertIsoDatesToTimestamps(sarifData.content), tokenExpiry: sarifData.tokenExpiry }).trim(),
@@ -958,21 +889,17 @@ export class GitHub {
             page++
         }
 
-        return { content: files }
+        return { ok: true, content: files }
     }
-    async getRepoSpdx(prisma, orgId, memberEmail, full_name) {
+    async getRepoSpdx(full_name) {
         // https://docs.github.com/en/rest/dependency-graph/sboms?apiVersion=2022-11-28#export-a-software-bill-of-materials-sbom-for-a-repository
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const url = `${this.baseUrl}/repos/${full_name}/dependency-graph/sbom`
         // console.log(`github.getRepoSpdx(${full_name}) ${url}`)
         const data = await this.fetchJSON(url)
-        const createLog = await prisma.IntegrationUsageLog.create({
+        const createLog = await this.prisma.IntegrationUsageLog.create({
             data: {
-                memberEmail,
-                orgId,
+                memberEmail: this.memberEmail,
+                orgId: this.orgId,
                 source: 'github',
                 request: JSON.stringify({ method: "GET", url }).trim(),
                 response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
@@ -983,61 +910,53 @@ export class GitHub {
         // console.log(`GitHub.getRepoSpdx()`, createLog)
         return data
     }
-    async getUserEmails(prisma, orgId, memberEmail) {
+    async getUserEmails() {
         // https://docs.github.com/en/rest/users/emails?apiVersion=2022-11-28#list-email-addresses-for-the-authenticated-user
         const url = `${this.baseUrl}/user/emails`
         // console.log(`github.getUserEmails() ${url}`)
         const data = await this.fetchJSON(url)
-        if (!!prisma && !!memberEmail && !!orgId) {
-            const createLog = await prisma.IntegrationUsageLog.create({
-                data: {
-                    memberEmail,
-                    orgId,
-                    source: 'github',
-                    request: JSON.stringify({ method: "GET", url }).trim(),
-                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
-                    statusCode: data?.status || 500,
-                    createdAt: new Date().getTime(),
-                }
-            })
-            // console.log(`GitHub.getUserEmails()`, createLog)
-        }
+        const createLog = await this.prisma.IntegrationUsageLog.create({
+            data: {
+                memberEmail: this.memberEmail,
+                orgId: this.orgId,
+                source: 'github',
+                request: JSON.stringify({ method: "GET", url }).trim(),
+                response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                statusCode: data?.status || 500,
+                createdAt: new Date().getTime(),
+            }
+        })
+        // console.log(`GitHub.getUserEmails()`, createLog)
         return data
     }
-    async getUser(prisma, orgId, memberEmail) {
+    async getUser() {
         // https://docs.github.com/en/rest/users/users?apiVersion=2022-11-28#get-the-authenticated-user
         const url = `${this.baseUrl}/user`
         // console.log(`github.getUser() ${url}`)
         const data = await this.fetchJSON(url)
-        if (!!prisma && !!memberEmail && !!orgId) {
-            const createLog = await prisma.IntegrationUsageLog.create({
-                data: {
-                    memberEmail,
-                    orgId,
-                    source: 'github',
-                    request: JSON.stringify({ method: "GET", url }).trim(),
-                    response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
-                    statusCode: data?.status || 500,
-                    createdAt: new Date().getTime(),
-                }
-            })
-            // console.log(`GitHub.getUser()`, createLog)
-        }
+        const createLog = await this.prisma.IntegrationUsageLog.create({
+            data: {
+                memberEmail: this.memberEmail,
+                orgId: this.orgId,
+                source: 'github',
+                request: JSON.stringify({ method: "GET", url }).trim(),
+                response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
+                statusCode: data?.status || 500,
+                createdAt: new Date().getTime(),
+            }
+        })
+        // console.log(`GitHub.getUser()`, createLog)
         return data
     }
-    async getInstallations(prisma, orgId, memberEmail) {
+    async getInstallations() {
         // https://docs.github.com/en/rest/apps/installations?apiVersion=2022-11-28#list-app-installations-accessible-to-the-user-access-token
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const url = `${this.baseUrl}/user/installations`
         // console.log(`github.getInstallations() ${url}`)
         const data = await this.fetchJSON(url)
-        const createLog = await prisma.IntegrationUsageLog.create({
+        const createLog = await this.prisma.IntegrationUsageLog.create({
             data: {
-                memberEmail,
-                orgId,
+                memberEmail: this.memberEmail,
+                orgId: this.orgId,
                 source: 'github',
                 request: JSON.stringify({ method: "GET", url }).trim(),
                 response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
@@ -1048,11 +967,7 @@ export class GitHub {
         // console.log(`GitHub.getInstallations()`, createLog)
         return data
     }
-    async revokeToken(prisma, orgId, memberEmail) {
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
+    async revokeToken() {
         const url = `${this.baseUrl}/installation/token`
         try {
             const method = "DELETE"
@@ -1061,10 +976,10 @@ export class GitHub {
                 console.error(`req headers=${JSON.stringify(this.headers, null, 2)}`)
                 console.error(`GitHub error! status: ${response.status} ${response.statusText}`)
             }
-            const createLog = await prisma.IntegrationUsageLog.create({
+            const createLog = await this.prisma.IntegrationUsageLog.create({
                 data: {
-                    memberEmail,
-                    orgId,
+                    memberEmail: this.memberEmail,
+                    orgId: this.orgId,
                     source: 'github',
                     request: JSON.stringify({ method, url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(response.content), tokenExpiry: response.tokenExpiry }).trim(),
@@ -1078,15 +993,11 @@ export class GitHub {
             const [, lineno, colno] = e.stack.match(/(\d+):(\d+)/)
             console.error(`line ${lineno}, col ${colno} ${e.message}`, e.stack)
 
-            return { url, error: { message: e.message, lineno, colno } }
+            return { ok: false, url, error: { message: e.message, lineno, colno } }
         }
     }
-    async getRepos(prisma, orgId, memberEmail) {
+    async getRepos() {
         // https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#list-repositories-for-the-authenticated-user
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const repos = []
         const perPage = 100
         let page = 1
@@ -1095,10 +1006,10 @@ export class GitHub {
             const url = `${this.baseUrl}/user/repos?per_page=${perPage}&page=${page}`
             // console.log(`github.getRepos() ${url}`)
             const data = await this.fetchJSON(url)
-            const createLog = await prisma.IntegrationUsageLog.create({
+            const createLog = await this.prisma.IntegrationUsageLog.create({
                 data: {
-                    memberEmail,
-                    orgId,
+                    memberEmail: this.memberEmail,
+                    orgId: this.orgId,
                     source: 'github',
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
@@ -1119,21 +1030,17 @@ export class GitHub {
             page++
         }
 
-        return { content: repos }
+        return { ok: true, content: repos }
     }
-    async getBranch(prisma, orgId, memberEmail, repo, branch) {
+    async getBranch(repo, branch) {
         // https://docs.github.com/en/rest/branches/branches?apiVersion=2022-11-28#get-a-branch
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const url = `${this.baseUrl}/repos/${repo.full_name}/branches/${branch}`
         // console.log(`github.getBranch() ${url}`)
         const data = await this.fetchJSON(url)
-        const createLog = await prisma.IntegrationUsageLog.create({
+        const createLog = await this.prisma.IntegrationUsageLog.create({
             data: {
-                memberEmail,
-                orgId,
+                memberEmail: this.memberEmail,
+                orgId: this.orgId,
                 source: 'github',
                 request: JSON.stringify({ method: "GET", url }).trim(),
                 response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
@@ -1144,12 +1051,8 @@ export class GitHub {
         // console.log(`GitHub.getBranch()`, createLog)
         return data
     }
-    async getBranches(prisma, orgId, memberEmail, full_name) {
+    async getBranches(full_name) {
         // https://docs.github.com/en/rest/branches/branches?apiVersion=2022-11-28#list-branches
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const branches = []
         const perPage = 100
         let page = 1
@@ -1158,10 +1061,10 @@ export class GitHub {
         while (true) {
             url = `${this.baseUrl}/repos/${full_name}/branches?per_page=${perPage}&page=${page}`
             const data = await this.fetchJSON(url)
-            const createLog = await prisma.IntegrationUsageLog.create({
+            const createLog = await this.prisma.IntegrationUsageLog.create({
                 data: {
-                    memberEmail,
-                    orgId,
+                    memberEmail: this.memberEmail,
+                    orgId: this.orgId,
                     source: 'github',
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
@@ -1169,8 +1072,11 @@ export class GitHub {
                     createdAt: new Date().getTime(),
                 }
             })
-            // console.log(`GitHub.getBranches()`, createLog)
-
+            console.log(`GitHub.getBranches()`, createLog)
+            if (data?.content?.status === '401') {
+                break
+            }
+            console.log(data.content)
             branches.push(...data.content)
 
             if (data.content.length < perPage) {
@@ -1182,19 +1088,15 @@ export class GitHub {
 
         return { ok: true, content: branches }
     }
-    async getCommit(prisma, orgId, memberEmail, full_name, commit_sha) {
+    async getCommit(full_name, commit_sha) {
         // https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const url = `${this.baseUrl}/repos/${full_name}/commits/${commit_sha}`
         // console.log(`github.getCommit() ${url}`)
         const data = await this.fetchJSON(url)
-        const createLog = await prisma.IntegrationUsageLog.create({
+        const createLog = await this.prisma.IntegrationUsageLog.create({
             data: {
-                memberEmail,
-                orgId,
+                memberEmail: this.memberEmail,
+                orgId: this.orgId,
                 source: 'github',
                 request: JSON.stringify({ method: "GET", url }).trim(),
                 response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
@@ -1202,15 +1104,11 @@ export class GitHub {
                 createdAt: new Date().getTime(),
             }
         })
-        // console.log(`GitHub.getCommit()`, createLog)
+        console.log(`GitHub.getCommit()`, createLog)
         return data
     }
-    async getCommits(prisma, orgId, memberEmail, full_name, branch_name) {
+    async getCommits(full_name, branch_name) {
         // https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28
-        const githubIntegration = await prisma.IntegrationConfig.findFirst({ where: { orgId, AND: { name: `github` } } })
-        if (!!githubIntegration?.suspend) {
-            throw new Error('GitHub Integration is Disabled')
-        }
         const commits = []
         const perPage = 100
         let page = 1
@@ -1218,10 +1116,10 @@ export class GitHub {
         while (true) {
             url = `${this.baseUrl}/repos/${full_name}/commits?sha=${branch_name}&per_page=${perPage}&page=${page}`
             const data = await this.fetchJSON(url)
-            const createLog = await prisma.IntegrationUsageLog.create({
+            const createLog = await this.prisma.IntegrationUsageLog.create({
                 data: {
-                    memberEmail,
-                    orgId,
+                    memberEmail: this.memberEmail,
+                    orgId: this.orgId,
                     source: 'github',
                     request: JSON.stringify({ method: "GET", url }).trim(),
                     response: JSON.stringify({ body: convertIsoDatesToTimestamps(data.content), tokenExpiry: data.tokenExpiry }).trim(),
@@ -1229,7 +1127,7 @@ export class GitHub {
                     createdAt: new Date().getTime(),
                 }
             })
-            // console.log(`GitHub.getCommits()`, createLog)
+            console.log(`GitHub.getCommits()`, createLog)
 
             commits.push(...currentCommits.content)
 

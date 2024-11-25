@@ -1,6 +1,6 @@
 import protectedRoutes from '@/router/protected-routes'
 import publicRoutes from '@/router/public-routes'
-import { Client } from "@/utils"
+import { Client, unauthenticatedRoutes } from "@/utils"
 import { createRouter, createWebHistory } from 'vue-router'
 
 const client = new Client()
@@ -25,21 +25,10 @@ const router = createRouter({
 })
 
 router.beforeEach(async to => {
-    const publicPages = ["/", '/register', '/logout']
+    const authRequired =
+        !unauthenticatedRoutes.static.includes(to.path) &&
+        !unauthenticatedRoutes.prefixes.map(i => to.path.startsWith(i)).includes(true)
 
-    const publicPrefixes = [
-        '/login',
-    ]
-    let authRequired =
-        !publicPages.includes(to.path) &&
-        !publicPrefixes.map(i => to.path.startsWith(i)).includes(true)
-
-    if (to.path.startsWith('/github-integration')) {
-        const urlQuery = Object.fromEntries(location.search.substring(1).split('&').map(item => item.split('=').map(decodeURIComponent)))
-        if (!!urlQuery?.code) {
-            authRequired = false
-        }
-    }
     if (authRequired && !client.isLoggedIn()) {
         return '/login'
     }

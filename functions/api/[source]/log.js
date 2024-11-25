@@ -1,6 +1,4 @@
-import { AuthResult, Server } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { AuthResult } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -15,24 +13,11 @@ export async function onRequestGet(context) {
         if (!['osv', 'first', 'vulncheck', 'github', 'mitre-cve'].includes((params?.source || '').toLowerCase())) {
             return Response.json({ ok: false, error: { message: `Invalid log source` }, results: [] })
         }
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-        })
-        const verificationResult = await (new Server(request, prisma)).authenticate()
-        if (!verificationResult.isValid) {
-            return Response.json({ ok: false, result: verificationResult.message, results: [] })
-        }
-        const { searchParams } = new URL(request.url)
-        const take = parseInt(searchParams.get('take'), 10) || 50
-        const skip = parseInt(searchParams.get('skip'), 10) || 0
-        let results = await prisma.IntegrationUsageLog.findMany({
+        const take = parseInt(data.searchParams.get('take'), 10) || 50
+        const skip = parseInt(data.searchParams.get('skip'), 10) || 0
+        let results = await data.prisma.IntegrationUsageLog.findMany({
             where: {
-                orgId: verificationResult.session.orgId,
+                orgId: data.session.orgId,
                 source: params?.source,
             },
             take,

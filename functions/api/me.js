@@ -1,6 +1,4 @@
-import { AuthResult, Server, ensureStrReqBody } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { AuthResult } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -12,21 +10,9 @@ export async function onRequestGet(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
     try {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-        })
-        const verificationResult = await (new Server(request, prisma)).authenticate()
-        if (!verificationResult.isValid) {
-            return Response.json({ ok: false, result: verificationResult.message })
-        }
-        const member = await prisma.Member.findFirst({
+        const member = await data.prisma.Member.findFirst({
             where: {
-                email: verificationResult.session.memberEmail,
+                email: data.session.memberEmail,
             },
             omit: {
                 orgId: true
@@ -56,81 +42,67 @@ export async function onRequestPost(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
     try {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-        })
-        const verificationResult = await (new Server(request, prisma)).authenticate()
-        if (!verificationResult.isValid) {
-            return Response.json({ ok: false, result: verificationResult.message })
-        }
-        const originalMember = await prisma.Member.findFirst({
+        const originalMember = await data.prisma.Member.findFirst({
             where: {
-                email: verificationResult.session.memberEmail,
+                email: data.session.memberEmail,
             },
         })
         const member = {}
-        const body = await ensureStrReqBody(request)
-        const data = JSON.parse(body)
-        if (data?.email && originalMember.email !== data.email) {
+        if (data.json?.email && originalMember.email !== data.json.email) {
             member.email = data.email.toLowerCase()
         }
-        if (data?.passwordHash && originalMember.passwordHash !== data.passwordHash) {
-            member.passwordHash = data.passwordHash
+        if (data.json?.passwordHash && originalMember.passwordHash !== data.json.passwordHash) {
+            member.passwordHash = data.json.passwordHash
         }
-        if (data?.firstName && originalMember.firstName !== data.firstName) {
-            member.firstName = data.firstName
+        if (data.json?.firstName && originalMember.firstName !== data.json.firstName) {
+            member.firstName = data.json.firstName
         }
-        if (data?.lastName && originalMember.lastName !== data.lastName) {
-            member.lastName = data.lastName
+        if (data.json?.lastName && originalMember.lastName !== data.json.lastName) {
+            member.lastName = data.json.lastName
         }
-        if (data?.avatarUrl && originalMember.avatarUrl !== data.avatarUrl) {
-            member.avatarUrl = data.avatarUrl
+        if (data.json?.avatarUrl && originalMember.avatarUrl !== data.json.avatarUrl) {
+            member.avatarUrl = data.json.avatarUrl
         }
-        if (typeof data?.alertNews !== 'undefined' && originalMember.alertNews !== data.alertNews) {
-            member.alertNews = parseInt(data.alertNews, 10)
+        if (typeof data.json?.alertNews !== 'undefined' && originalMember.alertNews !== data.json.alertNews) {
+            member.alertNews = parseInt(data.json.alertNews, 10)
         }
-        if (typeof data?.alertOverdue !== 'undefined' && originalMember.alertOverdue !== data.alertOverdue) {
-            member.alertOverdue = parseInt(data.alertOverdue, 10)
+        if (typeof data.json?.alertOverdue !== 'undefined' && originalMember.alertOverdue !== data.json.alertOverdue) {
+            member.alertOverdue = parseInt(data.json.alertOverdue, 10)
         }
-        if (typeof data?.alertFindings !== 'undefined' && originalMember.alertFindings !== data.alertFindings) {
-            member.alertFindings = parseInt(data.alertFindings, 10)
+        if (typeof data.json?.alertFindings !== 'undefined' && originalMember.alertFindings !== data.json.alertFindings) {
+            member.alertFindings = parseInt(data.json.alertFindings, 10)
         }
-        if (typeof data?.alertType !== 'undefined' && originalMember.alertType !== data.alertType) {
-            member.alertType = parseInt(data.alertType, 10)
+        if (typeof data.json?.alertType !== 'undefined' && originalMember.alertType !== data.json.alertType) {
+            member.alertType = parseInt(data.json.alertType, 10)
         }
         let updatedOrg = false
-        const originalOrg = await prisma.Org.findFirst({
+        const originalOrg = await data.prisma.Org.findFirst({
             where: {
                 uuid: originalMember.orgId,
             },
         })
-        if (data?.orgName && originalOrg.name !== data.orgName) {
+        if (data.json?.orgName && originalOrg.name !== data.json.orgName) {
             //TODO: temp until organisations feature is finished
-            const orgInfo = await prisma.Org.update({
+            const orgInfo = await data.prisma.Org.update({
                 where: {
                     uuid: originalMember.orgId,
                 },
                 data: {
-                    name: data.orgName
+                    name: data.json.orgName
                 }
             })
             updatedOrg = true
-            // console.log(`/me update org ${originalMember.orgId} ${data.orgName}`, orgInfo)
+            data.logger(`/me update org ${originalMember.orgId} ${data.json.orgName}`, orgInfo)
         }
 
         if (Object.keys(member).length > 0) {
-            const memberInfo = await prisma.Member.update({
+            const memberInfo = await data.prisma.Member.update({
                 where: {
                     uuid: originalMember.uuid,
                 },
                 data: member
             })
-            // console.log(`/me update member ${verificationResult.session.memberEmail}`, memberInfo)
+            data.logger(`/me update member ${data.session.memberEmail}`, memberInfo)
 
             return Response.json({ ok: true, result: 'Updated' })
         }

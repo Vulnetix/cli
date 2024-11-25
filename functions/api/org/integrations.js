@@ -1,6 +1,3 @@
-import { Server } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
 
 export async function onRequestGet(context) {
     const {
@@ -11,29 +8,17 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
-    const githubApps = await prisma.GitHubApp.findMany({
+    const githubApps = await data.prisma.GitHubApp.findMany({
         where: {
-            orgId: verificationResult.session.orgId,
+            orgId: data.session.orgId,
         },
         omit: {
             accessToken: true,
         },
     })
-    const patTokens = await prisma.MemberKey.findMany({
+    const patTokens = await data.prisma.MemberKey.findMany({
         where: {
-            memberEmail: verificationResult.session.memberEmail,
+            memberEmail: data.session.memberEmail,
             keyType: 'github_pat',
         },
         include: {
@@ -47,9 +32,9 @@ export async function onRequestGet(context) {
         const keepRecords = 1000
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const deleteOldRecords = await prisma.IntegrationUsageLog.deleteMany({
+        const deleteOldRecords = await data.prisma.IntegrationUsageLog.deleteMany({
             where: {
-                orgId: verificationResult.session.orgId,
+                orgId: data.session.orgId,
                 createdAt: {
                     lt: thirtyDaysAgo.getTime()
                 }
@@ -57,8 +42,8 @@ export async function onRequestGet(context) {
         })
         console.log('Aged IntegrationUsageLog cleanup. oldRecordsDeleted:', deleteOldRecords.count)
         for (const source of ['osv', 'first', 'vulncheck', 'github', 'mitre-cve']) {
-            const allRecords = await prisma.IntegrationUsageLog.findMany({
-                where: { source, orgId: verificationResult.session.orgId },
+            const allRecords = await data.prisma.IntegrationUsageLog.findMany({
+                where: { source, orgId: data.session.orgId },
                 select: { id: true },
                 orderBy: { createdAt: 'desc' }
             })
@@ -74,9 +59,9 @@ export async function onRequestGet(context) {
     } catch (error) {
         console.error('Error during cleanup:', error)
     }
-    const integrations = await prisma.IntegrationConfig.findMany({
+    const integrations = await data.prisma.IntegrationConfig.findMany({
         where: {
-            orgId: verificationResult.session.orgId
+            orgId: data.session.orgId
         }
     })
     const result = {

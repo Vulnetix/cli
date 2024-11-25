@@ -1,6 +1,4 @@
-import { AuthResult, Server } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { AuthResult } from "@/utils";
 import { ActionCISA, ActionFIRST } from "ssvc";
 
 export async function onRequestGet(context) {
@@ -13,22 +11,10 @@ export async function onRequestGet(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
     try {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-        })
-        const verificationResult = await (new Server(request, prisma)).authenticate()
-        if (!verificationResult.isValid) {
-            return Response.json({ ok: false, result: verificationResult.message })
-        }
 
-        const findings = await prisma.Finding.findMany({
+        const findings = await data.prisma.Finding.findMany({
             where: {
-                orgId: verificationResult.session.orgId,
+                orgId: data.session.orgId,
             },
             include: {
                 triage: true,

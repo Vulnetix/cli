@@ -83,9 +83,12 @@ function addToList(inputObject, keyName, newObject) {
     return workingArray
 }
 
-export const processFinding = async (prisma, r2adapter, verificationResult, finding, seen = 0) => {
+export const processFinding = async (prisma, r2adapter, session, finding, seen = 0) => {
     const isResolved = finding.triage.filter(triage => [VexAnalysisState.resolved, VexAnalysisState.resolved_with_pedigree, VexAnalysisState.false_positive, VexAnalysisState.not_affected].includes(triage.analysisState)).length > 0
-    const osvData = await new OSV().query(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, finding.detectionTitle)
+    if (isResolved) {
+        return finding
+    }
+    const osvData = await new OSV().query(prisma, session.orgId, session.memberEmail, finding.detectionTitle)
     finding.detectionDescription = osvData.details
     finding.modifiedAt = (new Date(osvData.modified)).getTime()
     finding.publishedAt = (new Date(osvData.published)).getTime()
@@ -151,7 +154,7 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
     let cvelistv5
     let cve
     if (cveId) {
-        cve = await getCveData(prisma, r2adapter, verificationResult, cveId)
+        cve = await getCveData(prisma, r2adapter, session, cveId)
     }
     if (cve?.fileLink?.url) {
         const [, year, number] = cveId.split('-')
@@ -223,38 +226,36 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
     finding.confidenceLevel = confidence.confidenceLevel
     finding.confidenceRationaleJSON = JSON.stringify(confidence.evaluations.map(i => i.rationale))
     finding.timelineJSON = makeTimeline(finding)
-    if (!isResolved) {
-        const info = await prisma.Finding.update({
-            where: { uuid: finding.uuid },
-            data: {
-                detectionTitle: finding.detectionTitle,
-                createdAt: finding.createdAt,
-                modifiedAt: finding.modifiedAt,
-                publishedAt: finding.publishedAt,
-                databaseReviewed: finding.databaseReviewed,
-                cisaDateAdded: finding.cisaDateAdded,
-                aliases: finding.aliases,
-                cwes: finding.cwes,
-                packageEcosystem: finding.packageEcosystem,
-                advisoryUrl: finding.advisoryUrl,
-                fixVersion: finding.fixVersion,
-                fixAutomatable: finding.fixAutomatable,
-                vulnerableVersionRange: finding.vulnerableVersionRange,
-                affectedFunctions: finding.affectedFunctions,
-                cpe: finding.cpe,
-                vendor: finding.vendor,
-                product: finding.product,
-                malicious: finding.malicious,
-                referencesJSON: finding.referencesJSON,
-                timelineJSON: finding.timelineJSON,
-            }
-        })
-        // console.log(`Update ${finding.detectionTitle}`, info)
-    }
+    await prisma.Finding.update({
+        where: { uuid: finding.uuid },
+        data: {
+            detectionTitle: finding.detectionTitle,
+            createdAt: finding.createdAt,
+            modifiedAt: finding.modifiedAt,
+            publishedAt: finding.publishedAt,
+            databaseReviewed: finding.databaseReviewed,
+            cisaDateAdded: finding.cisaDateAdded,
+            aliases: finding.aliases,
+            cwes: finding.cwes,
+            packageEcosystem: finding.packageEcosystem,
+            advisoryUrl: finding.advisoryUrl,
+            fixVersion: finding.fixVersion,
+            fixAutomatable: finding.fixAutomatable,
+            vulnerableVersionRange: finding.vulnerableVersionRange,
+            affectedFunctions: finding.affectedFunctions,
+            cpe: finding.cpe,
+            vendor: finding.vendor,
+            product: finding.product,
+            malicious: finding.malicious,
+            referencesJSON: finding.referencesJSON,
+            timelineJSON: finding.timelineJSON,
+        }
+    })
+
     let scores
     if (cveId) {
         const epss = new EPSS()
-        scores = await epss.query(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, cveId)
+        scores = await epss.query(prisma, session.orgId, session.memberEmail, cveId)
     }
     let epssScore, epssPercentile;
     if (scores?.epss) {
@@ -275,14 +276,18 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
     // Exploitation
     // TechnicalImpact
     // Automatable
-    // MissionWellbeingImpact        
-    let { analysisState = 'in_triage', triageAutomated = 0, triagedAt = null, seenAt = null, analysisDetail = null } = (finding.triage.sort((a, b) => a.lastObserved - b.lastObserved).pop() || {})
+    // MissionWellbeingImpact
+    let vexData = finding.triage.sort((a, b) => a.lastObserved - b.lastObserved).pop() ||
+        finding.triage.filter(t => t.analysisState === "in_triage").pop() ||
+        { analysisState: 'in_triage' }
+
+    let vexExist = !!vexData?.uuid
     if (finding.exploits.length || finding.knownExploits.length) {
-        analysisState = 'exploitable'
-        triageAutomated = 1
-        analysisDetail = `Known exploitation`
-        if (!triagedAt) {
-            triagedAt = new Date().getTime()
+        vexData.analysisState = 'exploitable'
+        vexData.triageAutomated = 1
+        vexData.analysisDetail = `Known exploitation`
+        if (!vexData.triagedAt) {
+            vexData.triagedAt = new Date().getTime()
         }
     } else if (
         (cvssVector && (
@@ -291,65 +296,49 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
             ['E:A', 'E:P', 'E:U'].some(substring => cvss.v4?.score?.includes(substring))
         ))
     ) {
-        analysisState = 'exploitable'
-        triageAutomated = 1
-        analysisDetail = `CVSS provided exploitability vector, without known exploits in the database.`
-        if (!triagedAt) {
-            triagedAt = new Date().getTime()
+        vexData.analysisState = 'exploitable'
+        vexData.triageAutomated = 1
+        vexData.analysisDetail = `CVSS provided exploitability vector, without known exploits in the database.`
+        if (!vexData.triagedAt) {
+            vexData.triagedAt = new Date().getTime()
         }
     } else if (
         // https://www.first.org/epss/articles/prob_percentile_bins
         epssPercentile > 0.954 // EPSS is best used when there is no other evidence of active exploitation
     ) {
-        analysisState = 'exploitable'
-        triageAutomated = 1
-        analysisDetail = `EPSS Percentile greater than 95.4% which is a critical prediction.`
-        if (!triagedAt) {
-            triagedAt = new Date().getTime()
+        vexData.analysisState = 'exploitable'
+        vexData.triageAutomated = 1
+        vexData.analysisDetail = `EPSS Percentile greater than 95.4% which is a critical prediction.`
+        if (!vexData.triagedAt) {
+            vexData.triagedAt = new Date().getTime()
         }
     }
-    if (analysisState === 'exploitable') {
-        triageAutomated = 1
-        if (!triagedAt) {
-            triagedAt = new Date().getTime()
-        }
-    }
+
     if (!isVersionVulnerable(
         finding.packageVersion,
         finding?.vulnerableVersionRange ? finding.vulnerableVersionRange : `< ${getSemVerWithoutOperator(finding.fixVersion)}`
     )) {
-        analysisState = 'false_positive'
-        triageAutomated = 1
-        analysisDetail = `${getSemVerWithoutOperator(finding.packageVersion)} in not within vulnerable range "${finding.vulnerableVersionRange}"`
-        if (!triagedAt) {
-            triagedAt = new Date().getTime()
+        vexData.analysisState = 'false_positive'
+        vexData.triageAutomated = 1
+        vexData.analysisDetail = `${getSemVerWithoutOperator(finding.packageVersion)} in not within vulnerable range "${finding.vulnerableVersionRange}"`
+        if (!vexData.triagedAt) {
+            vexData.triagedAt = new Date().getTime()
         }
     }
-    if (seen === 1) {
-        seenAt = new Date().getTime()
+    if (seen) {
+        vexData.seen = 1
+        vexData.seenAt = new Date().getTime()
     }
-    let vexExist = finding.triage.filter(t => t.analysisState === analysisState).length !== 0
-    let vexData = finding.triage.filter(t => t.analysisState === analysisState).pop() || {}
-    if (!vexExist && finding.triage.length === 0) {
-        vexData.analysisState = analysisState
+    if (!vexExist) {
         vexData.createdAt = new Date().getTime()
         vexData.lastObserved = new Date().getTime()
-    } else {
-        vexData = finding.triage.sort((a, b) =>
-            a.lastObserved - b.lastObserved
-        ).pop()
-        vexExist = !!vexData?.uuid
     }
-    if (!isResolved) {
-        vexData.analysisState = analysisState
-        vexData.analysisDetail = analysisDetail
-        vexData.triageAutomated = triageAutomated
-        vexData.triagedAt = triagedAt
-        vexData.seen = seen
-        vexData.seenAt = seenAt
+    if (cvssVector) {
+        vexData.cvssVector = cvssVector
     }
-    vexData.cvssVector = cvssVector
-    vexData.cvssScore = cvssScore
+    if (cvssScore) {
+        vexData.cvssScore = cvssScore
+    }
     if (epssPercentile) {
         vexData.epssPercentile = epssPercentile.toString()
     }
@@ -366,7 +355,7 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
         // console.log(`Updated VEX ${finding.detectionTitle} ${analysisState}`, vexInfo)
         finding.triage = finding.triage.filter(f => f.uuid != vexData.uuid)
         finding.triage.push(vexData)
-    } else if (!isResolved) {
+    } else {
         vexData.findingUuid = finding.uuid
         vexData = await prisma.Triage.create({ data: vexData })
         // console.log(`Create VEX ${finding.detectionTitle} ${analysisState}`, vexData)
@@ -377,7 +366,6 @@ export const processFinding = async (prisma, r2adapter, verificationResult, find
     const info = await prisma.Finding.update({
         where: { uuid: finding.uuid },
         data: {
-            modifiedAt: finding.modifiedAt,
             timelineJSON: finding.timelineJSON,
         }
     })
@@ -438,7 +426,7 @@ export const findVectorString = (metrics = []) => {
 }
 
 // Helper function to find valid CVSS vector string with version preference
-export const getCveData = async (prisma, r2adapter, verificationResult, cveId) => {
+export const getCveData = async (prisma, r2adapter, session, cveId) => {
     let cve;
     try {
         cve = await prisma.CVEMetadata.findUnique({
@@ -453,13 +441,13 @@ export const getCveData = async (prisma, r2adapter, verificationResult, cveId) =
         console.error(e)
     }
     if (!cve) {
-        cve = await fetchCVE(prisma, r2adapter, verificationResult, cveId)
+        cve = await fetchCVE(prisma, r2adapter, session, cveId)
     }
     return cve
 }
 
-export const fetchCVE = async (prisma, r2adapter, verificationResult, cveId) => {
-    const cvelistv5 = await new MitreCVE().query(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail, cveId)
+export const fetchCVE = async (prisma, r2adapter, session, cveId) => {
+    const cvelistv5 = await new MitreCVE().query(prisma, session.orgId, session.memberEmail, cveId)
     if (!cvelistv5) {
         return {}
     }
@@ -593,21 +581,17 @@ const CORE_EVENTS = {
 // VEX event generators
 const getVexEvents = (vex) => [
     vex.createdAt && {
-        value: `VEX generated as ${VexAnalysisState[vex.analysisState]}`,
+        value: `Triage started`,
         time: vex.createdAt
     },
     vex.lastObserved && vex.lastObserved !== vex.createdAt && {
-        value: `Discovered`,
+        value: `Last Observed`,
         time: vex.lastObserved
     },
     vex.triagedAt && vex.memberEmail && {
-        value: `${vex.memberEmail} Triaged`,
+        value: `VEX ${VexAnalysisState[vex.analysisState]}`,
         time: vex.triagedAt
     },
-    vex.seenAt && vex.memberEmail && {
-        value: `${vex.memberEmail} Review`,
-        time: vex.seenAt
-    }
 ].filter(Boolean);
 
 export const makeTimeline = finding => {
@@ -622,9 +606,14 @@ export const makeTimeline = finding => {
         .filter(Boolean);
 
     // Add VEX events
-    finding.triage?.forEach(vex => {
-        events.push(...getVexEvents(vex));
-    });
+    finding.triage?.sort((a, b) => a.id - b.id)?.forEach(vex => {
+        for (const evt of getVexEvents(vex)) {
+            if (events.filter(e => e.value === evt.value).length) {
+                continue
+            }
+            events.push(evt)
+        }
+    })
 
     // Add custom events that don't match core or VEX patterns
     const systemEventValues = new Set([
@@ -632,7 +621,9 @@ export const makeTimeline = finding => {
         'First discovered in repository',
         'VEX generated as',
         'Last synchronized with',
+        'Triage started',
         'Triaged',
+        'Last Observed',
         'Review',
         'Discovered'
     ].filter(Boolean));
@@ -641,7 +632,7 @@ export const makeTimeline = finding => {
         event?.value &&
         !systemEventValues.has(event.value) &&
         !event.value.startsWith('First discovered in ') &&
-        !event.value.startsWith('VEX generated as') &&
+        !event.value.startsWith('VEX ') &&
         !event.value.startsWith('Last synchronized with') &&
         !event.value.startsWith('Discovered') &&
         !event.value.endsWith('Triaged') &&
@@ -849,16 +840,16 @@ export function createPurlFromUrl(location, name, version) {
 
         // If it's a GitHub URL
         if (url.hostname === 'github.com') {
-            return `pkg:github/${owner}/${repo}@${version}`
+            return `pkg: github / ${owner} / ${repo}@${version}`
         }
 
         // For git URLs without specific host
         if (location.startsWith('git://')) {
-            return `pkg:git/${owner}/${repo}@${version}`
+            return `pkg: git / ${owner} / ${repo}@${version}`
         }
 
         // Generic URL
-        return `pkg:generic/${name}@${version}?download_url=${encodeURIComponent(location)}`
+        return `pkg: generic / ${name}@${version} ? download_url = ${encodeURIComponent(location)}`
 
     } catch (e) {
         // If URL parsing fails, return null
@@ -873,200 +864,224 @@ export function getEcosystemFromPurl(purl) {
     return match ? match[1] : null
 }
 
-// Helper function to extract license from SPDX package
-export function extractLicense(pkg) {
-    if (pkg?.licenseDeclared) {
-        return pkg.licenseDeclared
-    }
-    if (pkg?.licenseInfoFromFiles && pkg.licenseInfoFromFiles.length > 0) {
-        return pkg.licenseInfoFromFiles.join(',')
-    }
-
-    return null
-}
-
 // Helper function to extract name and version from SPDXID 
 export function parsePackageRef(spdxId, name) {
     // Format is "SPDXRef-name-version" where version can be alphanumeric
-    const match = spdxId.match(/SPDXRef-(.+)-([a-zA-Z0-9].+)$/)
-    if (!match) return {
-        name,
-        version: spdxId.replace(`SPDXRef-${name}-`, '')
+    const match = spdxId.match(/SPDXRef-([^-].+)-(\d*\.*\d*\.*\d*(?:[-+].+)?$)/);
+    if (match) {
+        return {
+            name: match[1],
+            version: match[2]
+        }
     }
     return {
-        name: match[1],
-        version: match[2]
+        name,
+        version: spdxId.replace(`SPDXRef - ${name} - `, '')
     }
 }
 
-export async function parseSPDXComponents(spdxJson, namespace) {
-    const components = new Map()
-    const relationships = []
-    const packageEcosystem = 'generic'
-    let rootPackageId = null
-
-    // First pass: Find the root package through DESCRIBES relationship
-    if (spdxJson.relationships) {
-        const describesRel = spdxJson.relationships.find(rel =>
-            rel.relationshipType === 'DESCRIBES'
-        )
-        if (describesRel) {
-            rootPackageId = describesRel.relatedSpdxElement
+// Helper function to determine package ecosystem from various sources
+export const detectPackageEcosystem = (pkg, name) => {
+    // Try to detect from PURL if available
+    if (pkg.externalRefs) {
+        const purlRef = pkg.externalRefs.find(ref =>
+            ref.referenceType === 'purl' && ref.referenceLocator
+        );
+        if (purlRef?.referenceLocator) {
+            const purlMatch = purlRef.referenceLocator.match(/pkg:([^/]+)/);
+            if (purlMatch) return purlMatch[1];
         }
     }
 
-    // Second pass: Process all packages
-    await spdxJson.packages.forEach(async pkg => {
-        const parsedRef = parsePackageRef(pkg.SPDXID)
-        if (!parsedRef) return
+    // Try to detect from package metadata
+    if (pkg.type === 'maven-artifact') return 'maven';
+    if (pkg.type === 'npm') return 'npm';
+    if (pkg.type === 'pypi') return 'pypi';
+    if (pkg.type === 'nuget') return 'nuget';
+    if (pkg.type === 'gem') return 'gem';
+    if (pkg.type === 'cargo') return 'cargo';
 
-        const { name, version } = parsedRef
-        const license = extractLicense(pkg)
+    // Try to detect from name patterns
+    if (name) {
+        if (name.endsWith('-py') || name.startsWith('python-') || name.startsWith('pip:')) {
+            return 'pypi';
+        }
+        if (name.startsWith('go-') || name.includes('golang.org/') || name.includes('gopkg.in/')) {
+            return 'golang';
+        }
+        if (name.includes('node_modules') || name.endsWith('.js') || name.endsWith('.ts')) {
+            return 'npm';
+        }
+        if (name.includes('maven') || name.endsWith('.jar')) {
+            return 'maven';
+        }
+        if (name.includes('nuget') || name.endsWith('.nupkg')) {
+            return 'nuget';
+        }
+    }
+
+    // If no ecosystem could be detected, return null instead of a default
+    return "generic";
+}
+
+// Helper function to extract license information from various sources
+export const extractLicense = pkg => {
+    if (!pkg) return null;
+
+    // Check explicit license fields
+    if (pkg.licenseDeclared) return pkg.licenseDeclared;
+    if (pkg.licenseConcluded) return pkg.licenseConcluded;
+
+    // Check license objects/arrays
+    if (pkg.licenses) {
+        if (Array.isArray(pkg.licenses)) {
+            return pkg.licenses
+                .map(l => l.license?.id || l.expression || l)
+                .filter(Boolean)
+                .join(',');
+        }
+        if (pkg.licenses.license) {
+            return pkg.licenses.license.id || pkg.licenses.license;
+        }
+    }
+
+    // Check SPDX expressions
+    if (pkg.licenseExpression) return pkg.licenseExpression;
+
+    // Check license info from files
+    if (Array.isArray(pkg.licenseInfoFromFiles) && pkg.licenseInfoFromFiles.length > 0) {
+        return pkg.licenseInfoFromFiles.filter(Boolean).join(',');
+    }
+
+    return null;
+}
+
+// Helper function to extract version from various sources
+export const extractVersion = (pkg, name) => {
+    if (!pkg) return null;
+
+    // Try explicit version fields
+    let ver = pkg?.version || pkg?.versionInfo || pkg?.packageVersion;
+    if (ver) {
+        return ver
+    }
+
+    if (pkg?.SPDXID) {
+        const { version } = parsePackageRef(pkg.SPDXID, name)
+        if (version) {
+            return version
+        }
+    }
+
+    // Try to extract from PURL if available
+    const purlRef = pkg.externalRefs?.find(ref =>
+        ref.referenceType === 'purl' && ref.referenceLocator
+    );
+    if (purlRef?.referenceLocator) {
+        const purlMatch = purlRef.referenceLocator.match(/@([^/]+)$/);
+        if (purlMatch) return purlMatch[1];
+    }
+
+    return "0.0.0";
+}
+
+// Parse components while preserving all available metadata
+export const parseSPDXComponents = async (spdxJson, namespace) => {
+    const components = new Map();
+    const relationships = [];
+
+    // Process all packages
+    for (const pkg of spdxJson.packages || []) {
+        // const { name, version } = parsePackageRef(pkg.SPDXID, pkg.name)
+        const name = pkg.name;
+        const version = extractVersion(pkg, name);
+        const license = extractLicense(pkg);
+        const ecosystem = detectPackageEcosystem(pkg, name);
 
         components.set(pkg.SPDXID, {
-            key: await hex(`${namespace}${name}${version}`),
+            key: await hex(`${namespace}${name}${version || ''}`),
             name,
             version,
             license,
-            packageEcosystem,
-            isTransitive: 1, // Default all to transitive
-            isDirect: 0,    // We'll update direct deps later
-            isDev: 0        // We'll update dev deps later
-        })
-    })
-
-    // Third pass: Process relationships
-    if (spdxJson.relationships) {
-        spdxJson.relationships.forEach(rel => {
-            if (rel.relationshipType === 'DEPENDS_ON') {
-                const sourceComp = components.get(rel.spdxElementId)
-                const targetComp = components.get(rel.relatedSpdxElement)
-
-                if (!sourceComp || !targetComp) return
-
-                // If this is a dependency of the root package, mark as direct
-                if (rel.spdxElementId === rootPackageId) {
-                    targetComp.isDirect = 1
-                    targetComp.isTransitive = 0
-                }
-            }
-            else if (rel.relationshipType === 'DEV_DEPENDENCY_OF') {
-                // For DEV_DEPENDENCY_OF, the spdxElementId is the dev dependency
-                const devComp = components.get(rel.spdxElementId)
-                if (!devComp) return
-
-                // Mark the dev dependency
-                devComp.isDev = 1
-                devComp.isDirect = 1
-                devComp.isTransitive = 0
-            }
-        })
+            packageEcosystem: ecosystem,
+            isTransitive: 1,
+            isDirect: 0
+        });
     }
 
-    // Final pass: Create relationship objects
-    await components.forEach(async comp => {
-        if (comp.isDirect || comp.isDev) {
-            relationships.push({
-                key: await hex(`${namespace}${comp.name}${comp.version}`),
-                childOfKey: comp.key,
-                name: comp.name,
-                version: comp.version,
-                license: comp.license,
-                packageEcosystem: comp.packageEcosystem,
-                isTransitive: comp.isTransitive,
-                isDirect: comp.isDirect,
-                isDev: comp.isDev
-            })
-        }
-    })
+    // Process relationships
+    for (const rel of spdxJson.relationships || []) {
+        if (rel.relationshipType !== 'DEPENDS_ON') continue;
 
-    return relationships
-}
+        const sourceComp = components.get(rel.spdxElementId);
+        const targetComp = components.get(rel.relatedSpdxElement);
 
-export async function parseCycloneDXComponents(cdxJson, namespace) {
-    const components = new Map()
-    const dependencies = []
-    const rootPackage = cdxJson.metadata.component
+        if (!sourceComp || !targetComp) continue;
 
-    await cdxJson.components.forEach(async component => {
-        if (!component?.['bom-ref']) {
-            console.log('bom-ref missing', component)
-            return;
-        }
+        relationships.push({
+            key: targetComp.key,
+            name: targetComp.name,
+            version: targetComp.version,
+            license: targetComp.license,
+            packageEcosystem: targetComp.packageEcosystem,
+            isTransitive: sourceComp.isDirect ? 0 : 1,
+            isDirect: sourceComp.isDirect ? 1 : 0,
+            childOfKey: sourceComp.key,
+            spdxId: rel.relatedSpdxElement
+        });
+    }
 
-        const packageEcosystem = getEcosystemFromPurl(component.purl)
-        const name = component?.group ? [component.group, component.name].join('/') : component.name
-        const license = component.licenses.filter(l => l?.license?.id).map(l => l.license.id).join(',')
+    return relationships;
+};
+
+// Similar improvements for CycloneDX parser
+export const parseCycloneDXComponents = async (cdxJson, namespace) => {
+    const components = new Map();
+    const dependencies = [];
+
+    for (const component of cdxJson.components || []) {
+        if (!component?.['bom-ref']) continue;
+
+        const name = component.name;
+        const version = extractVersion(component, name);
+        const license = extractLicense(component);
+        const ecosystem = detectPackageEcosystem(component, name);
 
         components.set(component['bom-ref'], {
-            key: await hex(`${namespace}${name}${component.version}`),
+            key: await hex(`${namespace}${name}${version || ''} `),
             name,
-            version: component.version,
+            version,
             license,
-            packageEcosystem,
-            isTransitive: 1, // Default all to transitive
-            isDirect: 0,     // We'll update direct deps later
-        })
-    })
-
-    const rootRef = rootPackage['bom-ref']
-    if (!components.has(rootRef)) {
-        components.set(rootRef, {
-            key: await hex(`${namespace}${rootPackage.name}${rootPackage.version}`),
-            name: rootPackage.name,
-            version: rootPackage.version,
-            license: null,
-            packageEcosystem: getEcosystemFromPurl(rootPackage.purl),
-            isTransitive: 0,
-            isDirect: 0,
-        })
+            packageEcosystem: ecosystem,
+            isTransitive: 1,
+            isDirect: 0
+        });
     }
 
-    await cdxJson.dependencies.forEach(async dep => {
-        const parentRef = dep.ref
-        const parentComponent = components.get(parentRef)
+    // Process dependencies
+    for (const dep of cdxJson.dependencies || []) {
+        if (!dep?.ref || !dep?.dependsOn) continue;
 
-        if (!parentComponent) return;
+        const parentComponent = components.get(dep.ref);
+        if (!parentComponent) continue;
 
-        // If this is the root package's dependencies, mark them as direct
-        if (parentRef === rootRef) {
-            dep.dependsOn?.forEach(async childRef => {
-                const childComponent = components.get(childRef)
-                if (childComponent) {
-                    childComponent.isDirect = 1
-                    childComponent.isTransitive = 0
+        for (const childRef of dep.dependsOn) {
+            const childComponent = components.get(childRef);
+            if (!childComponent) continue;
 
-                    dependencies.push({
-                        key: await hex(`${namespace}${childComponent.name}${childComponent.version}`),
-                        childOfKey: childComponent.key,
-                        name: childComponent.name,
-                        version: childComponent.version,
-                        license: childComponent.license,
-                        packageEcosystem: childComponent.packageEcosystem,
-                        isTransitive: 0,
-                        isDirect: 1,
-                    })
-                }
-            })
-        } else {
-            // Process transitive dependencies
-            await dep.dependsOn?.forEach(async childRef => {
-                const childComponent = components.get(childRef);
-                if (childComponent) {
-                    dependencies.push({
-                        key: await hex(`${namespace}${childComponent.name}${childComponent.version}`),
-                        childOfKey: childComponent.key,
-                        name: childComponent.name,
-                        version: childComponent.version,
-                        license: childComponent.license,
-                        packageEcosystem: childComponent.packageEcosystem,
-                        isTransitive: 1,
-                        isDirect: 0,
-                    })
-                }
-            })
+            dependencies.push({
+                key: childComponent.key,
+                name: childComponent.name,
+                version: childComponent.version,
+                license: childComponent.license,
+                packageEcosystem: childComponent.packageEcosystem,
+                isTransitive: parentComponent.isDirect ? 0 : 1,
+                isDirect: parentComponent.isDirect ? 1 : 0,
+                childOfKey: parentComponent.key,
+                cdxId: childRef
+            });
         }
-    })
+    }
 
-    return dependencies
-}
+    return dependencies;
+};

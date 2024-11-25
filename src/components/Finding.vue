@@ -1,4 +1,5 @@
 <script setup>
+import TruncatableText from '@/components/TruncatableText.vue';
 import {
     getPastelColor,
     getSemVerWithoutOperator,
@@ -11,15 +12,20 @@ import {
 } from '@/utils';
 import { CVSS31, CVSS40 } from '@pandatix/js-cvss';
 import VCodeBlock from '@wdns/vue-code-block';
+import DOMPurify from 'dompurify';
+import hljs from 'highlight.js';
+import { marked } from 'marked';
 import { onMounted } from 'vue';
 import { useTheme } from 'vuetify';
 
-const { meta_x, meta_v } = useMagicKeys()
+const { meta_o, meta_c, meta_f } = useMagicKeys()
 onMounted(() => init())
 const emit = defineEmits(["vector-updated"]);
 
 const { global } = useTheme()
+const fixDialog = ref(false)
 const triageDialog = ref(false)
+const branchChoice = ref('')
 const response = ref('')
 const justification = ref('')
 const justificationText = ref('')
@@ -33,6 +39,10 @@ const cvssScoreCalc = ref('')
 const props = defineProps({
     finding: {
         type: Object,
+        required: true,
+    },
+    branches: {
+        type: Array,
         required: true,
     },
     currentTriage: {
@@ -98,6 +108,17 @@ const init = () => {
                 props.finding.vulnerableVersionRange
             )
         }))
+}
+
+DOMPurify.addHook('afterSanitizeElements', (currentNode, hookEvent, config) => {
+    if (currentNode?.nodeName === "CODE") {
+        currentNode.innerHTML = hljs.highlightAuto(currentNode.innerText).value
+    }
+})
+
+const md = (input) => {
+    const dirty = marked(input)
+    return DOMPurify.sanitize(dirty, { FORBID_TAGS: ['style', 'script'], USE_PROFILES: { html: true } });
 }
 
 const scoreColor = computed(() => {
@@ -618,8 +639,9 @@ function saveVector() {
     cvssDialog.value = false
 }
 
-watch([meta_x], () => { triageDialog.value = true })
-watch([meta_v], () => { cvssDialog.value = true })
+watch([meta_f], () => { fixDialog.value = true })
+watch([meta_o], () => { triageDialog.value = true })
+watch([meta_c], () => { cvssDialog.value = true })
 watch([
     activeTab,
     v31MetricsAV,
@@ -698,6 +720,13 @@ watch([
                         class="ml-2"
                     >
                         {{ VexAnalysisState[props.currentTriage.analysisState] }}
+                        <VTooltip
+                            v-if="props.currentTriage?.analysisDetail"
+                            activator="parent"
+                            location="top"
+                        >
+                            {{ props.currentTriage.analysisDetail }}
+                        </VTooltip>
                     </VChip>
                     <VChip
                         v-if="props.currentTriage.analysisResponse"
@@ -716,21 +745,96 @@ watch([
                 </div>
                 <div class="d-flex align-end">
                     <VDialog
+                        v-if="props.branches.length"
+                        v-model="fixDialog"
+                        max-width="600"
+                    >
+                        <template v-slot:activator="{ props: activatorProps }">
+                            <VBtn
+                                class="me-2 text-none font-weight-regular"
+                                variant="outlined"
+                                v-bind="activatorProps"
+                            >
+                                Fix
+                                <VChip
+                                    class="ms-1"
+                                    variant="outlined"
+                                    color="#e4e4e4"
+                                >
+                                    &#8984;F
+                                </VChip>
+                            </VBtn>
+                        </template>
+
+                        <VCard>
+                            <VCardText>
+                                <!-- Analysis Form -->
+                                <VRow dense>
+                                    <VCol
+                                        cols="12"
+                                        md="6"
+                                    >
+                                        <VSelect
+                                            v-model="branchChoice"
+                                            :items="branches"
+                                            item-title="text"
+                                            item-value="value"
+                                            label="Branch"
+                                            required
+                                        />
+                                    </VCol>
+
+                                    <VCol
+                                        cols="12"
+                                        md="6"
+                                    >
+                                        PR details
+                                    </VCol>
+
+                                    <VCol cols="12">
+                                        Repo details
+                                    </VCol>
+                                </VRow>
+                            </VCardText>
+
+                            <VDivider />
+                            <VSpacer />
+
+                            <VCardActions>
+                                <VSpacer />
+                                <VBtn
+                                    text="Close"
+                                    variant="plain"
+                                    @click="fixDialog = false"
+                                ></VBtn>
+                                <VBtn
+                                    color="primary"
+                                    variant="plain"
+                                    text="Create PR"
+                                    @click="$emit('click:createPR', branchChoice); fixDialog = false"
+                                >
+                                </VBtn>
+                            </VCardActions>
+                        </VCard>
+                    </VDialog>
+                    <VDialog
                         v-model="triageDialog"
                         max-width="600"
                     >
                         <template v-slot:activator="{ props: activatorProps }">
                             <VBtn
                                 class="text-none font-weight-regular"
+                                color="info"
                                 variant="outlined"
                                 v-bind="activatorProps"
                             >
                                 Triage
                                 <VChip
+                                    class="ms-1"
                                     variant="outlined"
                                     color="#e4e4e4"
                                 >
-                                    &#8984;X
+                                    &#8984;O
                                 </VChip>
                             </VBtn>
                         </template>
@@ -811,6 +915,58 @@ watch([
                         cols="12"
                         md="6"
                     >
+                        <div class="d-flex flex-wrap gap-2">
+                            <VChip
+                                v-for="alias in props.finding.aliases"
+                                :key="alias"
+                                color="primary"
+                                variant="outlined"
+                            >
+                                {{ alias }}
+                            </VChip>
+
+                            <VChip
+                                v-if="props.finding.malicious"
+                                color="error"
+                                class="ml-2"
+                            >
+                                Malicious Package
+                                <VIcon
+                                    end
+                                    icon="mdi-alert-circle"
+                                />
+                            </VChip>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            <TruncatableText :maxHeight="60">
+                                <div
+                                    style="white-space: preserve-breaks;"
+                                    v-html="md(props.finding.detectionDescription)"
+                                >
+                                </div>
+                            </TruncatableText>
+                        </div>
+                    </VCol>
+                    <VCol
+                        cols="12"
+                        md="6"
+                    >
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            <VChip
+                                v-for="cwe in props.finding.cwes"
+                                :key="cwe"
+                                color="info"
+                            >
+                                <a
+                                    class="text-none"
+                                    target="_blank"
+                                    :href="`https://cwe.mitre.org/data/definitions/${cwe.replace('CWE-', '')}.html`"
+                                >
+                                    {{ cwe }}
+                                </a>
+                            </VChip>
+                        </div>
+
                         <VList density="compact">
                             <VListItem>
                                 <template v-slot:prepend>
@@ -840,43 +996,6 @@ watch([
                             </VListItem>
                         </VList>
                     </VCol>
-
-                    <VCol
-                        cols="12"
-                        md="6"
-                    >
-                        <div class="d-flex flex-wrap gap-2">
-                            <VChip
-                                v-for="alias in props.finding.aliases"
-                                :key="alias"
-                                color="primary"
-                                variant="outlined"
-                            >
-                                {{ alias }}
-                            </VChip>
-
-                            <VChip
-                                v-for="cwe in props.finding.cwes"
-                                :key="cwe"
-                                color="info"
-                            >
-                                {{ cwe }}
-                            </VChip>
-
-                            <VChip
-                                v-if="props.finding.malicious"
-                                color="error"
-                                class="ml-2"
-                            >
-                                Malicious Package
-                                <VIcon
-                                    end
-                                    icon="mdi-alert-circle"
-                                />
-                            </VChip>
-                        </div>
-                    </VCol>
-
                     <VCol
                         cols="12"
                         md="6"
@@ -1075,7 +1194,6 @@ watch([
                                     autodetect
                                     highlightjs
                                     code-block-radius="1em"
-                                    :cssPath="global.name.value === 'dark' ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/atom-one-dark.min.css' : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/atom-one-light.min.css'"
                                     :theme="global.name.value === 'dark' ? 'atom-one-dark' : 'atom-one-light'"
                                     v-if="props.finding?.affectedFunctions"
                                     :code="props.finding.affectedFunctions"
@@ -2520,8 +2638,17 @@ watch([
                                             <div
                                                 class="pt-1 headline font-weight-bold"
                                                 :style="`color: ${global.name.value === 'dark' ? event.color : 'rgb(var(--v-theme-on-surface-bright))'};`"
-                                                v-text="new Date(event.time).toLocaleDateString()"
-                                            ></div>
+                                            >
+                                                <time :datetime="(new Date(event.time)).toISOString()">
+                                                    {{ new Date(event.time).toLocaleDateString() }}
+                                                    <VTooltip
+                                                        activator="parent"
+                                                        location="top"
+                                                    >
+                                                        {{ (new Date(event.time)).toLocaleString() }}
+                                                    </VTooltip>
+                                                </time>
+                                            </div>
                                         </template>
                                         <template v-slot:default>
                                             <VCard>
@@ -2588,6 +2715,9 @@ watch([
 </template>
 
 <style scoped>
+@import 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/atom-one-dark.min.css';
+@import 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/atom-one-light.min.css';
+
 .text-capitalize {
     text-transform: capitalize;
 }

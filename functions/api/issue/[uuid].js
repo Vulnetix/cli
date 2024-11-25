@@ -1,15 +1,11 @@
 import { processFinding } from '@/finding';
 import {
     AuthResult,
-    ensureStrReqBody,
-    Server,
     VexAnalysisJustification,
     VexAnalysisResponse,
     VexAnalysisState
 } from "@/utils";
 import { CVSS30, CVSS31, CVSS40 } from '@pandatix/js-cvss';
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
 
 export async function onRequestPost(context) {
     const {
@@ -21,74 +17,62 @@ export async function onRequestPost(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
     try {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-        })
-        const verificationResult = await (new Server(request, prisma)).authenticate()
-        if (!verificationResult.isValid) {
-            return Response.json({ ok: false, result: verificationResult.message })
-        }
-        const body = await ensureStrReqBody(request)
-        const input = JSON.parse(body)
         const { uuid } = params
-        const finding = await prisma.Finding.findFirst({ where: { uuid } })
+        const finding = await data.prisma.Finding.findFirst({ where: { uuid } })
         if (!finding) {
             return Response.json({ ok: false, error: { message: 'Dependency failed' } })
         }
         // CVSS vector customisation
-        if (input?.customCvssVector) {
+        if (data.json?.customCvssVector) {
             let customCvssScore
-            if (input.customCvssVector.startsWith('CVSS:4.0/')) {
-                customCvssScore = new CVSS40(input.customCvssVector).Score().toString()
-            } else if (input.customCvssVector.startsWith('CVSS:3.1/')) {
-                customCvssScore = new CVSS31(input.customCvssVector).BaseScore().toString()
-            } else if (input.customCvssVector.startsWith('CVSS:3.0/')) {
-                customCvssScore = new CVSS30(input.customCvssVector).BaseScore().toString()
+            if (data.json.customCvssVector.startsWith('CVSS:4.0/')) {
+                customCvssScore = new CVSS40(data.json.customCvssVector).Score().toString()
+            } else if (data.json.customCvssVector.startsWith('CVSS:3.1/')) {
+                customCvssScore = new CVSS31(data.json.customCvssVector).BaseScore().toString()
+            } else if (data.json.customCvssVector.startsWith('CVSS:3.0/')) {
+                customCvssScore = new CVSS30(data.json.customCvssVector).BaseScore().toString()
             } else {
                 return Response.json({ ok: false, error: { message: 'Invalid CVSS vectorString' } })
             }
-            const info = await prisma.Finding.update({
+            const info = await data.prisma.Finding.update({
                 where: { uuid },
                 data: {
-                    customCvssVector: input?.customCvssVector,
+                    customCvssVector: data.json?.customCvssVector,
                     customCvssScore,
                     modifiedAt: new Date().getTime(),
                 }
             })
-            // console.log(`Update Finding ${uuid}`, info)
+            data.logger(`Update Finding ${uuid}`, info)
             return Response.json({ ok: true, result: `Update Finding ${uuid} CVSS custom vector` })
         }
         // Triage
         if (
-            input?.analysisState && input?.analysisResponse && input?.analysisJustification
-            && VexAnalysisState?.[input.analysisState]
-            && VexAnalysisResponse?.[input.analysisResponse]
-            && VexAnalysisJustification?.[input.analysisJustification]
+            data.json?.analysisState && data.json?.analysisResponse && data.json?.analysisJustification
+            && VexAnalysisState?.[data.json.analysisState]
+            && VexAnalysisResponse?.[data.json.analysisResponse]
+            && VexAnalysisJustification?.[data.json.analysisJustification]
         ) {
-            const where = {
-                findingUuid: uuid,
-                AND: {
-                    analysisState: 'in_triage'
-                }
+            let triage = null
+            const triageRecords = await data.prisma.Triage.findMany({ where: { findingUuid: uuid } })
+            if (triageRecords && triageRecords.filter(t => t.analysisState === 'in_triage')) {
+                triage = triageRecords.filter(t => t.analysisState === 'in_triage').pop()
             }
-            const triage = await prisma.Triage.findFirst({ where })
+            if (!triage && triageRecords) {
+                triage = triageRecords.sort((a, b) => b.lastObserved - a.lastObserved).pop()
+            }
             const triageData = {
                 uuid: crypto.randomUUID(),
                 findingUuid: uuid,
-                analysisState: input.analysisState,
-                analysisResponse: input.analysisResponse,
-                analysisJustification: input.analysisJustification,
-                analysisDetail: input?.analysisDetail || '', //TODO add commit hash and comment
+                analysisState: data.json.analysisState,
+                analysisResponse: data.json.analysisResponse,
+                analysisJustification: data.json.analysisJustification,
+                analysisDetail: data.json?.analysisDetail || '', //TODO add commit hash and comment
                 triagedAt: new Date().getTime(),
                 createdAt: new Date().getTime(),
                 lastObserved: new Date().getTime(),
                 seen: 1,
                 triageAutomated: 0,
+                memberEmail: data.session.memberEmail
             }
             if (triage) {
                 triageData.uuid = triage.uuid
@@ -116,15 +100,15 @@ export async function onRequestPost(context) {
             }
             let info;
             if (triage) {
-                info = await prisma.Triage.update({
+                info = await data.prisma.Triage.update({
                     where: { uuid: triageData.uuid },
                     data: triageData,
                 })
             } else {
-                info = await prisma.Triage.create({ data: triageData })
+                info = await data.prisma.Triage.create({ data: triageData })
             }
-            // console.log(`Upsert Triage ${triageData.uuid}`, info)
-            return Response.json({ ok: true, triage })
+            data.logger(`Upsert Triage ${triageData.uuid}`, info)
+            return Response.json({ ok: true, triage: triageData })
         }
 
         return Response.json({ ok: false, error: { message: "Required arguments not provided" } })
@@ -144,25 +128,12 @@ export async function onRequestGet(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
     try {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-        })
-        const verificationResult = await (new Server(request, prisma)).authenticate()
-        if (!verificationResult.isValid) {
-            return Response.json({ ok: false, result: verificationResult.message })
-        }
-        const { searchParams } = new URL(request.url)
-        const seen = parseInt(searchParams.get('seen'), 10) || 0
+        const seen = parseInt(data.searchParams.get('seen'), 10) || 0
         const { uuid } = params
-        let finding = await prisma.Finding.findUnique({
+        let finding = await data.prisma.Finding.findUnique({
             where: {
                 uuid,
-                AND: { orgId: verificationResult.session.orgId }
+                AND: { orgId: data.session.orgId }
             },
             include: {
                 triage: true,
@@ -193,7 +164,7 @@ export async function onRequestGet(context) {
         if (!finding) {
             return new Response(null, { status: 404 })
         }
-        finding = await processFinding(prisma, env.r2artifacts, verificationResult, finding, seen)
+        finding = await processFinding(data.prisma, env.r2artifacts, data.session, finding, seen)
 
         let spdxJson, cdxJson;
         if (finding?.spdx?.artifact?.uuid) {

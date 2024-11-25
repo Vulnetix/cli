@@ -1,6 +1,4 @@
 import { Visibility } from "@/tea";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
 
 /**
  * If only the serialNumber parameter is supplied, retrieve the latest version of the BOM from the repository.
@@ -20,24 +18,15 @@ export async function onRequestGet(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
     try {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-        })
         params.tei // TEI unique leaf index
-        const { searchParams } = new URL(request.url)
-        const visibility = searchParams.get('visibility') // Used to specify whether we list public or private components
+        const visibility = data.searchParams.get('visibility') // Used to specify whether we list public or private components
         if (visibility && ![Visibility.ALLAVAILABLE, Visibility.PUBLICONLY].includes(visibility)) {
             return Response(null, { status: 422, statusText: `Invalid value provided: visibility=${visibility}` })
         }
 
-        // const member = await prisma.Member.findFirst({
+        // const member = await data.prisma.Member.findFirst({
         //     where: {
-        //         email: verificationResult.session.memberEmail,
+        //         email: data.session.memberEmail,
         //     },
         // })
         // return Response.json([]) // [ CollectionEl ]

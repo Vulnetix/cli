@@ -1,6 +1,4 @@
-import { AuthResult, GitHub, Server } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { AuthResult, GitHub } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -11,30 +9,18 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
 
     try {
         const where = {
-            orgId: verificationResult.session.orgId,
+            orgId: data.session.orgId,
             installationId: parseInt(params.installation_id, 10),
         }
-        const app = await prisma.GitHubApp.findUniqueOrThrow({ where })
-        const gh = new GitHub(app.accessToken)
-        const result = await gh.revokeToken(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail)
+        const app = await data.prisma.GitHubApp.findUniqueOrThrow({ where })
+        const gh = new GitHub(data.prisma, data.session.orgId, data.session.memberEmail, app.accessToken)
+        const result = await gh.revokeToken()
         if ([204, 401].includes(result.status)) {
-            const response = await prisma.GitHubApp.delete({ where })
-            // console.log(`/github/uninstall session kid=${verificationResult.session.token}`, response)
+            const response = await data.prisma.GitHubApp.delete({ where })
+            data.logger(`/github/uninstall session kid=${data.session.token}`, response)
 
             return Response.json(response)
         }

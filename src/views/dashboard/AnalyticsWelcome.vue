@@ -2,39 +2,10 @@
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useMemberStore } from '@/stores/member';
 import { round } from '@/utils';
-import AppSelect from '@core/components/AppSelect.vue';
 
 const Member = useMemberStore()
 const Analytics = useAnalyticsStore()
-const filterMenu = [
-    {
-        icon: 'hugeicons:computer-programming-01',
-        text: 'Application',
-        value: 'app',
-    },
-    {
-        icon: 'pajamas:status',
-        text: 'Triage State',
-        value: 'states',
-    },
-]
-const selectedFilterMenu = ref('app')
-const applications = [
-    'Authentication',
-    'Service Workers',
-    'Developer Protal',
-    'Governance Dashboard',
-]
-const appSelected = ref([])
-const vexStates = [
-    'Queued', // in_triage
-    'Resolved', // resolved
-    'Resolved With Pedigree', // resolved_with_pedigree
-    'Exploitable', // exploitable
-    'False Positive', // false_positive
-    'Not Affected', // not_affected
-]
-const vexStateSelected = ref([])
+
 const state = computed(() => {
     return {
         total: Analytics.total,
@@ -92,62 +63,6 @@ const refreshAnalytics = computed(() => {
                         Refresh Dashboard
                     </VBtn>
                 </VCardText>
-            </VCol>
-
-            <VCol
-                cols="12"
-                sm="4"
-                order="1"
-                order-sm="2"
-                class="text-center"
-            >
-                <VTabs
-                    v-model="selectedFilterMenu"
-                    :items="filterMenu"
-                    align-tabs="center"
-                    color="white"
-                    height="50"
-                    slider-color="rgb(26,187,156)"
-                    class="mt-3"
-                >
-                    <template v-slot:tab="{ item }">
-                        <VTab
-                            :prepend-icon="item.icon"
-                            :text="item.text"
-                            :value="item.value"
-                            class="text-none"
-                        ></VTab>
-                    </template>
-
-                    <template v-slot:item="{ item }">
-                        <VTabsWindowItem
-                            :value="item.value"
-                            class="pa-4"
-                        >
-                            <AppSelect
-                                v-if="item.value == 'app'"
-                                v-model="appSelected"
-                                :items="applications"
-                                placeholder="Select App"
-                                :menu-props="{ maxHeight: '400' }"
-                                chips
-                                clearable
-                                multiple
-                                closable-chips
-                            />
-                            <AppSelect
-                                v-if="item.value == 'states'"
-                                v-model="vexStateSelected"
-                                :items="vexStates"
-                                placeholder="Select State"
-                                chips
-                                clearable
-                                multiple
-                                closable-chips
-                            />
-                        </VTabsWindowItem>
-                    </template>
-                </VTabs>
             </VCol>
         </VRow>
     </VCard>

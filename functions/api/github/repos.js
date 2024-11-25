@@ -1,6 +1,4 @@
-import { GitHub, Server } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { GitHub } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -11,46 +9,25 @@ export async function onRequestGet(context) {
         next, // used for middleware or to fetch assets
         data, // arbitrary space for passing data between middlewares
     } = context
-    const adapter = new PrismaD1(env.d1db)
-    const prisma = new PrismaClient({
-        adapter,
-        transactionOptions: {
-            maxWait: 1500, // default: 2000
-            timeout: 2000, // default: 5000
-        },
-    })
-    const verificationResult = await (new Server(request, prisma)).authenticate()
-    if (!verificationResult.isValid) {
-        return Response.json({ ok: false, result: verificationResult.message })
-    }
-    const githubIntegration = await prisma.IntegrationConfig.findFirst({
-        where: {
-            orgId: verificationResult.session.orgId,
-            AND: { name: `github` },
-        }
-    })
-    if (!!githubIntegration?.suspend) {
-        return Response.json({ ok: false, error: { message: 'GitHub Disabled' } })
-    }
     const githubApps = []
     const gitRepos = []
-    const installs = await prisma.GitHubApp.findMany({
+    const installs = await data.prisma.GitHubApp.findMany({
         where: {
-            orgId: verificationResult.session.orgId,
+            orgId: data.session.orgId,
             AND: { expires: { gte: (new Date()).getTime(), } }
         },
     })
     for (const app of installs) {
         if (!app.accessToken) {
-            // console.log(`github_apps kid=${verificationResult.session.kid} installationId=${app.installationId}`)
+            data.logger(`github_apps kid=${data.session.kid} installationId=${app.installationId}`)
             throw new Error('github_apps invalid')
         }
-        const gh = new GitHub(app.accessToken)
-        const { content, error } = await gh.getRepos(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail)
+        const gh = new GitHub(data.prisma, data.session.orgId, data.session.memberEmail, app.accessToken)
+        const { content, error } = await gh.getRepos()
         if (error?.message) {
             if ("Bad credentials" === error.message) {
                 app.expires = (new Date()).getTime()
-                await prisma.GitHubApp.update({
+                await data.prisma.GitHubApp.update({
                     where: {
                         installationId: parseInt(app.installationId, 10),
                         AND: { orgId: app.orgId, },
@@ -63,10 +40,8 @@ export async function onRequestGet(context) {
 
             return Response.json({ error, app })
         }
-        for (const repo of content) {
-            const data = await store(prisma, verificationResult.session, repo)
-            gitRepos.push(data)
-        }
+        const repos = await Promise.all(content.map(repo => store(data.prisma, data.session, repo)))
+        gitRepos.push(...repos)
         githubApps.push({
             installationId: parseInt(app.installationId, 10),
             login: app.login,
@@ -76,25 +51,25 @@ export async function onRequestGet(context) {
         })
     }
 
-    const memberKeys = await prisma.MemberKey.findMany({
+    const memberKeys = await data.prisma.MemberKey.findMany({
         where: {
-            memberEmail: verificationResult.session.memberEmail,
+            memberEmail: data.session.memberEmail,
             keyType: 'github_pat',
         },
     })
     for (const memberKey of memberKeys) {
-        const gh = new GitHub(memberKey.secret)
-        const { content, error } = await gh.getRepos(prisma, verificationResult.session.orgId, verificationResult.session.memberEmail)
+        const gh = new GitHub(data.prisma, data.session.orgId, data.session.memberEmail, memberKey.secret)
+        const { content, error } = await gh.getRepos()
         if (error?.message) {
             return Response.json({ error, app: { login: memberKey.keyLabel } })
         }
-        for (const repo of content) {
-            const data = await store(prisma, verificationResult.session, repo)
-            gitRepos.push(data)
-        }
+        const repos = await Promise.all(content.map(repo => store(data.prisma, data.session, repo)))
+        gitRepos.push(...repos)
     }
 
-    return Response.json({ githubApps, gitRepos })
+    return Response.json({
+        githubApps, gitRepos
+    })
 }
 const store = async (prisma, session, repo) => {
     const create = {

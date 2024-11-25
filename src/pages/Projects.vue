@@ -668,20 +668,61 @@ const controller = reactive(new Controller())
                     <VCol cols="12">
                         <VCard v-if="!state.loadingBar">
                             <template v-slot:title>
-                                <span class="font-weight-black">Organizations</span>
+                                <span class="font-weight-black">GitHub Organizations</span>
                             </template>
                             <template v-slot:prepend>
                                 <VIcon size="30">mdi-github</VIcon>
                             </template>
                             <template v-slot:append>
-                                <VBtn
-                                    text="Refresh Github Data"
-                                    prepend-icon="mdi-refresh"
-                                    variant="text"
-                                    :color="global.name.value === 'dark' ? '#fff' : '#272727'"
-                                    :disabled="state.loadingBar"
-                                    @click="controller.refreshGithub"
-                                />
+                                <v-btn-group divided>
+                                    <v-btn
+                                        href="https://github.com/apps/vulnetix/installations/new"
+                                        :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                                        target="_blank"
+                                        prepend-icon="mdi-github"
+                                        text="Connect"
+                                    />
+
+                                    <v-btn
+                                        :color="global.name.value === 'dark' ? '#fff' : '#272727'"
+                                        size="small"
+                                        icon
+                                    >
+                                        <v-icon icon="mdi-menu-down"></v-icon>
+
+                                        <v-menu
+                                            :theme="global.name.value === 'dark' ? 'light' : 'dark'"
+                                            activator="parent"
+                                            location="bottom end"
+                                            transition="fade-transition"
+                                        >
+                                            <v-list
+                                                density="compact"
+                                                min-width="250"
+                                                rounded="lg"
+                                                slim
+                                            >
+                                                <v-list-item
+                                                    prepend-icon="mdi-refresh"
+                                                    title="Sync Now"
+                                                    link
+                                                    :disabled="state.loadingBar"
+                                                    @click="controller.refreshGithub"
+                                                ></v-list-item>
+
+                                                <v-divider class="my-2"></v-divider>
+
+                                                <v-list-item min-height="24">
+                                                    <template v-slot:subtitle>
+                                                        <div class="text-caption">
+                                                            Refresh all GitHub data
+                                                        </div>
+                                                    </template>
+                                                </v-list-item>
+                                            </v-list>
+                                        </v-menu>
+                                    </v-btn>
+                                </v-btn-group>
                             </template>
                             <VExpansionPanels accordion>
                                 <VSkeletonLoader

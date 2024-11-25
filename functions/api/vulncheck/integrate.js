@@ -1,6 +1,4 @@
-import { AuthResult, Server, ensureStrReqBody } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { AuthResult } from "@/utils";
 
 export async function onRequestPost(context) {
     const {
@@ -12,56 +10,42 @@ export async function onRequestPost(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
     try {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-        })
-        const verificationResult = await (new Server(request, prisma)).authenticate()
-        if (!verificationResult.isValid) {
-            return Response.json({ ok: false, result: verificationResult.message })
-        }
-        const bodyStr = await ensureStrReqBody(request)
-        const data = JSON.parse(bodyStr)
-        if (data?.apiKey && !data.apiKey.startsWith('vulncheck_')) {
+        if (data.json?.apiKey && !data.json.apiKey.startsWith('vulncheck_')) {
             return Response.json({ error: { message: `Invalid API Key provided, expected "vulncheck_" prefix.` } })
         }
         const where = {
-            orgId: verificationResult.session.orgId,
+            orgId: data.session.orgId,
             AND: { name: 'vulncheck' },
         }
-        const original = await prisma.IntegrationConfig.findFirst({ where })
+        const original = await data.prisma.IntegrationConfig.findFirst({ where })
         if (original === null) {
-            if (data?.apiKey === undefined) {
+            if (data.json?.apiKey === undefined) {
                 return Response.json({ ok: false, result: 'No Change' })
             }
-            const info = await prisma.IntegrationConfig.create({
+            const info = await data.prisma.IntegrationConfig.create({
                 data: {
-                    orgId: verificationResult.session.orgId,
+                    orgId: data.session.orgId,
                     name: 'vulncheck',
                     created: new Date().getTime(),
-                    configJSON: JSON.stringify({ secret: data.apiKey }),
-                    suspend: data?.suspend === undefined ? 0 : (data.suspend ? 1 : 0),
+                    configJSON: JSON.stringify({ secret: data.json.apiKey }),
+                    suspend: data.json?.suspend === undefined ? 0 : (data.json.suspend ? 1 : 0),
                 }
             })
             return Response.json({ ok: true, info })
         }
         if (original?.configJSON) {
             original.config = JSON.parse(original.configJSON)
-            if (data?.apiKey === original.config.secret && (data?.suspend ? 1 : 0) === original.suspend) {
+            if (data.json?.apiKey === original.config.secret && (data.json?.suspend ? 1 : 0) === original.suspend) {
                 return Response.json({ ok: false, result: 'No Change' })
             }
         }
-        const info = await prisma.IntegrationConfig.update({
+        const info = await data.prisma.IntegrationConfig.update({
             where: {
                 uuid: original.uuid
             },
             data: {
-                configJSON: data?.apiKey === undefined || data.apiKey.includes('****') ? original.configJSON : JSON.stringify({ secret: data.apiKey }),
-                suspend: data?.suspend === undefined ? original.suspend : (data.suspend ? 1 : 0),
+                configJSON: data.json?.apiKey === undefined || data.json.apiKey.includes('****') ? original.configJSON : JSON.stringify({ secret: data.json.apiKey }),
+                suspend: data.json?.suspend === undefined ? original.suspend : (data.json.suspend ? 1 : 0),
             }
         })
         return Response.json({ ok: true, info })

@@ -152,7 +152,7 @@ const register = () => {
                         >
                             <VBtn
                                 href="https://github.com/marketplace/vulnetix"
-                                prepend-icon="line-md:github-loop"
+                                prepend-icon="mdi-github"
                                 :variant="global.name.value === 'dark' ? 'tonal' : 'outlined'"
                                 size="x-large"
                                 text="Install GitHub App"

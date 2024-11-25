@@ -1,6 +1,4 @@
-import { AuthResult, Server, parseSearchQuery } from "@/utils";
-import { PrismaD1 } from '@prisma/adapter-d1';
-import { PrismaClient } from '@prisma/client';
+import { AuthResult, parseSearchQuery } from "@/utils";
 
 export async function onRequestGet(context) {
     const {
@@ -12,32 +10,10 @@ export async function onRequestGet(context) {
         data, // arbitrary space for passing data between middlewares
     } = context
     try {
-        const adapter = new PrismaD1(env.d1db)
-        const prisma = new PrismaClient({
-            adapter,
-            transactionOptions: {
-                maxWait: 1500, // default: 2000
-                timeout: 2000, // default: 5000
-            },
-            log: [
-                {
-                    emit: "event",
-                    level: "query",
-                },
-            ],
-        })
-        prisma.$on("query", async (e) => {
-            console.log(`${e.query} ${e.params}`)
-        });
-        const verificationResult = await (new Server(request, prisma)).authenticate()
-        if (!verificationResult.isValid) {
-            return Response.json({ ok: false, result: verificationResult.message })
-        }
-        const { searchParams } = new URL(request.url)
-        const take = parseInt(searchParams.get('take'), 10) || 5
-        const { inclusive, exclude, terms } = parseSearchQuery(searchParams.get('q'))
+        const take = parseInt(data.searchParams.get('take'), 10) || 5
+        const { inclusive, exclude, terms } = parseSearchQuery(data.searchParams.get('q'))
         const findings = []
-        const where = { orgId: verificationResult.session.orgId, OR: [], NOT: [] }
+        const where = { orgId: data.session.orgId, OR: [], NOT: [] }
 
         for (const contains of terms) {
             where.OR.push({ repoName: { contains } })
@@ -46,7 +22,7 @@ export async function onRequestGet(context) {
             where.OR.push({ cwes: { contains } })
             where.OR.push({ detectionTitle: { contains } })
         }
-        const res = await prisma.Finding.findMany({
+        const res = await data.prisma.Finding.findMany({
             where,
             select: {
                 uuid: true,
