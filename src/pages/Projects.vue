@@ -676,7 +676,7 @@ const controller = reactive(new Controller())
                             <template v-slot:append>
                                 <v-btn-group divided>
                                     <v-btn
-                                        href="https://github.com/apps/vulnetix/installations/new"
+                                        href="https://github.com/apps/vulnetix/installations/select_target"
                                         :color="global.name.value === 'dark' ? '#fff' : '#272727'"
                                         target="_blank"
                                         prepend-icon="mdi-github"

@@ -182,7 +182,7 @@ function clearAlerts() {
                                             prepend-icon="mdi-github"
                                             title="Connect GitHub"
                                             link
-                                            href="https://github.com/apps/vulnetix/installations/new"
+                                            href="https://github.com/apps/vulnetix/installations/select_target"
                                             target="_blank"
                                         ></VListItem>
 
