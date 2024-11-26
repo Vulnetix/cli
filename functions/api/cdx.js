@@ -84,6 +84,7 @@ export async function onRequestPost(context) {
                         }
                     }
                 })
+                const newData = { ...dep, cdxId }
                 if (lookup?.key) {
                     const infoUpd = await data.prisma.Dependency.update({
                         where: {
@@ -94,12 +95,12 @@ export async function onRequestPost(context) {
                             childOfKey: dep.childOfKey
                         }
                     })
-                    data.logger(`Update CDX ${cdxId} Dep ${dep.name}`, infoUpd)
-                    dependencies.push({ ...dep, cdxId })
+                    data.logger(`Update CycloneDX ${cdxId} Dep ${dep.name}`, infoUpd)
+                    dependencies.push(newData)
                 } else {
-                    const infoAdd = await data.prisma.Dependency.create({ ...dep, cdxId })
-                    data.logger(`Create CDX ${cdxId} Dep ${dep.name}`, infoAdd)
-                    dependencies.push({ ...dep, cdxId })
+                    const infoAdd = await data.prisma.Dependency.create({ data: newData })
+                    data.logger(`Create CycloneDX ${cdxId} Dep ${dep.name}`, infoAdd)
+                    dependencies.push(newData)
                 }
             }
             const cdxStr = JSON.stringify(cdx)

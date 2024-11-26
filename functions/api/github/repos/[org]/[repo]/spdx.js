@@ -76,6 +76,7 @@ export async function onRequestGet(context) {
                     }
                 }
             })
+            const newData = { ...dep, spdxId }
             if (lookup?.key) {
                 const infoUpd = await data.prisma.Dependency.update({
                     where: {
@@ -87,11 +88,11 @@ export async function onRequestGet(context) {
                     }
                 })
                 data.logger(`Update SPDX ${spdxId} Dep ${dep.name}`, infoUpd)
-                dependencies.push({ ...dep, spdxId })
+                dependencies.push(newData)
             } else {
-                const infoAdd = await data.prisma.Dependency.create({ ...dep, spdxId })
+                const infoAdd = await data.prisma.Dependency.create({ data: newData })
                 data.logger(`Create SPDX ${spdxId} Dep ${dep.name}`, infoAdd)
-                dependencies.push({ ...dep, spdxId })
+                dependencies.push(newData)
             }
         }
         spdx.dependencies = dependencies

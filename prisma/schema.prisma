@@ -269,7 +269,7 @@ model SPDXInfo {
 }
 
 model Dependency {
-  key              String         @unique
+  key              String         @id
   name             String
   version          String
   license          String?
