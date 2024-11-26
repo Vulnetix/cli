@@ -75,22 +75,32 @@ export async function onRequestPost(context) {
             }
             const dependencies = []
             for (const dep of await parseCycloneDXComponents(cdx, cdxId)) {
-                const info = await data.prisma.Dependency.upsert({
+                const lookup = await data.prisma.Dependency.findUnique({
                     where: {
                         cdx_dep: {
                             cdxId,
                             name: dep.name,
                             version: dep.version,
                         }
-                    },
-                    update: {
-                        license: dep.license,
-                        childOfKey: dep.childOfKey
-                    },
-                    create: { ...dep, cdxId }
+                    }
                 })
-                data.logger(`Dependency ${cdxId}`, info)
-                dependencies.push({ ...dep, cdxId })
+                if (lookup?.key) {
+                    const infoUpd = await data.prisma.Dependency.update({
+                        where: {
+                            key: lookup.key
+                        },
+                        data: {
+                            license: dep.license,
+                            childOfKey: dep.childOfKey
+                        }
+                    })
+                    data.logger(`Update CDX ${cdxId} Dep ${dep.name}`, infoUpd)
+                    dependencies.push({ ...dep, cdxId })
+                } else {
+                    const infoAdd = await data.prisma.Dependency.create({ ...dep, cdxId })
+                    data.logger(`Create CDX ${cdxId} Dep ${dep.name}`, infoAdd)
+                    dependencies.push({ ...dep, cdxId })
+                }
             }
             const cdxStr = JSON.stringify(cdx)
             const artifact = await saveArtifact(data.prisma, env.r2artifacts, cdxStr, artifactUuid, `cyclonedx`)

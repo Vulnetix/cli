@@ -100,22 +100,32 @@ export async function onRequestPost(context) {
             const artifactUuid = originalSpdx?.artifactUuid || artifact?.uuid
             const dependencies = []
             for (const dep of await parseSPDXComponents(spdx, spdxId)) {
-                const info = await data.prisma.Dependency.upsert({
+                const lookup = await data.prisma.Dependency.findUnique({
                     where: {
                         spdx_dep: {
                             spdxId,
                             name: dep.name,
                             version: dep.version,
                         }
-                    },
-                    update: {
-                        license: dep.license,
-                        childOfKey: dep.childOfKey
-                    },
-                    create: { ...dep, spdxId }
+                    }
                 })
-                dependencies.push({ ...dep, spdxId })
-                data.logger(`Dependency ${dep.name}@${dep.version}`, info)
+                if (lookup?.key) {
+                    const infoUpd = await data.prisma.Dependency.update({
+                        where: {
+                            key: lookup.key
+                        },
+                        data: {
+                            license: dep.license,
+                            childOfKey: dep.childOfKey
+                        }
+                    })
+                    data.logger(`Update SPDX ${spdxId} Dep ${dep.name}`, infoUpd)
+                    dependencies.push({ ...dep, spdxId })
+                } else {
+                    const infoAdd = await data.prisma.Dependency.create({ ...dep, spdxId })
+                    data.logger(`Create SPDX ${spdxId} Dep ${dep.name}`, infoAdd)
+                    dependencies.push({ ...dep, spdxId })
+                }
             }
             const spdxData = {
                 spdxId,
