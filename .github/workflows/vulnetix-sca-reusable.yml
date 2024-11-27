@@ -1,0 +1,87 @@
+name: OSV-Scanner single vulnerability scan
+
+permissions:
+  # Required to upload SARIF file to CodeQL. See: https://github.com/github/codeql-action/issues/2117
+  actions: read
+  contents: read
+  security-events: write
+
+on:
+  workflow_call:
+    inputs:
+      scan-args:
+        description: "Custom osv-scanner arguments (See https://google.github.io/osv-scanner/usage/ for options, you cannot set --format or --output)"
+        type: string
+        default: |-
+          -r
+          --skip-git
+          ./
+      results-file-name:
+        description: "File name of the result SARIF file"
+        type: string
+        default: vulnetix-sca.sarif.json
+      download-artifact:
+        description: "Optional artifact to download for scanning"
+        required: false
+        default: ""
+        type: string
+      upload-sarif:
+        description: "Whether to upload to Security > Code Scanning"
+        type: boolean
+        required: false
+        default: true
+      fail-on-vuln:
+        description: "Whether to fail the action on vulnerability found"
+        type: boolean
+        default: true
+
+jobs:
+  osv-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: "Download custom artifact if specified"
+        uses: actions/download-artifact@v4
+        if: "${{ inputs.download-artifact != '' }}"
+        with:
+          name: "${{ inputs.download-artifact }}"
+          path: "./"
+      - name: "Run scanner"
+        uses: google/osv-scanner-action/osv-scanner-action@cbb0295db259bba04d38625792c18646ed18bc89 # v1.9.1
+        with:
+          scan-args: |-
+            --output=results.json
+            --format=json
+            ${{ inputs.scan-args }}
+        continue-on-error: true
+      - name: "Run osv-scanner-reporter"
+        uses: google/osv-scanner-action/osv-reporter-action@cbb0295db259bba04d38625792c18646ed18bc89 # v1.9.1
+        with:
+          scan-args: |-
+            --output=${{ inputs.results-file-name }}
+            --new=results.json
+            --gh-annotations=false
+            --fail-on-vuln=${{ inputs.fail-on-vuln }}
+      # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
+      # format to the repository Actions tab.
+      - name: "Upload artifact"
+        id: "upload_artifact"
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: SARIF file
+          path: ${{ inputs.results-file-name }}
+          retention-days: 5
+      # Upload the results to GitHub's code scanning dashboard.
+      - name: "Upload to code-scanning"
+        if: "${{ !cancelled() && inputs.upload-sarif == true }}"
+        uses: github/codeql-action/upload-sarif@f09c1c0a94de965c15400f5634aa42fac8fb8f88 # v3.27.5
+        with:
+          sarif_file: ${{ inputs.results-file-name }}
+      - name: "Error troubleshooter"
+        if: ${{ always() && steps.upload_artifact.outcome == 'failure' }}
+        run: |
+          echo "::error::Artifact upload failed. This is most likely caused by a error during scanning earlier in the workflow."
+          exit 1
