@@ -10,6 +10,7 @@ export const unauthenticatedRoutes = {
         '/sso',
         '/api/login',
         '/api/github/install',
+        '/webhooks',
     ],
 }
 
