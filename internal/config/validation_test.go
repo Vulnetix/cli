@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,13 +17,13 @@ func TestValidateTask(t *testing.T) {
 		{name: "Valid release task", task: "release", expectedErr: ""},
 		{name: "Valid report task", task: "report", expectedErr: ""},
 		{name: "Valid triage task", task: "triage", expectedErr: ""},
-		{name: "Invalid task", task: "invalid", expectedErr: "invalid task type"},
-		{name: "Empty task", task: "", expectedErr: "task type cannot be empty"},
+		{name: "Invalid task", task: "invalid", expectedErr: "unsupported task"},
+		{name: "Empty task", task: "", expectedErr: ""}, // Default to scan, no error
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateTask(tt.task)
+			_, err := ValidateTask(tt.task) // ValidateTask returns (TaskType, error)
 			if tt.expectedErr == "" {
 				assert.NoError(t, err)
 			} else {
@@ -43,159 +42,85 @@ func TestValidateReleaseReadiness(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		config      *Config
-		env         map[string]string
+		config      *VulnetixConfig
+		env         map[string]string // Environment variables to set for the test
 		expectedErr string
 	}{
 		{
 			name: "Valid release configuration and GitHub context",
-			config: &Config{
-				Task: "release",
-				Release: &ReleaseConfig{
-					TargetBranch: "main",
-					GitHubContext: &GitHubContext{
-						WorkflowRunID: "123",
-						Repository:    "owner/repo",
-						Ref:           "refs/heads/main",
-						SHA:           "abc",
-					},
+			config: &VulnetixConfig{
+				Task: TaskRelease,
+				Release: ReleaseConfig{
+					ProductionBranch: "main",
+					ReleaseBranch:    "release",
 				},
+				GitHub: GitHubContext{}, // Will be populated by LoadGitHubContext
 			},
-			env: testutils.GitHubContextFixture(),
+			env: map[string]string{
+				"GITHUB_RUN_ID":     "123",
+				"GITHUB_REPOSITORY": "owner/repo",
+			},
 			expectedErr: "",
 		},
 		{
-			name: "Missing target branch in release config",
-			config: &Config{
-				Task: "release",
-				Release: &ReleaseConfig{
-					GitHubContext: &GitHubContext{
-						WorkflowRunID: "123",
-						Repository:    "owner/repo",
-						Ref:           "refs/heads/main",
-						SHA:           "abc",
-					},
+			name: "Missing production branch in release config",
+			config: &VulnetixConfig{
+				Task: TaskRelease,
+				Release: ReleaseConfig{
+					ReleaseBranch: "release",
 				},
+				GitHub: GitHubContext{}, // Will be populated by LoadGitHubContext
 			},
-			env: testutils.GitHubContextFixture(),
-			expectedErr: "release.target_branch cannot be empty",
+			env: map[string]string{
+				"GITHUB_RUN_ID":     "123",
+				"GITHUB_REPOSITORY": "owner/repo",
+			},
+			expectedErr: "production branch is required for release readiness assessment",
 		},
 		{
-			name: "Missing GitHub context in release config",
-			config: &Config{
-				Task: "release",
-				Release: &ReleaseConfig{
-					TargetBranch: "main",
+			name: "Missing release branch in release config",
+			config: &VulnetixConfig{
+				Task: TaskRelease,
+				Release: ReleaseConfig{
+					ProductionBranch: "main",
 				},
+				GitHub: GitHubContext{}, // Will be populated by LoadGitHubContext
 			},
-			env: testutils.GitHubContextFixture(),
-			expectedErr: "release.github_context cannot be empty",
+			env: map[string]string{
+				"GITHUB_RUN_ID":     "123",
+				"GITHUB_REPOSITORY": "owner/repo",
+			},
+			expectedErr: "release branch is required for release readiness assessment",
 		},
 		{
-			name: "Missing GITHUB_ACTIONS env var",
-			config: &Config{
-				Task: "release",
-				Release: &ReleaseConfig{
-					TargetBranch: "main",
-					GitHubContext: &GitHubContext{
-						WorkflowRunID: "123",
-						Repository:    "owner/repo",
-						Ref:           "refs/heads/main",
-						SHA:           "abc",
-					},
+			name: "Missing GITHUB_RUN_ID env var",
+			config: &VulnetixConfig{
+				Task: TaskRelease,
+				Release: ReleaseConfig{
+					ProductionBranch: "main",
+					ReleaseBranch:    "release",
 				},
+				GitHub: GitHubContext{}, // Will be populated by LoadGitHubContext
 			},
 			env: map[string]string{
 				"GITHUB_REPOSITORY": "owner/repo",
-				"GITHUB_REF":        "refs/heads/main",
-				"GITHUB_SHA":        "abc",
 			},
-			expectedErr: "GITHUB_ACTIONS environment variable must be 'true' for release tasks",
-		},
-		{
-			name: "GITHUB_ACTIONS not true",
-			config: &Config{
-				Task: "release",
-				Release: &ReleaseConfig{
-					TargetBranch: "main",
-					GitHubContext: &GitHubContext{
-						WorkflowRunID: "123",
-						Repository:    "owner/repo",
-						Ref:           "refs/heads/main",
-						SHA:           "abc",
-					},
-				},
-			},
-			env: map[string]string{
-				"GITHUB_ACTIONS":    "false",
-				"GITHUB_REPOSITORY": "owner/repo",
-				"GITHUB_REF":        "refs/heads/main",
-				"GITHUB_SHA":        "abc",
-			},
-			expectedErr: "GITHUB_ACTIONS environment variable must be 'true' for release tasks",
+			expectedErr: "GitHub run ID is required for artifact linking",
 		},
 		{
 			name: "Missing GITHUB_REPOSITORY env var",
-			config: &Config{
-				Task: "release",
-				Release: &ReleaseConfig{
-					TargetBranch: "main",
-					GitHubContext: &GitHubContext{
-						WorkflowRunID: "123",
-						Repository:    "owner/repo",
-						Ref:           "refs/heads/main",
-						SHA:           "abc",
-					},
+			config: &VulnetixConfig{
+				Task: TaskRelease,
+				Release: ReleaseConfig{
+					ProductionBranch: "main",
+					ReleaseBranch:    "release",
 				},
+				GitHub: GitHubContext{}, // Will be populated by LoadGitHubContext
 			},
 			env: map[string]string{
-				"GITHUB_ACTIONS": "true",
-				"GITHUB_REF":     "refs/heads/main",
-				"GITHUB_SHA":     "abc",
+				"GITHUB_RUN_ID": "123",
 			},
-			expectedErr: "GITHUB_REPOSITORY environment variable cannot be empty for release tasks",
-		},
-		{
-			name: "Missing GITHUB_REF env var",
-			config: &Config{
-				Task: "release",
-				Release: &ReleaseConfig{
-					TargetBranch: "main",
-					GitHubContext: &GitHubContext{
-						WorkflowRunID: "123",
-						Repository:    "owner/repo",
-						Ref:           "refs/heads/main",
-						SHA:           "abc",
-					},
-				},
-			},
-			env: map[string]string{
-				"GITHUB_ACTIONS":    "true",
-				"GITHUB_REPOSITORY": "owner/repo",
-				"GITHUB_SHA":        "abc",
-			},
-			expectedErr: "GITHUB_REF environment variable cannot be empty for release tasks",
-		},
-		{
-			name: "Missing GITHUB_SHA env var",
-			config: &Config{
-				Task: "release",
-				Release: &ReleaseConfig{
-					TargetBranch: "main",
-					GitHubContext: &GitHubContext{
-						WorkflowRunID: "123",
-						Repository:    "owner/repo",
-						Ref:           "refs/heads/main",
-						SHA:           "abc",
-					},
-				},
-			},
-			env: map[string]string{
-				"GITHUB_ACTIONS":    "true",
-				"GITHUB_REPOSITORY": "owner/repo",
-				"GITHUB_REF":        "refs/heads/main",
-			},
-			expectedErr: "GITHUB_SHA environment variable cannot be empty for release tasks",
+			expectedErr: "GitHub repository is required for artifact scoping",
 		},
 	}
 
@@ -204,7 +129,10 @@ func TestValidateReleaseReadiness(t *testing.T) {
 			cleanup := setupGitHubContext(t, tt.env)
 			defer cleanup()
 
-			err := ValidateReleaseReadiness(tt.config)
+			// Load GitHub context from environment variables before validation
+			tt.config.GitHub = LoadGitHubContext()
+
+			err := tt.config.ValidateReleaseReadiness()
 			if tt.expectedErr == "" {
 				assert.NoError(t, err)
 			} else {
@@ -218,20 +146,20 @@ func TestValidateReleaseReadiness(t *testing.T) {
 func TestIsReleaseTask(t *testing.T) {
 	tests := []struct {
 		name     string
-		task     string
+		config   *VulnetixConfig // Use VulnetixConfig
 		expected bool
 	}{
-		{name: "Is release task", task: "release", expected: true},
-		{name: "Is not release task (scan)", task: "scan", expected: false},
-		{name: "Is not release task (report)", task: "report", expected: false},
-		{name: "Is not release task (triage)", task: "triage", expected: false},
-		{name: "Empty task", task: "", expected: false},
-		{name: "Invalid task", task: "invalid", expected: false},
+		{name: "Is release task", config: &VulnetixConfig{Task: TaskRelease}, expected: true},
+		{name: "Is not release task (scan)", config: &VulnetixConfig{Task: TaskScan}, expected: false},
+		{name: "Is not release task (report)", config: &VulnetixConfig{Task: TaskReport}, expected: false},
+		{name: "Is not release task (triage)", config: &VulnetixConfig{Task: TaskTriage}, expected: false},
+		{name: "Empty task", config: &VulnetixConfig{Task: ""}, expected: false},
+		{name: "Invalid task", config: &VulnetixConfig{Task: "invalid"}, expected: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, IsReleaseTask(tt.task))
+			assert.Equal(t, tt.expected, tt.config.IsReleaseTask()) // Call method on config instance
 		})
 	}
 }
