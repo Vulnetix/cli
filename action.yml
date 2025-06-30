@@ -1,0 +1,185 @@
+name: 'Vulnetix CLI Action'
+description: 'GitHub Action that provides the Vulnetix CLI utility for vulnerability management'
+author: 'Vulnetix'
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  org-id:
+    description: 'Organization ID (UUID) for Vulnetix operations'
+    required: true
+  version:
+    description: 'Version of Vulnetix CLI to use'
+    required: false
+    default: 'latest'
+  project-name:
+    description: 'Project name for vulnerability management context'
+    required: false
+  product-name:
+    description: 'Product name for vulnerability management context'
+    required: false
+  team-name:
+    description: 'Team name responsible for the project'
+    required: false
+  group-name:
+    description: 'Group name for organizational hierarchy'
+    required: false
+  tags:
+    description: 'YAML list of tags for categorization (e.g., ["critical", "frontend", "api"])'
+    required: false
+  tools:
+    description: 'YAML array of tool configurations with category, artifact-name, format, and identifier'
+    required: false
+  task:
+    description: 'Task to perform: scan, release, report, triage'
+    required: false
+    default: 'scan'
+  production-branch:
+    description: 'Production branch name (mandatory for release task unless in PR context)'
+    required: false
+    default: 'main'
+  release-branch:
+    description: 'Release branch name (mandatory for release task unless in PR context)'
+    required: false
+  workflow-run-timeout:
+    description: 'Timeout in minutes to wait for sibling job artifacts'
+    required: false
+    default: '30'
+
+outputs:
+  result:
+    description: 'Result of the Vulnetix CLI execution'
+    value: ${{ steps.vulnetix-run.outputs.result }}
+  summary:
+    description: 'Summary of vulnerabilities processed'
+    value: ${{ steps.vulnetix-run.outputs.summary }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate Release Configuration
+      if: inputs.task == 'release'
+      shell: bash
+      run: |
+        echo "🔍 Validating release readiness configuration..."
+        
+        # Check if we're in a PR context
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "✅ Running in PR context - target branch: ${{ github.event.pull_request.base.ref }}"
+          echo "✅ Source branch: ${{ github.event.pull_request.head.ref }}"
+          echo "PRODUCTION_BRANCH=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+          echo "RELEASE_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+        else
+          # Not in PR, check mandatory branch parameters
+          if [ -z "${{ inputs.production-branch }}" ] || [ -z "${{ inputs.release-branch }}" ]; then
+            echo "❌ Error: When not in PR context, both production-branch and release-branch are mandatory for release task"
+            echo "Current event: ${{ github.event_name }}"
+            echo "Production branch: ${{ inputs.production-branch }}"
+            echo "Release branch: ${{ inputs.release-branch }}"
+            exit 1
+          fi
+          echo "PRODUCTION_BRANCH=${{ inputs.production-branch }}" >> $GITHUB_ENV
+          echo "RELEASE_BRANCH=${{ inputs.release-branch }}" >> $GITHUB_ENV
+        fi
+        
+        echo "🎯 Release Assessment Configuration:"
+        echo "  Production Branch: ${PRODUCTION_BRANCH}"
+        echo "  Release Branch: ${RELEASE_BRANCH}"
+        echo "  Workflow Run ID: ${{ github.run_id }}"
+        echo "  Repository: ${{ github.repository }}"
+
+    - name: Setup Vulnetix CLI
+      shell: bash
+      run: |
+        echo "Setting up Vulnetix CLI..."
+        
+        # Determine architecture
+        ARCH=$(uname -m)
+        case $ARCH in
+          x86_64) ARCH="amd64" ;;
+          aarch64) ARCH="arm64" ;;
+          armv7l) ARCH="arm" ;;
+          *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+        esac
+        
+        # Determine OS
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        
+        # Download the appropriate binary
+        BINARY_NAME="vulnetix-${OS}-${ARCH}"
+        if [ "$OS" = "windows" ]; then
+          BINARY_NAME="${BINARY_NAME}.exe"
+        fi
+        
+        # Use the action's directory to find the binary
+        ACTION_DIR="${{ github.action_path }}"
+        BINARY_PATH="${ACTION_DIR}/bin/${BINARY_NAME}"
+        
+        if [ ! -f "$BINARY_PATH" ]; then
+          echo "Binary not found: $BINARY_PATH"
+          echo "Available binaries:"
+          ls -la "${ACTION_DIR}/bin/" || echo "No binaries directory found"
+          exit 1
+        fi
+        
+        # Make binary executable
+        chmod +x "$BINARY_PATH"
+        
+        # Add to PATH for subsequent steps
+        echo "${ACTION_DIR}/bin" >> $GITHUB_PATH
+        
+        # Create symlink for easier access
+        ln -sf "$BINARY_PATH" "${ACTION_DIR}/bin/vulnetix"
+        
+        echo "Vulnetix CLI setup complete"
+
+    - name: Run Vulnetix CLI
+      id: vulnetix-run
+      shell: bash
+      run: |
+        echo "Running Vulnetix CLI with org-id: ${{ inputs.org-id }}"
+        
+        # Build command arguments
+        ARGS="--org-id ${{ inputs.org-id }}"
+        
+        if [ -n "${{ inputs.project-name }}" ]; then
+          ARGS="$ARGS --project-name '${{ inputs.project-name }}'"
+        fi
+        
+        if [ -n "${{ inputs.product-name }}" ]; then
+          ARGS="$ARGS --product-name '${{ inputs.product-name }}'"
+        fi
+        
+        if [ -n "${{ inputs.team-name }}" ]; then
+          ARGS="$ARGS --team-name '${{ inputs.team-name }}'"
+        fi
+        
+        if [ -n "${{ inputs.group-name }}" ]; then
+          ARGS="$ARGS --group-name '${{ inputs.group-name }}'"
+        fi
+        
+        if [ -n "${{ inputs.tags }}" ]; then
+          ARGS="$ARGS --tags '${{ inputs.tags }}'"
+        fi
+        
+        if [ -n "${{ inputs.tools }}" ]; then
+          ARGS="$ARGS --tools '${{ inputs.tools }}'"
+        fi
+        
+        # Add task argument
+        ARGS="$ARGS --task '${{ inputs.task }}'"
+        
+        # Add release mode arguments if task is release
+        if [ "${{ inputs.task }}" = "release" ]; then
+          ARGS="$ARGS --production-branch '${PRODUCTION_BRANCH}'"
+          ARGS="$ARGS --release-branch '${RELEASE_BRANCH}'"
+          ARGS="$ARGS --workflow-timeout '${{ inputs.workflow-run-timeout }}'"
+        fi
+        
+        # Execute Vulnetix CLI
+        eval "vulnetix $ARGS"
+        
+        # Set outputs (these would be set by the actual CLI)
+        echo "result=success" >> $GITHUB_OUTPUT
+        echo "summary=Vulnerability analysis completed" >> $GITHUB_OUTPUT

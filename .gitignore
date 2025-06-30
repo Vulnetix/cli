@@ -46,3 +46,12 @@ src/@iconify/icons-bundle.js
 **/.repo/cwe*.json
 **/__pycache__
 **/vulnetix.db
+
+# Go specific
+bin/
+dist/
+.cache/
+coverage.txt
+coverage.out
+*.tmp
+*.temp

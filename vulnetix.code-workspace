@@ -1,0 +1,103 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"sqltools.useNodeRuntime": true,
+		"editor.formatOnSave": false,
+		"files.insertFinalNewline": true,
+		"javascript.updateImportsOnFileMove.enabled": "always",
+		"[javascript]": {
+			"editor.defaultFormatter": "vscode.typescript-language-features",
+			"editor.codeActionsOnSave": {
+				"source.fixAll.eslint": "explicit",
+				"source.organizeImports": "explicit"
+			}
+		},
+		"[typescript]": {
+			"editor.defaultFormatter": "vscode.typescript-language-features",
+			"editor.autoClosingBrackets": "never",
+			"editor.codeActionsOnSave": {
+				"source.fixAll.eslint": "explicit",
+				"source.organizeImports": "explicit"
+			}
+		},
+		"[markdown]": {
+			"editor.defaultFormatter": "vscode.markdown-language-features",
+			"editor.cursorSurroundingLines": 0,
+			"editor.codeActionsOnSave": {
+				"source.fixAll.eslint": "explicit"
+			}
+		},
+		"[scss]": {
+			"editor.defaultFormatter": "dbaeumer.vscode-eslint",
+			"editor.codeActionsOnSave": {
+				"source.fixAll.eslint": "explicit",
+				"source.organizeImports": "explicit"
+			}
+		},
+		"[json]": {
+			"editor.defaultFormatter": "vscode.json-language-features"
+		},
+		"[jsonc]": {
+			"editor.defaultFormatter": "vscode.json-language-features"
+		},
+		"[vue]": {
+			"editor.defaultFormatter": "Vue.volar",
+			"editor.codeActionsOnSave": {
+				"source.fixAll.eslint": "explicit",
+				"source.organizeImports": "explicit",
+				"source.fixAll.stylelint": "explicit",
+				"source.fixAll.vuelint": "explicit",
+				"source.fixAll.prettier": "explicit",
+			}
+		},
+		"editor.codeActionsOnSave": {
+			"source.fixAll.stylelint": "explicit",
+			"source.organizeImports": "explicit",
+			"source.fixAll.prettier": "explicit",
+			"source.fixAll.tailwindcss": "explicit",
+			"source.fixAll.vuelint": "explicit",
+			"source.fixAll.eslint": "explicit"
+		},
+		"cSpell.words": [
+			"axios",
+			"cisa",
+			"Composables",
+			"csaf",
+			"Customizer",
+			"cwes",
+			"cyclonedx",
+			"dotfile",
+			"epss",
+			"flagpack",
+			"ghid",
+			"icache",
+			"Iconify",
+			"octodex",
+			"organisation",
+			"pinia",
+			"psudo",
+			"sarif",
+			"sast",
+			"ssvc",
+			"stylelint",
+			"touchless",
+			"triggerer",
+			"Vuelidate",
+			"vuetify",
+			"vulncheck",
+			"Vulnetix",
+			"vulns"
+		],
+		"github.copilot.chat.codesearch.enabled": true,
+		"github.copilot.chat.agent.thinkingTool": true,
+		"github.copilot.chat.codeGeneration.instructions": [
+			{
+				"file": ".github/copilot-instructions.md"
+			}
+		]
+	}
+}
