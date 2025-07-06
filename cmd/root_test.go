@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/vulnetix/vulnetix/internal/testutils"
 )
 
 // executeCommand executes a cobra command and captures its output.
@@ -33,12 +34,10 @@ func executeCommand(t *testing.T, cmd *cobra.Command, args ...string) (output st
 
 	// Mock os.Exit
 	oldOsExit := exit
-	exited := false
-	exitCode := 0
 	exit = func(code int) {
-		exited = true
-		exitCode = code
-		panic("os.Exit was called") // Panic to stop execution, will be recovered
+		// We don't want to actually exit during tests, so we panic and recover.
+		// The executeCommand defer function will catch this panic.
+		panic(fmt.Sprintf("os.Exit called with code %d", code))
 	}
 
 	defer func() {
@@ -53,71 +52,30 @@ func executeCommand(t *testing.T, cmd *cobra.Command, args ...string) (output st
 
 		// Recover from panic if os.Exit was called
 		if r := recover(); r != nil {
-			if r.(string) != "os.Exit was called" {
+			if s, ok := r.(string); ok && strings.HasPrefix(s, "os.Exit called with code") {
+				err = fmt.Errorf(s) // Convert panic to error
+			} else {
 				panic(r) // Not our panic, re-panic
-			}
-			if exited && exitCode != 0 {
-				err = fmt.Errorf("command exited with code %d", exitCode)
 			}
 		}
 	}()
 
 	cmd.SetArgs(args)
-	cmd.Execute()
+	err = cmd.Execute()
 
 	return output, err
 }
 
-func TestRootCommandOrgIDValidation(t *testing.T) {
-	// Create a fresh root command for each test to avoid state leakage
-	getFreshRootCmd := func() *cobra.Command {
-		cmd := &cobra.Command{
-			Use:   "vulnetix",
-			Short: "Vulnetix CLI - Automate vulnerability triage and remediation",
-			Run: func(cmd *cobra.Command, args []string) {
-				// This will be the actual Run function from root.go
-				// We need to call the original run function logic here.
-				// For now, we'll just simulate it.
-				// In a real scenario, you'd likely call the actual rootCmd.RunE or similar.
-				// For this test, we're primarily testing the flag parsing and pre-run validation.
-				// The actual logic of rootCmd.Run is complex and involves os.Exit, which is mocked.
-				// So, we'll just let the flags be parsed and the validation logic in init() run.
-				// The `executeCommand` helper will catch the os.Exit calls.
-			},
-		}
-		// Re-initialize flags for the fresh command
-		cmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations (required)")
-		cmd.MarkPersistentFlagRequired("org-id")
-		cmd.PersistentFlags().StringVar(&task, "task", "scan", "Task to perform: scan, release, report, triage")
-		cmd.PersistentFlags().StringVar(&productionBranch, "production-branch", "main", "Production branch name (for release task)")
-		cmd.PersistentFlags().StringVar(&releaseBranch, "release-branch", "", "Release branch name (for release task)")
-		cmd.PersistentFlags().IntVar(&workflowTimeout, "workflow-timeout", 30, "Timeout in minutes to wait for sibling job artifacts (for release task)")
-		cmd.PersistentFlags().StringVar(&projectName, "project-name", "", "Project name for vulnerability management context")
-		cmd.PersistentFlags().StringVar(&productName, "product-name", "", "Product name for vulnerability management context")
-		cmd.PersistentFlags().StringVar(&teamName, "team-name", "", "Team name responsible for the project")
-		cmd.PersistentFlags().StringVar(&groupName, "group-name", "", "Group name for organizational hierarchy")
-		cmd.PersistentFlags().StringVar(&tags, "tags", "", "YAML list of tags for categorization (e.g., '["critical", "frontend", "api"]')")
-		cmd.PersistentFlags().StringVar(&tools, "tools", "", "YAML array of tool configurations")
-
-		// Add version command (needed for the actual rootCmd.Execute() to work as expected)
-		versionCmd := &cobra.Command{
-			Use:   "version",
-			Short: "Print the version number of Vulnetix CLI",
-			Run: func(cmd *cobra.Command, args []string) {
-				fmt.Printf("Vulnetix CLI v%s\n", version)
-			},
-		}
-		cmd.AddCommand(versionCmd)
-
-		return cmd
-	}
-
+func TestRootCommand(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        []string
 		expectError bool
 		expectOutputContains string
+		expectErrorContains string
+		setupEnv map[string]string // Added setupEnv field
 	}{
+		// Org ID Validation Tests
 		{
 			name:        "Valid UUID",
 			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000"},
@@ -128,37 +86,139 @@ func TestRootCommandOrgIDValidation(t *testing.T) {
 			name:        "Invalid UUID",
 			args:        []string{"--org-id", "invalid-uuid"},
 			expectError: true,
-			expectOutputContains: "--org-id must be a valid UUID",
+			expectErrorContains: "--org-id must be a valid UUID",
 		},
 		{
 			name:        "Missing org-id",
 			args:        []string{},
 			expectError: true,
-			expectOutputContains: "Error: required flag(s) \"org-id\" not set",
+			expectErrorContains: "--org-id is required",
+		},
+
+		// Task Validation Tests
+		{
+			name:        "Valid scan task",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "scan"},
+			expectError: false,
+			expectOutputContains: "Task: scan",
+		},
+		{
+			name:        "Valid release task",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "release", "--production-branch", "main", "--release-branch", "dev"},
+			expectError: false,
+			expectOutputContains: "Task: release",
+			setupEnv: map[string]string{
+				"GITHUB_RUN_ID": "123456789",
+				"GITHUB_REPOSITORY": "octocat/Spoon-Knife",
+			},
+		},
+		{
+			name:        "Invalid task",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "invalid"},
+			expectError: true,
+			expectErrorContains: "unsupported task: invalid",
+		},
+
+		// Release Task Specific Validations
+		{
+			name:        "Release task missing release-branch",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "release", "--production-branch", "main"},
+			expectError: true,
+			expectErrorContains: "release branch is required for release readiness assessment",
+			setupEnv: map[string]string{
+				"GITHUB_RUN_ID": "123456789",
+				"GITHUB_REPOSITORY": "octocat/Spoon-Knife",
+			},
+		},
+		{
+			name:        "Release task with valid branches",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "release", "--production-branch", "main", "--release-branch", "dev"},
+			expectError: false,
+			expectOutputContains: "Task: release",
+			setupEnv: map[string]string{
+				"GITHUB_RUN_ID": "123456789",
+				"GITHUB_REPOSITORY": "octocat/Spoon-Knife",
+			},
+		},
+
+		// Optional Flags Tests
+		{
+			name:        "With project and product name",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--project-name", "my-project", "--product-name", "my-product"},
+			expectError: false,
+			expectOutputContains: "Project Name: my-project\n  Product Name: my-product",
+		},
+		{
+			name:        "With team and group name",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--team-name", "my-team", "--group-name", "my-group"},
+			expectError: false,
+			expectOutputContains: "Team Name: my-team\n  Group Name: my-group",
+		},
+		{
+			name:        "With tags",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--tags", "[\"critical\", \"frontend\"]"},
+			expectError: false,
+			expectOutputContains: "Tags: [critical frontend]",
+		},
+		{
+			name:        "With tools",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--tools", "- category: sast\n  artifact_name: results.sarif\n  format: SARIF"},
+			expectError: false,
+			expectOutputContains: "Category: sast\n    Artifact Name: results.sarif\n    Format: SARIF",
+		},
+		{
+			name:        "With workflow-timeout",
+			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "release", "--production-branch", "main", "--release-branch", "dev", "--workflow-timeout", "60"},
+			expectError: false,
+			expectOutputContains: "Workflow Timeout: 60 minutes",
+			setupEnv: map[string]string{
+				"GITHUB_RUN_ID": "123456789",
+				"GITHUB_REPOSITORY": "octocat/Spoon-Knife",
+			},
+		},
+
+		// Version Command Test
+		{
+			name:        "Version command",
+			args:        []string{"version"},
+			expectError: false,
+			expectOutputContains: "Vulnetix CLI v",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Reset global variables before each test
-			orgID = ""
-			task = "scan"
-			projectName = ""
-			productName = ""
-			teamName = ""
-			groupName = ""
-			tags = ""
-			tools = ""
-			productionBranch = "main"
-			releaseBranch = ""
-			workflowTimeout = 30
+		// Reset global variables before each test
+		orgID = ""
+		task = "scan"
+		projectName = ""
+		productName = ""
+		teamName = ""
+		groupName = ""
+		tags = ""
+		tools = ""
+		productionBranch = "main"
+		releaseBranch = ""
+		workflowTimeout = 30
 
-			cmd := getFreshRootCmd()
-			output, err := executeCommand(t, cmd, tt.args...)
+		// Setup environment variables if needed
+		var cleanupEnv func()
+		if tt.setupEnv != nil {
+			cleanupEnv = testutils.SetEnv(t, tt.setupEnv)
+		}
+
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if cleanupEnv != nil {
+					cleanupEnv()
+				}
+			}()
+
+			// Use the actual rootCmd for testing
+			output, err := executeCommand(t, rootCmd, tt.args...)
 
 			if tt.expectError {
 				assert.Error(t, err)
-				assert.Contains(t, output, tt.expectOutputContains)
+				assert.Contains(t, err.Error(), tt.expectErrorContains)
 			} else {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectOutputContains)
