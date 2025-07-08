@@ -1,4 +1,4 @@
-.PHONY: build clean test install dev fmt lint
+.PHONY: build clean test install dev fmt lint build-release
 
 # Configuration
 VERSION ?= dev
@@ -19,6 +19,39 @@ build:
 build-all:
 	@echo "Building for all platforms..."
 	@export VERSION=$(VERSION) && ./build.sh
+
+# Build for specific platforms (used by release process)
+build-release: clean
+	@echo "Building release binaries for all platforms..."
+	@mkdir -p $(OUTPUT_DIR)
+	
+	# Linux builds
+	@echo "Building for Linux AMD64..."
+	@GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-amd64 .
+	@echo "Building for Linux ARM64..."
+	@GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-arm64 .
+	@echo "Building for Linux ARM..."
+	@GOOS=linux GOARCH=arm go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-arm .
+	@echo "Building for Linux 386..."
+	@GOOS=linux GOARCH=386 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-386 .
+	
+	# macOS builds
+	@echo "Building for macOS AMD64..."
+	@GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-darwin-amd64 .
+	@echo "Building for macOS ARM64..."
+	@GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-darwin-arm64 .
+	
+	# Windows builds
+	@echo "Building for Windows AMD64..."
+	@GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-amd64.exe .
+	@echo "Building for Windows ARM64..."
+	@GOOS=windows GOARCH=arm64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-arm64.exe .
+	@echo "Building for Windows ARM..."
+	@GOOS=windows GOARCH=arm go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-arm.exe .
+	@echo "Building for Windows 386..."
+	@GOOS=windows GOARCH=386 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-386.exe .
+	
+	@echo "✓ Built release binaries for all platforms"
 
 # Clean build artifacts
 clean:
@@ -89,14 +122,15 @@ run:
 # Show help
 help:
 	@echo "Available commands:"
-	@echo "  build      - Build binary for current platform"
-	@echo "  build-all  - Build binaries for all platforms"
-	@echo "  clean      - Clean build artifacts"
-	@echo "  test       - Run tests"
-	@echo "  install    - Install to GOPATH"
-	@echo "  dev        - Build development version"
-	@echo "  fmt        - Format code"
-	@echo "  lint       - Lint code"
-	@echo "  deps       - Download and tidy dependencies"
-	@echo "  run        - Build and run with test UUID"
-	@echo "  help       - Show this help"
+	@echo "  build        - Build binary for current platform"
+	@echo "  build-all    - Build binaries for all platforms"
+	@echo "  build-release - Build release binaries for all platforms"
+	@echo "  clean        - Clean build artifacts"
+	@echo "  test         - Run tests"
+	@echo "  install      - Install to GOPATH"
+	@echo "  dev          - Build development version"
+	@echo "  fmt          - Format code"
+	@echo "  lint         - Lint code"
+	@echo "  deps         - Download and tidy dependencies"
+	@echo "  run          - Build and run with test UUID"
+	@echo "  help         - Show this help"
