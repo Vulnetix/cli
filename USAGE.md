@@ -9,36 +9,40 @@ This repository provides a GitHub Action that makes the Vulnetix CLI available i
 Add the following to your workflow file (`.github/workflows/vulnetix.yml`):
 
 ```yaml
-name: Vulnetix Security Scan
-
+name: Vulnetix
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
 jobs:
-  security-scan:
-    runs-on:# Step 6: Release Assessment with Vulnetix
-echo "🎯 Running Vulnetix Release Assessment..."
-docker run --rm \
-  vulnetix/vulnetix:latest \
-  --task release \
-  --org-id "${ORG_ID}" \
-  --project-name "${PROJECT_NAME}" \
-  --team-name "${TEAM_NAME}" \
-  --production-branch "${PRODUCTION_BRANCH}" \
-  --release-branch "${RELEASE_BRANCH}" \
-  --workflow-timeout 45 \
-  --tags '["release", "security-scan"]'st
+  vulnetix:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Run Vulnetix scan
-        uses: vulnetix/vulnetix@v1
-        with:
-          org-id: ${{ secrets.VULNETIX_ORG_ID }}
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Vulnetix
+      uses: vulnetix/vulnetix@v1
+      with:
+        task: release
+        org-id: ${{ secrets.VULNETIX_ORG_ID }}
+        project-name: ${{ github.repository }}
+        team-name: "DevSecOps"
+        tools: |
+          - category: "SAST"
+            tool_name: "sast-tool"
+            artifact_name: "sast-sarif-results"
+            format: "SARIF"
+          - category: "SCA"
+            tool_name: "sca-tool"
+            artifact_name: "sca-sbom-report"
+            format: "JSON"
+          - category: "SECRETS"
+            tool_name: "secrets-tool"
+            artifact_name: "secrets-sarif-results"
+            format: "SARIF"
+        tags: '["Public", "Crown Jewels"]'
 ```
 
 ### Docker
@@ -164,7 +168,7 @@ vulnetix --org-id "your-org-id-here" --task release --production-branch main --r
 vulnetix --org-id "your-org-id-here" --task report --project-name "my-app" --team-name "dev-team"
 
 # Triage task with tags
-vulnetix --org-id "your-org-id-here" --task triage --tags '["critical", "frontend"]'
+vulnetix --org-id "your-org-id-here" --task triage --tags '["Public", "Crown Jewels"]'
 ```
 
 ## Inputs
@@ -415,7 +419,7 @@ docker run --rm \
   --production-branch "${PRODUCTION_BRANCH}" \
   --release-branch "${RELEASE_BRANCH}" \
   --workflow-timeout 45 \
-  --tags '["release", "security-scan"]'
+  --tags '["Public", "Crown Jewels"]'
 
 echo "✅ Release Security Assessment completed!"
 ```
@@ -562,7 +566,7 @@ vulnetix \
   --production-branch "${PRODUCTION_BRANCH}" \
   --release-branch "${RELEASE_BRANCH}" \
   --workflow-timeout 45 \
-  --tags '["release", "security-scan"]'
+  --tags '["Public", "Crown Jewels"]'
 
 echo "✅ Release Security Assessment completed!"
 
@@ -573,7 +577,7 @@ vulnetix \
   --org-id "${ORG_ID}" \
   --project-name "${PROJECT_NAME}" \
   --team-name "${TEAM_NAME}" \
-  --tags '["release", "security-scan"]'
+  --tags '["Public", "Crown Jewels"]'
 
 echo "🎉 Security assessment pipeline completed successfully!"
 ```
@@ -634,7 +638,7 @@ vulnetix \
   --team-name "frontend-team" \
   --production-branch "main" \
   --release-branch "release/v2.0.0" \
-  --tags '["critical", "frontend", "production"]'
+  --tags '["Public", "Crown Jewels"]'
 
 # Release assessment with extended timeout for large projects
 vulnetix \

@@ -11,7 +11,7 @@ export HTTPS_PROXY="http://proxy.company.com:8080"
 export NO_PROXY="localhost,127.0.0.1,.company.com"
 
 # Run Vulnetix scan
-vulnetix --org-id "your-org-id-here" --task scan
+vulnetix --org-id "your-org-id-here" --task release
 ```
 
 ## Proxy Configuration
@@ -278,18 +278,18 @@ export VULNETIX_TLS_CA="/etc/ssl/certs/ca-certificates.crt"
 vulnetix --org-id "your-org-id-here" \
   --proxy "http://proxy.company.com:8080" \
   --no-proxy "localhost,127.0.0.1,.company.com" \
-  --task scan
+  --task release
 
 # Configure timeouts
 vulnetix --org-id "your-org-id-here" \
   --timeout 300 \
   --retries 5 \
-  --task scan
+  --task release
 
 # Skip TLS verification (not recommended)
 vulnetix --org-id "your-org-id-here" \
   --skip-tls-verify \
-  --task scan
+  --task release
 ```
 
 ## CI/CD Integration with Proxy
@@ -345,7 +345,7 @@ vulnetix-proxy-scan:
   stage: security
   image: vulnetix/vulnetix:latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
 ```
 
 ### Jenkins
@@ -369,7 +369,7 @@ pipeline {
                     sh 'git config --global https.proxy $HTTPS_PROXY'
                     
                     // Run Vulnetix scan
-                    sh 'vulnetix --org-id "$VULNETIX_ORG_ID" --task scan'
+                    sh 'vulnetix --org-id "$VULNETIX_ORG_ID" --task release'
                 }
             }
         }
@@ -391,7 +391,7 @@ curl -x http://proxy.company.com:8080 \
 export HTTP_PROXY=$(pac-resolver proxy.pac https://app.vulnetix.com/api/)
 export HTTPS_PROXY=$(pac-resolver proxy.pac https://app.vulnetix.com/api/)
 
-vulnetix --org-id "your-org-id-here" --task scan
+vulnetix --org-id "your-org-id-here" --task release
 ```
 
 ### Transparent Proxy
@@ -404,7 +404,7 @@ export VULNETIX_PROXY_TRANSPARENT=true
 # Use automatic proxy detection
 vulnetix --org-id "your-org-id-here" \
   --proxy-auto-detect \
-  --task scan
+  --task release
 ```
 
 ### Proxy Chaining
@@ -417,7 +417,7 @@ export HTTPS_PROXY="http://proxy1.company.com:8080"
 # Configure proxy1 to forward to proxy2
 # (This is typically done at the proxy server level)
 
-vulnetix --org-id "your-org-id-here" --task scan
+vulnetix --org-id "your-org-id-here" --task release
 ```
 
 ### Load Balancer/Proxy Rotation
@@ -439,7 +439,7 @@ export HTTP_PROXY="$PROXY"
 export HTTPS_PROXY="$PROXY"
 
 echo "Using proxy: $PROXY"
-vulnetix --org-id "your-org-id-here" --task scan
+vulnetix --org-id "your-org-id-here" --task release
 ```
 
 ## Troubleshooting
@@ -525,7 +525,7 @@ export VULNETIX_CONNECT_TIMEOUT=60
 vulnetix --org-id "your-org-id-here" \
   --timeout 600 \
   --retries 3 \
-  --task scan
+  --task release
 ```
 
 #### Bandwidth Limitations
@@ -543,7 +543,7 @@ export VULNETIX_INCREMENTAL_SYNC=true
 vulnetix --org-id "your-org-id-here" \
   --compression \
   --incremental \
-  --task scan
+  --task release
 ```
 
 ### Environment Debugging
@@ -557,7 +557,7 @@ vulnetix --test-connectivity --verbose
 
 # Trace network requests
 export VULNETIX_DEBUG_NETWORK=true
-vulnetix --org-id "your-org-id-here" --task scan --verbose
+vulnetix --org-id "your-org-id-here" --task release --verbose
 
 # Generate connectivity report
 vulnetix --generate-connectivity-report > connectivity-report.json
@@ -607,13 +607,13 @@ export VULNETIX_LOG_PROXY_REQUESTS=true
 # Log proxy usage
 vulnetix --org-id "your-org-id-here" \
   --audit-log /var/log/vulnetix-proxy.log \
-  --task scan
+  --task release
 
 # Monitor proxy performance
 export VULNETIX_PROXY_METRICS=true
 vulnetix --org-id "your-org-id-here" \
   --metrics-output proxy-metrics.json \
-  --task scan
+  --task release
 ```
 
 For additional corporate environment configurations and advanced networking scenarios, see the [main documentation](../USAGE.md) and other [reference guides](./README.md).

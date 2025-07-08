@@ -111,17 +111,17 @@ echo 'export HOMEBREW_NO_AUTO_UPDATE=1' >> ~/.zshrc
 
 ```bash
 # Basic vulnerability scan
-vulnetix --org-id "your-org-id-here" --task scan
+vulnetix --org-id "your-org-id-here" --task release
 
 # Using environment variable
 export VULNETIX_ORG_ID="your-org-id-here"
-vulnetix --task scan
+vulnetix --task release
 
 # Scan with project metadata
-vulnetix --task scan \
+vulnetix --task release \
   --project-name "My Application" \
   --team-name "Security Team" \
-  --tags "critical,backend,api"
+  --tags '["Public", "Crown Jewels"]'
 ```
 
 ### Release Assessment Workflow
@@ -444,7 +444,7 @@ security-install:
 
 security-scan: security-install
 	@echo "Running security scan..."
-	@vulnetix --org-id "$(VULNETIX_ORG_ID)" --task scan
+	@vulnetix --org-id "$(VULNETIX_ORG_ID)" --task release
 
 security-update:
 	@echo "Updating security tools..."
@@ -483,7 +483,7 @@ export VULNETIX_ORG_ID="${VULNETIX_ORG_ID:-your-default-org-id}"
 gitleaks protect --verbose --redact --source=.
 
 # Run Vulnetix quick scan
-vulnetix --task scan --quick-scan
+vulnetix --task release --quick-scan
 
 if [ $? -ne 0 ]; then
     echo "Security scan failed. Commit aborted."
@@ -508,7 +508,7 @@ brew install vulnetix semgrep gitleaks
 
 # Run security pipeline
 export VULNETIX_ORG_ID="$VULNETIX_ORG_ID"
-vulnetix --task scan --project-name "$JOB_NAME" --build-id "$BUILD_NUMBER"
+vulnetix --task release --project-name "$JOB_NAME" --build-id "$BUILD_NUMBER"
 ```
 
 ## Troubleshooting

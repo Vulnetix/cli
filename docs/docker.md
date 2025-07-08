@@ -55,7 +55,7 @@ docker run --rm \
   -e VULNETIX_ORG_ID="your-org-id" \
   -e VULNETIX_API_URL="https://app.vulnetix.com/api/" \
   -e VULNETIX_LOG_LEVEL="debug" \
-  vulnetix/vulnetix:latest --task scan
+  vulnetix/vulnetix:latest --task release
 ```
 
 ### Volume Mounts
@@ -75,7 +75,7 @@ docker run --rm \
   -v $(pwd):/workspace:ro \
   vulnetix/vulnetix:latest \
   --org-id "your-org-id" \
-  --task scan
+  --task release
 ```
 
 ## Usage Examples
@@ -86,12 +86,12 @@ docker run --rm \
 # Simple vulnerability scan
 docker run --rm vulnetix/vulnetix:latest \
   --org-id "your-org-id-here" \
-  --task scan
+  --task release
 
 # Scan with project metadata
 docker run --rm vulnetix/vulnetix:latest \
   --org-id "your-org-id-here" \
-  --task scan \
+  --task release \
   --project-name "My Application" \
   --team-name "Security Team"
 ```
@@ -138,7 +138,7 @@ docker run --rm vulnetix/vulnetix:latest \
 docker run --rm vulnetix/vulnetix:latest \
   --org-id "your-org-id-here" \
   --task report \
-  --tags '["production", "critical"]'
+  --tags '["Public", "Crown Jewels"]'
 ```
 
 ### Multi-Stage Pipeline
@@ -220,10 +220,10 @@ done
 echo "🎯 Running Vulnetix assessment..."
 docker run --rm vulnetix/vulnetix:latest \
   --org-id "$VULNETIX_ORG_ID" \
-  --task scan \
+  --task release \
   --project-name "$PROJECT_NAME" \
   --team-name "$TEAM_NAME" \
-  --tags '["comprehensive", "multi-tool"]'
+  --tags '["Public", "Crown Jewels"]'
 
 echo "✅ Comprehensive security assessment completed!"
 ```
@@ -587,7 +587,7 @@ docker run --rm \
   -v $WORKSPACE:/workspace \
   -e VULNETIX_ORG_ID="$VULNETIX_ORG_ID" \
   vulnetix/vulnetix:latest \
-  --task scan \
+  --task release \
   --project-name "$JOB_NAME" \
   --build-id "$BUILD_NUMBER"
 
@@ -596,7 +596,7 @@ docker run --rm \
   -v $CI_PROJECT_DIR:/workspace \
   -e VULNETIX_ORG_ID="$VULNETIX_ORG_ID" \
   vulnetix/vulnetix:latest \
-  --task scan \
+  --task release \
   --project-name "$CI_PROJECT_NAME" \
   --build-id "$CI_PIPELINE_ID"
 ```
@@ -612,7 +612,7 @@ docker run --rm \
   -v $(pwd):/workspace \
   -e VULNETIX_ORG_ID="$VULNETIX_ORG_ID" \
   vulnetix/vulnetix:latest \
-  --task scan \
+  --task release \
   --quick-scan
 ```
 

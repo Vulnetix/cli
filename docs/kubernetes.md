@@ -76,7 +76,7 @@ metadata:
 data:
   project-name: "my-kubernetes-app"
   team-name: "platform-team"
-  tags: '["kubernetes", "production"]'
+  tags: '["Public", "Crown Jewels"]'
   tools: |
     [
       {

@@ -36,7 +36,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
   env:
     VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)
 
@@ -68,7 +68,7 @@ variables:
 
 steps:
 - script: |
-    vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+    vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
   displayName: 'Run Vulnetix Security Scan'
   env:
     VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)
@@ -242,7 +242,7 @@ steps:
 ```
 
 ```yaml
-# templates/vulnetix-scan.yml
+# templates/vulnetix.yml
 parameters:
 - name: projectName
   type: string
@@ -253,12 +253,12 @@ parameters:
 
 steps:
 - task: Bash@3
-  displayName: 'Vulnetix Security Scan'
+  displayName: 'Vulnetix'
   inputs:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task release \
         --project-name "${{ parameters.projectName }}" \
         --team-name "${{ parameters.teamName }}"
   env:
@@ -311,7 +311,7 @@ steps:
     script: |
       export PATH=$PATH:$HOME/.local/bin
       curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
   env:
     VULNETIX_ORG_ID: $(vulnetix-org-id)
 ```
@@ -341,7 +341,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task release \
         --project-name "$(Build.Repository.Name)" \
         --team-name "development"
   env:
@@ -444,7 +444,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix sarif --org-id "$VULNETIX_ORG_ID" --file scan-results.sarif
+      vulnetix --task sarif --org-id "$VULNETIX_ORG_ID" --file scan-results.sarif
   env:
     VULNETIX_ORG_ID: $(vulnetix-org-id)
 ```
@@ -498,7 +498,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
   condition: ne(variables['platform'], 'windows')
 
 - task: PowerShell@2
@@ -507,7 +507,7 @@ steps:
     targetType: 'inline'
     script: |
       $env:PATH += ";C:\Tools\Vulnetix"
-      vulnetix --org-id "$env:VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$env:VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
   condition: eq(variables['platform'], 'windows')
 ```
 
@@ -551,7 +551,7 @@ steps:
       if [ "$SECURITY_RELEVANT_CHANGES" = "true" ]; then
         echo "Security-relevant changes detected, running scan..."
         export PATH=$PATH:$HOME/.local/bin
-        vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+        vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
       else
         echo "No security-relevant changes detected, skipping scan"
       fi
@@ -607,7 +607,7 @@ jobs:
         if [ "$(System.JobPositionInPhase)" = "4" ]; then
           export PATH=$PATH:$HOME/.local/bin
           curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
-          vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+          vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
         fi
     condition: eq(variables['System.JobPositionInPhase'], '4')
 ```
@@ -646,7 +646,7 @@ jobs:
               "name": "Run Vulnetix Security Scan",
               "inputs": {
                 "targetType": "inline",
-                "script": "curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh\nexport PATH=$PATH:$HOME/.local/bin\nvulnetix --org-id \"$VULNETIX_ORG_ID\" --task scan --project-name \"MyProject\""
+                "script": "curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh\nexport PATH=$PATH:$HOME/.local/bin\nvulnetix --org-id \"$VULNETIX_ORG_ID\" --task release --project-name \"MyProject\""
               }
             }
           ]
@@ -743,7 +743,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
   env:
     VULNETIX_DEBUG: $(VULNETIX_DEBUG)
 ```

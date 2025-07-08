@@ -12,17 +12,17 @@ Run vulnerability management tasks.
 vulnetix [flags]
 ```
 
-### vulnetix sarif
+### vulnetix SARIF
 
 Upload and validate SARIF files.
 
 ```bash
-vulnetix sarif [flags] [SARIF_FILE]
+vulnetix --task sarif [flags] [SARIF_FILE]
 ```
 
 **Example:**
 ```bash
-vulnetix sarif --org-id "123e4567-e89b-12d3-a456-426614174000" scan-results.sarif
+vulnetix --task sarif --org-id "123e4567-e89b-12d3-a456-426614174000" --file scan-results.sarif
 ```
 
 ### vulnetix version
@@ -53,7 +53,7 @@ vulnetix completion [bash|zsh|fish|powershell]
 | `--product-name` | string | No | - | Product name for vulnerability management context |
 | `--production-branch` | string | No | `main` | Production branch name (for release task) |
 | `--release-branch` | string | No | - | Release branch name (for release task) |
-| `--tags` | string | No | - | YAML list of tags for categorization (e.g., ["critical", "frontend", "api"]) |
+| `--tags` | string | No | - | YAML list of tags for categorization (e.g., `'["Public", "Crown Jewels"]'`) |
 | `--tools` | string | No | - | YAML array of tool configurations |
 | `--workflow-timeout` | int | No | `30` | Timeout in minutes to wait for sibling job artifacts (for release task) |
 | `--help` | - | No | - | Help for vulnetix |
@@ -65,9 +65,9 @@ vulnetix completion [bash|zsh|fish|powershell]
 Perform vulnerability scanning.
 
 ```bash
-vulnetix --org-id "your-org-id" --task scan
-vulnetix --org-id "your-org-id" --task scan --project-name "my-app"
-vulnetix --org-id "your-org-id" --task scan --team-name "security-team"
+vulnetix --org-id "your-org-id" --task release
+vulnetix --org-id "your-org-id" --task release --project-name "my-app"
+vulnetix --org-id "your-org-id" --task release --team-name "security-team"
 ```
 
 ### release
@@ -93,7 +93,7 @@ Generate vulnerability reports.
 vulnetix --org-id "your-org-id" --task report
 vulnetix --org-id "your-org-id" --task report \
   --project-name "api-service" \
-  --tags '["production", "critical"]'
+  --tags '["Public", "Crown Jewels"]'
 ```
 
 ### triage
@@ -104,7 +104,7 @@ Perform vulnerability triage.
 vulnetix --org-id "your-org-id" --task triage
 vulnetix --org-id "your-org-id" --task triage \
   --team-name "security-team" \
-  --tags '["high-priority"]'
+  --tags '["Public", "Crown Jewels"]'
 ```
 
 ### sarif
@@ -112,9 +112,8 @@ vulnetix --org-id "your-org-id" --task triage \
 Upload and validate SARIF files (can also be used as a task).
 
 ```bash
-vulnetix --org-id "your-org-id" --task sarif
-vulnetix sarif --org-id "your-org-id" scan-results.sarif
-vulnetix sarif --org-id "your-org-id" --project-name "my-app" results.sarif
+vulnetix --task sarif --org-id "your-org-id" --file scan-results.sarif
+vulnetix --task sarif --org-id "your-org-id" --project-name "my-app" --file results.sarif
 ```
 
 ## Tools Configuration
@@ -159,7 +158,7 @@ You can set configuration via environment variables:
 
 ```bash
 export VULNETIX_ORG_ID="123e4567-e89b-12d3-a456-426614174000"
-vulnetix --task scan  # Uses VULNETIX_ORG_ID automatically
+vulnetix --task release  # Uses VULNETIX_ORG_ID automatically
 ```
 
 ## Common Usage Patterns
@@ -173,7 +172,7 @@ vulnetix --org-id "your-org-id"
 vulnetix --org-id "your-org-id" \
   --project-name "web-app" \
   --team-name "frontend-team" \
-  --tags '["production", "frontend"]'
+  --tags '["Public", "Crown Jewels"]'
 ```
 
 ### Release Management
@@ -195,13 +194,13 @@ vulnetix --org-id "your-org-id" --task release \
 ### SARIF Upload
 ```bash
 # Upload single SARIF file
-vulnetix sarif --org-id "your-org-id" scan-results.sarif
+vulnetix --task sarif --org-id "your-org-id" --file scan-results.sarif
 
 # Upload with context
-vulnetix sarif --org-id "your-org-id" \
+vulnetix --task sarif --org-id "your-org-id" \
   --project-name "my-app" \
   --team-name "security-team" \
-  security-scan.sarif
+  --file security-scan.sarif
 ```
 
 ### Reporting
@@ -212,7 +211,7 @@ vulnetix --org-id "your-org-id" --task report
 # Generate targeted reports
 vulnetix --org-id "your-org-id" --task report \
   --project-name "critical-service" \
-  --tags '["production", "high-priority"]'
+  --tags '["Public", "Crown Jewels"]'
 ```
 
 ## Exit Codes
@@ -231,33 +230,33 @@ vulnetix --org-id "your-org-id" --task report \
 ### CI/CD Integration
 ```bash
 # GitHub Actions
-vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+vulnetix --org-id "$VULNETIX_ORG_ID" --task release
 
 # GitLab CI
 vulnetix --org-id "$VULNETIX_ORG_ID" --task release \
   --project-name "$CI_PROJECT_NAME"
 
 # Jenkins
-vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
+vulnetix --org-id "$VULNETIX_ORG_ID" --task release \
   --project-name "$JOB_NAME"
 ```
 
 ### Multi-Project Environments
 ```bash
 # Frontend team
-vulnetix --org-id "your-org-id" --task scan \
+vulnetix --org-id "your-org-id" --task release \
   --project-name "web-frontend" \
   --team-name "frontend-team" \
   --tags '["javascript", "react"]'
 
 # Backend team
-vulnetix --org-id "your-org-id" --task scan \
+vulnetix --org-id "your-org-id" --task release \
   --project-name "api-backend" \
   --team-name "backend-team" \
   --tags '["golang", "api"]'
 
 # DevOps team
-vulnetix --org-id "your-org-id" --task scan \
+vulnetix --org-id "your-org-id" --task release \
   --project-name "infrastructure" \
   --team-name "devops-team" \
   --tags '["terraform", "kubernetes"]'
@@ -266,7 +265,7 @@ vulnetix --org-id "your-org-id" --task scan \
 ### Different Environments
 ```bash
 # Development
-vulnetix --org-id "your-org-id" --task scan \
+vulnetix --org-id "your-org-id" --task release \
   --tags '["development", "non-critical"]'
 
 # Staging

@@ -13,7 +13,7 @@ vulnetix-security-scan:
   stage: security
   image: vulnetix/vulnetix:latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
   variables:
     VULNETIX_ORG_ID: $VULNETIX_ORG_ID
 ```
@@ -28,7 +28,7 @@ vulnetix-scan:
   image: vulnetix/vulnetix:latest
   stage: security
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
 ```
 
 ### Using Go Install
@@ -40,7 +40,7 @@ vulnetix-scan:
   before_script:
     - go install github.com/vulnetix/vulnetix@latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
 ```
 
 ### Using Binary Download
@@ -54,7 +54,7 @@ vulnetix-scan:
     - curl -L https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
     - chmod +x vulnetix
   script:
-    - ./vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - ./vulnetix --org-id "$VULNETIX_ORG_ID" --task release
 ```
 
 ## Configuration
@@ -81,9 +81,9 @@ vulnetix-dev:
   stage: security
   environment: development
   variables:
-    VULNETIX_TAGS: "development,ci"
+    VULNETIX_TAGS: '["Public", "Crown Jewels"]'
   script:
-    - vulnetix --task scan --tags "$VULNETIX_TAGS"
+    - vulnetix --task release --tags "$VULNETIX_TAGS"
   only:
     - develop
 
@@ -92,9 +92,9 @@ vulnetix-prod:
   stage: security
   environment: production
   variables:
-    VULNETIX_TAGS: "production,release"
+    VULNETIX_TAGS: '["Public", "Crown Jewels"]'
   script:
-    - vulnetix --task scan --tags "$VULNETIX_TAGS"
+    - vulnetix --task release --tags "$VULNETIX_TAGS"
   only:
     - main
 ```
@@ -121,7 +121,7 @@ security-scan:
   stage: security
   image: vulnetix/vulnetix:latest
   script:
-    - vulnetix --task scan 
+    - vulnetix --task release 
         --project-name "$PROJECT_NAME"
         --team-name "$TEAM_NAME"
         --build-id "$CI_PIPELINE_ID"
@@ -343,7 +343,7 @@ nodejs-security-scan:
     - npm list --json --all > security-reports/npm-deps.json
     
     # Run Vulnetix assessment
-    - vulnetix --task scan 
+    - vulnetix --task release 
         --project-name "$CI_PROJECT_NAME"
         --team-name "Frontend Team"
   artifacts:
@@ -379,7 +379,7 @@ python-security-scan:
     - pip freeze > security-reports/requirements-freeze.txt
     
     # Run Vulnetix assessment
-    - vulnetix --task scan 
+    - vulnetix --task release 
         --project-name "$CI_PROJECT_NAME"
         --team-name "Backend Team"
   artifacts:
@@ -413,7 +413,7 @@ vulnetix-proxy-scan:
     - export https_proxy=$HTTPS_PROXY
     - export no_proxy=$NO_PROXY
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
 ```
 
 ### Self-Hosted GitLab Runners
@@ -421,9 +421,6 @@ vulnetix-proxy-scan:
 ```yaml
 vulnetix-self-hosted:
   stage: security
-  tags:
-    - security-scanner
-    - docker
   image: vulnetix/vulnetix:latest
   before_script:
     # Verify runner environment
@@ -431,7 +428,7 @@ vulnetix-self-hosted:
     - df -h  # Check disk space
     - curl -I https://app.vulnetix.com/api/  # Test connectivity
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
   after_script:
     # Cleanup
     - docker system prune -f
@@ -452,7 +449,7 @@ vulnetix-airgapped:
     - cp /etc/ssl/company-ca.crt /usr/local/share/ca-certificates/
     - update-ca-certificates
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --offline-mode
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --offline-mode
 ```
 
 ### Multi-Environment Deployment
@@ -462,10 +459,9 @@ vulnetix-airgapped:
 .vulnetix-dev: &vulnetix-dev
   stage: security
   variables:
-    VULNETIX_TAGS: "development,ci"
-    VULNETIX_PRIORITY: "medium"
+    VULNETIX_TAGS: '["Public", "Crown Jewels"]'
   script:
-    - vulnetix --task scan --tags "$VULNETIX_TAGS" --priority "$VULNETIX_PRIORITY"
+    - vulnetix --task release --tags "$VULNETIX_TAGS"
   only:
     - develop
     - feature/*
@@ -474,10 +470,10 @@ vulnetix-airgapped:
 .vulnetix-staging: &vulnetix-staging
   stage: security
   variables:
-    VULNETIX_TAGS: "staging,pre-production"
+    VULNETIX_TAGS: '["Public", "Crown Jewels"]'
     VULNETIX_PRIORITY: "high"
   script:
-    - vulnetix --task release --tags "$VULNETIX_TAGS" --priority "$VULNETIX_PRIORITY"
+    - vulnetix --task release --tags "$VULNETIX_TAGS"
   only:
     - staging
 
@@ -485,10 +481,10 @@ vulnetix-airgapped:
 .vulnetix-prod: &vulnetix-prod
   stage: security
   variables:
-    VULNETIX_TAGS: "production,critical"
+    VULNETIX_TAGS: '["Public", "Crown Jewels"]'
     VULNETIX_PRIORITY: "critical"
   script:
-    - vulnetix --task release --tags "$VULNETIX_TAGS" --priority "$VULNETIX_PRIORITY"
+    - vulnetix --task release --tags "$VULNETIX_TAGS"
   only:
     - main
 
@@ -565,7 +561,7 @@ vulnetix-custom-rules:
     # Download custom security rules
     - curl -sSfL "$CUSTOM_RULES_URL" -o custom-rules.yaml
   script:
-    - vulnetix --task scan 
+    - vulnetix --task release 
         --config-file custom-rules.yaml
         --custom-rules-enabled
         --severity-threshold high
@@ -586,7 +582,7 @@ vulnetix-security-dashboard:
   stage: security
   image: vulnetix/vulnetix:latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$CI_PROJECT_NAME"
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$CI_PROJECT_NAME"
   artifacts:
     reports:
       sast: vulnetix-output/gl-sast-report.json
@@ -602,7 +598,7 @@ vulnetix-mr-security:
   stage: security
   image: vulnetix/vulnetix:latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
     - |
       # Comment on MR with results
       if [ -n "$CI_MERGE_REQUEST_IID" ]; then
@@ -650,7 +646,7 @@ vulnetix-custom-image:
   before_script:
     - go install github.com/vulnetix/vulnetix@latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
 ```
 
 #### Variable Not Set
@@ -670,7 +666,7 @@ vulnetix-with-validation:
         exit 1
       fi
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
 ```
 
 #### Network Connectivity
@@ -688,7 +684,7 @@ vulnetix-debug-network:
     - curl -I https://app.vulnetix.com/api/ || echo "API unreachable"
     - nslookup app.vulnetix.com || echo "DNS resolution failed"
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --verbose
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --verbose
 ```
 
 #### Artifact Upload Failures
@@ -701,7 +697,7 @@ vulnetix-debug-artifacts:
   stage: security
   image: vulnetix/vulnetix:latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
     - ls -la vulnetix-output/
     - find . -name "*.sarif" -o -name "*.json" | head -20
   artifacts:
@@ -729,7 +725,7 @@ vulnetix-optimized:
     paths:
       - .vulnetix-cache/
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --cache-dir .vulnetix-cache/
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --cache-dir .vulnetix-cache/
 ```
 
 #### Parallel Job Optimization
@@ -740,7 +736,7 @@ vulnetix-parallel-opt:
   image: vulnetix/vulnetix:latest
   parallel: 3
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --parallel-jobs $CI_NODE_TOTAL --node-index $CI_NODE_INDEX
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --parallel-jobs $CI_NODE_TOTAL --node-index $CI_NODE_INDEX
 ```
 
 For more examples and advanced configurations, see the [main documentation](../USAGE.md) and other [reference guides](./README.md).

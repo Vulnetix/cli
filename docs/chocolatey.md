@@ -22,7 +22,7 @@ vulnetix --version
 ```powershell
 # Basic vulnerability scan
 $env:VULNETIX_ORG_ID = "your-org-id"
-vulnetix --task scan --project-name "My Project"
+vulnetix --task release --project-name "My Project"
 
 # Release security assessment
 $env:VULNETIX_ORG_ID = "your-org-id"
@@ -242,7 +242,7 @@ steps:
     targetType: 'inline'
     script: |
       $env:VULNETIX_ORG_ID = "$(VULNETIX_ORG_ID)"
-      vulnetix --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --task release --project-name "$(Build.Repository.Name)"
   env:
     VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)
 
@@ -281,7 +281,7 @@ jobs:
       env:
         VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
       run: |
-        vulnetix --task scan --project-name "${GITHUB_REPOSITORY##*/}"
+        vulnetix --task release --project-name "${GITHUB_REPOSITORY##*/}"
     
     - name: Upload SARIF results
       uses: github/codeql-action/upload-sarif@v3
@@ -416,7 +416,7 @@ choco install vulnetix --debug --verbose
 
 # Enable Vulnetix debug mode
 $env:VULNETIX_DEBUG = "true"
-vulnetix --task scan --project-name "My Project"
+vulnetix --task release --project-name "My Project"
 ```
 
 ### Performance Optimization
@@ -441,7 +441,6 @@ choco help upgrade
 
 # Vulnetix help
 vulnetix --help
-vulnetix sarif --help
 
 # Check package information
 choco info vulnetix

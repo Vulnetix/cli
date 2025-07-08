@@ -18,7 +18,7 @@ pipelines:
           - apk add --no-cache curl
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
           - export PATH=$PATH:$HOME/.local/bin
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         artifacts:
           - security-results.sarif
         
@@ -46,7 +46,7 @@ pipelines:
     - step:
         name: Vulnerability Assessment
         script:
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         artifacts:
           - scan-results.json
 
@@ -55,7 +55,7 @@ pipelines:
       - step:
           name: PR Security Check
           script:
-            - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+            - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
           artifacts:
             - security-results.sarif
 
@@ -69,7 +69,7 @@ pipelines:
       - step:
           name: Development Scan
           script:
-            - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+            - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
 ```
 
 ## Advanced Configuration
@@ -96,7 +96,7 @@ definitions:
         name: Security Scan
         script:
           - export PATH=$PATH:$HOME/.local/bin
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         caches:
           - vulnetix-cache
     
@@ -216,7 +216,7 @@ pipelines:
         name: Secure Assessment
         script:
           - export VULNETIX_ORG_ID=$VULNETIX_ORG_ID
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG" --team-name "$VULNETIX_TEAM_NAME"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG" --team-name "$VULNETIX_TEAM_NAME"
 ```
 
 ### Configuration Files
@@ -302,7 +302,7 @@ pipelines:
         script:
           - export PATH=$PATH:$HOME/.local/bin
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         condition:
           changesets:
             includePaths:
@@ -338,7 +338,7 @@ pipelines:
           script:
             - export PATH=$PATH:$HOME/.local/bin
             - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
-            - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+            - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
       
       - step:
           name: Deploy to Staging
@@ -351,7 +351,7 @@ pipelines:
           name: Staging Security Validation
           script:
             - export PATH=$PATH:$HOME/.local/bin
-            - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+            - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
           after-script:
             - echo "Staging validation completed"
       
@@ -377,7 +377,7 @@ pipelines:
         script:
           - export PATH=$PATH:$HOME/.local/bin
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
           - vulnetix --org-id "$VULNETIX_ORG_ID" --task report --project-name "$BITBUCKET_REPO_SLUG"
 ```
 
@@ -392,7 +392,7 @@ pipelines:
         script:
           - export PATH=$PATH:$HOME/.local/bin
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         # Build retained for 365 days
 ```
 
@@ -413,7 +413,7 @@ pipelines:
           - apk add --no-cache curl
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
           - export PATH=$PATH:$HOME/.local/bin
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
 ```
 
 ### Large Repository Handling
@@ -428,7 +428,7 @@ pipelines:
         script:
           - export PATH=$PATH:$HOME/.local/bin
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         max-time: 30  # Extended timeout for large repos
 ```
 
@@ -446,7 +446,7 @@ pipelines:
           - update-ca-certificates
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
           - export PATH=$PATH:$HOME/.local/bin
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
 ```
 
 ### Memory and Resource Optimization
@@ -461,7 +461,7 @@ pipelines:
         script:
           - export PATH=$PATH:$HOME/.local/bin
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
 ```
 
 ## Integration with Bitbucket Features
@@ -506,7 +506,7 @@ pipelines:
             if [ ! -f ~/.local/bin/vulnetix ]; then
               curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
             fi
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         caches:
           - vulnetix-cache
           - security-tools
@@ -527,7 +527,7 @@ pipelines:
               - apk add --no-cache curl
               - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
               - export PATH=$PATH:$HOME/.local/bin
-              - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+              - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         
         - step:
             name: Security Scan (Node.js)
@@ -536,7 +536,7 @@ pipelines:
               - apk add --no-cache curl
               - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
               - export PATH=$PATH:$HOME/.local/bin
-              - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+              - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         
         - step:
             name: Security Scan (Python)
@@ -545,7 +545,7 @@ pipelines:
               - apk add --no-cache curl
               - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
               - export PATH=$PATH:$HOME/.local/bin
-              - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+              - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
     
     - step:
         name: Aggregate Multi-Language Results
@@ -580,7 +580,7 @@ curl -I https://github.com/vulnetix/vulnetix/releases/latest
 
 # Debug with Vulnetix
 export VULNETIX_DEBUG=true
-vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "test-project"
+vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "test-project"
 ```
 
 #### Memory Issues
@@ -602,7 +602,7 @@ pipelines:
           - export VULNETIX_DEBUG=true
           - export PATH=$PATH:$HOME/.local/bin
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
-          - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$BITBUCKET_REPO_SLUG"
+          - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
 ```
 
 ---

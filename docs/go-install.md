@@ -9,7 +9,7 @@ Install Vulnetix CLI directly from Go modules without building from source.
 go install github.com/vulnetix/vulnetix@latest
 
 # Run vulnerability scan
-vulnetix --org-id "your-org-id-here" --task scan
+vulnetix --org-id "your-org-id-here" --task release
 ```
 
 ## Prerequisites
@@ -115,17 +115,17 @@ echo 'export PATH="$(go env GOPATH)/bin:$PATH"' >> ~/.bashrc
 
 ```bash
 # Basic vulnerability scan
-vulnetix --org-id "your-org-id-here" --task scan
+vulnetix --org-id "your-org-id-here" --task release
 
 # Using environment variable
 export VULNETIX_ORG_ID="your-org-id-here"
-vulnetix --task scan
+vulnetix --task release
 
 # Scan with project metadata
-vulnetix --task scan \
+vulnetix --task release \
   --project-name "My Application" \
   --team-name "Security Team" \
-  --tags "critical,backend,api"
+  --tags '["Public", "Crown Jewels"]'
 ```
 
 ### Release Assessment
@@ -326,7 +326,7 @@ chmod +x switch-vulnetix.sh
 export VULNETIX_ORG_ID="your-org-id-here"
 
 echo "Running Vulnetix security scan..."
-vulnetix --task scan
+vulnetix --task release
 
 if [ $? -ne 0 ]; then
     echo "Security scan failed. Commit aborted."
@@ -348,7 +348,7 @@ security-install:
 
 security-scan: security-install
 	@echo "Running security scan..."
-	vulnetix --org-id "$(VULNETIX_ORG_ID)" --task scan
+	vulnetix --org-id "$(VULNETIX_ORG_ID)" --task release
 
 security-release: security-install
 	@echo "Running release assessment..."
@@ -383,7 +383,7 @@ jobs:
       - name: Run security scan
         env:
           VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
-        run: vulnetix --task scan
+        run: vulnetix --task release
 ```
 
 ## Troubleshooting
