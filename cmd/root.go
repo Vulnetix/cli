@@ -1,16 +1,19 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+
 	"github.com/vulnetix/vulnetix/internal/config"
 	"github.com/vulnetix/vulnetix/internal/sarif"
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -74,7 +77,7 @@ vulnerabilities efficiently.`,
 				ReleaseBranch:    releaseBranch,
 				WorkflowTimeout:  workflowTimeout,
 			},
-			GitHub:  config.LoadGitHubContext(),
+			CI:      config.LoadCIContext(version),
 			Version: version,
 		}
 
@@ -108,9 +111,18 @@ vulnerabilities efficiently.`,
 				context["api_url"], context["repository"], context["workflow_run_id"])
 
 			fmt.Println("⏳ Waiting for required security artifacts...")
-			fmt.Println("🔐 Validating SARIF reports...")
-			fmt.Println("📋 Checking SBOM completeness...")
-			fmt.Println("🛡️  Verifying VEX documents...")
+			
+			// Validate tool artifacts if tools are provided
+			if len(vulnetixConfig.Tools) > 0 {
+				fmt.Printf("🔧 Found %d tools to validate\n", len(vulnetixConfig.Tools))
+				if err := validateReleaseToolArtifacts(vulnetixConfig.Tools); err != nil {
+					return fmt.Errorf("release readiness validation failed: %w", err)
+				}
+			} else {
+				fmt.Println("🔐 Validating SARIF reports...")
+				fmt.Println("📋 Checking SBOM completeness...")
+				fmt.Println("🛡️  Verifying VEX documents...")
+			}
 
 			fmt.Println("✅ Release readiness assessment complete")
 			fmt.Println("🎯 All security requirements satisfied")
@@ -155,7 +167,127 @@ func parseTools(toolsStr string) []config.Tool {
 	return tools
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
+// validateToolArtifact validates a tool artifact based on its format
+func validateToolArtifact(tool config.Tool, artifactPath string) error {
+	fmt.Printf("🔍 Validating %s artifact: %s (format: %s)\n", tool.Category, tool.ArtifactName, tool.Format)
+	
+	// Check if artifact file exists
+	if _, err := os.Stat(artifactPath); os.IsNotExist(err) {
+		return fmt.Errorf("artifact file not found: %s", artifactPath)
+	}
+
+	// Read the artifact file
+	data, err := os.ReadFile(artifactPath)
+	if err != nil {
+		return fmt.Errorf("failed to read artifact file %s: %w", artifactPath, err)
+	}
+
+	switch tool.Format {
+	case config.FormatSARIF:
+		return validateSARIFArtifact(data, tool.ArtifactName)
+	case config.FormatPlainJSON:
+		return validateJSONArtifact(data, tool.ArtifactName)
+	default:
+		fmt.Printf("⚠️  Skipping validation for format %s (not yet supported)\n", tool.Format)
+		return nil
+	}
+}
+
+// validateSARIFArtifact validates SARIF format artifact using the existing SARIF validator
+func validateSARIFArtifact(data []byte, artifactName string) error {
+	fmt.Printf("🔐 Validating SARIF format for: %s\n", artifactName)
+	
+	validator := sarif.NewValidator()
+	validation, err := validator.ValidateFromBytes(data)
+	if err != nil {
+		return fmt.Errorf("SARIF validation error for %s: %w", artifactName, err)
+	}
+
+	if !validation.Valid {
+		return fmt.Errorf("SARIF validation failed for %s: %v", artifactName, validation.Errors)
+	}
+
+	fmt.Printf("✅ SARIF validation successful for %s\n", artifactName)
+	fmt.Printf("   - Version: %s\n", validation.Version)
+	fmt.Printf("   - Runs: %d\n", validation.Stats.RunCount)
+	fmt.Printf("   - Results: %d\n", validation.Stats.ResultCount)
+	fmt.Printf("   - Tools: %d\n", validation.Stats.ToolCount)
+	
+	return nil
+}
+
+// validateJSONArtifact validates that the artifact is well-formed JSON
+func validateJSONArtifact(data []byte, artifactName string) error {
+	fmt.Printf("📄 Validating JSON format for: %s\n", artifactName)
+	
+	var jsonObj interface{}
+	if err := json.Unmarshal(data, &jsonObj); err != nil {
+		return fmt.Errorf("JSON validation failed for %s: invalid JSON format: %w", artifactName, err)
+	}
+
+	fmt.Printf("✅ JSON validation successful for %s\n", artifactName)
+	return nil
+}
+
+// validateReleaseToolArtifacts validates all tool artifacts for the release task
+func validateReleaseToolArtifacts(tools []config.Tool) error {
+	if len(tools) == 0 {
+		fmt.Println("⚠️  No tools provided for validation")
+		return nil
+	}
+
+	fmt.Printf("🧪 Validating %d tool artifacts for release readiness...\n", len(tools))
+	
+	var validationErrors []string
+	
+	for _, tool := range tools {
+		// For release task, look for the artifact file based on the artifact name
+		// This assumes artifacts are in the current working directory or a standard path
+		artifactPath := tool.ArtifactName
+		
+		// Try common paths if the artifact name doesn't exist as-is
+		if _, err := os.Stat(artifactPath); os.IsNotExist(err) {
+			// Try some common directories
+			possiblePaths := []string{
+				filepath.Join(".", tool.ArtifactName),
+				filepath.Join("artifacts", tool.ArtifactName),
+				filepath.Join("reports", tool.ArtifactName),
+				filepath.Join("results", tool.ArtifactName),
+				filepath.Join("output", tool.ArtifactName),
+			}
+			
+			found := false
+			for _, path := range possiblePaths {
+				if _, err := os.Stat(path); err == nil {
+					artifactPath = path
+					found = true
+					break
+				}
+			}
+			
+			if !found {
+				validationErrors = append(validationErrors, fmt.Sprintf("Artifact not found: %s (searched in: %v)", tool.ArtifactName, append([]string{tool.ArtifactName}, possiblePaths...)))
+				continue
+			}
+		}
+		
+		if err := validateToolArtifact(tool, artifactPath); err != nil {
+			validationErrors = append(validationErrors, err.Error())
+		}
+	}
+	
+	if len(validationErrors) > 0 {
+		fmt.Printf("❌ Tool artifact validation failed with %d errors:\n", len(validationErrors))
+		for _, err := range validationErrors {
+			fmt.Printf("   - %s\n", err)
+		}
+		return fmt.Errorf("tool artifact validation failed")
+	}
+	
+	fmt.Printf("✅ All %d tool artifacts validated successfully\n", len(tools))
+	return nil
+}
+
 func Execute() error {
 	return rootCmd.Execute()
 }

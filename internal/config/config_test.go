@@ -43,7 +43,8 @@ func TestGenerateArtifactNamingConvention(t *testing.T) {
 		{
 			name: "Standard case",
 			config: &VulnetixConfig{
-				GitHub: GitHubContext{
+				CI: CIContext{
+					Platform:   PlatformGitHub,
 					Repository: "octocat/Spoon-Knife",
 					RunID:      "123456789",
 				},
@@ -55,7 +56,8 @@ func TestGenerateArtifactNamingConvention(t *testing.T) {
 		{
 			name: "Repository with hyphens",
 			config: &VulnetixConfig{
-				GitHub: GitHubContext{
+				CI: CIContext{
+					Platform:   PlatformGitHub,
 					Repository: "my-org/my-repo",
 					RunID:      "98765",
 				},
@@ -67,7 +69,8 @@ func TestGenerateArtifactNamingConvention(t *testing.T) {
 		{
 			name: "Empty base artifact name",
 			config: &VulnetixConfig{
-				GitHub: GitHubContext{
+				CI: CIContext{
+					Platform:   PlatformGitHub,
 					Repository: "test/repo",
 					RunID:      "111",
 				},
@@ -88,13 +91,12 @@ func TestGenerateArtifactNamingConvention(t *testing.T) {
 
 func TestGetWorkflowRunContext(t *testing.T) {
 	config := &VulnetixConfig{
-		GitHub: GitHubContext{
-			RunID:       "run-123",
-			RunNumber:   "1",
-			RunAttempt:  "1",
-			Repository:  "test/repo",
-			WorkflowRef: "refs/heads/main",
-			WorkflowSHA: "abcdef",
+		CI: CIContext{
+			RunID:     "run-123",
+			RunNumber: "1",
+			Repository: "test/repo",
+			RefName:   "refs/heads/main",
+			SHA:       "abcdef",
 		},
 	}
 
@@ -117,17 +119,15 @@ func TestGetSiblingJobsContext(t *testing.T) {
 		Release: ReleaseConfig{
 			WorkflowTimeout: 30,
 		},
-		GitHub: GitHubContext{
-			RunID:       "run-456",
-			RunNumber:   "2",
-			RunAttempt:  "1",
-			Repository:  "another/repo",
-			WorkflowRef: "refs/tags/v1.0.0",
-			WorkflowSHA: "fedcba",
-			EventName:   "release",
-			HeadRef:     "",
-			BaseRef:     "",
-			APIURL:      "https://api.github.com",
+		CI: CIContext{
+			Platform:   PlatformGitHub,
+			RunID:      "run-456",
+			RunNumber:  "2",
+			Repository: "another/repo",
+			RefName:    "refs/tags/v1.0.0",
+			SHA:        "fedcba",
+			EventName:  "release",
+			APIURL:     "https://api.github.com",
 		},
 	}
 
@@ -152,7 +152,8 @@ func TestGetSiblingJobsContext(t *testing.T) {
 
 func TestGetReleaseArtifactPattern(t *testing.T) {
 	config := &VulnetixConfig{
-		GitHub: GitHubContext{
+		CI: CIContext{
+			Platform:   PlatformGitHub,
 			Repository: "org/project",
 			RunID:      "7890",
 		},
