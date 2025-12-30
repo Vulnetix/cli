@@ -175,8 +175,9 @@ Alternatively, you can use JSON format:
 ## Documentation
 
 - **[Installation](docs/README.md)** - Installation guides for all platforms
-- **[CLI Reference](docs/CLI-REFERENCE.md)** - Complete command-line documentation  
+- **[CLI Reference](docs/CLI-REFERENCE.md)** - Complete command-line documentation
 - **[Usage Examples](USAGE.md)** - Comprehensive usage guide
+- **[GitHub Actions Artifact Upload](docs/GHA_COMMAND.md)** - Upload workflow artifacts to Vulnetix
 - **[Distribution](docs/PUBLISHING.md)** - How we distribute across platforms
 
 ## Distribution
