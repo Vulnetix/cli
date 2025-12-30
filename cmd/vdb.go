@@ -113,7 +113,11 @@ Examples:
 			client.BaseURL = vdbBaseURL
 		}
 
-		fmt.Println("🌐 Fetching available ecosystems...")
+		if vdbOutput == "json" {
+			fmt.Fprintln(os.Stderr, "🌐 Fetching available ecosystems...")
+		} else {
+			fmt.Println("🌐 Fetching available ecosystems...")
+		}
 
 		ecosystems, err := client.GetEcosystems()
 		if err != nil {
