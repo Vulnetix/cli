@@ -13,8 +13,6 @@ var (
 	vdbOrgID     string
 	vdbSecretKey string
 	vdbBaseURL   string
-	vdbLimit     int
-	vdbOffset    int
 	vdbOutput    string
 )
 
@@ -87,7 +85,11 @@ Examples:
 			client.BaseURL = vdbBaseURL
 		}
 
-		fmt.Printf("🔍 Fetching information for %s...\n", cveID)
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s...\n", cveID)
+		} else {
+			fmt.Printf("🔍 Fetching information for %s...\n", cveID)
+		}
 
 		cveInfo, err := client.GetCVE(cveID)
 		if err != nil {
@@ -159,6 +161,10 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		productName := args[0]
 
+		// Get pagination flags
+		limit, _ := cmd.Flags().GetInt("limit")
+		offset, _ := cmd.Flags().GetInt("offset")
+
 		client := vdb.NewClient(vdbOrgID, vdbSecretKey)
 		if vdbBaseURL != "" {
 			client.BaseURL = vdbBaseURL
@@ -167,7 +173,11 @@ Examples:
 		// If version is provided, get specific version info
 		if len(args) > 1 {
 			version := args[1]
-			fmt.Printf("🔍 Fetching information for %s@%s...\n", productName, version)
+			if vdbOutput == "json" {
+				fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s@%s...\n", productName, version)
+			} else {
+				fmt.Printf("🔍 Fetching information for %s@%s...\n", productName, version)
+			}
 
 			info, err := client.GetProductVersion(productName, version)
 			if err != nil {
@@ -178,9 +188,13 @@ Examples:
 		}
 
 		// Otherwise, list all versions
-		fmt.Printf("📦 Fetching versions for %s...\n", productName)
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", productName)
+		} else {
+			fmt.Printf("📦 Fetching versions for %s...\n", productName)
+		}
 
-		resp, err := client.GetProductVersions(productName, vdbLimit, vdbOffset)
+		resp, err := client.GetProductVersions(productName, limit, offset)
 		if err != nil {
 			return fmt.Errorf("failed to get product versions: %w", err)
 		}
@@ -216,14 +230,22 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		packageName := args[0]
 
+		// Get pagination flags
+		limit, _ := cmd.Flags().GetInt("limit")
+		offset, _ := cmd.Flags().GetInt("offset")
+
 		client := vdb.NewClient(vdbOrgID, vdbSecretKey)
 		if vdbBaseURL != "" {
 			client.BaseURL = vdbBaseURL
 		}
 
-		fmt.Printf("🔒 Fetching vulnerabilities for %s...\n", packageName)
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
+		} else {
+			fmt.Printf("🔒 Fetching vulnerabilities for %s...\n", packageName)
+		}
 
-		resp, err := client.GetPackageVulnerabilities(packageName, vdbLimit, vdbOffset)
+		resp, err := client.GetPackageVulnerabilities(packageName, limit, offset)
 		if err != nil {
 			return fmt.Errorf("failed to get vulnerabilities: %w", err)
 		}
@@ -272,7 +294,11 @@ Examples:
 			client.BaseURL = vdbBaseURL
 		}
 
-		fmt.Println("📋 Fetching OpenAPI specification...")
+		if vdbOutput == "json" {
+			fmt.Fprintln(os.Stderr, "📋 Fetching OpenAPI specification...")
+		} else {
+			fmt.Println("📋 Fetching OpenAPI specification...")
+		}
 
 		spec, err := client.GetOpenAPISpec()
 		if err != nil {
@@ -320,9 +346,9 @@ func init() {
 	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, pretty)")
 
 	// Pagination flags for applicable commands
-	productCmd.Flags().IntVar(&vdbLimit, "limit", 100, "Maximum number of results to return")
-	productCmd.Flags().IntVar(&vdbOffset, "offset", 0, "Number of results to skip")
+	productCmd.Flags().Int("limit", 100, "Maximum number of results to return (default 100; use with --offset for pagination)")
+	productCmd.Flags().Int("offset", 0, "Number of results to skip (for pagination)")
 
-	vulnsCmd.Flags().IntVar(&vdbLimit, "limit", 100, "Maximum number of results to return")
-	vulnsCmd.Flags().IntVar(&vdbOffset, "offset", 0, "Number of results to skip")
+	vulnsCmd.Flags().Int("limit", 100, "Maximum number of results to return (default 100; use with --offset for pagination)")
+	vulnsCmd.Flags().Int("offset", 0, "Number of results to skip (for pagination)")
 }
