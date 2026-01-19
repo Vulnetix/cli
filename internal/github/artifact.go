@@ -9,7 +9,16 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
+)
+
+const (
+	// maxArtifactSize is the maximum size for an artifact download (1GB)
+	maxArtifactSize = 1024 * 1024 * 1024
+	// artifactDownloadTimeout is the timeout for downloading artifacts
+	artifactDownloadTimeout = 10 * time.Minute
 )
 
 // Artifact represents a GitHub Actions artifact
@@ -68,9 +77,19 @@ func NewArtifactCollector(token, apiURL, repository, runID string) *ArtifactColl
 		repository: repository,
 		runID:      runID,
 		client: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: artifactDownloadTimeout,
 		},
 	}
+}
+
+// sanitizeArtifactName sanitizes artifact names to prevent path traversal
+func sanitizeArtifactName(name string) string {
+	// Remove any path separators and special characters
+	re := regexp.MustCompile(`[^a-zA-Z0-9\-_\.]`)
+	sanitized := re.ReplaceAllString(name, "_")
+	// Remove leading dots to prevent hidden files
+	sanitized = strings.TrimLeft(sanitized, ".")
+	return sanitized
 }
 
 // CollectMetadata collects metadata from GitHub Actions environment
@@ -162,8 +181,19 @@ func (c *ArtifactCollector) DownloadArtifact(ctx context.Context, artifact Artif
 		return "", fmt.Errorf("GitHub token is required")
 	}
 
+	// Check artifact size
+	if artifact.SizeInBytes > maxArtifactSize {
+		return "", fmt.Errorf("artifact size (%d bytes) exceeds maximum allowed size (%d bytes)", artifact.SizeInBytes, maxArtifactSize)
+	}
+
+	// Sanitize artifact name for directory pattern
+	sanitizedName := sanitizeArtifactName(artifact.Name)
+	if sanitizedName == "" {
+		sanitizedName = "artifact"
+	}
+
 	// Create temporary directory for extraction
-	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("artifact-%s-*", artifact.Name))
+	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("artifact-%s-*", sanitizedName))
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
@@ -199,7 +229,9 @@ func (c *ArtifactCollector) DownloadArtifact(ctx context.Context, artifact Artif
 		return "", fmt.Errorf("failed to create zip file: %w", err)
 	}
 
-	_, err = io.Copy(zipFile, resp.Body)
+	// Limit the reader to prevent resource exhaustion
+	limitedReader := io.LimitReader(resp.Body, maxArtifactSize)
+	_, err = io.Copy(zipFile, limitedReader)
 	zipFile.Close()
 	if err != nil {
 		os.RemoveAll(tmpDir)
@@ -226,19 +258,44 @@ func extractZip(zipPath, destDir string) error {
 	}
 	defer reader.Close()
 
+	// Clean the destination directory path for comparison
+	destDir = filepath.Clean(destDir)
+
 	for _, file := range reader.File {
+		// Prevent Zip Slip vulnerability by checking for path traversal
+		if strings.Contains(file.Name, "..") {
+			return fmt.Errorf("zip file contains potentially unsafe path: %s", file.Name)
+		}
+
+		// Join and clean the path
 		path := filepath.Join(destDir, file.Name)
+		path = filepath.Clean(path)
+
+		// Verify the resulting path is within destDir
+		if !strings.HasPrefix(path, destDir+string(os.PathSeparator)) && path != destDir {
+			return fmt.Errorf("zip file contains entry outside destination directory: %s", file.Name)
+		}
 
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, file.Mode())
+			// Use safe permissions for directories
+			if err := os.MkdirAll(path, 0755); err != nil {
+				return err
+			}
 			continue
 		}
 
+		// Create parent directory with safe permissions
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return err
 		}
 
-		destFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+		// Use safe permissions for files (0644 for regular files)
+		fileMode := os.FileMode(0644)
+		if file.Mode().IsRegular() {
+			fileMode = 0644
+		}
+
+		destFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileMode)
 		if err != nil {
 			return err
 		}
@@ -249,12 +306,24 @@ func extractZip(zipPath, destDir string) error {
 			return err
 		}
 
-		_, err = io.Copy(destFile, fileReader)
-		destFile.Close()
-		fileReader.Close()
+		// Copy with proper error handling
+		_, copyErr := io.Copy(destFile, fileReader)
+		
+		// Close file reader first
+		readerCloseErr := fileReader.Close()
+		
+		// Close destination file and check for close errors
+		destCloseErr := destFile.Close()
 
-		if err != nil {
-			return err
+		// Check all errors in order
+		if copyErr != nil {
+			return copyErr
+		}
+		if readerCloseErr != nil {
+			return readerCloseErr
+		}
+		if destCloseErr != nil {
+			return destCloseErr
 		}
 	}
 

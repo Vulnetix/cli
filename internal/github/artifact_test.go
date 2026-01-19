@@ -27,8 +27,7 @@ func TestCollectMetadata(t *testing.T) {
 
 	// Set environment variables
 	for key, value := range testEnvVars {
-		os.Setenv(key, value)
-		defer os.Unsetenv(key)
+		t.Setenv(key, value)
 	}
 
 	artifactNames := []string{"artifact1.zip", "artifact2.zip"}
