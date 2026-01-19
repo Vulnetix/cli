@@ -43,6 +43,9 @@ jobs:
         run: |
           # Install from GitHub releases (adjust version as needed)
           curl -LO https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+          curl -LO https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.sha256
+          # Verify the downloaded binary against its SHA-256 checksum
+          sha256sum -c vulnetix-linux-amd64.sha256
           chmod +x vulnetix-linux-amd64
           sudo mv vulnetix-linux-amd64 /usr/local/bin/vulnetix
           vulnetix version
@@ -69,10 +72,19 @@ jobs:
           # Fetch vulnerabilities
           vulnetix vdb vulns "${{ matrix.package }}" -o json > vulns.json
 
-          # Parse results
-          TOTAL=$(jq '.total' vulns.json)
-          CRITICAL=$(jq '[.vulnerabilities[] | select(.severity == "CRITICAL")] | length' vulns.json)
-          HIGH=$(jq '[.vulnerabilities[] | select(.severity == "HIGH")] | length' vulns.json)
+          # Parse results with error handling
+          if ! TOTAL=$(jq -r '.total' vulns.json); then
+            echo "Error: Failed to parse total from JSON"
+            exit 1
+          fi
+          if ! CRITICAL=$(jq '[.vulnerabilities[] | select(.severity == "CRITICAL")] | length' vulns.json); then
+            echo "Error: Failed to parse critical count from JSON"
+            exit 1
+          fi
+          if ! HIGH=$(jq '[.vulnerabilities[] | select(.severity == "HIGH")] | length' vulns.json); then
+            echo "Error: Failed to parse high count from JSON"
+            exit 1
+          fi
 
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
           echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
@@ -91,7 +103,7 @@ jobs:
           retention-days: 30
 
       - name: Check vulnerability threshold
-        if: steps.scan.outputs.critical > 0 || steps.scan.outputs.high > 0
+        if: steps.scan.outputs.critical != '0' || steps.scan.outputs.high != '0'
         run: |
           echo "❌ Critical or High severity vulnerabilities found!"
           echo "Critical: ${{ steps.scan.outputs.critical }}"
