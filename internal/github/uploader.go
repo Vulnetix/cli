@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 )
 
@@ -55,17 +56,51 @@ type ArtifactStatusDetail struct {
 type ArtifactUploader struct {
 	baseURL string
 	orgID   string
+	apiKey  string
 	client  *http.Client
 }
 
 // NewArtifactUploader creates a new artifact uploader
 func NewArtifactUploader(baseURL, orgID string) *ArtifactUploader {
+	// Try to get API key from environment
+	apiKey := os.Getenv("VULNETIX_API_KEY")
+	
 	return &ArtifactUploader{
 		baseURL: baseURL,
 		orgID:   orgID,
+		apiKey:  apiKey,
 		client: &http.Client{
 			Timeout: 120 * time.Second,
 		},
+	}
+}
+
+// validateTxnID validates transaction ID format
+func validateTxnID(txnID string) error {
+	if txnID == "" {
+		return fmt.Errorf("transaction ID cannot be empty")
+	}
+	
+	// Transaction ID should be alphanumeric with hyphens and underscores
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, txnID)
+	if err != nil {
+		return fmt.Errorf("failed to validate transaction ID: %w", err)
+	}
+	if !matched {
+		return fmt.Errorf("invalid transaction ID format: must contain only alphanumeric characters, hyphens, and underscores")
+	}
+	
+	return nil
+}
+
+// addAuthHeaders adds authentication headers to the request
+func (u *ArtifactUploader) addAuthHeaders(req *http.Request) {
+	req.Header.Set("User-Agent", "Vulnetix-CLI/1.0")
+	
+	// Add API key if available
+	if u.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+u.apiKey)
+		req.Header.Set("X-API-Key", u.apiKey)
 	}
 }
 
@@ -89,7 +124,7 @@ func (u *ArtifactUploader) InitiateTransaction(metadata *ArtifactMetadata, artif
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Vulnetix-CLI/1.0")
+	u.addAuthHeaders(req)
 
 	resp, err := u.client.Do(req)
 	if err != nil {
@@ -120,6 +155,11 @@ func (u *ArtifactUploader) InitiateTransaction(metadata *ArtifactMetadata, artif
 
 // UploadArtifact uploads a single artifact file to the specified transaction
 func (u *ArtifactUploader) UploadArtifact(txnID, artifactName, artifactDir string) (*ArtifactUploadResponse, error) {
+	// Validate transaction ID
+	if err := validateTxnID(txnID); err != nil {
+		return nil, fmt.Errorf("invalid transaction ID: %w", err)
+	}
+	
 	url := fmt.Sprintf("%s/%s/github/artifact-upload/%s", u.baseURL, u.orgID, txnID)
 
 	// Find all files in the artifact directory
@@ -184,7 +224,7 @@ func (u *ArtifactUploader) UploadArtifact(txnID, artifactName, artifactDir strin
 	}
 
 	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("User-Agent", "Vulnetix-CLI/1.0")
+	u.addAuthHeaders(req)
 
 	resp, err := u.client.Do(req)
 	if err != nil {
@@ -215,6 +255,11 @@ func (u *ArtifactUploader) UploadArtifact(txnID, artifactName, artifactDir strin
 
 // GetTransactionStatus retrieves the status of a transaction
 func (u *ArtifactUploader) GetTransactionStatus(txnID string) (*StatusResponse, error) {
+	// Validate transaction ID
+	if err := validateTxnID(txnID); err != nil {
+		return nil, fmt.Errorf("invalid transaction ID: %w", err)
+	}
+	
 	url := fmt.Sprintf("%s/%s/github/artifact-upload/%s/status", u.baseURL, u.orgID, txnID)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -222,7 +267,7 @@ func (u *ArtifactUploader) GetTransactionStatus(txnID string) (*StatusResponse, 
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("User-Agent", "Vulnetix-CLI/1.0")
+	u.addAuthHeaders(req)
 
 	resp, err := u.client.Do(req)
 	if err != nil {
@@ -249,6 +294,10 @@ func (u *ArtifactUploader) GetTransactionStatus(txnID string) (*StatusResponse, 
 
 // GetArtifactStatus retrieves the status of a specific artifact by UUID
 func (u *ArtifactUploader) GetArtifactStatus(artifactUUID string) (*StatusResponse, error) {
+	if artifactUUID == "" {
+		return nil, fmt.Errorf("artifact UUID cannot be empty")
+	}
+	
 	url := fmt.Sprintf("%s/%s/github/artifact/%s/status", u.baseURL, u.orgID, artifactUUID)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -256,7 +305,7 @@ func (u *ArtifactUploader) GetArtifactStatus(artifactUUID string) (*StatusRespon
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("User-Agent", "Vulnetix-CLI/1.0")
+	u.addAuthHeaders(req)
 
 	resp, err := u.client.Do(req)
 	if err != nil {

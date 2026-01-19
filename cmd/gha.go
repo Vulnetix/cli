@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -112,7 +111,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 
 	// List all artifacts
 	fmt.Println("📦 Fetching workflow artifacts...")
-	ctx := context.Background()
+	ctx := cmd.Context()
 	artifacts, err := collector.ListArtifacts(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list artifacts: %w", err)
@@ -155,32 +154,34 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	uploadResults := make([]map[string]string, 0, len(artifacts))
 
 	for i, artifact := range artifacts {
-		fmt.Printf("   [%d/%d] Uploading %s...\n", i+1, len(artifacts), artifact.Name)
+		func() {
+			fmt.Printf("   [%d/%d] Uploading %s...\n", i+1, len(artifacts), artifact.Name)
 
-		// Download and extract artifact
-		artifactDir, err := collector.DownloadArtifact(ctx, artifact)
-		if err != nil {
-			fmt.Printf("      ❌ Failed to download: %v\n", err)
-			continue
-		}
-		defer os.RemoveAll(artifactDir)
+			// Download and extract artifact
+			artifactDir, err := collector.DownloadArtifact(ctx, artifact)
+			if err != nil {
+				fmt.Printf("      ❌ Failed to download: %v\n", err)
+				return
+			}
+			defer os.RemoveAll(artifactDir)
 
-		// Upload to Vulnetix
-		uploadResp, err := uploader.UploadArtifact(txnResp.TxnID, artifact.Name, artifactDir)
-		if err != nil {
-			fmt.Printf("      ❌ Failed to upload: %v\n", err)
-			continue
-		}
+			// Upload to Vulnetix
+			uploadResp, err := uploader.UploadArtifact(txnResp.TxnID, artifact.Name, artifactDir)
+			if err != nil {
+				fmt.Printf("      ❌ Failed to upload: %v\n", err)
+				return
+			}
 
-		fmt.Printf("      ✅ Uploaded successfully\n")
-		fmt.Printf("         UUID: %s\n", uploadResp.UUID)
-		fmt.Printf("         Queue Path: %s\n", uploadResp.QueuePath)
+			fmt.Printf("      ✅ Uploaded successfully\n")
+			fmt.Printf("         UUID: %s\n", uploadResp.UUID)
+			fmt.Printf("         Queue Path: %s\n", uploadResp.QueuePath)
 
-		uploadResults = append(uploadResults, map[string]string{
-			"name":       artifact.Name,
-			"uuid":       uploadResp.UUID,
-			"queue_path": uploadResp.QueuePath,
-		})
+			uploadResults = append(uploadResults, map[string]string{
+				"name":       artifact.Name,
+				"uuid":       uploadResp.UUID,
+				"queue_path": uploadResp.QueuePath,
+			})
+		}()
 	}
 
 	fmt.Println()
@@ -194,10 +195,13 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	// Output JSON if requested
 	if ghaOutputJSON {
 		output := map[string]interface{}{
-			"txnid":    txnResp.TxnID,
+			"txnid":     txnResp.TxnID,
 			"artifacts": uploadResults,
 		}
-		jsonData, _ := json.MarshalIndent(output, "", "  ")
+		jsonData, err := json.MarshalIndent(output, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON output: %w", err)
+		}
 		fmt.Println()
 		fmt.Println(string(jsonData))
 	}
