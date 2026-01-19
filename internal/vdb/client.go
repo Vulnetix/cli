@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -29,6 +30,7 @@ type Client struct {
 	SecretKey  string
 	HTTPClient *http.Client
 	token      *TokenCache
+	tokenMutex sync.RWMutex
 }
 
 // TokenCache stores the JWT token and its expiration
@@ -66,17 +68,31 @@ func NewClient(orgID, secretKey string) *Client {
 
 // GetToken retrieves a valid JWT token (from cache or by requesting a new one)
 func (c *Client) GetToken() (string, error) {
-	// Check if we have a valid cached token
-	if c.token != nil && time.Now().Before(c.token.ExpiresAt.Add(-1*time.Minute)) {
+	// Check if we have a valid cached token with read lock
+	c.tokenMutex.RLock()
+	if c.token != nil && time.Now().Before(c.token.ExpiresAt.Add(-3*time.Minute)) {
+		token := c.token.Token
+		c.tokenMutex.RUnlock()
+		return token, nil
+	}
+	c.tokenMutex.RUnlock()
+
+	// Request a new token with write lock
+	c.tokenMutex.Lock()
+	defer c.tokenMutex.Unlock()
+
+	// Double-check after acquiring write lock (another goroutine may have refreshed)
+	if c.token != nil && time.Now().Before(c.token.ExpiresAt.Add(-3*time.Minute)) {
 		return c.token.Token, nil
 	}
 
 	// Request a new token
-	return c.requestNewToken()
+	return c.requestNewTokenLocked()
 }
 
-// requestNewToken requests a new JWT token using AWS SigV4 authentication
-func (c *Client) requestNewToken() (string, error) {
+// requestNewTokenLocked requests a new JWT token using AWS SigV4 authentication
+// Caller must hold tokenMutex write lock
+func (c *Client) requestNewTokenLocked() (string, error) {
 	path := "/auth/token"
 	url := c.BaseURL + path
 
@@ -143,10 +159,12 @@ func (c *Client) signRequest(req *http.Request, path, body string) error {
 	// Create canonical request
 	canonicalHeaders := fmt.Sprintf("x-amz-date:%s\n", amzDate)
 	signedHeaders := "x-amz-date"
+	canonicalQueryString := "" // Empty for auth endpoint, can be extended for other endpoints
 
-	canonicalRequest := fmt.Sprintf("%s\n%s\n\n%s\n%s\n%s",
+	canonicalRequest := fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s",
 		req.Method,
 		path,
+		canonicalQueryString,
 		canonicalHeaders,
 		signedHeaders,
 		payloadHash,
