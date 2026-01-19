@@ -162,12 +162,28 @@ done < cve-list.txt
 
 **Solution**:
 ```bash
-# Verify environment variables are set
-echo $VVD_ORG
-echo $VVD_SECRET
+# Verify environment variables are set WITHOUT printing secret values
+if [ -n "${VVD_ORG:-}" ]; then
+  echo "VVD_ORG is set"
+else
+  echo "VVD_ORG is NOT set"
+fi
 
-# Or check config file exists
-cat ~/.vulnetix/vdb.json
+if [ -n "${VVD_SECRET:-}" ]; then
+  echo "VVD_SECRET is set"
+else
+  echo "VVD_SECRET is NOT set"
+fi
+
+# Check that the config file exists (but don't print its contents)
+if [ -f "$HOME/.vulnetix/vdb.json" ]; then
+  echo "VDB config file found at $HOME/.vulnetix/vdb.json"
+else
+  echo "VDB config file not found at $HOME/.vulnetix/vdb.json"
+fi
+
+# Security tip: avoid running commands that print secrets (UUIDs, API keys,
+# or full config files) directly to your terminal or CI logs.
 ```
 
 ### "Invalid signature" Error
