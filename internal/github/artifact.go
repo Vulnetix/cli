@@ -21,6 +21,11 @@ const (
 	artifactDownloadTimeout = 10 * time.Minute
 )
 
+var (
+	// artifactNameRegex matches safe characters for artifact names
+	artifactNameRegex = regexp.MustCompile(`[^a-zA-Z0-9\-_\.]`)
+)
+
 // Artifact represents a GitHub Actions artifact
 type Artifact struct {
 	ID                 int64     `json:"id"`
@@ -85,8 +90,7 @@ func NewArtifactCollector(token, apiURL, repository, runID string) *ArtifactColl
 // sanitizeArtifactName sanitizes artifact names to prevent path traversal
 func sanitizeArtifactName(name string) string {
 	// Remove any path separators and special characters
-	re := regexp.MustCompile(`[^a-zA-Z0-9\-_\.]`)
-	sanitized := re.ReplaceAllString(name, "_")
+	sanitized := artifactNameRegex.ReplaceAllString(name, "_")
 	// Remove leading dots to prevent hidden files
 	sanitized = strings.TrimLeft(sanitized, ".")
 	return sanitized
@@ -290,12 +294,7 @@ func extractZip(zipPath, destDir string) error {
 		}
 
 		// Use safe permissions for files (0644 for regular files)
-		fileMode := os.FileMode(0644)
-		if file.Mode().IsRegular() {
-			fileMode = 0644
-		}
-
-		destFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileMode)
+		destFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
 			return err
 		}
