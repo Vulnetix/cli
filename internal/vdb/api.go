@@ -60,7 +60,9 @@ func (c *Client) GetCVE(cveID string) (*CVEInfo, error) {
 
 	// Store full response in Data field
 	var fullData map[string]interface{}
-	json.Unmarshal(respBody, &fullData)
+	if err := json.Unmarshal(respBody, &fullData); err != nil {
+		return nil, fmt.Errorf("failed to parse full response data: %w", err)
+	}
 	cveInfo.Data = fullData
 
 	return &cveInfo, nil
@@ -83,21 +85,30 @@ func (c *Client) GetEcosystems() ([]string, error) {
 	return resp.Ecosystems, nil
 }
 
+// buildPaginationQuery constructs a query string for pagination parameters.
+// It returns an empty string if neither limit nor offset is greater than zero.
+func buildPaginationQuery(limit, offset int) string {
+	if limit <= 0 && offset <= 0 {
+		return ""
+	}
+
+	params := url.Values{}
+	if limit > 0 {
+		params.Add("limit", fmt.Sprintf("%d", limit))
+	}
+	if offset > 0 {
+		params.Add("offset", fmt.Sprintf("%d", offset))
+	}
+
+	return "?" + params.Encode()
+}
+
 // GetProductVersions retrieves all versions for a product with pagination
 func (c *Client) GetProductVersions(productName string, limit, offset int) (*ProductVersionsResponse, error) {
 	path := fmt.Sprintf("/product/%s", url.PathEscape(productName))
 
 	// Add pagination parameters
-	if limit > 0 || offset > 0 {
-		params := url.Values{}
-		if limit > 0 {
-			params.Add("limit", fmt.Sprintf("%d", limit))
-		}
-		if offset > 0 {
-			params.Add("offset", fmt.Sprintf("%d", offset))
-		}
-		path = path + "?" + params.Encode()
-	}
+	path += buildPaginationQuery(limit, offset)
 
 	respBody, err := c.DoRequest("GET", path, nil)
 	if err != nil {
@@ -134,16 +145,7 @@ func (c *Client) GetPackageVulnerabilities(packageName string, limit, offset int
 	path := fmt.Sprintf("/%s/vulns", url.PathEscape(packageName))
 
 	// Add pagination parameters
-	if limit > 0 || offset > 0 {
-		params := url.Values{}
-		if limit > 0 {
-			params.Add("limit", fmt.Sprintf("%d", limit))
-		}
-		if offset > 0 {
-			params.Add("offset", fmt.Sprintf("%d", offset))
-		}
-		path = path + "?" + params.Encode()
-	}
+	path += buildPaginationQuery(limit, offset)
 
 	respBody, err := c.DoRequest("GET", path, nil)
 	if err != nil {
