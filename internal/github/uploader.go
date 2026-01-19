@@ -13,6 +13,11 @@ import (
 	"time"
 )
 
+var (
+	// txnIDRegex validates transaction ID format
+	txnIDRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+)
+
 // TransactionRequest represents the initial transaction creation request
 type TransactionRequest struct {
 	Meta      *ArtifactMetadata `json:"_meta"`
@@ -82,11 +87,7 @@ func validateTxnID(txnID string) error {
 	}
 	
 	// Transaction ID should be alphanumeric with hyphens and underscores
-	matched, err := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, txnID)
-	if err != nil {
-		return fmt.Errorf("failed to validate transaction ID: %w", err)
-	}
-	if !matched {
+	if !txnIDRegex.MatchString(txnID) {
 		return fmt.Errorf("invalid transaction ID format: must contain only alphanumeric characters, hyphens, and underscores")
 	}
 	
