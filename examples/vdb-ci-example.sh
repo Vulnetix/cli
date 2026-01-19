@@ -46,9 +46,7 @@ echo "📊 Severity threshold: $SEVERITY_THRESHOLD"
 echo ""
 
 # Fetch vulnerabilities
-VULNS_JSON=$(vulnetix vdb vulns "$PACKAGE_NAME" -o json 2>&1)
-
-if [ $? -ne 0 ]; then
+if ! VULNS_JSON=$(vulnetix vdb vulns "$PACKAGE_NAME" -o json 2>&1); then
     echo -e "${RED}❌ Failed to fetch vulnerabilities${NC}"
     echo "$VULNS_JSON"
     exit 2
