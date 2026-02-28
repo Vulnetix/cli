@@ -1,0 +1,170 @@
+# Example GitHub Actions workflow for VDB vulnerability scanning
+#
+# This workflow demonstrates how to use the Vulnetix CLI VDB command
+# in GitHub Actions to scan dependencies for vulnerabilities.
+#
+# Setup:
+#   1. Add VVD_ORG and VVD_SECRET to your repository secrets
+#   2. Customize the matrix to include your packages
+#   3. Adjust the severity threshold as needed
+
+name: VDB Vulnerability Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  scan-dependencies:
+    name: Scan ${{ matrix.package }} for vulnerabilities
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        package:
+          - express
+          - lodash
+          - axios
+          - react
+          - webpack
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Vulnetix CLI
+        run: |
+          # Install from GitHub releases (adjust version as needed)
+          curl -LO https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+          curl -LO https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.sha256
+          # Verify the downloaded binary against its SHA-256 checksum
+          sha256sum -c vulnetix-linux-amd64.sha256
+          chmod +x vulnetix-linux-amd64
+          sudo mv vulnetix-linux-amd64 /usr/local/bin/vulnetix
+          vulnetix version
+
+      - name: Verify VDB credentials
+        env:
+          VVD_ORG: ${{ secrets.VVD_ORG }}
+          VVD_SECRET: ${{ secrets.VVD_SECRET }}
+        run: |
+          if [ -z "$VVD_ORG" ] || [ -z "$VVD_SECRET" ]; then
+            echo "Error: VVD_ORG and VVD_SECRET secrets must be set"
+            exit 1
+          fi
+          echo "Credentials verified"
+
+      - name: Scan for vulnerabilities
+        id: scan
+        env:
+          VVD_ORG: ${{ secrets.VVD_ORG }}
+          VVD_SECRET: ${{ secrets.VVD_SECRET }}
+        run: |
+          echo "Scanning ${{ matrix.package }}..."
+
+          # Fetch vulnerabilities
+          vulnetix vdb vulns "${{ matrix.package }}" -o json > vulns.json
+
+          # Parse results with error handling
+          if ! TOTAL=$(jq -r '.total' vulns.json); then
+            echo "Error: Failed to parse total from JSON"
+            exit 1
+          fi
+          if ! CRITICAL=$(jq '[.vulnerabilities[] | select(.severity == "CRITICAL")] | length' vulns.json); then
+            echo "Error: Failed to parse critical count from JSON"
+            exit 1
+          fi
+          if ! HIGH=$(jq '[.vulnerabilities[] | select(.severity == "HIGH")] | length' vulns.json); then
+            echo "Error: Failed to parse high count from JSON"
+            exit 1
+          fi
+
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+
+          echo "Total vulnerabilities: $TOTAL"
+          echo "Critical: $CRITICAL"
+          echo "High: $HIGH"
+
+      - name: Upload vulnerability report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vulnerability-report-${{ matrix.package }}
+          path: vulns.json
+          retention-days: 30
+
+      - name: Check vulnerability threshold
+        if: steps.scan.outputs.critical != '0' || steps.scan.outputs.high != '0'
+        run: |
+          echo "❌ Critical or High severity vulnerabilities found!"
+          echo "Critical: ${{ steps.scan.outputs.critical }}"
+          echo "High: ${{ steps.scan.outputs.high }}"
+          exit 1
+
+      - name: Create issue if vulnerabilities found
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const total = '${{ steps.scan.outputs.total }}';
+            const critical = '${{ steps.scan.outputs.critical }}';
+            const high = '${{ steps.scan.outputs.high }}';
+            const package = '${{ matrix.package }}';
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Vulnerabilities found in ${package}`,
+              body: `## Vulnerability Scan Results\n\n` +
+                    `**Package:** ${package}\n` +
+                    `**Total vulnerabilities:** ${total}\n` +
+                    `**Critical:** ${critical}\n` +
+                    `**High:** ${high}\n\n` +
+                    `Please review the vulnerability report and take action.\n\n` +
+                    `[View workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})`,
+              labels: ['security', 'vulnerability']
+            });
+
+  generate-summary:
+    name: Generate Security Summary
+    needs: scan-dependencies
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports
+
+      - name: Generate summary
+        run: |
+          echo "## 🔒 VDB Vulnerability Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Total | Critical | High | Medium | Low |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|----------|------|--------|-----|" >> $GITHUB_STEP_SUMMARY
+
+          for report in reports/*/vulns.json; do
+            if [ -f "$report" ]; then
+              pkg=$(jq -r '.packageName' "$report")
+              total=$(jq '.total' "$report")
+              critical=$(jq '[.vulnerabilities[] | select(.severity == "CRITICAL")] | length' "$report")
+              high=$(jq '[.vulnerabilities[] | select(.severity == "HIGH")] | length' "$report")
+              medium=$(jq '[.vulnerabilities[] | select(.severity == "MEDIUM")] | length' "$report")
+              low=$(jq '[.vulnerabilities[] | select(.severity == "LOW")] | length' "$report")
+
+              echo "| $pkg | $total | $critical | $high | $medium | $low |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Scan completed on $(date)" >> $GITHUB_STEP_SUMMARY
