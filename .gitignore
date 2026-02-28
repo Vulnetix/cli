@@ -29,6 +29,7 @@
 *.sln
 *.sw?
 **/.yarn
+CLAUDE.md
 
 # iconify dist files
 src/@iconify/icons-bundle.js
