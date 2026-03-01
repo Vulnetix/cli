@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	"encoding/json"
 
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/config"
@@ -135,7 +135,7 @@ func loadCredentialFile(store auth.CredentialStore) (*auth.Credentials, error) {
 	}
 
 	var creds auth.Credentials
-	if err := yaml.Unmarshal(data, &creds); err != nil {
+	if err := json.Unmarshal(data, &creds); err != nil {
 		return nil, err
 	}
 	if creds.OrgID == "" {

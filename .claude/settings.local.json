@@ -132,7 +132,16 @@
       "WebFetch(domain:api.vdb.vulnetix.com)",
       "Bash(make dev:*)",
       "Bash(make test:*)",
-      "Bash(./bin/vulnetix vdb:*)"
+      "Bash(./bin/vulnetix vdb:*)",
+      "Bash(hugo:*)",
+      "Bash(make fmt:*)",
+      "Bash(make build:*)",
+      "Bash(go clean:*)",
+      "Bash(go test:*)",
+      "Bash(make lint:*)",
+      "Bash(go mod:*)",
+      "Bash(go vet:*)",
+      "Bash(go:*)"
     ],
     "deny": [
       "Bash(dd:*)",
