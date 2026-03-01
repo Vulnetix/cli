@@ -167,7 +167,10 @@ vulnetix vdb product lodash --output json
 **List response includes:**
 - Package/product name
 - Total number of versions
-- Array of version strings
+- Array of version records, each with:
+  - `version` — version string
+  - `ecosystem` — package ecosystem (e.g. npm, PyPI)
+  - `sources` — contributing data sources
 - Pagination information (hasMore, limit, offset)
 
 **Specific version response includes:**

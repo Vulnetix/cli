@@ -80,7 +80,8 @@ Examples:
 var cveCmd = &cobra.Command{
 	Use:   "cve <CVE-ID>",
 	Short: "Get information about a specific CVE",
-	Long: `Retrieve detailed vulnerability information for a specific CVE identifier.
+	Long: `Retrieve full vulnerability data for a specific CVE identifier, including descriptions,
+CVSS metrics, CWEs, affected products, EPSS scores, and KEV status from all available sources.
 
 Examples:
   vulnetix vdb cve CVE-2024-1234
@@ -136,7 +137,7 @@ Examples:
 
 		fmt.Printf("\n✅ Found %d ecosystems:\n\n", len(ecosystems))
 		for _, eco := range ecosystems {
-			fmt.Printf("  • %s\n", eco)
+			fmt.Printf("  • %s (%d packages)\n", eco.Name, eco.Count)
 		}
 
 		return nil
@@ -205,8 +206,8 @@ Examples:
 		}
 
 		fmt.Printf("\n✅ Found %d total versions (showing %d):\n\n", resp.Total, len(resp.Versions))
-		for i, version := range resp.Versions {
-			fmt.Printf("  %d. %s\n", i+1, version)
+		for i, v := range resp.Versions {
+			fmt.Printf("  %d. %s (%s) — %d source(s)\n", i+1, v.Version, v.Ecosystem, len(v.Sources))
 		}
 
 		if resp.HasMore {
@@ -252,21 +253,16 @@ Examples:
 			return printOutput(resp, vdbOutput)
 		}
 
-		fmt.Printf("\n⚠️  Found %d total vulnerabilities (showing %d):\n\n", resp.Total, len(resp.Vulnerabilities))
-		for i, vuln := range resp.Vulnerabilities {
-			cveID := "Unknown"
-			if id, ok := vuln["cve"].(string); ok {
-				cveID = id
-			} else if id, ok := vuln["id"].(string); ok {
-				cveID = id
+		fmt.Printf("\n⚠️  Found %d CVE(s) across %d version(s):\n\n", resp.TotalCVEs, len(resp.Versions))
+		for i, v := range resp.Versions {
+			fmt.Printf("  %d. %s (%s) — %d source(s)\n", i+1, v.Version, v.Ecosystem, len(v.Sources))
+			for _, src := range v.Sources {
+				fmt.Printf("     • %s: %s\n", src.SourceTable, src.SourceID)
 			}
-
-			fmt.Printf("  %d. %s\n", i+1, cveID)
-
-			// Print severity if available
-			if severity, ok := vuln["severity"].(string); ok {
-				fmt.Printf("     Severity: %s\n", severity)
-			}
+		}
+		if len(resp.Versions) == 0 && resp.TotalCVEs > 0 {
+			fmt.Printf("  No version-specific vulnerability data available.\n")
+			fmt.Printf("  Use 'vulnetix vdb cve <CVE-ID>' for detailed CVE information.\n")
 		}
 
 		if resp.HasMore {

@@ -11,31 +11,54 @@ type CVEInfo struct {
 	Data interface{} // Store full response for display (array or object)
 }
 
+// Ecosystem represents a single ecosystem entry
+type Ecosystem struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
 // EcosystemsResponse represents the ecosystems list response
 type EcosystemsResponse struct {
-	Ecosystems []string `json:"ecosystems"`
+	Timestamp  int64       `json:"timestamp"`
+	Ecosystems []Ecosystem `json:"ecosystems"`
+}
+
+// VersionSource represents a data source entry for a product version
+type VersionSource struct {
+	SourceTable string                 `json:"sourceTable"`
+	SourceID    string                 `json:"sourceId"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// VersionRecord represents a single version entry with ecosystem and sources
+type VersionRecord struct {
+	Version   string          `json:"version"`
+	Ecosystem string          `json:"ecosystem"`
+	Sources   []VersionSource `json:"sources"`
+	CVEIDs    []string        `json:"cveIds,omitempty"`
 }
 
 // ProductVersionsResponse represents product versions with pagination
 type ProductVersionsResponse struct {
-	PackageName string   `json:"packageName"`
-	Timestamp   int64    `json:"timestamp"`
-	Total       int      `json:"total"`
-	Limit       int      `json:"limit"`
-	Offset      int      `json:"offset"`
-	HasMore     bool     `json:"hasMore"`
-	Versions    []string `json:"versions"`
+	PackageName string          `json:"packageName"`
+	Timestamp   int64           `json:"timestamp"`
+	Total       int             `json:"total"`
+	Limit       int             `json:"limit"`
+	Offset      int             `json:"offset"`
+	HasMore     bool            `json:"hasMore"`
+	Versions    []VersionRecord `json:"versions"`
 }
 
 // VulnerabilitiesResponse represents vulnerabilities for a package
 type VulnerabilitiesResponse struct {
-	PackageName      string                   `json:"packageName"`
-	Timestamp        int64                    `json:"timestamp"`
-	Total            int                      `json:"total"`
-	Limit            int                      `json:"limit"`
-	Offset           int                      `json:"offset"`
-	HasMore          bool                     `json:"hasMore"`
-	Vulnerabilities  []map[string]interface{} `json:"vulnerabilities"`
+	PackageName string          `json:"packageName"`
+	Timestamp   int64           `json:"timestamp"`
+	TotalCVEs   int             `json:"totalCVEs"`
+	Total       int             `json:"total"`
+	Limit       int             `json:"limit"`
+	Offset      int             `json:"offset"`
+	HasMore     bool            `json:"hasMore"`
+	Versions    []VersionRecord `json:"versions"`
 }
 
 // GetCVE retrieves full vulnerability data for a specific CVE
@@ -56,7 +79,7 @@ func (c *Client) GetCVE(cveID string) (*CVEInfo, error) {
 }
 
 // GetEcosystems retrieves the list of available ecosystems
-func (c *Client) GetEcosystems() ([]string, error) {
+func (c *Client) GetEcosystems() ([]Ecosystem, error) {
 	path := "/ecosystems"
 
 	respBody, err := c.DoRequest("GET", path, nil)

@@ -9,7 +9,19 @@
       "mcp__claude_ai_Cloudflare_Developer_Platform__search_cloudflare_documentation",
       "Bash(hugo version:*)",
       "Bash(hugo mod:*)",
-      "Bash(hugo:*)"
+      "Bash(hugo:*)",
+      "WebFetch(domain:api.vdb.vulnetix.com)",
+      "Bash(go mod:*)",
+      "Bash(go build:*)",
+      "Bash(./bin/vulnetix version:*)",
+      "Bash(./bin/vulnetix auth:*)",
+      "Bash(./bin/vulnetix vdb:*)",
+      "Bash(make dev:*)",
+      "Bash(./bin/vulnetix upload:*)",
+      "Bash(./bin/vulnetix gha:*)",
+      "Bash(gh run:*)",
+      "mcp__claude_ai_Cloudflare_Developer_Platform__kv_namespaces_list",
+      "Bash(make build:*)"
     ],
     "deny": []
   }
