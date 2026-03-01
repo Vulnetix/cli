@@ -1,4 +1,4 @@
-module github.com/vulnetix/vulnetix
+module github.com/vulnetix/cli
 
 go 1.21
 
