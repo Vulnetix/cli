@@ -253,16 +253,24 @@ Examples:
 			return printOutput(resp, vdbOutput)
 		}
 
-		fmt.Printf("\n⚠️  Found %d CVE(s) across %d version(s):\n\n", resp.TotalCVEs, len(resp.Versions))
-		for i, v := range resp.Versions {
+		// Merge both possible field names into a single list
+		items := resp.Versions
+		if len(items) == 0 {
+			items = resp.Vulnerabilities
+		}
+
+		fmt.Printf("\n⚠️  Found %d CVE(s) across %d version(s):\n\n", resp.TotalCVEs, len(items))
+		for i, v := range items {
 			fmt.Printf("  %d. %s (%s) — %d source(s)\n", i+1, v.Version, v.Ecosystem, len(v.Sources))
 			for _, src := range v.Sources {
 				fmt.Printf("     • %s: %s\n", src.SourceTable, src.SourceID)
 			}
 		}
-		if len(resp.Versions) == 0 && resp.TotalCVEs > 0 {
-			fmt.Printf("  No version-specific vulnerability data available.\n")
-			fmt.Printf("  Use 'vulnetix vdb cve <CVE-ID>' for detailed CVE information.\n")
+		if len(items) == 0 && resp.TotalCVEs > 0 {
+			// Neither typed field captured the data — dump the raw API response
+			// so no details are ever silently discarded.
+			fmt.Printf("  Full API response:\n")
+			return printOutput(resp.RawData, "pretty")
 		}
 
 		if resp.HasMore {
