@@ -101,26 +101,28 @@ runs:
         echo "  Workflow Run ID: ${{ github.run_id }}"
         echo "  Repository: ${{ github.repository }}"
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.21'
-        cache: false
-
     - name: Setup Vulnetix CLI
       shell: bash
       run: |
         echo "Setting up Vulnetix CLI..."
 
-        # Install from source using the action's own repository
+        # Ensure Go is available (install if not present)
+        if ! command -v go &> /dev/null; then
+          echo "Go not found, installing via go install is not possible."
+          echo "Please add actions/setup-go to your workflow before this action."
+          exit 1
+        fi
+
+        # Build from source using the action's own repository
         ACTION_DIR="${{ github.action_path }}"
         cd "$ACTION_DIR"
 
+        mkdir -p "$HOME/bin"
         go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=${{ inputs.version }}" -o "$HOME/bin/vulnetix" .
 
         echo "$HOME/bin" >> $GITHUB_PATH
 
-        echo "Vulnetix CLI setup complete"
+        echo "Vulnetix CLI setup complete ($(go version))"
 
     - name: Authenticate with Vulnetix
       if: inputs.api-key != ''
