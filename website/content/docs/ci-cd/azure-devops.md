@@ -417,7 +417,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --task sarif --org-id "$VULNETIX_ORG_ID" --file scan-results.sarif
+      vulnetix upload --file scan-results.sarif --org-id "$VULNETIX_ORG_ID"
   env:
     VULNETIX_ORG_ID: $(vulnetix-org-id)
 ```

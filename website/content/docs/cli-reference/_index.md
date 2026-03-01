@@ -128,35 +128,6 @@ vulnetix upload --file sbom.cdx.json --json
 
 ---
 
-### vulnetix sarif
-
-Upload and validate SARIF files. Accepts input from a file, stdin, or pipe.
-
-```bash
-vulnetix sarif --org-id <UUID> [--file <path>] [flags]
-```
-
-**Flags:**
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--file` | string | - | Path to SARIF file (reads from stdin if not provided) |
-| `--base-url` | string | `https://app.vulnetix.com/api` | Base URL for Vulnetix API |
-
-**Examples:**
-```bash
-# Upload from file
-vulnetix sarif --org-id <UUID> --file results.sarif
-
-# Pipe from another tool
-semgrep --sarif | vulnetix sarif --org-id <UUID>
-
-# Redirect from file
-vulnetix sarif --org-id <UUID> < scan-results.sarif
-```
-
----
-
 ### vulnetix gha
 
 GitHub Actions artifact management. Designed for use within GitHub Actions workflows.
@@ -215,11 +186,15 @@ vulnetix vdb <subcommand> [flags]
 
 | Subcommand | Description |
 |------------|-------------|
-| `cve <CVE-ID>` | Get information about a specific CVE |
+| `vuln <CVE-ID>` | Get information about a specific CVE |
 | `ecosystems` | List available package ecosystems |
-| `product <name> [version]` | Get product version information |
+| `product <name> [version] [ecosystem]` | Get product version information |
 | `vulns <package>` | Get vulnerabilities for a package |
 | `spec` | Get the OpenAPI specification |
+| `exploits <CVE-ID>` | Get exploit intelligence for a specific CVE |
+| `fixes <CVE-ID>` | Get fix data for a specific CVE |
+| `versions <package>` | Get all versions of a package across ecosystems |
+| `gcve` | Get CVEs by date range |
 
 ---
 
@@ -383,7 +358,7 @@ vulnetix --org-id "your-org-id" --task release \
 vulnetix upload --file sbom.cdx.json
 
 # Upload SARIF from a scanner
-semgrep --sarif | vulnetix sarif --org-id "your-org-id"
+semgrep --sarif > results.sarif && vulnetix upload --file results.sarif
 
 # Upload via the upload command with format override
 vulnetix upload --file report.json --format sarif --json

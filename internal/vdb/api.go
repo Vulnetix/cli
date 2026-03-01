@@ -191,3 +191,95 @@ func (c *Client) GetOpenAPISpec() (map[string]interface{}, error) {
 
 	return spec, nil
 }
+
+// GetExploits retrieves exploit intelligence for a specific CVE identifier
+func (c *Client) GetExploits(identifier string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/exploits/%s", url.PathEscape(identifier))
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetCVEFixes retrieves fix data for a specific CVE identifier
+func (c *Client) GetCVEFixes(identifier string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/vuln/%s/fixes", url.PathEscape(identifier))
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetPackageVersions retrieves all known versions for a package across ecosystems
+func (c *Client) GetPackageVersions(packageName string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/%s/versions", url.PathEscape(packageName))
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetCVEsByDateRange retrieves paginated CVEs by date range
+func (c *Client) GetCVEsByDateRange(start, end string) (map[string]interface{}, error) {
+	params := url.Values{}
+	params.Set("start", start)
+	params.Set("end", end)
+	path := "/gcve?" + params.Encode()
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetProductVersionEcosystem retrieves product version information scoped to a specific ecosystem
+func (c *Client) GetProductVersionEcosystem(productName, version, ecosystem string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/product/%s/%s/%s",
+		url.PathEscape(productName),
+		url.PathEscape(version),
+		url.PathEscape(ecosystem),
+	)
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}

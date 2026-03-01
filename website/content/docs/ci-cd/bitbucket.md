@@ -447,7 +447,7 @@ pipelines:
             - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
             - |
               if [ -f "security-results.sarif" ]; then
-                vulnetix --task sarif --org-id "$VULNETIX_ORG_ID" --project-name "$BITBUCKET_REPO_SLUG" --file security-results.sarif
+                vulnetix upload --file security-results.sarif --org-id "$VULNETIX_ORG_ID"
               fi
 ```
 
