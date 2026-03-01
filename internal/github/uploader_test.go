@@ -286,7 +286,7 @@ func TestUploadArtifact(t *testing.T) {
 
 func TestUploadArtifact_InvalidTxnID(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	uploader := &ArtifactUploader{
 		baseURL: "https://api.vulnetix.com",
 		orgID:   "test-org",

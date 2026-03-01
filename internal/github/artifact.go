@@ -307,10 +307,10 @@ func extractZip(zipPath, destDir string) error {
 
 		// Copy with proper error handling
 		_, copyErr := io.Copy(destFile, fileReader)
-		
+
 		// Close file reader first
 		readerCloseErr := fileReader.Close()
-		
+
 		// Close destination file and check for close errors
 		destCloseErr := destFile.Close()
 

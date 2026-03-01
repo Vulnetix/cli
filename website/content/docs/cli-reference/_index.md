@@ -16,13 +16,13 @@ Run vulnerability management tasks against the Vulnetix backend.
 vulnetix --org-id <UUID> [--task <task>] [flags]
 ```
 
-The root command requires `--org-id` and runs one of four task modes:
+The root command runs one of several task modes (`--org-id` required for non-info tasks):
 
 | Task | Description |
 |------|-------------|
-| `scan` (default) | Process and analyze vulnerability data for an organization |
-| `release` | Assess release readiness by validating security artifacts from sibling CI jobs |
+| `info` (default) | Authentication healthcheck across all credential sources |
 | `report` | Generate vulnerability reports for an organization |
+| `release` | Assess release readiness by validating security artifacts from sibling CI jobs |
 | `triage` | Run automated vulnerability triage |
 
 ---
@@ -253,16 +253,13 @@ These flags are available on the root command and inherited by subcommands:
 | Flag | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `--org-id` | string | **Yes** (root) | - | Organization ID (UUID) for Vulnetix operations |
-| `--task` | string | No | `scan` | Task to perform: `scan`, `release`, `report`, `triage` |
+| `--task` | string | No | `info` | Task to perform: `info`, `report`, `release`, `triage` |
 | `--project-name` | string | No | - | Project name for vulnerability management context |
 | `--product-name` | string | No | - | Product name for vulnerability management context |
 | `--team-name` | string | No | - | Team name responsible for the project |
 | `--group-name` | string | No | - | Group name for organizational hierarchy |
 | `--tags` | string | No | - | YAML list of tags for categorization (e.g., `'["Public", "Crown Jewels"]'`) |
 | `--tools` | string | No | - | YAML array of tool configurations |
-| `--production-branch` | string | No | `main` | Production branch name (for release task) |
-| `--release-branch` | string | No | - | Release branch name (for release task) |
-| `--workflow-timeout` | int | No | `30` | Timeout in minutes for artifact collection (for release task) |
 | `--help` | - | No | - | Help for any command |
 
 ## Environment Variables
@@ -281,7 +278,7 @@ These flags are available on the root command and inherited by subcommands:
 
 ## Tools Configuration
 
-The `--tools` flag accepts a YAML array of tool configurations for the `release` task:
+The `--tools` flag accepts a YAML array of tool configurations:
 
 ```bash
 TOOLS_CONFIG='[
@@ -299,7 +296,7 @@ TOOLS_CONFIG='[
   }
 ]'
 
-vulnetix --org-id "your-org-id" --task release --tools "${TOOLS_CONFIG}"
+vulnetix --org-id "your-org-id" --task scan --tools "${TOOLS_CONFIG}"
 ```
 
 ### Tool Configuration Schema
@@ -336,22 +333,6 @@ vulnetix --org-id "your-org-id" \
   --tags '["Public", "Crown Jewels"]'
 ```
 
-### Release Management
-```bash
-# Basic release assessment
-vulnetix --org-id "your-org-id" --task release \
-  --production-branch "main" \
-  --release-branch "release/v1.0.0"
-
-# Release assessment with team context
-vulnetix --org-id "your-org-id" --task release \
-  --project-name "api-service" \
-  --team-name "backend-team" \
-  --production-branch "main" \
-  --release-branch "release/v2.1.0" \
-  --workflow-timeout 60
-```
-
 ### Artifact Upload
 ```bash
 # Upload an SBOM
@@ -367,13 +348,13 @@ vulnetix upload --file report.json --format sarif --json
 ### CI/CD Integration
 ```bash
 # GitHub Actions
-vulnetix --org-id "$VULNETIX_ORG_ID" --task release
+vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
 
 # GitLab CI
-vulnetix --org-id "$VULNETIX_ORG_ID" --task release \
+vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
   --project-name "$CI_PROJECT_NAME"
 
 # Jenkins
-vulnetix --org-id "$VULNETIX_ORG_ID" --task release \
+vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
   --project-name "$JOB_NAME"
 ```

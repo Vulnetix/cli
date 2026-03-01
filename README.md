@@ -22,43 +22,11 @@ Vulnetix supports all major platforms and installation methods:
 
 ### Quick Start Examples
 
-#### GitHub Action
-
-```yaml
-# In a Pull Request workflow
-- name: Vulnetix Release Assessment
-  uses: Vulnetix/cli@v1
-  with:
-    org-id: ${{ secrets.VULNETIX_ORG_ID }}
-    task: release
-    tools: |
-      - category: "SAST"
-        artifact_name: "sarif-results"
-        format: "SARIF"
-        tool_name: "semgrep"
-      - category: "SCA" 
-        artifact_name: "sbom-report"
-        format: "SBOM"
-        tool_name: "syft"
-```
-
-Required Permissions
-
-```yaml
-permissions:
-  # Required for accessing workflow run artifacts
-  actions: read
-  # Required for accessing repository context
-  contents: read
-  # Required if fetching artifacts from other jobs
-  id-token: read
-```
-
 #### Go Install
 
 ```bash
 go install github.com/vulnetix/cli@latest
-vulnetix --org-id "your-org-id" --task scan
+vulnetix
 ```
 
 #### Local Binary
@@ -91,19 +59,18 @@ Vulnetix supports multiple task types to cover different aspects of vulnerabilit
 
 | Task | Description | Use Case | Required Flags |
 |------|-------------|----------|----------------|
-| `release` | Release readiness assessment | Pre-release security validation | `--org-id`, `--production-branch`, `--release-branch` |
+| `info` | Auth healthcheck (default) | Verify credential setup | - |
+| `report` | Generate reports | Vulnerability reporting | `--org-id` |
+| `triage` | Automated triage | Prioritize and resolve vulnerabilities | `--org-id` |
 
 ### Configuration Options
 
 | Flag | Description | Default | Example |
 |------|-------------|---------|---------|
 | `--org-id` | Organization ID (UUID) - **Required** | - | `123e4567-e89b-12d3-a456-426614174000` |
-| `--task` | Task to perform | - | `release` |
+| `--task` | Task to perform | `info` | `info`, `report`, `triage` |
 | `--project-name` | Project name for context | - | `my-web-app` |
 | `--team-name` | Team responsible for the project | - | `security-team` |
-| `--production-branch` | Production branch name | `main` | `main`, `master`, `production` |
-| `--release-branch` | Release branch name | - | `release/v2.1.0`, `feature/auth` |
-| `--workflow-timeout` | Timeout for CI artifact collection (minutes) | `30` | `45`, `60` |
 | `--tags` | YAML list of tags for categorization | - | `'["Public", "Crown Jewels"]'` |
 | `--tools` | YAML array of tool configurations | - | See [tool configuration](#tool-configuration) |
 | `--group-name` | Group name for organizational hierarchy | - | `engineering`, `security` |
