@@ -43,11 +43,11 @@ type ArtifactUploadResponse struct {
 
 // StatusResponse represents the status check response
 type StatusResponse struct {
-	Status    string                   `json:"status"`
-	TxnID     string                   `json:"txnid,omitempty"`
-	Artifacts []ArtifactStatusDetail   `json:"artifacts,omitempty"`
-	Message   string                   `json:"message,omitempty"`
-	Details   map[string]interface{}   `json:"details,omitempty"`
+	Status    string                 `json:"status"`
+	TxnID     string                 `json:"txnid,omitempty"`
+	Artifacts []ArtifactStatusDetail `json:"artifacts,omitempty"`
+	Message   string                 `json:"message,omitempty"`
+	Details   map[string]interface{} `json:"details,omitempty"`
 }
 
 // ArtifactStatusDetail represents the status of an individual artifact
@@ -98,12 +98,12 @@ func validateTxnID(txnID string) error {
 	if txnID == "" {
 		return fmt.Errorf("transaction ID cannot be empty")
 	}
-	
+
 	// Transaction ID should be alphanumeric with hyphens and underscores
 	if !txnIDRegex.MatchString(txnID) {
 		return fmt.Errorf("invalid transaction ID format: must contain only alphanumeric characters, hyphens, and underscores")
 	}
-	
+
 	return nil
 }
 
@@ -174,7 +174,7 @@ func (u *ArtifactUploader) UploadArtifact(txnID, artifactName, artifactDir strin
 	if err := validateTxnID(txnID); err != nil {
 		return nil, fmt.Errorf("invalid transaction ID: %w", err)
 	}
-	
+
 	url := fmt.Sprintf("%s/%s/github/artifact-upload/%s", u.baseURL, u.orgID, txnID)
 
 	// Find all files in the artifact directory
@@ -274,7 +274,7 @@ func (u *ArtifactUploader) GetTransactionStatus(txnID string) (*StatusResponse, 
 	if err := validateTxnID(txnID); err != nil {
 		return nil, fmt.Errorf("invalid transaction ID: %w", err)
 	}
-	
+
 	url := fmt.Sprintf("%s/%s/github/artifact-upload/%s/status", u.baseURL, u.orgID, txnID)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -312,7 +312,7 @@ func (u *ArtifactUploader) GetArtifactStatus(artifactUUID string) (*StatusRespon
 	if artifactUUID == "" {
 		return nil, fmt.Errorf("artifact UUID cannot be empty")
 	}
-	
+
 	url := fmt.Sprintf("%s/%s/github/artifact/%s/status", u.baseURL, u.orgID, artifactUUID)
 
 	req, err := http.NewRequest("GET", url, nil)

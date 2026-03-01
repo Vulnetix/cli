@@ -91,7 +91,7 @@ go build -race -ldflags="-X main.Debug=true" -o vulnetix-debug .
 go build -gcflags="all=-N -l" -o vulnetix-debug .
 
 # Run with debug output
-./vulnetix-debug --debug --task release
+./vulnetix-debug --debug --task scan
 ```
 
 ### Static Binary
@@ -367,7 +367,7 @@ $BINARY --help
 
 # Test basic functionality
 echo "Testing task functionality..."
-$BINARY --task release --dry-run
+$BINARY --task scan --dry-run
 
 # Test configuration loading
 echo "Testing configuration..."

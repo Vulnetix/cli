@@ -48,11 +48,11 @@ type ChunkResponse struct {
 
 // PipelineRecord represents the artifact pipeline record from the SaaS
 type PipelineRecord struct {
-	UUID                string `json:"uuid"`
-	DetectedType        string `json:"detectedType"`
-	ProcessingState     string `json:"processingState"`
-	OriginalFileName    string `json:"originalFileName"`
-	SHA256              string `json:"sha256,omitempty"`
+	UUID             string `json:"uuid"`
+	DetectedType     string `json:"detectedType"`
+	ProcessingState  string `json:"processingState"`
+	OriginalFileName string `json:"originalFileName"`
+	SHA256           string `json:"sha256,omitempty"`
 }
 
 // FinalizeResponse is returned after finalizing an upload

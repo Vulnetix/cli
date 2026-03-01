@@ -8,8 +8,8 @@ import (
 
 func TestParseTags(t *testing.T) {
 	tests := []struct {
-		name    string
-		tagsStr string
+		name     string
+		tagsStr  string
 		expected []string
 	}{
 		{name: "Empty string", tagsStr: "", expected: nil},
@@ -34,11 +34,11 @@ func TestParseTags(t *testing.T) {
 
 func TestGenerateArtifactNamingConvention(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         *VulnetixConfig
-		toolCategory   string
+		name             string
+		config           *VulnetixConfig
+		toolCategory     string
 		baseArtifactName string
-		expected       string
+		expected         string
 	}{
 		{
 			name: "Standard case",
@@ -49,9 +49,9 @@ func TestGenerateArtifactNamingConvention(t *testing.T) {
 					RunID:      "123456789",
 				},
 			},
-			toolCategory:   "sast",
+			toolCategory:     "sast",
 			baseArtifactName: "results.sarif",
-			expected:       "vulnetix-octocat-Spoon-Knife-123456789-sast-results.sarif",
+			expected:         "vulnetix-octocat-Spoon-Knife-123456789-sast-results.sarif",
 		},
 		{
 			name: "Repository with hyphens",
@@ -62,9 +62,9 @@ func TestGenerateArtifactNamingConvention(t *testing.T) {
 					RunID:      "98765",
 				},
 			},
-			toolCategory:   "sca",
+			toolCategory:     "sca",
 			baseArtifactName: "sbom.json",
-			expected:       "vulnetix-my-org-my-repo-98765-sca-sbom.json",
+			expected:         "vulnetix-my-org-my-repo-98765-sca-sbom.json",
 		},
 		{
 			name: "Empty base artifact name",
@@ -75,9 +75,9 @@ func TestGenerateArtifactNamingConvention(t *testing.T) {
 					RunID:      "111",
 				},
 			},
-			toolCategory:   "secret",
+			toolCategory:     "secret",
 			baseArtifactName: "",
-			expected:       "vulnetix-test-repo-111-secret-",
+			expected:         "vulnetix-test-repo-111-secret-",
 		},
 	}
 
@@ -92,11 +92,11 @@ func TestGenerateArtifactNamingConvention(t *testing.T) {
 func TestGetWorkflowRunContext(t *testing.T) {
 	config := &VulnetixConfig{
 		CI: CIContext{
-			RunID:     "run-123",
-			RunNumber: "1",
+			RunID:      "run-123",
+			RunNumber:  "1",
 			Repository: "test/repo",
-			RefName:   "refs/heads/main",
-			SHA:       "abcdef",
+			RefName:    "refs/heads/main",
+			SHA:        "abcdef",
 		},
 	}
 
@@ -110,56 +110,5 @@ func TestGetWorkflowRunContext(t *testing.T) {
 	}
 
 	actual := config.GetWorkflowRunContext()
-	assert.Equal(t, expected, actual)
-}
-
-func TestGetSiblingJobsContext(t *testing.T) {
-	config := &VulnetixConfig{
-		Task: TaskRelease,
-		Release: ReleaseConfig{
-			WorkflowTimeout: 30,
-		},
-		CI: CIContext{
-			Platform:   PlatformGitHub,
-			RunID:      "run-456",
-			RunNumber:  "2",
-			Repository: "another/repo",
-			RefName:    "refs/tags/v1.0.0",
-			SHA:        "fedcba",
-			EventName:  "release",
-			APIURL:     "https://api.github.com",
-		},
-	}
-
-	expected := map[string]interface{}{
-		"workflow_run_id":      "run-456",
-		"workflow_run_number":  "2",
-		"workflow_run_attempt": "1",
-		"repository":           "another/repo",
-		"workflow_ref":         "refs/tags/v1.0.0",
-		"workflow_sha":         "fedcba",
-		"event_name":           "release",
-		"head_ref":             "",
-		"base_ref":             "",
-		"artifact_pattern":     "vulnetix-another-repo-run-456-*",
-		"api_url":              "https://api.github.com",
-		"timeout_minutes":      30,
-	}
-
-	actual := config.GetSiblingJobsContext()
-	assert.Equal(t, expected, actual)
-}
-
-func TestGetReleaseArtifactPattern(t *testing.T) {
-	config := &VulnetixConfig{
-		CI: CIContext{
-			Platform:   PlatformGitHub,
-			Repository: "org/project",
-			RunID:      "7890",
-		},
-	}
-
-	expected := "vulnetix-org-project-7890-*"
-	actual := config.GetReleaseArtifactPattern()
 	assert.Equal(t, expected, actual)
 }

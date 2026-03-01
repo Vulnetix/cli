@@ -32,9 +32,9 @@ inputs:
     description: 'YAML array of tool configurations with category, artifact-name, format, and identifier'
     required: false
   task:
-    description: 'Task to perform: scan, release, report, triage, upload'
+    description: 'Task to perform: info, report, triage, upload'
     required: false
-    default: 'scan'
+    default: 'info'
   api-key:
     description: 'Direct API Key for Vulnetix authentication (hex digest)'
     required: false
@@ -44,18 +44,6 @@ inputs:
   upload-format:
     description: 'Override auto-detected artifact format (cyclonedx, spdx, sarif, openvex, csaf_vex)'
     required: false
-  production-branch:
-    description: 'Production branch name (mandatory for release task unless in PR context)'
-    required: false
-    default: 'main'
-  release-branch:
-    description: 'Release branch name (mandatory for release task unless in PR context)'
-    required: false
-  workflow-run-timeout:
-    description: 'Timeout in minutes to wait for sibling job artifacts'
-    required: false
-    default: '30'
-
 outputs:
   result:
     description: 'Result of the Vulnetix CLI execution'
@@ -70,37 +58,6 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Validate Release Configuration
-      if: inputs.task == 'release'
-      shell: bash
-      run: |
-        echo "🔍 Validating release readiness configuration..."
-        
-        # Check if we're in a PR context
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          echo "✅ Running in PR context - target branch: ${{ github.event.pull_request.base.ref }}"
-          echo "✅ Source branch: ${{ github.event.pull_request.head.ref }}"
-          echo "PRODUCTION_BRANCH=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
-          echo "RELEASE_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
-        else
-          # Not in PR, check mandatory branch parameters
-          if [ -z "${{ inputs.production-branch }}" ] || [ -z "${{ inputs.release-branch }}" ]; then
-            echo "❌ Error: When not in PR context, both production-branch and release-branch are mandatory for release task"
-            echo "Current event: ${{ github.event_name }}"
-            echo "Production branch: ${{ inputs.production-branch }}"
-            echo "Release branch: ${{ inputs.release-branch }}"
-            exit 1
-          fi
-          echo "PRODUCTION_BRANCH=${{ inputs.production-branch }}" >> $GITHUB_ENV
-          echo "RELEASE_BRANCH=${{ inputs.release-branch }}" >> $GITHUB_ENV
-        fi
-        
-        echo "🎯 Release Assessment Configuration:"
-        echo "  Production Branch: ${PRODUCTION_BRANCH}"
-        echo "  Release Branch: ${RELEASE_BRANCH}"
-        echo "  Workflow Run ID: ${{ github.run_id }}"
-        echo "  Repository: ${{ github.repository }}"
-
     - name: Setup Vulnetix CLI
       shell: bash
       run: |
@@ -197,13 +154,6 @@ runs:
 
         # Add task argument
         ARGS="$ARGS --task '${{ inputs.task }}'"
-
-        # Add release mode arguments if task is release
-        if [ "${{ inputs.task }}" = "release" ]; then
-          ARGS="$ARGS --production-branch '${PRODUCTION_BRANCH}'"
-          ARGS="$ARGS --release-branch '${RELEASE_BRANCH}'"
-          ARGS="$ARGS --workflow-timeout '${{ inputs.workflow-run-timeout }}'"
-        fi
 
         # Execute Vulnetix CLI
         eval "vulnetix $ARGS"
