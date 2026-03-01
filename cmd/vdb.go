@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/auth"
@@ -117,6 +118,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to get CVE: %w", err)
 		}
+		printRateLimit(client)
 
 		return printOutput(cveInfo.Data, vdbOutput)
 	},
@@ -152,6 +154,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to get exploits: %w", err)
 		}
+		printRateLimit(client)
 
 		return printOutput(result, vdbOutput)
 	},
@@ -186,6 +189,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to get fixes: %w", err)
 		}
+		printRateLimit(client)
 
 		return printOutput(result, vdbOutput)
 	},
@@ -216,6 +220,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to get versions: %w", err)
 		}
+		printRateLimit(client)
 
 		return printOutput(result, vdbOutput)
 	},
@@ -253,6 +258,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to get CVEs: %w", err)
 		}
+		printRateLimit(client)
 
 		return printOutput(result, vdbOutput)
 	},
@@ -280,6 +286,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to get ecosystems: %w", err)
 		}
+		printRateLimit(client)
 
 		if vdbOutput == "json" {
 			return printOutput(map[string]interface{}{"ecosystems": ecosystems}, vdbOutput)
@@ -340,6 +347,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("failed to get product version ecosystem: %w", err)
 			}
+			printRateLimit(client)
 
 			return printOutput(info, vdbOutput)
 		}
@@ -357,6 +365,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("failed to get product version: %w", err)
 			}
+			printRateLimit(client)
 
 			return printOutput(info, vdbOutput)
 		}
@@ -372,6 +381,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to get product versions: %w", err)
 		}
+		printRateLimit(client)
 
 		if vdbOutput == "json" {
 			return printOutput(resp, vdbOutput)
@@ -420,6 +430,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to get vulnerabilities: %w", err)
 		}
+		printRateLimit(client)
 
 		if vdbOutput == "json" {
 			return printOutput(resp, vdbOutput)
@@ -475,9 +486,83 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to get spec: %w", err)
 		}
+		printRateLimit(client)
 
 		return printOutput(spec, vdbOutput)
 	},
+}
+
+// printRateLimit prints rate limit info from the last API call to stderr.
+func printRateLimit(client *vdb.Client) {
+	rl := client.LastRateLimit
+	if rl == nil || !rl.Present {
+		return
+	}
+	if rl.MinuteLimit == 0 && rl.WeekLimit == 0 {
+		fmt.Fprintf(os.Stderr, "Rate limit: unlimited")
+	} else {
+		if rl.MinuteLimit == 0 {
+			fmt.Fprintf(os.Stderr, "Rate limit: unlimited requests this minute")
+		} else {
+			fmt.Fprintf(os.Stderr, "Rate limit: %s/%s requests remaining this minute (resets in %s)",
+				formatNumber(rl.Remaining), formatNumber(rl.MinuteLimit), formatDuration(rl.Reset))
+		}
+		if rl.WeekLimit == 0 {
+			fmt.Fprintf(os.Stderr, " | unlimited this week")
+		} else {
+			fmt.Fprintf(os.Stderr, " | %s/%s this week (resets in %s)",
+				formatNumber(rl.WeekRemaining), formatNumber(rl.WeekLimit), formatDuration(rl.WeekReset))
+		}
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+// formatDuration converts seconds into a human-readable duration string.
+func formatDuration(seconds int) string {
+	if seconds < 60 {
+		return fmt.Sprintf("%ds", seconds)
+	}
+	if seconds < 3600 {
+		m := seconds / 60
+		s := seconds % 60
+		if s == 0 {
+			return fmt.Sprintf("%dm", m)
+		}
+		return fmt.Sprintf("%dm %ds", m, s)
+	}
+	if seconds < 86400 {
+		h := seconds / 3600
+		m := (seconds % 3600) / 60
+		if m == 0 {
+			return fmt.Sprintf("%dh", h)
+		}
+		return fmt.Sprintf("%dh %dm", h, m)
+	}
+	d := seconds / 86400
+	h := (seconds % 86400) / 3600
+	if h == 0 {
+		return fmt.Sprintf("%dd", d)
+	}
+	return fmt.Sprintf("%dd %dh", d, h)
+}
+
+// formatNumber formats an integer with comma separators.
+func formatNumber(n int) string {
+	if n < 0 {
+		return "-" + formatNumber(-n)
+	}
+	s := strconv.Itoa(n)
+	if len(s) <= 3 {
+		return s
+	}
+	var result []byte
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			result = append(result, ',')
+		}
+		result = append(result, byte(c))
+	}
+	return string(result)
 }
 
 // newVDBClient creates a VDB client using the loaded credentials
