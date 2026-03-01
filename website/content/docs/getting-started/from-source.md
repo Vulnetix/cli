@@ -91,7 +91,7 @@ go build -race -ldflags="-X main.Debug=true" -o vulnetix-debug .
 go build -gcflags="all=-N -l" -o vulnetix-debug .
 
 # Run with debug output
-./vulnetix-debug --debug --task triage
+./vulnetix-debug --debug
 ```
 
 ### Static Binary
@@ -367,7 +367,7 @@ $BINARY --help
 
 # Test basic functionality
 echo "Testing task functionality..."
-$BINARY --task triage --dry-run
+$BINARY --version
 
 # Test configuration loading
 echo "Testing configuration..."
@@ -530,7 +530,7 @@ echo "User installation completed!"
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}",
-            "args": ["--task", "release", "--debug"],
+            "args": ["--debug"],
             "env": {
                 "VULNETIX_DEBUG": "true"
             }

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
@@ -17,82 +16,20 @@ import (
 )
 
 var (
-	// Global configuration state
-	vulnetixConfig *config.VulnetixConfig
-
 	// Command line flags
-	orgID       string
-	task        string
-	projectName string
-	productName string
-	teamName    string
-	groupName   string
-	tags        string
-	tools       string
-	version     = "1.0.0" // This will be set during build
+	orgID   string
+	version = "1.0.0" // This will be set during build
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "vulnetix",
-	Short: "Vulnetix CLI - Automate vulnerability triage and remediation",
+	Short: "Vulnetix CLI - Automate vulnerability remediation",
 	Long: `Vulnetix CLI is a command-line tool for vulnerability management that focuses on
 automated remediation over discovery. It helps organizations prioritize and resolve
 vulnerabilities efficiently.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Validate task
-		validTask, err := config.ValidateTask(task)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		// Info task doesn't require --org-id
-		if validTask == config.TaskInfo {
-			return runInfoTask()
-		}
-
-		if orgID == "" {
-			return fmt.Errorf("--org-id is required")
-		}
-
-		// Validate UUID format
-		if _, err := uuid.Parse(orgID); err != nil {
-			return fmt.Errorf("--org-id must be a valid UUID, got: %s", orgID)
-		}
-
-		// Initialize configuration
-		vulnetixConfig = &config.VulnetixConfig{
-			OrgID:       orgID,
-			Task:        validTask,
-			ProjectName: projectName,
-			ProductName: productName,
-			TeamName:    teamName,
-			GroupName:   groupName,
-			Tags:        config.ParseTags(tags),
-			Tools:       parseTools(tools),
-			CI:          config.LoadCIContext(version),
-			Version:     version,
-		}
-
-		// Print configuration state
-		vulnetixConfig.PrintConfiguration()
-
-		// Main logic
-		fmt.Printf("🛡️  Vulnetix CLI v%s\n", version)
-		fmt.Printf("Organization ID: %s\n", orgID)
-		fmt.Printf("Task: %s\n", validTask)
-
-		switch validTask {
-		case config.TaskTriage:
-			fmt.Printf("🎯 Starting automated triage for organization: %s\n", orgID)
-			fmt.Println("✅ Triage process completed")
-
-		default:
-			fmt.Printf("Starting %s task for organization: %s\n", validTask, orgID)
-		}
-
-		fmt.Printf("🔗 View results at: https://dashboard.vulnetix.com/org/%s\n", orgID)
-		return nil
+		return runInfoTask()
 	},
 }
 
@@ -248,23 +185,6 @@ func verifySigV4(orgID, secret string) error {
 	return nil
 }
 
-// parseTools parses the tools YAML string into Tool structs
-func parseTools(toolsStr string) []config.Tool {
-	if toolsStr == "" {
-		return nil
-	}
-
-	var tools []config.Tool
-
-	// Try to parse as YAML first
-	if err := yaml.Unmarshal([]byte(toolsStr), &tools); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to parse tools YAML: %v\n", err)
-		return nil
-	}
-
-	return tools
-}
-
 func Execute() error {
 	return rootCmd.Execute()
 }
@@ -272,17 +192,6 @@ func Execute() error {
 func init() {
 	// Define flags
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
-
-	// Optional configuration flags
-	rootCmd.PersistentFlags().StringVar(&projectName, "project-name", "", "Project name for vulnerability management context")
-	rootCmd.PersistentFlags().StringVar(&productName, "product-name", "", "Product name for vulnerability management context")
-	rootCmd.PersistentFlags().StringVar(&teamName, "team-name", "", "Team name responsible for the project")
-	rootCmd.PersistentFlags().StringVar(&groupName, "group-name", "", "Group name for organizational hierarchy")
-	rootCmd.PersistentFlags().StringVar(&tags, "tags", "", "YAML list of tags for categorization (e.g., [\"critical\", \"frontend\", \"api\"])")
-	rootCmd.PersistentFlags().StringVar(&tools, "tools", "", "YAML array of tool configurations")
-
-	// Task configuration
-	rootCmd.PersistentFlags().StringVar(&task, "task", "info", "Task to perform: info, triage")
 
 	// Add version command
 	versionCmd := &cobra.Command{

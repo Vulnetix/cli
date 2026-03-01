@@ -60,65 +60,6 @@ Vulnetix supports multiple task types to cover different aspects of vulnerabilit
 | Task | Description | Use Case | Required Flags |
 |------|-------------|----------|----------------|
 | `info` | Auth healthcheck (default) | Verify credential setup | - |
-| `triage` | Automated triage | Prioritize and resolve vulnerabilities | `--org-id` |
-
-### Configuration Options
-
-| Flag | Description | Default | Example |
-|------|-------------|---------|---------|
-| `--org-id` | Organization ID (UUID) - **Required** | - | `123e4567-e89b-12d3-a456-426614174000` |
-| `--task` | Task to perform | `info` | `info`, `triage` |
-| `--project-name` | Project name for context | - | `my-web-app` |
-| `--team-name` | Team responsible for the project | - | `security-team` |
-| `--tags` | YAML list of tags for categorization | - | `'["Public", "Crown Jewels"]'` |
-| `--tools` | YAML array of tool configurations | - | See [tool configuration](#tool-configuration) |
-| `--group-name` | Group name for organizational hierarchy | - | `engineering`, `security` |
-| `--product-name` | Product name for context | - | `core-platform`, `mobile-app` |
-
-### Tool Configuration
-
-The `--tools` flag accepts a YAML array for configuring multiple security tools:
-
-```yaml
-# Example tools configuration
-  - category: "SAST"
-    tool_name: "semgrep"
-    artifact_name: "sast-results"
-    format: "SARIF"
-  - category: "SCA"
-    tool_name: "trivy"
-    artifact_name: "dependency-scan"
-    format: "SARIF"
-  - category: "SECRETS"
-    tool_name: "trufflehog"
-    artifact_name: "secrets-scan"
-    format: "JSON"
-```
-
-Alternatively, you can use JSON format:
-
-```json
-[
-  {
-    "category": "SAST",
-    "tool_name": "semgrep",
-    "artifact_name": "sast-results",
-    "format": "SARIF"
-  },
-  {
-    "category": "SCA",
-    "tool_name": "trivy",
-    "artifact_name": "dependency-scan",
-    "format": "SARIF"
-  },
-  {
-    "category": "SECRETS",
-    "tool_name": "trufflehog",
-    "artifact_name": "secrets-scan",
-    "format": "JSON"
-  }
-]
-```
 
 ## Documentation
 

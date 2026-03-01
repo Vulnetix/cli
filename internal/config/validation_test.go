@@ -13,8 +13,7 @@ func TestValidateTask(t *testing.T) {
 		expectedErr string
 	}{
 		{name: "Valid info task", task: "info", expectedErr: ""},
-		{name: "Valid triage task", task: "triage", expectedErr: ""},
-		{name: "Invalid task", task: "invalid", expectedErr: "unsupported task"},
+		{name: "Invalid task", task: "invalid", expectedErr: "unsupported task: invalid. Supported tasks: info"},
 		{name: "Empty task", task: "", expectedErr: ""}, // Default to info, no error
 	}
 
