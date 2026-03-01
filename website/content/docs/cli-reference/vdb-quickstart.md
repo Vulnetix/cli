@@ -1,4 +1,8 @@
-# VDB Quick Start Guide
+---
+title: "VDB Quick Start"
+weight: 3
+description: "Get started with the Vulnetix Vulnerability Database CLI in minutes with step-by-step setup and first queries."
+---
 
 Get started with the Vulnetix Vulnerability Database (VDB) CLI in minutes.
 
@@ -149,7 +153,7 @@ done < cve-list.txt
 
 ## Next Steps
 
-1. **Read the Full Documentation**: See [VDB-COMMAND.md](./VDB-COMMAND.md)
+1. **Read the Full Documentation**: See [VDB Command Reference]({{< relref "vdb" >}})
 2. **Explore the API**: `vulnetix vdb spec -o json > api-spec.json`
 3. **Automate Checks**: Integrate VDB into your CI/CD pipeline
 4. **Monitor Updates**: Subscribe to vulnerability feeds
@@ -276,7 +280,7 @@ echo "Report generated in $REPORT_DIR/"
 
 ## Support Resources
 
-- **Documentation**: See [VDB-COMMAND.md](./VDB-COMMAND.md)
+- **Documentation**: See [VDB Command Reference]({{< relref "vdb" >}})
 - **API Spec**: https://api.vdb.vulnetix.com/v1/spec
 - **Email Support**: sales@vulnetix.com
 - **Website**: https://www.vulnetix.com

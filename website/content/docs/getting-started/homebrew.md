@@ -1,4 +1,8 @@
-# Vulnetix Homebrew Reference
+---
+title: "Homebrew"
+weight: 3
+description: "Install Vulnetix CLI using Homebrew package manager on macOS and Linux."
+---
 
 Install Vulnetix CLI using Homebrew package manager on macOS and Linux.
 

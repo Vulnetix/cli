@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/vulnetix/vulnetix/internal/auth"
 )
 
 const (
@@ -28,6 +28,8 @@ type Client struct {
 	BaseURL    string
 	OrgID      string
 	SecretKey  string
+	AuthMethod auth.AuthMethod
+	APIKey     string // hex digest for Direct API Key auth
 	HTTPClient *http.Client
 	token      *TokenCache
 	tokenMutex sync.RWMutex
@@ -54,12 +56,27 @@ type ErrorResponse struct {
 	Details string `json:"details,omitempty"`
 }
 
-// NewClient creates a new VDB API client
+// NewClient creates a new VDB API client using SigV4 auth
 func NewClient(orgID, secretKey string) *Client {
 	return &Client{
-		BaseURL:   DefaultBaseURL,
-		OrgID:     orgID,
-		SecretKey: secretKey,
+		BaseURL:    DefaultBaseURL,
+		OrgID:      orgID,
+		SecretKey:  secretKey,
+		AuthMethod: auth.SigV4,
+		HTTPClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
+}
+
+// NewClientFromCredentials creates a VDB API client from centralized credentials
+func NewClientFromCredentials(creds *auth.Credentials) *Client {
+	return &Client{
+		BaseURL:    DefaultBaseURL,
+		OrgID:      creds.OrgID,
+		SecretKey:  creds.Secret,
+		AuthMethod: creds.Method,
+		APIKey:     creds.APIKey,
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -198,12 +215,6 @@ func (c *Client) signRequest(req *http.Request, path, body string) error {
 
 // DoRequest performs an authenticated API request
 func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error) {
-	// Get a valid token
-	token, err := c.GetToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token: %w", err)
-	}
-
 	// Prepare request body
 	var bodyReader io.Reader
 	if body != nil {
@@ -221,8 +232,19 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set headers
-	req.Header.Set("Authorization", "Bearer "+token)
+	// Set auth header based on method
+	switch c.AuthMethod {
+	case auth.DirectAPIKey:
+		req.Header.Set("Authorization", fmt.Sprintf("ApiKey %s:%s", c.OrgID, c.APIKey))
+	default:
+		// SigV4: get a valid Bearer token
+		token, err := c.GetToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get token: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute the request
@@ -271,36 +293,17 @@ func getSignatureKey(key, dateStamp, region, service string) []byte {
 	return kSigning
 }
 
-// LoadCredentials loads VDB credentials from environment or config file
+// LoadCredentials loads VDB credentials using the centralized auth package.
+// Returns orgID and secretKey for backward compatibility with existing callers.
 func LoadCredentials() (orgID, secretKey string, err error) {
-	// Try environment variables first
-	orgID = os.Getenv("VVD_ORG")
-	secretKey = os.Getenv("VVD_SECRET")
-
-	if orgID != "" && secretKey != "" {
-		return orgID, secretKey, nil
-	}
-
-	// Try loading from config file (~/.vulnetix/vdb.json)
-	homeDir, err := os.UserHomeDir()
+	creds, err := auth.LoadCredentials()
 	if err != nil {
-		return "", "", fmt.Errorf("credentials not found in environment. Set VVD_ORG and VVD_SECRET")
+		return "", "", err
 	}
+	return creds.OrgID, creds.Secret, nil
+}
 
-	configPath := filepath.Join(homeDir, ".vulnetix", "vdb.json")
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return "", "", fmt.Errorf("credentials not found. Set VVD_ORG and VVD_SECRET environment variables or create %s", configPath)
-	}
-
-	var config struct {
-		OrgID     string `json:"org_id"`
-		SecretKey string `json:"secret_key"`
-	}
-
-	if err := json.Unmarshal(data, &config); err != nil {
-		return "", "", fmt.Errorf("failed to parse config file: %w", err)
-	}
-
-	return config.OrgID, config.SecretKey, nil
+// LoadFullCredentials loads credentials as a full Credentials struct
+func LoadFullCredentials() (*auth.Credentials, error) {
+	return auth.LoadCredentials()
 }

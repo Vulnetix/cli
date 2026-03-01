@@ -1,4 +1,8 @@
-# Vulnetix GitHub Actions Reference
+---
+title: "GitHub Actions"
+weight: 1
+description: "Integrate Vulnetix CLI into GitHub Actions workflows."
+---
 
 Comprehensive guide for using Vulnetix CLI in GitHub Actions workflows.
 
@@ -17,13 +21,13 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Run Vulnetix
       uses: vulnetix/vulnetix@v1
       with:
         org-id: ${{ secrets.VULNETIX_ORG_ID }}
         tags: '["Public", "Crown Jewels"]'
-        tools: 
+        tools:
 ```
 
 ## Action Inputs
@@ -75,7 +79,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Run Vulnetix vulnerability scan
         uses: vulnetix/vulnetix@v1
         with:
@@ -102,12 +106,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Run SAST with Semgrep
         run: |
           pip install semgrep
           semgrep --config=auto --sarif --output=sast-results.sarif .
-          
+
       - name: Upload SAST results
         uses: actions/upload-artifact@v4
         with:
@@ -120,12 +124,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Generate SBOM with Syft
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
           syft dir:. -o spdx-json=sbom.json
-          
+
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
         with:
@@ -138,12 +142,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Run secrets scan with Gitleaks
         run: |
           curl -sSfL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.18.0_linux_x64.tar.gz | tar -xz
           ./gitleaks detect --source=. --report-format=sarif --report-path=secrets-results.sarif
-          
+
       - name: Upload secrets scan results
         uses: actions/upload-artifact@v4
         with:
@@ -161,7 +165,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Run Vulnetix
       uses: vulnetix/vulnetix@v1
       with:
@@ -204,24 +208,24 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Configure proxy for tools
         run: |
           # Configure git for proxy
           git config --global http.proxy $HTTP_PROXY
           git config --global https.proxy $HTTPS_PROXY
-          
+
           # Configure npm proxy
           npm config set proxy $HTTP_PROXY
           npm config set https-proxy $HTTPS_PROXY
-          
+
           # Configure pip proxy
           mkdir -p ~/.pip
           cat > ~/.pip/pip.conf << EOF
           [global]
           proxy = $HTTP_PROXY
           EOF
-          
+
       - name: Run Vulnetix scan with proxy
         uses: vulnetix/vulnetix@v1
         with:
@@ -244,29 +248,29 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Verify runner environment
         run: |
           # Check for required tools
           command -v docker >/dev/null 2>&1 || { echo "Docker not found"; exit 1; }
           command -v git >/dev/null 2>&1 || { echo "Git not found"; exit 1; }
-          
+
           # Check disk space
           df -h
-          
+
           # Check network connectivity
           curl -I https://app.vulnetix.com/api/check
-          
+
       - name: Clean workspace
         run: |
           # Clean previous artifacts
           rm -rf vulnetix-output/ security-reports/
-          
+
       - name: Run Vulnetix scan
         uses: vulnetix/vulnetix@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
-          
+
       - name: Cleanup after scan
         if: always()
         run: |
@@ -301,7 +305,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Scan ${{ matrix.project.name }}
         uses: vulnetix/vulnetix@v1
         with:
@@ -330,7 +334,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Detect changes
         uses: dorny/paths-filter@v2
         id: changes
@@ -354,13 +358,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Run comprehensive scan for security changes
         if: needs.detect-changes.outputs.security-files == 'true'
         uses: vulnetix/vulnetix@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
-          
+
       - name: Run quick scan for source changes
         if: needs.detect-changes.outputs.source-files == 'true' && needs.detect-changes.outputs.security-files == 'false'
         uses: vulnetix/vulnetix@v1
@@ -385,19 +389,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       # Run CodeQL analysis
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
           languages: javascript, python, go
-          
+
       - name: Autobuild
         uses: github/codeql-action/autobuild@v2
-        
+
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
-        
+
       # Upload additional SARIF results
       - name: Upload custom SARIF
         uses: github/codeql-action/upload-sarif@v2
@@ -420,7 +424,7 @@ steps:
   - name: Debug action reference
     run: |
       curl -s https://api.github.com/repos/vulnetix/vulnetix/releases/latest
-      
+
   - name: Use specific version
     uses: vulnetix/vulnetix@v1.2.3  # Use specific version
     # or
@@ -457,7 +461,7 @@ steps:
       echo "Testing connectivity..."
       curl -I https://app.vulnetix.com/api/
       nslookup app.vulnetix.com
-      
+
   - name: Test with verbose output
     uses: vulnetix/vulnetix@v1
     with:
@@ -479,7 +483,7 @@ steps:
       org-id: ${{ secrets.VULNETIX_ORG_ID }}
       task: release
       workflow-run-timeout: "60"  # Increase timeout
-      
+
   - name: Debug artifacts
     run: |
       gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
@@ -501,7 +505,7 @@ steps:
         lib/
         security/
       sparse-checkout-cone-mode: false
-      
+
   - name: Run targeted scan
     uses: vulnetix/vulnetix@v1
     with:
@@ -535,5 +539,3 @@ steps:
       retention-days: 7     # Limit retention
       # if-no-files-found: warn
 ```
-
-For more examples and advanced configurations, see the [main documentation](../USAGE.md) and other [reference guides](./README.md).

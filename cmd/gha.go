@@ -298,11 +298,11 @@ func runGHAStatus(cmd *cobra.Command, args []string) error {
 
 func init() {
 	// Add upload subcommand
-	ghaUploadCmd.Flags().StringVar(&ghaBaseURL, "base-url", "https://api.vulnetix.com", "Base URL for Vulnetix API")
+	ghaUploadCmd.Flags().StringVar(&ghaBaseURL, "base-url", "https://app.vulnetix.com/api", "Base URL for Vulnetix API")
 	ghaUploadCmd.Flags().BoolVar(&ghaOutputJSON, "json", false, "Output results as JSON")
 
 	// Add status subcommand
-	ghaStatusCmd.Flags().StringVar(&ghaBaseURL, "base-url", "https://api.vulnetix.com", "Base URL for Vulnetix API")
+	ghaStatusCmd.Flags().StringVar(&ghaBaseURL, "base-url", "https://app.vulnetix.com/api", "Base URL for Vulnetix API")
 	ghaStatusCmd.Flags().StringVar(&ghaTxnID, "txnid", "", "Transaction ID to check status")
 	ghaStatusCmd.Flags().StringVar(&ghaUUID, "uuid", "", "Artifact UUID to check status")
 	ghaStatusCmd.Flags().BoolVar(&ghaOutputJSON, "json", false, "Output results as JSON")

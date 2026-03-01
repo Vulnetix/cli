@@ -1,4 +1,8 @@
-# Building Vulnetix from Source
+---
+title: "From Source"
+weight: 6
+description: "Build and install the Vulnetix CLI from source code for maximum flexibility."
+---
 
 Building from source provides the most flexible installation method and allows for customization, development, and installation on unsupported platforms.
 
@@ -141,17 +145,17 @@ echo "Building Vulnetix $VERSION for ${#platforms[@]} platforms..."
 
 for platform in "${platforms[@]}"; do
     IFS='/' read -r GOOS GOARCH <<< "$platform"
-    
+
     output_name="vulnetix-$GOOS-$GOARCH"
     if [ $GOOS = "windows" ]; then
         output_name+='.exe'
     fi
-    
+
     echo "Building for $GOOS/$GOARCH..."
-    
+
     env CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH \
         go build -ldflags="$LDFLAGS" -o "dist/$output_name" .
-    
+
     if [ $? -ne 0 ]; then
         echo "Failed to build for $GOOS/$GOARCH"
         exit 1

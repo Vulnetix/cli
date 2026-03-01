@@ -1,4 +1,8 @@
-# Vulnetix Docker Reference
+---
+title: "Docker"
+weight: 1
+description: "Run Vulnetix CLI in Docker containers without installing anything locally."
+---
 
 Run Vulnetix CLI using Docker containers without installing anything locally.
 
@@ -117,7 +121,7 @@ docker run --rm \
     },
     {
       "category": "SCA",
-      "tool_name": "sca-tool", 
+      "tool_name": "sca-tool",
       "artifact_name": "./reports/sbom.json",
       "format": "JSON"
     }
@@ -154,7 +158,7 @@ PROJECT_NAME="my-application"
 TEAM_NAME="security-team"
 REPORTS_DIR="$(pwd)/security-reports"
 
-# Ensure reports directory exists  
+# Ensure reports directory exists
 mkdir -p "$REPORTS_DIR"
 
 echo "🔍 Running comprehensive security assessment for $PROJECT_NAME..."

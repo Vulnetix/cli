@@ -48,6 +48,11 @@ src/@iconify/icons-bundle.js
 **/__pycache__
 **/vulnetix.db
 
+# Vulnetix credentials
+.vulnetix/
+**/credentials.json
+**/vdb.json
+
 # Go specific
 bin/
 dist/

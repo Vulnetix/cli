@@ -1,4 +1,8 @@
-# Vulnetix Integration with Bitbucket Pipelines
+---
+title: "Bitbucket Pipelines"
+weight: 3
+description: "Integrate Vulnetix CLI into Bitbucket Pipelines."
+---
 
 Bitbucket Pipelines is Atlassian's integrated CI/CD service that builds, tests, and deploys code from Bitbucket repositories.
 
@@ -21,7 +25,7 @@ pipelines:
           - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         artifacts:
           - security-results.sarif
-        
+
   branches:
     main:
       - step:
@@ -91,7 +95,7 @@ definitions:
           - vulnetix --version
         caches:
           - vulnetix-cache
-    
+
     - step: &security-scan
         name: Security Scan
         script:
@@ -99,7 +103,7 @@ definitions:
           - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
         caches:
           - vulnetix-cache
-    
+
     - step: &sast-analysis
         name: SAST Analysis
         image: returntocorp/semgrep:latest
@@ -107,7 +111,7 @@ definitions:
           - semgrep --config=auto --sarif --output=sast-results.sarif .
         artifacts:
           - sast-results.sarif
-    
+
     - step: &dependency-scan
         name: Dependency Scan
         script:
@@ -116,7 +120,7 @@ definitions:
           - trivy fs . --format sarif --output dependency-scan.sarif
         artifacts:
           - dependency-scan.sarif
-    
+
     - step: &release-assessment
         name: Release Assessment
         script:
@@ -161,7 +165,7 @@ pipelines:
           script:
             - echo "Deploying security assessment results..."
             # Deploy to security dashboard or artifact repository
-    
+
     develop:
       - step: *install-vulnetix
       - step: *security-scan
@@ -228,7 +232,7 @@ tools:
     artifact_name: "./sast-results.sarif"
     format: "SARIF"
     tool_name: "semgrep"
-    
+
   - category: "SCA"
     artifact_name: "./dependency-scan.sarif"
     format: "SARIF"
@@ -255,7 +259,7 @@ pipelines:
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
         caches:
           - vulnetix-cache
-    
+
     - parallel:
         - step:
             name: SAST Scan
@@ -264,7 +268,7 @@ pipelines:
               - semgrep --config=auto --sarif --output=sast.sarif .
             artifacts:
               - sast.sarif
-        
+
         - step:
             name: Dependency Scan
             script:
@@ -273,7 +277,7 @@ pipelines:
               - trivy fs . --format sarif --output=deps.sarif
             artifacts:
               - deps.sarif
-        
+
         - step:
             name: Secrets Scan
             image: trufflesecurity/trufflehog:latest
@@ -281,7 +285,7 @@ pipelines:
               - trufflehog filesystem . --json > secrets.json
             artifacts:
               - secrets.json
-    
+
     - step:
         name: Aggregate Assessment
         script:
@@ -339,14 +343,14 @@ pipelines:
             - export PATH=$PATH:$HOME/.local/bin
             - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
             - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
-      
+
       - step:
           name: Deploy to Staging
           deployment: staging
           script:
             - echo "Deploying to staging environment..."
             # Deployment logic here
-      
+
       - step:
           name: Staging Security Validation
           script:
@@ -354,7 +358,7 @@ pipelines:
             - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
           after-script:
             - echo "Staging validation completed"
-      
+
       - step:
           name: Deploy to Production
           deployment: production
@@ -528,7 +532,7 @@ pipelines:
               - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
               - export PATH=$PATH:$HOME/.local/bin
               - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
-        
+
         - step:
             name: Security Scan (Node.js)
             image: node:18-alpine
@@ -537,7 +541,7 @@ pipelines:
               - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
               - export PATH=$PATH:$HOME/.local/bin
               - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
-        
+
         - step:
             name: Security Scan (Python)
             image: python:3.11-alpine
@@ -546,7 +550,7 @@ pipelines:
               - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
               - export PATH=$PATH:$HOME/.local/bin
               - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
-    
+
     - step:
         name: Aggregate Multi-Language Results
         script:
@@ -604,10 +608,3 @@ pipelines:
           - curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
           - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$BITBUCKET_REPO_SLUG"
 ```
-
----
-
-**Next Steps:**
-- See [Docker](docker.md) for containerized security scanning
-- See [Corporate Proxy](corporate-proxy.md) for enterprise network configuration
-- See [GitLab CI](gitlab-ci.md) for GitLab integration comparison

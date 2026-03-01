@@ -1,4 +1,8 @@
-# Vulnetix GitLab CI Reference
+---
+title: "GitLab CI"
+weight: 2
+description: "Integrate Vulnetix CLI into GitLab CI/CD pipelines."
+---
 
 Comprehensive guide for integrating Vulnetix CLI in GitLab CI/CD pipelines.
 
@@ -65,9 +69,9 @@ Configure in GitLab UI: Settings > CI/CD > Variables
 
 | Variable | Description | Protected | Masked |
 |----------|-------------|-----------|---------|
-| `VULNETIX_ORG_ID` | Organization ID (UUID) | ✅ | ✅ |
-| `VULNETIX_API_TOKEN` | API token for authentication | ✅ | ✅ |
-| `VULNETIX_API_URL` | Custom API endpoint | ❌ | ❌ |
+| `VULNETIX_ORG_ID` | Organization ID (UUID) | Yes | Yes |
+| `VULNETIX_API_TOKEN` | API token for authentication | Yes | Yes |
+| `VULNETIX_API_URL` | Custom API endpoint | No | No |
 
 ### Environment-Specific Variables
 
@@ -75,7 +79,7 @@ Configure in GitLab UI: Settings > CI/CD > Variables
 variables:
   VULNETIX_ORG_ID: $VULNETIX_ORG_ID
   VULNETIX_LOG_LEVEL: "info"
-  
+
 # Development environment
 vulnetix-dev:
   stage: security
@@ -87,7 +91,7 @@ vulnetix-dev:
   only:
     - develop
 
-# Production environment  
+# Production environment
 vulnetix-prod:
   stage: security
   environment: production
@@ -121,7 +125,7 @@ security-scan:
   stage: security
   image: vulnetix/vulnetix:latest
   script:
-    - vulnetix --task release 
+    - vulnetix --task release
         --project-name "$PROJECT_NAME"
         --team-name "$TEAM_NAME"
         --build-id "$CI_PIPELINE_ID"
@@ -285,18 +289,18 @@ go-security-scan:
     - go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
   script:
     - mkdir -p security-reports
-    
+
     # Go vulnerability check
     - govulncheck -json ./... > security-reports/govulncheck.json
-    
+
     # Go security analysis
     - gosec -fmt sarif -out security-reports/gosec.sarif ./...
-    
+
     # Generate Go module SBOM
     - go list -json -deps ./... > security-reports/go-deps.json
-    
+
     # Run Vulnetix assessment
-    - vulnetix --task release 
+    - vulnetix --task release
         --production-branch "main"
         --release-branch "$CI_COMMIT_REF_NAME"
         --tools '[
@@ -335,15 +339,15 @@ nodejs-security-scan:
     - npm install -g audit-ci
   script:
     - mkdir -p security-reports
-    
+
     # NPM audit
     - npm audit --audit-level=moderate --json > security-reports/npm-audit.json || true
-    
+
     # Generate package lock analysis
     - npm list --json --all > security-reports/npm-deps.json
-    
+
     # Run Vulnetix assessment
-    - vulnetix --task release 
+    - vulnetix --task release
         --project-name "$CI_PROJECT_NAME"
         --team-name "Frontend Team"
   artifacts:
@@ -368,18 +372,18 @@ python-security-scan:
     - pip install vulnetix-cli safety bandit
   script:
     - mkdir -p security-reports
-    
+
     # Python safety check
     - safety check --json --output security-reports/safety.json || true
-    
+
     # Bandit SAST
     - bandit -r . -f sarif -o security-reports/bandit.sarif || true
-    
+
     # Generate requirements analysis
     - pip freeze > security-reports/requirements-freeze.txt
-    
+
     # Run Vulnetix assessment
-    - vulnetix --task release 
+    - vulnetix --task release
         --project-name "$CI_PROJECT_NAME"
         --team-name "Backend Team"
   artifacts:
@@ -403,7 +407,7 @@ variables:
   HTTP_PROXY: "http://proxy.company.com:8080"
   HTTPS_PROXY: "http://proxy.company.com:8080"
   NO_PROXY: "localhost,127.0.0.1,.company.com"
-  
+
 vulnetix-proxy-scan:
   stage: security
   image: vulnetix/vulnetix:latest
@@ -466,7 +470,7 @@ vulnetix-airgapped:
     - develop
     - feature/*
 
-# Staging environment  
+# Staging environment
 .vulnetix-staging: &vulnetix-staging
   stage: security
   variables:
@@ -527,7 +531,7 @@ parallel-security-scan:
           ./semgrep --config=auto --sarif --output=security-reports/sast.sarif .
           ;;
         sca)
-          # SCA scanning logic  
+          # SCA scanning logic
           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
           syft dir:. -o spdx-json=security-reports/sbom.json
           ;;
@@ -561,7 +565,7 @@ vulnetix-custom-rules:
     # Download custom security rules
     - curl -sSfL "$CUSTOM_RULES_URL" -o custom-rules.yaml
   script:
-    - vulnetix --task release 
+    - vulnetix --task release
         --config-file custom-rules.yaml
         --custom-rules-enabled
         --severity-threshold high
@@ -738,5 +742,3 @@ vulnetix-parallel-opt:
   script:
     - vulnetix --org-id "$VULNETIX_ORG_ID" --task release --parallel-jobs $CI_NODE_TOTAL --node-index $CI_NODE_INDEX
 ```
-
-For more examples and advanced configurations, see the [main documentation](../USAGE.md) and other [reference guides](./README.md).

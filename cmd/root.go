@@ -396,8 +396,7 @@ func runSARIFUpload() error {
 
 func init() {
 	// Define flags
-	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations (required)")
-	rootCmd.MarkPersistentFlagRequired("org-id")
+	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
 
 	// Optional configuration flags
 	rootCmd.PersistentFlags().StringVar(&projectName, "project-name", "", "Project name for vulnerability management context")
@@ -423,9 +422,6 @@ func init() {
 			fmt.Printf("Vulnetix CLI v%s\n", version)
 		},
 	}
-
-	// Version command doesn't need org-id
-	versionCmd.Flags().String("org-id", "", "Organization ID (not required for version)")
 
 	// Add SARIF upload command
 	sarifCmd := &cobra.Command{
@@ -540,8 +536,6 @@ The SARIF file can be provided via:
 
 	// SARIF command flags
 	sarifCmd.Flags().StringVar(&sarifFile, "file", "", "Path to SARIF file (if not provided, reads from stdin)")
-	sarifCmd.Flags().StringVar(&sarifBaseURL, "base-url", "https://api.vulnetix.com", "Base URL for Vulnetix API")
-	sarifCmd.MarkFlagRequired("org-id")
-
+	sarifCmd.Flags().StringVar(&sarifBaseURL, "base-url", "https://app.vulnetix.com/api", "Base URL for Vulnetix API")
 	rootCmd.AddCommand(versionCmd, sarifCmd)
 }
