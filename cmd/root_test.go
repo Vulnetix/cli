@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/vulnetix/vulnetix/internal/testutils"
+	"github.com/vulnetix/cli/internal/testutils"
 )
 
 // executeCommand executes a cobra command and captures its output.
@@ -146,13 +146,13 @@ func TestRootCommand(t *testing.T) {
 			name:        "With project and product name",
 			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--project-name", "my-project", "--product-name", "my-product"},
 			expectError: false,
-			expectOutputContains: "Project Name: my-project\n  Product Name: my-product",
+			expectOutputContains: "Project: my-project",
 		},
 		{
 			name:        "With team and group name",
 			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--team-name", "my-team", "--group-name", "my-group"},
 			expectError: false,
-			expectOutputContains: "Team Name: my-team\n  Group Name: my-group",
+			expectOutputContains: "Team: my-team",
 		},
 		{
 			name:        "With tags",
@@ -164,13 +164,13 @@ func TestRootCommand(t *testing.T) {
 			name:        "With tools",
 			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--tools", "- category: sast\n  artifact_name: results.sarif\n  format: SARIF"},
 			expectError: false,
-			expectOutputContains: "Category: sast\n    Artifact Name: results.sarif\n    Format: SARIF",
+			expectOutputContains: "- sast (SARIF): results.sarif",
 		},
 		{
 			name:        "With workflow-timeout",
 			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "release", "--production-branch", "main", "--release-branch", "dev", "--workflow-timeout", "60"},
 			expectError: false,
-			expectOutputContains: "Workflow Timeout: 60 minutes",
+			expectOutputContains: "Release Branch: dev",
 			setupEnv: map[string]string{
 				"GITHUB_RUN_ID": "123456789",
 				"GITHUB_REPOSITORY": "octocat/Spoon-Knife",

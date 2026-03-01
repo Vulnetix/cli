@@ -23,7 +23,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Run Vulnetix
-      uses: vulnetix/vulnetix@v1
+      uses: Vulnetix/cli@v1
       with:
         org-id: ${{ secrets.VULNETIX_ORG_ID }}
         tags: '["Public", "Crown Jewels"]'
@@ -54,18 +54,13 @@ jobs:
 | Output | Description |
 |--------|-------------|
 | `result` | Result of the Vulnetix CLI execution |
-| `scan-id` | Unique identifier for the scan |
-| `report-url` | URL to the generated report |
-| `findings-count` | Number of security findings |
-| `critical-count` | Number of critical findings |
-| `high-count` | Number of high severity findings |
 
 ## Usage Examples
 
-### Basic Vulnerability Scanning
+### Basic Usage
 
 ```yaml
-name: Basic Security Scan
+name: Basic Security Assessment
 
 on:
   push:
@@ -80,8 +75,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Vulnetix vulnerability scan
-        uses: vulnetix/vulnetix@v1
+      - name: Run Vulnetix
+        uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           task: scan
@@ -100,7 +95,7 @@ on:
   pull_request:
     branches: [ main ]
 jobs:
-  # Security scanning jobs that generate artifacts
+  # Security assessment jobs that generate artifacts
   sast-scan:
     runs-on: ubuntu-latest
     steps:
@@ -167,7 +162,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Run Vulnetix
-      uses: vulnetix/vulnetix@v1
+      uses: Vulnetix/cli@v1
       with:
         task: release
         org-id: ${{ secrets.VULNETIX_ORG_ID }}
@@ -194,7 +189,7 @@ jobs:
 ### Corporate Proxy Support
 
 ```yaml
-name: Corporate Environment Scan
+name: Corporate Environment Assessment
 
 on: [push, pull_request]
 
@@ -226,8 +221,8 @@ jobs:
           proxy = $HTTP_PROXY
           EOF
 
-      - name: Run Vulnetix scan with proxy
-        uses: vulnetix/vulnetix@v1
+      - name: Run Vulnetix
+        uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
         env:
@@ -238,7 +233,7 @@ jobs:
 ### Self-Hosted Runners
 
 ```yaml
-name: Self-Hosted Runner Security Scan
+name: Self-Hosted Runner Security Assessment
 
 on: [push, pull_request]
 
@@ -266,8 +261,8 @@ jobs:
           # Clean previous artifacts
           rm -rf vulnetix-output/ security-reports/
 
-      - name: Run Vulnetix scan
-        uses: vulnetix/vulnetix@v1
+      - name: Run Vulnetix
+        uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
 
@@ -281,7 +276,7 @@ jobs:
 ### Matrix Strategy for Multiple Projects
 
 ```yaml
-name: Multi-Project Security Scan
+name: Multi-Project Security Assessment
 
 on:
   schedule:
@@ -306,8 +301,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Scan ${{ matrix.project.name }}
-        uses: vulnetix/vulnetix@v1
+      - name: Assess ${{ matrix.project.name }}
+        uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           project-name: ${{ matrix.project.name }}
@@ -316,10 +311,10 @@ jobs:
           WORKING_DIRECTORY: ${{ matrix.project.path }}
 ```
 
-### Conditional Scanning
+### Conditional Execution
 
 ```yaml
-name: Conditional Security Scan
+name: Conditional Security Assessment
 
 on:
   pull_request:
@@ -359,15 +354,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run comprehensive scan for security changes
+      - name: Run Vulnetix for security changes
         if: needs.detect-changes.outputs.security-files == 'true'
-        uses: vulnetix/vulnetix@v1
+        uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
 
-      - name: Run quick scan for source changes
+      - name: Run Vulnetix for source changes
         if: needs.detect-changes.outputs.source-files == 'true' && needs.detect-changes.outputs.security-files == 'false'
-        uses: vulnetix/vulnetix@v1
+        uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
 ```
@@ -417,18 +412,18 @@ jobs:
 #### Action Not Found
 
 ```yaml
-# Issue: Action vulnetix/vulnetix@v1 not found
+# Issue: Action vulnetix/cli@v1 not found
 # Solution: Verify action reference and version
 
 steps:
   - name: Debug action reference
     run: |
-      curl -s https://api.github.com/repos/vulnetix/vulnetix/releases/latest
+      curl -s https://api.github.com/repos/vulnetix/cli/releases/latest
 
   - name: Use specific version
-    uses: vulnetix/vulnetix@v1.2.3  # Use specific version
+    uses: Vulnetix/cli@v1.2.3  # Use specific version
     # or
-    uses: vulnetix/vulnetix@main    # Use latest from main branch
+    uses: Vulnetix/cli@main    # Use latest from main branch
 ```
 
 #### Permission Denied
@@ -463,7 +458,7 @@ steps:
       nslookup app.vulnetix.com
 
   - name: Test with verbose output
-    uses: vulnetix/vulnetix@v1
+    uses: Vulnetix/cli@v1
     with:
       org-id: ${{ secrets.VULNETIX_ORG_ID }}
     env:
@@ -478,7 +473,7 @@ steps:
 
 steps:
   - name: Run with extended timeout
-    uses: vulnetix/vulnetix@v1
+    uses: Vulnetix/cli@v1
     with:
       org-id: ${{ secrets.VULNETIX_ORG_ID }}
       task: release
@@ -497,7 +492,7 @@ steps:
 # Solution: Handle large repositories
 
 steps:
-  - name: Sparse checkout for security scan
+  - name: Sparse checkout for security assessment
     uses: actions/checkout@v4
     with:
       sparse-checkout: |
@@ -506,8 +501,8 @@ steps:
         security/
       sparse-checkout-cone-mode: false
 
-  - name: Run targeted scan
-    uses: vulnetix/vulnetix@v1
+  - name: Run Vulnetix
+    uses: Vulnetix/cli@v1
     with:
       org-id: ${{ secrets.VULNETIX_ORG_ID }}
       # Limit scan scope for performance

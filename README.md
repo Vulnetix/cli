@@ -10,18 +10,13 @@ Vulnetix supports all major platforms and installation methods:
 
 | Method | Linux | macOS | Windows | CI/CD | Enterprise | Installation |
 |--------|-------|-------|---------|-------|------------|-------------|
-| [**Docker**](./docs/docker.md) | ✅ | ✅ | ✅ | ✅ | ✅ | `docker pull vulnetix/vulnetix` |
-| [**Go Install**](./docs/go-install.md) | ✅ | ✅ | ✅ | ✅ | ✅ | `go install github.com/vulnetix/vulnetix@latest` |
-| [**Homebrew**](./docs/homebrew.md) | ✅ | ✅ | - | ✅ | ✅ | `brew tap vulnetix/vulnetix && brew install vulnetix` |
-| [**Chocolatey**](./docs/chocolatey.md) | - | - | ✅ | ✅ | ✅ | `choco install vulnetix` |
+| [**Go Install**](./docs/go-install.md) | ✅ | ✅ | ✅ | ✅ | ✅ | `go install github.com/vulnetix/cli@latest` |
 | [**Binary Download**](./docs/curl.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Direct download with curl |
 | [**From Source**](./docs/from-source.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Full customization |
 | [**GitHub Actions**](./docs/github-actions.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Native GitHub integration |
 | [**GitLab CI**](./docs/gitlab-ci.md) | ✅ | ✅ | ✅ | ✅ | ✅ | GitLab pipeline integration |
 | [**Azure DevOps**](./docs/azure-devops.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Azure pipeline integration |
 | [**Bitbucket**](./docs/bitbucket.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Bitbucket pipeline integration |
-| [**Kubernetes**](./docs/kubernetes.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Uses Docker images |
-| [**Podman**](./docs/podman.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Uses Docker images |
 
 **Architecture Support:** AMD64, ARM64, ARM, 386 across all platforms
 
@@ -32,7 +27,7 @@ Vulnetix supports all major platforms and installation methods:
 ```yaml
 # In a Pull Request workflow
 - name: Vulnetix Release Assessment
-  uses: vulnetix/vulnetix@v1
+  uses: Vulnetix/cli@v1
   with:
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
     task: release
@@ -59,22 +54,10 @@ permissions:
   id-token: read
 ```
 
-#### Docker
-
-```bash
-# Basic vulnerability scan
-docker run --rm vulnetix/vulnetix:latest --org-id "your-org-id"
-
-# Release security assessment
-docker run --rm vulnetix/vulnetix:latest \
-  --org-id "your-org-id" --task release \
-  --project-name "my-app" --production-branch main
-```
-
 #### Go Install
 
 ```bash
-go install github.com/vulnetix/vulnetix@latest
+go install github.com/vulnetix/cli@latest
 vulnetix --org-id "your-org-id" --task scan
 ```
 
@@ -84,19 +67,19 @@ Download and run the binary directly:
 
 ```bash
 # Linux AMD64
-curl -L https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
+curl -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
 chmod +x vulnetix && ./vulnetix --org-id "your-org-id-here"
 
 # macOS (Intel)
-curl -L https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-darwin-amd64 -o vulnetix
+curl -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-amd64 -o vulnetix
 chmod +x vulnetix && ./vulnetix --org-id "your-org-id-here"
 
 # macOS (Apple Silicon)
-curl -L https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-darwin-arm64 -o vulnetix
+curl -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-arm64 -o vulnetix
 chmod +x vulnetix && ./vulnetix --org-id "your-org-id-here"
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri "https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-windows-amd64.exe" -OutFile "vulnetix.exe"
+Invoke-WebRequest -Uri "https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-windows-amd64.exe" -OutFile "vulnetix.exe"
 .\vulnetix.exe --org-id "your-org-id-here"
 ```
 
@@ -182,9 +165,7 @@ Alternatively, you can use JSON format:
 
 ## Distribution
 
-Vulnetix CLI is published to multiple platforms on each release:
+Vulnetix CLI is published on each release:
 
-- **GitHub Releases** → Go Install, Binary Downloads, Homebrew, Chocolatey
-- **Docker Hub** → Docker, Kubernetes, Podman, CI/CD systems  
-- **Package Managers** → Homebrew (macOS/Linux), Chocolatey (Windows)
-- **GitHub Marketplace** → GitHub Actions integration
+- **GitHub Releases** -- Go Install, Binary Downloads
+- **GitHub Marketplace** -- GitHub Actions integration

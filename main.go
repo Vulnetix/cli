@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/vulnetix/vulnetix/cmd"
+	"github.com/vulnetix/cli/cmd"
 )
 
 func main() {

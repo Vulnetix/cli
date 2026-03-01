@@ -23,7 +23,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Run Vulnetix
-      uses: vulnetix/vulnetix@v1
+      uses: Vulnetix/cli@v1
       with:
         task: release
         org-id: ${{ secrets.VULNETIX_ORG_ID }}
@@ -45,37 +45,16 @@ jobs:
         tags: '["Public", "Crown Jewels"]'
 ```
 
-### Docker
-
-You can run Vulnetix CLI using Docker without installing anything locally:
-
-```bash
-# Basic vulnerability scan (default task)
-docker run --rm vulnetix/vulnetix:latest --org-id "123e4567-e89b-12d3-a456-426614174000"
-
-# Release assessment task
-docker run --rm vulnetix/vulnetix:latest --org-id "123e4567-e89b-12d3-a456-426614174000" --task release
-
-# With project and team context
-docker run --rm vulnetix/vulnetix:latest \
-  --org-id "123e4567-e89b-12d3-a456-426614174000" \
-  --project-name "my-web-app" \
-  --team-name "security-team"
-
-# Interactive mode to see help
-docker run -it --rm vulnetix/vulnetix:latest --help
-```
-
 ### Go Install
 
 Install directly from source using Go (requires Go 1.21+):
 
 ```bash
 # Install latest version
-go install github.com/vulnetix/vulnetix@latest
+go install github.com/vulnetix/cli@latest
 
 # Install specific version
-go install github.com/vulnetix/vulnetix@v1.2.3
+go install github.com/vulnetix/cli@v1.2.3
 
 # Basic vulnerability scan (default task)
 vulnetix --org-id "your-org-id-here"
@@ -94,7 +73,7 @@ vulnetix --org-id "your-org-id-here" --task triage
 
 ```bash
 # Download and run locally (basic scan)
-curl -L https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
+curl -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
 chmod +x vulnetix
 ./vulnetix --org-id "your-org-id-here"
 
@@ -115,36 +94,13 @@ Use the installation script to automatically detect your platform:
 
 ```bash
 # Install latest version (auto-detects platform)
-curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
 
 # Install to specific directory
-curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh -s -- --install-dir=/usr/local/bin
+curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh -s -- --install-dir=/usr/local/bin
 
 # Install specific version
-curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh -s -- --version=v1.2.3
-```
-
-### Package Managers
-
-#### Homebrew (macOS/Linux)
-```bash
-# Add the tap
-brew tap vulnetix/vulnetix
-
-# Install vulnetix
-brew install vulnetix
-
-# Run
-vulnetix --org-id "your-org-id-here"
-```
-
-#### Chocolatey (Windows)
-```powershell
-# Install chocolatey package
-choco install vulnetix
-
-# Run
-vulnetix --org-id "your-org-id-here"
+curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh -s -- --version=v1.2.3
 ```
 
 ### Go Install
@@ -153,10 +109,10 @@ Install directly from source using Go (requires Go 1.21+):
 
 ```bash
 # Install latest version
-go install github.com/vulnetix/vulnetix@latest
+go install github.com/vulnetix/cli@latest
 
 # Install specific version  
-go install github.com/vulnetix/vulnetix@v1.2.3
+go install github.com/vulnetix/cli@v1.2.3
 
 # Basic vulnerability scan (default task)
 vulnetix --org-id "your-org-id-here"
@@ -190,7 +146,7 @@ vulnetix --org-id "your-org-id-here" --task triage --tags '["Public", "Crown Jew
 
 ```yaml
 - name: Run Vulnetix
-  uses: vulnetix/vulnetix@v1
+  uses: Vulnetix/cli@v1
   with:
     org-id: '123e4567-e89b-12d3-a456-426614174000'
 ```
@@ -199,7 +155,7 @@ vulnetix --org-id "your-org-id-here" --task triage --tags '["Public", "Crown Jew
 
 ```yaml
 - name: Run Vulnetix
-  uses: vulnetix/vulnetix@v1
+  uses: Vulnetix/cli@v1
   with:
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
     version: 'v1.2.3'
@@ -227,7 +183,7 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Run Vulnetix vulnerability scan
-        uses: vulnetix/vulnetix@v1
+        uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
         
@@ -248,7 +204,7 @@ Vulnetix supports different task types for various security workflows:
 
 ```yaml
 - name: Vulnerability Scan
-  uses: vulnetix/vulnetix@v1
+  uses: Vulnetix/cli@v1
   with:
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
     task: scan  # Default task
@@ -310,7 +266,7 @@ jobs:
       id-token: read     # Required for artifact fetching
     steps:
       - name: Vulnetix Release Assessment
-        uses: vulnetix/vulnetix@v1
+        uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           task: release
@@ -328,138 +284,6 @@ jobs:
 
 ### Release Security Assessment (Bash/Shell Examples)
 
-#### Using Docker
-
-Complete multi-step security pipeline with Release Assessment using Docker:
-
-```bash
-#!/bin/bash
-# release-assessment-docker.sh - Complete Release Security Assessment with Docker
-
-set -e
-
-# Configuration
-ORG_ID="123e4567-e89b-12d3-a456-426614174000"
-PROJECT_NAME="my-web-app"
-RELEASE_BRANCH="release/v2.1.0"
-PRODUCTION_BRANCH="main"
-TEAM_NAME="security-team"
-SCAN_RESULTS_DIR="./scan-results"
-
-echo "🔍 Starting Release Security Assessment Pipeline..."
-
-# Create results directory for security tool outputs
-mkdir -p "${SCAN_RESULTS_DIR}"
-
-# Step 1: Run SAST scan (example with Semgrep)
-echo "📊 Running SAST scan..."
-docker run --rm -v "$(pwd):/src" \
-  returntocorp/semgrep:latest \
-  --config=auto \
-  --sarif \
-  --output="/src/${SCAN_RESULTS_DIR}/sast-results.sarif" \
-  /src
-
-# Step 2: Generate SBOM (example with Syft)
-echo "📋 Generating Software Bill of Materials..."
-docker run --rm -v "$(pwd):/workspace" \
-  anchore/syft:latest \
-  dir:/workspace \
-  -o spdx-json="/workspace/${SCAN_RESULTS_DIR}/sbom.spdx.json"
-
-# Step 3: Run secrets scan (example with TruffleHog)
-echo "🔐 Running secrets scan..."
-docker run --rm -v "$(pwd):/repo" \
-  trufflesecurity/trufflehog:latest \
-  filesystem /repo \
-  --json > "${SCAN_RESULTS_DIR}/secrets-results.json"
-
-# Step 4: Run container scan (if applicable)
-echo "🐳 Running container security scan..."
-if [ -f "Dockerfile" ]; then
-  docker run --rm -v "$(pwd):/workspace" \
-    aquasec/trivy:latest \
-    fs /workspace \
-    --format sarif \
-    --output /workspace/${SCAN_RESULTS_DIR}/container-scan.sarif
-fi
-
-# Step 5: Run dependency scan
-echo "📦 Running dependency vulnerability scan..."
-docker run --rm -v "$(pwd):/workspace" \
-  aquasec/trivy:latest \
-  fs /workspace \
-  --format sarif \
-  --scanners vuln \
-  --output /workspace/${SCAN_RESULTS_DIR}/dependency-scan.sarif
-
-# Step 6: Upload SARIF files to Vulnetix
-echo "📤 Uploading SARIF results to Vulnetix..."
-for sarif_file in "${SCAN_RESULTS_DIR}"/*.sarif; do
-  if [ -f "$sarif_file" ]; then
-    echo "Uploading: $sarif_file"
-    docker run --rm -v "$(pwd):/workspace" \
-      vulnetix/vulnetix:latest \
-      sarif \
-      --org-id "${ORG_ID}" \
-      --project-name "${PROJECT_NAME}" \
-      --team-name "${TEAM_NAME}" \
-      "/workspace/$sarif_file"
-  fi
-done
-
-# Step 7: Release Assessment with Vulnetix
-echo "🎯 Running Vulnetix Release Assessment..."
-docker run --rm \
-  vulnetix/vulnetix:latest \
-  --task release \
-  --org-id "${ORG_ID}" \
-  --project-name "${PROJECT_NAME}" \
-  --team-name "${TEAM_NAME}" \
-  --production-branch "${PRODUCTION_BRANCH}" \
-  --release-branch "${RELEASE_BRANCH}" \
-  --workflow-timeout 45 \
-  --tags '["Public", "Crown Jewels"]'
-
-echo "✅ Release Security Assessment completed!"
-```
-
-**Tool Configuration Example:**
-
-Since Vulnetix accepts tool configurations via the `--tools` flag, you can configure multiple security tools:
-
-```bash
-# Example with tools configuration
-TOOLS_CONFIG='[
-  {
-    "category": "SAST",
-    "tool_name": "semgrep",
-    "artifact_name": "sast-results",
-    "format": "SARIF"
-  },
-  {
-    "category": "SCA", 
-    "tool_name": "trivy",
-    "artifact_name": "dependency-scan",
-    "format": "SARIF"
-  },
-  {
-    "category": "SECRETS",
-    "tool_name": "trufflehog", 
-    "artifact_name": "secrets-results",
-    "format": "JSON"
-  }
-]'
-
-docker run --rm \
-  vulnetix/vulnetix:latest \
-  --task release \
-  --org-id "${ORG_ID}" \
-  --project-name "${PROJECT_NAME}" \
-  --team-name "${TEAM_NAME}" \
-  --tools "${TOOLS_CONFIG}"
-```
-
 #### Using Go Install
 
 Complete multi-step security pipeline with Release Assessment using Go install:
@@ -473,7 +297,7 @@ set -e
 # Prerequisites check
 if ! command -v vulnetix &> /dev/null; then
     echo "Installing Vulnetix CLI..."
-    go install github.com/vulnetix/vulnetix@latest
+    go install github.com/vulnetix/cli@latest
 fi
 
 # Configuration
