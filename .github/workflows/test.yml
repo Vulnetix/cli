@@ -33,8 +33,17 @@ jobs:
 
       - name: Test CLI directly
         run: |
-          # Test with valid UUID
-          ./bin/vulnetix-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/') --org-id "123e4567-e89b-12d3-a456-426614174000"
+          # Determine OS name matching build output
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          case "$OS" in
+            mingw*|msys*|cygwin*) OS="windows" ;;
+          esac
+          ARCH=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
+          BINARY="./bin/vulnetix-${OS}-${ARCH}"
+          if [ "$OS" = "windows" ]; then
+            BINARY="${BINARY}.exe"
+          fi
+          $BINARY --org-id "123e4567-e89b-12d3-a456-426614174000"
         shell: bash
 
       - name: Test action
