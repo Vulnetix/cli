@@ -81,7 +81,7 @@ chmod +x vulnetix
 ./vulnetix --org-id "your-org-id-here" --task release --project-name "my-app"
 
 # Upload SARIF file
-./vulnetix sarif --org-id "your-org-id-here" my-scan-results.sarif
+vulnetix upload --file my-scan-results.sarif --org-id "your-org-id-here"
 ```
 
 ## Installation
@@ -372,11 +372,7 @@ echo "📤 Uploading SARIF results to Vulnetix..."
 for sarif_file in "${SCAN_RESULTS_DIR}"/*.sarif; do
   if [ -f "$sarif_file" ]; then
     echo "Uploading: $sarif_file"
-    vulnetix sarif \
-      --org-id "${ORG_ID}" \
-      --project-name "${PROJECT_NAME}" \
-      --team-name "${TEAM_NAME}" \
-      "$sarif_file"
+    vulnetix upload --file "$sarif_file" --org-id "${ORG_ID}"
   fi
 done
 

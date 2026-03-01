@@ -92,14 +92,13 @@ Vulnetix supports multiple task types to cover different aspects of vulnerabilit
 | Task | Description | Use Case | Required Flags |
 |------|-------------|----------|----------------|
 | `release` | Release readiness assessment | Pre-release security validation | `--org-id`, `--production-branch`, `--release-branch` |
-| `sarif` | Upload and validate SARIF files | Integrate with external security tools | `--org-id`, `<sarif-file>` |
 
 ### Configuration Options
 
 | Flag | Description | Default | Example |
 |------|-------------|---------|---------|
 | `--org-id` | Organization ID (UUID) - **Required** | - | `123e4567-e89b-12d3-a456-426614174000` |
-| `--task` | Task to perform | - | `release` `sarif` |
+| `--task` | Task to perform | - | `release` |
 | `--project-name` | Project name for context | - | `my-web-app` |
 | `--team-name` | Team responsible for the project | - | `security-team` |
 | `--production-branch` | Production branch name | `main` | `main`, `master`, `production` |
