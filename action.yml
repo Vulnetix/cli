@@ -180,7 +180,7 @@ runs:
           echo "$RESULT"
 
           # Extract pipeline ID for output
-          PIPELINE_ID=$(echo "$RESULT" | jq -r '.pipeline_id // empty' 2>/dev/null || true)
+          PIPELINE_ID=$(echo "$RESULT" | jq -r '.pipelineRecord.uuid // empty' 2>/dev/null || true)
           if [ -n "$PIPELINE_ID" ]; then
             echo "upload-uuid=$PIPELINE_ID" >> $GITHUB_OUTPUT
           fi
