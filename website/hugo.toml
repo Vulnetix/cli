@@ -1,0 +1,54 @@
+baseURL = "https://docs.cli.vulnetix.com/"
+languageCode = "en-us"
+title = "Vulnetix CLI Documentation"
+
+[module]
+  [[module.imports]]
+    path = "github.com/imfing/hextra"
+
+[markup.goldmark.renderer]
+  unsafe = true
+
+[markup.highlight]
+  noClasses = false
+
+[[menu.main]]
+  name = "Getting Started"
+  pageRef = "/docs/getting-started"
+  weight = 1
+
+[[menu.main]]
+  name = "CLI Reference"
+  pageRef = "/docs/cli-reference"
+  weight = 2
+
+[[menu.main]]
+  name = "CI/CD"
+  pageRef = "/docs/ci-cd"
+  weight = 3
+
+[[menu.main]]
+  name = "Enterprise"
+  pageRef = "/docs/enterprise"
+  weight = 4
+
+[[menu.main]]
+  name = "GitHub"
+  url = "https://github.com/Vulnetix/cli"
+  weight = 5
+  [menu.main.params]
+    icon = "github"
+
+[params]
+  description = "Automated vulnerability management CLI that focuses on remediation over discovery."
+
+  [params.navbar]
+    displayTitle = true
+    displayLogo = false
+
+  [params.footer]
+    displayPoweredBy = false
+
+  [params.editURL]
+    enable = true
+    base = "https://github.com/Vulnetix/cli/edit/main/website/content"

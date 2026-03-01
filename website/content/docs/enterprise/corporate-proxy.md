@@ -1,4 +1,8 @@
-# Vulnetix Corporate Proxy Reference
+---
+title: "Corporate Proxy"
+weight: 1
+description: "Configure Vulnetix CLI for corporate proxy servers, firewalls, and restricted networks."
+---
 
 Comprehensive guide for using Vulnetix CLI in corporate environments with proxy servers, firewalls, and restricted network access.
 
@@ -241,7 +245,7 @@ proxy:
   http: "http://proxy.company.com:8080"
   https: "http://proxy.company.com:8080"
   no_proxy: "localhost,127.0.0.1,*.internal,.company.com"
-  
+
 network:
   timeout: 60
   retries: 3
@@ -311,12 +315,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Configure proxy for git
         run: |
           git config --global http.proxy $HTTP_PROXY
           git config --global https.proxy $HTTPS_PROXY
-          
+
       - name: Run Vulnetix scan
         uses: vulnetix/vulnetix@v1
         with:
@@ -353,13 +357,13 @@ vulnetix-proxy-scan:
 ```groovy
 pipeline {
     agent any
-    
+
     environment {
         HTTP_PROXY = 'http://proxy.company.com:8080'
         HTTPS_PROXY = 'http://proxy.company.com:8080'
         NO_PROXY = 'localhost,127.0.0.1,.company.com'
     }
-    
+
     stages {
         stage('Security Scan') {
             steps {
@@ -367,7 +371,7 @@ pipeline {
                     // Configure git proxy
                     sh 'git config --global http.proxy $HTTP_PROXY'
                     sh 'git config --global https.proxy $HTTPS_PROXY'
-                    
+
                     // Run Vulnetix scan
                     sh 'vulnetix --org-id "$VULNETIX_ORG_ID" --task release'
                 }
@@ -428,7 +432,7 @@ vulnetix --org-id "your-org-id-here" --task release
 
 PROXIES=(
   "http://proxy1.company.com:8080"
-  "http://proxy2.company.com:8080"  
+  "http://proxy2.company.com:8080"
   "http://proxy3.company.com:8080"
 )
 

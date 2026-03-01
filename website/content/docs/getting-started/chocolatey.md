@@ -1,4 +1,8 @@
-# Vulnetix Installation via Chocolatey (Windows)
+---
+title: "Chocolatey"
+weight: 4
+description: "Install Vulnetix CLI on Windows using the Chocolatey package manager."
+---
 
 Chocolatey is a popular package manager for Windows that simplifies software installation and management.
 
@@ -182,7 +186,7 @@ For System Center Configuration Manager deployment:
 param(
     [Parameter(Mandatory=$false)]
     [string]$Version = "latest",
-    
+
     [Parameter(Mandatory=$false)]
     [string]$InstallPath = "$env:ProgramFiles\Vulnetix"
 )
@@ -192,14 +196,14 @@ try {
     if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
         throw "Chocolatey is not installed. Install Chocolatey first."
     }
-    
+
     # Install Vulnetix
     if ($Version -eq "latest") {
         $result = choco install vulnetix -y --install-directory="$InstallPath"
     } else {
         $result = choco install vulnetix --version=$Version -y --install-directory="$InstallPath"
     }
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Vulnetix installed successfully to $InstallPath"
         exit 0
@@ -268,21 +272,21 @@ on:
 jobs:
   security-scan:
     runs-on: windows-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Install Vulnetix via Chocolatey
       run: |
         choco install vulnetix -y
         vulnetix --version
-    
+
     - name: Run Security Assessment
       env:
         VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
       run: |
         vulnetix --task release --project-name "${GITHUB_REPOSITORY##*/}"
-    
+
     - name: Upload SARIF results
       uses: github/codeql-action/upload-sarif@v3
       with:
@@ -338,20 +342,20 @@ function Invoke-VulnetixScan {
     param(
         [Parameter(Mandatory=`$true)]
         [string]`$ProjectPath,
-        
+
         [Parameter(Mandatory=`$false)]
         [string]`$OutputFormat = "json",
-        
+
         [Parameter(Mandatory=$false)]
         [string]$ConfigPath
     )
-    
+
     $params = @("--task", "scan", "--project-name", $ProjectPath)
-    
+
     if (`$ConfigPath) {
         `$params += @("--config", `$ConfigPath)
     }
-    
+
     & vulnetix @params
 }
 

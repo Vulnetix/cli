@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(go test:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "mcp__claude_ai_Cloudflare_Developer_Platform__accounts_list",
+      "Bash(gh api:*)",
+      "mcp__claude_ai_Cloudflare_Developer_Platform__set_active_account",
+      "mcp__claude_ai_Cloudflare_Developer_Platform__search_cloudflare_documentation",
+      "Bash(hugo version:*)",
+      "Bash(hugo mod:*)",
+      "Bash(hugo:*)"
     ],
     "deny": []
   }

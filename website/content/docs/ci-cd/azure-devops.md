@@ -1,4 +1,8 @@
-# Vulnetix Integration with Azure DevOps
+---
+title: "Azure DevOps"
+weight: 4
+description: "Integrate Vulnetix CLI into Azure DevOps Pipelines."
+---
 
 Azure DevOps provides comprehensive CI/CD capabilities with Azure Pipelines supporting both YAML and classic release pipelines.
 
@@ -106,28 +110,28 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
     - template: templates/install-security-tools.yml
-    
+
     - task: Bash@3
       displayName: 'SAST Scan'
       inputs:
         targetType: 'inline'
         script: |
           semgrep --config=auto --sarif --output=sast-results.sarif $(Build.SourcesDirectory)
-    
+
     - task: Bash@3
       displayName: 'Dependency Scan'
       inputs:
         targetType: 'inline'
         script: |
           trivy fs $(Build.SourcesDirectory) --format sarif --output dependency-scan.sarif
-    
+
     - task: Bash@3
       displayName: 'Secrets Scan'
       inputs:
         targetType: 'inline'
         script: |
           trufflehog filesystem $(Build.SourcesDirectory) --json > secrets-results.json
-    
+
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Scan Artifacts'
       inputs:
@@ -149,7 +153,7 @@ stages:
         downloadType: 'single'
         artifactName: 'security-scans'
         downloadPath: '$(Build.SourcesDirectory)'
-    
+
     - task: Bash@3
       displayName: 'Install Vulnetix'
       inputs:
@@ -158,7 +162,7 @@ stages:
           curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
           export PATH=$PATH:$HOME/.local/bin
           vulnetix --version
-    
+
     - task: Bash@3
       displayName: 'Release Security Assessment'
       inputs:
@@ -172,7 +176,7 @@ stages:
             --release-branch "$(Build.SourceBranchName)"
       env:
         VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)
-    
+
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Assessment Results'
       inputs:
@@ -199,7 +203,7 @@ stages:
               downloadType: 'single'
               artifactName: 'vulnetix-assessment'
               downloadPath: '$(Pipeline.Workspace)'
-          
+
           - task: Bash@3
             displayName: 'Validate Security Gate'
             inputs:
@@ -224,16 +228,16 @@ steps:
       # Install Vulnetix
       curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
       export PATH=$PATH:$HOME/.local/bin
-      
+
       # Install Semgrep
       pip install semgrep
-      
+
       # Install Trivy
       curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-      
+
       # Install TruffleHog
       curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
-      
+
       # Verify installations
       vulnetix --version
       semgrep --version
@@ -372,7 +376,7 @@ stages:
     timeoutInMinutes: 60
     steps:
     - template: templates/install-security-tools.yml
-    
+
     - task: Bash@3
       displayName: 'Multi-Tool Security Scan'
       inputs:
@@ -380,21 +384,21 @@ stages:
         script: |
           # Create scan results directory
           mkdir -p scan-results
-          
+
           # SAST Scan
           semgrep --config=auto --sarif --output=scan-results/sast.sarif $(Build.SourcesDirectory)
-          
+
           # Dependency Scan
           trivy fs $(Build.SourcesDirectory) --format sarif --output scan-results/deps.sarif
-          
+
           # Container Scan (if Dockerfile exists)
           if [ -f "Dockerfile" ]; then
             trivy config Dockerfile --format sarif --output scan-results/container.sarif
           fi
-          
+
           # Secrets Scan
           trufflehog filesystem $(Build.SourcesDirectory) --json > scan-results/secrets.json
-    
+
     - task: Bash@3
       displayName: 'Vulnetix Release Assessment'
       inputs:
@@ -408,20 +412,20 @@ stages:
             --tools '[
               {
                 "category": "SAST",
-                "tool_name": "semgrep", 
+                "tool_name": "semgrep",
                 "artifact_name": "scan-results/sast.sarif",
                 "format": "SARIF"
               },
               {
                 "category": "SCA",
                 "tool_name": "trivy",
-                "artifact_name": "scan-results/deps.sarif", 
+                "artifact_name": "scan-results/deps.sarif",
                 "format": "SARIF"
               }
             ]'
       env:
         VULNETIX_ORG_ID: $(vulnetix-org-id)
-    
+
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Release Assessment'
       inputs:
@@ -538,7 +542,7 @@ steps:
       # Check for security-relevant changes
       CHANGED_FILES=$(git diff --name-only HEAD~1)
       SECURITY_RELEVANT_CHANGES=false
-      
+
       for file in $CHANGED_FILES; do
         case $file in
           *.go|*.py|*.js|*.ts|*.java|*.c|*.cpp|Dockerfile|requirements.txt|package.json|go.mod)
@@ -547,7 +551,7 @@ steps:
             ;;
         esac
       done
-      
+
       if [ "$SECURITY_RELEVANT_CHANGES" = "true" ]; then
         echo "Security-relevant changes detected, running scan..."
         export PATH=$PATH:$HOME/.local/bin
@@ -578,7 +582,7 @@ jobs:
           semgrep --config=auto --sarif --output=sast.sarif $(Build.SourcesDirectory)
         fi
     condition: eq(variables['System.JobPositionInPhase'], '1')
-  
+
   - task: Bash@3
     displayName: 'Dependency Scan'
     inputs:
@@ -588,7 +592,7 @@ jobs:
           trivy fs $(Build.SourcesDirectory) --format sarif --output deps.sarif
         fi
     condition: eq(variables['System.JobPositionInPhase'], '2')
-  
+
   - task: Bash@3
     displayName: 'Secrets Scan'
     inputs:
@@ -598,7 +602,7 @@ jobs:
           trufflehog filesystem $(Build.SourcesDirectory) --json > secrets.json
         fi
     condition: eq(variables['System.JobPositionInPhase'], '3')
-  
+
   - task: Bash@3
     displayName: 'Vulnetix Assessment'
     inputs:
@@ -610,68 +614,6 @@ jobs:
           vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
         fi
     condition: eq(variables['System.JobPositionInPhase'], '4')
-```
-
-## Classic Release Pipeline Integration
-
-### Release Definition
-
-```json
-{
-  "source": 2,
-  "revision": 1,
-  "description": "Security Assessment Release Pipeline",
-  "createdBy": {
-    "displayName": "Security Team"
-  },
-  "environments": [
-    {
-      "id": 1,
-      "name": "Security Assessment",
-      "rank": 1,
-      "deployPhases": [
-        {
-          "deploymentInput": {
-            "parallelExecution": {
-              "parallelExecutionType": 0
-            }
-          },
-          "rank": 1,
-          "phaseType": 1,
-          "name": "Security Analysis",
-          "workflowTasks": [
-            {
-              "taskId": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
-              "version": "2.*",
-              "name": "Run Vulnetix Security Scan",
-              "inputs": {
-                "targetType": "inline",
-                "script": "curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh\nexport PATH=$PATH:$HOME/.local/bin\nvulnetix --org-id \"$VULNETIX_ORG_ID\" --task release --project-name \"MyProject\""
-              }
-            }
-          ]
-        }
-      ]
-    }
-  ],
-  "artifacts": [
-    {
-      "sourceId": "$(BUILD_DEFINITION_ID)",
-      "type": "Build",
-      "alias": "_source",
-      "definitionReference": {
-        "definition": {
-          "id": "$(BUILD_DEFINITION_ID)",
-          "name": "$(BUILD_DEFINITION_NAME)"
-        },
-        "project": {
-          "id": "$(SYSTEM_TEAMPROJECTID)",
-          "name": "$(SYSTEM_TEAMPROJECT)"
-        }
-      }
-    }
-  ]
-}
 ```
 
 ## Troubleshooting
@@ -719,10 +661,10 @@ steps:
     script: |
       # Test GitHub connectivity
       curl -I https://github.com/vulnetix/vulnetix/releases/latest
-      
+
       # Test Vulnetix API connectivity
       curl -I https://app.vulnetix.com/api/check
-      
+
       # Check proxy settings
       echo "HTTP_PROXY: $HTTP_PROXY"
       echo "HTTPS_PROXY: $HTTPS_PROXY"
@@ -747,10 +689,3 @@ steps:
   env:
     VULNETIX_DEBUG: $(VULNETIX_DEBUG)
 ```
-
----
-
-**Next Steps:**
-- See [GitHub Actions](github-actions.md) for GitHub integration comparison
-- See [Corporate Proxy](corporate-proxy.md) for enterprise network configuration
-- See [Multi-Architecture](multi-arch.md) for cross-platform builds

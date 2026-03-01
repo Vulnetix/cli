@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vulnetix/vulnetix/internal/auth"
 )
 
 func TestNewArtifactUploader(t *testing.T) {
@@ -115,11 +117,15 @@ func TestValidateTxnID(t *testing.T) {
 func TestNewArtifactUploader_WithAPIKey(t *testing.T) {
 	// Set API key environment variable
 	t.Setenv("VULNETIX_API_KEY", "test-api-key")
+	t.Setenv("VULNETIX_ORG_ID", "test-org-id")
 
 	uploader := NewArtifactUploader("https://api.vulnetix.com", "test-org-id")
 
-	if uploader.apiKey != "test-api-key" {
-		t.Errorf("Expected API key 'test-api-key', got '%s'", uploader.apiKey)
+	if uploader.creds == nil {
+		t.Fatal("Expected credentials to be loaded")
+	}
+	if uploader.creds.APIKey != "test-api-key" {
+		t.Errorf("Expected API key 'test-api-key', got '%s'", uploader.creds.APIKey)
 	}
 }
 
@@ -183,15 +189,14 @@ func TestInitiateTransaction(t *testing.T) {
 
 func TestInitiateTransaction_WithAuth(t *testing.T) {
 	apiKey := "test-api-key"
-	
+	testOrgID := "test-org"
+
 	// Create a test server that checks auth
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify auth headers
-		if r.Header.Get("Authorization") != "Bearer "+apiKey {
-			t.Errorf("Expected Authorization header 'Bearer %s', got '%s'", apiKey, r.Header.Get("Authorization"))
-		}
-		if r.Header.Get("X-API-Key") != apiKey {
-			t.Errorf("Expected X-API-Key header '%s', got '%s'", apiKey, r.Header.Get("X-API-Key"))
+		// Verify auth header uses ApiKey format
+		expectedAuth := "ApiKey " + testOrgID + ":" + apiKey
+		if r.Header.Get("Authorization") != expectedAuth {
+			t.Errorf("Expected Authorization header '%s', got '%s'", expectedAuth, r.Header.Get("Authorization"))
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -206,9 +211,13 @@ func TestInitiateTransaction_WithAuth(t *testing.T) {
 
 	uploader := &ArtifactUploader{
 		baseURL: server.URL,
-		orgID:   "test-org",
-		apiKey:  apiKey,
-		client:  &http.Client{},
+		orgID:   testOrgID,
+		creds: &auth.Credentials{
+			OrgID:  testOrgID,
+			APIKey: apiKey,
+			Method: auth.DirectAPIKey,
+		},
+		client: &http.Client{},
 	}
 
 	metadata := &ArtifactMetadata{
