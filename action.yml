@@ -105,7 +105,7 @@ runs:
       shell: bash
       run: |
         echo "Setting up Vulnetix CLI..."
-        
+
         # Determine architecture
         ARCH=$(uname -m)
         case $ARCH in
@@ -114,37 +114,41 @@ runs:
           armv7l) ARCH="arm" ;;
           *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
         esac
-        
+
         # Determine OS
         OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-        
-        # Download the appropriate binary
+
+        # Binary name
         BINARY_NAME="vulnetix-${OS}-${ARCH}"
         if [ "$OS" = "windows" ]; then
           BINARY_NAME="${BINARY_NAME}.exe"
         fi
-        
-        # Use the action's directory to find the binary
+
+        # Install dir
+        INSTALL_DIR="$HOME/.vulnetix-cli"
+        mkdir -p "$INSTALL_DIR"
+
+        # Try to find binary in action path first (for development/pinned versions)
         ACTION_DIR="${{ github.action_path }}"
-        BINARY_PATH="${ACTION_DIR}/bin/${BINARY_NAME}"
-        
-        if [ ! -f "$BINARY_PATH" ]; then
-          echo "Binary not found: $BINARY_PATH"
-          echo "Available binaries:"
-          ls -la "${ACTION_DIR}/bin/" || echo "No binaries directory found"
-          exit 1
+        if [ -f "${ACTION_DIR}/bin/${BINARY_NAME}" ]; then
+          cp "${ACTION_DIR}/bin/${BINARY_NAME}" "${INSTALL_DIR}/vulnetix"
+        else
+          # Download from GitHub releases
+          VERSION="${{ inputs.version }}"
+          if [ "$VERSION" = "latest" ]; then
+            RELEASE_URL="https://github.com/Vulnetix/cli/releases/latest/download/${BINARY_NAME}"
+          else
+            RELEASE_URL="https://github.com/Vulnetix/cli/releases/download/v${VERSION}/${BINARY_NAME}"
+          fi
+
+          echo "Downloading vulnetix from: $RELEASE_URL"
+          curl -fsSL "$RELEASE_URL" -o "${INSTALL_DIR}/vulnetix"
         fi
-        
-        # Make binary executable
-        chmod +x "$BINARY_PATH"
-        
-        # Add to PATH for subsequent steps
-        echo "${ACTION_DIR}/bin" >> $GITHUB_PATH
-        
-        # Create symlink for easier access
-        ln -sf "$BINARY_PATH" "${ACTION_DIR}/bin/vulnetix"
-        
-        echo "Vulnetix CLI setup complete"
+
+        chmod +x "${INSTALL_DIR}/vulnetix"
+        echo "${INSTALL_DIR}" >> $GITHUB_PATH
+
+        echo "Vulnetix CLI setup complete ($(${INSTALL_DIR}/vulnetix --version 2>/dev/null || echo 'version unknown'))"
 
     - name: Authenticate with Vulnetix
       if: inputs.api-key != ''
