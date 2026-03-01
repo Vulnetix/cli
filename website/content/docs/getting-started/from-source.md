@@ -27,7 +27,7 @@ brew install git             # macOS
 
 ```bash
 # Clone repository
-git clone https://github.com/vulnetix/vulnetix.git
+git clone https://github.com/Vulnetix/cli.git
 cd vulnetix
 
 # Build binary
@@ -44,7 +44,7 @@ vulnetix --version
 
 ```bash
 # Clone and install in development mode
-git clone https://github.com/vulnetix/vulnetix.git
+git clone https://github.com/Vulnetix/cli.git
 cd vulnetix
 
 # Install dependencies
@@ -91,7 +91,7 @@ go build -race -ldflags="-X main.Debug=true" -o vulnetix-debug .
 go build -gcflags="all=-N -l" -o vulnetix-debug .
 
 # Run with debug output
-./vulnetix-debug --debug scan --project .
+./vulnetix-debug --debug --task release
 ```
 
 ### Static Binary
@@ -365,9 +365,9 @@ echo "Testing basic functionality..."
 $BINARY --version
 $BINARY --help
 
-# Test scan functionality
-echo "Testing scan functionality..."
-$BINARY scan --project . --dry-run
+# Test basic functionality
+echo "Testing task functionality..."
+$BINARY --task release --dry-run
 
 # Test configuration loading
 echo "Testing configuration..."
@@ -530,7 +530,7 @@ echo "User installation completed!"
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}",
-            "args": ["scan", "--project", ".", "--debug"],
+            "args": ["--task", "release", "--debug"],
             "env": {
                 "VULNETIX_DEBUG": "true"
             }
@@ -646,9 +646,6 @@ dev:
 
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_UNIX) -v
-
-docker-build:
-	docker run --rm -it -v "$(PWD)":/go/src/github.com/vulnetix/vulnetix -w /go/src/github.com/vulnetix/vulnetix golang:1.21 go build $(LDFLAGS) -o "$(BINARY_UNIX)" -v
 ```
 
 ## Troubleshooting
@@ -736,6 +733,5 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o vu
 ---
 
 **Next Steps:**
-- See [Docker](docker.md) for containerized builds
 - See [Multi-Architecture](multi-arch.md) for cross-platform considerations
 - See [GitHub Actions](github-actions.md) for automated builds and releases

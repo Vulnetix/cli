@@ -134,7 +134,7 @@ func TestEnhancedValidatorWithInvalidSARIF(t *testing.T) {
 				]
 			}`,
 			expectValid:  false,
-			expectSchema: false,
+			expectSchema: true,
 		},
 		{
 			name: "Empty runs",

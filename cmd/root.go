@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/vulnetix/vulnetix/internal/config"
-	"github.com/vulnetix/vulnetix/internal/sarif"
+	"github.com/vulnetix/cli/internal/config"
+	"github.com/vulnetix/cli/internal/sarif"
 )
 
 var (

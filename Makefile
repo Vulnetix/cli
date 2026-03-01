@@ -12,7 +12,7 @@ all: build
 build:
 	@echo "Building Vulnetix CLI..."
 	@mkdir -p $(OUTPUT_DIR)
-	go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME) .
+	go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME) .
 	@echo "✓ Built $(OUTPUT_DIR)/$(BINARY_NAME)"
 
 # Build for all platforms
@@ -27,29 +27,29 @@ build-release: clean
 	
 	# Linux builds
 	@echo "Building for Linux AMD64..."
-	@GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-amd64 .
+	@GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-amd64 .
 	@echo "Building for Linux ARM64..."
-	@GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-arm64 .
+	@GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-arm64 .
 	@echo "Building for Linux ARM..."
-	@GOOS=linux GOARCH=arm go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-arm .
+	@GOOS=linux GOARCH=arm go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-arm .
 	@echo "Building for Linux 386..."
-	@GOOS=linux GOARCH=386 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-386 .
+	@GOOS=linux GOARCH=386 go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-386 .
 	
 	# macOS builds
 	@echo "Building for macOS AMD64..."
-	@GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-darwin-amd64 .
+	@GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-darwin-amd64 .
 	@echo "Building for macOS ARM64..."
-	@GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-darwin-arm64 .
+	@GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-darwin-arm64 .
 	
 	# Windows builds
 	@echo "Building for Windows AMD64..."
-	@GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-amd64.exe .
+	@GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-amd64.exe .
 	@echo "Building for Windows ARM64..."
-	@GOOS=windows GOARCH=arm64 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-arm64.exe .
+	@GOOS=windows GOARCH=arm64 go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-arm64.exe .
 	@echo "Building for Windows ARM..."
-	@GOOS=windows GOARCH=arm go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-arm.exe .
+	@GOOS=windows GOARCH=arm go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-arm.exe .
 	@echo "Building for Windows 386..."
-	@GOOS=windows GOARCH=386 go build -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-386.exe .
+	@GOOS=windows GOARCH=386 go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-386.exe .
 	
 	@echo "✓ Built release binaries for all platforms"
 
@@ -84,13 +84,13 @@ test-all: test test-coverage-check
 # Install to local GOPATH
 install:
 	@echo "Installing to GOPATH..."
-	go install -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)" .
+	go install -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=$(VERSION)" .
 
 # Development build with debug info
 dev:
 	@echo "Building development version..."
 	@mkdir -p $(OUTPUT_DIR)
-	go build -ldflags "-X github.com/vulnetix/vulnetix/cmd.version=$(VERSION)-dev" -o $(OUTPUT_DIR)/$(BINARY_NAME) .
+	go build -ldflags "-X github.com/vulnetix/cli/cmd.version=$(VERSION)-dev" -o $(OUTPUT_DIR)/$(BINARY_NAME) .
 
 # Format code
 fmt:

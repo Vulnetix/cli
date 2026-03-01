@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/vulnetix/internal/auth"
+	"github.com/vulnetix/cli/internal/auth"
 )
 
 func TestNewArtifactUploader(t *testing.T) {

@@ -6,7 +6,7 @@ set -e
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 VERSION="${VERSION:-latest}"
 BINARY_NAME="vulnetix"
-GITHUB_REPO="vulnetix/vulnetix"
+GITHUB_REPO="Vulnetix/cli"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do

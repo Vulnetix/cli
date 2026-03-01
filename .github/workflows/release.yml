@@ -10,10 +10,6 @@ on:
         description: 'Version to release (e.g., v1.2.3)'
         required: true
 
-env:
-  REGISTRY: docker.io
-  IMAGE_NAME: vulnetix/vulnetix
-
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -64,155 +60,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Docker multi-architecture build and push
-  docker:
-    runs-on: ubuntu-latest
-    needs: release
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # Update Homebrew formula
-  homebrew:
-    runs-on: ubuntu-latest
-    needs: release
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - name: Update Homebrew formula
-        uses: dawidd6/action-homebrew-bump-formula@v3
-        with:
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          org: vulnetix
-          tap: homebrew-vulnetix
-          formula: vulnetix
-          tag: ${{ needs.release.outputs.version }}
-          force: false
-
-  # Create Chocolatey package
-  chocolatey:
-    runs-on: windows-latest
-    needs: release
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create Chocolatey package
-        shell: powershell
-        run: |
-          # Create chocolatey directory structure
-          $version = "${{ needs.release.outputs.version }}".TrimStart('v')
-          $packageDir = "chocolatey-package"
-          New-Item -ItemType Directory -Path $packageDir -Force
-          New-Item -ItemType Directory -Path "$packageDir/tools" -Force
-          
-          # Create nuspec file
-          @"
-          <?xml version="1.0" encoding="utf-8"?>
-          <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
-            <metadata>
-              <id>vulnetix</id>
-              <version>$version</version>
-              <packageSourceUrl>https://github.com/vulnetix/vulnetix</packageSourceUrl>
-              <owners>vulnetix</owners>
-              <title>Vulnetix CLI</title>
-              <authors>Vulnetix Team</authors>
-              <projectUrl>https://github.com/vulnetix/vulnetix</projectUrl>
-              <iconUrl>https://raw.githubusercontent.com/vulnetix/vulnetix/main/.repo/Pix-512.png</iconUrl>
-              <copyright>2025 Vulnetix</copyright>
-              <licenseUrl>https://github.com/vulnetix/vulnetix/blob/main/LICENSE.md</licenseUrl>
-              <requireLicenseAcceptance>false</requireLicenseAcceptance>
-              <projectSourceUrl>https://github.com/vulnetix/vulnetix</projectSourceUrl>
-              <docsUrl>https://github.com/vulnetix/vulnetix#readme</docsUrl>
-              <bugTrackerUrl>https://github.com/vulnetix/vulnetix/issues</bugTrackerUrl>
-              <tags>security vulnerability-management cli devops</tags>
-              <summary>Vulnetix CLI for vulnerability management with automated remediation</summary>
-              <description>Vulnetix CLI is a command-line tool for vulnerability management that focuses on automated remediation over discovery. It helps organizations prioritize and resolve vulnerabilities efficiently.</description>
-              <releaseNotes>https://github.com/vulnetix/vulnetix/releases/tag/${{ needs.release.outputs.version }}</releaseNotes>
-            </metadata>
-            <files>
-              <file src="tools\**" target="tools" />
-            </files>
-          </package>
-          "@ | Out-File -FilePath "$packageDir/vulnetix.nuspec" -Encoding UTF8
-          
-          # Create install script
-          @"
-          `$ErrorActionPreference = 'Stop'
-          `$url64 = 'https://github.com/vulnetix/vulnetix/releases/download/${{ needs.release.outputs.version }}/vulnetix-windows-amd64.exe'
-          `$checksum64 = ''
-          
-          `$packageArgs = @{
-            packageName   = 'vulnetix'
-            unzipLocation = `$toolsDir
-            fileType      = 'exe'
-            url64bit      = `$url64
-            softwareName  = 'vulnetix*'
-            checksum64    = `$checksum64
-            checksumType64= 'sha256'
-            silentArgs    = '/S'
-            validExitCodes= @(0)
-          }
-          
-          Install-ChocolateyPackage @packageArgs
-          "@ | Out-File -FilePath "$packageDir/tools/chocolateyinstall.ps1" -Encoding UTF8
-          
-          # Package
-          choco pack "$packageDir/vulnetix.nuspec" --outputdirectory "$packageDir"
-
-      - name: Upload Chocolatey package artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: chocolatey-package
-          path: chocolatey-package/*.nupkg
-          retention-days: 30
-
-      - name: Publish to Chocolatey
-        if: ${{ secrets.CHOCOLATEY_API_KEY != '' }}
-        shell: powershell
-        run: |
-          $nupkg = Get-ChildItem -Path "chocolatey-package" -Filter "*.nupkg" | Select-Object -First 1
-          choco push "$($nupkg.FullName)" --api-key "${{ secrets.CHOCOLATEY_API_KEY }}"
-
   # Test go install functionality after release
   test-go-install:
     needs: release
@@ -227,33 +74,15 @@ jobs:
         run: |
           # Wait a moment for the release to be available
           sleep 30
-          
+
           # Test installing latest
-          go install github.com/vulnetix/vulnetix@latest
-          
+          go install github.com/vulnetix/cli@latest
+
           # Test that the binary works
           vulnetix --help || echo "Binary not found in PATH"
-          
+
       - name: Test specific version install
         run: |
           VERSION=${{ needs.release.outputs.version }}
-          go install github.com/vulnetix/vulnetix@${VERSION}
+          go install github.com/vulnetix/cli@${VERSION}
           vulnetix --version || echo "Version command failed"
-
-  # Test Docker images
-  test-docker:
-    needs: docker
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64]
-    steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Test Docker image
-        run: |
-          # Test the image works
-          docker run --rm --platform ${{ matrix.platform }} \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.version }} \
-            --help

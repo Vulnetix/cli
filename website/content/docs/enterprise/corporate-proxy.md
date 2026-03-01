@@ -14,7 +14,7 @@ export HTTP_PROXY="http://proxy.company.com:8080"
 export HTTPS_PROXY="http://proxy.company.com:8080"
 export NO_PROXY="localhost,127.0.0.1,.company.com"
 
-# Run Vulnetix scan
+# Run Vulnetix
 vulnetix --org-id "your-org-id-here" --task release
 ```
 
@@ -85,31 +85,7 @@ export HTTP_PROXY="http://proxy.company.com:8080"
 export HTTPS_PROXY="http://proxy.company.com:8080"
 
 # Install Vulnetix
-go install github.com/vulnetix/vulnetix@latest
-```
-
-### Docker with Proxy
-
-```bash
-# Configure Docker daemon proxy (requires restart)
-sudo mkdir -p /etc/systemd/system/docker.service.d
-sudo tee /etc/systemd/system/docker.service.d/http-proxy.conf << EOF
-[Service]
-Environment="HTTP_PROXY=http://proxy.company.com:8080"
-Environment="HTTPS_PROXY=http://proxy.company.com:8080"
-Environment="NO_PROXY=localhost,127.0.0.1,.company.com"
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl restart docker
-
-# Run Vulnetix with proxy
-docker run --rm \
-  -e HTTP_PROXY="http://proxy.company.com:8080" \
-  -e HTTPS_PROXY="http://proxy.company.com:8080" \
-  -e NO_PROXY="localhost,127.0.0.1,.company.com" \
-  vulnetix/vulnetix:latest \
-  --org-id "your-org-id-here"
+go install github.com/vulnetix/cli@latest
 ```
 
 ### Binary Download with Proxy
@@ -117,14 +93,14 @@ docker run --rm \
 ```bash
 # Using curl with proxy
 curl -x http://proxy.company.com:8080 \
-  -L https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-linux-amd64 \
+  -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 \
   -o vulnetix
 
 # Using wget with proxy
 wget -e use_proxy=yes \
   -e http_proxy=http://proxy.company.com:8080 \
   -e https_proxy=http://proxy.company.com:8080 \
-  https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-linux-amd64 \
+  https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 \
   -O vulnetix
 
 chmod +x vulnetix
@@ -301,7 +277,7 @@ vulnetix --org-id "your-org-id-here" \
 ### GitHub Actions
 
 ```yaml
-name: Corporate Proxy Scan
+name: Corporate Proxy Assessment
 
 on: [push, pull_request]
 
@@ -321,8 +297,8 @@ jobs:
           git config --global http.proxy $HTTP_PROXY
           git config --global https.proxy $HTTPS_PROXY
 
-      - name: Run Vulnetix scan
-        uses: vulnetix/vulnetix@v1
+      - name: Run Vulnetix
+        uses: vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
         env:
@@ -345,9 +321,11 @@ before_script:
   - export https_proxy=$HTTPS_PROXY
   - export no_proxy=$NO_PROXY
 
-vulnetix-proxy-scan:
+vulnetix-proxy:
   stage: security
-  image: vulnetix/vulnetix:latest
+  image: golang:1.21
+  before_script:
+    - go install github.com/vulnetix/cli@latest
   script:
     - vulnetix --org-id "$VULNETIX_ORG_ID" --task release
 ```
@@ -365,14 +343,14 @@ pipeline {
     }
 
     stages {
-        stage('Security Scan') {
+        stage('Security Assessment') {
             steps {
                 script {
                     // Configure git proxy
                     sh 'git config --global http.proxy $HTTP_PROXY'
                     sh 'git config --global https.proxy $HTTPS_PROXY'
 
-                    // Run Vulnetix scan
+                    // Run Vulnetix
                     sh 'vulnetix --org-id "$VULNETIX_ORG_ID" --task release'
                 }
             }
