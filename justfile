@@ -1,8 +1,9 @@
 # Vulnetix CLI development tasks
 # Requires: just (https://github.com/casey/just)
 
-# Cloudflare DNS management for docs.cli.vulnetix.com
-# Requires: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID env vars
+set dotenv-load
+
+# Cloudflare DNS management for docs.cli.vulnetix.com (uses .env)
 
 domain := "docs.cli.vulnetix.com"
 target := "vulnetix.github.io"
@@ -22,7 +23,7 @@ dns-setup:
         "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json" \
-        --data '{"type":"CNAME","name":"{{domain}}","content":"{{target}}","ttl":1,"proxied":true}' | jq '{success: .success, id: .result.id, errors: .errors}'
+        --data '{"type":"CNAME","name":"{{domain}}","content":"{{target}}","ttl":1,"proxied":false}' | jq '{success: .success, id: .result.id, errors: .errors}'
 
 # Remove the CNAME record for docs.cli.vulnetix.com
 dns-delete:
@@ -49,6 +50,9 @@ dns-verify:
     @echo ""
     @echo "HTTP check:"
     @curl -sI "https://{{domain}}" 2>/dev/null | head -5 || echo "Site not yet reachable"
+    @echo ""
+    @echo "TLS certificate subject:"
+    @echo | openssl s_client -connect {{domain}}:443 -servername {{domain}} 2>/dev/null | openssl x509 -noout -subject -dates 2>/dev/null || echo "Could not retrieve certificate"
 
 # --- Hugo local development ---
 
