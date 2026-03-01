@@ -35,16 +35,8 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `org-id` | Organization ID (UUID) for Vulnetix operations | Yes | - |
-| `task` | Task to perform (info, release, triage) | No | `info` |
+| `task` | Task to perform (info, upload) | No | `info` |
 | `version` | Version of Vulnetix CLI to use | No | `latest` |
-| `project-name` | Name of the project being scanned | No | Repository name |
-| `team-name` | Team responsible for the project | No | - |
-| `product-name` | Product name for reporting | No | - |
-| `group-name` | Group name for organization | No | - |
-| `tags` | Comma-separated tags for categorization | No | - |
-| `config-file` | Path to configuration file | No | - |
-| `output-dir` | Directory for output files | No | `./vulnetix-output` |
-| `tools` | JSON/YAML configuration for security tools | No | - |
 
 ## Action Outputs
 
@@ -157,27 +149,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Run Vulnetix
+    - name: Upload artifacts to Vulnetix
       uses: Vulnetix/cli@v1
       with:
-        task: triage
+        task: upload
         org-id: ${{ secrets.VULNETIX_ORG_ID }}
-        project-name: ${{ github.repository }}
-        team-name: "DevSecOps"
-        tools: |
-          - category: "SAST"
-            tool_name: "sast-tool"
-            artifact_name: "sast-sarif-results"
-            format: "SARIF"
-          - category: "SCA"
-            tool_name: "sca-tool"
-            artifact_name: "sca-sbom-report"
-            format: "JSON"
-          - category: "SECRETS"
-            tool_name: "secrets-tool"
-            artifact_name: "secrets-sarif-results"
-            format: "SARIF"
-        tags: '["Public", "Crown Jewels"]'
 ```
 
 ## Edge Cases & Advanced Configuration
@@ -472,7 +448,6 @@ steps:
     uses: Vulnetix/cli@v1
     with:
       org-id: ${{ secrets.VULNETIX_ORG_ID }}
-      task: triage
 
   - name: Debug artifacts
     run: |

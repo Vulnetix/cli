@@ -13,26 +13,8 @@ inputs:
     description: 'Version of Vulnetix CLI to use'
     required: false
     default: 'latest'
-  project-name:
-    description: 'Project name for vulnerability management context'
-    required: false
-  product-name:
-    description: 'Product name for vulnerability management context'
-    required: false
-  team-name:
-    description: 'Team name responsible for the project'
-    required: false
-  group-name:
-    description: 'Group name for organizational hierarchy'
-    required: false
-  tags:
-    description: 'YAML list of tags for categorization (e.g., ["critical", "frontend", "api"])'
-    required: false
-  tools:
-    description: 'YAML array of tool configurations with category, artifact-name, format, and identifier'
-    required: false
   task:
-    description: 'Task to perform: info, triage, upload'
+    description: 'Task to perform: info, upload'
     required: false
     default: 'info'
   api-key:
@@ -125,38 +107,8 @@ runs:
           exit 0
         fi
 
-        # Build command arguments for other tasks
-        ARGS="--org-id ${{ inputs.org-id }}"
-
-        if [ -n "${{ inputs.project-name }}" ]; then
-          ARGS="$ARGS --project-name '${{ inputs.project-name }}'"
-        fi
-
-        if [ -n "${{ inputs.product-name }}" ]; then
-          ARGS="$ARGS --product-name '${{ inputs.product-name }}'"
-        fi
-
-        if [ -n "${{ inputs.team-name }}" ]; then
-          ARGS="$ARGS --team-name '${{ inputs.team-name }}'"
-        fi
-
-        if [ -n "${{ inputs.group-name }}" ]; then
-          ARGS="$ARGS --group-name '${{ inputs.group-name }}'"
-        fi
-
-        if [ -n "${{ inputs.tags }}" ]; then
-          ARGS="$ARGS --tags '${{ inputs.tags }}'"
-        fi
-
-        if [ -n "${{ inputs.tools }}" ]; then
-          ARGS="$ARGS --tools '${{ inputs.tools }}'"
-        fi
-
-        # Add task argument
-        ARGS="$ARGS --task '${{ inputs.task }}'"
-
-        # Execute Vulnetix CLI
-        eval "vulnetix $ARGS"
+        # Default task: run info healthcheck
+        vulnetix
 
         # Set outputs (these would be set by the actual CLI)
         echo "result=success" >> $GITHUB_OUTPUT

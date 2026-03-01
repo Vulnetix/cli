@@ -13,7 +13,7 @@ Install Vulnetix CLI directly from Go modules without building from source.
 go install github.com/vulnetix/cli@latest
 
 # Run Vulnetix
-vulnetix --org-id "your-org-id-here" --task triage
+vulnetix
 ```
 
 ## Prerequisites
@@ -119,17 +119,10 @@ echo 'export PATH="$(go env GOPATH)/bin:$PATH"' >> ~/.bashrc
 
 ```bash
 # Run Vulnetix
-vulnetix --org-id "your-org-id-here" --task triage
+vulnetix
 
-# Using environment variable
-export VULNETIX_ORG_ID="your-org-id-here"
-vulnetix --task triage
-
-# Run with project metadata
-vulnetix --task triage \
-  --project-name "My Application" \
-  --team-name "Security Team" \
-  --tags '["Public", "Crown Jewels"]'
+# Upload artifacts
+vulnetix upload --file <artifact-path>
 ```
 
 ### Security Assessment
@@ -151,32 +144,16 @@ if command -v nancy >/dev/null 2>&1; then
   go list -json -deps ./... | nancy sleuth --format sarif > reports/nancy.sarif
 fi
 
-# Run security assessment
-vulnetix --task triage \
-  --project-name "$(basename $(pwd))" \
-  --tools '[
-    {
-      "category": "SCA",
-      "tool_name": "govulncheck",
-      "artifact_name": "./reports/govulncheck.json",
-      "format": "JSON"
-    },
-    {
-      "category": "SAST",
-      "tool_name": "gosec",
-      "artifact_name": "./reports/gosec.sarif",
-      "format": "SARIF"
-    }
-  ]'
+# Upload artifacts
+vulnetix upload --file ./reports/govulncheck.json
+vulnetix upload --file ./reports/gosec.sarif
 ```
 
-### Automated Triage
+### Upload Artifacts
 
 ```bash
-# Auto-triage vulnerabilities
-vulnetix --task triage \
-  --team-name "Security Team" \
-  --project-name "My Application"
+# Upload artifacts
+vulnetix upload --file <artifact-path>
 ```
 
 ## Multi-Architecture Support
@@ -318,7 +295,7 @@ chmod +x switch-vulnetix.sh
 export VULNETIX_ORG_ID="your-org-id-here"
 
 echo "Running Vulnetix..."
-vulnetix --task triage
+vulnetix
 
 if [ $? -ne 0 ]; then
     echo "Vulnetix check failed. Commit aborted."
@@ -340,12 +317,11 @@ security-install:
 
 security-check: security-install
 	@echo "Running Vulnetix..."
-	vulnetix --org-id "$(VULNETIX_ORG_ID)" --task triage
+	vulnetix upload --file <artifact-path>
 
 security-release: security-install
 	@echo "Running security assessment..."
-	vulnetix --task triage \
-		--project-name $$(basename $$(pwd))
+	vulnetix upload --file <artifact-path>
 ```
 
 ### GitHub Actions Integration
@@ -373,7 +349,7 @@ jobs:
       - name: Run Vulnetix
         env:
           VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
-        run: vulnetix --task triage
+        run: vulnetix upload --file <artifact-path>
 ```
 
 ## Troubleshooting

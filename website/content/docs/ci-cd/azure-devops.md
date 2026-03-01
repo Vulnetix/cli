@@ -40,17 +40,9 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
+      vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
   env:
     VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)
-
-- task: PublishTestResults@2
-  displayName: 'Publish Security Results'
-  inputs:
-    testResultsFormat: 'JUnit'
-    testResultsFiles: 'security-results.xml'
-    testRunTitle: 'Vulnetix Security Assessment'
-  condition: always()
 ```
 
 ## Advanced Pipeline Configurations
@@ -67,7 +59,6 @@ trigger:
 
 variables:
   VULNETIX_ORG_ID: $(vulnetix-org-id)
-  TEAM_NAME: 'security-team'
 
 stages:
 - stage: SecurityScan
@@ -138,9 +129,7 @@ stages:
         targetType: 'inline'
         script: |
           export PATH=$PATH:$HOME/.local/bin
-          vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
-            --project-name "$(Build.Repository.Name)" \
-            --team-name "$(TEAM_NAME)" \
+          vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
       env:
         VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)
 
@@ -214,14 +203,6 @@ steps:
 
 ```yaml
 # templates/vulnetix.yml
-parameters:
-- name: projectName
-  type: string
-  default: '$(Build.Repository.Name)'
-- name: teamName
-  type: string
-  default: 'default'
-
 steps:
 - task: Bash@3
   displayName: 'Vulnetix'
@@ -229,19 +210,9 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
-        --project-name "${{ parameters.projectName }}" \
-        --team-name "${{ parameters.teamName }}"
+      vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
   env:
     VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)
-
-- task: PublishBuildArtifacts@1
-  displayName: 'Publish Vulnetix Results'
-  inputs:
-    pathToPublish: 'vulnetix-results.${{ parameters.outputFormat }}'
-    artifactName: 'vulnetix-results'
-    publishLocation: 'Container'
-  condition: always()
 ```
 
 ## Variable Groups and Secrets
@@ -256,7 +227,6 @@ variables:
 # The variable group should contain:
 # - vulnetix-org-id: Your organization ID
 # - vulnetix-api-endpoint: Custom API endpoint (optional)
-# - vulnetix-team-name: Default team name
 ```
 
 ### Using Azure Key Vault
@@ -282,7 +252,7 @@ steps:
     script: |
       export PATH=$PATH:$HOME/.local/bin
       curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
+      vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
   env:
     VULNETIX_ORG_ID: $(vulnetix-org-id)
 ```
@@ -312,9 +282,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
-        --project-name "$(Build.Repository.Name)" \
-        --team-name "development"
+      vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
   env:
     VULNETIX_ORG_ID: $(vulnetix-org-id)
 ```
@@ -372,22 +340,8 @@ stages:
         targetType: 'inline'
         script: |
           export PATH=$PATH:$HOME/.local/bin
-          vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
-            --project-name "$(Build.Repository.Name)" \
-            --tools '[
-              {
-                "category": "SAST",
-                "tool_name": "semgrep",
-                "artifact_name": "scan-results/sast.sarif",
-                "format": "SARIF"
-              },
-              {
-                "category": "SCA",
-                "tool_name": "trivy",
-                "artifact_name": "scan-results/deps.sarif",
-                "format": "SARIF"
-              }
-            ]'
+          vulnetix upload --org-id "$VULNETIX_ORG_ID" --file scan-results/sast.sarif
+          vulnetix upload --org-id "$VULNETIX_ORG_ID" --file scan-results/deps.sarif
       env:
         VULNETIX_ORG_ID: $(vulnetix-org-id)
 
@@ -467,7 +421,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
+      vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
   condition: ne(variables['platform'], 'windows')
 
 - task: PowerShell@2
@@ -476,7 +430,7 @@ steps:
     targetType: 'inline'
     script: |
       $env:PATH += ";C:\Tools\Vulnetix"
-      vulnetix --org-id "$env:VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
+      vulnetix upload --org-id "$env:VULNETIX_ORG_ID" --file <artifact-path>
   condition: eq(variables['platform'], 'windows')
 ```
 
@@ -520,7 +474,7 @@ steps:
       if [ "$SECURITY_RELEVANT_CHANGES" = "true" ]; then
         echo "Security-relevant changes detected, running assessment..."
         export PATH=$PATH:$HOME/.local/bin
-        vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
+        vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
       else
         echo "No security-relevant changes detected, skipping assessment"
       fi
@@ -576,7 +530,7 @@ jobs:
         if [ "$(System.JobPositionInPhase)" = "4" ]; then
           export PATH=$PATH:$HOME/.local/bin
           curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
-          vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
+          vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
         fi
     condition: eq(variables['System.JobPositionInPhase'], '4')
 ```
@@ -650,7 +604,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
+      vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
   env:
     VULNETIX_DEBUG: $(VULNETIX_DEBUG)
 ```

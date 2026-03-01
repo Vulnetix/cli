@@ -473,7 +473,7 @@ jobs:
       env:
         VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
       run: |
-        vulnetix --task triage --project-name "$(basename $(pwd))"
+        vulnetix upload --file <artifact-path>
 
     - name: Upload SARIF results
       uses: github/codeql-action/upload-sarif@v3
@@ -499,7 +499,7 @@ security_check:
     - mv vulnetix /usr/local/bin/
     - vulnetix --version
   script:
-    - vulnetix --task triage --project-name "$CI_PROJECT_NAME"
+    - vulnetix upload --file <artifact-path>
   artifacts:
     reports:
       security: security-results.json
@@ -527,7 +527,7 @@ pipeline {
         stage('Security Check') {
             steps {
                 withCredentials([string(credentialsId: 'vulnetix-org-id', variable: 'VULNETIX_ORG_ID')]) {
-                    sh 'vulnetix --task triage --project-name "${JOB_NAME}"'
+                    sh 'vulnetix upload --file <artifact-path>'
                 }
             }
             post {

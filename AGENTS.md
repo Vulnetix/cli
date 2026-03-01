@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Vulnetix is a CLI tool for automated vulnerability management that focuses on remediation over discovery. It's designed as both a standalone Go CLI and a GitHub Action. The tool supports multiple operational modes including vulnerability scanning and automated triage.
+Vulnetix is a CLI tool for automated vulnerability management that focuses on remediation over discovery. It's designed as both a standalone Go CLI and a GitHub Action. The tool supports multiple operational modes including authentication healthchecks, artifact uploads, and vulnerability database queries.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ This is a Go-based CLI application with the following key components:
 - **Main CLI entry point**: `main.go` - Simple entry point that delegates to the cmd package
 - **Command structure**: `cmd/root.go` - Uses Cobra CLI framework with comprehensive flag handling
 - **Configuration management**: `internal/config/config.go` - Handles all configuration, GitHub context, and task validation
-- **Task types**: Two main operations (info, triage) with specialized configurations
+- **Task types**: The root command runs an info healthcheck; subcommands provide auth, upload, gha, and vdb operations
 - **GitHub integration**: Deep integration with GitHub Actions environment variables and artifact handling
 
 ## Build and Development Commands
