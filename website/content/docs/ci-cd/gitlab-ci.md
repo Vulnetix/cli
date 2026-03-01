@@ -19,7 +19,7 @@ vulnetix:
   before_script:
     - go install github.com/vulnetix/cli@latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
   variables:
     VULNETIX_ORG_ID: $VULNETIX_ORG_ID
 ```
@@ -35,7 +35,7 @@ vulnetix:
   before_script:
     - go install github.com/vulnetix/cli@latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
 ```
 
 ### Using Binary Download
@@ -49,7 +49,7 @@ vulnetix:
     - curl -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
     - chmod +x vulnetix
   script:
-    - ./vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - ./vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
 ```
 
 ## Configuration
@@ -78,7 +78,7 @@ vulnetix-dev:
   variables:
     VULNETIX_TAGS: '["Public", "Crown Jewels"]'
   script:
-    - vulnetix --task scan --tags "$VULNETIX_TAGS"
+    - vulnetix --task triage --tags "$VULNETIX_TAGS"
   only:
     - develop
 
@@ -89,7 +89,7 @@ vulnetix-prod:
   variables:
     VULNETIX_TAGS: '["Public", "Crown Jewels"]'
   script:
-    - vulnetix --task scan --tags "$VULNETIX_TAGS"
+    - vulnetix --task triage --tags "$VULNETIX_TAGS"
   only:
     - main
 ```
@@ -118,7 +118,7 @@ vulnetix:
   before_script:
     - go install github.com/vulnetix/cli@latest
   script:
-    - vulnetix --task scan
+    - vulnetix --task triage
         --project-name "$PROJECT_NAME"
         --team-name "$TEAM_NAME"
         --build-id "$CI_PIPELINE_ID"
@@ -226,7 +226,7 @@ vulnetix-assessment:
     - container-scan
   script:
     - |
-      vulnetix --task scan \
+      vulnetix --task triage \
         --project-name "$CI_PROJECT_NAME" \
         --team-name "Security Engineering" \
         --tools '[
@@ -293,7 +293,7 @@ go-security-assessment:
     - go list -json -deps ./... > security-reports/go-deps.json
 
     # Run Vulnetix assessment
-    - vulnetix --task scan
+    - vulnetix --task triage
         --tools '[
           {
             "category": "SCA",
@@ -340,7 +340,7 @@ nodejs-security-assessment:
     - npm list --json --all > security-reports/npm-deps.json
 
     # Run Vulnetix assessment
-    - vulnetix --task scan
+    - vulnetix --task triage
         --project-name "$CI_PROJECT_NAME"
         --team-name "Frontend Team"
   artifacts:
@@ -378,7 +378,7 @@ python-security-assessment:
     - pip freeze > security-reports/requirements-freeze.txt
 
     # Run Vulnetix assessment
-    - vulnetix --task scan
+    - vulnetix --task triage
         --project-name "$CI_PROJECT_NAME"
         --team-name "Backend Team"
   artifacts:
@@ -413,7 +413,7 @@ vulnetix-proxy:
     - export no_proxy=$NO_PROXY
     - go install github.com/vulnetix/cli@latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
 ```
 
 ### Self-Hosted GitLab Runners
@@ -427,7 +427,7 @@ vulnetix-self-hosted:
     - df -h  # Check disk space
     - curl -I https://app.vulnetix.com/api/  # Test connectivity
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
   after_script:
     # Cleanup
     - rm -rf vulnetix-output/cache/
@@ -450,7 +450,7 @@ vulnetix-airgapped:
     - curl -L https://packages.company.com/vulnetix/vulnetix-linux-amd64 -o /usr/local/bin/vulnetix
     - chmod +x /usr/local/bin/vulnetix
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --offline-mode
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --offline-mode
 ```
 
 ### Multi-Environment Deployment
@@ -462,7 +462,7 @@ vulnetix-airgapped:
   variables:
     VULNETIX_TAGS: '["Public", "Crown Jewels"]'
   script:
-    - vulnetix --task scan --tags "$VULNETIX_TAGS"
+    - vulnetix --task triage --tags "$VULNETIX_TAGS"
   only:
     - develop
     - feature/*
@@ -474,7 +474,7 @@ vulnetix-airgapped:
     VULNETIX_TAGS: '["Public", "Crown Jewels"]'
     VULNETIX_PRIORITY: "high"
   script:
-    - vulnetix --task scan --tags "$VULNETIX_TAGS"
+    - vulnetix --task triage --tags "$VULNETIX_TAGS"
   only:
     - staging
 
@@ -485,7 +485,7 @@ vulnetix-airgapped:
     VULNETIX_TAGS: '["Public", "Crown Jewels"]'
     VULNETIX_PRIORITY: "critical"
   script:
-    - vulnetix --task scan --tags "$VULNETIX_TAGS"
+    - vulnetix --task triage --tags "$VULNETIX_TAGS"
   only:
     - main
 
@@ -569,7 +569,7 @@ vulnetix-custom-rules:
     # Download custom security rules
     - curl -sSfL "$CUSTOM_RULES_URL" -o custom-rules.yaml
   script:
-    - vulnetix --task scan
+    - vulnetix --task triage
         --config-file custom-rules.yaml
         --custom-rules-enabled
         --severity-threshold high
@@ -592,7 +592,7 @@ vulnetix-security-dashboard:
   before_script:
     - go install github.com/vulnetix/cli@latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$CI_PROJECT_NAME"
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$CI_PROJECT_NAME"
   artifacts:
     reports:
       sast: vulnetix-output/gl-sast-report.json
@@ -610,7 +610,7 @@ vulnetix-mr-security:
   before_script:
     - go install github.com/vulnetix/cli@latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
     - |
       # Comment on MR with results
       if [ -n "$CI_MERGE_REQUEST_IID" ]; then
@@ -634,7 +634,7 @@ vulnetix-pages:
   before_script:
     - go install github.com/vulnetix/cli@latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --format html
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --format html
     - mkdir public
     - cp -r vulnetix-output/reports/* public/
   artifacts:
@@ -666,7 +666,7 @@ vulnetix-with-validation:
         exit 1
       fi
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
 ```
 
 #### Network Connectivity
@@ -685,7 +685,7 @@ vulnetix-debug-network:
     - curl -I https://app.vulnetix.com/api/ || echo "API unreachable"
     - nslookup app.vulnetix.com || echo "DNS resolution failed"
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --verbose
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --verbose
 ```
 
 #### Artifact Upload Failures
@@ -700,7 +700,7 @@ vulnetix-debug-artifacts:
   before_script:
     - go install github.com/vulnetix/cli@latest
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
     - ls -la vulnetix-output/
     - find . -name "*.sarif" -o -name "*.json" | head -20
   artifacts:
@@ -730,7 +730,7 @@ vulnetix-optimized:
     paths:
       - .vulnetix-cache/
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --cache-dir .vulnetix-cache/
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --cache-dir .vulnetix-cache/
 ```
 
 #### Parallel Job Optimization
@@ -743,5 +743,5 @@ vulnetix-parallel-opt:
     - go install github.com/vulnetix/cli@latest
   parallel: 3
   script:
-    - vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --parallel-jobs $CI_NODE_TOTAL --node-index $CI_NODE_INDEX
+    - vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --parallel-jobs $CI_NODE_TOTAL --node-index $CI_NODE_INDEX
 ```
