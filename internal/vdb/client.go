@@ -64,7 +64,7 @@ func NewClient(orgID, secretKey string) *Client {
 		SecretKey:  secretKey,
 		AuthMethod: auth.SigV4,
 		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 120 * time.Second,
 		},
 	}
 }
@@ -78,7 +78,7 @@ func NewClientFromCredentials(creds *auth.Credentials) *Client {
 		AuthMethod: creds.Method,
 		APIKey:     creds.APIKey,
 		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 120 * time.Second,
 		},
 	}
 }
