@@ -39,8 +39,9 @@ Authentication:
     }
 
 Examples:
-  # Get information about a CVE
-  vulnetix vdb vuln CVE-2024-1234
+  # Get information about a vulnerability (CVE, GHSA, PYSEC, ZDI, and 70+ more formats)
+  vulnetix vdb vuln CVE-2021-44228
+  vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9
 
   # List available ecosystems
   vulnetix vdb ecosystems
@@ -76,17 +77,30 @@ Examples:
 	},
 }
 
-// vulnCmd retrieves information about a specific CVE
+// vulnCmd retrieves information about a specific vulnerability
 var vulnCmd = &cobra.Command{
-	Use:   "vuln <CVE-ID>",
-	Short: "Get information about a specific CVE",
-	Long: `Retrieve full vulnerability data for a specific CVE identifier, including descriptions,
-CVSS metrics, CWEs, affected products, EPSS scores, and KEV status from all available sources.
+	Use:   "vuln <vuln-id>",
+	Short: "Get information about a specific vulnerability",
+	Long: `Retrieve full vulnerability data for any supported vulnerability identifier, including
+descriptions, CVSS metrics, CWEs, affected products, EPSS scores, and KEV status from all
+available sources.
+
+Accepts 78+ identifier formats. Common examples:
+  CVE-2021-44228         (MITRE / NVD)
+  GHSA-jfh8-3a1q-hjz9   (GitHub Security Advisories)
+  PYSEC-2024-123         (PyPI)
+  RUSTSEC-2024-1234      (RustSec)
+  EUVD-2025-14498        (EU Vulnerability Database)
+  RHSA-2025:1730         (Red Hat)
+  DSA-4741-1             (Debian)
+  USN-7040-1             (Ubuntu)
+  ZDI-23-1714            (Zero Day Initiative)
+  SNYK-JAVA-ORGCLOJURE-5740378 (Snyk)
 
 Examples:
-  vulnetix vdb vuln CVE-2024-1234
-  vulnetix vdb vuln CVE-2024-1234 --output json
-  vulnetix vdb vuln CVE-2024-1234 -o pretty`,
+  vulnetix vdb vuln CVE-2021-44228
+  vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9
+  vulnetix vdb vuln CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cveID := args[0]
@@ -108,17 +122,20 @@ Examples:
 	},
 }
 
-// exploitsCmd retrieves exploit intelligence for a specific CVE
+// exploitsCmd retrieves exploit intelligence for a specific vulnerability
 var exploitsCmd = &cobra.Command{
-	Use:   "exploits <CVE-ID>",
-	Short: "Get exploit intelligence for a specific CVE",
+	Use:   "exploits <vuln-id>",
+	Short: "Get exploit intelligence for a specific vulnerability",
 	Long: `Retrieve exploit intelligence for a vulnerability, aggregating data from multiple exploit
 databases including ExploitDB, Metasploit modules, Nuclei templates, VulnCheck, CrowdSec, and
 GitHub proof-of-concept repositories.
 
+Accepts any supported vulnerability identifier (CVE, GHSA, PYSEC, ZDI, SNYK, and 70+ more).
+
 Examples:
-  vulnetix vdb exploits CVE-2024-1234
-  vulnetix vdb exploits CVE-2024-1234 --output json`,
+  vulnetix vdb exploits CVE-2021-44228
+  vulnetix vdb exploits GHSA-jfh8-3a1q-hjz9
+  vulnetix vdb exploits CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		identifier := args[0]
@@ -140,16 +157,19 @@ Examples:
 	},
 }
 
-// fixesCmd retrieves fix data for a specific CVE
+// fixesCmd retrieves fix data for a specific vulnerability
 var fixesCmd = &cobra.Command{
-	Use:   "fixes <CVE-ID>",
-	Short: "Get fix data for a specific CVE",
+	Use:   "fixes <vuln-id>",
+	Short: "Get fix data for a specific vulnerability",
 	Long: `Retrieve comprehensive fix data for a vulnerability including patches, advisories,
 workarounds, KEV required actions, and AI-generated analysis.
 
+Accepts any supported vulnerability identifier (CVE, GHSA, PYSEC, ZDI, SNYK, and 70+ more).
+
 Examples:
-  vulnetix vdb fixes CVE-2024-1234
-  vulnetix vdb fixes CVE-2024-1234 --output json`,
+  vulnetix vdb fixes CVE-2021-44228
+  vulnetix vdb fixes GHSA-jfh8-3a1q-hjz9
+  vulnetix vdb fixes CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		identifier := args[0]
