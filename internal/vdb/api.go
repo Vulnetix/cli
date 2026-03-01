@@ -8,7 +8,7 @@ import (
 
 // CVEInfo represents vulnerability information for a CVE
 type CVEInfo struct {
-	Data map[string]interface{} // Store full response for display
+	Data interface{} // Store full response for display (array or object)
 }
 
 // EcosystemsResponse represents the ecosystems list response
@@ -38,16 +38,16 @@ type VulnerabilitiesResponse struct {
 	Vulnerabilities  []map[string]interface{} `json:"vulnerabilities"`
 }
 
-// GetCVE retrieves information about a specific CVE
+// GetCVE retrieves full vulnerability data for a specific CVE
 func (c *Client) GetCVE(cveID string) (*CVEInfo, error) {
-	path := fmt.Sprintf("/info/%s", cveID)
+	path := fmt.Sprintf("/vuln/%s", cveID)
 
 	respBody, err := c.DoRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var data map[string]interface{}
+	var data interface{}
 	if err := json.Unmarshal(respBody, &data); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
