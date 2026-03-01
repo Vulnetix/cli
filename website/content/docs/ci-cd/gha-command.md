@@ -173,7 +173,7 @@ View at: https://dashboard.vulnetix.com/org/123e4567-e89b-12d3-a456-426614174000
 ### Basic Workflow Example
 
 ```yaml
-name: Security Scan
+name: Security Assessment
 on: [push, pull_request]
 
 jobs:
@@ -213,7 +213,7 @@ jobs:
 ### Advanced Workflow with Multiple Scanners
 
 ```yaml
-name: Comprehensive Security Scan
+name: Comprehensive Security Assessment
 on: [push, pull_request]
 
 jobs:
@@ -292,7 +292,7 @@ The `gha` command interacts with the following Vulnetix API endpoints:
     "repository_owner": "owner",
     "run_id": "123456789",
     "run_number": "42",
-    "workflow_name": "Security Scan",
+    "workflow_name": "Security Assessment",
     "job": "upload-artifacts",
     "sha": "abc123...",
     "ref_name": "main",

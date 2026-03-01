@@ -58,13 +58,10 @@ gh workflow run release.yml -f version=v1.2.3
 
 ```bash
 # Test go install with new version
-go install github.com/vulnetix/vulnetix@v1.2.3
+go install github.com/vulnetix/cli@v1.2.3
 
 # Test binary download
-curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh -s -- --version=v1.2.3
-
-# Test Docker image (if applicable)
-docker run --rm vulnetix/vulnetix:v1.2.3 --help
+curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh -s -- --version=v1.2.3
 ```
 
 ## Supported Platforms
@@ -79,7 +76,7 @@ The release process builds binaries for:
 
 ### Requirements
 
-1. **Module Path**: The module must be accessible at `github.com/vulnetix/vulnetix`
+1. **Module Path**: The module must be accessible at `github.com/vulnetix/cli`
 2. **Semantic Versioning**: Tags must follow `vX.Y.Z` format
 3. **Go Version**: `go.mod` must specify minimum Go version (1.21+)
 4. **Main Package**: Must be in the root directory with `package main`
@@ -89,7 +86,7 @@ The release process builds binaries for:
 Ensure your `go.mod` has:
 
 ```go
-module github.com/vulnetix/vulnetix
+module github.com/vulnetix/cli
 
 go 1.21
 
@@ -101,36 +98,6 @@ go 1.21
 - Use semantic versioning: `v1.2.3`
 - Pre-release versions: `v1.2.3-alpha.1`
 - Development versions: Use commit hashes or `@main`
-
-## Package Manager Setup
-
-### Homebrew
-
-To enable Homebrew installation:
-
-1. Create a Homebrew tap repository: `vulnetix/homebrew-vulnetix`
-2. Add a formula file: `vulnetix.rb`
-3. Update the formula with each release
-
-### Chocolatey
-
-To enable Chocolatey installation:
-
-1. Create a Chocolatey package
-2. Publish to Chocolatey community repository
-3. Update with each release
-
-## Docker Integration
-
-The release process can be extended to build and push Docker images:
-
-```yaml
-# Add to .github/workflows/release.yml
-- name: Build Docker image
-  run: |
-    docker build -t vulnetix/vulnetix:${{ steps.version.outputs.VERSION }} .
-    docker push vulnetix/vulnetix:${{ steps.version.outputs.VERSION }}
-```
 
 ## Troubleshooting
 

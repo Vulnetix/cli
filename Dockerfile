@@ -17,7 +17,7 @@ COPY . .
 
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=docker" \
+    -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=docker" \
     -o vulnetix \
     .
 

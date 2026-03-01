@@ -30,12 +30,12 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
+      curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
       export PATH=$PATH:$HOME/.local/bin
       vulnetix --version
 
 - task: Bash@3
-  displayName: 'Run Security Scan'
+  displayName: 'Run Vulnetix'
   inputs:
     targetType: 'inline'
     script: |
@@ -49,39 +49,8 @@ steps:
   inputs:
     testResultsFormat: 'JUnit'
     testResultsFiles: 'security-results.xml'
-    testRunTitle: 'Vulnetix Security Scan'
+    testRunTitle: 'Vulnetix Security Assessment'
   condition: always()
-```
-
-### Docker-based Pipeline
-
-```yaml
-# azure-pipelines-docker.yml
-trigger:
-  branches:
-    include:
-    - main
-
-pool:
-  vmImage: 'ubuntu-latest'
-
-container: vulnetix/vulnetix:latest
-
-variables:
-  VULNETIX_ORG_ID: $(vulnetix-org-id)
-
-steps:
-- script: |
-    vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
-  displayName: 'Run Vulnetix Security Scan'
-  env:
-    VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)
-
-- task: PublishBuildArtifacts@1
-  displayName: 'Publish Security Artifacts'
-  inputs:
-    pathToPublish: '$(Build.SourcesDirectory)'
-    artifactName: 'security-results'
 ```
 
 ## Advanced Pipeline Configurations
@@ -159,7 +128,7 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
-          curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
           export PATH=$PATH:$HOME/.local/bin
           vulnetix --version
 
@@ -226,7 +195,7 @@ steps:
     targetType: 'inline'
     script: |
       # Install Vulnetix
-      curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
+      curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
       export PATH=$PATH:$HOME/.local/bin
 
       # Install Semgrep
@@ -271,7 +240,7 @@ steps:
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Vulnetix Results'
   inputs:
-    pathToPublish: 'vulnetix-scan-results.${{ parameters.outputFormat }}'
+    pathToPublish: 'vulnetix-results.${{ parameters.outputFormat }}'
     artifactName: 'vulnetix-results'
     publishLocation: 'Container'
   condition: always()
@@ -314,7 +283,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
+      curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
       vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
   env:
     VULNETIX_ORG_ID: $(vulnetix-org-id)
@@ -340,7 +309,7 @@ steps:
 - template: templates/install-security-tools.yml
 
 - task: Bash@3
-  displayName: 'Development Security Scan'
+  displayName: 'Development Security Assessment'
   inputs:
     targetType: 'inline'
     script: |
@@ -378,7 +347,7 @@ stages:
     - template: templates/install-security-tools.yml
 
     - task: Bash@3
-      displayName: 'Multi-Tool Security Scan'
+      displayName: 'Multi-Tool Security Assessment'
       inputs:
         targetType: 'inline'
         script: |
@@ -480,7 +449,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
+      curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
       export PATH=$PATH:$HOME/.local/bin
       vulnetix --version
   condition: ne(variables['platform'], 'windows')
@@ -490,14 +459,14 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Invoke-WebRequest -Uri "https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-windows-amd64.zip" -OutFile "vulnetix.zip"
+      Invoke-WebRequest -Uri "https://github.com/vulnetix/cli/releases/latest/download/vulnetix-windows-amd64.zip" -OutFile "vulnetix.zip"
       Expand-Archive vulnetix.zip -DestinationPath "C:\Tools\Vulnetix"
       $env:PATH += ";C:\Tools\Vulnetix"
       vulnetix --version
   condition: eq(variables['platform'], 'windows')
 
 - task: Bash@3
-  displayName: 'Run Security Scan (Unix)'
+  displayName: 'Run Vulnetix (Unix)'
   inputs:
     targetType: 'inline'
     script: |
@@ -506,7 +475,7 @@ steps:
   condition: ne(variables['platform'], 'windows')
 
 - task: PowerShell@2
-  displayName: 'Run Security Scan (Windows)'
+  displayName: 'Run Vulnetix (Windows)'
   inputs:
     targetType: 'inline'
     script: |
@@ -517,10 +486,10 @@ steps:
 
 ## Advanced Features
 
-### Conditional Security Scans
+### Conditional Security Assessments
 
 ```yaml
-# Only run security scans on specific file changes
+# Only run security assessments on specific file changes
 trigger:
   branches:
     include:
@@ -535,7 +504,7 @@ trigger:
 
 steps:
 - task: Bash@3
-  displayName: 'Conditional Security Scan'
+  displayName: 'Conditional Security Assessment'
   inputs:
     targetType: 'inline'
     script: |
@@ -553,11 +522,11 @@ steps:
       done
 
       if [ "$SECURITY_RELEVANT_CHANGES" = "true" ]; then
-        echo "Security-relevant changes detected, running scan..."
+        echo "Security-relevant changes detected, running assessment..."
         export PATH=$PATH:$HOME/.local/bin
         vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
       else
-        echo "No security-relevant changes detected, skipping scan"
+        echo "No security-relevant changes detected, skipping assessment"
       fi
 ```
 
@@ -566,7 +535,7 @@ steps:
 ```yaml
 # Run multiple security tools in parallel
 jobs:
-- job: ParallelSecurityScans
+- job: ParallelSecurityAssessments
   displayName: 'Parallel Security Analysis'
   strategy:
     parallel: 4
@@ -610,7 +579,7 @@ jobs:
       script: |
         if [ "$(System.JobPositionInPhase)" = "4" ]; then
           export PATH=$PATH:$HOME/.local/bin
-          curl -fsSL https://raw.githubusercontent.com/vulnetix/vulnetix/main/install.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
           vulnetix --org-id "$VULNETIX_ORG_ID" --task release --project-name "$(Build.Repository.Name)"
         fi
     condition: eq(variables['System.JobPositionInPhase'], '4')
@@ -660,7 +629,7 @@ steps:
     targetType: 'inline'
     script: |
       # Test GitHub connectivity
-      curl -I https://github.com/vulnetix/vulnetix/releases/latest
+      curl -I https://github.com/vulnetix/cli/releases/latest
 
       # Test Vulnetix API connectivity
       curl -I https://app.vulnetix.com/api/check
@@ -680,7 +649,7 @@ variables:
 
 steps:
 - task: Bash@3
-  displayName: 'Debug Security Scan'
+  displayName: 'Debug Security Assessment'
   inputs:
     targetType: 'inline'
     script: |

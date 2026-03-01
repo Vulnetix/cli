@@ -16,7 +16,7 @@ layout: hextra-home
 
 <div class="hx-mb-12">
 {{< hextra/hero-subtitle >}}
-  Remediation over discovery. Scan, assess, report, and triage&nbsp;<br class="sm:hx-block hx-hidden" />vulnerabilities across your projects and CI/CD pipelines.
+  Remediation over discovery. Collect, assess, triage, and remediate&nbsp;<br class="sm:hx-block hx-hidden" />vulnerabilities across your projects and CI/CD pipelines.
 {{< /hextra/hero-subtitle >}}
 </div>
 
@@ -29,7 +29,7 @@ layout: hextra-home
 {{< hextra/feature-grid >}}
   {{< hextra/feature-card
     title="Multiple Installation Methods"
-    subtitle="Install via Homebrew, Chocolatey, Go, Docker, curl, or build from source."
+    subtitle="Install via Go modules, direct binary download, or build from source."
     style="background: radial-gradient(ellipse at 50% 80%,rgba(59,130,246,0.15),hsla(0,0%,100%,0));"
   >}}
   {{< hextra/feature-card

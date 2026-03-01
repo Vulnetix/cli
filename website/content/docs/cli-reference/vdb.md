@@ -10,12 +10,13 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
 
 - [Overview](#overview)
 - [Authentication](#authentication)
-- [Commands](#commands)
+- [CLI Commands](#cli-commands)
   - [vdb cve](#vdb-cve)
   - [vdb ecosystems](#vdb-ecosystems)
   - [vdb product](#vdb-product)
   - [vdb vulns](#vdb-vulns)
   - [vdb spec](#vdb-spec)
+- [API-Only Endpoints](#api-only-endpoints)
 - [Examples](#examples)
 - [Rate Limiting](#rate-limiting)
 
@@ -63,7 +64,7 @@ vulnetix vdb ecosystems --org-id "your-uuid" --secret "your-secret"
 1. **Via Demo Request**: Visit https://www.vulnetix.com and complete the demo request form
 2. **Via Email**: Send a request to sales@vulnetix.com with subject "VDB API Access Request"
 
-## Commands
+## CLI Commands
 
 ### vdb cve
 
@@ -243,6 +244,92 @@ vulnetix vdb spec --output json > vdb-openapi-spec.json
 
 # Use with other tools
 vulnetix vdb spec -o json | jq '.paths'
+```
+
+---
+
+## API-Only Endpoints
+
+The following VDB API endpoints are available via direct HTTP requests but do not yet have dedicated CLI subcommands. Use `vulnetix vdb spec` to retrieve the full OpenAPI specification.
+
+### GET /v1/vuln/{identifier}
+
+Retrieve full CVEListV5 records for a vulnerability from each contributing data source.
+
+```bash
+# Direct API call
+curl -H "Authorization: Bearer $TOKEN" \
+  https://api.vdb.vulnetix.com/v1/vuln/CVE-2024-1234
+```
+
+**Response includes:** Full CVE records from MITRE, NVD, GitHub Advisories, OSV, and other sources, each preserving the original data source's schema.
+
+---
+
+### GET /v1/exploits/{identifier}
+
+Retrieve exploit intelligence for a vulnerability, aggregating data from multiple exploit databases.
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://api.vdb.vulnetix.com/v1/exploits/CVE-2024-1234
+```
+
+**Sources include:** ExploitDB, Metasploit modules, Nuclei templates, VulnCheck, CrowdSec, and GitHub proof-of-concept repositories.
+
+---
+
+### GET /v1/{package}/versions
+
+List all known versions for a package across ecosystems.
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://api.vdb.vulnetix.com/v1/express/versions
+```
+
+---
+
+### GET /v1/gcve
+
+Paginated CVE listing by date range with enrichment data.
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "https://api.vdb.vulnetix.com/v1/gcve?start=2024-01-01&end=2024-12-31&limit=100"
+```
+
+---
+
+### GET /v1/summary/{year}
+
+Annual vulnerability statistics including severity distribution, top CWEs, affected vendors, and trends.
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://api.vdb.vulnetix.com/v1/summary/2024
+```
+
+---
+
+### GET /v1/vuln/{identifier}/fixes
+
+Comprehensive fix data for a vulnerability including patches, advisories, workarounds, KEV required actions, and AI-generated analysis.
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://api.vdb.vulnetix.com/v1/vuln/CVE-2024-1234/fixes
+```
+
+---
+
+### GET /v1/product/{name}/{version}/{ecosystem}
+
+Query product version information scoped to a specific ecosystem.
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://api.vdb.vulnetix.com/v1/product/express/4.17.1/npm
 ```
 
 ---

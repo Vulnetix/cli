@@ -41,7 +41,7 @@ for target in "${TARGETS[@]}"; do
     
     # Build
     CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build \
-        -ldflags "-s -w -X github.com/vulnetix/vulnetix/cmd.version=${VERSION}" \
+        -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=${VERSION}" \
         -o "${OUTPUT_DIR}/${output_name}" \
         .
     
