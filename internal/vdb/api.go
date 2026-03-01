@@ -8,13 +8,7 @@ import (
 
 // CVEInfo represents vulnerability information for a CVE
 type CVEInfo struct {
-	CVE         string                 `json:"cve"`
-	Description string                 `json:"description,omitempty"`
-	Published   string                 `json:"published,omitempty"`
-	Modified    string                 `json:"modified,omitempty"`
-	CVSS        map[string]interface{} `json:"cvss,omitempty"`
-	References  []interface{}          `json:"references,omitempty"`
-	Data        map[string]interface{} `json:"-"` // Store full response
+	Data map[string]interface{} // Store full response for display
 }
 
 // EcosystemsResponse represents the ecosystems list response
@@ -53,19 +47,12 @@ func (c *Client) GetCVE(cveID string) (*CVEInfo, error) {
 		return nil, err
 	}
 
-	var cveInfo CVEInfo
-	if err := json.Unmarshal(respBody, &cveInfo); err != nil {
+	var data map[string]interface{}
+	if err := json.Unmarshal(respBody, &data); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	// Store full response in Data field
-	var fullData map[string]interface{}
-	if err := json.Unmarshal(respBody, &fullData); err != nil {
-		return nil, fmt.Errorf("failed to parse full response data: %w", err)
-	}
-	cveInfo.Data = fullData
-
-	return &cveInfo, nil
+	return &CVEInfo{Data: data}, nil
 }
 
 // GetEcosystems retrieves the list of available ecosystems
