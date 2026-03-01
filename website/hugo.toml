@@ -39,6 +39,20 @@ title = "Vulnetix CLI Documentation"
   [menu.main.params]
     icon = "github"
 
+[[menu.main]]
+  name = "API Docs"
+  url = "https://redocly.github.io/redoc/?url=https://api.vdb.vulnetix.com/v1/spec"
+  weight = 6
+  [menu.main.params]
+    icon = "book-open"
+
+[[menu.main]]
+  name = "API Spec"
+  url = "https://api.vdb.vulnetix.com/v1/spec"
+  weight = 7
+  [menu.main.params]
+    icon = "document-download"
+
 [params]
   description = "Automated vulnerability management CLI that focuses on remediation over discovery."
 
