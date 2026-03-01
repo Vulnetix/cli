@@ -13,8 +13,7 @@ import (
 type TaskType string
 
 const (
-	TaskInfo   TaskType = "info"   // Default info/healthcheck
-	TaskTriage TaskType = "triage" // Automated triage
+	TaskInfo TaskType = "info" // Default info/healthcheck
 )
 
 // ToolFormat represents the supported artifact formats
@@ -520,12 +519,12 @@ func (c *VulnetixConfig) PrintConfiguration() {
 // ValidateTask validates that the specified task is supported
 func ValidateTask(task string) (TaskType, error) {
 	switch TaskType(task) {
-	case TaskInfo, TaskTriage:
-		return TaskType(task), nil
+	case TaskInfo:
+		return TaskInfo, nil
 	case "":
 		return TaskInfo, nil // Default to info
 	default:
-		return "", fmt.Errorf("unsupported task: %s. Supported tasks: info, triage", task)
+		return "", fmt.Errorf("unsupported task: %s. Supported tasks: info", task)
 	}
 }
 

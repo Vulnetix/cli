@@ -13,16 +13,14 @@ Complete reference for all Vulnetix CLI commands, flags, and usage patterns.
 Run vulnerability management tasks against the Vulnetix backend.
 
 ```bash
-vulnetix --org-id <UUID> [--task <task>] [flags]
+vulnetix
 ```
 
-The root command runs one of several task modes (`--org-id` required for non-info tasks):
+The root command runs an authentication healthcheck.
 
 | Task | Description |
 |------|-------------|
 | `info` (default) | Authentication healthcheck across all credential sources |
-| `release` | Assess release readiness by validating security artifacts from sibling CI jobs |
-| `triage` | Run automated vulnerability triage |
 
 ---
 
@@ -251,14 +249,7 @@ These flags are available on the root command and inherited by subcommands:
 
 | Flag | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `--org-id` | string | **Yes** (root) | - | Organization ID (UUID) for Vulnetix operations |
-| `--task` | string | No | `info` | Task to perform: `info`, `release`, `triage` |
-| `--project-name` | string | No | - | Project name for vulnerability management context |
-| `--product-name` | string | No | - | Product name for vulnerability management context |
-| `--team-name` | string | No | - | Team name responsible for the project |
-| `--group-name` | string | No | - | Group name for organizational hierarchy |
-| `--tags` | string | No | - | YAML list of tags for categorization (e.g., `'["Public", "Crown Jewels"]'`) |
-| `--tools` | string | No | - | YAML array of tool configurations |
+| `--org-id` | string | **Yes** | - | Organization ID (UUID) for Vulnetix operations |
 | `--help` | - | No | - | Help for any command |
 
 ## Environment Variables
@@ -275,38 +266,6 @@ These flags are available on the root command and inherited by subcommands:
 | `GITHUB_API_URL` | GitHub API base URL (default: `https://api.github.com`) | `gha upload` |
 | `GITHUB_ACTIONS` | Set to `true` in GitHub Actions | `gha upload` |
 
-## Tools Configuration
-
-The `--tools` flag accepts a YAML array of tool configurations:
-
-```bash
-TOOLS_CONFIG='[
-  {
-    "category": "SAST",
-    "tool_name": "semgrep",
-    "artifact_name": "sast-results",
-    "format": "SARIF"
-  },
-  {
-    "category": "SCA",
-    "tool_name": "trivy",
-    "artifact_name": "dependency-scan",
-    "format": "SARIF"
-  }
-]'
-
-vulnetix --org-id "your-org-id" --task triage --tools "${TOOLS_CONFIG}"
-```
-
-### Tool Configuration Schema
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `category` | string | Yes | Tool category (SAST, SCA, SECRETS, etc.) |
-| `tool_name` | string | Yes | Name of the security tool |
-| `artifact_name` | string | Yes | Name of the artifact/result file |
-| `format` | string | Yes | Format of the results (SARIF, JSON, etc.) |
-
 ## Exit Codes
 
 | Code | Description |
@@ -322,14 +281,8 @@ vulnetix --org-id "your-org-id" --task triage --tools "${TOOLS_CONFIG}"
 
 ### Basic Usage
 ```bash
-# Process vulnerability data
-vulnetix --org-id "your-org-id"
-
-# With project context
-vulnetix --org-id "your-org-id" \
-  --project-name "web-app" \
-  --team-name "frontend-team" \
-  --tags '["Public", "Crown Jewels"]'
+# Run authentication healthcheck
+vulnetix
 ```
 
 ### Artifact Upload
@@ -347,13 +300,11 @@ vulnetix upload --file report.json --format sarif --json
 ### CI/CD Integration
 ```bash
 # GitHub Actions
-vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
+vulnetix gha upload --org-id "$VULNETIX_ORG_ID"
 
 # GitLab CI
-vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
-  --project-name "$CI_PROJECT_NAME"
+vulnetix upload --file results.sarif
 
 # Jenkins
-vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
-  --project-name "$JOB_NAME"
+vulnetix upload --file results.sarif
 ```

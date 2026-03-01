@@ -57,9 +57,6 @@ go install github.com/vulnetix/cli@v1.2.3
 
 # Auth healthcheck (default task)
 vulnetix
-
-# Triage task
-vulnetix --org-id "your-org-id-here" --task triage
 ```
 
 ### Local Binary
@@ -107,8 +104,8 @@ go install github.com/vulnetix/cli@v1.2.3
 # Auth healthcheck (default task)
 vulnetix
 
-# Triage task with tags
-vulnetix --org-id "your-org-id-here" --task triage --tags '["Public", "Crown Jewels"]'
+# Upload an artifact
+vulnetix upload --file sbom.json
 ```
 
 ## Inputs
