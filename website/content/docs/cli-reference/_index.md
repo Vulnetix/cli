@@ -186,15 +186,15 @@ vulnetix vdb <subcommand> [flags]
 
 | Subcommand | Description |
 |------------|-------------|
-| `vuln <CVE-ID>` | Get information about a specific CVE |
+| `vuln <vuln-id>` | Get information about a vulnerability (CVE, GHSA, PYSEC, and 75+ formats) |
 | `ecosystems` | List available package ecosystems |
 | `product <name> [version] [ecosystem]` | Get product version information |
 | `vulns <package>` | Get vulnerabilities for a package |
 | `spec` | Get the OpenAPI specification |
-| `exploits <CVE-ID>` | Get exploit intelligence for a specific CVE |
-| `fixes <CVE-ID>` | Get fix data for a specific CVE |
+| `exploits <vuln-id>` | Get exploit intelligence for a vulnerability |
+| `fixes <vuln-id>` | Get fix data for a vulnerability |
 | `versions <package>` | Get all versions of a package across ecosystems |
-| `gcve` | Get CVEs by date range |
+| `gcve` | Get vulnerabilities by date range |
 
 ---
 

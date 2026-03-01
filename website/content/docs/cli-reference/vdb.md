@@ -1,7 +1,7 @@
 ---
 title: "VDB Command Reference"
 weight: 2
-description: "Access the Vulnetix Vulnerability Database for CVE lookups, package vulnerabilities, and ecosystem data."
+description: "Access the Vulnetix Vulnerability Database for vulnerability lookups, package vulnerabilities, and ecosystem data."
 ---
 
 The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB) API, offering comprehensive vulnerability intelligence from multiple authoritative sources.
@@ -10,6 +10,7 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
 
 - [Overview](#overview)
 - [Authentication](#authentication)
+- [Supported Identifier Formats](#supported-identifier-formats)
 - [CLI Commands](#cli-commands)
   - [vdb vuln](#vdb-vuln)
   - [vdb ecosystems](#vdb-ecosystems)
@@ -68,15 +69,68 @@ vulnetix vdb ecosystems --org-id "your-uuid" --secret "your-secret"
 1. **Via Demo Request**: Visit https://www.vulnetix.com and complete the demo request form
 2. **Via Email**: Send a request to sales@vulnetix.com with subject "VDB API Access Request"
 
+## Supported Identifier Formats
+
+The VDB accepts **78+ vulnerability identifier formats**. You are not limited to CVE — any command that takes a `<vuln-id>` accepts any of these:
+
+### Core & Ecosystem
+
+| Format | Example | Source |
+|--------|---------|--------|
+| `CVE` | `CVE-2021-44228` | MITRE / NIST NVD |
+| `GHSA` | `GHSA-jfh8-3a1q-hjz9` | GitHub Security Advisories |
+| `PYSEC` | `PYSEC-2024-123` | PyPI |
+| `GO` | `GO-2024-1234` | Go vulnerability database |
+| `RUSTSEC` | `RUSTSEC-2024-1234` | RustSec |
+| `EUVD` | `EUVD-2025-14498` | EU Vulnerability Database |
+| `OSV` | `OSV-2024-1234` | OSV (generic) |
+| `GSD` | `GSD-2024-1234` | Global Security Database |
+| `VDB` | `VDB-2025-1` | Vulnetix Database |
+| `GCVE` | `GCVE-VVD-2025-0001` | Vulnetix-generated CVE |
+
+### Vendor & Research
+
+| Format | Example | Source |
+|--------|---------|--------|
+| `SNYK` | `SNYK-JAVA-ORGCLOJURE-5740378` | Snyk |
+| `ZDI` | `ZDI-23-1714` | Trend Micro Zero Day Initiative |
+| `MSCVE` / `MSRC` | `MSCVE-2025-21415` | Microsoft |
+| `RHSA` | `RHSA-2025:1730` | Red Hat Security Advisory |
+| `TALOS` | `TALOS-2023-1896` | Cisco Talos |
+| `EDB` | `EDB-10102` | OffSec Exploit Database |
+| `WORDFENCE` | `WORDFENCE-00086b84-...` | Defiant Wordfence |
+| `PATCHSTACK` | `PATCHSTACK/spectrum/wordpress-theme` | Patchstack |
+| `MFSA` | `MFSA2024-51` | Mozilla Foundation |
+| `JVNDB` | `JVNDB-2023-006199` | Japan Vulnerability Notes |
+| `CNVD` | `CNVD-2024-02713` | China National Vulnerability DB |
+| `BDU` | `BDU:2024-00390` | Russian Data Bank |
+| `HUNTR` | `HUNTR-001d1c29-...` | ProtectAI Huntr |
+
+### Linux Distribution Advisories
+
+| Format | Example | Source |
+|--------|---------|--------|
+| `DSA` | `DSA-4741-1` | Debian Security Advisory |
+| `DLA` | `DLA-2931-1` | Debian LTS Advisory |
+| `USN` | `USN-7040-1` | Ubuntu Security Notice |
+| `ALSA` | `ALSA-2019:2722` | AlmaLinux |
+| `RLSA` | `RLSA-2024:7346` | Rocky Linux |
+| `MGASA` | `MGASA-2024-0327` | Mageia |
+| `OPENSUSE` | `OPENSUSE-SU-2019:1915-1` | openSUSE |
+| `FreeBSD` | `FreeBSD-SA-00:01.make` | FreeBSD |
+| `BIT` | `BIT-OPENBLAS-2021-4048` | Bitnami |
+
+> See `vulnetix vdb spec` for the complete OpenAPI specification and the full list of accepted identifier patterns.
+
 ## CLI Commands
 
 ### vdb vuln
 
-Retrieve detailed information about a specific CVE.
+Retrieve detailed information about a specific vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb vuln <CVE-ID> [flags]
+vulnetix vdb vuln <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -84,18 +138,27 @@ vulnetix vdb vuln <CVE-ID> [flags]
 
 **Examples:**
 ```bash
-# Get CVE information
-vulnetix vdb vuln CVE-2024-1234
+# CVE (MITRE / NVD)
+vulnetix vdb vuln CVE-2021-44228
 
-# Get CVE in JSON format
-vulnetix vdb vuln CVE-2024-1234 --output json
+# GitHub Security Advisory
+vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9
 
-# Save CVE to file
-vulnetix vdb vuln CVE-2024-1234 -o json > cve-2024-1234.json
+# PyPI vulnerability
+vulnetix vdb vuln PYSEC-2024-123
+
+# Red Hat advisory
+vulnetix vdb vuln RHSA-2025:1730
+
+# JSON output
+vulnetix vdb vuln CVE-2021-44228 --output json
+
+# Save to file
+vulnetix vdb vuln CVE-2021-44228 -o json > log4shell.json
 ```
 
 **Response includes:**
-- CVE identifier
+- Vulnerability identifier and aliases
 - Description
 - Published and modified dates
 - CVSS scores (v2, v3, v4 where available)
@@ -221,7 +284,7 @@ vulnetix vdb vulns react --offset 100
 **Response includes:**
 - Total vulnerability count
 - Array of vulnerabilities with:
-  - CVE identifiers
+  - Vulnerability identifiers (CVE, GHSA, and other formats)
   - Severity levels
   - CVSS scores
   - Affected version ranges
@@ -260,11 +323,11 @@ vulnetix vdb spec -o json | jq '.paths'
 
 ### vdb exploits
 
-Retrieve exploit intelligence for a specific CVE.
+Retrieve exploit intelligence for a specific vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb exploits <CVE-ID> [flags]
+vulnetix vdb exploits <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -272,11 +335,14 @@ vulnetix vdb exploits <CVE-ID> [flags]
 
 **Examples:**
 ```bash
-# Get exploit intelligence for a CVE
-vulnetix vdb exploits CVE-2024-1234
+# CVE
+vulnetix vdb exploits CVE-2021-44228
 
-# Get exploit data as JSON
-vulnetix vdb exploits CVE-2024-1234 --output json
+# GitHub Security Advisory
+vulnetix vdb exploits GHSA-jfh8-3a1q-hjz9
+
+# JSON output
+vulnetix vdb exploits CVE-2021-44228 --output json
 ```
 
 **Sources include:** ExploitDB, Metasploit modules, Nuclei templates, VulnCheck, CrowdSec, and GitHub proof-of-concept repositories.
@@ -285,11 +351,11 @@ vulnetix vdb exploits CVE-2024-1234 --output json
 
 ### vdb fixes
 
-Retrieve comprehensive fix data for a specific CVE.
+Retrieve comprehensive fix data for a specific vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb fixes <CVE-ID> [flags]
+vulnetix vdb fixes <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -297,11 +363,14 @@ vulnetix vdb fixes <CVE-ID> [flags]
 
 **Examples:**
 ```bash
-# Get fix data for a CVE
-vulnetix vdb fixes CVE-2024-1234
+# CVE
+vulnetix vdb fixes CVE-2021-44228
 
-# Get fix data as JSON
-vulnetix vdb fixes CVE-2024-1234 --output json
+# GitHub Security Advisory
+vulnetix vdb fixes GHSA-jfh8-3a1q-hjz9
+
+# JSON output
+vulnetix vdb fixes CVE-2021-44228 --output json
 ```
 
 **Response includes:** Patches, advisories, workarounds, KEV required actions, and AI-generated analysis.
@@ -333,7 +402,7 @@ vulnetix vdb versions express --output json
 
 ### vdb gcve
 
-Retrieve a paginated list of CVEs published within a date range, with enrichment data.
+Retrieve a paginated list of vulnerabilities published within a date range, with enrichment data.
 
 **Usage:**
 ```bash
@@ -347,14 +416,14 @@ vulnetix vdb gcve --start <YYYY-MM-DD> --end <YYYY-MM-DD> [flags]
 
 **Examples:**
 ```bash
-# Get CVEs published in January 2024
+# Get vulnerabilities published in January 2024
 vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31
 
-# Get all 2024 CVEs as JSON
+# Get all 2024 vulnerabilities as JSON
 vulnetix vdb gcve --start 2024-01-01 --end 2024-12-31 --output json
 
 # Save to file
-vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31 -o json > jan-2024-cves.json
+vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31 -o json > jan-2024-vulns.json
 ```
 
 ---
@@ -376,11 +445,29 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 ## Examples
 
-### Check a Specific CVE
+### Look Up a Vulnerability by Any Identifier
 
 ```bash
-# Get information about Log4Shell
+# MITRE CVE (Log4Shell)
 vulnetix vdb vuln CVE-2021-44228
+
+# GitHub Security Advisory (same vulnerability)
+vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9
+
+# PyPI vulnerability
+vulnetix vdb vuln PYSEC-2024-123
+
+# Rust vulnerability
+vulnetix vdb vuln RUSTSEC-2024-1234
+
+# Red Hat advisory
+vulnetix vdb vuln RHSA-2025:1730
+
+# Debian security advisory
+vulnetix vdb vuln DSA-4741-1
+
+# Ubuntu security notice
+vulnetix vdb vuln USN-7040-1
 ```
 
 ### Investigate Exploits and Fixes
@@ -388,9 +475,11 @@ vulnetix vdb vuln CVE-2021-44228
 ```bash
 # Check exploit intelligence
 vulnetix vdb exploits CVE-2021-44228
+vulnetix vdb exploits GHSA-jfh8-3a1q-hjz9
 
 # Get available fixes
 vulnetix vdb fixes CVE-2021-44228
+vulnetix vdb fixes GHSA-jfh8-3a1q-hjz9
 ```
 
 ### Audit Package Vulnerabilities
@@ -422,8 +511,9 @@ vulnetix vdb versions react
 ### Export Data for Analysis
 
 ```bash
-# Export all CVE data
-vulnetix vdb vuln CVE-2024-1234 -o json > analysis/cve-2024-1234.json
+# Export vulnerability data (any identifier format)
+vulnetix vdb vuln CVE-2021-44228 -o json > analysis/log4shell-cve.json
+vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9 -o json > analysis/log4shell-ghsa.json
 
 # Export all vulnerabilities for a package
 vulnetix vdb vulns webpack -o json > reports/webpack-vulns.json
@@ -431,15 +521,15 @@ vulnetix vdb vulns webpack -o json > reports/webpack-vulns.json
 # Export API specification
 vulnetix vdb spec -o json > docs/vdb-api-spec.json
 
-# Export CVEs for a date range
-vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31 -o json > jan-2024-cves.json
+# Export vulnerabilities for a date range
+vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31 -o json > jan-2024-vulns.json
 ```
 
 ### Combine with Other Tools
 
 ```bash
-# Filter CVE data with jq
-vulnetix vdb vuln CVE-2024-1234 -o json | jq '.cvss.v3.baseScore'
+# Filter vulnerability data with jq
+vulnetix vdb vuln CVE-2021-44228 -o json | jq '.[0].containers.cna.title'
 
 # Count vulnerabilities
 vulnetix vdb vulns lodash -o json | jq '.total'
