@@ -51,14 +51,16 @@ type ProductVersionsResponse struct {
 
 // VulnerabilitiesResponse represents vulnerabilities for a package
 type VulnerabilitiesResponse struct {
-	PackageName string          `json:"packageName"`
-	Timestamp   int64           `json:"timestamp"`
-	TotalCVEs   int             `json:"totalCVEs"`
-	Total       int             `json:"total"`
-	Limit       int             `json:"limit"`
-	Offset      int             `json:"offset"`
-	HasMore     bool            `json:"hasMore"`
-	Versions    []VersionRecord `json:"versions"`
+	PackageName     string          `json:"packageName"`
+	Timestamp       int64           `json:"timestamp"`
+	TotalCVEs       int             `json:"totalCVEs"`
+	Total           int             `json:"total"`
+	Limit           int             `json:"limit"`
+	Offset          int             `json:"offset"`
+	HasMore         bool            `json:"hasMore"`
+	Versions        []VersionRecord `json:"versions"`
+	Vulnerabilities []VersionRecord `json:"vulnerabilities"` // alternative key used by some API paths
+	RawData         interface{}     `json:"-"`               // full parsed response for fallback display
 }
 
 // GetCVE retrieves full vulnerability data for a specific CVE
@@ -166,6 +168,9 @@ func (c *Client) GetPackageVulnerabilities(packageName string, limit, offset int
 	if err := json.Unmarshal(respBody, &resp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
+	var raw interface{}
+	_ = json.Unmarshal(respBody, &raw)
+	resp.RawData = raw
 
 	return &resp, nil
 }
