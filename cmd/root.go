@@ -1,16 +1,19 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/config"
+	"github.com/vulnetix/cli/internal/vdb"
 )
 
 var (
@@ -18,28 +21,36 @@ var (
 	vulnetixConfig *config.VulnetixConfig
 
 	// Command line flags
-	orgID            string
-	task             string
-	projectName      string
-	productName      string
-	teamName         string
-	groupName        string
-	tags             string
-	tools            string
-	productionBranch string
-	releaseBranch    string
-	workflowTimeout  int
-	version          = "1.0.0" // This will be set during build
+	orgID       string
+	task        string
+	projectName string
+	productName string
+	teamName    string
+	groupName   string
+	tags        string
+	tools       string
+	version     = "1.0.0" // This will be set during build
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "vulnetix",
 	Short: "Vulnetix CLI - Automate vulnerability triage and remediation",
-	Long: `Vulnetix CLI is a command-line tool for vulnerability management that focuses on 
-automated remediation over discovery. It helps organizations prioritize and resolve 
+	Long: `Vulnetix CLI is a command-line tool for vulnerability management that focuses on
+automated remediation over discovery. It helps organizations prioritize and resolve
 vulnerabilities efficiently.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Validate task
+		validTask, err := config.ValidateTask(task)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		// Info task doesn't require --org-id
+		if validTask == config.TaskInfo {
+			return runInfoTask()
+		}
+
 		if orgID == "" {
 			return fmt.Errorf("--org-id is required")
 		}
@@ -47,12 +58,6 @@ vulnerabilities efficiently.`,
 		// Validate UUID format
 		if _, err := uuid.Parse(orgID); err != nil {
 			return fmt.Errorf("--org-id must be a valid UUID, got: %s", orgID)
-		}
-
-		// Validate task
-		validTask, err := config.ValidateTask(task)
-		if err != nil {
-			return fmt.Errorf("%w", err)
 		}
 
 		// Initialize configuration
@@ -65,21 +70,8 @@ vulnerabilities efficiently.`,
 			GroupName:   groupName,
 			Tags:        config.ParseTags(tags),
 			Tools:       parseTools(tools),
-			Release: config.ReleaseConfig{
-				ProductionBranch: productionBranch,
-				ReleaseBranch:    releaseBranch,
-				WorkflowTimeout:  workflowTimeout,
-			},
-			CI:      config.LoadCIContext(version),
-			Version: version,
-		}
-
-		// Validate release configuration if in release mode
-		if validTask == config.TaskRelease {
-			if err := vulnetixConfig.ValidateReleaseReadiness(); err != nil {
-				return fmt.Errorf("❌ Release configuration error: %w", err)
-			}
-			fmt.Printf("🚀 Release readiness assessment mode enabled\n")
+			CI:          config.LoadCIContext(version),
+			Version:     version,
 		}
 
 		// Print configuration state
@@ -91,44 +83,9 @@ vulnerabilities efficiently.`,
 		fmt.Printf("Task: %s\n", validTask)
 
 		switch validTask {
-		case config.TaskRelease:
-			fmt.Printf("🚀 Starting release readiness assessment for organization: %s\n", orgID)
-			fmt.Printf("📋 Production Branch: %s\n", vulnetixConfig.Release.ProductionBranch)
-			fmt.Printf("🔄 Release Branch: %s\n", vulnetixConfig.Release.ReleaseBranch)
-
-			// Simulate release readiness checks
-			fmt.Println("🔍 Checking for sibling job artifacts...")
-			context := vulnetixConfig.GetSiblingJobsContext()
-			fmt.Printf("📦 Artifact pattern: %s\n", context["artifact_pattern"])
-			fmt.Printf("🔗 GitHub API: %s/repos/%s/actions/runs/%s/artifacts\n",
-				context["api_url"], context["repository"], context["workflow_run_id"])
-
-			fmt.Println("⏳ Waiting for required security artifacts...")
-			
-			// Validate tool artifacts if tools are provided
-			if len(vulnetixConfig.Tools) > 0 {
-				fmt.Printf("🔧 Found %d tools to validate\n", len(vulnetixConfig.Tools))
-				if err := validateReleaseToolArtifacts(vulnetixConfig.Tools); err != nil {
-					return fmt.Errorf("release readiness validation failed: %w", err)
-				}
-			} else {
-				fmt.Println("🔐 Validating SARIF reports...")
-				fmt.Println("📋 Checking SBOM completeness...")
-				fmt.Println("🛡️  Verifying VEX documents...")
-			}
-
-			fmt.Println("✅ Release readiness assessment complete")
-			fmt.Println("🎯 All security requirements satisfied")
-
-		case config.TaskScan:
-			fmt.Printf("🔍 Starting vulnerability analysis for organization: %s\n", orgID)
-			// Simulate processing
-			fmt.Println("✅ Successfully processed vulnerability data")
-			fmt.Println("📊 Vulnerability analysis complete")
-
 		case config.TaskReport:
-			fmt.Printf("📊 Generating vulnerability reports for organization: %s\n", orgID)
-			fmt.Println("✅ Reports generated successfully")
+			fmt.Printf("📊 Generating vulnerability report for organization: %s\n", orgID)
+			fmt.Println("✅ Report generation complete")
 
 		case config.TaskTriage:
 			fmt.Printf("🎯 Starting automated triage for organization: %s\n", orgID)
@@ -141,6 +98,158 @@ vulnerabilities efficiently.`,
 		fmt.Printf("🔗 View results at: https://dashboard.vulnetix.com/org/%s\n", orgID)
 		return nil
 	},
+}
+
+// runInfoTask performs an authentication healthcheck across all credential sources
+func runInfoTask() error {
+	fmt.Printf("Vulnetix CLI v%s\n", version)
+	fmt.Printf("Platform: %s\n\n", config.DetectPlatform())
+
+	fmt.Println("Authentication Sources:")
+	fmt.Println()
+
+	anyFound := false
+
+	// 1. Check Direct API Key env vars
+	apiKey := os.Getenv("VULNETIX_API_KEY")
+	envOrgID := os.Getenv("VULNETIX_ORG_ID")
+	fmt.Print("  VULNETIX_API_KEY + VULNETIX_ORG_ID (env) ... ")
+	if apiKey != "" && envOrgID != "" {
+		anyFound = true
+		creds := &auth.Credentials{
+			OrgID:  envOrgID,
+			APIKey: apiKey,
+			Method: auth.DirectAPIKey,
+		}
+		if err := verifyDirectAPIKey(creds); err != nil {
+			fmt.Printf("FAIL (%s)\n", err)
+		} else {
+			fmt.Printf("OK (org: %s)\n", envOrgID)
+		}
+	} else {
+		fmt.Println("not set")
+	}
+
+	// 2. Check SigV4 env vars
+	vvdOrg := os.Getenv("VVD_ORG")
+	vvdSecret := os.Getenv("VVD_SECRET")
+	fmt.Print("  VVD_ORG + VVD_SECRET (env)               ... ")
+	if vvdOrg != "" && vvdSecret != "" {
+		anyFound = true
+		if err := verifySigV4(vvdOrg, vvdSecret); err != nil {
+			fmt.Printf("FAIL (%s)\n", err)
+		} else {
+			fmt.Printf("OK (org: %s)\n", vvdOrg)
+		}
+	} else {
+		fmt.Println("not set")
+	}
+
+	// 3. Check project dotfile
+	fmt.Print("  .vulnetix/credentials.json (project)      ... ")
+	if creds, err := loadCredentialFile(auth.StoreProject); err == nil {
+		anyFound = true
+		if verr := verifyCredentials(creds); verr != nil {
+			fmt.Printf("FAIL (%s)\n", verr)
+		} else {
+			fmt.Printf("OK (method: %s, org: %s)\n", creds.Method, creds.OrgID)
+		}
+	} else {
+		fmt.Println("not found")
+	}
+
+	// 4. Check home directory
+	homeDir, _ := os.UserHomeDir()
+	homePath := filepath.Join(homeDir, ".vulnetix", "credentials.json")
+	fmt.Printf("  %s (home) ... ", homePath)
+	if creds, err := loadCredentialFile(auth.StoreHome); err == nil {
+		anyFound = true
+		if verr := verifyCredentials(creds); verr != nil {
+			fmt.Printf("FAIL (%s)\n", verr)
+		} else {
+			fmt.Printf("OK (method: %s, org: %s)\n", creds.Method, creds.OrgID)
+		}
+	} else {
+		fmt.Println("not found")
+	}
+
+	fmt.Println()
+	if !anyFound {
+		fmt.Println("No credentials configured. Run 'vulnetix auth login' to get started.")
+	}
+	return nil
+}
+
+// loadCredentialFile loads credentials from a specific store without fallback
+func loadCredentialFile(store auth.CredentialStore) (*auth.Credentials, error) {
+	var path string
+	switch store {
+	case auth.StoreProject:
+		path = filepath.Join(".vulnetix", "credentials.json")
+	case auth.StoreHome:
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, err
+		}
+		path = filepath.Join(homeDir, ".vulnetix", "credentials.json")
+	default:
+		return nil, fmt.Errorf("unsupported store")
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var creds auth.Credentials
+	if err := yaml.Unmarshal(data, &creds); err != nil {
+		return nil, err
+	}
+	if creds.OrgID == "" {
+		return nil, fmt.Errorf("missing org_id")
+	}
+	return &creds, nil
+}
+
+// verifyCredentials validates credentials based on their method
+func verifyCredentials(creds *auth.Credentials) error {
+	switch creds.Method {
+	case auth.DirectAPIKey:
+		return verifyDirectAPIKey(creds)
+	case auth.SigV4:
+		return verifySigV4(creds.OrgID, creds.Secret)
+	default:
+		return fmt.Errorf("unknown method: %s", creds.Method)
+	}
+}
+
+// verifyDirectAPIKey tests Direct API Key connectivity
+func verifyDirectAPIKey(creds *auth.Credentials) error {
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", "https://api.vdb.vulnetix.com/v1/ecosystems", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", auth.GetAuthHeader(creds))
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("connection failed")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("invalid credentials")
+	}
+	return nil
+}
+
+// verifySigV4 tests SigV4 authentication via token exchange
+func verifySigV4(orgID, secret string) error {
+	vdbClient := vdb.NewClient(orgID, secret)
+	_, err := vdbClient.GetToken()
+	if err != nil {
+		return fmt.Errorf("token exchange failed")
+	}
+	return nil
 }
 
 // parseTools parses the tools YAML string into Tool structs
@@ -160,102 +269,6 @@ func parseTools(toolsStr string) []config.Tool {
 	return tools
 }
 
-// validateToolArtifact validates a tool artifact based on its format
-func validateToolArtifact(tool config.Tool, artifactPath string) error {
-	fmt.Printf("🔍 Validating %s artifact: %s (format: %s)\n", tool.Category, tool.ArtifactName, tool.Format)
-	
-	// Check if artifact file exists
-	if _, err := os.Stat(artifactPath); os.IsNotExist(err) {
-		return fmt.Errorf("artifact file not found: %s", artifactPath)
-	}
-
-	// Read the artifact file
-	data, err := os.ReadFile(artifactPath)
-	if err != nil {
-		return fmt.Errorf("failed to read artifact file %s: %w", artifactPath, err)
-	}
-
-	switch tool.Format {
-	case config.FormatPlainJSON:
-		return validateJSONArtifact(data, tool.ArtifactName)
-	default:
-		fmt.Printf("⚠️  Skipping validation for format %s (not yet supported)\n", tool.Format)
-		return nil
-	}
-}
-
-// validateJSONArtifact validates that the artifact is well-formed JSON
-func validateJSONArtifact(data []byte, artifactName string) error {
-	fmt.Printf("📄 Validating JSON format for: %s\n", artifactName)
-	
-	var jsonObj interface{}
-	if err := json.Unmarshal(data, &jsonObj); err != nil {
-		return fmt.Errorf("JSON validation failed for %s: invalid JSON format: %w", artifactName, err)
-	}
-
-	fmt.Printf("✅ JSON validation successful for %s\n", artifactName)
-	return nil
-}
-
-// validateReleaseToolArtifacts validates all tool artifacts for the release task
-func validateReleaseToolArtifacts(tools []config.Tool) error {
-	if len(tools) == 0 {
-		fmt.Println("⚠️  No tools provided for validation")
-		return nil
-	}
-
-	fmt.Printf("🧪 Validating %d tool artifacts for release readiness...\n", len(tools))
-	
-	var validationErrors []string
-	
-	for _, tool := range tools {
-		// For release task, look for the artifact file based on the artifact name
-		// This assumes artifacts are in the current working directory or a standard path
-		artifactPath := tool.ArtifactName
-		
-		// Try common paths if the artifact name doesn't exist as-is
-		if _, err := os.Stat(artifactPath); os.IsNotExist(err) {
-			// Try some common directories
-			possiblePaths := []string{
-				filepath.Join(".", tool.ArtifactName),
-				filepath.Join("artifacts", tool.ArtifactName),
-				filepath.Join("reports", tool.ArtifactName),
-				filepath.Join("results", tool.ArtifactName),
-				filepath.Join("output", tool.ArtifactName),
-			}
-			
-			found := false
-			for _, path := range possiblePaths {
-				if _, err := os.Stat(path); err == nil {
-					artifactPath = path
-					found = true
-					break
-				}
-			}
-			
-			if !found {
-				validationErrors = append(validationErrors, fmt.Sprintf("Artifact not found: %s (searched in: %v)", tool.ArtifactName, append([]string{tool.ArtifactName}, possiblePaths...)))
-				continue
-			}
-		}
-		
-		if err := validateToolArtifact(tool, artifactPath); err != nil {
-			validationErrors = append(validationErrors, err.Error())
-		}
-	}
-	
-	if len(validationErrors) > 0 {
-		fmt.Printf("❌ Tool artifact validation failed with %d errors:\n", len(validationErrors))
-		for _, err := range validationErrors {
-			fmt.Printf("   - %s\n", err)
-		}
-		return fmt.Errorf("tool artifact validation failed")
-	}
-	
-	fmt.Printf("✅ All %d tool artifacts validated successfully\n", len(tools))
-	return nil
-}
-
 func Execute() error {
 	return rootCmd.Execute()
 }
@@ -273,12 +286,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&tools, "tools", "", "YAML array of tool configurations")
 
 	// Task configuration
-	rootCmd.PersistentFlags().StringVar(&task, "task", "scan", "Task to perform: scan, release, report, triage")
-
-	// Release readiness flags (used when task=release)
-	rootCmd.PersistentFlags().StringVar(&productionBranch, "production-branch", "main", "Production branch name (for release task)")
-	rootCmd.PersistentFlags().StringVar(&releaseBranch, "release-branch", "", "Release branch name (for release task)")
-	rootCmd.PersistentFlags().IntVar(&workflowTimeout, "workflow-timeout", 30, "Timeout in minutes to wait for sibling job artifacts (for release task)")
+	rootCmd.PersistentFlags().StringVar(&task, "task", "info", "Task to perform: info, report, triage")
 
 	// Add version command
 	versionCmd := &cobra.Command{

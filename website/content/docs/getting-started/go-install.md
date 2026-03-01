@@ -13,7 +13,7 @@ Install Vulnetix CLI directly from Go modules without building from source.
 go install github.com/vulnetix/cli@latest
 
 # Run Vulnetix
-vulnetix --org-id "your-org-id-here" --task release
+vulnetix --org-id "your-org-id-here" --task scan
 ```
 
 ## Prerequisites
@@ -119,20 +119,20 @@ echo 'export PATH="$(go env GOPATH)/bin:$PATH"' >> ~/.bashrc
 
 ```bash
 # Run Vulnetix
-vulnetix --org-id "your-org-id-here" --task release
+vulnetix --org-id "your-org-id-here" --task scan
 
 # Using environment variable
 export VULNETIX_ORG_ID="your-org-id-here"
-vulnetix --task release
+vulnetix --task scan
 
 # Run with project metadata
-vulnetix --task release \
+vulnetix --task scan \
   --project-name "My Application" \
   --team-name "Security Team" \
   --tags '["Public", "Crown Jewels"]'
 ```
 
-### Release Assessment
+### Security Assessment
 
 ```bash
 # Generate security reports first
@@ -151,10 +151,8 @@ if command -v nancy >/dev/null 2>&1; then
   go list -json -deps ./... | nancy sleuth --format sarif > reports/nancy.sarif
 fi
 
-# Run release assessment
-vulnetix --task release \
-  --production-branch "main" \
-  --release-branch "$(git branch --show-current)" \
+# Run security assessment
+vulnetix --task scan \
   --project-name "$(basename $(pwd))" \
   --tools '[
     {
@@ -170,16 +168,6 @@ vulnetix --task release \
       "format": "SARIF"
     }
   ]'
-```
-
-### Report Generation
-
-```bash
-# Generate comprehensive report
-vulnetix --task report \
-  --project-name "Production API" \
-  --product-name "Core Platform" \
-  --team-name "DevSecOps"
 ```
 
 ### Automated Triage
@@ -330,7 +318,7 @@ chmod +x switch-vulnetix.sh
 export VULNETIX_ORG_ID="your-org-id-here"
 
 echo "Running Vulnetix..."
-vulnetix --task release
+vulnetix --task scan
 
 if [ $? -ne 0 ]; then
     echo "Vulnetix check failed. Commit aborted."
@@ -352,13 +340,11 @@ security-install:
 
 security-check: security-install
 	@echo "Running Vulnetix..."
-	vulnetix --org-id "$(VULNETIX_ORG_ID)" --task release
+	vulnetix --org-id "$(VULNETIX_ORG_ID)" --task scan
 
 security-release: security-install
-	@echo "Running release assessment..."
-	vulnetix --task release \
-		--production-branch main \
-		--release-branch $$(git branch --show-current) \
+	@echo "Running security assessment..."
+	vulnetix --task scan \
 		--project-name $$(basename $$(pwd))
 ```
 
@@ -387,7 +373,7 @@ jobs:
       - name: Run Vulnetix
         env:
           VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
-        run: vulnetix --task release
+        run: vulnetix --task scan
 ```
 
 ## Troubleshooting

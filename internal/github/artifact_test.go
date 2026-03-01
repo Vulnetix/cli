@@ -197,7 +197,7 @@ func TestListArtifacts(t *testing.T) {
 	defer server.Close()
 
 	collector := NewArtifactCollector("test-token", server.URL, "test/repo", "123")
-	
+
 	ctx := context.Background()
 	artifacts, err := collector.ListArtifacts(ctx)
 	if err != nil {
@@ -219,7 +219,7 @@ func TestListArtifacts(t *testing.T) {
 
 func TestListArtifacts_NoToken(t *testing.T) {
 	collector := NewArtifactCollector("", "https://api.github.com", "test/repo", "123")
-	
+
 	ctx := context.Background()
 	_, err := collector.ListArtifacts(ctx)
 	if err == nil {
@@ -235,7 +235,7 @@ func TestExtractZip_ZipSlipProtection(t *testing.T) {
 	// Create a malicious zip file with path traversal
 	tmpDir := t.TempDir()
 	zipPath := filepath.Join(tmpDir, "malicious.zip")
-	
+
 	// Create a zip with path traversal attempt
 	zipFile, err := os.Create(zipPath)
 	if err != nil {
@@ -243,21 +243,21 @@ func TestExtractZip_ZipSlipProtection(t *testing.T) {
 	}
 
 	w := zip.NewWriter(zipFile)
-	
+
 	// Try to create entry with ".." in path
 	_, err = w.Create("../../etc/passwd")
 	if err != nil {
 		zipFile.Close()
 		t.Fatalf("Failed to create zip entry: %v", err)
 	}
-	
+
 	w.Close()
 	zipFile.Close()
 
 	// Attempt to extract
 	destDir := filepath.Join(tmpDir, "extracted")
 	err = extractZip(zipPath, destDir)
-	
+
 	// Should fail due to path traversal protection
 	if err == nil {
 		t.Error("Expected error for zip slip attempt, got nil")
@@ -271,7 +271,7 @@ func TestExtractZip_ZipSlipProtection(t *testing.T) {
 func TestExtractZip_ValidZip(t *testing.T) {
 	tmpDir := t.TempDir()
 	zipPath := filepath.Join(tmpDir, "valid.zip")
-	
+
 	// Create a valid zip file
 	zipFile, err := os.Create(zipPath)
 	if err != nil {
@@ -279,20 +279,20 @@ func TestExtractZip_ValidZip(t *testing.T) {
 	}
 
 	w := zip.NewWriter(zipFile)
-	
+
 	// Add a test file
 	fileWriter, err := w.Create("test.txt")
 	if err != nil {
 		zipFile.Close()
 		t.Fatalf("Failed to create zip entry: %v", err)
 	}
-	
+
 	_, err = fileWriter.Write([]byte("test content"))
 	if err != nil {
 		zipFile.Close()
 		t.Fatalf("Failed to write zip entry: %v", err)
 	}
-	
+
 	w.Close()
 	zipFile.Close()
 
@@ -337,7 +337,7 @@ func TestDownloadArtifact_SizeLimit(t *testing.T) {
 	defer server.Close()
 
 	collector := NewArtifactCollector("test-token", server.URL, "test/repo", "123")
-	
+
 	// Create artifact with size exceeding limit
 	artifact := Artifact{
 		ID:                 1,
@@ -351,7 +351,7 @@ func TestDownloadArtifact_SizeLimit(t *testing.T) {
 
 	ctx := context.Background()
 	_, err := collector.DownloadArtifact(ctx, artifact)
-	
+
 	if err == nil {
 		t.Error("Expected error for artifact exceeding size limit, got nil")
 	}
@@ -363,7 +363,7 @@ func TestDownloadArtifact_SizeLimit(t *testing.T) {
 
 func TestDownloadArtifact_Success(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Create a valid zip file to serve
 	zipPath := filepath.Join(tmpDir, "artifact.zip")
 	zipFile, err := os.Create(zipPath)
@@ -400,7 +400,7 @@ func TestDownloadArtifact_Success(t *testing.T) {
 	defer server.Close()
 
 	collector := NewArtifactCollector("test-token", server.URL, "test/repo", "123")
-	
+
 	artifact := Artifact{
 		ID:                 1,
 		Name:               "test-artifact",

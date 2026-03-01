@@ -35,7 +35,7 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `org-id` | Organization ID (UUID) for Vulnetix operations | Yes | - |
-| `task` | Task to perform (scan, release, report, triage) | No | `scan` |
+| `task` | Task to perform (info, report, release, triage) | No | `info` |
 | `version` | Version of Vulnetix CLI to use | No | `latest` |
 | `project-name` | Name of the project being scanned | No | Repository name |
 | `team-name` | Team responsible for the project | No | - |
@@ -44,9 +44,6 @@ jobs:
 | `tags` | Comma-separated tags for categorization | No | - |
 | `config-file` | Path to configuration file | No | - |
 | `output-dir` | Directory for output files | No | `./vulnetix-output` |
-| `production-branch` | Production branch name (for release task) | No | `main` |
-| `release-branch` | Release branch name (for release task) | No | Current branch |
-| `workflow-run-timeout` | Timeout for artifact collection (minutes) | No | `30` |
 | `tools` | JSON/YAML configuration for security tools | No | - |
 
 ## Action Outputs
@@ -79,13 +76,12 @@ jobs:
         uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
-          task: scan
           project-name: ${{ github.repository }}
           team-name: "Security Team"
           tags: '["Public", "Crown Jewels"]'
 ```
 
-### Release Readiness Assessment
+### Security Assessment
 
 ```yaml
 name: Vulnetix
@@ -164,7 +160,7 @@ jobs:
     - name: Run Vulnetix
       uses: Vulnetix/cli@v1
       with:
-        task: release
+        task: scan
         org-id: ${{ secrets.VULNETIX_ORG_ID }}
         project-name: ${{ github.repository }}
         team-name: "DevSecOps"
@@ -476,8 +472,7 @@ steps:
     uses: Vulnetix/cli@v1
     with:
       org-id: ${{ secrets.VULNETIX_ORG_ID }}
-      task: release
-      workflow-run-timeout: "60"  # Increase timeout
+      task: scan
 
   - name: Debug artifacts
     run: |

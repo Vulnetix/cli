@@ -68,120 +68,78 @@ func executeCommand(t *testing.T, cmd *cobra.Command, args ...string) (output st
 
 func TestRootCommand(t *testing.T) {
 	tests := []struct {
-		name        string
-		args        []string
-		expectError bool
+		name                 string
+		args                 []string
+		expectError          bool
 		expectOutputContains string
-		expectErrorContains string
-		setupEnv map[string]string // Added setupEnv field
+		expectErrorContains  string
+		setupEnv             map[string]string // Added setupEnv field
 	}{
+		// Info task (default, no --org-id required)
+		{
+			name:                 "Default info task",
+			args:                 []string{},
+			expectError:          false,
+			expectOutputContains: "Authentication Sources:",
+		},
 		// Org ID Validation Tests
 		{
-			name:        "Valid UUID",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000"},
-			expectError: false,
+			name:                 "Valid UUID with report task",
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report"},
+			expectError:          false,
 			expectOutputContains: "Organization ID: 123e4567-e89b-12d3-a456-426614174000",
 		},
 		{
-			name:        "Invalid UUID",
-			args:        []string{"--org-id", "invalid-uuid"},
-			expectError: true,
+			name:                "Invalid UUID",
+			args:                []string{"--org-id", "invalid-uuid", "--task", "report"},
+			expectError:         true,
 			expectErrorContains: "--org-id must be a valid UUID",
 		},
 		{
-			name:        "Missing org-id",
-			args:        []string{},
-			expectError: true,
+			name:                "Missing org-id for report task",
+			args:                []string{"--task", "report"},
+			expectError:         true,
 			expectErrorContains: "--org-id is required",
 		},
 
 		// Task Validation Tests
 		{
-			name:        "Valid scan task",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "scan"},
-			expectError: false,
-			expectOutputContains: "Task: scan",
-		},
-		{
-			name:        "Valid release task",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "release", "--production-branch", "main", "--release-branch", "dev"},
-			expectError: false,
-			expectOutputContains: "Task: release",
-			setupEnv: map[string]string{
-				"GITHUB_RUN_ID": "123456789",
-				"GITHUB_REPOSITORY": "octocat/Spoon-Knife",
-			},
-		},
-		{
-			name:        "Invalid task",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "invalid"},
-			expectError: true,
+			name:                "Invalid task",
+			args:                []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "invalid"},
+			expectError:         true,
 			expectErrorContains: "unsupported task: invalid",
-		},
-
-		// Release Task Specific Validations
-		{
-			name:        "Release task missing release-branch",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "release", "--production-branch", "main"},
-			expectError: true,
-			expectErrorContains: "release branch is required for release readiness assessment",
-			setupEnv: map[string]string{
-				"GITHUB_RUN_ID": "123456789",
-				"GITHUB_REPOSITORY": "octocat/Spoon-Knife",
-			},
-		},
-		{
-			name:        "Release task with valid branches",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "release", "--production-branch", "main", "--release-branch", "dev"},
-			expectError: false,
-			expectOutputContains: "Task: release",
-			setupEnv: map[string]string{
-				"GITHUB_RUN_ID": "123456789",
-				"GITHUB_REPOSITORY": "octocat/Spoon-Knife",
-			},
 		},
 
 		// Optional Flags Tests
 		{
-			name:        "With project and product name",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--project-name", "my-project", "--product-name", "my-product"},
-			expectError: false,
+			name:                 "With project and product name",
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report", "--project-name", "my-project", "--product-name", "my-product"},
+			expectError:          false,
 			expectOutputContains: "Project: my-project",
 		},
 		{
-			name:        "With team and group name",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--team-name", "my-team", "--group-name", "my-group"},
-			expectError: false,
+			name:                 "With team and group name",
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report", "--team-name", "my-team", "--group-name", "my-group"},
+			expectError:          false,
 			expectOutputContains: "Team: my-team",
 		},
 		{
-			name:        "With tags",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--tags", "[\"critical\", \"frontend\"]"},
-			expectError: false,
+			name:                 "With tags",
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report", "--tags", "[\"critical\", \"frontend\"]"},
+			expectError:          false,
 			expectOutputContains: "Tags: [critical frontend]",
 		},
 		{
-			name:        "With tools",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--tools", "- category: sast\n  artifact_name: results.sarif\n  format: SARIF"},
-			expectError: false,
+			name:                 "With tools",
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report", "--tools", "- category: sast\n  artifact_name: results.sarif\n  format: SARIF"},
+			expectError:          false,
 			expectOutputContains: "- sast (SARIF): results.sarif",
 		},
-		{
-			name:        "With workflow-timeout",
-			args:        []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "release", "--production-branch", "main", "--release-branch", "dev", "--workflow-timeout", "60"},
-			expectError: false,
-			expectOutputContains: "Release Branch: dev",
-			setupEnv: map[string]string{
-				"GITHUB_RUN_ID": "123456789",
-				"GITHUB_REPOSITORY": "octocat/Spoon-Knife",
-			},
-		},
-
 		// Version Command Test
 		{
-			name:        "Version command",
-			args:        []string{"version"},
-			expectError: false,
+			name:                 "Version command",
+			args:                 []string{"version"},
+			expectError:          false,
 			expectOutputContains: "Vulnetix CLI v",
 		},
 	}
@@ -189,17 +147,13 @@ func TestRootCommand(t *testing.T) {
 	for _, tt := range tests {
 		// Reset global variables before each test
 		orgID = ""
-		task = "scan"
+		task = "info"
 		projectName = ""
 		productName = ""
 		teamName = ""
 		groupName = ""
 		tags = ""
 		tools = ""
-		productionBranch = "main"
-		releaseBranch = ""
-		workflowTimeout = 30
-
 		// Setup environment variables if needed
 		var cleanupEnv func()
 		if tt.setupEnv != nil {

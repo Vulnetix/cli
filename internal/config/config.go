@@ -13,10 +13,9 @@ import (
 type TaskType string
 
 const (
-	TaskScan    TaskType = "scan"    // Default vulnerability scanning
-	TaskRelease TaskType = "release" // Release readiness assessment
-	TaskReport  TaskType = "report"  // Generate reports
-	TaskTriage  TaskType = "triage"  // Automated triage
+	TaskInfo   TaskType = "info"   // Default info/healthcheck
+	TaskReport TaskType = "report" // Report generation
+	TaskTriage TaskType = "triage" // Automated triage
 )
 
 // ToolFormat represents the supported artifact formats
@@ -42,55 +41,43 @@ type Tool struct {
 	CustomerIdentifier string     `yaml:"customer_identifier" json:"customer_identifier"`
 }
 
-// ReleaseConfig represents release readiness assessment configuration
-type ReleaseConfig struct {
-	Enabled          bool   `json:"enabled"`
-	ProductionBranch string `json:"production_branch"`
-	ReleaseBranch    string `json:"release_branch"`
-	WorkflowTimeout  int    `json:"workflow_timeout_minutes"`
-
-	// Assessment criteria
-	RequiredFormats []ToolFormat `json:"required_formats"`
-	MinToolCount    int          `json:"min_tool_count"`
-}
-
 // RuntimePlatform represents the detected runtime environment
 type RuntimePlatform string
 
 const (
-	PlatformGitHub     RuntimePlatform = "github"
-	PlatformGitLab     RuntimePlatform = "gitlab"
+	PlatformGitHub      RuntimePlatform = "github"
+	PlatformGitLab      RuntimePlatform = "gitlab"
 	PlatformAzureDevOps RuntimePlatform = "azure"
-	PlatformBitbucket  RuntimePlatform = "bitbucket"
-	PlatformJenkins    RuntimePlatform = "jenkins"
-	PlatformDocker     RuntimePlatform = "docker"
-	PlatformKubernetes RuntimePlatform = "kubernetes"
-	PlatformPodman     RuntimePlatform = "podman"
-	PlatformCLI        RuntimePlatform = "cli"
+	PlatformBitbucket   RuntimePlatform = "bitbucket"
+	PlatformJenkins     RuntimePlatform = "jenkins"
+	PlatformDocker      RuntimePlatform = "docker"
+	PlatformKubernetes  RuntimePlatform = "kubernetes"
+	PlatformPodman      RuntimePlatform = "podman"
+	PlatformCLI         RuntimePlatform = "cli"
 )
 
 // CIContext contains normalized CI/CD context information
 type CIContext struct {
-	Platform            RuntimePlatform `json:"platform"`
-	Repository          string         `json:"repository"`
-	RepositoryOwner     string         `json:"repository_owner"`
-	RunID               string         `json:"run_id"`
-	RunNumber           string         `json:"run_number"`
-	JobID               string         `json:"job_id"`
-	SHA                 string         `json:"sha"`
-	RefName             string         `json:"ref_name"`
-	RefType             string         `json:"ref_type"`
-	HeadRef             string         `json:"head_ref"`
-	BaseRef             string         `json:"base_ref"`
-	EventName           string         `json:"event_name"`
-	ServerURL           string         `json:"server_url"`
-	APIURL              string         `json:"api_url"`
-	Token               string         `json:"-"` // Don't serialize for security
-	WorkspacePath       string         `json:"workspace_path"`
-	RunnerOS            string         `json:"runner_os"`
-	RunnerArch          string         `json:"runner_arch"`
-	PlatformVersion     string         `json:"platform_version"`
-	DetectedFeatures    []string       `json:"detected_features"`
+	Platform         RuntimePlatform `json:"platform"`
+	Repository       string          `json:"repository"`
+	RepositoryOwner  string          `json:"repository_owner"`
+	RunID            string          `json:"run_id"`
+	RunNumber        string          `json:"run_number"`
+	JobID            string          `json:"job_id"`
+	SHA              string          `json:"sha"`
+	RefName          string          `json:"ref_name"`
+	RefType          string          `json:"ref_type"`
+	HeadRef          string          `json:"head_ref"`
+	BaseRef          string          `json:"base_ref"`
+	EventName        string          `json:"event_name"`
+	ServerURL        string          `json:"server_url"`
+	APIURL           string          `json:"api_url"`
+	Token            string          `json:"-"` // Don't serialize for security
+	WorkspacePath    string          `json:"workspace_path"`
+	RunnerOS         string          `json:"runner_os"`
+	RunnerArch       string          `json:"runner_arch"`
+	PlatformVersion  string          `json:"platform_version"`
+	DetectedFeatures []string        `json:"detected_features"`
 }
 
 // VulnetixConfig represents the complete configuration state
@@ -105,9 +92,6 @@ type VulnetixConfig struct {
 	Tags        []string `json:"tags,omitempty"`
 	Tools       []Tool   `json:"tools,omitempty"`
 
-	// Release readiness configuration
-	Release ReleaseConfig `json:"release,omitempty"`
-
 	// CI/CD context (replaces GitHub-specific context)
 	CI CIContext `json:"ci"`
 
@@ -121,41 +105,41 @@ func DetectPlatform() RuntimePlatform {
 	if getEnv("GITHUB_ACTIONS") == "true" || getEnv("GITHUB_RUN_ID") != "" {
 		return PlatformGitHub
 	}
-	
+
 	// Check for GitLab CI
 	if getEnv("GITLAB_CI") == "true" || getEnv("CI_JOB_ID") != "" {
 		return PlatformGitLab
 	}
-	
+
 	// Check for Azure DevOps
 	if getEnv("TF_BUILD") == "True" || getEnv("AZURE_HTTP_USER_AGENT") != "" || getEnv("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI") != "" {
 		return PlatformAzureDevOps
 	}
-	
+
 	// Check for Bitbucket Pipelines
 	if getEnv("BITBUCKET_BUILD_NUMBER") != "" || getEnv("BITBUCKET_COMMIT") != "" {
 		return PlatformBitbucket
 	}
-	
+
 	// Check for Jenkins
 	if getEnv("JENKINS_URL") != "" || getEnv("BUILD_NUMBER") != "" {
 		return PlatformJenkins
 	}
-	
+
 	// Check for container runtimes
 	if getEnv("KUBERNETES_SERVICE_HOST") != "" || getEnv("KUBERNETES_PORT") != "" {
 		return PlatformKubernetes
 	}
-	
+
 	if getEnv("container") == "podman" || getEnv("PODMAN_SYSTEMD_UNIT") != "" {
 		return PlatformPodman
 	}
-	
+
 	// Check for Docker (this should be last as it's most generic)
 	if fileExists("/.dockerenv") || getEnv("DOCKER_CONTAINER") != "" {
 		return PlatformDocker
 	}
-	
+
 	// Default to CLI
 	return PlatformCLI
 }
@@ -163,7 +147,7 @@ func DetectPlatform() RuntimePlatform {
 // LoadCIContext loads CI/CD context based on detected platform
 func LoadCIContext(version string) CIContext {
 	platform := DetectPlatform()
-	
+
 	switch platform {
 	case PlatformGitHub:
 		return loadGitHubCIContext(version)
@@ -366,9 +350,9 @@ func loadPodmanCIContext(version string) CIContext {
 func loadCLICIContext(version string) CIContext {
 	timestamp := time.Now().Unix()
 	runID := fmt.Sprintf("cli_%d_%s", timestamp, version)
-	
+
 	workDir, _ := os.Getwd()
-	
+
 	return CIContext{
 		Platform:         PlatformCLI,
 		Repository:       filepath.Base(workDir),
@@ -396,25 +380,25 @@ func ParseTags(tagsStr string) []string {
 
 	// Remove square brackets if present (YAML list format)
 	tagsStr = strings.Trim(tagsStr, "[]")
-	
+
 	// Split by comma and clean up each tag
 	parts := strings.Split(tagsStr, ",")
 	var tags []string
-	
+
 	for _, part := range parts {
 		// Clean up the tag: remove spaces, quotes, etc.
 		tag := strings.TrimSpace(part)
 		tag = strings.Trim(tag, "\"'")
-		
+
 		if tag != "" {
 			tags = append(tags, tag)
 		}
 	}
-	
+
 	if len(tags) == 0 {
 		return nil
 	}
-	
+
 	return tags
 }
 
@@ -474,49 +458,12 @@ func getArchName() string {
 	return "unknown"
 }
 
-// GetSiblingJobsContext returns context information for finding sibling job artifacts
-func (c *VulnetixConfig) GetSiblingJobsContext() map[string]interface{} {
-	// Use CI context if available, fallback to GitHub context for backward compatibility
-	if c.CI.Platform != "" {
-		return map[string]interface{}{
-			"workflow_run_id":      c.CI.RunID,
-			"workflow_run_number":  c.CI.RunNumber,
-			"workflow_run_attempt": "1", // Default for most platforms
-			"repository":           c.CI.Repository,
-			"workflow_ref":         c.CI.RefName,
-			"workflow_sha":         c.CI.SHA,
-			"event_name":           c.CI.EventName,
-			"head_ref":             c.CI.HeadRef,
-			"base_ref":             c.CI.BaseRef,
-			"artifact_pattern":     c.GetReleaseArtifactPattern(),
-			"api_url":              c.CI.APIURL,
-			"timeout_minutes":      c.Release.WorkflowTimeout,
-		}
-	}
-	
-	// Fallback using CI context with default values for backward compatibility
-	return map[string]interface{}{
-		"workflow_run_id":      c.CI.RunID,
-		"workflow_run_number":  c.CI.RunNumber,
-		"workflow_run_attempt": "1", // Default value
-		"repository":           c.CI.Repository,
-		"workflow_ref":         c.CI.RefName,
-		"workflow_sha":         c.CI.SHA,
-		"event_name":           c.CI.EventName,
-		"head_ref":             c.CI.HeadRef,
-		"base_ref":             c.CI.BaseRef,
-		"artifact_pattern":     c.GetReleaseArtifactPattern(),
-		"api_url":              c.CI.APIURL,
-		"timeout_minutes":      c.Release.WorkflowTimeout,
-	}
-}
-
 // GenerateArtifactNamingConvention generates artifact naming based on parameters
 // If toolCategory and baseArtifactName are provided, generates specific naming
 // If no parameters, generates wildcard pattern for searching
 func (c *VulnetixConfig) GenerateArtifactNamingConvention(params ...string) string {
 	var baseRepo, runID string
-	
+
 	// Use CI context for more flexible naming
 	if c.CI.Platform != "" && c.CI.Repository != "" && c.CI.RunID != "" {
 		baseRepo = strings.ReplaceAll(c.CI.Repository, "/", "-")
@@ -528,54 +475,16 @@ func (c *VulnetixConfig) GenerateArtifactNamingConvention(params ...string) stri
 		}
 		return "vulnetix-*"
 	}
-	
+
 	if len(params) >= 2 {
 		// Specific tool and artifact naming
 		toolCategory := params[0]
 		baseArtifactName := params[1]
 		return fmt.Sprintf("vulnetix-%s-%s-%s-%s", baseRepo, runID, toolCategory, baseArtifactName)
 	}
-	
+
 	// Wildcard pattern for searching
 	return fmt.Sprintf("vulnetix-%s-%s-*", baseRepo, runID)
-}
-
-// ValidateReleaseReadiness validates the configuration for release readiness assessment
-func (c *VulnetixConfig) ValidateReleaseReadiness() error {
-	if c.Task != TaskRelease {
-		return nil // Only validate for release tasks
-	}
-	
-	var errors []string
-	
-	// Check required release configuration
-	if c.Release.ProductionBranch == "" {
-		errors = append(errors, "production branch is required for release readiness assessment")
-	}
-	
-	if c.Release.ReleaseBranch == "" {
-		errors = append(errors, "release branch is required for release readiness assessment")
-	}
-	
-	// Validate CI context for artifact linking
-	if c.CI.RunID == "" {
-		errors = append(errors, "CI run ID is required for artifact linking")
-	}
-	
-	if c.CI.Repository == "" {
-		errors = append(errors, "CI repository is required for artifact scoping")
-	}
-	
-	// Validate timeout settings
-	if c.Release.WorkflowTimeout <= 0 {
-		c.Release.WorkflowTimeout = 30 // Set default
-	}
-	
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "; "))
-	}
-	
-	return nil
 }
 
 // PrintConfiguration prints the current configuration for debugging
@@ -585,31 +494,26 @@ func (c *VulnetixConfig) PrintConfiguration() {
 	fmt.Printf("   Repository: %s\n", c.CI.Repository)
 	fmt.Printf("   Run ID: %s\n", c.CI.RunID)
 	fmt.Printf("   Task: %s\n", c.Task)
-	
+
 	if c.ProjectName != "" {
 		fmt.Printf("   Project: %s\n", c.ProjectName)
 	}
-	
+
 	if c.TeamName != "" {
 		fmt.Printf("   Team: %s\n", c.TeamName)
 	}
-	
+
 	if len(c.Tags) > 0 {
 		fmt.Printf("   Tags: %v\n", c.Tags)
 	}
-	
+
 	if len(c.Tools) > 0 {
 		fmt.Printf("   Tools: %d configured\n", len(c.Tools))
 		for _, tool := range c.Tools {
 			fmt.Printf("     - %s (%s): %s\n", tool.Category, tool.Format, tool.ArtifactName)
 		}
 	}
-	
-	if c.Task == TaskRelease {
-		fmt.Printf("   Release Branch: %s\n", c.Release.ReleaseBranch)
-		fmt.Printf("   Production Branch: %s\n", c.Release.ProductionBranch)
-	}
-	
+
 	fmt.Printf("   Features: %v\n", c.CI.DetectedFeatures)
 	fmt.Println()
 }
@@ -617,18 +521,13 @@ func (c *VulnetixConfig) PrintConfiguration() {
 // ValidateTask validates that the specified task is supported
 func ValidateTask(task string) (TaskType, error) {
 	switch TaskType(task) {
-	case TaskScan, TaskRelease, TaskReport, TaskTriage:
+	case TaskInfo, TaskReport, TaskTriage:
 		return TaskType(task), nil
 	case "":
-		return TaskScan, nil // Default to scan
+		return TaskInfo, nil // Default to info
 	default:
-		return "", fmt.Errorf("unsupported task: %s. Supported tasks: scan, release, report, triage", task)
+		return "", fmt.Errorf("unsupported task: %s. Supported tasks: info, report, triage", task)
 	}
-}
-
-// IsReleaseTask returns true if the current task is release readiness assessment
-func (c *VulnetixConfig) IsReleaseTask() bool {
-	return c.Task == TaskRelease
 }
 
 // GetWorkflowRunContext returns workflow run context information
@@ -641,16 +540,4 @@ func (c *VulnetixConfig) GetWorkflowRunContext() map[string]string {
 		"workflow_ref":         c.CI.RefName,
 		"workflow_sha":         c.CI.SHA,
 	}
-}
-
-// GetReleaseArtifactPattern returns the artifact pattern for release tasks
-func (c *VulnetixConfig) GetReleaseArtifactPattern() string {
-	// Use CI context or fallback to generic pattern
-	if c.CI.Platform != "" && c.CI.Repository != "" && c.CI.RunID != "" {
-		return fmt.Sprintf("vulnetix-%s-%s-*", 
-			strings.ReplaceAll(c.CI.Repository, "/", "-"), 
-			c.CI.RunID)
-	}
-	
-	return "vulnetix-*"
 }
