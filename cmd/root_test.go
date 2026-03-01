@@ -84,20 +84,20 @@ func TestRootCommand(t *testing.T) {
 		},
 		// Org ID Validation Tests
 		{
-			name:                 "Valid UUID with report task",
-			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report"},
+			name:                 "Valid UUID with triage task",
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "triage"},
 			expectError:          false,
 			expectOutputContains: "Organization ID: 123e4567-e89b-12d3-a456-426614174000",
 		},
 		{
 			name:                "Invalid UUID",
-			args:                []string{"--org-id", "invalid-uuid", "--task", "report"},
+			args:                []string{"--org-id", "invalid-uuid", "--task", "triage"},
 			expectError:         true,
 			expectErrorContains: "--org-id must be a valid UUID",
 		},
 		{
-			name:                "Missing org-id for report task",
-			args:                []string{"--task", "report"},
+			name:                "Missing org-id for triage task",
+			args:                []string{"--task", "triage"},
 			expectError:         true,
 			expectErrorContains: "--org-id is required",
 		},
@@ -113,25 +113,25 @@ func TestRootCommand(t *testing.T) {
 		// Optional Flags Tests
 		{
 			name:                 "With project and product name",
-			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report", "--project-name", "my-project", "--product-name", "my-product"},
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "triage", "--project-name", "my-project", "--product-name", "my-product"},
 			expectError:          false,
 			expectOutputContains: "Project: my-project",
 		},
 		{
 			name:                 "With team and group name",
-			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report", "--team-name", "my-team", "--group-name", "my-group"},
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "triage", "--team-name", "my-team", "--group-name", "my-group"},
 			expectError:          false,
 			expectOutputContains: "Team: my-team",
 		},
 		{
 			name:                 "With tags",
-			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report", "--tags", "[\"critical\", \"frontend\"]"},
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "triage", "--tags", "[\"critical\", \"frontend\"]"},
 			expectError:          false,
 			expectOutputContains: "Tags: [critical frontend]",
 		},
 		{
 			name:                 "With tools",
-			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "report", "--tools", "- category: sast\n  artifact_name: results.sarif\n  format: SARIF"},
+			args:                 []string{"--org-id", "123e4567-e89b-12d3-a456-426614174000", "--task", "triage", "--tools", "- category: sast\n  artifact_name: results.sarif\n  format: SARIF"},
 			expectError:          false,
 			expectOutputContains: "- sast (SARIF): results.sarif",
 		},

@@ -83,10 +83,6 @@ vulnerabilities efficiently.`,
 		fmt.Printf("Task: %s\n", validTask)
 
 		switch validTask {
-		case config.TaskReport:
-			fmt.Printf("📊 Generating vulnerability report for organization: %s\n", orgID)
-			fmt.Println("✅ Report generation complete")
-
 		case config.TaskTriage:
 			fmt.Printf("🎯 Starting automated triage for organization: %s\n", orgID)
 			fmt.Println("✅ Triage process completed")
@@ -286,7 +282,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&tools, "tools", "", "YAML array of tool configurations")
 
 	// Task configuration
-	rootCmd.PersistentFlags().StringVar(&task, "task", "info", "Task to perform: info, report, triage")
+	rootCmd.PersistentFlags().StringVar(&task, "task", "info", "Task to perform: info, triage")
 
 	// Add version command
 	versionCmd := &cobra.Command{

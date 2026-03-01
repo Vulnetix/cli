@@ -35,7 +35,7 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `org-id` | Organization ID (UUID) for Vulnetix operations | Yes | - |
-| `task` | Task to perform (info, report, release, triage) | No | `info` |
+| `task` | Task to perform (info, release, triage) | No | `info` |
 | `version` | Version of Vulnetix CLI to use | No | `latest` |
 | `project-name` | Name of the project being scanned | No | Repository name |
 | `team-name` | Team responsible for the project | No | - |

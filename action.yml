@@ -32,7 +32,7 @@ inputs:
     description: 'YAML array of tool configurations with category, artifact-name, format, and identifier'
     required: false
   task:
-    description: 'Task to perform: info, report, triage, upload'
+    description: 'Task to perform: info, triage, upload'
     required: false
     default: 'info'
   api-key:

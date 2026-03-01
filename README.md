@@ -60,7 +60,6 @@ Vulnetix supports multiple task types to cover different aspects of vulnerabilit
 | Task | Description | Use Case | Required Flags |
 |------|-------------|----------|----------------|
 | `info` | Auth healthcheck (default) | Verify credential setup | - |
-| `report` | Generate reports | Vulnerability reporting | `--org-id` |
 | `triage` | Automated triage | Prioritize and resolve vulnerabilities | `--org-id` |
 
 ### Configuration Options
@@ -68,7 +67,7 @@ Vulnetix supports multiple task types to cover different aspects of vulnerabilit
 | Flag | Description | Default | Example |
 |------|-------------|---------|---------|
 | `--org-id` | Organization ID (UUID) - **Required** | - | `123e4567-e89b-12d3-a456-426614174000` |
-| `--task` | Task to perform | `info` | `info`, `report`, `triage` |
+| `--task` | Task to perform | `info` | `info`, `triage` |
 | `--project-name` | Project name for context | - | `my-web-app` |
 | `--team-name` | Team responsible for the project | - | `security-team` |
 | `--tags` | YAML list of tags for categorization | - | `'["Public", "Crown Jewels"]'` |
