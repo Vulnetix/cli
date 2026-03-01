@@ -79,11 +79,25 @@ Expected output:
 
 ## 4. Try Your First Queries
 
-### Check a Famous CVE
+### Look Up a Vulnerability
+
+The VDB accepts **78+ identifier formats** — not just CVE. Use whichever identifier you have:
 
 ```bash
-# Get information about Log4Shell
+# By CVE (MITRE / NVD)
 vulnetix vdb vuln CVE-2021-44228
+
+# By GitHub Security Advisory
+vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9
+
+# By PyPI identifier
+vulnetix vdb vuln PYSEC-2024-123
+
+# By Red Hat advisory
+vulnetix vdb vuln RHSA-2025:1730
+
+# By Debian advisory
+vulnetix vdb vuln DSA-4741-1
 ```
 
 ### Find Package Vulnerabilities
@@ -108,10 +122,17 @@ vulnetix vdb product react --limit 20
 # 1. List all vulnerabilities for your package
 vulnetix vdb vulns lodash -o json > audit-results.json
 
-# 2. Check specific CVEs
+# 2. Look up a specific vulnerability (any identifier format)
 vulnetix vdb vuln CVE-2024-1234
+vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9
 
-# 3. Verify if specific version is affected
+# 3. Check exploit intelligence
+vulnetix vdb exploits CVE-2024-1234
+
+# 4. Find available fixes
+vulnetix vdb fixes CVE-2024-1234
+
+# 5. Verify if specific version is affected
 vulnetix vdb product lodash 4.17.20
 ```
 
@@ -137,18 +158,18 @@ else
 fi
 ```
 
-### Bulk CVE Checking
+### Bulk Vulnerability Checking
 
 ```bash
 #!/bin/bash
-# check-cves.sh
+# check-vulns.sh
 
-# Read CVEs from file (one per line)
-while IFS= read -r cve; do
-  echo "Checking $cve..."
-  vulnetix vdb vuln "$cve" -o json > "reports/${cve}.json"
+# Read vulnerability IDs from file (one per line — any format: CVE, GHSA, PYSEC, etc.)
+while IFS= read -r vuln_id; do
+  echo "Checking $vuln_id..."
+  vulnetix vdb vuln "$vuln_id" -o json > "reports/${vuln_id}.json"
   sleep 1  # Rate limiting
-done < cve-list.txt
+done < vuln-list.txt
 ```
 
 ## Next Steps
@@ -237,8 +258,9 @@ vdb-vulns express
 ### Combine with jq
 
 ```bash
-# Extract CVSS base score
-vulnetix vdb vuln CVE-2024-1234 -o json | jq '.cvss.v3.baseScore'
+# Extract data from any vulnerability identifier
+vulnetix vdb vuln CVE-2021-44228 -o json | jq '.[0].containers.cna.title'
+vulnetix vdb vuln GHSA-jfh8-3a1q-hjz9 -o json | jq '.[0].containers.cna.title'
 
 # Get high severity vulns only
 vulnetix vdb vulns lodash -o json | \
