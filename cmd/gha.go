@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/github"
 )
 
@@ -64,15 +65,31 @@ Examples:
 	RunE: runGHAStatus,
 }
 
-func runGHAUpload(cmd *cobra.Command, args []string) error {
-	// Validate org-id
-	if orgID == "" {
-		return fmt.Errorf("--org-id is required")
+func resolveOrgID() (string, error) {
+	if orgID != "" {
+		if _, err := uuid.Parse(orgID); err != nil {
+			return "", fmt.Errorf("--org-id must be a valid UUID, got: %s", orgID)
+		}
+		return orgID, nil
 	}
 
-	if _, err := uuid.Parse(orgID); err != nil {
-		return fmt.Errorf("--org-id must be a valid UUID, got: %s", orgID)
+	// Try loading from stored credentials
+	creds, err := auth.LoadCredentials()
+	if err != nil || creds == nil {
+		return "", fmt.Errorf("--org-id is required (no stored credentials found)")
 	}
+	if creds.OrgID == "" {
+		return "", fmt.Errorf("--org-id is required (stored credentials have no org ID)")
+	}
+	return creds.OrgID, nil
+}
+
+func runGHAUpload(cmd *cobra.Command, args []string) error {
+	resolvedOrgID, err := resolveOrgID()
+	if err != nil {
+		return err
+	}
+	orgID = resolvedOrgID
 
 	// Check if we're in a GitHub Actions environment
 	if os.Getenv("GITHUB_ACTIONS") != "true" {
@@ -210,14 +227,11 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 }
 
 func runGHAStatus(cmd *cobra.Command, args []string) error {
-	// Validate org-id
-	if orgID == "" {
-		return fmt.Errorf("--org-id is required")
+	resolvedOrgID, err := resolveOrgID()
+	if err != nil {
+		return err
 	}
-
-	if _, err := uuid.Parse(orgID); err != nil {
-		return fmt.Errorf("--org-id must be a valid UUID, got: %s", orgID)
-	}
+	orgID = resolvedOrgID
 
 	// Require either txnid or uuid
 	if ghaTxnID == "" && ghaUUID == "" {
@@ -232,7 +246,6 @@ func runGHAStatus(cmd *cobra.Command, args []string) error {
 	uploader := github.NewArtifactUploader(ghaBaseURL, orgID)
 
 	var statusResp *github.StatusResponse
-	var err error
 
 	if ghaTxnID != "" {
 		fmt.Printf("🔍 Checking transaction status: %s\n", ghaTxnID)
