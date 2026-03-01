@@ -192,16 +192,4 @@ Running without arguments shows authentication status:
 vulnetix
 ```
 
-### Report Generation
-
-```yaml
-- name: Vulnerability Report
-  uses: Vulnetix/cli@v1
-  with:
-    org-id: ${{ secrets.VULNETIX_ORG_ID }}
-    task: report
-    project-name: "My Web App"
-    team-name: "Security Team"
-    tags: '["critical", "frontend", "api"]'
-```
 

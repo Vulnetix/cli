@@ -14,7 +14,6 @@ type TaskType string
 
 const (
 	TaskInfo   TaskType = "info"   // Default info/healthcheck
-	TaskReport TaskType = "report" // Report generation
 	TaskTriage TaskType = "triage" // Automated triage
 )
 
@@ -521,12 +520,12 @@ func (c *VulnetixConfig) PrintConfiguration() {
 // ValidateTask validates that the specified task is supported
 func ValidateTask(task string) (TaskType, error) {
 	switch TaskType(task) {
-	case TaskInfo, TaskReport, TaskTriage:
+	case TaskInfo, TaskTriage:
 		return TaskType(task), nil
 	case "":
 		return TaskInfo, nil // Default to info
 	default:
-		return "", fmt.Errorf("unsupported task: %s. Supported tasks: info, report, triage", task)
+		return "", fmt.Errorf("unsupported task: %s. Supported tasks: info, triage", task)
 	}
 }
 
