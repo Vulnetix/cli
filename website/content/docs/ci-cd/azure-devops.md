@@ -40,7 +40,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
   env:
     VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)
 
@@ -138,7 +138,7 @@ stages:
         targetType: 'inline'
         script: |
           export PATH=$PATH:$HOME/.local/bin
-          vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
+          vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
             --project-name "$(Build.Repository.Name)" \
             --team-name "$(TEAM_NAME)" \
       env:
@@ -229,7 +229,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
         --project-name "${{ parameters.projectName }}" \
         --team-name "${{ parameters.teamName }}"
   env:
@@ -282,7 +282,7 @@ steps:
     script: |
       export PATH=$PATH:$HOME/.local/bin
       curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
   env:
     VULNETIX_ORG_ID: $(vulnetix-org-id)
 ```
@@ -312,7 +312,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
         --project-name "$(Build.Repository.Name)" \
         --team-name "development"
   env:
@@ -372,7 +372,7 @@ stages:
         targetType: 'inline'
         script: |
           export PATH=$PATH:$HOME/.local/bin
-          vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
+          vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
             --project-name "$(Build.Repository.Name)" \
             --tools '[
               {
@@ -467,7 +467,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
   condition: ne(variables['platform'], 'windows')
 
 - task: PowerShell@2
@@ -476,7 +476,7 @@ steps:
     targetType: 'inline'
     script: |
       $env:PATH += ";C:\Tools\Vulnetix"
-      vulnetix --org-id "$env:VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$env:VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
   condition: eq(variables['platform'], 'windows')
 ```
 
@@ -520,7 +520,7 @@ steps:
       if [ "$SECURITY_RELEVANT_CHANGES" = "true" ]; then
         echo "Security-relevant changes detected, running assessment..."
         export PATH=$PATH:$HOME/.local/bin
-        vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+        vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
       else
         echo "No security-relevant changes detected, skipping assessment"
       fi
@@ -576,7 +576,7 @@ jobs:
         if [ "$(System.JobPositionInPhase)" = "4" ]; then
           export PATH=$PATH:$HOME/.local/bin
           curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
-          vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+          vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
         fi
     condition: eq(variables['System.JobPositionInPhase'], '4')
 ```
@@ -650,7 +650,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      vulnetix --org-id "$VULNETIX_ORG_ID" --task scan --project-name "$(Build.Repository.Name)"
+      vulnetix --org-id "$VULNETIX_ORG_ID" --task triage --project-name "$(Build.Repository.Name)"
   env:
     VULNETIX_DEBUG: $(VULNETIX_DEBUG)
 ```

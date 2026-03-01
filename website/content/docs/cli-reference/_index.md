@@ -295,7 +295,7 @@ TOOLS_CONFIG='[
   }
 ]'
 
-vulnetix --org-id "your-org-id" --task scan --tools "${TOOLS_CONFIG}"
+vulnetix --org-id "your-org-id" --task triage --tools "${TOOLS_CONFIG}"
 ```
 
 ### Tool Configuration Schema
@@ -347,13 +347,13 @@ vulnetix upload --file report.json --format sarif --json
 ### CI/CD Integration
 ```bash
 # GitHub Actions
-vulnetix --org-id "$VULNETIX_ORG_ID" --task scan
+vulnetix --org-id "$VULNETIX_ORG_ID" --task triage
 
 # GitLab CI
-vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
+vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
   --project-name "$CI_PROJECT_NAME"
 
 # Jenkins
-vulnetix --org-id "$VULNETIX_ORG_ID" --task scan \
+vulnetix --org-id "$VULNETIX_ORG_ID" --task triage \
   --project-name "$JOB_NAME"
 ```

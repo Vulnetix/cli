@@ -160,7 +160,7 @@ jobs:
     - name: Run Vulnetix
       uses: Vulnetix/cli@v1
       with:
-        task: scan
+        task: triage
         org-id: ${{ secrets.VULNETIX_ORG_ID }}
         project-name: ${{ github.repository }}
         team-name: "DevSecOps"
@@ -472,7 +472,7 @@ steps:
     uses: Vulnetix/cli@v1
     with:
       org-id: ${{ secrets.VULNETIX_ORG_ID }}
-      task: scan
+      task: triage
 
   - name: Debug artifacts
     run: |
