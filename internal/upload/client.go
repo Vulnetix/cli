@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/vulnetix/internal/auth"
+	"github.com/vulnetix/cli/internal/auth"
 )
 
 const (
@@ -127,12 +127,17 @@ func (c *Client) SimpleUpload(fileName string, data []byte, contentType, format 
 
 // InitiateSession starts a new upload session
 func (c *Client) InitiateSession(fileName string, fileSize int, contentType string, totalChunks, chunkSize int) (*InitiateResponse, error) {
+	source := "CLI"
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		source = "GITHUB_ACTIONS"
+	}
 	body := map[string]interface{}{
 		"fileName":    fileName,
 		"fileSize":    fileSize,
 		"contentType": contentType,
 		"totalChunks": totalChunks,
 		"chunkSize":   chunkSize,
+		"source":      source,
 	}
 
 	respBody, err := c.doRequest("POST", "/artifact-upload/initiate", body)

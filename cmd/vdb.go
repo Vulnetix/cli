@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/vulnetix/internal/auth"
-	"github.com/vulnetix/vulnetix/internal/vdb"
+	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/internal/vdb"
 )
 
 var (

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/vulnetix/internal/auth"
+	"github.com/vulnetix/cli/internal/auth"
 )
 
 const (
