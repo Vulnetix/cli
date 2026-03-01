@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -23,16 +24,28 @@ const (
 	TokenExpiry    = 15 * time.Minute
 )
 
+// RateLimitInfo holds rate limit data returned in API response headers.
+type RateLimitInfo struct {
+	MinuteLimit   int
+	Remaining     int
+	Reset         int
+	WeekLimit     int
+	WeekRemaining int
+	WeekReset     int
+	Present       bool
+}
+
 // Client represents a VDB API client
 type Client struct {
-	BaseURL    string
-	OrgID      string
-	SecretKey  string
-	AuthMethod auth.AuthMethod
-	APIKey     string // hex digest for Direct API Key auth
-	HTTPClient *http.Client
-	token      *TokenCache
-	tokenMutex sync.RWMutex
+	BaseURL       string
+	OrgID         string
+	SecretKey     string
+	AuthMethod    auth.AuthMethod
+	APIKey        string // hex digest for Direct API Key auth
+	HTTPClient    *http.Client
+	LastRateLimit *RateLimitInfo
+	token         *TokenCache
+	tokenMutex    sync.RWMutex
 }
 
 // TokenCache stores the JWT token and its expiration
@@ -254,6 +267,9 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 	}
 	defer resp.Body.Close()
 
+	// Capture rate limit headers
+	c.LastRateLimit = parseRateLimitHeaders(resp)
+
 	// Read the response
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -270,6 +286,34 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 	}
 
 	return responseBody, nil
+}
+
+// parseRateLimitHeaders extracts rate limit info from response headers.
+// Returns nil if none of the expected headers are present.
+func parseRateLimitHeaders(resp *http.Response) *RateLimitInfo {
+	headerMap := map[string]*int{}
+	info := &RateLimitInfo{}
+	headerMap["RateLimit-MinuteLimit"] = &info.MinuteLimit
+	headerMap["RateLimit-Remaining"] = &info.Remaining
+	headerMap["RateLimit-Reset"] = &info.Reset
+	headerMap["RateLimit-WeekLimit"] = &info.WeekLimit
+	headerMap["RateLimit-WeekRemaining"] = &info.WeekRemaining
+	headerMap["RateLimit-WeekReset"] = &info.WeekReset
+
+	found := false
+	for header, field := range headerMap {
+		if v := resp.Header.Get(header); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				*field = n
+				found = true
+			}
+		}
+	}
+	if !found {
+		return nil
+	}
+	info.Present = true
+	return info
 }
 
 // Helper functions
