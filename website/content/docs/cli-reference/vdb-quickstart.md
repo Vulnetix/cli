@@ -83,7 +83,7 @@ Expected output:
 
 ```bash
 # Get information about Log4Shell
-vulnetix vdb cve CVE-2021-44228
+vulnetix vdb vuln CVE-2021-44228
 ```
 
 ### Find Package Vulnerabilities
@@ -109,7 +109,7 @@ vulnetix vdb product react --limit 20
 vulnetix vdb vulns lodash -o json > audit-results.json
 
 # 2. Check specific CVEs
-vulnetix vdb cve CVE-2024-1234
+vulnetix vdb vuln CVE-2024-1234
 
 # 3. Verify if specific version is affected
 vulnetix vdb product lodash 4.17.20
@@ -146,7 +146,7 @@ fi
 # Read CVEs from file (one per line)
 while IFS= read -r cve; do
   echo "Checking $cve..."
-  vulnetix vdb cve "$cve" -o json > "reports/${cve}.json"
+  vulnetix vdb vuln "$cve" -o json > "reports/${cve}.json"
   sleep 1  # Rate limiting
 done < cve-list.txt
 ```
@@ -226,11 +226,11 @@ fi
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
 alias vdb='vulnetix vdb'
-alias vdb-cve='vulnetix vdb cve'
+alias vdb-vuln='vulnetix vdb vuln'
 alias vdb-vulns='vulnetix vdb vulns'
 
 # Now use shorter commands
-vdb-cve CVE-2024-1234
+vdb-vuln CVE-2024-1234
 vdb-vulns express
 ```
 
@@ -238,7 +238,7 @@ vdb-vulns express
 
 ```bash
 # Extract CVSS base score
-vulnetix vdb cve CVE-2024-1234 -o json | jq '.cvss.v3.baseScore'
+vulnetix vdb vuln CVE-2024-1234 -o json | jq '.cvss.v3.baseScore'
 
 # Get high severity vulns only
 vulnetix vdb vulns lodash -o json | \

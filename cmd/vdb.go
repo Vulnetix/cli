@@ -40,7 +40,7 @@ Authentication:
 
 Examples:
   # Get information about a CVE
-  vulnetix vdb cve CVE-2024-1234
+  vulnetix vdb vuln CVE-2024-1234
 
   # List available ecosystems
   vulnetix vdb ecosystems
@@ -76,17 +76,17 @@ Examples:
 	},
 }
 
-// cveCmd retrieves information about a specific CVE
-var cveCmd = &cobra.Command{
-	Use:   "cve <CVE-ID>",
+// vulnCmd retrieves information about a specific CVE
+var vulnCmd = &cobra.Command{
+	Use:   "vuln <CVE-ID>",
 	Short: "Get information about a specific CVE",
 	Long: `Retrieve full vulnerability data for a specific CVE identifier, including descriptions,
 CVSS metrics, CWEs, affected products, EPSS scores, and KEV status from all available sources.
 
 Examples:
-  vulnetix vdb cve CVE-2024-1234
-  vulnetix vdb cve CVE-2024-1234 --output json
-  vulnetix vdb cve CVE-2024-1234 -o pretty`,
+  vulnetix vdb vuln CVE-2024-1234
+  vulnetix vdb vuln CVE-2024-1234 --output json
+  vulnetix vdb vuln CVE-2024-1234 -o pretty`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cveID := args[0]
@@ -105,6 +105,136 @@ Examples:
 		}
 
 		return printOutput(cveInfo.Data, vdbOutput)
+	},
+}
+
+// exploitsCmd retrieves exploit intelligence for a specific CVE
+var exploitsCmd = &cobra.Command{
+	Use:   "exploits <CVE-ID>",
+	Short: "Get exploit intelligence for a specific CVE",
+	Long: `Retrieve exploit intelligence for a vulnerability, aggregating data from multiple exploit
+databases including ExploitDB, Metasploit modules, Nuclei templates, VulnCheck, CrowdSec, and
+GitHub proof-of-concept repositories.
+
+Examples:
+  vulnetix vdb exploits CVE-2024-1234
+  vulnetix vdb exploits CVE-2024-1234 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		identifier := args[0]
+
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "💥 Fetching exploit intelligence for %s...\n", identifier)
+		} else {
+			fmt.Printf("💥 Fetching exploit intelligence for %s...\n", identifier)
+		}
+
+		result, err := client.GetExploits(identifier)
+		if err != nil {
+			return fmt.Errorf("failed to get exploits: %w", err)
+		}
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// fixesCmd retrieves fix data for a specific CVE
+var fixesCmd = &cobra.Command{
+	Use:   "fixes <CVE-ID>",
+	Short: "Get fix data for a specific CVE",
+	Long: `Retrieve comprehensive fix data for a vulnerability including patches, advisories,
+workarounds, KEV required actions, and AI-generated analysis.
+
+Examples:
+  vulnetix vdb fixes CVE-2024-1234
+  vulnetix vdb fixes CVE-2024-1234 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		identifier := args[0]
+
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "🔧 Fetching fix data for %s...\n", identifier)
+		} else {
+			fmt.Printf("🔧 Fetching fix data for %s...\n", identifier)
+		}
+
+		result, err := client.GetCVEFixes(identifier)
+		if err != nil {
+			return fmt.Errorf("failed to get fixes: %w", err)
+		}
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// versionsCmd retrieves all known versions for a package across ecosystems
+var versionsCmd = &cobra.Command{
+	Use:   "versions <package-name>",
+	Short: "Get all versions of a package across ecosystems",
+	Long: `List all known versions for a package across ecosystems.
+
+Examples:
+  vulnetix vdb versions express
+  vulnetix vdb versions express --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		packageName := args[0]
+
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", packageName)
+		} else {
+			fmt.Printf("📦 Fetching versions for %s...\n", packageName)
+		}
+
+		result, err := client.GetPackageVersions(packageName)
+		if err != nil {
+			return fmt.Errorf("failed to get versions: %w", err)
+		}
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// gcveCmd retrieves paginated CVEs by date range
+var gcveCmd = &cobra.Command{
+	Use:   "gcve",
+	Short: "Get CVEs by date range",
+	Long: `Retrieve a paginated list of CVEs published within a date range, with enrichment data.
+
+Examples:
+  vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31
+  vulnetix vdb gcve --start 2024-01-01 --end 2024-12-31 --output json`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		start, _ := cmd.Flags().GetString("start")
+		end, _ := cmd.Flags().GetString("end")
+
+		if start == "" {
+			return fmt.Errorf("--start is required (format: YYYY-MM-DD)")
+		}
+		if end == "" {
+			return fmt.Errorf("--end is required (format: YYYY-MM-DD)")
+		}
+
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📅 Fetching CVEs from %s to %s...\n", start, end)
+		} else {
+			fmt.Printf("📅 Fetching CVEs from %s to %s...\n", start, end)
+		}
+
+		result, err := client.GetCVEsByDateRange(start, end)
+		if err != nil {
+			return fmt.Errorf("failed to get CVEs: %w", err)
+		}
+
+		return printOutput(result, vdbOutput)
 	},
 }
 
@@ -146,12 +276,13 @@ Examples:
 
 // productCmd retrieves product version information
 var productCmd = &cobra.Command{
-	Use:   "product <product-name> [version]",
+	Use:   "product <product-name> [version] [ecosystem]",
 	Short: "Get product version information",
 	Long: `Retrieve version information for a specific product.
 
 If no version is specified, lists all available versions.
 If a version is specified, retrieves detailed information for that version.
+If an ecosystem is also specified, scopes the query to that ecosystem.
 
 Examples:
   # List all versions
@@ -159,6 +290,9 @@ Examples:
 
   # Get specific version
   vulnetix vdb product express 4.17.1
+
+  # Get specific version scoped to ecosystem
+  vulnetix vdb product express 4.17.1 npm
 
   # With pagination
   vulnetix vdb product express --limit 50 --offset 100`,
@@ -171,6 +305,24 @@ Examples:
 		offset, _ := cmd.Flags().GetInt("offset")
 
 		client := newVDBClient()
+
+		// If ecosystem is provided, get version+ecosystem info
+		if len(args) > 2 {
+			version := args[1]
+			ecosystem := args[2]
+			if vdbOutput == "json" {
+				fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s@%s (%s)...\n", productName, version, ecosystem)
+			} else {
+				fmt.Printf("🔍 Fetching information for %s@%s (%s)...\n", productName, version, ecosystem)
+			}
+
+			info, err := client.GetProductVersionEcosystem(productName, version, ecosystem)
+			if err != nil {
+				return fmt.Errorf("failed to get product version ecosystem: %w", err)
+			}
+
+			return printOutput(info, vdbOutput)
+		}
 
 		// If version is provided, get specific version info
 		if len(args) > 1 {
@@ -348,11 +500,15 @@ func init() {
 	rootCmd.AddCommand(vdbCmd)
 
 	// Add subcommands
-	vdbCmd.AddCommand(cveCmd)
+	vdbCmd.AddCommand(vulnCmd)
 	vdbCmd.AddCommand(ecosystemsCmd)
 	vdbCmd.AddCommand(productCmd)
 	vdbCmd.AddCommand(vulnsCmd)
 	vdbCmd.AddCommand(specCmd)
+	vdbCmd.AddCommand(exploitsCmd)
+	vdbCmd.AddCommand(fixesCmd)
+	vdbCmd.AddCommand(versionsCmd)
+	vdbCmd.AddCommand(gcveCmd)
 
 	// Global flags
 	vdbCmd.PersistentFlags().StringVar(&vdbOrgID, "org-id", "", "Organization UUID (overrides VVD_ORG env var)")
@@ -366,4 +522,8 @@ func init() {
 
 	vulnsCmd.Flags().Int("limit", 100, "Maximum number of results to return (default 100; use with --offset for pagination)")
 	vulnsCmd.Flags().Int("offset", 0, "Number of results to skip (for pagination)")
+
+	// gcve date range flags
+	gcveCmd.Flags().String("start", "", "Start date (YYYY-MM-DD) [required]")
+	gcveCmd.Flags().String("end", "", "End date (YYYY-MM-DD) [required]")
 }

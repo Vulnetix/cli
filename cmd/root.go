@@ -3,17 +3,14 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
 	"github.com/vulnetix/cli/internal/config"
-	"github.com/vulnetix/cli/internal/sarif"
 )
 
 var (
@@ -33,10 +30,6 @@ var (
 	releaseBranch    string
 	workflowTimeout  int
 	version          = "1.0.0" // This will be set during build
-
-	// SARIF command flags
-	sarifFile        string
-	sarifBaseURL     string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -183,37 +176,12 @@ func validateToolArtifact(tool config.Tool, artifactPath string) error {
 	}
 
 	switch tool.Format {
-	case config.FormatSARIF:
-		return validateSARIFArtifact(data, tool.ArtifactName)
 	case config.FormatPlainJSON:
 		return validateJSONArtifact(data, tool.ArtifactName)
 	default:
 		fmt.Printf("⚠️  Skipping validation for format %s (not yet supported)\n", tool.Format)
 		return nil
 	}
-}
-
-// validateSARIFArtifact validates SARIF format artifact using the existing SARIF validator
-func validateSARIFArtifact(data []byte, artifactName string) error {
-	fmt.Printf("🔐 Validating SARIF format for: %s\n", artifactName)
-	
-	validator := sarif.NewValidator()
-	validation, err := validator.ValidateFromBytes(data)
-	if err != nil {
-		return fmt.Errorf("SARIF validation error for %s: %w", artifactName, err)
-	}
-
-	if !validation.Valid {
-		return fmt.Errorf("SARIF validation failed for %s: %v", artifactName, validation.Errors)
-	}
-
-	fmt.Printf("✅ SARIF validation successful for %s\n", artifactName)
-	fmt.Printf("   - Version: %s\n", validation.Version)
-	fmt.Printf("   - Runs: %d\n", validation.Stats.RunCount)
-	fmt.Printf("   - Results: %d\n", validation.Stats.ResultCount)
-	fmt.Printf("   - Tools: %d\n", validation.Stats.ToolCount)
-	
-	return nil
 }
 
 // validateJSONArtifact validates that the artifact is well-formed JSON
@@ -292,108 +260,6 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-// runSARIFUpload handles the SARIF upload command
-func runSARIFUpload() error {
-	// Validate org-id
-	if orgID == "" {
-		return fmt.Errorf("--org-id is required")
-	}
-
-	if _, err := uuid.Parse(orgID); err != nil {
-		return fmt.Errorf("--org-id must be a valid UUID, got: %s", orgID)
-	}
-
-	// Determine input source and read SARIF data
-	var sarifData []byte
-	var inputMethod string
-	var err error
-
-	if sarifFile != "" {
-		// Read from file
-		inputMethod = "file"
-		file, err := os.Open(sarifFile)
-		if err != nil {
-			return fmt.Errorf("failed to open SARIF file %s: %w", sarifFile, err)
-		}
-		defer file.Close()
-
-		sarifData, err = io.ReadAll(file)
-		if err != nil {
-			return fmt.Errorf("failed to read SARIF file: %w", err)
-		}
-	} else {
-		// Read from stdin
-		inputMethod = "stdin"
-		stat, err := os.Stdin.Stat()
-		if err != nil {
-			return fmt.Errorf("failed to check stdin: %w", err)
-		}
-
-		if (stat.Mode() & os.ModeCharDevice) != 0 {
-			return fmt.Errorf("no SARIF data provided. Use --file or pipe/redirect input")
-		}
-
-		sarifData, err = io.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf("failed to read from stdin: %w", err)
-		}
-	}
-
-	if len(sarifData) == 0 {
-		return fmt.Errorf("no SARIF data provided")
-	}
-
-	// Validate SARIF locally first
-	fmt.Printf("🔍 Validating SARIF file...\n")
-	validator := sarif.NewValidator()
-	validation, err := validator.ValidateFromBytes(sarifData)
-	if err != nil {
-		return fmt.Errorf("validation error: %w", err)
-	}
-
-	if !validation.Valid {
-		fmt.Printf("❌ SARIF validation failed:\n")
-		for _, errMsg := range validation.Errors {
-			fmt.Printf("  - %s\n", errMsg)
-		}
-		return fmt.Errorf("SARIF validation failed")
-	}
-
-	fmt.Printf("✅ SARIF validation successful\n")
-	fmt.Printf("📊 Statistics:\n")
-	fmt.Printf("  - Version: %s\n", validation.Version)
-	fmt.Printf("  - Runs: %d\n", validation.Stats.RunCount)
-	fmt.Printf("  - Results: %d\n", validation.Stats.ResultCount)
-	fmt.Printf("  - Tools: %d\n", validation.Stats.ToolCount)
-
-	// Configure uploader
-	uploadConfig := &sarif.UploadConfig{
-		BaseURL:     sarifBaseURL,
-		OrgID:       orgID,
-		ContentType: sarif.DetermineContentType(inputMethod),
-	}
-
-	uploader := sarif.NewUploader(uploadConfig)
-
-	// Upload SARIF
-	fmt.Printf("📤 Uploading SARIF to %s...\n", sarifBaseURL)
-	response, err := uploader.Upload(sarifData)
-	if err != nil {
-		return fmt.Errorf("upload failed: %w", err)
-	}
-
-	if !response.Success {
-		fmt.Printf("❌ Upload failed (HTTP %d): %s\n", response.StatusCode, response.Message)
-		return fmt.Errorf("upload rejected by server")
-	}
-
-	fmt.Printf("✅ SARIF uploaded successfully\n")
-	fmt.Printf("🆔 Artifact UUID: %s\n", strings.TrimSpace(response.UUID))
-	fmt.Printf("🔗 View at: https://dashboard.vulnetix.com/org/%s/artifacts/%s\n", orgID, strings.TrimSpace(response.UUID))
-
-	return nil
-}
-
 func init() {
 	// Define flags
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
@@ -407,7 +273,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&tools, "tools", "", "YAML array of tool configurations")
 
 	// Task configuration
-	rootCmd.PersistentFlags().StringVar(&task, "task", "scan", "Task to perform: scan, release, report, triage, sarif")
+	rootCmd.PersistentFlags().StringVar(&task, "task", "scan", "Task to perform: scan, release, report, triage")
 
 	// Release readiness flags (used when task=release)
 	rootCmd.PersistentFlags().StringVar(&productionBranch, "production-branch", "main", "Production branch name (for release task)")
@@ -423,119 +289,5 @@ func init() {
 		},
 	}
 
-	// Add SARIF upload command
-	sarifCmd := &cobra.Command{
-		Use:   "sarif",
-		Short: "Upload and validate SARIF files",
-		Long: `Upload SARIF files to Vulnetix for vulnerability analysis.
-
-The SARIF file can be provided via:
-- File path: --file path/to/file.sarif
-- Standard input: echo '{}' | vulnetix sarif --org-id UUID
-- Pipe: some-tool | vulnetix sarif --org-id UUID`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if orgID == "" {
-				return fmt.Errorf("--org-id is required")
-			}
-
-			if _, err := uuid.Parse(orgID); err != nil {
-				return fmt.Errorf("--org-id must be a valid UUID, got: %s", orgID)
-			}
-
-			// Determine input source and read SARIF data
-			var sarifData []byte
-			var inputMethod string
-			var err error
-
-			if sarifFile != "" {
-				// Read from file
-				inputMethod = "file"
-				file, err := os.Open(sarifFile)
-				if err != nil {
-					return fmt.Errorf("failed to open SARIF file %s: %w", sarifFile, err)
-				}
-				defer file.Close()
-
-				sarifData, err = io.ReadAll(file)
-				if err != nil {
-					return fmt.Errorf("failed to read SARIF file: %w", err)
-				}
-			} else {
-				// Read from stdin
-				inputMethod = "stdin"
-				stat, err := os.Stdin.Stat()
-				if err != nil {
-					return fmt.Errorf("failed to check stdin: %w", err)
-				}
-
-				if (stat.Mode() & os.ModeCharDevice) != 0 {
-					return fmt.Errorf("no SARIF data provided. Use --file or pipe/redirect input")
-				}
-
-				sarifData, err = io.ReadAll(os.Stdin)
-				if err != nil {
-					return fmt.Errorf("failed to read from stdin: %w", err)
-				}
-			}
-
-			if len(sarifData) == 0 {
-				return fmt.Errorf("no SARIF data provided")
-			}
-
-			// Validate SARIF locally first
-			fmt.Printf("🔍 Validating SARIF file...\n")
-			validator := sarif.NewValidator()
-			validation, err := validator.ValidateFromBytes(sarifData)
-			if err != nil {
-				return fmt.Errorf("validation error: %w", err)
-			}
-
-			if !validation.Valid {
-				fmt.Printf("❌ SARIF validation failed:\n")
-				for _, errMsg := range validation.Errors {
-					fmt.Printf("  - %s\n", errMsg)
-				}
-				return fmt.Errorf("SARIF validation failed")
-			}
-
-			fmt.Printf("✅ SARIF validation successful\n")
-			fmt.Printf("📊 Statistics:\n")
-			fmt.Printf("  - Version: %s\n", validation.Version)
-			fmt.Printf("  - Runs: %d\n", validation.Stats.RunCount)
-			fmt.Printf("  - Results: %d\n", validation.Stats.ResultCount)
-			fmt.Printf("  - Tools: %d\n", validation.Stats.ToolCount)
-
-			// Configure uploader
-			uploadConfig := &sarif.UploadConfig{
-				BaseURL:     sarifBaseURL,
-				OrgID:       orgID,
-				ContentType: sarif.DetermineContentType(inputMethod),
-			}
-
-			uploader := sarif.NewUploader(uploadConfig)
-
-			// Upload SARIF
-			fmt.Printf("📤 Uploading SARIF to %s...\n", sarifBaseURL)
-			response, err := uploader.Upload(sarifData)
-			if err != nil {
-				return fmt.Errorf("upload failed: %w", err)
-			}
-
-			if !response.Success {
-				fmt.Printf("❌ Upload failed (HTTP %d): %s\n", response.StatusCode, response.Message)
-				return fmt.Errorf("upload rejected by server")
-			}
-
-			fmt.Printf("✅ SARIF uploaded successfully\n")
-			fmt.Printf("🆔 Artifact UUID: %s\n", strings.TrimSpace(response.UUID))
-			fmt.Printf("🔗 View at: https://dashboard.vulnetix.com/org/%s/artifacts/%s\n", orgID, strings.TrimSpace(response.UUID))
-
-			return nil
-		},
-	}
-
-	// SARIF command flags
-	sarifCmd.Flags().StringVar(&sarifFile, "file", "", "Path to SARIF file (if not provided, reads from stdin)")
-	sarifCmd.Flags().StringVar(&sarifBaseURL, "base-url", "https://app.vulnetix.com/api", "Base URL for Vulnetix API")
-	rootCmd.AddCommand(versionCmd, sarifCmd)
+	rootCmd.AddCommand(versionCmd)
 }

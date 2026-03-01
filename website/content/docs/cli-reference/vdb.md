@@ -11,11 +11,15 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
 - [Overview](#overview)
 - [Authentication](#authentication)
 - [CLI Commands](#cli-commands)
-  - [vdb cve](#vdb-cve)
+  - [vdb vuln](#vdb-vuln)
   - [vdb ecosystems](#vdb-ecosystems)
   - [vdb product](#vdb-product)
   - [vdb vulns](#vdb-vulns)
   - [vdb spec](#vdb-spec)
+  - [vdb exploits](#vdb-exploits)
+  - [vdb fixes](#vdb-fixes)
+  - [vdb versions](#vdb-versions)
+  - [vdb gcve](#vdb-gcve)
 - [API-Only Endpoints](#api-only-endpoints)
 - [Examples](#examples)
 - [Rate Limiting](#rate-limiting)
@@ -66,13 +70,13 @@ vulnetix vdb ecosystems --org-id "your-uuid" --secret "your-secret"
 
 ## CLI Commands
 
-### vdb cve
+### vdb vuln
 
 Retrieve detailed information about a specific CVE.
 
 **Usage:**
 ```bash
-vulnetix vdb cve <CVE-ID> [flags]
+vulnetix vdb vuln <CVE-ID> [flags]
 ```
 
 **Flags:**
@@ -81,13 +85,13 @@ vulnetix vdb cve <CVE-ID> [flags]
 **Examples:**
 ```bash
 # Get CVE information
-vulnetix vdb cve CVE-2024-1234
+vulnetix vdb vuln CVE-2024-1234
 
 # Get CVE in JSON format
-vulnetix vdb cve CVE-2024-1234 --output json
+vulnetix vdb vuln CVE-2024-1234 --output json
 
 # Save CVE to file
-vulnetix vdb cve CVE-2024-1234 -o json > cve-2024-1234.json
+vulnetix vdb vuln CVE-2024-1234 -o json > cve-2024-1234.json
 ```
 
 **Response includes:**
@@ -141,7 +145,7 @@ Get version information for a specific product or package.
 
 **Usage:**
 ```bash
-vulnetix vdb product <product-name> [version] [flags]
+vulnetix vdb product <product-name> [version] [ecosystem] [flags]
 ```
 
 **Flags:**
@@ -156,6 +160,9 @@ vulnetix vdb product express
 
 # Get specific version information
 vulnetix vdb product express 4.17.1
+
+# Get specific version scoped to ecosystem
+vulnetix vdb product express 4.17.1 npm
 
 # List with pagination
 vulnetix vdb product express --limit 50 --offset 100
@@ -251,58 +258,110 @@ vulnetix vdb spec -o json | jq '.paths'
 
 ---
 
-## API-Only Endpoints
+### vdb exploits
 
-The following VDB API endpoints are available via direct HTTP requests but do not yet have dedicated CLI subcommands. Use `vulnetix vdb spec` to retrieve the full OpenAPI specification.
+Retrieve exploit intelligence for a specific CVE.
 
-### GET /v1/vuln/{identifier}
-
-Retrieve full CVEListV5 records for a vulnerability from each contributing data source.
-
+**Usage:**
 ```bash
-# Direct API call
-curl -H "Authorization: Bearer $TOKEN" \
-  https://api.vdb.vulnetix.com/v1/vuln/CVE-2024-1234
+vulnetix vdb exploits <CVE-ID> [flags]
 ```
 
-**Response includes:** Full CVE records from MITRE, NVD, GitHub Advisories, OSV, and other sources, each preserving the original data source's schema.
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
 
----
-
-### GET /v1/exploits/{identifier}
-
-Retrieve exploit intelligence for a vulnerability, aggregating data from multiple exploit databases.
-
+**Examples:**
 ```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  https://api.vdb.vulnetix.com/v1/exploits/CVE-2024-1234
+# Get exploit intelligence for a CVE
+vulnetix vdb exploits CVE-2024-1234
+
+# Get exploit data as JSON
+vulnetix vdb exploits CVE-2024-1234 --output json
 ```
 
 **Sources include:** ExploitDB, Metasploit modules, Nuclei templates, VulnCheck, CrowdSec, and GitHub proof-of-concept repositories.
 
 ---
 
-### GET /v1/{package}/versions
+### vdb fixes
+
+Retrieve comprehensive fix data for a specific CVE.
+
+**Usage:**
+```bash
+vulnetix vdb fixes <CVE-ID> [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# Get fix data for a CVE
+vulnetix vdb fixes CVE-2024-1234
+
+# Get fix data as JSON
+vulnetix vdb fixes CVE-2024-1234 --output json
+```
+
+**Response includes:** Patches, advisories, workarounds, KEV required actions, and AI-generated analysis.
+
+---
+
+### vdb versions
 
 List all known versions for a package across ecosystems.
 
+**Usage:**
 ```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  https://api.vdb.vulnetix.com/v1/express/versions
+vulnetix vdb versions <package-name> [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# Get all versions of a package
+vulnetix vdb versions express
+
+# Get versions as JSON
+vulnetix vdb versions express --output json
 ```
 
 ---
 
-### GET /v1/gcve
+### vdb gcve
 
-Paginated CVE listing by date range with enrichment data.
+Retrieve a paginated list of CVEs published within a date range, with enrichment data.
 
+**Usage:**
 ```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  "https://api.vdb.vulnetix.com/v1/gcve?start=2024-01-01&end=2024-12-31&limit=100"
+vulnetix vdb gcve --start <YYYY-MM-DD> --end <YYYY-MM-DD> [flags]
+```
+
+**Flags:**
+- `--start string`: Start date (YYYY-MM-DD) **[required]**
+- `--end string`: End date (YYYY-MM-DD) **[required]**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# Get CVEs published in January 2024
+vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31
+
+# Get all 2024 CVEs as JSON
+vulnetix vdb gcve --start 2024-01-01 --end 2024-12-31 --output json
+
+# Save to file
+vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31 -o json > jan-2024-cves.json
 ```
 
 ---
+
+## API-Only Endpoints
+
+The following VDB API endpoints are available via direct HTTP requests but do not yet have dedicated CLI subcommands. Use `vulnetix vdb spec` to retrieve the full OpenAPI specification.
 
 ### GET /v1/summary/{year}
 
@@ -315,35 +374,23 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 ---
 
-### GET /v1/vuln/{identifier}/fixes
-
-Comprehensive fix data for a vulnerability including patches, advisories, workarounds, KEV required actions, and AI-generated analysis.
-
-```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  https://api.vdb.vulnetix.com/v1/vuln/CVE-2024-1234/fixes
-```
-
----
-
-### GET /v1/product/{name}/{version}/{ecosystem}
-
-Query product version information scoped to a specific ecosystem.
-
-```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  https://api.vdb.vulnetix.com/v1/product/express/4.17.1/npm
-```
-
----
-
 ## Examples
 
 ### Check a Specific CVE
 
 ```bash
 # Get information about Log4Shell
-vulnetix vdb cve CVE-2021-44228
+vulnetix vdb vuln CVE-2021-44228
+```
+
+### Investigate Exploits and Fixes
+
+```bash
+# Check exploit intelligence
+vulnetix vdb exploits CVE-2021-44228
+
+# Get available fixes
+vulnetix vdb fixes CVE-2021-44228
 ```
 
 ### Audit Package Vulnerabilities
@@ -354,6 +401,9 @@ vulnetix vdb vulns express
 
 # Check specific version
 vulnetix vdb product express 4.16.0
+
+# Check specific version in npm ecosystem
+vulnetix vdb product express 4.16.0 npm
 ```
 
 ### Explore Available Data
@@ -364,26 +414,32 @@ vulnetix vdb ecosystems
 
 # Find all versions of a package
 vulnetix vdb product react --limit 500
+
+# List all package versions across ecosystems
+vulnetix vdb versions react
 ```
 
 ### Export Data for Analysis
 
 ```bash
 # Export all CVE data
-vulnetix vdb cve CVE-2024-1234 -o json > analysis/cve-2024-1234.json
+vulnetix vdb vuln CVE-2024-1234 -o json > analysis/cve-2024-1234.json
 
 # Export all vulnerabilities for a package
 vulnetix vdb vulns webpack -o json > reports/webpack-vulns.json
 
 # Export API specification
 vulnetix vdb spec -o json > docs/vdb-api-spec.json
+
+# Export CVEs for a date range
+vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31 -o json > jan-2024-cves.json
 ```
 
 ### Combine with Other Tools
 
 ```bash
 # Filter CVE data with jq
-vulnetix vdb cve CVE-2024-1234 -o json | jq '.cvss.v3.baseScore'
+vulnetix vdb vuln CVE-2024-1234 -o json | jq '.cvss.v3.baseScore'
 
 # Count vulnerabilities
 vulnetix vdb vulns lodash -o json | jq '.total'
