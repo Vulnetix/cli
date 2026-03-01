@@ -21,7 +21,6 @@ The root command runs one of several task modes (`--org-id` required for non-inf
 | Task | Description |
 |------|-------------|
 | `info` (default) | Authentication healthcheck across all credential sources |
-| `report` | Generate vulnerability reports for an organization |
 | `release` | Assess release readiness by validating security artifacts from sibling CI jobs |
 | `triage` | Run automated vulnerability triage |
 
@@ -253,7 +252,7 @@ These flags are available on the root command and inherited by subcommands:
 | Flag | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `--org-id` | string | **Yes** (root) | - | Organization ID (UUID) for Vulnetix operations |
-| `--task` | string | No | `info` | Task to perform: `info`, `report`, `release`, `triage` |
+| `--task` | string | No | `info` | Task to perform: `info`, `release`, `triage` |
 | `--project-name` | string | No | - | Project name for vulnerability management context |
 | `--product-name` | string | No | - | Product name for vulnerability management context |
 | `--team-name` | string | No | - | Team name responsible for the project |

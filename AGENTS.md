@@ -13,7 +13,7 @@ This is a Go-based CLI application with the following key components:
 - **Main CLI entry point**: `main.go` - Simple entry point that delegates to the cmd package
 - **Command structure**: `cmd/root.go` - Uses Cobra CLI framework with comprehensive flag handling
 - **Configuration management**: `internal/config/config.go` - Handles all configuration, GitHub context, and task validation
-- **Task types**: Three main operations (info, report, triage) with specialized configurations
+- **Task types**: Two main operations (info, triage) with specialized configurations
 - **GitHub integration**: Deep integration with GitHub Actions environment variables and artifact handling
 
 ## Build and Development Commands
