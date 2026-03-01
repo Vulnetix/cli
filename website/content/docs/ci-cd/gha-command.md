@@ -1,6 +1,8 @@
-# GitHub Actions Artifact Upload Command
-
-## Overview
+---
+title: "GHA Command"
+weight: 5
+description: "GitHub Actions artifact upload command reference for Vulnetix CLI."
+---
 
 The `gha` subcommand provides seamless integration with GitHub Actions workflows for uploading artifacts to Vulnetix. It automatically collects all workflow artifacts, gathers GitHub Actions metadata, and uploads them to the Vulnetix platform for vulnerability analysis.
 
@@ -64,41 +66,41 @@ vulnetix gha upload --org-id 123e4567-e89b-12d3-a456-426614174000
 #### Output
 
 ```
-🚀 Starting GitHub Actions artifact upload
+Starting GitHub Actions artifact upload
    Organization: 123e4567-e89b-12d3-a456-426614174000
    Repository: myorg/myrepo
    Run ID: 123456789
 
-📦 Fetching workflow artifacts...
-✅ Found 3 artifact(s)
+Fetching workflow artifacts...
+Found 3 artifact(s)
    1. sarif-results (1234 bytes)
    2. sbom-report (5678 bytes)
    3. test-coverage (9012 bytes)
 
-🔄 Initiating upload transaction...
-✅ Transaction initiated
+Initiating upload transaction...
+Transaction initiated
    Transaction ID: txn_abc123def456
 
-📤 Uploading artifacts...
+Uploading artifacts...
    [1/3] Uploading sarif-results...
-      ✅ Uploaded successfully
+      Uploaded successfully
          UUID: art_111222333
          Queue Path: /queue/2024/01/art_111222333
    [2/3] Uploading sbom-report...
-      ✅ Uploaded successfully
+      Uploaded successfully
          UUID: art_444555666
          Queue Path: /queue/2024/01/art_444555666
    [3/3] Uploading test-coverage...
-      ✅ Uploaded successfully
+      Uploaded successfully
          UUID: art_777888999
          Queue Path: /queue/2024/01/art_777888999
 
-✅ Upload complete!
+Upload complete!
    Transaction ID: txn_abc123def456
    Uploaded: 3/3 artifacts
 
-💡 Check status with: vulnetix gha status --org-id 123e4567-e89b-12d3-a456-426614174000 --txnid txn_abc123def456
-🔗 View at: https://dashboard.vulnetix.com/org/123e4567-e89b-12d3-a456-426614174000/artifacts
+Check status with: vulnetix gha status --org-id 123e4567-e89b-12d3-a456-426614174000 --txnid txn_abc123def456
+View at: https://dashboard.vulnetix.com/org/123e4567-e89b-12d3-a456-426614174000/artifacts
 ```
 
 ### `vulnetix gha status`
@@ -143,13 +145,13 @@ vulnetix gha status --org-id 123e4567-e89b-12d3-a456-426614174000 --txnid txn_ab
 #### Output
 
 ```
-🔍 Checking transaction status: txn_abc123def456
+Checking transaction status: txn_abc123def456
 
-📊 Status: completed
+Status: completed
    Transaction ID: txn_abc123def456
    Message: All artifacts processed successfully
 
-📦 Artifacts (3):
+Artifacts (3):
    1. sarif-results
       UUID: art_111222333
       Status: processed
@@ -163,7 +165,7 @@ vulnetix gha status --org-id 123e4567-e89b-12d3-a456-426614174000 --txnid txn_ab
       Status: processing
       Queue Path: /queue/2024/01/art_777888999
 
-🔗 View at: https://dashboard.vulnetix.com/org/123e4567-e89b-12d3-a456-426614174000/artifacts
+View at: https://dashboard.vulnetix.com/org/123e4567-e89b-12d3-a456-426614174000/artifacts
 ```
 
 ## GitHub Actions Workflow Integration
@@ -401,9 +403,3 @@ permissions:
 3. **Store Org ID Securely**: Use GitHub Secrets for the organization ID
 4. **Check Upload Status**: Verify successful uploads using the status command
 5. **Use JSON Output**: For automation, use `--json` flag to parse results programmatically
-
-## See Also
-
-- [Vulnetix CLI Documentation](../README.md)
-- [SARIF Upload Command](../USAGE.md#sarif-command)
-- [GitHub Actions Artifacts Documentation](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts)

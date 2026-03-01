@@ -1,4 +1,8 @@
-# Vulnetix Kubernetes Reference
+---
+title: "Kubernetes"
+weight: 7
+description: "Run Vulnetix CLI in Kubernetes environments using Jobs and CronJobs."
+---
 
 Run Vulnetix CLI in Kubernetes environments using our official Docker images.
 
@@ -299,16 +303,16 @@ vulnetix:
     repository: vulnetix/vulnetix
     tag: "latest"
     pullPolicy: IfNotPresent
-  
+
   config:
     orgId: "your-org-id"  # Will be moved to secret
     projectName: "my-k8s-project"
     teamName: "platform-team"
-    
+
   schedule:
     enabled: true
     cron: "0 2 * * *"
-    
+
   resources:
     limits:
       cpu: 500m

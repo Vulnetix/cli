@@ -1,4 +1,8 @@
-# Vulnetix Go Install Reference
+---
+title: "Go Install"
+weight: 2
+description: "Install Vulnetix CLI directly from Go modules using go install."
+---
 
 Install Vulnetix CLI directly from Go modules without building from source.
 
@@ -160,7 +164,7 @@ vulnetix --task release \
       "format": "JSON"
     },
     {
-      "category": "SAST", 
+      "category": "SAST",
       "tool_name": "gosec",
       "artifact_name": "./reports/gosec.sarif",
       "format": "SARIF"
@@ -371,15 +375,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-          
+
       - name: Install Vulnetix
         run: go install github.com/vulnetix/vulnetix@latest
-        
+
       - name: Run security scan
         env:
           VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}

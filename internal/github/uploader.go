@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"time"
+
+	"github.com/vulnetix/vulnetix/internal/auth"
 )
 
 var (
@@ -61,19 +63,30 @@ type ArtifactStatusDetail struct {
 type ArtifactUploader struct {
 	baseURL string
 	orgID   string
-	apiKey  string
+	creds   *auth.Credentials
 	client  *http.Client
 }
 
-// NewArtifactUploader creates a new artifact uploader
+// NewArtifactUploader creates a new artifact uploader using centralized auth
 func NewArtifactUploader(baseURL, orgID string) *ArtifactUploader {
-	// Try to get API key from environment
-	apiKey := os.Getenv("VULNETIX_API_KEY")
-	
+	creds, _ := auth.LoadCredentials()
+
+	// If centralized auth didn't find credentials, fall back to legacy env var
+	if creds == nil {
+		apiKey := os.Getenv("VULNETIX_API_KEY")
+		if apiKey != "" {
+			creds = &auth.Credentials{
+				OrgID:  orgID,
+				APIKey: apiKey,
+				Method: auth.DirectAPIKey,
+			}
+		}
+	}
+
 	return &ArtifactUploader{
 		baseURL: baseURL,
 		orgID:   orgID,
-		apiKey:  apiKey,
+		creds:   creds,
 		client: &http.Client{
 			Timeout: 120 * time.Second,
 		},
@@ -97,11 +110,12 @@ func validateTxnID(txnID string) error {
 // addAuthHeaders adds authentication headers to the request
 func (u *ArtifactUploader) addAuthHeaders(req *http.Request) {
 	req.Header.Set("User-Agent", "Vulnetix-CLI/1.0")
-	
-	// Add API key if available
-	if u.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+u.apiKey)
-		req.Header.Set("X-API-Key", u.apiKey)
+
+	if u.creds != nil {
+		header := auth.GetAuthHeader(u.creds)
+		if header != "" {
+			req.Header.Set("Authorization", header)
+		}
 	}
 }
 

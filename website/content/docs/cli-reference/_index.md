@@ -1,4 +1,8 @@
-# Vulnetix CLI Reference
+---
+title: "CLI Reference"
+weight: 2
+description: "Complete reference for all Vulnetix CLI commands, flags, and usage patterns."
+---
 
 Complete reference for all Vulnetix CLI commands, flags, and usage patterns.
 
@@ -129,7 +133,7 @@ TOOLS_CONFIG='[
     "format": "SARIF"
   },
   {
-    "category": "SCA", 
+    "category": "SCA",
     "tool_name": "trivy",
     "artifact_name": "dependency-scan",
     "format": "SARIF"

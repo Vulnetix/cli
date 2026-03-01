@@ -1,4 +1,8 @@
-# Vulnetix Podman Reference
+---
+title: "Podman"
+weight: 8
+description: "Run Vulnetix CLI using Podman as a rootless, daemonless container runtime."
+---
 
 Run Vulnetix CLI using Podman containers with the same Docker images.
 
@@ -147,7 +151,7 @@ PROJECT_NAME="my-application"
 TEAM_NAME="security-team"
 REPORTS_DIR="$(pwd)/security-reports"
 
-# Ensure reports directory exists  
+# Ensure reports directory exists
 mkdir -p "$REPORTS_DIR"
 
 echo "🔍 Running comprehensive security assessment for $PROJECT_NAME..."
@@ -274,9 +278,9 @@ security-scan:
   before_script:
     - dnf install -y podman
   script:
-    - podman run --rm vulnetix/vulnetix:latest 
-        --org-id "$VULNETIX_ORG_ID" 
-        --task release 
+    - podman run --rm vulnetix/vulnetix:latest
+        --org-id "$VULNETIX_ORG_ID"
+        --task release
         --project-name "$CI_PROJECT_NAME"
   only:
     - main
@@ -288,11 +292,11 @@ security-scan:
 // Jenkinsfile
 pipeline {
     agent any
-    
+
     environment {
         VULNETIX_ORG_ID = credentials('vulnetix-org-id')
     }
-    
+
     stages {
         stage('Security Scan') {
             steps {

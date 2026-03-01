@@ -1,4 +1,8 @@
-# VDB Command Reference
+---
+title: "VDB Command Reference"
+weight: 2
+description: "Access the Vulnetix Vulnerability Database for CVE lookups, package vulnerabilities, and ecosystem data."
+---
 
 The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB) API, offering comprehensive vulnerability intelligence from multiple authoritative sources.
 

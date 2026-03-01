@@ -32,9 +32,18 @@ inputs:
     description: 'YAML array of tool configurations with category, artifact-name, format, and identifier'
     required: false
   task:
-    description: 'Task to perform: scan, release, report, triage'
+    description: 'Task to perform: scan, release, report, triage, upload'
     required: false
     default: 'scan'
+  api-key:
+    description: 'Direct API Key for Vulnetix authentication (hex digest)'
+    required: false
+  upload-file:
+    description: 'Path to artifact file to upload (used with task: upload)'
+    required: false
+  upload-format:
+    description: 'Override auto-detected artifact format (cyclonedx, spdx, sarif, openvex, csaf_vex)'
+    required: false
   production-branch:
     description: 'Production branch name (mandatory for release task unless in PR context)'
     required: false
@@ -54,6 +63,9 @@ outputs:
   summary:
     description: 'Summary of vulnerabilities processed'
     value: ${{ steps.vulnetix-run.outputs.summary }}
+  upload-uuid:
+    description: 'Pipeline UUID of the uploaded artifact (when task is upload)'
+    value: ${{ steps.vulnetix-run.outputs.upload-uuid }}
 
 runs:
   using: 'composite'
@@ -134,52 +146,90 @@ runs:
         
         echo "Vulnetix CLI setup complete"
 
+    - name: Authenticate with Vulnetix
+      if: inputs.api-key != ''
+      shell: bash
+      run: |
+        vulnetix auth login \
+          --method apikey \
+          --org-id '${{ inputs.org-id }}' \
+          --secret '${{ inputs.api-key }}' \
+          --store project
+
+    - name: Verify Vulnetix Authentication
+      if: inputs.api-key != ''
+      shell: bash
+      run: |
+        vulnetix auth verify
+
     - name: Run Vulnetix CLI
       id: vulnetix-run
       shell: bash
       run: |
         echo "Running Vulnetix CLI with org-id: ${{ inputs.org-id }}"
-        
-        # Build command arguments
+
+        # Handle upload task separately
+        if [ "${{ inputs.task }}" = "upload" ]; then
+          UPLOAD_ARGS="upload --file '${{ inputs.upload-file }}' --org-id '${{ inputs.org-id }}' --json"
+
+          if [ -n "${{ inputs.upload-format }}" ]; then
+            UPLOAD_ARGS="$UPLOAD_ARGS --format '${{ inputs.upload-format }}'"
+          fi
+
+          RESULT=$(eval "vulnetix $UPLOAD_ARGS")
+          echo "$RESULT"
+
+          # Extract pipeline ID for output
+          PIPELINE_ID=$(echo "$RESULT" | jq -r '.pipeline_id // empty' 2>/dev/null || true)
+          if [ -n "$PIPELINE_ID" ]; then
+            echo "upload-uuid=$PIPELINE_ID" >> $GITHUB_OUTPUT
+          fi
+
+          echo "result=success" >> $GITHUB_OUTPUT
+          echo "summary=Artifact uploaded successfully" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Build command arguments for other tasks
         ARGS="--org-id ${{ inputs.org-id }}"
-        
+
         if [ -n "${{ inputs.project-name }}" ]; then
           ARGS="$ARGS --project-name '${{ inputs.project-name }}'"
         fi
-        
+
         if [ -n "${{ inputs.product-name }}" ]; then
           ARGS="$ARGS --product-name '${{ inputs.product-name }}'"
         fi
-        
+
         if [ -n "${{ inputs.team-name }}" ]; then
           ARGS="$ARGS --team-name '${{ inputs.team-name }}'"
         fi
-        
+
         if [ -n "${{ inputs.group-name }}" ]; then
           ARGS="$ARGS --group-name '${{ inputs.group-name }}'"
         fi
-        
+
         if [ -n "${{ inputs.tags }}" ]; then
           ARGS="$ARGS --tags '${{ inputs.tags }}'"
         fi
-        
+
         if [ -n "${{ inputs.tools }}" ]; then
           ARGS="$ARGS --tools '${{ inputs.tools }}'"
         fi
-        
+
         # Add task argument
         ARGS="$ARGS --task '${{ inputs.task }}'"
-        
+
         # Add release mode arguments if task is release
         if [ "${{ inputs.task }}" = "release" ]; then
           ARGS="$ARGS --production-branch '${PRODUCTION_BRANCH}'"
           ARGS="$ARGS --release-branch '${RELEASE_BRANCH}'"
           ARGS="$ARGS --workflow-timeout '${{ inputs.workflow-run-timeout }}'"
         fi
-        
+
         # Execute Vulnetix CLI
         eval "vulnetix $ARGS"
-        
+
         # Set outputs (these would be set by the actual CLI)
         echo "result=success" >> $GITHUB_OUTPUT
         echo "summary=Vulnerability analysis completed" >> $GITHUB_OUTPUT

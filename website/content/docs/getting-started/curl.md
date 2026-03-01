@@ -1,4 +1,8 @@
-# Vulnetix Direct Binary Download (curl)
+---
+title: "Direct Download (curl)"
+weight: 5
+description: "Download and install the Vulnetix CLI binary directly using curl."
+---
 
 Direct binary downloads provide the fastest way to install Vulnetix without package managers or dependency on external tools.
 
@@ -241,14 +245,14 @@ error() {
 # Detect platform and architecture
 detect_platform() {
     local os arch
-    
+
     case "$(uname -s)" in
         Linux*)     os="linux" ;;
         Darwin*)    os="darwin" ;;
         CYGWIN*|MINGW*|MSYS*) os="windows" ;;
         *)          error "Unsupported operating system: $(uname -s)" ;;
     esac
-    
+
     case "$(uname -m)" in
         x86_64|amd64)   arch="amd64" ;;
         arm64|aarch64)  arch="arm64" ;;
@@ -256,7 +260,7 @@ detect_platform() {
         i386|i686)      arch="386" ;;
         *)              error "Unsupported architecture: $(uname -m)" ;;
     esac
-    
+
     echo "${os}-${arch}"
 }
 
@@ -270,25 +274,25 @@ get_latest_version() {
 # Download and install
 install_vulnetix() {
     local platform version download_url temp_dir
-    
+
     platform=$(detect_platform)
-    
+
     if [ "$VERSION" = "latest" ]; then
         version=$(get_latest_version)
         log "Latest version detected: $version"
     else
         version="$VERSION"
     fi
-    
+
     download_url="https://github.com/vulnetix/vulnetix/releases/download/${version}/vulnetix-${platform}.tar.gz"
     temp_dir=$(mktemp -d)
-    
+
     log "Downloading from: $download_url"
-    
+
     # Download with retry logic
     local retry_count=0
     local max_retries=3
-    
+
     while [ $retry_count -lt $max_retries ]; do
         if curl -L --fail -o "${temp_dir}/vulnetix.tar.gz" "$download_url"; then
             break
@@ -298,35 +302,35 @@ install_vulnetix() {
             sleep 2
         fi
     done
-    
+
     if [ $retry_count -eq $max_retries ]; then
         error "Failed to download after $max_retries attempts"
     fi
-    
+
     # Extract and install
     log "Extracting to $temp_dir"
     tar -xzf "${temp_dir}/vulnetix.tar.gz" -C "$temp_dir"
-    
+
     # Check if binary exists and is executable
     if [ ! -f "${temp_dir}/vulnetix" ]; then
         error "Binary not found in archive"
     fi
-    
+
     chmod +x "${temp_dir}/vulnetix"
-    
+
     # Install binary
     log "Installing to $INSTALL_DIR"
-    
+
     if [ ! -w "$INSTALL_DIR" ]; then
         log "Installing with sudo (requires password)"
         sudo install "${temp_dir}/vulnetix" "$INSTALL_DIR/"
     else
         install "${temp_dir}/vulnetix" "$INSTALL_DIR/"
     fi
-    
+
     # Cleanup
     rm -rf "$temp_dir"
-    
+
     # Verify installation
     if command -v vulnetix >/dev/null 2>&1; then
         log "Installation successful!"
@@ -339,13 +343,13 @@ install_vulnetix() {
 # Pre-installation checks
 check_dependencies() {
     local missing_deps=""
-    
+
     for cmd in curl tar; do
         if ! command -v $cmd >/dev/null 2>&1; then
             missing_deps="$missing_deps $cmd"
         fi
     done
-    
+
     if [ -n "$missing_deps" ]; then
         error "Missing required dependencies:$missing_deps"
     fi
@@ -365,11 +369,11 @@ check_existing() {
 # Main installation flow
 main() {
     log "Starting Vulnetix installation..."
-    
+
     check_dependencies
     check_existing
     install_vulnetix
-    
+
     log "Vulnetix installation completed successfully!"
 }
 
@@ -400,12 +404,12 @@ if [ -n "$ENTERPRISE_TOKEN" ]; then
     curl -H "Authorization: Bearer $ENTERPRISE_TOKEN" \
          -L -o vulnetix.tar.gz \
          "$ENTERPRISE_REGISTRY/vulnetix/releases/latest/vulnetix-linux-amd64.tar.gz"
-    
+
     if [ "$VALIDATE_CHECKSUM" = "true" ]; then
         curl -H "Authorization: Bearer $ENTERPRISE_TOKEN" \
              -L -o vulnetix.tar.gz.sha256 \
              "$ENTERPRISE_REGISTRY/vulnetix/releases/latest/vulnetix-linux-amd64.tar.gz.sha256"
-        
+
         sha256sum -c vulnetix.tar.gz.sha256
     fi
 else
@@ -457,20 +461,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Download Vulnetix
       run: |
         curl -L -o vulnetix.tar.gz https://github.com/vulnetix/vulnetix/releases/latest/download/vulnetix-linux-amd64.tar.gz
         tar -xzf vulnetix.tar.gz
         sudo mv vulnetix /usr/local/bin/
         vulnetix --version
-    
+
     - name: Run Security Scan
       env:
         VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
       run: |
         vulnetix scan --project . --output-format sarif --output-file security-results.sarif
-    
+
     - name: Upload SARIF results
       uses: github/codeql-action/upload-sarif@v3
       with:
@@ -507,7 +511,7 @@ security_scan:
 // Jenkinsfile
 pipeline {
     agent any
-    
+
     stages {
         stage('Install Vulnetix') {
             steps {
@@ -519,7 +523,7 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Security Scan') {
             steps {
                 withCredentials([string(credentialsId: 'vulnetix-org-id', variable: 'VULNETIX_ORG_ID')]) {
@@ -607,13 +611,13 @@ set -e
 # Detect platform
 detect_platform() {
     local os arch
-    
+
     case "$(uname -s)" in
         Linux*)     os="linux" ;;
         Darwin*)    os="darwin" ;;
         *)          echo "Unsupported OS: $(uname -s)" >&2; exit 1 ;;
     esac
-    
+
     case "$(uname -m)" in
         x86_64|amd64)   arch="amd64" ;;
         arm64|aarch64)  arch="arm64" ;;
@@ -621,7 +625,7 @@ detect_platform() {
         i386|i686)      arch="386" ;;
         *)              echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;;
     esac
-    
+
     echo "${os}-${arch}"
 }
 

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/vulnetix/internal/auth"
 	"github.com/vulnetix/vulnetix/internal/vdb"
 )
 
@@ -14,6 +15,7 @@ var (
 	vdbSecretKey string
 	vdbBaseURL   string
 	vdbOutput    string
+	vdbCreds     *auth.Credentials
 )
 
 // vdbCmd represents the vdb command
@@ -51,15 +53,23 @@ Examples:
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Load credentials if not provided via flags
 		if vdbOrgID == "" || vdbSecretKey == "" {
-			orgID, secret, err := vdb.LoadCredentials()
+			creds, err := vdb.LoadFullCredentials()
 			if err != nil {
 				return err
 			}
+			vdbCreds = creds
 			if vdbOrgID == "" {
-				vdbOrgID = orgID
+				vdbOrgID = creds.OrgID
 			}
 			if vdbSecretKey == "" {
-				vdbSecretKey = secret
+				vdbSecretKey = creds.Secret
+			}
+		} else {
+			// Flags provided — use SigV4 as default
+			vdbCreds = &auth.Credentials{
+				OrgID:  vdbOrgID,
+				Secret: vdbSecretKey,
+				Method: auth.SigV4,
 			}
 		}
 		return nil
@@ -80,10 +90,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cveID := args[0]
 
-		client := vdb.NewClient(vdbOrgID, vdbSecretKey)
-		if vdbBaseURL != "" {
-			client.BaseURL = vdbBaseURL
-		}
+		client := newVDBClient()
 
 		if vdbOutput == "json" {
 			fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s...\n", cveID)
@@ -110,10 +117,7 @@ Examples:
   vulnetix vdb ecosystems
   vulnetix vdb ecosystems --output json`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := vdb.NewClient(vdbOrgID, vdbSecretKey)
-		if vdbBaseURL != "" {
-			client.BaseURL = vdbBaseURL
-		}
+		client := newVDBClient()
 
 		if vdbOutput == "json" {
 			fmt.Fprintln(os.Stderr, "🌐 Fetching available ecosystems...")
@@ -165,10 +169,7 @@ Examples:
 		limit, _ := cmd.Flags().GetInt("limit")
 		offset, _ := cmd.Flags().GetInt("offset")
 
-		client := vdb.NewClient(vdbOrgID, vdbSecretKey)
-		if vdbBaseURL != "" {
-			client.BaseURL = vdbBaseURL
-		}
+		client := newVDBClient()
 
 		// If version is provided, get specific version info
 		if len(args) > 1 {
@@ -234,10 +235,7 @@ Examples:
 		limit, _ := cmd.Flags().GetInt("limit")
 		offset, _ := cmd.Flags().GetInt("offset")
 
-		client := vdb.NewClient(vdbOrgID, vdbSecretKey)
-		if vdbBaseURL != "" {
-			client.BaseURL = vdbBaseURL
-		}
+		client := newVDBClient()
 
 		if vdbOutput == "json" {
 			fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
@@ -289,10 +287,7 @@ Examples:
   vulnetix vdb spec
   vulnetix vdb spec --output json > vdb-spec.json`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := vdb.NewClient(vdbOrgID, vdbSecretKey)
-		if vdbBaseURL != "" {
-			client.BaseURL = vdbBaseURL
-		}
+		client := newVDBClient()
 
 		if vdbOutput == "json" {
 			fmt.Fprintln(os.Stderr, "📋 Fetching OpenAPI specification...")
@@ -307,6 +302,22 @@ Examples:
 
 		return printOutput(spec, vdbOutput)
 	},
+}
+
+// newVDBClient creates a VDB client using the loaded credentials
+func newVDBClient() *vdb.Client {
+	if vdbCreds != nil {
+		client := vdb.NewClientFromCredentials(vdbCreds)
+		if vdbBaseURL != "" && vdbBaseURL != vdb.DefaultBaseURL {
+			client.BaseURL = vdbBaseURL
+		}
+		return client
+	}
+	client := vdb.NewClient(vdbOrgID, vdbSecretKey)
+	if vdbBaseURL != "" {
+		client.BaseURL = vdbBaseURL
+	}
+	return client
 }
 
 // printOutput prints the output in the specified format

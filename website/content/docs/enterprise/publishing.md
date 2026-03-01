@@ -1,4 +1,8 @@
-# Publishing & Distribution Guide
+---
+title: "Publishing & Distribution"
+weight: 2
+description: "How Vulnetix CLI is published and distributed across platforms and package managers."
+---
 
 This document outlines how Vulnetix CLI is published and distributed across different platforms and package managers.
 
@@ -8,12 +12,12 @@ Vulnetix CLI is distributed through multiple channels to support various user pr
 
 | Distribution Method | Automation | Registry/Repository | Maintenance |
 |-------------------|------------|-------------------|-------------|
-| **GitHub Releases** | ✅ Automated | GitHub Releases | Auto-published on tags |
-| **Docker Hub** | ✅ Automated | docker.io/vulnetix/vulnetix | Multi-arch images |
-| **Go Install** | ✅ Automated | GitHub Releases | Uses GitHub releases |
-| **Homebrew** | ✅ Automated | vulnetix/homebrew-vulnetix | Formula auto-updated |
-| **Chocolatey** | ✅ Automated | Chocolatey Gallery | Package auto-published |
-| **GitHub Actions** | ✅ Automated | GitHub Marketplace | Action metadata in repo |
+| **GitHub Releases** | Automated | GitHub Releases | Auto-published on tags |
+| **Docker Hub** | Automated | docker.io/vulnetix/vulnetix | Multi-arch images |
+| **Go Install** | Automated | GitHub Releases | Uses GitHub releases |
+| **Homebrew** | Automated | vulnetix/homebrew-vulnetix | Formula auto-updated |
+| **Chocolatey** | Automated | Chocolatey Gallery | Package auto-published |
+| **GitHub Actions** | Automated | GitHub Marketplace | Action metadata in repo |
 
 ## Publishing Process
 
@@ -27,7 +31,7 @@ Vulnetix CLI is distributed through multiple channels to support various user pr
 - Checksums file
 - Release notes
 
-**Workflow:** `.github/workflows/release.yml` → `release` job
+**Workflow:** `.github/workflows/release.yml` -> `release` job
 
 **Usage by end users:**
 ```bash
@@ -50,7 +54,7 @@ go install github.com/vulnetix/vulnetix@v1.2.3
 
 **Platforms:** `linux/amd64`, `linux/arm64`, `linux/arm/v7`
 
-**Workflow:** `.github/workflows/release.yml` → `docker` job
+**Workflow:** `.github/workflows/release.yml` -> `docker` job
 
 **Required Secrets:**
 - `DOCKER_USERNAME`: Docker Hub username
@@ -75,7 +79,7 @@ podman run --rm vulnetix/vulnetix:latest --help
 
 **Formula:** `vulnetix.rb`
 
-**Workflow:** `.github/workflows/release.yml` → `homebrew` job
+**Workflow:** `.github/workflows/release.yml` -> `homebrew` job
 
 **Required Secrets:**
 - `HOMEBREW_TAP_TOKEN`: GitHub token with write access to tap repository
@@ -94,7 +98,7 @@ brew install vulnetix
 
 **Package ID:** `vulnetix`
 
-**Workflow:** `.github/workflows/release.yml` → `chocolatey` job
+**Workflow:** `.github/workflows/release.yml` -> `chocolatey` job
 
 **Required Secrets:**
 - `CHOCOLATEY_API_KEY`: Chocolatey API key for publishing
