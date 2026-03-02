@@ -14,7 +14,7 @@ inputs:
     required: false
     default: 'latest'
   task:
-    description: 'Task to perform: info, upload'
+    description: 'Task to perform: info, upload, gha'
     required: false
     default: 'info'
   api-key:
@@ -85,7 +85,15 @@ runs:
       run: |
         echo "Running Vulnetix CLI with org-id: ${{ inputs.org-id }}"
 
-        # Handle upload task separately
+        # Handle gha task - upload all workflow artifacts via GitHub API
+        if [ "${{ inputs.task }}" = "gha" ]; then
+          vulnetix gha upload --org-id '${{ inputs.org-id }}' --json
+          echo "result=success" >> $GITHUB_OUTPUT
+          echo "summary=GitHub Actions artifacts uploaded successfully" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Handle upload task - upload a single file directly
         if [ "${{ inputs.task }}" = "upload" ]; then
           UPLOAD_ARGS="upload --file '${{ inputs.upload-file }}' --org-id '${{ inputs.org-id }}' --json"
 
