@@ -158,6 +158,9 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	// Create upload client (same API as 'vulnetix upload')
 	uploadClient := upload.NewClient(ghaBaseURL, creds)
 
+	// Collect GitHub Actions environment metadata and attach to upload client
+	uploadClient.GitHubContext = collectGitHubActionsContext()
+
 	// Download and upload each artifact
 	fmt.Println("Uploading artifacts...")
 	type uploadResult struct {
@@ -357,6 +360,46 @@ func runGHAStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// collectGitHubActionsContext gathers all available GitHub Actions environment variables
+// into a GitHubActionsContext struct for sending with upload requests.
+func collectGitHubActionsContext() *upload.GitHubActionsContext {
+	ctx := &upload.GitHubActionsContext{
+		Repository:      os.Getenv("GITHUB_REPOSITORY"),
+		RepositoryOwner: os.Getenv("GITHUB_REPOSITORY_OWNER"),
+		RunID:           os.Getenv("GITHUB_RUN_ID"),
+		RunNumber:       os.Getenv("GITHUB_RUN_NUMBER"),
+		WorkflowName:    os.Getenv("GITHUB_WORKFLOW"),
+		JobName:         os.Getenv("GITHUB_JOB"),
+		SHA:             os.Getenv("GITHUB_SHA"),
+		RefName:         os.Getenv("GITHUB_REF_NAME"),
+		RefType:         os.Getenv("GITHUB_REF_TYPE"),
+		EventName:       os.Getenv("GITHUB_EVENT_NAME"),
+		Actor:           os.Getenv("GITHUB_ACTOR"),
+		ServerURL:       os.Getenv("GITHUB_SERVER_URL"),
+		APIURL:          os.Getenv("GITHUB_API_URL"),
+	}
+
+	// Collect additional env vars that may be useful for context
+	extra := map[string]string{}
+	for _, key := range []string{
+		"GITHUB_HEAD_REF",
+		"GITHUB_BASE_REF",
+		"GITHUB_RUN_ATTEMPT",
+		"GITHUB_TRIGGERING_ACTOR",
+		"RUNNER_OS",
+		"RUNNER_ARCH",
+	} {
+		if v := os.Getenv(key); v != "" {
+			extra[key] = v
+		}
+	}
+	if len(extra) > 0 {
+		ctx.ExtraEnvVars = extra
+	}
+
+	return ctx
 }
 
 func init() {

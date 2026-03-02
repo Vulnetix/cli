@@ -22,11 +22,30 @@ const (
 	DefaultChunkSize = 5 * 1024 * 1024 // 5 MB
 )
 
+// GitHubActionsContext contains GitHub Actions environment metadata sent with uploads
+type GitHubActionsContext struct {
+	Repository      string            `json:"repository"`
+	RepositoryOwner string            `json:"repositoryOwner"`
+	RunID           string            `json:"runId"`
+	RunNumber       string            `json:"runNumber"`
+	WorkflowName    string            `json:"workflowName"`
+	JobName         string            `json:"jobName"`
+	SHA             string            `json:"sha"`
+	RefName         string            `json:"refName"`
+	RefType         string            `json:"refType"`
+	EventName       string            `json:"eventName"`
+	Actor           string            `json:"actor"`
+	ServerURL       string            `json:"serverUrl"`
+	APIURL          string            `json:"apiUrl"`
+	ExtraEnvVars    map[string]string `json:"extraEnvVars,omitempty"`
+}
+
 // Client handles file uploads to the Vulnetix API
 type Client struct {
-	BaseURL    string
-	Creds      *auth.Credentials
-	HTTPClient *http.Client
+	BaseURL       string
+	Creds         *auth.Credentials
+	HTTPClient    *http.Client
+	GitHubContext *GitHubActionsContext
 }
 
 // InitiateResponse is returned when starting an upload session
@@ -138,6 +157,9 @@ func (c *Client) InitiateSession(fileName string, fileSize int, contentType stri
 		"totalChunks": totalChunks,
 		"chunkSize":   chunkSize,
 		"source":      source,
+	}
+	if c.GitHubContext != nil {
+		body["githubContext"] = c.GitHubContext
 	}
 
 	respBody, err := c.doRequest("POST", "/artifact-upload/initiate", body)
