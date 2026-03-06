@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,6 +24,8 @@ const (
 	Service        = "vdb"
 	Algorithm      = "AWS4-HMAC-SHA512"
 	TokenExpiry    = 15 * time.Minute
+	MaxRetries     = 2
+	BaseBackoff    = 2 * time.Second
 )
 
 // RateLimitInfo holds rate limit data returned in API response headers.
@@ -226,66 +230,104 @@ func (c *Client) signRequest(req *http.Request, path, body string) error {
 	return nil
 }
 
-// DoRequest performs an authenticated API request
+// DoRequest performs an authenticated API request with retry for transient errors.
 func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error) {
-	// Prepare request body
-	var bodyReader io.Reader
+	// Marshal body once before retry loop
+	var bodyBytes []byte
 	if body != nil {
-		bodyBytes, err := json.Marshal(body)
+		var err error
+		bodyBytes, err = json.Marshal(body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal request body: %w", err)
 		}
-		bodyReader = bytes.NewReader(bodyBytes)
 	}
 
-	// Create the request
-	url := c.BaseURL + path
-	req, err := http.NewRequest(method, url, bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Set auth header based on method
+	// Resolve auth header once before retry loop
+	var authHeader string
 	switch c.AuthMethod {
 	case auth.DirectAPIKey:
-		req.Header.Set("Authorization", fmt.Sprintf("ApiKey %s:%s", c.OrgID, c.APIKey))
+		authHeader = fmt.Sprintf("ApiKey %s:%s", c.OrgID, c.APIKey)
 	default:
-		// SigV4: get a valid Bearer token
 		token, err := c.GetToken()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get token: %w", err)
 		}
-		req.Header.Set("Authorization", "Bearer "+token)
+		authHeader = "Bearer " + token
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	url := c.BaseURL + path
+	var lastErr error
 
-	// Execute the request
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Capture rate limit headers
-	c.LastRateLimit = parseRateLimitHeaders(resp)
-
-	// Read the response
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// Check for errors
-	if resp.StatusCode >= 400 {
-		var errResp ErrorResponse
-		if err := json.Unmarshal(responseBody, &errResp); err == nil {
-			return nil, fmt.Errorf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
+	for attempt := 0; attempt <= MaxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := BaseBackoff * time.Duration(1<<(attempt-1))
+			fmt.Fprintf(os.Stderr, "[vdb] retry %d/%d after %s: %v\n", attempt, MaxRetries, backoff, lastErr)
+			time.Sleep(backoff)
 		}
-		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(responseBody))
+
+		var bodyReader io.Reader
+		if bodyBytes != nil {
+			bodyReader = bytes.NewReader(bodyBytes)
+		}
+
+		req, err := http.NewRequest(method, url, bodyReader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Authorization", authHeader)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			if isRetryableError(err) && attempt < MaxRetries {
+				lastErr = err
+				continue
+			}
+			return nil, fmt.Errorf("failed to execute request: %w", err)
+		}
+
+		// Capture rate limit headers
+		c.LastRateLimit = parseRateLimitHeaders(resp)
+
+		responseBody, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if isRetryableStatus(resp.StatusCode) && attempt < MaxRetries {
+			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
+			continue
+		}
+
+		if resp.StatusCode >= 400 {
+			var errResp ErrorResponse
+			if err := json.Unmarshal(responseBody, &errResp); err == nil {
+				return nil, fmt.Errorf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
+			}
+			return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(responseBody))
+		}
+
+		return responseBody, nil
 	}
 
-	return responseBody, nil
+	return nil, fmt.Errorf("request failed after %d retries: %w", MaxRetries, lastErr)
+}
+
+// isRetryableError returns true for timeout and temporary network errors.
+func isRetryableError(err error) bool {
+	if os.IsTimeout(err) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "deadline exceeded") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "connection reset")
+}
+
+// isRetryableStatus returns true for gateway errors that indicate upstream unavailability.
+func isRetryableStatus(code int) bool {
+	return code == 502 || code == 503 || code == 504
 }
 
 // parseRateLimitHeaders extracts rate limit info from response headers.
