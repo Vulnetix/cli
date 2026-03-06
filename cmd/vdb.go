@@ -600,6 +600,151 @@ func printOutput(data interface{}, format string) error {
 	}
 }
 
+// sourcesCmd lists vulnerability data sources
+var sourcesCmd = &cobra.Command{
+	Use:   "sources",
+	Short: "List vulnerability data sources",
+	Long: `List all vulnerability data sources tracked by the VDB.
+
+Examples:
+  vulnetix vdb sources
+  vulnetix vdb sources --output json`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintln(os.Stderr, "📡 Fetching vulnerability data sources...")
+		} else {
+			fmt.Println("📡 Fetching vulnerability data sources...")
+		}
+
+		result, err := client.GetSources()
+		if err != nil {
+			return fmt.Errorf("failed to get sources: %w", err)
+		}
+		printRateLimit(client)
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// metricTypesCmd lists vulnerability metric/scoring types
+var metricTypesCmd = &cobra.Command{
+	Use:   "metric-types",
+	Short: "List vulnerability metric/scoring types",
+	Long: `List all vulnerability metric and scoring types tracked by the VDB.
+
+Examples:
+  vulnetix vdb metric-types
+  vulnetix vdb metric-types --output json`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintln(os.Stderr, "📊 Fetching vulnerability metric types...")
+		} else {
+			fmt.Println("📊 Fetching vulnerability metric types...")
+		}
+
+		result, err := client.GetMetricTypes()
+		if err != nil {
+			return fmt.Errorf("failed to get metric types: %w", err)
+		}
+		printRateLimit(client)
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// exploitSourcesCmd lists exploit intelligence sources
+var exploitSourcesCmd = &cobra.Command{
+	Use:   "exploit-sources",
+	Short: "List exploit intelligence sources",
+	Long: `List all exploit intelligence sources tracked by the VDB.
+
+Examples:
+  vulnetix vdb exploit-sources
+  vulnetix vdb exploit-sources --output json`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintln(os.Stderr, "🔎 Fetching exploit intelligence sources...")
+		} else {
+			fmt.Println("🔎 Fetching exploit intelligence sources...")
+		}
+
+		result, err := client.GetExploitSources()
+		if err != nil {
+			return fmt.Errorf("failed to get exploit sources: %w", err)
+		}
+		printRateLimit(client)
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// exploitTypesCmd lists exploit type classifications
+var exploitTypesCmd = &cobra.Command{
+	Use:   "exploit-types",
+	Short: "List exploit type classifications",
+	Long: `List all exploit type classifications tracked by the VDB.
+
+Examples:
+  vulnetix vdb exploit-types
+  vulnetix vdb exploit-types --output json`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintln(os.Stderr, "💣 Fetching exploit type classifications...")
+		} else {
+			fmt.Println("💣 Fetching exploit type classifications...")
+		}
+
+		result, err := client.GetExploitTypes()
+		if err != nil {
+			return fmt.Errorf("failed to get exploit types: %w", err)
+		}
+		printRateLimit(client)
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// fixDistributionsCmd lists supported Linux distributions for fix advisories
+var fixDistributionsCmd = &cobra.Command{
+	Use:   "fix-distributions",
+	Short: "List supported Linux distributions for fix advisories",
+	Long: `List all supported Linux distributions for fix advisories in the VDB.
+
+Examples:
+  vulnetix vdb fix-distributions
+  vulnetix vdb fix-distributions --output json`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintln(os.Stderr, "🐧 Fetching supported fix distributions...")
+		} else {
+			fmt.Println("🐧 Fetching supported fix distributions...")
+		}
+
+		result, err := client.GetFixDistributions()
+		if err != nil {
+			return fmt.Errorf("failed to get fix distributions: %w", err)
+		}
+		printRateLimit(client)
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
 func init() {
 	// Add vdb command to root
 	rootCmd.AddCommand(vdbCmd)
@@ -614,6 +759,11 @@ func init() {
 	vdbCmd.AddCommand(fixesCmd)
 	vdbCmd.AddCommand(versionsCmd)
 	vdbCmd.AddCommand(gcveCmd)
+	vdbCmd.AddCommand(sourcesCmd)
+	vdbCmd.AddCommand(metricTypesCmd)
+	vdbCmd.AddCommand(exploitSourcesCmd)
+	vdbCmd.AddCommand(exploitTypesCmd)
+	vdbCmd.AddCommand(fixDistributionsCmd)
 
 	// Global flags
 	vdbCmd.PersistentFlags().StringVar(&vdbOrgID, "org-id", "", "Organization UUID (overrides VVD_ORG env var)")

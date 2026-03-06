@@ -17,8 +17,12 @@ import (
 
 var (
 	// Command line flags
-	orgID   string
-	version = "1.0.0" // This will be set during build
+	orgID string
+
+	// Build metadata (injected via ldflags)
+	version   = "1.0.0"   // -X github.com/vulnetix/cli/cmd.version=
+	commit    = "unknown"  // -X github.com/vulnetix/cli/cmd.commit=
+	buildDate = "unknown"  // -X github.com/vulnetix/cli/cmd.buildDate=
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -193,14 +197,4 @@ func init() {
 	// Define flags
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
 
-	// Add version command
-	versionCmd := &cobra.Command{
-		Use:   "version",
-		Short: "Print the version number of Vulnetix CLI",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Vulnetix CLI v%s\n", version)
-		},
-	}
-
-	rootCmd.AddCommand(versionCmd)
 }

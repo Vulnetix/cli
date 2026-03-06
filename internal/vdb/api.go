@@ -263,6 +263,81 @@ func (c *Client) GetCVEsByDateRange(start, end string) (map[string]interface{}, 
 	return result, nil
 }
 
+// GetSources retrieves the list of vulnerability data sources
+func (c *Client) GetSources() (map[string]interface{}, error) {
+	respBody, err := c.DoRequest("GET", "/sources", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetMetricTypes retrieves the list of vulnerability metric/scoring types
+func (c *Client) GetMetricTypes() (map[string]interface{}, error) {
+	respBody, err := c.DoRequest("GET", "/metric-types", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetExploitSources retrieves the list of exploit intelligence sources
+func (c *Client) GetExploitSources() (map[string]interface{}, error) {
+	respBody, err := c.DoRequest("GET", "/exploit-sources", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetExploitTypes retrieves the list of exploit type classifications
+func (c *Client) GetExploitTypes() (map[string]interface{}, error) {
+	respBody, err := c.DoRequest("GET", "/exploit-types", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetFixDistributions retrieves the list of supported Linux distributions for fix advisories
+func (c *Client) GetFixDistributions() (map[string]interface{}, error) {
+	respBody, err := c.DoRequest("GET", "/fix-distributions", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
 // GetProductVersionEcosystem retrieves product version information scoped to a specific ecosystem
 func (c *Client) GetProductVersionEcosystem(productName, version, ecosystem string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("/product/%s/%s/%s",
