@@ -141,7 +141,12 @@
       "Bash(make lint:*)",
       "Bash(go mod:*)",
       "Bash(go vet:*)",
-      "Bash(go:*)"
+      "Bash(go:*)",
+      "Bash(./bin/vulnetix version:*)",
+      "Bash(just dev:*)",
+      "Bash(gh repo:*)",
+      "Bash(aws ecs:*)",
+      "Bash(gh run:*)"
     ],
     "deny": [
       "Bash(dd:*)",

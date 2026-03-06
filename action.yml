@@ -57,7 +57,9 @@ runs:
         cd "$ACTION_DIR"
 
         mkdir -p "$HOME/bin"
-        go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=${{ inputs.version }}" -o "$HOME/bin/vulnetix" .
+        COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        go build -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=${{ inputs.version }} -X github.com/vulnetix/cli/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/cmd.buildDate=${BUILD_DATE}" -o "$HOME/bin/vulnetix" .
 
         echo "$HOME/bin" >> $GITHUB_PATH
 

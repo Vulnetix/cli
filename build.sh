@@ -4,6 +4,8 @@ set -e
 
 # Configuration
 VERSION=${VERSION:-"1.0.0"}
+COMMIT=${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")}
+BUILD_DATE=${BUILD_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}
 OUTPUT_DIR="bin"
 
 # Colors for output
@@ -41,7 +43,7 @@ for target in "${TARGETS[@]}"; do
     
     # Build
     CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build \
-        -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=${VERSION}" \
+        -ldflags "-s -w -X github.com/vulnetix/cli/cmd.version=${VERSION} -X github.com/vulnetix/cli/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/cmd.buildDate=${BUILD_DATE}" \
         -o "${OUTPUT_DIR}/${output_name}" \
         .
     
