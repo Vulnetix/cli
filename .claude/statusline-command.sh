@@ -122,6 +122,50 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
     [ "$staged" -gt 0 ] && git_info="$git_info ●$staged"
 fi
 
+# VDB API health check (cached for 15 seconds)
+vdb_status=""
+vdb_cache="/tmp/vulnetix-vdb-health-cache"
+vdb_cache_ttl=15
+
+vdb_fetch=true
+if [ -f "$vdb_cache" ]; then
+    vdb_age=$(( $(date +%s) - $(stat -c%Y "$vdb_cache" 2>/dev/null || echo 0) ))
+    [ "$vdb_age" -lt "$vdb_cache_ttl" ] && vdb_fetch=false
+fi
+
+if $vdb_fetch; then
+    vdb_code=$(curl -s --max-time 2 -o /dev/null -w "%{http_code}" "https://api.vdb.vulnetix.com/health" 2>/dev/null || echo "000")
+    echo "$vdb_code" > "$vdb_cache"
+else
+    vdb_code=$(cat "$vdb_cache" 2>/dev/null || echo "000")
+fi
+
+case "$vdb_code" in
+    200)       vdb_status="${green_color}API:✓${reset_color}" ;;
+    000)       vdb_status="${red_color}API:✗${reset_color}" ;;
+    *)         vdb_status="${orange_color}API:${vdb_code}${reset_color}" ;;
+esac
+
+# CLI test status (reads cache written by 'just test')
+test_status=""
+test_cache="/tmp/vulnetix-cli-test-cache"
+
+if [ -f "$test_cache" ]; then
+    test_result=$(cat "$test_cache" 2>/dev/null)
+    test_age=$(( $(date +%s) - $(stat -c%Y "$test_cache" 2>/dev/null || echo 0) ))
+    if [ "$test_result" = "pass" ]; then
+        if [ "$test_age" -gt 300 ]; then
+            test_status="${orange_color}Tests:✓${reset_color}"  # stale pass (>5m)
+        else
+            test_status="${green_color}Tests:✓${reset_color}"
+        fi
+    else
+        test_status="${red_color}Tests:✗${reset_color}"
+    fi
+else
+    test_status="Tests:—"
+fi
+
 # Environment and tooling information (vdb-manager is a Node.js project)
 if [ -f "package.json" ]; then
     # Node.js environment
@@ -263,7 +307,7 @@ fi
 
 # Context window usage from current session
 context_display=""
-session_dir="$HOME/.claude/projects/-home-chris-GitHub-Vulnetix-saas"
+session_dir="$HOME/.claude/projects/-home-chris-GitHub-Vulnetix-cli"
 if [ -d "$session_dir" ]; then
     latest_jsonl=$(ls -t "$session_dir"/*.jsonl 2>/dev/null | head -1)
     if [ -n "$latest_jsonl" ]; then
@@ -308,14 +352,19 @@ if [ -n "$model_display" ]; then
     model_with_brackets="[${model_display}]"
 fi
 
+# Build indicators string
+indicators=""
+[ -n "$vdb_status" ] && indicators="$vdb_status"
+[ -n "$test_status" ] && indicators="${indicators:+$indicators }$test_status"
+
 if [ -n "$git_info" ] && [ -n "$env_info" ]; then
-    status_line="$git_info | $env_info $model_with_brackets"
+    status_line="$git_info | $env_info $indicators $model_with_brackets"
 elif [ -n "$git_info" ]; then
-    status_line="$git_info $model_with_brackets"
+    status_line="$git_info $indicators $model_with_brackets"
 elif [ -n "$env_info" ]; then
-    status_line="$env_info $model_with_brackets"
+    status_line="$env_info $indicators $model_with_brackets"
 else
-    status_line="$model_with_brackets"
+    status_line="$indicators $model_with_brackets"
 fi
 
 printf "%b\n" "$status_line"
