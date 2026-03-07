@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/spf13/cobra"
 	"encoding/json"
+	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/config"
@@ -21,8 +21,8 @@ var (
 
 	// Build metadata (injected via ldflags)
 	version   = "1.0.0"   // -X github.com/vulnetix/cli/cmd.version=
-	commit    = "unknown"  // -X github.com/vulnetix/cli/cmd.commit=
-	buildDate = "unknown"  // -X github.com/vulnetix/cli/cmd.buildDate=
+	commit    = "unknown" // -X github.com/vulnetix/cli/cmd.commit=
+	buildDate = "unknown" // -X github.com/vulnetix/cli/cmd.buildDate=
 )
 
 // rootCmd represents the base command when called without any subcommands
