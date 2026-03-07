@@ -51,8 +51,8 @@ func TestVersionCompare(t *testing.T) {
 		{"1.0.0", "1.0.1", -1},
 		{"2.0.0", "1.9.9", 1},
 		{"0.1.0", "0.0.9", 1},
-		{"1.0.0-dev", "1.0.0", -1},   // pre-release < release
-		{"1.0.0", "1.0.0-dev", 1},    // release > pre-release
+		{"1.0.0-dev", "1.0.0", -1},        // pre-release < release
+		{"1.0.0", "1.0.0-dev", 1},         // release > pre-release
 		{"1.0.0-alpha", "1.0.0-beta", -1}, // lexicographic
 		{"1.0.0-dev", "1.0.0-dev", 0},
 	}

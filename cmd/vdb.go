@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/internal/purl"
 	"github.com/vulnetix/cli/internal/vdb"
 )
 
@@ -745,6 +746,99 @@ Examples:
 	},
 }
 
+// purlCmd queries the VDB using a Package URL (PURL) string
+var purlCmd = &cobra.Command{
+	Use:   "purl <purl-string>",
+	Short: "Query VDB using a Package URL (PURL)",
+	Long: `Query the VDB API using a standard Package URL (PURL) string.
+
+The PURL is parsed to extract the package name, version, and ecosystem, then the
+appropriate VDB API endpoint is called automatically.
+
+Dispatch logic:
+  - Version + known ecosystem  → product version+ecosystem lookup
+  - Version + unknown ecosystem → product version lookup
+  - No version + --vulns       → package vulnerabilities
+  - No version (default)       → list product versions
+
+Examples:
+  vulnetix vdb purl "pkg:npm/express@4.17.1"
+  vulnetix vdb purl "pkg:maven/org.apache.commons/commons-lang3@3.12.0"
+  vulnetix vdb purl "pkg:pypi/requests" --vulns
+  vulnetix vdb purl "pkg:golang/github.com/go-chi/chi/v5@5.0.8" -o json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		p, err := purl.Parse(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to parse PURL: %w", err)
+		}
+
+		packageName := p.PackageName()
+		client := newVDBClient()
+
+		// Has version → product lookup
+		if p.Version != "" {
+			ecosystem, knownEco := purl.EcosystemForType(p.Type)
+			if knownEco {
+				if vdbOutput == "json" {
+					fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s (%s)...\n", packageName, p.Version, ecosystem)
+				} else {
+					fmt.Printf("🔍 Fetching %s@%s (%s)...\n", packageName, p.Version, ecosystem)
+				}
+				info, err := client.GetProductVersionEcosystem(packageName, p.Version, ecosystem)
+				if err != nil {
+					return fmt.Errorf("failed to get product version ecosystem: %w", err)
+				}
+				printRateLimit(client)
+				return printOutput(info, vdbOutput)
+			}
+
+			if vdbOutput == "json" {
+				fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s...\n", packageName, p.Version)
+			} else {
+				fmt.Printf("🔍 Fetching %s@%s...\n", packageName, p.Version)
+			}
+			info, err := client.GetProductVersion(packageName, p.Version)
+			if err != nil {
+				return fmt.Errorf("failed to get product version: %w", err)
+			}
+			printRateLimit(client)
+			return printOutput(info, vdbOutput)
+		}
+
+		// No version
+		showVulns, _ := cmd.Flags().GetBool("vulns")
+		limit, _ := cmd.Flags().GetInt("limit")
+		offset, _ := cmd.Flags().GetInt("offset")
+
+		if showVulns {
+			if vdbOutput == "json" {
+				fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
+			} else {
+				fmt.Printf("🔒 Fetching vulnerabilities for %s...\n", packageName)
+			}
+			resp, err := client.GetPackageVulnerabilities(packageName, limit, offset)
+			if err != nil {
+				return fmt.Errorf("failed to get vulnerabilities: %w", err)
+			}
+			printRateLimit(client)
+			return printOutput(resp, vdbOutput)
+		}
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", packageName)
+		} else {
+			fmt.Printf("📦 Fetching versions for %s...\n", packageName)
+		}
+		resp, err := client.GetProductVersions(packageName, limit, offset)
+		if err != nil {
+			return fmt.Errorf("failed to get product versions: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(resp, vdbOutput)
+	},
+}
+
 func init() {
 	// Add vdb command to root
 	rootCmd.AddCommand(vdbCmd)
@@ -764,6 +858,7 @@ func init() {
 	vdbCmd.AddCommand(exploitSourcesCmd)
 	vdbCmd.AddCommand(exploitTypesCmd)
 	vdbCmd.AddCommand(fixDistributionsCmd)
+	vdbCmd.AddCommand(purlCmd)
 
 	// Global flags
 	vdbCmd.PersistentFlags().StringVar(&vdbOrgID, "org-id", "", "Organization UUID (overrides VVD_ORG env var)")
@@ -777,6 +872,11 @@ func init() {
 
 	vulnsCmd.Flags().Int("limit", 100, "Maximum number of results to return (default 100; use with --offset for pagination)")
 	vulnsCmd.Flags().Int("offset", 0, "Number of results to skip (for pagination)")
+
+	// purl flags
+	purlCmd.Flags().Bool("vulns", false, "Show vulnerabilities instead of versions (only when PURL has no version)")
+	purlCmd.Flags().Int("limit", 100, "Maximum number of results to return (default 100; use with --offset for pagination)")
+	purlCmd.Flags().Int("offset", 0, "Number of results to skip (for pagination)")
 
 	// gcve date range flags
 	gcveCmd.Flags().String("start", "", "Start date (YYYY-MM-DD) [required]")
