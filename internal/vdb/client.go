@@ -41,13 +41,14 @@ type RateLimitInfo struct {
 
 // Client represents a VDB API client
 type Client struct {
-	BaseURL       string
-	OrgID         string
-	SecretKey     string
-	AuthMethod    auth.AuthMethod
-	APIKey        string // hex digest for Direct API Key auth
-	HTTPClient    *http.Client
-	LastRateLimit *RateLimitInfo
+	BaseURL         string
+	OrgID           string
+	SecretKey       string
+	AuthMethod      auth.AuthMethod
+	APIKey          string // hex digest for Direct API Key auth
+	HTTPClient      *http.Client
+	LastRateLimit   *RateLimitInfo
+	LastCacheStatus string // "HIT", "MISS", or "" if no X-Cache header
 	token         *TokenCache
 	tokenMutex    sync.RWMutex
 }
@@ -286,8 +287,9 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 			return nil, fmt.Errorf("failed to execute request: %w", err)
 		}
 
-		// Capture rate limit headers
+		// Capture rate limit and cache headers
 		c.LastRateLimit = parseRateLimitHeaders(resp)
+		c.LastCacheStatus = resp.Header.Get("X-Cache")
 
 		responseBody, err := io.ReadAll(resp.Body)
 		resp.Body.Close()

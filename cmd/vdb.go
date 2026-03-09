@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/auth"
@@ -549,8 +550,11 @@ Examples:
 	},
 }
 
-// printRateLimit prints rate limit info from the last API call to stderr.
+// printRateLimit prints rate limit and cache status from the last API call to stderr.
 func printRateLimit(client *vdb.Client) {
+	if client.LastCacheStatus != "" {
+		fmt.Fprintf(os.Stderr, "Cache: %s\n", strings.ToUpper(client.LastCacheStatus))
+	}
 	rl := client.LastRateLimit
 	if rl == nil || !rl.Present {
 		return
