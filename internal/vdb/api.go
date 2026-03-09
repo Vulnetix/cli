@@ -63,6 +63,43 @@ type VulnerabilitiesResponse struct {
 	RawData         interface{}     `json:"-"`               // full parsed response for fallback display
 }
 
+// GCVEIssuancesResponse represents the paginated GCVE issuances response
+type GCVEIssuancesResponse struct {
+	Timestamp   int64                    `json:"timestamp"`
+	Year        int                      `json:"year"`
+	Month       int                      `json:"month"`
+	Total       int                      `json:"total"`
+	Limit       int                      `json:"limit"`
+	Offset      int                      `json:"offset"`
+	HasMore     bool                     `json:"hasMore"`
+	Identifiers []GCVEIssuanceIdentifier `json:"identifiers"`
+}
+
+// GCVEIssuanceIdentifier represents a single GCVE issuance record
+type GCVEIssuanceIdentifier struct {
+	GcveID        string `json:"gcveId"`
+	CveID         string `json:"cveId"`
+	DatePublished int64  `json:"datePublished"`
+}
+
+// GetGCVEIssuances retrieves GCVE issuances for a given year/month with pagination
+func (c *Client) GetGCVEIssuances(year, month, limit, offset int) (*GCVEIssuancesResponse, error) {
+	path := fmt.Sprintf("/gcve/%d/%d", year, month)
+	path += buildPaginationQuery(limit, offset)
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp GCVEIssuancesResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &resp, nil
+}
+
 // GetCVE retrieves full vulnerability data for a specific CVE
 func (c *Client) GetCVE(cveID string) (*CVEInfo, error) {
 	path := fmt.Sprintf("/vuln/%s", cveID)
