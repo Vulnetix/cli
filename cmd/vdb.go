@@ -265,6 +265,61 @@ Examples:
 	},
 }
 
+// gcveIssuancesCmd lists GCVE issuance identifiers by calendar month
+var gcveIssuancesCmd = &cobra.Command{
+	Use:   "gcve-issuances",
+	Short: "List GCVE issuance identifiers by calendar month",
+	Long: `Retrieve a paginated list of GCVE issuance identifiers (GCVE-VVD-YYYY-NNNN) published in a given calendar month.
+
+Examples:
+  vulnetix vdb gcve-issuances --year 2025 --month 3
+  vulnetix vdb gcve-issuances --year 2025 --month 3 --output json
+  vulnetix vdb gcve-issuances --year 2025 --month 3 --limit 50 --offset 100`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		year, _ := cmd.Flags().GetInt("year")
+		month, _ := cmd.Flags().GetInt("month")
+		limit, _ := cmd.Flags().GetInt("limit")
+		offset, _ := cmd.Flags().GetInt("offset")
+
+		if year == 0 {
+			return fmt.Errorf("--year is required")
+		}
+		if month == 0 {
+			return fmt.Errorf("--month is required")
+		}
+		if month < 1 || month > 12 {
+			return fmt.Errorf("--month must be between 1 and 12")
+		}
+
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📋 Fetching GCVE issuances for %d/%02d...\n", year, month)
+		} else {
+			fmt.Printf("📋 Fetching GCVE issuances for %d/%02d...\n", year, month)
+		}
+
+		resp, err := client.GetGCVEIssuances(year, month, limit, offset)
+		if err != nil {
+			return fmt.Errorf("failed to get GCVE issuances: %w", err)
+		}
+		printRateLimit(client)
+
+		if vdbOutput != "json" {
+			fmt.Printf("Found %d GCVE issuances (showing %d-%d):\n", resp.Total, offset+1, offset+len(resp.Identifiers))
+			for _, id := range resp.Identifiers {
+				fmt.Printf("  %s (cveId: %s)\n", id.GcveID, id.CveID)
+			}
+			if resp.HasMore {
+				fmt.Printf("\nMore results available. Use --offset %d to see the next page.\n", offset+limit)
+			}
+			return nil
+		}
+
+		return printOutput(resp, vdbOutput)
+	},
+}
+
 // ecosystemsCmd lists available ecosystems
 var ecosystemsCmd = &cobra.Command{
 	Use:   "ecosystems",
@@ -853,6 +908,7 @@ func init() {
 	vdbCmd.AddCommand(fixesCmd)
 	vdbCmd.AddCommand(versionsCmd)
 	vdbCmd.AddCommand(gcveCmd)
+	vdbCmd.AddCommand(gcveIssuancesCmd)
 	vdbCmd.AddCommand(sourcesCmd)
 	vdbCmd.AddCommand(metricTypesCmd)
 	vdbCmd.AddCommand(exploitSourcesCmd)
@@ -881,4 +937,10 @@ func init() {
 	// gcve date range flags
 	gcveCmd.Flags().String("start", "", "Start date (YYYY-MM-DD) [required]")
 	gcveCmd.Flags().String("end", "", "End date (YYYY-MM-DD) [required]")
+
+	// gcve-issuances flags
+	gcveIssuancesCmd.Flags().Int("year", 0, "Publication year (4-digit) [required]")
+	gcveIssuancesCmd.Flags().Int("month", 0, "Publication month 1-12 [required]")
+	gcveIssuancesCmd.Flags().Int("limit", 100, "Maximum results (max 500)")
+	gcveIssuancesCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
 }
