@@ -801,6 +801,111 @@ Examples:
 	},
 }
 
+// idsCmd lists CVE identifiers published in a given calendar month
+var idsCmd = &cobra.Command{
+	Use:   "ids <year> <month>",
+	Short: "List CVE identifiers published in a calendar month",
+	Long: `Retrieve a paginated list of distinct CVE identifiers published in the given calendar month.
+
+Examples:
+  vulnetix vdb ids 2024 3
+  vulnetix vdb ids 2024 3 --limit 50
+  vulnetix vdb ids 2024 3 --output json`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		year, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid year: %s", args[0])
+		}
+		month, err := strconv.Atoi(args[1])
+		if err != nil || month < 1 || month > 12 {
+			return fmt.Errorf("invalid month: %s (must be 1-12)", args[1])
+		}
+
+		limit, _ := cmd.Flags().GetInt("limit")
+		offset, _ := cmd.Flags().GetInt("offset")
+
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "🔍 Fetching CVE identifiers for %d/%02d...\n", year, month)
+		} else {
+			fmt.Printf("🔍 Fetching CVE identifiers for %d/%02d...\n", year, month)
+		}
+
+		resp, err := client.GetIdentifiersByMonth(year, month, limit, offset)
+		if err != nil {
+			return fmt.Errorf("failed to get identifiers: %w", err)
+		}
+		printRateLimit(client)
+
+		if vdbOutput == "json" {
+			return printOutput(resp, vdbOutput)
+		}
+
+		fmt.Printf("Found %d CVE identifiers (showing %d-%d):\n", resp.Total, offset+1, offset+len(resp.Identifiers))
+		for _, id := range resp.Identifiers {
+			fmt.Println(" ", id)
+		}
+		if resp.HasMore {
+			fmt.Printf("\nMore results available. Use --offset %d to see the next page.\n", offset+limit)
+		}
+		return nil
+	},
+}
+
+// searchCmd searches CVE identifiers by prefix
+var searchCmd = &cobra.Command{
+	Use:   "search <prefix>",
+	Short: "Search CVE identifiers by prefix",
+	Long: `Search for CVE identifiers matching a given prefix (case-insensitive).
+
+Examples:
+  vulnetix vdb search CVE-2024-1
+  vulnetix vdb search CVE-2024-1 --limit 50
+  vulnetix vdb search CVE-2024-1 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		prefix := args[0]
+		if len(prefix) < 3 {
+			return fmt.Errorf("prefix must be at least 3 characters")
+		}
+		if len(prefix) > 50 {
+			return fmt.Errorf("prefix must be at most 50 characters")
+		}
+
+		limit, _ := cmd.Flags().GetInt("limit")
+		offset, _ := cmd.Flags().GetInt("offset")
+
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "🔍 Searching CVE identifiers with prefix %q...\n", prefix)
+		} else {
+			fmt.Printf("🔍 Searching CVE identifiers with prefix %q...\n", prefix)
+		}
+
+		resp, err := client.SearchIdentifiers(prefix, limit, offset)
+		if err != nil {
+			return fmt.Errorf("failed to search identifiers: %w", err)
+		}
+		printRateLimit(client)
+
+		if vdbOutput == "json" {
+			return printOutput(resp, vdbOutput)
+		}
+
+		fmt.Printf("Found %d matching CVE identifiers (showing %d-%d):\n", resp.Total, offset+1, offset+len(resp.Identifiers))
+		for _, id := range resp.Identifiers {
+			fmt.Println(" ", id)
+		}
+		if resp.HasMore {
+			fmt.Printf("\nMore results available. Use --offset %d to see the next page.\n", offset+limit)
+		}
+		return nil
+	},
+}
+
 // purlCmd queries the VDB using a Package URL (PURL) string
 var purlCmd = &cobra.Command{
 	Use:   "purl <purl-string>",
@@ -909,6 +1014,8 @@ func init() {
 	vdbCmd.AddCommand(versionsCmd)
 	vdbCmd.AddCommand(gcveCmd)
 	vdbCmd.AddCommand(gcveIssuancesCmd)
+	vdbCmd.AddCommand(idsCmd)
+	vdbCmd.AddCommand(searchCmd)
 	vdbCmd.AddCommand(sourcesCmd)
 	vdbCmd.AddCommand(metricTypesCmd)
 	vdbCmd.AddCommand(exploitSourcesCmd)
@@ -943,4 +1050,12 @@ func init() {
 	gcveIssuancesCmd.Flags().Int("month", 0, "Publication month 1-12 [required]")
 	gcveIssuancesCmd.Flags().Int("limit", 100, "Maximum results (max 500)")
 	gcveIssuancesCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
+
+	// ids flags
+	idsCmd.Flags().Int("limit", 100, "Maximum results (max 500)")
+	idsCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
+
+	// search flags
+	searchCmd.Flags().Int("limit", 100, "Maximum results (max 500)")
+	searchCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
 }
