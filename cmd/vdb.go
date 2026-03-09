@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -999,6 +1000,103 @@ Examples:
 	},
 }
 
+// statusCmd checks API health and displays CLI/auth metadata
+var statusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Check API health and display CLI metadata",
+	Long: `Check the VDB API health endpoint and display a combined status report including:
+  - CLI version, commit, build date, Go version, and platform
+  - OAS (OpenAPI) specification URL
+  - API health from the /health endpoint
+  - Authentication status (method, org ID, verified OK/error)
+
+Examples:
+  vulnetix vdb status
+  vulnetix vdb status --output json`,
+	Args: cobra.NoArgs,
+	// Own PersistentPreRunE overrides parent vdbCmd's — soft-loads creds (no error if absent)
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if vdbOrgID == "" || vdbSecretKey == "" {
+			creds, err := vdb.LoadFullCredentials()
+			if err == nil {
+				vdbCreds = creds
+				if vdbOrgID == "" {
+					vdbOrgID = creds.OrgID
+				}
+				if vdbSecretKey == "" {
+					vdbSecretKey = creds.Secret
+				}
+			}
+			// If err != nil: no credentials found — continue without them
+		} else {
+			vdbCreds = &auth.Credentials{
+				OrgID:  vdbOrgID,
+				Secret: vdbSecretKey,
+				Method: auth.SigV4,
+			}
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if vdbOutput == "json" {
+			fmt.Fprintln(os.Stderr, "🔍 Checking VDB API status...")
+		} else {
+			fmt.Println("🔍 Checking VDB API status...")
+		}
+
+		client := newVDBClient()
+
+		// Check API health (unauthenticated)
+		apiHealth, _ := client.GetHealth()
+
+		// Determine auth status
+		type authInfo struct {
+			Method string `json:"method"`
+			OrgID  string `json:"org_id,omitempty"`
+			Status string `json:"status"`
+		}
+		authResult := authInfo{Method: "none", Status: "not configured"}
+		if vdbCreds != nil && vdbCreds.OrgID != "" {
+			authResult.OrgID = vdbCreds.OrgID
+			authResult.Method = string(vdbCreds.Method)
+			if err := verifyCredentials(vdbCreds); err != nil {
+				authResult.Status = fmt.Sprintf("error: %s", err)
+			} else {
+				authResult.Status = "ok"
+			}
+		}
+
+		type cliInfo struct {
+			Version    string `json:"version"`
+			Commit     string `json:"commit"`
+			BuildDate  string `json:"build_date"`
+			GoVersion  string `json:"go_version"`
+			Platform   string `json:"platform"`
+			OASSpecURL string `json:"oas_spec_url"`
+		}
+		type statusOutput struct {
+			CLI  cliInfo                `json:"cli"`
+			API  map[string]interface{} `json:"api"`
+			Auth authInfo               `json:"auth"`
+		}
+
+		result := statusOutput{
+			CLI: cliInfo{
+				Version:    version,
+				Commit:     commit,
+				BuildDate:  buildDate,
+				GoVersion:  runtime.Version(),
+				Platform:   runtime.GOOS + "/" + runtime.GOARCH,
+				OASSpecURL: client.BaseURL + "/spec",
+			},
+			API:  apiHealth,
+			Auth: authResult,
+		}
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
 func init() {
 	// Add vdb command to root
 	rootCmd.AddCommand(vdbCmd)
@@ -1022,6 +1120,7 @@ func init() {
 	vdbCmd.AddCommand(exploitTypesCmd)
 	vdbCmd.AddCommand(fixDistributionsCmd)
 	vdbCmd.AddCommand(purlCmd)
+	vdbCmd.AddCommand(statusCmd)
 
 	// Global flags
 	vdbCmd.PersistentFlags().StringVar(&vdbOrgID, "org-id", "", "Organization UUID (overrides VVD_ORG env var)")

@@ -21,6 +21,16 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb fixes](#vdb-fixes)
   - [vdb versions](#vdb-versions)
   - [vdb gcve](#vdb-gcve)
+  - [vdb purl](#vdb-purl)
+  - [vdb gcve-issuances](#vdb-gcve-issuances)
+  - [vdb ids](#vdb-ids)
+  - [vdb search](#vdb-search)
+  - [vdb sources](#vdb-sources)
+  - [vdb metric-types](#vdb-metric-types)
+  - [vdb exploit-sources](#vdb-exploit-sources)
+  - [vdb exploit-types](#vdb-exploit-types)
+  - [vdb fix-distributions](#vdb-fix-distributions)
+  - [vdb status](#vdb-status)
 - [API-Only Endpoints](#api-only-endpoints)
 - [Examples](#examples)
 - [Rate Limiting](#rate-limiting)
@@ -424,6 +434,325 @@ vulnetix vdb gcve --start 2024-01-01 --end 2024-12-31 --output json
 
 # Save to file
 vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31 -o json > jan-2024-vulns.json
+```
+
+---
+
+### vdb purl
+
+Query the VDB using a standard [Package URL (PURL)](https://github.com/package-url/purl-spec) string. The PURL is parsed automatically and the appropriate VDB endpoint is called based on the dispatch logic below.
+
+**Usage:**
+```bash
+vulnetix vdb purl <purl-string> [flags]
+```
+
+**Dispatch logic:**
+
+| PURL contains | Flag | Action |
+|---------------|------|--------|
+| Version + known ecosystem | — | Product version+ecosystem lookup |
+| Version + unknown ecosystem | — | Product version lookup |
+| No version | `--vulns` | Package vulnerabilities |
+| No version | (default) | List product versions |
+
+**Flags:**
+- `--vulns`: Show vulnerabilities instead of versions (only effective when PURL has no version)
+- `--limit int`: Maximum number of results (default 100)
+- `--offset int`: Number of results to skip (default 0)
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# Version + known ecosystem → product version+ecosystem lookup
+vulnetix vdb purl "pkg:npm/express@4.17.1"
+
+# Version in Maven ecosystem (with namespace)
+vulnetix vdb purl "pkg:maven/org.apache.commons/commons-lang3@3.12.0"
+
+# No version + --vulns → package vulnerabilities
+vulnetix vdb purl "pkg:pypi/requests" --vulns
+
+# Version + JSON output
+vulnetix vdb purl "pkg:golang/github.com/go-chi/chi/v5@5.0.8" -o json
+
+# No version (default) → list product versions
+vulnetix vdb purl "pkg:npm/lodash"
+```
+
+---
+
+### vdb gcve-issuances
+
+List GCVE issuance identifiers (GCVE-VVD-YYYY-NNNN) published in a given calendar month.
+
+**Usage:**
+```bash
+vulnetix vdb gcve-issuances --year <YYYY> --month <M> [flags]
+```
+
+**Flags:**
+
+| Flag | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `--year` | int | **Yes** | — | 4-digit publication year |
+| `--month` | int | **Yes** | — | Publication month (1–12) |
+| `--limit` | int | No | `100` | Maximum results to return (max 500) |
+| `--offset` | int | No | `0` | Results to skip (for pagination) |
+| `-o, --output` | string | No | `pretty` | Output format: `json` or `pretty` |
+
+**Examples:**
+```bash
+# List GCVE issuances for March 2025
+vulnetix vdb gcve-issuances --year 2025 --month 3
+
+# As JSON
+vulnetix vdb gcve-issuances --year 2025 --month 3 --output json
+
+# Paginate
+vulnetix vdb gcve-issuances --year 2025 --month 3 --limit 50 --offset 100
+```
+
+---
+
+### vdb ids
+
+List distinct CVE identifiers published in a given calendar month.
+
+**Usage:**
+```bash
+vulnetix vdb ids <year> <month> [flags]
+```
+
+**Positional arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `year` | 4-digit year (e.g. `2024`) |
+| `month` | Month number 1–12 (e.g. `3` for March) |
+
+**Flags:**
+- `--limit int`: Maximum results (default 100, max 500)
+- `--offset int`: Results to skip (for pagination, default 0)
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# List CVE IDs for March 2024
+vulnetix vdb ids 2024 3
+
+# With pagination
+vulnetix vdb ids 2024 3 --limit 50
+
+# As JSON
+vulnetix vdb ids 2024 3 --output json
+```
+
+---
+
+### vdb search
+
+Search CVE identifiers by prefix (case-insensitive). The prefix must be between 3 and 50 characters.
+
+**Usage:**
+```bash
+vulnetix vdb search <prefix> [flags]
+```
+
+**Flags:**
+- `--limit int`: Maximum results (default 100, max 500)
+- `--offset int`: Results to skip (for pagination, default 0)
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# Search for CVE IDs starting with CVE-2024-1
+vulnetix vdb search CVE-2024-1
+
+# With pagination and JSON output
+vulnetix vdb search CVE-2024-1 --limit 50 --output json
+
+# Next page
+vulnetix vdb search CVE-2024-1 --limit 100 --offset 100
+```
+
+---
+
+### vdb sources
+
+List all vulnerability data sources tracked by the VDB.
+
+**Usage:**
+```bash
+vulnetix vdb sources [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# List all data sources
+vulnetix vdb sources
+
+# As JSON
+vulnetix vdb sources --output json
+```
+
+---
+
+### vdb metric-types
+
+List all vulnerability metric and scoring types tracked by the VDB (e.g. CVSS v2, CVSS v3.1, CVSS v4, EPSS).
+
+**Usage:**
+```bash
+vulnetix vdb metric-types [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# List all metric types
+vulnetix vdb metric-types
+
+# As JSON
+vulnetix vdb metric-types --output json
+```
+
+---
+
+### vdb exploit-sources
+
+List all exploit intelligence sources tracked by the VDB (e.g. ExploitDB, Metasploit, VulnCheck, Nuclei).
+
+**Usage:**
+```bash
+vulnetix vdb exploit-sources [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# List all exploit intelligence sources
+vulnetix vdb exploit-sources
+
+# As JSON
+vulnetix vdb exploit-sources --output json
+```
+
+---
+
+### vdb exploit-types
+
+List all exploit type classifications tracked by the VDB.
+
+**Usage:**
+```bash
+vulnetix vdb exploit-types [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# List all exploit type classifications
+vulnetix vdb exploit-types
+
+# As JSON
+vulnetix vdb exploit-types --output json
+```
+
+---
+
+### vdb fix-distributions
+
+List all supported Linux distributions for which fix advisory data is available in the VDB.
+
+**Usage:**
+```bash
+vulnetix vdb fix-distributions [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# List supported distributions
+vulnetix vdb fix-distributions
+
+# As JSON
+vulnetix vdb fix-distributions --output json
+```
+
+---
+
+### vdb status
+
+Check the VDB API health endpoint and display a combined status report.
+
+**Usage:**
+```bash
+vulnetix vdb status [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Output fields:**
+- `cli`: CLI version, commit, build date, Go version, platform, and OAS spec URL
+- `api`: Response from the `/health` endpoint (status, http_status_code, and any additional fields returned by the API)
+- `auth`: Authentication method, org ID, and verification result (`ok`, `not configured`, or an error message)
+
+**Notes:**
+- The health check is unauthenticated — API health is reported even when no credentials are configured
+- Authentication verification is attempted only when credentials are available
+
+**Examples:**
+```bash
+# Default output
+vulnetix vdb status
+
+# JSON output
+vulnetix vdb status --output json
+
+# Without credentials (API health still shown)
+vulnetix vdb status
+
+# With custom base URL
+vulnetix vdb status --base-url https://api.vdb.vulnetix.com/v1
+
+# Pipe to jq
+vulnetix vdb status --output json | jq '.auth.status'
+```
+
+**Example JSON output:**
+```json
+{
+  "cli": {
+    "version": "1.2.3",
+    "commit": "abc1234",
+    "build_date": "2026-03-09T00:00:00Z",
+    "go_version": "go1.22.0",
+    "platform": "linux/amd64",
+    "oas_spec_url": "https://api.vdb.vulnetix.com/v1/spec"
+  },
+  "api": {
+    "status": "ok",
+    "http_status_code": 200
+  },
+  "auth": {
+    "method": "sigv4",
+    "org_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "status": "ok"
+  }
+}
 ```
 
 ---
