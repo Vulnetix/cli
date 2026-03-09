@@ -22,12 +22,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Setup Go (required by Vulnetix action)
+      uses: actions/setup-go@v5
+      with:
+        go-version: stable
+
     - name: Run Vulnetix
       uses: Vulnetix/cli@v1
       with:
         org-id: ${{ secrets.VULNETIX_ORG_ID }}
-        tags: '["Public", "Crown Jewels"]'
-        tools:
 ```
 
 ## Action Inputs
@@ -35,14 +38,21 @@ jobs:
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `org-id` | Organization ID (UUID) for Vulnetix operations | Yes | - |
-| `task` | Task to perform (info, upload) | No | `info` |
+| `task` | Task to perform: `info`, `upload`, `gha` | No | `info` |
 | `version` | Version of Vulnetix CLI to use | No | `latest` |
+| `api-key` | Direct API Key for authentication (hex digest) | No | - |
+| `upload-file` | Path to artifact file to upload (used with `task: upload`) | No | - |
+| `upload-format` | Override auto-detected artifact format (`cyclonedx`, `spdx`, `sarif`, `openvex`, `csaf_vex`) | No | - |
+
+> **Note:** The action builds the CLI from source and requires Go to be available. Add `actions/setup-go` to your workflow before this action.
 
 ## Action Outputs
 
 | Output | Description |
 |--------|-------------|
 | `result` | Result of the Vulnetix CLI execution |
+| `summary` | Summary of vulnerabilities processed |
+| `upload-uuid` | Pipeline UUID of the uploaded artifact (when `task: upload`) |
 
 ## Usage Examples
 
@@ -64,13 +74,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
       - name: Run Vulnetix
         uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
-          project-name: ${{ github.repository }}
-          team-name: "Security Team"
-          tags: '["Public", "Crown Jewels"]'
 ```
 
 ### Security Assessment
@@ -144,16 +156,22 @@ jobs:
     permissions:
       actions: read      # Required for accessing workflow artifacts
       contents: read     # Required for repository context
-      id-token: read     # Required for artifact fetching
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: stable
+
     - name: Upload artifacts to Vulnetix
       uses: Vulnetix/cli@v1
       with:
-        task: upload
+        task: gha
         org-id: ${{ secrets.VULNETIX_ORG_ID }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Edge Cases & Advanced Configuration
@@ -192,6 +210,11 @@ jobs:
           [global]
           proxy = $HTTP_PROXY
           EOF
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
 
       - name: Run Vulnetix
         uses: Vulnetix/cli@v1
@@ -233,6 +256,11 @@ jobs:
           # Clean previous artifacts
           rm -rf vulnetix-output/ security-reports/
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
       - name: Run Vulnetix
         uses: Vulnetix/cli@v1
         with:
@@ -273,12 +301,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Assess ${{ matrix.project.name }}
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Run Vulnetix for ${{ matrix.project.name }}
         uses: Vulnetix/cli@v1
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
-          project-name: ${{ matrix.project.name }}
-          team-name: ${{ matrix.project.team }}
         env:
           WORKING_DIRECTORY: ${{ matrix.project.path }}
 ```
@@ -325,6 +356,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
 
       - name: Run Vulnetix for security changes
         if: needs.detect-changes.outputs.security-files == 'true'

@@ -10,7 +10,7 @@ The `gha` subcommand provides seamless integration with GitHub Actions workflows
 
 - **Automatic Artifact Collection**: Discovers and collects all artifacts from the current GitHub Actions workflow run
 - **Metadata Capture**: Automatically captures GitHub Actions environment variables for context
-- **Transaction-based Upload**: Creates a transaction for tracking multiple artifact uploads
+- **Pipeline Tracking**: Reports pipeline UUIDs for each uploaded file
 - **Status Tracking**: Check upload status using transaction ID or individual artifact UUID
 - **JSON Output**: Optional JSON output for integration with other tools
 
@@ -23,13 +23,13 @@ Upload all artifacts from the current GitHub Actions workflow run to Vulnetix.
 #### Usage
 
 ```bash
-vulnetix gha upload --org-id <uuid> [flags]
+vulnetix gha upload [flags]
 ```
 
 #### Flags
 
-- `--org-id` (required): Organization UUID for Vulnetix operations
-- `--base-url`: Base URL for Vulnetix API (default: `https://api.vulnetix.com`)
+- `--org-id`: Organization UUID (optional — uses stored credentials if not set)
+- `--base-url`: Base URL for Vulnetix API (default: `https://app.vulnetix.com/api`)
 - `--json`: Output results as JSON
 
 #### Environment Variables Required
@@ -77,30 +77,47 @@ Found 3 artifact(s)
    2. sbom-report (5678 bytes)
    3. test-coverage (9012 bytes)
 
-Initiating upload transaction...
-Transaction initiated
-   Transaction ID: txn_abc123def456
-
 Uploading artifacts...
-   [1/3] Uploading sarif-results...
-      Uploaded successfully
-         UUID: art_111222333
-         Queue Path: /queue/2024/01/art_111222333
-   [2/3] Uploading sbom-report...
-      Uploaded successfully
-         UUID: art_444555666
-         Queue Path: /queue/2024/01/art_444555666
-   [3/3] Uploading test-coverage...
-      Uploaded successfully
-         UUID: art_777888999
-         Queue Path: /queue/2024/01/art_777888999
+   [1/3] Processing sarif-results...
+      Uploading results.sarif...
+      Uploaded results.sarif (pipeline: a1b2c3d4-e5f6-7890-abcd-ef1234567890)
+   [2/3] Processing sbom-report...
+      Uploading sbom.json...
+      Uploaded sbom.json (pipeline: b2c3d4e5-f6a7-8901-bcde-f12345678901)
+   [3/3] Processing test-coverage...
+      Uploading coverage.xml...
+      Uploaded coverage.xml (pipeline: c3d4e5f6-a7b8-9012-cdef-123456789012)
 
-Upload complete!
-   Transaction ID: txn_abc123def456
-   Uploaded: 3/3 artifacts
+Upload complete: 3/3 files uploaded successfully
+```
 
-Check status with: vulnetix gha status --org-id 123e4567-e89b-12d3-a456-426614174000 --txnid txn_abc123def456
-View at: https://dashboard.vulnetix.com/org/123e4567-e89b-12d3-a456-426614174000/artifacts
+#### JSON Output (`--json`)
+
+```json
+{
+  "artifacts": [
+    {
+      "name": "sarif-results",
+      "file": "results.sarif",
+      "pipelineId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "status": "uploaded"
+    },
+    {
+      "name": "sbom-report",
+      "file": "sbom.json",
+      "pipelineId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "status": "uploaded"
+    },
+    {
+      "name": "test-coverage",
+      "file": "coverage.xml",
+      "pipelineId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "status": "uploaded"
+    }
+  ],
+  "total": 3,
+  "success": 3
+}
 ```
 
 ### `vulnetix gha status`
@@ -111,61 +128,35 @@ Check the status of artifact uploads using transaction ID or artifact UUID.
 
 ```bash
 # Check status by transaction ID
-vulnetix gha status --org-id <uuid> --txnid <transaction-id>
+vulnetix gha status --txnid <transaction-id>
 
 # Check status by artifact UUID
-vulnetix gha status --org-id <uuid> --uuid <artifact-uuid>
+vulnetix gha status --uuid <artifact-uuid>
 ```
 
 #### Flags
 
-- `--org-id` (required): Organization UUID for Vulnetix operations
+- `--org-id`: Organization UUID (optional — uses stored credentials if not set)
 - `--txnid`: Transaction ID to check status (mutually exclusive with `--uuid`)
 - `--uuid`: Artifact UUID to check status (mutually exclusive with `--txnid`)
-- `--base-url`: Base URL for Vulnetix API (default: `https://api.vulnetix.com`)
+- `--base-url`: Base URL for Vulnetix API (default: `https://app.vulnetix.com/api`)
 - `--json`: Output results as JSON
 
 #### Examples
 
 **Check transaction status:**
 ```bash
-vulnetix gha status --org-id 123e4567-e89b-12d3-a456-426614174000 --txnid txn_abc123def456
+vulnetix gha status --txnid txn_abc123def456
 ```
 
 **Check individual artifact status:**
 ```bash
-vulnetix gha status --org-id 123e4567-e89b-12d3-a456-426614174000 --uuid art_111222333
+vulnetix gha status --uuid a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
 
 **Get JSON output:**
 ```bash
-vulnetix gha status --org-id 123e4567-e89b-12d3-a456-426614174000 --txnid txn_abc123def456 --json
-```
-
-#### Output
-
-```
-Checking transaction status: txn_abc123def456
-
-Status: completed
-   Transaction ID: txn_abc123def456
-   Message: All artifacts processed successfully
-
-Artifacts (3):
-   1. sarif-results
-      UUID: art_111222333
-      Status: processed
-      Queue Path: /queue/2024/01/art_111222333
-   2. sbom-report
-      UUID: art_444555666
-      Status: processed
-      Queue Path: /queue/2024/01/art_444555666
-   3. test-coverage
-      UUID: art_777888999
-      Status: processing
-      Queue Path: /queue/2024/01/art_777888999
-
-View at: https://dashboard.vulnetix.com/org/123e4567-e89b-12d3-a456-426614174000/artifacts
+vulnetix gha status --txnid txn_abc123def456 --json
 ```
 
 ## GitHub Actions Workflow Integration
@@ -199,9 +190,21 @@ jobs:
     permissions:
       actions: read  # Required to read artifacts
     steps:
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Checkout Vulnetix CLI
+        uses: actions/checkout@v4
+        with:
+          repository: vulnetix/cli
+          path: vulnetix-cli
+
       - name: Install Vulnetix CLI
         run: |
-          curl -sSL https://install.vulnetix.com/cli | bash
+          cd vulnetix-cli
+          go build -o /usr/local/bin/vulnetix .
 
       - name: Upload Artifacts to Vulnetix
         env:
@@ -256,8 +259,18 @@ jobs:
     permissions:
       actions: read
     steps:
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: actions/checkout@v4
+        with:
+          repository: vulnetix/cli
+          path: vulnetix-cli
+
       - name: Install Vulnetix CLI
-        run: curl -sSL https://install.vulnetix.com/cli | bash
+        run: cd vulnetix-cli && go build -o /usr/local/bin/vulnetix .
 
       - name: Upload All Artifacts
         env:
@@ -267,102 +280,8 @@ jobs:
             --org-id ${{ secrets.VULNETIX_ORG_ID }} \
             --json > upload-result.json
 
-          # Extract transaction ID for status checking
-          TXNID=$(jq -r '.txnid' upload-result.json)
-          echo "Transaction ID: $TXNID"
-
-          # Optionally check status
-          vulnetix gha status \
-            --org-id ${{ secrets.VULNETIX_ORG_ID }} \
-            --txnid $TXNID
-```
-
-## API Endpoints
-
-The `gha` command interacts with the following Vulnetix API endpoints:
-
-### 1. Initiate Transaction
-**POST** `https://api.vulnetix.com/:org-id/github/artifact-upload`
-
-**Request Body:**
-```json
-{
-  "_meta": {
-    "repository": "owner/repo",
-    "repository_owner": "owner",
-    "run_id": "123456789",
-    "run_number": "42",
-    "workflow_name": "Security Assessment",
-    "job": "upload-artifacts",
-    "sha": "abc123...",
-    "ref_name": "main",
-    "ref_type": "branch",
-    "event_name": "push",
-    "actor": "username",
-    "server_url": "https://github.com",
-    "api_url": "https://api.github.com",
-    "artifacts": ["sarif-results", "sbom-report"],
-    "extra_env_vars": {
-      "RUNNER_OS": "Linux",
-      "RUNNER_ARCH": "X64"
-    }
-  },
-  "artifacts": ["sarif-results", "sbom-report"]
-}
-```
-
-**Response:**
-```json
-{
-  "txnid": "txn_abc123def456",
-  "success": true
-}
-```
-
-### 2. Upload Artifact
-**POST** `https://api.vulnetix.com/:org-id/github/artifact-upload/:txnid`
-
-**Request:** Multipart form data with files
-
-**Response:**
-```json
-{
-  "uuid": "art_111222333",
-  "queue_path": "/queue/2024/01/art_111222333",
-  "success": true
-}
-```
-
-### 3. Check Transaction Status
-**GET** `https://api.vulnetix.com/:org-id/github/artifact-upload/:txnid/status`
-
-**Response:**
-```json
-{
-  "status": "completed",
-  "txnid": "txn_abc123def456",
-  "artifacts": [
-    {
-      "uuid": "art_111222333",
-      "name": "sarif-results",
-      "status": "processed",
-      "queue_path": "/queue/2024/01/art_111222333"
-    }
-  ]
-}
-```
-
-### 4. Check Artifact Status
-**GET** `https://api.vulnetix.com/:org-id/github/artifact/:uuid/status`
-
-**Response:**
-```json
-{
-  "status": "processed",
-  "uuid": "art_111222333",
-  "name": "sarif-results",
-  "queue_path": "/queue/2024/01/art_111222333"
-}
+          # Show summary
+          cat upload-result.json | jq '.success'
 ```
 
 ## Troubleshooting
@@ -375,9 +294,9 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Error: "Not running in GitHub Actions environment"
+### Warning: "Not running in GitHub Actions environment"
 
-This is a warning that appears when running outside GitHub Actions. The command will still attempt to run but may fail if required environment variables are missing.
+This warning appears when running outside GitHub Actions. The command will still attempt to run but may fail if required environment variables are missing.
 
 ### Error: "No artifacts found in this workflow run"
 

@@ -18,35 +18,35 @@ This is a Go-based CLI application with the following key components:
 
 ## Build and Development Commands
 
-Use the Makefile for all development tasks:
+Use the justfile for all development tasks:
 
 ```bash
 # Build for development
-make dev
+just dev
 
 # Build production binary
-make build
+just build
 
 # Run tests
-make test
+just test
 
 # Format code
-make fmt
+just fmt
 
 # Lint code (uses golangci-lint if available, falls back to go vet)
-make lint
+just lint
 
 # Build for all platforms
-make build-all
+just build-all
 
 # Clean build artifacts
-make clean
+just clean
 
 # Download and tidy dependencies
-make deps
+just deps
 
 # Run with test UUID
-make run
+just run
 ```
 
 ## Key Configuration Patterns
@@ -63,7 +63,7 @@ The application uses a centralized configuration system (`VulnetixConfig`) that:
 
 Tests are minimal currently (`cmd/root_test.go`). Run with:
 ```bash
-make test
+just test
 ```
 
 ## Important Development Notes

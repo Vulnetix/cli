@@ -141,7 +141,7 @@ and fixes KV cache invalidation race condition.
 ## Step 6 — Get Current Branch and PR
 
 ```bash
-BRANCH=$(git branch --show-current)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
 echo "Current branch: $BRANCH"
 
 # Check if PR exists

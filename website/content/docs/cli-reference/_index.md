@@ -134,15 +134,14 @@ GitHub Actions artifact management. Designed for use within GitHub Actions workf
 Collect and upload all artifacts from the current GitHub Actions workflow run to Vulnetix.
 
 ```bash
-vulnetix gha upload --org-id <UUID> [flags]
+vulnetix gha upload [flags]
 ```
 
 This command:
 1. Collects all artifacts from the current workflow run via the GitHub API
-2. Gathers GitHub Actions metadata from environment variables
-3. Initiates a transaction with the Vulnetix API
-4. Uploads each artifact with the transaction ID
-5. Reports the transaction ID and artifact UUIDs
+2. Downloads and extracts each artifact
+3. Uploads each file to Vulnetix using the standard upload API
+4. Reports pipeline UUIDs for each uploaded file
 
 **Requires:** `GITHUB_TOKEN`, `GITHUB_REPOSITORY`, `GITHUB_RUN_ID` environment variables.
 
@@ -150,6 +149,7 @@ This command:
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
+| `--org-id` | string | stored | Organization ID (UUID); uses stored credentials if not set |
 | `--base-url` | string | `https://app.vulnetix.com/api` | Base URL for Vulnetix API |
 | `--json` | bool | `false` | Output results as JSON |
 
@@ -158,8 +158,8 @@ This command:
 Check the processing status of uploaded artifacts by transaction ID or artifact UUID.
 
 ```bash
-vulnetix gha status --org-id <UUID> --txnid <ID>
-vulnetix gha status --org-id <UUID> --uuid <UUID>
+vulnetix gha status --txnid <ID>
+vulnetix gha status --uuid <UUID>
 ```
 
 **Flags:**
@@ -168,6 +168,7 @@ vulnetix gha status --org-id <UUID> --uuid <UUID>
 |------|------|---------|-------------|
 | `--txnid` | string | - | Transaction ID to check status |
 | `--uuid` | string | - | Artifact UUID to check status |
+| `--org-id` | string | stored | Organization ID (UUID); uses stored credentials if not set |
 | `--base-url` | string | `https://app.vulnetix.com/api` | Base URL for Vulnetix API |
 | `--json` | bool | `false` | Output results as JSON |
 
@@ -201,7 +202,6 @@ vulnetix vdb <subcommand> [flags]
 | `exploit-sources` | List all exploit intelligence sources |
 | `exploit-types` | List exploit type classifications |
 | `fix-distributions` | List supported Linux distributions for fix advisories |
-| `status` | Show VDB API health and authentication status |
 
 ---
 
