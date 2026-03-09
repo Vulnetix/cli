@@ -280,6 +280,72 @@ func (c *Client) GetPackageVersions(packageName string) (map[string]interface{},
 	return result, nil
 }
 
+// IdentifiersMonthResponse represents the paginated CVE identifiers response by month
+type IdentifiersMonthResponse struct {
+	Timestamp   int64    `json:"timestamp"`
+	Year        int      `json:"year"`
+	Month       int      `json:"month"`
+	Total       int      `json:"total"`
+	Limit       int      `json:"limit"`
+	Offset      int      `json:"offset"`
+	HasMore     bool     `json:"hasMore"`
+	Identifiers []string `json:"identifiers"`
+}
+
+// IdentifiersSearchResponse represents the paginated CVE identifiers search response
+type IdentifiersSearchResponse struct {
+	Timestamp   int64    `json:"timestamp"`
+	Prefix      string   `json:"prefix"`
+	Total       int      `json:"total"`
+	Limit       int      `json:"limit"`
+	Offset      int      `json:"offset"`
+	HasMore     bool     `json:"hasMore"`
+	Identifiers []string `json:"identifiers"`
+}
+
+// GetIdentifiersByMonth retrieves CVE identifiers published in a given year/month
+func (c *Client) GetIdentifiersByMonth(year, month, limit, offset int) (*IdentifiersMonthResponse, error) {
+	path := fmt.Sprintf("/identifiers/%d/%d", year, month)
+	path += buildPaginationQuery(limit, offset)
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp IdentifiersMonthResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &resp, nil
+}
+
+// SearchIdentifiers retrieves CVE identifiers matching a prefix
+func (c *Client) SearchIdentifiers(prefix string, limit, offset int) (*IdentifiersSearchResponse, error) {
+	params := url.Values{}
+	params.Set("prefix", prefix)
+	if limit > 0 {
+		params.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	if offset > 0 {
+		params.Set("offset", fmt.Sprintf("%d", offset))
+	}
+	path := "/identifiers?" + params.Encode()
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp IdentifiersSearchResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &resp, nil
+}
+
 // GetCVEsByDateRange retrieves paginated CVEs by date range
 func (c *Client) GetCVEsByDateRange(start, end string) (map[string]interface{}, error) {
 	params := url.Values{}
