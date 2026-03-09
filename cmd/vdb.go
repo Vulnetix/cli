@@ -553,7 +553,14 @@ Examples:
 // printRateLimit prints rate limit and cache status from the last API call to stderr.
 func printRateLimit(client *vdb.Client) {
 	if client.LastCacheStatus != "" {
-		fmt.Fprintf(os.Stderr, "Cache: %s\n", strings.ToUpper(client.LastCacheStatus))
+		status := strings.ToUpper(client.LastCacheStatus)
+		// Normalize CloudFront format ("Hit from cloudfront" → "HIT")
+		if strings.Contains(status, "HIT") {
+			status = "HIT"
+		} else if strings.Contains(status, "MISS") {
+			status = "MISS"
+		}
+		fmt.Fprintf(os.Stderr, "Cache: %s\n", status)
 	}
 	rl := client.LastRateLimit
 	if rl == nil || !rl.Present {
