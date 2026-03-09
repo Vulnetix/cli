@@ -54,7 +54,7 @@ vulnetix auth login --method sigv4 --org-id <UUID> --secret <KEY> --store projec
 | `--method` | string | `apikey` | Authentication method: `apikey` or `sigv4` |
 | `--org-id` | string | - | Organization ID (UUID) |
 | `--secret` | string | - | API key (hex) or SigV4 secret key |
-| `--store` | string | `home` | Credential storage location: `home`, `project` |
+| `--store` | string | `home` | Credential storage location: `home`, `project`, `keyring` |
 
 Running `vulnetix auth` without a subcommand also triggers login.
 
@@ -192,6 +192,16 @@ vulnetix vdb <subcommand> [flags]
 | `fixes <vuln-id>` | Get fix data for a vulnerability |
 | `versions <package>` | Get all versions of a package across ecosystems |
 | `gcve` | Get vulnerabilities by date range |
+| `purl <purl-string>` | Query VDB using a Package URL (PURL) |
+| `gcve-issuances` | List GCVE issuance identifiers by calendar month |
+| `ids <year> <month>` | List CVE identifiers published in a calendar month |
+| `search <prefix>` | Search CVE identifiers by prefix |
+| `sources` | List all vulnerability data sources |
+| `metric-types` | List all vulnerability metric/scoring types |
+| `exploit-sources` | List all exploit intelligence sources |
+| `exploit-types` | List exploit type classifications |
+| `fix-distributions` | List supported Linux distributions for fix advisories |
+| `status` | Show VDB API health and authentication status |
 
 ---
 
@@ -200,7 +210,47 @@ vulnetix vdb <subcommand> [flags]
 Print the version number of Vulnetix CLI.
 
 ```bash
+vulnetix version [flags]
+```
+
+Also checks for available updates and prints a notice if a newer version exists.
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--short` | bool | `false` | Print only the version number (no build info or update check) |
+
+**Examples:**
+```bash
+# Full version info (with update check)
 vulnetix version
+
+# Just the version number, e.g. for scripting
+vulnetix version --short
+```
+
+---
+
+### vulnetix update
+
+Update the Vulnetix CLI to the latest release from GitHub.
+
+```bash
+vulnetix update
+```
+
+Checks the GitHub Releases API for the latest version, then downloads and replaces the current binary in-place. Binaries built from source (via `go build` or `make dev`) are not updated — use your build toolchain instead.
+
+**Behavior:**
+- If already up to date: prints `Already up to date (vX.Y.Z).`
+- If a newer version is available: prints the upgrade path and performs the in-place update
+- If built from source: exits with an error indicating that `go build` should be used
+
+**Examples:**
+```bash
+# Check for and apply the latest update
+vulnetix update
 ```
 
 ---
@@ -233,6 +283,7 @@ Credentials are stored as JSON in one of two locations:
 |-------|------|----------|
 | `home` (default) | `~/.vulnetix/credentials.json` | User-wide credentials |
 | `project` | `.vulnetix/credentials.json` | Project-specific credentials |
+| `keyring` | System keyring | Secure OS-level secret storage (not yet implemented) |
 
 ### Credential Precedence
 
@@ -249,7 +300,7 @@ These flags are available on the root command and inherited by subcommands:
 
 | Flag | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `--org-id` | string | **Yes** | - | Organization ID (UUID) for Vulnetix operations |
+| `--org-id` | string | No | stored | Organization ID (UUID); uses stored credentials if not set |
 | `--help` | - | No | - | Help for any command |
 
 ## Environment Variables

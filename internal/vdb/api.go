@@ -3,6 +3,8 @@ package vdb
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 )
 
@@ -210,6 +212,30 @@ func (c *Client) GetPackageVulnerabilities(packageName string, limit, offset int
 	resp.RawData = raw
 
 	return &resp, nil
+}
+
+// GetHealth checks the API health endpoint (unauthenticated, root-level path).
+func (c *Client) GetHealth() (map[string]interface{}, error) {
+	u, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return map[string]interface{}{"status": "unreachable", "error": err.Error()}, nil
+	}
+	healthURL := fmt.Sprintf("%s://%s/health", u.Scheme, u.Host)
+
+	resp, err := http.Get(healthURL) //nolint:noctx
+	if err != nil {
+		return map[string]interface{}{"status": "unreachable", "error": err.Error()}, nil
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return map[string]interface{}{"http_status_code": resp.StatusCode}, nil
+	}
+	result["http_status_code"] = resp.StatusCode
+	return result, nil
 }
 
 // GetOpenAPISpec retrieves the OpenAPI specification
