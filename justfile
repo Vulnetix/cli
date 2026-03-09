@@ -28,6 +28,44 @@ dev:
     go build -ldflags "-X github.com/vulnetix/cli/cmd.version={{version}}-dev -X github.com/vulnetix/cli/cmd.commit={{commit}} -X github.com/vulnetix/cli/cmd.buildDate={{build_date}}" -o {{output_dir}}/{{binary}} .
     @echo "Built {{output_dir}}/{{binary}} (dev)"
 
+# Build for all platforms using build.sh
+build-all:
+    @echo "Building for all platforms..."
+    @VERSION={{version}} ./build.sh
+
+# Build release binaries for all platforms
+build-release: clean
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Building release binaries for all platforms..."
+    mkdir -p {{output_dir}}
+    ldflags="{{ldflags}}"
+
+    echo "Building for Linux AMD64..."
+    GOOS=linux GOARCH=amd64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-linux-amd64 .
+    echo "Building for Linux ARM64..."
+    GOOS=linux GOARCH=arm64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-linux-arm64 .
+    echo "Building for Linux ARM..."
+    GOOS=linux GOARCH=arm go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-linux-arm .
+    echo "Building for Linux 386..."
+    GOOS=linux GOARCH=386 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-linux-386 .
+
+    echo "Building for macOS AMD64..."
+    GOOS=darwin GOARCH=amd64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-darwin-amd64 .
+    echo "Building for macOS ARM64..."
+    GOOS=darwin GOARCH=arm64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-darwin-arm64 .
+
+    echo "Building for Windows AMD64..."
+    GOOS=windows GOARCH=amd64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-windows-amd64.exe .
+    echo "Building for Windows ARM64..."
+    GOOS=windows GOARCH=arm64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-windows-arm64.exe .
+    echo "Building for Windows ARM..."
+    GOOS=windows GOARCH=arm go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-windows-arm.exe .
+    echo "Building for Windows 386..."
+    GOOS=windows GOARCH=386 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-windows-386.exe .
+
+    echo "Built release binaries for all platforms"
+
 # Install to GOPATH
 install:
     go install -ldflags "{{ldflags}}" .
@@ -42,6 +80,27 @@ test:
         echo "fail" > /tmp/vulnetix-cli-test-cache
         exit 1
     fi
+
+# Coverage reporting
+test-coverage:
+    go test -v -cover ./...
+
+# Coverage with HTML report
+test-coverage-html:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    go test -v -coverprofile=coverage.out ./...
+    go tool cover -html=coverage.out -o coverage.html
+
+# Coverage threshold enforcement (90% minimum)
+test-coverage-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    go test -v -coverprofile=coverage.out ./...
+    go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//' | awk '{if ($1 < 90) exit 1}'
+
+# Comprehensive test suite
+test-all: test test-coverage-check
 
 # Format code
 fmt:

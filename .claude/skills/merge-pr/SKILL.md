@@ -16,7 +16,7 @@ Check the pull request for the current branch, update its description with Claud
 ## Step 1 — Get Current Branch and PR
 
 ```bash
-BRANCH=$(git branch --show-current)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
 echo "Current branch: $BRANCH"
 ```
 

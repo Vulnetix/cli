@@ -37,7 +37,7 @@ If invalid or missing, show usage and stop.
 ## Step 2 — Verify on Main Branch
 
 ```bash
-BRANCH=$(git branch --show-current)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
 ```
 
 If not on `main`:
