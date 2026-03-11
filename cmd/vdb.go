@@ -17,6 +17,8 @@ import (
 var (
 	vdbOrgID     string
 	vdbSecretKey string
+	vdbAPIKey    string
+	vdbMethod    string
 	vdbBaseURL   string
 	vdbOutput    string
 	vdbCreds     *auth.Credentials
@@ -31,16 +33,19 @@ var vdbCmd = &cobra.Command{
 The VDB API provides comprehensive vulnerability intelligence from multiple authoritative sources
 including MITRE CVE, NIST NVD, CISA KEV, and many others.
 
-Authentication:
-  Set credentials via environment variables:
-    export VVD_ORG="your-organization-uuid"
-    export VVD_SECRET="your-secret-key"
+Authentication (recommended):
+  vulnetix auth login        # interactive setup — saves to ~/.vulnetix/credentials.json
 
-  Or create a config file at ~/.vulnetix/vdb.json:
-    {
-      "org_id": "your-organization-uuid",
-      "secret_key": "your-secret-key"
-    }
+Credential sources (checked in order):
+  1. Command-line flags (--org-id + --api-key or --secret)
+  2. Environment variables: VULNETIX_API_KEY + VULNETIX_ORG_ID (Direct API Key)
+  3. Environment variables: VVD_ORG + VVD_SECRET (SigV4)
+  4. Project file: .vulnetix/credentials.json
+  5. Home file: ~/.vulnetix/credentials.json
+
+Flag patterns:
+  vulnetix vdb ecosystems --org-id UUID --api-key KEY      # Direct API Key
+  vulnetix vdb ecosystems --org-id UUID --secret KEY        # SigV4
 
 Examples:
   # Get information about a vulnerability (CVE, GHSA, PYSEC, ZDI, and 70+ more formats)
@@ -56,28 +61,7 @@ Examples:
   # Get vulnerabilities for a package
   vulnetix vdb vulns express`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Load credentials if not provided via flags
-		if vdbOrgID == "" || vdbSecretKey == "" {
-			creds, err := vdb.LoadFullCredentials()
-			if err != nil {
-				return err
-			}
-			vdbCreds = creds
-			if vdbOrgID == "" {
-				vdbOrgID = creds.OrgID
-			}
-			if vdbSecretKey == "" {
-				vdbSecretKey = creds.Secret
-			}
-		} else {
-			// Flags provided — use SigV4 as default
-			vdbCreds = &auth.Credentials{
-				OrgID:  vdbOrgID,
-				Secret: vdbSecretKey,
-				Method: auth.SigV4,
-			}
-		}
-		return nil
+		return resolveVDBCredentials(true)
 	},
 }
 
@@ -1027,25 +1011,7 @@ Examples:
 	Args: cobra.NoArgs,
 	// Own PersistentPreRunE overrides parent vdbCmd's — soft-loads creds (no error if absent)
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if vdbOrgID == "" || vdbSecretKey == "" {
-			creds, err := vdb.LoadFullCredentials()
-			if err == nil {
-				vdbCreds = creds
-				if vdbOrgID == "" {
-					vdbOrgID = creds.OrgID
-				}
-				if vdbSecretKey == "" {
-					vdbSecretKey = creds.Secret
-				}
-			}
-			// If err != nil: no credentials found — continue without them
-		} else {
-			vdbCreds = &auth.Credentials{
-				OrgID:  vdbOrgID,
-				Secret: vdbSecretKey,
-				Method: auth.SigV4,
-			}
-		}
+		_ = resolveVDBCredentials(false)
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -1064,12 +1030,19 @@ Examples:
 		type authInfo struct {
 			Method string `json:"method"`
 			OrgID  string `json:"org_id,omitempty"`
+			Source string `json:"source"`
 			Status string `json:"status"`
 		}
-		authResult := authInfo{Method: "none", Status: "not configured"}
+		authResult := authInfo{Method: "none", Source: "none", Status: "not configured"}
 		if vdbCreds != nil && vdbCreds.OrgID != "" {
 			authResult.OrgID = vdbCreds.OrgID
 			authResult.Method = string(vdbCreds.Method)
+			// Determine credential source
+			if vdbAPIKey != "" || vdbSecretKey != "" {
+				authResult.Source = "flags"
+			} else {
+				authResult.Source = auth.CredentialSource()
+			}
 			if err := verifyCredentials(vdbCreds); err != nil {
 				authResult.Status = fmt.Sprintf("error: %s", err)
 			} else {
@@ -1108,6 +1081,70 @@ Examples:
 	},
 }
 
+// resolveVDBCredentials builds vdbCreds from flags, env vars, or config files.
+// When errorOnMissing is false, missing credentials are silently ignored (for status).
+func resolveVDBCredentials(errorOnMissing bool) error {
+	// Reject conflicting flags
+	if vdbSecretKey != "" && vdbAPIKey != "" {
+		return fmt.Errorf("cannot use both --secret and --api-key; choose one authentication method")
+	}
+
+	// Determine method from flags
+	hasFlags := vdbOrgID != "" && (vdbSecretKey != "" || vdbAPIKey != "")
+	if hasFlags {
+		// Explicit --method validation
+		if vdbMethod != "" {
+			m, err := auth.ValidateMethod(vdbMethod)
+			if err != nil {
+				return err
+			}
+			switch m {
+			case auth.DirectAPIKey:
+				if vdbAPIKey == "" {
+					return fmt.Errorf("--method apikey requires --api-key")
+				}
+			case auth.SigV4:
+				if vdbSecretKey == "" {
+					return fmt.Errorf("--method sigv4 requires --secret")
+				}
+			}
+		}
+
+		// Auto-detect method from which flag was provided
+		if vdbAPIKey != "" {
+			vdbCreds = &auth.Credentials{
+				OrgID:  vdbOrgID,
+				APIKey: vdbAPIKey,
+				Method: auth.DirectAPIKey,
+			}
+		} else {
+			vdbCreds = &auth.Credentials{
+				OrgID:  vdbOrgID,
+				Secret: vdbSecretKey,
+				Method: auth.SigV4,
+			}
+		}
+		return nil
+	}
+
+	// No complete flag set — fall through to stored/env credentials
+	creds, err := vdb.LoadFullCredentials()
+	if err != nil {
+		if errorOnMissing {
+			return err
+		}
+		return nil
+	}
+	vdbCreds = creds
+	if vdbOrgID == "" {
+		vdbOrgID = creds.OrgID
+	}
+	if vdbSecretKey == "" {
+		vdbSecretKey = creds.Secret
+	}
+	return nil
+}
+
 func init() {
 	// Add vdb command to root
 	rootCmd.AddCommand(vdbCmd)
@@ -1135,7 +1172,9 @@ func init() {
 
 	// Global flags
 	vdbCmd.PersistentFlags().StringVar(&vdbOrgID, "org-id", "", "Organization UUID (overrides VVD_ORG env var)")
-	vdbCmd.PersistentFlags().StringVar(&vdbSecretKey, "secret", "", "Secret key (overrides VVD_SECRET env var)")
+	vdbCmd.PersistentFlags().StringVar(&vdbSecretKey, "secret", "", "SigV4 secret key (overrides VVD_SECRET env var)")
+	vdbCmd.PersistentFlags().StringVar(&vdbAPIKey, "api-key", "", "Direct API key (overrides VULNETIX_API_KEY env var)")
+	vdbCmd.PersistentFlags().StringVar(&vdbMethod, "method", "", "Auth method: apikey or sigv4 (auto-detected from flags if omitted)")
 	vdbCmd.PersistentFlags().StringVar(&vdbBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
 	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, pretty)")
 

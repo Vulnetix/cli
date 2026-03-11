@@ -45,10 +45,21 @@ The VDB API aggregates vulnerability data from:
 
 ## Authentication
 
+### Recommended: `vulnetix auth login`
+
+```bash
+vulnetix auth login    # interactive setup — saves to ~/.vulnetix/credentials.json
+```
+
 ### Environment Variables
 
-The recommended approach is to set environment variables:
+**Direct API Key** (recommended):
+```bash
+export VULNETIX_ORG_ID="your-organization-uuid"
+export VULNETIX_API_KEY="your-api-key-hex"
+```
 
+**SigV4**:
 ```bash
 export VVD_ORG="your-organization-uuid"
 export VVD_SECRET="your-secret-key"
@@ -56,22 +67,33 @@ export VVD_SECRET="your-secret-key"
 
 ### Configuration File
 
-Alternatively, create `~/.vulnetix/vdb.json`:
+Create `~/.vulnetix/credentials.json`:
 
 ```json
 {
   "org_id": "your-organization-uuid",
-  "secret_key": "your-secret-key"
+  "api_key": "your-api-key-hex",
+  "method": "apikey"
 }
 ```
 
 ### Command-Line Flags
 
-You can also provide credentials via flags (not recommended for security):
-
 ```bash
+# Direct API Key
+vulnetix vdb ecosystems --org-id "your-uuid" --api-key "your-key"
+
+# SigV4
 vulnetix vdb ecosystems --org-id "your-uuid" --secret "your-secret"
 ```
+
+### Credential Precedence
+
+1. Command-line flags (`--org-id` + `--api-key` or `--secret`)
+2. Environment variables: `VULNETIX_API_KEY` + `VULNETIX_ORG_ID`
+3. Environment variables: `VVD_ORG` + `VVD_SECRET`
+4. Project file: `.vulnetix/credentials.json`
+5. Home file: `~/.vulnetix/credentials.json`
 
 ### Obtaining Credentials
 
@@ -852,8 +874,10 @@ For rate limit errors, the API returns:
 
 All `vdb` commands support these global flags:
 
-- `--org-id string`: Organization UUID (overrides VVD_ORG env var)
-- `--secret string`: Secret key (overrides VVD_SECRET env var)
+- `--org-id string`: Organization UUID (overrides env vars)
+- `--api-key string`: Direct API key (overrides VULNETIX_API_KEY env var)
+- `--secret string`: SigV4 secret key (overrides VVD_SECRET env var)
+- `--method string`: Auth method: `apikey` or `sigv4` (auto-detected from flags if omitted)
 - `--base-url string`: VDB API base URL (default "https://api.vdb.vulnetix.com/v1")
 - `-o, --output string`: Output format (json, pretty) (default "pretty")
 
@@ -870,17 +894,27 @@ All `vdb` commands support these global flags:
 ### Authentication Errors
 
 ```bash
-# Error: credentials not found
-# Solution: Set environment variables
+# Quickest fix — run interactive login
+vulnetix auth login
+
+# Check all credential sources
+vulnetix auth status
+
+# Or set environment variables (Direct API Key)
+export VULNETIX_ORG_ID="your-uuid"
+export VULNETIX_API_KEY="your-key"
+
+# Or set environment variables (SigV4)
 export VVD_ORG="your-uuid"
 export VVD_SECRET="your-secret"
 
 # Or create config file
 mkdir -p ~/.vulnetix
-cat > ~/.vulnetix/vdb.json << EOF
+cat > ~/.vulnetix/credentials.json << EOF
 {
   "org_id": "your-uuid",
-  "secret_key": "your-secret"
+  "api_key": "your-key",
+  "method": "apikey"
 }
 EOF
 ```
