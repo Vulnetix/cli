@@ -309,7 +309,7 @@ func testAuth(creds *auth.Credentials) error {
 		// Test connectivity to the VDB API (SigV4 endpoint accepts any request,
 		// the Direct API Key is validated by the upload API at upload time)
 		client := &http.Client{Timeout: 10 * time.Second}
-		req, err := http.NewRequest("GET", "https://api.vdb.vulnetix.com/v1/ecosystems", nil)
+		req, err := http.NewRequest("GET", vdb.DefaultBaseURL+vdb.DefaultAPIVersion+"/ecosystems", nil)
 		if err != nil {
 			return err
 		}

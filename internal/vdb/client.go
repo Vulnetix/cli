@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	DefaultBaseURL = "https://api.vdb.vulnetix.com/v1"
-	Region         = "us-east-1"
+	DefaultBaseURL     = "https://api.vdb.vulnetix.com"
+	DefaultAPIVersion  = "/v1"
+	Region             = "us-east-1"
 	Service        = "vdb"
 	Algorithm      = "AWS4-HMAC-SHA512"
 	TokenExpiry    = 15 * time.Minute
@@ -42,6 +43,7 @@ type RateLimitInfo struct {
 // Client represents a VDB API client
 type Client struct {
 	BaseURL         string
+	APIVersion      string
 	OrgID           string
 	SecretKey       string
 	AuthMethod      auth.AuthMethod
@@ -78,6 +80,7 @@ type ErrorResponse struct {
 func NewClient(orgID, secretKey string) *Client {
 	return &Client{
 		BaseURL:    DefaultBaseURL,
+		APIVersion: DefaultAPIVersion,
 		OrgID:      orgID,
 		SecretKey:  secretKey,
 		AuthMethod: auth.SigV4,
@@ -91,6 +94,7 @@ func NewClient(orgID, secretKey string) *Client {
 func NewClientFromCredentials(creds *auth.Credentials) *Client {
 	return &Client{
 		BaseURL:    DefaultBaseURL,
+		APIVersion: DefaultAPIVersion,
 		OrgID:      creds.OrgID,
 		SecretKey:  creds.Secret,
 		AuthMethod: creds.Method,
@@ -129,7 +133,7 @@ func (c *Client) GetToken() (string, error) {
 // Caller must hold tokenMutex write lock
 func (c *Client) requestNewTokenLocked() (string, error) {
 	path := "/auth/token"
-	url := c.BaseURL + path
+	url := c.BaseURL + c.APIVersion + path
 
 	// Create the request
 	req, err := http.NewRequest("GET", url, nil)
@@ -256,7 +260,7 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 		authHeader = "Bearer " + token
 	}
 
-	url := c.BaseURL + path
+	url := c.BaseURL + c.APIVersion + path
 	var lastErr error
 
 	for attempt := 0; attempt <= MaxRetries; attempt++ {

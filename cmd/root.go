@@ -163,7 +163,7 @@ func verifyCredentials(creds *auth.Credentials) error {
 // verifyDirectAPIKey tests Direct API Key connectivity
 func verifyDirectAPIKey(creds *auth.Credentials) error {
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", "https://api.vdb.vulnetix.com/v1/ecosystems", nil)
+	req, err := http.NewRequest("GET", vdb.DefaultBaseURL+vdb.DefaultAPIVersion+"/ecosystems", nil)
 	if err != nil {
 		return err
 	}

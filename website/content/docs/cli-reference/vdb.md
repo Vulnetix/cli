@@ -878,7 +878,8 @@ All `vdb` commands support these global flags:
 - `--api-key string`: Direct API key (overrides VULNETIX_API_KEY env var)
 - `--secret string`: SigV4 secret key (overrides VVD_SECRET env var)
 - `--method string`: Auth method: `apikey` or `sigv4` (auto-detected from flags if omitted)
-- `--base-url string`: VDB API base URL (default "https://api.vdb.vulnetix.com/v1")
+- `--base-url string`: VDB API base URL (default "https://api.vdb.vulnetix.com")
+- `-V, --api-version string`: API version path (default "v1"; e.g. "v2")
 - `-o, --output string`: Output format (json, pretty) (default "pretty")
 
 ## Security Notes
@@ -944,7 +945,10 @@ If you exceed rate limits:
 curl -I https://api.vdb.vulnetix.com/v1/spec
 
 # Use custom base URL if needed
-vulnetix vdb ecosystems --base-url https://custom-endpoint.example.com/v1
+vulnetix vdb ecosystems --base-url https://custom-endpoint.example.com
+
+# Target a different API version
+vulnetix vdb ecosystems --api-version v2
 ```
 
 ## API Documentation
