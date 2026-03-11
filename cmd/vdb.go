@@ -15,13 +15,14 @@ import (
 )
 
 var (
-	vdbOrgID     string
-	vdbSecretKey string
-	vdbAPIKey    string
-	vdbMethod    string
-	vdbBaseURL   string
-	vdbOutput    string
-	vdbCreds     *auth.Credentials
+	vdbOrgID      string
+	vdbSecretKey  string
+	vdbAPIKey     string
+	vdbMethod     string
+	vdbBaseURL    string
+	vdbOutput     string
+	vdbAPIVersion string
+	vdbCreds      *auth.Credentials
 )
 
 // vdbCmd represents the vdb command
@@ -46,6 +47,8 @@ Credential sources (checked in order):
 Flag patterns:
   vulnetix vdb ecosystems --org-id UUID --api-key KEY      # Direct API Key
   vulnetix vdb ecosystems --org-id UUID --secret KEY        # SigV4
+  vulnetix vdb ecosystems --api-version v2                  # Target API v2
+  vulnetix vdb ecosystems -V v2                             # Short form
 
 Examples:
   # Get information about a vulnerability (CVE, GHSA, PYSEC, ZDI, and 70+ more formats)
@@ -617,18 +620,29 @@ func formatNumber(n int) string {
 	return string(result)
 }
 
+// normalizeAPIVersion normalizes user input into a clean version path prefix.
+// e.g. "V2" → "/v2", "/v2/" → "/v2", "v2" → "/v2"
+func normalizeAPIVersion(input string) string {
+	s := strings.ToLower(strings.Trim(input, "/"))
+	return "/" + s
+}
+
 // newVDBClient creates a VDB client using the loaded credentials
 func newVDBClient() *vdb.Client {
+	var client *vdb.Client
 	if vdbCreds != nil {
-		client := vdb.NewClientFromCredentials(vdbCreds)
+		client = vdb.NewClientFromCredentials(vdbCreds)
 		if vdbBaseURL != "" && vdbBaseURL != vdb.DefaultBaseURL {
 			client.BaseURL = vdbBaseURL
 		}
-		return client
+	} else {
+		client = vdb.NewClient(vdbOrgID, vdbSecretKey)
+		if vdbBaseURL != "" {
+			client.BaseURL = vdbBaseURL
+		}
 	}
-	client := vdb.NewClient(vdbOrgID, vdbSecretKey)
-	if vdbBaseURL != "" {
-		client.BaseURL = vdbBaseURL
+	if vdbAPIVersion != "" {
+		client.APIVersion = normalizeAPIVersion(vdbAPIVersion)
 	}
 	return client
 }
@@ -1056,6 +1070,7 @@ Examples:
 			BuildDate  string `json:"build_date"`
 			GoVersion  string `json:"go_version"`
 			Platform   string `json:"platform"`
+			APIVersion string `json:"api_version"`
 			OASSpecURL string `json:"oas_spec_url"`
 		}
 		type statusOutput struct {
@@ -1071,7 +1086,8 @@ Examples:
 				BuildDate:  buildDate,
 				GoVersion:  runtime.Version(),
 				Platform:   runtime.GOOS + "/" + runtime.GOARCH,
-				OASSpecURL: client.BaseURL + "/spec",
+				APIVersion: client.APIVersion,
+				OASSpecURL: client.BaseURL + client.APIVersion + "/spec",
 			},
 			API:  apiHealth,
 			Auth: authResult,
@@ -1176,6 +1192,7 @@ func init() {
 	vdbCmd.PersistentFlags().StringVar(&vdbAPIKey, "api-key", "", "Direct API key (overrides VULNETIX_API_KEY env var)")
 	vdbCmd.PersistentFlags().StringVar(&vdbMethod, "method", "", "Auth method: apikey or sigv4 (auto-detected from flags if omitted)")
 	vdbCmd.PersistentFlags().StringVar(&vdbBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "", `API version path (default "v1"; e.g. "v2")`)
 	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, pretty)")
 
 	// Pagination flags for applicable commands
