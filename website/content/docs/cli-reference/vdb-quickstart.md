@@ -9,7 +9,7 @@ Get started with the Vulnetix Vulnerability Database (VDB) CLI in minutes.
 ## Prerequisites
 
 - Vulnetix CLI installed
-- VDB API credentials (Organization UUID and Secret Key)
+- VDB API credentials (Organization UUID + API key, and/or SigV4 secret)
 
 ## 1. Obtain Credentials
 
@@ -23,14 +23,32 @@ Send an email to sales@vulnetix.com with:
 
 You'll receive:
 - **Organization UUID**: Format `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
-- **Secret Key**: 64-character alphanumeric string
+- **API Key** (hex digest): Recommended for most use cases (Direct API Key method)
+- **Secret Key** (64 characters): For SigV4 authentication
 
 ## 2. Configure Credentials
 
-### Method 1: Environment Variables (Recommended)
+### Method 1: `vulnetix auth login` (Recommended)
 
 ```bash
-# Add to your ~/.bashrc, ~/.zshrc, or ~/.profile
+# Interactive — prompts for method, org ID, key, and storage location
+vulnetix auth login
+
+# Non-interactive with Direct API Key
+vulnetix auth login --org-id UUID --api-key KEY
+
+# Non-interactive with SigV4
+vulnetix auth login --org-id UUID --secret KEY
+```
+
+### Method 2: Environment Variables
+
+```bash
+# Direct API Key (recommended)
+export VULNETIX_ORG_ID="your-organization-uuid"
+export VULNETIX_API_KEY="your-api-key-hex"
+
+# Or SigV4
 export VVD_ORG="your-organization-uuid"
 export VVD_SECRET="your-64-character-secret-key"
 
@@ -38,28 +56,35 @@ export VVD_SECRET="your-64-character-secret-key"
 source ~/.bashrc  # or ~/.zshrc
 ```
 
-### Method 2: Configuration File
+### Method 3: Configuration File
 
 ```bash
 # Create configuration directory
 mkdir -p ~/.vulnetix
 
-# Create configuration file
-cat > ~/.vulnetix/vdb.json << 'EOF'
+# Create configuration file (Direct API Key example)
+cat > ~/.vulnetix/credentials.json << 'EOF'
 {
   "org_id": "your-organization-uuid",
-  "secret_key": "your-64-character-secret-key"
+  "api_key": "your-api-key-hex",
+  "method": "apikey"
 }
 EOF
 
 # Secure the file
-chmod 600 ~/.vulnetix/vdb.json
+chmod 600 ~/.vulnetix/credentials.json
 ```
 
 ## 3. Verify Setup
 
 ```bash
-# Test your credentials by listing ecosystems
+# Check which credentials are configured
+vulnetix auth status
+
+# Verify credentials can authenticate
+vulnetix auth verify
+
+# Test with a real query
 vulnetix vdb ecosystems
 ```
 
@@ -187,24 +212,22 @@ done < vuln-list.txt
 
 **Solution**:
 ```bash
-# Verify environment variables are set WITHOUT printing secret values
-if [ -n "${VVD_ORG:-}" ]; then
-  echo "VVD_ORG is set"
-else
-  echo "VVD_ORG is NOT set"
-fi
+# Quickest fix — run interactive login
+vulnetix auth login
 
-if [ -n "${VVD_SECRET:-}" ]; then
-  echo "VVD_SECRET is set"
-else
-  echo "VVD_SECRET is NOT set"
-fi
+# Or check all credential sources at once
+vulnetix auth status
+
+# Manual check: verify environment variables are set WITHOUT printing secret values
+for var in VULNETIX_API_KEY VULNETIX_ORG_ID VVD_ORG VVD_SECRET; do
+  if [ -n "${!var:-}" ]; then echo "$var is set"; else echo "$var is NOT set"; fi
+done
 
 # Check that the config file exists (but don't print its contents)
-if [ -f "$HOME/.vulnetix/vdb.json" ]; then
-  echo "VDB config file found at $HOME/.vulnetix/vdb.json"
+if [ -f "$HOME/.vulnetix/credentials.json" ]; then
+  echo "Config file found at $HOME/.vulnetix/credentials.json"
 else
-  echo "VDB config file not found at $HOME/.vulnetix/vdb.json"
+  echo "Config file not found at $HOME/.vulnetix/credentials.json"
 fi
 
 # Security tip: avoid running commands that print secrets (UUIDs, API keys,
@@ -313,12 +336,19 @@ echo "Report generated in $REPORT_DIR/"
    ```bash
    # Add to .gitignore
    echo ".vulnetix/" >> .gitignore
-   echo "vdb.json" >> .gitignore
+   echo "credentials.json" >> .gitignore
    ```
 
 2. **Use environment variables in CI/CD**
    ```yaml
-   # GitHub Actions example
+   # GitHub Actions example (Direct API Key — recommended)
+   - name: Check vulnerabilities
+     env:
+       VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+       VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+     run: vulnetix vdb vulns ${{ matrix.package }}
+
+   # Or SigV4
    - name: Check vulnerabilities
      env:
        VVD_ORG: ${{ secrets.VVD_ORG }}
@@ -330,7 +360,7 @@ echo "Report generated in $REPORT_DIR/"
 
 4. **Limit credential access** on shared systems
    ```bash
-   chmod 600 ~/.vulnetix/vdb.json
+   chmod 600 ~/.vulnetix/credentials.json
    ```
 
 ---

@@ -37,23 +37,24 @@ vulnetix auth [login|status|verify|logout] [flags]
 Authenticate with Vulnetix. Interactive by default when run in a terminal.
 
 ```bash
-# Interactive login (prompts for method, org ID, secret, storage)
+# Interactive login (prompts for method, org ID, key, storage)
 vulnetix auth login
 
 # Non-interactive login with Direct API Key
-vulnetix auth login --method apikey --org-id <UUID> --secret <KEY> --store home
+vulnetix auth login --org-id <UUID> --api-key <KEY> --store home
 
 # Non-interactive login with SigV4
-vulnetix auth login --method sigv4 --org-id <UUID> --secret <KEY> --store project
+vulnetix auth login --org-id <UUID> --secret <KEY> --store project
 ```
 
 **Flags:**
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--method` | string | `apikey` | Authentication method: `apikey` or `sigv4` |
+| `--method` | string | auto | Authentication method: `apikey` or `sigv4` (auto-detected from flags if omitted) |
 | `--org-id` | string | - | Organization ID (UUID) |
-| `--secret` | string | - | API key (hex) or SigV4 secret key |
+| `--api-key` | string | - | Direct API key (hex) |
+| `--secret` | string | - | SigV4 secret key |
 | `--store` | string | `home` | Credential storage location: `home`, `project`, `keyring` |
 
 Running `vulnetix auth` without a subcommand also triggers login.
@@ -202,6 +203,7 @@ vulnetix vdb <subcommand> [flags]
 | `exploit-sources` | List all exploit intelligence sources |
 | `exploit-types` | List exploit type classifications |
 | `fix-distributions` | List supported Linux distributions for fix advisories |
+| `status` | Check API health and display CLI/auth metadata |
 
 ---
 
@@ -307,8 +309,8 @@ These flags are available on the root command and inherited by subcommands:
 
 | Variable | Description | Used By |
 |----------|-------------|---------|
-| `VULNETIX_API_KEY` | Direct API key (hex digest) | `auth`, `upload` |
-| `VULNETIX_ORG_ID` | Organization ID for Direct API Key auth | `auth`, `upload` |
+| `VULNETIX_API_KEY` | Direct API key (hex digest) | `auth`, `upload`, `vdb` |
+| `VULNETIX_ORG_ID` | Organization ID for Direct API Key auth | `auth`, `upload`, `vdb` |
 | `VVD_ORG` | Organization UUID for SigV4 auth | `vdb`, `auth` |
 | `VVD_SECRET` | Secret key for SigV4 auth | `vdb`, `auth` |
 | `GITHUB_TOKEN` | GitHub API token | `gha upload` |

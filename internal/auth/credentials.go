@@ -89,6 +89,24 @@ func RemoveCredentials() error {
 	return lastErr
 }
 
+// CredentialSource returns the name of the credential source that would win
+// in the LoadCredentials precedence chain, or "none" if nothing is configured.
+func CredentialSource() string {
+	if os.Getenv("VULNETIX_API_KEY") != "" && os.Getenv("VULNETIX_ORG_ID") != "" {
+		return "environment (VULNETIX_API_KEY + VULNETIX_ORG_ID)"
+	}
+	if os.Getenv("VVD_ORG") != "" && os.Getenv("VVD_SECRET") != "" {
+		return "environment (VVD_ORG + VVD_SECRET)"
+	}
+	if _, err := loadFromFile(StoreProject); err == nil {
+		return "project (.vulnetix/credentials.json)"
+	}
+	if _, err := loadFromFile(StoreHome); err == nil {
+		return "home (~/.vulnetix/credentials.json)"
+	}
+	return "none"
+}
+
 // CredentialStatus returns a human-readable description of the current auth state
 func CredentialStatus() (string, *Credentials) {
 	creds, err := LoadCredentials()
@@ -96,22 +114,40 @@ func CredentialStatus() (string, *Credentials) {
 		return "Not authenticated", nil
 	}
 
-	source := "unknown"
+	source := CredentialSource()
+	return fmt.Sprintf("Authenticated via %s (method: %s, org: %s)", source, creds.Method, creds.OrgID), creds
+}
 
-	// Determine source
-	apiKey := os.Getenv("VULNETIX_API_KEY")
-	orgID := os.Getenv("VULNETIX_ORG_ID")
-	if apiKey != "" && orgID != "" {
-		source = "environment (VULNETIX_API_KEY + VULNETIX_ORG_ID)"
-	} else if os.Getenv("VVD_ORG") != "" && os.Getenv("VVD_SECRET") != "" {
-		source = "environment (VVD_ORG + VVD_SECRET)"
-	} else if _, err := loadFromFile(StoreProject); err == nil {
-		source = "project (.vulnetix/credentials.json)"
-	} else if _, err := loadFromFile(StoreHome); err == nil {
-		source = "home (~/.vulnetix/credentials.json)"
+// AllSourceStatus returns a compact summary of every credential source and
+// whether it is set / found. Useful for diagnostics.
+func AllSourceStatus() []string {
+	var lines []string
+
+	if os.Getenv("VULNETIX_API_KEY") != "" && os.Getenv("VULNETIX_ORG_ID") != "" {
+		lines = append(lines, "env VULNETIX_API_KEY + VULNETIX_ORG_ID: set")
+	} else {
+		lines = append(lines, "env VULNETIX_API_KEY + VULNETIX_ORG_ID: not set")
 	}
 
-	return fmt.Sprintf("Authenticated via %s (method: %s, org: %s)", source, creds.Method, creds.OrgID), creds
+	if os.Getenv("VVD_ORG") != "" && os.Getenv("VVD_SECRET") != "" {
+		lines = append(lines, "env VVD_ORG + VVD_SECRET: set")
+	} else {
+		lines = append(lines, "env VVD_ORG + VVD_SECRET: not set")
+	}
+
+	if _, err := loadFromFile(StoreProject); err == nil {
+		lines = append(lines, "project .vulnetix/credentials.json: found")
+	} else {
+		lines = append(lines, "project .vulnetix/credentials.json: not found")
+	}
+
+	if _, err := loadFromFile(StoreHome); err == nil {
+		lines = append(lines, "home ~/.vulnetix/credentials.json: found")
+	} else {
+		lines = append(lines, "home ~/.vulnetix/credentials.json: not found")
+	}
+
+	return lines
 }
 
 func loadFromFile(store CredentialStore) (*Credentials, error) {

@@ -19,6 +19,7 @@ var (
 	authMethod string
 	authOrgID  string
 	authSecret string
+	authAPIKey string
 	authStore  string
 )
 
@@ -33,7 +34,10 @@ Examples:
   vulnetix auth
 
   # Non-interactive login with Direct API Key
-  vulnetix auth login --method apikey --org-id UUID --secret KEY --store home
+  vulnetix auth login --org-id UUID --api-key KEY --store home
+
+  # Non-interactive login with SigV4
+  vulnetix auth login --org-id UUID --secret KEY --store home
 
   # Check auth status
   vulnetix auth status
@@ -51,9 +55,10 @@ var authLoginCmd = &cobra.Command{
 	Long: `Log in to the Vulnetix API. Interactive by default when run in a terminal.
 
 Non-interactive flags:
-  --method apikey|sigv4    Authentication method
+  --method apikey|sigv4    Authentication method (auto-detected if omitted)
   --org-id UUID            Organization ID
-  --secret KEY             API key (hex) or SigV4 secret
+  --api-key KEY            API key for Direct API Key auth
+  --secret KEY             Secret key for SigV4 auth
   --store home|project     Where to save credentials`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAuthLogin(cmd)
@@ -82,6 +87,10 @@ var authStatusCmd = &cobra.Command{
 				}
 				fmt.Printf("  Secret: %s\n", masked)
 			}
+		}
+		fmt.Println("\nAll credential sources:")
+		for _, line := range auth.AllSourceStatus() {
+			fmt.Printf("  %s\n", line)
 		}
 		return nil
 	},
@@ -119,28 +128,35 @@ var authLogoutCmd = &cobra.Command{
 }
 
 func runAuthLogin(cmd *cobra.Command) error {
-	interactive := isInteractive() && authMethod == "" && authOrgID == "" && authSecret == ""
+	interactive := isInteractive() && authMethod == "" && authOrgID == "" && authSecret == "" && authAPIKey == ""
 
 	var method auth.AuthMethod
-	var orgIDVal, secret string
+	var orgIDVal string
 	var store auth.CredentialStore
+	var creds *auth.Credentials
 
 	if interactive {
+		var secret string
 		var err error
 		method, orgIDVal, secret, store, err = interactiveLogin()
 		if err != nil {
 			return err
 		}
+		creds = &auth.Credentials{
+			OrgID:  orgIDVal,
+			Method: method,
+		}
+		switch method {
+		case auth.DirectAPIKey:
+			creds.APIKey = secret
+		case auth.SigV4:
+			creds.Secret = secret
+		}
 	} else {
 		// Non-interactive: use flags
-		if authMethod == "" {
-			authMethod = "apikey"
+		if authSecret != "" && authAPIKey != "" {
+			return fmt.Errorf("cannot use both --secret and --api-key; choose one authentication method")
 		}
-		m, err := auth.ValidateMethod(authMethod)
-		if err != nil {
-			return err
-		}
-		method = m
 
 		if authOrgID == "" {
 			return fmt.Errorf("--org-id is required in non-interactive mode")
@@ -150,10 +166,34 @@ func runAuthLogin(cmd *cobra.Command) error {
 		}
 		orgIDVal = authOrgID
 
-		if authSecret == "" {
-			return fmt.Errorf("--secret is required in non-interactive mode")
+		// Determine method
+		if authMethod != "" {
+			m, err := auth.ValidateMethod(authMethod)
+			if err != nil {
+				return err
+			}
+			method = m
+			switch m {
+			case auth.DirectAPIKey:
+				if authAPIKey == "" {
+					return fmt.Errorf("--method apikey requires --api-key")
+				}
+			case auth.SigV4:
+				if authSecret == "" {
+					return fmt.Errorf("--method sigv4 requires --secret")
+				}
+			}
+		} else {
+			// Auto-detect from which flag was provided
+			switch {
+			case authAPIKey != "":
+				method = auth.DirectAPIKey
+			case authSecret != "":
+				method = auth.SigV4
+			default:
+				return fmt.Errorf("--api-key or --secret is required in non-interactive mode")
+			}
 		}
-		secret = authSecret
 
 		if authStore == "" {
 			authStore = "home"
@@ -163,17 +203,17 @@ func runAuthLogin(cmd *cobra.Command) error {
 			return err
 		}
 		store = s
-	}
 
-	creds := &auth.Credentials{
-		OrgID:  orgIDVal,
-		Method: method,
-	}
-	switch method {
-	case auth.DirectAPIKey:
-		creds.APIKey = secret
-	case auth.SigV4:
-		creds.Secret = secret
+		creds = &auth.Credentials{
+			OrgID:  orgIDVal,
+			Method: method,
+		}
+		switch method {
+		case auth.DirectAPIKey:
+			creds.APIKey = authAPIKey
+		case auth.SigV4:
+			creds.Secret = authSecret
+		}
 	}
 
 	// Test authentication
@@ -328,15 +368,17 @@ func isInteractive() bool {
 }
 
 func init() {
-	authLoginCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: apikey, sigv4")
+	authLoginCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: apikey, sigv4 (auto-detected if omitted)")
 	authLoginCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID)")
-	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "API key (hex) or SigV4 secret key")
+	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex)")
+	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key")
 	authLoginCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
 
 	// Also add flags to the parent auth command for `vulnetix auth --method ...`
-	authCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: apikey, sigv4")
+	authCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: apikey, sigv4 (auto-detected if omitted)")
 	authCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID)")
-	authCmd.Flags().StringVar(&authSecret, "secret", "", "API key (hex) or SigV4 secret key")
+	authCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex)")
+	authCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key")
 	authCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
 
 	authVerifyCmd.Flags().StringVar(&verifyBaseURL, "base-url", upload.DefaultBaseURL, "Base URL for Vulnetix API")
