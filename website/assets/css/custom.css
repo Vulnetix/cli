@@ -1,0 +1,486 @@
+/* ==========================================================================
+   Vulnetix Brand Design System
+   ========================================================================== */
+
+:root {
+  /* Vulnetix Brand Palette — Light */
+  --vx-primary: #006860;
+  --vx-secondary: #00B8A5;
+  --vx-surface-variant: #FDE0B5;
+  --vx-text: #002E29;
+  --vx-success: #2E7D6F;
+  --vx-warning: #F5B82E;
+  --vx-error: #D64550;
+  --vx-info: #4A90A4;
+  --vx-accent-purple: #A78EBF;
+  --vx-shadow-1: rgba(0, 46, 41, 0.08);
+  --vx-shadow-2: rgba(0, 46, 41, 0.05);
+  --vx-shadow-3: rgba(0, 46, 41, 0.03);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --vx-primary: #00E0C9;
+    --vx-secondary: #66DCC8;
+    --vx-surface-variant: #2D2D2D;
+    --vx-text: #FFFFFF;
+    --vx-success: #4EC9A3;
+    --vx-warning: #FFD54F;
+    --vx-error: #FF6B6B;
+    --vx-info: #5BB8D4;
+    --vx-accent-purple: #A78EBF;
+    --vx-shadow-1: rgba(0, 46, 41, 0.2);
+    --vx-shadow-2: rgba(0, 46, 41, 0.14);
+    --vx-shadow-3: rgba(0, 46, 41, 0.12);
+  }
+}
+
+/* Override Hextra primary with Vulnetix teal */
+:root {
+  --primary-hue: 174;
+  --primary-saturation: 100%;
+}
+
+/* ==========================================================================
+   Version Switcher — Content Gating
+   ========================================================================== */
+
+html.vdb-v1 .vdb-v2-only {
+  display: none !important;
+}
+
+html.vdb-v2 .vdb-v1-only {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Version Switcher — Button & Dropdown
+   ========================================================================== */
+
+.vdb-version-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.vdb-version-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: transparent;
+  color: var(--vx-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, border-color 0.15s;
+  line-height: 1.25rem;
+}
+
+.vdb-version-btn:hover {
+  background-color: rgba(0, 104, 96, 0.06);
+  border-color: var(--vx-primary);
+}
+
+.vdb-version-btn svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  opacity: 0.6;
+  transition: transform 0.2s;
+}
+
+.vdb-version-btn[data-state="open"] svg {
+  transform: rotate(180deg);
+}
+
+.vdb-version-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  min-width: 8rem;
+  margin-top: 0.375rem;
+  padding: 0.25rem 0;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: white;
+  box-shadow: 0 4px 12px var(--vx-shadow-1), 0 2px 4px var(--vx-shadow-2);
+  list-style: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.15s, visibility 0.15s, transform 0.15s;
+}
+
+.vdb-version-menu[data-show="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.vdb-version-menu li {
+  list-style: none;
+}
+
+.vdb-version-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--vx-text);
+  font-size: 0.8125rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.1s;
+}
+
+.vdb-version-menu button:hover {
+  background-color: rgba(0, 104, 96, 0.06);
+}
+
+.vdb-version-menu button[aria-checked="true"] {
+  font-weight: 600;
+  color: var(--vx-primary);
+}
+
+.vdb-version-menu button[aria-checked="true"]::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vx-primary);
+  flex-shrink: 0;
+}
+
+.vdb-version-menu button[aria-checked="false"]::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+}
+
+/* Alpha badge */
+.vdb-alpha-badge {
+  display: inline-block;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 9999px;
+  background: var(--vx-accent-purple);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  line-height: 1.125rem;
+  text-transform: uppercase;
+}
+
+/* Dark mode overrides for switcher */
+@media (prefers-color-scheme: dark) {
+  .vdb-version-btn {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .vdb-version-btn:hover {
+    background-color: rgba(0, 224, 201, 0.08);
+    border-color: var(--vx-primary);
+  }
+
+  .vdb-version-menu {
+    background: #1a1a1a;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .vdb-version-menu button:hover {
+    background-color: rgba(0, 224, 201, 0.08);
+  }
+}
+
+/* ==========================================================================
+   Homepage — Feature Sections
+   ========================================================================== */
+
+.vx-feature-section {
+  padding: 2.5rem 1.5rem;
+  border-radius: 1rem;
+  margin-bottom: 2rem;
+}
+
+.vx-feature-section h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.vx-feature-section p {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  max-width: 48rem;
+}
+
+.vx-feature-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 1.25rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.vx-feature-section ul li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  .vx-feature-section ul li {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.vx-feature-section .vx-feature-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 1.25rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--vx-primary);
+  text-decoration: none;
+}
+
+.vx-feature-section .vx-feature-link:hover {
+  text-decoration: underline;
+}
+
+/* Feature gradient backgrounds */
+.vx-feature-vdb {
+  background: linear-gradient(135deg, rgba(74, 144, 164, 0.08) 0%, rgba(0, 104, 96, 0.04) 100%);
+  border: 1px solid rgba(74, 144, 164, 0.12);
+}
+
+.vx-feature-scan {
+  background: linear-gradient(135deg, rgba(0, 184, 165, 0.08) 0%, rgba(46, 125, 111, 0.04) 100%);
+  border: 1px solid rgba(0, 184, 165, 0.12);
+}
+
+.vx-feature-cicd {
+  background: linear-gradient(135deg, rgba(167, 142, 191, 0.08) 0%, rgba(0, 104, 96, 0.04) 100%);
+  border: 1px solid rgba(167, 142, 191, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  .vx-feature-vdb {
+    background: linear-gradient(135deg, rgba(91, 184, 212, 0.06) 0%, rgba(0, 224, 201, 0.03) 100%);
+    border-color: rgba(91, 184, 212, 0.15);
+  }
+
+  .vx-feature-scan {
+    background: linear-gradient(135deg, rgba(102, 220, 200, 0.06) 0%, rgba(78, 201, 163, 0.03) 100%);
+    border-color: rgba(102, 220, 200, 0.15);
+  }
+
+  .vx-feature-cicd {
+    background: linear-gradient(135deg, rgba(167, 142, 191, 0.06) 0%, rgba(0, 224, 201, 0.03) 100%);
+    border-color: rgba(167, 142, 191, 0.15);
+  }
+}
+
+/* ==========================================================================
+   Homepage — Coming Soon Banner
+   ========================================================================== */
+
+.vx-coming-soon {
+  padding: 2rem 1.5rem;
+  border-radius: 1rem;
+  border: 1px dashed rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.015);
+  margin-top: 2rem;
+  opacity: 0.85;
+}
+
+.vx-coming-soon h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+
+.vx-coming-soon p {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  max-width: 48rem;
+  margin: 0 0 1rem;
+  opacity: 0.8;
+}
+
+.vx-coming-soon-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  background: var(--vx-warning);
+  color: #002E29;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.vx-coming-soon .vx-contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--vx-primary);
+  text-decoration: none;
+}
+
+.vx-coming-soon .vx-contact-link:hover {
+  text-decoration: underline;
+}
+
+@media (prefers-color-scheme: dark) {
+  .vx-coming-soon {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+/* ==========================================================================
+   Homepage — Footer Links
+   ========================================================================== */
+
+.vx-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+  margin-top: 2.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.vx-footer-links a {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--vx-text);
+  text-decoration: none;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.vx-footer-links a:hover {
+  opacity: 1;
+  color: var(--vx-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .vx-footer-links {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* ==========================================================================
+   Homepage — CTA Buttons
+   ========================================================================== */
+
+.vx-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.vx-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  background: var(--vx-primary);
+  color: white !important;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none !important;
+  transition: background-color 0.15s, transform 0.1s;
+}
+
+.vx-btn-primary:hover {
+  background: #005850;
+  transform: translateY(-1px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .vx-btn-primary {
+    background: var(--vx-primary);
+    color: #002E29 !important;
+  }
+
+  .vx-btn-primary:hover {
+    background: #00c9b4;
+  }
+}
+
+.vx-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: var(--vx-text) !important;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none !important;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.vx-btn-secondary:hover {
+  border-color: var(--vx-primary);
+  background: rgba(0, 104, 96, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .vx-btn-secondary {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .vx-btn-secondary:hover {
+    border-color: var(--vx-primary);
+    background: rgba(0, 224, 201, 0.06);
+  }
+}
+
+.vx-subtle-link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--vx-text);
+  opacity: 0.5;
+  text-decoration: none;
+}
+
+.vx-subtle-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
