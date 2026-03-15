@@ -15,6 +15,8 @@ Vulnetix CLI is distributed through the following channels:
 | **GitHub Releases** | Automated | GitHub Releases | Auto-published on tags |
 | **Go Install** | Automated | Go Module Proxy | Uses GitHub releases |
 | **Homebrew Tap** | Automated | [Vulnetix/homebrew-tap](https://github.com/Vulnetix/homebrew-tap) | Formula updated on release |
+| **Scoop Bucket** | Automated | [Vulnetix/scoop-bucket](https://github.com/Vulnetix/scoop-bucket) | Manifest updated on release |
+| **Nix Flake** | Automated | [Vulnetix/cli](https://github.com/Vulnetix/cli) flake.nix | Version updated on release |
 | **GitHub Actions** | Automated | GitHub Marketplace | Action metadata in repo |
 
 ## Publishing Process
@@ -87,6 +89,35 @@ brew install vulnetix
 brew install vvd-search
 ```
 
+### 5. Scoop Bucket (Windows)
+
+**Repository:** [Vulnetix/scoop-bucket](https://github.com/Vulnetix/scoop-bucket)
+
+The Scoop bucket contains a manifest for the Vulnetix CLI with `checkver` and `autoupdate` configuration that tracks GitHub releases automatically.
+
+**Supported architectures:** 64bit (AMD64), 32bit (386), ARM64
+
+**Usage by end users:**
+```powershell
+scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket
+scoop install vulnetix
+```
+
+### 6. Nix Flake
+
+**Location:** `flake.nix` in the [Vulnetix/cli](https://github.com/Vulnetix/cli) repository
+
+The Nix flake builds from source using `buildGoModule` and supports all default Nix systems (x86_64-linux, aarch64-linux, x86_64-darwin, aarch64-darwin). The version in `flake.nix` is updated when new releases are tagged.
+
+**Usage by end users:**
+```bash
+# Run without installing
+nix run github:Vulnetix/cli
+
+# Install to profile
+nix profile install github:Vulnetix/cli
+```
+
 ## Shared Resources
 
 ### GitHub Releases for Multiple Use Cases
@@ -110,8 +141,12 @@ When creating a new release:
    - [ ] `go install github.com/vulnetix/cli@v1.2.3` works
    - [ ] Install script downloads correct version
    - [ ] Homebrew formula updated in `Vulnetix/homebrew-tap`
+   - [ ] Scoop manifest updated in `Vulnetix/scoop-bucket` (hashes from checksums.txt)
+   - [ ] `flake.nix` version updated in `Vulnetix/cli`
 4. **Test installation methods:**
    - [ ] `brew upgrade vulnetix`
+   - [ ] `scoop update vulnetix`
+   - [ ] `nix run github:Vulnetix/cli`
    - [ ] `go install github.com/vulnetix/cli@v1.2.3`
    - [ ] `curl -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o vulnetix`
 

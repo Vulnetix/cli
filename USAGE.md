@@ -94,6 +94,34 @@ brew upgrade vulnetix
 brew install vulnetix/tap/vvd-search
 ```
 
+### Scoop (Windows)
+
+The recommended installation method for Windows:
+
+```powershell
+# Add the Vulnetix bucket and install
+scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket
+scoop install vulnetix
+
+# Upgrade to the latest version
+scoop update vulnetix
+```
+
+### Nix
+
+Install using Nix flakes (Linux and macOS):
+
+```bash
+# Run without installing
+nix run github:Vulnetix/cli
+
+# Install to your profile
+nix profile install github:Vulnetix/cli
+
+# Upgrade to latest
+nix profile upgrade '.*vulnetix.*'
+```
+
 ### Quick Install Script
 
 Use the installation script to automatically detect your platform:
