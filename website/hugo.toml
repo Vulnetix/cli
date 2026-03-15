@@ -13,24 +13,9 @@ title = "Vulnetix CLI Documentation"
   noClasses = false
 
 [[menu.main]]
-  name = "Getting Started"
-  pageRef = "/docs/getting-started"
+  name = "Docs"
+  pageRef = "/docs"
   weight = 1
-
-[[menu.main]]
-  name = "CLI Reference"
-  pageRef = "/docs/cli-reference"
-  weight = 2
-
-[[menu.main]]
-  name = "CI/CD"
-  pageRef = "/docs/ci-cd"
-  weight = 3
-
-[[menu.main]]
-  name = "Enterprise"
-  pageRef = "/docs/enterprise"
-  weight = 4
 
 [[menu.main]]
   name = "GitHub"
@@ -52,6 +37,13 @@ title = "Vulnetix CLI Documentation"
   weight = 7
   [menu.main.params]
     icon = "document-download"
+
+[[menu.main]]
+  name = "Sign In"
+  url = "https://app.vulnetix.com/login"
+  weight = 8
+  [menu.main.params]
+    icon = "login"
 
 [params]
   description = "Automated vulnerability management CLI that focuses on remediation over discovery."

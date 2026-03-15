@@ -18,18 +18,25 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb vulns](#vdb-vulns)
   - [vdb spec](#vdb-spec)
   - [vdb exploits](#vdb-exploits)
+  - [vdb exploits search](#vdb-exploits-search)
+  - [vdb exploits sources](#vdb-exploits-sources)
+  - [vdb exploits types](#vdb-exploits-types)
   - [vdb fixes](#vdb-fixes)
+  - [vdb fixes distributions](#vdb-fixes-distributions)
   - [vdb versions](#vdb-versions)
   - [vdb gcve](#vdb-gcve)
+  - [vdb gcve issuances](#vdb-gcve-issuances)
   - [vdb purl](#vdb-purl)
-  - [vdb gcve-issuances](#vdb-gcve-issuances)
   - [vdb ids](#vdb-ids)
   - [vdb search](#vdb-search)
   - [vdb sources](#vdb-sources)
-  - [vdb metric-types](#vdb-metric-types)
-  - [vdb exploit-sources](#vdb-exploit-sources)
-  - [vdb exploit-types](#vdb-exploit-types)
-  - [vdb fix-distributions](#vdb-fix-distributions)
+  - [vdb metrics](#vdb-metrics)
+  - [vdb metrics types](#vdb-metrics-types)
+  - [vdb status](#vdb-status)
+  - [vdb packages search](#vdb-packages-search)
+  - [vdb ecosystem package](#vdb-ecosystem-package)
+  - [vdb ecosystem group](#vdb-ecosystem-group)
+- [V2 Commands](#v2-commands)
 - [API-Only Endpoints](#api-only-endpoints)
 - [Examples](#examples)
 - [Rate Limiting](#rate-limiting)
@@ -380,6 +387,97 @@ vulnetix vdb exploits CVE-2021-44228 --output json
 
 ---
 
+### vdb exploits search
+
+Search for exploits across all vulnerabilities with filtering.
+
+**Usage:**
+```bash
+vulnetix vdb exploits search [flags]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--ecosystem` | string | - | Filter by package ecosystem |
+| `--source` | string | - | Filter by exploit source |
+| `--severity` | string | - | Filter by severity level |
+| `--in-kev` | bool | `false` | Only show exploits in CISA KEV |
+| `--min-epss` | float | - | Minimum EPSS score threshold |
+| `-q` | string | - | Free-text search query |
+| `--sort` | string | - | Sort field |
+| `--limit` | int | `100` | Maximum results |
+| `--offset` | int | `0` | Results to skip |
+| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+
+**Examples:**
+```bash
+# Search for npm exploits
+vulnetix vdb exploits search --ecosystem npm
+
+# High-severity exploits in CISA KEV
+vulnetix vdb exploits search --in-kev --severity critical
+
+# Exploits with high EPSS scores
+vulnetix vdb exploits search --min-epss 0.9 --limit 20
+
+# Free-text search
+vulnetix vdb exploits search -q "remote code execution" -o json
+```
+
+---
+
+### vdb exploits sources
+
+List all exploit intelligence sources tracked by the VDB (e.g. ExploitDB, Metasploit, VulnCheck, Nuclei).
+
+> **Alias:** `vdb exploit-sources` still works as a hidden alias.
+
+**Usage:**
+```bash
+vulnetix vdb exploits sources [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# List all exploit intelligence sources
+vulnetix vdb exploits sources
+
+# As JSON
+vulnetix vdb exploits sources --output json
+```
+
+---
+
+### vdb exploits types
+
+List all exploit type classifications tracked by the VDB.
+
+> **Alias:** `vdb exploit-types` still works as a hidden alias.
+
+**Usage:**
+```bash
+vulnetix vdb exploits types [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# List all exploit type classifications
+vulnetix vdb exploits types
+
+# As JSON
+vulnetix vdb exploits types --output json
+```
+
+---
+
 ### vdb fixes
 
 Retrieve comprehensive fix data for a specific vulnerability.
@@ -391,6 +489,8 @@ vulnetix vdb fixes <vuln-id> [flags]
 
 **Flags:**
 - `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+> **V2 note:** When using API v2 (`-V v2`), fix data is fetched in parallel with other enrichment endpoints for faster response times.
 
 **Examples:**
 ```bash
@@ -405,6 +505,31 @@ vulnetix vdb fixes CVE-2021-44228 --output json
 ```
 
 **Response includes:** Patches, advisories, workarounds, KEV required actions, and AI-generated analysis.
+
+---
+
+### vdb fixes distributions
+
+List all supported Linux distributions for which fix advisory data is available in the VDB.
+
+> **Alias:** `vdb fix-distributions` still works as a hidden alias.
+
+**Usage:**
+```bash
+vulnetix vdb fixes distributions [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+# List supported distributions
+vulnetix vdb fixes distributions
+
+# As JSON
+vulnetix vdb fixes distributions --output json
+```
 
 ---
 
@@ -459,6 +584,41 @@ vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31 -o json > jan-2024-vulns.j
 
 ---
 
+### vdb gcve issuances
+
+List GCVE issuance identifiers (GCVE-VVD-YYYY-NNNN) published in a given calendar month.
+
+> **Alias:** `vdb gcve-issuances` still works as a hidden alias.
+
+**Usage:**
+```bash
+vulnetix vdb gcve issuances --year <YYYY> --month <M> [flags]
+```
+
+**Flags:**
+
+| Flag | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `--year` | int | **Yes** | — | 4-digit publication year |
+| `--month` | int | **Yes** | — | Publication month (1–12) |
+| `--limit` | int | No | `100` | Maximum results to return (max 500) |
+| `--offset` | int | No | `0` | Results to skip (for pagination) |
+| `-o, --output` | string | No | `pretty` | Output format: `json` or `pretty` |
+
+**Examples:**
+```bash
+# List GCVE issuances for March 2025
+vulnetix vdb gcve issuances --year 2025 --month 3
+
+# As JSON
+vulnetix vdb gcve issuances --year 2025 --month 3 --output json
+
+# Paginate
+vulnetix vdb gcve issuances --year 2025 --month 3 --limit 50 --offset 100
+```
+
+---
+
 ### vdb purl
 
 Query the VDB using a standard [Package URL (PURL)](https://github.com/package-url/purl-spec) string. The PURL is parsed automatically and the appropriate VDB endpoint is called based on the dispatch logic below.
@@ -499,39 +659,6 @@ vulnetix vdb purl "pkg:golang/github.com/go-chi/chi/v5@5.0.8" -o json
 
 # No version (default) → list product versions
 vulnetix vdb purl "pkg:npm/lodash"
-```
-
----
-
-### vdb gcve-issuances
-
-List GCVE issuance identifiers (GCVE-VVD-YYYY-NNNN) published in a given calendar month.
-
-**Usage:**
-```bash
-vulnetix vdb gcve-issuances --year <YYYY> --month <M> [flags]
-```
-
-**Flags:**
-
-| Flag | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| `--year` | int | **Yes** | — | 4-digit publication year |
-| `--month` | int | **Yes** | — | Publication month (1–12) |
-| `--limit` | int | No | `100` | Maximum results to return (max 500) |
-| `--offset` | int | No | `0` | Results to skip (for pagination) |
-| `-o, --output` | string | No | `pretty` | Output format: `json` or `pretty` |
-
-**Examples:**
-```bash
-# List GCVE issuances for March 2025
-vulnetix vdb gcve-issuances --year 2025 --month 3
-
-# As JSON
-vulnetix vdb gcve-issuances --year 2025 --month 3 --output json
-
-# Paginate
-vulnetix vdb gcve-issuances --year 2025 --month 3 --limit 50 --offset 100
 ```
 
 ---
@@ -622,13 +749,29 @@ vulnetix vdb sources --output json
 
 ---
 
-### vdb metric-types
+### vdb metrics
 
-List all vulnerability metric and scoring types tracked by the VDB (e.g. CVSS v2, CVSS v3.1, CVSS v4, EPSS).
+Vulnerability metric intelligence.
 
 **Usage:**
 ```bash
-vulnetix vdb metric-types [flags]
+vulnetix vdb metrics <vuln-id> [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+---
+
+### vdb metrics types
+
+List all vulnerability metric and scoring types tracked by the VDB (e.g. CVSS v2, CVSS v3.1, CVSS v4, EPSS).
+
+> **Alias:** `vdb metric-types` still works as a hidden alias.
+
+**Usage:**
+```bash
+vulnetix vdb metrics types [flags]
 ```
 
 **Flags:**
@@ -637,21 +780,97 @@ vulnetix vdb metric-types [flags]
 **Examples:**
 ```bash
 # List all metric types
-vulnetix vdb metric-types
+vulnetix vdb metrics types
 
 # As JSON
-vulnetix vdb metric-types --output json
+vulnetix vdb metrics types --output json
 ```
 
 ---
 
-### vdb exploit-sources
+### vdb status
 
-List all exploit intelligence sources tracked by the VDB (e.g. ExploitDB, Metasploit, VulnCheck, Nuclei).
+Check API health and display CLI/auth metadata.
 
 **Usage:**
 ```bash
-vulnetix vdb exploit-sources [flags]
+vulnetix vdb status [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+---
+
+### vdb packages search
+
+Full-text search across packages in the VDB.
+
+**Usage:**
+```bash
+vulnetix vdb packages search <query> [flags]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--ecosystem` | string | - | Filter by package ecosystem |
+| `--limit` | int | `100` | Maximum results |
+| `--offset` | int | `0` | Results to skip |
+| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+
+**Examples:**
+```bash
+# Search for packages matching "express"
+vulnetix vdb packages search express
+
+# Search within npm ecosystem
+vulnetix vdb packages search express --ecosystem npm
+
+# JSON output with pagination
+vulnetix vdb packages search log4j --limit 20 -o json
+```
+
+---
+
+### vdb ecosystem package
+
+Get package information within a specific ecosystem.
+
+**Usage:**
+```bash
+vulnetix vdb ecosystem package <ecosystem> <package-name> [flags]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--versions` | bool | `false` | Show version information instead of package info |
+| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+
+**Examples:**
+```bash
+# Get package info
+vulnetix vdb ecosystem package npm express
+
+# Get version information
+vulnetix vdb ecosystem package npm express --versions
+
+# JSON output
+vulnetix vdb ecosystem package pypi requests -o json
+```
+
+---
+
+### vdb ecosystem group
+
+Get group/artifact information using Maven-style coordinates.
+
+**Usage:**
+```bash
+vulnetix vdb ecosystem group <ecosystem> <group> <artifact> [flags]
 ```
 
 **Flags:**
@@ -659,22 +878,28 @@ vulnetix vdb exploit-sources [flags]
 
 **Examples:**
 ```bash
-# List all exploit intelligence sources
-vulnetix vdb exploit-sources
+# Look up a Maven artifact
+vulnetix vdb ecosystem group maven org.apache.commons commons-lang3
 
-# As JSON
-vulnetix vdb exploit-sources --output json
+# JSON output
+vulnetix vdb ecosystem group maven org.springframework spring-core -o json
 ```
 
 ---
 
-### vdb exploit-types
+## V2 Commands
 
-List all exploit type classifications tracked by the VDB.
+The following commands are available when using API v2 (`-V v2`). They provide additional vulnerability enrichment data.
+
+<div class="vdb-v2-only">
+
+### vdb workarounds
+
+Get workaround information for a vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb exploit-types [flags]
+vulnetix vdb workarounds <vuln-id> -V v2 [flags]
 ```
 
 **Flags:**
@@ -682,22 +907,19 @@ vulnetix vdb exploit-types [flags]
 
 **Examples:**
 ```bash
-# List all exploit type classifications
-vulnetix vdb exploit-types
-
-# As JSON
-vulnetix vdb exploit-types --output json
+vulnetix vdb workarounds CVE-2021-44228 -V v2
+vulnetix vdb workarounds CVE-2021-44228 -V v2 -o json
 ```
 
 ---
 
-### vdb fix-distributions
+### vdb advisories
 
-List all supported Linux distributions for which fix advisory data is available in the VDB.
+Get advisory data for a vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb fix-distributions [flags]
+vulnetix vdb advisories <vuln-id> -V v2 [flags]
 ```
 
 **Flags:**
@@ -705,14 +927,170 @@ vulnetix vdb fix-distributions [flags]
 
 **Examples:**
 ```bash
-# List supported distributions
-vulnetix vdb fix-distributions
-
-# As JSON
-vulnetix vdb fix-distributions --output json
+vulnetix vdb advisories CVE-2021-44228 -V v2
+vulnetix vdb advisories GHSA-jfh8-3a1q-hjz9 -V v2 -o json
 ```
 
 ---
+
+### vdb cwe guidance
+
+Get CWE-based guidance for a vulnerability.
+
+**Usage:**
+```bash
+vulnetix vdb cwe guidance <vuln-id> -V v2 [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+vulnetix vdb cwe guidance CVE-2021-44228 -V v2
+vulnetix vdb cwe guidance CVE-2021-44228 -V v2 -o json
+```
+
+---
+
+### vdb kev
+
+Get CISA KEV (Known Exploited Vulnerabilities) status for a vulnerability.
+
+**Usage:**
+```bash
+vulnetix vdb kev <vuln-id> -V v2 [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+vulnetix vdb kev CVE-2021-44228 -V v2
+vulnetix vdb kev CVE-2021-44228 -V v2 -o json
+```
+
+---
+
+### vdb timeline
+
+Get the vulnerability timeline showing key dates and events.
+
+**Usage:**
+```bash
+vulnetix vdb timeline <vuln-id> -V v2 [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+vulnetix vdb timeline CVE-2021-44228 -V v2
+vulnetix vdb timeline CVE-2021-44228 -V v2 -o json
+```
+
+---
+
+### vdb affected
+
+Get affected products and packages for a vulnerability.
+
+**Usage:**
+```bash
+vulnetix vdb affected <vuln-id> -V v2 [flags]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--ecosystem` | string | - | Filter by package ecosystem |
+| `--package-name` | string | - | Filter by package name |
+| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+
+**Examples:**
+```bash
+vulnetix vdb affected CVE-2021-44228 -V v2
+vulnetix vdb affected CVE-2021-44228 -V v2 --ecosystem maven
+vulnetix vdb affected CVE-2021-44228 -V v2 --ecosystem maven --package-name log4j-core -o json
+```
+
+---
+
+### vdb scorecard
+
+Get a vulnerability scorecard with aggregated risk metrics.
+
+**Usage:**
+```bash
+vulnetix vdb scorecard <vuln-id> -V v2 [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Examples:**
+```bash
+vulnetix vdb scorecard CVE-2021-44228 -V v2
+vulnetix vdb scorecard CVE-2021-44228 -V v2 -o json
+```
+
+---
+
+### vdb remediation plan
+
+Get a context-aware remediation plan for a vulnerability.
+
+**Usage:**
+```bash
+vulnetix vdb remediation plan <vuln-id> -V v2 [flags]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--ecosystem` | string | - | Filter by package ecosystem |
+| `--package-name` | string | - | Filter by package name |
+| `--vendor` | string | - | Filter by vendor name |
+| `--product` | string | - | Filter by product name |
+| `--purl` | string | - | Package URL (overrides ecosystem + package-name) |
+| `--current-version` | string | - | Current package version |
+| `--package-manager` | string | - | Package manager (npm, pip, cargo, etc.) |
+| `--container-image` | string | - | Container image reference |
+| `--os` | string | - | OS identifier (e.g. `ubuntu:22.04`) |
+| `--registry` | string | - | Registry URL |
+| `--include-guidance` | bool | `false` | Include CWE-based guidance text |
+| `--include-verification-steps` | bool | `false` | Include verification steps in actions |
+| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+
+**Examples:**
+```bash
+# Basic remediation plan
+vulnetix vdb remediation plan CVE-2021-44228 -V v2
+
+# With package context
+vulnetix vdb remediation plan CVE-2021-44228 -V v2 \
+  --ecosystem maven --package-name log4j-core --current-version 2.14.1
+
+# Using PURL
+vulnetix vdb remediation plan CVE-2021-44228 -V v2 \
+  --purl "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+
+# With full context and guidance
+vulnetix vdb remediation plan CVE-2021-44228 -V v2 \
+  --ecosystem maven --package-name log4j-core \
+  --current-version 2.14.1 --package-manager maven \
+  --include-guidance --include-verification-steps -o json
+```
+
+</div>
+
+---
+
+<div class="vdb-v1-only">
 
 ## API-Only Endpoints
 
@@ -726,6 +1104,8 @@ Annual vulnerability statistics including severity distribution, top CWEs, affec
 curl -H "Authorization: Bearer $TOKEN" \
   https://api.vdb.vulnetix.com/v1/summary/2024
 ```
+
+</div>
 
 ---
 
@@ -766,6 +1146,9 @@ vulnetix vdb exploits GHSA-jfh8-3a1q-hjz9
 # Get available fixes
 vulnetix vdb fixes CVE-2021-44228
 vulnetix vdb fixes GHSA-jfh8-3a1q-hjz9
+
+# Search exploits across all vulnerabilities
+vulnetix vdb exploits search --ecosystem npm --in-kev
 ```
 
 ### Audit Package Vulnerabilities
@@ -779,6 +1162,12 @@ vulnetix vdb product express 4.16.0
 
 # Check specific version in npm ecosystem
 vulnetix vdb product express 4.16.0 npm
+
+# Search for packages
+vulnetix vdb packages search express --ecosystem npm
+
+# Get ecosystem-scoped package info
+vulnetix vdb ecosystem package npm express --versions
 ```
 
 ### Explore Available Data
