@@ -1,6 +1,6 @@
 ---
 title: "From Source"
-weight: 6
+weight: 7
 description: "Build and install the Vulnetix CLI from source code for maximum flexibility."
 ---
 

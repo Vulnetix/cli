@@ -10,6 +10,7 @@ Vulnetix supports all major platforms and installation methods:
 
 | Method | Linux | macOS | Windows | CI/CD | Enterprise | Installation |
 |--------|-------|-------|---------|-------|------------|-------------|
+| [**Homebrew**](./docs/homebrew.md) | ✅ | ✅ | - | - | ✅ | `brew install vulnetix/tap/vulnetix` |
 | [**Go Install**](./docs/go-install.md) | ✅ | ✅ | ✅ | ✅ | ✅ | `go install github.com/vulnetix/cli@latest` |
 | [**Binary Download**](./docs/curl.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Direct download with curl |
 | [**From Source**](./docs/from-source.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Full customization |
@@ -21,6 +22,14 @@ Vulnetix supports all major platforms and installation methods:
 **Architecture Support:** AMD64, ARM64, ARM, 386 across all platforms
 
 ### Quick Start Examples
+
+#### Homebrew (Recommended)
+
+```bash
+brew tap vulnetix/tap
+brew install vulnetix
+vulnetix
+```
 
 #### Go Install
 
@@ -73,5 +82,6 @@ Vulnetix supports multiple task types to cover different aspects of vulnerabilit
 
 Vulnetix CLI is published on each release:
 
+- **Homebrew Tap** -- `brew install vulnetix/tap/vulnetix`
 - **GitHub Releases** -- Go Install, Binary Downloads
 - **GitHub Marketplace** -- GitHub Actions integration
