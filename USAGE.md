@@ -75,6 +75,25 @@ vulnetix upload --file my-scan-results.sarif --org-id "your-org-id-here"
 
 Choose the installation method that works best for your environment:
 
+### Homebrew (Recommended)
+
+The simplest way to install on macOS and Linux:
+
+```bash
+# Add the Vulnetix tap and install the CLI
+brew tap vulnetix/tap
+brew install vulnetix
+
+# Or in a single command
+brew install vulnetix/tap/vulnetix
+
+# Upgrade to the latest version
+brew upgrade vulnetix
+
+# Also available: VDB vulnerability search TUI
+brew install vulnetix/tap/vvd-search
+```
+
 ### Quick Install Script
 
 Use the installation script to automatically detect your platform:

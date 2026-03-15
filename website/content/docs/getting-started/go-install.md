@@ -1,6 +1,6 @@
 ---
 title: "Go Install"
-weight: 2
+weight: 3
 description: "Install Vulnetix CLI directly from Go modules using go install."
 ---
 
