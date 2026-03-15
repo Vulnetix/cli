@@ -1,6 +1,6 @@
 ---
 title: "Direct Download (curl)"
-weight: 5
+weight: 6
 description: "Download and install the Vulnetix CLI binary directly using curl."
 ---
 

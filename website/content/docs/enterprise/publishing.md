@@ -14,6 +14,7 @@ Vulnetix CLI is distributed through the following channels:
 |-------------------|------------|-------------------|-------------|
 | **GitHub Releases** | Automated | GitHub Releases | Auto-published on tags |
 | **Go Install** | Automated | Go Module Proxy | Uses GitHub releases |
+| **Homebrew Tap** | Automated | [Vulnetix/homebrew-tap](https://github.com/Vulnetix/homebrew-tap) | Formula updated on release |
 | **GitHub Actions** | Automated | GitHub Marketplace | Action metadata in repo |
 
 ## Publishing Process
@@ -71,6 +72,21 @@ go install github.com/vulnetix/cli@v1.2.3
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
 ```
 
+### 4. Homebrew Tap
+
+**Repository:** [Vulnetix/homebrew-tap](https://github.com/Vulnetix/homebrew-tap)
+
+The Homebrew tap contains formulae for the Vulnetix CLI (`vulnetix`) and the VDB Search TUI (`vvd-search`). Formulae are updated when new releases are tagged.
+
+**Usage by end users:**
+```bash
+brew tap vulnetix/tap
+brew install vulnetix
+
+# VDB vulnerability search TUI
+brew install vvd-search
+```
+
 ## Shared Resources
 
 ### GitHub Releases for Multiple Use Cases
@@ -93,7 +109,9 @@ When creating a new release:
    - [ ] GitHub releases created with binaries
    - [ ] `go install github.com/vulnetix/cli@v1.2.3` works
    - [ ] Install script downloads correct version
+   - [ ] Homebrew formula updated in `Vulnetix/homebrew-tap`
 4. **Test installation methods:**
+   - [ ] `brew upgrade vulnetix`
    - [ ] `go install github.com/vulnetix/cli@v1.2.3`
    - [ ] `curl -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o vulnetix`
 
