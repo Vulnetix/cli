@@ -11,6 +11,8 @@ Vulnetix supports all major platforms and installation methods:
 | Method | Linux | macOS | Windows | CI/CD | Enterprise | Installation |
 |--------|-------|-------|---------|-------|------------|-------------|
 | [**Homebrew**](./docs/homebrew.md) | ✅ | ✅ | - | - | ✅ | `brew install vulnetix/tap/vulnetix` |
+| [**Scoop**](./docs/scoop.md) | - | - | ✅ | - | ✅ | `scoop install vulnetix` |
+| [**Nix**](./docs/nix.md) | ✅ | ✅ | - | ✅ | ✅ | `nix profile install github:Vulnetix/cli` |
 | [**Go Install**](./docs/go-install.md) | ✅ | ✅ | ✅ | ✅ | ✅ | `go install github.com/vulnetix/cli@latest` |
 | [**Binary Download**](./docs/curl.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Direct download with curl |
 | [**From Source**](./docs/from-source.md) | ✅ | ✅ | ✅ | ✅ | ✅ | Full customization |
@@ -28,6 +30,21 @@ Vulnetix supports all major platforms and installation methods:
 ```bash
 brew tap vulnetix/tap
 brew install vulnetix
+vulnetix
+```
+
+#### Scoop (Windows)
+
+```powershell
+scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket
+scoop install vulnetix
+vulnetix
+```
+
+#### Nix
+
+```bash
+nix profile install github:Vulnetix/cli
 vulnetix
 ```
 
@@ -83,5 +100,7 @@ Vulnetix supports multiple task types to cover different aspects of vulnerabilit
 Vulnetix CLI is published on each release:
 
 - **Homebrew Tap** -- `brew install vulnetix/tap/vulnetix`
+- **Scoop Bucket** -- `scoop install vulnetix` (Windows)
+- **Nix Flake** -- `nix profile install github:Vulnetix/cli`
 - **GitHub Releases** -- Go Install, Binary Downloads
 - **GitHub Marketplace** -- GitHub Actions integration
