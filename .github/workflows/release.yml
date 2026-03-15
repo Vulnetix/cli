@@ -44,7 +44,20 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           COMMIT=$(git rev-parse --short HEAD)
-          make build-release VERSION=${VERSION} COMMIT=${COMMIT}
+          BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          LDFLAGS="-s -w -X github.com/vulnetix/cli/cmd.version=${VERSION} -X github.com/vulnetix/cli/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/cmd.buildDate=${BUILD_DATE}"
+          mkdir -p bin
+
+          GOOS=linux   GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/vulnetix-linux-amd64 .
+          GOOS=linux   GOARCH=arm64 go build -ldflags "$LDFLAGS" -o bin/vulnetix-linux-arm64 .
+          GOOS=linux   GOARCH=arm   go build -ldflags "$LDFLAGS" -o bin/vulnetix-linux-arm .
+          GOOS=linux   GOARCH=386   go build -ldflags "$LDFLAGS" -o bin/vulnetix-linux-386 .
+          GOOS=darwin  GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-amd64 .
+          GOOS=darwin  GOARCH=arm64 go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-arm64 .
+          GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o bin/vulnetix-windows-amd64.exe .
+          GOOS=windows GOARCH=arm64 go build -ldflags "$LDFLAGS" -o bin/vulnetix-windows-arm64.exe .
+          GOOS=windows GOARCH=arm   go build -ldflags "$LDFLAGS" -o bin/vulnetix-windows-arm.exe .
+          GOOS=windows GOARCH=386   go build -ldflags "$LDFLAGS" -o bin/vulnetix-windows-386.exe .
 
       - name: Generate checksums
         run: |

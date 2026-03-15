@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -235,32 +237,24 @@ func (c *Client) signRequest(req *http.Request, path, body string) error {
 	return nil
 }
 
-// DoRequest performs an authenticated API request with retry for transient errors.
-func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error) {
-	// Marshal body once before retry loop
-	var bodyBytes []byte
-	if body != nil {
-		var err error
-		bodyBytes, err = json.Marshal(body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal request body: %w", err)
-		}
-	}
-
-	// Resolve auth header once before retry loop
-	var authHeader string
+// addAuthHeader resolves the authorization header and sets it on the request.
+func (c *Client) addAuthHeader(req *http.Request) error {
 	switch c.AuthMethod {
 	case auth.DirectAPIKey:
-		authHeader = fmt.Sprintf("ApiKey %s:%s", c.OrgID, c.APIKey)
+		req.Header.Set("Authorization", fmt.Sprintf("ApiKey %s:%s", c.OrgID, c.APIKey))
 	default:
 		token, err := c.GetToken()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get token: %w", err)
+			return fmt.Errorf("failed to get token: %w", err)
 		}
-		authHeader = "Bearer " + token
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
+	return nil
+}
 
-	url := c.BaseURL + c.APIVersion + path
+// doRequestWithRetry executes an HTTP request with retry logic for transient errors.
+// It captures rate limit and cache headers from the response.
+func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 	var lastErr error
 
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
@@ -268,19 +262,16 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 			backoff := BaseBackoff * time.Duration(1<<(attempt-1))
 			fmt.Fprintf(os.Stderr, "[vdb] retry %d/%d after %s: %v\n", attempt, MaxRetries, backoff, lastErr)
 			time.Sleep(backoff)
-		}
 
-		var bodyReader io.Reader
-		if bodyBytes != nil {
-			bodyReader = bytes.NewReader(bodyBytes)
+			// For retries, we need to re-read the body if present
+			if req.GetBody != nil {
+				newBody, err := req.GetBody()
+				if err != nil {
+					return nil, fmt.Errorf("failed to reset request body: %w", err)
+				}
+				req.Body = newBody
+			}
 		}
-
-		req, err := http.NewRequest(method, url, bodyReader)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create request: %w", err)
-		}
-		req.Header.Set("Authorization", authHeader)
-		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := c.HTTPClient.Do(req)
 		if err != nil {
@@ -318,6 +309,116 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 	}
 
 	return nil, fmt.Errorf("request failed after %d retries: %w", MaxRetries, lastErr)
+}
+
+// DoRequest performs an authenticated API request with retry for transient errors.
+func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error) {
+	// Marshal body once before retry loop
+	var bodyReader io.Reader
+	if body != nil {
+		bodyBytes, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal request body: %w", err)
+		}
+		bodyReader = bytes.NewReader(bodyBytes)
+	}
+
+	url := c.BaseURL + c.APIVersion + path
+
+	req, err := http.NewRequest(method, url, bodyReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	if err := c.addAuthHeader(req); err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Enable body reset for retries
+	if body != nil {
+		bodyBytes, _ := json.Marshal(body)
+		req.GetBody = func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(bodyBytes)), nil
+		}
+	}
+
+	return c.doRequestWithRetry(req)
+}
+
+// DoRequestRawBody performs an authenticated API request with a raw body (not JSON-marshaled).
+func (c *Client) DoRequestRawBody(method, path string, body []byte, contentType string) ([]byte, error) {
+	url := c.BaseURL + c.APIVersion + path
+
+	req, err := http.NewRequest(method, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	if err := c.addAuthHeader(req); err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", contentType)
+
+	// Enable body reset for retries
+	req.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(body)), nil
+	}
+
+	return c.doRequestWithRetry(req)
+}
+
+// DoRequestMultipart performs an authenticated multipart/form-data API request.
+func (c *Client) DoRequestMultipart(path, filePath, fileField string, fields map[string]string) ([]byte, error) {
+	// Read the file
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+
+	// Build multipart body
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	// Add form fields
+	for k, v := range fields {
+		if err := writer.WriteField(k, v); err != nil {
+			return nil, fmt.Errorf("failed to write field %s: %w", k, err)
+		}
+	}
+
+	// Add file field
+	fileName := filepath.Base(filePath)
+	part, err := writer.CreateFormFile(fileField, fileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create form file: %w", err)
+	}
+	if _, err := part.Write(fileData); err != nil {
+		return nil, fmt.Errorf("failed to write file data: %w", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	bodyBytes := buf.Bytes()
+	contentType := writer.FormDataContentType()
+
+	url := c.BaseURL + c.APIVersion + path
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	if err := c.addAuthHeader(req); err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", contentType)
+
+	// Enable body reset for retries
+	req.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(bodyBytes)), nil
+	}
+
+	return c.doRequestWithRetry(req)
 }
 
 // isRetryableError returns true for timeout and temporary network errors.

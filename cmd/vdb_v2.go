@@ -1,0 +1,421 @@
+package cmd
+
+import (
+	"fmt"
+	"os"
+	"sync"
+
+	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/internal/vdb"
+)
+
+// requireV2 checks that -V v2 was specified
+func requireV2(cmdName string) error {
+	if normalizeAPIVersion(vdbAPIVersion) != "/v2" {
+		return fmt.Errorf("this command requires -V v2\n\nUsage: vulnetix vdb %s <vuln-id> -V v2", cmdName)
+	}
+	return nil
+}
+
+// buildV2QueryParams constructs V2QueryParams from command flags
+func buildV2QueryParams(cmd *cobra.Command) vdb.V2QueryParams {
+	var p vdb.V2QueryParams
+	p.Ecosystem, _ = cmd.Flags().GetString("ecosystem")
+	p.PackageName, _ = cmd.Flags().GetString("package-name")
+	p.Vendor, _ = cmd.Flags().GetString("vendor")
+	p.Product, _ = cmd.Flags().GetString("product")
+	p.Purl, _ = cmd.Flags().GetString("purl")
+	return p
+}
+
+// addV2ContextFlags adds common V2 context filter flags
+func addV2ContextFlags(cmd *cobra.Command) {
+	cmd.Flags().String("ecosystem", "", "Filter by package ecosystem")
+	cmd.Flags().String("package-name", "", "Filter by package name")
+}
+
+// v2WorkaroundsCmd retrieves workaround data for a vulnerability
+var v2WorkaroundsCmd = &cobra.Command{
+	Use:   "workarounds <vuln-id>",
+	Short: "Get workaround information for a vulnerability (V2)",
+	Long: `Retrieve workaround information for a vulnerability from the V2 API.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb workarounds CVE-2021-44228 -V v2
+  vulnetix vdb workarounds CVE-2021-44228 -V v2 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("workarounds"); err != nil {
+			return err
+		}
+
+		client := newVDBClient()
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "🔧 Fetching workarounds for %s...\n", args[0])
+		} else {
+			fmt.Printf("🔧 Fetching workarounds for %s...\n", args[0])
+		}
+
+		result, err := client.V2Workarounds(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to get workarounds: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// v2AdvisoriesCmd retrieves advisory data for a vulnerability
+var v2AdvisoriesCmd = &cobra.Command{
+	Use:   "advisories <vuln-id>",
+	Short: "Get advisory data for a vulnerability (V2)",
+	Long: `Retrieve advisory data for a vulnerability from the V2 API.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb advisories CVE-2021-44228 -V v2
+  vulnetix vdb advisories CVE-2021-44228 -V v2 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("advisories"); err != nil {
+			return err
+		}
+
+		client := newVDBClient()
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📋 Fetching advisories for %s...\n", args[0])
+		} else {
+			fmt.Printf("📋 Fetching advisories for %s...\n", args[0])
+		}
+
+		result, err := client.V2Advisories(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to get advisories: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// v2CweCmd is the parent for CWE-related subcommands
+var v2CweCmd = &cobra.Command{
+	Use:   "cwe",
+	Short: "CWE-related vulnerability intelligence (V2)",
+}
+
+// v2CweGuidanceCmd retrieves CWE-based guidance for a vulnerability
+var v2CweGuidanceCmd = &cobra.Command{
+	Use:   "guidance <vuln-id>",
+	Short: "Get CWE-based guidance for a vulnerability (V2)",
+	Long: `Retrieve CWE-based remediation guidance for a vulnerability from the V2 API.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb cwe guidance CVE-2021-44228 -V v2
+  vulnetix vdb cwe guidance CVE-2021-44228 -V v2 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("cwe guidance"); err != nil {
+			return err
+		}
+
+		client := newVDBClient()
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📖 Fetching CWE guidance for %s...\n", args[0])
+		} else {
+			fmt.Printf("📖 Fetching CWE guidance for %s...\n", args[0])
+		}
+
+		result, err := client.V2CweGuidance(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to get CWE guidance: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// v2KevCmd retrieves CISA KEV data for a vulnerability
+var v2KevCmd = &cobra.Command{
+	Use:   "kev <vuln-id>",
+	Short: "Get CISA KEV status for a vulnerability (V2)",
+	Long: `Retrieve CISA Known Exploited Vulnerabilities (KEV) data from the V2 API.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb kev CVE-2021-44228 -V v2
+  vulnetix vdb kev CVE-2021-44228 -V v2 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("kev"); err != nil {
+			return err
+		}
+
+		client := newVDBClient()
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "🛡️ Fetching KEV status for %s...\n", args[0])
+		} else {
+			fmt.Printf("🛡️ Fetching KEV status for %s...\n", args[0])
+		}
+
+		result, err := client.V2Kev(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to get KEV data: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// v2TimelineCmd retrieves timeline data for a vulnerability
+var v2TimelineCmd = &cobra.Command{
+	Use:   "timeline <vuln-id>",
+	Short: "Get vulnerability timeline (V2)",
+	Long: `Retrieve the vulnerability timeline from the V2 API.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb timeline CVE-2021-44228 -V v2
+  vulnetix vdb timeline CVE-2021-44228 -V v2 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("timeline"); err != nil {
+			return err
+		}
+
+		client := newVDBClient()
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📅 Fetching timeline for %s...\n", args[0])
+		} else {
+			fmt.Printf("📅 Fetching timeline for %s...\n", args[0])
+		}
+
+		result, err := client.V2Timeline(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to get timeline: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// v2AffectedCmd retrieves affected product/package data
+var v2AffectedCmd = &cobra.Command{
+	Use:   "affected <vuln-id>",
+	Short: "Get affected products/packages for a vulnerability (V2)",
+	Long: `Retrieve affected product and package data from the V2 API.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb affected CVE-2021-44228 -V v2
+  vulnetix vdb affected CVE-2021-44228 -V v2 --ecosystem npm
+  vulnetix vdb affected CVE-2021-44228 -V v2 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("affected"); err != nil {
+			return err
+		}
+
+		client := newVDBClient()
+		p := buildV2QueryParams(cmd)
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "🎯 Fetching affected data for %s...\n", args[0])
+		} else {
+			fmt.Printf("🎯 Fetching affected data for %s...\n", args[0])
+		}
+
+		result, err := client.V2Affected(args[0], p)
+		if err != nil {
+			return fmt.Errorf("failed to get affected data: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// v2ScorecardCmd retrieves the vulnerability scorecard
+var v2ScorecardCmd = &cobra.Command{
+	Use:   "scorecard <vuln-id>",
+	Short: "Get vulnerability scorecard (V2)",
+	Long: `Retrieve the vulnerability scorecard from the V2 API.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb scorecard CVE-2021-44228 -V v2
+  vulnetix vdb scorecard CVE-2021-44228 -V v2 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("scorecard"); err != nil {
+			return err
+		}
+
+		client := newVDBClient()
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📊 Fetching scorecard for %s...\n", args[0])
+		} else {
+			fmt.Printf("📊 Fetching scorecard for %s...\n", args[0])
+		}
+
+		result, err := client.V2Scorecard(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to get scorecard: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// v2RemediationCmd is the parent for remediation subcommands
+var v2RemediationCmd = &cobra.Command{
+	Use:   "remediation",
+	Short: "Remediation intelligence (V2)",
+}
+
+// v2RemediationPlanCmd retrieves a context-aware remediation plan
+var v2RemediationPlanCmd = &cobra.Command{
+	Use:   "plan <vuln-id>",
+	Short: "Get a context-aware remediation plan (V2)",
+	Long: `Retrieve a context-aware remediation plan for a vulnerability from the V2 API.
+The plan includes prioritized actions, severity assessment, SSVC decision,
+fix availability, and optionally CWE guidance and verification steps.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb remediation plan CVE-2021-44228 -V v2
+  vulnetix vdb remediation plan CVE-2021-44228 -V v2 --include-guidance
+  vulnetix vdb remediation plan CVE-2021-44228 -V v2 --ecosystem npm --package-name log4j
+  vulnetix vdb remediation plan CVE-2021-44228 -V v2 --purl "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+  vulnetix vdb remediation plan CVE-2021-44228 -V v2 --include-guidance --include-verification-steps --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("remediation plan"); err != nil {
+			return err
+		}
+
+		client := newVDBClient()
+
+		p := vdb.V2RemediationParams{}
+		p.Ecosystem, _ = cmd.Flags().GetString("ecosystem")
+		p.PackageName, _ = cmd.Flags().GetString("package-name")
+		p.Vendor, _ = cmd.Flags().GetString("vendor")
+		p.Product, _ = cmd.Flags().GetString("product")
+		p.Purl, _ = cmd.Flags().GetString("purl")
+		p.CurrentVersion, _ = cmd.Flags().GetString("current-version")
+		p.PackageManager, _ = cmd.Flags().GetString("package-manager")
+		p.ContainerImage, _ = cmd.Flags().GetString("container-image")
+		p.OS, _ = cmd.Flags().GetString("os")
+		p.Registry, _ = cmd.Flags().GetString("registry")
+		p.IncludeGuidance, _ = cmd.Flags().GetBool("include-guidance")
+		p.IncludeVerificationSteps, _ = cmd.Flags().GetBool("include-verification-steps")
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📋 Fetching remediation plan for %s...\n", args[0])
+		} else {
+			fmt.Printf("📋 Fetching remediation plan for %s...\n", args[0])
+		}
+
+		result, err := client.V2RemediationPlan(args[0], p)
+		if err != nil {
+			return fmt.Errorf("failed to get remediation plan: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
+// v2FixesMerged handles the -V v2 case for the fixes command by calling
+// all three V2 fix endpoints in parallel and merging the results.
+func v2FixesMerged(identifier string, cmd *cobra.Command) (map[string]interface{}, error) {
+	client := newVDBClient()
+	p := buildV2QueryParams(cmd)
+
+	type result struct {
+		key  string
+		data map[string]interface{}
+		err  error
+	}
+
+	ch := make(chan result, 3)
+	var wg sync.WaitGroup
+
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		data, err := client.V2RegistryFixes(identifier, p)
+		ch <- result{"registry", data, err}
+	}()
+	go func() {
+		defer wg.Done()
+		data, err := client.V2DistributionPatches(identifier, p)
+		ch <- result{"distributions", data, err}
+	}()
+	go func() {
+		defer wg.Done()
+		data, err := client.V2SourceFixes(identifier)
+		ch <- result{"source", data, err}
+	}()
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	merged := map[string]interface{}{
+		"identifier": identifier,
+	}
+	for r := range ch {
+		if r.err != nil {
+			merged[r.key] = map[string]interface{}{"error": r.err.Error()}
+		} else {
+			merged[r.key] = r.data
+		}
+	}
+
+	printRateLimit(client)
+	return merged, nil
+}
+
+func init() {
+	// V2-only commands
+	vdbCmd.AddCommand(v2WorkaroundsCmd)
+	vdbCmd.AddCommand(v2AdvisoriesCmd)
+	vdbCmd.AddCommand(v2CweCmd)
+	vdbCmd.AddCommand(v2KevCmd)
+	vdbCmd.AddCommand(v2TimelineCmd)
+	vdbCmd.AddCommand(v2AffectedCmd)
+	vdbCmd.AddCommand(v2ScorecardCmd)
+	vdbCmd.AddCommand(v2RemediationCmd)
+
+	// CWE subcommands
+	v2CweCmd.AddCommand(v2CweGuidanceCmd)
+
+	// Remediation subcommands
+	v2RemediationCmd.AddCommand(v2RemediationPlanCmd)
+
+	// Affected flags
+	addV2ContextFlags(v2AffectedCmd)
+
+	// Remediation plan flags (most flags of any command)
+	v2RemediationPlanCmd.Flags().String("ecosystem", "", "Filter by package ecosystem")
+	v2RemediationPlanCmd.Flags().String("package-name", "", "Filter by package name")
+	v2RemediationPlanCmd.Flags().String("vendor", "", "Filter by vendor name")
+	v2RemediationPlanCmd.Flags().String("product", "", "Filter by product name")
+	v2RemediationPlanCmd.Flags().String("purl", "", "Package URL (overrides ecosystem + package-name)")
+	v2RemediationPlanCmd.Flags().String("current-version", "", "Current package version")
+	v2RemediationPlanCmd.Flags().String("package-manager", "", "Package manager (npm, pip, cargo, etc.)")
+	v2RemediationPlanCmd.Flags().String("container-image", "", "Container image reference")
+	v2RemediationPlanCmd.Flags().String("os", "", "OS identifier (e.g. ubuntu:22.04)")
+	v2RemediationPlanCmd.Flags().String("registry", "", "Registry URL")
+	v2RemediationPlanCmd.Flags().Bool("include-guidance", false, "Include CWE-based guidance text")
+	v2RemediationPlanCmd.Flags().Bool("include-verification-steps", false, "Include verification steps in actions")
+}
