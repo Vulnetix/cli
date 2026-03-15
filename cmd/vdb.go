@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"runtime"
 	"strconv"
@@ -115,8 +116,9 @@ Examples:
 }
 
 // exploitsCmd retrieves exploit intelligence for a specific vulnerability
+// Also serves as parent for exploits subcommands (search, sources, types)
 var exploitsCmd = &cobra.Command{
-	Use:   "exploits <vuln-id>",
+	Use:   "exploits [vuln-id]",
 	Short: "Get exploit intelligence for a specific vulnerability",
 	Long: `Retrieve exploit intelligence for a vulnerability, aggregating data from multiple exploit
 databases including ExploitDB, Metasploit modules, Nuclei templates, VulnCheck, CrowdSec, and
@@ -124,12 +126,22 @@ GitHub proof-of-concept repositories.
 
 Accepts any supported vulnerability identifier (CVE, GHSA, PYSEC, ZDI, SNYK, and 70+ more).
 
+Subcommands:
+  search    Search exploits across CVEs with filters and pagination
+  sources   List exploit intelligence sources
+  types     List exploit type classifications
+
 Examples:
   vulnetix vdb exploits CVE-2021-44228
   vulnetix vdb exploits GHSA-jfh8-3a1q-hjz9
-  vulnetix vdb exploits CVE-2021-44228 --output json`,
-	Args: cobra.ExactArgs(1),
+  vulnetix vdb exploits search --severity CRITICAL --limit 10
+  vulnetix vdb exploits sources
+  vulnetix vdb exploits types`,
+	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return cmd.Help()
+		}
 		identifier := args[0]
 
 		client := newVDBClient()
@@ -150,22 +162,98 @@ Examples:
 	},
 }
 
+// exploitsSearchCmd searches exploits across CVEs with filters and pagination
+var exploitsSearchCmd = &cobra.Command{
+	Use:   "search",
+	Short: "Search exploits across CVEs with filters and pagination",
+	Long: `Search for exploits across all CVEs with filtering and pagination support.
+
+Filters:
+  --ecosystem    Package ecosystem (e.g. npm, pypi, maven)
+  --source       Exploit source (exploitdb, metasploit, nuclei, vulncheck-xdb, crowdsec, github, poc)
+  --severity     CVSS severity (CRITICAL, HIGH, MEDIUM, LOW, NONE)
+  --in-kev       Only show CVEs in CISA KEV
+  --min-epss     Minimum EPSS score (0-1)
+  -q/--query     Free text search
+  --sort         Sort order (recent, epss, severity, maturity)
+
+Examples:
+  vulnetix vdb exploits search --severity CRITICAL --limit 10
+  vulnetix vdb exploits search --source metasploit --in-kev
+  vulnetix vdb exploits search -q "log4j" --sort maturity
+  vulnetix vdb exploits search --ecosystem npm --min-epss 0.9`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		params := vdb.ExploitSearchParams{}
+		params.Ecosystem, _ = cmd.Flags().GetString("ecosystem")
+		params.Source, _ = cmd.Flags().GetString("source")
+		params.Severity, _ = cmd.Flags().GetString("severity")
+		params.InKev, _ = cmd.Flags().GetString("in-kev")
+		params.MinEpss, _ = cmd.Flags().GetString("min-epss")
+		params.Query, _ = cmd.Flags().GetString("query")
+		params.Sort, _ = cmd.Flags().GetString("sort")
+		params.Limit, _ = cmd.Flags().GetInt("limit")
+		params.Offset, _ = cmd.Flags().GetInt("offset")
+
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintln(os.Stderr, "🔍 Searching exploits...")
+		} else {
+			fmt.Println("🔍 Searching exploits...")
+		}
+
+		result, err := client.SearchExploits(params)
+		if err != nil {
+			return fmt.Errorf("failed to search exploits: %w", err)
+		}
+		printRateLimit(client)
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
 // fixesCmd retrieves fix data for a specific vulnerability
+// Also serves as parent for fixes subcommands (distributions)
+// With -V v2, merges registry, distributions, and source fixes in parallel
 var fixesCmd = &cobra.Command{
-	Use:   "fixes <vuln-id>",
+	Use:   "fixes [vuln-id]",
 	Short: "Get fix data for a specific vulnerability",
 	Long: `Retrieve comprehensive fix data for a vulnerability including patches, advisories,
 workarounds, KEV required actions, and AI-generated analysis.
 
+With -V v2, fetches and merges registry fixes, distribution patches, and source fixes
+from three separate V2 endpoints in parallel.
+
 Accepts any supported vulnerability identifier (CVE, GHSA, PYSEC, ZDI, SNYK, and 70+ more).
+
+Subcommands:
+  distributions   List supported Linux distributions for fix advisories
 
 Examples:
   vulnetix vdb fixes CVE-2021-44228
-  vulnetix vdb fixes GHSA-jfh8-3a1q-hjz9
-  vulnetix vdb fixes CVE-2021-44228 --output json`,
-	Args: cobra.ExactArgs(1),
+  vulnetix vdb fixes CVE-2021-44228 -V v2
+  vulnetix vdb fixes distributions`,
+	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return cmd.Help()
+		}
 		identifier := args[0]
+
+		// V2 mode: merge three fix endpoints
+		if normalizeAPIVersion(vdbAPIVersion) == "/v2" {
+			if vdbOutput == "json" {
+				fmt.Fprintf(os.Stderr, "🔧 Fetching V2 fix data for %s...\n", identifier)
+			} else {
+				fmt.Printf("🔧 Fetching V2 fix data for %s...\n", identifier)
+			}
+
+			merged, err := v2FixesMerged(identifier, cmd)
+			if err != nil {
+				return fmt.Errorf("failed to get V2 fixes: %w", err)
+			}
+			return printOutput(merged, vdbOutput)
+		}
 
 		client := newVDBClient()
 
@@ -217,23 +305,25 @@ Examples:
 }
 
 // gcveCmd retrieves paginated CVEs by date range
+// Also serves as parent for gcve subcommands (issuances)
 var gcveCmd = &cobra.Command{
-	Use:   "gcve",
+	Use:   "gcve [--start --end]",
 	Short: "Get CVEs by date range",
 	Long: `Retrieve a paginated list of CVEs published within a date range, with enrichment data.
 
+Subcommands:
+  issuances   List GCVE issuance identifiers by calendar month
+
 Examples:
   vulnetix vdb gcve --start 2024-01-01 --end 2024-01-31
-  vulnetix vdb gcve --start 2024-01-01 --end 2024-12-31 --output json`,
+  vulnetix vdb gcve --start 2024-01-01 --end 2024-12-31 --output json
+  vulnetix vdb gcve issuances --year 2025 --month 3`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		start, _ := cmd.Flags().GetString("start")
 		end, _ := cmd.Flags().GetString("end")
 
-		if start == "" {
-			return fmt.Errorf("--start is required (format: YYYY-MM-DD)")
-		}
-		if end == "" {
-			return fmt.Errorf("--end is required (format: YYYY-MM-DD)")
+		if start == "" || end == "" {
+			return cmd.Help()
 		}
 
 		client := newVDBClient()
@@ -256,14 +346,14 @@ Examples:
 
 // gcveIssuancesCmd lists GCVE issuance identifiers by calendar month
 var gcveIssuancesCmd = &cobra.Command{
-	Use:   "gcve-issuances",
+	Use:   "issuances",
 	Short: "List GCVE issuance identifiers by calendar month",
 	Long: `Retrieve a paginated list of GCVE issuance identifiers (GCVE-VVD-YYYY-NNNN) published in a given calendar month.
 
 Examples:
-  vulnetix vdb gcve-issuances --year 2025 --month 3
-  vulnetix vdb gcve-issuances --year 2025 --month 3 --output json
-  vulnetix vdb gcve-issuances --year 2025 --month 3 --limit 50 --offset 100`,
+  vulnetix vdb gcve issuances --year 2025 --month 3
+  vulnetix vdb gcve issuances --year 2025 --month 3 --output json
+  vulnetix vdb gcve issuances --year 2025 --month 3 --limit 50 --offset 100`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		year, _ := cmd.Flags().GetInt("year")
 		month, _ := cmd.Flags().GetInt("month")
@@ -515,23 +605,55 @@ var specCmd = &cobra.Command{
 	Short: "Get the OpenAPI specification",
 	Long: `Retrieve the OpenAPI specification for the VDB API.
 
+The /spec endpoint is public and does not require authentication.
+
 Examples:
   vulnetix vdb spec
   vulnetix vdb spec --output json > vdb-spec.json`,
+	// Override parent's PersistentPreRunE — spec is public, no auth required
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		_ = resolveVDBCredentials(false)
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := newVDBClient()
-
 		if vdbOutput == "json" {
 			fmt.Fprintln(os.Stderr, "📋 Fetching OpenAPI specification...")
 		} else {
 			fmt.Println("📋 Fetching OpenAPI specification...")
 		}
 
-		spec, err := client.GetOpenAPISpec()
-		if err != nil {
-			return fmt.Errorf("failed to get spec: %w", err)
+		// If credentials are available, use the authenticated client
+		if vdbCreds != nil && vdbCreds.OrgID != "" {
+			client := newVDBClient()
+			spec, err := client.GetOpenAPISpec()
+			if err != nil {
+				return fmt.Errorf("failed to get spec: %w", err)
+			}
+			printRateLimit(client)
+			return printOutput(spec, vdbOutput)
 		}
-		printRateLimit(client)
+
+		// No credentials — use direct HTTP GET (spec is public)
+		baseURL := vdbBaseURL
+		if baseURL == "" {
+			baseURL = vdb.DefaultBaseURL
+		}
+		apiVer := vdb.DefaultAPIVersion
+		if vdbAPIVersion != "" {
+			apiVer = normalizeAPIVersion(vdbAPIVersion)
+		}
+		specURL := baseURL + apiVer + "/spec"
+
+		resp, err := http.Get(specURL) //nolint:noctx
+		if err != nil {
+			return fmt.Errorf("failed to fetch spec: %w", err)
+		}
+		defer resp.Body.Close()
+
+		var spec map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
+			return fmt.Errorf("failed to parse spec: %w", err)
+		}
 
 		return printOutput(spec, vdbOutput)
 	},
@@ -695,15 +817,28 @@ Examples:
 	},
 }
 
+// metricsCmd is the parent for metrics subcommands
+var metricsCmd = &cobra.Command{
+	Use:   "metrics",
+	Short: "Vulnerability metric intelligence",
+	Long: `Vulnerability metric and scoring type information.
+
+Subcommands:
+  types   List vulnerability metric/scoring types
+
+Examples:
+  vulnetix vdb metrics types`,
+}
+
 // metricTypesCmd lists vulnerability metric/scoring types
 var metricTypesCmd = &cobra.Command{
-	Use:   "metric-types",
+	Use:   "types",
 	Short: "List vulnerability metric/scoring types",
 	Long: `List all vulnerability metric and scoring types tracked by the VDB.
 
 Examples:
-  vulnetix vdb metric-types
-  vulnetix vdb metric-types --output json`,
+  vulnetix vdb metrics types
+  vulnetix vdb metrics types --output json`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
@@ -726,13 +861,13 @@ Examples:
 
 // exploitSourcesCmd lists exploit intelligence sources
 var exploitSourcesCmd = &cobra.Command{
-	Use:   "exploit-sources",
+	Use:   "sources",
 	Short: "List exploit intelligence sources",
 	Long: `List all exploit intelligence sources tracked by the VDB.
 
 Examples:
-  vulnetix vdb exploit-sources
-  vulnetix vdb exploit-sources --output json`,
+  vulnetix vdb exploits sources
+  vulnetix vdb exploits sources --output json`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
@@ -755,13 +890,13 @@ Examples:
 
 // exploitTypesCmd lists exploit type classifications
 var exploitTypesCmd = &cobra.Command{
-	Use:   "exploit-types",
+	Use:   "types",
 	Short: "List exploit type classifications",
 	Long: `List all exploit type classifications tracked by the VDB.
 
 Examples:
-  vulnetix vdb exploit-types
-  vulnetix vdb exploit-types --output json`,
+  vulnetix vdb exploits types
+  vulnetix vdb exploits types --output json`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
@@ -784,13 +919,13 @@ Examples:
 
 // fixDistributionsCmd lists supported Linux distributions for fix advisories
 var fixDistributionsCmd = &cobra.Command{
-	Use:   "fix-distributions",
+	Use:   "distributions",
 	Short: "List supported Linux distributions for fix advisories",
 	Long: `List all supported Linux distributions for fix advisories in the VDB.
 
 Examples:
-  vulnetix vdb fix-distributions
-  vulnetix vdb fix-distributions --output json`,
+  vulnetix vdb fixes distributions
+  vulnetix vdb fixes distributions --output json`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
@@ -1161,11 +1296,60 @@ func resolveVDBCredentials(errorOnMissing bool) error {
 	return nil
 }
 
+// packagesCmd is the parent for package-related subcommands
+var packagesCmd = &cobra.Command{
+	Use:   "packages",
+	Short: "Package search and discovery",
+	Long: `Package search and discovery commands.
+
+Subcommands:
+  search   Full-text search across packages
+
+Examples:
+  vulnetix vdb packages search express
+  vulnetix vdb packages search lodash --ecosystem npm`,
+}
+
+// packagesSearchCmd performs full-text search across packages
+var packagesSearchCmd = &cobra.Command{
+	Use:   "search <query>",
+	Short: "Full-text search across packages",
+	Long: `Search for packages by name across all ecosystems.
+
+Examples:
+  vulnetix vdb packages search express
+  vulnetix vdb packages search lodash --ecosystem npm --limit 20
+  vulnetix vdb packages search log4j --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		query := args[0]
+		ecosystem, _ := cmd.Flags().GetString("ecosystem")
+		limit, _ := cmd.Flags().GetInt("limit")
+		offset, _ := cmd.Flags().GetInt("offset")
+
+		client := newVDBClient()
+
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "🔍 Searching packages for %q...\n", query)
+		} else {
+			fmt.Printf("🔍 Searching packages for %q...\n", query)
+		}
+
+		result, err := client.SearchPackages(query, ecosystem, limit, offset)
+		if err != nil {
+			return fmt.Errorf("failed to search packages: %w", err)
+		}
+		printRateLimit(client)
+
+		return printOutput(result, vdbOutput)
+	},
+}
+
 func init() {
 	// Add vdb command to root
 	rootCmd.AddCommand(vdbCmd)
 
-	// Add subcommands
+	// Direct subcommands of vdb
 	vdbCmd.AddCommand(vulnCmd)
 	vdbCmd.AddCommand(ecosystemsCmd)
 	vdbCmd.AddCommand(productCmd)
@@ -1175,16 +1359,64 @@ func init() {
 	vdbCmd.AddCommand(fixesCmd)
 	vdbCmd.AddCommand(versionsCmd)
 	vdbCmd.AddCommand(gcveCmd)
-	vdbCmd.AddCommand(gcveIssuancesCmd)
 	vdbCmd.AddCommand(idsCmd)
 	vdbCmd.AddCommand(searchCmd)
 	vdbCmd.AddCommand(sourcesCmd)
-	vdbCmd.AddCommand(metricTypesCmd)
-	vdbCmd.AddCommand(exploitSourcesCmd)
-	vdbCmd.AddCommand(exploitTypesCmd)
-	vdbCmd.AddCommand(fixDistributionsCmd)
+	vdbCmd.AddCommand(metricsCmd)
+	vdbCmd.AddCommand(packagesCmd)
 	vdbCmd.AddCommand(purlCmd)
 	vdbCmd.AddCommand(statusCmd)
+
+	// Nested subcommands: exploits → search, sources, types
+	exploitsCmd.AddCommand(exploitsSearchCmd)
+	exploitsCmd.AddCommand(exploitSourcesCmd)
+	exploitsCmd.AddCommand(exploitTypesCmd)
+
+	// Nested subcommands: fixes → distributions
+	fixesCmd.AddCommand(fixDistributionsCmd)
+
+	// Nested subcommands: gcve → issuances
+	gcveCmd.AddCommand(gcveIssuancesCmd)
+
+	// Nested subcommands: metrics → types
+	metricsCmd.AddCommand(metricTypesCmd)
+
+	// Nested subcommands: packages → search
+	packagesCmd.AddCommand(packagesSearchCmd)
+
+	// Hidden aliases for backward compatibility (old hyphenated names).
+	// The no-args enum commands just share RunE directly.
+	// The gcve-issuances alias needs its own flag set since flags are per-command.
+	vdbCmd.AddCommand(&cobra.Command{
+		Use:    "exploit-sources",
+		Hidden: true,
+		RunE:   exploitSourcesCmd.RunE,
+	})
+	vdbCmd.AddCommand(&cobra.Command{
+		Use:    "exploit-types",
+		Hidden: true,
+		RunE:   exploitTypesCmd.RunE,
+	})
+	vdbCmd.AddCommand(&cobra.Command{
+		Use:    "fix-distributions",
+		Hidden: true,
+		RunE:   fixDistributionsCmd.RunE,
+	})
+	vdbCmd.AddCommand(&cobra.Command{
+		Use:    "metric-types",
+		Hidden: true,
+		RunE:   metricTypesCmd.RunE,
+	})
+	gcveIssuancesAlias := &cobra.Command{
+		Use:    "gcve-issuances",
+		Hidden: true,
+		RunE:   gcveIssuancesCmd.RunE,
+	}
+	gcveIssuancesAlias.Flags().Int("year", 0, "Publication year (4-digit) [required]")
+	gcveIssuancesAlias.Flags().Int("month", 0, "Publication month 1-12 [required]")
+	gcveIssuancesAlias.Flags().Int("limit", 100, "Maximum results (max 500)")
+	gcveIssuancesAlias.Flags().Int("offset", 0, "Results to skip (pagination)")
+	vdbCmd.AddCommand(gcveIssuancesAlias)
 
 	// Global flags
 	vdbCmd.PersistentFlags().StringVar(&vdbOrgID, "org-id", "", "Organization UUID (overrides VVD_ORG env var)")
@@ -1211,7 +1443,7 @@ func init() {
 	gcveCmd.Flags().String("start", "", "Start date (YYYY-MM-DD) [required]")
 	gcveCmd.Flags().String("end", "", "End date (YYYY-MM-DD) [required]")
 
-	// gcve-issuances flags
+	// gcve issuances flags
 	gcveIssuancesCmd.Flags().Int("year", 0, "Publication year (4-digit) [required]")
 	gcveIssuancesCmd.Flags().Int("month", 0, "Publication month 1-12 [required]")
 	gcveIssuancesCmd.Flags().Int("limit", 100, "Maximum results (max 500)")
@@ -1224,4 +1456,27 @@ func init() {
 	// search flags
 	searchCmd.Flags().Int("limit", 100, "Maximum results (max 500)")
 	searchCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
+
+	// exploits search flags
+	exploitsSearchCmd.Flags().String("ecosystem", "", "Filter by package ecosystem")
+	exploitsSearchCmd.Flags().String("source", "", "Exploit source (exploitdb, metasploit, nuclei, vulncheck-xdb, crowdsec, github, poc)")
+	exploitsSearchCmd.Flags().String("severity", "", "CVSS severity (CRITICAL, HIGH, MEDIUM, LOW, NONE)")
+	exploitsSearchCmd.Flags().String("in-kev", "", "Only KEV CVEs (true/false)")
+	exploitsSearchCmd.Flags().String("min-epss", "", "Minimum EPSS score (0-1)")
+	exploitsSearchCmd.Flags().StringP("query", "q", "", "Free text search")
+	exploitsSearchCmd.Flags().String("sort", "", "Sort order (recent, epss, severity, maturity)")
+	exploitsSearchCmd.Flags().Int("limit", 100, "Maximum results (max 100)")
+	exploitsSearchCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
+
+	// packages search flags
+	packagesSearchCmd.Flags().String("ecosystem", "", "Filter by ecosystem")
+	packagesSearchCmd.Flags().Int("limit", 100, "Maximum results")
+	packagesSearchCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
+
+	// V2 context flags for fixes (used in V2 merge mode)
+	fixesCmd.Flags().String("ecosystem", "", "Filter by package ecosystem (V2 only)")
+	fixesCmd.Flags().String("package-name", "", "Filter by package name (V2 only)")
+	fixesCmd.Flags().String("vendor", "", "Filter by vendor name (V2 only)")
+	fixesCmd.Flags().String("product", "", "Filter by product name (V2 only)")
+	fixesCmd.Flags().String("purl", "", "Package URL (V2 only)")
 }
