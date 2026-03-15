@@ -66,15 +66,17 @@ jobs:
           sha256sum * > checksums.txt
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
-          name: Release ${{ steps.version.outputs.VERSION }}
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-          files: |
-            bin/*
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          # Ensure tag exists for the release
+          if ! git tag -l "$VERSION" | grep -q "$VERSION"; then
+            git tag -a "$VERSION" -m "Release $VERSION"
+          fi
+          gh release create "$VERSION" bin/* \
+            --title "Release $VERSION" \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   test-go-install:
     needs: release
