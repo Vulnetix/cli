@@ -1,0 +1,185 @@
+{{/* Version switcher — sync script to prevent FOUC */}}
+<script>
+  document.documentElement.classList.add('vdb-' + (localStorage.getItem('vdb-api-version') || 'v1'));
+</script>
+
+{{/* Version switcher — inject UI + event handlers */}}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var currentVersion = localStorage.getItem('vdb-api-version') || 'v1';
+
+  // Build switcher HTML
+  var switcher = document.createElement('div');
+  switcher.className = 'vdb-version-switcher';
+
+  var btn = document.createElement('button');
+  btn.className = 'vdb-version-btn';
+  btn.setAttribute('type', 'button');
+  btn.setAttribute('aria-label', 'Select API version');
+  btn.setAttribute('aria-haspopup', 'true');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('data-state', 'closed');
+  updateBtnLabel(btn, currentVersion);
+
+  var menu = document.createElement('ul');
+  menu.className = 'vdb-version-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('data-show', 'false');
+
+  var versions = [
+    { id: 'v1', label: 'v1' },
+    { id: 'v2', label: 'v2', badge: 'alpha' }
+  ];
+
+  versions.forEach(function (v) {
+    var li = document.createElement('li');
+    li.setAttribute('role', 'none');
+    var opt = document.createElement('button');
+    opt.setAttribute('role', 'menuitemradio');
+    opt.setAttribute('aria-checked', v.id === currentVersion ? 'true' : 'false');
+    opt.setAttribute('data-version', v.id);
+    opt.textContent = v.label;
+    if (v.badge) {
+      opt.insertAdjacentHTML('beforeend', ' <span class="vdb-alpha-badge">' + v.badge + '</span>');
+    }
+    opt.addEventListener('click', function () {
+      setVersion(v.id);
+      closeMenu();
+    });
+    li.appendChild(opt);
+    menu.appendChild(li);
+  });
+
+  switcher.appendChild(btn);
+  switcher.appendChild(menu);
+
+  // Insert before the hamburger menu in the navbar
+  var navbar = document.querySelector('nav.hextra-scrollbar');
+  if (!navbar) navbar = document.querySelector('nav');
+  if (navbar) {
+    var hamburger = navbar.querySelector('.hextra-hamburger-menu');
+    var themeToggle = navbar.querySelector('[data-theme]');
+    var insertTarget = hamburger || themeToggle;
+    if (insertTarget && insertTarget.parentNode) {
+      insertTarget.parentNode.insertBefore(switcher, insertTarget);
+    } else {
+      // Fallback: append to the flex row containing nav items
+      var flexRow = navbar.querySelector('.hx-flex.hx-items-center');
+      if (flexRow) flexRow.appendChild(switcher);
+    }
+  }
+
+  // Toggle menu
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var isOpen = menu.getAttribute('data-show') === 'true';
+    if (isOpen) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  });
+
+  function openMenu() {
+    menu.setAttribute('data-show', 'true');
+    btn.setAttribute('aria-expanded', 'true');
+    btn.setAttribute('data-state', 'open');
+  }
+
+  function closeMenu() {
+    menu.setAttribute('data-show', 'false');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('data-state', 'closed');
+  }
+
+  // Click outside to close
+  document.addEventListener('click', function (e) {
+    if (!switcher.contains(e.target)) {
+      closeMenu();
+    }
+  });
+
+  // Keyboard nav
+  btn.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openMenu();
+      var firstOpt = menu.querySelector('button');
+      if (firstOpt) firstOpt.focus();
+    }
+    if (e.key === 'Escape') {
+      closeMenu();
+      btn.focus();
+    }
+  });
+
+  menu.addEventListener('keydown', function (e) {
+    var items = Array.from(menu.querySelectorAll('button'));
+    var idx = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      items[(idx + 1) % items.length].focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(idx - 1 + items.length) % items.length].focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      items[0].focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      items[items.length - 1].focus();
+    } else if (e.key === 'Escape') {
+      closeMenu();
+      btn.focus();
+    }
+  });
+
+  function setVersion(ver) {
+    currentVersion = ver;
+    localStorage.setItem('vdb-api-version', ver);
+
+    // Update HTML class
+    document.documentElement.classList.remove('vdb-v1', 'vdb-v2');
+    document.documentElement.classList.add('vdb-' + ver);
+
+    // Update button label
+    updateBtnLabel(btn, ver);
+
+    // Update menu radio states
+    menu.querySelectorAll('button[role="menuitemradio"]').forEach(function (opt) {
+      opt.setAttribute('aria-checked', opt.getAttribute('data-version') === ver ? 'true' : 'false');
+    });
+
+    // Rewrite API Docs and API Spec navbar links
+    rewriteApiLinks(ver);
+  }
+
+  function updateBtnLabel(button, ver) {
+    if (ver === 'v2') {
+      button.innerHTML = 'API v2 <span class="vdb-alpha-badge">alpha</span> <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>';
+    } else {
+      button.innerHTML = 'API v1 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>';
+    }
+  }
+
+  function rewriteApiLinks(ver) {
+    // Rewrite navbar links
+    document.querySelectorAll('a[href*="api.vdb.vulnetix.com"]').forEach(function (a) {
+      a.href = a.href.replace(/\/v[12]\//g, '/' + ver + '/');
+    });
+    document.querySelectorAll('a[href*="redocly.github.io"]').forEach(function (a) {
+      a.href = a.href.replace(/\/v[12]\//g, '/' + ver + '/');
+    });
+
+    // Rewrite in-page links too
+    document.querySelectorAll('a[href*="api.vdb.vulnetix.com/v"]').forEach(function (a) {
+      a.href = a.href.replace(/\/v[12]\//g, '/' + ver + '/');
+    });
+  }
+
+  // Initial link rewrite if not v1
+  if (currentVersion !== 'v1') {
+    rewriteApiLinks(currentVersion);
+  }
+});
+</script>

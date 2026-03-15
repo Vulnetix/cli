@@ -22,6 +22,14 @@ The root command runs an authentication healthcheck.
 |------|-------------|
 | `info` (default) | Authentication healthcheck across all credential sources |
 
+**Global Flags:**
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--org-id` | string | Organization ID (UUID) |
+| `--api-key` | string | Direct API key (overrides VULNETIX_API_KEY) |
+| `--help` | - | Help for any command |
+
 ---
 
 ### vulnetix auth
@@ -175,6 +183,26 @@ vulnetix gha status --uuid <UUID>
 
 ---
 
+### vulnetix scan
+
+Auto-discover and scan manifest files and SBOMs for known vulnerabilities. See the full [Scan Command Reference](scan/) for details.
+
+```bash
+vulnetix scan [flags]
+vulnetix scan status <scan-id> [flags]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--path` | Directory to scan (default: `.`) |
+| `--depth` | Max recursion depth (default: `3`) |
+| `--file` | Scan a single file (skip auto-discovery) |
+| `--exclude` | Exclude paths matching glob (repeatable) |
+| `--no-poll` | Print scan IDs without waiting for results |
+| `-o, --output` | Output format: `json`, `pretty` |
+
+---
+
 ### vulnetix vdb
 
 Interact with the Vulnetix Vulnerability Database (VDB) API. See the full [VDB Command Reference](vdb/) for all subcommands and detailed usage.
@@ -191,19 +219,40 @@ vulnetix vdb <subcommand> [flags]
 | `vulns <package>` | Get vulnerabilities for a package |
 | `spec` | Get the OpenAPI specification |
 | `exploits <vuln-id>` | Get exploit intelligence for a vulnerability |
+| `exploits search` | Search exploits across all vulnerabilities |
+| `exploits sources` | List exploit intelligence sources |
+| `exploits types` | List exploit type classifications |
 | `fixes <vuln-id>` | Get fix data for a vulnerability |
+| `fixes distributions` | List supported Linux distributions for fix advisories |
 | `versions <package>` | Get all versions of a package across ecosystems |
 | `gcve` | Get vulnerabilities by date range |
+| `gcve issuances` | List GCVE issuance identifiers by calendar month |
 | `purl <purl-string>` | Query VDB using a Package URL (PURL) |
-| `gcve-issuances` | List GCVE issuance identifiers by calendar month |
 | `ids <year> <month>` | List CVE identifiers published in a calendar month |
 | `search <prefix>` | Search CVE identifiers by prefix |
 | `sources` | List all vulnerability data sources |
-| `metric-types` | List all vulnerability metric/scoring types |
-| `exploit-sources` | List all exploit intelligence sources |
-| `exploit-types` | List exploit type classifications |
-| `fix-distributions` | List supported Linux distributions for fix advisories |
+| `metrics types` | List all vulnerability metric/scoring types |
 | `status` | Check API health and display CLI/auth metadata |
+| `packages search <query>` | Full-text search across packages |
+| `ecosystem package <eco> <pkg>` | Get package info within an ecosystem |
+| `ecosystem group <eco> <grp> <art>` | Get group/artifact info (Maven-style) |
+
+<div class="vdb-v2-only">
+
+**V2-only subcommands** (use `-V v2`):
+
+| Subcommand | Description |
+|------------|-------------|
+| `workarounds <vuln-id>` | Get workaround information |
+| `advisories <vuln-id>` | Get advisory data |
+| `cwe guidance <vuln-id>` | Get CWE-based guidance |
+| `kev <vuln-id>` | Get CISA KEV status |
+| `timeline <vuln-id>` | Get vulnerability timeline |
+| `affected <vuln-id>` | Get affected products/packages |
+| `scorecard <vuln-id>` | Get vulnerability scorecard |
+| `remediation plan <vuln-id>` | Get context-aware remediation plan |
+
+</div>
 
 ---
 
@@ -291,10 +340,11 @@ Credentials are stored as JSON in one of two locations:
 
 The CLI loads credentials in this order (first match wins):
 
-1. Environment variables: `VULNETIX_API_KEY` + `VULNETIX_ORG_ID` (Direct API Key)
-2. Environment variables: `VVD_ORG` + `VVD_SECRET` (SigV4)
-3. Project dotfile: `.vulnetix/credentials.json`
-4. Home directory: `~/.vulnetix/credentials.json`
+1. CLI flags: `--org-id` + `--api-key` or `--secret`
+2. Environment variables: `VULNETIX_API_KEY` + `VULNETIX_ORG_ID` (Direct API Key)
+3. Environment variables: `VVD_ORG` + `VVD_SECRET` (SigV4)
+4. Project dotfile: `.vulnetix/credentials.json`
+5. Home directory: `~/.vulnetix/credentials.json`
 
 ## Global Flags
 
