@@ -467,6 +467,152 @@ func (c *Client) GetFixDistributions() (map[string]interface{}, error) {
 	return result, nil
 }
 
+// SearchExploits searches for exploits across CVEs with pagination and filters
+func (c *Client) SearchExploits(params ExploitSearchParams) (map[string]interface{}, error) {
+	q := url.Values{}
+	if params.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", params.Limit))
+	}
+	if params.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", params.Offset))
+	}
+	if params.Ecosystem != "" {
+		q.Set("ecosystem", params.Ecosystem)
+	}
+	if params.Source != "" {
+		q.Set("source", params.Source)
+	}
+	if params.Severity != "" {
+		q.Set("severity", params.Severity)
+	}
+	if params.InKev != "" {
+		q.Set("inKev", params.InKev)
+	}
+	if params.MinEpss != "" {
+		q.Set("minEpss", params.MinEpss)
+	}
+	if params.Query != "" {
+		q.Set("q", params.Query)
+	}
+	if params.Sort != "" {
+		q.Set("sort", params.Sort)
+	}
+
+	path := "/exploits"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// ExploitSearchParams holds parameters for the exploit search endpoint
+type ExploitSearchParams struct {
+	Limit     int
+	Offset    int
+	Ecosystem string
+	Source    string
+	Severity  string
+	Sort      string
+	Query     string
+	InKev     string
+	MinEpss   string
+}
+
+// SearchPackages performs a full-text search across packages
+func (c *Client) SearchPackages(query, ecosystem string, limit, offset int) (map[string]interface{}, error) {
+	q := url.Values{}
+	q.Set("q", query)
+	if ecosystem != "" {
+		q.Set("ecosystem", ecosystem)
+	}
+	if limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	if offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", offset))
+	}
+
+	path := "/packages/search?" + q.Encode()
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetEcosystemPackage retrieves package information scoped to a specific ecosystem
+func (c *Client) GetEcosystemPackage(ecosystem, pkg string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/%s/%s", url.PathEscape(ecosystem), url.PathEscape(pkg))
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetEcosystemPackageVersions retrieves version information for a package in a specific ecosystem
+func (c *Client) GetEcosystemPackageVersions(ecosystem, pkg string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/%s/%s/versions", url.PathEscape(ecosystem), url.PathEscape(pkg))
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetEcosystemGroupPackage retrieves Maven-style group/artifact information in a specific ecosystem
+func (c *Client) GetEcosystemGroupPackage(ecosystem, group, artifact string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/%s/%s/%s",
+		url.PathEscape(ecosystem),
+		url.PathEscape(group),
+		url.PathEscape(artifact),
+	)
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
 // GetProductVersionEcosystem retrieves product version information scoped to a specific ecosystem
 func (c *Client) GetProductVersionEcosystem(productName, version, ecosystem string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("/product/%s/%s/%s",
