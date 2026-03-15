@@ -261,6 +261,126 @@ release-status:
         echo "Pending bump: $BUMP → v${MAJOR}.${MINOR}.${PATCH}"
     fi
 
+# Update all package manager manifests (flake.nix, Homebrew, Scoop) to the latest release
+update-packages VERSION="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Determine version
+    if [ -n "{{VERSION}}" ]; then
+        VER="{{VERSION}}"
+    else
+        VER=$(gh release view --json tagName -q '.tagName' 2>/dev/null)
+        if [ -z "$VER" ]; then
+            echo "Error: could not determine latest release version"
+            exit 1
+        fi
+    fi
+    VER_NUM="${VER#v}"
+    echo "Updating package manifests to v${VER_NUM}..."
+
+    # Download checksums
+    TMPDIR=$(mktemp -d)
+    trap 'rm -rf "$TMPDIR"' EXIT
+    gh release download "v${VER_NUM}" --pattern checksums.txt --dir "$TMPDIR"
+    CHECKSUMS="$TMPDIR/checksums.txt"
+
+    # Extract hashes
+    hash_for() { grep "$1\$" "$CHECKSUMS" | awk '{print $1}'; }
+    DARWIN_ARM64=$(hash_for vulnetix-darwin-arm64)
+    DARWIN_AMD64=$(hash_for vulnetix-darwin-amd64)
+    LINUX_ARM64=$(hash_for vulnetix-linux-arm64)
+    LINUX_AMD64=$(hash_for vulnetix-linux-amd64)
+    WIN_AMD64=$(hash_for vulnetix-windows-amd64.exe)
+    WIN_386=$(hash_for vulnetix-windows-386.exe)
+    WIN_ARM64=$(hash_for vulnetix-windows-arm64.exe)
+    echo "Checksums extracted for 7 binaries"
+
+    # --- flake.nix ---
+    echo ""
+    echo "==> Updating flake.nix..."
+    sed -i "s/version = \"[^\"]*\";/version = \"${VER_NUM}\";/" flake.nix
+    echo "    version → ${VER_NUM}"
+
+    # --- Homebrew formula ---
+    BREW="../homebrew-tap/Formula/vulnetix.rb"
+    if [ -f "$BREW" ]; then
+        echo ""
+        echo "==> Updating Homebrew formula..."
+        sed -i "s/version \"[^\"]*\"/version \"${VER_NUM}\"/" "$BREW"
+        sed -i "/vulnetix-darwin-arm64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${DARWIN_ARM64}\"/}" "$BREW"
+        sed -i "/vulnetix-darwin-amd64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${DARWIN_AMD64}\"/}" "$BREW"
+        sed -i "/vulnetix-linux-arm64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_ARM64}\"/}" "$BREW"
+        sed -i "/vulnetix-linux-amd64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_AMD64}\"/}" "$BREW"
+        echo "    vulnetix.rb → ${VER_NUM}"
+    else
+        echo "Warning: Homebrew formula not found at $BREW"
+    fi
+
+    # --- Scoop manifest ---
+    SCOOP="../scoop-bucket/bucket/vulnetix.json"
+    if [ -f "$SCOOP" ]; then
+        echo ""
+        echo "==> Updating Scoop manifest..."
+        jq --indent 4 \
+           --arg v "$VER_NUM" \
+           --arg h64 "$WIN_AMD64" \
+           --arg h32 "$WIN_386" \
+           --arg harm "$WIN_ARM64" \
+           '.version = $v |
+            .architecture."64bit".url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-amd64.exe#/vulnetix.exe" |
+            .architecture."64bit".hash = $h64 |
+            .architecture."32bit".url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-386.exe#/vulnetix.exe" |
+            .architecture."32bit".hash = $h32 |
+            .architecture.arm64.url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-arm64.exe#/vulnetix.exe" |
+            .architecture.arm64.hash = $harm' "$SCOOP" > "$TMPDIR/vulnetix.json"
+        mv "$TMPDIR/vulnetix.json" "$SCOOP"
+        echo "    vulnetix.json → ${VER_NUM}"
+    else
+        echo "Warning: Scoop manifest not found at $SCOOP"
+    fi
+
+    # --- Commit and push ---
+    echo ""
+    echo "==> Committing and pushing..."
+
+    # CLI repo (flake.nix)
+    git add flake.nix
+    if ! git diff --cached --quiet; then
+        git commit -m "chore: update flake.nix to v${VER_NUM}"
+        git push
+        echo "    cli: pushed"
+    else
+        echo "    cli: no changes"
+    fi
+
+    # Homebrew tap
+    if [ -f "$BREW" ]; then
+        git -C ../homebrew-tap add Formula/vulnetix.rb
+        if ! git -C ../homebrew-tap diff --cached --quiet; then
+            git -C ../homebrew-tap commit -m "vulnetix ${VER_NUM}"
+            git -C ../homebrew-tap push
+            echo "    homebrew-tap: pushed"
+        else
+            echo "    homebrew-tap: no changes"
+        fi
+    fi
+
+    # Scoop bucket
+    if [ -f "$SCOOP" ]; then
+        git -C ../scoop-bucket add bucket/vulnetix.json
+        if ! git -C ../scoop-bucket diff --cached --quiet; then
+            git -C ../scoop-bucket commit -m "vulnetix ${VER_NUM}"
+            git -C ../scoop-bucket push
+            echo "    scoop-bucket: pushed"
+        else
+            echo "    scoop-bucket: no changes"
+        fi
+    fi
+
+    echo ""
+    echo "Done. All package manifests updated to v${VER_NUM}."
+
 # --- Hugo local development ---
 
 # Install Hugo modules (run after cloning or updating theme)
