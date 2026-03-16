@@ -1,0 +1,39 @@
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "name": "Vulnetix",
+      "url": "https://www.vulnetix.com",
+      "logo": "https://www.vulnetix.com/images/og.png"
+    },
+    {
+      "@type": "WebSite",
+      "name": "{{ site.Title }}",
+      "url": "{{ site.BaseURL }}",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Vulnetix"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "headline": "{{ with .Title }}{{ . }}{{ else }}{{ site.Title }}{{ end }}",
+      "description": "{{ with .Description }}{{ . }}{{ else }}{{ with site.Params.description }}{{ . }}{{ end }}{{ end }}",
+      "url": "{{ .Permalink }}",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Vulnetix"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Vulnetix CLI",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Linux, macOS, Windows",
+      "url": "https://github.com/Vulnetix/cli"
+    }
+  ]
+}
+</script>
