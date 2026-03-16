@@ -11,19 +11,22 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/internal/cache"
 	"github.com/vulnetix/cli/internal/purl"
 	"github.com/vulnetix/cli/internal/vdb"
 )
 
 var (
-	vdbOrgID      string
-	vdbSecretKey  string
-	vdbAPIKey     string
-	vdbMethod     string
-	vdbBaseURL    string
-	vdbOutput     string
-	vdbAPIVersion string
-	vdbCreds      *auth.Credentials
+	vdbOrgID        string
+	vdbSecretKey    string
+	vdbAPIKey       string
+	vdbMethod       string
+	vdbBaseURL      string
+	vdbOutput       string
+	vdbAPIVersion   string
+	vdbNoCache      bool
+	vdbRefreshCache bool
+	vdbCreds        *auth.Credentials
 )
 
 // vdbCmd represents the vdb command
@@ -664,12 +667,21 @@ func printRateLimit(client *vdb.Client) {
 	if client.LastCacheStatus != "" {
 		status := strings.ToUpper(client.LastCacheStatus)
 		// Normalize CloudFront format ("Hit from cloudfront" → "HIT")
-		if strings.Contains(status, "HIT") {
+		switch {
+		case status == "LOCAL":
+			fmt.Fprintf(os.Stderr, "Cache: LOCAL (no network request)\n")
+			return // No rate limit consumed
+		case status == "REVALIDATED":
+			fmt.Fprintf(os.Stderr, "Cache: REVALIDATED (304 Not Modified)\n")
+		case strings.Contains(status, "HIT"):
 			status = "HIT"
-		} else if strings.Contains(status, "MISS") {
+			fmt.Fprintf(os.Stderr, "Cache: %s\n", status)
+		case strings.Contains(status, "MISS"):
 			status = "MISS"
+			fmt.Fprintf(os.Stderr, "Cache: %s\n", status)
+		default:
+			fmt.Fprintf(os.Stderr, "Cache: %s\n", status)
 		}
-		fmt.Fprintf(os.Stderr, "Cache: %s\n", status)
 	}
 	rl := client.LastRateLimit
 	if rl == nil || !rl.Present {
@@ -766,6 +778,14 @@ func newVDBClient() *vdb.Client {
 	if vdbAPIVersion != "" {
 		client.APIVersion = normalizeAPIVersion(vdbAPIVersion)
 	}
+
+	// Initialize disk cache (non-fatal if it fails)
+	client.NoCache = vdbNoCache
+	client.RefreshCache = vdbRefreshCache
+	if dc, err := cache.NewDiskCache(); err == nil {
+		client.Cache = dc
+	}
+
 	return client
 }
 
@@ -1345,6 +1365,47 @@ Examples:
 	},
 }
 
+// cacheCmd is the parent for cache management subcommands
+var cacheCmd = &cobra.Command{
+	Use:   "cache",
+	Short: "Manage the local VDB response cache",
+	Long: `Manage the local disk cache used for VDB API responses.
+
+Subcommands:
+  clear   Remove all cached responses
+
+Examples:
+  vulnetix vdb cache clear`,
+}
+
+// cacheClearCmd removes all cached VDB responses
+var cacheClearCmd = &cobra.Command{
+	Use:   "clear",
+	Short: "Remove all cached VDB API responses",
+	Long: `Clear the local disk cache at ~/.vulnetix/cache/vdb/.
+
+This forces the next API call to fetch fresh data from the server.
+
+Examples:
+  vulnetix vdb cache clear`,
+	// Override parent's PersistentPreRunE — cache clear needs no auth
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return nil
+	},
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		dc, err := cache.NewDiskCache()
+		if err != nil {
+			return fmt.Errorf("failed to open cache: %w", err)
+		}
+		if err := dc.Clear(); err != nil {
+			return fmt.Errorf("failed to clear cache: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "Cache cleared: %s\n", dc.Dir())
+		return nil
+	},
+}
+
 func init() {
 	// Add vdb command to root
 	rootCmd.AddCommand(vdbCmd)
@@ -1366,6 +1427,10 @@ func init() {
 	vdbCmd.AddCommand(packagesCmd)
 	vdbCmd.AddCommand(purlCmd)
 	vdbCmd.AddCommand(statusCmd)
+	vdbCmd.AddCommand(cacheCmd)
+
+	// Nested subcommands: cache → clear
+	cacheCmd.AddCommand(cacheClearCmd)
 
 	// Nested subcommands: exploits → search, sources, types
 	exploitsCmd.AddCommand(exploitsSearchCmd)
@@ -1426,6 +1491,8 @@ func init() {
 	vdbCmd.PersistentFlags().StringVar(&vdbBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
 	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "", `API version path (default "v1"; e.g. "v2")`)
 	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, pretty)")
+	vdbCmd.PersistentFlags().BoolVar(&vdbNoCache, "no-cache", false, "Bypass local disk cache entirely")
+	vdbCmd.PersistentFlags().BoolVar(&vdbRefreshCache, "refresh-cache", false, "Ignore cached data and fetch fresh from API (updates cache)")
 
 	// Pagination flags for applicable commands
 	productCmd.Flags().Int("limit", 100, "Maximum number of results to return (default 100; use with --offset for pagination)")

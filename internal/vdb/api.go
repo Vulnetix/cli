@@ -6,6 +6,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
+)
+
+const (
+	// StaticEnumTTL is the cache TTL for slowly-changing enumeration endpoints.
+	StaticEnumTTL = 1 * time.Hour
+	// PaginatedEnumTTL is the cache TTL for paginated list endpoints.
+	PaginatedEnumTTL = 5 * time.Minute
 )
 
 // CVEInfo represents vulnerability information for a CVE
@@ -123,7 +131,7 @@ func (c *Client) GetCVE(cveID string) (*CVEInfo, error) {
 func (c *Client) GetEcosystems() ([]Ecosystem, error) {
 	path := "/ecosystems"
 
-	respBody, err := c.DoRequest("GET", path, nil)
+	respBody, err := c.DoRequestCached("GET", path, nil, StaticEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +169,7 @@ func (c *Client) GetProductVersions(productName string, limit, offset int) (*Pro
 	// Add pagination parameters
 	path += buildPaginationQuery(limit, offset)
 
-	respBody, err := c.DoRequest("GET", path, nil)
+	respBody, err := c.DoRequestCached("GET", path, nil, PaginatedEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +250,7 @@ func (c *Client) GetHealth() (map[string]interface{}, error) {
 func (c *Client) GetOpenAPISpec() (map[string]interface{}, error) {
 	path := "/spec"
 
-	respBody, err := c.DoRequest("GET", path, nil)
+	respBody, err := c.DoRequestCached("GET", path, nil, StaticEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +301,7 @@ func (c *Client) GetCVEFixes(identifier string) (map[string]interface{}, error) 
 func (c *Client) GetPackageVersions(packageName string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("/%s/versions", url.PathEscape(packageName))
 
-	respBody, err := c.DoRequest("GET", path, nil)
+	respBody, err := c.DoRequestCached("GET", path, nil, PaginatedEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +342,7 @@ func (c *Client) GetIdentifiersByMonth(year, month, limit, offset int) (*Identif
 	path := fmt.Sprintf("/identifiers/%d/%d", year, month)
 	path += buildPaginationQuery(limit, offset)
 
-	respBody, err := c.DoRequest("GET", path, nil)
+	respBody, err := c.DoRequestCached("GET", path, nil, PaginatedEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +367,7 @@ func (c *Client) SearchIdentifiers(prefix string, limit, offset int) (*Identifie
 	}
 	path := "/identifiers?" + params.Encode()
 
-	respBody, err := c.DoRequest("GET", path, nil)
+	respBody, err := c.DoRequestCached("GET", path, nil, PaginatedEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +402,7 @@ func (c *Client) GetCVEsByDateRange(start, end string) (map[string]interface{}, 
 
 // GetSources retrieves the list of vulnerability data sources
 func (c *Client) GetSources() (map[string]interface{}, error) {
-	respBody, err := c.DoRequest("GET", "/sources", nil)
+	respBody, err := c.DoRequestCached("GET", "/sources", nil, StaticEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +417,7 @@ func (c *Client) GetSources() (map[string]interface{}, error) {
 
 // GetMetricTypes retrieves the list of vulnerability metric/scoring types
 func (c *Client) GetMetricTypes() (map[string]interface{}, error) {
-	respBody, err := c.DoRequest("GET", "/metric-types", nil)
+	respBody, err := c.DoRequestCached("GET", "/metric-types", nil, StaticEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +432,7 @@ func (c *Client) GetMetricTypes() (map[string]interface{}, error) {
 
 // GetExploitSources retrieves the list of exploit intelligence sources
 func (c *Client) GetExploitSources() (map[string]interface{}, error) {
-	respBody, err := c.DoRequest("GET", "/exploit-sources", nil)
+	respBody, err := c.DoRequestCached("GET", "/exploit-sources", nil, StaticEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +447,7 @@ func (c *Client) GetExploitSources() (map[string]interface{}, error) {
 
 // GetExploitTypes retrieves the list of exploit type classifications
 func (c *Client) GetExploitTypes() (map[string]interface{}, error) {
-	respBody, err := c.DoRequest("GET", "/exploit-types", nil)
+	respBody, err := c.DoRequestCached("GET", "/exploit-types", nil, StaticEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +462,7 @@ func (c *Client) GetExploitTypes() (map[string]interface{}, error) {
 
 // GetFixDistributions retrieves the list of supported Linux distributions for fix advisories
 func (c *Client) GetFixDistributions() (map[string]interface{}, error) {
-	respBody, err := c.DoRequest("GET", "/fix-distributions", nil)
+	respBody, err := c.DoRequestCached("GET", "/fix-distributions", nil, StaticEnumTTL)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -162,21 +161,10 @@ func verifyCredentials(creds *auth.Credentials) error {
 
 // verifyDirectAPIKey tests Direct API Key connectivity
 func verifyDirectAPIKey(creds *auth.Credentials) error {
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", vdb.DefaultBaseURL+vdb.DefaultAPIVersion+"/ecosystems", nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", auth.GetAuthHeader(creds))
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("connection failed")
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		return fmt.Errorf("invalid credentials")
-	}
-	return nil
+	now := time.Now()
+	vdbClient := vdb.NewClientFromCredentials(creds)
+	_, err := vdbClient.GetGCVEIssuances(now.Year(), int(now.Month()), 1, 0)
+	return err
 }
 
 // verifySigV4 tests SigV4 authentication via token exchange
