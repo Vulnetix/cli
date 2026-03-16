@@ -69,6 +69,19 @@ go install github.com/vulnetix/cli@v1.3.0-beta.1
 go install github.com/vulnetix/cli@abc1234
 ```
 
+## Upgrade
+
+```bash
+# Reinstall latest version
+go install github.com/vulnetix/cli@latest
+```
+
+Or use the built-in self-updater (works regardless of install method):
+
+```bash
+vulnetix update
+```
+
 ### Development Version
 
 ```bash
