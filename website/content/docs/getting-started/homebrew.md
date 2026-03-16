@@ -29,6 +29,12 @@ brew install vulnetix/tap/vulnetix
 brew update && brew upgrade vulnetix
 ```
 
+Or use the built-in self-updater (works regardless of install method):
+
+```bash
+vulnetix update
+```
+
 ## Install a Specific Version
 
 ```bash

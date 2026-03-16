@@ -60,6 +60,22 @@ go build -tags dev -o vulnetix .
 ./vulnetix --version
 ```
 
+## Upgrade
+
+Once installed, use the built-in self-updater:
+
+```bash
+vulnetix update
+```
+
+Or pull the latest source and rebuild:
+
+```bash
+git pull
+go build -ldflags="-s -w" -o vulnetix .
+sudo install vulnetix /usr/local/bin/
+```
+
 ## Build Configurations
 
 ### Release Build

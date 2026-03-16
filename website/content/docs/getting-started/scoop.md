@@ -22,6 +22,12 @@ vulnetix --version
 scoop update vulnetix
 ```
 
+Or use the built-in self-updater (works regardless of install method):
+
+```powershell
+vulnetix update
+```
+
 ## Architecture Support
 
 Scoop automatically selects the correct binary for your system:

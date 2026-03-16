@@ -46,6 +46,20 @@ Expand-Archive vulnetix.zip -DestinationPath "C:\Tools\Vulnetix"
 $env:PATH += ";C:\Tools\Vulnetix"
 ```
 
+## Upgrade
+
+Once installed, use the built-in self-updater:
+
+```bash
+vulnetix update
+```
+
+Or re-run the auto-detection script to download the latest version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+```
+
 ## Platform-Specific Downloads
 
 ### Linux
