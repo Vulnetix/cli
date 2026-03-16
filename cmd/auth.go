@@ -3,7 +3,6 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -306,25 +305,14 @@ func testAuth(creds *auth.Credentials) error {
 		if len(creds.APIKey) == 0 {
 			return fmt.Errorf("API key is empty")
 		}
-		// Test connectivity to the VDB API (SigV4 endpoint accepts any request,
-		// the Direct API Key is validated by the upload API at upload time)
-		client := &http.Client{Timeout: 10 * time.Second}
-		req, err := http.NewRequest("GET", vdb.DefaultBaseURL+vdb.DefaultAPIVersion+"/ecosystems", nil)
+		// Test credentials against an authenticated GCVE endpoint
+		now := time.Now()
+		vdbClient := vdb.NewClientFromCredentials(creds)
+		_, err := vdbClient.GetGCVEIssuances(now.Year(), int(now.Month()), 1, 0)
 		if err != nil {
 			return err
 		}
-		req.Header.Set("Authorization", auth.GetAuthHeader(creds))
-		resp, err := client.Do(req)
-		if err != nil {
-			return fmt.Errorf("connection failed: %w", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-			return fmt.Errorf("invalid credentials (HTTP %d)", resp.StatusCode)
-		}
-		// 500 is expected when VDB API doesn't support ApiKey — credentials
-		// will be validated on first upload. Accept 200 or 500 as "reachable".
+		fmt.Println("VDB API: OK")
 		return nil
 
 	case auth.SigV4:

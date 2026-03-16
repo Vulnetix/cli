@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/internal/cache"
 )
 
 const (
@@ -52,7 +53,10 @@ type Client struct {
 	APIKey          string // hex digest for Direct API Key auth
 	HTTPClient      *http.Client
 	LastRateLimit   *RateLimitInfo
-	LastCacheStatus string // "HIT", "MISS", or "" if no X-Cache header
+	LastCacheStatus string // "HIT", "MISS", "LOCAL", "REVALIDATED", or "" if no X-Cache header
+	Cache           *cache.DiskCache
+	NoCache         bool
+	RefreshCache    bool
 	token         *TokenCache
 	tokenMutex    sync.RWMutex
 }
@@ -78,6 +82,13 @@ type ErrorResponse struct {
 	Details string `json:"details,omitempty"`
 }
 
+// sharedTransport is reused across clients for connection pooling.
+var sharedTransport = &http.Transport{
+	MaxIdleConns:        20,
+	MaxIdleConnsPerHost: 10,
+	IdleConnTimeout:     90 * time.Second,
+}
+
 // NewClient creates a new VDB API client using SigV4 auth
 func NewClient(orgID, secretKey string) *Client {
 	return &Client{
@@ -87,7 +98,8 @@ func NewClient(orgID, secretKey string) *Client {
 		SecretKey:  secretKey,
 		AuthMethod: auth.SigV4,
 		HTTPClient: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout:   30 * time.Second,
+			Transport: sharedTransport,
 		},
 	}
 }
@@ -102,7 +114,8 @@ func NewClientFromCredentials(creds *auth.Credentials) *Client {
 		AuthMethod: creds.Method,
 		APIKey:     creds.APIKey,
 		HTTPClient: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout:   30 * time.Second,
+			Transport: sharedTransport,
 		},
 	}
 }
@@ -343,6 +356,133 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 	}
 
 	return c.doRequestWithRetry(req)
+}
+
+// doRequestWithRetryFull is like doRequestWithRetry but also returns status code and headers.
+func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusCode int, headers http.Header, err error) {
+	var lastErr error
+
+	for attempt := 0; attempt <= MaxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := BaseBackoff * time.Duration(1<<(attempt-1))
+			fmt.Fprintf(os.Stderr, "[vdb] retry %d/%d after %s: %v\n", attempt, MaxRetries, backoff, lastErr)
+			time.Sleep(backoff)
+
+			if req.GetBody != nil {
+				newBody, bErr := req.GetBody()
+				if bErr != nil {
+					return nil, 0, nil, fmt.Errorf("failed to reset request body: %w", bErr)
+				}
+				req.Body = newBody
+			}
+		}
+
+		resp, doErr := c.HTTPClient.Do(req)
+		if doErr != nil {
+			if isRetryableError(doErr) && attempt < MaxRetries {
+				lastErr = doErr
+				continue
+			}
+			return nil, 0, nil, fmt.Errorf("failed to execute request: %w", doErr)
+		}
+
+		c.LastRateLimit = parseRateLimitHeaders(resp)
+		c.LastCacheStatus = resp.Header.Get("X-Cache")
+
+		responseBody, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			return nil, 0, nil, fmt.Errorf("failed to read response: %w", readErr)
+		}
+
+		if isRetryableStatus(resp.StatusCode) && attempt < MaxRetries {
+			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
+			continue
+		}
+
+		return responseBody, resp.StatusCode, resp.Header, nil
+	}
+
+	return nil, 0, nil, fmt.Errorf("request failed after %d retries: %w", MaxRetries, lastErr)
+}
+
+// DoRequestCached performs an authenticated, cached GET request.
+// For non-GET or when cache is disabled, it falls through to DoRequest.
+func (c *Client) DoRequestCached(method, path string, body interface{}, ttl time.Duration) ([]byte, error) {
+	// Only cache GETs with a working cache
+	if method != "GET" || c.Cache == nil || c.NoCache {
+		return c.DoRequest(method, path, body)
+	}
+
+	key := cache.CacheKey(c.APIVersion, path)
+
+	// Check cache (unless forced refresh)
+	if !c.RefreshCache {
+		if entry, ok := c.Cache.Get(key); ok && entry.IsFresh() {
+			c.LastCacheStatus = "LOCAL"
+			c.LastRateLimit = nil
+			return entry.Body, nil
+		}
+	}
+
+	// Build the request
+	url := c.BaseURL + c.APIVersion + path
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	if err := c.addAuthHeader(req); err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Add conditional headers from stale cache entry
+	if !c.RefreshCache {
+		if entry, ok := c.Cache.Get(key); ok {
+			if entry.ETag != "" {
+				req.Header.Set("If-None-Match", entry.ETag)
+			}
+			if entry.LastModified != "" {
+				req.Header.Set("If-Modified-Since", entry.LastModified)
+			}
+		}
+	}
+
+	respBody, statusCode, headers, err := c.doRequestWithRetryFull(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// 304 Not Modified — refresh TTL and return cached body
+	if statusCode == http.StatusNotModified {
+		if entry, ok := c.Cache.Get(key); ok {
+			entry.CachedAt = time.Now()
+			entry.TTL = ttl
+			c.Cache.Put(key, entry) //nolint:errcheck
+			c.LastCacheStatus = "REVALIDATED"
+			return entry.Body, nil
+		}
+	}
+
+	if statusCode >= 400 {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(respBody, &errResp); err == nil {
+			return nil, fmt.Errorf("API error (%d): %s - %s", statusCode, errResp.Error, errResp.Details)
+		}
+		return nil, fmt.Errorf("API error (%d): %s", statusCode, string(respBody))
+	}
+
+	// Store in cache
+	entry := &cache.Entry{
+		Body:         respBody,
+		ETag:         headers.Get("ETag"),
+		LastModified: headers.Get("Last-Modified"),
+		CachedAt:     time.Now(),
+		TTL:          ttl,
+	}
+	c.Cache.Put(key, entry) //nolint:errcheck
+
+	return respBody, nil
 }
 
 // DoRequestRawBody performs an authenticated API request with a raw body (not JSON-marshaled).
