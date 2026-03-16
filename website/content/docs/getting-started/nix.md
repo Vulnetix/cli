@@ -49,6 +49,12 @@ nix profile install github:Vulnetix/cli/v1.1.1
 nix profile upgrade '.*vulnetix.*'
 ```
 
+Or use the built-in self-updater (works regardless of install method):
+
+```bash
+vulnetix update
+```
+
 ## Development Shell
 
 The flake includes a development shell with Go tooling:
