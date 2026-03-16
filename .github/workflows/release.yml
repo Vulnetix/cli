@@ -98,3 +98,104 @@ jobs:
           VERSION=${{ needs.release.outputs.version }}
           go install github.com/vulnetix/cli@${VERSION}
           vulnetix version --short || echo "Version command failed"
+
+  update-packages:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cli repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PACKAGES_TOKEN }}
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: Vulnetix/homebrew-tap
+          token: ${{ secrets.PACKAGES_TOKEN }}
+          path: homebrew-tap
+
+      - name: Checkout scoop-bucket
+        uses: actions/checkout@v4
+        with:
+          repository: Vulnetix/scoop-bucket
+          token: ${{ secrets.PACKAGES_TOKEN }}
+          path: scoop-bucket
+
+      - name: Download checksums
+        run: gh release download "${{ needs.release.outputs.version }}" --pattern checksums.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Update flake.nix
+        run: |
+          VER_NUM="${{ needs.release.outputs.version }}"
+          VER_NUM="${VER_NUM#v}"
+          sed -i "s/version = \"[^\"]*\";/version = \"${VER_NUM}\";/" flake.nix
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add flake.nix
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update flake.nix to v${VER_NUM} [skip ci]"
+            git push
+          fi
+
+      - name: Update Homebrew formula
+        run: |
+          VER_NUM="${{ needs.release.outputs.version }}"
+          VER_NUM="${VER_NUM#v}"
+          hash_for() { grep "$1\$" checksums.txt | awk '{print $1}'; }
+          DARWIN_ARM64=$(hash_for vulnetix-darwin-arm64)
+          DARWIN_AMD64=$(hash_for vulnetix-darwin-amd64)
+          LINUX_ARM64=$(hash_for vulnetix-linux-arm64)
+          LINUX_AMD64=$(hash_for vulnetix-linux-amd64)
+
+          cd homebrew-tap
+          BREW="Formula/vulnetix.rb"
+          sed -i "s/version \"[^\"]*\"/version \"${VER_NUM}\"/" "$BREW"
+          sed -i "/vulnetix-darwin-arm64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${DARWIN_ARM64}\"/}" "$BREW"
+          sed -i "/vulnetix-darwin-amd64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${DARWIN_AMD64}\"/}" "$BREW"
+          sed -i "/vulnetix-linux-arm64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_ARM64}\"/}" "$BREW"
+          sed -i "/vulnetix-linux-amd64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_AMD64}\"/}" "$BREW"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$BREW"
+          if ! git diff --cached --quiet; then
+            git commit -m "vulnetix ${VER_NUM}"
+            git push
+          fi
+
+      - name: Update Scoop manifest
+        run: |
+          VER_NUM="${{ needs.release.outputs.version }}"
+          VER_NUM="${VER_NUM#v}"
+          hash_for() { grep "$1\$" checksums.txt | awk '{print $1}'; }
+          WIN_AMD64=$(hash_for vulnetix-windows-amd64.exe)
+          WIN_386=$(hash_for vulnetix-windows-386.exe)
+          WIN_ARM64=$(hash_for vulnetix-windows-arm64.exe)
+
+          cd scoop-bucket
+          if [ -f bucket/vulnetix.json ]; then
+            jq --indent 4 \
+              --arg v "$VER_NUM" \
+              --arg h64 "$WIN_AMD64" \
+              --arg h32 "$WIN_386" \
+              --arg harm "$WIN_ARM64" \
+              '.version = $v |
+               .architecture."64bit".url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-amd64.exe#/vulnetix.exe" |
+               .architecture."64bit".hash = $h64 |
+               .architecture."32bit".url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-386.exe#/vulnetix.exe" |
+               .architecture."32bit".hash = $h32 |
+               .architecture.arm64.url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-arm64.exe#/vulnetix.exe" |
+               .architecture.arm64.hash = $harm' bucket/vulnetix.json > /tmp/vulnetix.json
+            mv /tmp/vulnetix.json bucket/vulnetix.json
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add bucket/vulnetix.json
+            if ! git diff --cached --quiet; then
+              git commit -m "vulnetix ${VER_NUM}"
+              git push
+            fi
+          fi
