@@ -1,9 +1,0 @@
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:site" content="@vulnetix">
-<meta name="twitter:creator" content="@vulnetix">
-<meta name="twitter:title" content="{{ with .Title }}{{ . }}{{ else }}{{ site.Title }}{{ end }}">
-<meta name="twitter:description" content="{{ with .Description }}{{ . }}{{ else }}{{ with site.Params.description }}{{ . }}{{ end }}{{ end }}">
-{{ with site.Params.images }}
-<meta name="twitter:image" content="{{ index . 0 }}">
-<meta name="twitter:image:alt" content="{{ $.Title | default site.Title }}">
-{{ end }}
