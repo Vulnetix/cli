@@ -8,13 +8,13 @@ layout: hextra-home
   {{< icon name="arrow-circle-right" attributes="height=14" >}}
 {{< /hextra/hero-badge >}}
 
-<div class="hx-mt-6 hx-mb-6">
+<div class="hx-mt-8 hx-mb-8">
 {{< hextra/hero-headline >}}
   Unified Vulnerability&nbsp;<br class="sm:hx-block hx-hidden" />Management CLI
 {{< /hextra/hero-headline >}}
 </div>
 
-<div class="hx-mb-8">
+<div class="hx-mb-10">
 {{< hextra/hero-subtitle >}}
   Remediation over discovery. Collect, assess, triage, and remediate&nbsp;<br class="sm:hx-block hx-hidden" />vulnerabilities from a single command-line tool.
 {{< /hextra/hero-subtitle >}}
@@ -22,11 +22,11 @@ layout: hextra-home
 
 <div class="vx-cta-row hx-mb-4">
   <a href="docs/getting-started" class="vx-btn-primary">Get Started</a>
-  <a href="https://app.vulnetix.com/login" class="vx-btn-secondary" target="_blank" rel="noopener">Sign In</a>
+  <a href="https://www.vulnetix.com/vdb" class="vx-btn-secondary" target="_blank" rel="noopener">Live Demo</a>
 </div>
 <a href="https://www.vulnetix.com" class="vx-subtle-link" target="_blank" rel="noopener">Learn more at vulnetix.com &rarr;</a>
 
-<div class="hx-mt-16"></div>
+<div class="vx-hero-spacer"></div>
 
 <div class="vx-feature-section vx-feature-vdb">
 
@@ -82,14 +82,7 @@ Native GitHub Actions support for automated vulnerability management. Upload SBO
 </div>
 
 <div class="vx-coming-soon">
-  <h3>Enterprise Broker <span class="vx-coming-soon-badge">Coming Soon</span></h3>
+  <h3>Enterprise Broker <span class="vx-coming-soon-badge">Paid-only</span></h3>
   <p>Keep all Vulnetix operations within your private network. The on-prem broker enables Enterprise customers to run vulnerability scanning, VDB queries, and remediation workflows entirely behind the firewall.</p>
   <a href="https://www.vulnetix.com" class="vx-contact-link" target="_blank" rel="noopener">Contact us &rarr;</a>
-</div>
-
-<div class="vx-footer-links">
-  <a href="https://github.com/Vulnetix/cli" target="_blank" rel="noopener">GitHub</a>
-  <a href="https://www.vulnetix.com" target="_blank" rel="noopener">Vulnetix Home</a>
-  <a href="https://app.vulnetix.com/login" target="_blank" rel="noopener">App Login</a>
-  <a href="https://redocly.github.io/redoc/?url=https://api.vdb.vulnetix.com/v1/spec" target="_blank" rel="noopener">API Docs</a>
 </div>

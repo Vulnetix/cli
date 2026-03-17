@@ -146,7 +146,8 @@
       "Bash(just dev:*)",
       "Bash(gh repo:*)",
       "Bash(aws ecs:*)",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "Bash(npx httpyac:*)"
     ],
     "deny": [
       "Bash(dd:*)",

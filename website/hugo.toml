@@ -1,6 +1,6 @@
 baseURL = "https://docs.cli.vulnetix.com/"
 languageCode = "en-us"
-title = "Vulnetix CLI Documentation"
+title = "Vulnetix"
 
 [module]
   [[module.imports]]
@@ -50,11 +50,16 @@ title = "Vulnetix CLI Documentation"
   images = ["https://www.vulnetix.com/images/og.png"]
 
   [params.social]
-    twitter = "@vulnetix"
 
   [params.navbar]
     displayTitle = true
-    displayLogo = false
+    displayLogo = true
+
+    [params.navbar.logo]
+      path = "favicon-32x32.png"
+      dark = "favicon-32x32.png"
+      width = "24"
+      height = "24"
 
   [params.footer]
     displayPoweredBy = false
