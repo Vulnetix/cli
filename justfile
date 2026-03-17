@@ -383,6 +383,17 @@ update-packages VERSION="":
 
 # --- Hugo local development ---
 
+# One-command local dev: install modules and start dev server with live reload
+docs-dev:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd website
+    echo "Installing Hugo modules..."
+    hugo mod get && hugo mod tidy
+    echo ""
+    echo "Starting dev server at http://localhost:1313"
+    hugo server --buildDrafts --buildFuture --navigateToChanged
+
 # Install Hugo modules (run after cloning or updating theme)
 docs-init:
     cd website && hugo mod get && hugo mod tidy
@@ -394,6 +405,14 @@ docs-serve:
 # Build the Hugo site locally to website/public/
 docs-build:
     cd website && hugo mod get && hugo --minify
+
+# Preview production build locally
+docs-preview: docs-build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd website
+    echo "Serving production build at http://localhost:1313"
+    hugo server --minify --disableLiveReload
 
 # Clean Hugo build artifacts
 docs-clean:
