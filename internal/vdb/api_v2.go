@@ -112,9 +112,33 @@ func (c *Client) V2Kev(id string) (map[string]interface{}, error) {
 	return doV2Get(c, path)
 }
 
-// V2Timeline retrieves the vulnerability timeline.
-func (c *Client) V2Timeline(id string) (map[string]interface{}, error) {
+// V2TimelineParams holds filter parameters for the v2 timeline endpoint.
+type V2TimelineParams struct {
+	Include     string // comma-separated event types to include
+	Exclude     string // comma-separated event types to exclude
+	Dates       string // comma-separated CVE date fields: published,modified,reserved
+	ScoresLimit int    // max score-change events (default 30, max 365)
+}
+
+// V2Timeline retrieves the vulnerability timeline with optional filters.
+func (c *Client) V2Timeline(id string, p V2TimelineParams) (map[string]interface{}, error) {
+	q := url.Values{}
+	if p.Include != "" {
+		q.Set("include", p.Include)
+	}
+	if p.Exclude != "" {
+		q.Set("exclude", p.Exclude)
+	}
+	if p.Dates != "" {
+		q.Set("dates", p.Dates)
+	}
+	if p.ScoresLimit > 0 {
+		q.Set("scores_limit", fmt.Sprintf("%d", p.ScoresLimit))
+	}
 	path := fmt.Sprintf("/vuln/%s/timeline", url.PathEscape(id))
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
 	return doV2Get(c, path)
 }
 
