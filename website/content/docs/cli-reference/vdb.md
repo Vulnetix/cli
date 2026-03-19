@@ -878,7 +878,7 @@ vulnetix vdb status [flags]
 
 ### vdb packages search
 
-Full-text search across packages in the VDB.
+Full-text search across packages in the VDB. Searches across multiple data sources including SBOM dependencies, package registries, CVE affected products, GitHub repositories, CISA/VulnCheck KEV entries, end-of-life databases, and CycloneDX metadata.
 
 **Usage:**
 ```bash
@@ -893,6 +893,27 @@ vulnetix vdb packages search <query> [flags]
 | `--limit` | int | `100` | Maximum results |
 | `--offset` | int | `0` | Results to skip |
 | `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+
+**Response Fields:**
+
+Each package in the response includes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `packageName` | string | Lowercased package name |
+| `matchSources` | string[] | Data sources where the package was found. Values: `dependency`, `package_version`, `cve_affected`, `github_repository`, `eol_product`, `kev`, `cyclonedx_info` |
+| `ecosystems` | string[] | Package ecosystems (npm, pypi, maven, etc.) |
+| `versionCount` | int | Number of known versions |
+| `versions` | array | Top 10 most recent versions with safe harbour scores |
+| `vulnCount` | int | Number of associated CVEs |
+| `exploitationSignals` | object | CISA KEV, VulnCheck KEV, exploit count, XDB count, CrowdSec sightings |
+| `safeHarbour` | object | Recommended versions and highest safety score |
+| `vendor` | string? | Vendor name from CVE/KEV data |
+| `product` | string? | Product name from CVE/KEV data |
+| `repositoryUrl` | string? | GitHub repository URL |
+| `eolStatus` | object? | End-of-life status: `{ productName, isEol }` |
+| `scorecardScore` | float? | OpenSSF Scorecard score |
+| `hasProvenance` | bool | Whether SLSA provenance exists |
 
 **Examples:**
 ```bash
