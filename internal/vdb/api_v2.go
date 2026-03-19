@@ -15,6 +15,8 @@ type V2QueryParams struct {
 	Product     string
 	Distro      string
 	Purl        string
+	Limit       int
+	Offset      int
 }
 
 // V2RemediationParams extends V2QueryParams with remediation-plan-specific parameters.
@@ -50,6 +52,12 @@ func v2QueryString(p V2QueryParams) string {
 	if p.Purl != "" {
 		q.Set("purl", p.Purl)
 	}
+	if p.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", p.Limit))
+	}
+	if p.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", p.Offset))
+	}
 	if encoded := q.Encode(); encoded != "" {
 		return "?" + encoded
 	}
@@ -83,8 +91,12 @@ func (c *Client) V2DistributionPatches(id string, p V2QueryParams) (map[string]i
 }
 
 // V2SourceFixes retrieves upstream source fixes for a vulnerability.
-func (c *Client) V2SourceFixes(id string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("/vuln/%s/fixes/source", url.PathEscape(id))
+func (c *Client) V2SourceFixes(id string, p ...V2QueryParams) (map[string]interface{}, error) {
+	qs := ""
+	if len(p) > 0 {
+		qs = v2QueryString(p[0])
+	}
+	path := fmt.Sprintf("/vuln/%s/fixes/source%s", url.PathEscape(id), qs)
 	return doV2Get(c, path)
 }
 
