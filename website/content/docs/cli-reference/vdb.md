@@ -23,6 +23,7 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb exploits types](#vdb-exploits-types)
   - [vdb fixes](#vdb-fixes)
   - [vdb fixes distributions](#vdb-fixes-distributions)
+  - [vdb timeline](#vdb-timeline)
   - [vdb versions](#vdb-versions)
   - [vdb gcve](#vdb-gcve)
   - [vdb gcve issuances](#vdb-gcve-issuances)
@@ -530,6 +531,79 @@ vulnetix vdb fixes distributions
 # As JSON
 vulnetix vdb fixes distributions --output json
 ```
+
+---
+
+### vdb timeline
+
+Retrieve the vulnerability lifecycle timeline — CVE dates, exploits, scoring history, patches, and advisories.
+
+Works without `-V v2` (v1 default). With `-V v2`, also returns `sources{}` providing raw source transparency data.
+
+**Usage:**
+```bash
+vulnetix vdb timeline <vuln-id> [flags]
+```
+
+**Flags:**
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--include` | string | all | Comma-separated event types to include |
+| `--exclude` | string | none | Comma-separated event types to exclude |
+| `--dates` | string | all | CVE date fields: `published,modified,reserved` |
+| `--scores-limit` | int | `30` | Max score-change events (max 365) |
+| `-o, --output` | string | `pretty` | Output format (json, pretty) |
+
+**Event types:**
+
+| Type | Description |
+|------|-------------|
+| `source` | CVE lifecycle dates (published, reserved, updated, GHSA, ADP reviews) |
+| `exploit` | All exploit sources (CISA KEV, EU KEV, VulnCheck, Exploit-DB, Metasploit, Nuclei, CrowdSec, PoC) |
+| `score-change` | EPSS and Coalition ESS score history (sampled by outlier detection + interval fill) |
+| `patch` | Fix PRs, commits, distribution advisories, registry version releases |
+| `advisory` | CERT/PSIRT/government security advisories |
+| `scorecard` | OpenSSF Scorecard assessments |
+
+**Examples:**
+```bash
+# Full timeline (v1, no sources{})
+vulnetix vdb timeline CVE-2021-44228
+
+# With source transparency (v2)
+vulnetix vdb timeline CVE-2021-44228 -V v2
+
+# Only exploit events
+vulnetix vdb timeline CVE-2021-44228 --include exploit
+
+# All except score-change, limit scores
+vulnetix vdb timeline CVE-2021-44228 --exclude score-change
+
+# Restrict CVE dates to published only, limit score history
+vulnetix vdb timeline CVE-2021-44228 --dates published --scores-limit 10
+
+# JSON output with v2 source transparency
+vulnetix vdb timeline CVE-2021-44228 -V v2 --include exploit --output json
+```
+
+**Response (v1):**
+```json
+{
+  "identifier": "CVE-2021-44228",
+  "events": [
+    { "time": 1638316800000, "type": "source", "label": "CVE Published", "sourceRef": "cve", ... },
+    { "time": 1638403200000, "type": "exploit", "label": "CISA KEV Added", "kevCisa": true, ... },
+    { "time": 1638230400000, "type": "score-change", "label": "EPSS Score", "epssScore": 0.97, ... }
+  ],
+  "meta": {
+    "currentAgeDays": 1500, "lifecycleStage": "LEGACY",
+    "publicationToKevDays": 1, "publicationToFirstExploitDays": 0,
+    "insights": ["Exploit published on same day as disclosure (0-day)", "..."]
+  }
+}
+```
+
+**v2 adds** a `sources{}` section with raw data from each source (kev.cisa, kev.eu, epss, cess, vulncheck, crowdsec, scorecard, advisories, adp).
 
 ---
 

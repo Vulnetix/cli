@@ -276,6 +276,70 @@ Examples:
 	},
 }
 
+// timelineCmd retrieves the vulnerability lifecycle timeline
+var timelineCmd = &cobra.Command{
+	Use:   "timeline <vuln-id>",
+	Short: "Get vulnerability lifecycle timeline",
+	Long: `Retrieve the vulnerability lifecycle timeline including CVE dates, exploits,
+scoring history, patches, and advisories.
+
+With -V v2, also returns source transparency data (sources{}).
+
+Event types: source, exploit, score-change, patch, advisory, scorecard
+
+Accepts any supported vulnerability identifier (CVE, GHSA, PYSEC, ZDI, SNYK, and 70+ more).
+
+Examples:
+  vulnetix vdb timeline CVE-2021-44228
+  vulnetix vdb timeline CVE-2021-44228 --include exploit,source
+  vulnetix vdb timeline CVE-2021-44228 --exclude score-change
+  vulnetix vdb timeline CVE-2021-44228 --scores-limit 10
+  vulnetix vdb timeline CVE-2021-44228 -V v2 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		identifier := args[0]
+		include, _ := cmd.Flags().GetString("include")
+		exclude, _ := cmd.Flags().GetString("exclude")
+		dates, _ := cmd.Flags().GetString("dates")
+		scoresLimit, _ := cmd.Flags().GetInt("scores-limit")
+
+		client := newVDBClient()
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "📅 Fetching timeline for %s...\n", identifier)
+		} else {
+			fmt.Printf("📅 Fetching timeline for %s...\n", identifier)
+		}
+
+		// V2 mode: use v2 endpoint with source transparency
+		if normalizeAPIVersion(vdbAPIVersion) == "/v2" {
+			result, err := client.V2Timeline(identifier, vdb.V2TimelineParams{
+				Include:     include,
+				Exclude:     exclude,
+				Dates:       dates,
+				ScoresLimit: scoresLimit,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to get timeline: %w", err)
+			}
+			printRateLimit(client)
+			return printOutput(result, vdbOutput)
+		}
+
+		// V1 mode (default)
+		result, err := client.GetCVETimeline(identifier, vdb.TimelineParams{
+			Include:     include,
+			Exclude:     exclude,
+			Dates:       dates,
+			ScoresLimit: scoresLimit,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get timeline: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
 // versionsCmd retrieves all known versions for a package across ecosystems
 var versionsCmd = &cobra.Command{
 	Use:   "versions <package-name>",
@@ -1418,6 +1482,7 @@ func init() {
 	vdbCmd.AddCommand(specCmd)
 	vdbCmd.AddCommand(exploitsCmd)
 	vdbCmd.AddCommand(fixesCmd)
+	vdbCmd.AddCommand(timelineCmd)
 	vdbCmd.AddCommand(versionsCmd)
 	vdbCmd.AddCommand(gcveCmd)
 	vdbCmd.AddCommand(idsCmd)
@@ -1546,4 +1611,10 @@ func init() {
 	fixesCmd.Flags().String("vendor", "", "Filter by vendor name (V2 only)")
 	fixesCmd.Flags().String("product", "", "Filter by product name (V2 only)")
 	fixesCmd.Flags().String("purl", "", "Package URL (V2 only)")
+
+	// Timeline flags
+	timelineCmd.Flags().String("include", "", "Comma-separated event types to include (source,exploit,score-change,patch,advisory,scorecard)")
+	timelineCmd.Flags().String("exclude", "", "Comma-separated event types to exclude")
+	timelineCmd.Flags().String("dates", "", "CVE date fields: published,modified,reserved (default: all)")
+	timelineCmd.Flags().Int("scores-limit", 30, "Max score-change events (max 365)")
 }
