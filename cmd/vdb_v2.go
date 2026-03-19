@@ -178,16 +178,25 @@ var v2TimelineCmd = &cobra.Command{
 	Short: "Get vulnerability timeline (V2)",
 	Long: `Retrieve the vulnerability timeline from the V2 API.
 
-Requires -V v2.
+Requires -V v2. Returns events[], sources{} (source transparency), and meta{}.
+
+Event types: source, exploit, score-change, patch, advisory, scorecard
 
 Examples:
   vulnetix vdb timeline CVE-2021-44228 -V v2
+  vulnetix vdb timeline CVE-2021-44228 -V v2 --include exploit
+  vulnetix vdb timeline CVE-2021-44228 -V v2 --exclude score-change --scores-limit 10
   vulnetix vdb timeline CVE-2021-44228 -V v2 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireV2("timeline"); err != nil {
 			return err
 		}
+
+		include, _ := cmd.Flags().GetString("include")
+		exclude, _ := cmd.Flags().GetString("exclude")
+		dates, _ := cmd.Flags().GetString("dates")
+		scoresLimit, _ := cmd.Flags().GetInt("scores-limit")
 
 		client := newVDBClient()
 		if vdbOutput == "json" {
@@ -196,7 +205,12 @@ Examples:
 			fmt.Printf("📅 Fetching timeline for %s...\n", args[0])
 		}
 
-		result, err := client.V2Timeline(args[0])
+		result, err := client.V2Timeline(args[0], vdb.V2TimelineParams{
+			Include:     include,
+			Exclude:     exclude,
+			Dates:       dates,
+			ScoresLimit: scoresLimit,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to get timeline: %w", err)
 		}
@@ -401,6 +415,12 @@ func init() {
 
 	// Remediation subcommands
 	v2RemediationCmd.AddCommand(v2RemediationPlanCmd)
+
+	// Timeline flags
+	v2TimelineCmd.Flags().String("include", "", "Comma-separated event types to include (source,exploit,score-change,patch,advisory,scorecard)")
+	v2TimelineCmd.Flags().String("exclude", "", "Comma-separated event types to exclude")
+	v2TimelineCmd.Flags().String("dates", "", "CVE date fields: published,modified,reserved (default: all)")
+	v2TimelineCmd.Flags().Int("scores-limit", 30, "Max score-change events (max 365)")
 
 	// Affected flags
 	addV2ContextFlags(v2AffectedCmd)

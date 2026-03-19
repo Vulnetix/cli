@@ -280,6 +280,39 @@ func (c *Client) GetExploits(identifier string) (map[string]interface{}, error) 
 	return result, nil
 }
 
+// GetCVETimeline retrieves the vulnerability timeline from the v1 API.
+func (c *Client) GetCVETimeline(identifier string, params TimelineParams) (map[string]interface{}, error) {
+	q := url.Values{}
+	if params.Include != "" {
+		q.Set("include", params.Include)
+	}
+	if params.Exclude != "" {
+		q.Set("exclude", params.Exclude)
+	}
+	if params.Dates != "" {
+		q.Set("dates", params.Dates)
+	}
+	if params.ScoresLimit > 0 {
+		q.Set("scores_limit", fmt.Sprintf("%d", params.ScoresLimit))
+	}
+	path := fmt.Sprintf("/vuln/%s/timeline", url.PathEscape(identifier))
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
 // GetCVEFixes retrieves fix data for a specific CVE identifier
 func (c *Client) GetCVEFixes(identifier string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("/vuln/%s/fixes", url.PathEscape(identifier))
@@ -525,6 +558,14 @@ func (c *Client) SearchExploits(params ExploitSearchParams) (map[string]interfac
 }
 
 // ExploitSearchParams holds parameters for the exploit search endpoint
+// TimelineParams holds filter parameters for the /vuln/{id}/timeline endpoint.
+type TimelineParams struct {
+	Include     string // comma-separated event types to include
+	Exclude     string // comma-separated event types to exclude
+	Dates       string // comma-separated CVE date fields: published,modified,reserved
+	ScoresLimit int    // max score-change events (default 30, max 365)
+}
+
 type ExploitSearchParams struct {
 	Limit     int
 	Offset    int
