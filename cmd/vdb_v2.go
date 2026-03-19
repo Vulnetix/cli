@@ -25,6 +25,8 @@ func buildV2QueryParams(cmd *cobra.Command) vdb.V2QueryParams {
 	p.Vendor, _ = cmd.Flags().GetString("vendor")
 	p.Product, _ = cmd.Flags().GetString("product")
 	p.Purl, _ = cmd.Flags().GetString("purl")
+	p.Limit, _ = cmd.Flags().GetInt("limit")
+	p.Offset, _ = cmd.Flags().GetInt("offset")
 	return p
 }
 
@@ -32,6 +34,12 @@ func buildV2QueryParams(cmd *cobra.Command) vdb.V2QueryParams {
 func addV2ContextFlags(cmd *cobra.Command) {
 	cmd.Flags().String("ecosystem", "", "Filter by package ecosystem")
 	cmd.Flags().String("package-name", "", "Filter by package name")
+}
+
+// addV2PaginationFlags adds limit/offset pagination flags to a V2 command
+func addV2PaginationFlags(cmd *cobra.Command) {
+	cmd.Flags().Int("limit", 100, "Maximum results per page")
+	cmd.Flags().Int("offset", 0, "Pagination offset")
 }
 
 // v2WorkaroundsCmd retrieves workaround data for a vulnerability
@@ -375,7 +383,7 @@ func v2FixesMerged(identifier string, cmd *cobra.Command) (map[string]interface{
 	}()
 	go func() {
 		defer wg.Done()
-		data, err := client.V2SourceFixes(identifier)
+		data, err := client.V2SourceFixes(identifier, p)
 		ch <- result{"source", data, err}
 	}()
 
@@ -424,6 +432,7 @@ func init() {
 
 	// Affected flags
 	addV2ContextFlags(v2AffectedCmd)
+	addV2PaginationFlags(v2AffectedCmd)
 
 	// Remediation plan flags (most flags of any command)
 	v2RemediationPlanCmd.Flags().String("ecosystem", "", "Filter by package ecosystem")
