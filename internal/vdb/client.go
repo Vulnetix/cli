@@ -346,6 +346,17 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if c.NoCache || c.RefreshCache {
+		req.Header.Set("Cache-Control", "no-cache")
+	}
+
+	// Add cache-busting query parameter when bypassing caches.
+	// This ensures CloudFront treats it as a unique URL regardless of CDN config.
+	if c.NoCache || c.RefreshCache {
+		q := req.URL.Query()
+		q.Set("_t", fmt.Sprintf("%d", time.Now().UnixMilli()))
+		req.URL.RawQuery = q.Encode()
+	}
 
 	// Enable body reset for retries
 	if body != nil {
