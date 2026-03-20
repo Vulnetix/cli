@@ -268,6 +268,35 @@ Examples:
 	},
 }
 
+// v2ScorecardSearchCmd searches scorecards by repository name
+var v2ScorecardSearchCmd = &cobra.Command{
+	Use:   "search <query>",
+	Short: "Search scorecards by repository name (V2)",
+	Long: `Search OpenSSF Scorecards by repository name.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb scorecard search openssl -V v2
+  vulnetix vdb scorecard search github.com/openssl/openssl -V v2 --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("scorecard search"); err != nil {
+			return err
+		}
+
+		client := newVDBClient()
+		fmt.Fprintf(os.Stderr, "🔍 Searching scorecards for %q...\n", args[0])
+
+		result, err := client.V2ScorecardSearch(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to search scorecards: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
 // v2RemediationCmd is the parent for remediation subcommands
 var v2RemediationCmd = &cobra.Command{
 	Use:   "remediation",
@@ -433,6 +462,9 @@ func init() {
 	// Cloud locators flags
 	v2CloudLocatorsCmd.Flags().String("vendor", "", "Vendor name (e.g. amazon, microsoft, google)")
 	v2CloudLocatorsCmd.Flags().String("product", "", "Product/service name (e.g. s3, ec2, cloudfront)")
+
+	// Scorecard subcommands
+	v2ScorecardCmd.AddCommand(v2ScorecardSearchCmd)
 
 	// CWE subcommands
 	v2CweCmd.AddCommand(v2CweGuidanceCmd)
