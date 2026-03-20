@@ -544,7 +544,7 @@ func (c *Client) SearchExploits(params ExploitSearchParams) (map[string]interfac
 		path += "?" + encoded
 	}
 
-	respBody, err := c.DoRequest("GET", path, nil)
+	respBody, err := c.DoRequestCached("GET", path, nil, PaginatedEnumTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -594,7 +594,7 @@ func (c *Client) SearchPackages(query, ecosystem string, limit, offset int) (map
 
 	path := "/packages/search?" + q.Encode()
 
-	respBody, err := c.DoRequest("GET", path, nil)
+	respBody, err := c.DoRequestCached("GET", path, nil, PaginatedEnumTTL)
 	if err != nil {
 		return nil, err
 	}

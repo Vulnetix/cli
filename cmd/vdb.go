@@ -846,7 +846,7 @@ func newVDBClient() *vdb.Client {
 	// Initialize disk cache (non-fatal if it fails)
 	client.NoCache = vdbNoCache
 	client.RefreshCache = vdbRefreshCache
-	if dc, err := cache.NewDiskCache(); err == nil {
+	if dc, err := cache.NewDiskCache(version); err == nil {
 		client.Cache = dc
 	}
 
@@ -1446,7 +1446,7 @@ Examples:
 var cacheClearCmd = &cobra.Command{
 	Use:   "clear",
 	Short: "Remove all cached VDB API responses",
-	Long: `Clear the local disk cache at ~/.vulnetix/cache/vdb/.
+	Long: `Clear the local disk cache at ~/.vulnetix/cache/vdb/vX.Y/ for the current CLI version.
 
 This forces the next API call to fetch fresh data from the server.
 
@@ -1458,7 +1458,7 @@ Examples:
 	},
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dc, err := cache.NewDiskCache()
+		dc, err := cache.NewDiskCache(version)
 		if err != nil {
 			return fmt.Errorf("failed to open cache: %w", err)
 		}

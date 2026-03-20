@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -29,17 +30,80 @@ type DiskCache struct {
 	dir string
 }
 
-// NewDiskCache creates a new disk cache rooted at ~/.vulnetix/cache/vdb.
-func NewDiskCache() (*DiskCache, error) {
+// cacheVersionDir extracts "vMajor.Minor" from a version string for directory naming.
+// Examples: "1.8.3" → "v1.8", "v2.0.0" → "v2.0", "1.8.3-dev" → "v1.8"
+func cacheVersionDir(cliVersion string) string {
+	v := strings.TrimPrefix(cliVersion, "v")
+	if idx := strings.IndexByte(v, '-'); idx != -1 {
+		v = v[:idx]
+	}
+	parts := strings.SplitN(v, ".", 3)
+	if len(parts) >= 2 {
+		return "v" + parts[0] + "." + parts[1]
+	}
+	return "v" + v
+}
+
+// NewDiskCache creates a new disk cache rooted at ~/.vulnetix/cache/vdb/vX.Y.
+func NewDiskCache(cliVersion string) (*DiskCache, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("cache: user home dir: %w", err)
 	}
-	dir := filepath.Join(homeDir, ".vulnetix", "cache", "vdb")
+	dir := filepath.Join(homeDir, ".vulnetix", "cache", "vdb", cacheVersionDir(cliVersion))
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("cache: mkdir %s: %w", dir, err)
 	}
 	return &DiskCache{dir: dir}, nil
+}
+
+// CacheBaseDir returns the parent directory of all versioned cache dirs (~/.vulnetix/cache/vdb).
+func CacheBaseDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cache: user home dir: %w", err)
+	}
+	return filepath.Join(homeDir, ".vulnetix", "cache", "vdb"), nil
+}
+
+// CleanOldCaches removes cache directories for CLI versions other than cliVersion.
+// Also removes bare .json files left from the pre-versioned cache layout.
+// Returns the number of entries removed. Errors are best-effort.
+func CleanOldCaches(cliVersion string) (int, error) {
+	baseDir, err := CacheBaseDir()
+	if err != nil {
+		return 0, err
+	}
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	current := cacheVersionDir(cliVersion)
+	removed := 0
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() {
+			if name == current {
+				continue
+			}
+			// Only remove directories matching our version pattern (v*.*)
+			if !strings.HasPrefix(name, "v") {
+				continue
+			}
+			if err := os.RemoveAll(filepath.Join(baseDir, name)); err == nil {
+				removed++
+			}
+		} else if strings.HasSuffix(name, ".json") {
+			// Legacy unversioned cache files
+			if err := os.Remove(filepath.Join(baseDir, name)); err == nil {
+				removed++
+			}
+		}
+	}
+	return removed, nil
 }
 
 // CacheKey returns a filesystem-safe hex key for an API version + path.
