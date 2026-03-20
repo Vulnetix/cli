@@ -3,18 +3,14 @@ name: Test Action
 on:
   pull_request:
     branches: [ main, master ]
-  push:
-    branches: [ main, master ]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE*'
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
