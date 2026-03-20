@@ -13,8 +13,16 @@ This is a Go-based CLI application with the following key components:
 - **Main CLI entry point**: `main.go` - Simple entry point that delegates to the cmd package
 - **Command structure**: `cmd/root.go` - Uses Cobra CLI framework with comprehensive flag handling
 - **Configuration management**: `internal/config/config.go` - Handles all configuration, GitHub context, and task validation
-- **Task types**: The root command runs an info healthcheck; subcommands provide auth, upload, gha, and vdb operations
+- **Task types**: The root command runs an info healthcheck; subcommands provide auth, upload, gha, scan, and vdb operations
 - **GitHub integration**: Deep integration with GitHub Actions environment variables and artifact handling
+
+### VDB Subcommands
+
+The `vdb` command queries the Vulnetix Vulnerability Database API. Commands support `-V v1` (default) or `-V v2` for API version selection, and `-o json` for JSON output.
+
+**V1+V2 commands**: `vuln`, `exploits`, `info`, `gcve`, `product`, `packages`, `ecosystems`, `sources`, `summary`, `identifiers`, `eol`, `purl`
+**V2-only commands** (require `-V v2`): `scorecard` (+ `search` subcommand), `timeline`, `affected`, `kev`, `advisories`, `workarounds`, `cwe` (+ `guidance`), `remediation` (+ `plan`), `cloud-locators`, `fixes` (V2 fetches registry/distributions/source in parallel)
+**Utility**: `status`, `cache` (+ `clear`)
 
 ## Build and Development Commands
 
