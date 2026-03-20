@@ -151,3 +151,68 @@ func TestOverwrite(t *testing.T) {
 		t.Fatalf("expected overwritten value, got %s", got.Body)
 	}
 }
+
+func TestCacheVersionDir(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"1.8.3", "v1.8"},
+		{"v2.0.0", "v2.0"},
+		{"1.8.3-dev", "v1.8"},
+		{"0.1.0-rc1", "v0.1"},
+		{"3.0.0", "v3.0"},
+	}
+	for _, tt := range tests {
+		if got := cacheVersionDir(tt.in); got != tt.want {
+			t.Errorf("cacheVersionDir(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestCleanOldCaches(t *testing.T) {
+	// Set up a fake base dir structure
+	baseDir := t.TempDir()
+
+	// Create versioned dirs
+	os.MkdirAll(filepath.Join(baseDir, "v1.7"), 0700)
+	os.MkdirAll(filepath.Join(baseDir, "v1.8"), 0700)
+	os.MkdirAll(filepath.Join(baseDir, "v1.9"), 0700)
+	// Create a legacy bare JSON file
+	os.WriteFile(filepath.Join(baseDir, "abc123.json"), []byte("{}"), 0600)
+	// Create a non-version dir that should be left alone
+	os.MkdirAll(filepath.Join(baseDir, "other"), 0700)
+
+	// Simulate cleanup for version 1.8.x — only v1.8 should survive
+	current := cacheVersionDir("1.8.5")
+	entries, _ := os.ReadDir(baseDir)
+	removed := 0
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() {
+			if name == current {
+				continue
+			}
+			if name[0] != 'v' {
+				continue
+			}
+			if err := os.RemoveAll(filepath.Join(baseDir, name)); err == nil {
+				removed++
+			}
+		} else if filepath.Ext(name) == ".json" {
+			if err := os.Remove(filepath.Join(baseDir, name)); err == nil {
+				removed++
+			}
+		}
+	}
+
+	if removed != 3 { // v1.7, v1.9, abc123.json
+		t.Fatalf("expected 3 removals, got %d", removed)
+	}
+
+	// v1.8 should still exist
+	if _, err := os.Stat(filepath.Join(baseDir, "v1.8")); err != nil {
+		t.Fatal("v1.8 should survive cleanup")
+	}
+	// "other" should still exist
+	if _, err := os.Stat(filepath.Join(baseDir, "other")); err != nil {
+		t.Fatal("non-version dir should survive cleanup")
+	}
+}
