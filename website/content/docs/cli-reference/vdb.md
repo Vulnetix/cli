@@ -505,7 +505,38 @@ vulnetix vdb fixes GHSA-jfh8-3a1q-hjz9
 vulnetix vdb fixes CVE-2021-44228 --output json
 ```
 
-**Response includes:** Patches, advisories, workarounds, KEV required actions, and AI-generated analysis.
+**Response includes:** Patches, advisories, workarounds, KEV required actions, AI-generated analysis, and exploitation maturity assessment.
+
+**Registry fix objects** now include computed display fields:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `displayName` | Human-readable registry name | `"Kubernetes Registry"`, `"npm"`, `"PyPI"` |
+| `registryKey` | Stable unique key for the registry | `"oci:kubernetes"`, `"npm"`, `"oci:ghcr"` |
+| `ecosystem` | Raw ecosystem identifier | `"oci"`, `"npm"`, `"unknown"` |
+| `purl` | Package URL for the fixed version | `"pkg:oci/kubernetes/ingress-nginx@1.12.0"` |
+
+**Top-level `exploitationMaturity` object:**
+
+```json
+{
+  "exploitationMaturity": {
+    "score": 42,
+    "level": "WEAPONIZED",
+    "confidence": "MEDIUM",
+    "reasoning": "2 public exploits available",
+    "factors": {
+      "epss": 0.12,
+      "cess": 0.08,
+      "kevPresence": false,
+      "exploitDbCount": 2,
+      "crowdSecSightings": 0
+    }
+  }
+}
+```
+
+Levels: `NONE` (0–14) · `POC` (15–34) · `WEAPONIZED` (35–54) · `ACTIVE` (55–74) · `WIDESPREAD` (75+)
 
 ---
 
@@ -1180,6 +1211,59 @@ vulnetix vdb remediation plan CVE-2021-44228 -V v2 \
   --current-version 2.14.1 --package-manager maven \
   --include-guidance --include-verification-steps -o json
 ```
+
+### vdb cloud-locators
+
+Derive cloud-native resource identifier templates from vendor/product pairs. Returns templates for AWS ARN, Azure Resource ID, GCP Resource Name, Cloudflare Locator, and Oracle OCID with placeholders for account-specific values.
+
+**Usage:**
+```bash
+vulnetix vdb cloud-locators -V v2 [flags]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--vendor` | string | - | Vendor name (e.g. amazon, microsoft, google, cloudflare, oracle) |
+| `--product` | string | - | Product/service name (e.g. s3, ec2, cloudfront, workers) |
+| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+
+**Examples:**
+```bash
+# AWS S3 (regional service)
+vulnetix vdb cloud-locators --vendor amazon --product s3 -V v2
+
+# AWS CloudFront (global-only, region=us-east-1)
+vulnetix vdb cloud-locators --vendor amazon --product cloudfront -V v2
+
+# Azure Storage
+vulnetix vdb cloud-locators --vendor microsoft --product storage -V v2
+
+# GCP Compute Engine
+vulnetix vdb cloud-locators --vendor google --product compute -V v2
+
+# Cloudflare Workers
+vulnetix vdb cloud-locators --vendor cloudflare --product workers -V v2
+
+# Oracle Compute
+vulnetix vdb cloud-locators --vendor oracle --product compute -V v2
+
+# JSON output for automation
+vulnetix vdb cloud-locators --vendor amazon --product lambda -V v2 -o json
+```
+
+**Response includes:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `vendor` | string | Input vendor name |
+| `product` | string | Input product name |
+| `generatedCpe` | string | CPE 2.3 string derived from vendor/product |
+| `cloudLocators.matched` | bool | Whether a cloud mapping was found |
+| `cloudLocators.provider` | string | Primary cloud provider |
+| `cloudLocators.service` | string | Normalised service name |
+| `cloudLocators.templates[]` | array | Resource identifier templates with `{placeholders}` |
 
 </div>
 
