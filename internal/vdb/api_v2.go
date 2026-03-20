@@ -166,6 +166,12 @@ func (c *Client) V2Scorecard(id string) (map[string]interface{}, error) {
 	return doV2Get(c, path)
 }
 
+// V2ScorecardSearch searches scorecards by repository name.
+func (c *Client) V2ScorecardSearch(query string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/scorecard/search?q=%s", url.QueryEscape(query))
+	return doV2Get(c, path)
+}
+
 // V2RemediationPlan retrieves a context-aware remediation plan for a vulnerability.
 func (c *Client) V2RemediationPlan(id string, p V2RemediationParams) (map[string]interface{}, error) {
 	q := url.Values{}

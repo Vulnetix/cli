@@ -1147,7 +1147,7 @@ vulnetix vdb affected CVE-2021-44228 -V v2 --ecosystem maven --package-name log4
 
 ### vdb scorecard
 
-Get a vulnerability scorecard with aggregated risk metrics.
+Get the OpenSSF Scorecard for a vulnerability's source repository, including security check results.
 
 **Usage:**
 ```bash
@@ -1161,6 +1161,21 @@ vulnetix vdb scorecard <vuln-id> -V v2 [flags]
 ```bash
 vulnetix vdb scorecard CVE-2021-44228 -V v2
 vulnetix vdb scorecard CVE-2021-44228 -V v2 -o json
+```
+
+#### vdb scorecard search
+
+Search OpenSSF Scorecards by repository name.
+
+**Usage:**
+```bash
+vulnetix vdb scorecard search <query> -V v2 [flags]
+```
+
+**Examples:**
+```bash
+vulnetix vdb scorecard search openssl -V v2
+vulnetix vdb scorecard search github.com/openssl/openssl -V v2 -o json
 ```
 
 ---
