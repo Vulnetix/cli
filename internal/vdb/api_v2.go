@@ -285,6 +285,22 @@ func (c *Client) V2ScanStatus(scanID string) (map[string]interface{}, error) {
 	return doV2Get(c, path)
 }
 
+// V2CloudLocators retrieves cloud resource locator templates for a vendor/product pair.
+func (c *Client) V2CloudLocators(vendor, product string) (map[string]interface{}, error) {
+	q := url.Values{}
+	if vendor != "" {
+		q.Set("vendor", vendor)
+	}
+	if product != "" {
+		q.Set("product", product)
+	}
+	path := "/cloud-locators"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	return doV2Get(c, path)
+}
+
 func readFileBytes(filePath string) ([]byte, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
