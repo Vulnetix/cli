@@ -355,6 +355,53 @@ Examples:
 	},
 }
 
+// v2CloudLocatorsCmd retrieves cloud resource locator templates
+var v2CloudLocatorsCmd = &cobra.Command{
+	Use:   "cloud-locators",
+	Short: "Get cloud resource locator templates for a vendor/product (V2)",
+	Long: `Derive cloud-native resource identifier templates (AWS ARN, Azure Resource ID,
+GCP Resource Name, Cloudflare Locator, Oracle OCID) from vendor/product pairs.
+
+Templates contain placeholders for account-specific values that you fill in
+to match your infrastructure resources.
+
+Requires -V v2.
+
+Examples:
+  vulnetix vdb cloud-locators --vendor amazon --product s3 -V v2
+  vulnetix vdb cloud-locators --vendor microsoft --product storage -V v2
+  vulnetix vdb cloud-locators --vendor google --product compute -V v2
+  vulnetix vdb cloud-locators --vendor cloudflare --product workers -V v2
+  vulnetix vdb cloud-locators --vendor oracle --product compute -V v2
+  vulnetix vdb cloud-locators --vendor amazon --product cloudfront -V v2 --output json`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireV2("cloud-locators"); err != nil {
+			return err
+		}
+
+		vendor, _ := cmd.Flags().GetString("vendor")
+		product, _ := cmd.Flags().GetString("product")
+
+		if vendor == "" && product == "" {
+			return fmt.Errorf("at least one of --vendor or --product is required")
+		}
+
+		client := newVDBClient()
+		if vdbOutput == "json" {
+			fmt.Fprintf(os.Stderr, "Fetching cloud locators for vendor=%s product=%s...\n", vendor, product)
+		} else {
+			fmt.Printf("Fetching cloud locators for vendor=%s product=%s...\n", vendor, product)
+		}
+
+		result, err := client.V2CloudLocators(vendor, product)
+		if err != nil {
+			return fmt.Errorf("failed to get cloud locators: %w", err)
+		}
+		printRateLimit(client)
+		return printOutput(result, vdbOutput)
+	},
+}
+
 // v2FixesMerged handles the -V v2 case for the fixes command by calling
 // all three V2 fix endpoints in parallel and merging the results.
 func v2FixesMerged(identifier string, cmd *cobra.Command) (map[string]interface{}, error) {
@@ -417,6 +464,11 @@ func init() {
 	vdbCmd.AddCommand(v2AffectedCmd)
 	vdbCmd.AddCommand(v2ScorecardCmd)
 	vdbCmd.AddCommand(v2RemediationCmd)
+	vdbCmd.AddCommand(v2CloudLocatorsCmd)
+
+	// Cloud locators flags
+	v2CloudLocatorsCmd.Flags().String("vendor", "", "Vendor name (e.g. amazon, microsoft, google)")
+	v2CloudLocatorsCmd.Flags().String("product", "", "Product/service name (e.g. s3, ec2, cloudfront)")
 
 	// CWE subcommands
 	v2CweCmd.AddCommand(v2CweGuidanceCmd)
