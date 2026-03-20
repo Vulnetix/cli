@@ -102,11 +102,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s...\n", cveID)
-		} else {
-			fmt.Printf("🔍 Fetching information for %s...\n", cveID)
-		}
+		fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s...\n", cveID)
 
 		cveInfo, err := client.GetCVE(cveID)
 		if err != nil {
@@ -149,11 +145,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "💥 Fetching exploit intelligence for %s...\n", identifier)
-		} else {
-			fmt.Printf("💥 Fetching exploit intelligence for %s...\n", identifier)
-		}
+		fmt.Fprintf(os.Stderr, "💥 Fetching exploit intelligence for %s...\n", identifier)
 
 		result, err := client.GetExploits(identifier)
 		if err != nil {
@@ -199,11 +191,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintln(os.Stderr, "🔍 Searching exploits...")
-		} else {
-			fmt.Println("🔍 Searching exploits...")
-		}
+		fmt.Fprintln(os.Stderr, "🔍 Searching exploits...")
 
 		result, err := client.SearchExploits(params)
 		if err != nil {
@@ -245,11 +233,7 @@ Examples:
 
 		// V2 mode: merge three fix endpoints
 		if normalizeAPIVersion(vdbAPIVersion) == "/v2" {
-			if vdbOutput == "json" {
-				fmt.Fprintf(os.Stderr, "🔧 Fetching V2 fix data for %s...\n", identifier)
-			} else {
-				fmt.Printf("🔧 Fetching V2 fix data for %s...\n", identifier)
-			}
+			fmt.Fprintf(os.Stderr, "🔧 Fetching V2 fix data for %s...\n", identifier)
 
 			merged, err := v2FixesMerged(identifier, cmd)
 			if err != nil {
@@ -260,11 +244,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "🔧 Fetching fix data for %s...\n", identifier)
-		} else {
-			fmt.Printf("🔧 Fetching fix data for %s...\n", identifier)
-		}
+		fmt.Fprintf(os.Stderr, "🔧 Fetching fix data for %s...\n", identifier)
 
 		result, err := client.GetCVEFixes(identifier)
 		if err != nil {
@@ -304,11 +284,7 @@ Examples:
 		scoresLimit, _ := cmd.Flags().GetInt("scores-limit")
 
 		client := newVDBClient()
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📅 Fetching timeline for %s...\n", identifier)
-		} else {
-			fmt.Printf("📅 Fetching timeline for %s...\n", identifier)
-		}
+		fmt.Fprintf(os.Stderr, "📅 Fetching timeline for %s...\n", identifier)
 
 		// V2 mode: use v2 endpoint with source transparency
 		if normalizeAPIVersion(vdbAPIVersion) == "/v2" {
@@ -355,11 +331,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", packageName)
-		} else {
-			fmt.Printf("📦 Fetching versions for %s...\n", packageName)
-		}
+		fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", packageName)
 
 		result, err := client.GetPackageVersions(packageName)
 		if err != nil {
@@ -395,11 +367,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📅 Fetching CVEs from %s to %s...\n", start, end)
-		} else {
-			fmt.Printf("📅 Fetching CVEs from %s to %s...\n", start, end)
-		}
+		fmt.Fprintf(os.Stderr, "📅 Fetching CVEs from %s to %s...\n", start, end)
 
 		result, err := client.GetCVEsByDateRange(start, end)
 		if err != nil {
@@ -439,11 +407,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📋 Fetching GCVE issuances for %d/%02d...\n", year, month)
-		} else {
-			fmt.Printf("📋 Fetching GCVE issuances for %d/%02d...\n", year, month)
-		}
+		fmt.Fprintf(os.Stderr, "📋 Fetching GCVE issuances for %d/%02d...\n", year, month)
 
 		resp, err := client.GetGCVEIssuances(year, month, limit, offset)
 		if err != nil {
@@ -478,11 +442,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintln(os.Stderr, "🌐 Fetching available ecosystems...")
-		} else {
-			fmt.Println("🌐 Fetching available ecosystems...")
-		}
+		fmt.Fprintln(os.Stderr, "🌐 Fetching available ecosystems...")
 
 		ecosystems, err := client.GetEcosystems()
 		if err != nil {
@@ -539,11 +499,7 @@ Examples:
 		if len(args) > 2 {
 			version := args[1]
 			ecosystem := args[2]
-			if vdbOutput == "json" {
-				fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s@%s (%s)...\n", productName, version, ecosystem)
-			} else {
-				fmt.Printf("🔍 Fetching information for %s@%s (%s)...\n", productName, version, ecosystem)
-			}
+			fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s@%s (%s)...\n", productName, version, ecosystem)
 
 			info, err := client.GetProductVersionEcosystem(productName, version, ecosystem)
 			if err != nil {
@@ -557,11 +513,7 @@ Examples:
 		// If version is provided, get specific version info
 		if len(args) > 1 {
 			version := args[1]
-			if vdbOutput == "json" {
-				fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s@%s...\n", productName, version)
-			} else {
-				fmt.Printf("🔍 Fetching information for %s@%s...\n", productName, version)
-			}
+			fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s@%s...\n", productName, version)
 
 			info, err := client.GetProductVersion(productName, version)
 			if err != nil {
@@ -573,11 +525,7 @@ Examples:
 		}
 
 		// Otherwise, list all versions
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", productName)
-		} else {
-			fmt.Printf("📦 Fetching versions for %s...\n", productName)
-		}
+		fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", productName)
 
 		resp, err := client.GetProductVersions(productName, limit, offset)
 		if err != nil {
@@ -622,11 +570,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
-		} else {
-			fmt.Printf("🔒 Fetching vulnerabilities for %s...\n", packageName)
-		}
+		fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
 
 		resp, err := client.GetPackageVulnerabilities(packageName, limit, offset)
 		if err != nil {
@@ -683,11 +627,7 @@ Examples:
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if vdbOutput == "json" {
-			fmt.Fprintln(os.Stderr, "📋 Fetching OpenAPI specification...")
-		} else {
-			fmt.Println("📋 Fetching OpenAPI specification...")
-		}
+		fmt.Fprintln(os.Stderr, "📋 Fetching OpenAPI specification...")
 
 		// If credentials are available, use the authenticated client
 		if vdbCreds != nil && vdbCreds.OrgID != "" {
@@ -885,11 +825,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintln(os.Stderr, "📡 Fetching vulnerability data sources...")
-		} else {
-			fmt.Println("📡 Fetching vulnerability data sources...")
-		}
+		fmt.Fprintln(os.Stderr, "📡 Fetching vulnerability data sources...")
 
 		result, err := client.GetSources()
 		if err != nil {
@@ -927,11 +863,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintln(os.Stderr, "📊 Fetching vulnerability metric types...")
-		} else {
-			fmt.Println("📊 Fetching vulnerability metric types...")
-		}
+		fmt.Fprintln(os.Stderr, "📊 Fetching vulnerability metric types...")
 
 		result, err := client.GetMetricTypes()
 		if err != nil {
@@ -956,11 +888,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintln(os.Stderr, "🔎 Fetching exploit intelligence sources...")
-		} else {
-			fmt.Println("🔎 Fetching exploit intelligence sources...")
-		}
+		fmt.Fprintln(os.Stderr, "🔎 Fetching exploit intelligence sources...")
 
 		result, err := client.GetExploitSources()
 		if err != nil {
@@ -985,11 +913,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintln(os.Stderr, "💣 Fetching exploit type classifications...")
-		} else {
-			fmt.Println("💣 Fetching exploit type classifications...")
-		}
+		fmt.Fprintln(os.Stderr, "💣 Fetching exploit type classifications...")
 
 		result, err := client.GetExploitTypes()
 		if err != nil {
@@ -1014,11 +938,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintln(os.Stderr, "🐧 Fetching supported fix distributions...")
-		} else {
-			fmt.Println("🐧 Fetching supported fix distributions...")
-		}
+		fmt.Fprintln(os.Stderr, "🐧 Fetching supported fix distributions...")
 
 		result, err := client.GetFixDistributions()
 		if err != nil {
@@ -1056,11 +976,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "🔍 Fetching CVE identifiers for %d/%02d...\n", year, month)
-		} else {
-			fmt.Printf("🔍 Fetching CVE identifiers for %d/%02d...\n", year, month)
-		}
+		fmt.Fprintf(os.Stderr, "🔍 Fetching CVE identifiers for %d/%02d...\n", year, month)
 
 		resp, err := client.GetIdentifiersByMonth(year, month, limit, offset)
 		if err != nil {
@@ -1108,11 +1024,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "🔍 Searching CVE identifiers with prefix %q...\n", prefix)
-		} else {
-			fmt.Printf("🔍 Searching CVE identifiers with prefix %q...\n", prefix)
-		}
+		fmt.Fprintf(os.Stderr, "🔍 Searching CVE identifiers with prefix %q...\n", prefix)
 
 		resp, err := client.SearchIdentifiers(prefix, limit, offset)
 		if err != nil {
@@ -1169,11 +1081,7 @@ Examples:
 		if p.Version != "" {
 			ecosystem, knownEco := purl.EcosystemForType(p.Type)
 			if knownEco {
-				if vdbOutput == "json" {
-					fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s (%s)...\n", packageName, p.Version, ecosystem)
-				} else {
-					fmt.Printf("🔍 Fetching %s@%s (%s)...\n", packageName, p.Version, ecosystem)
-				}
+				fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s (%s)...\n", packageName, p.Version, ecosystem)
 				info, err := client.GetProductVersionEcosystem(packageName, p.Version, ecosystem)
 				if err != nil {
 					return fmt.Errorf("failed to get product version ecosystem: %w", err)
@@ -1182,11 +1090,7 @@ Examples:
 				return printOutput(info, vdbOutput)
 			}
 
-			if vdbOutput == "json" {
-				fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s...\n", packageName, p.Version)
-			} else {
-				fmt.Printf("🔍 Fetching %s@%s...\n", packageName, p.Version)
-			}
+			fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s...\n", packageName, p.Version)
 			info, err := client.GetProductVersion(packageName, p.Version)
 			if err != nil {
 				return fmt.Errorf("failed to get product version: %w", err)
@@ -1201,11 +1105,7 @@ Examples:
 		offset, _ := cmd.Flags().GetInt("offset")
 
 		if showVulns {
-			if vdbOutput == "json" {
-				fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
-			} else {
-				fmt.Printf("🔒 Fetching vulnerabilities for %s...\n", packageName)
-			}
+			fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
 			resp, err := client.GetPackageVulnerabilities(packageName, limit, offset)
 			if err != nil {
 				return fmt.Errorf("failed to get vulnerabilities: %w", err)
@@ -1214,11 +1114,7 @@ Examples:
 			return printOutput(resp, vdbOutput)
 		}
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", packageName)
-		} else {
-			fmt.Printf("📦 Fetching versions for %s...\n", packageName)
-		}
+		fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", packageName)
 		resp, err := client.GetProductVersions(packageName, limit, offset)
 		if err != nil {
 			return fmt.Errorf("failed to get product versions: %w", err)
@@ -1248,11 +1144,7 @@ Examples:
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if vdbOutput == "json" {
-			fmt.Fprintln(os.Stderr, "🔍 Checking VDB API status...")
-		} else {
-			fmt.Println("🔍 Checking VDB API status...")
-		}
+		fmt.Fprintln(os.Stderr, "🔍 Checking VDB API status...")
 
 		client := newVDBClient()
 
@@ -1413,11 +1305,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "🔍 Searching packages for %q...\n", query)
-		} else {
-			fmt.Printf("🔍 Searching packages for %q...\n", query)
-		}
+		fmt.Fprintf(os.Stderr, "🔍 Searching packages for %q...\n", query)
 
 		result, err := client.SearchPackages(query, ecosystem, limit, offset)
 		if err != nil {

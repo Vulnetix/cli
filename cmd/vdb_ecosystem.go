@@ -39,11 +39,7 @@ Examples:
 		client := newVDBClient()
 
 		if showVersions {
-			if vdbOutput == "json" {
-				fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s/%s...\n", ecosystem, pkg)
-			} else {
-				fmt.Printf("📦 Fetching versions for %s/%s...\n", ecosystem, pkg)
-			}
+			fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s/%s...\n", ecosystem, pkg)
 
 			result, err := client.GetEcosystemPackageVersions(ecosystem, pkg)
 			if err != nil {
@@ -53,11 +49,7 @@ Examples:
 			return printOutput(result, vdbOutput)
 		}
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📦 Fetching package info for %s/%s...\n", ecosystem, pkg)
-		} else {
-			fmt.Printf("📦 Fetching package info for %s/%s...\n", ecosystem, pkg)
-		}
+		fmt.Fprintf(os.Stderr, "📦 Fetching package info for %s/%s...\n", ecosystem, pkg)
 
 		result, err := client.GetEcosystemPackage(ecosystem, pkg)
 		if err != nil {
@@ -86,11 +78,7 @@ Examples:
 
 		client := newVDBClient()
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📦 Fetching %s/%s/%s...\n", ecosystem, group, artifact)
-		} else {
-			fmt.Printf("📦 Fetching %s/%s/%s...\n", ecosystem, group, artifact)
-		}
+		fmt.Fprintf(os.Stderr, "📦 Fetching %s/%s/%s...\n", ecosystem, group, artifact)
 
 		result, err := client.GetEcosystemGroupPackage(ecosystem, group, artifact)
 		if err != nil {
