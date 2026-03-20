@@ -1,16 +1,19 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
-	"encoding/json"
 	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/internal/cache"
 	"github.com/vulnetix/cli/internal/config"
+	"github.com/vulnetix/cli/internal/update"
 	"github.com/vulnetix/cli/internal/vdb"
 )
 
@@ -24,6 +27,9 @@ var (
 	buildDate = "unknown" // -X github.com/vulnetix/cli/cmd.buildDate=
 )
 
+// updateCheckResult receives the update advisory message from the background goroutine.
+var updateCheckResult chan string
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "vulnetix",
@@ -31,6 +37,18 @@ var rootCmd = &cobra.Command{
 	Long: `Vulnetix CLI is a command-line tool for vulnerability management that focuses on
 automated remediation over discovery. It helps organizations prioritize and resolve
 vulnerabilities efficiently.`,
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		if updateCheckResult == nil {
+			return
+		}
+		select {
+		case msg := <-updateCheckResult:
+			if msg != "" {
+				fmt.Fprint(os.Stderr, msg)
+			}
+		default:
+		}
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runInfoTask()
 	},
@@ -181,8 +199,56 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func init() {
-	// Define flags
-	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
+// startupHooks runs before any command via cobra.OnInitialize.
+func startupHooks() {
+	// Clean old versioned caches (fast, filesystem-only)
+	go func() {
+		if n, _ := cache.CleanOldCaches(version); n > 0 {
+			suffix := "ies"
+			if n == 1 {
+				suffix = "y"
+			}
+			fmt.Fprintf(os.Stderr, "Cleaned %d old cache entr%s\n", n, suffix)
+		}
+	}()
 
+	// Update check: skip in CI, dev builds, or if checked recently
+	if config.DetectPlatform() != config.PlatformCLI {
+		return
+	}
+	if strings.Contains(version, "-dev") {
+		return
+	}
+	if !update.ShouldCheckForUpdate() {
+		return
+	}
+
+	updateCheckResult = make(chan string, 1)
+	go func() {
+		defer close(updateCheckResult)
+		release, err := update.CheckLatest()
+		if err != nil {
+			return
+		}
+		update.RecordUpdateCheck()
+		latest, err := update.ParseVersion(release.TagName)
+		if err != nil {
+			return
+		}
+		current, err := update.ParseVersion(version)
+		if err != nil {
+			return
+		}
+		if latest.IsNewerThan(current) {
+			updateCheckResult <- fmt.Sprintf(
+				"\nUpdate available: v%s → v%s\nRun 'vulnetix update' to update.\n",
+				current, latest,
+			)
+		}
+	}()
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
+	cobra.OnInitialize(startupHooks)
 }

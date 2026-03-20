@@ -483,17 +483,32 @@ func (c *Client) DoRequestCached(method, path string, body interface{}, ttl time
 		return nil, fmt.Errorf("API error (%d): %s", statusCode, string(respBody))
 	}
 
-	// Store in cache
-	entry := &cache.Entry{
-		Body:         respBody,
-		ETag:         headers.Get("ETag"),
-		LastModified: headers.Get("Last-Modified"),
-		CachedAt:     time.Now(),
-		TTL:          ttl,
+	// Never cache semantically empty responses (e.g. search with total: 0)
+	// so they can't poison the local cache when the CDN returns stale data.
+	if !isEmptyResponse(respBody) {
+		entry := &cache.Entry{
+			Body:         respBody,
+			ETag:         headers.Get("ETag"),
+			LastModified: headers.Get("Last-Modified"),
+			CachedAt:     time.Now(),
+			TTL:          ttl,
+		}
+		c.Cache.Put(key, entry) //nolint:errcheck
 	}
-	c.Cache.Put(key, entry) //nolint:errcheck
 
 	return respBody, nil
+}
+
+// isEmptyResponse returns true if body is a JSON object with "total": 0,
+// indicating a semantically empty paginated result that should not be cached.
+func isEmptyResponse(body []byte) bool {
+	var envelope struct {
+		Total *int `json:"total"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return false
+	}
+	return envelope.Total != nil && *envelope.Total == 0
 }
 
 // DoRequestRawBody performs an authenticated API request with a raw body (not JSON-marshaled).
