@@ -60,11 +60,7 @@ Examples:
 		}
 
 		client := newVDBClient()
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "🔧 Fetching workarounds for %s...\n", args[0])
-		} else {
-			fmt.Printf("🔧 Fetching workarounds for %s...\n", args[0])
-		}
+		fmt.Fprintf(os.Stderr, "🔧 Fetching workarounds for %s...\n", args[0])
 
 		result, err := client.V2Workarounds(args[0])
 		if err != nil {
@@ -93,11 +89,7 @@ Examples:
 		}
 
 		client := newVDBClient()
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📋 Fetching advisories for %s...\n", args[0])
-		} else {
-			fmt.Printf("📋 Fetching advisories for %s...\n", args[0])
-		}
+		fmt.Fprintf(os.Stderr, "📋 Fetching advisories for %s...\n", args[0])
 
 		result, err := client.V2Advisories(args[0])
 		if err != nil {
@@ -132,11 +124,7 @@ Examples:
 		}
 
 		client := newVDBClient()
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📖 Fetching CWE guidance for %s...\n", args[0])
-		} else {
-			fmt.Printf("📖 Fetching CWE guidance for %s...\n", args[0])
-		}
+		fmt.Fprintf(os.Stderr, "📖 Fetching CWE guidance for %s...\n", args[0])
 
 		result, err := client.V2CweGuidance(args[0])
 		if err != nil {
@@ -165,11 +153,7 @@ Examples:
 		}
 
 		client := newVDBClient()
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "🛡️ Fetching KEV status for %s...\n", args[0])
-		} else {
-			fmt.Printf("🛡️ Fetching KEV status for %s...\n", args[0])
-		}
+		fmt.Fprintf(os.Stderr, "🛡️ Fetching KEV status for %s...\n", args[0])
 
 		result, err := client.V2Kev(args[0])
 		if err != nil {
@@ -207,11 +191,7 @@ Examples:
 		scoresLimit, _ := cmd.Flags().GetInt("scores-limit")
 
 		client := newVDBClient()
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📅 Fetching timeline for %s...\n", args[0])
-		} else {
-			fmt.Printf("📅 Fetching timeline for %s...\n", args[0])
-		}
+		fmt.Fprintf(os.Stderr, "📅 Fetching timeline for %s...\n", args[0])
 
 		result, err := client.V2Timeline(args[0], vdb.V2TimelineParams{
 			Include:     include,
@@ -248,11 +228,7 @@ Examples:
 		client := newVDBClient()
 		p := buildV2QueryParams(cmd)
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "🎯 Fetching affected data for %s...\n", args[0])
-		} else {
-			fmt.Printf("🎯 Fetching affected data for %s...\n", args[0])
-		}
+		fmt.Fprintf(os.Stderr, "🎯 Fetching affected data for %s...\n", args[0])
 
 		result, err := client.V2Affected(args[0], p)
 		if err != nil {
@@ -281,11 +257,7 @@ Examples:
 		}
 
 		client := newVDBClient()
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📊 Fetching scorecard for %s...\n", args[0])
-		} else {
-			fmt.Printf("📊 Fetching scorecard for %s...\n", args[0])
-		}
+		fmt.Fprintf(os.Stderr, "📊 Fetching scorecard for %s...\n", args[0])
 
 		result, err := client.V2Scorecard(args[0])
 		if err != nil {
@@ -340,11 +312,7 @@ Examples:
 		p.IncludeGuidance, _ = cmd.Flags().GetBool("include-guidance")
 		p.IncludeVerificationSteps, _ = cmd.Flags().GetBool("include-verification-steps")
 
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "📋 Fetching remediation plan for %s...\n", args[0])
-		} else {
-			fmt.Printf("📋 Fetching remediation plan for %s...\n", args[0])
-		}
+		fmt.Fprintf(os.Stderr, "📋 Fetching remediation plan for %s...\n", args[0])
 
 		result, err := client.V2RemediationPlan(args[0], p)
 		if err != nil {
@@ -387,11 +355,7 @@ Examples:
 		}
 
 		client := newVDBClient()
-		if vdbOutput == "json" {
-			fmt.Fprintf(os.Stderr, "Fetching cloud locators for vendor=%s product=%s...\n", vendor, product)
-		} else {
-			fmt.Printf("Fetching cloud locators for vendor=%s product=%s...\n", vendor, product)
-		}
+		fmt.Fprintf(os.Stderr, "Fetching cloud locators for vendor=%s product=%s...\n", vendor, product)
 
 		result, err := client.V2CloudLocators(vendor, product)
 		if err != nil {
