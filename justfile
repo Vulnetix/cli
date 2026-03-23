@@ -381,6 +381,12 @@ update-packages VERSION="":
     echo ""
     echo "Done. All package manifests updated to v${VER_NUM}."
 
+# --- Local CI ---
+
+# Run GitHub Actions workflows locally with act (defaults to test workflow)
+act workflow="test" *args="":
+    act -W .github/workflows/{{workflow}}.yml --container-daemon-socket unix://$XDG_RUNTIME_DIR/podman/podman.sock -s GITHUB_TOKEN="$(gh auth token)" {{args}}
+
 # --- Hugo local development ---
 
 # One-command local dev: install modules and start dev server with live reload
