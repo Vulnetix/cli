@@ -1,12 +1,12 @@
 ---
 name: release
-description: Stage all changes, create a conventional commit (no co-author), push to main, and confirm the auto-version workflow will handle the release
+description: Stage all changes, create a conventional commit (no co-author), push to main, wait for auto-version release, then run update-packages to update flake.nix/Homebrew/Scoop
 argument-hint: [type] [scope] [description] — e.g., "feat vdb add ecosystem filtering" or "fix update"
 ---
 
 # Release: Commit & Push to Main
 
-Stage all changes, create a conventional commit without co-authoring, push to main, and report what version bump will be triggered by the auto-version workflow.
+Stage all changes, create a conventional commit without co-authoring, push to main, report what version bump will be triggered by the auto-version workflow, then run `just update-packages` to update package manager manifests (flake.nix, Homebrew, Scoop).
 
 ## Arguments
 
@@ -148,6 +148,70 @@ Pushed to main.
 
   Watch the release: gh run list -w auto-version.yml -L1
 ```
+
+## Step 10 — Wait for Release and Update Packages
+
+After reporting the release outcome, wait for the auto-version workflow to create the release, then update package manager manifests.
+
+### Wait for the release
+
+Poll the auto-version workflow until it completes:
+
+```bash
+# Wait for the workflow run triggered by our push
+sleep 10
+gh run list -w auto-version.yml -L1 --json status,conclusion,databaseId -q '.[0]'
+```
+
+Keep checking every 15 seconds until the workflow run completes (status == "completed"). If it takes longer than 5 minutes, warn the user but continue.
+
+If the workflow conclusion is not "success", warn:
+```
+Warning: auto-version workflow did not succeed (conclusion: <conclusion>).
+Skipping update-packages. Run manually: just update-packages
+```
+
+### Sync repos before updating
+
+Before running update-packages, pull latest changes in this repo and sibling repos to avoid push rejections:
+
+```bash
+git pull --rebase origin main
+```
+
+Also pull sibling repos if they exist:
+```bash
+[ -d ../homebrew-tap ] && git -C ../homebrew-tap pull --rebase origin main
+[ -d ../scoop-bucket ] && git -C ../scoop-bucket pull --rebase origin main
+```
+
+### Run update-packages
+
+Once the release exists and repos are synced, run:
+
+```bash
+just update-packages
+```
+
+This updates flake.nix, Homebrew formula, and Scoop manifest with the new version and checksums, then commits and pushes each.
+
+If `just update-packages` fails with a push rejection (`! [rejected]`, `fetch first`, `failed to push some refs`), pull and retry once:
+
+```bash
+git pull --rebase origin main && git push origin main
+```
+
+Do the same for sibling repos if their push was the one that failed.
+
+Report what was updated:
+```
+Package manifests updated:
+  flake.nix       → v<version>
+  homebrew-tap    → v<version> (or "not found")
+  scoop-bucket    → v<version> (or "not found")
+```
+
+If `just update-packages` fails for reasons other than a push rejection, report the error but do not fail the release — the commit and push already succeeded.
 
 ## Error Handling
 
