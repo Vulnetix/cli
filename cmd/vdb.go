@@ -539,7 +539,29 @@ Examples:
 
 		fmt.Printf("\n✅ Found %d total versions (showing %d):\n\n", resp.Total, len(resp.Versions))
 		for i, v := range resp.Versions {
-			fmt.Printf("  %d. %s (%s) — %d source(s)\n", i+1, v.Version, v.Ecosystem, len(v.Sources))
+			fmt.Printf("  %d. %s (%s)\n", i+1, v.Version, v.Ecosystem)
+			if len(v.CVEIDs) > 0 {
+				fmt.Printf("     CVEs: %s\n", strings.Join(v.CVEIDs, ", "))
+			}
+			if len(v.Sources) > 0 {
+				// Collect CVE IDs from sources and group by table
+				var cveIDs []string
+				tableCounts := make(map[string]int)
+				for _, s := range v.Sources {
+					tableCounts[s.SourceTable]++
+					if strings.HasPrefix(s.SourceID, "CVE-") || strings.HasPrefix(s.SourceID, "VVD-") {
+						cveIDs = append(cveIDs, s.SourceID)
+					}
+				}
+				if len(cveIDs) > 0 {
+					fmt.Printf("     Vuln IDs: %s\n", strings.Join(cveIDs, ", "))
+				}
+				var tables []string
+				for table, count := range tableCounts {
+					tables = append(tables, fmt.Sprintf("%s(%d)", table, count))
+				}
+				fmt.Printf("     Sources: %s\n", strings.Join(tables, ", "))
+			}
 		}
 
 		if resp.HasMore {
