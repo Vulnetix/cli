@@ -53,7 +53,7 @@ func executeCommand(t *testing.T, cmd *cobra.Command, args ...string) (output st
 		// Recover from panic if os.Exit was called
 		if r := recover(); r != nil {
 			if s, ok := r.(string); ok && strings.HasPrefix(s, "os.Exit called with code") {
-				err = fmt.Errorf(s) // Convert panic to error
+				err = fmt.Errorf("%s", s) // Convert panic to error
 			} else {
 				panic(r) // Not our panic, re-panic
 			}

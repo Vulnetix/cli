@@ -1,12 +1,18 @@
 package cmd
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/internal/cdx"
 	"github.com/vulnetix/cli/internal/scan"
+	"github.com/vulnetix/cli/internal/tty"
+	"github.com/vulnetix/cli/internal/tui"
 	"github.com/vulnetix/cli/internal/vdb"
 )
 
@@ -21,6 +27,9 @@ and SBOM documents (SPDX, CycloneDX) by walking the current directory.
 
 Use --file to scan a single file, or --path to specify a different root directory.
 
+In interactive terminals, displays a rich TUI with progress tracking and navigable
+results. In non-interactive mode (CI/CD, pipes), outputs CycloneDX 1.7 JSON by default.
+
 Requires VDB API credentials (same as vdb commands). Always uses API v2.
 
 Examples:
@@ -30,7 +39,10 @@ Examples:
   vulnetix scan --file package-lock.json
   vulnetix scan --file sbom.json --type cyclonedx
   vulnetix scan --exclude "test*" --exclude "vendor"
-  vulnetix scan --no-poll`,
+  vulnetix scan --no-poll
+  vulnetix scan -f json
+  vulnetix scan -f cdx16
+  vulnetix scan --concurrency 3`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return resolveVDBCredentials(true)
 	},
@@ -45,13 +57,15 @@ Examples:
 		pollInterval, _ := cmd.Flags().GetInt("poll-interval")
 		excludes, _ := cmd.Flags().GetStringArray("exclude")
 		output, _ := cmd.Flags().GetString("output")
+		outputFmt, _ := cmd.Flags().GetString("format")
+		concurrency, _ := cmd.Flags().GetInt("concurrency")
 
 		// Force V2 for scan
 		vdbAPIVersion = "v2"
 
 		client := newVDBClient()
 
-		// Single file mode
+		// Single file mode (backward compat — uses old sequential path)
 		if singleFile != "" {
 			return scanSingleFile(client, singleFile, fileType, manifestType, ecosystem, noPoll, pollInterval, output)
 		}
@@ -119,67 +133,25 @@ Examples:
 			return nil
 		}
 
-		fmt.Fprintf(os.Stderr, "\nUploading %d file(s) to VDB API v2...\n\n", len(uploadable))
-
-		// Upload each file and collect scan IDs
-		type scanResult struct {
-			File   scan.DetectedFile
-			ScanID string
-			Error  error
-		}
-		var results []scanResult
-
-		for _, f := range uploadable {
-			var result map[string]interface{}
-			var err error
-
-			switch f.FileType {
-			case scan.FileTypeManifest:
-				result, err = client.V2ScanManifest(f.Path, f.ManifestInfo.Type, f.ManifestInfo.Ecosystem)
-			case scan.FileTypeSPDX:
-				result, err = client.V2ScanSPDX(f.Path)
-			case scan.FileTypeCycloneDX:
-				result, err = client.V2ScanCycloneDX(f.Path)
-			}
-
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "  %-40s ERROR: %v\n", f.RelPath, err)
-				results = append(results, scanResult{File: f, Error: err})
-				continue
-			}
-
-			scanID := ""
-			if id, ok := result["scanId"].(string); ok {
-				scanID = id
-			}
-
-			fmt.Fprintf(os.Stderr, "  %-40s scan-id: %s\n", f.RelPath, scanID)
-			results = append(results, scanResult{File: f, ScanID: scanID})
-		}
-
-		// Collect scan IDs
-		var scanIDs []string
-		for _, r := range results {
-			if r.ScanID != "" {
-				scanIDs = append(scanIDs, r.ScanID)
+		// Determine output format (new --format flag takes precedence over --output)
+		if outputFmt == "" {
+			// Map legacy --output values
+			switch output {
+			case "json":
+				outputFmt = "json"
+			default:
+				outputFmt = "cdx17"
 			}
 		}
 
-		if len(scanIDs) == 0 {
-			return fmt.Errorf("no scans were submitted successfully")
-		}
+		// Branch: interactive TUI vs non-interactive
+		interactive := tty.IsInteractive() && !noPoll
+		_ = concurrency // used by engines below
 
-		if noPoll {
-			fmt.Fprintln(os.Stderr, "\nScan IDs (use 'vulnetix scan status <id> --poll' to check results):")
-			for _, id := range scanIDs {
-				fmt.Println(id)
-			}
-			return nil
+		if interactive {
+			return runInteractiveScan(client, uploadable, pollInterval, outputFmt, concurrency)
 		}
-
-		// Poll for results
-		fmt.Fprintf(os.Stderr, "\nPolling for results (interval: %ds)...\n", pollInterval)
-		return pollScanResults(client, scanIDs, pollInterval, output)
+		return runNonInteractiveScan(client, uploadable, noPoll, pollInterval, outputFmt, concurrency)
 	},
 }
 
@@ -206,7 +178,7 @@ Examples:
 		client := newVDBClient()
 
 		if poll {
-			return pollScanResults(client, []string{scanID}, pollInterval, output)
+			return pollScanResultsLegacy(client, []string{scanID}, pollInterval, output)
 		}
 
 		result, err := client.V2ScanStatus(scanID)
@@ -218,6 +190,138 @@ Examples:
 	},
 }
 
+// runInteractiveScan launches the bubbletea TUI for interactive scan experience.
+func runInteractiveScan(client *vdb.Client, files []scan.DetectedFile, pollInterval int, outputFmt string, _ int) error {
+	fmt.Fprintf(os.Stderr, "\nStarting interactive scan of %d file(s)...\n\n", len(files))
+	return tui.Run(client, files, pollInterval, outputFmt)
+}
+
+// runNonInteractiveScan runs the scan with concurrent uploads and stderr progress,
+// then outputs structured data to stdout.
+func runNonInteractiveScan(client *vdb.Client, files []scan.DetectedFile, noPoll bool, pollInterval int, outputFmt string, concurrency int) error {
+	ctx := context.Background()
+
+	fmt.Fprintf(os.Stderr, "\nUploading %d file(s) to VDB API v2...\n\n", len(files))
+
+	// Concurrent upload with stderr progress
+	engine := &scan.UploadEngine{
+		Client:      client,
+		Concurrency: concurrency,
+		OnProgress: func(t *scan.ScanTask) {
+			switch t.Status {
+			case "uploading":
+				fmt.Fprintf(os.Stderr, "  %-40s uploading...\n", t.File.RelPath)
+			case "uploaded":
+				fmt.Fprintf(os.Stderr, "  %-40s scan-id: %s (%.1fs)\n",
+					t.File.RelPath, t.ScanID, t.UploadDuration().Seconds())
+			case "error":
+				fmt.Fprintf(os.Stderr, "  %-40s ERROR: %v\n", t.File.RelPath, t.Error)
+			}
+		},
+	}
+
+	tasks := engine.UploadAll(ctx, files)
+
+	// Collect scan IDs
+	var hasScans bool
+	for _, t := range tasks {
+		if t.ScanID != "" {
+			hasScans = true
+			break
+		}
+	}
+
+	if !hasScans {
+		return fmt.Errorf("no scans were submitted successfully")
+	}
+
+	if noPoll {
+		fmt.Fprintln(os.Stderr, "\nScan IDs (use 'vulnetix scan status <id> --poll' to check results):")
+		for _, t := range tasks {
+			if t.ScanID != "" {
+				fmt.Println(t.ScanID)
+			}
+		}
+		return nil
+	}
+
+	// Concurrent polling with stderr progress
+	fmt.Fprintf(os.Stderr, "\nPolling for results (interval: %ds)...\n\n", pollInterval)
+
+	// Track which files have been printed as "polling" to avoid duplicate lines
+	pollingSeen := make(map[string]bool)
+	var pollMu sync.Mutex
+
+	poller := &scan.PollEngine{
+		Client:   client,
+		Interval: time.Duration(pollInterval) * time.Second,
+		OnProgress: func(t *scan.ScanTask) {
+			pollMu.Lock()
+			defer pollMu.Unlock()
+
+			switch t.Status {
+			case "polling":
+				if !pollingSeen[t.File.RelPath] {
+					pollingSeen[t.File.RelPath] = true
+					fmt.Fprintf(os.Stderr, "  %-40s processing...\n", t.File.RelPath)
+				}
+			case "complete":
+				vulnCount := len(t.Vulns)
+				fmt.Fprintf(os.Stderr, "  %-40s %d vulns found (%.1fs)\n",
+					t.File.RelPath, vulnCount, t.TotalDuration().Seconds())
+			case "error":
+				fmt.Fprintf(os.Stderr, "  %-40s ERROR: %v (%.1fs)\n",
+					t.File.RelPath, t.Error, t.TotalDuration().Seconds())
+			}
+		},
+	}
+
+	poller.PollAll(ctx, tasks)
+
+	// Print summary to stderr
+	summary := scan.Summarize(tasks)
+	fmt.Fprintf(os.Stderr, "\n%s\n\n", summary.FormatSummary())
+
+	printRateLimit(client)
+
+	// Output results to stdout
+	return writeOutput(tasks, outputFmt)
+}
+
+// writeOutput writes scan results to stdout in the requested format.
+func writeOutput(tasks []*scan.ScanTask, format string) error {
+	specVersion, isRaw := cdx.NormalizeFormat(format)
+
+	if isRaw {
+		return writeRawJSON(tasks)
+	}
+	return writeCycloneDX(tasks, specVersion)
+}
+
+func writeCycloneDX(tasks []*scan.ScanTask, specVersion string) error {
+	bom := cdx.BuildFromScanTasks(tasks, specVersion)
+	return bom.WriteJSON(os.Stdout)
+}
+
+func writeRawJSON(tasks []*scan.ScanTask) error {
+	results := make(map[string]interface{})
+	for _, t := range tasks {
+		if t.RawResult != nil {
+			key := t.File.RelPath
+			if key == "" {
+				key = t.ScanID
+			}
+			results[key] = t.RawResult
+		}
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	return enc.Encode(results)
+}
+
+// scanSingleFile handles --file mode (backward compatible, sequential)
 func scanSingleFile(client *vdb.Client, filePath, fileType, manifestType, ecosystem string, noPoll bool, pollInterval int, output string) error {
 	var result map[string]interface{}
 	var err error
@@ -303,11 +407,12 @@ func handleScanResult(client *vdb.Client, result map[string]interface{}, noPoll 
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "Scan submitted: %s — polling for results...\n", scanID)
-	return pollScanResults(client, []string{scanID}, pollInterval, output)
+	fmt.Fprintf(os.Stderr, "Scan submitted: %s -- polling for results...\n", scanID)
+	return pollScanResultsLegacy(client, []string{scanID}, pollInterval, output)
 }
 
-func pollScanResults(client *vdb.Client, scanIDs []string, intervalSec int, output string) error {
+// pollScanResultsLegacy is the original sequential polling used by scan status subcommand.
+func pollScanResultsLegacy(client *vdb.Client, scanIDs []string, intervalSec int, output string) error {
 	pending := make(map[string]bool)
 	for _, id := range scanIDs {
 		pending[id] = true
@@ -365,7 +470,9 @@ func init() {
 	scanCmd.Flags().Bool("no-poll", false, "Print scan IDs without waiting for results")
 	scanCmd.Flags().Int("poll-interval", 5, "Polling interval in seconds")
 	scanCmd.Flags().StringArray("exclude", nil, "Exclude paths matching glob (repeatable)")
-	scanCmd.Flags().StringP("output", "o", "pretty", "Output format (json, pretty)")
+	scanCmd.Flags().StringP("output", "o", "pretty", "Output format for legacy/status mode (json, pretty)")
+	scanCmd.Flags().StringP("format", "f", "", "Output format: cdx17 (default), cdx16, json")
+	scanCmd.Flags().Int("concurrency", 5, "Max concurrent uploads")
 
 	// Scan status flags
 	scanStatusCmd.Flags().Bool("poll", false, "Poll until complete")

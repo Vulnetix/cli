@@ -82,6 +82,15 @@ type ErrorResponse struct {
 	Details string `json:"details,omitempty"`
 }
 
+// NotFoundError is returned when the API responds with 404.
+type NotFoundError struct {
+	Message string
+}
+
+func (e *NotFoundError) Error() string {
+	return e.Message
+}
+
 // sharedTransport is reused across clients for connection pooling.
 var sharedTransport = &http.Transport{
 	MaxIdleConns:        20,
@@ -313,9 +322,17 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 		if resp.StatusCode >= 400 {
 			var errResp ErrorResponse
 			if err := json.Unmarshal(responseBody, &errResp); err == nil {
-				return nil, fmt.Errorf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
+				msg := fmt.Sprintf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
+				if resp.StatusCode == http.StatusNotFound {
+					return nil, &NotFoundError{Message: msg}
+				}
+				return nil, fmt.Errorf("%s", msg)
 			}
-			return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(responseBody))
+			msg := fmt.Sprintf("API error (%d): %s", resp.StatusCode, string(responseBody))
+			if resp.StatusCode == http.StatusNotFound {
+				return nil, &NotFoundError{Message: msg}
+			}
+			return nil, fmt.Errorf("%s", msg)
 		}
 
 		return responseBody, nil
@@ -478,9 +495,17 @@ func (c *Client) DoRequestCached(method, path string, body interface{}, ttl time
 	if statusCode >= 400 {
 		var errResp ErrorResponse
 		if err := json.Unmarshal(respBody, &errResp); err == nil {
-			return nil, fmt.Errorf("API error (%d): %s - %s", statusCode, errResp.Error, errResp.Details)
+			msg := fmt.Sprintf("API error (%d): %s - %s", statusCode, errResp.Error, errResp.Details)
+			if statusCode == http.StatusNotFound {
+				return nil, &NotFoundError{Message: msg}
+			}
+			return nil, fmt.Errorf("%s", msg)
 		}
-		return nil, fmt.Errorf("API error (%d): %s", statusCode, string(respBody))
+		msg := fmt.Sprintf("API error (%d): %s", statusCode, string(respBody))
+		if statusCode == http.StatusNotFound {
+			return nil, &NotFoundError{Message: msg}
+		}
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	// Never cache semantically empty responses (e.g. search with total: 0)
