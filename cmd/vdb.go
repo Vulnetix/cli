@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -106,6 +107,12 @@ Examples:
 
 		cveInfo, err := client.GetCVE(cveID)
 		if err != nil {
+			var nfe *vdb.NotFoundError
+			if errors.As(err, &nfe) {
+				fmt.Fprintf(os.Stderr, "⚠ Vulnerability %q was not found in the database.\n", cveID)
+				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				return nil
+			}
 			return fmt.Errorf("failed to get CVE: %w", err)
 		}
 		printRateLimit(client)
@@ -503,9 +510,21 @@ Examples:
 
 			info, err := client.GetProductVersionEcosystem(productName, version, ecosystem)
 			if err != nil {
+				var nfe *vdb.NotFoundError
+				if errors.As(err, &nfe) {
+					fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s, ecosystem %s) was not found in the database.\n", productName, version, ecosystem)
+					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					return nil
+				}
 				return fmt.Errorf("failed to get product version ecosystem: %w", err)
 			}
 			printRateLimit(client)
+
+			if isEmptyResult(info) {
+				fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s, ecosystem %s) was not found in the database.\n", productName, version, ecosystem)
+				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				return nil
+			}
 
 			return printOutput(info, vdbOutput)
 		}
@@ -517,9 +536,21 @@ Examples:
 
 			info, err := client.GetProductVersion(productName, version)
 			if err != nil {
+				var nfe *vdb.NotFoundError
+				if errors.As(err, &nfe) {
+					fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s) was not found in the database.\n", productName, version)
+					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					return nil
+				}
 				return fmt.Errorf("failed to get product version: %w", err)
 			}
 			printRateLimit(client)
+
+			if isEmptyResult(info) {
+				fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s) was not found in the database.\n", productName, version)
+				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				return nil
+			}
 
 			return printOutput(info, vdbOutput)
 		}
@@ -529,9 +560,21 @@ Examples:
 
 		resp, err := client.GetProductVersions(productName, limit, offset)
 		if err != nil {
+			var nfe *vdb.NotFoundError
+			if errors.As(err, &nfe) {
+				fmt.Fprintf(os.Stderr, "⚠ Product %q was not found in the database.\n", productName)
+				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				return nil
+			}
 			return fmt.Errorf("failed to get product versions: %w", err)
 		}
 		printRateLimit(client)
+
+		if resp.Total == 0 {
+			fmt.Fprintf(os.Stderr, "⚠ Product %q was not found in the database.\n", productName)
+			fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+			return nil
+		}
 
 		if vdbOutput == "json" {
 			return printOutput(resp, vdbOutput)
@@ -596,9 +639,21 @@ Examples:
 
 		resp, err := client.GetPackageVulnerabilities(packageName, limit, offset)
 		if err != nil {
+			var nfe *vdb.NotFoundError
+			if errors.As(err, &nfe) {
+				fmt.Fprintf(os.Stderr, "⚠ Package %q was not found in the database.\n", packageName)
+				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				return nil
+			}
 			return fmt.Errorf("failed to get vulnerabilities: %w", err)
 		}
 		printRateLimit(client)
+
+		if resp.TotalCVEs == 0 && resp.Total == 0 {
+			fmt.Fprintf(os.Stderr, "⚠ Package %q was not found in the database.\n", packageName)
+			fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+			return nil
+		}
 
 		if vdbOutput == "json" {
 			return printOutput(resp, vdbOutput)
@@ -813,6 +868,19 @@ func newVDBClient() *vdb.Client {
 	}
 
 	return client
+}
+
+// isEmptyResult returns true when a map-typed API response has total == 0.
+func isEmptyResult(m map[string]interface{}) bool {
+	if t, ok := m["total"]; ok {
+		switch v := t.(type) {
+		case float64:
+			return v == 0
+		case int:
+			return v == 0
+		}
+	}
+	return false
 }
 
 // printOutput prints the output in the specified format
@@ -1106,18 +1174,40 @@ Examples:
 				fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s (%s)...\n", packageName, p.Version, ecosystem)
 				info, err := client.GetProductVersionEcosystem(packageName, p.Version, ecosystem)
 				if err != nil {
+					var nfe *vdb.NotFoundError
+					if errors.As(err, &nfe) {
+						fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s, ecosystem %s) was not found in the database.\n", packageName, p.Version, ecosystem)
+						fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+						return nil
+					}
 					return fmt.Errorf("failed to get product version ecosystem: %w", err)
 				}
 				printRateLimit(client)
+				if isEmptyResult(info) {
+					fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s, ecosystem %s) was not found in the database.\n", packageName, p.Version, ecosystem)
+					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					return nil
+				}
 				return printOutput(info, vdbOutput)
 			}
 
 			fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s...\n", packageName, p.Version)
 			info, err := client.GetProductVersion(packageName, p.Version)
 			if err != nil {
+				var nfe *vdb.NotFoundError
+				if errors.As(err, &nfe) {
+					fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s) was not found in the database.\n", packageName, p.Version)
+					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					return nil
+				}
 				return fmt.Errorf("failed to get product version: %w", err)
 			}
 			printRateLimit(client)
+			if isEmptyResult(info) {
+				fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s) was not found in the database.\n", packageName, p.Version)
+				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				return nil
+			}
 			return printOutput(info, vdbOutput)
 		}
 
@@ -1130,18 +1220,40 @@ Examples:
 			fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
 			resp, err := client.GetPackageVulnerabilities(packageName, limit, offset)
 			if err != nil {
+				var nfe *vdb.NotFoundError
+				if errors.As(err, &nfe) {
+					fmt.Fprintf(os.Stderr, "⚠ Package %q was not found in the database.\n", packageName)
+					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					return nil
+				}
 				return fmt.Errorf("failed to get vulnerabilities: %w", err)
 			}
 			printRateLimit(client)
+			if resp.TotalCVEs == 0 && resp.Total == 0 {
+				fmt.Fprintf(os.Stderr, "⚠ Package %q was not found in the database.\n", packageName)
+				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				return nil
+			}
 			return printOutput(resp, vdbOutput)
 		}
 
 		fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", packageName)
 		resp, err := client.GetProductVersions(packageName, limit, offset)
 		if err != nil {
+			var nfe *vdb.NotFoundError
+			if errors.As(err, &nfe) {
+				fmt.Fprintf(os.Stderr, "⚠ Product %q was not found in the database.\n", packageName)
+				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				return nil
+			}
 			return fmt.Errorf("failed to get product versions: %w", err)
 		}
 		printRateLimit(client)
+		if resp.Total == 0 {
+			fmt.Fprintf(os.Stderr, "⚠ Product %q was not found in the database.\n", packageName)
+			fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+			return nil
+		}
 		return printOutput(resp, vdbOutput)
 	},
 }
@@ -1331,9 +1443,21 @@ Examples:
 
 		result, err := client.SearchPackages(query, ecosystem, limit, offset)
 		if err != nil {
+			var nfe *vdb.NotFoundError
+			if errors.As(err, &nfe) {
+				fmt.Fprintf(os.Stderr, "⚠ No packages matching %q were found in the database.\n", query)
+				fmt.Fprintf(os.Stderr, "  This query has been flagged for review by Vulnetix admins.\n")
+				return nil
+			}
 			return fmt.Errorf("failed to search packages: %w", err)
 		}
 		printRateLimit(client)
+
+		if isEmptyResult(result) {
+			fmt.Fprintf(os.Stderr, "⚠ No packages matching %q were found in the database.\n", query)
+			fmt.Fprintf(os.Stderr, "  This query has been flagged for review by Vulnetix admins.\n")
+			return nil
+		}
 
 		return printOutput(result, vdbOutput)
 	},
