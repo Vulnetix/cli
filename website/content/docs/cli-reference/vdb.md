@@ -932,11 +932,12 @@ Each package in the response includes:
 | Field | Type | Description |
 |-------|------|-------------|
 | `packageName` | string | Lowercased package name |
-| `matchSources` | string[] | Data sources where the package was found. Values: `dependency`, `package_version`, `cve_affected`, `github_repository`, `eol_product`, `kev`, `cyclonedx_info` |
+| `matchSources` | string[] | Data sources where the package was found. Values: `dependency`, `package_version`, `cve_affected`, `github_repository`, `eol_product`, `kev`, `cyclonedx_info`, `depsdev` |
 | `ecosystems` | string[] | Package ecosystems (npm, pypi, maven, etc.) |
 | `versionCount` | int | Number of known versions |
 | `versions` | array | Top 10 most recent versions with safe harbour scores |
 | `vulnCount` | int | Number of associated CVEs |
+| `vulnerabilities` | array | List of CVEs affecting this package. Each entry: `{ cveId, source, severity, score, metricType, vectorString, purl }` |
 | `exploitationSignals` | object | CISA KEV, VulnCheck KEV, exploit count, XDB count, CrowdSec sightings |
 | `safeHarbour` | object | Recommended versions and highest safety score |
 | `vendor` | string? | Vendor name from CVE/KEV data |

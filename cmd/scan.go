@@ -452,7 +452,7 @@ func pollScanResultsLegacy(client *vdb.Client, scanIDs []string, intervalSec int
 
 			status, _ := result["status"].(string)
 			switch status {
-			case "complete", "error":
+			case "complete", "completed", "error", "failed":
 				fmt.Fprintf(os.Stderr, "  [%s] %s\n", id, status)
 				delete(pending, id)
 				allResults[id] = result
