@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vulnetix/cli/internal/gitctx"
 	"github.com/vulnetix/cli/internal/vdb"
 )
 
@@ -13,6 +14,8 @@ type UploadEngine struct {
 	Client      *vdb.Client
 	Concurrency int                // max concurrent uploads (default 5)
 	OnProgress  func(*ScanTask)    // callback for UI updates (called from goroutines)
+	GitContext  *gitctx.GitContext  // shared git context (collected once, may be nil)
+	RepoRoot   string              // git repo root path (may be empty)
 }
 
 // UploadAll uploads all detected files concurrently using a bounded semaphore.
@@ -90,11 +93,14 @@ func (e *UploadEngine) uploadOne(ctx context.Context, t *ScanTask) {
 
 	switch t.File.FileType {
 	case FileTypeManifest:
-		result, err = e.Client.V2ScanManifest(t.File.Path, t.File.ManifestInfo.Type, t.File.ManifestInfo.Ecosystem)
+		payload, _ := BuildPayload(t.File, e.GitContext, e.RepoRoot)
+		result, err = e.Client.V2ScanManifest(t.File.Path, t.File.ManifestInfo.Type, t.File.ManifestInfo.Ecosystem, payload)
 	case FileTypeSPDX:
-		result, err = e.Client.V2ScanSPDX(t.File.Path)
+		payload, _ := BuildPayload(t.File, e.GitContext, e.RepoRoot)
+		result, err = e.Client.V2ScanSPDX(t.File.Path, payload)
 	case FileTypeCycloneDX:
-		result, err = e.Client.V2ScanCycloneDX(t.File.Path)
+		payload, _ := BuildPayload(t.File, e.GitContext, e.RepoRoot)
+		result, err = e.Client.V2ScanCycloneDX(t.File.Path, payload)
 	default:
 		t.Status = "error"
 		t.Error = &UnsupportedFileError{Path: t.File.Path}

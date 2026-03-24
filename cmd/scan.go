@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/cdx"
+	"github.com/vulnetix/cli/internal/gitctx"
 	"github.com/vulnetix/cli/internal/scan"
 	"github.com/vulnetix/cli/internal/tty"
 	"github.com/vulnetix/cli/internal/tui"
@@ -133,6 +134,22 @@ Examples:
 			return nil
 		}
 
+		// Collect git context (shared across all uploads)
+		gitCtx := gitctx.Collect(scanPath)
+		repoRoot := ""
+		if gitCtx != nil {
+			repoRoot = gitCtx.RepoRootPath
+			commitShort := gitCtx.CurrentCommit
+			if len(commitShort) > 8 {
+				commitShort = commitShort[:8]
+			}
+			remote := ""
+			if len(gitCtx.RemoteURLs) > 0 {
+				remote = gitCtx.RemoteURLs[0]
+			}
+			fmt.Fprintf(os.Stderr, "\nGit: %s @ %s (%s)\n", gitCtx.CurrentBranch, commitShort, remote)
+		}
+
 		// Determine output format (new --format flag takes precedence over --output)
 		if outputFmt == "" {
 			// Map legacy --output values
@@ -149,9 +166,9 @@ Examples:
 		_ = concurrency // used by engines below
 
 		if interactive {
-			return runInteractiveScan(client, uploadable, pollInterval, outputFmt, concurrency)
+			return runInteractiveScan(client, uploadable, pollInterval, outputFmt, concurrency, gitCtx, repoRoot)
 		}
-		return runNonInteractiveScan(client, uploadable, noPoll, pollInterval, outputFmt, concurrency)
+		return runNonInteractiveScan(client, uploadable, noPoll, pollInterval, outputFmt, concurrency, gitCtx, repoRoot)
 	},
 }
 
@@ -191,14 +208,14 @@ Examples:
 }
 
 // runInteractiveScan launches the bubbletea TUI for interactive scan experience.
-func runInteractiveScan(client *vdb.Client, files []scan.DetectedFile, pollInterval int, outputFmt string, _ int) error {
+func runInteractiveScan(client *vdb.Client, files []scan.DetectedFile, pollInterval int, outputFmt string, _ int, gitCtx *gitctx.GitContext, repoRoot string) error {
 	fmt.Fprintf(os.Stderr, "\nStarting interactive scan of %d file(s)...\n\n", len(files))
-	return tui.Run(client, files, pollInterval, outputFmt)
+	return tui.Run(client, files, pollInterval, outputFmt, gitCtx, repoRoot)
 }
 
 // runNonInteractiveScan runs the scan with concurrent uploads and stderr progress,
 // then outputs structured data to stdout.
-func runNonInteractiveScan(client *vdb.Client, files []scan.DetectedFile, noPoll bool, pollInterval int, outputFmt string, concurrency int) error {
+func runNonInteractiveScan(client *vdb.Client, files []scan.DetectedFile, noPoll bool, pollInterval int, outputFmt string, concurrency int, gitCtx *gitctx.GitContext, repoRoot string) error {
 	ctx := context.Background()
 
 	fmt.Fprintf(os.Stderr, "\nUploading %d file(s) to VDB API v2...\n\n", len(files))
@@ -207,6 +224,8 @@ func runNonInteractiveScan(client *vdb.Client, files []scan.DetectedFile, noPoll
 	engine := &scan.UploadEngine{
 		Client:      client,
 		Concurrency: concurrency,
+		GitContext:  gitCtx,
+		RepoRoot:    repoRoot,
 		OnProgress: func(t *scan.ScanTask) {
 			switch t.Status {
 			case "uploading":
@@ -263,7 +282,7 @@ func runNonInteractiveScan(client *vdb.Client, files []scan.DetectedFile, noPoll
 			case "polling":
 				if !pollingSeen[t.File.RelPath] {
 					pollingSeen[t.File.RelPath] = true
-					fmt.Fprintf(os.Stderr, "  %-40s processing...\n", t.File.RelPath)
+					fmt.Fprintf(os.Stderr, "  %-40s processing... [%s]\n", t.File.RelPath, t.ScanID)
 				}
 			case "complete":
 				vulnCount := len(t.Vulns)
