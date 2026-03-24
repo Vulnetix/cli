@@ -5,8 +5,9 @@
 The scanner system processes SCA (Software Composition Analysis) manifest files across three layers:
 
 1. **CLI** (vulnetix/cli) — discovers manifests, collects git and filesystem context, uploads to API
-2. **VDB API** (vulnetix/vdb-manager) — receives uploads, stores to S3, queues work, triggers ECS
-3. **Scanner ECS Processor** (vulnetix/vdb-manager, Go) — parses manifests, enriches with vulnerability data, stores results
+2. **VDB API** (vulnetix/vdb-api) — receives uploads, stores to S3, triggers ECS RunTask
+3. **Scanner ECS Processor** (vulnetix/vdb-manager go-processors, Go) — parses manifests, enriches with vulnerability data, writes results to S3
+4. **Scan Watchdog** (vulnetix/vdb-manager go-processors, Go) — EventBridge 10min, recovers stalled/stuck scans
 
 The CLI acts as a **smart collector, dumb sender** — it gathers rich local context but does not parse dependencies. All dependency resolution and vulnerability matching happens server-side so parsers can be updated independently of CLI versions.
 
@@ -319,15 +320,12 @@ When `status = "completed"`, the response includes findings and summary from `re
 ```
 scripts/go-processors/
   cmd/scanner-processor/
-    main.go         -- entry point: read SCAN_ID, connect DB, process, exit
+    main.go         -- entry point: read SCAN_ID, S3 fetch, parse, scan, write results
+  cmd/scan-watchdog/
+    main.go         -- stalled/stuck job recovery, EventBridge triggered
   internal/manifest/
-    types.go        -- ParsedDependency, ParseResult structs
-    npm.go          -- npm package-lock.json + package.json parser
-    go_parser.go    -- go.sum + go.mod parser
-    python.go       -- requirements.txt, Pipfile.lock, poetry.lock, uv.lock
-    cargo.go        -- Cargo.lock parser
-    yarn.go         -- yarn.lock parser
-    factory.go      -- GetParserByManifestType() dispatch
+    types.go        -- ScanDependency, ScanFinding, ScanSummary, ScanStatus, ScanEnvelope, ScanResults
+    parser.go       -- ParseManifestBytes() dispatcher + all 12 manifest parsers + SPDX/CycloneDX
 ```
 
 ### Processor Main Flow
@@ -367,38 +365,81 @@ func main() {
 }
 ```
 
-### Parser Interface (ported from TypeScript `ManifestParser`)
+### Manifest Parser API
+
+The parsers use a function-dispatch pattern (not an interface) matching the vdb-api implementation. All 12 manifest types plus SPDX and CycloneDX are supported.
 
 ```go
-type Parser interface {
-    Parse(content []byte) (*ParseResult, error)
+// ParseManifestBytes parses manifest content and returns dependencies.
+// Supported types: package.json, package-lock.json, requirements.txt, Pipfile.lock,
+// go.sum, go.mod, Cargo.lock, Gemfile.lock, pom.xml, composer.lock, yarn.lock, pnpm-lock.yaml
+func ParseManifestBytes(data []byte, manifestType, ecosystemOverride string) ([]ScanDependency, string, error)
+
+// ParseSPDXDocument extracts dependencies from SPDX 2.3 JSON.
+func ParseSPDXDocument(data []byte) ([]ScanDependency, error)
+
+// ParseCycloneDXBOM extracts dependencies from CycloneDX BOM JSON.
+func ParseCycloneDXBOM(data []byte) ([]ScanDependency, error)
+```
+
+Core types (`internal/manifest/types.go`):
+
+```go
+type ScanDependency struct {
+    Name      string `json:"name"`
+    Version   string `json:"version"`
+    Ecosystem string `json:"ecosystem"`
+    Purl      string `json:"purl,omitempty"`
 }
 
-type ParseResult struct {
-    Success      bool
-    Dependencies []ParsedDependency
-    Metadata     ManifestMetadata
-    Errors       []string
-    Warnings     []string
+type ScanVulnerability struct {
+    CveId              string   `json:"cveId"`
+    Severity           string   `json:"severity,omitempty"`
+    CvssScore          *float64 `json:"cvssScore,omitempty"`
+    EpssScore          *float64 `json:"epssScore,omitempty"`
+    FixedVersion       string   `json:"fixedVersion,omitempty"`
+    FixAvailability    string   `json:"fixAvailability"`
+    InKev              bool     `json:"inKev"`
+    RemediationPlanURL string   `json:"remediationPlanUrl"`
 }
 
-type ParsedDependency struct {
-    Name         string `json:"name"`
-    Version      string `json:"version"`
-    Type         string `json:"type"`         // production, dev, peer, optional, build, test
-    IsDirect     bool   `json:"isDirect"`
-    IsTransitive bool   `json:"isTransitive"`
-    Constraints  string `json:"constraints"`  // version constraint expression
-    Resolved     string `json:"resolved"`     // resolved URL
-    Integrity    string `json:"integrity"`    // hash
+type ScanFinding struct {
+    Dependency      ScanDependency      `json:"dependency"`
+    Vulnerabilities []ScanVulnerability `json:"vulnerabilities"`
 }
 
-type ManifestMetadata struct {
-    PackageManager string `json:"packageManager"`
-    ManifestFile   string `json:"manifestFile"`
-    LockFile       string `json:"lockFile"`
-    ProjectName    string `json:"projectName"`
-    ProjectVersion string `json:"projectVersion"`
+type ScanSummary struct {
+    TotalDependencies      int            `json:"totalDependencies"`
+    VulnerableDependencies int            `json:"vulnerableDependencies"`
+    TotalVulnerabilities   int            `json:"totalVulnerabilities"`
+    BySeverity             map[string]int `json:"bySeverity"`
+    FixableCount           int            `json:"fixableCount"`
+}
+
+type ScanStatus struct {
+    ScanId      string `json:"scanId"`
+    Status      string `json:"status"`
+    CreatedAt   string `json:"createdAt"`
+    StartedAt   string `json:"startedAt,omitempty"`
+    CompletedAt string `json:"completedAt,omitempty"`
+    Error       string `json:"error,omitempty"`
+    RetryCount  int    `json:"retryCount"`
+    DepCount    int    `json:"depCount"`
+}
+
+type ScanEnvelope struct {
+    ScanId          string `json:"scanId"`
+    OrgId           string `json:"orgId"`
+    ManifestType    string `json:"manifestType"`
+    Ecosystem       string `json:"ecosystem"`
+    ManifestContent string `json:"manifestContent"`
+    Metadata        any    `json:"metadata,omitempty"`
+}
+
+type ScanResults struct {
+    ScanId   string        `json:"scanId"`
+    Summary  *ScanSummary  `json:"summary"`
+    Findings []ScanFinding `json:"findings"`
 }
 ```
 
@@ -583,99 +624,38 @@ The watchdog needs `ecs:RunTask` + `iam:PassRole` permissions (shared via the ex
 
 ## Terraform Resources
 
-All Terraform lives in the `vdb-manager` repo under `terraform/`.
+All Terraform lives in the `vdb-manager` repo under `terraform/`. The scanner infrastructure is defined in `terraform/scanner-processor.tf`.
 
-### New Task Definition (go-schedules.tf)
+### Resources in `scanner-processor.tf`
 
-```hcl
-# Image local
-locals {
-  go_scanner_processor_image = "${aws_ecr_repository.go_processors.repository_url}:go-scanner-processor-${var.go_container_image_tag}"
-}
+| Resource | Type | Description |
+|----------|------|-------------|
+| `aws_ecs_task_definition.scanner_processor` | Task def | Fargate ARM64, 512 CPU, 1024 MB. No EventBridge schedule — triggered by API RunTask |
+| `aws_cloudwatch_log_group.scanner_processor` | Log group | `/ecs/go-scanner-processor` |
+| `module.scan_watchdog` | ecs-go-task module | `rate(10 minutes)` EventBridge schedule, 256 CPU, 512 MB |
+| `aws_iam_role_policy.api_run_scanner` | IAM policy | `ecs:RunTask` + `iam:PassRole` on scanner-processor task def |
 
-# NOTE: This task is NOT scheduled via EventBridge.
-# It's triggered directly by the API via ecs.RunTask().
-# The module is used only for task definition + log group.
-resource "aws_ecs_task_definition" "scanner_processor" {
-  family                   = "go-scanner-processor"
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = 512
-  memory                   = 1024
-  runtime_platform {
-    operating_system_family = "LINUX"
-    cpu_architecture        = "ARM64"
-  }
-  execution_role_arn = aws_iam_role.ecs_execution.arn
-  task_role_arn      = aws_iam_role.ecs_task.arn
+### API environment variables (`terraform/api.tf`)
 
-  container_definitions = jsonencode([{
-    name      = "scanner-processor"
-    image     = local.go_scanner_processor_image
-    essential = true
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = "/ecs/go-scanner-processor"
-        "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = "scanner"
-      }
-    }
-    environment = [for k, v in local.go_task_environment : { name = k, value = v }]
-    secrets     = [for k, v in local.go_task_secrets : { name = k, valueFrom = v }]
-  }])
-}
+Added to the vdb-api container definition:
 
-resource "aws_cloudwatch_log_group" "scanner_processor" {
-  name              = "/ecs/go-scanner-processor"
-  retention_in_days = var.log_retention_days
-}
-```
+| Var | Value |
+|-----|-------|
+| `ECS_CLUSTER_ARN` | `aws_ecs_cluster.vdb.arn` |
+| `ECS_TASK_DEF` | `aws_ecs_task_definition.scanner_processor.family` |
+| `ECS_SUBNET_IDS` | `join(",", var.subnet_ids)` |
+| `ECS_SECURITY_GROUP_IDS` | `aws_security_group.ecs_tasks.id` |
 
-### IAM: API RunTask Permission (iam.tf)
+### Container images (`Containerfile.go-processors`)
 
-```hcl
-# Allow the VDB API task role to run the scanner processor
-resource "aws_iam_role_policy" "api_run_scanner" {
-  name = "api-run-scanner-task"
-  role = aws_iam_role.ecs_task.id
+Two new build targets added to the multi-stage Containerfile:
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = "ecs:RunTask"
-      Resource = aws_ecs_task_definition.scanner_processor.arn
-    }, {
-      Effect   = "Allow"
-      Action   = "iam:PassRole"
-      Resource = [
-        aws_iam_role.ecs_execution.arn,
-        aws_iam_role.ecs_task.arn
-      ]
-    }]
-  })
-}
-```
+| Target | Binary | Base |
+|--------|--------|------|
+| `scanner-processor` | `/app/scanner-processor` | scratch + certs |
+| `scan-watchdog` | `/app/scan-watchdog` | scratch + certs |
 
-### Containerfile Additions
-
-```dockerfile
-# In Containerfile.go-processors builder stage, add:
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /scanner-processor ./cmd/scanner-processor
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /scan-watchdog ./cmd/scan-watchdog
-
-# New final stages:
-FROM scratch AS scanner-processor
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /scanner-processor /app/scanner-processor
-ENTRYPOINT ["/app/scanner-processor"]
-
-FROM scratch AS scan-watchdog
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /scan-watchdog /app/scan-watchdog
-ENTRYPOINT ["/app/scan-watchdog"]
-```
+Both cross-compiled to ARM64 with `CGO_ENABLED=0`, stripped with `-ldflags="-s -w"`, ~4MB final image.
 
 ## Preprocessing Boundary
 
@@ -693,42 +673,56 @@ ENTRYPOINT ["/app/scan-watchdog"]
 | Create ScannerRun records | - | Yes |
 | SSVC scoring/prioritization | - | Yes |
 
-## Implementation Phases
+## Implementation Status
 
-### Phase 1: Core Pipeline (MVP)
+All components are implemented and pushed to their respective repos.
 
-**CLI (vulnetix/cli) — DONE:**
-1. `internal/gitctx` — go-git context collection
-2. `internal/filetree` — file tree metadata collection
-3. `internal/scan/payload.go` — ScanPayload struct + builder
-4. Modified `V2ScanManifest` — variadic `metadata` param
-5. Modified `scan.go` / `upload.go` — collect and attach metadata
+### CLI (vulnetix/cli)
 
-**ECS Processor (vulnetix/vdb-manager go-processors):**
-6. `internal/manifest/` — copy parsers from vdb-api (`v2_manifest_parser.go`) + types from `v2_scan_queue.go`
-7. `cmd/scanner-processor/main.go` — S3 fetch, parse, scan deps, write results
-8. `cmd/scan-watchdog/main.go` — stalled/stuck job recovery with configurable retries
+| Component | File | Status |
+|-----------|------|--------|
+| Git context collection | `internal/gitctx/collector.go` | Deployed |
+| File tree metadata | `internal/filetree/collector.go` | Deployed |
+| Scan payload builder | `internal/scan/payload.go` | Deployed |
+| Metadata in manifest upload | `internal/vdb/api_v2.go` (`V2ScanManifest`) | Deployed |
+| Metadata in SPDX/CycloneDX upload | `internal/vdb/api_v2.go` (`V2ScanSPDX`, `V2ScanCycloneDX`) | Deployed |
+| Upload engine threading | `internal/scan/upload.go`, `cmd/scan.go` | Deployed |
+| TUI git context passthrough | `internal/tui/model.go` | Deployed |
 
-**API (vulnetix/vdb-api):**
-9. Add `S3Adapter.Put()` + `S3Adapter.Head()` methods
-10. Add ECS client to Dependencies, `RunScanTask()` helper
-11. Rewrite `V2ScanManifest/SPDX/CycloneDX` — remove in-memory ScanQueue, use S3 + RunTask
-12. Rewrite `V2ScanStatus` — read from S3 instead of in-memory queue
-13. Delete in-memory `ScanQueue` (`v2_scan_queue.go` worker pool)
+### ECS Processors (vulnetix/vdb-manager go-processors)
 
-**Terraform (vulnetix/vdb-manager terraform/):**
-14. `scanner-processor.tf` — task definition + log group (no schedule)
-15. `scan-watchdog` — ecs-go-task module with `rate(10 minutes)`
-16. IAM: RunTask + PassRole for API task role and go-processor task role
-17. API env vars: ECS cluster, task def, subnets, security groups
-18. Containerfile: add scanner-processor + scan-watchdog build stages
+| Component | File | Status |
+|-----------|------|--------|
+| Manifest parser (12 types + SPDX + CycloneDX) | `internal/manifest/parser.go` | Deployed |
+| Scanner types | `internal/manifest/types.go` | Deployed |
+| Scanner processor | `cmd/scanner-processor/main.go` | Deployed |
+| Scan watchdog | `cmd/scan-watchdog/main.go` | Deployed |
 
-### Phase 2: Extended Coverage
+### VDB API (vulnetix/vdb-api)
 
-19. SBOM processing (SPDX, CycloneDX) in scanner-processor
-20. Transitive dependency chain tracking (`FindingIntroducedVia`)
-21. Monorepo-aware deduplication
-22. S3 lifecycle policy to expire scan data after 30 days
+| Component | File | Status |
+|-----------|------|--------|
+| S3 Put method | `internal/handler/deps.go` (`S3Adapter.Put`) | Deployed |
+| ECS RunTask client | `internal/handler/deps.go` (`RunScanTask`, `InitECSClient`) | Deployed |
+| Scan handlers (S3 + RunTask) | `internal/handler/v2_scan.go` | Deployed |
+| Scan status (reads S3) | `internal/handler/v2_scan.go` (`V2ScanStatus`) | Deployed |
+| In-memory ScanQueue | `internal/handler/v2_scan_queue.go` | Removed |
+
+### Terraform (vulnetix/vdb-manager terraform/)
+
+| Component | File | Status |
+|-----------|------|--------|
+| Scanner processor task def | `terraform/scanner-processor.tf` | Deployed |
+| Scan watchdog (rate 10min) | `terraform/scanner-processor.tf` | Deployed |
+| IAM RunTask + PassRole | `terraform/scanner-processor.tf` | Deployed |
+| API ECS env vars | `terraform/api.tf` | Deployed |
+| Containerfile build stages | `Containerfile.go-processors` | Deployed |
+
+### Future Work
+
+- Transitive dependency chain tracking (`FindingIntroducedVia`)
+- Monorepo-aware deduplication
+- S3 lifecycle policy to expire `scans/` prefix after 30 days
 
 ## Risks and Mitigations
 
