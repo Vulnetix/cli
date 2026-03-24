@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/vulnetix/cli/internal/gitctx"
 	"github.com/vulnetix/cli/internal/scan"
 	"github.com/vulnetix/cli/internal/vdb"
 )
@@ -77,7 +78,7 @@ type Model struct {
 }
 
 // NewModel creates a new TUI model.
-func NewModel(client *vdb.Client, files []scan.DetectedFile, pollInterval int, outputFormat string) *Model {
+func NewModel(client *vdb.Client, files []scan.DetectedFile, pollInterval int, outputFormat string, gitCtx *gitctx.GitContext, repoRoot string) *Model {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Create spinners for each task
@@ -115,6 +116,8 @@ func NewModel(client *vdb.Client, files []scan.DetectedFile, pollInterval int, o
 	m.uploadEngine = &scan.UploadEngine{
 		Client:      client,
 		Concurrency: 5,
+		GitContext:  gitCtx,
+		RepoRoot:    repoRoot,
 		OnProgress: func(t *scan.ScanTask) {
 			m.msgCh <- TaskUpdatedMsg{Task: t}
 		},
@@ -564,8 +567,8 @@ func jsonEncoder(w io.Writer) *json.Encoder {
 }
 
 // Run starts the TUI program. This is the main entry point called from cmd/scan.go.
-func Run(client *vdb.Client, files []scan.DetectedFile, pollInterval int, outputFormat string) error {
-	model := NewModel(client, files, pollInterval, outputFormat)
+func Run(client *vdb.Client, files []scan.DetectedFile, pollInterval int, outputFormat string, gitCtx *gitctx.GitContext, repoRoot string) error {
+	model := NewModel(client, files, pollInterval, outputFormat, gitCtx, repoRoot)
 	p := tea.NewProgram(
 		model,
 		tea.WithAltScreen(),
