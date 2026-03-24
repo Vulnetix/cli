@@ -224,12 +224,16 @@ func (c *Client) V2RemediationPlan(id string, p V2RemediationParams) (map[string
 }
 
 // V2ScanManifest uploads a manifest file for scanning.
-func (c *Client) V2ScanManifest(filePath, manifestType, ecosystem string) (map[string]interface{}, error) {
+// An optional metadata parameter (JSON bytes) is sent as the "metadata" form field.
+func (c *Client) V2ScanManifest(filePath, manifestType, ecosystem string, metadata ...[]byte) (map[string]interface{}, error) {
 	fields := map[string]string{
 		"type": manifestType,
 	}
 	if ecosystem != "" {
 		fields["ecosystem"] = ecosystem
+	}
+	if len(metadata) > 0 && len(metadata[0]) > 0 {
+		fields["metadata"] = string(metadata[0])
 	}
 
 	respBody, err := c.DoRequestMultipart("/scan/manifest", filePath, "file", fields)
@@ -246,13 +250,19 @@ func (c *Client) V2ScanManifest(filePath, manifestType, ecosystem string) (map[s
 }
 
 // V2ScanSPDX uploads an SPDX document for scanning.
-func (c *Client) V2ScanSPDX(filePath string) (map[string]interface{}, error) {
+// An optional metadata parameter (JSON bytes) is sent as a query parameter.
+func (c *Client) V2ScanSPDX(filePath string, metadata ...[]byte) (map[string]interface{}, error) {
 	data, err := readFileBytes(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	respBody, err := c.DoRequestRawBody("POST", "/scan/spdx", data, "application/json")
+	path := "/scan/spdx"
+	if len(metadata) > 0 && len(metadata[0]) > 0 {
+		path += "?metadata=" + url.QueryEscape(string(metadata[0]))
+	}
+
+	respBody, err := c.DoRequestRawBody("POST", path, data, "application/json")
 	if err != nil {
 		return nil, err
 	}
@@ -266,13 +276,19 @@ func (c *Client) V2ScanSPDX(filePath string) (map[string]interface{}, error) {
 }
 
 // V2ScanCycloneDX uploads a CycloneDX document for scanning.
-func (c *Client) V2ScanCycloneDX(filePath string) (map[string]interface{}, error) {
+// An optional metadata parameter (JSON bytes) is sent as a query parameter.
+func (c *Client) V2ScanCycloneDX(filePath string, metadata ...[]byte) (map[string]interface{}, error) {
 	data, err := readFileBytes(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	respBody, err := c.DoRequestRawBody("POST", "/scan/cyclonedx", data, "application/json")
+	path := "/scan/cyclonedx"
+	if len(metadata) > 0 && len(metadata[0]) > 0 {
+		path += "?metadata=" + url.QueryEscape(string(metadata[0]))
+	}
+
+	respBody, err := c.DoRequestRawBody("POST", path, data, "application/json")
 	if err != nil {
 		return nil, err
 	}

@@ -20,8 +20,9 @@ func renderPollPhase(m *Model) string {
 		switch t.Status {
 		case "polling":
 			elapsed := styleElapsed.Render(fmt.Sprintf("(%.1fs)", t.PollDuration().Seconds()))
+			scanID := styleScanID.Render(fmt.Sprintf("[%s]", t.ScanID))
 			spinner := m.spinners[i%len(m.spinners)].View()
-			b.WriteString(fmt.Sprintf("  %s %s  processing... %s\n", spinner, name, elapsed))
+			b.WriteString(fmt.Sprintf("  %s %s  processing... %s %s\n", spinner, name, scanID, elapsed))
 		case "complete":
 			complete++
 			elapsed := styleElapsed.Render(fmt.Sprintf("(%.1fs)", t.TotalDuration().Seconds()))
