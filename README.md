@@ -10,10 +10,11 @@ Integrate Vulnetix vulnerability intelligence directly into your Claude Code wor
 
 ### Installation
 
-Add the plugin directly from GitHub:
+Clone the repository and add it locally:
 
 ```bash
-/plugin add https://github.com/Vulnetix/claude-code-plugin
+git clone https://github.com/Vulnetix/claude-code-plugin.git
+/plugin add /path/to/claude-code-plugin
 ```
 
 **Prerequisites:**
