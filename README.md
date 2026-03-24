@@ -10,11 +10,18 @@ Integrate Vulnetix vulnerability intelligence directly into your Claude Code wor
 
 ### Installation
 
-Clone the repository and add it locally:
+In Claude Code, add the marketplace and install:
+
+```
+/plugin marketplace add Vulnetix/claude-code-plugin
+/plugin install vulnetix@vulnetix-plugins
+```
+
+Or clone locally:
 
 ```bash
-git clone https://github.com/Vulnetix/claude-code-plugin.git
-/plugin add /path/to/claude-code-plugin
+git clone https://github.com/Vulnetix/claude-code-plugin.git ~/claude-code-plugin
+/plugin add ~/claude-code-plugin
 ```
 
 **Prerequisites:**
@@ -122,7 +129,7 @@ The plugin works out of the box with zero configuration. Optional customization:
 - PoC exploits analyzed statically, never executed
 - All API calls authenticated via HTTPS
 
-[📖 **Full plugin documentation →**](https://github.com/Vulnetix/Vulnetix/tree/main/claude-code-plugin)
+[📖 **Full plugin documentation →**](https://github.com/Vulnetix/claude-code-plugin)
 
 ## Platform Support
 
