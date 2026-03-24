@@ -75,7 +75,7 @@ func (p *PollEngine) pollOne(ctx context.Context, t *ScanTask, interval time.Dur
 		status, _ := result["status"].(string)
 
 		switch status {
-		case "complete":
+		case "complete", "completed":
 			t.Status = "complete"
 			t.PollEnd = time.Now()
 			t.RawResult = result
