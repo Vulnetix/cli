@@ -2,7 +2,12 @@ package cmd
 
 import (
 	"bufio"
+	"context"
+	"crypto/rand"
+	"encoding/json"
 	"fmt"
+	"math/big"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -238,18 +243,27 @@ func interactiveLogin() (auth.AuthMethod, string, string, auth.CredentialStore, 
 	fmt.Println("Select authentication method:")
 	fmt.Println("  [1] Direct API Key (recommended)")
 	fmt.Println("  [2] SigV4")
+	fmt.Println("  [3] Browser Login")
 	fmt.Print("Choice [1]: ")
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
 
-	var method auth.AuthMethod
 	switch choice {
 	case "", "1":
-		method = auth.DirectAPIKey
+		// Direct API Key flow
 	case "2":
-		method = auth.SigV4
+		// SigV4 flow
+	case "3":
+		return browserLogin(reader)
 	default:
 		return "", "", "", "", fmt.Errorf("invalid choice: %s", choice)
+	}
+
+	var method auth.AuthMethod
+	if choice == "2" {
+		method = auth.SigV4
+	} else {
+		method = auth.DirectAPIKey
 	}
 
 	// 2. Organization ID
@@ -275,6 +289,15 @@ func interactiveLogin() (auth.AuthMethod, string, string, auth.CredentialStore, 
 	}
 
 	// 4. Storage location
+	store, err := promptStore(reader)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	return method, orgIDVal, secret, store, nil
+}
+
+func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
 	fmt.Println("Where to store credentials?")
 	fmt.Println("  [1] Home directory ~/.vulnetix/ (default)")
 	fmt.Println("  [2] Project .vulnetix/")
@@ -283,19 +306,144 @@ func interactiveLogin() (auth.AuthMethod, string, string, auth.CredentialStore, 
 	storeChoice, _ := reader.ReadString('\n')
 	storeChoice = strings.TrimSpace(storeChoice)
 
-	var store auth.CredentialStore
 	switch storeChoice {
 	case "", "1":
-		store = auth.StoreHome
+		return auth.StoreHome, nil
 	case "2":
-		store = auth.StoreProject
+		return auth.StoreProject, nil
 	case "3":
-		return "", "", "", "", fmt.Errorf("keyring storage is not yet implemented")
+		return "", fmt.Errorf("keyring storage is not yet implemented")
 	default:
-		return "", "", "", "", fmt.Errorf("invalid choice: %s", storeChoice)
+		return "", fmt.Errorf("invalid choice: %s", storeChoice)
 	}
+}
 
-	return method, orgIDVal, secret, store, nil
+const (
+	browserLoginURL     = "https://app.vulnetix.com/cli-login-code"
+	browserPollURL      = "https://app.vulnetix.com/api/cli/auth-code/poll/"
+	browserCodeCharset  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	browserCodeTimeout  = 5 * time.Minute
+	browserPollInterval = 5 * time.Second
+)
+
+func generateCode() (string, error) {
+	b := make([]byte, 6)
+	for i := range b {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(browserCodeCharset))))
+		if err != nil {
+			return "", fmt.Errorf("failed to generate random code: %w", err)
+		}
+		b[i] = browserCodeCharset[n.Int64()]
+	}
+	return string(b[:3]) + "-" + string(b[3:]), nil
+}
+
+func browserLogin(reader *bufio.Reader) (auth.AuthMethod, string, string, auth.CredentialStore, error) {
+	for {
+		code, err := generateCode()
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		fmt.Println()
+		fmt.Println("Open this URL in your browser:")
+		fmt.Println()
+		fmt.Printf("  %s\n", browserLoginURL)
+		fmt.Println()
+		fmt.Println("Then enter this code when prompted:")
+		fmt.Println()
+		fmt.Printf("  \033[1m%s\033[0m\n", code) // bold
+		fmt.Println()
+		fmt.Println("Waiting for browser authorization...")
+
+		orgID, apiKey, err := pollForAuth(code)
+		if err != nil {
+			// Timeout — prompt retry
+			fmt.Println()
+			fmt.Print("Code expired. Try again? [Y/n]: ")
+			retry, _ := reader.ReadString('\n')
+			retry = strings.TrimSpace(strings.ToLower(retry))
+			if retry == "" || retry == "y" || retry == "yes" {
+				continue
+			}
+			return "", "", "", "", fmt.Errorf("browser login cancelled")
+		}
+
+		// Parse apiKey "orgId:hex" — the full value is the api key
+		// The orgId is returned separately
+		parts := strings.SplitN(apiKey, ":", 2)
+		if len(parts) != 2 {
+			return "", "", "", "", fmt.Errorf("unexpected API key format from server")
+		}
+		apiKeyHex := parts[1]
+
+		fmt.Printf("\n\033[32mAuthentication successful!\033[0m\n") // green
+		fmt.Println()
+
+		store, err := promptStore(reader)
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		return auth.DirectAPIKey, orgID, apiKeyHex, store, nil
+	}
+}
+
+func pollForAuth(code string) (orgID string, apiKey string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), browserCodeTimeout)
+	defer cancel()
+
+	ticker := time.NewTicker(browserPollInterval)
+	defer ticker.Stop()
+
+	countdownTicker := time.NewTicker(1 * time.Second)
+	defer countdownTicker.Stop()
+
+	deadline, _ := ctx.Deadline()
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	pollURL := browserPollURL + code
+
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Print("\r                              \r") // clear countdown line
+			return "", "", fmt.Errorf("timeout")
+
+		case <-countdownTicker.C:
+			remaining := time.Until(deadline).Round(time.Second)
+			mins := int(remaining.Minutes())
+			secs := int(remaining.Seconds()) % 60
+			fmt.Printf("\r  Time remaining: %d:%02d  ", mins, secs)
+
+		case <-ticker.C:
+			resp, reqErr := httpClient.Get(pollURL)
+			if reqErr != nil {
+				continue // network error, keep trying
+			}
+
+			if resp.StatusCode == http.StatusNotFound {
+				resp.Body.Close()
+				continue // not yet claimed
+			}
+
+			if resp.StatusCode == http.StatusOK {
+				var result struct {
+					OK    bool   `json:"ok"`
+					OrgID string `json:"orgId"`
+					Key   string `json:"apiKey"`
+				}
+				json.NewDecoder(resp.Body).Decode(&result)
+				resp.Body.Close()
+
+				if result.OK && result.OrgID != "" && result.Key != "" {
+					fmt.Print("\r                              \r") // clear countdown line
+					return result.OrgID, result.Key, nil
+				}
+			} else {
+				resp.Body.Close()
+			}
+		}
+	}
 }
 
 func testAuth(creds *auth.Credentials) error {
