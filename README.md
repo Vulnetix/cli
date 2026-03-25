@@ -21,8 +21,16 @@ Or clone locally:
 
 ```bash
 git clone https://github.com/Vulnetix/claude-code-plugin.git ~/claude-code-plugin
-/plugin add ~/claude-code-plugin
+/plugin add ~/claude-code-plugin/vulnetix
 ```
+
+### Upgrading
+
+```
+/plugin update vulnetix
+```
+
+For local installs: `cd ~/claude-code-plugin && git pull`, then `/plugin remove vulnetix` and `/plugin add ~/claude-code-plugin/vulnetix`.
 
 **Prerequisites:**
 - Vulnetix CLI installed (see [Platform Support](#platform-support) below)
@@ -49,60 +57,33 @@ git commit -m "Update dependencies"
 
 #### 🔍 Interactive Skills
 
-Three powerful skills for proactive security:
+Six interactive skills for proactive security:
 
-##### 1. `/vulnetix:package-search <name>`
+| Skill | Purpose |
+|-------|---------|
+| `/vulnetix:package-search <name>` | Search packages and assess risk before adding dependencies |
+| `/vulnetix:exploits <vuln-id>` | Analyze exploit intelligence (PoCs, EPSS, CISA KEV, threat model) |
+| `/vulnetix:fix <vuln-id>` | Get fix intelligence and apply concrete remediation |
+| `/vulnetix:vuln <vuln-id or package>` | Look up vulnerability details or list all vulns for a package |
+| `/vulnetix:exploits-search [query]` | Search for exploits across all vulns with ecosystem/severity filters |
+| `/vulnetix:remediation <vuln-id>` | Get a context-aware remediation plan with verification steps |
 
-**What it does:** Search packages before adding them as dependencies
+Plus four slash commands for direct VDB CLI access: `/vulnetix:vdb-vuln`, `/vulnetix:vdb-vulns`, `/vulnetix:vdb-exploits-search`, `/vulnetix:vdb-remediation`.
 
-```
-/vulnetix:package-search express
-```
+**Developer benefit:** Full vulnerability lifecycle — discover, analyze, prioritize, remediate, and track decisions — all without leaving Claude Code.
 
-**Workflow:**
-1. Detects your project's ecosystems (npm, PyPI, Maven, etc.)
-2. Searches Vulnetix package database for matching packages
-3. Shows vulnerability counts, max severity, and Safe Harbour scores
-4. Proposes exact manifest edits with the safest version
-5. Asks for confirmation before applying changes
+#### 🪝 Multi-Hook Architecture
 
-**Developer benefit:** Make informed dependency choices. Compare alternatives, understand security posture, and add packages with confidence.
+Beyond pre-commit scanning, the plugin provides five additional hooks:
 
-##### 2. `/vulnetix:exploits <vuln-id>`
-
-**What it does:** Analyze exploit intelligence for a vulnerability
-
-```
-/vulnetix:exploits CVE-2021-44228
-```
-
-**Workflow:**
-1. Fetches public exploits (PoCs, Metasploit modules, security advisories)
-2. Retrieves CVSS scores, EPSS probability, and CISA KEV status
-3. Checks if your dependencies are affected
-4. Analyzes exploit reachability via static analysis
-5. Provides exploitability rating: CRITICAL/HIGH/MEDIUM/LOW/N/A
-6. Recommends next steps
-
-**Developer benefit:** Understand real-world impact. Is this CVE actively exploited? Do we use the vulnerable code path? Should we drop everything and patch?
-
-##### 3. `/vulnetix:fix <vuln-id>`
-
-**What it does:** Get fix intelligence and concrete remediation steps
-
-```
-/vulnetix:fix GHSA-xxxx-yyyy-zzzz
-```
-
-**Workflow:**
-1. Fetches fix data: version bumps, patches, workarounds
-2. Identifies affected dependencies in your manifests
-3. Shows exact edits with version upgrades
-4. Assesses breaking change risk (patch/minor/major)
-5. Proposes changes and asks for confirmation
-6. Suggests test commands and re-scanning to verify
-
-**Developer benefit:** Fix vulnerabilities fast. No manual version hunting, no guessing about breaking changes. Just clear, actionable remediation.
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| Pre-commit scan | `git commit` | Scan staged manifests for vulnerabilities |
+| Manifest edit gate | Edit/Write on manifests | Check packages for vulns before adding to manifests |
+| Post-install scan | `npm install`, `pip install`, etc. | Auto-scan after dependency changes |
+| Session dashboard | Session start | Show vulnerability status summary |
+| Stop reminder | Session end | Remind about unresolved P1/P2 vulnerabilities |
+| Vuln context inject | User message | Auto-detect CVE/GHSA IDs and inject prior context |
 
 ### When to Use Each Skill
 
@@ -111,8 +92,10 @@ Three powerful skills for proactive security:
 | Adding a new dependency | `/vulnetix:package-search lodash` | Choose the safest option upfront |
 | Commit hook found vulnerabilities | `/vulnetix:exploits CVE-2024-1234` | Understand severity and urgency |
 | Need to patch a CVE | `/vulnetix:fix CVE-2024-1234` | Get concrete fix steps |
+| Looking up a CVE or package | `/vulnetix:vuln CVE-2024-1234` | Quick vulnerability details |
+| Scanning exploit landscape | `/vulnetix:exploits-search --in-kev` | Find actively exploited vulns in your ecosystem |
+| Need a full remediation plan | `/vulnetix:remediation CVE-2024-1234` | Context-aware fix with verification steps |
 | Evaluating alternatives | `/vulnetix:package-search axios` | Compare security postures |
-| Triaging security alerts | `/vulnetix:exploits <vuln-id>` | Assess real-world exploitability |
 
 ### Configuration
 
