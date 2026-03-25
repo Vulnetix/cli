@@ -10,10 +10,15 @@ Integrate Vulnetix vulnerability intelligence directly into your Claude Code wor
 
 ### Installation
 
-In Claude Code, add the marketplace and install:
+In Claude Code, add the marketplace:
 
 ```
 /plugin marketplace add Vulnetix/claude-code-plugin
+```
+
+Then install the plugin:
+
+```
 /plugin install vulnetix@vulnetix-plugins
 ```
 
