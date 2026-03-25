@@ -184,10 +184,6 @@
   "enabledMcpjsonServers": [
     "chrome-devtools"
   ],
-  "statusLine": {
-    "type": "command",
-    "command": "/home/chris/GitHub/Vulnetix/cli/.claude/statusline-command.sh"
-  },
   "outputStyle": "default",
   "spinnerTipsEnabled": false
 }
