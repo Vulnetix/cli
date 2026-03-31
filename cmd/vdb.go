@@ -25,9 +25,11 @@ var (
 	vdbBaseURL      string
 	vdbOutput       string
 	vdbAPIVersion   string
-	vdbNoCache      bool
-	vdbRefreshCache bool
-	vdbCreds        *auth.Credentials
+	vdbNoCache       bool
+	vdbRefreshCache  bool
+	vdbNoCommunity   bool
+	vdbCommunityMode bool
+	vdbCreds         *auth.Credentials
 )
 
 // vdbCmd represents the vdb command
@@ -48,6 +50,7 @@ Credential sources (checked in order):
   3. Environment variables: VVD_ORG + VVD_SECRET (SigV4)
   4. Project file: .vulnetix/credentials.json
   5. Home file: ~/.vulnetix/credentials.json
+  6. Unauthenticated Community (built-in, --no-community to disable)
 
 Flag patterns:
   vulnetix vdb ecosystems --org-id UUID --api-key KEY      # Direct API Key
@@ -745,6 +748,9 @@ Examples:
 
 // printRateLimit prints rate limit and cache status from the last API call to stderr.
 func printRateLimit(client *vdb.Client) {
+	if vdbCommunityMode {
+		fmt.Fprintln(os.Stderr, "Auth: Unauthenticated Community (run 'vulnetix auth login' for higher rate limits)")
+	}
 	if client.LastCacheStatus != "" {
 		status := strings.ToUpper(client.LastCacheStatus)
 		// Normalize CloudFront format ("Hit from cloudfront" → "HIT")
@@ -1294,18 +1300,24 @@ Examples:
 		}
 		authResult := authInfo{Method: "none", Source: "none", Status: "not configured"}
 		if vdbCreds != nil && vdbCreds.OrgID != "" {
-			authResult.OrgID = vdbCreds.OrgID
-			authResult.Method = string(vdbCreds.Method)
-			// Determine credential source
-			if vdbAPIKey != "" || vdbSecretKey != "" {
-				authResult.Source = "flags"
+			if vdbCommunityMode {
+				authResult.Method = string(vdbCreds.Method)
+				authResult.Source = "Unauthenticated Community"
+				authResult.Status = "ok (community)"
 			} else {
-				authResult.Source = auth.CredentialSource()
-			}
-			if err := verifyCredentials(vdbCreds); err != nil {
-				authResult.Status = fmt.Sprintf("error: %s", err)
-			} else {
-				authResult.Status = "ok"
+				authResult.OrgID = vdbCreds.OrgID
+				authResult.Method = string(vdbCreds.Method)
+				// Determine credential source
+				if vdbAPIKey != "" || vdbSecretKey != "" {
+					authResult.Source = "flags"
+				} else {
+					authResult.Source = auth.CredentialSource()
+				}
+				if err := verifyCredentials(vdbCreds); err != nil {
+					authResult.Status = fmt.Sprintf("error: %s", err)
+				} else {
+					authResult.Status = "ok"
+				}
 			}
 		}
 
@@ -1391,6 +1403,12 @@ func resolveVDBCredentials(errorOnMissing bool) error {
 	// No complete flag set — fall through to stored/env credentials
 	creds, err := vdb.LoadFullCredentials()
 	if err != nil {
+		// Community fallback: VDB-only, last-resort
+		if !vdbNoCommunity {
+			vdbCreds = auth.CommunityCredentials()
+			vdbCommunityMode = true
+			return nil
+		}
 		if errorOnMissing {
 			return err
 		}
@@ -1592,6 +1610,7 @@ func init() {
 	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, pretty)")
 	vdbCmd.PersistentFlags().BoolVar(&vdbNoCache, "no-cache", false, "Bypass local disk cache entirely")
 	vdbCmd.PersistentFlags().BoolVar(&vdbRefreshCache, "refresh-cache", false, "Ignore cached data and fetch fresh from API (updates cache)")
+	vdbCmd.PersistentFlags().BoolVar(&vdbNoCommunity, "no-community", false, "Disable community fallback credentials (require explicit authentication)")
 
 	// Pagination flags for applicable commands
 	productCmd.Flags().Int("limit", 100, "Maximum number of results to return (default 100; use with --offset for pagination)")
