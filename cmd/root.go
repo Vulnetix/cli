@@ -127,6 +127,10 @@ func runInfoTask() error {
 		fmt.Println("not found")
 	}
 
+	// 5. Community fallback (VDB only)
+	fmt.Print("  Unauthenticated Community (VDB only)      ... ")
+	fmt.Println("available (use --no-community to disable)")
+
 	fmt.Println()
 	if !anyFound {
 		fmt.Println("No credentials configured. Run 'vulnetix auth login' to get started.")

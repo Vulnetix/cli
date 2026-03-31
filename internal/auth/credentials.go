@@ -111,7 +111,7 @@ func CredentialSource() string {
 func CredentialStatus() (string, *Credentials) {
 	creds, err := LoadCredentials()
 	if err != nil {
-		return "Not authenticated", nil
+		return "Unauthenticated Community", nil
 	}
 
 	source := CredentialSource()
@@ -146,6 +146,8 @@ func AllSourceStatus() []string {
 	} else {
 		lines = append(lines, "home ~/.vulnetix/credentials.json: not found")
 	}
+
+	lines = append(lines, "Unauthenticated Community (VDB only): available")
 
 	return lines
 }
