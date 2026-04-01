@@ -60,6 +60,23 @@ Or re-run the auto-detection script to download the latest version:
 curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
 ```
 
+## Shell Completions
+
+Enable tab completion for your shell:
+
+```bash
+# Bash
+vulnetix completion bash > ~/.local/share/bash-completion/completions/vulnetix
+
+# Zsh
+vulnetix completion zsh > "${fpath[1]}/_vulnetix"
+
+# Fish
+vulnetix completion fish > ~/.config/fish/completions/vulnetix.fish
+```
+
+For full setup instructions, see the [Shell Completions guide](../../cli-reference/completions/).
+
 ## Platform-Specific Downloads
 
 ### Linux

@@ -56,6 +56,10 @@ The Homebrew tap also includes `vvd-search`, a terminal UI for searching the Vul
 brew install vulnetix/tap/vvd-search
 ```
 
+## Shell Completions
+
+Homebrew automatically installs shell completions for bash, zsh, and fish. If completions are not working, see the [Shell Completions guide](../../cli-reference/completions/).
+
 ## Uninstall
 
 ```bash

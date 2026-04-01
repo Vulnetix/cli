@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/upload"
 	"github.com/vulnetix/cli/internal/vdb"
 )
@@ -73,28 +74,37 @@ var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show current authentication state",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := display.FromCommand(cmd)
+		t := ctx.Term
+
 		status, creds := auth.CredentialStatus()
-		fmt.Println(status)
+		ctx.Logger.Result(display.Bold(t, status))
 		if creds != nil {
-			fmt.Printf("  Organization: %s\n", creds.OrgID)
-			fmt.Printf("  Method: %s\n", creds.Method)
+			var secretLabel, secretValue string
 			if creds.Method == auth.DirectAPIKey {
 				masked := creds.APIKey
 				if len(masked) > 8 {
 					masked = masked[:4] + "..." + masked[len(masked)-4:]
 				}
-				fmt.Printf("  API Key: %s\n", masked)
+				secretLabel = "API Key"
+				secretValue = masked
 			} else {
 				masked := creds.Secret
 				if len(masked) > 8 {
 					masked = masked[:4] + "..." + masked[len(masked)-4:]
 				}
-				fmt.Printf("  Secret: %s\n", masked)
+				secretLabel = "Secret"
+				secretValue = masked
 			}
+			ctx.Logger.Result(display.KeyValue(t, []display.KVPair{
+				{Key: "Organization", Value: creds.OrgID},
+				{Key: "Method", Value: string(creds.Method)},
+				{Key: secretLabel, Value: secretValue},
+			}))
 		}
-		fmt.Println("\nAll credential sources:")
+		ctx.Logger.Result(display.Subheader(t, "\nAll credential sources:"))
 		for _, line := range auth.AllSourceStatus() {
-			fmt.Printf("  %s\n", line)
+			ctx.Logger.Result("  " + line)
 		}
 		return nil
 	},
@@ -115,7 +125,7 @@ Examples:
   # Verify with explicit base URL
   vulnetix auth verify --base-url https://app.vulnetix.com/api`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runAuthVerify()
+		return runAuthVerify(cmd)
 	},
 }
 
@@ -123,10 +133,11 @@ var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Remove stored credentials",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := display.FromCommand(cmd)
 		if err := auth.RemoveCredentials(); err != nil {
 			return fmt.Errorf("failed to remove credentials: %w", err)
 		}
-		fmt.Println("Credentials removed successfully")
+		ctx.Logger.Info(display.CheckMark(ctx.Term) + " Credentials removed successfully")
 		return nil
 	},
 }
@@ -221,17 +232,18 @@ func runAuthLogin(cmd *cobra.Command) error {
 	}
 
 	// Test authentication
-	fmt.Println("Testing authentication...")
-	if err := testAuth(creds); err != nil {
+	ctx := display.FromCommand(cmd)
+	ctx.Logger.Info("Testing authentication...")
+	if err := testAuth(ctx, creds); err != nil {
 		return fmt.Errorf("authentication test failed: %w", err)
 	}
-	fmt.Println("Authentication successful")
+	ctx.Logger.Info(display.CheckMark(ctx.Term) + " Authentication successful")
 
 	// Save credentials
 	if err := auth.SaveCredentials(creds, store); err != nil {
 		return fmt.Errorf("failed to save credentials: %w", err)
 	}
-	fmt.Printf("Credentials saved to %s store\n", store)
+	ctx.Logger.Infof("%s Credentials saved to %s store", display.CheckMark(ctx.Term), store)
 
 	return nil
 }
@@ -446,7 +458,7 @@ func pollForAuth(code string) (orgID string, apiKey string, err error) {
 	}
 }
 
-func testAuth(creds *auth.Credentials) error {
+func testAuth(ctx *display.Context, creds *auth.Credentials) error {
 	switch creds.Method {
 	case auth.DirectAPIKey:
 		// Validate the API key format (must be non-empty hex string)
@@ -460,7 +472,7 @@ func testAuth(creds *auth.Credentials) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("VDB API: OK")
+		ctx.Logger.Info(display.CheckMark(ctx.Term) + " VDB API: OK")
 		return nil
 
 	case auth.SigV4:
@@ -476,13 +488,16 @@ func testAuth(creds *auth.Credentials) error {
 
 var verifyBaseURL string
 
-func runAuthVerify() error {
+func runAuthVerify(cmd *cobra.Command) error {
+	ctx := display.FromCommand(cmd)
+	t := ctx.Term
+
 	creds, err := auth.LoadCredentials()
 	if err != nil {
 		return fmt.Errorf("no credentials found: %w\nRun 'vulnetix auth login' to authenticate", err)
 	}
 
-	fmt.Printf("Verifying credentials for org %s...\n", creds.OrgID)
+	ctx.Logger.Infof("Verifying credentials for org %s...", creds.OrgID)
 
 	client := upload.NewClient(verifyBaseURL, creds)
 	result, err := client.VerifyAuth()
@@ -490,8 +505,10 @@ func runAuthVerify() error {
 		return fmt.Errorf("verification failed: %w", err)
 	}
 
-	fmt.Printf("Authentication verified successfully\n")
-	fmt.Printf("  Organization: %s\n", result.OrgID)
+	ctx.Logger.Info(display.CheckMark(t) + " Authentication verified successfully")
+	ctx.Logger.Result(display.KeyValue(t, []display.KVPair{
+		{Key: "Organization", Value: result.OrgID},
+	}))
 	return nil
 }
 
@@ -509,6 +526,8 @@ func init() {
 	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex)")
 	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key")
 	authLoginCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
+	_ = authLoginCmd.RegisterFlagCompletionFunc("method", cobra.FixedCompletions([]string{"apikey", "sigv4"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = authLoginCmd.RegisterFlagCompletionFunc("store", cobra.FixedCompletions([]string{"home", "project", "keyring"}, cobra.ShellCompDirectiveNoFileComp))
 
 	// Also add flags to the parent auth command for `vulnetix auth --method ...`
 	authCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: apikey, sigv4 (auto-detected if omitted)")
@@ -516,6 +535,8 @@ func init() {
 	authCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex)")
 	authCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key")
 	authCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
+	_ = authCmd.RegisterFlagCompletionFunc("method", cobra.FixedCompletions([]string{"apikey", "sigv4"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = authCmd.RegisterFlagCompletionFunc("store", cobra.FixedCompletions([]string{"home", "project", "keyring"}, cobra.ShellCompDirectiveNoFileComp))
 
 	authVerifyCmd.Flags().StringVar(&verifyBaseURL, "base-url", upload.DefaultBaseURL, "Base URL for Vulnetix API")
 

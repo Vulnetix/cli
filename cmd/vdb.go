@@ -10,11 +10,18 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alecthomas/chroma/v2"
+	"github.com/alecthomas/chroma/v2/formatters"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/cache"
+	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/purl"
+	"github.com/vulnetix/cli/internal/tty"
 	"github.com/vulnetix/cli/internal/vdb"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -30,6 +37,10 @@ var (
 	vdbNoCommunity   bool
 	vdbCommunityMode bool
 	vdbCreds         *auth.Credentials
+	vdbCompact       bool
+	vdbComfortable   bool
+	vdbSparse        bool
+	vdbHighlight     string
 )
 
 // vdbCmd represents the vdb command
@@ -72,6 +83,16 @@ Examples:
   # Get vulnerabilities for a package
   vulnetix vdb vulns express`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Initialize display context with correct output mode
+		mode := display.ModeText
+		if vdbOutput == "json" || vdbOutput == "yaml" {
+			mode = display.ModeJSON
+		}
+		initDisplayContext(cmd, mode)
+
+		if err := validateOutputFlags(); err != nil {
+			return err
+		}
 		return resolveVDBCredentials(true)
 	},
 }
@@ -103,23 +124,27 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cveID := args[0]
+		ctx := display.FromCommand(cmd)
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s...\n", cveID)
+		ctx.Logger.Infof("🔍 Fetching information for %s...", cveID)
 
 		cveInfo, err := client.GetCVE(cveID)
 		if err != nil {
 			var nfe *vdb.NotFoundError
 			if errors.As(err, &nfe) {
-				fmt.Fprintf(os.Stderr, "⚠ Vulnerability %q was not found in the database.\n", cveID)
-				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				ctx.Logger.Warn(fmt.Sprintf("⚠ Vulnerability %q was not found in the database.", cveID))
+				ctx.Logger.Info("  This identifier has been flagged for review by Vulnetix admins.")
 				return nil
 			}
 			return fmt.Errorf("failed to get CVE: %w", err)
 		}
 		printRateLimit(client)
 
+		if vdbOutput == "pretty" || vdbOutput == "" {
+			return ctx.Render(cveInfo.Data, display.RenderVulnDetail)
+		}
 		return printOutput(cveInfo.Data, vdbOutput)
 	},
 }
@@ -152,10 +177,11 @@ Examples:
 			return cmd.Help()
 		}
 		identifier := args[0]
+		ctx := display.FromCommand(cmd)
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "💥 Fetching exploit intelligence for %s...\n", identifier)
+		ctx.Logger.Infof("💥 Fetching exploit intelligence for %s...", identifier)
 
 		result, err := client.GetExploits(identifier)
 		if err != nil {
@@ -163,6 +189,9 @@ Examples:
 		}
 		printRateLimit(client)
 
+		if vdbOutput == "pretty" || vdbOutput == "" {
+			return ctx.Render(result, display.RenderExploits)
+		}
 		return printOutput(result, vdbOutput)
 	},
 }
@@ -199,9 +228,10 @@ Examples:
 		params.Limit, _ = cmd.Flags().GetInt("limit")
 		params.Offset, _ = cmd.Flags().GetInt("offset")
 
+		ctx := display.FromCommand(cmd)
 		client := newVDBClient()
 
-		fmt.Fprintln(os.Stderr, "🔍 Searching exploits...")
+		ctx.Logger.Info("🔍 Searching exploits...")
 
 		result, err := client.SearchExploits(params)
 		if err != nil {
@@ -209,6 +239,9 @@ Examples:
 		}
 		printRateLimit(client)
 
+		if vdbOutput == "pretty" || vdbOutput == "" {
+			return ctx.Render(result, display.RenderExploitSearch)
+		}
 		return printOutput(result, vdbOutput)
 	},
 }
@@ -243,18 +276,18 @@ Examples:
 
 		// V2 mode: merge three fix endpoints
 		if normalizeAPIVersion(vdbAPIVersion) == "/v2" {
-			fmt.Fprintf(os.Stderr, "🔧 Fetching V2 fix data for %s...\n", identifier)
+			vdbLog(cmd).Infof("🔧 Fetching V2 fix data for %s...", identifier)
 
 			merged, err := v2FixesMerged(identifier, cmd)
 			if err != nil {
 				return fmt.Errorf("failed to get V2 fixes: %w", err)
 			}
-			return printOutput(merged, vdbOutput)
+			return vdbRender(cmd, merged, display.RenderFixes)
 		}
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "🔧 Fetching fix data for %s...\n", identifier)
+		vdbLog(cmd).Infof("🔧 Fetching fix data for %s...", identifier)
 
 		result, err := client.GetCVEFixes(identifier)
 		if err != nil {
@@ -262,7 +295,7 @@ Examples:
 		}
 		printRateLimit(client)
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderFixes)
 	},
 }
 
@@ -294,7 +327,7 @@ Examples:
 		scoresLimit, _ := cmd.Flags().GetInt("scores-limit")
 
 		client := newVDBClient()
-		fmt.Fprintf(os.Stderr, "📅 Fetching timeline for %s...\n", identifier)
+		vdbLog(cmd).Infof("📅 Fetching timeline for %s...", identifier)
 
 		// V2 mode: use v2 endpoint with source transparency
 		if normalizeAPIVersion(vdbAPIVersion) == "/v2" {
@@ -308,7 +341,7 @@ Examples:
 				return fmt.Errorf("failed to get timeline: %w", err)
 			}
 			printRateLimit(client)
-			return printOutput(result, vdbOutput)
+			return vdbRender(cmd, result, display.RenderTimeline)
 		}
 
 		// V1 mode (default)
@@ -322,7 +355,7 @@ Examples:
 			return fmt.Errorf("failed to get timeline: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderTimeline)
 	},
 }
 
@@ -341,7 +374,7 @@ Examples:
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", packageName)
+		vdbLog(cmd).Infof("📦 Fetching versions for %s...", packageName)
 
 		result, err := client.GetPackageVersions(packageName)
 		if err != nil {
@@ -349,7 +382,7 @@ Examples:
 		}
 		printRateLimit(client)
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderVersions)
 	},
 }
 
@@ -377,7 +410,7 @@ Examples:
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "📅 Fetching CVEs from %s to %s...\n", start, end)
+		vdbLog(cmd).Infof("📅 Fetching CVEs from %s to %s...", start, end)
 
 		result, err := client.GetCVEsByDateRange(start, end)
 		if err != nil {
@@ -385,7 +418,7 @@ Examples:
 		}
 		printRateLimit(client)
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderGenericMap)
 	},
 }
 
@@ -417,7 +450,7 @@ Examples:
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "📋 Fetching GCVE issuances for %d/%02d...\n", year, month)
+		vdbLog(cmd).Infof("📋 Fetching GCVE issuances for %d/%02d...", year, month)
 
 		resp, err := client.GetGCVEIssuances(year, month, limit, offset)
 		if err != nil {
@@ -425,18 +458,9 @@ Examples:
 		}
 		printRateLimit(client)
 
-		if vdbOutput != "json" {
-			fmt.Printf("Found %d GCVE issuances (showing %d-%d):\n", resp.Total, offset+1, offset+len(resp.Identifiers))
-			for _, id := range resp.Identifiers {
-				fmt.Printf("  %s (cveId: %s)\n", id.GcveID, id.CveID)
-			}
-			if resp.HasMore {
-				fmt.Printf("\nMore results available. Use --offset %d to see the next page.\n", offset+limit)
-			}
-			return nil
-		}
-
-		return printOutput(resp, vdbOutput)
+		return vdbRender(cmd, display.ToMap(resp), func(data interface{}, ctx *display.Context) string {
+			return display.RenderIdentifiers(data, ctx, "GCVE issuances")
+		})
 	},
 }
 
@@ -452,7 +476,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		fmt.Fprintln(os.Stderr, "🌐 Fetching available ecosystems...")
+		vdbLog(cmd).Info("🌐 Fetching available ecosystems...")
 
 		ecosystems, err := client.GetEcosystems()
 		if err != nil {
@@ -460,16 +484,23 @@ Examples:
 		}
 		printRateLimit(client)
 
-		if vdbOutput == "json" {
-			return printOutput(map[string]interface{}{"ecosystems": ecosystems}, vdbOutput)
+		// Convert typed slice to []interface{} with map entries for the display layer
+		ecoSlice := make([]interface{}, len(ecosystems))
+		for i, e := range ecosystems {
+			ecoSlice[i] = map[string]interface{}{
+				"name":  e.Name,
+				"count": e.Count,
+			}
 		}
 
-		fmt.Printf("\n✅ Found %d ecosystems:\n\n", len(ecosystems))
-		for _, eco := range ecosystems {
-			fmt.Printf("  • %s (%d packages)\n", eco.Name, eco.Count)
-		}
-
-		return nil
+		return vdbRender(cmd, map[string]interface{}{"ecosystems": ecoSlice}, func(data interface{}, ctx *display.Context) string {
+			if m, ok := data.(map[string]interface{}); ok {
+				if ecos, ok := m["ecosystems"].([]interface{}); ok {
+					return display.RenderEcosystems(ecos, ctx)
+				}
+			}
+			return display.RenderGenericMap(data, ctx)
+		})
 	},
 }
 
@@ -509,14 +540,14 @@ Examples:
 		if len(args) > 2 {
 			version := args[1]
 			ecosystem := args[2]
-			fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s@%s (%s)...\n", productName, version, ecosystem)
+			vdbLog(cmd).Infof("🔍 Fetching information for %s@%s (%s)...", productName, version, ecosystem)
 
 			info, err := client.GetProductVersionEcosystem(productName, version, ecosystem)
 			if err != nil {
 				var nfe *vdb.NotFoundError
 				if errors.As(err, &nfe) {
-					fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s, ecosystem %s) was not found in the database.\n", productName, version, ecosystem)
-					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s, ecosystem %s) was not found in the database.", productName, version, ecosystem))
+					vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 					return nil
 				}
 				return fmt.Errorf("failed to get product version ecosystem: %w", err)
@@ -524,25 +555,25 @@ Examples:
 			printRateLimit(client)
 
 			if isEmptyResult(info) {
-				fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s, ecosystem %s) was not found in the database.\n", productName, version, ecosystem)
-				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s, ecosystem %s) was not found in the database.", productName, version, ecosystem))
+				vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 				return nil
 			}
 
-			return printOutput(info, vdbOutput)
+			return vdbRender(cmd, info, display.RenderGenericMap)
 		}
 
 		// If version is provided, get specific version info
 		if len(args) > 1 {
 			version := args[1]
-			fmt.Fprintf(os.Stderr, "🔍 Fetching information for %s@%s...\n", productName, version)
+			vdbLog(cmd).Infof("🔍 Fetching information for %s@%s...", productName, version)
 
 			info, err := client.GetProductVersion(productName, version)
 			if err != nil {
 				var nfe *vdb.NotFoundError
 				if errors.As(err, &nfe) {
-					fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s) was not found in the database.\n", productName, version)
-					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s) was not found in the database.", productName, version))
+					vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 					return nil
 				}
 				return fmt.Errorf("failed to get product version: %w", err)
@@ -550,23 +581,23 @@ Examples:
 			printRateLimit(client)
 
 			if isEmptyResult(info) {
-				fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s) was not found in the database.\n", productName, version)
-				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s) was not found in the database.", productName, version))
+				vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 				return nil
 			}
 
-			return printOutput(info, vdbOutput)
+			return vdbRender(cmd, info, display.RenderGenericMap)
 		}
 
 		// Otherwise, list all versions
-		fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", productName)
+		vdbLog(cmd).Infof("📦 Fetching versions for %s...", productName)
 
 		resp, err := client.GetProductVersions(productName, limit, offset)
 		if err != nil {
 			var nfe *vdb.NotFoundError
 			if errors.As(err, &nfe) {
-				fmt.Fprintf(os.Stderr, "⚠ Product %q was not found in the database.\n", productName)
-				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q was not found in the database.", productName))
+				vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 				return nil
 			}
 			return fmt.Errorf("failed to get product versions: %w", err)
@@ -574,47 +605,12 @@ Examples:
 		printRateLimit(client)
 
 		if resp.Total == 0 {
-			fmt.Fprintf(os.Stderr, "⚠ Product %q was not found in the database.\n", productName)
-			fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+			vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q was not found in the database.", productName))
+			vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 			return nil
 		}
 
-		if vdbOutput == "json" {
-			return printOutput(resp, vdbOutput)
-		}
-
-		fmt.Printf("\n✅ Found %d total versions (showing %d):\n\n", resp.Total, len(resp.Versions))
-		for i, v := range resp.Versions {
-			fmt.Printf("  %d. %s (%s)\n", i+1, v.Version, v.Ecosystem)
-			if len(v.CVEIDs) > 0 {
-				fmt.Printf("     CVEs: %s\n", strings.Join(v.CVEIDs, ", "))
-			}
-			if len(v.Sources) > 0 {
-				// Collect CVE IDs from sources and group by table
-				var cveIDs []string
-				tableCounts := make(map[string]int)
-				for _, s := range v.Sources {
-					tableCounts[s.SourceTable]++
-					if strings.HasPrefix(s.SourceID, "CVE-") || strings.HasPrefix(s.SourceID, "VVD-") {
-						cveIDs = append(cveIDs, s.SourceID)
-					}
-				}
-				if len(cveIDs) > 0 {
-					fmt.Printf("     Vuln IDs: %s\n", strings.Join(cveIDs, ", "))
-				}
-				var tables []string
-				for table, count := range tableCounts {
-					tables = append(tables, fmt.Sprintf("%s(%d)", table, count))
-				}
-				fmt.Printf("     Sources: %s\n", strings.Join(tables, ", "))
-			}
-		}
-
-		if resp.HasMore {
-			fmt.Printf("\n💡 More results available. Use --offset %d to see more.\n", resp.Offset+resp.Limit)
-		}
-
-		return nil
+		return vdbRender(cmd, display.ToMap(resp), display.RenderProductVersions)
 	},
 }
 
@@ -638,14 +634,14 @@ Examples:
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
+		vdbLog(cmd).Infof("🔒 Fetching vulnerabilities for %s...", packageName)
 
 		resp, err := client.GetPackageVulnerabilities(packageName, limit, offset)
 		if err != nil {
 			var nfe *vdb.NotFoundError
 			if errors.As(err, &nfe) {
-				fmt.Fprintf(os.Stderr, "⚠ Package %q was not found in the database.\n", packageName)
-				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Package %q was not found in the database.", packageName))
+				vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 				return nil
 			}
 			return fmt.Errorf("failed to get vulnerabilities: %w", err)
@@ -653,40 +649,12 @@ Examples:
 		printRateLimit(client)
 
 		if resp.TotalCVEs == 0 && resp.Total == 0 {
-			fmt.Fprintf(os.Stderr, "⚠ Package %q was not found in the database.\n", packageName)
-			fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+			vdbLog(cmd).Warn(fmt.Sprintf("⚠ Package %q was not found in the database.", packageName))
+			vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 			return nil
 		}
 
-		if vdbOutput == "json" {
-			return printOutput(resp, vdbOutput)
-		}
-
-		// Merge both possible field names into a single list
-		items := resp.Versions
-		if len(items) == 0 {
-			items = resp.Vulnerabilities
-		}
-
-		fmt.Printf("\n⚠️  Found %d CVE(s) across %d version(s):\n\n", resp.TotalCVEs, len(items))
-		for i, v := range items {
-			fmt.Printf("  %d. %s (%s) — %d source(s)\n", i+1, v.Version, v.Ecosystem, len(v.Sources))
-			for _, src := range v.Sources {
-				fmt.Printf("     • %s: %s\n", src.SourceTable, src.SourceID)
-			}
-		}
-		if len(items) == 0 && resp.TotalCVEs > 0 {
-			// Neither typed field captured the data — dump the raw API response
-			// so no details are ever silently discarded.
-			fmt.Printf("  Full API response:\n")
-			return printOutput(resp.RawData, "pretty")
-		}
-
-		if resp.HasMore {
-			fmt.Printf("\n💡 More results available. Use --offset %d to see more.\n", resp.Offset+resp.Limit)
-		}
-
-		return nil
+		return vdbRender(cmd, display.ToMap(resp), display.RenderPackageVulns)
 	},
 }
 
@@ -703,11 +671,20 @@ Examples:
   vulnetix vdb spec --output json > vdb-spec.json`,
 	// Override parent's PersistentPreRunE — spec is public, no auth required
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		mode := display.ModeText
+		if vdbOutput == "json" || vdbOutput == "yaml" {
+			mode = display.ModeJSON
+		}
+		initDisplayContext(cmd, mode)
+		if err := validateOutputFlags(); err != nil {
+			return err
+		}
 		_ = resolveVDBCredentials(false)
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Fprintln(os.Stderr, "📋 Fetching OpenAPI specification...")
+		ctx := display.FromCommand(cmd)
+		ctx.Logger.Info("📋 Fetching OpenAPI specification...")
 
 		// If credentials are available, use the authenticated client
 		if vdbCreds != nil && vdbCreds.OrgID != "" {
@@ -747,7 +724,11 @@ Examples:
 }
 
 // printRateLimit prints rate limit and cache status from the last API call to stderr.
+// Suppressed when --silent is active.
 func printRateLimit(client *vdb.Client) {
+	if silent {
+		return
+	}
 	if vdbCommunityMode {
 		fmt.Fprintln(os.Stderr, "Auth: Unauthenticated Community (run 'vulnetix auth login' for higher rate limits)")
 	}
@@ -876,6 +857,20 @@ func newVDBClient() *vdb.Client {
 	return client
 }
 
+// vdbRender outputs data: text renderer in pretty mode, printOutput otherwise.
+func vdbRender(cmd *cobra.Command, data interface{}, textFn func(data interface{}, ctx *display.Context) string) error {
+	if vdbOutput == "pretty" || vdbOutput == "" {
+		ctx := display.FromCommand(cmd)
+		return ctx.Render(data, textFn)
+	}
+	return printOutput(data, vdbOutput)
+}
+
+// vdbLog returns the display logger for a command.
+func vdbLog(cmd *cobra.Command) *display.Logger {
+	return display.FromCommand(cmd).Logger
+}
+
 // isEmptyResult returns true when a map-typed API response has total == 0.
 func isEmptyResult(m map[string]interface{}) bool {
 	if t, ok := m["total"]; ok {
@@ -893,9 +888,32 @@ func isEmptyResult(m map[string]interface{}) bool {
 func printOutput(data interface{}, format string) error {
 	switch format {
 	case "json":
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(data)
+		indent := resolveIndent()
+		jsonBytes, err := json.MarshalIndent(data, "", indent)
+		if err != nil {
+			return fmt.Errorf("failed to format output: %w", err)
+		}
+		output := string(jsonBytes)
+
+		if (vdbHighlight == "dark" || vdbHighlight == "light") && tty.StdoutIsTerminal() {
+			highlighted, err := highlightJSON(output, vdbHighlight)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Warning: syntax highlighting failed, falling back to plain output")
+				fmt.Println(output)
+				return nil
+			}
+			fmt.Print(highlighted)
+		} else {
+			fmt.Println(output)
+		}
+		return nil
+	case "yaml":
+		yamlBytes, err := yaml.Marshal(data)
+		if err != nil {
+			return fmt.Errorf("failed to format YAML output: %w", err)
+		}
+		fmt.Print(string(yamlBytes))
+		return nil
 	case "pretty", "":
 		jsonBytes, err := json.MarshalIndent(data, "", "  ")
 		if err != nil {
@@ -906,6 +924,69 @@ func printOutput(data interface{}, format string) error {
 	default:
 		return fmt.Errorf("unsupported output format: %s", format)
 	}
+}
+
+// resolveIndent returns the JSON indent string based on the active preset flag.
+func resolveIndent() string {
+	switch {
+	case vdbCompact:
+		return "  "
+	case vdbSparse:
+		return "        "
+	default:
+		return "    "
+	}
+}
+
+// highlightJSON applies terminal syntax highlighting to a JSON string.
+func highlightJSON(jsonStr string, theme string) (string, error) {
+	lexer := lexers.Get("json")
+	if lexer == nil {
+		return "", fmt.Errorf("JSON lexer not available")
+	}
+	lexer = chroma.Coalesce(lexer)
+
+	var styleName string
+	switch theme {
+	case "dark":
+		styleName = "monokai"
+	case "light":
+		styleName = "github"
+	default:
+		return jsonStr, nil
+	}
+
+	style := styles.Get(styleName)
+	formatter := formatters.Get("terminal256")
+
+	iterator, err := lexer.Tokenise(nil, jsonStr)
+	if err != nil {
+		return "", err
+	}
+
+	var buf strings.Builder
+	err = formatter.Format(&buf, style, iterator)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+// validateOutputFlags checks that indent and highlight flags are only used with --output json.
+func validateOutputFlags() error {
+	if vdbOutput != "json" {
+		if vdbCompact || vdbSparse || vdbComfortable {
+			return fmt.Errorf("--compact, --comfortable, and --sparse are only valid with --output json")
+		}
+		if vdbHighlight != "none" && vdbHighlight != "" {
+			return fmt.Errorf("--highlight is only valid with --output json")
+		}
+	}
+	if vdbHighlight != "" && vdbHighlight != "none" && vdbHighlight != "dark" && vdbHighlight != "light" {
+		return fmt.Errorf("--highlight must be one of: dark, light, none")
+	}
+	return nil
 }
 
 // sourcesCmd lists vulnerability data sources
@@ -921,7 +1002,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		fmt.Fprintln(os.Stderr, "📡 Fetching vulnerability data sources...")
+		vdbLog(cmd).Info("📡 Fetching vulnerability data sources...")
 
 		result, err := client.GetSources()
 		if err != nil {
@@ -929,7 +1010,9 @@ Examples:
 		}
 		printRateLimit(client)
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
+			return display.RenderSimpleList(data, ctx, "sources")
+		})
 	},
 }
 
@@ -959,7 +1042,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		fmt.Fprintln(os.Stderr, "📊 Fetching vulnerability metric types...")
+		vdbLog(cmd).Info("📊 Fetching vulnerability metric types...")
 
 		result, err := client.GetMetricTypes()
 		if err != nil {
@@ -967,7 +1050,9 @@ Examples:
 		}
 		printRateLimit(client)
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
+			return display.RenderSimpleList(data, ctx, "metric types")
+		})
 	},
 }
 
@@ -984,7 +1069,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		fmt.Fprintln(os.Stderr, "🔎 Fetching exploit intelligence sources...")
+		vdbLog(cmd).Info("🔎 Fetching exploit intelligence sources...")
 
 		result, err := client.GetExploitSources()
 		if err != nil {
@@ -992,7 +1077,9 @@ Examples:
 		}
 		printRateLimit(client)
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
+			return display.RenderSimpleList(data, ctx, "exploit sources")
+		})
 	},
 }
 
@@ -1009,7 +1096,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		fmt.Fprintln(os.Stderr, "💣 Fetching exploit type classifications...")
+		vdbLog(cmd).Info("💣 Fetching exploit type classifications...")
 
 		result, err := client.GetExploitTypes()
 		if err != nil {
@@ -1017,7 +1104,9 @@ Examples:
 		}
 		printRateLimit(client)
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
+			return display.RenderSimpleList(data, ctx, "exploit types")
+		})
 	},
 }
 
@@ -1034,7 +1123,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		fmt.Fprintln(os.Stderr, "🐧 Fetching supported fix distributions...")
+		vdbLog(cmd).Info("🐧 Fetching supported fix distributions...")
 
 		result, err := client.GetFixDistributions()
 		if err != nil {
@@ -1042,7 +1131,9 @@ Examples:
 		}
 		printRateLimit(client)
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
+			return display.RenderSimpleList(data, ctx, "distributions")
+		})
 	},
 }
 
@@ -1072,7 +1163,7 @@ Examples:
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "🔍 Fetching CVE identifiers for %d/%02d...\n", year, month)
+		vdbLog(cmd).Infof("🔍 Fetching CVE identifiers for %d/%02d...", year, month)
 
 		resp, err := client.GetIdentifiersByMonth(year, month, limit, offset)
 		if err != nil {
@@ -1080,18 +1171,9 @@ Examples:
 		}
 		printRateLimit(client)
 
-		if vdbOutput == "json" {
-			return printOutput(resp, vdbOutput)
-		}
-
-		fmt.Printf("Found %d CVE identifiers (showing %d-%d):\n", resp.Total, offset+1, offset+len(resp.Identifiers))
-		for _, id := range resp.Identifiers {
-			fmt.Println(" ", id)
-		}
-		if resp.HasMore {
-			fmt.Printf("\nMore results available. Use --offset %d to see the next page.\n", offset+limit)
-		}
-		return nil
+		return vdbRender(cmd, display.ToMap(resp), func(data interface{}, ctx *display.Context) string {
+			return display.RenderIdentifiers(data, ctx, "CVE identifiers")
+		})
 	},
 }
 
@@ -1120,7 +1202,7 @@ Examples:
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "🔍 Searching CVE identifiers with prefix %q...\n", prefix)
+		vdbLog(cmd).Infof("🔍 Searching CVE identifiers with prefix %q...", prefix)
 
 		resp, err := client.SearchIdentifiers(prefix, limit, offset)
 		if err != nil {
@@ -1128,18 +1210,9 @@ Examples:
 		}
 		printRateLimit(client)
 
-		if vdbOutput == "json" {
-			return printOutput(resp, vdbOutput)
-		}
-
-		fmt.Printf("Found %d matching CVE identifiers (showing %d-%d):\n", resp.Total, offset+1, offset+len(resp.Identifiers))
-		for _, id := range resp.Identifiers {
-			fmt.Println(" ", id)
-		}
-		if resp.HasMore {
-			fmt.Printf("\nMore results available. Use --offset %d to see the next page.\n", offset+limit)
-		}
-		return nil
+		return vdbRender(cmd, display.ToMap(resp), func(data interface{}, ctx *display.Context) string {
+			return display.RenderIdentifiers(data, ctx, "matching CVE identifiers")
+		})
 	},
 }
 
@@ -1177,44 +1250,44 @@ Examples:
 		if p.Version != "" {
 			ecosystem, knownEco := purl.EcosystemForType(p.Type)
 			if knownEco {
-				fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s (%s)...\n", packageName, p.Version, ecosystem)
+				vdbLog(cmd).Infof("🔍 Fetching %s@%s (%s)...", packageName, p.Version, ecosystem)
 				info, err := client.GetProductVersionEcosystem(packageName, p.Version, ecosystem)
 				if err != nil {
 					var nfe *vdb.NotFoundError
 					if errors.As(err, &nfe) {
-						fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s, ecosystem %s) was not found in the database.\n", packageName, p.Version, ecosystem)
-						fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+						vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s, ecosystem %s) was not found in the database.", packageName, p.Version, ecosystem))
+						vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 						return nil
 					}
 					return fmt.Errorf("failed to get product version ecosystem: %w", err)
 				}
 				printRateLimit(client)
 				if isEmptyResult(info) {
-					fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s, ecosystem %s) was not found in the database.\n", packageName, p.Version, ecosystem)
-					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s, ecosystem %s) was not found in the database.", packageName, p.Version, ecosystem))
+					vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 					return nil
 				}
-				return printOutput(info, vdbOutput)
+				return vdbRender(cmd, info, display.RenderGenericMap)
 			}
 
-			fmt.Fprintf(os.Stderr, "🔍 Fetching %s@%s...\n", packageName, p.Version)
+			vdbLog(cmd).Infof("🔍 Fetching %s@%s...", packageName, p.Version)
 			info, err := client.GetProductVersion(packageName, p.Version)
 			if err != nil {
 				var nfe *vdb.NotFoundError
 				if errors.As(err, &nfe) {
-					fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s) was not found in the database.\n", packageName, p.Version)
-					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s) was not found in the database.", packageName, p.Version))
+					vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 					return nil
 				}
 				return fmt.Errorf("failed to get product version: %w", err)
 			}
 			printRateLimit(client)
 			if isEmptyResult(info) {
-				fmt.Fprintf(os.Stderr, "⚠ Product %q (version %s) was not found in the database.\n", packageName, p.Version)
-				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s) was not found in the database.", packageName, p.Version))
+				vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 				return nil
 			}
-			return printOutput(info, vdbOutput)
+			return vdbRender(cmd, info, display.RenderGenericMap)
 		}
 
 		// No version
@@ -1223,44 +1296,44 @@ Examples:
 		offset, _ := cmd.Flags().GetInt("offset")
 
 		if showVulns {
-			fmt.Fprintf(os.Stderr, "🔒 Fetching vulnerabilities for %s...\n", packageName)
+			vdbLog(cmd).Infof("🔒 Fetching vulnerabilities for %s...", packageName)
 			resp, err := client.GetPackageVulnerabilities(packageName, limit, offset)
 			if err != nil {
 				var nfe *vdb.NotFoundError
 				if errors.As(err, &nfe) {
-					fmt.Fprintf(os.Stderr, "⚠ Package %q was not found in the database.\n", packageName)
-					fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+					vdbLog(cmd).Warn(fmt.Sprintf("⚠ Package %q was not found in the database.", packageName))
+					vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 					return nil
 				}
 				return fmt.Errorf("failed to get vulnerabilities: %w", err)
 			}
 			printRateLimit(client)
 			if resp.TotalCVEs == 0 && resp.Total == 0 {
-				fmt.Fprintf(os.Stderr, "⚠ Package %q was not found in the database.\n", packageName)
-				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Package %q was not found in the database.", packageName))
+				vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 				return nil
 			}
-			return printOutput(resp, vdbOutput)
+			return vdbRender(cmd, display.ToMap(resp), display.RenderPackageVulns)
 		}
 
-		fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s...\n", packageName)
+		vdbLog(cmd).Infof("📦 Fetching versions for %s...", packageName)
 		resp, err := client.GetProductVersions(packageName, limit, offset)
 		if err != nil {
 			var nfe *vdb.NotFoundError
 			if errors.As(err, &nfe) {
-				fmt.Fprintf(os.Stderr, "⚠ Product %q was not found in the database.\n", packageName)
-				fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q was not found in the database.", packageName))
+				vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 				return nil
 			}
 			return fmt.Errorf("failed to get product versions: %w", err)
 		}
 		printRateLimit(client)
 		if resp.Total == 0 {
-			fmt.Fprintf(os.Stderr, "⚠ Product %q was not found in the database.\n", packageName)
-			fmt.Fprintf(os.Stderr, "  This identifier has been flagged for review by Vulnetix admins.\n")
+			vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q was not found in the database.", packageName))
+			vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
 			return nil
 		}
-		return printOutput(resp, vdbOutput)
+		return vdbRender(cmd, display.ToMap(resp), display.RenderProductVersions)
 	},
 }
 
@@ -1280,11 +1353,19 @@ Examples:
 	Args: cobra.NoArgs,
 	// Own PersistentPreRunE overrides parent vdbCmd's — soft-loads creds (no error if absent)
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		mode := display.ModeText
+		if vdbOutput == "json" || vdbOutput == "yaml" {
+			mode = display.ModeJSON
+		}
+		initDisplayContext(cmd, mode)
+		if err := validateOutputFlags(); err != nil {
+			return err
+		}
 		_ = resolveVDBCredentials(false)
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Fprintln(os.Stderr, "🔍 Checking VDB API status...")
+		vdbLog(cmd).Info("🔍 Checking VDB API status...")
 
 		client := newVDBClient()
 
@@ -1350,7 +1431,7 @@ Examples:
 			Auth: authResult,
 		}
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderStatus)
 	},
 }
 
@@ -1457,14 +1538,14 @@ Examples:
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "🔍 Searching packages for %q...\n", query)
+		vdbLog(cmd).Infof("🔍 Searching packages for %q...", query)
 
 		result, err := client.SearchPackages(query, ecosystem, limit, offset)
 		if err != nil {
 			var nfe *vdb.NotFoundError
 			if errors.As(err, &nfe) {
-				fmt.Fprintf(os.Stderr, "⚠ No packages matching %q were found in the database.\n", query)
-				fmt.Fprintf(os.Stderr, "  This query has been flagged for review by Vulnetix admins.\n")
+				vdbLog(cmd).Warn(fmt.Sprintf("⚠ No packages matching %q were found in the database.", query))
+				vdbLog(cmd).Info("  This query has been flagged for review by Vulnetix admins.")
 				return nil
 			}
 			return fmt.Errorf("failed to search packages: %w", err)
@@ -1472,12 +1553,14 @@ Examples:
 		printRateLimit(client)
 
 		if isEmptyResult(result) {
-			fmt.Fprintf(os.Stderr, "⚠ No packages matching %q were found in the database.\n", query)
-			fmt.Fprintf(os.Stderr, "  This query has been flagged for review by Vulnetix admins.\n")
+			vdbLog(cmd).Warn(fmt.Sprintf("⚠ No packages matching %q were found in the database.", query))
+			vdbLog(cmd).Info("  This query has been flagged for review by Vulnetix admins.")
 			return nil
 		}
 
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
+			return display.RenderPackagesSearch(data, ctx)
+		})
 	},
 }
 
@@ -1506,7 +1589,8 @@ Examples:
   vulnetix vdb cache clear`,
 	// Override parent's PersistentPreRunE — cache clear needs no auth
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return nil
+		initDisplayContext(cmd, display.ModeText)
+		return validateOutputFlags()
 	},
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -1517,7 +1601,7 @@ Examples:
 		if err := dc.Clear(); err != nil {
 			return fmt.Errorf("failed to clear cache: %w", err)
 		}
-		fmt.Fprintf(os.Stderr, "Cache cleared: %s\n", dc.Dir())
+		vdbLog(cmd).Infof("Cache cleared: %s", dc.Dir())
 		return nil
 	},
 }
@@ -1538,7 +1622,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
 
-		fmt.Fprintln(os.Stderr, "📊 Fetching VDB database summary...")
+		vdbLog(cmd).Info("📊 Fetching VDB database summary...")
 
 		result, err := client.GetSummary()
 		if err != nil {
@@ -1546,88 +1630,8 @@ Examples:
 		}
 		printRateLimit(client)
 
-		if vdbOutput == "json" {
-			return printOutput(result, vdbOutput)
-		}
-
-		// Pretty-print the summary
-		fmt.Printf("\n📊 VDB Database Summary\n")
-		fmt.Printf("══════════════════════\n\n")
-
-		if db, ok := result["database"].(map[string]interface{}); ok {
-			fmt.Printf("Database Coverage:\n")
-			fmt.Printf("  %-28s %10s\n", "Total advisories:", formatNumber(toIntVal(db["totalRows"])))
-			fmt.Printf("  %-28s %10s\n", "Distinct Vulnerability IDs:", formatNumber(toIntVal(db["distinctCveIds"])))
-			fmt.Printf("  %-28s %10s\n", "Total exploits:", formatNumber(toIntVal(db["totalExploits"])))
-			fmt.Printf("  %-28s %10s\n", "Malicious packages:", formatNumber(toIntVal(db["maliciousPackages"])))
-			fmt.Printf("  %-28s %10s\n", "Advisories with exploits:", formatNumber(toIntVal(db["cvesWithExploits"])))
-			fmt.Printf("  %-28s %10s\n", "Total Advisory references:", formatNumber(toIntVal(db["totalReferences"])))
-			fmt.Printf("  %-28s %10s\n", "Distinct ref URLs:", formatNumber(toIntVal(db["distinctReferenceUrls"])))
-			fmt.Printf("  %-28s %10s\n", "KEV entries:", formatNumber(toIntVal(db["totalKev"])))
-			fmt.Println()
-		}
-
-		if sev, ok := result["severity"].(map[string]interface{}); ok {
-			fmt.Printf("Severity Distribution:\n")
-			fmt.Printf("  %-14s %9s\n", "Critical:", formatNumber(toIntVal(sev["critical"])))
-			fmt.Printf("  %-14s %9s\n", "High:", formatNumber(toIntVal(sev["high"])))
-			fmt.Printf("  %-14s %9s\n", "Medium:", formatNumber(toIntVal(sev["medium"])))
-			fmt.Printf("  %-14s %9s\n", "Low:", formatNumber(toIntVal(sev["low"])))
-			fmt.Printf("  %-14s %9s\n", "Not Assigned:", formatNumber(toIntVal(sev["none"])))
-			fmt.Println()
-		}
-
-		if cov, ok := result["coverage"].(map[string]interface{}); ok {
-			avgEpss := 0.0
-			if v, ok := cov["averageEpss"].(float64); ok {
-				avgEpss = v
-			}
-			fmt.Printf("Enrichment Coverage:\n")
-			fmt.Printf("  %-20s %10s\n", "With CVSS:", formatNumber(toIntVal(cov["withCvss"])))
-			fmt.Printf("  %-20s %10s\n", "With EPSS:", formatNumber(toIntVal(cov["withEpss"])))
-			fmt.Printf("  %-20s %10s\n", "With Coalition ESS:", formatNumber(toIntVal(cov["withCess"])))
-			fmt.Printf("  %-20s %10s\n", "With CWE:", formatNumber(toIntVal(cov["withCwe"])))
-			fmt.Printf("  %-20s %10s\n", "With CAPEC:", formatNumber(toIntVal(cov["withCapec"])))
-			fmt.Printf("  %-20s %10s\n", "With SSVC:", formatNumber(toIntVal(cov["withSsvc"])))
-			fmt.Printf("  %-20s %10s\n", "No references:", formatNumber(toIntVal(cov["noReferences"])))
-			fmt.Printf("  %-20s %10.6f\n", "Average EPSS:", avgEpss)
-			fmt.Printf("  %-20s %10s\n", "High EPSS (≥0.7):", formatNumber(toIntVal(cov["highEpss"])))
-			fmt.Println()
-		}
-
-		if cwes, ok := result["topCWEs"].([]interface{}); ok && len(cwes) > 0 {
-			fmt.Printf("Top CWEs:\n")
-			for i, item := range cwes {
-				if m, ok := item.(map[string]interface{}); ok {
-					fmt.Printf("  %2d. %-10s %10s advisories\n", i+1, m["cweId"], formatNumber(toIntVal(m["count"])))
-				}
-			}
-			fmt.Println()
-		}
-
-		if vendors, ok := result["topVendors"].([]interface{}); ok && len(vendors) > 0 {
-			fmt.Printf("Top Vendors:\n")
-			for i, item := range vendors {
-				if m, ok := item.(map[string]interface{}); ok {
-					fmt.Printf("  %2d. %-20s %10s advisories\n", i+1, m["vendor"], formatNumber(toIntVal(m["count"])))
-				}
-			}
-			fmt.Println()
-		}
-
-		return nil
+		return vdbRender(cmd, result, display.RenderSummary)
 	},
-}
-
-// toIntVal converts a JSON-decoded number (float64) to int for display.
-func toIntVal(v interface{}) int {
-	switch n := v.(type) {
-	case float64:
-		return int(n)
-	case int:
-		return n
-	}
-	return 0
 }
 
 func init() {
@@ -1716,10 +1720,21 @@ func init() {
 	vdbCmd.PersistentFlags().StringVar(&vdbMethod, "method", "", "Auth method: apikey or sigv4 (auto-detected from flags if omitted)")
 	vdbCmd.PersistentFlags().StringVar(&vdbBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
 	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "", `API version path (default "v1"; e.g. "v2")`)
-	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, pretty)")
+	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, yaml, pretty)")
 	vdbCmd.PersistentFlags().BoolVar(&vdbNoCache, "no-cache", false, "Bypass local disk cache entirely")
 	vdbCmd.PersistentFlags().BoolVar(&vdbRefreshCache, "refresh-cache", false, "Ignore cached data and fetch fresh from API (updates cache)")
 	vdbCmd.PersistentFlags().BoolVar(&vdbNoCommunity, "no-community", false, "Disable community fallback credentials (require explicit authentication)")
+
+	// JSON output formatting flags (only active with --output json)
+	vdbCmd.PersistentFlags().BoolVar(&vdbCompact, "compact", false, "2-space indent (--output json only)")
+	vdbCmd.PersistentFlags().BoolVar(&vdbComfortable, "comfortable", false, "4-space indent (default for --output json)")
+	vdbCmd.PersistentFlags().BoolVar(&vdbSparse, "sparse", false, "8-space indent (--output json only)")
+	vdbCmd.PersistentFlags().StringVar(&vdbHighlight, "highlight", "none", "Syntax highlighting: dark, light, none (--output json only)")
+	_ = vdbCmd.RegisterFlagCompletionFunc("method", cobra.FixedCompletions([]string{"apikey", "sigv4"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = vdbCmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"json", "yaml", "pretty"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = vdbCmd.RegisterFlagCompletionFunc("api-version", cobra.FixedCompletions([]string{"v1", "v2"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = vdbCmd.RegisterFlagCompletionFunc("highlight", cobra.FixedCompletions([]string{"dark", "light", "none"}, cobra.ShellCompDirectiveNoFileComp))
+	vdbCmd.MarkFlagsMutuallyExclusive("comfortable", "compact", "sparse")
 
 	// Pagination flags for applicable commands
 	productCmd.Flags().Int("limit", 100, "Maximum number of results to return (default 100; use with --offset for pagination)")
@@ -1761,6 +1776,9 @@ func init() {
 	exploitsSearchCmd.Flags().String("sort", "", "Sort order (recent, epss, severity, maturity)")
 	exploitsSearchCmd.Flags().Int("limit", 100, "Maximum results (max 100)")
 	exploitsSearchCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
+	_ = exploitsSearchCmd.RegisterFlagCompletionFunc("source", cobra.FixedCompletions([]string{"exploitdb", "metasploit", "nuclei", "vulncheck-xdb", "crowdsec", "github", "poc"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = exploitsSearchCmd.RegisterFlagCompletionFunc("severity", cobra.FixedCompletions([]string{"CRITICAL", "HIGH", "MEDIUM", "LOW", "NONE"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = exploitsSearchCmd.RegisterFlagCompletionFunc("sort", cobra.FixedCompletions([]string{"recent", "epss", "severity", "maturity"}, cobra.ShellCompDirectiveNoFileComp))
 
 	// packages search flags
 	packagesSearchCmd.Flags().String("ecosystem", "", "Filter by ecosystem")
@@ -1779,4 +1797,5 @@ func init() {
 	timelineCmd.Flags().String("exclude", "", "Comma-separated event types to exclude")
 	timelineCmd.Flags().String("dates", "", "CVE date fields: published,modified,reserved (default: all)")
 	timelineCmd.Flags().Int("scores-limit", 30, "Max score-change events (max 365)")
+	_ = timelineCmd.RegisterFlagCompletionFunc("dates", cobra.FixedCompletions([]string{"published", "modified", "reserved"}, cobra.ShellCompDirectiveNoFileComp))
 }
