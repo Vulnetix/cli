@@ -92,6 +92,23 @@ go install github.com/vulnetix/cli@main
 go install github.com/vulnetix/cli@feature/new-feature
 ```
 
+## Shell Completions
+
+Enable tab completion for your shell:
+
+```bash
+# Bash
+source <(vulnetix completion bash)
+
+# Zsh
+vulnetix completion zsh > "${fpath[1]}/_vulnetix"
+
+# Fish
+vulnetix completion fish > ~/.config/fish/completions/vulnetix.fish
+```
+
+For permanent installation and other shells, see the [Shell Completions guide](../../cli-reference/completions/).
+
 ## Configuration
 
 ### Environment Variables

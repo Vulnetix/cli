@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/internal/display"
 )
 
 // ecosystemCmd is the parent for ecosystem-scoped subcommands
@@ -39,24 +39,24 @@ Examples:
 		client := newVDBClient()
 
 		if showVersions {
-			fmt.Fprintf(os.Stderr, "📦 Fetching versions for %s/%s...\n", ecosystem, pkg)
+			vdbLog(cmd).Infof("📦 Fetching versions for %s/%s...\n", ecosystem, pkg)
 
 			result, err := client.GetEcosystemPackageVersions(ecosystem, pkg)
 			if err != nil {
 				return fmt.Errorf("failed to get ecosystem package versions: %w", err)
 			}
 			printRateLimit(client)
-			return printOutput(result, vdbOutput)
+			return vdbRender(cmd, result, display.RenderGenericMap)
 		}
 
-		fmt.Fprintf(os.Stderr, "📦 Fetching package info for %s/%s...\n", ecosystem, pkg)
+		vdbLog(cmd).Infof("📦 Fetching package info for %s/%s...\n", ecosystem, pkg)
 
 		result, err := client.GetEcosystemPackage(ecosystem, pkg)
 		if err != nil {
 			return fmt.Errorf("failed to get ecosystem package: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderGenericMap)
 	},
 }
 
@@ -78,14 +78,14 @@ Examples:
 
 		client := newVDBClient()
 
-		fmt.Fprintf(os.Stderr, "📦 Fetching %s/%s/%s...\n", ecosystem, group, artifact)
+		vdbLog(cmd).Infof("📦 Fetching %s/%s/%s...\n", ecosystem, group, artifact)
 
 		result, err := client.GetEcosystemGroupPackage(ecosystem, group, artifact)
 		if err != nil {
 			return fmt.Errorf("failed to get ecosystem group package: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderGenericMap)
 	},
 }
 

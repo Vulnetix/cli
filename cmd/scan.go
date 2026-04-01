@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/cdx"
+	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/gitctx"
 	"github.com/vulnetix/cli/internal/scan"
 	"github.com/vulnetix/cli/internal/tty"
@@ -45,6 +46,7 @@ Examples:
   vulnetix scan -f cdx16
   vulnetix scan --concurrency 3`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		initDisplayContext(cmd, display.ModeText)
 		return resolveVDBCredentials(true)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -492,9 +494,15 @@ func init() {
 	scanCmd.Flags().StringP("output", "o", "pretty", "Output format for legacy/status mode (json, pretty)")
 	scanCmd.Flags().StringP("format", "f", "", "Output format: cdx17 (default), cdx16, json")
 	scanCmd.Flags().Int("concurrency", 5, "Max concurrent uploads")
+	_ = scanCmd.RegisterFlagCompletionFunc("type", cobra.FixedCompletions([]string{"manifest", "spdx", "cyclonedx"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = scanCmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"json", "pretty"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = scanCmd.RegisterFlagCompletionFunc("format", cobra.FixedCompletions([]string{"cdx17", "cdx16", "json"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = scanCmd.MarkFlagDirname("path")
+	_ = scanCmd.MarkFlagFilename("file")
 
 	// Scan status flags
 	scanStatusCmd.Flags().Bool("poll", false, "Poll until complete")
 	scanStatusCmd.Flags().Int("poll-interval", 5, "Polling interval in seconds")
 	scanStatusCmd.Flags().StringP("output", "o", "pretty", "Output format (json, pretty)")
+	_ = scanStatusCmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"json", "pretty"}, cobra.ShellCompDirectiveNoFileComp))
 }

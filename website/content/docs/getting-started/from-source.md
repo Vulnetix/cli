@@ -76,6 +76,23 @@ go build -ldflags="-s -w" -o vulnetix .
 sudo install vulnetix /usr/local/bin/
 ```
 
+## Shell Completions
+
+Enable tab completion for your shell:
+
+```bash
+# Bash
+vulnetix completion bash > ~/.local/share/bash-completion/completions/vulnetix
+
+# Zsh
+vulnetix completion zsh > "${fpath[1]}/_vulnetix"
+
+# Fish
+vulnetix completion fish > ~/.config/fish/completions/vulnetix.fish
+```
+
+For full setup instructions, see the [Shell Completions guide](../../cli-reference/completions/).
+
 ## Build Configurations
 
 ### Release Build

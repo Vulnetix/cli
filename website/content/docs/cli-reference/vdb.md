@@ -39,6 +39,11 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb ecosystem package](#vdb-ecosystem-package)
   - [vdb ecosystem group](#vdb-ecosystem-group)
 - [V2 Commands](#v2-commands)
+- [Output Management](#output-management)
+  - [Output Formats](#output-formats)
+  - [JSON Formatting Options](#json-formatting-options)
+  - [Saving Output to a File](#saving-output-to-a-file)
+  - [Separating Output and Logs](#separating-output-and-logs)
 - [Examples](#examples)
 - [Rate Limiting](#rate-limiting)
 
@@ -173,7 +178,7 @@ vulnetix vdb vuln <vuln-id> [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -218,7 +223,7 @@ vulnetix vdb ecosystems [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -253,7 +258,7 @@ vulnetix vdb product <product-name> [version] [ecosystem] [flags]
 **Flags:**
 - `--limit int`: Maximum number of results to return (default 100)
 - `--offset int`: Number of results to skip (default 0)
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -303,7 +308,7 @@ vulnetix vdb vulns <package-name> [flags]
 **Flags:**
 - `--limit int`: Maximum number of results to return (default 100)
 - `--offset int`: Number of results to skip (default 0)
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -344,7 +349,7 @@ vulnetix vdb spec [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -370,7 +375,7 @@ vulnetix vdb exploits <vuln-id> [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -410,7 +415,7 @@ vulnetix vdb exploits search [flags]
 | `--sort` | string | - | Sort field |
 | `--limit` | int | `100` | Maximum results |
 | `--offset` | int | `0` | Results to skip |
-| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+| `-o, --output` | string | `pretty` | Output format: `json`, `yaml`, `pretty` |
 
 **Examples:**
 ```bash
@@ -441,7 +446,7 @@ vulnetix vdb exploits sources [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -466,7 +471,7 @@ vulnetix vdb exploits types [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -489,7 +494,7 @@ vulnetix vdb fixes <vuln-id> [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 > **V2 note:** When using API v2 (`-V v2`), fix data is fetched in parallel with other enrichment endpoints for faster response times.
 
@@ -552,7 +557,7 @@ vulnetix vdb fixes distributions [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -583,7 +588,7 @@ vulnetix vdb timeline <vuln-id> [flags]
 | `--exclude` | string | none | Comma-separated event types to exclude |
 | `--dates` | string | all | CVE date fields: `published,modified,reserved` |
 | `--scores-limit` | int | `30` | Max score-change events (max 365) |
-| `-o, --output` | string | `pretty` | Output format (json, pretty) |
+| `-o, --output` | string | `pretty` | Output format: `json`, `yaml`, `pretty` |
 
 **Event types:**
 
@@ -648,7 +653,7 @@ vulnetix vdb versions <package-name> [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -673,7 +678,7 @@ vulnetix vdb gcve --start <YYYY-MM-DD> --end <YYYY-MM-DD> [flags]
 **Flags:**
 - `--start string`: Start date (YYYY-MM-DD) **[required]**
 - `--end string`: End date (YYYY-MM-DD) **[required]**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -746,7 +751,7 @@ vulnetix vdb purl <purl-string> [flags]
 - `--vulns`: Show vulnerabilities instead of versions (only effective when PURL has no version)
 - `--limit int`: Maximum number of results (default 100)
 - `--offset int`: Number of results to skip (default 0)
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -787,7 +792,7 @@ vulnetix vdb ids <year> <month> [flags]
 **Flags:**
 - `--limit int`: Maximum results (default 100, max 500)
 - `--offset int`: Results to skip (for pagination, default 0)
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -815,7 +820,7 @@ vulnetix vdb search <prefix> [flags]
 **Flags:**
 - `--limit int`: Maximum results (default 100, max 500)
 - `--offset int`: Results to skip (for pagination, default 0)
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -841,7 +846,7 @@ vulnetix vdb sources [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -864,7 +869,7 @@ vulnetix vdb metrics <vuln-id> [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 ---
 
@@ -880,7 +885,7 @@ vulnetix vdb metrics types [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -903,7 +908,7 @@ vulnetix vdb status [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 ---
 
@@ -917,7 +922,7 @@ vulnetix vdb summary [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Response sections:**
 
@@ -956,7 +961,7 @@ vulnetix vdb packages search <query> [flags]
 | `--ecosystem` | string | - | Filter by package ecosystem |
 | `--limit` | int | `100` | Maximum results |
 | `--offset` | int | `0` | Results to skip |
-| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+| `-o, --output` | string | `pretty` | Output format: `json`, `yaml`, `pretty` |
 
 **Response Fields:**
 
@@ -1008,7 +1013,7 @@ vulnetix vdb ecosystem package <ecosystem> <package-name> [flags]
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--versions` | bool | `false` | Show version information instead of package info |
-| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+| `-o, --output` | string | `pretty` | Output format: `json`, `yaml`, `pretty` |
 
 **Examples:**
 ```bash
@@ -1034,7 +1039,7 @@ vulnetix vdb ecosystem group <ecosystem> <group> <artifact> [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -1063,7 +1068,7 @@ vulnetix vdb workarounds <vuln-id> -V v2 [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -1083,7 +1088,7 @@ vulnetix vdb advisories <vuln-id> -V v2 [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -1103,7 +1108,7 @@ vulnetix vdb cwe guidance <vuln-id> -V v2 [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -1123,7 +1128,7 @@ vulnetix vdb kev <vuln-id> -V v2 [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -1143,7 +1148,7 @@ vulnetix vdb timeline <vuln-id> -V v2 [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -1168,7 +1173,7 @@ vulnetix vdb affected <vuln-id> -V v2 [flags]
 |------|------|---------|-------------|
 | `--ecosystem` | string | - | Filter by package ecosystem |
 | `--package-name` | string | - | Filter by package name |
-| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+| `-o, --output` | string | `pretty` | Output format: `json`, `yaml`, `pretty` |
 
 **Examples:**
 ```bash
@@ -1189,7 +1194,7 @@ vulnetix vdb scorecard <vuln-id> -V v2 [flags]
 ```
 
 **Flags:**
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
 **Examples:**
 ```bash
@@ -1239,7 +1244,7 @@ vulnetix vdb remediation plan <vuln-id> -V v2 [flags]
 | `--registry` | string | - | Registry URL |
 | `--include-guidance` | bool | `false` | Include CWE-based guidance text |
 | `--include-verification-steps` | bool | `false` | Include verification steps in actions |
-| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+| `-o, --output` | string | `pretty` | Output format: `json`, `yaml`, `pretty` |
 
 **Examples:**
 ```bash
@@ -1276,7 +1281,7 @@ vulnetix vdb cloud-locators -V v2 [flags]
 |------|------|---------|-------------|
 | `--vendor` | string | - | Vendor name (e.g. amazon, microsoft, google, cloudflare, oracle) |
 | `--product` | string | - | Product/service name (e.g. s3, ec2, cloudfront, workers) |
-| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
+| `-o, --output` | string | `pretty` | Output format: `json`, `yaml`, `pretty` |
 
 **Examples:**
 ```bash
@@ -1315,6 +1320,135 @@ vulnetix vdb cloud-locators --vendor amazon --product lambda -V v2 -o json
 | `cloudLocators.templates[]` | array | Resource identifier templates with `{placeholders}` |
 
 </div>
+
+---
+
+## Output Management
+
+The `--output` (`-o`) flag controls the format of command output. Additional flags provide fine-grained control over JSON formatting and syntax highlighting.
+
+### Output Formats
+
+| Format | Flag | Description |
+|--------|------|-------------|
+| `pretty` | `-o pretty` | Human-readable indented JSON (default) |
+| `json` | `-o json` | Machine-readable JSON with configurable indent and highlighting |
+| `yaml` | `-o yaml` | YAML output for readability and config file integration |
+
+```bash
+# Default pretty output
+vulnetix vdb vuln CVE-2021-44228
+
+# JSON output
+vulnetix vdb vuln CVE-2021-44228 -o json
+
+# YAML output
+vulnetix vdb vuln CVE-2021-44228 -o yaml
+```
+
+### JSON Formatting Options
+
+These flags are only valid with `--output json`. Using them with other output formats produces an error.
+
+#### Indent Presets
+
+Three mutually exclusive indent presets control JSON indentation depth. Only one can be used at a time.
+
+| Flag | Indent | Description |
+|------|--------|-------------|
+| *(default)* | 4 spaces | Comfortable — balanced readability (same as `--comfortable`) |
+| `--comfortable` | 4 spaces | Explicitly request the default indent |
+| `--compact` | 2 spaces | Denser output, less vertical space |
+| `--sparse` | 8 spaces | Wide indent for maximum readability |
+
+```bash
+# Default 4-space indent
+vulnetix vdb vuln CVE-2021-44228 -o json
+
+# Compact 2-space indent
+vulnetix vdb vuln CVE-2021-44228 -o json --compact
+
+# Sparse 8-space indent
+vulnetix vdb vuln CVE-2021-44228 -o json --sparse
+```
+
+#### Syntax Highlighting
+
+The `--highlight` flag adds terminal color highlighting to JSON output. Available themes:
+
+| Value | Description |
+|-------|-------------|
+| `none` | No highlighting (default) |
+| `dark` | Monokai theme — optimized for dark terminal backgrounds |
+| `light` | GitHub theme — optimized for light terminal backgrounds |
+
+```bash
+# Highlighted JSON for dark terminals
+vulnetix vdb vuln CVE-2021-44228 -o json --highlight dark
+
+# Highlighted JSON for light terminals
+vulnetix vdb vuln CVE-2021-44228 -o json --highlight light
+```
+
+**Pipe safety:** Syntax highlighting is automatically disabled when stdout is not a terminal (e.g., when piping to another command or redirecting to a file). This ensures that ANSI escape codes never corrupt file output or downstream tools, even if `--highlight` is explicitly set.
+
+```bash
+# Highlighting is active (stdout is terminal)
+vulnetix vdb vuln CVE-2021-44228 -o json --highlight dark
+
+# Highlighting is auto-disabled (stdout is piped)
+vulnetix vdb vuln CVE-2021-44228 -o json --highlight dark | jq .
+
+# Highlighting is auto-disabled (stdout is redirected)
+vulnetix vdb vuln CVE-2021-44228 -o json --highlight dark > output.json
+```
+
+### Saving Output to a File
+
+Use shell redirection (`>`) to write command output to a file. The data stream (stdout) contains only the formatted output, making it safe for direct file capture.
+
+```bash
+# Save JSON to a file
+vulnetix vdb vuln CVE-2021-44228 -o json > vuln.json
+
+# Save compact JSON
+vulnetix vdb vuln CVE-2021-44228 -o json --compact > vuln.json
+
+# Save YAML to a file
+vulnetix vdb vuln CVE-2021-44228 -o yaml > vuln.yaml
+
+# Append to an existing file
+vulnetix vdb vuln CVE-2021-44228 -o json >> all-vulns.json
+```
+
+### Separating Output and Logs
+
+The CLI writes data output to **stdout** and diagnostic messages (progress, warnings, rate limit info) to **stderr**. This separation allows you to capture clean data output while still seeing — or independently capturing — log messages.
+
+```bash
+# Save data to file, logs print to terminal
+vulnetix vdb vuln CVE-2021-44228 -o json > vuln.json
+
+# Save data to file, logs to separate file
+vulnetix vdb vuln CVE-2021-44228 -o json > vuln.json 2> vuln.log
+
+# Save data to file, suppress logs entirely
+vulnetix vdb vuln CVE-2021-44228 -o json > vuln.json 2>/dev/null
+
+# Save both data and logs to the same file
+vulnetix vdb vuln CVE-2021-44228 -o json > vuln.json 2>&1
+
+# View logs only, discard data
+vulnetix vdb vuln CVE-2021-44228 -o json > /dev/null
+```
+
+| Redirect | Effect |
+|----------|--------|
+| `> file` | Data output to file, logs to terminal |
+| `2> file` | Logs to file, data to terminal |
+| `> data 2> logs` | Data and logs to separate files |
+| `2>/dev/null` | Suppress log messages |
+| `> file 2>&1` | Everything to one file |
 
 ---
 
@@ -1478,7 +1612,11 @@ All `vdb` commands support these global flags:
 - `--method string`: Auth method: `apikey` or `sigv4` (auto-detected from flags if omitted)
 - `--base-url string`: VDB API base URL (default "https://api.vdb.vulnetix.com")
 - `-V, --api-version string`: API version path (default "v1"; e.g. "v2")
-- `-o, --output string`: Output format (json, pretty) (default "pretty")
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
+- `--compact`: 2-space JSON indent (`--output json` only)
+- `--comfortable`: 4-space JSON indent, the default (`--output json` only)
+- `--sparse`: 8-space JSON indent (`--output json` only)
+- `--highlight string`: Syntax highlighting: `dark`, `light`, `none` (`--output json` only, default "none")
 
 ## Security Notes
 

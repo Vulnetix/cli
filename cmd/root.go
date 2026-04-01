@@ -13,13 +13,15 @@ import (
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/cache"
 	"github.com/vulnetix/cli/internal/config"
+	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/update"
 	"github.com/vulnetix/cli/internal/vdb"
 )
 
 var (
 	// Command line flags
-	orgID string
+	orgID  string
+	silent bool
 
 	// Build metadata (injected via ldflags)
 	version   = "1.0.0"   // -X github.com/vulnetix/cli/cmd.version=
@@ -37,6 +39,9 @@ var rootCmd = &cobra.Command{
 	Long: `Vulnetix CLI is a command-line tool for vulnerability management that focuses on
 automated remediation over discovery. It helps organizations prioritize and resolve
 vulnerabilities efficiently.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		initDisplayContext(cmd, display.ModeText)
+	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		if updateCheckResult == nil {
 			return
@@ -50,24 +55,45 @@ vulnerabilities efficiently.`,
 		}
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runInfoTask()
+		return runInfoTask(cmd)
 	},
 }
 
-// runInfoTask performs an authentication healthcheck across all credential sources
-func runInfoTask() error {
-	fmt.Printf("Vulnetix CLI v%s\n", version)
-	fmt.Printf("Platform: %s\n\n", config.DetectPlatform())
+// initDisplayContext creates and attaches a display.Context to the command.
+func initDisplayContext(cmd *cobra.Command, mode display.OutputMode) {
+	dc := display.New(mode, silent)
+	dc.Attach(cmd)
+}
 
-	fmt.Println("Authentication Sources:")
-	fmt.Println()
+// runInfoTask performs an authentication healthcheck across all credential sources
+func runInfoTask(cmd *cobra.Command) error {
+	ctx := display.FromCommand(cmd)
+	t := ctx.Term
+
+	var b strings.Builder
+	b.WriteString(display.Bold(t, fmt.Sprintf("Vulnetix CLI v%s", version)) + "\n")
+	b.WriteString(display.Muted(t, fmt.Sprintf("Platform: %s", config.DetectPlatform())) + "\n")
+	b.WriteString("\n" + display.Subheader(t, "Authentication Sources") + "\n")
 
 	anyFound := false
+
+	formatSource := func(name, dots string, status string, ok bool) {
+		mark := display.CheckMark(t)
+		if !ok {
+			mark = display.CrossMark(t)
+		}
+		b.WriteString(fmt.Sprintf("  %s %s %s %s\n", name, display.Muted(t, dots), mark, status))
+	}
+	formatNotSet := func(name, dots string) {
+		b.WriteString(fmt.Sprintf("  %s %s %s\n", name, display.Muted(t, dots), display.Muted(t, "not set")))
+	}
+	formatNotFound := func(name, dots string) {
+		b.WriteString(fmt.Sprintf("  %s %s %s\n", name, display.Muted(t, dots), display.Muted(t, "not found")))
+	}
 
 	// 1. Check Direct API Key env vars
 	apiKey := os.Getenv("VULNETIX_API_KEY")
 	envOrgID := os.Getenv("VULNETIX_ORG_ID")
-	fmt.Print("  VULNETIX_API_KEY + VULNETIX_ORG_ID (env) ... ")
 	if apiKey != "" && envOrgID != "" {
 		anyFound = true
 		creds := &auth.Credentials{
@@ -76,65 +102,63 @@ func runInfoTask() error {
 			Method: auth.DirectAPIKey,
 		}
 		if err := verifyDirectAPIKey(creds); err != nil {
-			fmt.Printf("FAIL (%s)\n", err)
+			formatSource("VULNETIX_API_KEY + VULNETIX_ORG_ID (env)", "···", fmt.Sprintf("(%s)", err), false)
 		} else {
-			fmt.Printf("OK (org: %s)\n", envOrgID)
+			formatSource("VULNETIX_API_KEY + VULNETIX_ORG_ID (env)", "···", display.Muted(t, fmt.Sprintf("org: %s", envOrgID)), true)
 		}
 	} else {
-		fmt.Println("not set")
+		formatNotSet("VULNETIX_API_KEY + VULNETIX_ORG_ID (env)", "···")
 	}
 
 	// 2. Check SigV4 env vars
 	vvdOrg := os.Getenv("VVD_ORG")
 	vvdSecret := os.Getenv("VVD_SECRET")
-	fmt.Print("  VVD_ORG + VVD_SECRET (env)               ... ")
 	if vvdOrg != "" && vvdSecret != "" {
 		anyFound = true
 		if err := verifySigV4(vvdOrg, vvdSecret); err != nil {
-			fmt.Printf("FAIL (%s)\n", err)
+			formatSource("VVD_ORG + VVD_SECRET (env)", "···············", fmt.Sprintf("(%s)", err), false)
 		} else {
-			fmt.Printf("OK (org: %s)\n", vvdOrg)
+			formatSource("VVD_ORG + VVD_SECRET (env)", "···············", display.Muted(t, fmt.Sprintf("org: %s", vvdOrg)), true)
 		}
 	} else {
-		fmt.Println("not set")
+		formatNotSet("VVD_ORG + VVD_SECRET (env)", "···············")
 	}
 
 	// 3. Check project dotfile
-	fmt.Print("  .vulnetix/credentials.json (project)      ... ")
 	if creds, err := loadCredentialFile(auth.StoreProject); err == nil {
 		anyFound = true
 		if verr := verifyCredentials(creds); verr != nil {
-			fmt.Printf("FAIL (%s)\n", verr)
+			formatSource(".vulnetix/credentials.json (project)", "······", fmt.Sprintf("(%s)", verr), false)
 		} else {
-			fmt.Printf("OK (method: %s, org: %s)\n", creds.Method, creds.OrgID)
+			formatSource(".vulnetix/credentials.json (project)", "······", display.Muted(t, fmt.Sprintf("%s, org: %s", creds.Method, creds.OrgID)), true)
 		}
 	} else {
-		fmt.Println("not found")
+		formatNotFound(".vulnetix/credentials.json (project)", "······")
 	}
 
 	// 4. Check home directory
 	homeDir, _ := os.UserHomeDir()
 	homePath := filepath.Join(homeDir, ".vulnetix", "credentials.json")
-	fmt.Printf("  %s (home) ... ", homePath)
+	homeLabel := homePath + " (home)"
 	if creds, err := loadCredentialFile(auth.StoreHome); err == nil {
 		anyFound = true
 		if verr := verifyCredentials(creds); verr != nil {
-			fmt.Printf("FAIL (%s)\n", verr)
+			formatSource(homeLabel, "···", fmt.Sprintf("(%s)", verr), false)
 		} else {
-			fmt.Printf("OK (method: %s, org: %s)\n", creds.Method, creds.OrgID)
+			formatSource(homeLabel, "···", display.Muted(t, fmt.Sprintf("%s, org: %s", creds.Method, creds.OrgID)), true)
 		}
 	} else {
-		fmt.Println("not found")
+		formatNotFound(homeLabel, "···")
 	}
 
 	// 5. Community fallback (VDB only)
-	fmt.Print("  Unauthenticated Community (VDB only)      ... ")
-	fmt.Println("available (use --no-community to disable)")
+	formatSource("Unauthenticated Community (VDB only)", "······", display.Muted(t, "available"), true)
 
-	fmt.Println()
 	if !anyFound {
-		fmt.Println("No credentials configured. Run 'vulnetix auth login' to get started.")
+		b.WriteString("\n" + display.Muted(t, "No credentials configured. Run 'vulnetix auth login' to get started.") + "\n")
 	}
+
+	ctx.Logger.Result(b.String())
 	return nil
 }
 
@@ -254,5 +278,7 @@ func startupHooks() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
+	rootCmd.PersistentFlags().BoolVar(&silent, "silent", false, "Suppress all log output, only print final result")
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	cobra.OnInitialize(startupHooks)
 }
