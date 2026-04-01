@@ -38,6 +38,16 @@ Scoop automatically selects the correct binary for your system:
 | x86 (386) | `32bit` | `vulnetix-windows-386.exe` |
 | ARM64 | `arm64` | `vulnetix-windows-arm64.exe` |
 
+## Shell Completions
+
+Enable tab completion in PowerShell:
+
+```powershell
+vulnetix completion powershell >> $PROFILE
+```
+
+For other shells, see the [Shell Completions guide](../../cli-reference/completions/).
+
 ## Uninstall
 
 ```powershell

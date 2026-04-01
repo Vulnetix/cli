@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/upload"
 )
 
@@ -43,6 +45,9 @@ Examples:
 }
 
 func runUpload(cmd *cobra.Command, args []string) error {
+	ctx := display.FromCommand(cmd)
+	t := ctx.Term
+
 	if uploadFile == "" {
 		return fmt.Errorf("--file is required")
 	}
@@ -67,9 +72,7 @@ func runUpload(cmd *cobra.Command, args []string) error {
 		creds.OrgID = uploadOrgID
 	}
 
-	if !uploadOutputJSON {
-		fmt.Printf("Uploading %s (%d bytes)...\n", uploadFile, info.Size())
-	}
+	ctx.Logger.Infof("Uploading %s (%d bytes)...", uploadFile, info.Size())
 
 	// Create upload client
 	client := upload.NewClient(uploadBaseURL, creds)
@@ -86,17 +89,21 @@ func runUpload(cmd *cobra.Command, args []string) error {
 		return encoder.Encode(result)
 	}
 
+	var b strings.Builder
 	if result.IsDuplicate {
-		fmt.Printf("Duplicate file detected (already uploaded)\n")
+		b.WriteString(display.WarningMark(t) + " " + display.Bold(t, "Duplicate file detected") + " (already uploaded)\n")
 	} else {
-		fmt.Printf("Upload successful\n")
+		b.WriteString(display.CheckMark(t) + " " + display.Bold(t, "Upload successful") + "\n")
 	}
 	if result.PipelineRecord != nil {
-		fmt.Printf("  Pipeline ID: %s\n", result.PipelineRecord.UUID)
-		fmt.Printf("  Detected Type: %s\n", result.PipelineRecord.DetectedType)
-		fmt.Printf("  Status: %s\n", result.PipelineRecord.ProcessingState)
+		b.WriteString(display.KeyValue(t, []display.KVPair{
+			{Key: "Pipeline ID", Value: result.PipelineRecord.UUID},
+			{Key: "Detected Type", Value: result.PipelineRecord.DetectedType},
+			{Key: "Status", Value: result.PipelineRecord.ProcessingState},
+		}))
 	}
 
+	ctx.Logger.Result(b.String())
 	return nil
 }
 
@@ -107,6 +114,8 @@ func init() {
 	uploadCmd.Flags().StringVar(&uploadFormat, "format", "", "Override auto-detected format (cyclonedx, spdx, sarif, openvex, csaf_vex)")
 	uploadCmd.Flags().BoolVar(&uploadOutputJSON, "json", false, "Output result as JSON")
 	uploadCmd.MarkFlagRequired("file")
+	_ = uploadCmd.RegisterFlagCompletionFunc("format", cobra.FixedCompletions([]string{"cyclonedx", "spdx", "sarif", "openvex", "csaf_vex"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = uploadCmd.MarkFlagFilename("file")
 
 	rootCmd.AddCommand(uploadCmd)
 }

@@ -2,19 +2,34 @@ package tui
 
 import "github.com/charmbracelet/lipgloss"
 
+// Exported color constants for use by other packages (e.g., internal/display).
 var (
-	// Colors
-	colorCritical = lipgloss.Color("#FF0000")
-	colorHigh     = lipgloss.Color("#FF8800")
-	colorMedium   = lipgloss.Color("#FFCC00")
-	colorLow      = lipgloss.Color("#0088FF")
-	colorInfo     = lipgloss.Color("#888888")
-	colorSuccess  = lipgloss.Color("#00CC00")
-	colorError    = lipgloss.Color("#FF4444")
-	colorMalware  = lipgloss.Color("#FF00FF")
-	colorMuted    = lipgloss.Color("#666666")
-	colorAccent   = lipgloss.Color("#00CCFF")
-	colorWhite    = lipgloss.Color("#FFFFFF")
+	ColorCritical = lipgloss.Color("#FF0000")
+	ColorHigh     = lipgloss.Color("#FF8800")
+	ColorMedium   = lipgloss.Color("#FFCC00")
+	ColorLow      = lipgloss.Color("#0088FF")
+	ColorInfo     = lipgloss.Color("#888888")
+	ColorSuccess  = lipgloss.Color("#00CC00")
+	ColorError    = lipgloss.Color("#FF4444")
+	ColorMalware  = lipgloss.Color("#FF00FF")
+	ColorMuted    = lipgloss.Color("#666666")
+	ColorAccent   = lipgloss.Color("#00CCFF")
+	ColorWhite    = lipgloss.Color("#FFFFFF")
+)
+
+var (
+	// Aliases for internal use
+	colorCritical = ColorCritical
+	colorHigh     = ColorHigh
+	colorMedium   = ColorMedium
+	colorLow      = ColorLow
+	colorInfo     = ColorInfo
+	colorSuccess  = ColorSuccess
+	colorError    = ColorError
+	colorMalware  = ColorMalware
+	colorMuted    = ColorMuted
+	colorAccent   = ColorAccent
+	colorWhite    = ColorWhite
 
 	// Status indicators
 	styleCheck   = lipgloss.NewStyle().Foreground(colorSuccess).SetString("\u2714")

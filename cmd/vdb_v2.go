@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/vdb"
 )
 
@@ -60,14 +60,14 @@ Examples:
 		}
 
 		client := newVDBClient()
-		fmt.Fprintf(os.Stderr, "🔧 Fetching workarounds for %s...\n", args[0])
+		vdbLog(cmd).Infof("🔧 Fetching workarounds for %s...", args[0])
 
 		result, err := client.V2Workarounds(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get workarounds: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderWorkarounds)
 	},
 }
 
@@ -89,14 +89,14 @@ Examples:
 		}
 
 		client := newVDBClient()
-		fmt.Fprintf(os.Stderr, "📋 Fetching advisories for %s...\n", args[0])
+		vdbLog(cmd).Infof("📋 Fetching advisories for %s...", args[0])
 
 		result, err := client.V2Advisories(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get advisories: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderAdvisories)
 	},
 }
 
@@ -124,14 +124,14 @@ Examples:
 		}
 
 		client := newVDBClient()
-		fmt.Fprintf(os.Stderr, "📖 Fetching CWE guidance for %s...\n", args[0])
+		vdbLog(cmd).Infof("📖 Fetching CWE guidance for %s...", args[0])
 
 		result, err := client.V2CweGuidance(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get CWE guidance: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderCweGuidance)
 	},
 }
 
@@ -153,14 +153,14 @@ Examples:
 		}
 
 		client := newVDBClient()
-		fmt.Fprintf(os.Stderr, "🛡️ Fetching KEV status for %s...\n", args[0])
+		vdbLog(cmd).Infof("🛡️ Fetching KEV status for %s...", args[0])
 
 		result, err := client.V2Kev(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get KEV data: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderKev)
 	},
 }
 
@@ -191,7 +191,7 @@ Examples:
 		scoresLimit, _ := cmd.Flags().GetInt("scores-limit")
 
 		client := newVDBClient()
-		fmt.Fprintf(os.Stderr, "📅 Fetching timeline for %s...\n", args[0])
+		vdbLog(cmd).Infof("📅 Fetching timeline for %s...", args[0])
 
 		result, err := client.V2Timeline(args[0], vdb.V2TimelineParams{
 			Include:     include,
@@ -203,7 +203,7 @@ Examples:
 			return fmt.Errorf("failed to get timeline: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderTimeline)
 	},
 }
 
@@ -228,14 +228,14 @@ Examples:
 		client := newVDBClient()
 		p := buildV2QueryParams(cmd)
 
-		fmt.Fprintf(os.Stderr, "🎯 Fetching affected data for %s...\n", args[0])
+		vdbLog(cmd).Infof("🎯 Fetching affected data for %s...", args[0])
 
 		result, err := client.V2Affected(args[0], p)
 		if err != nil {
 			return fmt.Errorf("failed to get affected data: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderAffected)
 	},
 }
 
@@ -257,14 +257,14 @@ Examples:
 		}
 
 		client := newVDBClient()
-		fmt.Fprintf(os.Stderr, "📊 Fetching scorecard for %s...\n", args[0])
+		vdbLog(cmd).Infof("📊 Fetching scorecard for %s...", args[0])
 
 		result, err := client.V2Scorecard(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get scorecard: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderScorecard)
 	},
 }
 
@@ -286,14 +286,14 @@ Examples:
 		}
 
 		client := newVDBClient()
-		fmt.Fprintf(os.Stderr, "🔍 Searching scorecards for %q...\n", args[0])
+		vdbLog(cmd).Infof("🔍 Searching scorecards for %q...", args[0])
 
 		result, err := client.V2ScorecardSearch(args[0])
 		if err != nil {
 			return fmt.Errorf("failed to search scorecards: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderScorecardSearch)
 	},
 }
 
@@ -341,14 +341,14 @@ Examples:
 		p.IncludeGuidance, _ = cmd.Flags().GetBool("include-guidance")
 		p.IncludeVerificationSteps, _ = cmd.Flags().GetBool("include-verification-steps")
 
-		fmt.Fprintf(os.Stderr, "📋 Fetching remediation plan for %s...\n", args[0])
+		vdbLog(cmd).Infof("📋 Fetching remediation plan for %s...", args[0])
 
 		result, err := client.V2RemediationPlan(args[0], p)
 		if err != nil {
 			return fmt.Errorf("failed to get remediation plan: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderRemediationPlan)
 	},
 }
 
@@ -384,14 +384,14 @@ Examples:
 		}
 
 		client := newVDBClient()
-		fmt.Fprintf(os.Stderr, "Fetching cloud locators for vendor=%s product=%s...\n", vendor, product)
+		vdbLog(cmd).Infof("Fetching cloud locators for vendor=%s product=%s...", vendor, product)
 
 		result, err := client.V2CloudLocators(vendor, product)
 		if err != nil {
 			return fmt.Errorf("failed to get cloud locators: %w", err)
 		}
 		printRateLimit(client)
-		return printOutput(result, vdbOutput)
+		return vdbRender(cmd, result, display.RenderCloudLocators)
 	},
 }
 
@@ -477,6 +477,7 @@ func init() {
 	v2TimelineCmd.Flags().String("exclude", "", "Comma-separated event types to exclude")
 	v2TimelineCmd.Flags().String("dates", "", "CVE date fields: published,modified,reserved (default: all)")
 	v2TimelineCmd.Flags().Int("scores-limit", 30, "Max score-change events (max 365)")
+	_ = v2TimelineCmd.RegisterFlagCompletionFunc("dates", cobra.FixedCompletions([]string{"published", "modified", "reserved"}, cobra.ShellCompDirectiveNoFileComp))
 
 	// Affected flags
 	addV2ContextFlags(v2AffectedCmd)

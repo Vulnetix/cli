@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/github"
 	"github.com/vulnetix/cli/internal/upload"
 )
@@ -86,6 +87,9 @@ func resolveOrgID() (string, error) {
 }
 
 func runGHAUpload(cmd *cobra.Command, args []string) error {
+	dctx := display.FromCommand(cmd)
+	t := dctx.Term
+
 	resolvedOrgID, err := resolveOrgID()
 	if err != nil {
 		return err
@@ -94,7 +98,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 
 	// Check if we're in a GitHub Actions environment
 	if os.Getenv("GITHUB_ACTIONS") != "true" {
-		fmt.Fprintln(os.Stderr, "Warning: Not running in GitHub Actions environment")
+		dctx.Logger.Warn("Not running in GitHub Actions environment")
 	}
 
 	// Get GitHub context
@@ -118,17 +122,19 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("GITHUB_RUN_ID environment variable is required")
 	}
 
-	fmt.Fprintf(os.Stderr, "Starting GitHub Actions artifact upload\n")
-	fmt.Fprintf(os.Stderr, "   Organization: %s\n", orgID)
-	fmt.Fprintf(os.Stderr, "   Repository: %s\n", repository)
-	fmt.Fprintf(os.Stderr, "   Run ID: %s\n", runID)
-	fmt.Fprintln(os.Stderr)
+	dctx.Logger.Info(display.Bold(t, "Starting GitHub Actions artifact upload"))
+	dctx.Logger.Info(display.KeyValue(t, []display.KVPair{
+		{Key: "Organization", Value: orgID},
+		{Key: "Repository", Value: repository},
+		{Key: "Run ID", Value: runID},
+	}))
+	dctx.Logger.Info("")
 
 	// Create artifact collector
 	collector := github.NewArtifactCollector(token, apiURL, repository, runID)
 
 	// List all artifacts
-	fmt.Fprintln(os.Stderr, "Fetching workflow artifacts...")
+	dctx.Logger.Info("Fetching workflow artifacts...")
 	ctx := cmd.Context()
 	artifacts, err := collector.ListArtifacts(ctx)
 	if err != nil {
@@ -136,15 +142,15 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(artifacts) == 0 {
-		fmt.Fprintln(os.Stderr, "Warning: No artifacts found in this workflow run")
+		dctx.Logger.Warn("No artifacts found in this workflow run")
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "Found %d artifact(s)\n", len(artifacts))
+	dctx.Logger.Infof("Found %d artifact(s)", len(artifacts))
 	for i, artifact := range artifacts {
-		fmt.Fprintf(os.Stderr, "   %d. %s (%d bytes)\n", i+1, artifact.Name, artifact.SizeInBytes)
+		dctx.Logger.Infof("   %d. %s (%d bytes)", i+1, artifact.Name, artifact.SizeInBytes)
 	}
-	fmt.Fprintln(os.Stderr)
+	dctx.Logger.Info("")
 
 	// Load credentials for upload client
 	creds, err := auth.LoadCredentials()
@@ -162,7 +168,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	uploadClient.GitHubContext = collectGitHubActionsContext()
 
 	// Download and upload each artifact
-	fmt.Fprintln(os.Stderr, "Uploading artifacts...")
+	dctx.Logger.Info("Uploading artifacts...")
 	type uploadResult struct {
 		Name       string `json:"name"`
 		File       string `json:"file"`
@@ -173,12 +179,12 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	var results []uploadResult
 
 	for i, artifact := range artifacts {
-		fmt.Fprintf(os.Stderr, "   [%d/%d] Processing %s...\n", i+1, len(artifacts), artifact.Name)
+		dctx.Logger.Infof("   [%d/%d] Processing %s...", i+1, len(artifacts), artifact.Name)
 
 		// Download and extract artifact from GitHub
 		artifactDir, err := collector.DownloadArtifact(ctx, artifact)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "      Failed to download: %v\n", err)
+			dctx.Logger.Errorf("      Failed to download: %v", err)
 			results = append(results, uploadResult{
 				Name:   artifact.Name,
 				Status: "error",
@@ -191,7 +197,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		files, err := findFiles(artifactDir)
 		if err != nil {
 			os.RemoveAll(artifactDir)
-			fmt.Fprintf(os.Stderr, "      Failed to read files: %v\n", err)
+			dctx.Logger.Errorf("      Failed to read files: %v", err)
 			results = append(results, uploadResult{
 				Name:   artifact.Name,
 				Status: "error",
@@ -203,11 +209,11 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		// Upload each file using the standard upload API
 		for _, filePath := range files {
 			fileName := filepath.Base(filePath)
-			fmt.Fprintf(os.Stderr, "      Uploading %s...\n", fileName)
+			dctx.Logger.Infof("      Uploading %s...", fileName)
 
 			resp, err := uploadClient.UploadFile(filePath, "")
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "      Failed to upload %s: %v\n", fileName, err)
+				dctx.Logger.Errorf("      Failed to upload %s: %v", fileName, err)
 				results = append(results, uploadResult{
 					Name:   artifact.Name,
 					File:   fileName,
@@ -227,7 +233,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 				status = "duplicate"
 			}
 
-			fmt.Fprintf(os.Stderr, "      Uploaded %s (pipeline: %s)\n", fileName, pipelineID)
+			dctx.Logger.Infof("      %s %s (pipeline: %s)", display.CheckMark(t), fileName, pipelineID)
 			results = append(results, uploadResult{
 				Name:       artifact.Name,
 				File:       fileName,
@@ -239,7 +245,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		os.RemoveAll(artifactDir)
 	}
 
-	fmt.Fprintln(os.Stderr)
+	dctx.Logger.Info("")
 
 	successCount := 0
 	for _, r := range results {
@@ -247,7 +253,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 			successCount++
 		}
 	}
-	fmt.Fprintf(os.Stderr, "Upload complete: %d/%d files uploaded successfully\n", successCount, len(results))
+	dctx.Logger.Infof("Upload complete: %d/%d files uploaded successfully", successCount, len(results))
 
 	// Output JSON if requested
 	if ghaOutputJSON {

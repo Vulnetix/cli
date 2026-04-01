@@ -80,7 +80,7 @@ func TestRootCommand(t *testing.T) {
 			name:                 "Default info task",
 			args:                 []string{},
 			expectError:          false,
-			expectOutputContains: "Authentication Sources:",
+			expectOutputContains: "Authentication Sources",
 		},
 		// Version Command Test
 		{
