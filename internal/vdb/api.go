@@ -508,6 +508,21 @@ func (c *Client) GetFixDistributions() (map[string]interface{}, error) {
 	return result, nil
 }
 
+// GetSummary retrieves global all-time database statistics.
+func (c *Client) GetSummary() (map[string]interface{}, error) {
+	respBody, err := c.DoRequestCached("GET", "/summary", nil, StaticEnumTTL)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
 // SearchExploits searches for exploits across CVEs with pagination and filters
 func (c *Client) SearchExploits(params ExploitSearchParams) (map[string]interface{}, error) {
 	q := url.Values{}
