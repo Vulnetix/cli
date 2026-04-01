@@ -34,11 +34,11 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb metrics](#vdb-metrics)
   - [vdb metrics types](#vdb-metrics-types)
   - [vdb status](#vdb-status)
+  - [vdb summary](#vdb-summary)
   - [vdb packages search](#vdb-packages-search)
   - [vdb ecosystem package](#vdb-ecosystem-package)
   - [vdb ecosystem group](#vdb-ecosystem-group)
 - [V2 Commands](#v2-commands)
-- [API-Only Endpoints](#api-only-endpoints)
 - [Examples](#examples)
 - [Rate Limiting](#rate-limiting)
 
@@ -907,6 +907,39 @@ vulnetix vdb status [flags]
 
 ---
 
+### vdb summary
+
+Retrieve all-time global statistics for the entire Vulnetix Vulnerability Database. Shows database coverage, severity distribution, enrichment rates, exploit and malware counts, and the top 10 CWEs and vendors by CVE volume.
+
+**Usage:**
+```bash
+vulnetix vdb summary [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format (json, pretty) (default "pretty")
+
+**Response sections:**
+
+| Section | Key fields |
+|---------|-----------|
+| `database` | `totalRows`, `distinctCveIds`, `totalExploits`, `malwareExploits`, `cvesWithExploits`, `totalReferences`, `distinctReferenceUrls`, `totalKev` |
+| `severity` | `critical`, `high`, `medium`, `low`, `none` |
+| `coverage` | `withCvss`, `withEpss`, `withCess`, `withCwe`, `withCapec`, `withSsvc`, `noReferences`, `averageEpss`, `highEpss` |
+| `topCWEs` | Top 10 CWE IDs by distinct CVE count |
+| `topVendors` | Top 10 vendors by distinct CVE count |
+
+**Examples:**
+```bash
+# Human-readable summary
+vulnetix vdb summary
+
+# Full JSON response
+vulnetix vdb summary --output json
+```
+
+---
+
 ### vdb packages search
 
 Full-text search across packages in the VDB. Searches across multiple data sources including SBOM dependencies, package registries, CVE affected products, GitHub repositories, CISA/VulnCheck KEV entries, end-of-life databases, and CycloneDX metadata.
@@ -1280,25 +1313,6 @@ vulnetix vdb cloud-locators --vendor amazon --product lambda -V v2 -o json
 | `cloudLocators.provider` | string | Primary cloud provider |
 | `cloudLocators.service` | string | Normalised service name |
 | `cloudLocators.templates[]` | array | Resource identifier templates with `{placeholders}` |
-
-</div>
-
----
-
-<div class="vdb-v1-only">
-
-## API-Only Endpoints
-
-The following VDB API endpoints are available via direct HTTP requests but do not yet have dedicated CLI subcommands. Use `vulnetix vdb spec` to retrieve the full OpenAPI specification.
-
-### GET /v1/summary/{year}
-
-Annual vulnerability statistics including severity distribution, top CWEs, affected vendors, and trends.
-
-```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  https://api.vdb.vulnetix.com/v1/summary/2024
-```
 
 </div>
 

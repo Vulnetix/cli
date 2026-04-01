@@ -1522,6 +1522,114 @@ Examples:
 	},
 }
 
+// summaryCmd retrieves global database statistics
+var summaryCmd = &cobra.Command{
+	Use:   "summary",
+	Short: "Get global VDB database statistics",
+	Long: `Retrieve all-time statistics for the entire Vulnetix Vulnerability Database.
+
+Shows database coverage, severity distribution, enrichment rates, exploit and
+malware counts, and the top 10 CWEs and vendors by CVE volume.
+
+Examples:
+  vulnetix vdb summary
+  vulnetix vdb summary --output json`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client := newVDBClient()
+
+		fmt.Fprintln(os.Stderr, "📊 Fetching VDB database summary...")
+
+		result, err := client.GetSummary()
+		if err != nil {
+			return fmt.Errorf("failed to get summary: %w", err)
+		}
+		printRateLimit(client)
+
+		if vdbOutput == "json" {
+			return printOutput(result, vdbOutput)
+		}
+
+		// Pretty-print the summary
+		fmt.Printf("\n📊 VDB Database Summary\n")
+		fmt.Printf("══════════════════════\n\n")
+
+		if db, ok := result["database"].(map[string]interface{}); ok {
+			fmt.Printf("Database Coverage:\n")
+			fmt.Printf("  Total rows:            %s\n", formatNumber(toIntVal(db["totalRows"])))
+			fmt.Printf("  Distinct CVE IDs:      %s\n", formatNumber(toIntVal(db["distinctCveIds"])))
+			fmt.Printf("  Total exploits:        %s\n", formatNumber(toIntVal(db["totalExploits"])))
+			fmt.Printf("  Malware exploits:      %s\n", formatNumber(toIntVal(db["malwareExploits"])))
+			fmt.Printf("  CVEs with exploits:    %s\n", formatNumber(toIntVal(db["cvesWithExploits"])))
+			fmt.Printf("  Total references:      %s\n", formatNumber(toIntVal(db["totalReferences"])))
+			fmt.Printf("  Distinct ref URLs:     %s\n", formatNumber(toIntVal(db["distinctReferenceUrls"])))
+			fmt.Printf("  KEV-catalogued CVEs:   %s\n", formatNumber(toIntVal(db["totalKev"])))
+			fmt.Println()
+		}
+
+		if sev, ok := result["severity"].(map[string]interface{}); ok {
+			fmt.Printf("Severity Distribution:\n")
+			fmt.Printf("  Critical: %s\n", formatNumber(toIntVal(sev["critical"])))
+			fmt.Printf("  High:     %s\n", formatNumber(toIntVal(sev["high"])))
+			fmt.Printf("  Medium:   %s\n", formatNumber(toIntVal(sev["medium"])))
+			fmt.Printf("  Low:      %s\n", formatNumber(toIntVal(sev["low"])))
+			fmt.Printf("  None:     %s\n", formatNumber(toIntVal(sev["none"])))
+			fmt.Println()
+		}
+
+		if cov, ok := result["coverage"].(map[string]interface{}); ok {
+			avgEpss := 0.0
+			if v, ok := cov["averageEpss"].(float64); ok {
+				avgEpss = v
+			}
+			fmt.Printf("Enrichment Coverage:\n")
+			fmt.Printf("  With CVSS:      %s\n", formatNumber(toIntVal(cov["withCvss"])))
+			fmt.Printf("  With EPSS:      %s\n", formatNumber(toIntVal(cov["withEpss"])))
+			fmt.Printf("  With CESS:      %s\n", formatNumber(toIntVal(cov["withCess"])))
+			fmt.Printf("  With CWE:       %s\n", formatNumber(toIntVal(cov["withCwe"])))
+			fmt.Printf("  With CAPEC:     %s\n", formatNumber(toIntVal(cov["withCapec"])))
+			fmt.Printf("  With SSVC:      %s\n", formatNumber(toIntVal(cov["withSsvc"])))
+			fmt.Printf("  No references:  %s\n", formatNumber(toIntVal(cov["noReferences"])))
+			fmt.Printf("  Average EPSS:   %.6f\n", avgEpss)
+			fmt.Printf("  High EPSS (≥0.7): %s\n", formatNumber(toIntVal(cov["highEpss"])))
+			fmt.Println()
+		}
+
+		if cwes, ok := result["topCWEs"].([]interface{}); ok && len(cwes) > 0 {
+			fmt.Printf("Top CWEs:\n")
+			for i, item := range cwes {
+				if m, ok := item.(map[string]interface{}); ok {
+					fmt.Printf("  %2d. %-10s  %s CVEs\n", i+1, m["cweId"], formatNumber(toIntVal(m["count"])))
+				}
+			}
+			fmt.Println()
+		}
+
+		if vendors, ok := result["topVendors"].([]interface{}); ok && len(vendors) > 0 {
+			fmt.Printf("Top Vendors:\n")
+			for i, item := range vendors {
+				if m, ok := item.(map[string]interface{}); ok {
+					fmt.Printf("  %2d. %-20s  %s CVEs\n", i+1, m["vendor"], formatNumber(toIntVal(m["count"])))
+				}
+			}
+			fmt.Println()
+		}
+
+		return nil
+	},
+}
+
+// toIntVal converts a JSON-decoded number (float64) to int for display.
+func toIntVal(v interface{}) int {
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	}
+	return 0
+}
+
 func init() {
 	// Add vdb command to root
 	rootCmd.AddCommand(vdbCmd)
@@ -1544,6 +1652,7 @@ func init() {
 	vdbCmd.AddCommand(packagesCmd)
 	vdbCmd.AddCommand(purlCmd)
 	vdbCmd.AddCommand(statusCmd)
+	vdbCmd.AddCommand(summaryCmd)
 	vdbCmd.AddCommand(cacheCmd)
 
 	// Nested subcommands: cache → clear
