@@ -11,9 +11,9 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 <<<<<<< HEAD
-        version = "1.16.1";
+        version = "1.17.0";
 =======
-        version = "1.16.1";
+        version = "1.17.0";
 >>>>>>> 5b061d80679c748e0fee1ba1cc3a93962bea1c86
       in
       {
