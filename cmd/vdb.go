@@ -18,13 +18,13 @@ import (
 )
 
 var (
-	vdbOrgID        string
-	vdbSecretKey    string
-	vdbAPIKey       string
-	vdbMethod       string
-	vdbBaseURL      string
-	vdbOutput       string
-	vdbAPIVersion   string
+	vdbOrgID         string
+	vdbSecretKey     string
+	vdbAPIKey        string
+	vdbMethod        string
+	vdbBaseURL       string
+	vdbOutput        string
+	vdbAPIVersion    string
 	vdbNoCache       bool
 	vdbRefreshCache  bool
 	vdbNoCommunity   bool
@@ -1556,24 +1556,24 @@ Examples:
 
 		if db, ok := result["database"].(map[string]interface{}); ok {
 			fmt.Printf("Database Coverage:\n")
-			fmt.Printf("  Total rows:            %s\n", formatNumber(toIntVal(db["totalRows"])))
-			fmt.Printf("  Distinct CVE IDs:      %s\n", formatNumber(toIntVal(db["distinctCveIds"])))
-			fmt.Printf("  Total exploits:        %s\n", formatNumber(toIntVal(db["totalExploits"])))
-			fmt.Printf("  Malware exploits:      %s\n", formatNumber(toIntVal(db["malwareExploits"])))
-			fmt.Printf("  CVEs with exploits:    %s\n", formatNumber(toIntVal(db["cvesWithExploits"])))
-			fmt.Printf("  Total references:      %s\n", formatNumber(toIntVal(db["totalReferences"])))
-			fmt.Printf("  Distinct ref URLs:     %s\n", formatNumber(toIntVal(db["distinctReferenceUrls"])))
-			fmt.Printf("  KEV-catalogued CVEs:   %s\n", formatNumber(toIntVal(db["totalKev"])))
+			fmt.Printf("  %-28s %10s\n", "Total advisories:", formatNumber(toIntVal(db["totalRows"])))
+			fmt.Printf("  %-28s %10s\n", "Distinct Vulnerability IDs:", formatNumber(toIntVal(db["distinctCveIds"])))
+			fmt.Printf("  %-28s %10s\n", "Total exploits:", formatNumber(toIntVal(db["totalExploits"])))
+			fmt.Printf("  %-28s %10s\n", "Malicious packages:", formatNumber(toIntVal(db["maliciousPackages"])))
+			fmt.Printf("  %-28s %10s\n", "Advisories with exploits:", formatNumber(toIntVal(db["cvesWithExploits"])))
+			fmt.Printf("  %-28s %10s\n", "Total Advisory references:", formatNumber(toIntVal(db["totalReferences"])))
+			fmt.Printf("  %-28s %10s\n", "Distinct ref URLs:", formatNumber(toIntVal(db["distinctReferenceUrls"])))
+			fmt.Printf("  %-28s %10s\n", "KEV entries:", formatNumber(toIntVal(db["totalKev"])))
 			fmt.Println()
 		}
 
 		if sev, ok := result["severity"].(map[string]interface{}); ok {
 			fmt.Printf("Severity Distribution:\n")
-			fmt.Printf("  Critical: %s\n", formatNumber(toIntVal(sev["critical"])))
-			fmt.Printf("  High:     %s\n", formatNumber(toIntVal(sev["high"])))
-			fmt.Printf("  Medium:   %s\n", formatNumber(toIntVal(sev["medium"])))
-			fmt.Printf("  Low:      %s\n", formatNumber(toIntVal(sev["low"])))
-			fmt.Printf("  None:     %s\n", formatNumber(toIntVal(sev["none"])))
+			fmt.Printf("  %-14s %9s\n", "Critical:", formatNumber(toIntVal(sev["critical"])))
+			fmt.Printf("  %-14s %9s\n", "High:", formatNumber(toIntVal(sev["high"])))
+			fmt.Printf("  %-14s %9s\n", "Medium:", formatNumber(toIntVal(sev["medium"])))
+			fmt.Printf("  %-14s %9s\n", "Low:", formatNumber(toIntVal(sev["low"])))
+			fmt.Printf("  %-14s %9s\n", "Not Assigned:", formatNumber(toIntVal(sev["none"])))
 			fmt.Println()
 		}
 
@@ -1583,15 +1583,15 @@ Examples:
 				avgEpss = v
 			}
 			fmt.Printf("Enrichment Coverage:\n")
-			fmt.Printf("  With CVSS:      %s\n", formatNumber(toIntVal(cov["withCvss"])))
-			fmt.Printf("  With EPSS:      %s\n", formatNumber(toIntVal(cov["withEpss"])))
-			fmt.Printf("  With CESS:      %s\n", formatNumber(toIntVal(cov["withCess"])))
-			fmt.Printf("  With CWE:       %s\n", formatNumber(toIntVal(cov["withCwe"])))
-			fmt.Printf("  With CAPEC:     %s\n", formatNumber(toIntVal(cov["withCapec"])))
-			fmt.Printf("  With SSVC:      %s\n", formatNumber(toIntVal(cov["withSsvc"])))
-			fmt.Printf("  No references:  %s\n", formatNumber(toIntVal(cov["noReferences"])))
-			fmt.Printf("  Average EPSS:   %.6f\n", avgEpss)
-			fmt.Printf("  High EPSS (≥0.7): %s\n", formatNumber(toIntVal(cov["highEpss"])))
+			fmt.Printf("  %-20s %10s\n", "With CVSS:", formatNumber(toIntVal(cov["withCvss"])))
+			fmt.Printf("  %-20s %10s\n", "With EPSS:", formatNumber(toIntVal(cov["withEpss"])))
+			fmt.Printf("  %-20s %10s\n", "With Coalition ESS:", formatNumber(toIntVal(cov["withCess"])))
+			fmt.Printf("  %-20s %10s\n", "With CWE:", formatNumber(toIntVal(cov["withCwe"])))
+			fmt.Printf("  %-20s %10s\n", "With CAPEC:", formatNumber(toIntVal(cov["withCapec"])))
+			fmt.Printf("  %-20s %10s\n", "With SSVC:", formatNumber(toIntVal(cov["withSsvc"])))
+			fmt.Printf("  %-20s %10s\n", "No references:", formatNumber(toIntVal(cov["noReferences"])))
+			fmt.Printf("  %-20s %10.6f\n", "Average EPSS:", avgEpss)
+			fmt.Printf("  %-20s %10s\n", "High EPSS (≥0.7):", formatNumber(toIntVal(cov["highEpss"])))
 			fmt.Println()
 		}
 
@@ -1599,7 +1599,7 @@ Examples:
 			fmt.Printf("Top CWEs:\n")
 			for i, item := range cwes {
 				if m, ok := item.(map[string]interface{}); ok {
-					fmt.Printf("  %2d. %-10s  %s CVEs\n", i+1, m["cweId"], formatNumber(toIntVal(m["count"])))
+					fmt.Printf("  %2d. %-10s %10s advisories\n", i+1, m["cweId"], formatNumber(toIntVal(m["count"])))
 				}
 			}
 			fmt.Println()
@@ -1609,7 +1609,7 @@ Examples:
 			fmt.Printf("Top Vendors:\n")
 			for i, item := range vendors {
 				if m, ok := item.(map[string]interface{}); ok {
-					fmt.Printf("  %2d. %-20s  %s CVEs\n", i+1, m["vendor"], formatNumber(toIntVal(m["count"])))
+					fmt.Printf("  %2d. %-20s %10s advisories\n", i+1, m["vendor"], formatNumber(toIntVal(m["count"])))
 				}
 			}
 			fmt.Println()
