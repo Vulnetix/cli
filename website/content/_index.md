@@ -86,3 +86,11 @@ Native GitHub Actions support for automated vulnerability management. Upload SBO
   <p>Keep all Vulnetix operations within your private network. The on-prem broker enables Enterprise customers to run vulnerability scanning, VDB queries, and remediation workflows entirely behind the firewall.</p>
   <a href="https://www.vulnetix.com" class="vx-contact-link" target="_blank" rel="noopener">Contact us &rarr;</a>
 </div>
+
+<div class="vx-footer-links">
+  <a href="https://github.com/Vulnetix/cli" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://vdb.vulnetix.com" target="_blank" rel="noopener">VDB</a>
+  <a href="https://claude-docs.vdb.vulnetix.com" target="_blank" rel="noopener">Plugin Docs</a>
+  <a href="https://www.vulnetix.com" target="_blank" rel="noopener">vulnetix.com</a>
+  <a href="/terms/">Terms of Service</a>
+</div>
