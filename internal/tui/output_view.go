@@ -17,7 +17,9 @@ func saveOutput(tasks []*scan.ScanTask, format, path string) error {
 }
 
 func saveCycloneDX(tasks []*scan.ScanTask, specVersion, path string) error {
-	bom := cdx.BuildFromScanTasks(tasks, specVersion)
+	// The TUI (remote scan) flow does not have local git/system context;
+	// pass nil so BuildFromScanTasks omits the optional enrichment fields.
+	bom := cdx.BuildFromScanTasks(tasks, specVersion, nil)
 	f, err := os.Create(path)
 	if err != nil {
 		return err

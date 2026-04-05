@@ -19,6 +19,7 @@ import (
 
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/cache"
+	"github.com/vulnetix/cli/internal/tty"
 )
 
 const (
@@ -282,7 +283,8 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		if attempt > 0 {
 			backoff := BaseBackoff * time.Duration(1<<(attempt-1))
-			fmt.Fprintf(os.Stderr, "[vdb] retry %d/%d after %s: %v\n", attempt, MaxRetries, backoff, lastErr)
+			curlHint := retryCurlHint(req)
+			fmt.Fprintf(os.Stderr, "[vdb] retry %d/%d after %s: %v%s\n", attempt, MaxRetries, backoff, lastErr, curlHint)
 			time.Sleep(backoff)
 
 			// For retries, we need to re-read the body if present
@@ -393,7 +395,8 @@ func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusC
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		if attempt > 0 {
 			backoff := BaseBackoff * time.Duration(1<<(attempt-1))
-			fmt.Fprintf(os.Stderr, "[vdb] retry %d/%d after %s: %v\n", attempt, MaxRetries, backoff, lastErr)
+			curlHint := retryCurlHint(req)
+			fmt.Fprintf(os.Stderr, "[vdb] retry %d/%d after %s: %v%s\n", attempt, MaxRetries, backoff, lastErr, curlHint)
 			time.Sleep(backoff)
 
 			if req.GetBody != nil {
@@ -610,6 +613,32 @@ func (c *Client) DoRequestMultipart(path, filePath, fileField string, fields map
 	}
 
 	return c.doRequestWithRetry(req)
+}
+
+// retryCurlHint returns a dim curl equivalent of req (no auth headers) for retry log lines.
+// Returns an empty string when stderr is not a terminal.
+func retryCurlHint(req *http.Request) string {
+	if !tty.StderrIsTerminal() {
+		return ""
+	}
+	method := req.Method
+	rawURL := req.URL.String()
+	// Strip the cache-busting _t param so the hint stays readable.
+	if u, err := req.URL.Parse(rawURL); err == nil {
+		q := u.Query()
+		q.Del("_t")
+		u.RawQuery = q.Encode()
+		rawURL = u.String()
+	}
+	var cmd string
+	if method == "GET" {
+		cmd = fmt.Sprintf("curl -s %q", rawURL)
+	} else {
+		cmd = fmt.Sprintf("curl -s -X %s %q", method, rawURL)
+	}
+	const dim = "\033[2m"
+	const reset = "\033[0m"
+	return fmt.Sprintf("  %s%s%s", dim, cmd, reset)
 }
 
 // isRetryableError returns true for timeout and temporary network errors.

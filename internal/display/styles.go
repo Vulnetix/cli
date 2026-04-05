@@ -77,6 +77,14 @@ func Accent(term *Terminal, text string) string {
 	return lipgloss.NewStyle().Foreground(tui.ColorAccent).Render(text)
 }
 
+// Teal renders teal-colored text. Used to highlight file paths in scan output.
+func Teal(term *Terminal, text string) string {
+	if !term.HasColor() {
+		return text
+	}
+	return lipgloss.NewStyle().Foreground(tui.ColorTeal).Render(text)
+}
+
 // SeverityBadge renders an inline colored severity label.
 func SeverityBadge(term *Terminal, level string) string {
 	label := strings.ToUpper(level)
