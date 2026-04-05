@@ -279,13 +279,17 @@ func (c *Client) addAuthHeader(req *http.Request) error {
 // It captures rate limit and cache headers from the response.
 func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 	var lastErr error
+	var lastHeaders http.Header
 
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		if attempt > 0 {
 			backoff := BaseBackoff * time.Duration(1<<(attempt-1))
+			if ra := resolveRetryAfter(lastHeaders); ra > 0 {
+				backoff = ra
+			}
 			curlHint := retryCurlHint(req)
-			fmt.Fprintf(os.Stderr, "[vdb] retry %d/%d after %s: %v%s\n", attempt, MaxRetries, backoff, lastErr, curlHint)
-			time.Sleep(backoff)
+			fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
+			countdownSleep(backoff)
 
 			// For retries, we need to re-read the body if present
 			if req.GetBody != nil {
@@ -309,6 +313,7 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 		// Capture rate limit and cache headers
 		c.LastRateLimit = parseRateLimitHeaders(resp)
 		c.LastCacheStatus = resp.Header.Get("X-Cache")
+		lastHeaders = resp.Header
 
 		responseBody, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
@@ -391,13 +396,17 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 // doRequestWithRetryFull is like doRequestWithRetry but also returns status code and headers.
 func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusCode int, headers http.Header, err error) {
 	var lastErr error
+	var lastHeaders http.Header
 
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		if attempt > 0 {
 			backoff := BaseBackoff * time.Duration(1<<(attempt-1))
+			if ra := resolveRetryAfter(lastHeaders); ra > 0 {
+				backoff = ra
+			}
 			curlHint := retryCurlHint(req)
-			fmt.Fprintf(os.Stderr, "[vdb] retry %d/%d after %s: %v%s\n", attempt, MaxRetries, backoff, lastErr, curlHint)
-			time.Sleep(backoff)
+			fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
+			countdownSleep(backoff)
 
 			if req.GetBody != nil {
 				newBody, bErr := req.GetBody()
@@ -421,6 +430,7 @@ func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusC
 		c.LastCacheStatus = resp.Header.Get("X-Cache")
 
 		responseBody, readErr := io.ReadAll(resp.Body)
+		lastHeaders = resp.Header
 		resp.Body.Close()
 		if readErr != nil {
 			return nil, 0, nil, fmt.Errorf("failed to read response: %w", readErr)
@@ -617,6 +627,37 @@ func (c *Client) DoRequestMultipart(path, filePath, fileField string, fields map
 
 // retryCurlHint returns a dim curl equivalent of req (no auth headers) for retry log lines.
 // Returns an empty string when stderr is not a terminal.
+
+// orangeText returns ANSI-styled orange text with a dim suffix when a terminal, or "text (suffix)" otherwise.
+func orangeText(text, suffix string) string {
+	const orange = "\033[38;5;208m"
+	const reset = "\033[0m"
+	if tty.StderrIsTerminal() {
+		return fmt.Sprintf("%s%s%s", orange, text+suffix, reset)
+	}
+	return text + suffix
+}
+
+// countdownSleep prints a live countdown while waiting the given duration.
+// A single progress line is refreshed in-place via \r on terminals; for
+// non-TTY stderr a single message is printed at the start.
+func countdownSleep(d time.Duration) {
+	remaining := d
+	if tty.StderrIsTerminal() {
+		for {
+			fmt.Fprintf(os.Stderr, "\r  \033[38;5;208m⏱ rate limit reached — waiting %s\033[0m  ", remaining.Truncate(time.Second))
+			if remaining <= time.Second {
+				break
+			}
+			time.Sleep(time.Second)
+			remaining -= time.Second
+		}
+		fmt.Fprintln(os.Stderr) // trailing newline after countdown
+	} else {
+		fmt.Fprintf(os.Stderr, "  rate limit reached — waiting %s\n", remaining.Truncate(time.Second))
+		time.Sleep(remaining)
+	}
+}
 func retryCurlHint(req *http.Request) string {
 	if !tty.StderrIsTerminal() {
 		return ""
@@ -654,7 +695,41 @@ func isRetryableError(err error) bool {
 
 // isRetryableStatus returns true for gateway errors that indicate upstream unavailability.
 func isRetryableStatus(code int) bool {
-	return code == 502 || code == 503 || code == 504
+	return code == http.StatusBadGateway || code == http.StatusServiceUnavailable || code == http.StatusGatewayTimeout
+}
+
+// resolveRetryAfter parses response headers for a Retry-After value.
+// Returns the parsed duration if set, otherwise 0.
+// Accepts both delay-seconds (integer) and HTTP-date formats.
+func resolveRetryAfter(headers http.Header) time.Duration {
+	if headers == nil {
+		return 0
+	}
+	ra := headers.Get("Retry-After")
+	if ra == "" {
+		return 0
+	}
+	// Try as integer seconds first.
+	if secs, err := strconv.ParseInt(ra, 10, 64); err == nil && secs > 0 {
+		return time.Duration(secs) * time.Second
+	}
+	// Try as HTTP-date.
+	if t, err := http.ParseTime(ra); err == nil {
+		d := time.Until(t)
+		if d > 0 {
+			return d
+		}
+	}
+	// Try 429 header as alternative.
+	if ra = headers.Get("X-RateLimit-Reset"); ra == "" {
+		ra = headers.Get("RateLimit-Reset")
+	}
+	if ra != "" {
+		if secs, err := strconv.ParseInt(ra, 10, 64); err == nil && secs > 0 {
+			return time.Duration(secs) * time.Second
+		}
+	}
+	return 0
 }
 
 // parseRateLimitHeaders extracts rate limit info from response headers.
