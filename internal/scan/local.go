@@ -73,6 +73,10 @@ func ParseManifestWithScope(filePath, manifestType string) ([]ScopedPackage, err
 		return parseRequirementsTxtScoped(data, filePath)
 	case "Pipfile.lock":
 		return parsePipfileLockScoped(data, filePath)
+	case "uv.lock":
+		return parseUVLockScoped(data, filePath)
+	case "pyproject.toml":
+		return parsePyprojectTOMLScoped(data, filePath)
 	case "go.sum":
 		return parseGoSumScoped(data, filePath)
 	case "go.mod":
@@ -352,6 +356,255 @@ func parsePipfileLockScoped(data []byte, filePath string) ([]ScopedPackage, erro
 	}
 	for name, pkg := range lock.Develop {
 		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(pkg.Version), Ecosystem: "pypi", Scope: ScopeDevelopment, SourceFile: filePath})
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Python (uv.lock + pyproject.toml)
+// ---------------------------------------------------------------------------
+
+// parseUVLockScoped parses a uv.lock file (TOML, [[package]] sections).
+// uv.lock does not encode production/dev scope per-package; all packages are
+// marked as production. Scope correlation would require pairing with pyproject.toml.
+func parseUVLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	var name, version string
+	inPackage := false
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "[[package]]" {
+			if inPackage && name != "" {
+				pkgs = append(pkgs, ScopedPackage{
+					Name: name, Version: version,
+					Ecosystem: "pypi", Scope: ScopeProduction,
+					SourceFile: filePath,
+				})
+			}
+			name, version = "", ""
+			inPackage = true
+			continue
+		}
+		if !inPackage {
+			continue
+		}
+		// A new top-level section (non-indented "[") that is not "[[package]]" ends the current block.
+		if strings.HasPrefix(line, "[") && !strings.HasPrefix(line, "[[package]]") {
+			if name != "" {
+				pkgs = append(pkgs, ScopedPackage{
+					Name: name, Version: version,
+					Ecosystem: "pypi", Scope: ScopeProduction,
+					SourceFile: filePath,
+				})
+				name, version = "", ""
+			}
+			inPackage = false
+			continue
+		}
+		if strings.HasPrefix(line, "name = ") {
+			name = strings.Trim(strings.TrimPrefix(line, "name = "), `"`)
+		}
+		if strings.HasPrefix(line, "version = ") {
+			version = strings.Trim(strings.TrimPrefix(line, "version = "), `"`)
+		}
+	}
+	// Flush the last package block.
+	if inPackage && name != "" {
+		pkgs = append(pkgs, ScopedPackage{
+			Name: name, Version: version,
+			Ecosystem: "pypi", Scope: ScopeProduction,
+			SourceFile: filePath,
+		})
+	}
+	return pkgs, nil
+}
+
+// parsePyprojectTOMLScoped parses a pyproject.toml file without a TOML library.
+// It extracts:
+//   - [project] dependencies            → ScopeProduction, IsDirect=true
+//   - [project.optional-dependencies]   → ScopeTest / ScopeDevelopment / ScopeOptional
+//   - [dependency-groups]               → ScopeTest / ScopeDevelopment / ScopeOptional
+//   - [tool.uv] dev-dependencies        → ScopeDevelopment
+func parsePyprojectTOMLScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+
+	const (
+		secNone         = ""
+		secProjectDeps  = "project.dependencies"
+		secOptional     = "project.optional-dependencies"
+		secDepGroups    = "dependency-groups"
+		secUVTool       = "tool.uv"
+	)
+
+	currentSection := secNone
+	inArray := false
+	currentScope := ScopeProduction
+
+	// mapGroupScope converts a dependency-group name to a scope.
+	mapGroupScope := func(group string) string {
+		switch strings.ToLower(group) {
+		case "test", "tests", "testing":
+			return ScopeTest
+		case "dev", "develop", "development", "devel":
+			return ScopeDevelopment
+		default:
+			return ScopeOptional
+		}
+	}
+
+	// extractPyDep parses a PEP 508 dependency specifier string (e.g. "PyYAML>=6.0").
+	// Returns name and the raw version specifier; skips group-include dicts.
+	extractPyDep := func(raw string) (name, ver string, ok bool) {
+		// Strip outer quotes and trailing comma.
+		raw = strings.TrimSpace(raw)
+		raw = strings.Trim(raw, `"',`)
+		raw = strings.TrimSpace(raw)
+		if raw == "" || strings.HasPrefix(raw, "{") || strings.HasPrefix(raw, "#") {
+			return "", "", false
+		}
+		// Strip any environment markers ("pkg>=1.0 ; python_version>='3.8'").
+		if idx := strings.Index(raw, ";"); idx > 0 {
+			raw = strings.TrimSpace(raw[:idx])
+		}
+		// Strip extras ("pkg[extra]>=1.0").
+		if bIdx := strings.Index(raw, "["); bIdx > 0 {
+			if eIdx := strings.Index(raw, "]"); eIdx > bIdx {
+				raw = raw[:bIdx] + raw[eIdx+1:]
+			}
+		}
+		for _, sep := range []string{"==", ">=", "<=", "~=", "!=", ">", "<"} {
+			if idx := strings.Index(raw, sep); idx > 0 {
+				return strings.TrimSpace(raw[:idx]), strings.TrimSpace(raw[idx+len(sep):]), true
+			}
+		}
+		// No version specifier — just a bare name.
+		if raw != "" {
+			return raw, "", true
+		}
+		return "", "", false
+	}
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+
+		// Skip comments.
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		// Section header (skip [[...]] table arrays that aren't dependency sections).
+		if strings.HasPrefix(trimmed, "[") {
+			inArray = false
+			// Strip [[ ]] for array-of-tables, or [ ] for regular tables.
+			secRaw := strings.TrimLeft(trimmed, "[")
+			secRaw = strings.TrimRight(secRaw, "]")
+			secRaw = strings.TrimSpace(secRaw)
+			switch secRaw {
+			case "project":
+				currentSection = secNone // We only want [project].dependencies key, handled below.
+			case "project.optional-dependencies":
+				currentSection = secOptional
+			case "dependency-groups":
+				currentSection = secDepGroups
+			case "tool.uv":
+				currentSection = secUVTool
+			default:
+				currentSection = secNone
+			}
+			continue
+		}
+
+		if inArray {
+			// End of multi-line array.
+			if trimmed == "]" || strings.HasPrefix(trimmed, "]") {
+				inArray = false
+				continue
+			}
+			if name, ver, ok := extractPyDep(trimmed); ok {
+				isDirect := currentScope == ScopeProduction
+				pkgs = append(pkgs, ScopedPackage{
+					Name: name, Version: ver,
+					Ecosystem: "pypi", Scope: currentScope,
+					SourceFile: filePath, IsDirect: isDirect,
+				})
+			}
+			continue
+		}
+
+		// Look for key = [ array openers.
+		// Detect the key name and any inline content.
+		if idx := strings.Index(trimmed, "="); idx > 0 {
+			key := strings.TrimSpace(trimmed[:idx])
+			rest := strings.TrimSpace(trimmed[idx+1:])
+
+			// Handle [project] dependencies key regardless of what section tracker says.
+			if key == "dependencies" && strings.HasPrefix(rest, "[") {
+				// Only treat as production deps when we're in the [project] section
+				// (not under [project.optional-dependencies] or [tool.*]).
+				if currentSection == secNone {
+					currentScope = ScopeProduction
+					// Inline single-line array: dependencies = ["a", "b"]
+					if strings.HasSuffix(rest, "]") {
+						inner := strings.TrimSuffix(strings.TrimPrefix(rest, "["), "]")
+						for _, item := range strings.Split(inner, ",") {
+							if n, v, ok := extractPyDep(item); ok {
+								pkgs = append(pkgs, ScopedPackage{
+									Name: n, Version: v,
+									Ecosystem: "pypi", Scope: currentScope,
+									SourceFile: filePath, IsDirect: true,
+								})
+							}
+						}
+					} else {
+						inArray = true
+					}
+					continue
+				}
+			}
+
+			// Handle [tool.uv] dev-dependencies.
+			if currentSection == secUVTool && key == "dev-dependencies" && strings.HasPrefix(rest, "[") {
+				currentScope = ScopeDevelopment
+				if strings.HasSuffix(rest, "]") {
+					inner := strings.TrimSuffix(strings.TrimPrefix(rest, "["), "]")
+					for _, item := range strings.Split(inner, ",") {
+						if n, v, ok := extractPyDep(item); ok {
+							pkgs = append(pkgs, ScopedPackage{
+								Name: n, Version: v,
+								Ecosystem: "pypi", Scope: currentScope,
+								SourceFile: filePath, IsDirect: true,
+							})
+						}
+					}
+				} else {
+					inArray = true
+				}
+				continue
+			}
+
+			// Handle named group keys in [project.optional-dependencies] and [dependency-groups].
+			if (currentSection == secOptional || currentSection == secDepGroups) && strings.HasPrefix(rest, "[") {
+				currentScope = mapGroupScope(key)
+				if strings.HasSuffix(rest, "]") {
+					inner := strings.TrimSuffix(strings.TrimPrefix(rest, "["), "]")
+					for _, item := range strings.Split(inner, ",") {
+						if n, v, ok := extractPyDep(item); ok {
+							pkgs = append(pkgs, ScopedPackage{
+								Name: n, Version: v,
+								Ecosystem: "pypi", Scope: currentScope,
+								SourceFile: filePath, IsDirect: true,
+							})
+						}
+					}
+				} else {
+					inArray = true
+				}
+				continue
+			}
+		}
 	}
 	return pkgs, nil
 }

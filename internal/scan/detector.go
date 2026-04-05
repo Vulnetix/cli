@@ -43,6 +43,7 @@ var ManifestFiles = map[string]ManifestInfo{
 	"yarn.lock":         {Type: "yarn.lock", Ecosystem: "npm", Language: "javascript", IsLock: true},
 	"pnpm-lock.yaml":    {Type: "pnpm-lock.yaml", Ecosystem: "npm", Language: "javascript", IsLock: true},
 	// Python
+	"pyproject.toml":   {Type: "pyproject.toml", Ecosystem: "pypi", Language: "python", IsLock: false},
 	"requirements.txt": {Type: "requirements.txt", Ecosystem: "pypi", Language: "python", IsLock: false},
 	"Pipfile.lock":     {Type: "Pipfile.lock", Ecosystem: "pypi", Language: "python", IsLock: true},
 	"poetry.lock":      {Type: "poetry.lock", Ecosystem: "pypi", Language: "python", IsLock: true},
@@ -77,8 +78,10 @@ var ManifestFiles = map[string]ManifestInfo{
 var SupportedManifestTypes = map[string]bool{
 	"package.json":      true,
 	"package-lock.json": true,
+	"pyproject.toml":    true,
 	"requirements.txt":  true,
 	"Pipfile.lock":      true,
+	"uv.lock":           true,
 	"go.sum":            true,
 	"go.mod":            true,
 	"Cargo.lock":        true,

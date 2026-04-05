@@ -15,11 +15,18 @@ type DepGraph struct {
 }
 
 // IsDirect returns true if the package was declared directly in the manifest.
+// For PyPI packages, name lookup is also attempted with dash/underscore/case
+// normalisation so that e.g. "PyYAML" matches a key stored as "pyyaml".
 func (g *DepGraph) IsDirect(pkgName string) bool {
 	if g == nil {
 		return true // no graph data — assume direct
 	}
-	_, ok := g.DirectDeps[pkgName]
+	if _, ok := g.DirectDeps[pkgName]; ok {
+		return ok
+	}
+	// Normalised fallback for PyPI (dashes, underscores, case).
+	norm := strings.ToLower(strings.NewReplacer("-", "_", ".", "_").Replace(pkgName))
+	_, ok := g.DirectDeps[norm]
 	return ok
 }
 
@@ -153,6 +160,34 @@ func BuildGoDepGraph(goModPkgs, goSumPkgs []ScopedPackage) *DepGraph {
 	return g
 }
 
+// BuildPypiDepGraph correlates pyproject.toml (direct) and lock files (uv.lock,
+// poetry.lock, Pipfile.lock) to classify direct vs transitive dependencies.
+// Package name comparison is case-folded and normalises dashes/underscores
+// to handle the common PyPI naming quirks.
+func BuildPypiDepGraph(directPkgs, lockPkgs []ScopedPackage) *DepGraph {
+	g := &DepGraph{
+		DirectDeps: make(map[string]ScopedPackage),
+		AllDeps:    make(map[string]ScopedPackage),
+	}
+	normPypi := func(n string) string {
+		return strings.ToLower(strings.NewReplacer("-", "_", ".", "_").Replace(n))
+	}
+	for _, p := range directPkgs {
+		k := normPypi(p.Name)
+		g.DirectDeps[k] = p
+		g.AllDeps[k] = p
+	}
+	for _, p := range lockPkgs {
+		k := normPypi(p.Name)
+		if _, exists := g.AllDeps[k]; !exists {
+			g.AllDeps[k] = p
+		}
+	}
+	return g
+}
+
+// IsDirect for pypi needs the same normalisation — covered by IsDirect above.
+
 // BuildNpmDepGraph correlates package.json (direct) and package-lock.json (all)
 // packages from the same directory.
 func BuildNpmDepGraph(pkgJsonPkgs, lockPkgs []ScopedPackage) *DepGraph {
@@ -222,6 +257,20 @@ func BuildManifestGroups(filePackages map[string][]ScopedPackage, fileEcosystems
 		}
 
 		switch gd.ecosystem {
+		case "pypi":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := strings.ToLower(filepath.Base(relPath))
+				switch base {
+				case "pyproject.toml":
+					directPkgs = pkgs
+				case "uv.lock", "pipfile.lock", "poetry.lock", "requirements.txt":
+					lockPkgs = append(lockPkgs, pkgs...)
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildPypiDepGraph(directPkgs, lockPkgs)
+			}
 		case "golang":
 			var goModPkgs, goSumPkgs []ScopedPackage
 			for relPath, pkgs := range gd.files {
