@@ -224,7 +224,20 @@ func verifySigV4(orgID, secret string) error {
 }
 
 func Execute() error {
-	return rootCmd.Execute()
+	// Suppress cobra's default error printing — we handle it in main.
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
+	err := rootCmd.Execute()
+	if err == nil {
+		return nil
+	}
+	// SeverityBreachError is a controlled policy exit — caller handles messaging.
+	if _, ok := err.(*SeverityBreachError); ok {
+		return err
+	}
+	// For all other errors, restore normal error reporting.
+	fmt.Fprintln(os.Stderr, "Error:", err)
+	return err
 }
 
 // startupHooks runs before any command via cobra.OnInitialize.

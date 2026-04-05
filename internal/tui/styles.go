@@ -14,6 +14,7 @@ var (
 	ColorMalware  = lipgloss.Color("#FF00FF")
 	ColorMuted    = lipgloss.Color("#666666")
 	ColorAccent   = lipgloss.Color("#00CCFF")
+	ColorTeal     = lipgloss.Color("#00B4B4")
 	ColorWhite    = lipgloss.Color("#FFFFFF")
 )
 
