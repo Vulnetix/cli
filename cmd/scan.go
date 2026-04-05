@@ -49,7 +49,7 @@ No file contents are ever uploaded to any server.
 
 Results are organised by the native scope of each package manager:
   npm           production, development, peer, optional
-  Python        production, development  (Pipfile) / production  (requirements.txt)
+  Python        production, development  (Pipfile / pyproject.toml) / production  (requirements.txt, uv.lock)
   Go            production  (no scope distinction in go.mod / go.sum)
   Rust          production  (no scope distinction in Cargo.lock)
   Ruby          production  (group info requires Gemfile)
