@@ -185,21 +185,90 @@ vulnetix gha status --uuid <UUID>
 
 ### vulnetix scan
 
-Auto-discover and scan manifest files and SBOMs for known vulnerabilities. See the full [Scan Command Reference](scan/) for details.
+Walk the local directory tree, parse package manifests, and query the VDB for vulnerabilities — no files are uploaded. See the full [Scan Command Reference](scan/) for details.
 
 ```bash
 vulnetix scan [flags]
 vulnetix scan status <scan-id> [flags]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--path` | Directory to scan (default: `.`) |
-| `--depth` | Max recursion depth (default: `3`) |
-| `--file` | Scan a single file (skip auto-discovery) |
-| `--exclude` | Exclude paths matching glob (repeatable) |
-| `--no-poll` | Print scan IDs without waiting for results |
-| `-o, --output` | Output format: `json`, `pretty` |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `.` | Directory to scan |
+| `--depth` | `3` | Max recursion depth |
+| `--exclude` | - | Exclude paths matching glob (repeatable) |
+| `-f, --format` | pretty | Output format: `cdx17`, `cdx16`, `json`; omit for human-readable summary |
+| `--concurrency` | `5` | Max concurrent VDB queries |
+| `--no-progress` | `false` | Suppress progress bar |
+| `--paths` | `false` | Show full transitive dependency paths |
+| `--no-exploits` | `false` | Suppress exploit intelligence section |
+| `--no-remediation` | `false` | Suppress remediation section |
+| `--severity` | - | Exit `1` if any vuln meets or exceeds: `low`, `medium`, `high`, `critical` |
+
+---
+
+### vulnetix triage
+
+Fetch vulnerability alerts from external providers (e.g. GitHub Dependabot) and enrich them with remediation intelligence from the Vulnetix VDB.
+
+```bash
+vulnetix triage [flags]
+vulnetix triage status [flags]
+```
+
+**Supported providers:** `github` (Dependabot alerts via the `gh` CLI)
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--provider` | string | `github` | Vulnerability data provider (`github`) |
+| `--repo` | string | auto | Repository in `owner/repo` format (auto-detected from git context or `GITHUB_REPOSITORY`) |
+| `--all` | bool | `false` | Include dismissed alerts (open only by default) |
+| `--concurrency` | int | `5` | Number of concurrent VDB lookups |
+| `--format` | string | `tui` | Output format: `tui`, `json`, `text` |
+| `--include-guidance` | bool | `true` | Include CWE remediation guidance |
+
+For each alert the triage command fetches:
+- A context-aware **remediation plan** (upgrade path, verification steps)
+- **Fix data** from registry, distribution, and upstream source in parallel
+
+**Subcommands:**
+
+#### triage status
+
+Verify that provider CLI tools are installed, authenticated, and functional.
+
+```bash
+vulnetix triage status [--format text|json]
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--format` | string | `text` | Output format: `text`, `json` |
+
+**Examples:**
+
+```bash
+# Interactive TUI (default)
+vulnetix triage
+
+# Triage a specific repository
+vulnetix triage --repo owner/repo
+
+# Include dismissed alerts, output as JSON
+vulnetix triage --all --format json
+
+# Check GitHub CLI auth and repo detection
+vulnetix triage status
+
+# Check status as JSON
+vulnetix triage status --format json
+```
+
+> **Prerequisites:** The `github` provider requires the [`gh` CLI](https://cli.github.com/) to be installed and authenticated (`gh auth login`).
 
 ---
 
@@ -306,6 +375,83 @@ vulnetix update
 
 ---
 
+### vulnetix triage
+
+Triage vulnerability alerts from multiple providers (e.g. GitHub Dependabot) with integrated remediation intelligence from the Vulnetix Vulnerability Database.
+
+```bash
+vulnetix triage [flags]
+vulnetix triage status      # Check provider CLI health
+```
+
+The `triage` command fetches vulnerability alerts from external providers, enriches each alert with VDB data (remediation plans, fix availability across registry/distribution/source), and presents them in an interactive TUI or text/JSON output.
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--provider` | string | `github` | Vulnerability data provider |
+| `--repo` | string | auto-detected | Repository in `owner/repo` format |
+| `--all` | bool | `false` | Include dismissed alerts (open only by default) |
+| `--concurrency` | int | `5` | Number of concurrent VDB lookups |
+| `--format` | string | `tui` | Output format: `tui`, `json`, `text` |
+| `--include-guidance` | bool | `true` | Include CWE remediation guidance |
+| `--org-id` | string | community | Organization ID (uses stored credentials or community fallback) |
+
+**Examples:**
+
+```bash
+# Interactive TUI with auto-detected repo
+vulnetix triage
+
+# Specify a repo and include dismissed alerts
+vulnetix triage --repo owner/repo --all
+
+# Non-interactive text output
+vulnetix triage --format text
+
+# JSON output for scripting
+vulnetix triage --repo owner/repo --format json
+
+# Check provider CLI health
+vulnetix triage status
+```
+
+#### triage status
+
+Verify that provider CLI tools (e.g. `gh`) are installed, authenticated, and can detect the current repository.
+
+```bash
+# Text output (default)
+vulnetix triage status
+
+# JSON output for scripting
+vulnetix triage status --format json
+```
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--format` | string | `text` | Output format: `text`, `json` |
+| `--provider` | string | `github` | Vulnerability data provider |
+
+**Output (text):**
+
+```
+  GitHub CLI Status
+──────────────────────────────────────────
+
+  ✔ gh binary   : /usr/bin/gh
+  ✔ authenticated: octocat
+     Host         : github.com
+     Token source : OAuth Token
+     Token scopes : repo, workflow
+  ✔ repo detected : owner/repo
+```
+
+---
+
 ### vulnetix completion
 
 Generate shell autocompletion scripts.
@@ -359,12 +505,12 @@ These flags are available on the root command and inherited by subcommands:
 
 | Variable | Description | Used By |
 |----------|-------------|---------|
-| `VULNETIX_API_KEY` | Direct API key (hex digest) | `auth`, `upload`, `vdb` |
-| `VULNETIX_ORG_ID` | Organization ID for Direct API Key auth | `auth`, `upload`, `vdb` |
+| `VULNETIX_API_KEY` | Direct API key (hex digest) | `auth`, `upload`, `vdb`, `triage` |
+| `VULNETIX_ORG_ID` | Organization ID for Direct API Key auth | `auth`, `upload`, `vdb`, `triage` |
 | `VVD_ORG` | Organization UUID for SigV4 auth | `vdb`, `auth` |
 | `VVD_SECRET` | Secret key for SigV4 auth | `vdb`, `auth` |
 | `GITHUB_TOKEN` | GitHub API token | `gha upload` |
-| `GITHUB_REPOSITORY` | GitHub repository (owner/name) | `gha upload` |
+| `GITHUB_REPOSITORY` | GitHub repository (owner/name) | `gha upload`, `triage` (auto-detect) |
 | `GITHUB_RUN_ID` | GitHub Actions workflow run ID | `gha upload` |
 | `GITHUB_API_URL` | GitHub API base URL (default: `https://api.github.com`) | `gha upload` |
 | `GITHUB_ACTIONS` | Set to `true` in GitHub Actions | `gha upload` |
