@@ -54,6 +54,7 @@ src/@iconify/icons-bundle.js
 **/vdb.json
 
 # Go specific
+/cli
 bin/
 dist/
 .cache/
@@ -65,6 +66,12 @@ coverage.out
 # Hugo
 website/public/
 website/.hugo_build.lock
+
+# Terraform
+**/.terraform/
+**/terraform.tfstate
+**/terraform.tfstate.backup
+*.tfvars
 
 # Nix
 result
