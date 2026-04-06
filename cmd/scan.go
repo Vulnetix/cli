@@ -58,7 +58,7 @@ Results are organised by the native scope of each package manager:
   Yarn / pnpm   production  (scope requires correlation with package.json)
 
 After scanning:
-  • A CycloneDX 1.7 SBOM is written to  .vulnetix/sbom.cdx.json
+  • A CycloneDX SBOM (default 1.7, supports 1.2-1.7) is written to .vulnetix/sbom.cdx.json
   • Scan state is recorded in           .vulnetix/memory.yaml
   • A summary or BOM JSON is printed to stdout
 
@@ -69,6 +69,10 @@ Examples:
   vulnetix scan --exclude "test*"
   vulnetix scan -f cdx17               # emit CycloneDX 1.7 JSON to stdout
   vulnetix scan -f cdx16               # emit CycloneDX 1.6 JSON to stdout
+  vulnetix scan -f cdx15               # emit CycloneDX 1.5 JSON to stdout
+  vulnetix scan -f cdx14               # emit CycloneDX 1.4 JSON to stdout
+  vulnetix scan -f cdx13               # emit CycloneDX 1.3 JSON to stdout
+  vulnetix scan -f cdx12               # emit CycloneDX 1.2 JSON to stdout
   vulnetix scan -f json                # emit raw JSON findings to stdout
   vulnetix scan --no-progress          # suppress progress bar
   vulnetix scan --severity high        # exit 1 if any vuln is high or critical
@@ -197,7 +201,9 @@ Examples:
 
 		// ── 3. Display detected files ──────────────────────────────────────
 		fmt.Fprintln(os.Stderr, "Detected files:")
+		t := display.NewTerminal()
 		var seedBOM *cdx.BOM
+		var vulnetixSeedBOM *cdx.BOM
 		var supportedFiles []scan.DetectedFile
 		for _, f := range files {
 			switch f.FileType {
@@ -218,7 +224,11 @@ Examples:
 				// Parse the CDX to check the producer.
 				cdxBom, cdxErr := parseCDXForScan(f.Path)
 				if cdxErr == nil && isVulnetixSCA(cdxBom) {
-					fmt.Fprintf(os.Stderr, "  %-40s [skipped — produced by vulnetix-sca]\n", f.RelPath)
+					fmt.Fprintf(os.Stderr, "  %-40s %s\n", f.RelPath,
+						display.Teal(t, "[skipped — produced by vulnetix-sca]"))
+					if vulnetixSCAVersion(cdxBom) == version {
+						vulnetixSeedBOM = cdxBom
+					}
 					continue
 				}
 				if cdxErr == nil && cdxBom != nil {
@@ -226,6 +236,10 @@ Examples:
 						f.RelPath, f.SBOMVersion, len(cdxBom.Components), len(cdxBom.Vulnerabilities))
 					if len(cdxBom.Components) > 0 || len(cdxBom.Vulnerabilities) > 0 {
 						seedBOM = cdxBom
+					}
+					if len(cdxBom.Components) > 0 {
+						f.Supported = true
+						supportedFiles = append(supportedFiles, f)
 					}
 				} else {
 					fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
@@ -257,6 +271,7 @@ Examples:
 			noRemediation,
 			severityThreshold,
 			seedBOM,
+			vulnetixSeedBOM,
 			gitCtx,
 			sysInfo,
 		)
@@ -323,6 +338,7 @@ func runLocalScan(
 	noRemediation bool,
 	severityThreshold string,
 	seedBOM *cdx.BOM,
+	vulnetixSeedBOM *cdx.BOM,
 	gitCtx *gitctx.GitContext,
 	sysInfo *gitctx.SystemInfo,
 ) error {
@@ -336,6 +352,23 @@ func runLocalScan(
 	allPackages := make([]scan.ScopedPackage, 0, 256)
 
 	for _, f := range files {
+		// CDX input files: extract components as packages.
+		if f.FileType == scan.FileTypeCycloneDX {
+			cdxBom, err := parseCDXForScan(f.Path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
+				continue
+			}
+			pkgs := buildPackagesFromCDX(cdxBom.Components, f.RelPath)
+			scopeCounts := map[string]int{}
+			for _, p := range pkgs {
+				scopeCounts[p.Scope]++
+			}
+			fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+			localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
+			allPackages = append(allPackages, pkgs...)
+			continue
+		}
 		if f.ManifestInfo == nil {
 			continue
 		}
@@ -507,7 +540,12 @@ func runLocalScan(
 		System:      sysInfo,
 		ToolVersion: version,
 	}
-	bom := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
+	// Prefer vulnetix-sca seed (version-matched) over external CDX seed.
+	effectiveSeed := seedBOM
+	if vulnetixSeedBOM != nil {
+		effectiveSeed = vulnetixSeedBOM
+	}
+	bom := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, effectiveSeed)
 	if err := writeBOMToFile(bom, sbomPath); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
 	}
@@ -661,7 +699,20 @@ func runDryScan(
 		case scan.FileTypeSPDX:
 			fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
 		case scan.FileTypeCycloneDX:
-			fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
+			cdxBom, cdxErr := parseCDXForScan(f.Path)
+			if cdxErr == nil && isVulnetixSCA(cdxBom) {
+				fmt.Fprintf(os.Stderr, "  %-40s %s\n", f.RelPath,
+					display.Teal(t, "[skipped — produced by vulnetix-sca]"))
+				continue
+			}
+			if cdxErr == nil && cdxBom != nil && len(cdxBom.Components) > 0 {
+				fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-8s (%d comp, %d vulns)\n",
+					f.RelPath, f.SBOMVersion, len(cdxBom.Components), len(cdxBom.Vulnerabilities))
+				f.Supported = true
+				supportedFiles = append(supportedFiles, f)
+			} else {
+				fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
+			}
 		}
 		if f.Supported && f.FileType == scan.FileTypeManifest {
 			supportedFiles = append(supportedFiles, f)
@@ -678,6 +729,23 @@ func runDryScan(
 	fmt.Fprintln(os.Stderr, "Parsing manifests (local):")
 	totalPkgs := 0
 	for _, f := range supportedFiles {
+		// CDX input files: extract components as packages.
+		if f.FileType == scan.FileTypeCycloneDX {
+			cdxBom, err := parseCDXForScan(f.Path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
+				continue
+			}
+			pkgs := buildPackagesFromCDX(cdxBom.Components, f.RelPath)
+			scopeCounts := map[string]int{}
+			for _, p := range pkgs {
+				scopeCounts[p.Scope]++
+			}
+			fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n",
+				f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+			totalPkgs += len(pkgs)
+			continue
+		}
 		if f.ManifestInfo == nil {
 			continue
 		}
@@ -1616,6 +1684,32 @@ func isVulnetixSCA(bom *cdx.BOM) bool {
 		}
 	}
 	return false
+}
+
+// vulnetixSCAVersion returns the version string of the vulnetix-sca tool
+// component in the BOM metadata, or "" if not present.
+func vulnetixSCAVersion(bom *cdx.BOM) string {
+	if bom == nil || bom.Metadata == nil || bom.Metadata.Tools == nil {
+		return ""
+	}
+	for _, tc := range bom.Metadata.Tools.Components {
+		if tc.Name == "vulnetix-sca" {
+			return tc.Version
+		}
+	}
+	return ""
+}
+
+// buildPackagesFromCDX converts CDX components to ScopedPackage entries,
+// attributing them to the given sourceFile.
+func buildPackagesFromCDX(components []cdx.Component, sourceFile string) []scan.ScopedPackage {
+	pkgs := make([]scan.ScopedPackage, 0, len(components))
+	for _, c := range components {
+		pkg := buildPkgFromComponent(c)
+		pkg.SourceFile = sourceFile
+		pkgs = append(pkgs, pkg)
+	}
+	return pkgs
 }
 
 func init() {
