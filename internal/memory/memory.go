@@ -124,7 +124,7 @@ type FindingRecord struct {
 	CWSS           *CWSSData      `yaml:"cwss,omitempty"`
 	Decision       *Decision      `yaml:"decision,omitempty"`
 	History        []HistoryEntry `yaml:"history,omitempty"`
-	Source         string         `yaml:"source,omitempty"` // "vulnetix" | "github"
+	Source         string         `yaml:"source,omitempty"` // "vulnetix-sca" | "github"
 
 	// Enriched scan data — populated by vulnetix scan.
 	AffectedRange   string           `yaml:"affected_range,omitempty"`
@@ -343,7 +343,7 @@ func (m *Memory) RecordVulnLookup(vulnID string, data interface{}) {
 		Event:  "vdb-lookup",
 		Detail: "Queried VDB for vulnerability details",
 	})
-	rec.Source = "vulnetix"
+	rec.Source = "vulnetix-sca"
 
 	m.Findings[vulnID] = rec
 }
@@ -373,7 +373,7 @@ func (m *Memory) RecordEnrichedFindings(findings []EnrichedFinding) {
 		existing.Confirmed = f.Confirmed
 		existing.InCisaKev = f.InCisaKev
 		existing.PathCount = f.PathCount
-		existing.Source = "vulnetix"
+		existing.Source = "vulnetix-sca"
 
 		// Merge source files (deduplicated).
 		fileSet := map[string]bool{}
@@ -449,6 +449,82 @@ func (m *Memory) RecordEnrichedFindings(findings []EnrichedFinding) {
 
 		m.Findings[f.CveID] = existing
 	}
+}
+
+// StateChange describes a finding whose status changed during reconciliation.
+type StateChange struct {
+	CveID     string
+	Package   string
+	Ecosystem string
+	OldStatus string
+	NewStatus string
+	Comment   string
+	Finding   FindingRecord
+}
+
+// ReconcileFindings compares the set of CVE IDs found in the current scan
+// against all existing findings with source "vulnetix-sca" in memory.
+//
+// Findings present in memory but absent from the current scan are marked
+// "fixed" (user remediated). Findings previously marked "fixed" that reappear
+// in the current scan are marked "under_investigation" (regression).
+//
+// Returns a list of state changes so the caller can generate VEX entries.
+func (m *Memory) ReconcileFindings(currentCVEs map[string]bool) []StateChange {
+	if m.Findings == nil {
+		return nil
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	var changes []StateChange
+
+	for cveID, rec := range m.Findings {
+		if rec.Source != "vulnetix-sca" {
+			continue
+		}
+
+		inCurrentScan := currentCVEs[cveID]
+
+		if !inCurrentScan && rec.Status != "fixed" && rec.Status != "not_affected" {
+			// Was present before, not in current scan → user remediated.
+			oldStatus := rec.Status
+			rec.Status = "fixed"
+			rec.History = append(rec.History, HistoryEntry{
+				Date:   now,
+				Event:  "auto-resolved",
+				Detail: "Vulnerability disappeared from scan results; marked as user-remediated",
+			})
+			m.Findings[cveID] = rec
+			changes = append(changes, StateChange{
+				CveID:     cveID,
+				Package:   rec.Package,
+				Ecosystem: rec.Ecosystem,
+				OldStatus: oldStatus,
+				NewStatus: "fixed",
+				Comment:   "User remediated — disappeared from scanner report",
+				Finding:   rec,
+			})
+		} else if inCurrentScan && rec.Status == "fixed" {
+			// Was fixed but reappeared → regression.
+			rec.Status = "under_investigation"
+			rec.History = append(rec.History, HistoryEntry{
+				Date:   now,
+				Event:  "regression",
+				Detail: "Vulnerability reappeared in scan results after being marked fixed",
+			})
+			m.Findings[cveID] = rec
+			changes = append(changes, StateChange{
+				CveID:     cveID,
+				Package:   rec.Package,
+				Ecosystem: rec.Ecosystem,
+				OldStatus: "fixed",
+				NewStatus: "under_investigation",
+				Comment:   "Regression — reappeared in scan results after previously being fixed",
+				Finding:   rec,
+			})
+		}
+	}
+
+	return changes
 }
 
 // EnrichedFinding is the input struct for RecordEnrichedFindings.

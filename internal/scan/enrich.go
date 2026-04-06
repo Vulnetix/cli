@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vulnetix/cli/internal/update"
 	"github.com/vulnetix/cli/internal/vdb"
 )
 
@@ -34,6 +35,9 @@ type EnrichedVuln struct {
 	// MaxSeverity is the highest severity across all scoring sources for this vuln.
 	// It is used for --severity threshold evaluation.
 	MaxSeverity string
+
+	// MatchMethod records how this vuln was matched to the package (e.g. "name+version", "cpe", "name-only").
+	MatchMethod string
 }
 
 // ExploitSummary captures exploit intelligence for a vulnerability.
@@ -178,8 +182,9 @@ func enrichOne(
 			PackageName: f.PackageName,
 		})
 		if err == nil {
-			versionRange, confirmed := checkAffectedResponse(affected, f.PackageName, f.PackageVer, f.Ecosystem)
+			versionRange, confirmed, matchMethod := checkAffectedResponse(affected, f.PackageName, f.PackageVer, f.Ecosystem)
 			ev.AffectedRange = versionRange
+			ev.MatchMethod = matchMethod
 			if versionRange != "" && !confirmed {
 				return nil // installed version is NOT in affected range
 			}
@@ -209,36 +214,76 @@ func enrichOne(
 		}
 	}
 
-	// ── 4. Compute per-source severities and MaxSeverity ───────────────
+	// ── 4. Fix-version safety net ─────────────────────────────────────
+	// As a final check for all confirmed vulns, if remediation data provides
+	// a fix version and the installed version is at or above it, filter out.
+	// For wildcards (*) with no fix, assume all versions are affected.
+	if fixVer := ev.bestFixVersion(); fixVer != "" {
+		installed, errI := update.ParseVersion(strings.TrimPrefix(f.PackageVer, "v"))
+		fix, errF := update.ParseVersion(strings.TrimPrefix(fixVer, "v"))
+		if errI == nil && errF == nil && installed.Compare(fix) >= 0 {
+			return nil // installed version is at or above the fix — not affected
+		}
+		// Below the fix — append +fix-check to record that we verified.
+		if !strings.HasSuffix(ev.MatchMethod, "+fix-check") {
+			ev.MatchMethod = strings.TrimSuffix(ev.MatchMethod, "+wildcard") + "+fix-check"
+		}
+	} else if strings.HasSuffix(ev.MatchMethod, "+wildcard") {
+		// Wildcard with no fix from any source — keep as affected, clean up method.
+		ev.MatchMethod = strings.TrimSuffix(ev.MatchMethod, "+wildcard") + "+wildcard-no-fix"
+	}
+
+	// ── 5. Compute per-source severities and MaxSeverity ───────────────
 	ComputeEnrichedSeverities(ev)
 
 	return ev
 }
 
+// isWildcardRange returns true if the version range means "all versions".
+func isWildcardRange(vr string) bool {
+	vr = strings.TrimSpace(vr)
+	return vr == "*" || vr == ">= 0" || vr == ">= 0.0.0" || vr == "<= 99999"
+}
+
+// bestFixVersion returns the best available fix version from remediation data.
+func (ev *EnrichedVuln) bestFixVersion() string {
+	if ev.Remediation != nil && ev.Remediation.FixVersion != "" {
+		return ev.Remediation.FixVersion
+	}
+	return ""
+}
+
 // checkAffectedResponse parses the V2Affected response and determines if the
 // installed version falls within any affected range for the given package.
-// Returns (versionRange, isAffected). If no matching entry is found, returns ("", true)
-// to err on the side of caution.
-func checkAffectedResponse(data map[string]interface{}, pkgName, installedVer, ecosystem string) (string, bool) {
+// Returns (versionRange, isAffected, matchMethod).
+//
+// Matching strategy (in order):
+//  1. Match by packageName (or product) and ecosystem — check all version ranges.
+//  2. If no name match, try CPE-based matching using vendor/product/cpe fields.
+//  3. If the API returned affected entries but none matched, the package is NOT
+//     affected (return false). We tolerate false negatives over false positives.
+//  4. Only when no affected data exists at all do we assume affected (true).
+func checkAffectedResponse(data map[string]interface{}, pkgName, installedVer, ecosystem string) (string, bool, string) {
 	affected, ok := data["affected"].([]interface{})
 	if !ok || len(affected) == 0 {
-		return "", true // no affected data — assume affected
+		return "", true, "no-data" // no affected data at all — assume affected
 	}
 
+	// Pass 1: match by package name / product name.
+	var matched bool
+	var allRanges []string
 	for _, a := range affected {
 		am, ok := a.(map[string]interface{})
 		if !ok {
 			continue
 		}
 
-		// Match by package name or product name.
 		name := stringVal(am, "packageName")
 		if name == "" {
 			name = stringVal(am, "product")
 		}
 		eco := stringVal(am, "ecosystem")
 
-		// Check if this entry matches our package.
 		if !strings.EqualFold(name, pkgName) {
 			continue
 		}
@@ -246,21 +291,109 @@ func checkAffectedResponse(data map[string]interface{}, pkgName, installedVer, e
 			continue
 		}
 
+		matched = true
+
 		vr := stringVal(am, "versionRange")
 		if vr == "" {
 			vr = stringVal(am, "versions")
 		}
 		if vr == "" {
-			return "", true // no range specified — assume affected
+			// Entry matches our package but has no range — can't rule it out,
+			// but keep checking other entries.
+			continue
+		}
+
+		allRanges = append(allRanges, vr)
+
+		if isWildcardRange(vr) {
+			// Wildcard — defer to fix-version check in enrichOne.
+			return vr, true, "name+wildcard"
 		}
 
 		if IsVersionAffected(installedVer, vr, ecosystem) {
-			return vr, true
+			return vr, true, "name+version"
 		}
-		return vr, false
 	}
 
-	return "", true // no matching entry — assume affected
+	// If we found name-matched entries with version ranges but none matched
+	// the installed version, the package is not affected.
+	if matched && len(allRanges) > 0 {
+		return strings.Join(allRanges, " | "), false, "name+version"
+	}
+	// Name matched but no ranges — can't determine, assume affected.
+	if matched {
+		return "", true, "name-only"
+	}
+
+	// Pass 2: CPE-based matching — check if any affected entry's CPE, vendor,
+	// or product field matches the package name. This catches cases where the
+	// VDB uses a different canonical name than the ecosystem package name.
+	lowerPkg := strings.ToLower(pkgName)
+	for _, a := range affected {
+		am, ok := a.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		if matchesByCPE(am, lowerPkg) {
+			vr := stringVal(am, "versionRange")
+			if vr == "" {
+				vr = stringVal(am, "versions")
+			}
+			if vr == "" {
+				return "", true, "cpe" // CPE matches but no range — assume affected
+			}
+			if isWildcardRange(vr) {
+				return vr, true, "cpe+wildcard"
+			}
+			if IsVersionAffected(installedVer, vr, ecosystem) {
+				return vr, true, "cpe+version"
+			}
+			return vr, false, "cpe+version"
+		}
+	}
+
+	// Affected data exists but nothing matched our package — not affected.
+	return "", false, "unmatched"
+}
+
+// matchesByCPE checks whether an affected entry's CPE, vendor, or product
+// fields match the given lowercase package name.
+func matchesByCPE(am map[string]interface{}, lowerPkg string) bool {
+	// Check vendor and product fields directly.
+	vendor := strings.ToLower(stringVal(am, "vendor"))
+	product := strings.ToLower(stringVal(am, "product"))
+
+	if product != "" && product == lowerPkg {
+		return true
+	}
+	// Some packages are namespaced: e.g. "@angular/core" should match product "core"
+	// with vendor "angular", or "org.apache.logging.log4j:log4j-core" → product "log4j-core".
+	if product != "" && strings.HasSuffix(lowerPkg, product) {
+		return true
+	}
+
+	// Check CPE string: cpe:2.3:a:vendor:product:...
+	cpe := strings.ToLower(stringVal(am, "cpe"))
+	if cpe == "" {
+		cpe = strings.ToLower(stringVal(am, "cpe23"))
+	}
+	if cpe != "" {
+		parts := strings.Split(cpe, ":")
+		if len(parts) >= 5 {
+			cpeVendor := parts[3]
+			cpeProduct := parts[4]
+			if cpeProduct == lowerPkg || cpeVendor == lowerPkg {
+				return true
+			}
+			if strings.HasSuffix(lowerPkg, cpeProduct) {
+				return true
+			}
+		}
+	}
+
+	_ = vendor // vendor alone is too broad to match on
+	return false
 }
 
 // parseExploitSummary extracts exploit intelligence summary from the GetExploits response.
