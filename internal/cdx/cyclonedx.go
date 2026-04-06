@@ -127,9 +127,11 @@ type Affect struct {
 	Ref string `json:"ref"`
 }
 
-// Analysis contains vulnerability analysis state.
+// Analysis contains vulnerability analysis state (CycloneDX VEX profile).
 type Analysis struct {
-	State string `json:"state,omitempty"`
+	State         string `json:"state,omitempty"`
+	Justification string `json:"justification,omitempty"`
+	Detail        string `json:"detail,omitempty"`
 }
 
 // Advisory is an external advisory reference.

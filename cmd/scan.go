@@ -532,45 +532,16 @@ func runLocalScan(
 	// Collect IDS rules.
 	idsRules := scan.CollectIDSRules(enrichedVulns)
 
-	// ── Write .vulnetix/sbom.cdx.json ────────────────────────────────────
-	vulnetixDir := filepath.Join(rootPath, ".vulnetix")
-	sbomPath := filepath.Join(vulnetixDir, "sbom.cdx.json")
-	scanCtx := &cdx.ScanContext{
-		Git:         gitCtx,
-		System:      sysInfo,
-		ToolVersion: version,
-	}
-	// Prefer vulnetix-sca seed (version-matched) over external CDX seed.
-	effectiveSeed := seedBOM
-	if vulnetixSeedBOM != nil {
-		effectiveSeed = vulnetixSeedBOM
-	}
-	bom := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, effectiveSeed)
-	if err := writeBOMToFile(bom, sbomPath); err != nil {
-		fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
-	}
-
-	// ── Write IDS rules if any ───────────────────────────────────────────
-	rulesPath := ""
-	if len(idsRules) > 0 {
-		rulesPath = filepath.Join(vulnetixDir, "detection-rules.rules")
-		if err := writeIDSRulesFile(rulesPath, idsRules); err != nil {
-			fmt.Fprintf(os.Stderr, "  warning: could not write IDS rules: %v\n", err)
-			rulesPath = ""
-		}
-	}
-
 	// ── Update .vulnetix/memory.yaml ──────────────────────────────────────
+	// Memory is loaded and reconciled BEFORE building the BOM so that VEX
+	// entries for remediated / regressed findings can be included in the SBOM.
+	vulnetixDir := filepath.Join(rootPath, ".vulnetix")
 	mem, _ := memory.Load(vulnetixDir)
 	if mem == nil {
 		mem = &memory.Memory{Version: "1"}
 	}
-	rec := buildScanRecord(localResults, allVulns, files, rootPath, gitCtx, sysInfo, sbomPath)
-	if rulesPath != "" {
-		rec.IDSRulesPath = ".vulnetix/detection-rules.rules"
-		rec.IDSRulesCount = len(idsRules)
-	}
-	mem.RecordScan(rec)
+
+	var stateChanges []memory.StateChange
 
 	// Write enriched findings to memory unless disabled.
 	if !disableMemory && len(enrichedVulns) > 0 {
@@ -649,10 +620,91 @@ func runLocalScan(
 			findings = append(findings, ef)
 		}
 		mem.RecordEnrichedFindings(findings)
+
+		// Reconcile: detect remediated and regressed findings.
+		currentCVEs := make(map[string]bool, len(enrichedVulns))
+		for _, ev := range enrichedVulns {
+			currentCVEs[ev.CveID] = true
+		}
+		stateChanges = mem.ReconcileFindings(currentCVEs)
+	} else if !disableMemory {
+		// No vulns in current scan — reconcile all existing findings.
+		stateChanges = mem.ReconcileFindings(map[string]bool{})
 	}
+
+	// Record scan summary.
+	sbomPath := filepath.Join(vulnetixDir, "sbom.cdx.json")
+	rec := buildScanRecord(localResults, allVulns, files, rootPath, gitCtx, sysInfo, sbomPath)
+
+	// ── Write IDS rules if any ───────────────────────────────────────────
+	rulesPath := ""
+	if len(idsRules) > 0 {
+		rulesPath = filepath.Join(vulnetixDir, "detection-rules.rules")
+		if err := writeIDSRulesFile(rulesPath, idsRules); err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not write IDS rules: %v\n", err)
+			rulesPath = ""
+		}
+	}
+	if rulesPath != "" {
+		rec.IDSRulesPath = ".vulnetix/detection-rules.rules"
+		rec.IDSRulesCount = len(idsRules)
+	}
+	mem.RecordScan(rec)
 
 	if err := memory.Save(vulnetixDir, mem); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
+	}
+
+	// ── Write .vulnetix/sbom.cdx.json ────────────────────────────────────
+	scanCtx := &cdx.ScanContext{
+		Git:         gitCtx,
+		System:      sysInfo,
+		ToolVersion: version,
+	}
+	// Prefer vulnetix-sca seed (version-matched) over external CDX seed.
+	effectiveSeed := seedBOM
+	if vulnetixSeedBOM != nil {
+		effectiveSeed = vulnetixSeedBOM
+	}
+	bom := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, effectiveSeed)
+
+	// Inject VEX entries for remediated and regressed findings.
+	for _, sc := range stateChanges {
+		vexVuln := cdx.Vulnerability{
+			BOMRef: sc.CveID,
+			ID:     sc.CveID,
+			Source: &cdx.Source{
+				Name: "vulnetix-sca",
+			},
+		}
+		switch sc.NewStatus {
+		case "fixed":
+			vexVuln.Analysis = &cdx.Analysis{
+				State:         "resolved",
+				Justification: "update",
+				Detail:        sc.Comment,
+			}
+		case "under_investigation":
+			vexVuln.Analysis = &cdx.Analysis{
+				State:  "in_triage",
+				Detail: sc.Comment,
+			}
+		}
+		vexVuln.Properties = append(vexVuln.Properties, cdx.Property{
+			Name:  "vulnetix:vex-auto",
+			Value: "true",
+		})
+		if sc.Package != "" {
+			vexVuln.Properties = append(vexVuln.Properties, cdx.Property{
+				Name:  "vulnetix:package",
+				Value: sc.Package,
+			})
+		}
+		bom.Vulnerabilities = append(bom.Vulnerabilities, vexVuln)
+	}
+
+	if err := writeBOMToFile(bom, sbomPath); err != nil {
+		fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
 	}
 
 	// ── Output ────────────────────────────────────────────────────────────
@@ -974,6 +1026,7 @@ func printPrettyScanSummary(
 		{Header: "CESSev", MinWidth: 4, MaxWidth: 8},
 		{Header: "Expl", MinWidth: 4, MaxWidth: 5, Align: display.AlignRight},
 		{Header: "Fix", MinWidth: 3, MaxWidth: 20},
+		{Header: "Match", MinWidth: 5, MaxWidth: 14},
 	}
 
 	var allRows [][]string
@@ -987,7 +1040,7 @@ func printPrettyScanSummary(
 
 		if len(dedupedVulns) == 0 {
 			// Sentinel row so the file still appears in the table.
-			row := make([]string, 15)
+			row := make([]string, 16)
 			row[0] = primaryFile
 			row[1] = "(no vulnerabilities)"
 			allRows = append(allRows, row)
@@ -1072,10 +1125,15 @@ func printPrettyScanSummary(
 				}
 			}
 
+			matchMethod := v.MatchMethod
+			if matchMethod == "" {
+				matchMethod = "name"
+			}
+
 			allRows = append(allRows, []string{
 				fileCell, vulnID, pkg, mal, maxSev,
 				cvss, cvssSev, epss, epssSev,
-				ssvc, ssvcSev, cess, cesSev, expl, fix,
+				ssvc, ssvcSev, cess, cesSev, expl, fix, matchMethod,
 			})
 
 			if showPaths && mg.Graph != nil && !mg.Graph.IsDirect(v.PackageName) {
