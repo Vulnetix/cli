@@ -18,6 +18,12 @@ type LocalScanResult struct {
 	EnrichedVulns []scan.EnrichedVuln // populated after enrichment; used for full ratings
 }
 
+// vulnDedupKey is used to deduplicate vulnerabilities by (CVE ID, package ref).
+type vulnDedupKey struct {
+	CveID   string
+	PkgName string
+}
+
 // BuildFromLocalScan creates a CycloneDX BOM from locally-parsed manifest data and VDB findings.
 //
 // Components are deduplicated by (name, version). Each component carries its ecosystem scope
@@ -27,9 +33,15 @@ type LocalScanResult struct {
 // When scanCtx is non-nil the BOM metadata is enriched with git-repository context
 // (branch, commit, dirty state, worktree, VCS remotes, recent authors) and host
 // environment context (hostname, shell, OS, arch, user).
-func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *ScanContext) *BOM {
+func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *ScanContext, seed *BOM) *BOM {
+	// Use 1.7 by default, but if a seed BOM is provided with a different version,
+	// keep the seed's version to preserve compatibility.
 	if specVersion == "" {
-		specVersion = "1.7"
+		if seed != nil && seed.SpecVersion != "" {
+			specVersion = seed.SpecVersion
+		} else {
+			specVersion = "1.7"
+		}
 	}
 
 	toolVersion := "cli"
@@ -59,6 +71,45 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 
 	// Map "name@version" → bom-ref for cross-referencing vulnerabilities.
 	compRefs := make(map[string]string)
+
+	// ── Merge seed BOM if versions match ─────────────────────────────────────
+	seedCompatible := seed != nil && seed.SpecVersion == specVersion
+
+	if seedCompatible {
+		// Pre-populate components.
+		for _, c := range seed.Components {
+			compKey := c.Name + "@" + c.Version
+			if _, ok := compRefs[compKey]; !ok {
+				compRefs[compKey] = c.BOMRef
+				bom.Components = append(bom.Components, c)
+			}
+		}
+
+		// Pre-populate vulnerabilities (deduped by id+affect).
+		seenSeedVulns := map[vulnDedupKey]bool{}
+		for _, sv := range seed.Vulnerabilities {
+			if len(sv.Affects) == 0 {
+				continue
+			}
+			for _, a := range sv.Affects {
+				dk := vulnDedupKey{sv.ID, a.Ref}
+				if !seenSeedVulns[dk] {
+					seenSeedVulns[dk] = true
+					bom.Vulnerabilities = append(bom.Vulnerabilities, sv)
+				}
+			}
+		}
+
+		// Preserve serial number and tools from seed.
+		bom.SerialNumber = seed.SerialNumber
+		bom.Version = seed.Version
+		if seed.Metadata != nil {
+			bom.Metadata.Tools = seed.Metadata.Tools
+			if seed.Metadata.Component != nil {
+				bom.Metadata.Component = seed.Metadata.Component
+			}
+		}
+	}
 
 	for _, result := range results {
 		for _, pkg := range result.Packages {
@@ -97,10 +148,6 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 	}
 
 	// Deduplicate vulnerabilities by (cveId, packageName) then emit.
-	type vulnDedupKey struct {
-		CveID   string
-		PkgName string
-	}
 	seenVulns := make(map[vulnDedupKey]bool)
 
 	// Build an enriched-vuln index keyed by (cveId, packageName) so we can

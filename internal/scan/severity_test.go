@@ -190,17 +190,17 @@ func TestSeverityMeetsThreshold(t *testing.T) {
 	}
 }
 
-// ── computeEnrichedSeverities ────────────────────────────────────────────────
+// ── ComputeEnrichedSeverities ────────────────────────────────────────────────
 
 func TestComputeEnrichedSeverities_MaxSeverity(t *testing.T) {
 	tests := []struct {
-		name        string
-		ev          EnrichedVuln
-		wantMax     string
-		wantCVSS    string
-		wantEPSS    string
-		wantCESS    string
-		wantSSVC    string
+		name     string
+		ev       EnrichedVuln
+		wantMax  string
+		wantCVSS string
+		wantEPSS string
+		wantCESS string
+		wantSSVC string
 	}{
 		{
 			name: "CVSS drives max",
@@ -240,8 +240,8 @@ func TestComputeEnrichedSeverities_MaxSeverity(t *testing.T) {
 			wantCESS: "high",
 		},
 		{
-			name: "No scores → unscored",
-			ev:   EnrichedVuln{},
+			name:    "No scores → unscored",
+			ev:      EnrichedVuln{},
 			wantMax: "unscored",
 		},
 		{
@@ -255,7 +255,7 @@ func TestComputeEnrichedSeverities_MaxSeverity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ev := tt.ev
-			computeEnrichedSeverities(&ev)
+			ComputeEnrichedSeverities(&ev)
 			if ev.MaxSeverity != tt.wantMax {
 				t.Errorf("MaxSeverity = %q, want %q", ev.MaxSeverity, tt.wantMax)
 			}

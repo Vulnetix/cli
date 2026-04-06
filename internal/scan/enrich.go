@@ -11,15 +11,15 @@ import (
 // EnrichedVuln extends VulnFinding with version-filtered, enriched data.
 type EnrichedVuln struct {
 	VulnFinding
-	Confirmed       bool           // true if installed version is in affected range
-	IsMalicious     bool           // malware/malicious package — highest sort priority
-	AffectedRange   string         // e.g., ">= 2.0.0, < 2.3.1"
-	PathCount       int            // number of source files / transitive paths introducing this vuln
-	ThreatExposure  float64        // x_threatExposure from VDB — primary sort key
-	EPSSScore       float64        // displayed
-	EPSSPercentile  float64        // displayed
-	CVSSScore       float64        // displayed
-	CoalitionESS    float64        // displayed
+	Confirmed       bool    // true if installed version is in affected range
+	IsMalicious     bool    // malware/malicious package — highest sort priority
+	AffectedRange   string  // e.g., ">= 2.0.0, < 2.3.1"
+	PathCount       int     // number of source files / transitive paths introducing this vuln
+	ThreatExposure  float64 // x_threatExposure from VDB — primary sort key
+	EPSSScore       float64 // displayed
+	EPSSPercentile  float64 // displayed
+	CVSSScore       float64 // displayed
+	CoalitionESS    float64 // displayed
 	ExploitIntel    *ExploitSummary
 	Remediation     *RemediationInfo
 	SSVCDecision    string // "Act", "Attend", "Track*", "Track"
@@ -27,13 +27,13 @@ type EnrichedVuln struct {
 	IDSRules        []IDSRule
 
 	// Per-source severity ratings (coerced from numeric scores / decisions).
-	EPSSSeverity  string // severity derived from EPSS probability
-	CESSeverity   string // severity derived from Coalition ESS score
-	CVSSSeverity  string // severity derived from CVSS score
-	SSVCSeverity  string // severity derived from SSVC decision
+	EPSSSeverity string // severity derived from EPSS probability
+	CESSeverity  string // severity derived from Coalition ESS score
+	CVSSSeverity string // severity derived from CVSS score
+	SSVCSeverity string // severity derived from SSVC decision
 	// MaxSeverity is the highest severity across all scoring sources for this vuln.
 	// It is used for --severity threshold evaluation.
-	MaxSeverity   string
+	MaxSeverity string
 }
 
 // ExploitSummary captures exploit intelligence for a vulnerability.
@@ -102,7 +102,7 @@ func EnrichVulns(
 	}
 
 	type enrichResult struct {
-		idx     int
+		idx      int
 		enriched *EnrichedVuln
 	}
 	resultsCh := make(chan enrichResult, total)
@@ -205,12 +205,12 @@ func enrichOne(
 		remData, err := v2Client.V2RemediationPlan(f.CveID, remParams)
 		if err == nil {
 			ev.Remediation = parseRemediationInfo(remData)
-			parseRemediationScores(remData, ev)
+			ParseRemediationScores(remData, ev)
 		}
 	}
 
 	// ── 4. Compute per-source severities and MaxSeverity ───────────────
-	computeEnrichedSeverities(ev)
+	ComputeEnrichedSeverities(ev)
 
 	return ev
 }
@@ -342,9 +342,9 @@ func parseRemediationInfo(data map[string]interface{}) *RemediationInfo {
 	return ri
 }
 
-// parseRemediationScores extracts scores from the remediation plan response
+// ParseRemediationScores extracts scores from the remediation plan response
 // into the EnrichedVuln. These are displayed but not used for primary sorting.
-func parseRemediationScores(data map[string]interface{}, ev *EnrichedVuln) {
+func ParseRemediationScores(data map[string]interface{}, ev *EnrichedVuln) {
 	// SSVC
 	if ssvc, ok := data["ssvc"].(map[string]interface{}); ok {
 		ev.SSVCDecision = stringVal(ssvc, "decision")
@@ -388,9 +388,9 @@ func parseRemediationScores(data map[string]interface{}, ev *EnrichedVuln) {
 	}
 }
 
-// computeEnrichedSeverities fills the per-source severity fields and MaxSeverity
+// ComputeEnrichedSeverities fills the per-source severity fields and MaxSeverity
 // on ev after all score data has been populated.
-func computeEnrichedSeverities(ev *EnrichedVuln) {
+func ComputeEnrichedSeverities(ev *EnrichedVuln) {
 	// CVSS: prefer the enriched CVSSScore; fall back to the raw Score on VulnFinding.
 	cvssScore := ev.CVSSScore
 	if cvssScore == 0 {
