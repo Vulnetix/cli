@@ -31,6 +31,20 @@ type OutputSavedMsg struct {
 	Err  error
 }
 
+// ResolveCompleteMsg is sent when a triage resolution attempt finishes.
+type ResolveCompleteMsg struct {
+	// AlertNumber is the provider alert number that was resolved.
+	AlertNumber string
+	// VEXStatus is the chosen VEX status (for updating the in-memory list).
+	VEXStatus string
+	// GitHubUpdated is true when a GitHub PATCH call was made successfully.
+	GitHubUpdated bool
+	// MemorySaved is true when memory.yaml was updated successfully.
+	MemorySaved bool
+	// Err is non-nil if either operation failed.
+	Err error
+}
+
 // DetailTab identifies which detail tab to display.
 type DetailTab int
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -18,7 +19,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/cache"
+	"github.com/vulnetix/cli/internal/config"
 	"github.com/vulnetix/cli/internal/display"
+	"github.com/vulnetix/cli/internal/gitctx"
+	"github.com/vulnetix/cli/internal/memory"
 	"github.com/vulnetix/cli/internal/purl"
 	"github.com/vulnetix/cli/internal/tty"
 	"github.com/vulnetix/cli/internal/vdb"
@@ -42,6 +46,28 @@ var (
 	vdbComfortable   bool
 	vdbSparse        bool
 	vdbHighlight     string
+
+	// Context flags for Claude Code Plugin memory management
+	vdbPackageManager string
+	vdbManifestFormat string
+	vdbGitLocalDir    string
+	vdbGitBranch      string
+	vdbGithubOrg      string
+	vdbGithubRepo     string
+	vdbGithubPR       string
+	vdbRemoteURL      string
+	vdbRemoteBranch   string
+	vdbCommitterName  string
+	vdbCommitterEmail string
+
+	// Environment/memory control flags
+	vdbIgnoreEnv   bool
+	vdbContextJSON string
+
+	// Runtime state (set in PersistentPreRunE, consumed in PersistentPostRunE)
+	vdbEnvContext  *memory.EnvironmentContext
+	vdbMemory      *memory.Memory
+	vdbVulnetixDir string
 )
 
 // vdbCmd represents the vdb command
@@ -94,7 +120,52 @@ Examples:
 		if err := validateOutputFlags(); err != nil {
 			return err
 		}
-		return resolveVDBCredentials(true)
+		if err := resolveVDBCredentials(true); err != nil {
+			return err
+		}
+
+		// Environment context gathering and memory loading (non-fatal)
+		if !disableMemory {
+			cwd, _ := os.Getwd()
+			gc := gitctx.Collect(cwd)
+
+			if !vdbIgnoreEnv {
+				vdbEnvContext = gitCtxToEnvContext(gc)
+			} else {
+				vdbEnvContext = &memory.EnvironmentContext{
+					Platform: string(config.DetectPlatform()),
+				}
+			}
+			applyContextJSONOverrides(vdbEnvContext, vdbContextJSON)
+			applyContextFlagOverrides(vdbEnvContext)
+
+			vdbVulnetixDir = resolveVulnetixDir(gc)
+			vdbMemory, _ = memory.Load(vdbVulnetixDir)
+		}
+
+		return nil
+	},
+	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+		// Save memory (non-fatal)
+		if !disableMemory && vdbMemory != nil && vdbVulnetixDir != "" {
+			vdbMemory.UpdateEnvironment(vdbEnvContext)
+			if err := memory.Save(vdbVulnetixDir, vdbMemory); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not update memory: %v\n", err)
+			}
+		}
+
+		// Replicate rootCmd's PersistentPostRun (update check notification)
+		if updateCheckResult != nil {
+			select {
+			case msg := <-updateCheckResult:
+				if msg != "" {
+					fmt.Fprint(os.Stderr, msg)
+				}
+			default:
+			}
+		}
+
+		return nil
 	},
 }
 
@@ -143,6 +214,11 @@ Examples:
 		}
 		printRateLimit(client)
 
+		if !disableMemory && vdbMemory != nil {
+			vdbMemory.RecordVulnLookup(cveID, cveInfo.Data)
+		}
+		recordVDBQuery("vuln", cveID)
+
 		if vdbOutput == "pretty" || vdbOutput == "" {
 			return ctx.Render(cveInfo.Data, display.RenderVulnDetail)
 		}
@@ -189,6 +265,7 @@ Examples:
 			return fmt.Errorf("failed to get exploits: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("exploits", identifier)
 
 		if vdbOutput == "pretty" || vdbOutput == "" {
 			return ctx.Render(result, display.RenderExploits)
@@ -239,6 +316,7 @@ Examples:
 			return fmt.Errorf("failed to search exploits: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("exploits search", params.Query)
 
 		if vdbOutput == "pretty" || vdbOutput == "" {
 			return ctx.Render(result, display.RenderExploitSearch)
@@ -283,6 +361,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("failed to get V2 fixes: %w", err)
 			}
+			recordVDBQuery("fixes", identifier)
 			return vdbRender(cmd, merged, display.RenderFixes)
 		}
 
@@ -295,6 +374,7 @@ Examples:
 			return fmt.Errorf("failed to get fixes: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("fixes", identifier)
 
 		return vdbRender(cmd, result, display.RenderFixes)
 	},
@@ -342,6 +422,7 @@ Examples:
 				return fmt.Errorf("failed to get timeline: %w", err)
 			}
 			printRateLimit(client)
+			recordVDBQuery("timeline", identifier)
 			return vdbRender(cmd, result, display.RenderTimeline)
 		}
 
@@ -356,6 +437,7 @@ Examples:
 			return fmt.Errorf("failed to get timeline: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("timeline", identifier)
 		return vdbRender(cmd, result, display.RenderTimeline)
 	},
 }
@@ -382,6 +464,7 @@ Examples:
 			return fmt.Errorf("failed to get versions: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("versions", packageName)
 
 		return vdbRender(cmd, result, display.RenderVersions)
 	},
@@ -418,6 +501,7 @@ Examples:
 			return fmt.Errorf("failed to get CVEs: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("gcve", start+" to "+end)
 
 		return vdbRender(cmd, result, display.RenderGenericMap)
 	},
@@ -458,6 +542,7 @@ Examples:
 			return fmt.Errorf("failed to get GCVE issuances: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("gcve issuances", fmt.Sprintf("%d/%02d", year, month))
 
 		return vdbRender(cmd, display.ToMap(resp), func(data interface{}, ctx *display.Context) string {
 			return display.RenderIdentifiers(data, ctx, "GCVE issuances")
@@ -484,6 +569,7 @@ Examples:
 			return fmt.Errorf("failed to get ecosystems: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("ecosystems", "")
 
 		// Convert typed slice to []interface{} with map entries for the display layer
 		ecoSlice := make([]interface{}, len(ecosystems))
@@ -554,6 +640,7 @@ Examples:
 				return fmt.Errorf("failed to get product version ecosystem: %w", err)
 			}
 			printRateLimit(client)
+			recordVDBQuery("product", productName+" "+version+" "+ecosystem)
 
 			if isEmptyResult(info) {
 				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s, ecosystem %s) was not found in the database.", productName, version, ecosystem))
@@ -580,6 +667,7 @@ Examples:
 				return fmt.Errorf("failed to get product version: %w", err)
 			}
 			printRateLimit(client)
+			recordVDBQuery("product", productName+" "+version)
 
 			if isEmptyResult(info) {
 				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s) was not found in the database.", productName, version))
@@ -604,6 +692,7 @@ Examples:
 			return fmt.Errorf("failed to get product versions: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("product", productName)
 
 		if resp.Total == 0 {
 			vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q was not found in the database.", productName))
@@ -648,6 +737,7 @@ Examples:
 			return fmt.Errorf("failed to get vulnerabilities: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("vulns", packageName)
 
 		if resp.TotalCVEs == 0 && resp.Total == 0 {
 			vdbLog(cmd).Warn(fmt.Sprintf("⚠ Package %q was not found in the database.", packageName))
@@ -732,6 +822,8 @@ func printRateLimit(client *vdb.Client) {
 	}
 	if vdbCommunityMode {
 		fmt.Fprintln(os.Stderr, "Auth: Unauthenticated Community (run 'vulnetix auth login' for higher rate limits)")
+	} else if client.UsingFallback {
+		fmt.Fprintln(os.Stderr, "Auth: Switched to Community (quota exhausted — run 'vulnetix auth login' for higher quota)")
 	}
 	if client.LastCacheStatus != "" {
 		status := strings.ToUpper(client.LastCacheStatus)
@@ -858,6 +950,11 @@ func newVDBClient() *vdb.Client {
 	client.RefreshCache = vdbRefreshCache
 	if dc, err := cache.NewDiskCache(version); err == nil {
 		client.Cache = dc
+	}
+
+	// Populate community fallback unless disabled or already using community credentials
+	if !vdbNoCommunity && !auth.IsCommunity(vdbCreds) {
+		client.FallbackCreds = auth.CommunityCredentials()
 	}
 
 	return client
@@ -995,6 +1092,139 @@ func validateOutputFlags() error {
 	return nil
 }
 
+// gitCtxToEnvContext converts a gitctx.GitContext to a memory.EnvironmentContext.
+func gitCtxToEnvContext(gc *gitctx.GitContext) *memory.EnvironmentContext {
+	env := &memory.EnvironmentContext{
+		Platform: string(config.DetectPlatform()),
+	}
+	if gc == nil {
+		return env
+	}
+	env.GitLocalDir = gc.RepoRootPath
+	env.GitBranch = gc.CurrentBranch
+	env.GitCommit = gc.CurrentCommit
+	if len(gc.RemoteURLs) > 0 {
+		env.GitRemoteURL = gc.RemoteURLs[0]
+	}
+	env.CommitterName = gc.HeadCommitAuthor
+	env.CommitterEmail = gc.HeadCommitEmail
+	return env
+}
+
+// applyContextJSONOverrides parses --context JSON and overlays values onto env.
+func applyContextJSONOverrides(env *memory.EnvironmentContext, jsonStr string) {
+	if jsonStr == "" {
+		return
+	}
+	var overrides map[string]string
+	if err := json.Unmarshal([]byte(jsonStr), &overrides); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: invalid --context JSON: %v\n", err)
+		return
+	}
+	if v, ok := overrides["platform"]; ok {
+		env.Platform = v
+	}
+	if v, ok := overrides["git_local_dir"]; ok {
+		env.GitLocalDir = v
+	}
+	if v, ok := overrides["git_branch"]; ok {
+		env.GitBranch = v
+	}
+	if v, ok := overrides["git_commit"]; ok {
+		env.GitCommit = v
+	}
+	if v, ok := overrides["remote_url"]; ok {
+		env.GitRemoteURL = v
+	}
+	if v, ok := overrides["remote_branch"]; ok {
+		env.GitRemoteBranch = v
+	}
+	if v, ok := overrides["committer_name"]; ok {
+		env.CommitterName = v
+	}
+	if v, ok := overrides["committer_email"]; ok {
+		env.CommitterEmail = v
+	}
+	if v, ok := overrides["github_org"]; ok {
+		env.GithubOrg = v
+	}
+	if v, ok := overrides["github_repo"]; ok {
+		env.GithubRepo = v
+	}
+	if v, ok := overrides["github_pr"]; ok {
+		env.GithubPR = v
+	}
+	if v, ok := overrides["package_manager"]; ok {
+		env.PackageManager = v
+	}
+	if v, ok := overrides["manifest_format"]; ok {
+		env.ManifestFormat = v
+	}
+}
+
+// applyContextFlagOverrides applies explicit CLI flags (highest priority).
+func applyContextFlagOverrides(env *memory.EnvironmentContext) {
+	if vdbPackageManager != "" {
+		env.PackageManager = vdbPackageManager
+	}
+	if vdbManifestFormat != "" {
+		env.ManifestFormat = vdbManifestFormat
+	}
+	if vdbGitLocalDir != "" {
+		env.GitLocalDir = vdbGitLocalDir
+	}
+	if vdbGitBranch != "" {
+		env.GitBranch = vdbGitBranch
+	}
+	if vdbGithubOrg != "" {
+		env.GithubOrg = vdbGithubOrg
+	}
+	if vdbGithubRepo != "" {
+		env.GithubRepo = vdbGithubRepo
+	}
+	if vdbGithubPR != "" {
+		env.GithubPR = vdbGithubPR
+	}
+	if vdbRemoteURL != "" {
+		env.GitRemoteURL = vdbRemoteURL
+	}
+	if vdbRemoteBranch != "" {
+		env.GitRemoteBranch = vdbRemoteBranch
+	}
+	if vdbCommitterName != "" {
+		env.CommitterName = vdbCommitterName
+	}
+	if vdbCommitterEmail != "" {
+		env.CommitterEmail = vdbCommitterEmail
+	}
+}
+
+// resolveVulnetixDir returns the path to the .vulnetix directory.
+// If inside a git repo, uses the repo root. Otherwise, uses ~/.vulnetix.
+func resolveVulnetixDir(gc *gitctx.GitContext) string {
+	if gc != nil && gc.RepoRootPath != "" {
+		return filepath.Join(gc.RepoRootPath, ".vulnetix")
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ".vulnetix"
+	}
+	return filepath.Join(homeDir, ".vulnetix")
+}
+
+// recordVDBQuery appends a VDB query entry to the in-memory log.
+// No-op when memory is disabled.
+func recordVDBQuery(command string, args string) {
+	if disableMemory || vdbMemory == nil {
+		return
+	}
+	vdbMemory.RecordVDBQuery(memory.VDBQuery{
+		Command:    command,
+		Args:       args,
+		APIVersion: vdbAPIVersion,
+	})
+}
+
 // sourcesCmd lists vulnerability data sources
 var sourcesCmd = &cobra.Command{
 	Use:   "sources",
@@ -1015,6 +1245,7 @@ Examples:
 			return fmt.Errorf("failed to get sources: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("sources", "")
 
 		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
 			return display.RenderSimpleList(data, ctx, "sources")
@@ -1055,6 +1286,7 @@ Examples:
 			return fmt.Errorf("failed to get metric types: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("metrics types", "")
 
 		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
 			return display.RenderSimpleList(data, ctx, "metric types")
@@ -1082,6 +1314,7 @@ Examples:
 			return fmt.Errorf("failed to get exploit sources: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("exploits sources", "")
 
 		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
 			return display.RenderSimpleList(data, ctx, "exploit sources")
@@ -1109,6 +1342,7 @@ Examples:
 			return fmt.Errorf("failed to get exploit types: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("exploits types", "")
 
 		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
 			return display.RenderSimpleList(data, ctx, "exploit types")
@@ -1136,6 +1370,7 @@ Examples:
 			return fmt.Errorf("failed to get fix distributions: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("fixes distributions", "")
 
 		return vdbRender(cmd, result, func(data interface{}, ctx *display.Context) string {
 			return display.RenderSimpleList(data, ctx, "distributions")
@@ -1176,6 +1411,7 @@ Examples:
 			return fmt.Errorf("failed to get identifiers: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("ids", fmt.Sprintf("%d/%02d", year, month))
 
 		return vdbRender(cmd, display.ToMap(resp), func(data interface{}, ctx *display.Context) string {
 			return display.RenderIdentifiers(data, ctx, "CVE identifiers")
@@ -1215,6 +1451,7 @@ Examples:
 			return fmt.Errorf("failed to search identifiers: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("search", prefix)
 
 		return vdbRender(cmd, display.ToMap(resp), func(data interface{}, ctx *display.Context) string {
 			return display.RenderIdentifiers(data, ctx, "matching CVE identifiers")
@@ -1268,6 +1505,7 @@ Examples:
 					return fmt.Errorf("failed to get product version ecosystem: %w", err)
 				}
 				printRateLimit(client)
+				recordVDBQuery("purl", args[0])
 				if isEmptyResult(info) {
 					vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s, ecosystem %s) was not found in the database.", packageName, p.Version, ecosystem))
 					vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
@@ -1288,6 +1526,7 @@ Examples:
 				return fmt.Errorf("failed to get product version: %w", err)
 			}
 			printRateLimit(client)
+			recordVDBQuery("purl", args[0])
 			if isEmptyResult(info) {
 				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q (version %s) was not found in the database.", packageName, p.Version))
 				vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
@@ -1314,6 +1553,7 @@ Examples:
 				return fmt.Errorf("failed to get vulnerabilities: %w", err)
 			}
 			printRateLimit(client)
+			recordVDBQuery("purl", args[0])
 			if resp.TotalCVEs == 0 && resp.Total == 0 {
 				vdbLog(cmd).Warn(fmt.Sprintf("⚠ Package %q was not found in the database.", packageName))
 				vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
@@ -1334,6 +1574,7 @@ Examples:
 			return fmt.Errorf("failed to get product versions: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("purl", args[0])
 		if resp.Total == 0 {
 			vdbLog(cmd).Warn(fmt.Sprintf("⚠ Product %q was not found in the database.", packageName))
 			vdbLog(cmd).Info("  This identifier has been flagged for review by Vulnetix admins.")
@@ -1557,6 +1798,7 @@ Examples:
 			return fmt.Errorf("failed to search packages: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("packages search", query)
 
 		if isEmptyResult(result) {
 			vdbLog(cmd).Warn(fmt.Sprintf("⚠ No packages matching %q were found in the database.", query))
@@ -1635,6 +1877,7 @@ Examples:
 			return fmt.Errorf("failed to get summary: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("summary", "")
 
 		return vdbRender(cmd, result, display.RenderSummary)
 	},
@@ -1741,6 +1984,38 @@ func init() {
 	_ = vdbCmd.RegisterFlagCompletionFunc("api-version", cobra.FixedCompletions([]string{"v1", "v2"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = vdbCmd.RegisterFlagCompletionFunc("highlight", cobra.FixedCompletions([]string{"dark", "light", "none"}, cobra.ShellCompDirectiveNoFileComp))
 	vdbCmd.MarkFlagsMutuallyExclusive("comfortable", "compact", "sparse")
+
+	// Context flags for Claude Code Plugin memory management.
+	// These enrich the memory file with project context so the plugin can track
+	// vulnerabilities per-repo, per-branch, and per-package-manager.
+	vdbCmd.PersistentFlags().StringVar(&vdbPackageManager, "package-manager", "",
+		"Package manager in use (e.g. npm, pip, cargo). Enriches memory context. Claude Code Plugin SKILLs should pass this flag to associate queries with a package manager.")
+	vdbCmd.PersistentFlags().StringVar(&vdbManifestFormat, "manifest-format", "",
+		"Manifest file format (e.g. package.json, requirements.txt). Enriches memory context. Claude Code Plugin SKILLs should pass this flag to associate queries with a manifest format.")
+	vdbCmd.PersistentFlags().StringVar(&vdbGitLocalDir, "git-local-dir", "",
+		"Local git repository path. Enriches memory context. Claude Code Plugin SKILLs should pass this flag to scope memory to a specific repository.")
+	vdbCmd.PersistentFlags().StringVar(&vdbGitBranch, "git-branch", "",
+		"Current git branch name. Enriches memory context. Claude Code Plugin SKILLs should pass this flag to scope memory to a specific branch.")
+	vdbCmd.PersistentFlags().StringVar(&vdbGithubOrg, "github-org", "",
+		"GitHub organization name. Enriches memory context. Claude Code Plugin SKILLs should pass this flag for GitHub-hosted repositories.")
+	vdbCmd.PersistentFlags().StringVar(&vdbGithubRepo, "github-repo", "",
+		"GitHub repository name. Enriches memory context. Claude Code Plugin SKILLs should pass this flag for GitHub-hosted repositories.")
+	vdbCmd.PersistentFlags().StringVar(&vdbGithubPR, "github-pr", "",
+		"GitHub pull request number. Enriches memory context. Claude Code Plugin SKILLs should pass this flag when operating in a PR context.")
+	vdbCmd.PersistentFlags().StringVar(&vdbRemoteURL, "remote-url", "",
+		"Git remote URL. Enriches memory context. Claude Code Plugin SKILLs should pass this flag for remote tracking.")
+	vdbCmd.PersistentFlags().StringVar(&vdbRemoteBranch, "remote-branch", "",
+		"Git remote tracking branch. Enriches memory context. Claude Code Plugin SKILLs should pass this flag for remote tracking.")
+	vdbCmd.PersistentFlags().StringVar(&vdbCommitterName, "committer-name", "",
+		"Git committer name. Enriches memory context. Claude Code Plugin SKILLs should pass this flag for commit attribution.")
+	vdbCmd.PersistentFlags().StringVar(&vdbCommitterEmail, "committer-email", "",
+		"Git committer email. Enriches memory context. Claude Code Plugin SKILLs should pass this flag for commit attribution.")
+
+	// Environment and context control flags
+	vdbCmd.PersistentFlags().BoolVar(&vdbIgnoreEnv, "ignore-env", false,
+		"Disable automatic environment/git context gathering while keeping memory updates enabled")
+	vdbCmd.PersistentFlags().StringVar(&vdbContextJSON, "context", "",
+		`JSON string of context overrides (e.g. --context '{"git_branch":"main","committer_email":"x@y.com"}'). Overrides auto-gathered values but is overridden by explicit flags.`)
 
 	// Pagination flags for applicable commands
 	productCmd.Flags().Int("limit", 100, "Maximum number of results to return (default 100; use with --offset for pagination)")

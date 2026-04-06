@@ -80,9 +80,10 @@ func mapCodeQLAlerts(alerts []ghCodeQLAlert) []Alert {
 		out = append(out, Alert{
 			Number:          fmt.Sprintf("%d", a.Number),
 			State:           a.State,
-			CVE:             a.Rule.ID,
+			RuleID:          a.Rule.ID,
+			Description:     a.Rule.Description,
 			Severity:        sev,
-			Package:         a.MostRecentInstance.Location.Path,
+			Manifest:        a.MostRecentInstance.Location.Path,
 			Ecosystem:       "codeql",
 			URL:             a.HTMLURL,
 			DismissalReason: a.DismissedReason,
