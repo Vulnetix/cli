@@ -73,13 +73,63 @@ Examples:
   vulnetix scan --no-progress          # suppress progress bar
   vulnetix scan --severity high        # exit 1 if any vuln is high or critical
   vulnetix scan --severity low         # exit 1 on any scored severity (low+)
-  vulnetix scan --severity critical -f cdx17  # CDX output + break on critical`,
+  vulnetix scan --severity critical -f cdx17  # CDX output + break on critical
+  vulnetix scan --from-memory                  # reconstruct pretty output from .vulnetix/sbom.cdx.json
+  vulnetix scan --from-memory --fresh-exploits # reconstruct + fetch latest exploit intel
+  vulnetix scan --from-memory --fresh-advisories # reconstruct + fetch latest remediation plans
+  vulnetix scan --from-memory --fresh-vulns    # reconstruct + re-check affected versions
+  vulnetix scan --dry-run                      # detect files + parse packages, then show memory — zero API calls
+  vulnetix scan --dry-run --path ./myproject   # dry run on a specific directory`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		initDisplayContext(cmd, display.ModeText)
 		// Credentials are optional — community fallback is used when absent.
 		return resolveVDBCredentials(false)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// ── --dry-run path ──────────────────────────────────────────────────
+		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		if dryRun {
+			for _, freshFlag := range []string{"fresh-exploits", "fresh-advisories", "fresh-vulns"} {
+				if v, _ := cmd.Flags().GetBool(freshFlag); v {
+					return fmt.Errorf("--%s cannot be used with --dry-run (dry run makes no API calls)", freshFlag)
+				}
+			}
+			scanPath, _ := cmd.Flags().GetString("path")
+			depth, _ := cmd.Flags().GetInt("depth")
+			excludes, _ := cmd.Flags().GetStringArray("exclude")
+			showPaths, _ := cmd.Flags().GetBool("paths")
+			noExploits, _ := cmd.Flags().GetBool("no-exploits")
+			noRemediation, _ := cmd.Flags().GetBool("no-remediation")
+			severityThreshold, _ := cmd.Flags().GetString("severity")
+			if scanPath == "" {
+				scanPath = "."
+			}
+			if abs, err := filepath.Abs(scanPath); err == nil {
+				scanPath = abs
+			}
+			return runDryScan(scanPath, depth, excludes, showPaths, noExploits, noRemediation, severityThreshold)
+		}
+
+		// ── --from-memory path ────────────────────────────────────────────
+		fromMemory, _ := cmd.Flags().GetBool("from-memory")
+		if fromMemory {
+			freshExploits, _ := cmd.Flags().GetBool("fresh-exploits")
+			freshAdvisories, _ := cmd.Flags().GetBool("fresh-advisories")
+			freshVulns, _ := cmd.Flags().GetBool("fresh-vulns")
+			return LoadFromMemory(".", freshExploits, freshAdvisories, freshVulns)
+		}
+
+		// Validate that --fresh-* flags require --from-memory.
+		if freshExploits, _ := cmd.Flags().GetBool("fresh-exploits"); freshExploits {
+			return fmt.Errorf("--fresh-exploits requires --from-memory")
+		}
+		if freshAdvisories, _ := cmd.Flags().GetBool("fresh-advisories"); freshAdvisories {
+			return fmt.Errorf("--fresh-advisories requires --from-memory")
+		}
+		if freshVulns, _ := cmd.Flags().GetBool("fresh-vulns"); freshVulns {
+			return fmt.Errorf("--fresh-vulns requires --from-memory")
+		}
+
 		scanPath, _ := cmd.Flags().GetString("path")
 		depth, _ := cmd.Flags().GetInt("depth")
 		excludes, _ := cmd.Flags().GetStringArray("exclude")
@@ -147,6 +197,7 @@ Examples:
 
 		// ── 3. Display detected files ──────────────────────────────────────
 		fmt.Fprintln(os.Stderr, "Detected files:")
+		var seedBOM *cdx.BOM
 		var supportedFiles []scan.DetectedFile
 		for _, f := range files {
 			switch f.FileType {
@@ -164,7 +215,21 @@ Examples:
 			case scan.FileTypeSPDX:
 				fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
 			case scan.FileTypeCycloneDX:
-				fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
+				// Parse the CDX to check the producer.
+				cdxBom, cdxErr := parseCDXForScan(f.Path)
+				if cdxErr == nil && isVulnetixSCA(cdxBom) {
+					fmt.Fprintf(os.Stderr, "  %-40s [skipped — produced by vulnetix-sca]\n", f.RelPath)
+					continue
+				}
+				if cdxErr == nil && cdxBom != nil {
+					fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-8s (%d comp, %d vulns)\n",
+						f.RelPath, f.SBOMVersion, len(cdxBom.Components), len(cdxBom.Vulnerabilities))
+					if len(cdxBom.Components) > 0 || len(cdxBom.Vulnerabilities) > 0 {
+						seedBOM = cdxBom
+					}
+				} else {
+					fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
+				}
 			}
 			if f.Supported && f.FileType == scan.FileTypeManifest {
 				supportedFiles = append(supportedFiles, f)
@@ -191,6 +256,7 @@ Examples:
 			noExploits,
 			noRemediation,
 			severityThreshold,
+			seedBOM,
 			gitCtx,
 			sysInfo,
 		)
@@ -256,6 +322,7 @@ func runLocalScan(
 	noExploits bool,
 	noRemediation bool,
 	severityThreshold string,
+	seedBOM *cdx.BOM,
 	gitCtx *gitctx.GitContext,
 	sysInfo *gitctx.SystemInfo,
 ) error {
@@ -435,7 +502,7 @@ func runLocalScan(
 		System:      sysInfo,
 		ToolVersion: version,
 	}
-	bom := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx)
+	bom := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
 	if err := writeBOMToFile(bom, sbomPath); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
 	}
@@ -505,7 +572,7 @@ func runLocalScan(
 		return writeRawLocalJSON(localResults)
 	}
 	// Re-build with the requested spec version for stdout.
-	outBOM := cdx.BuildFromLocalScan(localResults, specVersion, scanCtx)
+	outBOM := cdx.BuildFromLocalScan(localResults, specVersion, scanCtx, seedBOM)
 	if err := outBOM.WriteJSON(os.Stdout); err != nil {
 		return err
 	}
@@ -513,6 +580,157 @@ func runLocalScan(
 		return &SeverityBreachError{threshold: severityThreshold, count: len(severityBreakVulns)}
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Dry-run
+// ---------------------------------------------------------------------------
+
+// runDryScan performs the full local detection and parsing pipeline without
+// making any network (API) calls. After detection it checks for existing scan
+// memory (.vulnetix/sbom.cdx.json) and renders it exactly as --from-memory
+// would, but still without any API calls.
+func runDryScan(
+	scanPath string,
+	depth int,
+	excludes []string,
+	_ bool, // showPaths — reserved; dep graph requires go mod graph (network)
+	_ bool, // noExploits
+	_ bool, // noRemediation
+	severityThreshold string,
+) error {
+	t := display.NewTerminal()
+
+	// ── Header ────────────────────────────────────────────────────────────
+	fmt.Fprintln(os.Stderr, display.Bold(t, "[DRY RUN]"),
+		display.Muted(t, "— no API calls will be made"))
+	fmt.Fprintln(os.Stderr)
+
+	// ── 1. Collect git context ────────────────────────────────────────────
+	gitCtx := gitctx.Collect(scanPath)
+
+	fmt.Fprintf(os.Stderr, "Scanning %s (depth: %d)...\n", scanPath, depth)
+	if gitCtx != nil {
+		commitShort := gitCtx.CurrentCommit
+		if len(commitShort) > 8 {
+			commitShort = commitShort[:8]
+		}
+		remote := ""
+		if len(gitCtx.RemoteURLs) > 0 {
+			remote = gitCtx.RemoteURLs[0]
+		}
+		fmt.Fprintf(os.Stderr, "Git: %s @ %s (%s)\n", gitCtx.CurrentBranch, commitShort, remote)
+	}
+	fmt.Fprintln(os.Stderr)
+
+	// ── 2. Discover files ─────────────────────────────────────────────────
+	files, err := scan.WalkForScanFiles(scan.WalkOptions{
+		RootPath: scanPath,
+		MaxDepth: depth,
+		Excludes: excludes,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to scan directory: %w", err)
+	}
+	if len(files) == 0 {
+		fmt.Fprintln(os.Stderr, "No scannable files detected.")
+		return nil
+	}
+
+	// ── 3. Display detected files ─────────────────────────────────────────
+	fmt.Fprintln(os.Stderr, "Detected files:")
+	var supportedFiles []scan.DetectedFile
+	for _, f := range files {
+		switch f.FileType {
+		case scan.FileTypeManifest:
+			lockStr := ""
+			if f.ManifestInfo.IsLock {
+				lockStr = "lock"
+			}
+			supportedStr := ""
+			if !f.Supported {
+				supportedStr = " [not supported]"
+			}
+			fmt.Fprintf(os.Stderr, "  %-40s manifest    %-10s (%s) %s%s\n",
+				f.RelPath, f.ManifestInfo.Ecosystem, f.ManifestInfo.Language, lockStr, supportedStr)
+		case scan.FileTypeSPDX:
+			fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
+		case scan.FileTypeCycloneDX:
+			fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
+		}
+		if f.Supported && f.FileType == scan.FileTypeManifest {
+			supportedFiles = append(supportedFiles, f)
+		}
+	}
+
+	if len(supportedFiles) == 0 {
+		fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
+		return nil
+	}
+
+	// ── 4. Parse manifests (local only, no network) ───────────────────────
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Parsing manifests (local):")
+	totalPkgs := 0
+	for _, f := range supportedFiles {
+		if f.ManifestInfo == nil {
+			continue
+		}
+		pkgs, err := scan.ParseManifestWithScope(f.Path, f.ManifestInfo.Type)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
+			continue
+		}
+		for i := range pkgs {
+			pkgs[i].SourceFile = f.RelPath
+		}
+		scopeCounts := map[string]int{}
+		for _, p := range pkgs {
+			scopeCounts[p.Scope]++
+		}
+		fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n",
+			f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+		totalPkgs += len(pkgs)
+	}
+
+	// ── 5. Dry-run summary ────────────────────────────────────────────────
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintf(os.Stderr, "%s %d supported file(s), %s total — ",
+		display.CheckMark(t), len(supportedFiles), pluralise("package", totalPkgs))
+	fmt.Fprintln(os.Stderr, display.Muted(t, "VDB queries skipped (dry run)"))
+
+	if severityThreshold != "" {
+		fmt.Fprintf(os.Stderr, "%s --severity %s noted (evaluated from memory if available)\n",
+			display.Muted(t, "\u2139"), severityThreshold)
+	}
+
+	// ── 6. Check memory ───────────────────────────────────────────────────
+	vulnetixDir := filepath.Join(scanPath, ".vulnetix")
+	sbomPath := filepath.Join(vulnetixDir, "sbom.cdx.json")
+
+	if _, statErr := os.Stat(sbomPath); os.IsNotExist(statErr) {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintf(os.Stderr, "%s No memory found at %s (run 'vulnetix scan' to create it)\n",
+			display.Muted(t, "\u2139"), sbomPath)
+		return nil
+	}
+
+	// Render memory — no fresh* flags so zero API calls.
+	relSBOM, relErr := filepath.Rel(scanPath, sbomPath)
+	if relErr != nil {
+		relSBOM = sbomPath
+	}
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintf(os.Stderr, "%s Found memory at %s — rendering previous results:\n",
+		display.CheckMark(t), relSBOM)
+	fmt.Fprintln(os.Stderr)
+
+	// Resolve a path relative to cwd so LoadFromMemory resolves .vulnetix/ correctly.
+	memRoot, relErr := filepath.Rel(".", scanPath)
+	if relErr != nil || memRoot == "" {
+		memRoot = "."
+	}
+	return LoadFromMemory(memRoot, false, false, false)
 }
 
 // ---------------------------------------------------------------------------
@@ -1305,6 +1523,15 @@ func init() {
 	scanCmd.Flags().Bool("no-exploits", false, "Suppress detailed exploit intelligence section")
 	scanCmd.Flags().Bool("no-remediation", false, "Suppress detailed remediation section")
 	scanCmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")
+
+	// --dry-run flag
+	scanCmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
+
+	// --from-memory and --fresh-* flags
+	scanCmd.Flags().Bool("from-memory", false, "Reconstruct scan pretty output from .vulnetix/sbom.cdx.json without API calls")
+	scanCmd.Flags().Bool("fresh-exploits", false, "With --from-memory: fetch latest exploit intel from API")
+	scanCmd.Flags().Bool("fresh-advisories", false, "With --from-memory: fetch latest remediation plans from API")
+	scanCmd.Flags().Bool("fresh-vulns", false, "With --from-memory: re-fetch affected version checks and latest scoring from API")
 
 	_ = scanCmd.RegisterFlagCompletionFunc("format", cobra.FixedCompletions(
 		[]string{"cdx17", "cdx16", "json"}, cobra.ShellCompDirectiveNoFileComp))
