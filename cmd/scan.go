@@ -571,6 +571,86 @@ func runLocalScan(
 		rec.IDSRulesCount = len(idsRules)
 	}
 	mem.RecordScan(rec)
+
+	// Write enriched findings to memory unless disabled.
+	if !disableMemory && len(enrichedVulns) > 0 {
+		// Build a map of source files per (CveID, PkgName) from all local results.
+		sourceFileMap := map[string][]string{} // key: CveID::PkgName
+		for _, r := range localResults {
+			for _, v := range r.Vulns {
+				k := v.CveID + "::" + v.PackageName
+				sourceFileMap[k] = appendUnique(sourceFileMap[k], r.File.RelPath)
+			}
+		}
+
+		findings := make([]memory.EnrichedFinding, 0, len(enrichedVulns))
+		for _, ev := range enrichedVulns {
+			ef := memory.EnrichedFinding{
+				CveID:            ev.CveID,
+				PackageName:      ev.PackageName,
+				InstalledVersion: ev.PackageVer,
+				Ecosystem:        ev.Ecosystem,
+				MaxSeverity:      ev.MaxSeverity,
+				AffectedRange:    ev.AffectedRange,
+				IsMalicious:      ev.IsMalicious,
+				Confirmed:        ev.Confirmed,
+				InCisaKev:        ev.InCisaKev,
+				PathCount:        ev.PathCount,
+				CVSSScore:        ev.CVSSScore,
+				CVSSSeverity:     ev.CVSSSeverity,
+				EPSSScore:        ev.EPSSScore,
+				EPSSPercentile:   ev.EPSSPercentile,
+				EPSSSeverity:     ev.EPSSSeverity,
+				CoalitionESS:     ev.CoalitionESS,
+				CESSeverity:      ev.CESSeverity,
+				SSVCDecision:     ev.SSVCDecision,
+				SSVCSeverity:     ev.SSVCSeverity,
+				ThreatExposure:   ev.ThreatExposure,
+			}
+
+			// Source files from manifest detection.
+			k := ev.CveID + "::" + ev.PackageName
+			ef.SourceFiles = sourceFileMap[k]
+			if len(ef.SourceFiles) == 0 && ev.SourceFile != "" {
+				ef.SourceFiles = []string{ev.SourceFile}
+			}
+
+			// Fix version from remediation.
+			if ev.Remediation != nil {
+				ef.FixVersion = ev.Remediation.FixVersion
+				ef.Remediation = &memory.RemediationData{
+					FixAvailability: ev.Remediation.FixAvailability,
+					FixVersion:      ev.Remediation.FixVersion,
+					Actions:         ev.Remediation.Actions,
+				}
+			}
+
+			// Exploit intel.
+			if ev.ExploitIntel != nil {
+				ef.ExploitInfo = &memory.ExploitInfo{
+					ExploitCount:    ev.ExploitIntel.ExploitCount,
+					Sources:         ev.ExploitIntel.Sources,
+					HasWeaponized:   ev.ExploitIntel.HasWeaponized,
+					HighestMaturity: ev.ExploitIntel.HighestMaturity,
+				}
+			}
+
+			// Compute introduced dependency paths when --paths was used.
+			if showPaths {
+				for _, mg := range manifestGroups {
+					if mg.Graph != nil && !mg.Graph.IsDirect(ev.PackageName) {
+						if chain := mg.Graph.FindPath(ev.PackageName); len(chain) > 1 {
+							ef.IntroducedPaths = append(ef.IntroducedPaths, chain)
+						}
+					}
+				}
+			}
+
+			findings = append(findings, ef)
+		}
+		mem.RecordEnrichedFindings(findings)
+	}
+
 	if err := memory.Save(vulnetixDir, mem); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
 	}
@@ -1439,6 +1519,16 @@ func countSeverities(vulns []scan.VulnFinding) map[string]int {
 
 // pluralise returns the correctly pluralised count+word string.
 // It handles irregular plurals explicitly rather than blindly appending "s".
+// appendUnique appends s to slice only if not already present.
+func appendUnique(slice []string, s string) []string {
+	for _, v := range slice {
+		if v == s {
+			return slice
+		}
+	}
+	return append(slice, s)
+}
+
 func pluralise(word string, n int) string {
 	if n == 1 {
 		return "1 " + word
