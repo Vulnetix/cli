@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -89,6 +90,140 @@ func ParseManifestWithScope(filePath, manifestType string) ([]ScopedPackage, err
 		return parsePomXMLScoped(data, filePath)
 	case "composer.lock":
 		return parseComposerLockScoped(data, filePath)
+	// ── Python ────────────────────────────────────────────────────────────
+	case "requirements.in":
+		return parseRequirementsTxtScoped(data, filePath)
+	case "Pipfile":
+		return parsePipfileScoped(data, filePath)
+	case "poetry.lock":
+		return parsePoetryLockScoped(data, filePath)
+	// ── Ruby ──────────────────────────────────────────────────────────────
+	case "Gemfile":
+		return parseGemfileScoped(data, filePath)
+	// ── Rust ──────────────────────────────────────────────────────────────
+	case "Cargo.toml":
+		return parseCargoTomlScoped(data, filePath)
+	// ── Java / Gradle ─────────────────────────────────────────────────────
+	case "build.gradle":
+		return parseGradleScoped(data, filePath)
+	case "build.gradle.kts":
+		return parseGradleKtsScoped(data, filePath)
+	case "gradle.lockfile":
+		return parseGradleLockfileScoped(data, filePath)
+	// ── PHP / Composer ────────────────────────────────────────────────────
+	case "composer.json":
+		return parseComposerJSONScoped(data, filePath)
+	// ── .NET / NuGet ──────────────────────────────────────────────────────
+	case "packages.lock.json":
+		return parseNugetLockScoped(data, filePath)
+	case "paket.dependencies":
+		return parsePaketDepsScoped(data, filePath)
+	case "paket.lock":
+		return parsePaketLockScoped(data, filePath)
+	case "*.csproj":
+		return parseCsprojScoped(data, filePath)
+	// ── Swift ─────────────────────────────────────────────────────────────
+	case "Package.swift":
+		return parsePackageSwiftScoped(data, filePath)
+	case "Package.resolved":
+		return parsePackageResolvedScoped(data, filePath)
+	// ── Dart / Flutter ────────────────────────────────────────────────────
+	case "pubspec.yaml":
+		return parsePubspecYAMLScoped(data, filePath)
+	case "pubspec.lock":
+		return parsePubspecLockScoped(data, filePath)
+	// ── Elixir ────────────────────────────────────────────────────────────
+	case "mix.exs":
+		return parseMixScoped(data, filePath)
+	case "mix.lock":
+		return parseMixLockScoped(data, filePath)
+	// ── Scala / sbt ───────────────────────────────────────────────────────
+	case "build.sbt":
+		return parseBuildSbtScoped(data, filePath)
+	case "build.lock":
+		return parseBuildLockScoped(data, filePath)
+	// ── Docker ────────────────────────────────────────────────────────────
+	case "Dockerfile":
+		return parseDockerfileScoped(data, filePath)
+	// ── GitHub Actions ────────────────────────────────────────────────────
+	case "github-actions.yml":
+		return parseGithubActionsScoped(data, filePath)
+	// ── Terraform ─────────────────────────────────────────────────────────
+	case "*.tf":
+		return parseTerraformScoped(data, filePath)
+	// ── C/C++ / Conan ─────────────────────────────────────────────────────
+	case "conanfile.txt":
+		return parseConanfileScoped(data, filePath)
+	case "conan.lock":
+		return parseConanLockScoped(data, filePath)
+	// ── C/C++ / vcpkg ─────────────────────────────────────────────────────
+	case "vcpkg.json":
+		return parseVcpkgJSONScoped(data, filePath)
+	// ── CocoaPods ─────────────────────────────────────────────────────────
+	case "Podfile":
+		return parsePodfileScoped(data, filePath)
+	case "Podfile.lock":
+		return parsePodfileLockScoped(data, filePath)
+	// ── Carthage ──────────────────────────────────────────────────────────
+	case "Cartfile":
+		return parseCartfileScoped(data, filePath)
+	case "Cartfile.resolved":
+		return parseCartfileResolvedScoped(data, filePath)
+	// ── Julia ─────────────────────────────────────────────────────────────
+	case "Project.toml":
+		return parseProjectTomlScoped(data, filePath)
+	case "Manifest.toml":
+		return parseManifestTomlScoped(data, filePath)
+	// ── Crystal ───────────────────────────────────────────────────────────
+	case "shard.yml":
+		return parseShardYAMLScoped(data, filePath)
+	case "shard.lock":
+		return parseShardLockScoped(data, filePath)
+	// ── Deno ──────────────────────────────────────────────────────────────
+	case "deno.json":
+		return parseDenoJSONScoped(data, filePath)
+	case "deno.lock":
+		return parseDenoLockScoped(data, filePath)
+	// ── R / CRAN ──────────────────────────────────────────────────────────
+	case "DESCRIPTION":
+		return parseDescriptionScoped(data, filePath)
+	case "renv.lock":
+		return parseRenvLockScoped(data, filePath)
+	// ── Erlang / rebar3 ───────────────────────────────────────────────────
+	case "rebar.config":
+		return parseRebarConfigScoped(data, filePath)
+	case "rebar.lock":
+		return parseRebarLockScoped(data, filePath)
+	// ── Haskell / Stack ───────────────────────────────────────────────────
+	case "stack.yaml":
+		return parseStackYAMLScoped(data, filePath)
+	// ── Haskell / Cabal ───────────────────────────────────────────────────
+	case "*.cabal":
+		return parseCabalScoped(data, filePath)
+	case "cabal.project.freeze":
+		return parseCabalFreezeScoped(data, filePath)
+	// ── OCaml / opam ──────────────────────────────────────────────────────
+	case "*.opam":
+		return parseOpamScoped(data, filePath)
+	case "opam":
+		return parseOpamScoped(data, filePath)
+	// ── Nix ───────────────────────────────────────────────────────────────
+	case "flake.nix":
+		return parseFlakeNixScoped(data, filePath)
+	case "flake.lock":
+		return parseFlakeLockScoped(data, filePath)
+	// ── Zig ───────────────────────────────────────────────────────────────
+	case "build.zig.zon":
+		return parseZigZonScoped(data, filePath)
+	// ── CMake / CPM ───────────────────────────────────────────────────────
+	case "CPM.cmake":
+		return parseCPMCmakeScoped(data, filePath)
+	// ── Meson ─────────────────────────────────────────────────────────────
+	case "meson.build":
+		return parseMesonBuildScoped(data, filePath)
+	// ── Bazel ─────────────────────────────────────────────────────────────
+	case "WORKSPACE":
+		return parseWorkspaceScoped(data, filePath)
 	default:
 		return nil, fmt.Errorf("unsupported manifest type: %s", manifestType)
 	}
@@ -431,11 +566,11 @@ func parsePyprojectTOMLScoped(data []byte, filePath string) ([]ScopedPackage, er
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 
 	const (
-		secNone         = ""
-		secProjectDeps  = "project.dependencies"
-		secOptional     = "project.optional-dependencies"
-		secDepGroups    = "dependency-groups"
-		secUVTool       = "tool.uv"
+		secNone        = ""
+		secProjectDeps = "project.dependencies"
+		secOptional    = "project.optional-dependencies"
+		secDepGroups   = "dependency-groups"
+		secUVTool      = "tool.uv"
 	)
 
 	currentSection := secNone
@@ -814,8 +949,426 @@ func parseComposerLockScoped(data []byte, filePath string) ([]ScopedPackage, err
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Python — Pipfile (TOML [packages] / [dev-packages])
 // ---------------------------------------------------------------------------
+
+// parsePipfileScoped parses a Pipfile TOML, separating [packages] from [dev-packages].
+func parsePipfileScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	currentSection := ""
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "[") {
+			secRaw := strings.Trim(line, "[]")
+			switch strings.TrimSpace(secRaw) {
+			case "packages":
+				currentSection = "prod"
+			case "dev-packages":
+				currentSection = "dev"
+			default:
+				currentSection = ""
+			}
+			continue
+		}
+		if currentSection == "" || !strings.Contains(line, "=") {
+			continue
+		}
+		idx := strings.Index(line, "=")
+		name := strings.TrimSpace(line[:idx])
+		ver := parsePipValue(strings.TrimSpace(line[idx+1:]))
+		scope := ScopeProduction
+		if currentSection == "dev" {
+			scope = ScopeDevelopment
+		}
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: ver, Ecosystem: "pypi", Scope: scope, SourceFile: filePath, IsDirect: true})
+	}
+	return pkgs, nil
+}
+
+func parsePipValue(spec string) string {
+	spec = strings.TrimSpace(spec)
+	if strings.HasPrefix(spec, "{") {
+		for _, q := range []string{`version = "`, "version = '", `version="`} {
+			if idx := strings.Index(spec, q); idx >= 0 {
+				inner := spec[idx+len(q):]
+				if end := strings.Index(inner, `"`); end >= 0 {
+					return cleanLocalVersion(inner[:end])
+				}
+				if end := strings.Index(inner, "'"); end >= 0 {
+					return cleanLocalVersion(inner[:end])
+				}
+			}
+		}
+		return ""
+	}
+	return cleanLocalVersion(strings.Trim(spec, `"'`))
+}
+
+// ---------------------------------------------------------------------------
+// Python — poetry.lock (TOML [[package]], same as uv.lock)
+// ---------------------------------------------------------------------------
+
+// parsePoetryLockScoped parses a poetry.lock file (TOML [[package]] sections).
+func parsePoetryLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	var name, version string
+	inPackage := false
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "[[package]]" {
+			if inPackage && name != "" {
+				pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath})
+			}
+			name, version = "", ""
+			inPackage = true
+			continue
+		}
+		if !inPackage {
+			continue
+		}
+		if strings.HasPrefix(line, "[") && !strings.HasPrefix(line, "[[package]]") {
+			if name != "" {
+				pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath})
+			}
+			name, version = "", ""
+			inPackage = false
+			continue
+		}
+		if strings.HasPrefix(line, "name = ") {
+			name = strings.Trim(strings.TrimPrefix(line, "name = "), `"`)
+		}
+		if strings.HasPrefix(line, "version = ") {
+			version = strings.Trim(strings.TrimPrefix(line, "version = "), `"`)
+		}
+	}
+	if inPackage && name != "" {
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath})
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Ruby — Gemfile (Ruby DSL: gem 'name', group :dev)
+// ---------------------------------------------------------------------------
+
+func parseGemfileScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	scope := ScopeProduction
+	for scanner := bufio.NewScanner(strings.NewReader(string(data))); scanner.Scan(); {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "group ") && strings.Contains(line, "do") {
+			if strings.Contains(line, ":test") {
+				scope = ScopeTest
+			} else if strings.Contains(line, ":dev") {
+				scope = ScopeDevelopment
+			}
+			continue
+		}
+		if line == "end" {
+			scope = ScopeProduction
+			continue
+		}
+		if m := gemRe.FindSubmatch([]byte(line)); m != nil {
+			ver := cleanLocalVersion(string(m[2]))
+			pkgs = append(pkgs, ScopedPackage{Name: string(m[1]), Version: ver, Ecosystem: "rubygems", Scope: scope, SourceFile: filePath, IsDirect: true})
+		}
+	}
+	return pkgs, nil
+}
+
+var gemRe = regexp.MustCompile(`^\s*gem\s+['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"])?`)
+
+// ---------------------------------------------------------------------------
+// Rust — Cargo.toml (TOML [dependencies], [dev-dependencies], [build-dependencies])
+// ---------------------------------------------------------------------------
+
+func parseCargoTomlScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	section := ""
+	scope := ScopeProduction
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "[") {
+			secRaw := strings.Trim(line, "[]")
+			switch secRaw {
+			case "dependencies":
+				section, scope = "deps", ScopeProduction
+			case "dev-dependencies":
+				section, scope = "deps", ScopeDevelopment
+			case "build-dependencies":
+				section, scope = "deps", ScopeProduction
+			default:
+				if strings.HasSuffix(secRaw, ".dependencies") {
+					section, scope = "deps", ScopeProduction
+				} else {
+					section = ""
+				}
+			}
+			continue
+		}
+		if section != "deps" || !strings.Contains(line, "=") {
+			continue
+		}
+		idx := strings.Index(line, "=")
+		name := strings.TrimSpace(line[:idx])
+		if name == "" || strings.HasPrefix(name, "#") {
+			continue
+		}
+		rest := strings.TrimSpace(line[idx+1:])
+		var ver string
+		if strings.HasPrefix(rest, "{") {
+			ver = extractInlineVersion(rest)
+		} else {
+			ver = strings.Trim(rest, `"'`)
+		}
+		if ver != "" {
+			pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "cargo", Scope: scope, SourceFile: filePath, IsDirect: true})
+		}
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Java / Gradle — build.gradle / build.gradle.kts
+// ---------------------------------------------------------------------------
+
+func parseGradleScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	return parseGradleDSL(data, filePath)
+}
+
+func parseGradleKtsScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	return parseGradleDSL(data, filePath)
+}
+
+func parseGradleDSL(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	cfgScope := func(cfg string) string {
+		if strings.HasPrefix(cfg, "test") {
+			return ScopeTest
+		}
+		if strings.Contains(cfg, "compileOnly") || strings.Contains(cfg, "provided") {
+			return ScopeProvided
+		}
+		return ScopeProduction
+	}
+	for s := bufio.NewScanner(strings.NewReader(string(data))); s.Scan(); {
+		line := strings.TrimSpace(s.Text())
+		if strings.HasPrefix(line, "//") || line == "" {
+			continue
+		}
+		var cfg, coords string
+		if idx := strings.Index(line, "("); idx > 0 {
+			cfg = strings.TrimSpace(line[:idx])
+			coords = strings.Trim(line[idx:], "()")
+			coords = strings.Trim(coords, `"'`)
+		} else {
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				cfg, coords = parts[0], strings.Trim(strings.Join(parts[1:], " "), `"'`)
+			}
+		}
+		if cfg == "" || coords == "" {
+			continue
+		}
+		if strings.HasPrefix(coords, "libs.") || strings.HasPrefix(coords, "project(") {
+			continue
+		}
+		scope := cfgScope(cfg)
+		parts := strings.Split(coords, ":")
+		if len(parts) >= 2 {
+			ver := ""
+			if len(parts) >= 3 {
+				ver = parts[2]
+			}
+			pkgs = append(pkgs, ScopedPackage{Name: parts[0] + ":" + parts[1], Version: cleanLocalVersion(ver), Ecosystem: "maven", Scope: scope, SourceFile: filePath, IsDirect: true})
+		}
+	}
+	return pkgs, nil
+}
+
+func parseGradleLockfileScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	for s := bufio.NewScanner(strings.NewReader(string(data))); s.Scan(); {
+		line := strings.TrimSpace(s.Text())
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		if idx := strings.Index(line, "="); idx > 0 {
+			coord := line[:idx]
+			ver := strings.TrimSpace(line[idx+1:])
+			pkgs = append(pkgs, ScopedPackage{Name: coord, Version: ver, Ecosystem: "maven", Scope: ScopeProduction, SourceFile: filePath})
+		}
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// PHP — composer.json (JSON require / require-dev)
+// ---------------------------------------------------------------------------
+
+func parseComposerJSONScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkg struct {
+		Require    map[string]string `json:"require"`
+		RequireDev map[string]string `json:"require-dev"`
+	}
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		return nil, fmt.Errorf("invalid composer.json: %w", err)
+	}
+	var pkgs []ScopedPackage
+	for name, ver := range pkg.Require {
+		if name == "php" {
+			continue
+		}
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "composer", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
+	}
+	for name, ver := range pkg.RequireDev {
+		if name == "php" {
+			continue
+		}
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "composer", Scope: ScopeDevelopment, SourceFile: filePath, IsDirect: true})
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// .NET / NuGet — packages.lock.json
+// ---------------------------------------------------------------------------
+
+func parseNugetLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var lock struct {
+		Libraries map[string]struct {
+			Resolved string `json:"resolved"`
+		} `json:"libraries"`
+	}
+	if err := json.Unmarshal(data, &lock); err != nil {
+		return nil, fmt.Errorf("invalid packages.lock.json: %w", err)
+	}
+	var pkgs []ScopedPackage
+	for name, pkg := range lock.Libraries {
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: pkg.Resolved, Ecosystem: "nuget", Scope: ScopeProduction, SourceFile: filePath})
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// .NET / NuGet — paket.dependencies / paket.lock
+// ---------------------------------------------------------------------------
+
+func parsePaketDepsScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	for s := bufio.NewScanner(strings.NewReader(string(data))); s.Scan(); {
+		line := strings.TrimSpace(s.Text())
+		if strings.HasPrefix(line, "//") || strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) >= 2 && parts[0] == "nuget" {
+			name := parts[1]
+			ver := ""
+			if len(parts) >= 4 && (parts[2] == "==" || parts[2] == ">=" || parts[2] == "~>") {
+				ver = strings.Trim(parts[3], `"`)
+			} else if len(parts) >= 3 {
+				ver = strings.Trim(parts[2], `"`)
+			}
+			pkgs = append(pkgs, ScopedPackage{Name: name, Version: ver, Ecosystem: "nuget", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
+		}
+	}
+	return pkgs, nil
+}
+
+func parsePaketLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	inNug := false
+	for s := bufio.NewScanner(strings.NewReader(string(data))); s.Scan(); {
+		line := s.Text()
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "NUGET" {
+			inNug = true
+			continue
+		}
+		if inNug && len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
+			inNug = false
+			continue
+		}
+		if inNug && strings.Contains(trimmed, " (") {
+			if idx := strings.Index(trimmed, " ("); idx > 0 {
+				pkgs = append(pkgs, ScopedPackage{Name: trimmed[:idx], Version: strings.Trim(trimmed[idx+1:], "()"), Ecosystem: "nuget", Scope: ScopeProduction, SourceFile: filePath})
+			}
+		}
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// .NET / NuGet — *.csproj (XML PackageReference)
+// ---------------------------------------------------------------------------
+
+func parseCsprojScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	content := string(data)
+	depStart := 0
+	for {
+		idx := strings.Index(content[depStart:], "<PackageReference")
+		if idx < 0 {
+			break
+		}
+		start := depStart + idx
+		endIdx := strings.Index(content[start:], "/>")
+		if endIdx < 0 {
+			endIdx = strings.Index(content[start:], "</PackageReference>")
+			if endIdx < 0 {
+				break
+			}
+		} else {
+			endIdx += 2
+		}
+		block := content[start : start+endIdx]
+		depStart = start + endIdx
+		include := extractXMLAttr(block, "Include")
+		if include == "" {
+			include = extractXMLAttr(block, "include")
+		}
+		version := extractXMLAttr(block, "Version")
+		if version == "" {
+			version = extractXMLAttr(block, "version")
+		}
+		if version == "" {
+			version = extractLocalXMLTag(block, "Version")
+		}
+		if version == "" {
+			version = extractLocalXMLTag(block, "PackageVersion")
+		}
+		if include != "" {
+			pkgs = append(pkgs, ScopedPackage{Name: include, Version: version, Ecosystem: "nuget", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
+		}
+	}
+	return pkgs, nil
+}
+
+func extractInlineVersion(s string) string {
+	for _, q := range []string{`version = "`, `version="`} {
+		if idx := strings.Index(s, q); idx >= 0 {
+			inner := s[idx+len(q):]
+			if end := strings.Index(inner, `"`); end >= 0 {
+				return inner[:end]
+			}
+		}
+	}
+	return ""
+}
 
 // cleanLocalVersion strips common semver prefix characters.
 func cleanLocalVersion(v string) string {
@@ -842,4 +1395,23 @@ func extractLocalXMLTag(xml, tag string) string {
 		return ""
 	}
 	return strings.TrimSpace(xml[start : start+end])
+}
+
+func extractXMLAttr(xml, attr string) string {
+	prefix := attr + `="`
+	start := strings.Index(xml, prefix)
+	if start < 0 {
+		prefix = attr + `='`
+		start = strings.Index(xml, prefix)
+	}
+	if start < 0 {
+		return ""
+	}
+	start += len(prefix)
+	quote := xml[start-1]
+	end := strings.IndexByte(xml[start:], quote)
+	if end < 0 {
+		return ""
+	}
+	return xml[start : start+end]
 }

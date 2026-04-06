@@ -49,7 +49,7 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 			base := d.Name()
 			if base == "node_modules" || base == ".git" || base == ".hg" ||
 				base == "__pycache__" || base == ".tox" || base == ".venv" ||
-				base == "vendor" || base == ".cargo" {
+				base == "vendor" || base == ".cargo" || base == ".vulnetix" {
 				return filepath.SkipDir
 			}
 
