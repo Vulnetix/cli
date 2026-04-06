@@ -19,9 +19,9 @@ func NewGitHubProvider() Provider {
 
 // ghDependabotAlert matches the GitHub Dependabot Alerts API response.
 type ghDependabotAlert struct {
-	Number  int    `json:"number"`
-	State   string `json:"state"`
-	HTMLURL string `json:"html_url"`
+	Number     int    `json:"number"`
+	State      string `json:"state"`
+	HTMLURL    string `json:"html_url"`
 	Dependency struct {
 		Package struct {
 			Name      string `json:"name"`
@@ -31,10 +31,10 @@ type ghDependabotAlert struct {
 		Scope        string `json:"scope"`
 	} `json:"dependency"`
 	SecurityAdvisory struct {
-		CVEID            string `json:"cve_id"`
-		Severity         string `json:"severity"`
-		Summary          string `json:"summary"`
-		WithdrawnAt      string `json:"withdrawn_at"`
+		CVEID       string `json:"cve_id"`
+		Severity    string `json:"severity"`
+		Summary     string `json:"summary"`
+		WithdrawnAt string `json:"withdrawn_at"`
 	} `json:"security_advisory"`
 	SecurityVulnerabilities []struct {
 		Package struct {
@@ -51,17 +51,17 @@ type ghDependabotAlert struct {
 
 // GHStatus holds the results of GitHub CLI health checks.
 type GHStatus struct {
-	BinaryFound  bool   `json:"binary_found"`
-	BinaryPath   string `json:"binary_path,omitempty"`
-	Authenticated bool  `json:"authenticated"`
-	User         string `json:"user,omitempty"`
-	Host         string `json:"host,omitempty"`
-	TokenSource  string `json:"token_source,omitempty"`
-	TokenScopes  string `json:"token_scopes,omitempty"`
-	RepoDetected bool   `json:"repo_detected"`
-	Repo         string `json:"repo,omitempty"`
-	BinaryError  string `json:"binary_error,omitempty"`
-	AuthError    string `json:"auth_error,omitempty"`
+	BinaryFound   bool   `json:"binary_found"`
+	BinaryPath    string `json:"binary_path,omitempty"`
+	Authenticated bool   `json:"authenticated"`
+	User          string `json:"user,omitempty"`
+	Host          string `json:"host,omitempty"`
+	TokenSource   string `json:"token_source,omitempty"`
+	TokenScopes   string `json:"token_scopes,omitempty"`
+	RepoDetected  bool   `json:"repo_detected"`
+	Repo          string `json:"repo,omitempty"`
+	BinaryError   string `json:"binary_error,omitempty"`
+	AuthError     string `json:"auth_error,omitempty"`
 }
 
 // CheckGH verifies the gh CLI binary is available.
@@ -169,20 +169,42 @@ func (p *GitHubProvider) FetchAlerts(ctx context.Context, opts FetchOptions) ([]
 		return nil, fmt.Errorf("no repository specified (use --repo flag or set GITHUB_REPOSITORY)")
 	}
 
+	// Determine which states to query.
+	states := []string{"open"}
+	if opts.IncludeDismissed {
+		states = []string{"open", "dismissed", "fixed", "auto_dismissed"}
+	}
+
+	// Deduplicate alerts that may appear across multiple state queries.
+	seen := map[int]bool{}
 	var allAlerts []ghDependabotAlert
-	page := 1
-	perPage := 100
 
-	for {
-		filter := "?state=open"
-		if opts.IncludeDismissed {
-			filter = "?state=all"
-		}
-
-		stdout, _, err := runGHContext(ctx, "api", "--paginate",
-			fmt.Sprintf("repos/%s/dependabot/alerts%s&per_page=%d", opts.Repo, filter, perPage))
+	for _, state := range states {
+		alerts, err := p.fetchAlertsByState(ctx, opts.Repo, state)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch Dependabot alerts: %w", err)
+			return nil, err
+		}
+		for _, a := range alerts {
+			if !seen[a.Number] {
+				seen[a.Number] = true
+				allAlerts = append(allAlerts, a)
+			}
+		}
+	}
+
+	return mapGHAlertsToAlerts(allAlerts), nil
+}
+
+// fetchAlertsByState retrieves alerts for a single state with manual pagination.
+func (p *GitHubProvider) fetchAlertsByState(ctx context.Context, repo, state string) ([]ghDependabotAlert, error) {
+	perPage := 100
+	var alerts []ghDependabotAlert
+
+	for page := 1; ; page++ {
+		path := fmt.Sprintf("repos/%s/dependabot/alerts?state=%s&per_page=%d&page=%d", repo, state, perPage, page)
+		stdout, _, err := runGHContext(ctx, "api", path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch alerts (state=%s, page=%d): %w", state, page, err)
 		}
 
 		var pageAlerts []ghDependabotAlert
@@ -190,15 +212,14 @@ func (p *GitHubProvider) FetchAlerts(ctx context.Context, opts FetchOptions) ([]
 			return nil, fmt.Errorf("failed to parse alerts JSON: %w", err)
 		}
 
-		allAlerts = append(allAlerts, pageAlerts...)
+		alerts = append(alerts, pageAlerts...)
 
 		if len(pageAlerts) < perPage {
 			break
 		}
-		page++
 	}
 
-	return mapGHAlertsToAlerts(allAlerts), nil
+	return alerts, nil
 }
 
 // mapGHAlertsToAlerts converts GitHub API alerts to normalized Alert structs.
