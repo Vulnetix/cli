@@ -105,7 +105,10 @@ func runTriageCmd(cmd *cobra.Command, args []string) error {
 	case "text":
 		return outputText(enriched)
 	default:
-		return tui.RunTriage(enriched)
+		return tui.RunTriage(enriched, tui.TriageOptions{
+			GHClient: ghClient,
+			Repo:     repo,
+		})
 	}
 }
 
@@ -141,48 +144,91 @@ func enrichAlerts(alerts []triage.Alert, client *vdb.Client, concurrency int) []
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			result := triage.EnrichedAlert{Alert: a}
-
-			vdbEco := mapEcosystem(a.Ecosystem)
-			if vdbEco == "" {
-				result.Error = fmt.Sprintf("unsupported ecosystem %q", a.Ecosystem)
-				results[idx] = result
-				return
-			}
-
-			// Fetch remediation plan
-			params := vdb.V2RemediationParams{
-				V2QueryParams: vdb.V2QueryParams{
-					Ecosystem:   vdbEco,
-					PackageName: a.Package,
-				},
-				CurrentVersion:           a.Version,
-				PackageManager:           mapPackageManager(a.Ecosystem),
-				IncludeGuidance:          triageIncludeGuidance,
-				IncludeVerificationSteps: true,
-			}
-
-			plan, err := client.V2RemediationPlan(a.CVE, params)
-			if err == nil {
-				result.Remediation = &plan
-			}
-
-			// Fetch fixes in parallel
-			fixes, fErr := fetchFixesMerged(a.CVE, vdbEco, a.Package, client)
-			if fErr == nil {
-				result.Fixes = fixes
-			}
-
-			if err != nil {
-				result.Error = err.Error()
-			}
-
-			results[idx] = result
+			results[idx] = enrichSingleAlert(a, client)
 		}(i, alert)
 	}
 
 	wg.Wait()
 	return results
+}
+
+// enrichSingleAlert enriches one alert with VDB data based on its type.
+// - Dependabot alerts (have CVE + ecosystem + package): full enrichment
+// - CodeQL alerts (have CWE, rule ID as CVE): CWE guidance + scorecard if CVE-like
+// - Secret Scanning alerts: no VDB enrichment (leaked secrets, not vulns)
+func enrichSingleAlert(a triage.Alert, client *vdb.Client) triage.EnrichedAlert {
+	result := triage.EnrichedAlert{Alert: a}
+
+	switch a.Ecosystem {
+	case "secrets":
+		// Secret scanning alerts are leaked credentials, not software vulnerabilities.
+		// No VDB enrichment applies.
+		return result
+
+	case "codeql":
+		// CodeQL alerts are code-level findings identified by rule ID.
+		// Fetch CWE guidance if a CWE is available.
+		if a.CWE != "" {
+			guidance, err := client.V2CweGuidance(a.CWE)
+			if err == nil {
+				result.Remediation = &guidance
+			}
+		}
+		// If the identifier looks like a CVE, fetch scorecard/KEV data
+		if strings.HasPrefix(a.CVE, "CVE-") {
+			plan, err := client.V2RemediationPlan(a.CVE, vdb.V2RemediationParams{
+				IncludeGuidance: triageIncludeGuidance,
+			})
+			if err == nil {
+				result.Remediation = &plan
+			}
+		}
+		return result
+
+	default:
+		// Dependabot and other package-ecosystem alerts: full enrichment
+		return enrichPackageAlert(a, client)
+	}
+}
+
+// enrichPackageAlert does full VDB enrichment for package-based alerts.
+func enrichPackageAlert(a triage.Alert, client *vdb.Client) triage.EnrichedAlert {
+	result := triage.EnrichedAlert{Alert: a}
+
+	vdbEco := mapEcosystem(a.Ecosystem)
+	if vdbEco == "" {
+		result.Error = fmt.Sprintf("unsupported ecosystem %q", a.Ecosystem)
+		return result
+	}
+
+	// Fetch remediation plan
+	params := vdb.V2RemediationParams{
+		V2QueryParams: vdb.V2QueryParams{
+			Ecosystem:   vdbEco,
+			PackageName: a.Package,
+		},
+		CurrentVersion:           a.Version,
+		PackageManager:           mapPackageManager(a.Ecosystem),
+		IncludeGuidance:          triageIncludeGuidance,
+		IncludeVerificationSteps: true,
+	}
+
+	plan, err := client.V2RemediationPlan(a.CVE, params)
+	if err == nil {
+		result.Remediation = &plan
+	}
+
+	// Fetch fixes in parallel
+	fixes, fErr := fetchFixesMerged(a.CVE, vdbEco, a.Package, client)
+	if fErr == nil {
+		result.Fixes = fixes
+	}
+
+	if err != nil {
+		result.Error = err.Error()
+	}
+
+	return result
 }
 
 func fetchFixesMerged(cveID, ecosystem, packageName string, client *vdb.Client) (*triage.FixesMerged, error) {
@@ -287,10 +333,24 @@ func outputText(alerts []triage.EnrichedAlert) error {
 		if a.Error != "" {
 			fixStatus = "VDB ERROR"
 		}
+
+		id := a.Alert.Identifier()
+		var subject string
+		switch a.Alert.Ecosystem {
+		case "codeql":
+			subject = a.Alert.Manifest
+			if subject == "" {
+				subject = a.Alert.Description
+			}
+		case "secrets":
+			subject = a.Alert.Description
+		default:
+			subject = fmt.Sprintf("%s@%s", a.Alert.Package, a.Alert.Version)
+		}
+
 		fmt.Printf("  %2d. %-25s %-10s  %-24s  (%s) %s\n",
-			i+1, a.Alert.CVE, strings.ToUpper(a.Alert.Severity),
-			fmt.Sprintf("%s@%s", a.Alert.Package, a.Alert.Version),
-			a.Alert.Ecosystem, fixStatus)
+			i+1, id, strings.ToUpper(a.Alert.Severity),
+			subject, a.Alert.Ecosystem, fixStatus)
 	}
 	fmt.Println()
 	return nil

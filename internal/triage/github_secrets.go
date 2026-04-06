@@ -59,8 +59,9 @@ func mapSecretAlerts(alerts []ghSecretAlert) []Alert {
 		out = append(out, Alert{
 			Number:          fmt.Sprintf("%d", a.Number),
 			State:           a.State,
+			RuleID:          a.SecretType,
+			Description:     label,
 			Severity:        "critical",
-			Package:         label,
 			Ecosystem:       "secrets",
 			URL:             a.HTMLURL,
 			DismissalReason: a.Resolution,

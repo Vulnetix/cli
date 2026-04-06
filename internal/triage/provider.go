@@ -16,8 +16,12 @@ type Alert struct {
 	Number string
 	// State: "open", "dismissed", "fixed"
 	State string
-	// CVE identifier
+	// CVE identifier (empty for non-CVE alerts like CodeQL rules or secrets)
 	CVE string
+	// RuleID is the provider-specific rule identifier (e.g. CodeQL "js/bad-tag-filter")
+	RuleID string
+	// Description is a short summary of the finding
+	Description string
 	// Severity: "critical", "high", "medium", "low"
 	Severity string
 	// Package name (e.g. "lodash", "express")
@@ -34,6 +38,18 @@ type Alert struct {
 	DismissalReason string
 	// CWE identifier if available
 	CWE string
+}
+
+// Identifier returns the best display identifier for the alert:
+// CVE if available, otherwise RuleID, otherwise the alert number.
+func (a Alert) Identifier() string {
+	if a.CVE != "" {
+		return a.CVE
+	}
+	if a.RuleID != "" {
+		return a.RuleID
+	}
+	return "#" + a.Number
 }
 
 // FetchOptions controls which alerts are retrieved.

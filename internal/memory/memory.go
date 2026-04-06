@@ -16,6 +16,8 @@ const (
 	FileName = "memory.yaml"
 	// maxHistory is the maximum number of historical scan records to retain.
 	maxHistory = 20
+	// maxVDBQueries is the maximum number of VDB query log entries to retain.
+	maxVDBQueries = 50
 )
 
 // ScopeStats records package and vulnerability counts for a single scope bucket.
@@ -94,6 +96,32 @@ type FindingRecord struct {
 	Source         string         `yaml:"source,omitempty"` // "vulnetix" | "github"
 }
 
+// EnvironmentContext captures the auto-gathered or flag-provided context
+// for a VDB query session. This schema is shared with the Claude Code plugin.
+type EnvironmentContext struct {
+	Platform        string `yaml:"platform,omitempty"`
+	GitLocalDir     string `yaml:"git_local_dir,omitempty"`
+	GitBranch       string `yaml:"git_branch,omitempty"`
+	GitCommit       string `yaml:"git_commit,omitempty"`
+	GitRemoteURL    string `yaml:"remote_url,omitempty"`
+	GitRemoteBranch string `yaml:"remote_branch,omitempty"`
+	CommitterName   string `yaml:"committer_name,omitempty"`
+	CommitterEmail  string `yaml:"committer_email,omitempty"`
+	GithubOrg       string `yaml:"github_org,omitempty"`
+	GithubRepo      string `yaml:"github_repo,omitempty"`
+	GithubPR        string `yaml:"github_pr,omitempty"`
+	PackageManager  string `yaml:"package_manager,omitempty"`
+	ManifestFormat  string `yaml:"manifest_format,omitempty"`
+}
+
+// VDBQuery records a single VDB API query in the memory log.
+type VDBQuery struct {
+	Timestamp  string `yaml:"timestamp"`
+	Command    string `yaml:"command"`        // e.g. "vuln", "fixes", "exploits"
+	Args       string `yaml:"args,omitempty"` // e.g. "CVE-2021-44228"
+	APIVersion string `yaml:"api_version,omitempty"`
+}
+
 // ScanRecord summarises one scan run.
 type ScanRecord struct {
 	Timestamp      string                `yaml:"timestamp"`
@@ -116,10 +144,12 @@ type ScanRecord struct {
 
 // Memory is the top-level .vulnetix/memory.yaml structure.
 type Memory struct {
-	Version  string                   `yaml:"version"`
-	LastScan *ScanRecord              `yaml:"last_scan,omitempty"`
-	History  []ScanRecord             `yaml:"history,omitempty"`
-	Findings map[string]FindingRecord `yaml:"findings,omitempty"` // triage findings keyed by CVE ID
+	Version     string                   `yaml:"version"`
+	LastScan    *ScanRecord              `yaml:"last_scan,omitempty"`
+	History     []ScanRecord             `yaml:"history,omitempty"`
+	Findings    map[string]FindingRecord `yaml:"findings,omitempty"`    // triage findings keyed by CVE ID
+	Environment *EnvironmentContext      `yaml:"environment,omitempty"` // last-gathered env context
+	VDBQueries  []VDBQuery               `yaml:"vdb_queries,omitempty"` // recent VDB query log
 }
 
 // Load reads memory.yaml from the given .vulnetix directory.
@@ -202,4 +232,117 @@ func (m *Memory) SetFinding(cveID string, data FindingRecord) {
 		m.Findings = make(map[string]FindingRecord)
 	}
 	m.Findings[cveID] = data
+}
+
+// RecordVDBQuery prepends a VDB query to the log, capping at maxVDBQueries.
+func (m *Memory) RecordVDBQuery(q VDBQuery) {
+	if q.Timestamp == "" {
+		q.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	}
+	m.VDBQueries = append([]VDBQuery{q}, m.VDBQueries...)
+	if len(m.VDBQueries) > maxVDBQueries {
+		m.VDBQueries = m.VDBQueries[:maxVDBQueries]
+	}
+}
+
+// UpdateEnvironment replaces the stored environment context.
+func (m *Memory) UpdateEnvironment(env *EnvironmentContext) {
+	m.Environment = env
+}
+
+// RecordVulnLookup upserts a FindingRecord from a VDB vuln response.
+// It extracts the vulnId, aliases, severity, and scores from the opaque API
+// response data. This is best-effort; missing fields are silently skipped.
+func (m *Memory) RecordVulnLookup(vulnID string, data interface{}) {
+	if m.Findings == nil {
+		m.Findings = make(map[string]FindingRecord)
+	}
+
+	existing := m.GetFinding(vulnID)
+	var rec FindingRecord
+	if existing != nil {
+		rec = *existing
+	}
+
+	dataMap := extractVulnMap(data)
+	if dataMap != nil {
+		if sev, ok := extractString(dataMap, "maxSeverity"); ok {
+			rec.Severity = sev
+		} else if sev, ok := extractString(dataMap, "severity"); ok {
+			rec.Severity = sev
+		}
+
+		if aliases, ok := extractStringSlice(dataMap, "aliases"); ok && len(aliases) > 0 {
+			rec.Aliases = aliases
+		}
+
+		if safeHarbour, ok := extractFloat(dataMap, "safeHarbour"); ok {
+			rec.SafeHarbour = safeHarbour
+		}
+	}
+
+	rec.History = append(rec.History, HistoryEntry{
+		Date:   time.Now().UTC().Format(time.RFC3339),
+		Event:  "vdb-lookup",
+		Detail: "Queried VDB for vulnerability details",
+	})
+	rec.Source = "vulnetix"
+
+	m.Findings[vulnID] = rec
+}
+
+// extractVulnMap attempts to get a map from the opaque GetCVE response.
+// The response can be a map[string]interface{} directly, or an array wrapping one.
+func extractVulnMap(data interface{}) map[string]interface{} {
+	if m, ok := data.(map[string]interface{}); ok {
+		return m
+	}
+	if arr, ok := data.([]interface{}); ok && len(arr) > 0 {
+		if m, ok := arr[0].(map[string]interface{}); ok {
+			return m
+		}
+	}
+	return nil
+}
+
+func extractString(m map[string]interface{}, key string) (string, bool) {
+	v, ok := m[key]
+	if !ok {
+		return "", false
+	}
+	s, ok := v.(string)
+	return s, ok
+}
+
+func extractFloat(m map[string]interface{}, key string) (float64, bool) {
+	v, ok := m[key]
+	if !ok {
+		return 0, false
+	}
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case int:
+		return float64(n), true
+	default:
+		return 0, false
+	}
+}
+
+func extractStringSlice(m map[string]interface{}, key string) ([]string, bool) {
+	v, ok := m[key]
+	if !ok {
+		return nil, false
+	}
+	arr, ok := v.([]interface{})
+	if !ok {
+		return nil, false
+	}
+	var result []string
+	for _, item := range arr {
+		if s, ok := item.(string); ok {
+			result = append(result, s)
+		}
+	}
+	return result, len(result) > 0
 }

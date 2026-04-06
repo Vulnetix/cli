@@ -46,6 +46,7 @@ Examples:
 				return fmt.Errorf("failed to get ecosystem package versions: %w", err)
 			}
 			printRateLimit(client)
+			recordVDBQuery("ecosystem package", ecosystem+"/"+pkg)
 			return vdbRender(cmd, result, display.RenderGenericMap)
 		}
 
@@ -56,6 +57,7 @@ Examples:
 			return fmt.Errorf("failed to get ecosystem package: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("ecosystem package", ecosystem+"/"+pkg)
 		return vdbRender(cmd, result, display.RenderGenericMap)
 	},
 }
@@ -85,6 +87,7 @@ Examples:
 			return fmt.Errorf("failed to get ecosystem group package: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("ecosystem group", ecosystem+"/"+group+"/"+artifact)
 		return vdbRender(cmd, result, display.RenderGenericMap)
 	},
 }

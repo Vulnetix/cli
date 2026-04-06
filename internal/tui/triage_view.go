@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/vulnetix/cli/internal/triage"
 )
 
@@ -22,6 +23,18 @@ func (d triageDetailTab) String() string {
 	return []string{"Overview", "Remediation", "Fixes"}[d]
 }
 
+// TriageOptions configures the triage TUI.
+type TriageOptions struct {
+	// GHClient is the GitHub API client used to apply resolutions.
+	// May be nil when GitHub integration is unavailable.
+	GHClient *triage.GitHubClient
+	// Repo is the "owner/repo" string for GitHub API calls.
+	Repo string
+	// VulnetixDir is the path to the .vulnetix directory for memory persistence.
+	// Defaults to ".vulnetix" in the current working directory when empty.
+	VulnetixDir string
+}
+
 // TriageModel is the bubbletea model for the triage TUI.
 type TriageModel struct {
 	alerts      []triage.EnrichedAlert
@@ -31,13 +44,23 @@ type TriageModel struct {
 	width       int
 	height      int
 	showHelp    bool
+
+	// Resolve modal – non-nil while the overlay is open.
+	resolveModal *ResolveModal
+
+	// Options for GitHub/memory integration.
+	opts TriageOptions
 }
 
 // NewTriageModel creates a new triage TUI model.
-func NewTriageModel(alerts []triage.EnrichedAlert) *TriageModel {
+func NewTriageModel(alerts []triage.EnrichedAlert, opts TriageOptions) *TriageModel {
+	if opts.VulnetixDir == "" {
+		opts.VulnetixDir = triage.DefaultVulnetixDir()
+	}
 	return &TriageModel{
 		alerts:    alerts,
 		detailTab: triageTabOverview,
+		opts:      opts,
 	}
 }
 
@@ -48,6 +71,23 @@ func (m *TriageModel) Init() tea.Cmd {
 
 // Update implements tea.Model.
 func (m *TriageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Route messages to the resolve modal first when it is open.
+	if m.resolveModal != nil {
+		updated, cmd, close := m.resolveModal.Update(msg)
+		m.resolveModal = updated
+		if close {
+			m.resolveModal = nil
+			return m, nil
+		}
+
+		// When the modal finishes, refresh the alert's displayed state.
+		if done, ok := msg.(ResolveCompleteMsg); ok && done.Err == nil {
+			m.applyResolvedStatus(done.AlertNumber, done.VEXStatus)
+		}
+
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -72,12 +112,37 @@ func (m *TriageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.detailTab = triageTabFixes
 		case msg.String() == "?":
 			m.showHelp = !m.showHelp
+		case msg.String() == "r":
+			if len(m.alerts) > 0 && m.selectedIdx >= 0 && m.selectedIdx < len(m.alerts) {
+				a := m.alerts[m.selectedIdx].Alert
+				m.resolveModal = newResolveModal(a, m.opts.GHClient, m.opts.Repo, m.opts.VulnetixDir)
+				return m, m.resolveModal.Init()
+			}
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+
+	case ResolveCompleteMsg:
+		// Received from the modal's async cmd after the modal has already
+		// forwarded it; also handle here to update the list in case the modal
+		// was closed before the msg arrived (unlikely but defensive).
+		if msg.Err == nil {
+			m.applyResolvedStatus(msg.AlertNumber, msg.VEXStatus)
+		}
 	}
 	return m, nil
+}
+
+// applyResolvedStatus updates the State field of the matching alert in the list
+// so the table row reflects the new status immediately.
+func (m *TriageModel) applyResolvedStatus(alertNumber, vexStatus string) {
+	for i := range m.alerts {
+		if m.alerts[i].Alert.Number == alertNumber {
+			m.alerts[i].Alert.State = vexStatus
+			break
+		}
+	}
 }
 
 // View implements tea.Model.
@@ -113,8 +178,8 @@ func (m *TriageModel) View() string {
 	}
 
 	// Alert list table header
-	b.WriteString(styleDetailHeader.Render(fmt.Sprintf("  %-24s %-10s %-10s %-22s %-22s",
-		"CVE", "Severity", "State", "Package", "Manifest")))
+	b.WriteString(styleDetailHeader.Render(fmt.Sprintf("  %-24s %-10s %-22s %-22s %-22s",
+		"CVE / Rule", "Severity", "State / VEX Status", "Package", "Manifest")))
 	b.WriteString("\n")
 
 	// Render rows
@@ -130,13 +195,21 @@ func (m *TriageModel) View() string {
 		a := m.alerts[i]
 		selected := i == m.selectedIdx
 
-		cve := truncate(a.Alert.CVE, 24)
+		cve := truncate(a.Alert.Identifier(), 24)
 		sev := SeverityStyle(a.Alert.Severity).Render(padRight(strings.ToUpper(a.Alert.Severity), 10))
-		state := padRight(a.Alert.State, 10)
-		pkg := truncate(fmt.Sprintf("%s@%s", a.Alert.Package, a.Alert.Version), 22)
+		state := padRight(a.Alert.State, 22)
+		var pkg string
+		switch a.Alert.Ecosystem {
+		case "codeql":
+			pkg = truncate(a.Alert.Manifest, 22)
+		case "secrets":
+			pkg = truncate(a.Alert.Description, 22)
+		default:
+			pkg = truncate(fmt.Sprintf("%s@%s", a.Alert.Package, a.Alert.Version), 22)
+		}
 		manifest := truncate(a.Alert.Manifest, 22)
 
-		line := fmt.Sprintf("  %-24s %-10s %-10s %-22s %-22s",
+		line := fmt.Sprintf("  %-24s %-10s %-22s %-22s %-22s",
 			cve, sev, state, pkg, manifest)
 
 		if selected {
@@ -165,6 +238,26 @@ func (m *TriageModel) View() string {
 		b.WriteString(helpTriage())
 	} else {
 		b.WriteString(helpTriageShort())
+	}
+
+	// Resolve modal overlay
+	if m.resolveModal != nil {
+		modal := m.resolveModal.View(m.width)
+		// Centre the modal horizontally.
+		modalWidth := lipgloss.Width(modal)
+		leftPad := (m.width - modalWidth) / 2
+		if leftPad < 0 {
+			leftPad = 0
+		}
+		pad := strings.Repeat(" ", leftPad)
+		lines := strings.Split(modal, "\n")
+		var centred []string
+		for _, l := range lines {
+			centred = append(centred, pad+l)
+		}
+		// Overlay: append after a separator so bubbletea positions it on screen.
+		b.WriteString("\n")
+		b.WriteString(strings.Join(centred, "\n"))
 	}
 
 	return b.String()
@@ -209,10 +302,25 @@ func overviewTab(a triage.EnrichedAlert) string {
 
 	fmt.Fprintf(&b, "  Alert #   : %s\n", a.Alert.Number)
 	fmt.Fprintf(&b, "  State     : %s\n", a.Alert.State)
-	fmt.Fprintf(&b, "  CVE       : %s\n", a.Alert.CVE)
-	fmt.Fprintf(&b, "  Package   : %s@%s\n", a.Alert.Package, a.Alert.Version)
+	if a.Alert.CVE != "" {
+		fmt.Fprintf(&b, "  CVE       : %s\n", a.Alert.CVE)
+	}
+	if a.Alert.RuleID != "" {
+		fmt.Fprintf(&b, "  Rule      : %s\n", a.Alert.RuleID)
+	}
+	if a.Alert.Description != "" {
+		fmt.Fprintf(&b, "  Finding   : %s\n", a.Alert.Description)
+	}
+	if a.Alert.Package != "" {
+		fmt.Fprintf(&b, "  Package   : %s@%s\n", a.Alert.Package, a.Alert.Version)
+	}
 	fmt.Fprintf(&b, "  Ecosystem : %s\n", a.Alert.Ecosystem)
-	fmt.Fprintf(&b, "  Manifest  : %s\n", a.Alert.Manifest)
+	if a.Alert.Manifest != "" {
+		fmt.Fprintf(&b, "  File      : %s\n", a.Alert.Manifest)
+	}
+	if a.Alert.CWE != "" {
+		fmt.Fprintf(&b, "  CWE       : %s\n", a.Alert.CWE)
+	}
 	fmt.Fprintf(&b, "  URL       : %s\n", a.Alert.URL)
 
 	if a.Fixes != nil && a.Fixes.HasFix() {
@@ -288,16 +396,18 @@ func formatJSONPreview(data any, maxLines int) string {
 }
 
 func helpTriage() string {
-	return styleHelp.Render("\n  ↑/↓ navigate  |  Tab cycle detail tabs  |  1-3 select tab  |  ? hide help  |  q quit\n")
+	return styleHelp.Render(
+		"\n  ↑/↓ navigate  |  Tab cycle detail tabs  |  1-3 select tab  |  r resolve  |  ? hide help  |  q quit\n",
+	)
 }
 
 func helpTriageShort() string {
-	return styleHelp.Render("  ↑/↓ navigate  |  Tab cycle  |  ? help  |  q quit")
+	return styleHelp.Render("  ↑/↓ navigate  |  Tab cycle  |  r resolve  |  ? help  |  q quit")
 }
 
 // RunTriage starts the triage TUI program.
-func RunTriage(alerts []triage.EnrichedAlert) error {
-	model := NewTriageModel(alerts)
+func RunTriage(alerts []triage.EnrichedAlert, opts TriageOptions) error {
+	model := NewTriageModel(alerts, opts)
 	p := tea.NewProgram(
 		model,
 		tea.WithAltScreen(),

@@ -59,6 +59,8 @@ type Client struct {
 	Cache           *cache.DiskCache
 	NoCache         bool
 	RefreshCache    bool
+	FallbackCreds   *auth.Credentials // community creds to use when quota exhausted; nil = disabled
+	UsingFallback   bool              // true after client switched to fallback (readable by cmd layer)
 	token           *TokenCache
 	tokenMutex      sync.RWMutex
 }
@@ -276,21 +278,35 @@ func (c *Client) addAuthHeader(req *http.Request) error {
 	return nil
 }
 
+// applyFallbackCreds copies FallbackCreds into the client's active auth fields.
+// Must only be called when FallbackCreds != nil.
+func (c *Client) applyFallbackCreds() {
+	c.OrgID = c.FallbackCreds.OrgID
+	c.APIKey = c.FallbackCreds.APIKey
+	c.AuthMethod = c.FallbackCreds.Method
+	c.SecretKey = c.FallbackCreds.Secret
+	c.UsingFallback = true
+}
+
 // doRequestWithRetry executes an HTTP request with retry logic for transient errors.
 // It captures rate limit and cache headers from the response.
 func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 	var lastErr error
 	var lastHeaders http.Header
+	skipBackoff := false
 
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		if attempt > 0 {
-			backoff := BaseBackoff * time.Duration(1<<(attempt-1))
-			if ra := resolveRetryAfter(lastHeaders); ra > 0 {
-				backoff = ra
+			if !skipBackoff {
+				backoff := BaseBackoff * time.Duration(1<<(attempt-1))
+				if ra := resolveRetryAfter(lastHeaders); ra > 0 {
+					backoff = ra
+				}
+				curlHint := retryCurlHint(req)
+				fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
+				countdownSleep(backoff)
 			}
-			curlHint := retryCurlHint(req)
-			fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
-			countdownSleep(backoff)
+			skipBackoff = false
 
 			// For retries, we need to re-read the body if present
 			if req.GetBody != nil {
@@ -320,6 +336,20 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 		resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response: %w", err)
+		}
+
+		// Quota-exhausted fallback: switch to community and retry immediately (before normal retry logic).
+		if resp.StatusCode == http.StatusTooManyRequests && c.FallbackCreds != nil && !c.UsingFallback {
+			if rl := c.LastRateLimit; rl != nil && rl.Remaining == 0 {
+				c.applyFallbackCreds()
+				if authErr := c.addAuthHeader(req); authErr == nil {
+					fmt.Fprintf(os.Stderr, "[vdb] quota exhausted — retrying as community\n")
+					lastErr = fmt.Errorf("HTTP %d (quota exhausted)", resp.StatusCode)
+					skipBackoff = true
+					attempt = 0 // reset: after attempt++, becomes 1 with skipBackoff=true
+					continue
+				}
+			}
 		}
 
 		if isRetryableStatus(resp.StatusCode) && attempt < MaxRetries {
@@ -398,16 +428,20 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusCode int, headers http.Header, err error) {
 	var lastErr error
 	var lastHeaders http.Header
+	skipBackoff := false
 
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		if attempt > 0 {
-			backoff := BaseBackoff * time.Duration(1<<(attempt-1))
-			if ra := resolveRetryAfter(lastHeaders); ra > 0 {
-				backoff = ra
+			if !skipBackoff {
+				backoff := BaseBackoff * time.Duration(1<<(attempt-1))
+				if ra := resolveRetryAfter(lastHeaders); ra > 0 {
+					backoff = ra
+				}
+				curlHint := retryCurlHint(req)
+				fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
+				countdownSleep(backoff)
 			}
-			curlHint := retryCurlHint(req)
-			fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
-			countdownSleep(backoff)
+			skipBackoff = false
 
 			if req.GetBody != nil {
 				newBody, bErr := req.GetBody()
@@ -435,6 +469,20 @@ func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusC
 		resp.Body.Close()
 		if readErr != nil {
 			return nil, 0, nil, fmt.Errorf("failed to read response: %w", readErr)
+		}
+
+		// Quota-exhausted fallback: switch to community and retry immediately (before normal retry logic).
+		if resp.StatusCode == http.StatusTooManyRequests && c.FallbackCreds != nil && !c.UsingFallback {
+			if rl := c.LastRateLimit; rl != nil && rl.Remaining == 0 {
+				c.applyFallbackCreds()
+				if authErr := c.addAuthHeader(req); authErr == nil {
+					fmt.Fprintf(os.Stderr, "[vdb] quota exhausted — retrying as community\n")
+					lastErr = fmt.Errorf("HTTP %d (quota exhausted)", resp.StatusCode)
+					skipBackoff = true
+					attempt = 0 // reset: after attempt++, becomes 1 with skipBackoff=true
+					continue
+				}
+			}
 		}
 
 		if isRetryableStatus(resp.StatusCode) && attempt < MaxRetries {

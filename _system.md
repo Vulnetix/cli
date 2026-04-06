@@ -9,8 +9,15 @@
    2. `VVD_ORG` + `VVD_SECRET` env vars → SigV4
    3. `.vulnetix/credentials.json` (project directory)
    4. `~/.vulnetix/credentials.json` (home directory)
+   5. Community fallback (built-in, automatic — `--no-community` to disable)
 
    First match wins. No merging across sources.
+
+   The community fallback fires in two scenarios:
+   - **Startup** — no credentials found after checking all four sources above
+   - **Runtime** — authenticated credentials received HTTP 429 with `RateLimit-Remaining: 0`
+
+   In both cases the fallback uses the same DirectAPIKey pipeline as regular users, subject to community-tier rate limits. It is suppressed when `--no-community` is set and never fires when already on community credentials (prevents a loop).
 
 3. **Org ID is always a UUID** — Every operation that requires an org ID validates it with `uuid.Parse()`. No other format is accepted.
 
@@ -22,7 +29,7 @@
 
 7. **VDB rate limits** — Every VDB API response is inspected for `RateLimit-*` headers. Rate limit info is displayed on stderr after each command.
 
-8. **Retry policy** — VDB client retries up to 2 times with exponential backoff (2s, 4s) on HTTP 502/503/504 and transient network errors (timeout, connection refused/reset).
+8. **Retry policy** — VDB client retries up to 2 times with exponential backoff (2s, 4s) on HTTP 429/502/503/504 and transient network errors (timeout, connection refused/reset). Exception: when a 429 carries `RateLimit-Remaining: 0` (quota fully exhausted), the client skips backoff, switches to community credentials, and retries immediately before falling back to normal retry logic.
 
 9. **Output modes** — VDB commands support `--output pretty` (default, human-friendly JSON to stdout) and `--output json` (machine JSON to stdout, status messages to stderr).
 
@@ -31,6 +38,86 @@
     - Has version + unknown ecosystem → `GET /product/{name}/{version}`
     - No version + `--vulns` → `GET /{name}/vulns`
     - No version (default) → `GET /product/{name}`
+
+11. **VDB memory management** — All VDB subcommands automatically record queries and environment context to `.vulnetix/memory.yaml` unless `--disable-memory` is set. Memory writes are non-fatal (warnings on stderr). The `vdb vuln` command additionally extracts severity, aliases, and safeHarbour from the API response and upserts a `FindingRecord`.
+
+12. **Environment context priority** — When gathering environment context for memory, values are merged in this order (last wins):
+    1. Auto-gathered from git repo and env vars (unless `--ignore-env`)
+    2. `--context` JSON string overrides
+    3. Explicit flags (`--git-branch`, `--github-org`, etc.) — highest priority
+
+---
+
+## Environment Command
+
+`vulnetix env` displays structured metadata about the current environment. Use `--output json` for machine-readable output consumed by the Claude Code Plugin.
+
+Output includes:
+- CLI version, commit, build date
+- Platform detection (github, gitlab, cli, etc.)
+- System info (hostname, shell, OS, arch)
+- Git context (branch, commit, remotes, dirty state, worktree)
+- Detected package managers (shallow scan of cwd for manifest files)
+- Memory file status (path and existence)
+
+---
+
+## VDB Memory Management
+
+### Context Flags (inherited by all `vdb` subcommands)
+
+| Flag | Purpose |
+|------|---------|
+| `--package-manager` | Package manager (npm, pip, cargo) |
+| `--manifest-format` | Manifest file (package.json, requirements.txt) |
+| `--git-local-dir` | Local git repository path |
+| `--git-branch` | Current git branch name |
+| `--github-org` | GitHub organization |
+| `--github-repo` | GitHub repository |
+| `--github-pr` | GitHub pull request number |
+| `--remote-url` | Git remote URL |
+| `--remote-branch` | Git remote tracking branch |
+| `--committer-name` | Git committer name |
+| `--committer-email` | Git committer email |
+| `--ignore-env` | Disable auto env gathering, keep memory |
+| `--context` | JSON string of context overrides |
+| `--disable-memory` | Disable all memory operations (root flag) |
+
+### Memory File Schema (additive fields)
+
+```yaml
+environment:              # last-gathered env context
+  platform: cli
+  git_branch: main
+  git_commit: abc123
+  remote_url: https://...
+  committer_name: ...
+  committer_email: ...
+  github_org: ...
+  github_repo: ...
+  package_manager: npm
+  manifest_format: package.json
+vdb_queries:              # recent query log (max 50)
+  - timestamp: 2025-01-01T00:00:00Z
+    command: vuln
+    args: CVE-2021-44228
+    api_version: v1
+findings:                 # enriched by vdb vuln lookups
+  CVE-2021-44228:
+    severity: CRITICAL
+    aliases: [...]
+    safe_harbour: 0.95
+    source: vulnetix
+    history:
+      - date: ...
+        event: vdb-lookup
+```
+
+### Flow
+
+1. `PersistentPreRunE` on `vdbCmd`: gather env context → load memory
+2. Each subcommand's `RunE`: call `recordVDBQuery()` (+ `RecordVulnLookup` for `vuln`)
+3. `PersistentPostRunE` on `vdbCmd`: update environment → save memory
 
 ---
 
@@ -52,6 +139,7 @@ graph TB
             Upload["upload.go<br/>file upload"]
             GHA["gha.go<br/>GitHub Actions upload + status"]
             VDB["vdb.go<br/>16 VDB subcommands"]
+            Env["env.go<br/>environment context"]
             Version["version.go + update.go<br/>self-update"]
         end
     end
@@ -59,6 +147,7 @@ graph TB
     subgraph Internal["internal/ packages"]
         AuthPkg["auth/<br/>Credentials, AuthMethod,<br/>Save/Load/Remove"]
         ConfigPkg["config/<br/>VulnetixConfig, CIContext,<br/>platform detection"]
+        MemoryPkg["memory/<br/>Memory, FindingRecord,<br/>EnvironmentContext, VDBQuery"]
         UploadPkg["upload/<br/>Client, simple + chunked,<br/>format detection"]
         VDBPkg["vdb/<br/>Client, SigV4 signing,<br/>token cache, retry"]
         GHPkg["github/<br/>ArtifactCollector,<br/>ArtifactUploader"]
@@ -80,7 +169,8 @@ graph TB
     Auth --> AuthPkg & UploadPkg & VDBPkg
     Upload --> AuthPkg & UploadPkg
     GHA --> AuthPkg & UploadPkg & GHPkg
-    VDB --> AuthPkg & VDBPkg & PURLPkg
+    VDB --> AuthPkg & VDBPkg & PURLPkg & MemoryPkg
+    Env --> ConfigPkg & MemoryPkg
     Version --> UpdatePkg
 
     VDBPkg --> VDBApi
@@ -141,6 +231,29 @@ sequenceDiagram
     V-->>C: parsed response
     C->>C: printRateLimit() → stderr
     C->>C: printOutput() → stdout
+    C-->>U: formatted output
+```
+
+### Quota-Exhausted Community Fallback
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as cmd/vdb.go
+    participant V as vdb.Client
+    participant A as VDB API
+
+    U->>C: vulnetix vdb vuln CVE-2024-1234
+    C->>V: newVDBClient() — sets FallbackCreds=community
+    V->>A: GET /vuln/CVE-2024-1234 (user creds)
+    A-->>V: 429 + RateLimit-Remaining: 0
+
+    Note over V: Quota exhausted — switch to community
+    V->>V: applyFallbackCreds() — UsingFallback=true
+    V->>A: GET /vuln/CVE-2024-1234 (community creds)
+    A-->>V: 200 OK + community rate limit headers
+    V-->>C: response body
+    C->>C: printRateLimit() — "Switched to Community" on stderr
     C-->>U: formatted output
 ```
 
@@ -335,6 +448,7 @@ var newThingCmd = &cobra.Command{
             return fmt.Errorf("failed to get new thing: %w", err)
         }
         printRateLimit(client)             // reuse — always call after API call
+        recordVDBQuery("new-thing", args[0]) // reuse — always call for memory tracking
         return printOutput(result, vdbOutput) // reuse — handles json vs pretty
     },
 }
@@ -360,6 +474,7 @@ func init() {
 | VDB client creation | `newVDBClient()` | `vdb.go:569` |
 | JSON/pretty output | `printOutput(data, vdbOutput)` | `vdb.go:585` |
 | Rate limit display | `printRateLimit(client)` | `vdb.go:496` |
+| Memory query log | `recordVDBQuery(cmd, args)` | `vdb.go` |
 | Pagination query string | `buildPaginationQuery(limit, offset)` | `api.go:102` |
 | PURL parsing | `purl.Parse()` + `purl.PackageName()` | `internal/purl/purl.go` |
 | Ecosystem mapping | `purl.EcosystemForType()` | `internal/purl/purl.go` |
@@ -370,6 +485,7 @@ func init() {
 - Print JSON to stdout yourself — use `printOutput()`
 - Read `vdbOrgID`/`vdbSecretKey` directly — `PersistentPreRunE` handles this
 - Skip `printRateLimit()` — all VDB commands should show rate info
+- Skip `recordVDBQuery()` — all VDB commands should log to memory
 
 ### 6. Add tests
 
@@ -424,13 +540,15 @@ make dev && ./bin/vulnetix vdb new-thing --help
 │   ├── auth.go                      auth login/status/verify/logout
 │   ├── upload.go                    Single-file upload command
 │   ├── gha.go                       GitHub Actions artifact upload + status
-│   ├── vdb.go                       VDB parent + 16 subcommands + helpers
+│   ├── vdb.go                       VDB parent + 16 subcommands + helpers + memory wiring
 │   ├── vdb_purl_test.go             PURL subcommand tests
+│   ├── env.go                       Environment context display command
 │   ├── version.go                   Version display + update check
 │   └── update.go                    Self-update command
 ├── internal/
 │   ├── auth/
 │   │   ├── auth.go                  AuthMethod, Credentials, GetAuthHeader
+│   │   ├── community.go             CommunityCredentials(), IsCommunity() — hardcoded fallback key
 │   │   ├── credentials.go           Save/Load/Remove + precedence logic
 │   │   └── keyring.go               Stub for future keyring support
 │   ├── config/
