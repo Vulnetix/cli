@@ -23,14 +23,14 @@ import (
 )
 
 const (
-	DefaultBaseURL     = "https://api.vdb.vulnetix.com"
-	DefaultAPIVersion  = "/v1"
-	Region             = "us-east-1"
-	Service        = "vdb"
-	Algorithm      = "AWS4-HMAC-SHA512"
-	TokenExpiry    = 15 * time.Minute
-	MaxRetries     = 2
-	BaseBackoff    = 2 * time.Second
+	DefaultBaseURL    = "https://api.vdb.vulnetix.com"
+	DefaultAPIVersion = "/v1"
+	Region            = "us-east-1"
+	Service           = "vdb"
+	Algorithm         = "AWS4-HMAC-SHA512"
+	TokenExpiry       = 15 * time.Minute
+	MaxRetries        = 2
+	BaseBackoff       = 2 * time.Second
 )
 
 // RateLimitInfo holds rate limit data returned in API response headers.
@@ -59,8 +59,8 @@ type Client struct {
 	Cache           *cache.DiskCache
 	NoCache         bool
 	RefreshCache    bool
-	token         *TokenCache
-	tokenMutex    sync.RWMutex
+	token           *TokenCache
+	tokenMutex      sync.RWMutex
 }
 
 // TokenCache stores the JWT token and its expiration

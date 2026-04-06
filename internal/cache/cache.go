@@ -13,10 +13,10 @@ import (
 
 // Entry represents a cached HTTP response.
 type Entry struct {
-	Body         []byte    `json:"body"`
-	ETag         string    `json:"etag,omitempty"`
-	LastModified string    `json:"lastModified,omitempty"`
-	CachedAt     time.Time `json:"cachedAt"`
+	Body         []byte        `json:"body"`
+	ETag         string        `json:"etag,omitempty"`
+	LastModified string        `json:"lastModified,omitempty"`
+	CachedAt     time.Time     `json:"cachedAt"`
 	TTL          time.Duration `json:"ttl"`
 }
 

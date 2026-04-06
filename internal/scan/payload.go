@@ -14,13 +14,13 @@ var version = "dev"
 
 // ScanPayload is the JSON metadata sent alongside manifest files.
 type ScanPayload struct {
-	Version      string                   `json:"version"`
-	CLI          CLIInfo                  `json:"cli"`
-	Git          *gitctx.GitContext       `json:"git,omitempty"`
+	Version      string                    `json:"version"`
+	CLI          CLIInfo                   `json:"cli"`
+	Git          *gitctx.GitContext        `json:"git,omitempty"`
 	FileTree     *filetree.FileTreeContext `json:"fileTree,omitempty"`
-	ManifestType string                   `json:"manifestType"`
-	Ecosystem    string                   `json:"ecosystem"`
-	Timestamp    int64                    `json:"timestamp"`
+	ManifestType string                    `json:"manifestType"`
+	Ecosystem    string                    `json:"ecosystem"`
+	Timestamp    int64                     `json:"timestamp"`
 }
 
 // CLIInfo identifies the CLI version and platform.

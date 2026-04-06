@@ -35,7 +35,7 @@ type OutputSavedMsg struct {
 type DetailTab int
 
 const (
-	TabScores      DetailTab = iota
+	TabScores DetailTab = iota
 	TabExploits
 	TabTimeline
 	TabFixes

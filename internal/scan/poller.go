@@ -11,8 +11,8 @@ import (
 // PollEngine handles concurrent polling for scan results.
 type PollEngine struct {
 	Client     *vdb.Client
-	Interval   time.Duration      // polling interval (default 5s)
-	OnProgress func(*ScanTask)    // callback for UI updates (called from goroutines)
+	Interval   time.Duration   // polling interval (default 5s)
+	OnProgress func(*ScanTask) // callback for UI updates (called from goroutines)
 }
 
 // PollAll polls all tasks with a scan ID until they are complete or errored.
