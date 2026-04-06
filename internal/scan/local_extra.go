@@ -20,25 +20,19 @@ import (
 // Swift — Package.swift (SPM)
 // ---------------------------------------------------------------------------
 
-// parsePackageSwiftScoped extracts .package(url: "…", from: "…") declarations.
 func parsePackageSwiftScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Matches:  .package(url: "https://github.com/foo/bar.git", from: "1.2.3")
-	// or:       .package(url: "…", .upToNextMajor(from: "1.2.3"))
-	// or:       .package(url: "…", branch: "main")
 	urlRe := regexp.MustCompile(`\.package\(\s*url\s*:\s*"([^"]+)"`)
 	fromRe := regexp.MustCompile(`from\s*:\s*"([^"]+)"`)
 	exactRe := regexp.MustCompile(`exact\s*:\s*"([^"]+)"`)
 
 	var pkgs []ScopedPackage
-	content := string(data)
-	for _, line := range strings.Split(content, "\n") {
+	seen := map[string]bool{}
+	for _, line := range strings.Split(string(data), "\n") {
 		urlM := urlRe.FindStringSubmatch(line)
 		if urlM == nil {
 			continue
 		}
-		rawURL := urlM[1]
-		// Derive a package name from the URL (last path component, strip .git).
-		name := rawURL
+		name := urlM[1]
 		if idx := strings.LastIndex(name, "/"); idx >= 0 {
 			name = name[idx+1:]
 		}
@@ -51,10 +45,29 @@ func parsePackageSwiftScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			ver = m[1]
 		}
 		if name != "" {
+			seen[name] = true
 			pkgs = append(pkgs, ScopedPackage{
 				Name: name, Version: ver,
 				Ecosystem: "swift", Scope: ScopeProduction, IsDirect: true,
 			})
+		}
+	}
+
+	// Also extract dependency names from target dependency arrays.
+	// These appear as bare string literals in dependencies: ["Alamofire", "SnapKit"]
+	// Only add if not already captured via .package(url:) above.
+	depRe := regexp.MustCompile(`dependencies\s*:\s*\[([^\]]+)\]`)
+	strRe := regexp.MustCompile(`"([A-Z][a-zA-Z0-9_-]*)"`)
+	content := string(data)
+	for _, m := range depRe.FindAllStringSubmatch(content, -1) {
+		for _, sm := range strRe.FindAllStringSubmatch(m[1], -1) {
+			name := sm[1]
+			if !seen[name] {
+				seen[name] = true
+				pkgs = append(pkgs, ScopedPackage{
+					Name: name, Ecosystem: "swift", Scope: ScopeProduction, IsDirect: true,
+				})
+			}
 		}
 	}
 	return pkgs, nil
@@ -65,15 +78,6 @@ func parsePackageSwiftScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parsePackageResolvedScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// v1: {"object":{"pins":[{"package":"…","state":{"version":"…"}}]}}
-	// v2: {"pins":[{"identity":"…","state":{"version":"…"}}]}
-	// v3: same as v2
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, nil //nolint:nilerr
-	}
-
 	type pin struct {
 		Package  string `json:"package"`
 		Identity string `json:"identity"`
@@ -138,8 +142,6 @@ func parsePackageResolvedScoped(data []byte, _ string) ([]ScopedPackage, error) 
 // ---------------------------------------------------------------------------
 
 func parsePubspecYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Manual line-by-line parse; avoids a YAML library dependency.
-	// [dependencies] → production   [dev_dependencies] → development
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 
@@ -174,7 +176,6 @@ func parsePubspecYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			continue
 		}
 
-		// Indented entry:  "  package: ^1.2.3"  or  "  package:"
 		if idx := strings.Index(trimmed, ":"); idx > 0 {
 			name := strings.TrimSpace(trimmed[:idx])
 			ver := strings.TrimSpace(trimmed[idx+1:])
@@ -194,12 +195,6 @@ func parsePubspecYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parsePubspecLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// pubspec.lock is YAML; we parse it line-by-line.
-	// Structure:
-	//   packages:
-	//     pkg_name:
-	//       dependency: "direct main" | "direct dev" | "transitive"
-	//       version: "1.2.3"
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 
@@ -230,7 +225,6 @@ func parsePubspecLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			continue
 		}
 
-		// Count leading spaces to track nesting.
 		indent := len(line) - len(strings.TrimLeft(line, " \t"))
 
 		if trimmed == "packages:" && indent == 0 {
@@ -270,17 +264,21 @@ func parsePubspecLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // Elixir — mix.exs
 // ---------------------------------------------------------------------------
 
-// parseMixScoped extracts {:dep_name, "~> 1.2"} entries from deps/0.
 func parseMixScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Match:  {:some_dep, "~> 1.2.3"}  or  {:dep, git: "…", tag: "v1.0"}
 	depRe := regexp.MustCompile(`\{:([a-z_][a-zA-Z0-9_]*)\s*,\s*"([^"]*)"`)
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
 		m := depRe.FindStringSubmatch(line)
 		if m != nil {
+			scope := ScopeProduction
+			if strings.Contains(line, "only: :dev") || strings.Contains(line, "only: [:dev") {
+				scope = ScopeDevelopment
+			} else if strings.Contains(line, "only: :test") || strings.Contains(line, "only: [:test") {
+				scope = ScopeTest
+			}
 			pkgs = append(pkgs, ScopedPackage{
 				Name: m[1], Version: cleanLocalVersion(m[2]),
-				Ecosystem: "hex", Scope: ScopeProduction, IsDirect: true,
+				Ecosystem: "hex", Scope: scope, IsDirect: true,
 			})
 		}
 	}
@@ -291,8 +289,6 @@ func parseMixScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // Elixir — mix.lock
 // ---------------------------------------------------------------------------
 
-// parseMixLockScoped extracts packages from mix.lock.
-// Format:  "pkg_name": {:hex, :pkg_atom, "1.2.3", …}
 func parseMixLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	lineRe := regexp.MustCompile(`^\s*"([^"]+)"\s*:\s*\{:hex\s*,\s*:[a-z_]+\s*,\s*"([^"]+)"`)
 	var pkgs []ScopedPackage
@@ -312,9 +308,7 @@ func parseMixLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // Scala / sbt — build.sbt
 // ---------------------------------------------------------------------------
 
-// parseBuildSbtScoped extracts "group" % "artifact" % "version" declarations.
 func parseBuildSbtScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Matches:  "org.foo" % "bar" % "1.2.3"  (Scala-style)  or  "org.foo" %% "bar" % "1.2.3"
 	depRe := regexp.MustCompile(`"([^"]+)"\s*%%?\s*"([^"]+)"\s*%%?\s*"([^"]+)"`)
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
@@ -337,11 +331,10 @@ func parseBuildSbtScoped(data []byte, _ string) ([]ScopedPackage, error) {
 }
 
 // ---------------------------------------------------------------------------
-// Scala / sbt — build.lock (sbt lock-file plugin)
+// Scala / sbt — build.lock
 // ---------------------------------------------------------------------------
 
 func parseBuildLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Format (sbt-lock): org:name:version=…  or  group:artifact:version
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	for scanner.Scan() {
@@ -352,9 +345,15 @@ func parseBuildLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		parts := strings.SplitN(line, "=", 2)
 		coord := parts[0]
 		fields := strings.Split(coord, ":")
-		if len(fields) >= 3 {
+		switch len(fields) {
+		case 3: // group:artifact:version
 			pkgs = append(pkgs, ScopedPackage{
 				Name: fields[0] + ":" + fields[1], Version: fields[2],
+				Ecosystem: "maven", Scope: ScopeProduction,
+			})
+		case 2: // name:version (simple sbt-lock format)
+			pkgs = append(pkgs, ScopedPackage{
+				Name: fields[0], Version: fields[1],
 				Ecosystem: "maven", Scope: ScopeProduction,
 			})
 		}
@@ -366,7 +365,6 @@ func parseBuildLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // Docker — Dockerfile
 // ---------------------------------------------------------------------------
 
-// parseDockerfileScoped extracts base images from FROM instructions.
 func parseDockerfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
@@ -375,9 +373,14 @@ func parseDockerfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			continue
 		}
 		ref := strings.TrimSpace(trimmed[5:])
-		// Strip optional AS alias.
 		if idx := strings.Index(strings.ToUpper(ref), " AS "); idx > 0 {
 			ref = strings.TrimSpace(ref[:idx])
+		}
+		// Strip --platform=linux/amd64 etc.
+		if strings.HasPrefix(ref, "--") {
+			if spIdx := strings.Index(ref, " "); spIdx > 0 {
+				ref = strings.TrimSpace(ref[spIdx+1:])
+			}
 		}
 		if ref == "scratch" {
 			continue
@@ -392,11 +395,10 @@ func parseDockerfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
 }
 
 func splitDockerRef(ref string) (name, ver string) {
-	// ref may be:  ubuntu:22.04  or  ubuntu@sha256:…  or  myimage
-	if idx := strings.LastIndex(ref, ":"); idx > 0 {
+	if idx := strings.Index(ref, "@"); idx > 0 {
 		return ref[:idx], ref[idx+1:]
 	}
-	if idx := strings.Index(ref, "@"); idx > 0 {
+	if idx := strings.LastIndex(ref, ":"); idx > 0 {
 		return ref[:idx], ref[idx+1:]
 	}
 	return ref, ""
@@ -406,7 +408,6 @@ func splitDockerRef(ref string) (name, ver string) {
 // GitHub Actions — .github/workflows/*.yml
 // ---------------------------------------------------------------------------
 
-// parseGithubActionsScoped extracts `uses: owner/repo@ref` from workflow files.
 func parseGithubActionsScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	usesRe := regexp.MustCompile(`uses\s*:\s*([^#\s]+)`)
 	var pkgs []ScopedPackage
@@ -417,7 +418,6 @@ func parseGithubActionsScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			continue
 		}
 		ref := strings.TrimSpace(m[1])
-		// Strip local path references.
 		if strings.HasPrefix(ref, "./") || strings.HasPrefix(ref, "../") {
 			continue
 		}
@@ -435,8 +435,7 @@ func parseGithubActionsScoped(data []byte, _ string) ([]ScopedPackage, error) {
 }
 
 func splitAtSign(ref string) (name, ver string) {
-	idx := strings.LastIndex(ref, "@")
-	if idx > 0 {
+	if idx := strings.LastIndex(ref, "@"); idx > 0 {
 		return ref[:idx], ref[idx+1:]
 	}
 	return ref, ""
@@ -446,18 +445,13 @@ func splitAtSign(ref string) (name, ver string) {
 // Terraform — *.tf (HCL provider / module blocks)
 // ---------------------------------------------------------------------------
 
-// parseTerraformScoped extracts provider and module source/version declarations.
 func parseTerraformScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Look for:
-	//   required_providers { name = { source = "…" version = "…" } }
-	//   module "name" { source = "…" version = "…" }
 	var pkgs []ScopedPackage
 	content := string(data)
 
 	sourceRe := regexp.MustCompile(`source\s*=\s*"([^"]+)"`)
 	versionRe := regexp.MustCompile(`version\s*=\s*"([^"]+)"`)
 
-	// Split on blocks naively.
 	blocks := strings.Split(content, "}")
 	for _, block := range blocks {
 		sourceM := sourceRe.FindStringSubmatch(block)
@@ -469,16 +463,10 @@ func parseTerraformScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		if m := versionRe.FindStringSubmatch(block); m != nil {
 			ver = cleanLocalVersion(m[1])
 		}
-		// Derive a short name from the source address (last component).
-		name := src
-		if idx := strings.LastIndex(name, "/"); idx >= 0 {
-			name = name[idx+1:]
-		}
 		pkgs = append(pkgs, ScopedPackage{
 			Name: src, Version: ver,
 			Ecosystem: "terraform", Scope: ScopeProduction, IsDirect: true,
 		})
-		_ = name
 	}
 	return pkgs, nil
 }
@@ -507,7 +495,6 @@ func parseConanfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		if !inRequires || line == "" {
 			continue
 		}
-		// Format: name/version  or  name/version@user/channel
 		spec := strings.Split(line, "@")[0]
 		if idx := strings.Index(spec, "/"); idx > 0 {
 			pkgs = append(pkgs, ScopedPackage{
@@ -524,22 +511,41 @@ func parseConanfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseConanLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// conan.lock JSON structure:
-	//   { "graph_lock": { "nodes": { "1": { "ref": "name/version#…", … }, … } } }
-	var raw struct {
+	// Try v0.5+ format: {"version":"0.5","requires":["boost/1.86.0#hash",...]}
+	var v05 struct {
+		Requires []string `json:"requires"`
+	}
+	if err := json.Unmarshal(data, &v05); err == nil && len(v05.Requires) > 0 {
+		var pkgs []ScopedPackage
+		for _, req := range v05.Requires {
+			ref := req
+			if idx := strings.Index(ref, "#"); idx > 0 {
+				ref = ref[:idx]
+			}
+			if idx := strings.Index(ref, "/"); idx > 0 {
+				pkgs = append(pkgs, ScopedPackage{
+					Name: ref[:idx], Version: ref[idx+1:],
+					Ecosystem: "conan", Scope: ScopeProduction,
+				})
+			}
+		}
+		return pkgs, nil
+	}
+
+	// v0.4 format: {"graph_lock":{"nodes":{"1":{"ref":"name/version#..."}}}}
+	var v04 struct {
 		GraphLock struct {
 			Nodes map[string]struct {
 				Ref string `json:"ref"`
 			} `json:"nodes"`
 		} `json:"graph_lock"`
 	}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	if err := json.Unmarshal(data, &v04); err != nil {
 		return nil, nil //nolint:nilerr
 	}
 	var pkgs []ScopedPackage
-	for _, node := range raw.GraphLock.Nodes {
+	for _, node := range v04.GraphLock.Nodes {
 		ref := node.Ref
-		// Strip revision hash if present.
 		if idx := strings.Index(ref, "#"); idx > 0 {
 			ref = ref[:idx]
 		}
@@ -566,12 +572,9 @@ func parseVcpkgJSONScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	}
 	var pkgs []ScopedPackage
 	for _, raw := range manifest.Dependencies {
-		// Each entry is either a string "name" or an object {"name":"…","version-minimum":"…"}.
 		var name string
 		var ver string
-		if err := json.Unmarshal(raw, &name); err == nil {
-			// Simple string form.
-		} else {
+		if err := json.Unmarshal(raw, &name); err != nil {
 			var obj struct {
 				Name    string `json:"name"`
 				Version string `json:"version-minimum"`
@@ -596,7 +599,6 @@ func parseVcpkgJSONScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parsePodfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Matches:  pod 'AFNetworking', '~> 4.0'
 	podRe := regexp.MustCompile(`^\s*pod\s+['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"])?`)
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
@@ -619,10 +621,6 @@ func parsePodfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parsePodfileLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// PODS section lists resolved versions:
-	//   PODS:
-	//     - AFNetworking (4.0.1)
-	//     - AFNetworking/NSURLSession (4.0.1)
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	inPods := false
@@ -644,7 +642,6 @@ func parsePodfileLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		entry := strings.TrimPrefix(trimmed, "- ")
 		if idx := strings.Index(entry, " ("); idx > 0 {
 			name := entry[:idx]
-			// Skip subspecs (those with /).
 			if strings.Contains(name, "/") {
 				continue
 			}
@@ -665,9 +662,7 @@ func parsePodfileLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // Carthage — Cartfile
 // ---------------------------------------------------------------------------
 
-// parseCartfileScoped extracts github / git / binary dependencies.
 func parseCartfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Format: github "owner/repo" "~> 1.0"  |  binary "…" "1.0"
 	re := regexp.MustCompile(`^(?:github|git|binary)\s+"([^"]+)"\s*(?:"([^"]*)")?`)
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
@@ -678,7 +673,6 @@ func parseCartfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		m := re.FindStringSubmatch(line)
 		if m != nil {
 			name := m[1]
-			// For github references, strip owner prefix.
 			if strings.Contains(name, "/") {
 				parts := strings.SplitN(name, "/", 2)
 				name = parts[1]
@@ -697,7 +691,6 @@ func parseCartfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseCartfileResolvedScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Format: github "owner/repo" "1.0.0"
 	re := regexp.MustCompile(`^(?:github|git|binary)\s+"([^"]+)"\s+"([^"]+)"`)
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
@@ -723,8 +716,6 @@ func parseCartfileResolvedScoped(data []byte, _ string) ([]ScopedPackage, error)
 // ---------------------------------------------------------------------------
 
 func parseProjectTomlScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// [deps] section:  PackageName = "uuid"
-	// [compat] section provides version constraints.
 	var pkgs []ScopedPackage
 	depsSection := false
 	compatSection := false
@@ -757,7 +748,6 @@ func parseProjectTomlScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			}
 		}
 	}
-	// Apply compat versions.
 	for i, p := range pkgs {
 		if v, ok := compat[p.Name]; ok {
 			pkgs[i].Version = v
@@ -771,8 +761,6 @@ func parseProjectTomlScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseManifestTomlScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// [[deps.PackageName]]  or  [deps.PackageName]  blocks contain:
-	//   uuid = "…"  and  version = "…"
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	var currentName, currentVer string
@@ -812,9 +800,6 @@ func parseManifestTomlScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseShardYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// dependencies:
-	//   shard_name:
-	//     version: "~> 1.0"
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 
@@ -869,32 +854,34 @@ func parseShardYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseShardLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Format:
-	//   shards:
-	//     shard_name:
-	//       version: 1.0.0
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	inShards := false
 	var currentName string
 
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
-		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
 
+		// Flat format: "- name: kemal" followed by "  version: 1.4.0"
+		if strings.HasPrefix(trimmed, "- name:") {
+			currentName = strings.TrimSpace(strings.TrimPrefix(trimmed, "- name:"))
+			continue
+		}
+
+		// Nested format (under "shards:" header): "  shard_name:" at indent 2
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
 		if trimmed == "shards:" {
-			inShards = true
 			continue
 		}
-		if !inShards {
-			continue
-		}
-		if indent == 2 && strings.HasSuffix(trimmed, ":") {
+		if indent == 2 && strings.HasSuffix(trimmed, ":") && !strings.Contains(trimmed, " ") {
 			currentName = strings.TrimSuffix(trimmed, ":")
 			continue
 		}
-		if indent > 2 && currentName != "" && strings.HasPrefix(trimmed, "version:") {
+
+		if currentName != "" && strings.HasPrefix(trimmed, "version:") {
 			ver := strings.TrimSpace(strings.TrimPrefix(trimmed, "version:"))
 			pkgs = append(pkgs, ScopedPackage{Name: currentName, Version: ver, Ecosystem: "crystal", Scope: ScopeProduction})
 			currentName = ""
@@ -910,14 +897,17 @@ func parseShardLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 func parseDenoJSONScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	var manifest struct {
 		Imports map[string]string `json:"imports"`
-		// deno.json may also nest under importMap pointing to a file, which we skip.
 	}
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return nil, nil //nolint:nilerr
 	}
 	var pkgs []ScopedPackage
 	for specifier, resolved := range manifest.Imports {
-		name, ver := parseDenoSpecifier(specifier, resolved)
+		// Try the specifier first, fall back to the resolved value.
+		name, ver := parseDenoSpecifier(specifier)
+		if name == "" {
+			name, ver = parseDenoSpecifier(resolved)
+		}
 		if name != "" {
 			pkgs = append(pkgs, ScopedPackage{Name: name, Version: ver, Ecosystem: "deno", Scope: ScopeProduction, IsDirect: true})
 		}
@@ -930,12 +920,10 @@ func parseDenoJSONScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseDenoLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// v2/v3 format: { "remote": { "url": "hash" }, "packages": { "specifiers": { "npm:foo@1": "…" } } }
 	var lock struct {
 		Packages struct {
 			Specifiers map[string]string `json:"specifiers"`
 		} `json:"packages"`
-		// v1 remote map (fallback)
 		Remote map[string]string `json:"remote"`
 	}
 	if err := json.Unmarshal(data, &lock); err != nil {
@@ -943,7 +931,10 @@ func parseDenoLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	}
 	var pkgs []ScopedPackage
 	for spec, resolved := range lock.Packages.Specifiers {
-		name, ver := parseDenoSpecifier(spec, resolved)
+		name, ver := parseDenoSpecifier(spec)
+		if name == "" {
+			name, ver = parseDenoSpecifier(resolved)
+		}
 		if name != "" {
 			pkgs = append(pkgs, ScopedPackage{Name: name, Version: ver, Ecosystem: "deno", Scope: ScopeProduction})
 		}
@@ -951,12 +942,7 @@ func parseDenoLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	return pkgs, nil
 }
 
-// parseDenoSpecifier extracts a name and version from a Deno import specifier.
-// e.g. "npm:lodash@4.17.21" → ("lodash", "4.17.21")
-//
-//	"https://deno.land/x/oak@v12.0.0/mod.ts" → ("oak", "v12.0.0")
-func parseDenoSpecifier(specifier, _ string) (name, ver string) {
-	// npm specifier: npm:pkg@1.2.3
+func parseDenoSpecifier(specifier string) (name, ver string) {
 	if strings.HasPrefix(specifier, "npm:") {
 		s := strings.TrimPrefix(specifier, "npm:")
 		name, ver = splitAtSign(s)
@@ -965,13 +951,20 @@ func parseDenoSpecifier(specifier, _ string) (name, ver string) {
 		}
 		return
 	}
-	// deno.land/x: https://deno.land/x/pkg@v1.0/mod.ts
 	if strings.Contains(specifier, "deno.land/x/") {
 		rest := specifier[strings.Index(specifier, "deno.land/x/")+len("deno.land/x/"):]
-		rest = strings.Split(rest, "/")[0] // stop at next /
+		rest = strings.Split(rest, "/")[0]
 		name, ver = splitAtSign(rest)
 		if name == "" {
 			name = rest
+		}
+		return
+	}
+	if strings.HasPrefix(specifier, "jsr:") {
+		s := strings.TrimPrefix(specifier, "jsr:")
+		name, ver = splitAtSign(s)
+		if name == "" {
+			name = s
 		}
 		return
 	}
@@ -983,11 +976,9 @@ func parseDenoSpecifier(specifier, _ string) (name, ver string) {
 // ---------------------------------------------------------------------------
 
 func parseDescriptionScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// Imports, Depends, Suggests fields list packages (possibly with version reqs).
 	var pkgs []ScopedPackage
 	content := string(data)
 
-	// Extract multi-line field value.
 	extractField := func(field string) string {
 		prefix := field + ":"
 		idx := strings.Index(content, prefix)
@@ -995,7 +986,6 @@ func parseDescriptionScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			return ""
 		}
 		rest := content[idx+len(prefix):]
-		// Value continues while lines start with whitespace.
 		var sb strings.Builder
 		for i, line := range strings.Split(rest, "\n") {
 			if i == 0 {
@@ -1017,7 +1007,6 @@ func parseDescriptionScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			if entry == "" {
 				continue
 			}
-			// Strip version constraint: "pkg (>= 1.0)" → "pkg"
 			name := entry
 			if idx := strings.Index(name, "("); idx > 0 {
 				name = strings.TrimSpace(name[:idx])
@@ -1064,7 +1053,6 @@ func parseRenvLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseRebarConfigScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// {deps, [{pkg_name, "1.2.3"}, {pkg2, "~> 1.0"}, …]}.
 	depRe := regexp.MustCompile(`\{([a-z_][a-zA-Z0-9_@]*)\s*,\s*"([^"]*)"`)
 	var pkgs []ScopedPackage
 	inDeps := false
@@ -1097,7 +1085,6 @@ func parseRebarConfigScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseRebarLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// {<<"pkg_name">>,{pkg,<<"pkg_name">>,<<"1.2.3">>},0}.
 	nameRe := regexp.MustCompile(`<<"([^"]+)">>,\{pkg,<<"[^"]+">>,<<"([^"]+)">>`)
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
@@ -1117,10 +1104,6 @@ func parseRebarLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseStackYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// extra-deps:
-	//   - acme-1.2.3
-	//   - acme-1.2.3@sha256:…
-	//   - github: owner/repo
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	inExtraDeps := false
@@ -1142,11 +1125,9 @@ func parseStackYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			continue
 		}
 		entry := strings.TrimPrefix(trimmed, "- ")
-		// Strip sha256 hash.
 		if idx := strings.Index(entry, "@sha256:"); idx > 0 {
 			entry = entry[:idx]
 		}
-		// "name-version" format (last dash separates name from version).
 		if idx := strings.LastIndex(entry, "-"); idx > 0 {
 			name := entry[:idx]
 			ver := entry[idx+1:]
@@ -1161,7 +1142,6 @@ func parseStackYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseCabalScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// build-depends: base >=4.14, bytestring ^>=0.11, …
 	var pkgs []ScopedPackage
 	content := string(data)
 	bdRe := regexp.MustCompile(`(?i)build-depends\s*:([\s\S]+?)(?:\n[a-z]|\z)`)
@@ -1191,10 +1171,8 @@ func parseCabalScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseCabalFreezeScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// constraints: pkg ==1.2.3, pkg2 ==0.1 …
 	var pkgs []ScopedPackage
 	content := string(data)
-	// Strip continuation backslashes and join into single logical lines.
 	content = strings.ReplaceAll(content, "\\\n", " ")
 	for _, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
@@ -1231,7 +1209,6 @@ func parseCabalFreezeScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseOpamScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// depends: [ "pkg" {>= "1.0"} "other" "conf-zlib" ]
 	var pkgs []ScopedPackage
 	content := string(data)
 	depRe := regexp.MustCompile(`"([a-zA-Z0-9_-]+)"(?:\s*\{[^}]*\})?`)
@@ -1240,7 +1217,6 @@ func parseOpamScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		return nil, nil
 	}
 	rest := content[depsIdx+len("depends:"):]
-	// Find the bracketed list.
 	start := strings.Index(rest, "[")
 	end := strings.Index(rest, "]")
 	if start < 0 || end <= start {
@@ -1250,7 +1226,6 @@ func parseOpamScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	for _, m := range depRe.FindAllStringSubmatch(block, -1) {
 		name := m[1]
 		if strings.HasPrefix(name, "conf-") || name == "ocaml" || name == "dune" {
-			// Skip non-library deps.
 			continue
 		}
 		pkgs = append(pkgs, ScopedPackage{Name: name, Ecosystem: "opam", Scope: ScopeProduction, IsDirect: true})
@@ -1263,8 +1238,6 @@ func parseOpamScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseFlakeNixScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// inputs.pkgname.url = "github:owner/repo/rev";
-	// or:  pkgname = { url = "…"; … };
 	urlRe := regexp.MustCompile(`url\s*=\s*"([^"]+)"`)
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
@@ -1272,8 +1245,7 @@ func parseFlakeNixScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		if m == nil {
 			continue
 		}
-		url := m[1]
-		name, ver := parseFlakeURL(url)
+		name, ver := parseFlakeURL(m[1])
 		if name != "" {
 			pkgs = append(pkgs, ScopedPackage{Name: name, Version: ver, Ecosystem: "nix", Scope: ScopeProduction, IsDirect: true})
 		}
@@ -1282,7 +1254,6 @@ func parseFlakeNixScoped(data []byte, _ string) ([]ScopedPackage, error) {
 }
 
 func parseFlakeURL(url string) (name, ver string) {
-	// "github:NixOS/nixpkgs/23.11" → name="nixpkgs" ver="23.11"
 	url = strings.TrimPrefix(url, "github:")
 	url = strings.TrimPrefix(url, "gitlab:")
 	url = strings.TrimPrefix(url, "sourcehut:")
@@ -1311,9 +1282,6 @@ func parseFlakeLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 				Ref  string `json:"ref"`
 			} `json:"locked"`
 		} `json:"nodes"`
-		Root struct {
-			Inputs map[string]json.RawMessage `json:"inputs"`
-		} `json:"root"`
 	}
 	if err := json.Unmarshal(data, &lock); err != nil {
 		return nil, nil //nolint:nilerr
@@ -1340,12 +1308,6 @@ func parseFlakeLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseZigZonScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// .dependencies = .{
-	//     .pkg_name = .{
-	//         .url = "…",
-	//         .hash = "…",
-	//     },
-	// }
 	var pkgs []ScopedPackage
 	lines := strings.Split(string(data), "\n")
 	inDeps := false
@@ -1364,7 +1326,6 @@ func parseZigZonScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		if !inDeps {
 			continue
 		}
-		// Entry name:  .pkg_name = .{
 		if strings.HasPrefix(trimmed, ".") && strings.Contains(trimmed, "= .{") {
 			currentName = strings.TrimPrefix(strings.Fields(trimmed)[0], ".")
 			currentURL = ""
@@ -1388,7 +1349,6 @@ func parseZigZonScoped(data []byte, _ string) ([]ScopedPackage, error) {
 func parseZigURL(url string) (name, ver string) {
 	if idx := strings.LastIndex(url, "/"); idx >= 0 {
 		name = url[idx+1:]
-		// Strip common suffixes.
 		name = strings.TrimSuffix(name, ".tar.gz")
 		name = strings.TrimSuffix(name, ".zip")
 	}
@@ -1400,10 +1360,9 @@ func parseZigURL(url string) (name, ver string) {
 // ---------------------------------------------------------------------------
 
 func parseCPMCmakeScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// CPMAddPackage("gh:owner/repo@version")
-	// CPMAddPackage(NAME foo VERSION 1.2 …)
 	var pkgs []ScopedPackage
-	ghRe := regexp.MustCompile(`CPMAddPackage\s*\(\s*"gh:([^@"]+)@([^"]+)"`)
+	// gh:owner/repo@version or gh:owner/repo#version
+	ghRe := regexp.MustCompile(`CPMAddPackage\s*\(\s*"gh:([^@#"]+)[@#]([^"]+)"`)
 	nameRe := regexp.MustCompile(`CPMAddPackage\s*\(`)
 	namePropRe := regexp.MustCompile(`(?i)NAME\s+(\S+)`)
 	verPropRe := regexp.MustCompile(`(?i)VERSION\s+(\S+)`)
@@ -1417,7 +1376,6 @@ func parseCPMCmakeScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		pkgs = append(pkgs, ScopedPackage{Name: repo, Version: m[2], Ecosystem: "cpm", Scope: ScopeProduction, IsDirect: true})
 	}
 
-	// Multi-line CPMAddPackage(NAME … VERSION …)
 	blocks := nameRe.Split(content, -1)
 	for _, block := range blocks[1:] {
 		nameM := namePropRe.FindStringSubmatch(block)
@@ -1439,13 +1397,10 @@ func parseCPMCmakeScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseMesonBuildScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// dependency('libfoo', version: '>=1.2')
-	// subproject('foo', …)
 	depRe := regexp.MustCompile(`(?:dependency|subproject)\s*\(\s*'([^']+)'`)
 	verRe := regexp.MustCompile(`version\s*:\s*'([^']+)'`)
 	var pkgs []ScopedPackage
-	content := string(data)
-	for _, line := range strings.Split(content, "\n") {
+	for _, line := range strings.Split(string(data), "\n") {
 		m := depRe.FindStringSubmatch(line)
 		if m == nil {
 			continue
@@ -1464,12 +1419,9 @@ func parseMesonBuildScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseWorkspaceScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	// maven_install( artifacts = [ "group:artifact:version", … ] )
-	// go_repository( name = "…", importpath = "…", version = "…" )
 	var pkgs []ScopedPackage
 	content := string(data)
 
-	// Maven artifacts.
 	mvnRe := regexp.MustCompile(`"([a-zA-Z0-9_.\-]+:[a-zA-Z0-9_.\-]+:[0-9][^"]*)"`)
 	for _, m := range mvnRe.FindAllStringSubmatch(content, -1) {
 		parts := strings.Split(m[1], ":")
@@ -1478,7 +1430,6 @@ func parseWorkspaceScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		}
 	}
 
-	// Go repositories.
 	goRepoRe := regexp.MustCompile(`go_repository\s*\(([^)]+)\)`)
 	importRe := regexp.MustCompile(`importpath\s*=\s*"([^"]+)"`)
 	verGoRe := regexp.MustCompile(`version\s*=\s*"([^"]+)"`)
@@ -1493,6 +1444,113 @@ func parseWorkspaceScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			ver = mv[1]
 		}
 		pkgs = append(pkgs, ScopedPackage{Name: impM[1], Version: ver, Ecosystem: "golang", Scope: ScopeProduction, IsDirect: true})
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Buck / Buck2 — BUCK / BUCK2 (Starlark DSL)
+// ---------------------------------------------------------------------------
+
+func parseBuckScoped(data []byte, _ string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	content := string(data)
+
+	// Maven coordinates: maven_coords = "group:artifact:version"
+	mvnCoordsRe := regexp.MustCompile(`maven_coords\s*=\s*"([^"]+)"`)
+	for _, m := range mvnCoordsRe.FindAllStringSubmatch(content, -1) {
+		parts := strings.Split(m[1], ":")
+		if len(parts) >= 3 {
+			pkgs = append(pkgs, ScopedPackage{
+				Name: parts[0] + ":" + parts[1], Version: parts[2],
+				Ecosystem: "maven", Scope: ScopeProduction, IsDirect: true,
+			})
+		}
+	}
+
+	// prebuilt_jar with binary_jar: extract name and version from jar filename.
+	// Pattern: prebuilt_jar(name = "guava", binary_jar = "lib/guava-33.3.1-jre.jar")
+	jarRe := regexp.MustCompile(`prebuilt_jar\s*\([^)]*name\s*=\s*"([^"]+)"[^)]*binary_jar\s*=\s*"([^"]+)"`)
+	jarReAlt := regexp.MustCompile(`prebuilt_jar\s*\([^)]*binary_jar\s*=\s*"([^"]+)"[^)]*name\s*=\s*"([^"]+)"`)
+	seen := map[string]bool{}
+	for _, m := range mvnCoordsRe.FindAllStringSubmatch(content, -1) {
+		seen[strings.Split(m[1], ":")[0]] = true
+	}
+
+	extractJarVersion := func(name, jarPath string) {
+		if seen[name] {
+			return
+		}
+		seen[name] = true
+		// Get filename from path
+		jar := jarPath
+		if idx := strings.LastIndex(jar, "/"); idx >= 0 {
+			jar = jar[idx+1:]
+		}
+		jar = strings.TrimSuffix(jar, ".jar")
+		// Try to find version: look for name prefix then "-version"
+		ver := ""
+		if idx := strings.Index(jar, name+"-"); idx >= 0 {
+			rest := jar[idx+len(name)+1:]
+			// Version is digits-starting portion; strip trailing classifier
+			for i, c := range rest {
+				if c >= '0' && c <= '9' {
+					ver = rest[i:]
+					break
+				}
+			}
+			// Strip classifier suffix like "-jre", "-android"
+			if dashIdx := strings.LastIndex(ver, "-"); dashIdx > 0 {
+				suffix := ver[dashIdx+1:]
+				if len(suffix) > 0 && (suffix[0] < '0' || suffix[0] > '9') {
+					ver = ver[:dashIdx]
+				}
+			}
+		}
+		pkgs = append(pkgs, ScopedPackage{
+			Name: name, Version: ver,
+			Ecosystem: "maven", Scope: ScopeProduction, IsDirect: true,
+		})
+	}
+
+	for _, m := range jarRe.FindAllStringSubmatch(content, -1) {
+		extractJarVersion(m[1], m[2])
+	}
+	for _, m := range jarReAlt.FindAllStringSubmatch(content, -1) {
+		extractJarVersion(m[2], m[1])
+	}
+
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Bazel — MODULE.bazel (bzlmod)
+// ---------------------------------------------------------------------------
+
+func parseModuleBazelScoped(data []byte, _ string) ([]ScopedPackage, error) {
+	// bazel_dep(name = "rules_cc", version = "0.0.9")
+	depRe := regexp.MustCompile(`bazel_dep\s*\([^)]*name\s*=\s*"([^"]+)"[^)]*version\s*=\s*"([^"]+)"`)
+	depReAlt := regexp.MustCompile(`bazel_dep\s*\([^)]*version\s*=\s*"([^"]+)"[^)]*name\s*=\s*"([^"]+)"`)
+	var pkgs []ScopedPackage
+	content := string(data)
+	seen := map[string]bool{}
+	for _, m := range depRe.FindAllStringSubmatch(content, -1) {
+		if !seen[m[1]] {
+			seen[m[1]] = true
+			pkgs = append(pkgs, ScopedPackage{
+				Name: m[1], Version: m[2],
+				Ecosystem: "bazel", Scope: ScopeProduction, IsDirect: true,
+			})
+		}
+	}
+	for _, m := range depReAlt.FindAllStringSubmatch(content, -1) {
+		if !seen[m[2]] {
+			seen[m[2]] = true
+			pkgs = append(pkgs, ScopedPackage{
+				Name: m[2], Version: m[1],
+				Ecosystem: "bazel", Scope: ScopeProduction, IsDirect: true,
+			})
+		}
 	}
 	return pkgs, nil
 }

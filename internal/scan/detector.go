@@ -89,6 +89,7 @@ var ManifestFiles = map[string]ManifestInfo{
 	// ── Bazel ─────────────────────────────────────────────────────────────
 	"WORKSPACE":       {Type: "WORKSPACE", Ecosystem: "bazel", Language: "starlark", IsLock: false},
 	"WORKSPACE.bazel": {Type: "WORKSPACE", Ecosystem: "bazel", Language: "starlark", IsLock: false},
+	"MODULE.bazel":    {Type: "MODULE.bazel", Ecosystem: "bazel", Language: "starlark", IsLock: false},
 	"BUCK":            {Type: "BUCK", Ecosystem: "buck", Language: "starlark", IsLock: false},
 	"BUCK2":           {Type: "BUCK2", Ecosystem: "buck", Language: "starlark", IsLock: false},
 	// ── C/C++ / Conan ─────────────────────────────────────────────────────
@@ -242,9 +243,14 @@ var SupportedManifestTypes = map[string]bool{
 	// Meson
 	"meson.build": true,
 	// Bazel
-	"WORKSPACE": true,
+	"WORKSPACE":    true,
+	"MODULE.bazel": true,
+	// Buck
+	"BUCK":  true,
+	"BUCK2": true,
 	// CMake / CPM
-	"CPM.cmake": true,
+	"CPM.cmake":      true,
+	"CMakeLists.txt": true, // content-checked: only detected when file contains CPMAddPackage
 }
 
 // DetectManifest checks if a file is a known manifest.
@@ -266,7 +272,21 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 		return &infoCopy, true
 	}
 
-	// 3. Path-pattern: GitHub Actions workflow files under .github/workflows/.
+	// 3. Content-checked: CMakeLists.txt with CPMAddPackage calls.
+	if base == "CMakeLists.txt" {
+		content, err := os.ReadFile(filename)
+		if err == nil && strings.Contains(string(content), "CPMAddPackage") {
+			info := ManifestInfo{
+				Type:      "CMakeLists.txt",
+				Ecosystem: "cpm",
+				Language:  "cmake",
+				IsLock:    false,
+			}
+			return &info, true
+		}
+	}
+
+	// 4. Path-pattern: GitHub Actions workflow files under .github/workflows/.
 	lowerBase := strings.ToLower(base)
 	if strings.HasSuffix(lowerBase, ".yml") || strings.HasSuffix(lowerBase, ".yaml") {
 		slash := filepath.ToSlash(filename)
