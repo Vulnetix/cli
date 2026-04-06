@@ -65,47 +65,231 @@ Vulnerabilities and packages are organised by dependency scope where the package
 | Go | `production` (no scope distinction in go.mod / go.sum) |
 | Rust | `production` (no scope distinction in Cargo.lock) |
 | Ruby | `production` (group info requires Gemfile) |
-| Maven | `production`, `test`, `provided`, `runtime`, `system` |
+| Maven / Gradle | `production`, `test`, `provided`, `runtime`, `system` |
 | Composer | `production`, `development` |
 | Yarn / pnpm | `production` (scope requires correlation with package.json) |
+| NuGet | `production` |
+| Swift | `production` |
+| Pub (Dart) | `production`, `development` |
+| Hex (Elixir) | `production` |
+| sbt (Scala) | `production` |
+| CocoaPods | `production` |
+| Conan (C/C++) | `production` |
+| vcpkg (C/C++) | `production` |
 
 ## Supported Manifest Files
 
 The scanner recognizes these package manager manifest and lock files:
 
-| Filename | Ecosystem | Language | Lock file? |
-|----------|-----------|----------|------------|
-| `package-lock.json` | npm | JavaScript | Yes |
-| `package.json` | npm | JavaScript | No |
-| `yarn.lock` | npm | JavaScript | Yes |
-| `pnpm-lock.yaml` | npm | JavaScript | Yes |
-| `requirements.txt` | PyPI | Python | No |
-| `Pipfile.lock` | PyPI | Python | Yes |
-| `poetry.lock` | PyPI | Python | Yes |
-| `uv.lock` | PyPI | Python | Yes |
-| `go.sum` | Go | Go | Yes |
-| `go.mod` | Go | Go | No |
-| `Gemfile.lock` | RubyGems | Ruby | Yes |
-| `Cargo.lock` | Cargo | Rust | Yes |
-| `pom.xml` | Maven | Java | No |
-| `gradle.lockfile` | Maven | Java | Yes |
-| `composer.lock` | Composer | PHP | Yes |
-| `packages.lock.json` | NuGet | C# | Yes |
-| `Package.resolved` | Swift | Swift | Yes |
-| `pubspec.lock` | Pub | Dart | Yes |
-| `mix.lock` | Hex | Elixir | Yes |
-| `build.lock` | Maven | Scala | Yes |
-| `build.gradle.kts` | Maven | Kotlin | No |
+### JavaScript / TypeScript
 
-Currently supported for local scanning:
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `package.json` | npm | No |
+| `package-lock.json` | npm | Yes |
+| `yarn.lock` | npm | Yes |
+| `pnpm-lock.yaml` | npm | Yes |
 
-- `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
-- `requirements.txt`, `Pipfile.lock`
-- `go.sum`, `go.mod`
-- `Cargo.lock`
-- `Gemfile.lock`
-- `pom.xml`
-- `composer.lock`
+### Python
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `pyproject.toml` | PyPI | No |
+| `requirements.txt` | PyPI | No |
+| `requirements.in` | PyPI | No |
+| `Pipfile` | PyPI | No |
+| `Pipfile.lock` | PyPI | Yes |
+| `poetry.lock` | PyPI | Yes |
+| `uv.lock` | PyPI | Yes |
+
+### Go
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `go.mod` | Go | No |
+| `go.sum` | Go | Yes |
+
+### Rust
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `Cargo.toml` | Cargo | No |
+| `Cargo.lock` | Cargo | Yes |
+
+### Deno
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `deno.json` | Deno | No |
+| `deno.lock` | Deno | Yes |
+
+### Ruby
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `Gemfile` | RubyGems | No |
+| `Gemfile.lock` | RubyGems | Yes |
+
+### Java / Kotlin / Scala
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `pom.xml` | Maven | No |
+| `build.gradle` | Maven | No |
+| `build.gradle.kts` | Maven | No |
+| `gradle.lockfile` | Maven | Yes |
+| `build.sbt` | Maven | No |
+| `build.lock` | Maven | Yes |
+
+### C# / .NET
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `*.csproj` | NuGet | No |
+| `packages.lock.json` | NuGet | Yes |
+| `paket.dependencies` | NuGet | No |
+| `paket.lock` | NuGet | Yes |
+
+### PHP
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `composer.json` | Composer | No |
+| `composer.lock` | Composer | Yes |
+
+### Swift / iOS
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `Package.swift` | Swift | No |
+| `Package.resolved` | Swift | Yes |
+| `Podfile` | CocoaPods | No |
+| `Podfile.lock` | CocoaPods | Yes |
+| `Cartfile` | Carthage | No |
+| `Cartfile.resolved` | Carthage | Yes |
+
+### Dart
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `pubspec.yaml` | Pub | No |
+| `pubspec.lock` | Pub | Yes |
+
+### Elixir
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `mix.exs` | Hex | No |
+| `mix.lock` | Hex | Yes |
+
+### Erlang
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `rebar.config` | Hex | No |
+| `rebar.lock` | Hex | Yes |
+
+### C / C++
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `vcpkg.json` | vcpkg | No |
+| `conanfile.txt` | Conan | No |
+| `conanfile.py` | Conan | No |
+| `conan.lock` | Conan | Yes |
+| `CMakeLists.txt` | CPM | No |
+| `CPM.cmake` | CPM | No |
+| `meson.build` | Meson | No |
+
+`CMakeLists.txt` is only recognized when the file contains `CPMAddPackage`.
+
+### Haskell
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `*.cabal` | Cabal | No |
+| `cabal.project.freeze` | Cabal | Yes |
+| `stack.yaml` | Stack | No |
+
+### OCaml
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `opam` | opam | No |
+| `*.opam` | opam | No |
+
+### Nix
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `flake.nix` | Nix | No |
+| `flake.lock` | Nix | Yes |
+
+### Julia
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `Project.toml` | Julia | No |
+| `Manifest.toml` | Julia | Yes |
+
+### Crystal
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `shard.yml` | Crystal | No |
+| `shard.lock` | Crystal | Yes |
+
+### R
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `DESCRIPTION` | CRAN | No |
+| `renv.lock` | CRAN | Yes |
+
+### Zig
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `build.zig.zon` | Zig | No |
+
+### Bazel / Buck
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `MODULE.bazel` | Bazel | No |
+| `WORKSPACE` | Bazel | No |
+| `WORKSPACE.bazel` | Bazel | No |
+| `BUCK` | Buck | No |
+| `BUCK2` | Buck | No |
+
+### Containers
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `Dockerfile` | Docker | No |
+| `Containerfile` | Docker | No |
+| `*.dockerfile` | Docker | No |
+| `*.containerfile` | Docker | No |
+
+### Infrastructure as Code
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `*.tf` | Terraform | No |
+
+### CI/CD
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `.github/workflows/*.yml` | GitHub Actions | No |
+| `.github/workflows/*.yaml` | GitHub Actions | No |
+
+### Existing SBOMs
+
+The scanner also detects and ingests existing SBOM documents:
+
+- **SPDX** JSON documents (identified by `spdxVersion` and `SPDXID` fields)
+- **CycloneDX** JSON documents (identified by `bomFormat: "CycloneDX"` and `specVersion`)
 
 ## Auto-Discovery
 

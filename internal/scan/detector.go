@@ -86,8 +86,9 @@ var ManifestFiles = map[string]ManifestInfo{
 	// ── Scala / sbt ───────────────────────────────────────────────────────
 	"build.sbt":  {Type: "build.sbt", Ecosystem: "maven", Language: "scala", IsLock: false},
 	"build.lock": {Type: "build.lock", Ecosystem: "maven", Language: "scala", IsLock: true},
-	// ── Docker ────────────────────────────────────────────────────────────
-	"Dockerfile": {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
+	// ── Docker / OCI container files ─────────────────────────────────────
+	"Dockerfile":    {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"Containerfile": {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
 	// ── Bazel ─────────────────────────────────────────────────────────────
 	"WORKSPACE":       {Type: "WORKSPACE", Ecosystem: "bazel", Language: "starlark", IsLock: false},
 	"WORKSPACE.bazel": {Type: "WORKSPACE", Ecosystem: "bazel", Language: "starlark", IsLock: false},
@@ -141,10 +142,12 @@ var ManifestFiles = map[string]ManifestInfo{
 // ManifestExtensions maps file extensions to manifest metadata.
 // Used for files whose names include a project-specific prefix (e.g. foo.csproj, main.tf).
 var ManifestExtensions = map[string]ManifestInfo{
-	".csproj": {Type: "*.csproj", Ecosystem: "nuget", Language: "c#", IsLock: false},
-	".tf":     {Type: "*.tf", Ecosystem: "terraform", Language: "hcl", IsLock: false},
-	".opam":   {Type: "*.opam", Ecosystem: "opam", Language: "ocaml", IsLock: false},
-	".cabal":  {Type: "*.cabal", Ecosystem: "cabal", Language: "haskell", IsLock: false},
+	".csproj":        {Type: "*.csproj", Ecosystem: "nuget", Language: "c#", IsLock: false},
+	".tf":            {Type: "*.tf", Ecosystem: "terraform", Language: "hcl", IsLock: false},
+	".opam":          {Type: "*.opam", Ecosystem: "opam", Language: "ocaml", IsLock: false},
+	".cabal":         {Type: "*.cabal", Ecosystem: "cabal", Language: "haskell", IsLock: false},
+	".dockerfile":    {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
+	".containerfile": {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
 }
 
 // SupportedManifestTypes lists manifest types that have a local parser implemented.
@@ -197,7 +200,7 @@ var SupportedManifestTypes = map[string]bool{
 	// Scala / sbt
 	"build.sbt":  true,
 	"build.lock": true,
-	// Docker
+	// Docker / OCI container files
 	"Dockerfile": true,
 	// Terraform
 	"*.tf": true,
