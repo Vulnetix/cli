@@ -19,6 +19,7 @@ type KeyMap struct {
 	Escape     key.Binding
 	PageUp     key.Binding
 	PageDown   key.Binding
+	Resolve    key.Binding
 }
 
 var keys = KeyMap{
@@ -81,6 +82,10 @@ var keys = KeyMap{
 	PageDown: key.NewBinding(
 		key.WithKeys("pgdown", "ctrl+d"),
 		key.WithHelp("pgdn", "page down"),
+	),
+	Resolve: key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("r", "resolve"),
 	),
 }
 

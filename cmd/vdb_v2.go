@@ -67,6 +67,7 @@ Examples:
 			return fmt.Errorf("failed to get workarounds: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("workarounds", args[0])
 		return vdbRender(cmd, result, display.RenderWorkarounds)
 	},
 }
@@ -96,6 +97,7 @@ Examples:
 			return fmt.Errorf("failed to get advisories: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("advisories", args[0])
 		return vdbRender(cmd, result, display.RenderAdvisories)
 	},
 }
@@ -131,6 +133,7 @@ Examples:
 			return fmt.Errorf("failed to get CWE guidance: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("cwe guidance", args[0])
 		return vdbRender(cmd, result, display.RenderCweGuidance)
 	},
 }
@@ -160,6 +163,7 @@ Examples:
 			return fmt.Errorf("failed to get KEV data: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("kev", args[0])
 		return vdbRender(cmd, result, display.RenderKev)
 	},
 }
@@ -203,6 +207,7 @@ Examples:
 			return fmt.Errorf("failed to get timeline: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("timeline", args[0])
 		return vdbRender(cmd, result, display.RenderTimeline)
 	},
 }
@@ -235,6 +240,7 @@ Examples:
 			return fmt.Errorf("failed to get affected data: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("affected", args[0])
 		return vdbRender(cmd, result, display.RenderAffected)
 	},
 }
@@ -264,6 +270,7 @@ Examples:
 			return fmt.Errorf("failed to get scorecard: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("scorecard", args[0])
 		return vdbRender(cmd, result, display.RenderScorecard)
 	},
 }
@@ -293,6 +300,7 @@ Examples:
 			return fmt.Errorf("failed to search scorecards: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("scorecard search", args[0])
 		return vdbRender(cmd, result, display.RenderScorecardSearch)
 	},
 }
@@ -348,6 +356,7 @@ Examples:
 			return fmt.Errorf("failed to get remediation plan: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("remediation plan", args[0])
 		return vdbRender(cmd, result, display.RenderRemediationPlan)
 	},
 }
@@ -391,6 +400,7 @@ Examples:
 			return fmt.Errorf("failed to get cloud locators: %w", err)
 		}
 		printRateLimit(client)
+		recordVDBQuery("cloud-locators", vendor+"/"+product)
 		return vdbRender(cmd, result, display.RenderCloudLocators)
 	},
 }
