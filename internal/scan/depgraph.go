@@ -188,6 +188,25 @@ func BuildPypiDepGraph(directPkgs, lockPkgs []ScopedPackage) *DepGraph {
 
 // IsDirect for pypi needs the same normalisation — covered by IsDirect above.
 
+// BuildGenericDepGraph is a generic build graph correlator for ecosystems that have
+// a simple direct manifest + lock file relationship (e.g., Cargo.toml/Cargo.lock).
+func BuildGenericDepGraph(directPkgs, lockPkgs []ScopedPackage) *DepGraph {
+	g := &DepGraph{
+		DirectDeps: make(map[string]ScopedPackage),
+		AllDeps:    make(map[string]ScopedPackage),
+	}
+	for _, p := range directPkgs {
+		g.DirectDeps[p.Name] = p
+		g.AllDeps[p.Name] = p
+	}
+	for _, p := range lockPkgs {
+		if _, exists := g.AllDeps[p.Name]; !exists {
+			g.AllDeps[p.Name] = p
+		}
+	}
+	return g
+}
+
 // BuildNpmDepGraph correlates package.json (direct) and package-lock.json (all)
 // packages from the same directory.
 func BuildNpmDepGraph(pkgJsonPkgs, lockPkgs []ScopedPackage) *DepGraph {
@@ -298,6 +317,263 @@ func BuildManifestGroups(filePackages map[string][]ScopedPackage, fileEcosystems
 			}
 			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
 				mg.Graph = BuildNpmDepGraph(directPkgs, lockPkgs)
+			}
+		case "rubygems":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "Gemfile":
+					directPkgs = pkgs
+				case "Gemfile.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "cargo":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "Cargo.toml":
+					directPkgs = pkgs
+				case "Cargo.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "composer":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "composer.json":
+					directPkgs = pkgs
+				case "composer.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "maven":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "pom.xml", "build.gradle", "build.gradle.kts", "build.sbt":
+					directPkgs = pkgs
+				case "gradle.lockfile", "build.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "nuget":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "paket.dependencies":
+					directPkgs = pkgs
+				case "packages.lock.json", "paket.lock":
+					lockPkgs = append(lockPkgs, pkgs...)
+				}
+				// *.csproj also counts as direct
+				if strings.HasSuffix(base, ".csproj") {
+					directPkgs = append(directPkgs, pkgs...)
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "pub":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "pubspec.yaml":
+					directPkgs = pkgs
+				case "pubspec.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "hex":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "mix.exs":
+					directPkgs = pkgs
+				case "mix.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "swift":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "Package.swift":
+					directPkgs = pkgs
+				case "Package.resolved":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "cocoapods":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "Podfile":
+					directPkgs = pkgs
+				case "Podfile.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "carthage":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "Cartfile":
+					directPkgs = pkgs
+				case "Cartfile.resolved":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "julia":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "Project.toml":
+					directPkgs = pkgs
+				case "Manifest.toml":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "crystal":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "shard.yml":
+					directPkgs = pkgs
+				case "shard.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "deno":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "deno.json":
+					directPkgs = pkgs
+				case "deno.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "cran":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "DESCRIPTION":
+					directPkgs = pkgs
+				case "renv.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "erlang":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "rebar.config":
+					directPkgs = pkgs
+				case "rebar.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "cabal":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "cabal.project.freeze":
+					lockPkgs = pkgs
+				}
+				if strings.HasSuffix(base, ".cabal") {
+					directPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "conan":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "conanfile.txt":
+					directPkgs = pkgs
+				case "conan.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
+			}
+		case "nix":
+			var directPkgs, lockPkgs []ScopedPackage
+			for relPath, pkgs := range gd.files {
+				base := filepath.Base(relPath)
+				switch base {
+				case "flake.nix":
+					directPkgs = pkgs
+				case "flake.lock":
+					lockPkgs = pkgs
+				}
+			}
+			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
+				mg.Graph = BuildGenericDepGraph(directPkgs, lockPkgs)
 			}
 		}
 
