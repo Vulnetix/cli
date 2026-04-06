@@ -1264,11 +1264,18 @@ func printLookupSummary(client *vdb.Client, stats *scan.LookupStats, lookupErr e
 
 	// Rate-limit info (shown whenever the API returned headers).
 	if rl := client.LastRateLimit; rl != nil && rl.Present {
-		fmt.Fprintf(os.Stderr, "  Rate limit: %d/%d req/min remaining (resets %s)",
-			rl.Remaining, rl.MinuteLimit, humanReset(rl.Reset))
-		if rl.WeekLimit > 0 {
-			fmt.Fprintf(os.Stderr, ", %d/%d req/week remaining (resets %s)",
-				rl.WeekRemaining, rl.WeekLimit, humanReset(rl.WeekReset))
+		if rl.DayLimit == 0 && rl.Remaining < 0 {
+			fmt.Fprintf(os.Stderr, "  Rate limit: unlimited")
+		} else {
+			fmt.Fprintf(os.Stderr, "  Rate limit: %d/%d req/day remaining (resets %s)",
+				rl.Remaining, rl.DayLimit, humanReset(rl.Reset))
+		}
+		if rl.Plan != "" {
+			label := rl.Plan
+			if rl.SoftLimits {
+				label += ", soft limits"
+			}
+			fmt.Fprintf(os.Stderr, " [%s]", label)
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -1299,33 +1306,20 @@ func printLookupSummary(client *vdb.Client, stats *scan.LookupStats, lookupErr e
 	}
 }
 
-// humanReset formats a rate-limit reset value into a concise human-readable
-// string. The value may be a Unix epoch timestamp (>1_000_000_000) or a
-// relative number of seconds.
+// humanReset formats a rate-limit reset value into "in <duration>".
+// The value may be a Unix epoch timestamp (>1_000_000_000) or relative seconds.
 func humanReset(val int) string {
 	if val <= 0 {
 		return "now"
 	}
 	secs := val
-	// Heuristic: values above 1 billion are Unix timestamps, not durations.
 	if val > 1_000_000_000 {
 		secs = val - int(time.Now().Unix())
 		if secs <= 0 {
 			return "now"
 		}
 	}
-	if secs < 60 {
-		return fmt.Sprintf("in %ds", secs)
-	}
-	if secs < 3600 {
-		return fmt.Sprintf("in %dm", secs/60)
-	}
-	h := secs / 3600
-	m := (secs % 3600) / 60
-	if m == 0 {
-		return fmt.Sprintf("in %dh", h)
-	}
-	return fmt.Sprintf("in %dh%dm", h, m)
+	return "in " + formatDuration(secs)
 }
 
 // newSearchClient creates a VDB v1 client for package search using stored credentials.
