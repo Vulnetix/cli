@@ -87,7 +87,7 @@ func (v *VulnSummary) TopScore() (string, float64) {
 
 // ScoreEntry represents a single vulnerability score.
 type ScoreEntry struct {
-	Type   string  // "epss","coalition_ess","cvssv4","cvssv3.1","cvssv3.0","cvssv2"
+	Type   string // "epss","coalition_ess","cvssv4","cvssv3.1","cvssv3.0","cvssv2"
 	Score  float64
 	Source string
 }
@@ -101,19 +101,19 @@ type FixesMerged struct {
 
 // scoreTypePriority defines the preference order for score types.
 var scoreTypePriority = map[string]int{
-	"epss":           0,
-	"coalition_ess":  1,
-	"cvssv4":         2,
-	"cvss4":          2,
-	"cvssv3.1":       3,
-	"cvss3.1":        3,
-	"cvssv3.0":       4,
-	"cvss3.0":        4,
-	"cvss3":          4,
-	"cvssv3":         4,
-	"cvssv2":         5,
-	"cvss2":          5,
-	"cvssv2.0":       5,
+	"epss":          0,
+	"coalition_ess": 1,
+	"cvssv4":        2,
+	"cvss4":         2,
+	"cvssv3.1":      3,
+	"cvss3.1":       3,
+	"cvssv3.0":      4,
+	"cvss3.0":       4,
+	"cvss3":         4,
+	"cvssv3":        4,
+	"cvssv2":        5,
+	"cvss2":         5,
+	"cvssv2.0":      5,
 }
 
 // ParseVulnsFromScanResult extracts vulnerability summaries from a scan status API response.
