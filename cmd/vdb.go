@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/formatters"
@@ -755,21 +756,26 @@ func printRateLimit(client *vdb.Client) {
 	if rl == nil || !rl.Present {
 		return
 	}
-	if rl.MinuteLimit == 0 && rl.WeekLimit == 0 {
+
+	// Plan tier
+	if rl.Plan != "" {
+		fmt.Fprintf(os.Stderr, "Plan: %s", rl.Plan)
+		if rl.SoftLimits {
+			fmt.Fprintf(os.Stderr, " (soft limits)")
+		}
+		fmt.Fprintf(os.Stderr, " | ")
+	}
+
+	// Daily quota
+	if rl.DayLimit == 0 && rl.Remaining < 0 {
 		fmt.Fprintf(os.Stderr, "Rate limit: unlimited")
 	} else {
-		if rl.MinuteLimit == 0 {
-			fmt.Fprintf(os.Stderr, "Rate limit: unlimited requests this minute")
-		} else {
-			fmt.Fprintf(os.Stderr, "Rate limit: %s/%s requests remaining this minute (resets in %s)",
-				formatNumber(rl.Remaining), formatNumber(rl.MinuteLimit), formatDuration(rl.Reset))
+		resetSecs := rl.Reset - int(time.Now().Unix())
+		if resetSecs < 0 {
+			resetSecs = 0
 		}
-		if rl.WeekLimit == 0 {
-			fmt.Fprintf(os.Stderr, " | unlimited this week")
-		} else {
-			fmt.Fprintf(os.Stderr, " | %s/%s this week (resets in %s)",
-				formatNumber(rl.WeekRemaining), formatNumber(rl.WeekLimit), formatDuration(rl.WeekReset))
-		}
+		fmt.Fprintf(os.Stderr, "Rate limit: %s/%s req/day remaining (resets in %s)",
+			formatNumber(rl.Remaining), formatNumber(rl.DayLimit), formatDuration(resetSecs))
 	}
 	fmt.Fprintln(os.Stderr)
 }

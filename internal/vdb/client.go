@@ -34,14 +34,15 @@ const (
 )
 
 // RateLimitInfo holds rate limit data returned in API response headers.
+// Headers are informational — the CLI never enforces limits based on them;
+// only actual HTTP 429 responses trigger retry/backoff.
 type RateLimitInfo struct {
-	MinuteLimit   int
-	Remaining     int
-	Reset         int
-	WeekLimit     int
-	WeekRemaining int
-	WeekReset     int
-	Present       bool
+	DayLimit   int    // RateLimit-DayLimit  (0 = unlimited)
+	Remaining  int    // RateLimit-Remaining (-1 = unlimited)
+	Reset      int    // RateLimit-Reset     (Unix epoch seconds)
+	Plan       string // X-VDB-Plan          (community/pro/teams/enterprise)
+	SoftLimits bool   // X-Softlimits        (true = advisory only, never blocked)
+	Present    bool
 }
 
 // Client represents a VDB API client
@@ -693,9 +694,11 @@ func isRetryableError(err error) bool {
 		strings.Contains(msg, "connection reset")
 }
 
-// isRetryableStatus returns true for gateway errors that indicate upstream unavailability.
+// isRetryableStatus returns true for transient server errors worth retrying.
+// Includes 429 (rate limit) so the existing backoff + Retry-After logic applies.
 func isRetryableStatus(code int) bool {
-	return code == http.StatusBadGateway || code == http.StatusServiceUnavailable || code == http.StatusGatewayTimeout
+	return code == http.StatusTooManyRequests ||
+		code == http.StatusBadGateway || code == http.StatusServiceUnavailable || code == http.StatusGatewayTimeout
 }
 
 // resolveRetryAfter parses response headers for a Retry-After value.
@@ -720,13 +723,20 @@ func resolveRetryAfter(headers http.Header) time.Duration {
 			return d
 		}
 	}
-	// Try 429 header as alternative.
+	// Try rate-limit reset headers as alternative.
 	if ra = headers.Get("X-RateLimit-Reset"); ra == "" {
 		ra = headers.Get("RateLimit-Reset")
 	}
 	if ra != "" {
-		if secs, err := strconv.ParseInt(ra, 10, 64); err == nil && secs > 0 {
-			return time.Duration(secs) * time.Second
+		if epoch, err := strconv.ParseInt(ra, 10, 64); err == nil && epoch > 0 {
+			// Values above 1 billion are Unix timestamps, not durations.
+			if epoch > 1_000_000_000 {
+				if d := time.Until(time.Unix(epoch, 0)); d > 0 {
+					return d
+				}
+				return 0
+			}
+			return time.Duration(epoch) * time.Second
 		}
 	}
 	return 0
@@ -734,25 +744,46 @@ func resolveRetryAfter(headers http.Header) time.Duration {
 
 // parseRateLimitHeaders extracts rate limit info from response headers.
 // Returns nil if none of the expected headers are present.
+//
+// The API sends:
+//
+//	RateLimit-DayLimit   — numeric or "unlimited"
+//	RateLimit-Remaining  — numeric or "unlimited"
+//	RateLimit-Reset      — Unix epoch (seconds)
+//	X-VDB-Plan           — plan slug (community/pro/teams/enterprise)
+//	X-Softlimits         — "true" when limits are advisory only
 func parseRateLimitHeaders(resp *http.Response) *RateLimitInfo {
-	headerMap := map[string]*int{}
-	info := &RateLimitInfo{}
-	headerMap["RateLimit-MinuteLimit"] = &info.MinuteLimit
-	headerMap["RateLimit-Remaining"] = &info.Remaining
-	headerMap["RateLimit-Reset"] = &info.Reset
-	headerMap["RateLimit-WeekLimit"] = &info.WeekLimit
-	headerMap["RateLimit-WeekRemaining"] = &info.WeekRemaining
-	headerMap["RateLimit-WeekReset"] = &info.WeekReset
+	info := &RateLimitInfo{Remaining: -1} // default to unlimited sentinel
 
 	found := false
-	for header, field := range headerMap {
-		if v := resp.Header.Get(header); v != "" {
-			if n, err := strconv.Atoi(v); err == nil {
-				*field = n
-				found = true
-			}
+
+	if v := resp.Header.Get("RateLimit-DayLimit"); v != "" {
+		found = true
+		if n, err := strconv.Atoi(v); err == nil {
+			info.DayLimit = n
+		} // else "unlimited" → stays 0
+	}
+	if v := resp.Header.Get("RateLimit-Remaining"); v != "" {
+		found = true
+		if n, err := strconv.Atoi(v); err == nil {
+			info.Remaining = n
+		} // else "unlimited" → stays -1
+	}
+	if v := resp.Header.Get("RateLimit-Reset"); v != "" {
+		found = true
+		if n, err := strconv.Atoi(v); err == nil {
+			info.Reset = n
 		}
 	}
+	if v := resp.Header.Get("X-VDB-Plan"); v != "" {
+		found = true
+		info.Plan = v
+	}
+	if resp.Header.Get("X-Softlimits") == "true" {
+		found = true
+		info.SoftLimits = true
+	}
+
 	if !found {
 		return nil
 	}
