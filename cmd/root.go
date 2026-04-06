@@ -20,8 +20,9 @@ import (
 
 var (
 	// Command line flags
-	orgID  string
-	silent bool
+	orgID         string
+	silent        bool
+	disableMemory bool
 
 	// Build metadata (injected via ldflags)
 	version   = "1.0.0"   // -X github.com/vulnetix/cli/cmd.version=
@@ -292,6 +293,7 @@ func startupHooks() {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
 	rootCmd.PersistentFlags().BoolVar(&silent, "silent", false, "Suppress all log output, only print final result")
+	rootCmd.PersistentFlags().BoolVar(&disableMemory, "disable-memory", false, "Disable memory file reads/writes. For users who do not use the Claude Code Plugin or for debugging. VDB commands will skip memory-related side effects when set.")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	cobra.OnInitialize(startupHooks)
 }

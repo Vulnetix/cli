@@ -19,8 +19,8 @@ var validVersions = []string{"1.7", "1.6", "1.5", "1.4"}
 
 // compiled caches compiled schemas so repeated validations are fast.
 var (
-	compiled   map[string]*jsonschema.Schema
-	compileErr error
+	compiled    map[string]*jsonschema.Schema
+	compileErr  error
 	compileOnce sync.Once
 )
 

@@ -22,12 +22,12 @@ type V2QueryParams struct {
 // V2RemediationParams extends V2QueryParams with remediation-plan-specific parameters.
 type V2RemediationParams struct {
 	V2QueryParams
-	CurrentVersion         string
-	PackageManager         string
-	ContainerImage         string
-	OS                     string
-	Registry               string
-	IncludeGuidance        bool
+	CurrentVersion           string
+	PackageManager           string
+	ContainerImage           string
+	OS                       string
+	Registry                 string
+	IncludeGuidance          bool
 	IncludeVerificationSteps bool
 }
 

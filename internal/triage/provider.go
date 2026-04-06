@@ -6,6 +6,8 @@ package triage
 import (
 	"context"
 	"fmt"
+
+	"github.com/vulnetix/cli/internal/memory"
 )
 
 // Alert represents a normalized vulnerability alert from any provider.
@@ -28,6 +30,10 @@ type Alert struct {
 	Manifest string
 	// URL to the alert in the provider's UI
 	URL string
+	// Dismissal reason if state is "dismissed"
+	DismissalReason string
+	// CWE identifier if available
+	CWE string
 }
 
 // FetchOptions controls which alerts are retrieved.
@@ -42,26 +48,106 @@ type Provider interface {
 	FetchAlerts(ctx context.Context, opts FetchOptions) ([]Alert, error)
 }
 
-// Providers is the registry of available providers.
-var Providers = map[string]func() Provider{
-	"github": NewGitHubProvider,
+// TriageProvider extends Provider with per-CVE triage capability.
+type TriageProvider interface {
+	Provider
+	// TriageCVE fetches full vulnerability intelligence for a single CVE and
+	// maps it to a TriageFinding (with CWSS, threat model, VEX status).
+	TriageCVE(ctx context.Context, cveID string, pkgName, pkgVersion, ecosystem string, existing *memory.FindingRecord) (*TriageFinding, error)
+}
+
+// TriageProviders is the registry of providers that support per-CVE triage.
+var TriageProviders = map[string]func() TriageProvider{}
+
+// providerKinds maps provider names to the GitHub alert kinds they cover.
+var providerKinds = map[string][]string{
+	"github":     {"dependabot", "codeql", "secrets"},
+	"dependabot": {"dependabot"},
+	"codeql":     {"codeql"},
+	"secrets":    {"secrets"},
 }
 
 // GetProvider returns the provider for the given name, or an error if unknown.
-func GetProvider(name string) (Provider, error) {
-	fn, ok := Providers[name]
+// For GitHub-backed providers, a GitHubClient must be supplied.
+func GetProvider(name string, client *GitHubClient) (Provider, error) {
+	kinds, ok := providerKinds[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown provider %q (supported: github)", name)
+		return nil, fmt.Errorf("unknown provider %q (supported: github, dependabot, codeql, secrets)", name)
+	}
+	return NewGitHubMultiProvider(client, kinds), nil
+}
+
+// GetTriageProvider returns a triage-capable provider for the given name.
+func GetTriageProvider(name string) (TriageProvider, error) {
+	fn, ok := TriageProviders[name]
+	if !ok {
+		keys := make([]string, 0, len(TriageProviders))
+		for k := range TriageProviders {
+			keys = append(keys, k)
+		}
+		return nil, fmt.Errorf("unknown triage provider %q (supported: %s)", name, list(keys))
 	}
 	return fn(), nil
 }
 
+func list(s []string) string {
+	if len(s) == 0 {
+		return "none"
+	}
+	return s[0]
+}
+
+// ---------------------------------------------------------------------------
+// TriageFinding — unified finding returned by any TriageProvider
+// ---------------------------------------------------------------------------
+
+// TriageFinding holds all triage data for a single vulnerability, aligned with
+// the SKILL file memory schema.
+type TriageFinding struct {
+	CVEID          string
+	Package        string
+	Ecosystem      string
+	InstalledVer   string
+	FixedVer       string
+	Status         string // not_affected | affected | fixed | under_investigation
+	Justification  string // VEX justification for not_affected
+	ActionResponse string // VEX action for affected
+	Severity       string // critical | high | medium | low | unknown
+	SafeHarbour    float64
+	ThreatModel    *ThreatModel
+	CWSS           *CWSSData
+	Decision       *memory.Decision
+	History        []memory.HistoryEntry
+	Source         string // "vulnetix" | "github"
+	ExploitCount   int
+	InKEV          bool
+}
+
+// ThreatModel holds MITRE ATT&CK-derived threat modelling data.
+type ThreatModel struct {
+	Techniques         []string `json:"techniques,omitempty"`
+	Tactics            []string `json:"tactics,omitempty"`
+	AttackVector       string   `json:"attack_vector,omitempty"`
+	AttackComplexity   string   `json:"attack_complexity,omitempty"`
+	PrivilegesRequired string   `json:"privileges_required,omitempty"`
+	UserInteraction    string   `json:"user_interaction,omitempty"`
+	Reachability       string   `json:"reachability,omitempty"`
+	Exposure           string   `json:"exposure,omitempty"`
+}
+
+// CWSSData holds a CWSS-derived priority score.
+type CWSSData struct {
+	Score    float64            `json:"score"`
+	Priority string             `json:"priority,omitempty"`
+	Factors  map[string]float64 `json:"factors,omitempty"`
+}
+
 // EnrichedAlert holds a provider alert with VDB enrichment data.
 type EnrichedAlert struct {
-	Alert         Alert                  `json:"alert"`
-	Remediation   *map[string]any        `json:"remediation,omitempty"`
-	Fixes         *FixesMerged           `json:"fixes,omitempty"`
-	Error         string                 `json:"error,omitempty"`
+	Alert       Alert           `json:"alert"`
+	Remediation *map[string]any `json:"remediation,omitempty"`
+	Fixes       *FixesMerged    `json:"fixes,omitempty"`
+	Error       string          `json:"error,omitempty"`
 }
 
 // FixesMerged holds fix data from multiple sources.

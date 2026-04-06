@@ -14,8 +14,8 @@ type UploadEngine struct {
 	Client      *vdb.Client
 	Concurrency int                // max concurrent uploads (default 5)
 	OnProgress  func(*ScanTask)    // callback for UI updates (called from goroutines)
-	GitContext  *gitctx.GitContext  // shared git context (collected once, may be nil)
-	RepoRoot   string              // git repo root path (may be empty)
+	GitContext  *gitctx.GitContext // shared git context (collected once, may be nil)
+	RepoRoot    string             // git repo root path (may be empty)
 }
 
 // UploadAll uploads all detected files concurrently using a bounded semaphore.

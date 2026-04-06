@@ -9,11 +9,11 @@ import (
 
 // FileTreeContext holds SCA-relevant filesystem metadata for a manifest file.
 type FileTreeContext struct {
-	NodeModulesTree []string          `json:"nodeModulesTree,omitempty"`
-	GitignoreContent string           `json:"gitignoreContent,omitempty"`
-	LockfileMap     map[string]string `json:"lockfileMap"`
-	MonorepoInfo    *MonorepoInfo     `json:"monorepoInfo,omitempty"`
-	ManifestRelPath string            `json:"manifestRelPath"`
+	NodeModulesTree  []string          `json:"nodeModulesTree,omitempty"`
+	GitignoreContent string            `json:"gitignoreContent,omitempty"`
+	LockfileMap      map[string]string `json:"lockfileMap"`
+	MonorepoInfo     *MonorepoInfo     `json:"monorepoInfo,omitempty"`
+	ManifestRelPath  string            `json:"manifestRelPath"`
 }
 
 // MonorepoInfo describes workspace/monorepo configuration.
@@ -28,15 +28,15 @@ const nodeModulesMaxDepth = 2
 
 // lockfileAssociations maps manifest filenames to their potential lockfiles.
 var lockfileAssociations = map[string][]string{
-	"package.json":    {"package-lock.json", "yarn.lock", "pnpm-lock.yaml"},
-	"go.mod":          {"go.sum"},
-	"Cargo.toml":      {"Cargo.lock"},
+	"package.json":     {"package-lock.json", "yarn.lock", "pnpm-lock.yaml"},
+	"go.mod":           {"go.sum"},
+	"Cargo.toml":       {"Cargo.lock"},
 	"requirements.txt": {"Pipfile.lock", "poetry.lock", "uv.lock"},
-	"Pipfile":         {"Pipfile.lock"},
-	"pyproject.toml":  {"poetry.lock", "uv.lock"},
-	"Gemfile":         {"Gemfile.lock"},
-	"composer.json":   {"composer.lock"},
-	"pubspec.yaml":    {"pubspec.lock"},
+	"Pipfile":          {"Pipfile.lock"},
+	"pyproject.toml":   {"poetry.lock", "uv.lock"},
+	"Gemfile":          {"Gemfile.lock"},
+	"composer.json":    {"composer.lock"},
+	"pubspec.yaml":     {"pubspec.lock"},
 }
 
 // Collect gathers filesystem metadata for a manifest file.

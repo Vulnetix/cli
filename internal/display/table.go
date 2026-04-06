@@ -18,10 +18,10 @@ const (
 // Column defines a table column.
 type Column struct {
 	Header   string
-	Width    int               // 0 = auto-calculate
-	MinWidth int               // minimum width when auto-calculating
-	MaxWidth int               // maximum width when auto-calculating (0 = unlimited)
-	Align    Alignment         // left or right alignment
+	Width    int                 // 0 = auto-calculate
+	MinWidth int                 // minimum width when auto-calculating
+	MaxWidth int                 // maximum width when auto-calculating (0 = unlimited)
+	Align    Alignment           // left or right alignment
 	Color    func(string) string // optional per-cell coloring function
 }
 

@@ -40,10 +40,10 @@ type Model struct {
 	quiting bool
 
 	// Data
-	client  *vdb.Client
-	tasks   []*scan.ScanTask
-	ctx     context.Context
-	cancel  context.CancelFunc
+	client *vdb.Client
+	tasks  []*scan.ScanTask
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// Upload/poll engines
 	uploadEngine *scan.UploadEngine
@@ -54,10 +54,10 @@ type Model struct {
 	spinners []spinner.Model
 
 	// Results
-	allVulns     []scan.VulnSummary
-	selectedIdx  int
-	scrollOffset int
-	detailTab    DetailTab
+	allVulns      []scan.VulnSummary
+	selectedIdx   int
+	scrollOffset  int
+	detailTab     DetailTab
 	loadingDetail bool
 
 	// Output menu

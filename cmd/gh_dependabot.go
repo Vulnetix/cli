@@ -26,7 +26,7 @@ var (
 )
 
 func init() {
-	triageCmd.Flags().StringVar(&triageProvider, "provider", "github", "Vulnerability data provider (github)")
+	triageCmd.Flags().StringVar(&triageProvider, "provider", "github", "Alert source: github, dependabot, codeql, secrets")
 	triageCmd.Flags().StringVar(&triageRepo, "repo", "", "Repository in owner/repo format (auto-detected if not set)")
 	triageCmd.Flags().BoolVar(&triageAll, "all", false, "Include dismissed alerts (open only by default)")
 	triageCmd.Flags().IntVar(&triageConcurrency, "concurrency", 5, "Number of concurrent VDB lookups")
@@ -44,17 +44,23 @@ func runTriageCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unknown format %q (use tui, json, or text)", triageFormat)
 	}
 
-	// Get provider
-	provider, err := triage.GetProvider(triageProvider)
+	// Create GitHub API client (resolves token from env or gh CLI)
+	ghClient, err := triage.NewGitHubClient()
 	if err != nil {
 		return err
 	}
 
-	// For GitHub provider, verify gh CLI and auth
-	if triageProvider == "github" {
-		if err := triage.RequireGHAuth(); err != nil {
-			return err
-		}
+	// Verify authentication
+	login, err := ghClient.CheckAuth(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("GitHub authentication failed: %w", err)
+	}
+	fmt.Fprintf(os.Stderr, "Authenticated as %s (token: %s)\n", login, ghClient.TokenSource())
+
+	// Get provider
+	provider, err := triage.GetProvider(triageProvider, ghClient)
+	if err != nil {
+		return err
 	}
 
 	// Determine repository
@@ -305,7 +311,7 @@ func init() {
 
 func runTriageStatus(cmd *cobra.Command, args []string) error {
 	switch triageProvider {
-	case "github":
+	case "github", "dependabot", "codeql", "secrets":
 		return statusGitHub(triageStatusFormat)
 	default:
 		return fmt.Errorf("unknown provider %q", triageProvider)
@@ -313,7 +319,14 @@ func runTriageStatus(cmd *cobra.Command, args []string) error {
 }
 
 func statusGitHub(format string) error {
-	status := triage.CheckGHAuth()
+	client, clientErr := triage.NewGitHubClient()
+
+	var status triage.GHStatus
+	if clientErr != nil {
+		status.AuthError = clientErr.Error()
+	} else {
+		status = triage.CheckGHAuth(client)
+	}
 
 	if format == "json" {
 		enc := json.NewEncoder(os.Stdout)
@@ -322,23 +335,12 @@ func statusGitHub(format string) error {
 		return enc.Encode(status)
 	}
 
-	ok := "\u2714" // ✔
+	ok := "\u2714"   // ✔
 	fail := "\u2718" // ✘
 
 	var b strings.Builder
-	b.WriteString("\n  GitHub CLI Status\n")
+	b.WriteString("\n  GitHub API Status\n")
 	b.WriteString(strings.Repeat("─", 42) + "\n\n")
-
-	// Binary check
-	if status.BinaryFound {
-		b.WriteString(fmt.Sprintf("  %s gh binary   : %s\n", ok, status.BinaryPath))
-	} else {
-		b.WriteString(fmt.Sprintf("  %s gh binary   : not found\n", fail))
-		b.WriteString(fmt.Sprintf("     Error        : %s\n", status.BinaryError))
-		b.WriteString("\n  Install gh CLI from https://cli.github.com/\n")
-		fmt.Println(b.String())
-		return nil
-	}
 
 	// Auth check
 	if status.Authenticated {
@@ -347,15 +349,17 @@ func statusGitHub(format string) error {
 		if status.TokenSource != "" {
 			b.WriteString(fmt.Sprintf("     Token source : %s\n", status.TokenSource))
 		}
-		if status.TokenScopes != "" {
-			b.WriteString(fmt.Sprintf("     Token scopes : %s\n", status.TokenScopes))
-		}
 	} else {
 		b.WriteString(fmt.Sprintf("  %s authenticated: not authenticated\n", fail))
 		if status.AuthError != "" {
 			b.WriteString(fmt.Sprintf("     Error        : %s\n", status.AuthError))
 		}
-		b.WriteString("\n  Run 'gh auth login' to authenticate\n")
+		b.WriteString("\n  Set GITHUB_TOKEN env var or run 'gh auth login'\n")
+	}
+
+	// gh binary (optional info)
+	if status.BinaryFound {
+		b.WriteString(fmt.Sprintf("  %s gh binary    : %s\n", ok, status.BinaryPath))
 	}
 
 	// Repo detection
