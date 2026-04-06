@@ -1508,6 +1508,34 @@ func pollScanResultsLegacy(client *vdb.Client, scanIDs []string, intervalSec int
 // display.NewTerminal shim — Terminal is constructed without cmd context here.
 // ---------------------------------------------------------------------------
 
+// parseCDXForScan loads and parses a CycloneDX JSON file for use as a seed BOM.
+func parseCDXForScan(path string) (*cdx.BOM, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var bom cdx.BOM
+	if err := json.Unmarshal(data, &bom); err != nil {
+		return nil, err
+	}
+	return &bom, nil
+}
+
+// isVulnetixSCA checks whether the BOM was produced by vulnetix-sca.
+func isVulnetixSCA(bom *cdx.BOM) bool {
+	if bom == nil {
+		return false
+	}
+	if bom.Metadata != nil && bom.Metadata.Tools != nil {
+		for _, tc := range bom.Metadata.Tools.Components {
+			if tc.Name == "vulnetix-sca" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func init() {
 	rootCmd.AddCommand(scanCmd)
 	scanCmd.AddCommand(scanStatusCmd)
