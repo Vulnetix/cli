@@ -41,6 +41,8 @@ type ResolveCompleteMsg struct {
 	GitHubUpdated bool
 	// MemorySaved is true when memory.yaml was updated successfully.
 	MemorySaved bool
+	// VexFile is the path to the generated VEX document, if any.
+	VexFile string
 	// Err is non-nil if either operation failed.
 	Err error
 }

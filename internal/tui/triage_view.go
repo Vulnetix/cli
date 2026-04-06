@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/vulnetix/cli/internal/triage"
 )
 
@@ -33,6 +32,9 @@ type TriageOptions struct {
 	// VulnetixDir is the path to the .vulnetix directory for memory persistence.
 	// Defaults to ".vulnetix" in the current working directory when empty.
 	VulnetixDir string
+	// VexFormat controls the VEX document format written on resolve: openvex, cdx, or json.
+	// Defaults to "openvex" when empty.
+	VexFormat string
 }
 
 // TriageModel is the bubbletea model for the triage TUI.
@@ -56,6 +58,9 @@ type TriageModel struct {
 func NewTriageModel(alerts []triage.EnrichedAlert, opts TriageOptions) *TriageModel {
 	if opts.VulnetixDir == "" {
 		opts.VulnetixDir = triage.DefaultVulnetixDir()
+	}
+	if opts.VexFormat == "" {
+		opts.VexFormat = "openvex"
 	}
 	return &TriageModel{
 		alerts:    alerts,
@@ -115,7 +120,7 @@ func (m *TriageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.String() == "r":
 			if len(m.alerts) > 0 && m.selectedIdx >= 0 && m.selectedIdx < len(m.alerts) {
 				a := m.alerts[m.selectedIdx].Alert
-				m.resolveModal = newResolveModal(a, m.opts.GHClient, m.opts.Repo, m.opts.VulnetixDir)
+				m.resolveModal = newResolveModal(a, m.opts.GHClient, m.opts.Repo, m.opts.VulnetixDir, m.opts.VexFormat)
 				return m, m.resolveModal.Init()
 			}
 		}
@@ -149,6 +154,11 @@ func (m *TriageModel) applyResolvedStatus(alertNumber, vexStatus string) {
 func (m *TriageModel) View() string {
 	if m.quiting {
 		return ""
+	}
+
+	// Full-screen resolve view when modal is open.
+	if m.resolveModal != nil {
+		return m.resolveModal.View(m.width, m.height)
 	}
 
 	var b strings.Builder
@@ -238,26 +248,6 @@ func (m *TriageModel) View() string {
 		b.WriteString(helpTriage())
 	} else {
 		b.WriteString(helpTriageShort())
-	}
-
-	// Resolve modal overlay
-	if m.resolveModal != nil {
-		modal := m.resolveModal.View(m.width)
-		// Centre the modal horizontally.
-		modalWidth := lipgloss.Width(modal)
-		leftPad := (m.width - modalWidth) / 2
-		if leftPad < 0 {
-			leftPad = 0
-		}
-		pad := strings.Repeat(" ", leftPad)
-		lines := strings.Split(modal, "\n")
-		var centred []string
-		for _, l := range lines {
-			centred = append(centred, pad+l)
-		}
-		// Overlay: append after a separator so bubbletea positions it on screen.
-		b.WriteString("\n")
-		b.WriteString(strings.Join(centred, "\n"))
 	}
 
 	return b.String()
