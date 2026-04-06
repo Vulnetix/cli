@@ -32,21 +32,36 @@ type PackageLookupKey struct {
 	Ecosystem string
 }
 
+// LookupStats summarises the outcome of a LookupVulns call.
+type LookupStats struct {
+	Total     int // unique packages queried (after dedup)
+	Succeeded int // API calls that returned successfully
+	Failed    int // API calls that returned an error
+	Skipped   int // packages skipped (name too short)
+	Cancelled int // packages not attempted (cancelled after fatal error)
+}
+
 // LookupVulns queries the VDB API for vulnerabilities affecting the given packages.
 // It deduplicates by (name, ecosystem) and runs lookups with bounded concurrency.
 // The progress callback is called with (done, total) after each package is processed.
 //
 // Packages with names shorter than 3 characters are skipped (VDB search minimum).
+//
+// On partial failure (e.g. rate limit hit midway), any results collected before
+// the error are returned alongside the error so the caller can decide whether to
+// use them. Stats always reflect the full picture.
 func LookupVulns(
 	ctx context.Context,
 	client *vdb.Client,
 	packages []ScopedPackage,
 	concurrency int,
 	progress func(done, total int),
-) ([]VulnFinding, error) {
+) ([]VulnFinding, *LookupStats, error) {
 	if concurrency <= 0 {
 		concurrency = 5
 	}
+
+	stats := &LookupStats{}
 
 	// Deduplicate by (name, ecosystem) — avoids redundant API calls when the same
 	// package appears in both package.json and yarn.lock, for example.
@@ -54,13 +69,14 @@ func LookupVulns(
 	for _, p := range packages {
 		name := strings.TrimSpace(p.Name)
 		if len(name) < 3 {
+			stats.Skipped++
 			continue // VDB /packages/search requires at least 3 characters
 		}
 		uniqueKeys[PackageLookupKey{Name: name, Ecosystem: p.Ecosystem}] = true
 	}
 
 	if len(uniqueKeys) == 0 {
-		return nil, nil
+		return nil, stats, nil
 	}
 
 	keys := make([]PackageLookupKey, 0, len(uniqueKeys))
@@ -68,40 +84,65 @@ func LookupVulns(
 		keys = append(keys, k)
 	}
 
-	total := len(keys)
+	stats.Total = len(keys)
+
 	type indexedResult struct {
 		idx   int
 		key   PackageLookupKey
 		vulns []VulnFinding
 	}
 
-	resultsCh := make(chan indexedResult, total)
+	// Use a cancellable context so we can short-circuit on fatal errors (e.g. 429).
+	lookupCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	resultsCh := make(chan indexedResult, stats.Total)
 	sem := make(chan struct{}, concurrency)
 	var wg sync.WaitGroup
 	var doneCount int
 	var doneMu sync.Mutex
+	var firstErr error
+	var errMu sync.Mutex
 
+	dispatched := 0
 	for i, key := range keys {
-		if ctx.Err() != nil {
+		if lookupCtx.Err() != nil {
 			break
 		}
+		dispatched++
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(idx int, k PackageLookupKey) {
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			vulns := lookupOnePackage(ctx, client, k)
+			vulns, err := lookupOnePackage(lookupCtx, client, k)
+			if err != nil {
+				errMu.Lock()
+				stats.Failed++
+				if firstErr == nil {
+					firstErr = err
+				}
+				errMu.Unlock()
+				// Cancel remaining lookups — if one fails due to rate limit
+				// or auth error, the rest will too.
+				cancel()
+			} else {
+				errMu.Lock()
+				stats.Succeeded++
+				errMu.Unlock()
+			}
 			resultsCh <- indexedResult{idx: idx, key: k, vulns: vulns}
 
 			doneMu.Lock()
 			doneCount++
 			if progress != nil {
-				progress(doneCount, total)
+				progress(doneCount, stats.Total)
 			}
 			doneMu.Unlock()
 		}(i, key)
 	}
+	stats.Cancelled = stats.Total - dispatched
 
 	// Close results channel once all goroutines finish.
 	go func() {
@@ -109,7 +150,7 @@ func LookupVulns(
 		close(resultsCh)
 	}()
 
-	// Collect results keyed by package.
+	// Collect results keyed by package (includes any that succeeded before error).
 	vulnsByKey := make(map[PackageLookupKey][]VulnFinding)
 	for r := range resultsCh {
 		if len(r.vulns) > 0 {
@@ -141,19 +182,19 @@ func LookupVulns(
 		}
 	}
 
-	return allVulns, nil
+	return allVulns, stats, firstErr
 }
 
 // lookupOnePackage calls the VDB package search for a single package and extracts findings.
-func lookupOnePackage(ctx context.Context, client *vdb.Client, key PackageLookupKey) []VulnFinding {
+func lookupOnePackage(ctx context.Context, client *vdb.Client, key PackageLookupKey) ([]VulnFinding, error) {
 	resp, err := client.SearchPackages(key.Name, key.Ecosystem, 100, 0)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	packages, _ := resp["packages"].([]interface{})
 	if len(packages) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	lowerName := strings.ToLower(key.Name)
@@ -209,7 +250,7 @@ func lookupOnePackage(ctx context.Context, client *vdb.Client, key PackageLookup
 				findings = append(findings, f)
 			}
 		}
-		return findings
+		return findings, nil
 	}
-	return nil
+	return nil, nil
 }

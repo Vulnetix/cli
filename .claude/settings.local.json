@@ -148,7 +148,9 @@
       "Bash(aws ecs:*)",
       "Bash(gh run:*)",
       "Bash(npx httpyac:*)",
-      "Bash(./bin/vulnetix:*)"
+      "Bash(./bin/vulnetix:*)",
+      "Bash(gh release:*)",
+      "Bash(git:*)"
     ],
     "deny": [
       "Bash(dd:*)",

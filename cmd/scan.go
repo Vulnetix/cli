@@ -398,12 +398,17 @@ func runLocalScan(
 		queryCtx = context.Background()
 	}
 
-	allVulns, err := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
+	allVulns, lookupStats, lookupErr := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
 	if progressFn != nil {
 		fmt.Fprintln(os.Stderr) // newline after progress
 	}
-	if err != nil {
-		return fmt.Errorf("VDB lookup failed: %w", err)
+
+	// ── Lookup summary ────────────────────────────────────────────────────
+	hasPartial := lookupErr != nil && len(allVulns) > 0
+	printLookupSummary(client, lookupStats, lookupErr, hasPartial)
+
+	if lookupErr != nil && len(allVulns) == 0 {
+		return fmt.Errorf("VDB lookup failed: %w", lookupErr)
 	}
 
 	// Attach vulns to each file result.
@@ -1177,6 +1182,83 @@ func sortByThreat(vulns []scan.EnrichedVuln) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// printLookupSummary writes a concise VDB lookup summary to stderr.
+// It always shows rate-limit status when available, and lists any skipped,
+// failed, or cancelled packages so the user knows what was not checked.
+// When hasPartialResults is true, the error is printed inline (the caller
+// will continue); when false the caller returns the error to Cobra, so we
+// skip it here to avoid duplication.
+func printLookupSummary(client *vdb.Client, stats *scan.LookupStats, lookupErr error, hasPartialResults bool) {
+	if stats == nil {
+		return
+	}
+
+	// Rate-limit info (shown whenever the API returned headers).
+	if rl := client.LastRateLimit; rl != nil && rl.Present {
+		fmt.Fprintf(os.Stderr, "  Rate limit: %d/%d req/min remaining (resets %s)",
+			rl.Remaining, rl.MinuteLimit, humanReset(rl.Reset))
+		if rl.WeekLimit > 0 {
+			fmt.Fprintf(os.Stderr, ", %d/%d req/week remaining (resets %s)",
+				rl.WeekRemaining, rl.WeekLimit, humanReset(rl.WeekReset))
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	// Nothing to report beyond rate limits when everything succeeded.
+	if stats.Failed == 0 && stats.Skipped == 0 && stats.Cancelled == 0 {
+		return
+	}
+
+	// Build a concise one-line summary of non-successful outcomes.
+	var parts []string
+	if stats.Succeeded > 0 {
+		parts = append(parts, fmt.Sprintf("%d succeeded", stats.Succeeded))
+	}
+	if stats.Failed > 0 {
+		parts = append(parts, fmt.Sprintf("%d failed", stats.Failed))
+	}
+	if stats.Cancelled > 0 {
+		parts = append(parts, fmt.Sprintf("%d cancelled", stats.Cancelled))
+	}
+	if stats.Skipped > 0 {
+		parts = append(parts, fmt.Sprintf("%d skipped (name < 3 chars)", stats.Skipped))
+	}
+	fmt.Fprintf(os.Stderr, "  VDB lookup: %s of %d\n", strings.Join(parts, ", "), stats.Total)
+
+	if lookupErr != nil && hasPartialResults {
+		fmt.Fprintf(os.Stderr, "  Error: %v\n", lookupErr)
+	}
+}
+
+// humanReset formats a rate-limit reset value into a concise human-readable
+// string. The value may be a Unix epoch timestamp (>1_000_000_000) or a
+// relative number of seconds.
+func humanReset(val int) string {
+	if val <= 0 {
+		return "now"
+	}
+	secs := val
+	// Heuristic: values above 1 billion are Unix timestamps, not durations.
+	if val > 1_000_000_000 {
+		secs = val - int(time.Now().Unix())
+		if secs <= 0 {
+			return "now"
+		}
+	}
+	if secs < 60 {
+		return fmt.Sprintf("in %ds", secs)
+	}
+	if secs < 3600 {
+		return fmt.Sprintf("in %dm", secs/60)
+	}
+	h := secs / 3600
+	m := (secs % 3600) / 60
+	if m == 0 {
+		return fmt.Sprintf("in %dh", h)
+	}
+	return fmt.Sprintf("in %dh%dm", h, m)
+}
 
 // newSearchClient creates a VDB v1 client for package search using stored credentials.
 // Falls back to embedded community credentials when no user credentials are configured.
