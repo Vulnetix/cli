@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vulnetix/cli/internal/cdx/schema"
 )
 
 // FileType represents the detected type of a file
@@ -349,8 +351,16 @@ func DetectSBOM(filePath string) (FileType, string, bool) {
 	// Check for CycloneDX: has bomFormat == "CycloneDX" AND specVersion
 	if bomFormat, ok := data["bomFormat"].(string); ok && bomFormat == "CycloneDX" {
 		if specVersion, ok := data["specVersion"].(string); ok {
-			supported := specVersion == "1.4" || specVersion == "1.5" || specVersion == "1.6"
-			return FileTypeCycloneDX, specVersion, supported
+			// Validate against embedded schemas (highest version first, short-circuit).
+			fullData, readErr := os.ReadFile(filePath)
+			if readErr != nil {
+				return FileTypeCycloneDX, specVersion, false
+			}
+			validatedVersion, valErr := schema.ValidateCDX(fullData)
+			if valErr != nil {
+				return FileTypeCycloneDX, specVersion, false
+			}
+			return FileTypeCycloneDX, validatedVersion, true
 		}
 	}
 

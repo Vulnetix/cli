@@ -12,7 +12,7 @@ import (
 	"github.com/vulnetix/cli/internal/scan"
 )
 
-// CycloneDX BOM structs for 1.6 and 1.7 output.
+// CycloneDX BOM structs for versions 1.2 through 1.7 output.
 
 // BOM is the top-level CycloneDX Bill of Materials.
 type BOM struct {
@@ -32,8 +32,8 @@ type Metadata struct {
 	Tools      *Tools                  `json:"tools,omitempty"`
 	Authors    []OrganizationalContact `json:"authors,omitempty"`
 	// Component is the top-level subject described by this BOM.
-	Component  *Component              `json:"component,omitempty"`
-	Properties []Property              `json:"properties,omitempty"`
+	Component  *Component `json:"component,omitempty"`
+	Properties []Property `json:"properties,omitempty"`
 }
 
 // Lifecycle describes a phase in the product lifecycle (CycloneDX 1.5+).
@@ -57,13 +57,13 @@ type Tools struct {
 
 // Component represents a software component.
 type Component struct {
-	Type               string                  `json:"type"`
-	BOMRef             string                  `json:"bom-ref,omitempty"`
-	Name               string                  `json:"name"`
-	Version            string                  `json:"version,omitempty"`
-	Description        string                  `json:"description,omitempty"`
-	Scope              string                  `json:"scope,omitempty"`
-	Purl               string                  `json:"purl,omitempty"`
+	Type        string `json:"type"`
+	BOMRef      string `json:"bom-ref,omitempty"`
+	Name        string `json:"name"`
+	Version     string `json:"version,omitempty"`
+	Description string `json:"description,omitempty"`
+	Scope       string `json:"scope,omitempty"`
+	Purl        string `json:"purl,omitempty"`
 	// Authors is supported in CycloneDX 1.6+.
 	Authors            []OrganizationalContact `json:"authors,omitempty"`
 	ExternalReferences []ExternalReference     `json:"externalReferences,omitempty"`
@@ -97,15 +97,15 @@ type ScanContext struct {
 
 // Vulnerability represents a CycloneDX vulnerability entry.
 type Vulnerability struct {
-	BOMRef      string      `json:"bom-ref,omitempty"`
-	ID          string      `json:"id"`
-	Source      *Source     `json:"source,omitempty"`
-	Ratings     []Rating    `json:"ratings,omitempty"`
-	Description string      `json:"description,omitempty"`
-	Affects     []Affect    `json:"affects,omitempty"`
-	Analysis    *Analysis   `json:"analysis,omitempty"`
-	Properties  []Property  `json:"properties,omitempty"`
-	Advisories  []Advisory  `json:"advisories,omitempty"`
+	BOMRef      string     `json:"bom-ref,omitempty"`
+	ID          string     `json:"id"`
+	Source      *Source    `json:"source,omitempty"`
+	Ratings     []Rating   `json:"ratings,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Affects     []Affect   `json:"affects,omitempty"`
+	Analysis    *Analysis  `json:"analysis,omitempty"`
+	Properties  []Property `json:"properties,omitempty"`
+	Advisories  []Advisory `json:"advisories,omitempty"`
 }
 
 // Source identifies where vulnerability data comes from.
@@ -204,7 +204,7 @@ func BuildFromScanTasks(tasks []*scan.ScanTask, specVersion string, scanCtx *Sca
 		SerialNumber: "urn:uuid:" + uuid.New().String(),
 		Version:      1,
 		Metadata: &Metadata{
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
+			Timestamp:  time.Now().UTC().Format(time.RFC3339),
 			Lifecycles: []Lifecycle{{Phase: "build"}},
 			Tools: &Tools{
 				Components: []Component{
@@ -483,7 +483,7 @@ func FormatSpec(specVersion string) string {
 
 // ValidSpecVersions returns the list of supported CycloneDX spec versions.
 func ValidSpecVersions() []string {
-	return []string{"1.6", "1.7"}
+	return []string{"1.2", "1.3", "1.4", "1.5", "1.6", "1.7"}
 }
 
 // NormalizeFormat maps user-facing format names to spec versions or output type.
@@ -494,6 +494,14 @@ func NormalizeFormat(format string) (string, bool) {
 		return "1.7", false
 	case "cdx16", "cyclonedx16", "1.6":
 		return "1.6", false
+	case "cdx15", "cyclonedx15", "1.5":
+		return "1.5", false
+	case "cdx14", "cyclonedx14", "1.4":
+		return "1.4", false
+	case "cdx13", "cyclonedx13", "1.3":
+		return "1.3", false
+	case "cdx12", "cyclonedx12", "1.2":
+		return "1.2", false
 	case "json", "raw":
 		return "", true
 	default:
