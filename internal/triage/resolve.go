@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/vulnetix/cli/internal/memory"
@@ -406,6 +407,65 @@ func (c *GitHubClient) patchAlert(ctx context.Context, path string, body interfa
 	}
 
 	return nil
+}
+
+// WriteVEXForResolution generates a VEX document for the resolved alert and
+// writes it to the memory directory. Returns the file path written.
+func WriteVEXForResolution(vulnetixDir string, a Alert, opt ResolutionOption, rationale, vexFormat string) (string, error) {
+	if err := os.MkdirAll(vulnetixDir, 0o755); err != nil {
+		return "", fmt.Errorf("create vulnetix dir: %w", err)
+	}
+
+	finding := &TriageFinding{
+		CVEID:          a.CVE,
+		Package:        a.Package,
+		Ecosystem:      a.Ecosystem,
+		InstalledVer:   a.Version,
+		Status:         opt.VEXStatus,
+		Justification:  opt.VEXJustification,
+		ActionResponse: rationale,
+		Severity:       a.Severity,
+		Source:         "github-triage",
+	}
+	if finding.CVEID == "" {
+		finding.CVEID = a.RuleID
+	}
+	if finding.CVEID == "" {
+		finding.CVEID = "#" + a.Number
+	}
+
+	var data []byte
+	var ext string
+	var err error
+
+	switch vexFormat {
+	case "cdx", "cyclonedx":
+		data, err = GenerateCDXVEX([]*TriageFinding{finding}, "")
+		ext = ".cdx.json"
+	case "json":
+		data, err = GenerateOpenVEX([]*TriageFinding{finding}, OpenVEXOptions{})
+		ext = ".vex.json"
+	default: // openvex
+		data, err = GenerateOpenVEX([]*TriageFinding{finding}, OpenVEXOptions{})
+		ext = ".openvex.json"
+	}
+	if err != nil {
+		return "", fmt.Errorf("generate VEX: %w", err)
+	}
+
+	// Use a sanitised identifier for the filename.
+	id := finding.CVEID
+	for _, c := range []string{"/", "\\", ":", " "} {
+		id = strings.ReplaceAll(id, c, "_")
+	}
+	filename := id + ext
+	path := filepath.Join(vulnetixDir, filename)
+
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", fmt.Errorf("write VEX file: %w", err)
+	}
+
+	return path, nil
 }
 
 // DefaultVulnetixDir returns the .vulnetix directory relative to the current

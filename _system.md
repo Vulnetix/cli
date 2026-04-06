@@ -62,6 +62,71 @@ Output includes:
 
 ---
 
+## Triage Command
+
+The `vulnetix triage` command provides two operational modes:
+
+### 1. GitHub Alerts Triage (default)
+
+Fetches vulnerability alerts from GitHub security tools (Dependabot, CodeQL, Secret Scanning)
+and enriches them with VDB data for human review.
+
+```
+vulnetix triage --provider dependabot
+vulnetix triage --provider codeql
+vulnetix triage --provider github
+```
+
+**Flags:**
+- `--provider` - Alert source: `github`, `dependabot`, `codeql`, `secrets`
+- `--repo` - Repository in `owner/repo` format (auto-detected from git/GITHUB_REPOSITORY)
+- `--all` - Include dismissed alerts (open only by default)
+- `--concurrency` - Number of concurrent VDB lookups (default 5)
+- `--format` - Output: `tui` (interactive, default), `json`, `text`
+- `--include-guidance` - Include CWE remediation guidance (default true)
+
+The command outputs an interactive TUI (unless `--format json` or `--format text`) that allows
+users to view alerts, apply resolutions (dismissals) to GitHub, and record VEX decisions to
+`.vulnetix/memory.yaml`.
+
+### 2. Vulnetix VEX Generation
+
+Triage specific vulnerability IDs using the Vulnetix VDB and generate VEX attestations.
+This mode aligns with the Claude Code plugin's bulk triage agent, sharing the same
+memory file schema and VEX generation logic.
+
+```
+vulnetix triage --provider vulnetix CVE-2021-44228 CVE-2022-22965
+echo "CVE-2021-44228" | vulnetix triage --provider vulnetix
+```
+
+**Flags:**
+- `--provider vulnetix` - Select the vulnetix provider (short: `-p vulnetix`)
+- `--vex-format` - Output format: `openvex` (default), `cdx` (CycloneDX 1.5), `json`
+- `--vex-output` - Write VEX to file (default: stdout)
+- `--memory-dir` - Path to `.vulnetix` directory (default `.vulnetix`)
+- `--disable-memory` - Disable memory updates (for read-only triage)
+- `--pkg`, `--version`, `--ecosystem` - Provide package context when not available in memory
+
+**Behavior:**
+- Reads existing memory to obtain package/version/ecosystem context for each vuln ID.
+- If missing, the explicit flags provide fallback context.
+- Triages each CVE via the VDB (vuln, exploits, affected, remediation, scorecard).
+- Generates VEX statements reflecting the triage outcome (status, justification, action).
+- Updates `.vulnetix/memory.yaml` with findings, CWSS scores, threat models, and history.
+- Writes a single consolidated VEX document to stdout or `--vex-output`.
+
+**VEX Status Mapping:**
+- `not_affected` - Not affected by this vulnerability (justification required)
+- `affected` - Vulnerable code is present and exploitable
+- `fixed` - Remediation has been applied
+- `under_investigation` - Still being analyzed (default)
+
+The VEX output can be used for compliance, supply chain security, and as input to
+vulnerability management systems.
+
+---
+
 ## VDB Memory Management
 
 ### Context Flags (inherited by all `vdb` subcommands)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -76,6 +77,36 @@ type HistoryEntry struct {
 	Detail string `yaml:"detail,omitempty"`
 }
 
+// ExploitInfo captures exploit intelligence stored in memory.
+type ExploitInfo struct {
+	ExploitCount    int      `yaml:"exploit_count,omitempty"`
+	Sources         []string `yaml:"sources,omitempty"`
+	HasWeaponized   bool     `yaml:"has_weaponized,omitempty"`
+	HighestMaturity string   `yaml:"highest_maturity,omitempty"`
+}
+
+// ScoreData captures all scoring sources for a vulnerability.
+type ScoreData struct {
+	CVSSScore      float64 `yaml:"cvss_score,omitempty"`
+	CVSSSeverity   string  `yaml:"cvss_severity,omitempty"`
+	EPSSScore      float64 `yaml:"epss_score,omitempty"`
+	EPSSPercentile float64 `yaml:"epss_percentile,omitempty"`
+	EPSSSeverity   string  `yaml:"epss_severity,omitempty"`
+	CoalitionESS   float64 `yaml:"coalition_ess,omitempty"`
+	CESSeverity    string  `yaml:"ces_severity,omitempty"`
+	SSVCDecision   string  `yaml:"ssvc_decision,omitempty"`
+	SSVCSeverity   string  `yaml:"ssvc_severity,omitempty"`
+	ThreatExposure float64 `yaml:"threat_exposure,omitempty"`
+	MaxSeverity    string  `yaml:"max_severity,omitempty"`
+}
+
+// RemediationData captures remediation info stored in memory.
+type RemediationData struct {
+	FixAvailability string   `yaml:"fix_availability,omitempty"` // available | partial | no_fix
+	FixVersion      string   `yaml:"fix_version,omitempty"`
+	Actions         []string `yaml:"actions,omitempty"`
+}
+
 // FindingRecord stores all triage data for a single vulnerability.
 // This schema is shared with the Claude Code plugin SKILL files.
 type FindingRecord struct {
@@ -94,6 +125,18 @@ type FindingRecord struct {
 	Decision       *Decision      `yaml:"decision,omitempty"`
 	History        []HistoryEntry `yaml:"history,omitempty"`
 	Source         string         `yaml:"source,omitempty"` // "vulnetix" | "github"
+
+	// Enriched scan data — populated by vulnetix scan.
+	AffectedRange   string           `yaml:"affected_range,omitempty"`
+	IsMalicious     bool             `yaml:"is_malicious,omitempty"`
+	Confirmed       bool             `yaml:"confirmed,omitempty"`
+	Scores          *ScoreData       `yaml:"scores,omitempty"`
+	Exploits        *ExploitInfo     `yaml:"exploits,omitempty"`
+	Remediation     *RemediationData `yaml:"remediation,omitempty"`
+	InCisaKev       bool             `yaml:"in_cisa_kev,omitempty"`
+	SourceFiles     []string         `yaml:"source_files,omitempty"`     // manifest files where this vuln was introduced
+	PathCount       int              `yaml:"path_count,omitempty"`       // number of dependency paths introducing this vuln
+	IntroducedPaths [][]string       `yaml:"introduced_paths,omitempty"` // dependency chains e.g. [[direct-dep, intermediate, vuln-pkg]]
 }
 
 // EnvironmentContext captures the auto-gathered or flag-provided context
@@ -250,6 +293,20 @@ func (m *Memory) UpdateEnvironment(env *EnvironmentContext) {
 	m.Environment = env
 }
 
+// GetOpenFindings returns all findings that haven't reached a resolved state.
+// "Open" means status is "under_investigation" or "affected" — i.e. not
+// "not_affected" or "fixed". These are the findings that still need triage.
+func (m *Memory) GetOpenFindings() map[string]FindingRecord {
+	open := make(map[string]FindingRecord)
+	for id, f := range m.Findings {
+		switch f.Status {
+		case "under_investigation", "affected":
+			open[id] = f
+		}
+	}
+	return open
+}
+
 // RecordVulnLookup upserts a FindingRecord from a VDB vuln response.
 // It extracts the vulnId, aliases, severity, and scores from the opaque API
 // response data. This is best-effort; missing fields are silently skipped.
@@ -289,6 +346,143 @@ func (m *Memory) RecordVulnLookup(vulnID string, data interface{}) {
 	rec.Source = "vulnetix"
 
 	m.Findings[vulnID] = rec
+}
+
+// RecordEnrichedFindings upserts FindingRecords from enriched scan results.
+// Each finding is keyed by CVE ID. Existing triage decisions are preserved —
+// only enrichment data (scores, exploits, versions, source files) is updated.
+func (m *Memory) RecordEnrichedFindings(findings []EnrichedFinding) {
+	if m.Findings == nil {
+		m.Findings = make(map[string]FindingRecord)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	for _, f := range findings {
+		existing, hasExisting := m.Findings[f.CveID]
+		if !hasExisting {
+			existing = FindingRecord{
+				Status: "under_investigation",
+			}
+		}
+
+		// Always update enrichment data from scan.
+		existing.Package = f.PackageName
+		existing.Ecosystem = f.Ecosystem
+		existing.Severity = f.MaxSeverity
+		existing.AffectedRange = f.AffectedRange
+		existing.IsMalicious = f.IsMalicious
+		existing.Confirmed = f.Confirmed
+		existing.InCisaKev = f.InCisaKev
+		existing.PathCount = f.PathCount
+		existing.Source = "vulnetix"
+
+		// Merge source files (deduplicated).
+		fileSet := map[string]bool{}
+		for _, sf := range existing.SourceFiles {
+			fileSet[sf] = true
+		}
+		for _, sf := range f.SourceFiles {
+			fileSet[sf] = true
+		}
+		existing.SourceFiles = make([]string, 0, len(fileSet))
+		for sf := range fileSet {
+			existing.SourceFiles = append(existing.SourceFiles, sf)
+		}
+		sort.Strings(existing.SourceFiles)
+
+		// Introduced dependency paths.
+		if len(f.IntroducedPaths) > 0 {
+			existing.IntroducedPaths = f.IntroducedPaths
+		}
+
+		// Version info.
+		if existing.Versions == nil {
+			existing.Versions = &VersionInfo{}
+		}
+		existing.Versions.Current = f.InstalledVersion
+		if f.FixVersion != "" {
+			existing.Versions.FixedIn = f.FixVersion
+			existing.Versions.FixSource = "vulnetix-scan"
+		}
+
+		// Scores.
+		existing.Scores = &ScoreData{
+			CVSSScore:      f.CVSSScore,
+			CVSSSeverity:   f.CVSSSeverity,
+			EPSSScore:      f.EPSSScore,
+			EPSSPercentile: f.EPSSPercentile,
+			EPSSSeverity:   f.EPSSSeverity,
+			CoalitionESS:   f.CoalitionESS,
+			CESSeverity:    f.CESSeverity,
+			SSVCDecision:   f.SSVCDecision,
+			SSVCSeverity:   f.SSVCSeverity,
+			ThreatExposure: f.ThreatExposure,
+			MaxSeverity:    f.MaxSeverity,
+		}
+
+		// Exploit intel.
+		if f.ExploitInfo != nil {
+			existing.Exploits = f.ExploitInfo
+		}
+
+		// Remediation.
+		if f.Remediation != nil {
+			existing.Remediation = f.Remediation
+		}
+
+		// Discovery info — only set on first discovery.
+		if existing.Discovery == nil {
+			existing.Discovery = &DiscoveryInfo{
+				Date:   now,
+				Source: "scan",
+			}
+			if len(f.SourceFiles) > 0 {
+				existing.Discovery.File = f.SourceFiles[0]
+			}
+		}
+
+		// Append scan event to history.
+		existing.History = append(existing.History, HistoryEntry{
+			Date:   now,
+			Event:  "scan",
+			Detail: "Updated by vulnetix scan",
+		})
+
+		m.Findings[f.CveID] = existing
+	}
+}
+
+// EnrichedFinding is the input struct for RecordEnrichedFindings.
+// It is a flat representation of data extracted from scan enrichment.
+type EnrichedFinding struct {
+	CveID            string
+	PackageName      string
+	InstalledVersion string
+	Ecosystem        string
+	MaxSeverity      string
+	AffectedRange    string
+	IsMalicious      bool
+	Confirmed        bool
+	InCisaKev        bool
+	PathCount        int
+	SourceFiles      []string
+	IntroducedPaths  [][]string
+
+	// Scores
+	CVSSScore      float64
+	CVSSSeverity   string
+	EPSSScore      float64
+	EPSSPercentile float64
+	EPSSSeverity   string
+	CoalitionESS   float64
+	CESSeverity    string
+	SSVCDecision   string
+	SSVCSeverity   string
+	ThreatExposure float64
+
+	// Fix
+	FixVersion  string
+	ExploitInfo *ExploitInfo
+	Remediation *RemediationData
 }
 
 // extractVulnMap attempts to get a map from the opaque GetCVE response.

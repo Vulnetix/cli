@@ -43,10 +43,11 @@ type ResolveModal struct {
 	ghClient    *triage.GitHubClient
 	repo        string
 	vulnetixDir string
+	vexFormat   string
 }
 
 // newResolveModal creates a fresh modal for the given alert.
-func newResolveModal(a triage.Alert, ghClient *triage.GitHubClient, repo, vulnetixDir string) *ResolveModal {
+func newResolveModal(a triage.Alert, ghClient *triage.GitHubClient, repo, vulnetixDir, vexFormat string) *ResolveModal {
 	ti := textinput.New()
 	ti.Placeholder = "Type rationale… (required, Enter to submit)"
 	ti.CharLimit = 500
@@ -65,6 +66,7 @@ func newResolveModal(a triage.Alert, ghClient *triage.GitHubClient, repo, vulnet
 		ghClient:    ghClient,
 		repo:        repo,
 		vulnetixDir: vulnetixDir,
+		vexFormat:   vexFormat,
 	}
 }
 
@@ -156,6 +158,9 @@ func (m *ResolveModal) updateSubmitting(msg tea.Msg) (*ResolveModal, tea.Cmd, bo
 			if msg.GitHubUpdated {
 				parts = append([]string{"GitHub updated"}, parts...)
 			}
+			if msg.VexFile != "" {
+				parts = append(parts, "VEX written")
+			}
 			m.resultMsg = strings.Join(parts, " · ")
 		}
 		m.state = resolveStateDone
@@ -183,9 +188,12 @@ func (m *ResolveModal) doSubmit(rationale string) tea.Cmd {
 	repo := m.repo
 	vulnetixDir := m.vulnetixDir
 
+	vexFormat := m.vexFormat
+
 	return func() tea.Msg {
-		var ghErr, memErr error
+		var ghErr, memErr, vexErr error
 		ghUpdated := false
+		var vexFile string
 
 		// 1. GitHub API call (skipped for VEX-only options or missing client).
 		if opt.GitHubState != "" && ghClient != nil && repo != "" {
@@ -200,6 +208,11 @@ func (m *ResolveModal) doSubmit(rationale string) tea.Cmd {
 			memErr = triage.RecordResolutionInMemory(vulnetixDir, alert, opt, rationale)
 		}
 
+		// 3. Generate and save VEX document to memory directory.
+		if vulnetixDir != "" {
+			vexFile, vexErr = triage.WriteVEXForResolution(vulnetixDir, alert, opt, rationale, vexFormat)
+		}
+
 		// Report the combined outcome.
 		combinedErr := ghErr
 		if combinedErr == nil {
@@ -207,26 +220,33 @@ func (m *ResolveModal) doSubmit(rationale string) tea.Cmd {
 		} else if memErr != nil {
 			combinedErr = fmt.Errorf("github: %w; memory: %s", ghErr, memErr.Error())
 		}
+		if combinedErr == nil {
+			combinedErr = vexErr
+		} else if vexErr != nil {
+			combinedErr = fmt.Errorf("%w; vex: %s", combinedErr, vexErr.Error())
+		}
 
 		return ResolveCompleteMsg{
 			AlertNumber:   alert.Number,
 			VEXStatus:     opt.VEXStatus,
 			GitHubUpdated: ghUpdated,
 			MemorySaved:   memErr == nil && vulnetixDir != "",
+			VexFile:       vexFile,
 			Err:           combinedErr,
 		}
 	}
 }
 
-// View renders the modal as a bordered overlay.
-func (m *ResolveModal) View(width int) string {
+// View renders the resolve screen as a full-screen view.
+func (m *ResolveModal) View(width, height int) string {
 	inner := m.renderInner(width)
 
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(ColorAccent).
-		Padding(1, 2).
-		Width(min(width-4, 72))
+		Padding(1, 3).
+		Width(width - 4).
+		Height(height - 4)
 
 	return style.Render(inner)
 }
