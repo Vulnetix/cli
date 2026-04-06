@@ -216,7 +216,7 @@ func ParseManifestWithScope(filePath, manifestType string) ([]ScopedPackage, err
 	case "build.zig.zon":
 		return parseZigZonScoped(data, filePath)
 	// ── CMake / CPM ───────────────────────────────────────────────────────
-	case "CPM.cmake":
+	case "CPM.cmake", "CMakeLists.txt":
 		return parseCPMCmakeScoped(data, filePath)
 	// ── Meson ─────────────────────────────────────────────────────────────
 	case "meson.build":
@@ -224,6 +224,11 @@ func ParseManifestWithScope(filePath, manifestType string) ([]ScopedPackage, err
 	// ── Bazel ─────────────────────────────────────────────────────────────
 	case "WORKSPACE":
 		return parseWorkspaceScoped(data, filePath)
+	case "MODULE.bazel":
+		return parseModuleBazelScoped(data, filePath)
+	// ── Buck ──────────────────────────────────────────────────────────────
+	case "BUCK", "BUCK2":
+		return parseBuckScoped(data, filePath)
 	default:
 		return nil, fmt.Errorf("unsupported manifest type: %s", manifestType)
 	}
