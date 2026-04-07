@@ -10,11 +10,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-<<<<<<< HEAD
         version = "1.28.6";
-=======
-        version = "1.28.6";
->>>>>>> 5b061d80679c748e0fee1ba1cc3a93962bea1c86
       in
       {
         packages = {
