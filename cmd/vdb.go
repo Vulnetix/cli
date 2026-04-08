@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -1378,6 +1379,60 @@ Examples:
 	},
 }
 
+// trafficFiltersCmd retrieves IDS/IPS traffic filter rules for a vulnerability
+var trafficFiltersCmd = &cobra.Command{
+	Use:   "traffic-filters <vuln-id>",
+	Short: "Get IDS/IPS traffic filter rules (Snort) for a vulnerability",
+	Long: `Retrieve IDS/IPS traffic filter rules (Snort signatures) mapped to a specific
+vulnerability identifier. Rules include detection signatures, MITRE ATT&CK mappings,
+severity classifications, and full raw rule text.
+
+Only CVE, GHSA, and CNVD identifiers are supported for traffic filter lookups.
+
+Supported identifier formats:
+  CVE-2021-44228         MITRE / NVD
+  GHSA-jfh8-3a1q-hjz9   GitHub Security Advisory
+  CNVD-2024-02713        China National Vulnerability DB
+
+Examples:
+  vulnetix vdb traffic-filters CVE-2021-44228
+  vulnetix vdb traffic-filters GHSA-jfh8-3a1q-hjz9
+  vulnetix vdb traffic-filters CVE-2021-44228 -o json
+  vulnetix vdb traffic-filters CVE-2021-44228 --limit 10
+  vulnetix vdb traffic-filters CVE-2021-44228 -V v2`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		identifier := args[0]
+		ctx := display.FromCommand(cmd)
+
+		trafficFilterRe := regexp.MustCompile(`(?i)^(CVE-\d{4}-\d{4,}|GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}|CNVD-\d{4}-\d{4,})$`)
+		if !trafficFilterRe.MatchString(identifier) {
+			return fmt.Errorf("invalid identifier %q — traffic-filters supports CVE, GHSA, and CNVD formats only\n  Examples: CVE-2021-44228, GHSA-jfh8-3a1q-hjz9, CNVD-2024-02713", identifier)
+		}
+
+		limit, _ := cmd.Flags().GetInt("limit")
+		offset, _ := cmd.Flags().GetInt("offset")
+
+		client := newVDBClient()
+
+		ctx.Logger.Infof("🛡️ Fetching traffic filter rules for %s...", identifier)
+
+		result, err := client.GetTrafficFilters(identifier, limit, offset)
+		if err != nil {
+			var nfe *vdb.NotFoundError
+			if errors.As(err, &nfe) {
+				ctx.Logger.Warn(fmt.Sprintf("⚠ Vulnerability %q was not found in the database.", identifier))
+				return nil
+			}
+			return fmt.Errorf("failed to get traffic filters: %w", err)
+		}
+		printRateLimit(client)
+		recordVDBQuery("traffic-filters", identifier)
+
+		return vdbRender(cmd, result, display.RenderTrafficFilters)
+	},
+}
+
 // idsCmd lists CVE identifiers published in a given calendar month
 var idsCmd = &cobra.Command{
 	Use:   "ids <year> <month>",
@@ -1906,6 +1961,7 @@ func init() {
 	vdbCmd.AddCommand(purlCmd)
 	vdbCmd.AddCommand(statusCmd)
 	vdbCmd.AddCommand(summaryCmd)
+	vdbCmd.AddCommand(trafficFiltersCmd)
 	vdbCmd.AddCommand(cacheCmd)
 
 	// Nested subcommands: cache → clear
@@ -2072,6 +2128,10 @@ func init() {
 	fixesCmd.Flags().String("vendor", "", "Filter by vendor name (V2 only)")
 	fixesCmd.Flags().String("product", "", "Filter by product name (V2 only)")
 	fixesCmd.Flags().String("purl", "", "Package URL (V2 only)")
+
+	// traffic-filters flags
+	trafficFiltersCmd.Flags().Int("limit", 100, "Maximum results (max 500)")
+	trafficFiltersCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
 
 	// Timeline flags
 	timelineCmd.Flags().String("include", "", "Comma-separated event types to include (source,exploit,score-change,patch,advisory,scorecard)")

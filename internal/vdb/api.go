@@ -330,6 +330,23 @@ func (c *Client) GetCVEFixes(identifier string) (map[string]interface{}, error) 
 	return result, nil
 }
 
+// GetTrafficFilters retrieves IDS/IPS traffic filter rules (Snort) for a vulnerability.
+func (c *Client) GetTrafficFilters(identifier string, limit, offset int) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/vuln/%s/snort-rules?limit=%d&offset=%d", url.PathEscape(identifier), limit, offset)
+
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result, nil
+}
+
 // GetPackageVersions retrieves all known versions for a package across ecosystems
 func (c *Client) GetPackageVersions(packageName string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("/%s/versions", url.PathEscape(packageName))
