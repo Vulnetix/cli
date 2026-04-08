@@ -1603,6 +1603,120 @@ func RenderScorecardSearch(data any, ctx *Context) string {
 	return b.String()
 }
 
+// RenderTrafficFilters renders IDS/IPS traffic filter rules (Snort).
+func RenderTrafficFilters(data any, ctx *Context) string {
+	m, ok := data.(map[string]any)
+	if !ok {
+		return fmt.Sprintf("%v", data)
+	}
+	t := ctx.Term
+	var b strings.Builder
+
+	id := ToStringVal(m["identifier"])
+	total := ToIntVal(m["total"])
+	count := ToIntVal(m["count"])
+
+	b.WriteString("\n" + Bold(t, fmt.Sprintf("IDS/IPS Traffic Filters for %s", id)) + "\n")
+	b.WriteString(Muted(t, fmt.Sprintf("  Showing %d of %d rules", count, total)) + "\n\n")
+
+	rules, _ := m["rules"].([]any)
+	if len(rules) == 0 {
+		b.WriteString(Muted(t, "  No traffic filter rules found for this vulnerability.") + "\n")
+		return b.String()
+	}
+
+	for i, r := range rules {
+		rm, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		msg := ToStringVal(rm["msg"])
+		sid := ToStringVal(rm["snortId"])
+		rev := ToIntVal(rm["rev"])
+		action := ToStringVal(rm["action"])
+		protocol := ToStringVal(rm["protocol"])
+
+		// Rule header
+		b.WriteString(Bold(t, fmt.Sprintf("  [%s] SID %s (rev %d)", action, sid, rev)) + "\n")
+		b.WriteString(fmt.Sprintf("    %s\n", msg))
+
+		pairs := []KVPair{}
+		pairs = append(pairs, KVPair{Key: "Protocol", Value: protocol})
+
+		if v := ToStringVal(rm["classtype"]); v != "" {
+			pairs = append(pairs, KVPair{Key: "Classtype", Value: v})
+		}
+		if v := ToStringVal(rm["signatureSeverity"]); v != "" {
+			pairs = append(pairs, KVPair{Key: "Severity", Value: v})
+		}
+		if v := ToStringVal(rm["confidence"]); v != "" {
+			pairs = append(pairs, KVPair{Key: "Confidence", Value: v})
+		}
+		if v := ToStringVal(rm["source"]); v != "" {
+			pairs = append(pairs, KVPair{Key: "Source", Value: v})
+		}
+
+		// MITRE ATT&CK
+		if techs, ok := rm["mitreTechIds"].([]any); ok && len(techs) > 0 {
+			vals := make([]string, 0, len(techs))
+			for _, t := range techs {
+				vals = append(vals, fmt.Sprintf("%v", t))
+			}
+			pairs = append(pairs, KVPair{Key: "MITRE Techniques", Value: strings.Join(vals, ", ")})
+		}
+		if tactics, ok := rm["mitreTacticIds"].([]any); ok && len(tactics) > 0 {
+			vals := make([]string, 0, len(tactics))
+			for _, t := range tactics {
+				vals = append(vals, fmt.Sprintf("%v", t))
+			}
+			pairs = append(pairs, KVPair{Key: "MITRE Tactics", Value: strings.Join(vals, ", ")})
+		}
+
+		// Tags and targets
+		if tags, ok := rm["tags"].([]any); ok && len(tags) > 0 {
+			vals := make([]string, 0, len(tags))
+			for _, t := range tags {
+				vals = append(vals, fmt.Sprintf("%v", t))
+			}
+			pairs = append(pairs, KVPair{Key: "Tags", Value: strings.Join(vals, ", ")})
+		}
+		if targets, ok := rm["attackTargets"].([]any); ok && len(targets) > 0 {
+			vals := make([]string, 0, len(targets))
+			for _, t := range targets {
+				vals = append(vals, fmt.Sprintf("%v", t))
+			}
+			pairs = append(pairs, KVPair{Key: "Attack Targets", Value: strings.Join(vals, ", ")})
+		}
+
+		// Dates
+		if v := ToStringVal(rm["datePublished"]); v != "" {
+			pairs = append(pairs, KVPair{Key: "Published", Value: v})
+		}
+		if v := ToStringVal(rm["dateUpdated"]); v != "" {
+			pairs = append(pairs, KVPair{Key: "Updated", Value: v})
+		}
+
+		if disabled, ok := rm["disabled"].(bool); ok && disabled {
+			pairs = append(pairs, KVPair{Key: "Status", Value: "⚠ DISABLED", ValueStyle: func(s string) string { return ErrorStyle(t, s) }})
+		}
+
+		b.WriteString(KeyValue(t, pairs))
+
+		if i < len(rules)-1 {
+			b.WriteString(Muted(t, "  ─────────────────────────────────────") + "\n")
+		}
+	}
+
+	if hasMore, ok := m["hasMore"].(bool); ok && hasMore {
+		offset := ToIntVal(m["offset"])
+		limit := ToIntVal(m["limit"])
+		b.WriteString("\n" + Muted(t, fmt.Sprintf("  … more results available (use --offset %d)", offset+limit)) + "\n")
+	}
+
+	return b.String()
+}
+
 // RenderGenericMap renders any map data with intelligent formatting.
 // Used as fallback for commands without specific renderers.
 func RenderGenericMap(data any, ctx *Context) string {
