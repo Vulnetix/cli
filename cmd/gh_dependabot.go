@@ -14,6 +14,7 @@ import (
 
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/memory"
+	"github.com/vulnetix/cli/internal/scan"
 	"github.com/vulnetix/cli/internal/triage"
 	"github.com/vulnetix/cli/internal/tui"
 	"github.com/vulnetix/cli/internal/vdb"
@@ -26,6 +27,7 @@ var (
 	triageConcurrency     int
 	triageFormat          string
 	triageIncludeGuidance bool
+	triageSeverity        string
 
 	// Vulnetix provider specific flags
 	triageVEXFormat        string
@@ -79,6 +81,7 @@ func init() {
 	// Configure flags
 	triageCmd.Flags().StringVarP(&triageProvider, "provider", "p", "vulnetix", "Alert source: github, dependabot, codeql, secrets, or vulnetix")
 	triageCmd.Flags().StringVar(&triageRepo, "repo", "", "Repository in owner/repo format (auto-detected if not set)")
+	triageCmd.Flags().StringVar(&triageSeverity, "severity", "", "Filter alerts to only show those meeting this severity (low, medium, high, critical)")
 	triageCmd.Flags().BoolVar(&triageAll, "all", false, "Include dismissed alerts (open only by default)")
 	triageCmd.Flags().IntVar(&triageConcurrency, "concurrency", 5, "Number of concurrent VDB lookups")
 	triageCmd.Flags().StringVar(&triageFormat, "format", "tui", "Output format: tui, json, text (for GitHub providers)")
@@ -174,11 +177,26 @@ func runTriageCmd(cmd *cobra.Command, args []string) error {
 	case "text":
 		return outputText(enriched)
 	default:
+		// Validate severity
+		if triageSeverity != "" {
+			valid := false
+			for _, v := range scan.ValidSeverityThresholds {
+				if triageSeverity == v {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				return fmt.Errorf("invalid --severity %q: must be one of: %s",
+					triageSeverity, strings.Join(scan.ValidSeverityThresholds, ", "))
+			}
+		}
 		return tui.RunTriage(enriched, tui.TriageOptions{
-			GHClient:    ghClient,
-			Repo:        repo,
-			VulnetixDir: triageMemoryDir,
-			VexFormat:   triageVEXFormat,
+			GHClient:        ghClient,
+			Repo:            repo,
+			VulnetixDir:     triageMemoryDir,
+			VexFormat:       triageVEXFormat,
+			InitialSeverity: triageSeverity,
 		})
 	}
 }

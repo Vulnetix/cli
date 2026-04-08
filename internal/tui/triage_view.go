@@ -35,6 +35,9 @@ type TriageOptions struct {
 	// VexFormat controls the VEX document format written on resolve: openvex, cdx, or json.
 	// Defaults to "openvex" when empty.
 	VexFormat string
+	// InitialSeverity sets the starting severity filter (empty means no filter).
+	// Valid values: "low", "medium", "high", "critical".
+	InitialSeverity string
 }
 
 // TriageModel is the bubbletea model for the triage TUI.
@@ -47,12 +50,18 @@ type TriageModel struct {
 	height      int
 	showHelp    bool
 
+	// Severity filter cycling
+	severityLevelIdx int // index into severityLevels
+
 	// Resolve modal – non-nil while the overlay is open.
 	resolveModal *ResolveModal
 
 	// Options for GitHub/memory integration.
 	opts TriageOptions
 }
+
+// Severity filter levels (empty = no filter).
+var severityLevels = []string{"", "low", "medium", "high", "critical"}
 
 // NewTriageModel creates a new triage TUI model.
 func NewTriageModel(alerts []triage.EnrichedAlert, opts TriageOptions) *TriageModel {
@@ -62,10 +71,18 @@ func NewTriageModel(alerts []triage.EnrichedAlert, opts TriageOptions) *TriageMo
 	if opts.VexFormat == "" {
 		opts.VexFormat = "openvex"
 	}
+	idx := 0
+	for i, s := range severityLevels {
+		if s == opts.InitialSeverity {
+			idx = i
+			break
+		}
+	}
 	return &TriageModel{
-		alerts:    alerts,
-		detailTab: triageTabOverview,
-		opts:      opts,
+		alerts:           alerts,
+		detailTab:        triageTabOverview,
+		opts:             opts,
+		severityLevelIdx: idx,
 	}
 }
 
@@ -104,7 +121,8 @@ func (m *TriageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selectedIdx--
 			}
 		case msg.String() == "down" || msg.String() == "j":
-			if m.selectedIdx < len(m.alerts)-1 {
+			filtered := m.filteredAlerts()
+			if m.selectedIdx < len(filtered)-1 {
 				m.selectedIdx++
 			}
 		case msg.String() == "tab":
@@ -118,10 +136,19 @@ func (m *TriageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.String() == "?":
 			m.showHelp = !m.showHelp
 		case msg.String() == "r":
-			if len(m.alerts) > 0 && m.selectedIdx >= 0 && m.selectedIdx < len(m.alerts) {
-				a := m.alerts[m.selectedIdx].Alert
+			filtered := m.filteredAlerts()
+			if len(filtered) > 0 && m.selectedIdx >= 0 && m.selectedIdx < len(filtered) {
+				a := filtered[m.selectedIdx].Alert
 				m.resolveModal = newResolveModal(a, m.opts.GHClient, m.opts.Repo, m.opts.VulnetixDir, m.opts.VexFormat)
 				return m, m.resolveModal.Init()
+			}
+		case msg.String() == "s":
+			m.severityLevelIdx = (m.severityLevelIdx + 1) % len(severityLevels)
+			filtered := m.filteredAlerts()
+			if m.selectedIdx >= len(filtered) && len(filtered) > 0 {
+				m.selectedIdx = len(filtered) - 1
+			} else if len(filtered) == 0 {
+				m.selectedIdx = 0
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -150,6 +177,41 @@ func (m *TriageModel) applyResolvedStatus(alertNumber, vexStatus string) {
 	}
 }
 
+// currentSeverity returns the active severity filter (empty = no filter).
+func (m *TriageModel) currentSeverity() string {
+	return severityLevels[m.severityLevelIdx]
+}
+
+// filteredAlerts returns the alert subset that meets or exceeds the current severity threshold.
+func (m *TriageModel) filteredAlerts() []triage.EnrichedAlert {
+	thresh := m.currentSeverity()
+	if thresh == "" {
+		return m.alerts
+	}
+	var result []triage.EnrichedAlert
+	for _, a := range m.alerts {
+		if severityMeets(a.Alert.Severity, thresh) {
+			result = append(result, a)
+		}
+	}
+	return result
+}
+
+// severityMeets reports whether sev meets or exceeds thresh using the same
+// ordering as scan.SeverityMeetsThreshold.
+func severityMeets(sev, thresh string) bool {
+	order := map[string]int{"low": 0, "medium": 1, "high": 2, "critical": 3}
+	t, okT := order[thresh]
+	if !okT {
+		return false
+	}
+	s, okS := order[sev]
+	if !okS {
+		return false
+	}
+	return s >= t
+}
+
 // View implements tea.Model.
 func (m *TriageModel) View() string {
 	if m.quiting {
@@ -161,27 +223,38 @@ func (m *TriageModel) View() string {
 		return m.resolveModal.View(m.width, m.height)
 	}
 
+	filtered := m.filteredAlerts()
+	total := len(filtered)
+
 	var b strings.Builder
 
 	// Summary bar
-	total := len(m.alerts)
-	critical := 0
+	all := len(m.alerts)
+	visibleCritical := 0
 	fixable := 0
-	for _, a := range m.alerts {
+	for _, a := range filtered {
 		if a.Alert.Severity == "critical" {
-			critical++
+			visibleCritical++
 		}
 		if a.Fixes != nil && a.Fixes.HasFix() {
 			fixable++
 		}
 	}
 
-	summary := fmt.Sprintf("  %d alerts | %d critical | %d fixable", total, critical, fixable)
+	filterLabel := ""
+	if m.currentSeverity() != "" {
+		filterLabel = fmt.Sprintf(" [>=%s]", strings.ToUpper(m.currentSeverity()))
+	}
+	summary := fmt.Sprintf("  %d alerts (%d total)%s | %d critical | %d fixable", total, all, filterLabel, visibleCritical, fixable)
 	b.WriteString(styleSummaryBar.Render(summary))
 	b.WriteString("\n")
 
 	if total == 0 {
-		b.WriteString(styleStatusBar.Render("  No vulnerability alerts."))
+		label := "No vulnerability alerts."
+		if filterLabel != "" {
+			label = fmt.Sprintf("No alerts at%s severity.", filterLabel)
+		}
+		b.WriteString(styleStatusBar.Render("  " + label))
 		b.WriteString("\n\n")
 		b.WriteString(helpTriageShort())
 		return b.String()
@@ -202,7 +275,7 @@ func (m *TriageModel) View() string {
 	}
 
 	for i := 0; i < visibleRows; i++ {
-		a := m.alerts[i]
+		a := filtered[i]
 		selected := i == m.selectedIdx
 
 		cve := truncate(a.Alert.Identifier(), 24)
@@ -239,7 +312,7 @@ func (m *TriageModel) View() string {
 	// Detail panel
 	if m.selectedIdx >= 0 && m.selectedIdx < total {
 		b.WriteString("\n")
-		b.WriteString(m.renderDetail())
+		b.WriteString(m.renderFilteredDetail(filtered))
 	}
 
 	// Help
@@ -254,8 +327,12 @@ func (m *TriageModel) View() string {
 }
 
 func (m *TriageModel) renderDetail() string {
+	return m.renderFilteredDetail(m.alerts)
+}
+
+func (m *TriageModel) renderFilteredDetail(alerts []triage.EnrichedAlert) string {
 	var b strings.Builder
-	a := m.alerts[m.selectedIdx]
+	a := alerts[m.selectedIdx]
 
 	// Tab bar
 	tabs := []string{"Overview", "Remediation", "Fixes"}
@@ -387,12 +464,12 @@ func formatJSONPreview(data any, maxLines int) string {
 
 func helpTriage() string {
 	return styleHelp.Render(
-		"\n  ↑/↓ navigate  |  Tab cycle detail tabs  |  1-3 select tab  |  r resolve  |  ? hide help  |  q quit\n",
+		"\n  ↑/↓ navigate  |  Tab cycle detail tabs  |  1-3 select tab  |  r resolve  |  s severity filter  |  ? hide help  |  q quit\n",
 	)
 }
 
 func helpTriageShort() string {
-	return styleHelp.Render("  ↑/↓ navigate  |  Tab cycle  |  r resolve  |  ? help  |  q quit")
+	return styleHelp.Render("  ↑/↓ navigate  |  Tab cycle  |  r resolve  |  s severity  |  ? help  |  q quit")
 }
 
 // RunTriage starts the triage TUI program.

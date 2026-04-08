@@ -90,7 +90,7 @@ Native GitHub Actions support for automated vulnerability management. Upload SBO
 <div class="vx-footer-links">
   <a href="https://github.com/Vulnetix/cli" target="_blank" rel="noopener">GitHub</a>
   <a href="https://vdb.vulnetix.com" target="_blank" rel="noopener">VDB</a>
-  <a href="https://claude-docs.vdb.vulnetix.com" target="_blank" rel="noopener">Plugin Docs</a>
+  <a href="https://ai-docs.vulnetix.com" target="_blank" rel="noopener">Plugin Docs</a>
   <a href="https://www.vulnetix.com" target="_blank" rel="noopener">vulnetix.com</a>
   <a href="/terms/">Terms of Service</a>
 </div>
