@@ -131,13 +131,14 @@ jobs:
         run: |
           VER_NUM="${{ needs.release.outputs.version }}"
           VER_NUM="${VER_NUM#v}"
+          git checkout main
           sed -i "s/version = \"[^\"]*\";/version = \"${VER_NUM}\";/" flake.nix
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add flake.nix
           if ! git diff --cached --quiet; then
             git commit -m "chore: update flake.nix to v${VER_NUM} [skip ci]"
-            git push
+            git push origin main
           fi
 
       - name: Update Homebrew formula
