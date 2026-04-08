@@ -5,12 +5,12 @@ Automated vulnerability management for your CI/CD pipelines and development work
 ## Contents
 
 - [GitHub Action](#github-action)
-- [Claude Code Plugin](#claude-code-plugin)
+- [Claude Code Plugin](#pix-ai-coding-assistant)
 - [CLI Installation](#cli-installation)
 - [Available Tasks](#available-tasks)
 - [Documentation](#documentation)
 - [CLI Documentation](https://docs.cli.vulnetix.com/)
-- [Claude Code Plugin Documentation](https://claude-docs.vdb.vulnetix.com)
+- [Claude Code Plugin Documentation](https://ai-docs.vulnetix.com)
 - [VDB API Reference](https://redocly.github.io/redoc/?url=https://api.vdb.vulnetix.com/v1/spec)
 - [GitHub App](https://github.com/marketplace/vulnetix)
 
@@ -78,7 +78,7 @@ Integrate Vulnetix vulnerability intelligence directly into Claude Code with aut
 Add the marketplace:
 
 ```
-/plugin marketplace add Vulnetix/claude-code-plugin
+/plugin marketplace add Vulnetix/pix-ai-coding-assistant
 ```
 
 Install the plugin:
@@ -95,7 +95,7 @@ Install the plugin:
 
 **Requires:** [Vulnetix CLI](#cli-installation) installed and authenticated (`vulnetix auth login`).
 
-[Full plugin documentation](https://claude-docs.vdb.vulnetix.com) | [Plugin repository](https://github.com/Vulnetix/claude-code-plugin)
+[Full plugin documentation](https://ai-docs.vulnetix.com) | [Plugin repository](https://github.com/Vulnetix/pix-ai-coding-assistant)
 
 ---
 
@@ -135,7 +135,7 @@ See [CLI Documentation](https://docs.cli.vulnetix.com/) for complete usage and c
 ## Documentation
 
 - [CLI Documentation](https://docs.cli.vulnetix.com/)
-- [Claude Code Plugin Documentation](https://claude-docs.vdb.vulnetix.com)
+- [Claude Code Plugin Documentation](https://ai-docs.vulnetix.com)
 - [VDB API Reference](https://redocly.github.io/redoc/?url=https://api.vdb.vulnetix.com/v1/spec)
 - [Installation Guides](docs/README.md)
 - [Usage Examples](USAGE.md)
