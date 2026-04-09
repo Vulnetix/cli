@@ -588,6 +588,21 @@ func RenderSummary(data any, ctx *Context) string {
 		b.WriteString(KeyValue(t, pairs) + "\n")
 	}
 
+	// Enrichment
+	if enr, ok := m["enrichment"].(map[string]any); ok {
+		b.WriteString("\n" + Subheader(t, "Enrichment") + "\n")
+		b.WriteString(KeyValue(t, []KVPair{
+			{Key: "Snort rules", Value: FormatNumber(ToIntVal(enr["snortRules"]))},
+			{Key: "IDS-enriched vulns", Value: FormatNumber(ToIntVal(enr["enrichedIDS"]))},
+			{Key: "Patchable (all)", Value: FormatNumber(ToIntVal(enr["patchableAll"]))},
+			{Key: "Patchable (CVE)", Value: FormatNumber(ToIntVal(enr["patchableCve"]))},
+			{Key: "Enriched CPE", Value: FormatNumber(ToIntVal(enr["enrichedCPE"]))},
+			{Key: "Enriched PURL", Value: FormatNumber(ToIntVal(enr["enrichedPURL"]))},
+			{Key: "Enriched patchable", Value: FormatNumber(ToIntVal(enr["enrichedPatchable"]))},
+			{Key: "CRIT records", Value: FormatNumber(ToIntVal(enr["enrichedCRIT"]))},
+		}) + "\n")
+	}
+
 	// Top CWEs
 	if cwes, ok := m["topCWEs"].([]any); ok && len(cwes) > 0 {
 		b.WriteString("\n" + Subheader(t, "Top CWEs") + "\n")
