@@ -574,6 +574,9 @@ func RenderSummary(data any, ctx *Context) string {
 		b.WriteString("\n" + Subheader(t, "Enrichment Coverage") + "\n")
 		pairs := []KVPair{
 			{Key: "With CVSS", Value: FormatNumber(ToIntVal(cov["withCvss"]))},
+			{Key: "  CVSS v2", Value: FormatNumber(ToIntVal(cov["cvssV2Count"]))},
+			{Key: "  CVSS v3", Value: FormatNumber(ToIntVal(cov["cvssV3Count"]))},
+			{Key: "  CVSS v4", Value: FormatNumber(ToIntVal(cov["cvssV4Count"]))},
 			{Key: "With EPSS", Value: FormatNumber(ToIntVal(cov["withEpss"]))},
 			{Key: "With Coalition ESS", Value: FormatNumber(ToIntVal(cov["withCess"]))},
 			{Key: "With CWE", Value: FormatNumber(ToIntVal(cov["withCwe"]))},
