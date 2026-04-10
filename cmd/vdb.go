@@ -18,6 +18,7 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/internal/analytics"
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/cache"
 	"github.com/vulnetix/cli/internal/config"
@@ -124,6 +125,9 @@ Examples:
 		if err := resolveVDBCredentials(true); err != nil {
 			return err
 		}
+
+		// Track VDB subcommand usage
+		analytics.TrackVDBQuery(cmd.Name(), vdbAPIVersion)
 
 		// Environment context gathering and memory loading (non-fatal)
 		if !disableMemory {

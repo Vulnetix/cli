@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/internal/analytics"
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/cache"
 	"github.com/vulnetix/cli/internal/cdx"
@@ -194,6 +195,8 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to scan directory: %w", err)
 		}
+
+		analytics.TrackScan("sbom", len(files))
 		if len(files) == 0 {
 			fmt.Fprintln(os.Stderr, "No scannable files detected.")
 			return nil
