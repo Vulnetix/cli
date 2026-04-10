@@ -71,7 +71,7 @@ website/.hugo_build.lock
 **/.terraform/
 **/terraform.tfstate
 **/terraform.tfstate.backup
-*.tfvars
+**/*.tfvars
 
 # Nix
 result
