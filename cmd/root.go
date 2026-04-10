@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/vulnetix/cli/internal/analytics"
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/cache"
 	"github.com/vulnetix/cli/internal/config"
@@ -23,6 +24,7 @@ var (
 	orgID         string
 	silent        bool
 	disableMemory bool
+	noAnalytics   bool
 
 	// Build metadata (injected via ldflags)
 	version   = "1.0.0"   // -X github.com/vulnetix/cli/cmd.version=
@@ -42,6 +44,10 @@ automated remediation over discovery. It helps organizations prioritize and reso
 vulnerabilities efficiently.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initDisplayContext(cmd, display.ModeText)
+		// Track command invocation
+		analytics.TrackCommand(cmd.Name(), map[string]interface{}{
+			"full_command": cmd.CommandPath(),
+		})
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		if updateCheckResult == nil {
@@ -243,6 +249,12 @@ func Execute() error {
 
 // startupHooks runs before any command via cobra.OnInitialize.
 func startupHooks() {
+	// Initialize GA4 analytics (respects VULNETIX_NO_ANALYTICS / DO_NOT_TRACK / --no-analytics)
+	if noAnalytics {
+		os.Setenv("VULNETIX_NO_ANALYTICS", "1")
+	}
+	analytics.Init(version, string(config.DetectPlatform()))
+
 	// Clean old versioned caches (fast, filesystem-only)
 	go func() {
 		if n, _ := cache.CleanOldCaches(version); n > 0 {
@@ -294,6 +306,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
 	rootCmd.PersistentFlags().BoolVar(&silent, "silent", false, "Suppress all log output, only print final result")
 	rootCmd.PersistentFlags().BoolVar(&disableMemory, "disable-memory", false, "Disable memory file reads/writes. For users who do not use the Claude Code Plugin or for debugging. VDB commands will skip memory-related side effects when set.")
+	rootCmd.PersistentFlags().BoolVar(&noAnalytics, "no-analytics", false, "Disable anonymous usage analytics")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	cobra.OnInitialize(startupHooks)
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/internal/analytics"
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/upload"
@@ -238,6 +239,7 @@ func runAuthLogin(cmd *cobra.Command) error {
 		return fmt.Errorf("authentication test failed: %w", err)
 	}
 	ctx.Logger.Info(display.CheckMark(ctx.Term) + " Authentication successful")
+	analytics.TrackAuth(string(creds.Method), "login", true)
 
 	// Save credentials
 	if err := auth.SaveCredentials(creds, store); err != nil {
