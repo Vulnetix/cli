@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -15,6 +16,7 @@ import (
 	"github.com/vulnetix/cli/internal/auth"
 	"github.com/vulnetix/cli/internal/cache"
 	"github.com/vulnetix/cli/internal/cdx"
+	"github.com/vulnetix/cli/internal/depsdev"
 	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/gitctx"
 	"github.com/vulnetix/cli/internal/license"
@@ -146,6 +148,7 @@ Examples:
 		noExploits, _ := cmd.Flags().GetBool("no-exploits")
 		noRemediation, _ := cmd.Flags().GetBool("no-remediation")
 		noLicenses, _ := cmd.Flags().GetBool("no-licenses")
+		noDepsDev, _ := cmd.Flags().GetBool("no-depsdev")
 		severityThreshold, _ := cmd.Flags().GetString("severity")
 
 		// Normalise and validate the severity threshold.
@@ -275,6 +278,7 @@ Examples:
 			noExploits,
 			noRemediation,
 			noLicenses,
+			noDepsDev,
 			severityThreshold,
 			seedBOM,
 			vulnetixSeedBOM,
@@ -343,6 +347,7 @@ func runLocalScan(
 	noExploits bool,
 	noRemediation bool,
 	noLicenses bool,
+	noDepsDev bool,
 	severityThreshold string,
 	seedBOM *cdx.BOM,
 	vulnetixSeedBOM *cdx.BOM,
@@ -411,7 +416,7 @@ func runLocalScan(
 	uniqueCount := countUniquePackages(allPackages)
 	fmt.Fprintf(os.Stderr, "\nQuerying VDB for %d unique package(s)...\n", uniqueCount)
 
-	// ── Query VDB ──────────────────────────────────────────────────────────
+	// ── Query VDB + deps.dev in parallel ─────────────────────────────────
 	isInteractive := tty.IsInteractive() && !noProgress
 	var progressFn func(done, total int)
 
@@ -438,10 +443,43 @@ func runLocalScan(
 		queryCtx = context.Background()
 	}
 
-	allVulns, lookupStats, lookupErr := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
-	if progressFn != nil {
-		fmt.Fprintln(os.Stderr) // newline after progress
+	// Run VDB lookup and deps.dev enrichment concurrently.
+	var allVulns []scan.VulnFinding
+	var lookupStats *scan.LookupStats
+	var lookupErr error
+	var depsDevEnrichments []depsdev.PackageEnrichment
+
+	var parallelWg sync.WaitGroup
+
+	// VDB lookup goroutine.
+	parallelWg.Add(1)
+	go func() {
+		defer parallelWg.Done()
+		allVulns, lookupStats, lookupErr = scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
+		if progressFn != nil {
+			fmt.Fprintln(os.Stderr) // newline after progress
+		}
+	}()
+
+	// deps.dev enrichment goroutine (unless --no-depsdev).
+	if !noDepsDev {
+		parallelWg.Add(1)
+		go func() {
+			defer parallelWg.Done()
+			ddClient := depsdev.NewClient(concurrency)
+			refs := make([]depsdev.PackageRef, 0, len(allPackages))
+			for _, p := range allPackages {
+				refs = append(refs, depsdev.PackageRef{
+					Name:      p.Name,
+					Version:   p.Version,
+					Ecosystem: p.Ecosystem,
+				})
+			}
+			depsDevEnrichments = ddClient.BatchEnrich(refs, nil)
+		}()
 	}
+
+	parallelWg.Wait()
 
 	// ── Lookup summary ────────────────────────────────────────────────────
 	hasPartial := lookupErr != nil && len(allVulns) > 0
@@ -710,6 +748,28 @@ func runLocalScan(
 		bom.Vulnerabilities = append(bom.Vulnerabilities, vexVuln)
 	}
 
+	// ── deps.dev enrichment: components + advisory/signal vulnerabilities ──
+	if !noDepsDev && len(depsDevEnrichments) > 0 {
+		enrichMap := depsdev.EnrichmentMap(depsDevEnrichments)
+		cdx.EnrichComponentsFromDepsDev(bom, enrichMap)
+
+		compRefs := cdx.ComponentRefs(bom)
+		existingIDs := cdx.CollectExistingVulnIDs(bom.Vulnerabilities)
+
+		advVulns := cdx.AdvisoriesToVulns(depsDevEnrichments, existingIDs, compRefs)
+		bom.Vulnerabilities = append(bom.Vulnerabilities, advVulns...)
+
+		signalVulns := cdx.SignalsToVulns(depsDevEnrichments, compRefs)
+		bom.Vulnerabilities = append(bom.Vulnerabilities, signalVulns...)
+
+		advCount := depsdev.AdvisoryCount(depsDevEnrichments, existingIDs)
+		signals := depsdev.SummarizeSignals(depsDevEnrichments)
+		if advCount > 0 || signals.LowScorecardCount > 0 || signals.OutdatedCount > 0 || signals.MissingProvenanceCount > 0 {
+			fmt.Fprintf(os.Stderr, "\ndeps.dev enrichment: %d advisories, %d low-scorecard, %d outdated, %d missing-provenance\n",
+				advCount, signals.LowScorecardCount, signals.OutdatedCount, signals.MissingProvenanceCount)
+		}
+	}
+
 	// ── License analysis (unless --no-licenses) ────────────────────────────
 	var licenseResult *license.AnalysisResult
 	if !noLicenses {
@@ -768,6 +828,10 @@ func runLocalScan(
 		if licenseResult != nil && len(licenseResult.Findings) > 0 {
 			printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
 		}
+		// Append supply-chain health summary from deps.dev.
+		if !noDepsDev && len(depsDevEnrichments) > 0 {
+			printDepsDevSummary(depsDevEnrichments, bom)
+		}
 		if severityBreak {
 			fmt.Fprintln(os.Stderr)
 			fmt.Fprintf(os.Stderr, "  ✗ Severity threshold breached: --%s %s triggered by %d %s\n",
@@ -788,6 +852,15 @@ func runLocalScan(
 	}
 	// Re-build with the requested spec version for stdout.
 	outBOM := cdx.BuildFromLocalScan(localResults, specVersion, scanCtx, seedBOM)
+	// Apply deps.dev enrichment to the output BOM too.
+	if !noDepsDev && len(depsDevEnrichments) > 0 {
+		enrichMap := depsdev.EnrichmentMap(depsDevEnrichments)
+		cdx.EnrichComponentsFromDepsDev(outBOM, enrichMap)
+		compRefs := cdx.ComponentRefs(outBOM)
+		existingIDs := cdx.CollectExistingVulnIDs(outBOM.Vulnerabilities)
+		outBOM.Vulnerabilities = append(outBOM.Vulnerabilities, cdx.AdvisoriesToVulns(depsDevEnrichments, existingIDs, compRefs)...)
+		outBOM.Vulnerabilities = append(outBOM.Vulnerabilities, cdx.SignalsToVulns(depsDevEnrichments, compRefs)...)
+	}
 	if err := outBOM.WriteJSON(os.Stdout); err != nil {
 		return err
 	}
@@ -1894,6 +1967,42 @@ func buildPackagesFromCDX(components []cdx.Component, sourceFile string) []scan.
 	return pkgs
 }
 
+// printDepsDevSummary renders a supply-chain health section to stderr.
+func printDepsDevSummary(enrichments []depsdev.PackageEnrichment, bom *cdx.BOM) {
+	existingIDs := cdx.CollectExistingVulnIDs(bom.Vulnerabilities)
+	advCount := depsdev.AdvisoryCount(enrichments, existingIDs)
+	signals := depsdev.SummarizeSignals(enrichments)
+
+	// Don't print if there's nothing to report.
+	if advCount == 0 && signals.LowScorecardCount == 0 && signals.OutdatedCount == 0 && signals.MissingProvenanceCount == 0 {
+		return
+	}
+
+	t := display.NewTerminal()
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, display.Divider(t))
+	fmt.Fprintln(os.Stderr, display.Bold(t, "  Supply Chain Health (deps.dev)"))
+	fmt.Fprintln(os.Stderr)
+
+	if advCount > 0 {
+		fmt.Fprintf(os.Stderr, "    %s %d %s found via deps.dev (not in VDB)\n",
+			display.WarningMark(t), advCount, pluralise("advisory", advCount))
+	}
+	if signals.LowScorecardCount > 0 {
+		fmt.Fprintf(os.Stderr, "    %s %d %s with low OpenSSF Scorecard (< 4.0/10)\n",
+			display.WarningMark(t), signals.LowScorecardCount, pluralise("package", signals.LowScorecardCount))
+	}
+	if signals.OutdatedCount > 0 {
+		fmt.Fprintf(os.Stderr, "    %s %d significantly outdated %s\n",
+			display.WarningMark(t), signals.OutdatedCount, pluralise("package", signals.OutdatedCount))
+	}
+	if signals.MissingProvenanceCount > 0 {
+		fmt.Fprintf(os.Stderr, "      %d %s missing SLSA provenance\n",
+			signals.MissingProvenanceCount, pluralise("package", signals.MissingProvenanceCount))
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
 func init() {
 	rootCmd.AddCommand(scanCmd)
 	scanCmd.AddCommand(scanStatusCmd)
@@ -1909,6 +2018,7 @@ func init() {
 	scanCmd.Flags().Bool("no-exploits", false, "Suppress detailed exploit intelligence section")
 	scanCmd.Flags().Bool("no-remediation", false, "Suppress detailed remediation section")
 	scanCmd.Flags().Bool("no-licenses", false, "Skip license analysis during scan")
+	scanCmd.Flags().Bool("no-depsdev", false, "Skip deps.dev enrichment (advisories, scorecard, provenance, version freshness)")
 	scanCmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")
 
 	// --dry-run flag
