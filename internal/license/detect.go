@@ -11,7 +11,8 @@ import (
 // DetectLicenses takes already-parsed packages and resolves their licenses.
 // It reads the original manifest files to extract license fields where possible,
 // falling back to the embedded SPDX database for well-known packages.
-func DetectLicenses(packages []scan.ScopedPackage) []PackageLicense {
+// When groups is non-nil, dependency paths are computed for each package.
+func DetectLicenses(packages []scan.ScopedPackage, groups []scan.ManifestGroup) []PackageLicense {
 	result := make([]PackageLicense, 0, len(packages))
 
 	// Group packages by source file so we only read each manifest once.
@@ -104,7 +105,60 @@ func DetectLicenses(packages []scan.ScopedPackage) []PackageLicense {
 	// 7. Batch-resolve remaining UNKNOWNs via GitHub (gh CLI or API with PAT).
 	BatchFetchGitHubLicenses(result, nil)
 
+	// 8. Compute dependency provenance paths from ManifestGroups.
+	computeProvenance(result, groups)
+
 	return result
+}
+
+// computeProvenance fills IntroducedPaths and PathCount on each PackageLicense
+// using the dependency graphs from ManifestGroups.
+func computeProvenance(packages []PackageLicense, groups []scan.ManifestGroup) {
+	if len(groups) == 0 {
+		return
+	}
+
+	for i := range packages {
+		pkg := &packages[i]
+
+		// Find the matching ManifestGroup for this package's ecosystem and source file.
+		for _, mg := range groups {
+			if mg.Graph == nil {
+				continue
+			}
+
+			// Match by ecosystem and directory.
+			if !strings.EqualFold(mg.Ecosystem, pkg.Ecosystem) {
+				continue
+			}
+
+			// Check if this package's source file belongs to this group.
+			inGroup := false
+			for _, f := range mg.Files {
+				if f == pkg.SourceFile {
+					inGroup = true
+					break
+				}
+			}
+			if !inGroup {
+				continue
+			}
+
+			if mg.Graph.IsDirect(pkg.PackageName) {
+				pkg.PathCount = 1
+				// Direct deps have no introduction chain — they ARE the root.
+			} else {
+				chain := mg.Graph.FindPath(pkg.PackageName)
+				if len(chain) > 1 {
+					pkg.IntroducedPaths = append(pkg.IntroducedPaths, chain)
+					pkg.PathCount = len(pkg.IntroducedPaths)
+				} else {
+					pkg.PathCount = 1 // couldn't determine path, but package exists
+				}
+			}
+			break // matched a group
+		}
+	}
 }
 
 // extractManifestLicenses reads a manifest file and returns a map of

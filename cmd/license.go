@@ -124,7 +124,36 @@ func runLicense(cmd *cobra.Command, args []string) error {
 
 	// ── Detect licenses ─────────────────────────────────────────────────
 	fmt.Fprintf(os.Stderr, "Resolving licenses for %d packages...\n", len(allPackages))
-	licensedPackages := license.DetectLicenses(allPackages)
+	// Build ManifestGroups for dependency path tracking.
+	filePackages := map[string][]scan.ScopedPackage{}
+	fileEcosystems := map[string]string{}
+	for _, m := range manifests {
+		fileEcosystems[m.RelPath] = m.ManifestInfo.Ecosystem
+	}
+	// Group allPackages by SourceFile (which the parsers set to RelPath or absolute path).
+	for _, pkg := range allPackages {
+		sf := pkg.SourceFile
+		filePackages[sf] = append(filePackages[sf], pkg)
+		// Also register the ecosystem for this source file.
+		if _, ok := fileEcosystems[sf]; !ok {
+			fileEcosystems[sf] = pkg.Ecosystem
+		}
+	}
+	manifestGroups := scan.BuildManifestGroups(filePackages, fileEcosystems)
+	for i := range manifestGroups {
+		mg := &manifestGroups[i]
+		if mg.Graph != nil && mg.Ecosystem == "golang" {
+			graphDir := mg.Dir
+			if !filepath.IsAbs(graphDir) {
+				graphDir = filepath.Join(rootPath, graphDir)
+			}
+			if err := mg.Graph.PopulateGoModGraph(graphDir); err != nil {
+				fmt.Fprintf(os.Stderr, "  warning: go mod graph failed in %s: %v\n", mg.Dir, err)
+			}
+		}
+	}
+
+	licensedPackages := license.DetectLicenses(allPackages, manifestGroups)
 
 	// Count resolved.
 	resolved := 0
@@ -161,6 +190,9 @@ func runLicense(cmd *cobra.Command, args []string) error {
 	if err := license.MergeBOM(sbomPath, cdxVulns, license.CDXSourceName); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not merge license findings into BOM: %v\n", err)
 	}
+
+	// Populate license data on BOM components and dependency tree.
+	license.PopulateBOMLicenses(sbomPath, result.Packages, manifestGroups)
 
 	// ── Write to memory ─────────────────────────────────────────────────
 	if !disableMemory {
@@ -338,6 +370,26 @@ func printPrettyLicenseSummary(result *license.AnalysisResult, sbomPath, vulneti
 		}
 
 		fmt.Fprintln(os.Stdout, display.Table(t, conflictCols, conflictRows))
+
+		// Show introduced paths for conflicts.
+		for _, c := range result.Conflicts {
+			if len(c.Package1Paths) > 0 {
+				for _, chain := range c.Package1Paths {
+					fmt.Fprintf(os.Stdout, "    %s %s (%s): %s\n",
+						display.Muted(t, "via"),
+						c.Package1, c.License1,
+						display.Muted(t, strings.Join(chain, " → ")))
+				}
+			}
+			if len(c.Package2Paths) > 0 {
+				for _, chain := range c.Package2Paths {
+					fmt.Fprintf(os.Stdout, "    %s %s (%s): %s\n",
+						display.Muted(t, "via"),
+						c.Package2, c.License2,
+						display.Muted(t, strings.Join(chain, " → ")))
+				}
+			}
+		}
 	}
 
 	// ── Findings by severity ────────────────────────────────────────────
@@ -371,6 +423,18 @@ func printPrettyLicenseSummary(result *license.AnalysisResult, sbomPath, vulneti
 		}
 
 		fmt.Fprintln(os.Stdout, display.Table(t, findingCols, findingRows))
+
+		// Show introduced paths for findings that have them.
+		for _, f := range sorted {
+			if len(f.IntroducedPaths) > 0 {
+				for _, chain := range f.IntroducedPaths {
+					fmt.Fprintf(os.Stdout, "    %s %s: %s\n",
+						display.Muted(t, "via"),
+						f.Package.PackageName,
+						display.Muted(t, strings.Join(chain, " → ")))
+				}
+			}
+		}
 	}
 
 	fmt.Fprintln(os.Stdout, display.Divider(t))
@@ -454,15 +518,15 @@ func writeLicenseMemory(vulnetixDir string, result *license.AnalysisResult) {
 
 	for _, f := range result.Findings {
 		mem.Findings[f.ID] = memory.FindingRecord{
-			Package:   f.Package.PackageName,
-			Ecosystem: f.Package.Ecosystem,
-			Severity:  f.Severity,
-			Status:    "affected",
-			Source:    license.CDXSourceName,
-			Versions: &memory.VersionInfo{
-				Current: f.Package.PackageVersion,
-			},
-			SourceFiles: []string{f.Package.SourceFile},
+			Package:         f.Package.PackageName,
+			Ecosystem:       f.Package.Ecosystem,
+			Severity:        f.Severity,
+			Status:          "affected",
+			Source:           license.CDXSourceName,
+			Versions:         &memory.VersionInfo{Current: f.Package.PackageVersion},
+			SourceFiles:     []string{f.Package.SourceFile},
+			IntroducedPaths: f.IntroducedPaths,
+			PathCount:       f.PathCount,
 		}
 	}
 

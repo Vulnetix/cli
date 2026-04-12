@@ -412,3 +412,85 @@ func localEcosystemToPurlType(ecosystem string) string {
 		return ecosystem
 	}
 }
+
+// PopulateLicenses sets the Licenses field on BOM components using a license map.
+// The map key is "name@version" → SPDX license ID or expression.
+func PopulateLicenses(bom *BOM, licenseMap map[string]string) {
+	if bom == nil || len(licenseMap) == 0 {
+		return
+	}
+	for i := range bom.Components {
+		c := &bom.Components[i]
+		compKey := c.Name + "@" + c.Version
+		spdxID, ok := licenseMap[compKey]
+		if !ok || spdxID == "" || spdxID == "UNKNOWN" {
+			continue
+		}
+		// If expression contains OR/AND, use expression field; else use license.id.
+		upper := strings.ToUpper(spdxID)
+		if strings.Contains(upper, " OR ") || strings.Contains(upper, " AND ") {
+			c.Licenses = []LicenseChoice{{Expression: spdxID}}
+		} else {
+			c.Licenses = []LicenseChoice{{License: &LicenseData{ID: spdxID}}}
+		}
+	}
+}
+
+// BuildDependencies creates the CycloneDX dependencies array from ManifestGroup edges.
+// compRefs maps "name@version" → bom-ref for cross-referencing.
+func BuildDependencies(groups []scan.ManifestGroup, compRefs map[string]string) []CDXDependency {
+	// Build name → bom-ref index (without version, since edges use bare names).
+	nameToRef := map[string]string{}
+	for key, ref := range compRefs {
+		// key is "name@version"; extract name.
+		if idx := strings.LastIndex(key, "@"); idx > 0 {
+			name := key[:idx]
+			if _, exists := nameToRef[name]; !exists {
+				nameToRef[name] = ref
+			}
+		}
+	}
+
+	seen := map[string]bool{}
+	var deps []CDXDependency
+
+	for _, mg := range groups {
+		if mg.Graph == nil || mg.Graph.Edges == nil {
+			continue
+		}
+		for parent, children := range mg.Graph.Edges {
+			parentRef, ok := nameToRef[parent]
+			if !ok {
+				continue
+			}
+			if seen[parentRef] {
+				continue
+			}
+			seen[parentRef] = true
+
+			var childRefs []string
+			for _, child := range children {
+				if childRef, ok := nameToRef[child]; ok {
+					childRefs = append(childRefs, childRef)
+				}
+			}
+			deps = append(deps, CDXDependency{
+				Ref:          parentRef,
+				Dependencies: childRefs,
+			})
+		}
+	}
+
+	return deps
+}
+
+// ExportCompRefs returns the component reference map built during BuildFromLocalScan.
+// This is a helper to expose compRefs for dependency tree building without changing
+// BuildFromLocalScan's signature.
+func ExportCompRefs(bom *BOM) map[string]string {
+	refs := make(map[string]string, len(bom.Components))
+	for _, c := range bom.Components {
+		refs[c.Name+"@"+c.Version] = c.BOMRef
+	}
+	return refs
+}

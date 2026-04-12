@@ -15,7 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/vulnetix/cli/internal/gitctx"
 	"github.com/vulnetix/cli/internal/scan"
-	"github.com/vulnetix/cli/internal/vdb"
+	"github.com/vulnetix/cli/pkg/vdb"
 )
 
 // Phase represents the current phase of the scan TUI.

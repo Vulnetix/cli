@@ -12,17 +12,17 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/internal/analytics"
-	"github.com/vulnetix/cli/internal/auth"
-	"github.com/vulnetix/cli/internal/cache"
+	"github.com/vulnetix/cli/pkg/auth"
+	"github.com/vulnetix/cli/pkg/cache"
 	"github.com/vulnetix/cli/internal/cdx"
 	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/gitctx"
 	"github.com/vulnetix/cli/internal/license"
 	"github.com/vulnetix/cli/internal/memory"
 	"github.com/vulnetix/cli/internal/scan"
-	"github.com/vulnetix/cli/internal/tty"
+	"github.com/vulnetix/cli/pkg/tty"
 	"github.com/vulnetix/cli/internal/tui"
-	"github.com/vulnetix/cli/internal/vdb"
+	"github.com/vulnetix/cli/pkg/vdb"
 )
 
 // SeverityBreachError is returned when --severity threshold is breached.
@@ -713,24 +713,36 @@ func runLocalScan(
 	// ── License analysis (unless --no-licenses) ────────────────────────────
 	var licenseResult *license.AnalysisResult
 	if !noLicenses {
-		licensedPackages := license.DetectLicenses(allPackages)
+		licensedPackages := license.DetectLicenses(allPackages, manifestGroups)
 		licenseResult = license.Evaluate(licensedPackages, license.EvalConfig{Mode: "inclusive"})
 
 		// Append license findings as CDX vulnerabilities.
 		licenseVulns := license.FindingsToCDXVulnerabilities(licenseResult.Findings, licenseResult.Packages)
 		bom.Vulnerabilities = append(bom.Vulnerabilities, licenseVulns...)
 
+		// Populate license data on BOM components.
+		licenseMap := make(map[string]string)
+		for _, pkg := range licensedPackages {
+			key := pkg.PackageName + "@" + pkg.PackageVersion
+			if pkg.LicenseSpdxID != "UNKNOWN" {
+				licenseMap[key] = pkg.LicenseSpdxID
+			}
+		}
+		cdx.PopulateLicenses(bom, licenseMap)
+
 		// Write license findings to memory.
 		if !disableMemory && mem != nil && len(licenseResult.Findings) > 0 {
 			for _, f := range licenseResult.Findings {
 				mem.Findings[f.ID] = memory.FindingRecord{
-					Package:   f.Package.PackageName,
-					Ecosystem: f.Package.Ecosystem,
-					Severity:  f.Severity,
-					Status:    "affected",
-					Source:    license.CDXSourceName,
-					Versions:  &memory.VersionInfo{Current: f.Package.PackageVersion},
-					SourceFiles: []string{f.Package.SourceFile},
+					Package:         f.Package.PackageName,
+					Ecosystem:       f.Package.Ecosystem,
+					Severity:        f.Severity,
+					Status:          "affected",
+					Source:           license.CDXSourceName,
+					Versions:         &memory.VersionInfo{Current: f.Package.PackageVersion},
+					SourceFiles:     []string{f.Package.SourceFile},
+					IntroducedPaths: f.IntroducedPaths,
+					PathCount:       f.PathCount,
 				}
 			}
 			if err := memory.Save(vulnetixDir, mem); err != nil {
@@ -738,6 +750,10 @@ func runLocalScan(
 			}
 		}
 	}
+
+	// Populate dependency tree from manifest group edges.
+	compRefs := cdx.ExportCompRefs(bom)
+	bom.Dependencies = cdx.BuildDependencies(manifestGroups, compRefs)
 
 	if err := writeBOMToFile(bom, sbomPath); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)

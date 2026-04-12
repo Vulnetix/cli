@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/pkg/auth"
 	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/github"
 	"github.com/vulnetix/cli/internal/upload"

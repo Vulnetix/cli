@@ -30,9 +30,11 @@ type PackageLicense struct {
 	Scope          string         `json:"scope"`
 	LicenseSpdxID  string         `json:"licenseSpdxId"`
 	LicenseSource  string         `json:"licenseSource"` // "manifest", "lockfile", "embedded-db"
-	SourceFile     string         `json:"sourceFile"`
-	IsDirect       bool           `json:"isDirect"`
-	Record         *LicenseRecord `json:"record,omitempty"`
+	SourceFile      string         `json:"sourceFile"`
+	IsDirect        bool           `json:"isDirect"`
+	Record          *LicenseRecord `json:"record,omitempty"`
+	IntroducedPaths [][]string     `json:"introducedPaths,omitempty"`
+	PathCount       int            `json:"pathCount,omitempty"`
 }
 
 // LicenseConflict describes an incompatibility between two licenses.
@@ -43,8 +45,10 @@ type LicenseConflict struct {
 	License2       string `json:"license2"`
 	Package1       string `json:"package1"`
 	Package2       string `json:"package2"`
-	Description    string `json:"description"`
-	Recommendation string `json:"recommendation"`
+	Description    string     `json:"description"`
+	Recommendation string     `json:"recommendation"`
+	Package1Paths  [][]string `json:"package1Paths,omitempty"`
+	Package2Paths  [][]string `json:"package2Paths,omitempty"`
 }
 
 // EvidenceStep is one step in a rule evaluation trace.
@@ -63,9 +67,11 @@ type Finding struct {
 	Description string         `json:"description"`
 	Severity    string         `json:"severity"`
 	Confidence  float64        `json:"confidence"`
-	Package     PackageLicense `json:"package"`
-	Category    string         `json:"category"` // rule category
-	Evidence    []EvidenceStep `json:"evidence"`
+	Package         PackageLicense `json:"package"`
+	Category        string         `json:"category"` // rule category
+	Evidence        []EvidenceStep `json:"evidence"`
+	IntroducedPaths [][]string     `json:"introducedPaths,omitempty"`
+	PathCount       int            `json:"pathCount,omitempty"`
 }
 
 // AnalysisSummary provides aggregate counts.

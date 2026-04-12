@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/internal/auth"
+	"github.com/vulnetix/cli/pkg/auth"
 )
 
 const (

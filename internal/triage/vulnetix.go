@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/internal/memory"
-	"github.com/vulnetix/cli/internal/vdb"
+	"github.com/vulnetix/cli/pkg/vdb"
 )
 
 func init() {

@@ -1,6 +1,8 @@
 package scan
 
 import (
+	"encoding/json"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -139,6 +141,66 @@ func stripVersion(mod string) string {
 		return mod[:idx]
 	}
 	return mod
+}
+
+// PopulateNpmLockEdges parses package-lock.json (v2/v3) and populates the
+// Edges map from the nested node_modules path structure.
+// In v3 format, the key "node_modules/foo/node_modules/bar" means foo depends on bar.
+func (g *DepGraph) PopulateNpmLockEdges(lockFilePath string) error {
+	if g == nil {
+		return nil
+	}
+	data, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return err
+	}
+
+	var lock struct {
+		LockfileVersion int                    `json:"lockfileVersion"`
+		Packages        map[string]interface{} `json:"packages"`
+	}
+	if err := json.Unmarshal(data, &lock); err != nil {
+		return err
+	}
+
+	if g.Edges == nil {
+		g.Edges = make(map[string][]string)
+	}
+
+	// Build edges from the nested node_modules path structure.
+	// "node_modules/express/node_modules/body-parser" → express depends on body-parser
+	// "node_modules/express" (no nesting) → root depends on express
+	for path := range lock.Packages {
+		if path == "" {
+			continue // root package
+		}
+		// Strip leading "node_modules/"
+		cleaned := path
+		if strings.HasPrefix(cleaned, "node_modules/") {
+			cleaned = strings.TrimPrefix(cleaned, "node_modules/")
+		}
+
+		// Find the last "node_modules/" separator to determine parent → child.
+		if idx := strings.LastIndex(cleaned, "/node_modules/"); idx >= 0 {
+			parent := cleaned[:idx]
+			// Handle scoped packages in parent (e.g., @scope/pkg).
+			child := cleaned[idx+len("/node_modules/"):]
+			seen := false
+			for _, existing := range g.Edges[parent] {
+				if existing == child {
+					seen = true
+					break
+				}
+			}
+			if !seen {
+				g.Edges[parent] = append(g.Edges[parent], child)
+			}
+		}
+		// Top-level packages (no nested node_modules) are direct deps — no edge needed
+		// since they're already in DirectDeps.
+	}
+
+	return nil
 }
 
 // BuildGoDepGraph correlates go.mod (direct) and go.sum (all) packages from the
@@ -306,6 +368,7 @@ func BuildManifestGroups(filePackages map[string][]ScopedPackage, fileEcosystems
 			}
 		case "npm":
 			var directPkgs, lockPkgs []ScopedPackage
+			var lockFilePath string
 			for relPath, pkgs := range gd.files {
 				base := strings.ToLower(filepath.Base(relPath))
 				switch base {
@@ -313,10 +376,17 @@ func BuildManifestGroups(filePackages map[string][]ScopedPackage, fileEcosystems
 					directPkgs = pkgs
 				case "package-lock.json", "yarn.lock", "pnpm-lock.yaml":
 					lockPkgs = pkgs
+					if base == "package-lock.json" {
+						lockFilePath = relPath
+					}
 				}
 			}
 			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
 				mg.Graph = BuildNpmDepGraph(directPkgs, lockPkgs)
+				// Populate edges from package-lock.json nesting structure.
+				if lockFilePath != "" && mg.Graph != nil {
+					_ = mg.Graph.PopulateNpmLockEdges(lockFilePath)
+				}
 			}
 		case "rubygems":
 			var directPkgs, lockPkgs []ScopedPackage

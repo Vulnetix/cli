@@ -11,7 +11,7 @@ import (
 	"github.com/vulnetix/cli/internal/cdx"
 	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/scan"
-	"github.com/vulnetix/cli/internal/vdb"
+	"github.com/vulnetix/cli/pkg/vdb"
 )
 
 // LoadFromMemory reconstructs the scan pretty output from .vulnetix/sbom.cdx.json.
