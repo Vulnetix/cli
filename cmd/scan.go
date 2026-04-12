@@ -17,6 +17,7 @@ import (
 	"github.com/vulnetix/cli/internal/cdx"
 	"github.com/vulnetix/cli/internal/display"
 	"github.com/vulnetix/cli/internal/gitctx"
+	"github.com/vulnetix/cli/internal/license"
 	"github.com/vulnetix/cli/internal/memory"
 	"github.com/vulnetix/cli/internal/scan"
 	"github.com/vulnetix/cli/internal/tty"
@@ -144,6 +145,7 @@ Examples:
 		showPaths, _ := cmd.Flags().GetBool("paths")
 		noExploits, _ := cmd.Flags().GetBool("no-exploits")
 		noRemediation, _ := cmd.Flags().GetBool("no-remediation")
+		noLicenses, _ := cmd.Flags().GetBool("no-licenses")
 		severityThreshold, _ := cmd.Flags().GetString("severity")
 
 		// Normalise and validate the severity threshold.
@@ -272,6 +274,7 @@ Examples:
 			showPaths,
 			noExploits,
 			noRemediation,
+			noLicenses,
 			severityThreshold,
 			seedBOM,
 			vulnetixSeedBOM,
@@ -339,6 +342,7 @@ func runLocalScan(
 	showPaths bool,
 	noExploits bool,
 	noRemediation bool,
+	noLicenses bool,
 	severityThreshold string,
 	seedBOM *cdx.BOM,
 	vulnetixSeedBOM *cdx.BOM,
@@ -706,6 +710,35 @@ func runLocalScan(
 		bom.Vulnerabilities = append(bom.Vulnerabilities, vexVuln)
 	}
 
+	// ── License analysis (unless --no-licenses) ────────────────────────────
+	var licenseResult *license.AnalysisResult
+	if !noLicenses {
+		licensedPackages := license.DetectLicenses(allPackages)
+		licenseResult = license.Evaluate(licensedPackages, license.EvalConfig{Mode: "inclusive"})
+
+		// Append license findings as CDX vulnerabilities.
+		licenseVulns := license.FindingsToCDXVulnerabilities(licenseResult.Findings, licenseResult.Packages)
+		bom.Vulnerabilities = append(bom.Vulnerabilities, licenseVulns...)
+
+		// Write license findings to memory.
+		if !disableMemory && mem != nil && len(licenseResult.Findings) > 0 {
+			for _, f := range licenseResult.Findings {
+				mem.Findings[f.ID] = memory.FindingRecord{
+					Package:   f.Package.PackageName,
+					Ecosystem: f.Package.Ecosystem,
+					Severity:  f.Severity,
+					Status:    "affected",
+					Source:    license.CDXSourceName,
+					Versions:  &memory.VersionInfo{Current: f.Package.PackageVersion},
+					SourceFiles: []string{f.Package.SourceFile},
+				}
+			}
+			if err := memory.Save(vulnetixDir, mem); err != nil {
+				fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml with license findings: %v\n", err)
+			}
+		}
+	}
+
 	if err := writeBOMToFile(bom, sbomPath); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
 	}
@@ -731,6 +764,10 @@ func runLocalScan(
 	// If no format is specified and we are in a terminal, print a pretty summary.
 	if outputFmt == "" && isInteractive {
 		printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, sbomPath, vulnetixDir, rulesPath, severityThreshold)
+		// Append license summary if license analysis was run.
+		if licenseResult != nil && len(licenseResult.Findings) > 0 {
+			printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
+		}
 		if severityBreak {
 			fmt.Fprintln(os.Stderr)
 			fmt.Fprintf(os.Stderr, "  ✗ Severity threshold breached: --%s %s triggered by %d %s\n",
@@ -1871,6 +1908,7 @@ func init() {
 	scanCmd.Flags().Bool("paths", false, "Show full transitive dependency paths (requires Go toolchain for Go modules)")
 	scanCmd.Flags().Bool("no-exploits", false, "Suppress detailed exploit intelligence section")
 	scanCmd.Flags().Bool("no-remediation", false, "Suppress detailed remediation section")
+	scanCmd.Flags().Bool("no-licenses", false, "Skip license analysis during scan")
 	scanCmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")
 
 	// --dry-run flag

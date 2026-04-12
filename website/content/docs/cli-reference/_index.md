@@ -183,6 +183,32 @@ vulnetix gha status --uuid <UUID>
 
 ---
 
+### vulnetix license
+
+Analyze package licenses for conflicts, policy compliance, and risk. See the full [License Command Reference](license/) for details.
+
+```bash
+vulnetix license [flags]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `.` | Directory to scan |
+| `--depth` | `3` | Max recursion depth |
+| `--exclude` | - | Exclude paths matching glob (repeatable) |
+| `--mode` | `inclusive` | Analysis mode: `inclusive` or `individual` |
+| `--allow` | - | Comma-separated allow list of SPDX IDs |
+| `--allow-file` | - | Path to YAML allow list file |
+| `-o, --output` | pretty | Output format: `json` (CycloneDX), `json-spdx` (SPDX 2.3) |
+| `--results-only` | `false` | Only show output when there are findings or conflicts |
+| `--severity` | - | Exit `1` if any finding meets or exceeds: `low`, `medium`, `high`, `critical` |
+| `--from-memory` | `false` | Reconstruct from `.vulnetix/memory.yaml` without re-scanning |
+| `--dry-run` | `false` | Detect files and parse packages only — no evaluation |
+
+> License analysis also runs automatically during `vulnetix scan` (disable with `--no-licenses`).
+
+---
+
 ### vulnetix scan
 
 Walk the local directory tree, parse package manifests, and query the VDB for vulnerabilities — no files are uploaded. See the full [Scan Command Reference](scan/) for details.
@@ -203,7 +229,10 @@ vulnetix scan status <scan-id> [flags]
 | `--paths` | `false` | Show full transitive dependency paths |
 | `--no-exploits` | `false` | Suppress exploit intelligence section |
 | `--no-remediation` | `false` | Suppress remediation section |
+| `--no-licenses` | `false` | Skip license analysis during scan |
 | `--severity` | - | Exit `1` if any vuln meets or exceeds: `low`, `medium`, `high`, `critical` |
+| `--dry-run` | `false` | Detect files and parse packages only — zero API calls |
+| `--from-memory` | `false` | Reconstruct from `.vulnetix/sbom.cdx.json` without API calls |
 
 ---
 
@@ -509,7 +538,8 @@ These flags are available on the root command and inherited by subcommands:
 | `VULNETIX_ORG_ID` | Organization ID for Direct API Key auth | `auth`, `upload`, `vdb`, `triage` |
 | `VVD_ORG` | Organization UUID for SigV4 auth | `vdb`, `auth` |
 | `VVD_SECRET` | Secret key for SigV4 auth | `vdb`, `auth` |
-| `GITHUB_TOKEN` | GitHub API token | `gha upload` |
+| `GITHUB_TOKEN` | GitHub API token (also used for license resolution fallback) | `gha upload`, `license`, `scan` |
+| `GH_TOKEN` | Alternative GitHub token variable (checked if `GITHUB_TOKEN` is not set) | `license`, `scan` |
 | `GITHUB_REPOSITORY` | GitHub repository (owner/name) | `gha upload`, `triage` (auto-detect) |
 | `GITHUB_RUN_ID` | GitHub Actions workflow run ID | `gha upload` |
 | `GITHUB_API_URL` | GitHub API base URL (default: `https://api.github.com`) | `gha upload` |
