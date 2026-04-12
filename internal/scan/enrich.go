@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/vulnetix/cli/internal/update"
-	"github.com/vulnetix/cli/internal/vdb"
+	"github.com/vulnetix/cli/pkg/vdb"
 )
 
 // EnrichedVuln extends VulnFinding with version-filtered, enriched data.
