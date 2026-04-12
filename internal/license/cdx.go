@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vulnetix/cli/internal/cdx"
+	"github.com/vulnetix/cli/internal/scan"
 )
 
 const CDXSourceName = "vulnetix-license-analyzer"
@@ -60,6 +61,24 @@ func FindingsToCDXVulnerabilities(findings []Finding, packages []PackageLicense)
 		pkgKey := f.Package.PackageName + "@" + f.Package.PackageVersion
 		if ref, ok := bomRefMap[pkgKey]; ok {
 			v.Affects = []cdx.Affect{{Ref: ref}}
+		}
+
+		// Provenance properties.
+		if f.Package.IsDirect {
+			v.Properties = append(v.Properties, cdx.Property{Name: "vulnetix:is-direct", Value: "true"})
+		} else {
+			v.Properties = append(v.Properties, cdx.Property{Name: "vulnetix:is-direct", Value: "false"})
+		}
+		if f.PathCount > 0 {
+			v.Properties = append(v.Properties, cdx.Property{
+				Name: "vulnetix:path-count", Value: fmt.Sprintf("%d", f.PathCount),
+			})
+		}
+		for pi, chain := range f.IntroducedPaths {
+			v.Properties = append(v.Properties, cdx.Property{
+				Name:  fmt.Sprintf("vulnetix:introduced-path-%d", pi),
+				Value: strings.Join(chain, " → "),
+			})
 		}
 
 		// Serialize evidence as properties.
@@ -121,4 +140,63 @@ func MergeBOM(existingPath string, newVulns []cdx.Vulnerability, source string) 
 	}
 
 	return os.WriteFile(existingPath, out, 0o644)
+}
+
+// PopulateBOMLicenses reads an existing BOM, populates component licenses and
+// the dependency tree, then writes it back. This is used by the standalone
+// license command to enrich an existing BOM without rebuilding it.
+// If the BOM has no components, they are created from the package list.
+func PopulateBOMLicenses(bomPath string, packages []PackageLicense, groups []scan.ManifestGroup) {
+	data, err := os.ReadFile(bomPath)
+	if err != nil {
+		return
+	}
+	var bom cdx.BOM
+	if err := json.Unmarshal(data, &bom); err != nil {
+		return
+	}
+
+	// If the BOM has no components, create them from license packages.
+	if len(bom.Components) == 0 {
+		seen := map[string]bool{}
+		for _, pkg := range packages {
+			key := pkg.PackageName + "@" + pkg.PackageVersion
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			eco := strings.ToLower(pkg.Ecosystem)
+			purl := fmt.Sprintf("pkg:%s/%s@%s", eco, pkg.PackageName, pkg.PackageVersion)
+			bom.Components = append(bom.Components, cdx.Component{
+				Type:    "library",
+				BOMRef:  purl,
+				Name:    pkg.PackageName,
+				Version: pkg.PackageVersion,
+				Purl:    purl,
+				Properties: []cdx.Property{
+					{Name: "vulnetix:ecosystem", Value: pkg.Ecosystem},
+					{Name: "vulnetix:scope", Value: pkg.Scope},
+				},
+			})
+		}
+	}
+
+	// Build license map.
+	licenseMap := make(map[string]string)
+	for _, pkg := range packages {
+		if pkg.LicenseSpdxID != "UNKNOWN" {
+			licenseMap[pkg.PackageName+"@"+pkg.PackageVersion] = pkg.LicenseSpdxID
+		}
+	}
+	cdx.PopulateLicenses(&bom, licenseMap)
+
+	// Build dependency tree.
+	compRefs := cdx.ExportCompRefs(&bom)
+	bom.Dependencies = cdx.BuildDependencies(groups, compRefs)
+
+	out, err := json.MarshalIndent(bom, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(bomPath, out, 0o644)
 }

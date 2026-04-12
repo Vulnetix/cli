@@ -22,7 +22,14 @@ type BOM struct {
 	Version         int             `json:"version"`
 	Metadata        *Metadata       `json:"metadata,omitempty"`
 	Components      []Component     `json:"components,omitempty"`
+	Dependencies    []CDXDependency `json:"dependencies,omitempty"`
 	Vulnerabilities []Vulnerability `json:"vulnerabilities,omitempty"`
+}
+
+// CDXDependency represents a CycloneDX dependency graph node.
+type CDXDependency struct {
+	Ref          string   `json:"ref"`
+	Dependencies []string `json:"dependencies,omitempty"`
 }
 
 // Metadata describes the BOM creation context (CycloneDX 1.5+).
@@ -64,10 +71,25 @@ type Component struct {
 	Description string `json:"description,omitempty"`
 	Scope       string `json:"scope,omitempty"`
 	Purl        string `json:"purl,omitempty"`
+	// Licenses is a CycloneDX 1.5+ licenseChoice array.
+	Licenses []LicenseChoice `json:"licenses,omitempty"`
 	// Authors is supported in CycloneDX 1.6+.
 	Authors            []OrganizationalContact `json:"authors,omitempty"`
 	ExternalReferences []ExternalReference     `json:"externalReferences,omitempty"`
 	Properties         []Property              `json:"properties,omitempty"`
+}
+
+// LicenseChoice represents either a specific license or an SPDX expression.
+type LicenseChoice struct {
+	License    *LicenseData `json:"license,omitempty"`
+	Expression string       `json:"expression,omitempty"`
+}
+
+// LicenseData describes a specific license.
+type LicenseData struct {
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+	URL  string `json:"url,omitempty"`
 }
 
 // ExternalReference is an external URL resource associated with a component or the BOM.
