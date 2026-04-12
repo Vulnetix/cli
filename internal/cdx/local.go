@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vulnetix/cli/internal/depsdev"
 	"github.com/vulnetix/cli/internal/scan"
 )
 
@@ -411,4 +412,127 @@ func localEcosystemToPurlType(ecosystem string) string {
 	default:
 		return ecosystem
 	}
+}
+
+// ---------------------------------------------------------------------------
+// deps.dev component enrichment
+// ---------------------------------------------------------------------------
+
+// EnrichComponentsFromDepsDev augments BOM components with metadata from deps.dev:
+// external references (repo, homepage, issue tracker), published timestamps,
+// version freshness, scorecard scores, and provenance attestations.
+//
+// enrichments is keyed by "name@version".
+func EnrichComponentsFromDepsDev(bom *BOM, enrichments map[string]*depsdev.PackageEnrichment) {
+	if bom == nil || len(enrichments) == 0 {
+		return
+	}
+
+	for i := range bom.Components {
+		comp := &bom.Components[i]
+		key := comp.Name + "@" + comp.Version
+		e, ok := enrichments[key]
+		if !ok || e.Error != nil {
+			continue
+		}
+
+		// External references from version links.
+		if e.VersionData != nil {
+			for _, link := range e.VersionData.Links {
+				refType := mapLinkLabelToCDX(link.Label)
+				if refType == "" || link.URL == "" {
+					continue
+				}
+				if !hasExternalRef(comp.ExternalReferences, link.URL) {
+					comp.ExternalReferences = append(comp.ExternalReferences, ExternalReference{
+						Type: refType,
+						URL:  link.URL,
+					})
+				}
+			}
+
+			// Published timestamp.
+			if e.VersionData.PublishedAt != "" {
+				comp.Properties = appendPropIfMissing(comp.Properties,
+					"vulnetix:published-at", e.VersionData.PublishedAt)
+			}
+
+			// SLSA provenance.
+			hasProv := len(e.VersionData.SLSAProvenances) > 0
+			comp.Properties = appendPropIfMissing(comp.Properties,
+				"vulnetix:has-provenance", boolStr(hasProv))
+			if hasProv {
+				for _, prov := range e.VersionData.SLSAProvenances {
+					if prov.Verified {
+						comp.Properties = appendPropIfMissing(comp.Properties,
+							"vulnetix:provenance-verified", "true")
+						break
+					}
+				}
+			}
+		}
+
+		// Latest version and freshness.
+		if e.LatestVersion != "" {
+			comp.Properties = appendPropIfMissing(comp.Properties,
+				"vulnetix:latest-version", e.LatestVersion)
+			isLatest := e.Version == e.LatestVersion
+			comp.Properties = appendPropIfMissing(comp.Properties,
+				"vulnetix:is-latest", boolStr(isLatest))
+		}
+
+		// OpenSSF Scorecard.
+		if e.Project != nil && e.Project.Scorecard != nil {
+			comp.Properties = appendPropIfMissing(comp.Properties,
+				"vulnetix:scorecard-score",
+				fmt.Sprintf("%.1f", e.Project.Scorecard.OverallScore))
+		}
+	}
+}
+
+// ComponentRefs returns a map of "name@version" → bom-ref for all components in the BOM.
+func ComponentRefs(bom *BOM) map[string]string {
+	refs := make(map[string]string, len(bom.Components))
+	for _, c := range bom.Components {
+		refs[c.Name+"@"+c.Version] = c.BOMRef
+	}
+	return refs
+}
+
+// mapLinkLabelToCDX maps deps.dev link labels to CycloneDX external reference types.
+func mapLinkLabelToCDX(label string) string {
+	switch strings.ToUpper(label) {
+	case "SOURCE_REPO":
+		return "vcs"
+	case "HOMEPAGE":
+		return "website"
+	case "ISSUE_TRACKER":
+		return "issue-tracker"
+	case "DOCUMENTATION":
+		return "documentation"
+	case "ORIGIN":
+		return "distribution"
+	default:
+		return ""
+	}
+}
+
+// hasExternalRef checks if a URL already exists in the external references.
+func hasExternalRef(refs []ExternalReference, url string) bool {
+	for _, r := range refs {
+		if r.URL == url {
+			return true
+		}
+	}
+	return false
+}
+
+// appendPropIfMissing appends a property only if no property with the same name exists.
+func appendPropIfMissing(props []Property, name, value string) []Property {
+	for _, p := range props {
+		if p.Name == name {
+			return props
+		}
+	}
+	return append(props, Property{Name: name, Value: value})
 }
