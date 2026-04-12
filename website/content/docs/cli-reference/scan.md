@@ -28,7 +28,13 @@ vulnetix scan status <scan-id> [flags]
 | `--paths` | bool | `false` | Show full transitive dependency paths (requires Go toolchain for Go modules) |
 | `--no-exploits` | bool | `false` | Suppress the detailed exploit intelligence section |
 | `--no-remediation` | bool | `false` | Suppress the detailed remediation section |
+| `--no-licenses` | bool | `false` | Skip license analysis during scan (license analysis runs by default) |
 | `--severity` | string | - | Exit with code `1` if any vulnerability meets or exceeds this level: `low`, `medium`, `high`, `critical`. Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC). |
+| `--dry-run` | bool | `false` | Detect files and parse packages locally, check memory, then exit — zero API calls |
+| `--from-memory` | bool | `false` | Reconstruct scan pretty output from `.vulnetix/sbom.cdx.json` without API calls |
+| `--fresh-exploits` | bool | `false` | With `--from-memory`: fetch latest exploit intel from API |
+| `--fresh-advisories` | bool | `false` | With `--from-memory`: fetch latest remediation plans from API |
+| `--fresh-vulns` | bool | `false` | With `--from-memory`: re-fetch affected version checks and latest scoring from API |
 
 ## Output Files
 
@@ -291,6 +297,18 @@ The scanner also detects and ingests existing SBOM documents:
 - **SPDX** JSON documents (identified by `spdxVersion` and `SPDXID` fields)
 - **CycloneDX** JSON documents (identified by `bomFormat: "CycloneDX"` and `specVersion`)
 
+## License Analysis
+
+By default, `vulnetix scan` also runs license analysis on all discovered packages. License findings appear in the pretty output after the vulnerability summary and are stored in the CycloneDX BOM with source `vulnetix-license-analyzer`.
+
+License resolution uses a multi-source pipeline (manifests, filesystem, container metadata, deps.dev, GitHub). See the [License Command Reference](license/) for full details on resolution sources, evaluation rules, and conflict detection.
+
+To skip license analysis:
+
+```bash
+vulnetix scan --no-licenses
+```
+
 ## Auto-Discovery
 
 The scanner walks the directory tree starting from `--path` up to `--depth` levels deep. It automatically skips common non-project directories:
@@ -360,6 +378,31 @@ vulnetix scan --severity low -f cdx17
 ```bash
 # Skip exploit intelligence and remediation details
 vulnetix scan --no-exploits --no-remediation
+```
+
+### Skip license analysis
+
+```bash
+vulnetix scan --no-licenses
+```
+
+### Dry run (detect files, no API calls)
+
+```bash
+vulnetix scan --dry-run
+```
+
+### Reconstruct results from previous scan
+
+```bash
+# From memory — no API calls
+vulnetix scan --from-memory
+
+# From memory with fresh exploit intel
+vulnetix scan --from-memory --fresh-exploits
+
+# From memory with fresh remediation plans
+vulnetix scan --from-memory --fresh-advisories
 ```
 
 ### Check scan status (legacy remote scan)
