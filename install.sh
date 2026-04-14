@@ -90,14 +90,32 @@ detect_downloader() {
   fi
 }
 
-# Returns the sha256 command and its argument style: "sha256sum" or "shasum"
+# Detect available sha256 tool, ordered most to least commonly available per platform:
+#   sha256sum  — GNU coreutils (Linux, Alpine/busybox, Git for Windows/MSYS)
+#   shasum     — Perl digest tool (macOS built-in, most Unix with Perl)
+#   sha256     — BSD native (FreeBSD, OpenBSD, NetBSD)
+#   openssl    — widely available fallback
+#   python3    — modern systems (macOS 10.15+, most Linux distros)
+#   python     — older Python 2 systems
+#   rhash      — available on some Linux distros (Fedora, Arch)
+#   certutil   — Windows (CYGWIN/MSYS/MinGW) last resort
 detect_sha256() {
   if command -v sha256sum >/dev/null 2>&1; then
     echo "sha256sum"
   elif command -v shasum >/dev/null 2>&1; then
     echo "shasum"
+  elif command -v sha256 >/dev/null 2>&1; then
+    echo "sha256"
   elif command -v openssl >/dev/null 2>&1; then
     echo "openssl"
+  elif command -v python3 >/dev/null 2>&1; then
+    echo "python3"
+  elif command -v python >/dev/null 2>&1 && python -c "import hashlib" 2>/dev/null; then
+    echo "python"
+  elif command -v rhash >/dev/null 2>&1; then
+    echo "rhash"
+  elif command -v certutil >/dev/null 2>&1; then
+    echo "certutil"
   else
     echo "none"
   fi
@@ -109,7 +127,12 @@ compute_sha256() {
   case "$tool" in
     sha256sum) sha256sum "$file" | awk '{print $1}' ;;
     shasum)    shasum -a 256 "$file" | awk '{print $1}' ;;
+    sha256)    sha256 -q "$file" ;;
     openssl)   openssl dgst -sha256 "$file" | awk '{print $NF}' ;;
+    python3)   python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$file" ;;
+    python)    python  -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$file" ;;
+    rhash)     rhash --sha256 --printf='%h\n' "$file" ;;
+    certutil)  certutil -hashfile "$file" SHA256 2>/dev/null | grep -v "^SHA256" | grep -v "CertUtil:" | tr -d ' \r\n' ;;
   esac
 }
 
