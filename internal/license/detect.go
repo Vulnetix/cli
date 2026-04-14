@@ -37,6 +37,7 @@ func DetectLicenses(packages []scan.ScopedPackage, groups []scan.ManifestGroup) 
 			Scope:          pkg.Scope,
 			SourceFile:     pkg.SourceFile,
 			IsDirect:       pkg.IsDirect,
+			GitHubURL:      pkg.GitHubURL,
 		}
 
 		// 1. Check manifest-extracted licenses.
@@ -99,10 +100,13 @@ func DetectLicenses(packages []scan.ScopedPackage, groups []scan.ManifestGroup) 
 		result = append(result, pl)
 	}
 
-	// 6. Batch-resolve remaining UNKNOWNs via deps.dev API.
+	// 6. Batch-resolve remaining UNKNOWNs via ecosystem-native registry APIs.
+	BatchFetchRegistryLicenses(result, nil)
+
+	// 7. Batch-resolve remaining UNKNOWNs via deps.dev API.
 	BatchFetchLicenses(result, nil)
 
-	// 7. Batch-resolve remaining UNKNOWNs via GitHub (gh CLI or API with PAT).
+	// 8. Batch-resolve remaining UNKNOWNs via GitHub (gh CLI or API with PAT).
 	BatchFetchGitHubLicenses(result, nil)
 
 	// 8. Compute dependency provenance paths from ManifestGroups.
@@ -427,6 +431,18 @@ var wellKnownLicenses = map[string]string{
 	"pypi:urllib3":     "MIT",
 	"pypi:certifi":     "MPL-2.0",
 	"pypi:click":       "BSD-3-Clause",
+
+	// CocoaPods popular / renamed pods
+	"cocoapods:Lottie":    "Apache-2.0", // renamed to lottie-ios; airbnb/lottie-ios
+	"cocoapods:Alamofire": "MIT",
+	"cocoapods:SDWebImage": "MIT",
+	"cocoapods:AFNetworking": "MIT",
+
+	// Ruby stdlib / dual-licensed packages
+	"gem:OptionParser":      "Ruby",     // Ruby stdlib, dual-licensed BSD-2-Clause OR Ruby
+	"rubygems:OptionParser": "Ruby",
+	"gem:optparse":          "Ruby",
+	"rubygems:optparse":     "Ruby",
 
 	// Rust popular crates
 	"cargo:serde":       "MIT",

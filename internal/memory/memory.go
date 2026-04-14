@@ -134,6 +134,7 @@ type FindingRecord struct {
 	Exploits        *ExploitInfo     `yaml:"exploits,omitempty"`
 	Remediation     *RemediationData `yaml:"remediation,omitempty"`
 	InCisaKev       bool             `yaml:"in_cisa_kev,omitempty"`
+	InEuKev         bool             `yaml:"in_eu_kev,omitempty"`
 	SourceFiles     []string         `yaml:"source_files,omitempty"`     // manifest files where this vuln was introduced
 	PathCount       int              `yaml:"path_count,omitempty"`       // number of dependency paths introducing this vuln
 	IntroducedPaths [][]string       `yaml:"introduced_paths,omitempty"` // dependency chains e.g. [[direct-dep, intermediate, vuln-pkg]]
@@ -372,6 +373,7 @@ func (m *Memory) RecordEnrichedFindings(findings []EnrichedFinding) {
 		existing.IsMalicious = f.IsMalicious
 		existing.Confirmed = f.Confirmed
 		existing.InCisaKev = f.InCisaKev
+		existing.InEuKev = f.InEuKev
 		existing.PathCount = f.PathCount
 		existing.Source = "vulnetix-sca"
 
@@ -539,6 +541,7 @@ type EnrichedFinding struct {
 	IsMalicious      bool
 	Confirmed        bool
 	InCisaKev        bool
+	InEuKev          bool
 	PathCount        int
 	SourceFiles      []string
 	IntroducedPaths  [][]string

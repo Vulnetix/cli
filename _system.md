@@ -46,6 +46,12 @@
     2. `--context` JSON string overrides
     3. Explicit flags (`--git-branch`, `--github-org`, etc.) — highest priority
 
+13. **Binary self-containment** — The CLI binary embeds all static reference data and requires no external files at runtime:
+    - **Embedded** (static, changes rarely): SPDX license database (`spdx_licenses.json` via `//go:embed`), well-known package→license mappings, Docker official image licenses, `ClassifyLicenseText` patterns, `NormalizeSPDX` rules.
+    - **Network-fetched** (fresh data on demand): ecosystem registry APIs (deps.dev, RubyGems, Hex.pm, Hackage, CRAN, Packagist, pub.dev, CocoaPods, JuliaRegistries, GitHub), VDB API, Terraform Registry, Docker Hub API.
+    - **Filesystem reads** (user's own project files): manifest files, Go module cache, user allow-list YAML.
+    - Nothing is read from a path relative to the binary; all lookups either use embedded data or network APIs.
+
 ---
 
 ## Environment Command
@@ -127,6 +133,77 @@ vulnerability management systems.
 
 ---
 
+## License Command
+
+`vulnetix license` scans a directory tree for package manifests, resolves each dependency's license, detects conflicts, and evaluates against an optional allow list. Everything runs locally — no packages or results are uploaded.
+
+### Flags
+
+| Flag | Default | Purpose |
+|------|---------|---------|
+| `--path` | `.` | Directory to scan |
+| `--depth` | `3` | Max manifest discovery depth |
+| `--exclude` | — | Glob patterns to skip (repeatable) |
+| `--mode` | `inclusive` | `inclusive` (cross-manifest conflicts) or `individual` (per-manifest) |
+| `--allow` | — | Comma-separated SPDX IDs that are allowed |
+| `--allow-file` | — | YAML file of allowed SPDX IDs |
+| `--severity` | — | Exit 1 if any finding meets or exceeds this level (`low`, `medium`, `high`, `critical`) |
+| `-o` / `--output` | pretty table | `json` (CycloneDX), `json-spdx` (SPDX 2.3) |
+| `--dry-run` | false | Detect files + parse packages; skip license evaluation |
+| `--from-memory` | false | Reconstruct prior results from `.vulnetix/memory.yaml` without re-scanning |
+| `--results-only` | false | Suppress full package table; show summary and findings only |
+
+### License Resolution Waterfall (8 tiers, in order)
+
+1. **Manifest field extraction** — reads `license` field from `package.json`, `composer.json`, `Cargo.toml`, `pyproject.toml`.
+2. **Go module cache** — reads LICENSE file from local `$GOMODCACHE` for golang packages.
+3. **Container/IaC** — Docker OCI labels (via podman/docker inspect), Docker Hub API, Terraform Registry API → GitHub, Nix CLI.
+4. **Embedded well-known DB** — ~60 hardcoded `ecosystem:name → SPDX-ID` entries for common packages that don't declare licenses (Go stdlib extensions, popular npm/pypi/cargo packages, renamed CocoaPods, Ruby stdlib).
+5. **Ecosystem registry APIs** — native per-ecosystem APIs (concurrent, 5 goroutines, in-memory deduplication cache):
+   - `rubygems` / `gem` → `rubygems.org/api/v1/gems/{name}.json`
+   - `hex` / `erlang` → `hex.pm/api/packages/{name}`
+   - `pub` → `pub.dev/api/packages/{name}` → repository URL → GitHub (handles monorepo `tree/branch/subdir` paths and `packages/{name}/LICENSE` fallback)
+   - `cabal` / `stack` / `hackage` → `hackage.haskell.org/package/{name}/{name}.cabal`
+   - `cran` → `cran.r-project.org/web/packages/{name}/DESCRIPTION`
+   - `composer` → `packagist.org/packages/{name}.json`
+   - `cocoapods` → `trunk.cocoapods.org/api/v1/pods/{name}` for latest version, then `raw.githubusercontent.com/CocoaPods/Specs/master/Specs/{md5[0]}/{md5[1]}/{md5[2]}/{name}/{version}/{name}.podspec.json`; falls back to GitHub API directory listing for deprecated/renamed pods
+   - `julia` → `JuliaRegistries/General/{letter}/{name}/Package.toml` → parses `repo` + `subdir`; checks `{subdir}/LICENSE.md` for monorepos
+   - `crystal` → `github:` field captured during `shard.yml`/`shard.lock` parsing → GitHub license
+   - `opam` → `ocaml/opam-repository` on GitHub
+6. **deps.dev API** — `api.deps.dev/v3` for golang, npm, pypi, cargo, maven, nuget.
+7. **GitHub API** — 4 strategies: `gh` CLI repo API → dedicated license endpoint → known license file names → directory discovery; PAT fallback if `gh` CLI unavailable.
+8. **Provenance computation** — fills `IntroducedPaths` and `PathCount` from dependency graphs.
+
+Unresolved packages are marked `UNKNOWN`.
+
+### Output
+
+Findings are appended to `.vulnetix/sbom.cdx.json` (CycloneDX format) alongside vulnerability findings from `scan`. Neither command overwrites the other's section of the SBOM.
+
+---
+
+## Scan Command
+
+`vulnetix scan` performs a comprehensive vulnerability scan of the local project. It discovers manifests, extracts packages, looks up vulnerabilities in the VDB, enriches results with EPSS/CVSS/SSVC scores, and applies configurable quality gates.
+
+### Key Flags
+
+| Flag | Purpose |
+|------|---------|
+| `--path` | Directory to scan (default `.`) |
+| `--depth` | Manifest discovery depth (default `3`) |
+| `--severity` | Exit 1 if any vuln meets or exceeds severity |
+| `--malware` | Exit 1 if any malicious package detected |
+| `--exploits` | Exit 1 if any exploited vuln found |
+| `--eol` | Exit 1 if any end-of-life packages found |
+| `-o` / `--output` | Output format: `pretty`, `json`, `json-spdx` |
+| `--upload` | Upload SBOM to Vulnetix SaaS after scan |
+| `--from-memory` | Reconstruct prior scan results without re-scanning |
+
+Results are saved to `.vulnetix/sbom.cdx.json`.
+
+---
+
 ## VDB Memory Management
 
 ### Context Flags (inherited by all `vdb` subcommands)
@@ -203,27 +280,37 @@ graph TB
             Auth["auth.go<br/>login/status/verify/logout"]
             Upload["upload.go<br/>file upload"]
             GHA["gha.go<br/>GitHub Actions upload + status"]
-            VDB["vdb.go<br/>16 VDB subcommands"]
+            VDB["vdb.go + vdb_v2.go<br/>VDB subcommands"]
+            Scan["scan.go<br/>vulnerability scan + quality gates"]
+            License["license.go<br/>license analysis (8-tier)"]
             Env["env.go<br/>environment context"]
             Version["version.go + update.go<br/>self-update"]
         end
     end
 
-    subgraph Internal["internal/ packages"]
+    subgraph Pkg["pkg/ packages (public API)"]
         AuthPkg["auth/<br/>Credentials, AuthMethod,<br/>Save/Load/Remove"]
+        CachePkg["cache/<br/>Disk TTL cache"]
+        VDBPkg["vdb/<br/>Client, SigV4 signing,<br/>token cache, retry, all API methods"]
+    end
+
+    subgraph Internal["internal/ packages"]
         ConfigPkg["config/<br/>VulnetixConfig, CIContext,<br/>platform detection"]
         MemoryPkg["memory/<br/>Memory, FindingRecord,<br/>EnvironmentContext, VDBQuery"]
         UploadPkg["upload/<br/>Client, simple + chunked,<br/>format detection"]
-        VDBPkg["vdb/<br/>Client, SigV4 signing,<br/>token cache, retry"]
         GHPkg["github/<br/>ArtifactCollector,<br/>ArtifactUploader"]
         PURLPkg["purl/<br/>Parse, PackageName,<br/>EcosystemForType"]
         UpdatePkg["update/<br/>semver, checker, updater"]
+        ScanPkg["scan/<br/>manifest parsers, VDB enrichment,<br/>quality gates, depgraph"]
+        LicensePkg["license/<br/>8-tier resolution waterfall,<br/>SPDX DB (embedded), evaluate,<br/>registry APIs, GitHub API"]
+        CDXPkg["cdx/<br/>CycloneDX BOM read/write/merge"]
     end
 
     subgraph External["External Services"]
         VDBApi["VDB API<br/>api.vdb.vulnetix.com/v1"]
         AppApi["Vulnetix SaaS<br/>app.vulnetix.com/api"]
         GHAPI["GitHub API<br/>api.github.com"]
+        Registries["Ecosystem Registries<br/>rubygems.org, hex.pm, hackage,<br/>cran, packagist, pub.dev,<br/>cocoapods, juliahub, deps.dev"]
         GHReleases["GitHub Releases<br/>Vulnetix/cli"]
     end
 
@@ -235,12 +322,15 @@ graph TB
     Upload --> AuthPkg & UploadPkg
     GHA --> AuthPkg & UploadPkg & GHPkg
     VDB --> AuthPkg & VDBPkg & PURLPkg & MemoryPkg
+    Scan --> AuthPkg & VDBPkg & ScanPkg & CDXPkg & MemoryPkg
+    License --> ScanPkg & LicensePkg & CDXPkg & MemoryPkg
     Env --> ConfigPkg & MemoryPkg
     Version --> UpdatePkg
 
     VDBPkg --> VDBApi
     UploadPkg --> AppApi
     GHPkg --> GHAPI
+    LicensePkg --> GHAPI & Registries
     UpdatePkg --> GHReleases
 ```
 
@@ -255,9 +345,12 @@ graph LR
     cmd --> github
     cmd --> purl
     cmd --> update
+    cmd --> scan
+    cmd --> license
+    cmd --> cdx
 
-    vdb --> auth
-    upload --> auth
+    scan --> vdb
+    license --> scan
     github --> upload
 
     style cmd fill:#2d5a27
@@ -265,9 +358,11 @@ graph LR
     style vdb fill:#27455a
     style upload fill:#27455a
     style purl fill:#4a4a27
+    style scan fill:#2d5a27
+    style license fill:#5a4527
 ```
 
-No circular dependencies. `auth` is the leaf package (depended on by `vdb`, `upload`, and `cmd`).
+No circular dependencies. `pkg/auth` and `pkg/vdb` are the leaf packages used by commands and other internal packages.
 
 ---
 
@@ -603,41 +698,82 @@ make dev && ./bin/vulnetix vdb new-thing --help
 │   ├── root.go                      Root command + info healthcheck
 │   ├── root_test.go                 executeCommand() helper + root tests
 │   ├── auth.go                      auth login/status/verify/logout
-│   ├── upload.go                    Single-file upload command
-│   ├── gha.go                       GitHub Actions artifact upload + status
-│   ├── vdb.go                       VDB parent + 16 subcommands + helpers + memory wiring
-│   ├── vdb_purl_test.go             PURL subcommand tests
+│   ├── completion.go                Shell completion subcommand
 │   ├── env.go                       Environment context display command
-│   ├── version.go                   Version display + update check
-│   └── update.go                    Self-update command
+│   ├── from_memory.go               Shared --from-memory reconstruction helpers
+│   ├── gha.go                       GitHub Actions artifact upload + status
+│   ├── gh_dependabot.go             GitHub Dependabot alert fetching helpers
+│   ├── license.go                   License analysis command (8-tier waterfall)
+│   ├── scan.go                      Vulnerability scan command + quality gates
+│   ├── upload.go                    Single-file upload command
+│   ├── update.go                    Self-update command
+│   ├── vdb.go                       VDB parent + V1 subcommands + helpers + memory wiring
+│   ├── vdb_ecosystem.go             Ecosystem listing subcommand
+│   ├── vdb_purl_test.go             PURL subcommand tests
+│   ├── vdb_v2.go                    V2-only VDB subcommands
+│   └── version.go                   Version display + update check
 ├── internal/
-│   ├── auth/
-│   │   ├── auth.go                  AuthMethod, Credentials, GetAuthHeader
-│   │   ├── community.go             CommunityCredentials(), IsCommunity() — hardcoded fallback key
-│   │   ├── credentials.go           Save/Load/Remove + precedence logic
-│   │   └── keyring.go               Stub for future keyring support
+│   ├── analytics/                   Anonymous usage analytics (opt-out)
+│   ├── cdx/                         CycloneDX BOM read/write/merge helpers
+│   │   └── schema/                  CycloneDX 1.7 JSON schema types
 │   ├── config/
 │   │   └── config.go                VulnetixConfig, CIContext, platform detection
+│   ├── display/                     Terminal table and formatting utilities
+│   ├── filetree/                    Directory tree walker for manifest discovery
+│   ├── gitctx/                      Git context extraction (branch, commit, remote)
 │   ├── github/
 │   │   ├── artifact.go              ArtifactCollector (download from GH API)
 │   │   └── uploader.go              ArtifactUploader (legacy transaction flow)
+│   ├── license/
+│   │   ├── types.go                 PackageLicense, LicenseRecord, Finding, AnalysisResult
+│   │   ├── detect.go                DetectLicenses orchestration + manifest extractors + well-known DB
+│   │   ├── evaluate.go              Policy evaluation, conflict detection, FindingRecord generation
+│   │   ├── spdx.go                  Embedded SPDX DB (//go:embed spdx_licenses.json)
+│   │   ├── spdx_licenses.json       ~700-entry SPDX license database (embedded at build time)
+│   │   ├── spdx_output.go           SPDX 2.3 JSON output formatter
+│   │   ├── filesystem.go            Go module cache scanner + ClassifyLicenseText
+│   │   ├── container.go             Docker/Terraform/Nix license resolution
+│   │   ├── depsdev.go               deps.dev API batch resolver (golang/npm/pypi/cargo/maven/nuget)
+│   │   ├── registries.go            Ecosystem registry API fetchers (RubyGems, Hex.pm, Hackage,
+│   │   │                            CRAN, Packagist, pub.dev, CocoaPods, Julia, Crystal, OCaml)
+│   │   ├── github.go                GitHub license resolution (4 strategies + PAT fallback)
+│   │   ├── allowlist.go             AllowList load from YAML or CSV
+│   │   ├── category.go              License category rules (permissive/copyleft/proprietary)
+│   │   └── cdx.go                   CycloneDX SBOM license section read/write
+│   ├── memory/                      Memory file schema (memory.yaml) + VDB query log
 │   ├── purl/
 │   │   ├── purl.go                  PURL parser, PackageName, EcosystemForType
 │   │   └── purl_test.go             Parser + ecosystem mapping tests
-│   ├── upload/
-│   │   ├── client.go                Upload Client, simple + format detection
-│   │   └── chunked.go               Chunked upload for large files
-│   ├── update/
-│   │   ├── semver.go                Version parsing + comparison
-│   │   ├── checker.go               GitHub release latest check
-│   │   └── updater.go               Binary self-replacement
-│   ├── vdb/
-│   │   ├── client.go                VDB Client, SigV4, token cache, retry
-│   │   └── api.go                   All VDB API endpoint methods
-│   └── testutils/
-│       ├── env.go                   SetEnv() test helper
-│       └── helpers.go               Other test utilities
-├── Makefile                         Build, test, lint, format targets
+│   ├── scan/
+│   │   ├── local.go                 ScopedPackage type, manifest group types
+│   │   ├── local_extra.go           Per-ecosystem manifest parsers (30+ file types)
+│   │   ├── detector.go              ManifestDetector, FileType classification
+│   │   ├── walker.go                WalkForScanFiles, WalkOptions
+│   │   ├── depgraph.go              DependencyGraph, FindPath, IsDirect
+│   │   ├── enrich.go                VDB enrichment, EPSS/CVSS/SSVC scoring
+│   │   ├── gates.go                 Quality gate evaluation (severity/malware/exploits/eol)
+│   │   ├── payload.go               SBOM construction helpers
+│   │   ├── poller.go                Upload status polling
+│   │   ├── results.go               Scan result display formatting
+│   │   ├── upload.go                SBOM upload to Vulnetix SaaS
+│   │   ├── vdb_lookup.go            VDB batch lookup coordinator
+│   │   └── version_check.go         EOL version check helpers
+│   ├── testutils/
+│   │   ├── env.go                   SetEnv() test helper
+│   │   └── helpers.go               Other test utilities
+│   ├── triage/                      VEX generation + CWSS scoring + triage logic
+│   ├── tui/                         Interactive terminal UI (bubbletea) for triage display
+│   └── update/
+│       ├── semver.go                Version parsing + comparison
+│       ├── checker.go               GitHub release latest check
+│       └── updater.go               Binary self-replacement
+├── pkg/                             Public API packages (stable interface)
+│   ├── auth/                        AuthMethod, Credentials, Save/Load/Remove, community fallback
+│   ├── cache/                       Disk-backed TTL cache for VDB responses
+│   ├── tty/                         TTY detection (isatty wrapper)
+│   └── vdb/                         VDB Client, SigV4 signing, token cache, retry, all API methods
+├── flake.nix                        Nix development environment + CI reproducibility
+├── justfile                         Build, test, lint, format targets (use `just`)
 ├── CLAUDE.md                        → AGENTS.md (Claude Code instructions)
 ├── AGENTS.md                        Development guide for AI agents
 └── _system.md                       This file

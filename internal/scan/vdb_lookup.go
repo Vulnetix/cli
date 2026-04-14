@@ -23,6 +23,7 @@ type VulnFinding struct {
 	Source         string // upstream vulnerability source name (empty = vulnetix)
 	InCisaKev      bool
 	InVulnCheckKev bool
+	InEuKev        bool
 	ExploitCount   int
 }
 
@@ -212,11 +213,12 @@ func lookupOnePackage(ctx context.Context, client *vdb.Client, key PackageLookup
 		}
 
 		// Extract exploitation signals (shared across all vulns for this package).
-		var inCisaKev, inVulnCheckKev bool
+		var inCisaKev, inVulnCheckKev, inEuKev bool
 		var exploitCount int
 		if signals, ok := pkg["exploitationSignals"].(map[string]interface{}); ok {
 			inCisaKev, _ = signals["inCisaKev"].(bool)
 			inVulnCheckKev, _ = signals["inVulnCheckKev"].(bool)
+			inEuKev, _ = signals["inEuKev"].(bool)
 			if ec, ok := signals["exploitCount"].(float64); ok {
 				exploitCount = int(ec)
 			}
@@ -235,6 +237,7 @@ func lookupOnePackage(ctx context.Context, client *vdb.Client, key PackageLookup
 				Ecosystem:      key.Ecosystem,
 				InCisaKev:      inCisaKev,
 				InVulnCheckKev: inVulnCheckKev,
+				InEuKev:        inEuKev,
 				ExploitCount:   exploitCount,
 			}
 			f.CveID, _ = vMap["cveId"].(string)
