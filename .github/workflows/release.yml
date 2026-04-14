@@ -60,6 +60,9 @@ jobs:
           GOOS=windows GOARCH=arm   go build -ldflags "$LDFLAGS" -o bin/vulnetix-windows-arm.exe .
           GOOS=windows GOARCH=386   go build -ldflags "$LDFLAGS" -o bin/vulnetix-windows-386.exe .
 
+      - name: Copy install script
+        run: cp install.sh bin/install.sh
+
       - name: Generate checksums
         run: |
           cd bin

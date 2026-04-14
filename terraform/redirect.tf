@@ -85,7 +85,7 @@ resource "cloudflare_ruleset" "redirects" {
           status_code           = 302
           preserve_query_string = false
           target_url = {
-            value = "https://raw.githubusercontent.com/Vulnetix/cli/main/install.sh"
+            value = "https://github.com/Vulnetix/cli/releases/latest/download/install.sh"
           }
         }
       }
