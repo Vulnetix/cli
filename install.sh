@@ -1,16 +1,19 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
-# Default values
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 VERSION="${VERSION:-latest}"
 BINARY_NAME="vulnetix"
 GITHUB_REPO="Vulnetix/cli"
+GITHUB_BASE="https://github.com/${GITHUB_REPO}/releases"
 
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-  case $1 in
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+while [ $# -gt 0 ]; do
+  case "$1" in
     --install-dir)
       INSTALL_DIR="$2"
       shift 2
@@ -20,130 +23,197 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --help)
-      echo "Vulnetix CLI Installation Script"
-      echo ""
-      echo "Usage: $0 [options]"
-      echo ""
-      echo "Options:"
-      echo "  --install-dir DIR    Installation directory (default: /usr/local/bin)"
-      echo "  --version VERSION    Version to install (default: latest)"
-      echo "  --help              Show this help message"
-      echo ""
-      echo "Examples:"
-      echo "  $0                                    # Install latest to /usr/local/bin"
-      echo "  $0 --install-dir ~/.local/bin        # Install to ~/.local/bin"
-      echo "  $0 --version v1.2.3                  # Install specific version"
+      cat <<EOF
+Usage: install.sh [options]
+
+Options:
+  --install-dir DIR    Installation directory (default: /usr/local/bin)
+  --version VERSION    Version to install, e.g. v1.2.3 (default: latest)
+  --help               Show this message
+
+Environment variables:
+  INSTALL_DIR          Overrides --install-dir
+  VERSION              Overrides --version
+
+Examples:
+  curl -fsSL https://cli.vulnetix.com/install.sh | sh
+  curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir ~/.local/bin
+  curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v1.2.3
+EOF
       exit 0
       ;;
     *)
-      echo "Unknown option: $1"
-      echo "Use --help for usage information"
+      echo "error: unknown option: $1" >&2
+      echo "Run with --help for usage." >&2
       exit 1
       ;;
   esac
 done
 
-# Detect platform
-detect_platform() {
-  local os
-  local arch
-  
-  # Detect OS
-  case "$(uname -s)" in
-    Linux*)   os="linux" ;;
-    Darwin*)  os="darwin" ;;
-    CYGWIN*|MINGW*|MSYS*) os="windows" ;;
-    *)        echo "Unsupported OS: $(uname -s)" >&2; exit 1 ;;
+# ---------------------------------------------------------------------------
+# Environment detection
+# ---------------------------------------------------------------------------
+
+detect_os() {
+  case "$(uname -s 2>/dev/null)" in
+    Linux)   echo "linux" ;;
+    Darwin)  echo "darwin" ;;
+    CYGWIN*|MINGW*|MSYS*) echo "windows" ;;
+    *)
+      echo "error: unsupported OS: $(uname -s)" >&2
+      exit 1
+      ;;
   esac
-  
-  # Detect architecture
-  case "$(uname -m)" in
-    x86_64|amd64) arch="amd64" ;;
-    arm64|aarch64) arch="arm64" ;;
-    armv7l|armv6l) arch="arm" ;;
-    i386|i686) arch="386" ;;
-    *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-  esac
-  
-  echo "${os}-${arch}"
 }
 
-# Get download URL
-get_download_url() {
-  local platform="$1"
-  local version="$2"
-  local ext=""
-
-  case "$platform" in
-    windows-*) ext=".exe" ;;
+detect_arch() {
+  case "$(uname -m 2>/dev/null)" in
+    x86_64|amd64)   echo "amd64" ;;
+    arm64|aarch64)  echo "arm64" ;;
+    armv7l|armv6l)  echo "arm" ;;
+    i386|i686)      echo "386" ;;
+    *)
+      echo "error: unsupported architecture: $(uname -m)" >&2
+      exit 1
+      ;;
   esac
-
-  if [ "$version" = "latest" ]; then
-    echo "https://github.com/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-${platform}${ext}"
-  else
-    echo "https://github.com/${GITHUB_REPO}/releases/download/${version}/${BINARY_NAME}-${platform}${ext}"
-  fi
 }
 
-# Main installation logic
-main() {
-  echo "🚀 Installing Vulnetix CLI..."
-  
-  # Detect platform
-  local platform
-  platform=$(detect_platform)
-  echo "📦 Detected platform: $platform"
-  
-  # Get download URL
-  local download_url
-  download_url=$(get_download_url "$platform" "$VERSION")
-  echo "⬇️  Downloading from: $download_url"
-  
-  # Resolve install directory — fall back to ~/.local/bin if not writable
-  if ! mkdir -p "$INSTALL_DIR" 2>/dev/null || [ ! -w "$INSTALL_DIR" ]; then
-    INSTALL_DIR="$HOME/.local/bin"
-    echo "⚠️  Cannot write to default install dir, falling back to $INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR"
-  fi
-
-  # Download binary
-  local binary_path="$INSTALL_DIR/$BINARY_NAME"
+detect_downloader() {
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$download_url" -o "$binary_path"
+    echo "curl"
   elif command -v wget >/dev/null 2>&1; then
-    wget -q "$download_url" -O "$binary_path"
+    echo "wget"
   else
-    echo "❌ Error: curl or wget is required for installation" >&2
+    echo "error: curl or wget is required" >&2
     exit 1
   fi
-  
-  # Make binary executable (not needed on Windows)
-  if [ "$(uname -s)" != "CYGWIN" ] && [ "$(uname -s)" != "MINGW" ] && [ "$(uname -s)" != "MSYS" ]; then
-    chmod +x "$binary_path"
+}
+
+check_existing() {
+  local target="$1"
+  if [ -f "$target" ]; then
+    local existing_ver
+    existing_ver="$("$target" version 2>/dev/null | head -1 || true)"
+    echo "info: existing binary found: ${existing_ver:-unknown version}"
+    echo "info: will be overwritten at $target"
   fi
-  
-  echo "✅ Successfully installed Vulnetix CLI to $binary_path"
-  echo ""
-  echo "🎉 Installation complete!"
-  echo ""
-  echo "To get started:"
-  echo "  $binary_path --help"
-  echo "  $binary_path --org-id \"your-org-id-here\""
-  echo ""
-  
-  # Check if install directory is in PATH
-  if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
-    echo "⚠️  Note: $INSTALL_DIR is not in your PATH."
-    echo "   You may need to add it to your shell configuration:"
-    echo "   export PATH=\"$INSTALL_DIR:\$PATH\""
-    echo ""
+}
+
+resolve_install_dir() {
+  local dir="$1"
+  if mkdir -p "$dir" 2>/dev/null && [ -w "$dir" ]; then
+    echo "$dir"
+    return
   fi
-  
-  # Test installation
-  if command -v "$BINARY_NAME" >/dev/null 2>&1; then
-    echo "🔍 Testing installation..."
-    "$BINARY_NAME" --version 2>/dev/null || echo "   Binary installed successfully!"
+  local fallback="$HOME/.local/bin"
+  echo "warn: $dir is not writable, falling back to $fallback" >&2
+  mkdir -p "$fallback"
+  echo "$fallback"
+}
+
+download() {
+  local url="$1"
+  local dest="$2"
+  local downloader="$3"
+  echo "info: downloading $url"
+  if [ "$downloader" = "curl" ]; then
+    curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"
+  else
+    wget -q "$url" -O "$dest"
   fi
+}
+
+verify_binary() {
+  local path="$1"
+  if [ ! -f "$path" ]; then
+    echo "error: downloaded file not found at $path" >&2
+    exit 1
+  fi
+  local size
+  size=$(wc -c < "$path" 2>/dev/null || echo 0)
+  if [ "$size" -lt 1024 ]; then
+    echo "error: downloaded file is suspiciously small (${size} bytes) — download may have failed" >&2
+    rm -f "$path"
+    exit 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+main() {
+  echo "vulnetix installer"
+  echo "------------------"
+
+  # Detect environment
+  OS=$(detect_os)
+  ARCH=$(detect_arch)
+  PLATFORM="${OS}-${ARCH}"
+  DOWNLOADER=$(detect_downloader)
+  echo "info: os=$OS arch=$ARCH platform=$PLATFORM downloader=$DOWNLOADER"
+
+  # Resolve install directory
+  INSTALL_DIR=$(resolve_install_dir "$INSTALL_DIR")
+  BINARY_PATH="${INSTALL_DIR}/${BINARY_NAME}"
+  echo "info: install dir=$INSTALL_DIR"
+
+  # Check for existing installation
+  check_existing "$BINARY_PATH"
+
+  # Build download URL
+  EXT=""
+  [ "$OS" = "windows" ] && EXT=".exe"
+  ASSET="${BINARY_NAME}-${PLATFORM}${EXT}"
+  if [ "$VERSION" = "latest" ]; then
+    DOWNLOAD_URL="${GITHUB_BASE}/latest/download/${ASSET}"
+  else
+    DOWNLOAD_URL="${GITHUB_BASE}/download/${VERSION}/${ASSET}"
+  fi
+  echo "info: version=$VERSION asset=$ASSET"
+  echo "info: url=$DOWNLOAD_URL"
+
+  # Download to temp file then move into place atomically
+  TMP_FILE=$(mktemp "${INSTALL_DIR}/.${BINARY_NAME}.XXXXXX" 2>/dev/null || mktemp)
+  trap 'rm -f "$TMP_FILE"' EXIT
+
+  download "$DOWNLOAD_URL" "$TMP_FILE" "$DOWNLOADER"
+  verify_binary "$TMP_FILE"
+
+  # Set executable permission before moving
+  chmod +x "$TMP_FILE"
+  mv "$TMP_FILE" "$BINARY_PATH"
+  trap - EXIT
+
+  echo "info: installed to $BINARY_PATH"
+
+  # Confirm the binary runs
+  INSTALLED_VER=$("$BINARY_PATH" version 2>/dev/null | head -1 || true)
+  if [ -n "$INSTALLED_VER" ]; then
+    echo "info: verified: $INSTALLED_VER"
+  else
+    echo "warn: binary installed but --version produced no output"
+  fi
+
+  # PATH advisory
+  case ":${PATH}:" in
+    *":${INSTALL_DIR}:"*) ;;
+    *)
+      echo ""
+      echo "warn: $INSTALL_DIR is not in PATH"
+      echo "      add to your shell profile:"
+      echo "      export PATH=\"${INSTALL_DIR}:\$PATH\""
+      ;;
+  esac
+
+  echo ""
+  echo "run:  $BINARY_NAME --help"
+  echo ""
+  echo "docs: https://docs.cli.vulnetix.com/"
+  echo "      agentic use cases: https://www.vulnetix.com/articles/bypassing-scanners"
+  echo ""
+  echo "Thanks for installing Vulnetix CLI -- Vulnetix Team"
 }
 
 main "$@"
