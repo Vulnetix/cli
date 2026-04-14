@@ -68,16 +68,20 @@ jobs:
           cd bin
           sha256sum * > checksums.txt
 
-      - name: Create Release
+      - name: Create or update Release
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           # Ensure tag exists for the release
           if ! git tag -l "$VERSION" | grep -q "$VERSION"; then
             git tag -a "$VERSION" -m "Release $VERSION"
           fi
-          gh release create "$VERSION" bin/* \
-            --title "Release $VERSION" \
-            --generate-notes
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            gh release upload "$VERSION" bin/* --clobber
+          else
+            gh release create "$VERSION" bin/* \
+              --title "Release $VERSION" \
+              --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
 
