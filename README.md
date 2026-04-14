@@ -103,6 +103,7 @@ Install the plugin:
 
 | Method | Platforms | Installation |
 |--------|-----------|-------------|
+| [Install Script](./docs/curl.md) | Linux, macOS | `curl -fsSL https://cli.vulnetix.com/install.sh \| sh` |
 | [Homebrew](./docs/homebrew.md) | Linux, macOS | `brew install vulnetix/tap/vulnetix` |
 | [Scoop](./docs/scoop.md) | Windows | `scoop install vulnetix` |
 | [Nix](./docs/nix.md) | Linux, macOS | `nix profile install github:Vulnetix/cli` |
