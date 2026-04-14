@@ -72,16 +72,16 @@ detect_platform() {
 get_download_url() {
   local platform="$1"
   local version="$2"
-  local binary_name="$3"
-  
-  if [ "$os" = "windows" ]; then
-    binary_name="${binary_name}.exe"
-  fi
-  
+  local ext=""
+
+  case "$platform" in
+    windows-*) ext=".exe" ;;
+  esac
+
   if [ "$version" = "latest" ]; then
-    echo "https://github.com/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-${platform}${binary_name:+.exe}"
+    echo "https://github.com/${GITHUB_REPO}/releases/latest/download/${BINARY_NAME}-${platform}${ext}"
   else
-    echo "https://github.com/${GITHUB_REPO}/releases/download/${version}/${BINARY_NAME}-${platform}${binary_name:+.exe}"
+    echo "https://github.com/${GITHUB_REPO}/releases/download/${version}/${BINARY_NAME}-${platform}${ext}"
   fi
 }
 
@@ -96,7 +96,7 @@ main() {
   
   # Get download URL
   local download_url
-  download_url=$(get_download_url "$platform" "$VERSION" "$BINARY_NAME")
+  download_url=$(get_download_url "$platform" "$VERSION")
   echo "⬇️  Downloading from: $download_url"
   
   # Create install directory if it doesn't exist
