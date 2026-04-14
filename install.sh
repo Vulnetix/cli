@@ -139,7 +139,6 @@ download() {
   local url="$1"
   local dest="$2"
   local downloader="$3"
-  echo "info: downloading $url"
   if [ "$downloader" = "curl" ]; then
     curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"
   else
@@ -179,7 +178,7 @@ verify_checksum() {
   tmp_checksums=$(mktemp)
   trap 'rm -f "$tmp_checksums"' EXIT
 
-  echo "info: fetching checksums from $checksums_url"
+  echo "info: fetching $checksums_url"
   if ! download "$checksums_url" "$tmp_checksums" "$downloader" 2>&1; then
     echo "warn: could not fetch checksums.txt, skipping checksum verification" >&2
     rm -f "$tmp_checksums"
@@ -250,13 +249,16 @@ main() {
     DOWNLOAD_URL="${GITHUB_BASE}/download/${VERSION}/${ASSET}"
     CHECKSUMS_URL="${GITHUB_BASE}/download/${VERSION}/checksums.txt"
   fi
+
   echo "info: version=$VERSION asset=$ASSET"
-  echo "info: url=$DOWNLOAD_URL"
+  echo "info: binary    $DOWNLOAD_URL"
+  echo "info: checksums $CHECKSUMS_URL"
 
   # Download binary to temp file
   TMP_FILE=$(mktemp "${INSTALL_DIR}/.${BINARY_NAME}.XXXXXX" 2>/dev/null || mktemp)
   trap 'rm -f "$TMP_FILE"' EXIT
 
+  echo "info: fetching $DOWNLOAD_URL"
   download "$DOWNLOAD_URL" "$TMP_FILE" "$DOWNLOADER"
   verify_size "$TMP_FILE"
   verify_checksum "$ASSET" "$TMP_FILE" "$CHECKSUMS_URL" "$DOWNLOADER" "$SHA_TOOL"
