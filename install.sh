@@ -56,8 +56,8 @@ done
 
 detect_os() {
   case "$(uname -s 2>/dev/null)" in
-    Linux)   echo "linux" ;;
-    Darwin)  echo "darwin" ;;
+    Linux)              echo "linux" ;;
+    Darwin)             echo "darwin" ;;
     CYGWIN*|MINGW*|MSYS*) echo "windows" ;;
     *)
       echo "error: unsupported OS: $(uname -s)" >&2
@@ -68,10 +68,10 @@ detect_os() {
 
 detect_arch() {
   case "$(uname -m 2>/dev/null)" in
-    x86_64|amd64)   echo "amd64" ;;
-    arm64|aarch64)  echo "arm64" ;;
-    armv7l|armv6l)  echo "arm" ;;
-    i386|i686)      echo "386" ;;
+    x86_64|amd64)  echo "amd64" ;;
+    arm64|aarch64) echo "arm64" ;;
+    armv7l|armv6l) echo "arm" ;;
+    i386|i686)     echo "386" ;;
     *)
       echo "error: unsupported architecture: $(uname -m)" >&2
       exit 1
@@ -88,6 +88,29 @@ detect_downloader() {
     echo "error: curl or wget is required" >&2
     exit 1
   fi
+}
+
+# Returns the sha256 command and its argument style: "sha256sum" or "shasum"
+detect_sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    echo "sha256sum"
+  elif command -v shasum >/dev/null 2>&1; then
+    echo "shasum"
+  elif command -v openssl >/dev/null 2>&1; then
+    echo "openssl"
+  else
+    echo "none"
+  fi
+}
+
+compute_sha256() {
+  local file="$1"
+  local tool="$2"
+  case "$tool" in
+    sha256sum) sha256sum "$file" | awk '{print $1}' ;;
+    shasum)    shasum -a 256 "$file" | awk '{print $1}' ;;
+    openssl)   openssl dgst -sha256 "$file" | awk '{print $NF}' ;;
+  esac
 }
 
 check_existing() {
@@ -124,7 +147,7 @@ download() {
   fi
 }
 
-verify_binary() {
+verify_size() {
   local path="$1"
   if [ ! -f "$path" ]; then
     echo "error: downloaded file not found at $path" >&2
@@ -137,6 +160,59 @@ verify_binary() {
     rm -f "$path"
     exit 1
   fi
+  echo "info: download size=${size} bytes"
+}
+
+verify_checksum() {
+  local asset="$1"
+  local tmp_binary="$2"
+  local checksums_url="$3"
+  local downloader="$4"
+  local sha_tool="$5"
+
+  if [ "$sha_tool" = "none" ]; then
+    echo "warn: no sha256 tool found (sha256sum/shasum/openssl), skipping checksum verification"
+    return
+  fi
+
+  local tmp_checksums
+  tmp_checksums=$(mktemp)
+  trap 'rm -f "$tmp_checksums"' EXIT
+
+  echo "info: fetching checksums from $checksums_url"
+  if ! download "$checksums_url" "$tmp_checksums" "$downloader" 2>&1; then
+    echo "warn: could not fetch checksums.txt, skipping checksum verification" >&2
+    rm -f "$tmp_checksums"
+    trap - EXIT
+    return
+  fi
+
+  # Extract expected hash for this asset from checksums.txt
+  local expected
+  expected=$(grep " ${asset}$" "$tmp_checksums" | awk '{print $1}')
+  rm -f "$tmp_checksums"
+  trap - EXIT
+
+  if [ -z "$expected" ]; then
+    echo "warn: asset '${asset}' not found in checksums.txt, skipping checksum verification" >&2
+    return
+  fi
+
+  echo "info: expected sha256=$expected"
+
+  local actual
+  actual=$(compute_sha256 "$tmp_binary" "$sha_tool")
+  echo "info: actual   sha256=$actual"
+
+  if [ "$actual" != "$expected" ]; then
+    echo "error: checksum mismatch — binary may be corrupt or tampered with" >&2
+    echo "error:   expected: $expected" >&2
+    echo "error:   actual:   $actual" >&2
+    rm -f "$tmp_binary"
+    exit 1
+  fi
+
+  echo "info: checksum verified ok"
 }
 
 # ---------------------------------------------------------------------------
@@ -152,7 +228,8 @@ main() {
   ARCH=$(detect_arch)
   PLATFORM="${OS}-${ARCH}"
   DOWNLOADER=$(detect_downloader)
-  echo "info: os=$OS arch=$ARCH platform=$PLATFORM downloader=$DOWNLOADER"
+  SHA_TOOL=$(detect_sha256)
+  echo "info: os=$OS arch=$ARCH platform=$PLATFORM downloader=$DOWNLOADER sha256=$SHA_TOOL"
 
   # Resolve install directory
   INSTALL_DIR=$(resolve_install_dir "$INSTALL_DIR")
@@ -162,26 +239,29 @@ main() {
   # Check for existing installation
   check_existing "$BINARY_PATH"
 
-  # Build download URL
+  # Build download URLs
   EXT=""
   [ "$OS" = "windows" ] && EXT=".exe"
   ASSET="${BINARY_NAME}-${PLATFORM}${EXT}"
   if [ "$VERSION" = "latest" ]; then
     DOWNLOAD_URL="${GITHUB_BASE}/latest/download/${ASSET}"
+    CHECKSUMS_URL="${GITHUB_BASE}/latest/download/checksums.txt"
   else
     DOWNLOAD_URL="${GITHUB_BASE}/download/${VERSION}/${ASSET}"
+    CHECKSUMS_URL="${GITHUB_BASE}/download/${VERSION}/checksums.txt"
   fi
   echo "info: version=$VERSION asset=$ASSET"
   echo "info: url=$DOWNLOAD_URL"
 
-  # Download to temp file then move into place atomically
+  # Download binary to temp file
   TMP_FILE=$(mktemp "${INSTALL_DIR}/.${BINARY_NAME}.XXXXXX" 2>/dev/null || mktemp)
   trap 'rm -f "$TMP_FILE"' EXIT
 
   download "$DOWNLOAD_URL" "$TMP_FILE" "$DOWNLOADER"
-  verify_binary "$TMP_FILE"
+  verify_size "$TMP_FILE"
+  verify_checksum "$ASSET" "$TMP_FILE" "$CHECKSUMS_URL" "$DOWNLOADER" "$SHA_TOOL"
 
-  # Set executable permission before moving
+  # Set executable permission then move into place atomically
   chmod +x "$TMP_FILE"
   mv "$TMP_FILE" "$BINARY_PATH"
   trap - EXIT
@@ -193,7 +273,7 @@ main() {
   if [ -n "$INSTALLED_VER" ]; then
     echo "info: verified: $INSTALLED_VER"
   else
-    echo "warn: binary installed but --version produced no output"
+    echo "warn: binary installed but 'version' produced no output"
   fi
 
   # PATH advisory
