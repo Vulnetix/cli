@@ -238,7 +238,11 @@ func Execute() error {
 	if err == nil {
 		return nil
 	}
-	// SeverityBreachError is a controlled policy exit — caller handles messaging.
+	// PolicyBreachError (quality gate breach from scan) — caller handles messaging.
+	if _, ok := err.(PolicyBreachError); ok {
+		return err
+	}
+	// SeverityBreachError (license command) — caller handles messaging.
 	if _, ok := err.(*SeverityBreachError); ok {
 		return err
 	}

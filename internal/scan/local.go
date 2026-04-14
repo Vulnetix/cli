@@ -45,12 +45,14 @@ func ScopeIcon(scope string) string {
 
 // ScopedPackage represents a parsed dependency with scope information.
 type ScopedPackage struct {
-	Name       string
-	Version    string
-	Ecosystem  string
-	Scope      string // native scope label (production, development, test, peer, etc.)
-	SourceFile string // relative path of the manifest file that declared this package
-	IsDirect   bool   // true if declared in the manifest (e.g., go.mod), false if transitive (e.g., go.sum)
+	Name        string
+	Version     string
+	VersionSpec string // raw version spec from manifest before cleaning (e.g. "^1.0.0", ">=2.3"); empty for lock-file entries
+	Ecosystem   string
+	Scope       string // native scope label (production, development, test, peer, etc.)
+	SourceFile  string // relative path of the manifest file that declared this package
+	IsDirect    bool   // true if declared in the manifest (e.g., go.mod), false if transitive (e.g., go.sum)
+	GitHubURL   string // optional: "owner/repo" for packages whose VCS is known from the manifest
 }
 
 // ParseManifestWithScope parses a manifest file and returns packages with scope information.
@@ -251,16 +253,16 @@ func parsePackageJSONScoped(data []byte, filePath string) ([]ScopedPackage, erro
 
 	var pkgs []ScopedPackage
 	for name, ver := range pkg.Dependencies {
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "npm", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), VersionSpec: ver, Ecosystem: "npm", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
 	}
 	for name, ver := range pkg.DevDependencies {
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "npm", Scope: ScopeDevelopment, SourceFile: filePath, IsDirect: true})
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), VersionSpec: ver, Ecosystem: "npm", Scope: ScopeDevelopment, SourceFile: filePath, IsDirect: true})
 	}
 	for name, ver := range pkg.PeerDependencies {
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "npm", Scope: ScopePeer, SourceFile: filePath, IsDirect: true})
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), VersionSpec: ver, Ecosystem: "npm", Scope: ScopePeer, SourceFile: filePath, IsDirect: true})
 	}
 	for name, ver := range pkg.OptionalDependencies {
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "npm", Scope: ScopeOptional, SourceFile: filePath, IsDirect: true})
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), VersionSpec: ver, Ecosystem: "npm", Scope: ScopeOptional, SourceFile: filePath, IsDirect: true})
 	}
 	return pkgs, nil
 }
@@ -452,10 +454,12 @@ func parseRequirementsTxtScoped(data []byte, filePath string) ([]ScopedPackage, 
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "-") {
 			continue
 		}
-		var name, version string
+		var name, version, versionSpec string
 		for _, sep := range []string{"==", ">=", "<=", "~=", "!=", ">", "<"} {
 			if idx := strings.Index(line, sep); idx > 0 {
 				name = strings.TrimSpace(line[:idx])
+				rawSpec := strings.TrimSpace(line[idx:]) // includes the operator
+				versionSpec = rawSpec
 				version = strings.TrimSpace(line[idx+len(sep):])
 				if bIdx := strings.Index(name, "["); bIdx > 0 {
 					name = name[:bIdx]
@@ -470,7 +474,7 @@ func parseRequirementsTxtScoped(data []byte, filePath string) ([]ScopedPackage, 
 			}
 		}
 		if name != "" {
-			pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
+			pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, VersionSpec: versionSpec, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
 		}
 	}
 	return pkgs, nil
@@ -595,14 +599,15 @@ func parsePyprojectTOMLScoped(data []byte, filePath string) ([]ScopedPackage, er
 	}
 
 	// extractPyDep parses a PEP 508 dependency specifier string (e.g. "PyYAML>=6.0").
-	// Returns name and the raw version specifier; skips group-include dicts.
-	extractPyDep := func(raw string) (name, ver string, ok bool) {
+	// Returns name, cleaned version, full version spec (operator+version), and ok.
+	// Skips group-include dicts.
+	extractPyDep := func(raw string) (name, ver, versionSpec string, ok bool) {
 		// Strip outer quotes and trailing comma.
 		raw = strings.TrimSpace(raw)
 		raw = strings.Trim(raw, `"',`)
 		raw = strings.TrimSpace(raw)
 		if raw == "" || strings.HasPrefix(raw, "{") || strings.HasPrefix(raw, "#") {
-			return "", "", false
+			return "", "", "", false
 		}
 		// Strip any environment markers ("pkg>=1.0 ; python_version>='3.8'").
 		if idx := strings.Index(raw, ";"); idx > 0 {
@@ -616,14 +621,14 @@ func parsePyprojectTOMLScoped(data []byte, filePath string) ([]ScopedPackage, er
 		}
 		for _, sep := range []string{"==", ">=", "<=", "~=", "!=", ">", "<"} {
 			if idx := strings.Index(raw, sep); idx > 0 {
-				return strings.TrimSpace(raw[:idx]), strings.TrimSpace(raw[idx+len(sep):]), true
+				return strings.TrimSpace(raw[:idx]), strings.TrimSpace(raw[idx+len(sep):]), strings.TrimSpace(raw[idx:]), true
 			}
 		}
 		// No version specifier — just a bare name.
 		if raw != "" {
-			return raw, "", true
+			return raw, "", "", true
 		}
-		return "", "", false
+		return "", "", "", false
 	}
 
 	for scanner.Scan() {
@@ -663,10 +668,10 @@ func parsePyprojectTOMLScoped(data []byte, filePath string) ([]ScopedPackage, er
 				inArray = false
 				continue
 			}
-			if name, ver, ok := extractPyDep(trimmed); ok {
+			if name, ver, spec, ok := extractPyDep(trimmed); ok {
 				isDirect := currentScope == ScopeProduction
 				pkgs = append(pkgs, ScopedPackage{
-					Name: name, Version: ver,
+					Name: name, Version: ver, VersionSpec: spec,
 					Ecosystem: "pypi", Scope: currentScope,
 					SourceFile: filePath, IsDirect: isDirect,
 				})
@@ -690,9 +695,9 @@ func parsePyprojectTOMLScoped(data []byte, filePath string) ([]ScopedPackage, er
 					if strings.HasSuffix(rest, "]") {
 						inner := strings.TrimSuffix(strings.TrimPrefix(rest, "["), "]")
 						for _, item := range strings.Split(inner, ",") {
-							if n, v, ok := extractPyDep(item); ok {
+							if n, v, spec, ok := extractPyDep(item); ok {
 								pkgs = append(pkgs, ScopedPackage{
-									Name: n, Version: v,
+									Name: n, Version: v, VersionSpec: spec,
 									Ecosystem: "pypi", Scope: currentScope,
 									SourceFile: filePath, IsDirect: true,
 								})
@@ -711,9 +716,9 @@ func parsePyprojectTOMLScoped(data []byte, filePath string) ([]ScopedPackage, er
 				if strings.HasSuffix(rest, "]") {
 					inner := strings.TrimSuffix(strings.TrimPrefix(rest, "["), "]")
 					for _, item := range strings.Split(inner, ",") {
-						if n, v, ok := extractPyDep(item); ok {
+						if n, v, spec, ok := extractPyDep(item); ok {
 							pkgs = append(pkgs, ScopedPackage{
-								Name: n, Version: v,
+								Name: n, Version: v, VersionSpec: spec,
 								Ecosystem: "pypi", Scope: currentScope,
 								SourceFile: filePath, IsDirect: true,
 							})
@@ -731,9 +736,9 @@ func parsePyprojectTOMLScoped(data []byte, filePath string) ([]ScopedPackage, er
 				if strings.HasSuffix(rest, "]") {
 					inner := strings.TrimSuffix(strings.TrimPrefix(rest, "["), "]")
 					for _, item := range strings.Split(inner, ",") {
-						if n, v, ok := extractPyDep(item); ok {
+						if n, v, spec, ok := extractPyDep(item); ok {
 							pkgs = append(pkgs, ScopedPackage{
-								Name: n, Version: v,
+								Name: n, Version: v, VersionSpec: spec,
 								Ecosystem: "pypi", Scope: currentScope,
 								SourceFile: filePath, IsDirect: true,
 							})
@@ -985,12 +990,14 @@ func parsePipfileScoped(data []byte, filePath string) ([]ScopedPackage, error) {
 		}
 		idx := strings.Index(line, "=")
 		name := strings.TrimSpace(line[:idx])
-		ver := parsePipValue(strings.TrimSpace(line[idx+1:]))
+		rawValue := strings.TrimSpace(line[idx+1:])
+		ver := parsePipValue(rawValue)
+		versionSpec := parsePipRawSpec(rawValue)
 		scope := ScopeProduction
 		if currentSection == "dev" {
 			scope = ScopeDevelopment
 		}
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: ver, Ecosystem: "pypi", Scope: scope, SourceFile: filePath, IsDirect: true})
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: ver, VersionSpec: versionSpec, Ecosystem: "pypi", Scope: scope, SourceFile: filePath, IsDirect: true})
 	}
 	return pkgs, nil
 }
@@ -1012,6 +1019,27 @@ func parsePipValue(spec string) string {
 		return ""
 	}
 	return cleanLocalVersion(strings.Trim(spec, `"'`))
+}
+
+// parsePipRawSpec extracts the raw version spec (including operator) from a Pipfile
+// value string, without cleaning. Used to populate VersionSpec for --block-unpinned.
+func parsePipRawSpec(spec string) string {
+	spec = strings.TrimSpace(spec)
+	if strings.HasPrefix(spec, "{") {
+		for _, q := range []string{`version = "`, "version = '", `version="`} {
+			if idx := strings.Index(spec, q); idx >= 0 {
+				inner := spec[idx+len(q):]
+				if end := strings.Index(inner, `"`); end >= 0 {
+					return strings.TrimSpace(inner[:end])
+				}
+				if end := strings.Index(inner, "'"); end >= 0 {
+					return strings.TrimSpace(inner[:end])
+				}
+			}
+		}
+		return ""
+	}
+	return strings.Trim(spec, `"'`)
 }
 
 // ---------------------------------------------------------------------------
@@ -1083,8 +1111,9 @@ func parseGemfileScoped(data []byte, filePath string) ([]ScopedPackage, error) {
 			continue
 		}
 		if m := gemRe.FindSubmatch([]byte(line)); m != nil {
-			ver := cleanLocalVersion(string(m[2]))
-			pkgs = append(pkgs, ScopedPackage{Name: string(m[1]), Version: ver, Ecosystem: "rubygems", Scope: scope, SourceFile: filePath, IsDirect: true})
+			rawVer := string(m[2])
+			ver := cleanLocalVersion(rawVer)
+			pkgs = append(pkgs, ScopedPackage{Name: string(m[1]), Version: ver, VersionSpec: rawVer, Ecosystem: "rubygems", Scope: scope, SourceFile: filePath, IsDirect: true})
 		}
 	}
 	return pkgs, nil
@@ -1140,7 +1169,7 @@ func parseCargoTomlScoped(data []byte, filePath string) ([]ScopedPackage, error)
 			ver = strings.Trim(rest, `"'`)
 		}
 		if ver != "" {
-			pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "cargo", Scope: scope, SourceFile: filePath, IsDirect: true})
+			pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), VersionSpec: ver, Ecosystem: "cargo", Scope: scope, SourceFile: filePath, IsDirect: true})
 		}
 	}
 	return pkgs, nil
@@ -1237,13 +1266,13 @@ func parseComposerJSONScoped(data []byte, filePath string) ([]ScopedPackage, err
 		if name == "php" {
 			continue
 		}
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "composer", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), VersionSpec: ver, Ecosystem: "composer", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
 	}
 	for name, ver := range pkg.RequireDev {
 		if name == "php" {
 			continue
 		}
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "composer", Scope: ScopeDevelopment, SourceFile: filePath, IsDirect: true})
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), VersionSpec: ver, Ecosystem: "composer", Scope: ScopeDevelopment, SourceFile: filePath, IsDirect: true})
 	}
 	return pkgs, nil
 }

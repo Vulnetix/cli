@@ -324,6 +324,12 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 					Value: "true",
 				})
 			}
+			if v.InEuKev {
+				vuln.Properties = append(vuln.Properties, Property{
+					Name:  "vulnetix:in-eu-kev",
+					Value: "true",
+				})
+			}
 
 			bom.Vulnerabilities = append(bom.Vulnerabilities, vuln)
 		}

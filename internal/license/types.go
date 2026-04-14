@@ -32,6 +32,7 @@ type PackageLicense struct {
 	LicenseSource  string         `json:"licenseSource"` // "manifest", "lockfile", "embedded-db"
 	SourceFile      string         `json:"sourceFile"`
 	IsDirect        bool           `json:"isDirect"`
+	GitHubURL       string         `json:"-"` // optional: "owner/repo" from manifest, used for license resolution
 	Record          *LicenseRecord `json:"record,omitempty"`
 	IntroducedPaths [][]string     `json:"introducedPaths,omitempty"`
 	PathCount       int            `json:"pathCount,omitempty"`

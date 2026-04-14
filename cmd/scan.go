@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -20,6 +21,7 @@ import (
 	"github.com/vulnetix/cli/internal/license"
 	"github.com/vulnetix/cli/internal/memory"
 	"github.com/vulnetix/cli/internal/scan"
+	"github.com/vulnetix/cli/internal/update"
 	"github.com/vulnetix/cli/pkg/tty"
 	"github.com/vulnetix/cli/internal/tui"
 	"github.com/vulnetix/cli/pkg/vdb"
@@ -35,6 +37,35 @@ type SeverityBreachError struct {
 func (e *SeverityBreachError) Error() string {
 	return fmt.Sprintf("severity threshold %q breached: %d %s",
 		e.threshold, e.count, pluralise("vulnerability", e.count))
+}
+
+// PolicyBreachError is implemented by all quality-gate breach errors.
+// Execute() uses this interface to suppress redundant error printing —
+// the command itself has already printed the breach details.
+type PolicyBreachError interface {
+	error
+	isPolicyBreach()
+}
+
+// GateBreach captures one quality gate's failure details.
+type GateBreach struct {
+	Gate    string // "malware" | "exploits" | "severity" | "eol"
+	Count   int
+	Message string // pre-formatted, ready to print
+}
+
+// MultiPolicyBreachError is returned when one or more quality gates are breached.
+type MultiPolicyBreachError struct {
+	Breaches []GateBreach
+}
+
+func (e *MultiPolicyBreachError) isPolicyBreach() {}
+func (e *MultiPolicyBreachError) Error() string {
+	parts := make([]string, 0, len(e.Breaches))
+	for _, b := range e.Breaches {
+		parts = append(parts, b.Message)
+	}
+	return "quality gate(s) breached: " + strings.Join(parts, "; ")
 }
 
 // scanCmd is the top-level scan command — discovers manifests, parses them locally,
@@ -80,6 +111,15 @@ Examples:
   vulnetix scan --severity high        # exit 1 if any vuln is high or critical
   vulnetix scan --severity low         # exit 1 on any scored severity (low+)
   vulnetix scan --severity critical -f cdx17  # CDX output + break on critical
+  vulnetix scan --block-malware        # exit 1 on any known malicious package
+  vulnetix scan --block-eol            # exit 1 if runtime is end-of-life
+  vulnetix scan --block-unpinned       # exit 1 if any direct dep uses a version range
+  vulnetix scan --exploits poc         # exit 1 if any vuln has a public exploit
+  vulnetix scan --exploits active      # exit 1 if any vuln is actively exploited (CISA/EU KEV)
+  vulnetix scan --version-lag 1        # exit 1 if using the very latest release of any dep
+  vulnetix scan --cooldown 3           # exit 1 if any dep was published in the last 3 days
+  vulnetix scan --block-malware --block-unpinned --version-lag 1 --cooldown 3 --severity high
+  vulnetix scan --results-only         # silent when clean; show table only when findings exist
   vulnetix scan --from-memory                  # reconstruct pretty output from .vulnetix/sbom.cdx.json
   vulnetix scan --from-memory --fresh-exploits # reconstruct + fetch latest exploit intel
   vulnetix scan --from-memory --fresh-advisories # reconstruct + fetch latest remediation plans
@@ -161,6 +201,30 @@ Examples:
 			if !valid {
 				return fmt.Errorf("invalid --severity %q: must be one of: %s",
 					severityThreshold, strings.Join(scan.ValidSeverityThresholds, ", "))
+			}
+		}
+
+		blockMalware, _ := cmd.Flags().GetBool("block-malware")
+		blockEOL, _ := cmd.Flags().GetBool("block-eol")
+		blockUnpinned, _ := cmd.Flags().GetBool("block-unpinned")
+		exploitThreshold, _ := cmd.Flags().GetString("exploits")
+		resultsOnly, _ := cmd.Flags().GetBool("results-only")
+		versionLag, _ := cmd.Flags().GetInt("version-lag")
+		cooldownDays, _ := cmd.Flags().GetInt("cooldown")
+
+		// Normalise and validate the exploit threshold.
+		if exploitThreshold != "" {
+			exploitThreshold = strings.ToLower(strings.TrimSpace(exploitThreshold))
+			validExploit := false
+			for _, v := range scan.ValidExploitThresholds {
+				if exploitThreshold == v {
+					validExploit = true
+					break
+				}
+			}
+			if !validExploit {
+				return fmt.Errorf("invalid --exploits %q: must be one of: %s",
+					exploitThreshold, strings.Join(scan.ValidExploitThresholds, ", "))
 			}
 		}
 
@@ -276,6 +340,13 @@ Examples:
 			noRemediation,
 			noLicenses,
 			severityThreshold,
+			blockMalware,
+			blockEOL,
+			blockUnpinned,
+			exploitThreshold,
+			resultsOnly,
+			versionLag,
+			cooldownDays,
 			seedBOM,
 			vulnetixSeedBOM,
 			gitCtx,
@@ -344,6 +415,13 @@ func runLocalScan(
 	noRemediation bool,
 	noLicenses bool,
 	severityThreshold string,
+	blockMalware bool,
+	blockEOL bool,
+	blockUnpinned bool,
+	exploitThreshold string,
+	resultsOnly bool,
+	versionLag int,
+	cooldownDays int,
 	seedBOM *cdx.BOM,
 	vulnetixSeedBOM *cdx.BOM,
 	gitCtx *gitctx.GitContext,
@@ -573,6 +651,7 @@ func runLocalScan(
 				IsMalicious:      ev.IsMalicious,
 				Confirmed:        ev.Confirmed,
 				InCisaKev:        ev.InCisaKev,
+				InEuKev:          ev.InEuKev,
 				PathCount:        ev.PathCount,
 				CVSSScore:        ev.CVSSScore,
 				CVSSSeverity:     ev.CVSSSeverity,
@@ -759,56 +838,268 @@ func runLocalScan(
 		fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
 	}
 
-	// ── Output ────────────────────────────────────────────────────────────
-	specVersion, isRaw := cdx.NormalizeFormat(outputFmt)
-
-	// ── Severity threshold check ───────────────────────────────────────────
+	// ── Quality gate evaluation ───────────────────────────────────────────
 	// Evaluated after writing artefacts so that the SBOM and memory.yaml are
 	// always written regardless of exit code, giving CI pipelines access to
 	// the full findings even when the build is broken.
-	var severityBreak bool
-	var severityBreakVulns []scan.EnrichedVuln
+	var breaches []GateBreach
+
+	// Gate 1: malware
+	if blockMalware {
+		var malwareVulns []scan.EnrichedVuln
+		for _, ev := range enrichedVulns {
+			if ev.IsMalicious {
+				malwareVulns = append(malwareVulns, ev)
+			}
+		}
+		if len(malwareVulns) > 0 {
+			breaches = append(breaches, GateBreach{
+				Gate:  "malware",
+				Count: len(malwareVulns),
+				Message: fmt.Sprintf("--block-malware: %d malicious %s detected",
+					len(malwareVulns), pluralise("package", len(malwareVulns))),
+			})
+		}
+	}
+
+	// Gate 2: exploits
+	if exploitThreshold != "" {
+		var exploitVulns []scan.EnrichedVuln
+		for _, ev := range enrichedVulns {
+			if scan.ExploitMeetsThreshold(ev, exploitThreshold) {
+				exploitVulns = append(exploitVulns, ev)
+			}
+		}
+		if len(exploitVulns) > 0 {
+			breaches = append(breaches, GateBreach{
+				Gate:  "exploits",
+				Count: len(exploitVulns),
+				Message: fmt.Sprintf("--exploits %s: %d %s",
+					exploitThreshold, len(exploitVulns), pluralise("vulnerability", len(exploitVulns))),
+			})
+		}
+	}
+
+	// Gate 3: severity
 	if severityThreshold != "" {
+		var severityVulns []scan.EnrichedVuln
 		for _, ev := range enrichedVulns {
 			if scan.SeverityMeetsThreshold(ev.MaxSeverity, severityThreshold) {
-				severityBreak = true
-				severityBreakVulns = append(severityBreakVulns, ev)
+				severityVulns = append(severityVulns, ev)
+			}
+		}
+		if len(severityVulns) > 0 {
+			breaches = append(breaches, GateBreach{
+				Gate:  "severity",
+				Count: len(severityVulns),
+				Message: fmt.Sprintf("--severity %s: %d %s",
+					severityThreshold, len(severityVulns), pluralise("vulnerability", len(severityVulns))),
+			})
+		}
+	}
+
+	// Gate 4: EOL — best-effort runtime version pin detection + VDB EOL API.
+	if blockEOL {
+		eolClient := newSearchClient()
+		pins := scan.DetectRuntimeVersionPins(rootPath)
+		var eolViolations []string
+		for _, pin := range pins {
+			resp, err := eolClient.EOLRelease(pin.Product, pin.Release)
+			if err != nil {
+				continue // silently skip: unknown product / network error
+			}
+			if resp.Release.IsEol {
+				eolViolations = append(eolViolations, fmt.Sprintf("%s %s (%s)", pin.Product, pin.RawVersion, pin.SourceFile))
+			}
+		}
+		if len(eolViolations) > 0 {
+			breaches = append(breaches, GateBreach{
+				Gate:  "eol",
+				Count: len(eolViolations),
+				Message: fmt.Sprintf("--block-eol: %d end-of-life %s: %s",
+					len(eolViolations), pluralise("runtime", len(eolViolations)),
+					strings.Join(eolViolations, ", ")),
+			})
+		}
+	}
+
+	// Gate 5: unpinned direct dependencies
+	if blockUnpinned {
+		seenUnpinned := map[string]bool{}
+		var unpinnedPkgs []scan.ScopedPackage
+		for _, p := range allPackages {
+			if !p.IsDirect {
+				continue
+			}
+			if scan.IsVersionSpecPinned(p.VersionSpec) {
+				continue
+			}
+			key := p.Name + ":" + p.Ecosystem
+			if !seenUnpinned[key] {
+				seenUnpinned[key] = true
+				unpinnedPkgs = append(unpinnedPkgs, p)
+			}
+		}
+		if len(unpinnedPkgs) > 0 {
+			breaches = append(breaches, GateBreach{
+				Gate:  "unpinned",
+				Count: len(unpinnedPkgs),
+				Message: fmt.Sprintf("--block-unpinned: %d %s with unpinned version spec",
+					len(unpinnedPkgs), pluralise("dependency", len(unpinnedPkgs))),
+			})
+		}
+	}
+
+	// Gates 6 & 7: version-lag and cooldown — share a single batch version fetch.
+	if versionLag > 0 || cooldownDays > 0 {
+		type pkgVersionData struct {
+			versions []vdb.VersionRecord
+		}
+		versionDataMap := make(map[string]pkgVersionData)
+
+		type pkgKey struct{ Name, Ecosystem string }
+		uniquePkgKeys := map[pkgKey]bool{}
+		for _, p := range allPackages {
+			uniquePkgKeys[pkgKey{p.Name, p.Ecosystem}] = true
+		}
+
+		var vdMu sync.Mutex
+		var vdWg sync.WaitGroup
+		vdSem := make(chan struct{}, concurrency)
+		for k := range uniquePkgKeys {
+			vdWg.Add(1)
+			vdSem <- struct{}{}
+			go func(name, ecosystem string) {
+				defer vdWg.Done()
+				defer func() { <-vdSem }()
+				resp, err := client.GetProductVersions(name, 200, 0)
+				if err != nil {
+					return
+				}
+				vdMu.Lock()
+				versionDataMap[name+"::"+ecosystem] = pkgVersionData{versions: resp.Versions}
+				vdMu.Unlock()
+			}(k.Name, k.Ecosystem)
+		}
+		vdWg.Wait()
+
+		// Gate 6: version-lag
+		if versionLag > 0 {
+			seenLag := map[string]bool{}
+			var lagViolations []string
+			for _, p := range allPackages {
+				key := p.Name + "::" + p.Ecosystem
+				if seenLag[key] {
+					continue
+				}
+				seenLag[key] = true
+				data, ok := versionDataMap[key]
+				if !ok || len(data.versions) == 0 {
+					continue
+				}
+				sorted := sortVersionsDesc(data.versions)
+				installedParsed, err := update.ParseVersion(strings.TrimPrefix(p.Version, "v"))
+				if err != nil {
+					continue
+				}
+				for rank, rec := range sorted {
+					v, err := update.ParseVersion(strings.TrimPrefix(rec.Version, "v"))
+					if err != nil {
+						continue
+					}
+					if v.Compare(installedParsed) == 0 {
+						if rank < versionLag {
+							lagViolations = append(lagViolations,
+								fmt.Sprintf("%s@%s (rank %d of %d)", p.Name, p.Version, rank+1, len(sorted)))
+						}
+						break
+					}
+				}
+			}
+			if len(lagViolations) > 0 {
+				breaches = append(breaches, GateBreach{
+					Gate:  "version-lag",
+					Count: len(lagViolations),
+					Message: fmt.Sprintf("--version-lag %d: %d %s within the %d most recent %s: %s",
+						versionLag, len(lagViolations), pluralise("dependency", len(lagViolations)),
+						versionLag, pluralise("release", versionLag),
+						strings.Join(lagViolations, ", ")),
+				})
+			}
+		}
+
+		// Gate 7: cooldown
+		if cooldownDays > 0 {
+			cutoff := time.Now().UTC().AddDate(0, 0, -cooldownDays)
+			seenCooldown := map[string]bool{}
+			var cooldownViolations []string
+			for _, p := range allPackages {
+				key := p.Name + "::" + p.Ecosystem
+				if seenCooldown[key] {
+					continue
+				}
+				seenCooldown[key] = true
+				data, ok := versionDataMap[key]
+				if !ok {
+					continue
+				}
+				for _, rec := range data.versions {
+					if strings.TrimPrefix(rec.Version, "v") != strings.TrimPrefix(p.Version, "v") {
+						continue
+					}
+					t := extractPublishDate(rec)
+					if t != nil && t.After(cutoff) {
+						cooldownViolations = append(cooldownViolations,
+							fmt.Sprintf("%s@%s (published %s)", p.Name, p.Version, t.Format("2006-01-02")))
+					}
+					break
+				}
+			}
+			if len(cooldownViolations) > 0 {
+				breaches = append(breaches, GateBreach{
+					Gate:  "cooldown",
+					Count: len(cooldownViolations),
+					Message: fmt.Sprintf("--cooldown %d: %d %s published within last %d %s: %s",
+						cooldownDays, len(cooldownViolations), pluralise("dependency", len(cooldownViolations)),
+						cooldownDays, pluralise("day", cooldownDays),
+						strings.Join(cooldownViolations, ", ")),
+				})
 			}
 		}
 	}
 
+	// ── Output ────────────────────────────────────────────────────────────
+	specVersion, isRaw := cdx.NormalizeFormat(outputFmt)
+
 	// If no format is specified and we are in a terminal, print a pretty summary.
 	if outputFmt == "" && isInteractive {
-		printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, sbomPath, vulnetixDir, rulesPath, severityThreshold)
+		printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, sbomPath, vulnetixDir, rulesPath, resultsOnly)
 		// Append license summary if license analysis was run.
 		if licenseResult != nil && len(licenseResult.Findings) > 0 {
 			printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
 		}
-		if severityBreak {
+		if len(breaches) > 0 {
 			fmt.Fprintln(os.Stderr)
-			fmt.Fprintf(os.Stderr, "  ✗ Severity threshold breached: --%s %s triggered by %d %s\n",
-				"severity", severityThreshold, len(severityBreakVulns),
-				pluralise("vulnerability", len(severityBreakVulns)))
-			return &SeverityBreachError{threshold: severityThreshold, count: len(severityBreakVulns)}
+			for _, b := range breaches {
+				fmt.Fprintf(os.Stderr, "  ✗ %s\n", b.Message)
+			}
+			return &MultiPolicyBreachError{Breaches: breaches}
 		}
 		return nil
 	}
 
 	// Otherwise emit to stdout in the requested machine-readable format.
 	if isRaw {
-		if severityBreak {
-			_ = writeRawLocalJSON(localResults)
-			return &SeverityBreachError{threshold: severityThreshold, count: len(severityBreakVulns)}
+		_ = writeRawLocalJSON(localResults)
+	} else {
+		// Re-build with the requested spec version for stdout.
+		outBOM := cdx.BuildFromLocalScan(localResults, specVersion, scanCtx, seedBOM)
+		if err := outBOM.WriteJSON(os.Stdout); err != nil {
+			return err
 		}
-		return writeRawLocalJSON(localResults)
 	}
-	// Re-build with the requested spec version for stdout.
-	outBOM := cdx.BuildFromLocalScan(localResults, specVersion, scanCtx, seedBOM)
-	if err := outBOM.WriteJSON(os.Stdout); err != nil {
-		return err
-	}
-	if severityBreak {
-		return &SeverityBreachError{threshold: severityThreshold, count: len(severityBreakVulns)}
+	if len(breaches) > 0 {
+		return &MultiPolicyBreachError{Breaches: breaches}
 	}
 	return nil
 }
@@ -1010,8 +1301,13 @@ func printPrettyScanSummary(
 	noExploits bool,
 	noRemediation bool,
 	sbomPath, vulnetixDir, rulesPath string,
-	severityThreshold string,
+	resultsOnly bool,
 ) {
+	// --results-only: stay silent when there are no findings.
+	if resultsOnly && len(enrichedVulns) == 0 {
+		return
+	}
+
 	t := display.NewTerminal()
 	fmt.Fprintln(os.Stdout)
 	fmt.Fprintln(os.Stdout, display.Divider(t))
@@ -1061,6 +1357,7 @@ func printPrettyScanSummary(
 
 	// ── Unified table columns ─────────────────────────────────────────────
 	// "File" is the first column; non-empty cells are coloured teal.
+	sevColor := func(s string) string { return display.SeverityText(t, strings.ToLower(s)) }
 	cols := []display.Column{
 		{Header: "File", MinWidth: 20, MaxWidth: 50, Color: func(s string) string {
 			if strings.TrimSpace(s) == "" {
@@ -1070,18 +1367,39 @@ func printPrettyScanSummary(
 		}},
 		{Header: "Vuln ID", MinWidth: 16, MaxWidth: 28},
 		{Header: "Package", MinWidth: 14, MaxWidth: 36},
-		{Header: "Mal", MinWidth: 3, MaxWidth: 3},
-		{Header: "MaxSev", MinWidth: 6, MaxWidth: 10},
+		{Header: "Mal", MinWidth: 3, MaxWidth: 3, Color: func(s string) string {
+			if strings.TrimSpace(s) == "" {
+				return s
+			}
+			return display.ErrorStyle(t, s)
+		}},
+		{Header: "MaxSev", MinWidth: 6, MaxWidth: 10, Color: sevColor},
 		{Header: "CVSS", MinWidth: 4, MaxWidth: 6, Align: display.AlignRight},
-		{Header: "CVSSSev", MinWidth: 4, MaxWidth: 8},
+		{Header: "CVSSSev", MinWidth: 4, MaxWidth: 8, Color: sevColor},
 		{Header: "EPSS", MinWidth: 4, MaxWidth: 10, Align: display.AlignRight},
-		{Header: "EPSSSev", MinWidth: 4, MaxWidth: 8},
+		{Header: "EPSSSev", MinWidth: 4, MaxWidth: 8, Color: sevColor},
 		{Header: "SSVC", MinWidth: 4, MaxWidth: 8},
-		{Header: "SSVCSev", MinWidth: 4, MaxWidth: 8},
+		{Header: "SSVCSev", MinWidth: 4, MaxWidth: 8, Color: sevColor},
 		{Header: "CESS", MinWidth: 4, MaxWidth: 8, Align: display.AlignRight},
-		{Header: "CESSev", MinWidth: 4, MaxWidth: 8},
-		{Header: "Expl", MinWidth: 4, MaxWidth: 5, Align: display.AlignRight},
-		{Header: "Fix", MinWidth: 3, MaxWidth: 20},
+		{Header: "CESSev", MinWidth: 4, MaxWidth: 8, Color: sevColor},
+		{Header: "Expl", MinWidth: 4, MaxWidth: 5, Align: display.AlignRight, Color: func(s string) string {
+			if strings.TrimSpace(s) == "" || s == "0" {
+				return display.Muted(t, s)
+			}
+			return display.Accent(t, s)
+		}},
+		{Header: "Fix", MinWidth: 3, MaxWidth: 20, Color: func(s string) string {
+			switch strings.ToLower(strings.TrimSpace(s)) {
+			case "available":
+				return display.Success(t, s)
+			case "partial":
+				return display.Accent(t, s)
+			case "no fix":
+				return display.ErrorStyle(t, s)
+			default:
+				return s
+			}
+		}},
 		{Header: "Match", MinWidth: 5, MaxWidth: 14},
 	}
 
@@ -1112,7 +1430,10 @@ func printPrettyScanSummary(
 
 			vulnID := v.CveID
 			if v.InCisaKev {
-				vulnID += " [KEV]"
+				vulnID += " [CISA]"
+			}
+			if v.InEuKev {
+				vulnID += " [EU]"
 			}
 
 			pkg := v.PackageName + " " + v.PackageVer
@@ -1231,7 +1552,7 @@ func printPrettyScanSummary(
 		}
 
 		// ── Exploits detail ───────────────────────────────────────────────
-		if !noExploits {
+		if !noExploits && !resultsOnly {
 			hasExploits := false
 			for _, v := range dedupedVulns {
 				if v.ExploitIntel != nil && v.ExploitIntel.ExploitCount > 0 {
@@ -1263,7 +1584,7 @@ func printPrettyScanSummary(
 		}
 
 		// ── Remediation detail ────────────────────────────────────────────
-		if !noRemediation {
+		if !noRemediation && !resultsOnly {
 			hasRemediation := false
 			for _, v := range dedupedVulns {
 				if v.Remediation != nil && (v.Remediation.FixVersion != "" || len(v.Remediation.Actions) > 0 || v.FixAvailability != "") {
@@ -1926,6 +2247,15 @@ func init() {
 	scanCmd.Flags().Bool("no-remediation", false, "Suppress detailed remediation section")
 	scanCmd.Flags().Bool("no-licenses", false, "Skip license analysis during scan")
 	scanCmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")
+	scanCmd.Flags().Bool("block-malware", false, "Exit with code 1 when any dependency is a known malicious package.")
+	scanCmd.Flags().Bool("block-eol", false, "Exit with code 1 when a runtime is end-of-life (Go, Node.js, Python, Ruby). Dependency-level EOL checking requires future VDB support.")
+	scanCmd.Flags().Bool("block-unpinned", false, "Exit with code 1 when any direct dependency uses a version range (^, ~, >=) instead of an exact pin.")
+	scanCmd.Flags().String("exploits", "", "Exit with code 1 when exploit maturity reaches the threshold: poc (any public exploit), active (CISA/EU KEV / actively exploited), weaponized (in-the-wild only).")
+	scanCmd.Flags().Bool("results-only", false, "Only output when findings exist; completely silent when the scan is clean.")
+	scanCmd.Flags().Int("version-lag", 0, "Exit with code 1 when any dependency is within the N most recently published versions of that package (0 = disabled).")
+	scanCmd.Flags().Int("cooldown", 0, "Exit with code 1 when any dependency version was published within the last N days (0 = disabled, best-effort).")
+	_ = scanCmd.RegisterFlagCompletionFunc("exploits", cobra.FixedCompletions(
+		scan.ValidExploitThresholds, cobra.ShellCompDirectiveNoFileComp))
 
 	// --dry-run flag
 	scanCmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
@@ -1952,3 +2282,51 @@ func init() {
 
 // Ensure tui package is imported (used indirectly for color constants via display).
 var _ = tui.ColorAccent
+
+// sortVersionsDesc returns a copy of records sorted newest-first using semver comparison.
+// Records whose version cannot be parsed are placed after all parseable ones.
+func sortVersionsDesc(records []vdb.VersionRecord) []vdb.VersionRecord {
+	out := make([]vdb.VersionRecord, len(records))
+	copy(out, records)
+	sort.SliceStable(out, func(i, j int) bool {
+		vi, errI := update.ParseVersion(strings.TrimPrefix(out[i].Version, "v"))
+		vj, errJ := update.ParseVersion(strings.TrimPrefix(out[j].Version, "v"))
+		if errI != nil && errJ != nil {
+			return out[i].Version > out[j].Version // fallback: lexicographic desc
+		}
+		if errI != nil {
+			return false // unparseable goes last
+		}
+		if errJ != nil {
+			return true
+		}
+		return vi.IsNewerThan(vj)
+	})
+	return out
+}
+
+// extractPublishDate probes common metadata keys in a VersionRecord's sources for
+// a publication date. Returns nil when no parseable date is found (best-effort).
+func extractPublishDate(rec vdb.VersionRecord) *time.Time {
+	candidates := []string{"publishedAt", "published_at", "date", "createdAt", "created_at"}
+	for _, src := range rec.Sources {
+		for _, key := range candidates {
+			val, ok := src.Metadata[key]
+			if !ok {
+				continue
+			}
+			s, ok := val.(string)
+			if !ok || s == "" {
+				continue
+			}
+			// Try RFC3339, then date-only.
+			for _, layout := range []string{time.RFC3339, "2006-01-02"} {
+				if t, err := time.Parse(layout, s); err == nil {
+					t = t.UTC()
+					return &t
+				}
+			}
+		}
+	}
+	return nil
+}

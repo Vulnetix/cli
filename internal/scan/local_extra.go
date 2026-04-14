@@ -809,7 +809,7 @@ func parseShardYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		secDev  = 2
 	)
 	section := secNone
-	var currentName string
+	var currentName, currentGitHub string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -828,6 +828,7 @@ func parseShardYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
 				section = secNone
 			}
 			currentName = ""
+			currentGitHub = ""
 			continue
 		}
 		if section == secNone {
@@ -835,15 +836,28 @@ func parseShardYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		}
 		if indent == 2 && strings.HasSuffix(trimmed, ":") {
 			currentName = strings.TrimSuffix(trimmed, ":")
+			currentGitHub = ""
 			continue
 		}
-		if indent > 2 && currentName != "" && strings.HasPrefix(trimmed, "version:") {
-			ver := cleanLocalVersion(strings.TrimSpace(strings.TrimPrefix(trimmed, "version:")))
-			scope := ScopeProduction
-			if section == secDev {
-				scope = ScopeDevelopment
+		if indent > 2 && currentName != "" {
+			if strings.HasPrefix(trimmed, "github:") {
+				currentGitHub = strings.TrimSpace(strings.TrimPrefix(trimmed, "github:"))
 			}
-			pkgs = append(pkgs, ScopedPackage{Name: currentName, Version: ver, Ecosystem: "crystal", Scope: scope, IsDirect: true})
+			if strings.HasPrefix(trimmed, "version:") {
+				ver := cleanLocalVersion(strings.TrimSpace(strings.TrimPrefix(trimmed, "version:")))
+				scope := ScopeProduction
+				if section == secDev {
+					scope = ScopeDevelopment
+				}
+				pkgs = append(pkgs, ScopedPackage{
+					Name:      currentName,
+					Version:   ver,
+					Ecosystem: "crystal",
+					Scope:     scope,
+					IsDirect:  true,
+					GitHubURL: currentGitHub,
+				})
+			}
 		}
 	}
 	return pkgs, nil
@@ -856,7 +870,7 @@ func parseShardYAMLScoped(data []byte, _ string) ([]ScopedPackage, error) {
 func parseShardLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	var currentName string
+	var currentName, currentGitHub string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -865,9 +879,10 @@ func parseShardLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			continue
 		}
 
-		// Flat format: "- name: kemal" followed by "  version: 1.4.0"
+		// Flat format: "- name: kemal" followed by "  github: kemalcr/kemal", "  version: 1.4.0"
 		if strings.HasPrefix(trimmed, "- name:") {
 			currentName = strings.TrimSpace(strings.TrimPrefix(trimmed, "- name:"))
+			currentGitHub = ""
 			continue
 		}
 
@@ -878,13 +893,26 @@ func parseShardLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		}
 		if indent == 2 && strings.HasSuffix(trimmed, ":") && !strings.Contains(trimmed, " ") {
 			currentName = strings.TrimSuffix(trimmed, ":")
+			currentGitHub = ""
 			continue
 		}
 
-		if currentName != "" && strings.HasPrefix(trimmed, "version:") {
-			ver := strings.TrimSpace(strings.TrimPrefix(trimmed, "version:"))
-			pkgs = append(pkgs, ScopedPackage{Name: currentName, Version: ver, Ecosystem: "crystal", Scope: ScopeProduction})
-			currentName = ""
+		if currentName != "" {
+			if strings.HasPrefix(trimmed, "github:") {
+				currentGitHub = strings.TrimSpace(strings.TrimPrefix(trimmed, "github:"))
+			}
+			if strings.HasPrefix(trimmed, "version:") {
+				ver := strings.TrimSpace(strings.TrimPrefix(trimmed, "version:"))
+				pkgs = append(pkgs, ScopedPackage{
+					Name:      currentName,
+					Version:   ver,
+					Ecosystem: "crystal",
+					Scope:     ScopeProduction,
+					GitHubURL: currentGitHub,
+				})
+				currentName = ""
+				currentGitHub = ""
+			}
 		}
 	}
 	return pkgs, nil

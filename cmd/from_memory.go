@@ -101,8 +101,8 @@ func LoadFromMemory(rootPath string, freshExploits, freshAdvisories, freshVulns 
 		false, // noRemediation
 		sbomPath,
 		filepath.Join(rootPath, ".vulnetix"),
-		"", // rulesPath
-		"", // severityThreshold
+		"",    // rulesPath
+		false, // resultsOnly
 	)
 
 	return nil
@@ -142,6 +142,8 @@ func cdxToEnrichedVuln(bv *cdx.Vulnerability, compLookup map[string]cdx.Componen
 			ev.VulnFinding.InCisaKev = p.Value == "true"
 		case "vulnetix:in-vulncheck-kev":
 			ev.VulnFinding.InVulnCheckKev = p.Value == "true"
+		case "vulnetix:in-eu-kev":
+			ev.VulnFinding.InEuKev = p.Value == "true"
 		}
 	}
 
