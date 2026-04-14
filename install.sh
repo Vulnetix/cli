@@ -99,9 +99,13 @@ main() {
   download_url=$(get_download_url "$platform" "$VERSION")
   echo "⬇️  Downloading from: $download_url"
   
-  # Create install directory if it doesn't exist
-  mkdir -p "$INSTALL_DIR"
-  
+  # Resolve install directory — fall back to ~/.local/bin if not writable
+  if ! mkdir -p "$INSTALL_DIR" 2>/dev/null || [ ! -w "$INSTALL_DIR" ]; then
+    INSTALL_DIR="$HOME/.local/bin"
+    echo "⚠️  Cannot write to default install dir, falling back to $INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR"
+  fi
+
   # Download binary
   local binary_path="$INSTALL_DIR/$BINARY_NAME"
   if command -v curl >/dev/null 2>&1; then
