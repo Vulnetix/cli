@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PHP-003",
 	"name": "PHP file inclusion with variable path",
 	"description": "include, require, include_once, and require_once with a variable or user-controlled path enable Local File Inclusion (LFI) and potentially Remote File Inclusion (RFI), leading to arbitrary code execution.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PHP-003",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-003/",
 	"languages": ["php"],
 	"severity": "critical",
 	"level": "error",

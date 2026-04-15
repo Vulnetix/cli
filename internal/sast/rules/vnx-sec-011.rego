@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-011",
 	"name": "Hardcoded JWT token",
 	"description": "A hardcoded JSON Web Token was found in source code. JWTs often contain session data and claims; committing them exposes authentication material in version history.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-011",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-011/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

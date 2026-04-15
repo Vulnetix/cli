@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-CRYPTO-001",
 	"name": "MD5 usage detected",
 	"description": "MD5 is a broken hash function. Collisions can be generated cheaply, making it unsuitable for integrity checks, signatures, or password hashing.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-CRYPTO-001",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-001/",
 	"languages": ["python", "node", "go", "java", "ruby", "php"],
 	"severity": "medium",
 	"level": "warning",

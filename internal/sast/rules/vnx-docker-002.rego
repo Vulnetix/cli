@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-DOCKER-002",
 	"name": "Dockerfile FROM :latest tag",
 	"description": "Using :latest (or no tag) in a FROM instruction makes builds non-reproducible and can silently pull breaking or compromised images.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-DOCKER-002",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-002/",
 	"languages": ["docker"],
 	"severity": "medium",
 	"level": "warning",

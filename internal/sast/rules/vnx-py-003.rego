@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-003",
 	"name": "Insecure deserialization with pickle",
 	"description": "pickle.load() and pickle.loads() deserialize arbitrary Python objects. Malicious pickle data can execute arbitrary code during deserialization.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-003",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-003/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PHP-001",
 	"name": "Missing composer.lock",
 	"description": "composer.json exists without composer.lock. Without a lock file, composer install resolves floating ranges non-deterministically, enabling supply chain attacks.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PHP-001",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-001/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

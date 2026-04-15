@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-RUBY-002",
 	"name": "eval() or system() in Ruby",
 	"description": "eval(), Kernel.system(), and backtick execution can run arbitrary code. If any argument is user-controlled, this enables remote code execution.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-RUBY-002",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-002/",
 	"languages": ["ruby"],
 	"severity": "high",
 	"level": "error",

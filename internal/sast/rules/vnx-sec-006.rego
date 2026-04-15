@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-006",
 	"name": "Stripe secret key",
 	"description": "A Stripe secret API key (sk_live or sk_test prefix) was found in source code. Secret keys grant full access to the Stripe account including payment operations.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-006",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-006/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-JAVA-003",
 	"name": "SQL injection via string concatenation",
 	"description": "SQL queries built with string concatenation in JDBC or JPA allow SQL injection when the concatenated value is user-controlled. Use parameterized queries (PreparedStatement) instead.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-JAVA-003",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-003/",
 	"languages": ["java"],
 	"severity": "critical",
 	"level": "error",

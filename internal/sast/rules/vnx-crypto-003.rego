@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-CRYPTO-003",
 	"name": "AES in ECB mode",
 	"description": "AES in ECB mode encrypts identical plaintext blocks to identical ciphertext blocks, leaking patterns. Use CBC, CTR, or GCM mode instead.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-CRYPTO-003",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-003/",
 	"languages": ["python", "node", "go", "java", "ruby", "php"],
 	"severity": "high",
 	"level": "error",

@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-RUBY-001",
 	"name": "Missing Gemfile.lock",
 	"description": "Gemfile exists without Gemfile.lock. Without a lock file, bundle install resolves floating ranges non-deterministically, enabling supply chain attacks.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-RUBY-001",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-001/",
 	"languages": ["ruby"],
 	"severity": "high",
 	"level": "error",

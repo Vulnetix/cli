@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-GO-003",
 	"name": "SQL injection via fmt.Sprintf",
 	"description": "SQL queries built with fmt.Sprintf or string concatenation allow SQL injection when the formatted value is user-controlled. Use parameterized queries with $1 or ? placeholders.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-GO-003",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-003/",
 	"languages": ["go"],
 	"severity": "critical",
 	"level": "error",

@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PHP-002",
 	"name": "Dangerous function in PHP",
 	"description": "Functions like eval(), exec(), system(), passthru(), and shell_exec() execute arbitrary commands. If any argument is user-controlled, this enables remote code execution.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PHP-002",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-002/",
 	"languages": ["php"],
 	"severity": "high",
 	"level": "error",

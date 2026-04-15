@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-002",
 	"name": "Private key committed",
 	"description": "A private key file (RSA, EC, DSA, or OpenSSH) was found in the repository. Committed private keys can be extracted from git history even after deletion.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-002",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-002/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

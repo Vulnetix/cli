@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-008",
 	"name": "Database connection string with credentials",
 	"description": "A database connection string with embedded username and password was found. Connection strings with credentials enable unauthorized database access if leaked.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-008",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-008/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

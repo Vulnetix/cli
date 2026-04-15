@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-GO-004",
 	"name": "TLS InsecureSkipVerify enabled",
 	"description": "Setting InsecureSkipVerify to true in tls.Config disables TLS certificate validation, enabling man-in-the-middle attacks.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-GO-004",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-004/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-008",
 	"name": "Flask debug mode enabled",
 	"description": "Flask app.run(debug=True) enables the Werkzeug interactive debugger, which allows remote code execution on the server via the debugger console.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-008",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-008/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-JAVA-006",
 	"name": "Insecure TLS trust manager",
 	"description": "An X509TrustManager with an empty checkServerTrusted() method or a HostnameVerifier that always returns true disables TLS validation, enabling man-in-the-middle attacks.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-JAVA-006",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-006/",
 	"languages": ["java"],
 	"severity": "critical",
 	"level": "error",

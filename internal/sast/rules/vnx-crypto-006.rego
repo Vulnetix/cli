@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-CRYPTO-006",
 	"name": "Weak RSA key size",
 	"description": "RSA key generation with fewer than 2048 bits is cryptographically weak. NIST recommends a minimum of 2048 bits; prefer 4096 bits for long-lived keys.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-CRYPTO-006",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-006/",
 	"languages": ["python", "go", "java"],
 	"severity": "high",
 	"level": "error",

@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-CRYPTO-004",
 	"name": "Broken or obsolete cipher",
 	"description": "DES, 3DES, RC4, and Blowfish are cryptographically broken or deprecated. Use AES-256-GCM or ChaCha20-Poly1305 instead.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-CRYPTO-004",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-004/",
 	"languages": ["python", "node", "go", "java", "ruby", "php"],
 	"severity": "high",
 	"level": "error",

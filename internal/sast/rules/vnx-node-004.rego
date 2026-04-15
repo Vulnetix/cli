@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-NODE-004",
 	"name": "Express app without helmet",
 	"description": "Express applications without helmet middleware are missing important HTTP security headers (CSP, HSTS, X-Frame-Options, etc.).",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-NODE-004",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-004/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

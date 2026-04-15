@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-009",
 	"name": "Jinja2 autoescape disabled",
 	"description": "Jinja2 Environment with autoescape=False renders templates without HTML escaping, enabling cross-site scripting (XSS) when user input is included in templates.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-009",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-009/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

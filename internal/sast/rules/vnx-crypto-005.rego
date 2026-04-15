@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-CRYPTO-005",
 	"name": "TLS certificate validation disabled",
 	"description": "TLS certificate verification is disabled, allowing man-in-the-middle attacks. Never disable certificate validation in production.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-CRYPTO-005",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-005/",
 	"languages": ["python", "node", "go", "java"],
 	"severity": "high",
 	"level": "error",

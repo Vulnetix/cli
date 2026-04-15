@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-010",
 	"name": "SSL verification disabled in requests",
 	"description": "requests.get/post with verify=False disables TLS certificate validation, enabling man-in-the-middle attacks on HTTPS connections.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-010",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-010/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-006",
 	"name": "Django DEBUG=True",
 	"description": "DEBUG=True in Django settings exposes detailed tracebacks, SQL queries, and configuration to any visitor. Must be False in production.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-006",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-006/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",
