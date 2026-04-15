@@ -1,6 +1,7 @@
 ---
 title: "VNX-SEC-003 – AWS Secret Access Key"
 description: "Detects hardcoded AWS secret access keys in source code, which combined with an access key ID grant full programmatic access to AWS services."
+kind: secrets
 ---
 
 ## Overview

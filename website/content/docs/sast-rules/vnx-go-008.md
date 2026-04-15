@@ -1,6 +1,7 @@
 ---
 title: "VNX-GO-008 – Go Weak PRNG for Security"
 description: "Detect Go code that imports math/rand for use in security-sensitive contexts such as token generation, password creation, or session ID assignment, where a cryptographically secure PRNG is required."
+kind: sast
 ---
 
 ## Overview

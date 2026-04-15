@@ -61,7 +61,7 @@ protoPayload.authenticationInfo.principalEmail="my-sa@my-project.iam.gserviceacc
 ```yaml
 # SAFE: GKE Workload Identity — no key file needed
 apiVersion: v1
-kind: ServiceAccount
+kind: secrets
 metadata:
   name: my-app
   namespace: default
