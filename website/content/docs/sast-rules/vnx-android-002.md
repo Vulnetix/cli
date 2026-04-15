@@ -1,6 +1,7 @@
 ---
 title: "VNX-ANDROID-002 – Android WebView JavaScript Enabled"
 description: "Detects insecure WebView configuration in Android apps including enabled JavaScript, file access, and addJavascriptInterface calls that expose apps to XSS and remote code execution."
+kind: sast
 ---
 
 ## Overview

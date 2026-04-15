@@ -18,6 +18,80 @@ title = "Vulnetix"
   weight = 1
 
 [[menu.main]]
+  name = "SCA"
+  pageRef = "/docs/cli-reference/sca"
+  weight = 2
+
+[[menu.main]]
+  name = "SAST"
+  pageRef = "/docs/cli-reference/sast"
+  weight = 3
+
+[[menu.main]]
+  name = "Custom SAST Rules"
+  pageRef = "/docs/sast-rules/custom-rules"
+  weight = 6
+
+# Individual SAST rule pages
+# (auto-generated below)
+
+# SAST Rules (grouped by kind)
+[[menu.main]]
+  name = "SAST Rules"
+  identifier = "sast-rules-group"
+  weight = 10
+
+  [[menu.main]]
+    parent = "sast-rules-group"
+    name = "sast"
+    identifier = "sast-kind"
+    weight = 1
+
+    [[menu.main]]
+      parent = "sast-kind"
+      name = "VNX-ANDROID-002 – Android WebView JavaScript Enabled"
+      pageRef = "/docs/sast-rules/vnx-android-002"
+      weight = 1
+    [[menu.main]]
+      parent = "sast-kind"
+      name = "VNX-CRYPTO-002 – SHA-1 Usage Detected"
+      pageRef = "/docs/sast-rules/vnx-crypto-002"
+      weight = 2
+    [[menu.main]]
+      parent = "sast-kind"
+      name = "VNX-GO-008 – Go Weak PRNG for Security"
+      pageRef = "/docs/sast-rules/vnx-go-008"
+      weight = 3
+
+  [[menu.main]]
+    parent = "sast-rules-group"
+    name = "secrets"
+    identifier = "secrets-kind"
+    weight = 2
+
+    [[menu.main]]
+      parent = "secrets-kind"
+      name = "VNX-SEC-003 – AWS Secret Access Key"
+      pageRef = "/docs/sast-rules/vnx-sec-003"
+      weight = 1
+    [[menu.main]]
+      parent = "secrets-kind"
+      name = "VNX-SEC-019 – GCP Service Account Key"
+      pageRef = "/docs/sast-rules/vnx-sec-019"
+      weight = 2
+
+
+[[menu.main]]
+  name = "Containers"
+  pageRef = "/docs/cli-reference/containers"
+  weight = 4
+
+[[menu.main]]
+  name = "IaC"
+  pageRef = "/docs/cli-reference/iac"
+  weight = 5
+
+[[menu.main]]
   name = "GitHub"
   url = "https://github.com/Vulnetix/cli"
   weight = 5

@@ -1,6 +1,7 @@
 ---
 title: "VNX-CRYPTO-002 – SHA-1 Usage Detected"
 description: "Detects use of the SHA-1 hash algorithm across Python, Node.js, Go, Java, Ruby, and PHP, flagging code that relies on a cryptographically broken hash function."
+kind: sast
 ---
 
 ## Overview
