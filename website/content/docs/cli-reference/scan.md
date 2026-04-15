@@ -25,11 +25,15 @@ vulnetix scan status <scan-id> [flags]
 | `-f, --format` | string | pretty summary | Output format written to stdout: `cdx17`, `cdx16`, `json`; omit for a human-readable summary |
 | `--concurrency` | int | `5` | Max concurrent VDB queries |
 | `--no-progress` | bool | `false` | Suppress the progress bar |
-| `--paths` | bool | `false` | Show full transitive dependency paths (requires Go toolchain for Go modules) |
+| `--paths` | bool | `false` | Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go). Edges are built from locally installed packages (`node_modules/`, venv, `vendor/`, `cargo metadata`). |
 | `--no-exploits` | bool | `false` | Suppress the detailed exploit intelligence section |
 | `--no-remediation` | bool | `false` | Suppress the detailed remediation section |
 | `--no-licenses` | bool | `false` | Skip license analysis during scan (license analysis runs by default) |
 | `--severity` | string | - | Exit with code `1` if any vulnerability meets or exceeds this level: `low`, `medium`, `high`, `critical`. Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC). |
+| `--block-malware` | bool | `false` | Exit with code `1` when any dependency is a known malicious package. |
+| `--block-eol` | bool | `false` | Exit with code `1` when a runtime or package dependency is end-of-life. Runtimes: Go, Node.js, Python, Ruby. Package-level checks activate when VDB has EOL data (404s are silently skipped). |
+| `--block-unpinned` | bool | `false` | Exit with code `1` when any direct dependency uses a version range (`^`, `~`, `>=`) instead of an exact pin. |
+| `--exploits` | string | - | Exit with code `1` when exploit maturity reaches the threshold: `poc` (any public exploit), `active` (CISA/EU KEV / actively exploited), `weaponized` (in-the-wild only). |
 | `--dry-run` | bool | `false` | Detect files and parse packages locally, check memory, then exit — zero API calls |
 | `--from-memory` | bool | `false` | Reconstruct scan pretty output from `.vulnetix/sbom.cdx.json` without API calls |
 | `--fresh-exploits` | bool | `false` | With `--from-memory`: fetch latest exploit intel from API |
@@ -319,6 +323,21 @@ The scanner walks the directory tree starting from `--path` up to `--depth` leve
 
 Use `--exclude` to skip additional paths by glob pattern.
 
+### Dependency graph from installed packages
+
+After parsing manifests, the scanner also reads locally installed package directories to build a complete transitive dependency graph. This improves SBOM `dependencies` section accuracy and powers `--paths` output — no extra flags required.
+
+| Ecosystem | Install directory |
+|-----------|-------------------|
+| npm | `node_modules/` (follows symlinks for pnpm) |
+| Python | venv `site-packages/*.dist-info/METADATA` |
+| Rust | `cargo metadata` subprocess |
+| Ruby | `vendor/bundle/` or `GEM_HOME` gemspec files |
+| PHP | `vendor/*/composer.json` |
+| Go | `go mod graph` subprocess |
+
+If the install directory is not present, the scanner falls back to lock-file edge parsing where available.
+
 ## Examples
 
 ### Auto-discover and scan the current directory
@@ -373,6 +392,16 @@ vulnetix scan --severity high
 vulnetix scan --severity low -f cdx17
 ```
 
+### Gate on EOL runtimes and packages
+
+```bash
+# Exit 1 when a runtime or package dependency is end-of-life
+vulnetix scan --block-eol
+
+# Combine with severity gating
+vulnetix scan --block-eol --severity high
+```
+
 ### Suppress extra sections
 
 ```bash
@@ -420,4 +449,4 @@ vulnetix scan status abc123def --poll --poll-interval 10
 | Code | Meaning |
 |------|---------|
 | `0` | Scan completed successfully (no threshold breach) |
-| `1` | `--severity` threshold was breached, or a fatal error occurred |
+| `1` | A gate was breached (`--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`), or a fatal error occurred |

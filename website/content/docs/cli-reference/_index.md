@@ -226,11 +226,15 @@ vulnetix scan status <scan-id> [flags]
 | `-f, --format` | pretty | Output format: `cdx17`, `cdx16`, `json`; omit for human-readable summary |
 | `--concurrency` | `5` | Max concurrent VDB queries |
 | `--no-progress` | `false` | Suppress progress bar |
-| `--paths` | `false` | Show full transitive dependency paths |
+| `--paths` | `false` | Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go) |
 | `--no-exploits` | `false` | Suppress exploit intelligence section |
 | `--no-remediation` | `false` | Suppress remediation section |
 | `--no-licenses` | `false` | Skip license analysis during scan |
 | `--severity` | - | Exit `1` if any vuln meets or exceeds: `low`, `medium`, `high`, `critical` |
+| `--block-malware` | `false` | Exit `1` when any dependency is a known malicious package |
+| `--block-eol` | `false` | Exit `1` when a runtime or package dependency is end-of-life |
+| `--block-unpinned` | `false` | Exit `1` when any direct dependency uses a version range instead of an exact pin |
+| `--exploits` | - | Exit `1` when exploit maturity reaches threshold: `poc`, `active`, `weaponized` |
 | `--dry-run` | `false` | Detect files and parse packages only — zero API calls |
 | `--from-memory` | `false` | Reconstruct from `.vulnetix/sbom.cdx.json` without API calls |
 

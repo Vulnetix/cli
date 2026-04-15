@@ -174,6 +174,31 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### Gate on EOL and Severity
+
+Use `vulnetix scan` directly in a workflow to enforce policy gates. The scan exits with code `1` when any gate is breached, failing the CI step.
+
+```yaml
+name: Vulnetix Scan
+on: [push, pull_request]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vulnetix CLI
+        run: curl -fsSL https://vulnetix.com/install.sh | sh
+
+      - name: Scan with gates
+        run: vulnetix scan --block-eol --severity high
+        env:
+          VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+```
+
+Available gates: `--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`. See the [Scan Command Reference]({{< relref "scan" >}}) for details.
+
 ## Edge Cases & Advanced Configuration
 
 ### Corporate Proxy Support

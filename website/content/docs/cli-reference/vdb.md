@@ -1050,6 +1050,64 @@ vulnetix vdb ecosystem group maven org.apache.commons commons-lang3
 vulnetix vdb ecosystem group maven org.springframework spring-core -o json
 ```
 
+### vdb eol product
+
+Retrieve end-of-life lifecycle data for a product (runtime, framework, etc.).
+
+**Usage:**
+```bash
+vulnetix vdb eol product <product> [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
+
+**Examples:**
+```bash
+# Check Node.js EOL lifecycle
+vulnetix vdb eol product nodejs
+
+# Check Python release lifecycle
+vulnetix vdb eol product python
+```
+
+### vdb eol package
+
+Retrieve end-of-life lifecycle data for a specific package version. Returns lifecycle fields including `isEol`, `eolFrom`, `isMaintained`, and latest version info.
+
+**Endpoint:** `GET /v1/eol/packages/{ecosystem}/{package}/versions/{version}`
+
+When the package or version is not yet tracked in the VDB EOL database, the API returns a 404. The CLI treats this as "not end-of-life" and raises no breach — this is the graceful degradation behaviour that allows `--block-eol` to work today while package coverage grows over time.
+
+**Usage:**
+```bash
+vulnetix vdb eol package <ecosystem> <package> <version> [flags]
+```
+
+**Flags:**
+- `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
+
+**Response fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `productName` | string | Canonical product name in the EOL database |
+| `release.name` | string | Release/version identifier |
+| `release.isEol` | bool | Whether this version is end-of-life |
+| `release.eolFrom` | string? | Date when EOL status took effect (ISO 8601) |
+| `release.isMaintained` | bool | Whether this version still receives updates |
+| `release.isLts` | bool | Whether this is a long-term support release |
+| `release.latestVersion` | string? | Latest patch version available |
+
+**Examples:**
+```bash
+# Check if a specific npm package version is EOL
+vulnetix vdb eol package npm express 3.0.0
+
+# JSON output for CI integration
+vulnetix vdb eol package pypi django 2.2 -o json
+```
+
 ---
 
 ## V2 Commands
