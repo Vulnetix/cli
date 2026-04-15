@@ -223,18 +223,27 @@ vulnetix scan status <scan-id> [flags]
 | `--path` | `.` | Directory to scan |
 | `--depth` | `3` | Max recursion depth |
 | `--exclude` | - | Exclude paths matching glob (repeatable) |
-| `-f, --format` | pretty | Output format: `cdx17`, `cdx16`, `json`; omit for human-readable summary |
+| `-o, --output` | - | Output target (repeatable): `json-cyclonedx`, `json-sarif` for stdout; `.cdx.json`, `.sarif` file paths to write to file |
+| `-f, --format` | - | **Deprecated** — use `--output` instead |
 | `--concurrency` | `5` | Max concurrent VDB queries |
 | `--no-progress` | `false` | Suppress progress bar |
 | `--paths` | `false` | Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go) |
 | `--no-exploits` | `false` | Suppress exploit intelligence section |
 | `--no-remediation` | `false` | Suppress remediation section |
 | `--no-licenses` | `false` | Skip license analysis during scan |
-| `--severity` | - | Exit `1` if any vuln meets or exceeds: `low`, `medium`, `high`, `critical` |
+| `--severity` | - | Exit `1` if any vuln or SAST finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--block-malware` | `false` | Exit `1` when any dependency is a known malicious package |
 | `--block-eol` | `false` | Exit `1` when a runtime or package dependency is end-of-life |
 | `--block-unpinned` | `false` | Exit `1` when any direct dependency uses a version range instead of an exact pin |
 | `--exploits` | - | Exit `1` when exploit maturity reaches threshold: `poc`, `active`, `weaponized` |
+| `--results-only` | `false` | Only output when findings exist; completely silent when the scan is clean |
+| `--version-lag` | `0` | Exit `1` when any dep is within the N most recently published versions (0 = disabled) |
+| `--cooldown` | `0` | Exit `1` when any dep was published within the last N days (0 = disabled) |
+| `--disable-sast` | `false` | Skip SAST analysis |
+| `--disable-default-rules` | `false` | Skip built-in SAST rules (external `--rule` repos still loaded) |
+| `--list-default-rules` | `false` | Print built-in SAST rules and exit |
+| `-R, --rule` | - | External SAST rule repo in `org/repo` format (repeatable) |
+| `--rule-registry` | `https://github.com` | Override default registry URL for `--rule` repos |
 | `--dry-run` | `false` | Detect files and parse packages only — zero API calls |
 | `--from-memory` | `false` | Reconstruct from `.vulnetix/sbom.cdx.json` without API calls |
 
@@ -338,6 +347,8 @@ vulnetix vdb <subcommand> [flags]
 | `packages search <query>` | Full-text search across packages |
 | `ecosystem package <eco> <pkg>` | Get package info within an ecosystem |
 | `ecosystem group <eco> <grp> <art>` | Get group/artifact info (Maven-style) |
+| `eol product <product>` | Get end-of-life lifecycle data for a product (runtime, framework) |
+| `eol package <eco> <pkg> <ver>` | Get end-of-life lifecycle data for a specific package version |
 
 <div class="vdb-v2-only">
 
