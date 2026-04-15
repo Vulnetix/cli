@@ -2,6 +2,7 @@ package vdb
 
 import (
 	"encoding/json"
+	"errors"
 	"net/url"
 )
 
@@ -56,6 +57,28 @@ func (c *Client) EOLProduct(product string) (*EOLProductResponse, error) {
 		return nil, err
 	}
 	var result EOLProductResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// EOLPackageVersion retrieves EOL lifecycle data for a specific package version.
+// Returns (nil, nil) when the package/version is not in the VDB EOL database (404).
+// Endpoint: GET /v1/eol/packages/{ecosystem}/{package}/versions/{version}
+func (c *Client) EOLPackageVersion(ecosystem, packageName, version string) (*EOLReleaseResponse, error) {
+	path := "/eol/packages/" + url.PathEscape(ecosystem) +
+		"/" + url.PathEscape(packageName) +
+		"/versions/" + url.PathEscape(version)
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		var nfe *NotFoundError
+		if errors.As(err, &nfe) {
+			return nil, nil // not in EOL database — not a breach
+		}
+		return nil, nil // network error — silently skip
+	}
+	var result EOLReleaseResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, err
 	}

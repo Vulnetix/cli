@@ -368,7 +368,6 @@ func BuildManifestGroups(filePackages map[string][]ScopedPackage, fileEcosystems
 			}
 		case "npm":
 			var directPkgs, lockPkgs []ScopedPackage
-			var lockFilePath string
 			for relPath, pkgs := range gd.files {
 				base := strings.ToLower(filepath.Base(relPath))
 				switch base {
@@ -376,17 +375,10 @@ func BuildManifestGroups(filePackages map[string][]ScopedPackage, fileEcosystems
 					directPkgs = pkgs
 				case "package-lock.json", "yarn.lock", "pnpm-lock.yaml":
 					lockPkgs = pkgs
-					if base == "package-lock.json" {
-						lockFilePath = relPath
-					}
 				}
 			}
 			if len(directPkgs) > 0 || len(lockPkgs) > 0 {
 				mg.Graph = BuildNpmDepGraph(directPkgs, lockPkgs)
-				// Populate edges from package-lock.json nesting structure.
-				if lockFilePath != "" && mg.Graph != nil {
-					_ = mg.Graph.PopulateNpmLockEdges(lockFilePath)
-				}
 			}
 		case "rubygems":
 			var directPkgs, lockPkgs []ScopedPackage
