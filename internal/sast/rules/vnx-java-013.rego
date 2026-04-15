@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [643],
 	"capec": ["CAPEC-83"],
 	"attack_technique": ["T1190"],

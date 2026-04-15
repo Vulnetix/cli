@@ -10,7 +10,7 @@ metadata := {
 	"languages": [],
 	"severity": "high",
 	"level": "error",
-	"kind": "open",
+	"kind": "secrets",
 	"cwe": [798, 259],
 	"capec": ["CAPEC-191"],
 	"attack_technique": ["T1552.001"],

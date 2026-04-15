@@ -10,7 +10,7 @@ metadata := {
 	"languages": [],
 	"severity": "medium",
 	"level": "warning",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [614, 1004],
 	"capec": ["CAPEC-31"],
 	"attack_technique": ["T1539"],

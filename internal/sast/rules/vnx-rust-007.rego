@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["rust"],
 	"severity": "medium",
 	"level": "warning",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [190],
 	"capec": ["CAPEC-92"],
 	"attack_technique": [],
@@ -34,7 +34,7 @@ findings contains finding if {
 	# Not already using checked arithmetic
 	not regex.match(`checked_(add|sub|mul|div)|saturating_(add|sub|mul)|wrapping_(add|sub|mul)`, line)
 	# Not a const expression
-	not regex.match(`const\s+\w+\s*:", line)
+	not regex.match(`const\s+\w+\s*":`, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Integer arithmetic on a size/count/offset variable without overflow protection; use checked_add()/checked_sub()/checked_mul() or wrapping_*/saturating_* variants to handle overflow explicitly in release builds",
