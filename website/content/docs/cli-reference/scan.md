@@ -22,18 +22,27 @@ vulnetix scan status <scan-id> [flags]
 | `--path` | string | `.` | Directory to scan |
 | `--depth` | int | `3` | Maximum recursion depth for file discovery |
 | `--exclude` | stringArray | - | Exclude paths matching glob pattern (repeatable) |
-| `-f, --format` | string | pretty summary | Output format written to stdout: `cdx17`, `cdx16`, `json`; omit for a human-readable summary |
+| `-o, --output` | stringArray | - | Output target (repeatable): `json-cyclonedx` or `json-sarif` for stdout; file path (`.cdx.json`, `.cdx`, `.bom.json`, `.sbom.json`) for CycloneDX to file; file path (`.sarif`, `.sarif.json`) for SARIF to file. Multiple flags combine file outputs with pretty display. |
+| `-f, --format` | string | - | **Deprecated** — maps to `--output json-cyclonedx`. Use `--output` instead. |
 | `--concurrency` | int | `5` | Max concurrent VDB queries |
 | `--no-progress` | bool | `false` | Suppress the progress bar |
 | `--paths` | bool | `false` | Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go). Edges are built from locally installed packages (`node_modules/`, venv, `vendor/`, `cargo metadata`). |
 | `--no-exploits` | bool | `false` | Suppress the detailed exploit intelligence section |
 | `--no-remediation` | bool | `false` | Suppress the detailed remediation section |
 | `--no-licenses` | bool | `false` | Skip license analysis during scan (license analysis runs by default) |
-| `--severity` | string | - | Exit with code `1` if any vulnerability meets or exceeds this level: `low`, `medium`, `high`, `critical`. Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC). |
+| `--severity` | string | - | Exit with code `1` if any vulnerability meets or exceeds this level: `low`, `medium`, `high`, `critical`. Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC). Also gates on SAST findings. |
 | `--block-malware` | bool | `false` | Exit with code `1` when any dependency is a known malicious package. |
 | `--block-eol` | bool | `false` | Exit with code `1` when a runtime or package dependency is end-of-life. Runtimes: Go, Node.js, Python, Ruby. Package-level checks activate when VDB has EOL data (404s are silently skipped). |
 | `--block-unpinned` | bool | `false` | Exit with code `1` when any direct dependency uses a version range (`^`, `~`, `>=`) instead of an exact pin. |
 | `--exploits` | string | - | Exit with code `1` when exploit maturity reaches the threshold: `poc` (any public exploit), `active` (CISA/EU KEV / actively exploited), `weaponized` (in-the-wild only). |
+| `--results-only` | bool | `false` | Only output when findings exist; completely silent when the scan is clean. Also suppresses exploit and remediation detail sections. |
+| `--version-lag` | int | `0` | Exit with code `1` when any dependency is within the N most recently published versions of that package (0 = disabled). |
+| `--cooldown` | int | `0` | Exit with code `1` when any dependency version was published within the last N days (0 = disabled, best-effort). |
+| `--disable-sast` | bool | `false` | Skip SAST analysis entirely |
+| `--disable-default-rules` | bool | `false` | Skip built-in default SAST rules (external `--rule` repos still loaded) |
+| `--list-default-rules` | bool | `false` | Print built-in SAST rules and exit |
+| `-R, --rule` | stringArray | - | External SAST rule repo in `org/repo` format (repeatable); fetched from GitHub or `--rule-registry` |
+| `--rule-registry` | string | `https://github.com` | Override default registry URL for all `--rule` repos |
 | `--dry-run` | bool | `false` | Detect files and parse packages locally, check memory, then exit — zero API calls |
 | `--from-memory` | bool | `false` | Reconstruct scan pretty output from `.vulnetix/sbom.cdx.json` without API calls |
 | `--fresh-exploits` | bool | `false` | With `--from-memory`: fetch latest exploit intel from API |
@@ -47,6 +56,7 @@ After every scan the following files are written under your project root:
 | Path | Description |
 |------|-------------|
 | `.vulnetix/sbom.cdx.json` | CycloneDX 1.7 SBOM for all scanned packages |
+| `.vulnetix/sast.sarif` | SARIF 2.1.0 report from SAST analysis (written unless `--disable-sast` is set) |
 | `.vulnetix/memory.yaml` | Scan state record (timestamp, counts, git context) |
 
 ## Scan Status
@@ -313,6 +323,149 @@ To skip license analysis:
 vulnetix scan --no-licenses
 ```
 
+## SAST (Static Application Security Testing)
+
+By default, `vulnetix scan` also runs SAST analysis alongside SCA. SAST evaluates Rego-based rules against your source files to detect code-level security issues — weak cryptography, hardcoded credentials, missing lock files, insecure deserialization, and more.
+
+SAST findings appear in the pretty output after the SCA summary and are written to `.vulnetix/sast.sarif` in SARIF 2.1.0 format. Each finding includes CWE, CAPEC, and MITRE ATT&CK technique mappings, plus stable fingerprints for tracking results across runs.
+
+### Disabling SAST
+
+```bash
+# Skip SAST analysis entirely
+vulnetix scan --disable-sast
+
+# Skip built-in rules only (external rule repos still loaded)
+vulnetix scan --disable-default-rules --rule myorg/my-rules
+```
+
+### Listing Built-in Rules
+
+Print all 27 built-in rules with their IDs, names, severities, and language targets, then exit:
+
+```bash
+vulnetix scan --list-default-rules
+```
+
+### External Rule Repos
+
+Load additional Rego rules from Git repositories. Rules are fetched from GitHub by default or from a custom registry.
+
+```bash
+# Load rules from a GitHub repo
+vulnetix scan --rule myorg/custom-rules
+
+# Load multiple external rule repos
+vulnetix scan --rule myorg/rules-a --rule myorg/rules-b
+
+# Use a custom registry (e.g. GitLab or self-hosted Gitea)
+vulnetix scan --rule myorg/rules --rule-registry https://gitlab.example.com
+```
+
+### SAST Severity Gating
+
+SAST findings participate in `--severity` gating alongside SCA vulnerabilities. When any SAST finding meets or exceeds the threshold, the scan exits with code `1`:
+
+```bash
+# Exit 1 on high or critical SAST findings (or SCA vulnerabilities)
+vulnetix scan --severity high
+```
+
+### Built-in Rules
+
+27 rules ship with the CLI. Run `vulnetix scan --list-default-rules` for full descriptions and CWE/CAPEC/ATT&CK mappings.
+
+#### Cryptography
+
+| Rule ID | Severity | Name | Languages |
+|---------|----------|------|-----------|
+| `VNX-CRYPTO-001` | medium | MD5 usage detected | Python, Node, Go, Java, Ruby, PHP |
+| `VNX-CRYPTO-002` | medium | SHA-1 usage detected | Python, Node, Go, Java, Ruby, PHP |
+
+#### Container Security
+
+| Rule ID | Severity | Name | Applies to |
+|---------|----------|------|------------|
+| `VNX-DOCKER-001` | medium | Dockerfile missing USER directive | Dockerfile, Containerfile |
+| `VNX-DOCKER-002` | medium | Dockerfile FROM :latest tag | Dockerfile, Containerfile |
+
+#### Go
+
+| Rule ID | Severity | Name |
+|---------|----------|------|
+| `VNX-GO-001` | high | Missing go.sum |
+| `VNX-GO-002` | high | Command injection via exec.Command |
+
+#### Java
+
+| Rule ID | Severity | Name |
+|---------|----------|------|
+| `VNX-JAVA-001` | high | Command injection via Runtime.exec() |
+| `VNX-JAVA-002` | medium | Spring actuator endpoints exposed |
+
+#### Node.js
+
+| Rule ID | Severity | Name |
+|---------|----------|------|
+| `VNX-NODE-001` | high | Missing npm lock file |
+| `VNX-NODE-002` | high | eval() or new Function() in JavaScript |
+| `VNX-NODE-003` | high | Command injection via child_process |
+| `VNX-NODE-004` | medium | Express app without helmet |
+| `VNX-NODE-005` | medium | innerHTML or dangerouslySetInnerHTML usage |
+
+#### PHP
+
+| Rule ID | Severity | Name |
+|---------|----------|------|
+| `VNX-PHP-001` | high | Missing composer.lock |
+| `VNX-PHP-002` | high | Dangerous function in PHP |
+
+#### Python
+
+| Rule ID | Severity | Name |
+|---------|----------|------|
+| `VNX-PY-001` | high | Missing Python lock file |
+| `VNX-PY-002` | high | eval()/exec() usage in Python |
+| `VNX-PY-003` | high | Insecure deserialization with pickle |
+| `VNX-PY-004` | high | yaml.load() without SafeLoader |
+| `VNX-PY-005` | medium | Weak PRNG for security operations |
+| `VNX-PY-006` | medium | Django DEBUG=True |
+
+#### Ruby
+
+| Rule ID | Severity | Name |
+|---------|----------|------|
+| `VNX-RUBY-001` | high | Missing Gemfile.lock |
+| `VNX-RUBY-002` | high | eval() or system() in Ruby |
+
+#### Rust
+
+| Rule ID | Severity | Name |
+|---------|----------|------|
+| `VNX-RUST-001` | high | Missing Cargo.lock |
+
+#### Secrets & Credentials
+
+| Rule ID | Severity | Name |
+|---------|----------|------|
+| `VNX-SEC-001` | critical | AWS access key ID |
+| `VNX-SEC-002` | critical | Private key committed |
+| `VNX-SEC-004` | critical | GitHub or GitLab token |
+
+### SARIF Output
+
+SAST results are always written to `.vulnetix/sast.sarif`. To write a combined SARIF report (SCA + SAST) to a custom path, use `--output`:
+
+```bash
+# Write combined SARIF to a file; pretty summary still goes to stdout
+vulnetix scan --output results.sarif
+
+# Write both CycloneDX and SARIF files alongside pretty output
+vulnetix scan --output sbom.cdx.json --output results.sarif
+```
+
+The auto-written `.vulnetix/sast.sarif` contains SAST-only findings. The `--output *.sarif` file contains all scan findings (SCA + SAST) in SARIF format.
+
 ## Auto-Discovery
 
 The scanner walks the directory tree starting from `--path` up to `--depth` levels deep. It automatically skips common non-project directories:
@@ -358,22 +511,40 @@ vulnetix scan --path /path/to/project --depth 5
 vulnetix scan --exclude "test/**" --exclude "vendor/**"
 ```
 
-### Emit CycloneDX 1.7 JSON to stdout
+### Emit CycloneDX JSON to stdout
 
 ```bash
-vulnetix scan -f cdx17
+vulnetix scan --output json-cyclonedx
 ```
 
-### Emit CycloneDX 1.6 JSON to stdout
+### Emit SARIF JSON to stdout
 
 ```bash
-vulnetix scan -f cdx16
+vulnetix scan --output json-sarif
 ```
 
-### Raw JSON findings for scripting
+### Write CycloneDX to a file (pretty output still goes to stdout)
 
 ```bash
-vulnetix scan -f json | jq '.[].vulnerabilities'
+vulnetix scan --output /tmp/sbom.cdx.json
+```
+
+### Write SARIF to a file (pretty output still goes to stdout)
+
+```bash
+vulnetix scan --output /tmp/results.sarif
+```
+
+### Write both CycloneDX and SARIF files alongside pretty output
+
+```bash
+vulnetix scan --output /tmp/sbom.cdx.json --output /tmp/results.sarif
+```
+
+### Raw CycloneDX JSON for scripting
+
+```bash
+vulnetix scan -o json-cyclonedx | jq '.components'
 ```
 
 ### Suppress progress bar (useful in CI without a TTY)
@@ -400,6 +571,52 @@ vulnetix scan --block-eol
 
 # Combine with severity gating
 vulnetix scan --block-eol --severity high
+```
+
+### Gate on version lag (supply chain freshness)
+
+```bash
+# Exit 1 if using the very latest published version of any dependency
+vulnetix scan --version-lag 1
+
+# Exit 1 if any dependency is within the 3 most recent releases
+vulnetix scan --version-lag 3
+```
+
+### Gate on recently published dependencies (cooldown period)
+
+```bash
+# Exit 1 if any dependency was published in the last 3 days
+vulnetix scan --cooldown 3
+
+# Combine multiple supply chain gates
+vulnetix scan --block-malware --block-unpinned --version-lag 1 --cooldown 3 --severity high
+```
+
+### Suppress output when clean (results-only mode)
+
+```bash
+# No output when scan is clean; table appears only when findings exist
+vulnetix scan --results-only
+```
+
+### SAST — list, disable, and load custom rules
+
+```bash
+# List all 27 built-in SAST rules and exit
+vulnetix scan --list-default-rules
+
+# Skip SAST analysis entirely
+vulnetix scan --disable-sast
+
+# Skip built-in rules but load a custom rule repo from GitHub
+vulnetix scan --disable-default-rules --rule myorg/custom-rules
+
+# Load additional rules on top of the built-in set
+vulnetix scan --rule myorg/extra-rules
+
+# Use a self-hosted registry for custom rules
+vulnetix scan --rule myorg/rules --rule-registry https://git.example.com
 ```
 
 ### Suppress extra sections
@@ -449,4 +666,4 @@ vulnetix scan status abc123def --poll --poll-interval 10
 | Code | Meaning |
 |------|---------|
 | `0` | Scan completed successfully (no threshold breach) |
-| `1` | A gate was breached (`--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`), or a fatal error occurred |
+| `1` | A gate was breached (`--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`, `--version-lag`, `--cooldown`), or a fatal error occurred |
