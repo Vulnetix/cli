@@ -1,0 +1,112 @@
+---
+title: "VNX-PHP-014 – PHP Session Fixation via User-Controlled Session ID"
+description: "Detects session_id() called with user-controlled input from PHP superglobals, enabling session fixation attacks where an attacker pre-sets the session ID before a victim authenticates."
+---
+
+## Overview
+
+This rule flags PHP code where `session_id()` is called with a value sourced from `$_GET`, `$_POST`, `$_REQUEST`, or `$_COOKIE`. PHP's `session_id()` function both reads and sets the current session identifier when called with an argument before `session_start()`. Accepting a session ID from user input means an attacker can pre-set the session ID before the victim authenticates, then wait for the victim to log in — after which the attacker's already-known ID is associated with the authenticated session.
+
+**Severity:** High | **CWE:** [CWE-384 – Session Fixation](https://cwe.mitre.org/data/definitions/384.html) | **CAPEC:** [CAPEC-61](https://capec.mitre.org/data/definitions/61.html) | **ATT&CK:** [T1539](https://attack.mitre.org/techniques/T1539/)
+
+> **PHP default behavior:** PHP's `session_start()` generates a cryptographically secure random session ID by default (via `/dev/urandom` or `CryptGenRandom` on Windows, depending on the `session.entropy_file` setting in PHP 5 or the built-in CSPRNG in PHP 7+). Passing user input to `session_id()` completely bypasses this mechanism. The insecure behavior described here requires the application to opt in — it is not a PHP default.
+
+## Why This Matters
+
+Session fixation bypasses password-based authentication entirely. The attacker does not need to know the victim's password, intercept network traffic, or exploit any other vulnerability — they simply wait for the victim to log in using a session ID the attacker already knows. This makes it particularly effective in phishing campaigns where a crafted login URL can carry the attacker-chosen session ID (e.g., `https://example.com/login?PHPSESSID=attacker_chosen_id`).
+
+Even HTTPS-protected applications are vulnerable to session fixation if they accept user-supplied session IDs, because the attack does not rely on network interception. It relies solely on the application accepting and using an attacker-specified identifier.
+
+The attack is especially prevalent in older PHP applications that accepted session IDs via URL parameters for compatibility with clients that did not support cookies. Any such link is a potential fixation vector.
+
+**OWASP ASVS v4.0 mapping:** V3.2.1 — Verify the application generates a new session token on user authentication. V3.2.3 — Verify the application only stores session tokens using secure methods.
+
+## What Gets Flagged
+
+The rule matches lines in `.php` files where `session_id(` and a superglobal (`$_GET[`, `$_POST[`, `$_REQUEST[`, or `$_COOKIE[`) appear on the same line.
+
+```php
+// FLAGGED: session ID taken directly from query parameter
+session_id($_GET['PHPSESSID']);
+session_start();
+
+// FLAGGED: session ID taken from cookie controlled by the user
+session_id($_COOKIE['session_token']);
+session_start();
+
+// FLAGGED: session ID from POST body
+if (isset($_POST['session_token'])) {
+    session_id($_POST['session_token']);
+}
+session_start();
+
+// FLAGGED: session ID from $_REQUEST (could be GET or POST)
+session_id($_REQUEST['id']);
+session_start();
+```
+
+## Remediation
+
+The fix has two parts: remove the user-controlled session ID, and call `session_regenerate_id(true)` immediately after successful authentication to issue a fresh ID the attacker cannot know.
+
+**1. Never call `session_id()` with user-supplied input.** Let PHP manage session identifiers automatically.
+
+```php
+// SAFE: PHP generates a cryptographically secure session ID automatically
+session_start();
+```
+
+**2. Regenerate the session ID after every privilege change.** The most important time to call `session_regenerate_id(true)` is immediately after a successful login. The `true` argument deletes the old session file, preventing session fixation via the pre-login session.
+
+```php
+// SAFE: rotate the session ID after authentication
+if ($credentials_are_valid) {
+    session_regenerate_id(true); // delete old session, issue new ID
+    $_SESSION['user_id']       = $user->id;
+    $_SESSION['authenticated'] = true;
+}
+```
+
+**3. Also regenerate on privilege escalation.** Any time a user gains additional permissions (e.g., completing MFA, re-entering password for sensitive operations), rotate the session again:
+
+```php
+// SAFE: rotate before granting elevated access
+session_regenerate_id(true);
+$_SESSION['mfa_verified'] = true;
+```
+
+**4. Harden session cookie settings in `php.ini`.** These settings prevent the session ID from being transmitted over plain HTTP or read by client-side JavaScript. None of these are defaults in older PHP versions.
+
+```ini
+; php.ini — session cookie hardening (NOT the PHP defaults)
+session.use_only_cookies  = 1   ; do not accept session IDs from URL parameters
+session.use_strict_mode   = 1   ; reject IDs not generated by the server
+session.cookie_httponly   = 1   ; prevent JavaScript access to session cookie
+session.cookie_secure     = 1   ; transmit only over HTTPS
+session.cookie_samesite   = Strict
+```
+
+Alternatively, set at runtime before `session_start()`:
+
+```php
+ini_set('session.use_only_cookies',  1);
+ini_set('session.use_strict_mode',   1);
+ini_set('session.cookie_httponly',   1);
+ini_set('session.cookie_secure',     1);
+ini_set('session.cookie_samesite',   'Strict');
+session_start();
+```
+
+**5. Enable `session.use_strict_mode` as a defense-in-depth measure.** When set to `1`, PHP rejects any session ID that was not generated by the server, defending against fixation even when IDs leak from untrusted sources. This setting is `0` (off) by default in PHP and must be explicitly enabled.
+
+## References
+
+- [CWE-384: Session Fixation](https://cwe.mitre.org/data/definitions/384.html)
+- [CAPEC-61: Session Fixation](https://capec.mitre.org/data/definitions/61.html)
+- [OWASP Session Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
+- [OWASP PHP Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/PHP_Configuration_Cheat_Sheet.html)
+- [OWASP ASVS v4.0 – V3.2 Session Binding Requirements](https://owasp.org/www-project-application-security-verification-standard/)
+- [PHP manual: session_id()](https://www.php.net/manual/en/function.session-id.php)
+- [PHP manual: session_regenerate_id()](https://www.php.net/manual/en/function.session-regenerate-id.php)
+- [PHP manual: session.use_strict_mode](https://www.php.net/manual/en/session.configuration.php#ini.session.use-strict-mode)
+- [MITRE ATT&CK T1539 – Steal Web Session Cookie](https://attack.mitre.org/techniques/T1539/)

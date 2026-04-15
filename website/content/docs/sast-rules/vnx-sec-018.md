@@ -11,9 +11,11 @@ This rule detects API keys for major AI providers in source files: Anthropic key
 
 ## Why This Matters
 
-AI API costs can be substantial — GPT-4, Claude, and similar models charge per token, and an attacker with access to your API key can run unlimited queries at your expense. Automated bots scan public repositories specifically for AI provider key patterns, and abuse often begins within minutes of a key being committed to a public repository. Beyond financial harm, an attacker using your API key could use your account's conversation history and organizational context to extract sensitive business information that has been submitted to the API in previous requests.
+AI API costs can be substantial — GPT-4, Claude, and similar models charge per token, and an attacker with access to your API key can run unlimited queries at your expense. Automated bots scan public repositories specifically for AI provider key patterns, and abuse often begins within minutes of a key being committed to a public repository. Beyond financial harm, an attacker using your API key could use your account's conversation history and organisational context to extract sensitive business information that has been submitted to the API in previous requests.
 
-Hugging Face tokens with write or admin scopes can modify model repositories, datasets, or spaces — a supply chain attack vector if your organization publishes open models or datasets. In a CI/CD context, a leaked inference API token can be used to probe proprietary fine-tuned models, extract training data, or conduct model inversion attacks.
+Hugging Face tokens with write or admin scopes can modify model repositories, datasets, or spaces — a supply chain attack vector if your organisation publishes open models or datasets. In a CI/CD context, a leaked inference API token can be used to probe proprietary fine-tuned models, extract training data, or conduct model inversion attacks.
+
+**OWASP ASVS v4** requirement V2.10.1 prohibits storing service credentials in source code, requiring instead that they be loaded from environment variables or secrets management infrastructure at runtime.
 
 ## What Gets Flagged
 
@@ -47,31 +49,48 @@ from huggingface_hub import InferenceClient
 client = InferenceClient(token="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 ```
 
+Note: lock files (`.lock`, `.sum`) and minified JavaScript (`.min.js`) are excluded from analysis.
+
 ## Remediation
 
+### Immediate steps when a key is found
+
 1. **Rotate the API key immediately.**
-   - **Anthropic:** Go to console.anthropic.com → API Keys → Disable the exposed key → Create a new one.
-   - **OpenAI:** Go to platform.openai.com → API Keys → Revoke the exposed key → Create a new one.
-   - **Hugging Face:** Go to huggingface.co → Settings → Access Tokens → Delete → Create new.
+   - **Anthropic:** Go to [console.anthropic.com](https://console.anthropic.com) → API Keys → Disable the exposed key → Create a new one.
+   - **OpenAI:** Go to [platform.openai.com/api-keys](https://platform.openai.com/api-keys) → Revoke the exposed key → Create a new one.
+   - **Hugging Face:** Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) → Delete → Create new.
 
-2. **Check for unauthorized usage.** Review usage logs in the respective provider console. For Anthropic and OpenAI, look for unexpected token consumption or unusual query patterns.
+2. **Check for unauthorised usage.** Review usage logs in the respective provider console. For Anthropic and OpenAI, look for unexpected token consumption or unusual query patterns. For Hugging Face, check the audit log for unexpected inference calls or repository modifications.
 
-3. **Remove from source code.** Load the key from an environment variable:
+3. **Purge from git history.** The key is permanently in version control until history is rewritten:
+
+```bash
+# Using git-filter-repo (recommended over filter-branch)
+pip install git-filter-repo
+git filter-repo --replace-text <(printf 'sk-ant-api03-THEEXPOSEDKEY==>REDACTED_ANTHROPIC_KEY\n')
+
+# Verify the key is gone
+git log -p | grep "sk-ant-"
+
+# Force push all branches and tags
+git push --force --all
+git push --force --tags
+```
+
+### Replacing hardcoded keys
 
 ```python
 # SAFE: Anthropic key from environment
-import anthropic
-import os
+import anthropic, os
 
 client = anthropic.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'])
 ```
 
 ```python
-# SAFE: OpenAI key from environment
-# OpenAI SDK automatically reads OPENAI_API_KEY if not specified
+# SAFE: OpenAI SDK reads OPENAI_API_KEY automatically
 from openai import OpenAI
 
-client = OpenAI()  # reads from OPENAI_API_KEY environment variable
+client = OpenAI()  # reads OPENAI_API_KEY from environment
 ```
 
 ```python
@@ -82,12 +101,10 @@ from huggingface_hub import InferenceClient
 client = InferenceClient(token=os.environ['HF_TOKEN'])
 ```
 
-4. **Scope the new API key with minimum permissions.** OpenAI supports project-level API keys with restricted capabilities. Hugging Face tokens can be scoped to read-only, specific repositories, or read/write. Create separate keys for development and production.
-
-5. **Use a secrets manager in production.** Store AI API keys in AWS Secrets Manager, HashiCorp Vault, or your cloud provider's secret store, and fetch them at runtime:
+### Secrets management in production
 
 ```python
-# SAFE: fetch Anthropic API key from AWS Secrets Manager
+# SAFE: fetch from AWS Secrets Manager
 import boto3, json, os
 
 def get_ai_credentials():
@@ -98,20 +115,44 @@ def get_ai_credentials():
 api_key = get_ai_credentials()['api_key']
 ```
 
-6. **Set spending limits and usage alerts** in your AI provider dashboards to detect unauthorized use through anomalous spending patterns even if the key was leaked but not yet detected.
+### Scoping and spending controls
 
-7. **Scan git history** for the exposed key:
+4. **Create scoped API keys with minimum permissions.** OpenAI supports project-level API keys with restricted model access. Hugging Face tokens can be scoped to read-only, specific repositories, or read/write. Use separate keys for development and production.
+
+5. **Set spending limits and usage alerts.** Configure budget alerts in your AI provider dashboards to detect unauthorised use through anomalous spending, even if a key leak is not yet detected.
+
+### Preventing future regressions
 
 ```bash
-gitleaks detect --source . --verbose
-git filter-repo --replace-text <(echo 'sk-ant-xxxx==>REDACTED_ANTHROPIC_KEY')
+# Install and configure detect-secrets
+pip install detect-secrets
+detect-secrets scan > .secrets.baseline
+# Commit .secrets.baseline and add to pre-commit hooks
+
+# Or use gitleaks as a pre-commit hook
+# .pre-commit-config.yaml:
+# - repo: https://github.com/gitleaks/gitleaks
+#   rev: v8.18.0
+#   hooks:
+#     - id: gitleaks
+
+# Or use git-secrets from AWS Labs
+git secrets --install
+git secrets --register-aws  # includes AI provider patterns
 ```
+
+In GitHub Actions, store keys in [encrypted secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) and reference them via `${{ secrets.ANTHROPIC_API_KEY }}`.
 
 ## References
 
 - [CWE-798: Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
+- [OWASP ASVS v4 – V2.10: Service Authentication](https://owasp.org/www-project-application-security-verification-standard/)
 - [Anthropic: API key management](https://docs.anthropic.com/en/api/getting-started)
 - [OpenAI: API key safety best practices](https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety)
 - [Hugging Face: User access tokens](https://huggingface.co/docs/hub/en/security-tokens)
 - [OWASP: Credentials Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Credentials_Management_Cheat_Sheet.html)
+- [OWASP: Secrets Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)
+- [detect-secrets: Yelp's secret scanning tool](https://github.com/Yelp/detect-secrets)
+- [gitleaks: Secret scanning tool](https://github.com/gitleaks/gitleaks)
+- [git-secrets: AWS Labs secret scanning](https://github.com/awslabs/git-secrets)
 - [MITRE ATT&CK T1552.001 – Credentials In Files](https://attack.mitre.org/techniques/T1552/001/)

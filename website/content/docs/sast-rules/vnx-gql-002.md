@@ -5,15 +5,46 @@ description: "Detects Apollo Server configured with allowBatchedHttpRequests: tr
 
 ## Overview
 
-This rule detects Apollo Server configured with `allowBatchedHttpRequests: true`. Query batching allows a client to send an array of multiple GraphQL operations in a single HTTP request. Without this being paired with strict per-operation rate limiting and depth controls, an attacker can send hundreds of complex operations in a single request, completely bypassing any rate limiting applied at the HTTP layer and causing denial of service through CPU exhaustion. This maps to CWE-770 (Allocation of Resources Without Limits or Throttling).
+This rule detects Apollo Server configured with `allowBatchedHttpRequests: true`. Query batching allows a client to send an array of multiple GraphQL operations in a single HTTP request. Without this being paired with strict per-operation rate limiting and query depth/complexity controls, an attacker can send hundreds of complex operations in a single request, completely bypassing any HTTP-layer rate limiting and causing denial of service through CPU or database connection exhaustion.
 
-**Severity:** Medium | **CWE:** [CWE-770 – Allocation of Resources Without Limits or Throttling](https://cwe.mitre.org/data/definitions/770.html)
+GraphQL's flexible query language creates DoS attack surfaces that HTTP-layer controls cannot address alone. Both HTTP-level batching and deeply nested single queries can exhaust server resources — this rule targets the former; depth/complexity limits address the latter.
+
+**Severity:** Medium | **CWE:** [CWE-770 – Allocation of Resources Without Limits or Throttling](https://cwe.mitre.org/data/definitions/770.html) | **CAPEC:** [CAPEC-469 – HTTP DoS](https://capec.mitre.org/data/definitions/469.html)
+
+**OWASP ASVS v4:** V13.4.1 — Verify that a query allowlist or a combination of depth limiting and amount limiting is used to prevent GraphQL DoS as a result of expensive, nested queries.
 
 ## Why This Matters
 
-GraphQL's flexible query structure creates unique denial-of-service opportunities that HTTP-layer rate limiting cannot fully address. With batching enabled, an attacker can pack 50 deeply-nested queries into a single HTTP request — your load balancer sees one request, but your server executes 50 expensive resolver chains. Combined with the lack of depth limits, a maliciously nested query like `{ user { friends { friends { friends { friends { posts { comments { ... } } } } } } } }` can cause exponential resolver execution, locking up your event loop or exhausting your database connection pool.
+GraphQL's flexible query structure creates unique denial-of-service opportunities that HTTP-layer rate limiting cannot fully address:
 
-Real-world GraphQL DoS attacks have taken production services down within seconds because the default GraphQL execution engine has no built-in query complexity limits.
+**Batching amplification:** With `allowBatchedHttpRequests: true`, an attacker sends a JSON array of 50 operations in a single HTTP request. Your load balancer counts one request; your server executes 50 expensive resolver chains. Standard rate limiting (requests per minute per IP) is bypassed entirely.
+
+**Nested query exhaustion:** A maliciously nested query can cause exponential resolver execution even without batching:
+
+```graphql
+# This single query can lock up your event loop or exhaust your DB connection pool
+{
+  user {
+    friends {
+      friends {
+        friends {
+          friends {
+            posts {
+              comments {
+                author {
+                  friends { id }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Real-world GraphQL DoS attacks have taken production services offline within seconds because the default GraphQL execution engine has no built-in query complexity limits. The OWASP GraphQL Cheat Sheet explicitly calls out both batching and depth limiting as required controls.
 
 ## What Gets Flagged
 
@@ -22,67 +53,127 @@ Real-world GraphQL DoS attacks have taken production services down within second
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  allowBatchedHttpRequests: true,
+  allowBatchedHttpRequests: true,  // <-- flagged
 });
 ```
 
 ## Remediation
 
-1. **Disable batching unless you have a specific, well-understood use case for it.** Most applications do not need HTTP-level query batching:
+### Disable Batching (Recommended Default)
 
-   ```javascript
-   // SAFE: batching disabled (default)
-   const server = new ApolloServer({
-     typeDefs,
-     resolvers,
-     // allowBatchedHttpRequests omitted — defaults to false
-   });
-   ```
+Most applications do not need HTTP-level query batching. The default in Apollo Server is `false`:
 
-2. **Add query depth and complexity limits using graphql-depth-limit and graphql-cost-analysis:**
+```javascript
+// SAFE: batching disabled (default behaviour)
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  // allowBatchedHttpRequests omitted — defaults to false
+});
+```
 
-   ```javascript
-   // Install: npm install graphql-depth-limit graphql-cost-analysis
-   import depthLimit from 'graphql-depth-limit';
-   import costAnalysis from 'graphql-cost-analysis';
+### Add Query Depth and Complexity Limits (Apollo Server / graphql-js)
 
-   const server = new ApolloServer({
-     typeDefs,
-     resolvers,
-     allowBatchedHttpRequests: false,
-     validationRules: [
-       depthLimit(7),
-       costAnalysis({ maximumCost: 1000, defaultCost: 1 })
-     ],
-   });
-   ```
+Install `graphql-depth-limit` and a complexity analysis library, then apply them as validation rules:
 
-3. **Apply rate limiting per-operation, not just per-request.** If you must support batching (e.g., for a trusted internal client), count each operation in a batch toward the rate limit separately.
+```javascript
+// Install: npm install graphql-depth-limit graphql-cost-analysis
+import depthLimit from 'graphql-depth-limit';
+import costAnalysis from 'graphql-cost-analysis';
 
-4. **Set query timeout limits** to bound the maximum execution time for any single query regardless of complexity:
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  allowBatchedHttpRequests: false,
+  validationRules: [
+    depthLimit(7),
+    costAnalysis({ maximumCost: 1000, defaultCost: 1 }),
+  ],
+});
+```
 
-   ```javascript
-   // Apollo Server plugin to enforce per-request timeouts
-   const timeoutPlugin = {
-     async requestDidStart() {
-       return {
-         async executionDidStart() {
-           return {
-             willResolveField({ info }) {
-               // implement per-field timeout tracking
-             }
-           };
-         }
-       };
-     }
-   };
-   ```
+### Graphene (Python)
+
+Use the built-in `depth_limit_validator` from `graphene.validation`:
+
+```python
+from graphene_django.views import GraphQLView
+from graphene.validation import depth_limit_validator
+
+class DepthLimitedGraphQLView(GraphQLView):
+    def get_validation_rules(self):
+        return [depth_limit_validator(max_depth=10)]
+
+# In urls.py
+urlpatterns = [
+    path('graphql/', DepthLimitedGraphQLView.as_view(graphiql=False)),
+]
+```
+
+### graphql-java
+
+Use `MaxQueryDepthInstrumentation` and `MaxQueryComplexityInstrumentation`:
+
+```java
+GraphQL graphQL = GraphQL.newGraphQL(schema)
+    .instrumentation(new ChainedInstrumentation(Arrays.asList(
+        new MaxQueryDepthInstrumentation(10),
+        new MaxQueryComplexityInstrumentation(200)
+    )))
+    .build();
+```
+
+graphql-java ships with a default maximum depth of 20. Set this explicitly to a value appropriate for your schema rather than relying on the default.
+
+### gqlgen (Go)
+
+```go
+// In graph/schema.resolvers.go — add complexity limits via handler config
+import "github.com/99designs/gqlgen/graphql/handler/extension"
+
+srv := handler.NewDefaultServer(generated.NewExecutableSchema(cfg))
+srv.Use(extension.FixedComplexityLimit(300))
+```
+
+### If You Must Enable Batching
+
+If batching is required for a trusted internal client (e.g., a BFF layer), apply all of the following compensating controls:
+
+- Count each operation in a batch separately against rate limits
+- Set a maximum number of operations per batch (e.g., no more than 10)
+- Apply query depth and complexity limits to every operation in the batch
+- Restrict batching to authenticated sessions only
+
+```javascript
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  allowBatchedHttpRequests: true,
+  validationRules: [depthLimit(7), costAnalysis({ maximumCost: 500 })],
+  plugins: [
+    {
+      async requestDidStart({ request }) {
+        // Reject batches larger than 10 operations
+        if (Array.isArray(request.body) && request.body.length > 10) {
+          throw new Error('Batch size limit exceeded');
+        }
+      },
+    },
+  ],
+});
+```
 
 ## References
 
-- [CWE-770: Allocation of Resources Without Limits or Throttling](https://cwe.mitre.org/data/definitions/770.html)
 - [OWASP GraphQL Cheat Sheet – Query Depth Limiting](https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html)
+- [HowToGraphQL – Security](https://www.howtographql.com/advanced/4-security/)
+- [Escape Tech – Cyclic Queries and Depth Limiting](https://escape.tech/blog/cyclic-queries-and-depth-limit/)
+- [graphql-java – Limits Documentation](https://www.graphql-java.com/documentation/limits/)
+- [Graphene-Python – Query Validation](https://docs.graphene-python.org/en/latest/execution/queryvalidation/)
+- [gqlgen – Complexity Reference](https://gqlgen.com/reference/complexity/)
+- [Apollo Server – Batching Requests](https://www.apollographql.com/docs/apollo-server/requests/#batching)
+- [CWE-770: Allocation of Resources Without Limits or Throttling](https://cwe.mitre.org/data/definitions/770.html)
+- [CAPEC-469: HTTP DoS](https://capec.mitre.org/data/definitions/469.html)
+- [MITRE ATT&CK T1499 – Endpoint Denial of Service](https://attack.mitre.org/techniques/T1499/)
 - [graphql-depth-limit package](https://www.npmjs.com/package/graphql-depth-limit)
 - [graphql-cost-analysis package](https://www.npmjs.com/package/graphql-cost-analysis)
-- [Apollo Server – Batching Requests](https://www.apollographql.com/docs/apollo-server/requests/#batching)
-- [CAPEC-469: HTTP DoS](https://capec.mitre.org/data/definitions/469.html)
