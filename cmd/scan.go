@@ -20,6 +20,7 @@ import (
 	"github.com/vulnetix/cli/internal/gitctx"
 	"github.com/vulnetix/cli/internal/license"
 	"github.com/vulnetix/cli/internal/memory"
+	"github.com/vulnetix/cli/internal/sast"
 	"github.com/vulnetix/cli/internal/scan"
 	"github.com/vulnetix/cli/internal/update"
 	"github.com/vulnetix/cli/pkg/tty"
@@ -68,6 +69,85 @@ func (e *MultiPolicyBreachError) Error() string {
 	return "quality gate(s) breached: " + strings.Join(parts, "; ")
 }
 
+// outputTarget describes one --output value, classified as either a stdout format
+// or a file path.
+type outputTarget struct {
+	stdoutFmt string // "json-cyclonedx" or "json-sarif" (empty if file)
+	filePath  string // non-empty if writing to a file
+	fileKind  string // "cdx" or "sarif" — inferred from extension or stdoutFmt
+}
+
+// outputConfig holds the parsed --output flags.
+type outputConfig struct {
+	targets    []outputTarget
+	stdoutFmt  string // at most one stdout format, or ""
+	cdxFile    string // CDX file path, or ""
+	sarifFile  string // SARIF file path, or ""
+	prettyOnly bool   // true when no stdout format → emit pretty output
+}
+
+// parseOutputFlags classifies each --output value.
+func parseOutputFlags(args []string) (*outputConfig, error) {
+	cfg := &outputConfig{}
+
+	for _, arg := range args {
+		switch strings.ToLower(arg) {
+		case "json-cyclonedx":
+			if cfg.stdoutFmt != "" {
+				return nil, fmt.Errorf("cannot combine --output %s and --output %s: only one stdout format allowed", cfg.stdoutFmt, arg)
+			}
+			cfg.stdoutFmt = "json-cyclonedx"
+			cfg.targets = append(cfg.targets, outputTarget{stdoutFmt: "json-cyclonedx", fileKind: "cdx"})
+
+		case "json-sarif":
+			if cfg.stdoutFmt != "" {
+				return nil, fmt.Errorf("cannot combine --output %s and --output %s: only one stdout format allowed", cfg.stdoutFmt, arg)
+			}
+			cfg.stdoutFmt = "json-sarif"
+			cfg.targets = append(cfg.targets, outputTarget{stdoutFmt: "json-sarif", fileKind: "sarif"})
+
+		default:
+			// File path — infer kind from extension.
+			kind := inferFileKind(arg)
+			if kind == "" {
+				return nil, fmt.Errorf("cannot infer output format for %q: use .cdx.json for CycloneDX or .sarif for SARIF", arg)
+			}
+			switch kind {
+			case "cdx":
+				if cfg.cdxFile != "" {
+					return nil, fmt.Errorf("duplicate CycloneDX file output: %q and %q", cfg.cdxFile, arg)
+				}
+				cfg.cdxFile = arg
+			case "sarif":
+				if cfg.sarifFile != "" {
+					return nil, fmt.Errorf("duplicate SARIF file output: %q and %q", cfg.sarifFile, arg)
+				}
+				cfg.sarifFile = arg
+			}
+			cfg.targets = append(cfg.targets, outputTarget{filePath: arg, fileKind: kind})
+		}
+	}
+
+	cfg.prettyOnly = cfg.stdoutFmt == ""
+	return cfg, nil
+}
+
+// inferFileKind returns "cdx" or "sarif" based on file extension, or "" if unknown.
+func inferFileKind(path string) string {
+	lower := strings.ToLower(path)
+	if strings.HasSuffix(lower, ".cdx.json") || strings.HasSuffix(lower, ".cdx") {
+		return "cdx"
+	}
+	if strings.HasSuffix(lower, ".sarif") || strings.HasSuffix(lower, ".sarif.json") {
+		return "sarif"
+	}
+	// Also accept common BOM extensions.
+	if strings.HasSuffix(lower, ".bom.json") || strings.HasSuffix(lower, ".sbom.json") {
+		return "cdx"
+	}
+	return ""
+}
+
 // scanCmd is the top-level scan command — discovers manifests, parses them locally,
 // queries the VDB for vulnerabilities, writes a CycloneDX BOM and memory.yaml,
 // then outputs either a pretty summary or CycloneDX JSON.
@@ -91,26 +171,33 @@ Results are organised by the native scope of each package manager:
   Yarn / pnpm   production  (scope requires correlation with package.json)
 
 After scanning:
-  • A CycloneDX SBOM (default 1.7, supports 1.2-1.7) is written to .vulnetix/sbom.cdx.json
-  • Scan state is recorded in           .vulnetix/memory.yaml
-  • A summary or BOM JSON is printed to stdout
+  • A CycloneDX SBOM is written to .vulnetix/sbom.cdx.json
+  • SAST SARIF report is written to .vulnetix/sast.sarif
+  • Scan state is recorded in .vulnetix/memory.yaml
+  • A summary or machine-readable JSON is printed to stdout
+
+Output routing (--output, repeatable):
+  json-cyclonedx         CycloneDX JSON to stdout
+  json-sarif             SARIF JSON to stdout
+  /path/file.cdx.json    CycloneDX to file, pretty output to stdout
+  /path/file.sarif       SARIF to file, pretty output to stdout
+
+Multiple --output flags can combine file outputs with pretty display.
+Two stdout formats (json-cyclonedx + json-sarif) in one invocation is an error.
 
 Examples:
   vulnetix scan                        # pretty output, auto-discover manifests
   vulnetix scan --path ./myproject
   vulnetix scan --depth 5
   vulnetix scan --exclude "test*"
-  vulnetix scan -f cdx17               # emit CycloneDX 1.7 JSON to stdout
-  vulnetix scan -f cdx16               # emit CycloneDX 1.6 JSON to stdout
-  vulnetix scan -f cdx15               # emit CycloneDX 1.5 JSON to stdout
-  vulnetix scan -f cdx14               # emit CycloneDX 1.4 JSON to stdout
-  vulnetix scan -f cdx13               # emit CycloneDX 1.3 JSON to stdout
-  vulnetix scan -f cdx12               # emit CycloneDX 1.2 JSON to stdout
-  vulnetix scan -f json                # emit raw JSON findings to stdout
+  vulnetix scan -o json-cyclonedx      # emit CycloneDX JSON to stdout
+  vulnetix scan -o json-sarif          # emit SARIF JSON to stdout
+  vulnetix scan -o /tmp/out.cdx.json   # save CDX to file, pretty to stdout
+  vulnetix scan -o /tmp/out.sarif      # save SARIF to file, pretty to stdout
+  vulnetix scan -o /tmp/out.cdx.json -o /tmp/out.sarif  # save both, pretty to stdout
   vulnetix scan --no-progress          # suppress progress bar
   vulnetix scan --severity high        # exit 1 if any vuln is high or critical
   vulnetix scan --severity low         # exit 1 on any scored severity (low+)
-  vulnetix scan --severity critical -f cdx17  # CDX output + break on critical
   vulnetix scan --block-malware        # exit 1 on any known malicious package
   vulnetix scan --block-eol            # exit 1 if runtime is end-of-life
   vulnetix scan --block-unpinned       # exit 1 if any direct dep uses a version range
@@ -156,6 +243,12 @@ Examples:
 			return runDryScan(scanPath, depth, excludes, showPaths, noExploits, noRemediation, severityThreshold)
 		}
 
+		// ── --list-default-rules: print built-in SAST rules and exit ──────
+		listDefaultRules, _ := cmd.Flags().GetBool("list-default-rules")
+		if listDefaultRules {
+			return listBuiltinSASTRules()
+		}
+
 		// ── --from-memory path ────────────────────────────────────────────
 		fromMemory, _ := cmd.Flags().GetBool("from-memory")
 		if fromMemory {
@@ -179,7 +272,17 @@ Examples:
 		scanPath, _ := cmd.Flags().GetString("path")
 		depth, _ := cmd.Flags().GetInt("depth")
 		excludes, _ := cmd.Flags().GetStringArray("exclude")
-		outputFmt, _ := cmd.Flags().GetString("format")
+		outputArgs, _ := cmd.Flags().GetStringArray("output")
+		// Backward compat: if --format is set and --output is not, map it.
+		if len(outputArgs) == 0 {
+			if legacyFmt, _ := cmd.Flags().GetString("format"); legacyFmt != "" {
+				outputArgs = []string{"json-cyclonedx"}
+			}
+		}
+		outCfg, err := parseOutputFlags(outputArgs)
+		if err != nil {
+			return err
+		}
 		concurrency, _ := cmd.Flags().GetInt("concurrency")
 		noProgress, _ := cmd.Flags().GetBool("no-progress")
 		showPaths, _ := cmd.Flags().GetBool("paths")
@@ -226,6 +329,23 @@ Examples:
 				return fmt.Errorf("invalid --exploits %q: must be one of: %s",
 					exploitThreshold, strings.Join(scan.ValidExploitThresholds, ", "))
 			}
+		}
+
+		// SAST flags.
+		disableSAST, _ := cmd.Flags().GetBool("disable-sast")
+		disableDefaultRules, _ := cmd.Flags().GetBool("disable-default-rules")
+		ruleArgs, _ := cmd.Flags().GetStringArray("rule")
+		ruleRegistry, _ := cmd.Flags().GetString("rule-registry")
+		if ruleRegistry == "" {
+			ruleRegistry = sast.DefaultRegistry
+		}
+		var ruleRefs []sast.RuleRef
+		for _, arg := range ruleArgs {
+			ref, err := sast.ParseRuleRef(arg)
+			if err != nil {
+				return err
+			}
+			ruleRefs = append(ruleRefs, ref)
 		}
 
 		if scanPath == "" {
@@ -332,7 +452,9 @@ Examples:
 			cmd.Context(),
 			supportedFiles,
 			scanPath,
-			outputFmt,
+			depth,
+			excludes,
+			outCfg,
 			concurrency,
 			noProgress,
 			showPaths,
@@ -347,6 +469,10 @@ Examples:
 			resultsOnly,
 			versionLag,
 			cooldownDays,
+			disableSAST,
+			disableDefaultRules,
+			ruleRefs,
+			ruleRegistry,
 			seedBOM,
 			vulnetixSeedBOM,
 			gitCtx,
@@ -407,7 +533,9 @@ func runLocalScan(
 	ctx context.Context,
 	files []scan.DetectedFile,
 	rootPath string,
-	outputFmt string,
+	depth int,
+	excludes []string,
+	outCfg *outputConfig,
 	concurrency int,
 	noProgress bool,
 	showPaths bool,
@@ -422,6 +550,10 @@ func runLocalScan(
 	resultsOnly bool,
 	versionLag int,
 	cooldownDays int,
+	disableSAST bool,
+	disableDefaultRules bool,
+	ruleRefs []sast.RuleRef,
+	ruleRegistry string,
 	seedBOM *cdx.BOM,
 	vulnetixSeedBOM *cdx.BOM,
 	gitCtx *gitctx.GitContext,
@@ -601,18 +733,9 @@ func runLocalScan(
 	}
 	manifestGroups := scan.BuildManifestGroups(filePackages, fileEcosystems)
 
-	// Populate full dependency graph edges when --paths is requested.
-	if showPaths {
-		for i := range manifestGroups {
-			mg := &manifestGroups[i]
-			if mg.Graph != nil && mg.Ecosystem == "golang" {
-				graphDir := filepath.Join(rootPath, mg.Dir)
-				if err := mg.Graph.PopulateGoModGraph(graphDir); err != nil {
-					fmt.Fprintf(os.Stderr, "  warning: go mod graph failed in %s: %v\n", mg.Dir, err)
-				}
-			}
-		}
-	}
+	// Populate dependency graph edges from locally installed packages.
+	// This improves SBOM dependency tree accuracy and enables --paths for all ecosystems.
+	scan.PopulateInstalledEdges(manifestGroups, rootPath)
 
 	// Collect IDS rules.
 	idsRules := scan.CollectIDSRules(enrichedVulns)
@@ -735,6 +858,62 @@ func runLocalScan(
 		rec.IDSRulesPath = ".vulnetix/detection-rules.rules"
 		rec.IDSRulesCount = len(idsRules)
 	}
+
+	// ── SAST analysis ────────────────────────────────────────────────────
+	var sastReport *sast.SASTReport
+	if !disableSAST {
+		modules, merr := sast.LoadAllModules(sast.DefaultRulesFS, disableDefaultRules, ruleRefs, ruleRegistry, os.Stderr)
+		if merr != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not load SAST rules: %v\n", merr)
+		}
+		if len(modules) > 0 {
+			eng := sast.NewEngine(modules, rootPath)
+			var eerr error
+			sastReport, eerr = eng.Evaluate(sast.EvalOptions{MaxDepth: depth, Excludes: excludes})
+			if eerr != nil {
+				fmt.Fprintf(os.Stderr, "  warning: SAST evaluation failed: %v\n", eerr)
+			}
+		}
+		if sastReport != nil {
+			rec.SASTRulesLoaded = sastReport.RulesLoaded
+			rec.SASTFindingCount = len(sastReport.Findings)
+
+			sarifPath := filepath.Join(vulnetixDir, "sast.sarif")
+			if !disableMemory {
+				// Reconcile with previous SARIF for resolved findings.
+				oldSARIF, _ := sast.LoadExistingSARIF(sarifPath)
+				resolved := sast.ResolvedFingerprints(oldSARIF, sastReport.Findings)
+
+				// Record SAST findings in memory.
+				memFindings := make([]memory.SASTFindingRecord, 0, len(sastReport.Findings))
+				for _, f := range sastReport.Findings {
+					mf := memory.SASTFindingRecord{
+						RuleID:      f.RuleID,
+						Severity:    f.Severity,
+						ArtifactURI: f.ArtifactURI,
+						StartLine:   f.StartLine,
+						Fingerprint: f.Fingerprint,
+					}
+					if f.Metadata != nil {
+						mf.RuleName = f.Metadata.Name
+					}
+					memFindings = append(memFindings, mf)
+				}
+				mem.RecordSASTFindings(memFindings)
+				for _, fp := range resolved {
+					mem.MarkSASTFindingResolved(fp)
+				}
+			}
+			// Write updated SARIF.
+			sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
+			if werr := sast.WriteSARIF(sarifLog, sarifPath); werr != nil {
+				fmt.Fprintf(os.Stderr, "  warning: could not write sast.sarif: %v\n", werr)
+			} else {
+				rec.SARIFPath = ".vulnetix/sast.sarif"
+			}
+		}
+	}
+
 	mem.RecordScan(rec)
 
 	if err := memory.Save(vulnetixDir, mem); err != nil {
@@ -921,6 +1100,51 @@ func runLocalScan(
 					strings.Join(eolViolations, ", ")),
 			})
 		}
+
+		// Package-level EOL — silently skips packages not yet in VDB EOL database.
+		type pkgEOLKey struct{ ecosystem, name, version string }
+		seen := map[pkgEOLKey]bool{}
+		var pkgItems []pkgEOLKey
+		for _, p := range allPackages {
+			key := pkgEOLKey{p.Ecosystem, p.Name, p.Version}
+			if seen[key] || p.Version == "" {
+				continue
+			}
+			seen[key] = true
+			pkgItems = append(pkgItems, key)
+		}
+		eolPkgResults := make([]string, len(pkgItems))
+		eolPkgSem := make(chan struct{}, concurrency)
+		var eolPkgWg sync.WaitGroup
+		for idx, item := range pkgItems {
+			eolPkgWg.Add(1)
+			go func(i int, it pkgEOLKey) {
+				defer eolPkgWg.Done()
+				eolPkgSem <- struct{}{}
+				defer func() { <-eolPkgSem }()
+				resp, err := eolClient.EOLPackageVersion(it.ecosystem, it.name, it.version)
+				if err != nil || resp == nil || !resp.Release.IsEol {
+					return
+				}
+				eolPkgResults[i] = fmt.Sprintf("%s@%s (%s)", it.name, it.version, it.ecosystem)
+			}(idx, item)
+		}
+		eolPkgWg.Wait()
+		var eolPkgList []string
+		for _, v := range eolPkgResults {
+			if v != "" {
+				eolPkgList = append(eolPkgList, v)
+			}
+		}
+		if len(eolPkgList) > 0 {
+			breaches = append(breaches, GateBreach{
+				Gate:  "eol",
+				Count: len(eolPkgList),
+				Message: fmt.Sprintf("--block-eol: %d end-of-life %s: %s",
+					len(eolPkgList), pluralise("package", len(eolPkgList)),
+					strings.Join(eolPkgList, ", ")),
+			})
+		}
 	}
 
 	// Gate 5: unpinned direct dependencies
@@ -1068,37 +1292,80 @@ func runLocalScan(
 		}
 	}
 
-	// ── Output ────────────────────────────────────────────────────────────
-	specVersion, isRaw := cdx.NormalizeFormat(outputFmt)
+	// ── SAST quality gate ─────────────────────────────────────────────────
+	if severityThreshold != "" && sastReport != nil {
+		var n int
+		for _, f := range sastReport.Findings {
+			if scan.SeverityMeetsThreshold(f.Severity, severityThreshold) {
+				n++
+			}
+		}
+		if n > 0 {
+			breaches = append(breaches, GateBreach{
+				Gate:  "sast-severity",
+				Count: n,
+				Message: fmt.Sprintf("--severity %s: %d SAST %s",
+					severityThreshold, n, pluralise("finding", n)),
+			})
+		}
+	}
 
-	// If no format is specified and we are in a terminal, print a pretty summary.
-	if outputFmt == "" && isInteractive {
-		printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, sbomPath, vulnetixDir, rulesPath, resultsOnly)
-		// Append license summary if license analysis was run.
-		if licenseResult != nil && len(licenseResult.Findings) > 0 {
-			printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
+	// ── Output ────────────────────────────────────────────────────────────
+
+	// Write any requested file outputs.
+	if outCfg.cdxFile != "" {
+		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
+		if err := writeBOMToFile(outBOM, outCfg.cdxFile); err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not write CDX to %s: %v\n", outCfg.cdxFile, err)
+		}
+	}
+	if outCfg.sarifFile != "" && sastReport != nil {
+		sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
+		if err := sast.WriteSARIF(sarifLog, outCfg.sarifFile); err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not write SARIF to %s: %v\n", outCfg.sarifFile, err)
+		}
+	}
+
+	// Stdout format: emit machine-readable JSON, no pretty output.
+	if outCfg.stdoutFmt == "json-cyclonedx" {
+		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
+		if err := outBOM.WriteJSON(os.Stdout); err != nil {
+			return err
 		}
 		if len(breaches) > 0 {
-			fmt.Fprintln(os.Stderr)
-			for _, b := range breaches {
-				fmt.Fprintf(os.Stderr, "  ✗ %s\n", b.Message)
-			}
+			return &MultiPolicyBreachError{Breaches: breaches}
+		}
+		return nil
+	}
+	if outCfg.stdoutFmt == "json-sarif" {
+		sarifLog := sast.BuildSARIF(nil, nil, version)
+		if sastReport != nil {
+			sarifLog = sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
+		}
+		data, merr := json.MarshalIndent(sarifLog, "", "  ")
+		if merr != nil {
+			return fmt.Errorf("marshal sarif: %w", merr)
+		}
+		os.Stdout.Write(data)
+		fmt.Fprintln(os.Stdout)
+		if len(breaches) > 0 {
 			return &MultiPolicyBreachError{Breaches: breaches}
 		}
 		return nil
 	}
 
-	// Otherwise emit to stdout in the requested machine-readable format.
-	if isRaw {
-		_ = writeRawLocalJSON(localResults)
-	} else {
-		// Re-build with the requested spec version for stdout.
-		outBOM := cdx.BuildFromLocalScan(localResults, specVersion, scanCtx, seedBOM)
-		if err := outBOM.WriteJSON(os.Stdout); err != nil {
-			return err
-		}
+	// Pretty output (default, or when only file outputs were requested).
+	printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, sbomPath, vulnetixDir, rulesPath, resultsOnly)
+	if licenseResult != nil && len(licenseResult.Findings) > 0 {
+		printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
 	}
+	sast.PrintPrettySummary(sastReport, resultsOnly)
+
 	if len(breaches) > 0 {
+		fmt.Fprintln(os.Stderr)
+		for _, b := range breaches {
+			fmt.Fprintf(os.Stderr, "  ✗ %s\n", b.Message)
+		}
 		return &MultiPolicyBreachError{Breaches: breaches}
 	}
 	return nil
@@ -1872,6 +2139,52 @@ func newEnrichmentClient() *vdb.Client {
 	return client
 }
 
+// listBuiltinSASTRules loads default embedded rules, extracts metadata, and prints
+// a table of built-in SAST rules. Used for --list-default-rules.
+func listBuiltinSASTRules() error {
+	modules, err := sast.LoadAllModules(sast.DefaultRulesFS, false, nil, "", os.Stderr)
+	if err != nil {
+		return fmt.Errorf("load default rules: %w", err)
+	}
+	if len(modules) == 0 {
+		fmt.Fprintln(os.Stdout, "No built-in SAST rules found.")
+		return nil
+	}
+
+	eng := sast.NewEngine(modules, ".")
+	rules, err := eng.ListRules()
+	if err != nil {
+		return fmt.Errorf("list rules: %w", err)
+	}
+	if len(rules) == 0 {
+		fmt.Fprintln(os.Stdout, "No built-in SAST rules found.")
+		return nil
+	}
+
+	t := display.NewTerminal()
+	cols := []display.Column{
+		{Header: "ID", MinWidth: 12, MaxWidth: 16},
+		{Header: "Severity", MinWidth: 8, MaxWidth: 10, Color: func(s string) string {
+			return display.SeverityText(t, strings.ToLower(s))
+		}},
+		{Header: "Languages", MinWidth: 10, MaxWidth: 20},
+		{Header: "Name", MinWidth: 20, MaxWidth: 50},
+	}
+	rows := make([][]string, 0, len(rules))
+	for _, r := range rules {
+		rows = append(rows, []string{
+			r.ID,
+			r.Severity,
+			strings.Join(r.Languages, ", "),
+			r.Name,
+		})
+	}
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprint(os.Stdout, display.Table(t, cols, rows))
+	fmt.Fprintf(os.Stdout, "\n%d built-in rules\n", len(rules))
+	return nil
+}
+
 // writeIDSRulesFile writes collected IDS rules to a file with CVE comment headers.
 func writeIDSRulesFile(path string, rules []scan.IDSRule) error {
 	dir := filepath.Dir(path)
@@ -2239,16 +2552,18 @@ func init() {
 	scanCmd.Flags().String("path", ".", "Directory to scan")
 	scanCmd.Flags().Int("depth", 3, "Max recursion depth")
 	scanCmd.Flags().StringArray("exclude", nil, "Exclude paths matching glob (repeatable)")
-	scanCmd.Flags().StringP("format", "f", "", "Output format: cdx17 (default), cdx16, json (stdout); omit for pretty summary")
+	scanCmd.Flags().StringArrayP("output", "o", nil,
+		"Output target (repeatable): json-cyclonedx or json-sarif for stdout; file path (.cdx.json, .sarif) to write to file")
+	scanCmd.Flags().StringP("format", "f", "", "Deprecated: use --output instead")
 	scanCmd.Flags().Int("concurrency", 5, "Max concurrent VDB queries")
 	scanCmd.Flags().Bool("no-progress", false, "Suppress progress bar")
-	scanCmd.Flags().Bool("paths", false, "Show full transitive dependency paths (requires Go toolchain for Go modules)")
+	scanCmd.Flags().Bool("paths", false, "Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go)")
 	scanCmd.Flags().Bool("no-exploits", false, "Suppress detailed exploit intelligence section")
 	scanCmd.Flags().Bool("no-remediation", false, "Suppress detailed remediation section")
 	scanCmd.Flags().Bool("no-licenses", false, "Skip license analysis during scan")
 	scanCmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")
 	scanCmd.Flags().Bool("block-malware", false, "Exit with code 1 when any dependency is a known malicious package.")
-	scanCmd.Flags().Bool("block-eol", false, "Exit with code 1 when a runtime is end-of-life (Go, Node.js, Python, Ruby). Dependency-level EOL checking requires future VDB support.")
+	scanCmd.Flags().Bool("block-eol", false, "Exit with code 1 when a runtime or package dependency is end-of-life. Runtimes: Go, Node.js, Python, Ruby. Package-level checks activate when VDB has EOL data (404s are silently skipped).")
 	scanCmd.Flags().Bool("block-unpinned", false, "Exit with code 1 when any direct dependency uses a version range (^, ~, >=) instead of an exact pin.")
 	scanCmd.Flags().String("exploits", "", "Exit with code 1 when exploit maturity reaches the threshold: poc (any public exploit), active (CISA/EU KEV / actively exploited), weaponized (in-the-wild only).")
 	scanCmd.Flags().Bool("results-only", false, "Only output when findings exist; completely silent when the scan is clean.")
@@ -2260,14 +2575,24 @@ func init() {
 	// --dry-run flag
 	scanCmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
 
+	// SAST flags
+	scanCmd.Flags().Bool("disable-sast", false, "Skip SAST analysis")
+	scanCmd.Flags().Bool("disable-default-rules", false, "Skip built-in default SAST rules")
+	scanCmd.Flags().Bool("list-default-rules", false, "Print built-in SAST rules and exit")
+	scanCmd.Flags().StringArrayP("rule", "R", nil,
+		"External SAST rule repo in org/repo format (repeatable); fetched from GitHub or --rule-registry")
+	scanCmd.Flags().String("rule-registry", "",
+		"Override default registry (https://github.com) for all --rule repos")
+
 	// --from-memory and --fresh-* flags
 	scanCmd.Flags().Bool("from-memory", false, "Reconstruct scan pretty output from .vulnetix/sbom.cdx.json without API calls")
 	scanCmd.Flags().Bool("fresh-exploits", false, "With --from-memory: fetch latest exploit intel from API")
 	scanCmd.Flags().Bool("fresh-advisories", false, "With --from-memory: fetch latest remediation plans from API")
 	scanCmd.Flags().Bool("fresh-vulns", false, "With --from-memory: re-fetch affected version checks and latest scoring from API")
 
-	_ = scanCmd.RegisterFlagCompletionFunc("format", cobra.FixedCompletions(
-		[]string{"cdx17", "cdx16", "json"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = scanCmd.Flags().MarkDeprecated("format", "use --output instead")
+	_ = scanCmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions(
+		[]string{"json-cyclonedx", "json-sarif"}, cobra.ShellCompDirectiveDefault))
 	_ = scanCmd.RegisterFlagCompletionFunc("severity", cobra.FixedCompletions(
 		[]string{"low", "medium", "high", "critical"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = scanCmd.MarkFlagDirname("path")
