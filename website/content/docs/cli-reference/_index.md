@@ -224,28 +224,82 @@ vulnetix scan status <scan-id> [flags]
 | `--depth` | `3` | Max recursion depth |
 | `--exclude` | - | Exclude paths matching glob (repeatable) |
 | `-o, --output` | - | Output target (repeatable): `json-cyclonedx`, `json-sarif` for stdout; `.cdx.json`, `.sarif` file paths to write to file |
-| `-f, --format` | - | **Deprecated** — use `--output` instead |
 | `--concurrency` | `5` | Max concurrent VDB queries |
 | `--no-progress` | `false` | Suppress progress bar |
-| `--paths` | `false` | Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go) |
-| `--no-exploits` | `false` | Suppress exploit intelligence section |
-| `--no-remediation` | `false` | Suppress remediation section |
-| `--no-licenses` | `false` | Skip license analysis during scan |
 | `--severity` | - | Exit `1` if any vuln or SAST finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--block-malware` | `false` | Exit `1` when any dependency is a known malicious package |
 | `--block-eol` | `false` | Exit `1` when a runtime or package dependency is end-of-life |
-| `--block-unpinned` | `false` | Exit `1` when any direct dependency uses a version range instead of an exact pin |
-| `--exploits` | - | Exit `1` when exploit maturity reaches threshold: `poc`, `active`, `weaponized` |
 | `--results-only` | `false` | Only output when findings exist; completely silent when the scan is clean |
-| `--version-lag` | `0` | Exit `1` when any dep is within the N most recently published versions (0 = disabled) |
-| `--cooldown` | `0` | Exit `1` when any dep was published within the last N days (0 = disabled) |
-| `--disable-sast` | `false` | Skip SAST analysis |
+| `--evaluate-sast` / `--no-sast` | - | Enable/disable SAST (general static analysis rules) |
+| `--evaluate-sca` / `--no-sca` | - | Enable/disable SCA (package manifest vulnerability analysis) |
+| `--evaluate-licenses` / `--no-licenses` | - | Enable/disable license analysis |
+| `--evaluate-secrets` / `--no-secrets` | - | Enable/disable secret-detection rules |
+| `--enable-containers` / `--no-containers` | - | Enable/disable container file analysis |
+| `--evaluate-iac` / `--no-iac` | - | Enable/disable IaC file analysis |
 | `--disable-default-rules` | `false` | Skip built-in SAST rules (external `--rule` repos still loaded) |
-| `--list-default-rules` | `false` | Print built-in SAST rules and exit |
-| `-R, --rule` | - | External SAST rule repo in `org/repo` format (repeatable) |
-| `--rule-registry` | `https://github.com` | Override default registry URL for `--rule` repos |
+| `-R, --rule` | - | External SAST rule repo in `org/repo` format (repeatable) — see [Custom Rule Repositories](../sast-rules/custom-rules/) |
 | `--dry-run` | `false` | Detect files and parse packages only — zero API calls |
 | `--from-memory` | `false` | Reconstruct from `.vulnetix/sbom.cdx.json` without API calls |
+
+---
+
+### vulnetix sca
+
+Run only Software Composition Analysis — vulnerability analysis on package manifests. All other features (SAST, licenses, secrets, containers, IaC) are disabled. See the [SCA Command Reference](sca/).
+
+```bash
+vulnetix sca [flags]
+```
+
+Equivalent to `vulnetix scan --evaluate-sca --no-sast --no-secrets --no-containers --no-iac --no-licenses`.
+
+---
+
+### vulnetix sast
+
+Run only Static Application Security Testing. All other features are disabled. See the [SAST Command Reference](sast/).
+
+```bash
+vulnetix sast [flags]
+```
+
+Equivalent to `vulnetix scan --evaluate-sast --no-sca --no-secrets --no-containers --no-iac --no-licenses`.
+
+---
+
+### vulnetix secrets
+
+Run only secret detection — identifies hardcoded credentials, API keys, and tokens. All other features are disabled. See the [Secrets Command Reference](secrets/).
+
+```bash
+vulnetix secrets [flags]
+```
+
+Equivalent to `vulnetix scan --evaluate-secrets --no-sast --no-sca --no-containers --no-iac --no-licenses`.
+
+---
+
+### vulnetix containers
+
+Run only container file analysis — checks Dockerfiles and Containerfiles. All other features are disabled. See the [Containers Command Reference](containers/).
+
+```bash
+vulnetix containers [flags]
+```
+
+Equivalent to `vulnetix scan --enable-containers --no-sast --no-sca --no-secrets --no-iac --no-licenses`.
+
+---
+
+### vulnetix iac
+
+Run only Infrastructure as Code analysis — checks Terraform HCL and Nix files. All other features are disabled. See the [IaC Command Reference](iac/).
+
+```bash
+vulnetix iac [flags]
+```
+
+Equivalent to `vulnetix scan --evaluate-iac --no-sast --no-sca --no-secrets --no-containers --no-licenses`.
 
 ---
 

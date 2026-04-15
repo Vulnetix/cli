@@ -233,7 +233,7 @@ jobs:
 
 The `--output results.sarif` flag writes a combined SARIF file (SCA + SAST findings) while still showing the pretty summary on stdout. The `.vulnetix/sast.sarif` file is also written automatically with SAST-only findings.
 
-To load custom rules from a private GitHub repository:
+To load custom rules from a private GitHub repository (see [Custom Rule Repositories](../sast-rules/custom-rules/) for full setup instructions including private repos, SSH access, and all flag combinations):
 
 ```yaml
       - name: Scan with custom SAST rules

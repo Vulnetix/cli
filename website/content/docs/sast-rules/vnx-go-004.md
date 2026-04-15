@@ -7,11 +7,15 @@ description: "Detect Go TLS configurations that set InsecureSkipVerify to true, 
 
 This rule flags any Go source file that sets `InsecureSkipVerify: true` inside a `tls.Config` struct. When this flag is enabled the TLS stack accepts any certificate — expired, self-signed, issued by an untrusted authority, or one belonging to a completely different host — without complaint. This removes the authentication guarantee that TLS is designed to provide and makes every HTTPS connection your application initiates trivially interceptable. The vulnerability maps to [CWE-295: Improper Certificate Validation](https://cwe.mitre.org/data/definitions/295.html).
 
-**Severity:** High | **CWE:** [CWE-295 – Improper Certificate Validation](https://cwe.mitre.org/data/definitions/295.html)
+**Severity:** High | **CWE:** [CWE-295 – Improper Certificate Validation](https://cwe.mitre.org/data/definitions/295.html) | **OWASP ASVS:** [V9.1 – Client Communications Security](https://owasp.org/www-project-application-security-verification-standard/)
+
+> **Go idiom note:** Full TLS certificate validation IS the Go default. A default `http.Client{}` or `tls.Config{}` with no fields set performs complete chain and hostname verification against the system trust store. Setting `InsecureSkipVerify: true` is an explicit, non-default override that must be actively written — the secure behavior requires no code at all.
 
 ## Why This Matters
 
 TLS serves two purposes: encrypting traffic in transit and authenticating the remote endpoint. `InsecureSkipVerify` disables the second. An attacker on the same network — a shared Wi-Fi, a cloud VPC, a compromised router — can present a fake certificate and intercept all traffic your application sends or receives. This is a man-in-the-middle attack (MITRE ATT&CK T1557). In practice this means API keys, session tokens, database credentials, and user data transmitted over what appears to be a secure HTTPS connection are fully visible to the attacker. The pattern commonly appears when developers work around certificate issues during development and the flag accidentally ships to production.
+
+OWASP ASVS v4.0 requirement **V9.1.2** requires that TLS certificates be valid, not expired, not revoked, and that the hostname matches. Requirement **V9.1.3** requires that only strong cipher suites are used. `InsecureSkipVerify` violates V9.1.2 entirely by design.
 
 ## What Gets Flagged
 
@@ -84,7 +88,9 @@ func testTLSConfig() *tls.Config {
 ## References
 
 - [CWE-295: Improper Certificate Validation](https://cwe.mitre.org/data/definitions/295.html)
+- [OWASP Application Security Verification Standard v4.0 – V9.1 Client Communications Security](https://owasp.org/www-project-application-security-verification-standard/)
 - [OWASP Transport Layer Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html)
+- [OWASP Go Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Go_Security_Cheat_Sheet.html)
 - [Go crypto/tls package documentation](https://pkg.go.dev/crypto/tls)
 - [Go crypto/x509 package documentation](https://pkg.go.dev/crypto/x509)
 - [CAPEC-94: Adversary in the Middle (MITM)](https://capec.mitre.org/data/definitions/94.html)

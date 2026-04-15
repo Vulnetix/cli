@@ -7,11 +7,15 @@ description: "Detect Go projects that are missing a go.sum lockfile, leaving the
 
 This rule flags Go projects that have a `go.mod` file but no corresponding `go.sum` file. The `go.sum` file records the expected cryptographic checksums of every module your project depends on. Without it, Go has no way to verify that the module code it downloads at build time matches what you originally tested against, opening a direct path for supply chain compromise. This maps to [CWE-829: Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html).
 
-**Severity:** High | **CWE:** [CWE-829 – Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html)
+**Severity:** High | **CWE:** [CWE-829 – Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html) | **OWASP ASVS:** [V14.2 – Dependency Verification](https://owasp.org/www-project-application-security-verification-standard/)
+
+> **Go idiom note:** Committing `go.sum` to version control IS the idiomatic Go default and is the approach recommended in the official Go module documentation. Omitting it is always a deliberate (and insecure) exception.
 
 ## Why This Matters
 
 Without a `go.sum`, a compromised module proxy, a DNS hijack, or a typosquat package can silently substitute malicious code into your build. The attacker does not need access to your repository — they only need to interfere with the module download path between your build environment and the module origin. In CI/CD pipelines this risk is elevated because builds frequently download fresh dependencies from the internet. A single poisoned module can exfiltrate secrets, establish persistence, or tamper with application logic before your code even starts. MITRE ATT&CK technique T1195.001 (Supply Chain Compromise: Compromise Software Dependencies) describes exactly this attack class.
+
+OWASP ASVS v4.0 requirement **V14.2.1** requires that all components are up to date and verified. The Go checksum database (`sum.golang.org`) provides a transparency log of all published module versions; `go.sum` is the per-project anchor that ties your dependency tree to verified entries in that log.
 
 ## What Gets Flagged
 
@@ -57,8 +61,11 @@ go mod verify && go build ./...
 ## References
 
 - [CWE-829: Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html)
+- [OWASP Application Security Verification Standard v4.0 – V14.2 Dependency](https://owasp.org/www-project-application-security-verification-standard/)
 - [OWASP Software Component Verification Standard](https://owasp.org/www-project-software-component-verification-standard/)
+- [OWASP Go Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Go_Security_Cheat_Sheet.html)
 - [Go Modules Reference – go.sum files](https://go.dev/ref/mod#go-sum-files)
 - [Go Modules Reference – go mod verify](https://go.dev/ref/mod#go-mod-verify)
+- [Go Checksum Database](https://sum.golang.org/)
 - [MITRE ATT&CK T1195.001 – Supply Chain Compromise: Compromise Software Dependencies](https://attack.mitre.org/techniques/T1195/001/)
 - [CAPEC-185: Malicious Software Download](https://capec.mitre.org/data/definitions/185.html)

@@ -38,10 +38,21 @@ vulnetix scan status <scan-id> [flags]
 | `--results-only` | bool | `false` | Only output when findings exist; completely silent when the scan is clean. Also suppresses exploit and remediation detail sections. |
 | `--version-lag` | int | `0` | Exit with code `1` when any dependency is within the N most recently published versions of that package (0 = disabled). |
 | `--cooldown` | int | `0` | Exit with code `1` when any dependency version was published within the last N days (0 = disabled, best-effort). |
-| `--disable-sast` | bool | `false` | Skip SAST analysis entirely |
+| `--evaluate-sast` | bool | `false` | Enable SAST analysis (exclusive mode — disables all other features not explicitly enabled) |
+| `--no-sast` | bool | `false` | Skip SAST (sast-kind) rules |
+| `--evaluate-sca` | bool | `false` | Enable SCA — package manifest analysis (exclusive mode) |
+| `--no-sca` | bool | `false` | Skip SCA — skip ordinary package manifests |
+| `--evaluate-licenses` | bool | `false` | Enable license analysis (exclusive mode) |
+| `--no-licenses` | bool | `false` | Skip license analysis |
+| `--evaluate-secrets` | bool | `false` | Enable secret detection rules (exclusive mode) |
+| `--no-secrets` | bool | `false` | Skip secret-detection SAST rules |
+| `--enable-containers` | bool | `false` | Enable container file analysis (exclusive mode) |
+| `--no-containers` | bool | `false` | Skip Dockerfile/OCI manifests and container SAST rules |
+| `--evaluate-iac` | bool | `false` | Enable IaC analysis (exclusive mode) |
+| `--no-iac` | bool | `false` | Skip HCL/Nix manifests and IaC SAST rules |
 | `--disable-default-rules` | bool | `false` | Skip built-in default SAST rules (external `--rule` repos still loaded) |
 | `--list-default-rules` | bool | `false` | Print built-in SAST rules and exit |
-| `-R, --rule` | stringArray | - | External SAST rule repo in `org/repo` format (repeatable); fetched from GitHub or `--rule-registry` |
+| `-R, --rule` | stringArray | - | External SAST rule repo in `org/repo` format (repeatable); fetched from GitHub or `--rule-registry` — see [Custom Rule Repositories](../sast-rules/custom-rules/) |
 | `--rule-registry` | string | `https://github.com` | Override default registry URL for all `--rule` repos |
 | `--dry-run` | bool | `false` | Detect files and parse packages locally, check memory, then exit — zero API calls |
 | `--from-memory` | bool | `false` | Reconstruct scan pretty output from `.vulnetix/sbom.cdx.json` without API calls |
@@ -56,7 +67,7 @@ After every scan the following files are written under your project root:
 | Path | Description |
 |------|-------------|
 | `.vulnetix/sbom.cdx.json` | CycloneDX 1.7 SBOM for all scanned packages |
-| `.vulnetix/sast.sarif` | SARIF 2.1.0 report from SAST analysis (written unless `--disable-sast` is set) |
+| `.vulnetix/sast.sarif` | SARIF 2.1.0 report from SAST analysis (written when any SAST sub-category runs) |
 | `.vulnetix/memory.yaml` | Scan state record (timestamp, counts, git context) |
 
 ## Scan Status
@@ -323,17 +334,93 @@ To skip license analysis:
 vulnetix scan --no-licenses
 ```
 
+## Feature Control
+
+By default, `vulnetix scan` runs all analysis categories: SCA, SAST (including secret detection, container rules, and IaC rules), and license analysis.
+
+### Enabling individual features (exclusive mode)
+
+When any `--evaluate-X` flag is set, only the explicitly enabled categories run — everything else is disabled. This makes it easy to scope a scan to a single concern:
+
+```bash
+# SCA only (vulnerability analysis on package manifests)
+vulnetix scan --evaluate-sca
+
+# SAST only (general static analysis rules)
+vulnetix scan --evaluate-sast
+
+# Secret detection only
+vulnetix scan --evaluate-secrets
+
+# Container analysis only (Dockerfile/OCI rules)
+vulnetix scan --enable-containers
+
+# IaC analysis only (Terraform, Nix)
+vulnetix scan --evaluate-iac
+
+# License analysis only
+vulnetix scan --evaluate-licenses
+```
+
+### Disabling individual features
+
+`--no-X` flags disable a specific category while leaving all others enabled:
+
+```bash
+# Run everything except license analysis
+vulnetix scan --no-licenses
+
+# Run everything except secret-detection rules
+vulnetix scan --no-secrets
+
+# Skip IaC files and rules
+vulnetix scan --no-iac
+
+# Skip containers
+vulnetix scan --no-containers
+
+# Skip all SAST-kind rules (but still run secrets/containers/IaC rules)
+vulnetix scan --no-sast
+```
+
+### Specialized scan commands
+
+For convenience, dedicated top-level commands wrap common single-category scans:
+
+| Command | Equivalent |
+|---------|------------|
+| `vulnetix sca` | `vulnetix scan --evaluate-sca --no-sast --no-secrets --no-containers --no-iac --no-licenses` |
+| `vulnetix sast` | `vulnetix scan --evaluate-sast --no-sca --no-secrets --no-containers --no-iac --no-licenses` |
+| `vulnetix secrets` | `vulnetix scan --evaluate-secrets --no-sast --no-sca --no-containers --no-iac --no-licenses` |
+| `vulnetix containers` | `vulnetix scan --enable-containers --no-sast --no-sca --no-secrets --no-iac --no-licenses` |
+| `vulnetix iac` | `vulnetix scan --evaluate-iac --no-sast --no-sca --no-secrets --no-containers --no-licenses` |
+
 ## SAST (Static Application Security Testing)
 
 By default, `vulnetix scan` also runs SAST analysis alongside SCA. SAST evaluates Rego-based rules against your source files to detect code-level security issues — weak cryptography, hardcoded credentials, missing lock files, insecure deserialization, and more.
 
 SAST findings appear in the pretty output after the SCA summary and are written to `.vulnetix/sast.sarif` in SARIF 2.1.0 format. Each finding includes CWE, CAPEC, and MITRE ATT&CK technique mappings, plus stable fingerprints for tracking results across runs.
 
+SAST rules are organized into four sub-categories that can be toggled independently:
+
+| Sub-category | Flag to disable | Rule kind | Applies to |
+|---|---|---|---|
+| Static analysis | `--no-sast` | `sast` | General code security rules |
+| Secret detection | `--no-secrets` | `secrets` | Hardcoded credentials, API keys, tokens |
+| Container rules | `--no-containers` | `oci` | Dockerfile / Containerfile analysis |
+| IaC rules | `--no-iac` | `iac` | Terraform HCL, Nix files |
+
 ### Disabling SAST
 
 ```bash
-# Skip SAST analysis entirely
-vulnetix scan --disable-sast
+# Skip all SAST-kind rules (secrets/containers/IaC still run)
+vulnetix scan --no-sast
+
+# Skip secret-detection rules specifically
+vulnetix scan --no-secrets
+
+# Skip all SAST entirely (all four sub-categories)
+vulnetix scan --no-sast --no-secrets --no-containers --no-iac
 
 # Skip built-in rules only (external rule repos still loaded)
 vulnetix scan --disable-default-rules --rule myorg/my-rules
@@ -349,7 +436,7 @@ vulnetix scan --list-default-rules
 
 ### External Rule Repos
 
-Load additional Rego rules from Git repositories. Rules are fetched from GitHub by default or from a custom registry.
+Load additional Rego rules from Git repositories. See the [Custom Rule Repositories](../sast-rules/custom-rules/) guide for a full walkthrough including repository setup, rule authoring, and all flag combinations. Rules are fetched from GitHub by default or from a custom registry.
 
 ```bash
 # Load rules from a GitHub repo
@@ -603,11 +690,17 @@ vulnetix scan --results-only
 ### SAST — list, disable, and load custom rules
 
 ```bash
-# List all 27 built-in SAST rules and exit
+# List all built-in SAST rules and exit
 vulnetix scan --list-default-rules
 
-# Skip SAST analysis entirely
-vulnetix scan --disable-sast
+# Skip all SAST-kind rules (general static analysis)
+vulnetix scan --no-sast
+
+# Skip secret detection
+vulnetix scan --no-secrets
+
+# Skip all SAST entirely (all four sub-categories)
+vulnetix scan --no-sast --no-secrets --no-containers --no-iac
 
 # Skip built-in rules but load a custom rule repo from GitHub
 vulnetix scan --disable-default-rules --rule myorg/custom-rules

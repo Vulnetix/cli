@@ -7,13 +7,17 @@ description: "Detects use of eval() and new Function() which execute arbitrary J
 
 This rule detects calls to `eval()` and `new Function()` in JavaScript and TypeScript source files. Both constructs compile and execute a string as JavaScript at runtime. When any part of that string is derived from user input — a query parameter, request body, WebSocket message, or any other external source — an attacker can run arbitrary code with the full privileges of the Node.js process. This maps to CWE-94 (Improper Control of Generation of Code).
 
-**Severity:** High | **CWE:** [CWE-94 – Improper Control of Generation of Code](https://cwe.mitre.org/data/definitions/94.html)
+**Severity:** High | **CWE:** [CWE-94 – Improper Control of Generation of Code](https://cwe.mitre.org/data/definitions/94.html) | **OWASP ASVS:** V5.2.4
+
+`eval()` and `new Function()` are **not disabled by default** in Node.js. They are available in every JavaScript runtime and must be explicitly avoided through code review, linting rules, and Content Security Policy enforcement.
 
 ## Why This Matters
 
 Code injection via `eval()` is one of the most direct paths to full server compromise. An attacker who can control the argument to `eval()` can read environment variables (stealing secrets and API keys), spawn child processes to execute OS commands, open reverse shells, exfiltrate files, or pivot to internal services. Unlike SQL injection, which is constrained to database operations, JavaScript code injection has unrestricted access to the Node.js runtime and everything it can reach.
 
-The `new Function()` constructor is equally dangerous and is frequently used as an obfuscated substitute for `eval()`. Code like `new Function('return ' + userInput)()` is functionally identical to `eval(userInput)`. Sandboxing libraries such as `vm2` were once considered mitigations, but every version has been bypassed via prototype chain manipulation or native module escapes — the vm2 project was officially abandoned in 2023 following critical sandbox-escape CVEs. There is no reliable sandbox for untrusted JavaScript within Node.js.
+The `new Function()` constructor is equally dangerous and is frequently used as an obfuscated substitute for `eval()`. Code like `new Function('return ' + userInput)()` is functionally identical to `eval(userInput)`. Sandboxing libraries such as `vm2` were once considered mitigations, but every version has been bypassed via prototype chain manipulation or native module escapes — the vm2 project was officially abandoned in 2023 following critical sandbox-escape CVEs (CVE-2023-29199, CVE-2023-30547). There is no reliable sandbox for untrusted JavaScript within Node.js.
+
+OWASP ASVS v4 requirement **V5.2.4** states: "Verify that the application does not use eval() or other dynamic code execution features."
 
 ## What Gets Flagged
 
@@ -29,6 +33,10 @@ app.post('/calculate', (req, res) => {
 // FLAGGED: new Function used to build dynamic logic
 const fn = new Function('x', req.query.body);
 fn(42);
+
+// FLAGGED: eval even without obvious user input (static analysis cannot
+// always trace data flow — treat all eval() as potentially dangerous)
+const computed = eval(someVar);
 ```
 
 ## Remediation
@@ -37,13 +45,19 @@ fn(42);
 
 2. **For mathematical expressions**, use a dedicated, safe evaluator library that parses an AST without executing code:
 
+   ```bash
+   npm install mathjs
+   # or
+   npm install expr-eval
+   ```
+
    ```javascript
-   // SAFE: use mathjs or expr-eval for expression evaluation
+   // SAFE: use mathjs for expression evaluation
    import { evaluate } from 'mathjs';
 
    app.post('/calculate', (req, res) => {
      try {
-       const result = evaluate(req.body.expression); // parses, does not eval
+       const result = evaluate(req.body.expression); // parses AST, does not eval
        res.json({ result });
      } catch (err) {
        res.status(400).json({ error: 'Invalid expression' });
@@ -70,14 +84,38 @@ fn(42);
    const rendered = ejs.render(template, { name: req.body.name });
    ```
 
-5. **Apply a Content Security Policy** header that includes `script-src` without `'unsafe-eval'` to prevent client-side `eval()` as a defence-in-depth measure.
+5. **Add ESLint rules to prevent `eval()` at the linting stage:**
+
+   ```json
+   // .eslintrc.json
+   {
+     "rules": {
+       "no-eval": "error",
+       "no-new-func": "error"
+     }
+   }
+   ```
+
+6. **Apply a Content Security Policy** header that includes `script-src` without `'unsafe-eval'` to prevent client-side `eval()` as a defence-in-depth measure. Note that Express does **not** set any CSP headers by default — use helmet:
+
+   ```javascript
+   // Requires: npm install helmet
+   const helmet = require('helmet');
+   app.use(helmet.contentSecurityPolicy({
+     directives: {
+       scriptSrc: ["'self'"], // no 'unsafe-eval'
+     },
+   }));
+   ```
 
 ## References
 
 - [CWE-94: Improper Control of Generation of Code](https://cwe.mitre.org/data/definitions/94.html)
 - [CAPEC-35: Leverage Executable Code in Non-Executable Files](https://capec.mitre.org/data/definitions/35.html)
+- [OWASP ASVS v4 – V5.2.4 Input Validation](https://owasp.org/www-project-application-security-verification-standard/)
+- [OWASP Node.js Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html)
 - [vm2 project abandoned – critical sandbox escape](https://github.com/patriksimek/vm2/issues/533)
 - [mathjs safe expression evaluation](https://mathjs.org/docs/expressions/security.html)
-- [OWASP Node.js Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html)
+- [ESLint no-eval rule](https://eslint.org/docs/latest/rules/no-eval)
 - [MDN – eval() security concerns](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#never_use_eval!)
 - [MITRE ATT&CK T1059.007 – JavaScript](https://attack.mitre.org/techniques/T1059/007/)

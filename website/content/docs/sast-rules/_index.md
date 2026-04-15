@@ -5,6 +5,17 @@ weight: 5
 
 Vulnetix ships built-in SAST rules written in [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) and evaluated by the Open Policy Agent engine. Rules are organised by language and security category. Each rule page explains what the rule detects, why it matters, and how to remediate the finding.
 
+Rules are grouped into four analysis sub-categories that can be enabled or disabled independently:
+
+| Sub-category | Rule kind | Dedicated command | Description |
+|---|---|---|---|
+| Static analysis | `sast` | [`vulnetix sast`](../cli-reference/sast/) | General code security rules per language |
+| Secret detection | `secrets` | [`vulnetix secrets`](../cli-reference/secrets/) | Hardcoded credentials, API keys, tokens |
+| Container analysis | `oci` | [`vulnetix containers`](../cli-reference/containers/) | Dockerfile / Containerfile misconfigurations |
+| IaC analysis | `iac` | [`vulnetix iac`](../cli-reference/iac/) | Terraform, Nix infrastructure misconfigurations |
+
+All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-secrets`, `--no-containers`, or `--no-iac` to disable individual sub-categories, or use the dedicated commands to run only one. You can also [author and load your own rules](custom-rules/) from any Git repository.
+
 ## Rule Categories
 
 {{< cards >}}
@@ -14,7 +25,7 @@ Vulnetix ships built-in SAST rules written in [Rego](https://www.openpolicyagent
   {{< card link="#csharp" title="C# / .NET" subtitle="10 rules — SQL injection, command injection, deserialization, XXE, SSRF, CSRF" >}}
   {{< card link="#crypto" title="Cryptography" subtitle="10 rules — weak ciphers, broken hashes, TLS, key size, timing attacks, IV reuse" >}}
   {{< card link="#docker" title="Docker" subtitle="8 rules — least-privilege, supply chain, HEALTHCHECK, version pinning" >}}
-  {{< card link="#go" title="Go" subtitle="16 rules — injection, SSRF, path traversal, deserialization, concurrency bugs" >}}
+  {{< card link="#go" title="Go" subtitle="19 rules — injection, SSRF, path traversal, deserialization, concurrency bugs" >}}
   {{< card link="#graphql" title="GraphQL" subtitle="4 rules — introspection, DoS, query injection, field suggestion disclosure" >}}
   {{< card link="#java" title="Java" subtitle="27 rules — injection, deserialization, CSRF, XPath, JPQL, crypto, file upload" >}}
   {{< card link="#jwt" title="JWT" subtitle="6 rules — signature bypass, missing expiry, hardcoded secret, none algorithm" >}}
@@ -24,7 +35,7 @@ Vulnetix ships built-in SAST rules written in [Rego](https://www.openpolicyagent
   {{< card link="#php" title="PHP" subtitle="26 rules — SQL, XSS, XXE, session fixation, file upload, LDAP, mass assignment" >}}
   {{< card link="#python" title="Python" subtitle="21 rules — deserialization, SSTI, SSL, PRNG, paramiko, tarfile slip, ML models" >}}
   {{< card link="#ruby" title="Ruby" subtitle="10 rules — deserialization, SQL injection, XSS, mass assignment, TLS, send injection" >}}
-  {{< card link="#rust" title="Rust" subtitle="6 rules — lockfile, panic, unsafe, command injection, Result misuse, integer cast" >}}
+  {{< card link="#rust" title="Rust" subtitle="8 rules — lockfile, panic, unsafe, command injection, arithmetic overflow, path traversal" >}}
   {{< card link="#secrets" title="Secrets / Credentials" subtitle="32 rules — AWS, Azure, GCP, tokens, API keys, PGP, OAuth" >}}
   {{< card link="#swift" title="Swift / iOS" subtitle="6 rules — hardcoded keys, NSLog, UserDefaults, TLS disabled, WebView, PRNG" >}}
   {{< card link="#terraform" title="Terraform / IaC" subtitle="8 rules — S3 public, security groups, IAM wildcard, unencrypted storage, IMDSv1" >}}
@@ -128,6 +139,9 @@ Vulnetix ships built-in SAST rules written in [Rego](https://www.openpolicyagent
 | [VNX-GO-014](vnx-go-014) | Go sync.Mutex Lock() without deferred Unlock() | Medium |
 | [VNX-GO-015](vnx-go-015) | Go sync.WaitGroup.Add() called inside goroutine | Medium |
 | [VNX-GO-016](vnx-go-016) | Go integer downcast after strconv.Atoi/ParseInt | Medium |
+| [VNX-GO-017](vnx-go-017) | Go SQL injection via fmt.Sprintf in db.Exec or db.Query | High |
+| [VNX-GO-018](vnx-go-018) | Go arbitrary file write via os.WriteFile with user-controlled path | High |
+| [VNX-GO-019](vnx-go-019) | Go server binding to all interfaces (0.0.0.0) without authentication | Medium |
 
 ## GraphQL {#graphql}
 
@@ -316,6 +330,8 @@ Vulnetix ships built-in SAST rules written in [Rego](https://www.openpolicyagent
 | [VNX-RUST-004](vnx-rust-004) | Rust command injection via process::Command with format! | High |
 | [VNX-RUST-005](vnx-rust-005) | panic!() or unwrap()/expect() in function returning Result | Medium |
 | [VNX-RUST-006](vnx-rust-006) | Integer truncation or sign-change cast after parsing | Medium |
+| [VNX-RUST-007](vnx-rust-007) | Rust integer arithmetic overflow without checked arithmetic | Medium |
+| [VNX-RUST-008](vnx-rust-008) | Rust path traversal in Actix-web or Axum file-serving handler | High |
 
 ## Secrets / Credentials {#secrets}
 

@@ -7,7 +7,9 @@ description: "Detect Flask and Jinja2 code that passes user-controlled input dir
 
 This rule flags Python code that uses `render_template_string()` or `jinja2.Template()` with values derived from user input — specifically f-strings, request attributes, or string concatenation passed as the template argument. Server-side template injection (SSTI) occurs when user input is interpreted as template syntax rather than as data. Because Jinja2 templates can access Python internals, a successful SSTI payload gives an attacker full remote code execution on the server. This maps to [CWE-1336: Improper Neutralization of Special Elements Used in a Template Engine](https://cwe.mitre.org/data/definitions/1336.html).
 
-**Severity:** Critical | **CWE:** [CWE-1336 – Server-Side Template Injection](https://cwe.mitre.org/data/definitions/1336.html)
+**Severity:** Critical | **CWE:** [CWE-1336 – Server-Side Template Injection](https://cwe.mitre.org/data/definitions/1336.html) | **Bandit:** B702 (jinja2 autoescape false / template injection)
+
+> **Default behavior:** Flask's `render_template_string()` does NOT sandbox the template expression. Any template syntax in the string is executed with full Jinja2 permissions. Passing user input as the template string — rather than as a context variable — is insecure by design; there is no flag to make it safe.
 
 ## Why This Matters
 
@@ -103,8 +105,10 @@ message = template.safe_substitute(name=user.name, order_id=order.id)
 
 - [CWE-1336: Improper Neutralization of Special Elements Used in a Template Engine](https://cwe.mitre.org/data/definitions/1336.html)
 - [OWASP Server-Side Template Injection](https://owasp.org/www-community/attacks/Server_Side_Template_Injection)
+- [OWASP ASVS V5 – Validation, Sanitization, and Encoding](https://owasp.org/www-project-application-security-verification-standard/)
 - [PortSwigger – Server-side template injection](https://portswigger.net/web-security/server-side-template-injection)
 - [Flask documentation – render_template](https://flask.palletsprojects.com/en/stable/api/#flask.render_template)
 - [Jinja2 documentation – Sandbox](https://jinja.palletsprojects.com/en/stable/sandbox/)
+- [Bandit B702 – Use of Jinja2 templates with autoescape=False](https://bandit.readthedocs.io/en/latest/plugins/b702_jinja2_autoescape_false.html)
 - [CAPEC-242: Code Injection](https://capec.mitre.org/data/definitions/242.html)
 - [MITRE ATT&CK T1190 – Exploit Public-Facing Application](https://attack.mitre.org/techniques/T1190/)
