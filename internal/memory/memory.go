@@ -184,16 +184,36 @@ type ScanRecord struct {
 	ScopeBreakdown map[string]ScopeStats `yaml:"scope_breakdown,omitempty"`
 	IDSRulesPath   string                `yaml:"ids_rules_path,omitempty"`
 	IDSRulesCount  int                   `yaml:"ids_rules_count,omitempty"`
+	SASTRulesLoaded  int    `yaml:"sast_rules_loaded,omitempty"`
+	SASTFindingCount int    `yaml:"sast_finding_count,omitempty"`
+	SARIFPath        string `yaml:"sarif_path,omitempty"`
+}
+
+// SASTFindingRecord stores triage data for a single SAST finding,
+// keyed by fingerprint in the SASTFindings map.
+type SASTFindingRecord struct {
+	RuleID      string                 `yaml:"rule_id"`
+	RuleName    string                 `yaml:"rule_name"`
+	Severity    string                 `yaml:"severity"`
+	FirstSeen   string                 `yaml:"first_seen"`
+	LastSeen    string                 `yaml:"last_seen"`
+	Status      string                 `yaml:"status"` // "open"|"resolved"|"suppressed"
+	ResolvedAt  string                 `yaml:"resolved_at,omitempty"`
+	ArtifactURI string                 `yaml:"artifact_uri,omitempty"`
+	StartLine   int                    `yaml:"start_line,omitempty"`
+	Fingerprint string                 `yaml:"fingerprint"`
+	Properties  map[string]interface{} `yaml:"properties,omitempty"`
 }
 
 // Memory is the top-level .vulnetix/memory.yaml structure.
 type Memory struct {
-	Version     string                   `yaml:"version"`
-	LastScan    *ScanRecord              `yaml:"last_scan,omitempty"`
-	History     []ScanRecord             `yaml:"history,omitempty"`
-	Findings    map[string]FindingRecord `yaml:"findings,omitempty"`    // triage findings keyed by CVE ID
-	Environment *EnvironmentContext      `yaml:"environment,omitempty"` // last-gathered env context
-	VDBQueries  []VDBQuery               `yaml:"vdb_queries,omitempty"` // recent VDB query log
+	Version       string                       `yaml:"version"`
+	LastScan      *ScanRecord                  `yaml:"last_scan,omitempty"`
+	History       []ScanRecord                 `yaml:"history,omitempty"`
+	Findings      map[string]FindingRecord     `yaml:"findings,omitempty"`       // triage findings keyed by CVE ID
+	SASTFindings  map[string]SASTFindingRecord `yaml:"sast_findings,omitempty"`  // SAST findings keyed by fingerprint
+	Environment   *EnvironmentContext          `yaml:"environment,omitempty"`    // last-gathered env context
+	VDBQueries    []VDBQuery                   `yaml:"vdb_queries,omitempty"`    // recent VDB query log
 }
 
 // Load reads memory.yaml from the given .vulnetix directory.
@@ -618,4 +638,43 @@ func extractStringSlice(m map[string]interface{}, key string) ([]string, bool) {
 		}
 	}
 	return result, len(result) > 0
+}
+
+// RecordSASTFindings upserts SAST finding records. New findings get status "open"
+// and first_seen set to now. Existing findings get last_seen updated.
+func (m *Memory) RecordSASTFindings(findings []SASTFindingRecord) {
+	if m.SASTFindings == nil {
+		m.SASTFindings = make(map[string]SASTFindingRecord)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	for _, f := range findings {
+		if existing, ok := m.SASTFindings[f.Fingerprint]; ok {
+			existing.LastSeen = now
+			if existing.Status == "resolved" {
+				// Regression — finding reappeared.
+				existing.Status = "open"
+				existing.ResolvedAt = ""
+			}
+			m.SASTFindings[f.Fingerprint] = existing
+		} else {
+			f.FirstSeen = now
+			f.LastSeen = now
+			if f.Status == "" {
+				f.Status = "open"
+			}
+			m.SASTFindings[f.Fingerprint] = f
+		}
+	}
+}
+
+// MarkSASTFindingResolved marks a SAST finding as resolved by fingerprint.
+func (m *Memory) MarkSASTFindingResolved(fingerprint string) {
+	if m.SASTFindings == nil {
+		return
+	}
+	if rec, ok := m.SASTFindings[fingerprint]; ok {
+		rec.Status = "resolved"
+		rec.ResolvedAt = time.Now().UTC().Format(time.RFC3339)
+		m.SASTFindings[fingerprint] = rec
+	}
 }
