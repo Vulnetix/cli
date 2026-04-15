@@ -32,7 +32,7 @@ findings contains finding if {
 	some i, line in lines
 	# eval followed by a variable, command substitution, or concatenation - not a plain literal
 	regex.match(`^\s*eval\s+`, line)
-	not regex.match(`^\s*eval\s+"[^$`]+"\s*$`, line)
+	not regex.match(`^\s*eval\s+"[^$` + "`" + `]+"\s*$`, line)
 	not regex.match(`^\s*#`, line)
 	finding := {
 		"rule_id": metadata.id,

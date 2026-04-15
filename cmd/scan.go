@@ -614,7 +614,9 @@ func runLocalScan(
 
 	if len(allPackages) == 0 {
 		fmt.Fprintln(os.Stderr, "\nNo packages found to analyse.")
-		return nil
+		// Still run license analysis and SAST even when no packages are found.
+		localResults = []cdx.LocalScanResult{}
+		allPackages = []scan.ScopedPackage{}
 	}
 
 	// ── Count unique packages to query ───────────────────────────────────

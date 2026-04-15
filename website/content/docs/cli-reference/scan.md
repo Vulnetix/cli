@@ -341,7 +341,7 @@ vulnetix scan --disable-default-rules --rule myorg/my-rules
 
 ### Listing Built-in Rules
 
-Print all 250+ built-in rules with their IDs, names, severities, and language targets, then exit:
+Prints all all built-in rules with their IDs, names, severities, and language targets, then exit:
 
 ```bash
 vulnetix scan --list-default-rules
