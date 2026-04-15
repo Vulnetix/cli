@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["bash", "shell"],
 	"severity": "medium",
 	"level": "warning",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [755],
 	"capec": [],
 	"attack_technique": [],

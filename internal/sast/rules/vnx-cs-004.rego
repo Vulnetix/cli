@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["csharp"],
 	"severity": "high",
 	"level": "error",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [502],
 	"capec": ["CAPEC-586"],
 	"attack_technique": ["T1059"],
@@ -38,7 +38,7 @@ findings contains finding if {
 	some formatter in _dangerous_formatters
 	contains(line, formatter)
 	# Only flag instantiation or Deserialize call
-	regex.match(`new\s+` + formatter + `|` + formatter + `\s*\(\s*\)|\.Deserialize\s*\(`, line)
+	regex.match(sprintf(`new\s+%s|%s\s*\(\s*\)|\.Deserialize\s*\(`, [formatter, formatter]), line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("Insecure deserialisation using %s; replace with a safe serialiser (System.Text.Json, XmlSerializer with schema validation) and never deserialise untrusted data with this formatter", [formatter]),

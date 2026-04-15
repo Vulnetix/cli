@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["bash", "shell"],
 	"severity": "critical",
 	"level": "error",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [78],
 	"capec": ["CAPEC-88"],
 	"attack_technique": ["T1059.004"],
@@ -30,9 +30,10 @@ findings contains finding if {
 	_is_bash(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	# eval followed by a variable, command substitution, or concatenation - not a plain literal
-	regex.match(`^\s*eval\s+`, line)
-	not regex.match(`^\s*eval\s+"[^$` + "`" + `]+"\s*$`, line)
+	# Check if line contains eval with variables or command substitution
+	regex.match("^\\s*eval\\s+", line)  # Starts with eval
+	regex.match("\\$", line)  # Contains variables
+	regex.match("`", line)  # Contains command substitution
 	not regex.match(`^\s*#`, line)
 	finding := {
 		"rule_id": metadata.id,

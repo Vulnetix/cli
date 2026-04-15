@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["swift"],
 	"severity": "high",
 	"level": "error",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [338],
 	"capec": ["CAPEC-112"],
 	"attack_technique": ["T1600"],

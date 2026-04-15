@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["terraform"],
 	"severity": "high",
 	"level": "error",
-	"kind": "open",
+	"kind": "iac",
 	"cwe": [311],
 	"capec": ["CAPEC-37"],
 	"attack_technique": ["T1530"],

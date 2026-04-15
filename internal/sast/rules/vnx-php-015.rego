@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["php"],
 	"severity": "high",
 	"level": "warning",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [434],
 	"capec": ["CAPEC-1"],
 	"attack_technique": ["T1190"],

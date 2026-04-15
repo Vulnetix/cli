@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["csharp"],
 	"severity": "high",
 	"level": "error",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [327],
 	"capec": ["CAPEC-97"],
 	"attack_technique": ["T1600"],
@@ -41,7 +41,7 @@ findings contains finding if {
 	some i, line in lines
 	some algo in _weak_algos
 	contains(line, algo)
-	regex.match(`new\s+` + algo + `\s*\(|` + algo + `\.Create\s*\(`, line)
+	regex.match(sprintf(`new\s+%s\s*\(|%s\.Create\s*\(`, [algo, algo]), line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("Weak cryptographic algorithm %s detected; use SHA-256/SHA-3 for hashing, AES-GCM for encryption, and PBKDF2/bcrypt/Argon2 for password hashing", [algo]),
