@@ -11,7 +11,7 @@ This rule detects connection URLs using unencrypted protocol schemes — `redis:
 
 ## Why This Matters
 
-The assumption that internal network traffic is "safe" from interception has been repeatedly invalidated. Cloud environments, microservice meshes, and containerized workloads share physical and virtual network infrastructure. A compromised container, a misconfigured cloud security group, or a lateral-movement foothold can put an attacker in a position to sniff internal traffic. Technologies like ARP spoofing, BGP hijacking, and compromised network devices have all been used to intercept "internal" traffic.
+The assumption that internal network traffic is "safe" from interception has been repeatedly invalidated. Cloud environments, microservice meshes, and containerised workloads share physical and virtual network infrastructure. A compromised container, a misconfigured cloud security group, or a lateral-movement foothold can put an attacker in a position to sniff internal traffic. Technologies like ARP spoofing, BGP hijacking, and compromised network devices have all been used to intercept "internal" traffic.
 
 Specific protocol risks:
 - **redis://** — Redis AUTH passwords transmitted in plaintext; session data or queue contents readable
@@ -19,6 +19,8 @@ Specific protocol risks:
 - **ftp://** — Username, password, and file contents all transmitted in cleartext; replaced by FTPS or SFTP
 - **telnet://** — All terminal input including passwords transmitted in cleartext; replaced by SSH
 - **ldap://** — Directory queries and BIND credentials (usernames/passwords) transmitted in cleartext; replaced by LDAPS
+
+**OWASP ASVS v4** requirement V9.1.1 mandates that all communications use TLS, and V9.1.2 prohibits fallback to plaintext protocols. Cleartext protocol use is also a violation of PCI DSS Requirement 4.2 (never send unprotected card data over open public networks) and HIPAA's Technical Safeguard for encryption in transit (45 CFR § 164.312(e)(2)(ii)).
 
 ## What Gets Flagged
 
@@ -43,6 +45,13 @@ auth:
   ldap_url: "ldap://ldap.corp.example.com:389"
 ```
 
+```bash
+# FLAGGED: FTP in a CI script
+ftp://deploy:secret@files.example.com/releases/app.tar.gz
+```
+
+Note: lock files (`.lock`, `.sum`) and minified assets (`.min.js`) are excluded from analysis.
+
 ## Remediation
 
 Replace each plaintext protocol with its TLS-encrypted equivalent:
@@ -57,10 +66,10 @@ Replace each plaintext protocol with its TLS-encrypted equivalent:
 
 ```python
 # SAFE: encrypted Redis connection
-import redis
+import redis, os
 
 r = redis.from_url("rediss://user:password@redis.example.com:6380/0")
-# Or use SSL parameters
+# Or use SSL parameters, loading credentials from the environment
 r = redis.Redis(
     host=os.environ['REDIS_HOST'],
     port=6380,
@@ -72,8 +81,7 @@ r = redis.Redis(
 
 ```python
 # SAFE: encrypted AMQP connection (RabbitMQ with TLS)
-import pika
-import ssl
+import pika, ssl
 
 ssl_context = ssl.create_default_context()
 ssl_context.load_verify_locations('/etc/ssl/certs/ca-certificates.crt')
@@ -109,10 +117,24 @@ import os, redis
 r = redis.from_url(os.environ['REDIS_URL'])
 ```
 
+**Prevent future regressions** with pre-commit secret scanning tools:
+
+```bash
+# Install detect-secrets and scan for plaintext protocol URLs
+pip install detect-secrets
+detect-secrets scan --list-all-plugins
+
+# Or use git-secrets with a custom pattern
+git secrets --add 'redis://[a-zA-Z0-9]'
+git secrets --add 'amqp://[a-zA-Z0-9]'
+git secrets --add 'ldap://[a-zA-Z0-9]'
+```
+
 ## References
 
 - [CWE-319: Cleartext Transmission of Sensitive Information](https://cwe.mitre.org/data/definitions/319.html)
 - [OWASP: Transport Layer Protection Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html)
+- [OWASP ASVS v4 – V9.1: Communications Security](https://owasp.org/www-project-application-security-verification-standard/)
 - [Redis: TLS support](https://redis.io/docs/management/security/encryption/)
 - [RabbitMQ: TLS support](https://www.rabbitmq.com/ssl.html)
 - [stunnel: TLS proxy](https://www.stunnel.org/)

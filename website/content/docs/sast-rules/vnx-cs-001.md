@@ -11,7 +11,11 @@ SQL injection remains one of the most consistently exploited vulnerability class
 
 The rule checks two patterns: a `new SqlCommand(...)` (or equivalent) call on the same line as a concatenation or interpolation expression, and a `CommandText = ...` assignment that includes a `+` operator, `string.Format`, or an interpolated string literal.
 
+> **ASP.NET Core default:** Parameterised queries are NOT enforced by default. ADO.NET, Dapper, and raw `SqlCommand` usage all allow string-concatenated queries without any framework-level warning. Entity Framework Core uses parameterised queries by default for LINQ queries, but raw SQL methods (`FromSqlRaw`, `ExecuteSqlRaw`) do not.
+
 **Severity:** High | **CWE:** [CWE-89 – Improper Neutralization of Special Elements used in an SQL Command](https://cwe.mitre.org/data/definitions/89.html)
+
+**OWASP ASVS v4:** [V5.3.4](https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md) — Verify that data selection or database queries (e.g. SQL, HQL, ORM, NoSQL) use parameterised queries, ORMs, entity frameworks, or are otherwise protected from database injection attacks.
 
 ## Why This Matters
 
@@ -33,31 +37,53 @@ var cmd = new SqlCommand($"DELETE FROM Orders WHERE Id = {orderId}", conn);
 
 // FLAGGED: CommandText assigned from string.Format
 cmd.CommandText = string.Format("UPDATE Products SET Price = {0} WHERE Id = {1}", price, id);
+
+// FLAGGED: OleDbCommand with concatenation
+var oleCmd = new OleDbCommand("SELECT * FROM Customers WHERE Id = " + customerId, oleConn);
 ```
 
 ## Remediation
 
-1. Replace every inline SQL string that contains user data with a parameterised query.
-2. Declare `SqlParameter` objects (or use the `@param` placeholder syntax) for every value that originates outside the application's trust boundary.
-3. At the application level, enforce least privilege: the database account used by the application should not have DDL rights or access to sensitive tables it does not need.
-4. Consider using an ORM (Entity Framework Core, Dapper) that parameterises by default rather than hand-building SQL strings.
+1. Replace every inline SQL string that contains user data with a parameterised query using `@param` placeholder syntax.
+2. Declare `SqlParameter` objects for every value that originates outside the application's trust boundary. Prefer `cmd.Parameters.Add(new SqlParameter("@name", SqlDbType.NVarChar))` with explicit type over `AddWithValue` to avoid implicit type conversion issues.
+3. Consider using Entity Framework Core for new data access code — LINQ-to-Entities generates parameterised SQL automatically. For raw SQL in EF Core, use `FromSqlInterpolated` (which is safe) rather than `FromSqlRaw` with user input.
+4. At the application level, enforce least privilege: the database account used by the application should not have DDL rights or access to sensitive tables it does not need.
+5. For Dapper, use the `@param` placeholder syntax in the SQL template and pass an anonymous object or `DynamicParameters` — never build the SQL string with user input.
 
 ```csharp
 // SAFE: parameterised query — user input is bound as data, not SQL structure
-string query = "SELECT * FROM Users WHERE Name = @name";
+string query = "SELECT * FROM Users WHERE Name = @name AND Active = @active";
 using var cmd = new SqlCommand(query, connection);
-cmd.Parameters.AddWithValue("@name", userName);
+cmd.Parameters.Add(new SqlParameter("@name", SqlDbType.NVarChar, 100) { Value = userName });
+cmd.Parameters.Add(new SqlParameter("@active", SqlDbType.Bit) { Value = true });
 
 // SAFE: stored procedure call — structure is fixed server-side
 using var cmd = new SqlCommand("sp_GetUserById", connection);
 cmd.CommandType = CommandType.StoredProcedure;
-cmd.Parameters.AddWithValue("@userId", userId);
+cmd.Parameters.Add(new SqlParameter("@userId", SqlDbType.Int) { Value = userId });
+
+// SAFE: Entity Framework Core LINQ query (parameterised automatically)
+var user = await dbContext.Users
+    .Where(u => u.Name == userName && u.Active)
+    .FirstOrDefaultAsync();
+
+// SAFE: EF Core interpolated raw SQL (parameterised — NOT FromSqlRaw)
+var results = dbContext.Users
+    .FromSqlInterpolated($"SELECT * FROM Users WHERE Name = {userName}")
+    .ToList();
+
+// SAFE: Dapper with parameter object
+var user = await connection.QueryFirstOrDefaultAsync<User>(
+    "SELECT * FROM Users WHERE Name = @Name",
+    new { Name = userName });
 ```
 
 ## References
 
 - [CWE-89: Improper Neutralization of Special Elements used in an SQL Command](https://cwe.mitre.org/data/definitions/89.html)
 - [OWASP SQL Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html)
-- [Microsoft Docs: SqlCommand and parameterised queries](https://learn.microsoft.com/en-us/dotnet/api/system.data.sqlclient.sqlcommand)
 - [OWASP .NET Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/DotNet_Security_Cheat_Sheet.html)
+- [Microsoft Docs: SqlCommand and parameterised queries](https://learn.microsoft.com/en-us/dotnet/api/system.data.sqlclient.sqlcommand)
+- [Microsoft Docs: Entity Framework Core – Raw SQL queries](https://learn.microsoft.com/en-us/ef/core/querying/sql-queries)
+- [OWASP ASVS v4 – V5.3.4 Database Query Requirements](https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md)
 - [CAPEC-66: SQL Injection](https://capec.mitre.org/data/definitions/66.html)

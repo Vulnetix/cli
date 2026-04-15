@@ -7,7 +7,7 @@ description: "Detect Ruby projects that have a Gemfile but no Gemfile.lock, leav
 
 This rule flags Ruby projects that have a `Gemfile` but no corresponding `Gemfile.lock`. The `Gemfile.lock` records the exact resolved version of every gem in the dependency graph — direct and transitive — at the time `bundle install` was last run. Without it, running `bundle install` on a fresh checkout resolves version constraints fresh from RubyGems.org, meaning two builds from the same source tree can install entirely different code depending on what was published between the two runs. This maps to [CWE-829: Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html).
 
-**Severity:** High | **CWE:** [CWE-829 – Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html)
+**Severity:** High | **CWE:** [CWE-829 – Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html) | **OWASP ASVS:** V14.2
 
 ## Why This Matters
 
@@ -15,7 +15,7 @@ Without a `Gemfile.lock`, a dependency confusion attack, a compromised gem maint
 
 In CI/CD pipelines, where `bundle install` runs on every push, this attack is repeatable. A poisoned gem can steal environment variables, install a web shell, or silently modify application logic. MITRE ATT&CK technique T1195.001 (Supply Chain Compromise: Compromise Software Dependencies) documents this attack class.
 
-The `Gemfile.lock` also enables `bundle exec`, which runs commands using exactly the gem versions recorded in the lock file, preventing version skew between local development and production environments.
+The `Gemfile.lock` also enables `bundle exec`, which runs commands using exactly the gem versions recorded in the lock file, preventing version skew between local development and production environments. Bundler's official rationale guide specifically states that the lock file is essential for reproducible builds.
 
 ## What Gets Flagged
 
@@ -68,11 +68,20 @@ bundle install --without development test
 
 6. **Prevent accidental exclusion.** Ensure `Gemfile.lock` is not listed in `.gitignore`. For application repositories, the lock file should always be committed. For gem libraries (packages you publish to RubyGems), it is conventional to `.gitignore` the lock file for the library itself — but this applies only to the published package, not to your library's own CI test environment.
 
+7. **Use `bundler-audit` to check for known vulnerabilities.** Once your lock file is committed, scan it regularly with `bundler-audit`, which queries the Ruby Advisory Database:
+
+```bash
+gem install bundler-audit
+bundle-audit check --update
+```
+
 ## References
 
 - [CWE-829: Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html)
+- [OWASP ASVS v4 – V14.2 Dependency](https://owasp.org/www-project-application-security-verification-standard/)
 - [OWASP Software Component Verification Standard](https://owasp.org/www-project-software-component-verification-standard/)
-- [Bundler documentation – Gemfile.lock](https://bundler.io/guides/rationale.html)
+- [Bundler documentation – Gemfile.lock rationale](https://bundler.io/guides/rationale.html)
 - [Rails Security Guide](https://guides.rubyonrails.org/security.html)
+- [bundler-audit](https://github.com/rubysec/bundler-audit)
 - [MITRE ATT&CK T1195.001 – Supply Chain Compromise](https://attack.mitre.org/techniques/T1195/001/)
 - [CAPEC-185: Malicious Software Download](https://capec.mitre.org/data/definitions/185.html)

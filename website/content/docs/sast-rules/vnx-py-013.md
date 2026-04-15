@@ -7,7 +7,9 @@ description: "Detect Python ML and data science code that loads model or data fi
 
 This rule flags Python code that loads ML model files or serialized data using pickle-based functions: `torch.load()`, `joblib.load()`, `pandas.read_pickle()`, `pd.read_pickle()`, `pickle.load()`, `pickle.loads()`, `cPickle.load()`, `cPickle.loads()`, `shelve.open()`, `dill.load()`, `dill.loads()`, and `numpy.load()` with `allow_pickle=True`. These functions deserialize Python objects from a binary stream. Any model or data file loaded this way can contain embedded code that executes automatically at load time, giving an attacker who controls the file arbitrary code execution on the machine running the model. This maps to [CWE-502: Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html).
 
-**Severity:** Critical | **CWE:** [CWE-502 – Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html)
+**Severity:** Critical | **CWE:** [CWE-502 – Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html) | **Bandit:** B301 (pickle), B302 (marshal), B403 (import of pickle module)
+
+> **Default behavior:** `torch.load()` uses pickle by default in all PyTorch versions prior to 2.6. Starting with PyTorch 2.6, `weights_only=True` became the default, but only for new code — any existing call without the parameter still uses the old unsafe default. `numpy.load()` has `allow_pickle=False` as the default since NumPy 1.16.3, so the rule only fires when it is explicitly set to `True`. `pickle.load()` is **always** unsafe regardless of version.
 
 ## Why This Matters
 
@@ -20,7 +22,7 @@ This threat is not theoretical: researchers have published proof-of-concept mali
 ## What Gets Flagged
 
 ```python
-# FLAGGED: standard torch.load — uses pickle internally
+# FLAGGED: standard torch.load — uses pickle internally (PyTorch < 2.6 default)
 model = torch.load("model.pt")
 model = torch.load(model_path, map_location="cpu")
 
@@ -34,7 +36,7 @@ df = pd.read_pickle(cache_path)
 # FLAGGED: dill is pickle-compatible with more type coverage
 model = dill.load(open("model.dill", "rb"))
 
-# FLAGGED: numpy with allow_pickle=True
+# FLAGGED: numpy with allow_pickle=True (explicitly insecure — not the default)
 embeddings = numpy.load("embeddings.npy", allow_pickle=True)
 arr = np.load("data.npy", allow_pickle=True)
 
@@ -113,9 +115,13 @@ def verify_and_load(path: str, expected_hash: str):
 
 - [CWE-502: Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html)
 - [OWASP Deserialization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html)
+- [OWASP ASVS V1 – Architecture (V1.14.6: Serialization)](https://owasp.org/www-project-application-security-verification-standard/)
+- [Python pickle module documentation – security warning](https://docs.python.org/3/library/pickle.html#restricting-globals)
 - [PyTorch documentation – torch.load weights_only parameter](https://pytorch.org/docs/stable/generated/torch.load.html)
 - [SafeTensors – A simple, safe format for storing tensors](https://github.com/huggingface/safetensors)
 - [Protect AI – modelscan (model security scanner)](https://github.com/protectai/modelscan)
 - [Hugging Face – Pickle scanning and SafeTensors adoption](https://huggingface.co/docs/hub/security-pickle)
+- [Bandit B301 – Pickle and modules that wrap it](https://bandit.readthedocs.io/en/latest/blacklists/blacklist_calls.html#b301-pickle)
+- [Bandit B403 – Import of pickle module](https://bandit.readthedocs.io/en/latest/blacklists/blacklist_imports.html#b403-import-pickle)
 - [CAPEC-586: Object Injection](https://capec.mitre.org/data/definitions/586.html)
 - [MITRE ATT&CK T1059 – Command and Scripting Interpreter](https://attack.mitre.org/techniques/T1059/)

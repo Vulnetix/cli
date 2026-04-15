@@ -269,216 +269,267 @@ Examples:
 			return fmt.Errorf("--fresh-vulns requires --from-memory")
 		}
 
-		scanPath, _ := cmd.Flags().GetString("path")
-		depth, _ := cmd.Flags().GetInt("depth")
-		excludes, _ := cmd.Flags().GetStringArray("exclude")
-		outputArgs, _ := cmd.Flags().GetStringArray("output")
-		// Backward compat: if --format is set and --output is not, map it.
-		if len(outputArgs) == 0 {
-			if legacyFmt, _ := cmd.Flags().GetString("format"); legacyFmt != "" {
-				outputArgs = []string{"json-cyclonedx"}
+		// Feature control flags.
+		evaluateSAST, _ := cmd.Flags().GetBool("evaluate-sast")
+		noSAST, _ := cmd.Flags().GetBool("no-sast")
+		evaluateSCA, _ := cmd.Flags().GetBool("evaluate-sca")
+		noSCA, _ := cmd.Flags().GetBool("no-sca")
+		evaluateLicenses, _ := cmd.Flags().GetBool("evaluate-licenses")
+		noLicenses, _ := cmd.Flags().GetBool("no-licenses")
+		evaluateSecrets, _ := cmd.Flags().GetBool("evaluate-secrets")
+		noSecrets, _ := cmd.Flags().GetBool("no-secrets")
+		enableContainers, _ := cmd.Flags().GetBool("enable-containers")
+		noContainers, _ := cmd.Flags().GetBool("no-containers")
+		evaluateIAC, _ := cmd.Flags().GetBool("evaluate-iac")
+		noIAC, _ := cmd.Flags().GetBool("no-iac")
+
+		// Apply feature control logic:
+		// If any --evaluate-X flag is set, disable everything not explicitly evaluated.
+		// --no-X flags always disable regardless.
+		anyEvaluate := evaluateSAST || evaluateSCA || evaluateLicenses || evaluateSecrets || enableContainers || evaluateIAC
+		if anyEvaluate {
+			noSAST = noSAST || !evaluateSAST
+			noSCA = noSCA || !evaluateSCA
+			noLicenses = noLicenses || !evaluateLicenses
+			noSecrets = noSecrets || !evaluateSecrets
+			noContainers = noContainers || !enableContainers
+			noIAC = noIAC || !evaluateIAC
+		}
+
+		return runScanWithFeatures(cmd.Context(), cmd, noSAST, noSCA, noLicenses, noSecrets, noContainers, noIAC)
+
+	},
+}
+
+// runScanWithFeatures executes the full scan pipeline with the given feature toggles.
+// noSAST disables "sast"-kind static analysis rules, noSCA skips ordinary package
+// manifests, noLicenses skips license evaluation, noSecrets skips secret-detection
+// rules, noContainers skips Dockerfile/OCI manifests and rules, noIAC skips
+// HCL/Nix manifests and IaC rules.
+func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA, noLicenses, noSecrets, noContainers, noIAC bool) error {
+	scanPath, _ := cmd.Flags().GetString("path")
+	depth, _ := cmd.Flags().GetInt("depth")
+	excludes, _ := cmd.Flags().GetStringArray("exclude")
+	outputArgs, _ := cmd.Flags().GetStringArray("output")
+	// Backward compat: if --format is set and --output is not, map it.
+	if len(outputArgs) == 0 {
+		if legacyFmt, _ := cmd.Flags().GetString("format"); legacyFmt != "" {
+			outputArgs = []string{"json-cyclonedx"}
+		}
+	}
+	outCfg, err := parseOutputFlags(outputArgs)
+	if err != nil {
+		return err
+	}
+	concurrency, _ := cmd.Flags().GetInt("concurrency")
+	noProgress, _ := cmd.Flags().GetBool("no-progress")
+	showPaths, _ := cmd.Flags().GetBool("paths")
+	noExploits, _ := cmd.Flags().GetBool("no-exploits")
+	noRemediation, _ := cmd.Flags().GetBool("no-remediation")
+	severityThreshold, _ := cmd.Flags().GetString("severity")
+
+	// Normalise and validate the severity threshold.
+	if severityThreshold != "" {
+		severityThreshold = strings.ToLower(strings.TrimSpace(severityThreshold))
+		valid := false
+		for _, v := range scan.ValidSeverityThresholds {
+			if severityThreshold == v {
+				valid = true
+				break
 			}
 		}
-		outCfg, err := parseOutputFlags(outputArgs)
+		if !valid {
+			return fmt.Errorf("invalid --severity %q: must be one of: %s",
+				severityThreshold, strings.Join(scan.ValidSeverityThresholds, ", "))
+		}
+	}
+
+	blockMalware, _ := cmd.Flags().GetBool("block-malware")
+	blockEOL, _ := cmd.Flags().GetBool("block-eol")
+	blockUnpinned, _ := cmd.Flags().GetBool("block-unpinned")
+	exploitThreshold, _ := cmd.Flags().GetString("exploits")
+	resultsOnly, _ := cmd.Flags().GetBool("results-only")
+	versionLag, _ := cmd.Flags().GetInt("version-lag")
+	cooldownDays, _ := cmd.Flags().GetInt("cooldown")
+
+	// Normalise and validate the exploit threshold.
+	if exploitThreshold != "" {
+		exploitThreshold = strings.ToLower(strings.TrimSpace(exploitThreshold))
+		validExploit := false
+		for _, v := range scan.ValidExploitThresholds {
+			if exploitThreshold == v {
+				validExploit = true
+				break
+			}
+		}
+		if !validExploit {
+			return fmt.Errorf("invalid --exploits %q: must be one of: %s",
+				exploitThreshold, strings.Join(scan.ValidExploitThresholds, ", "))
+		}
+	}
+
+	// SAST flags.
+	disableDefaultRules, _ := cmd.Flags().GetBool("disable-default-rules")
+	ruleArgs, _ := cmd.Flags().GetStringArray("rule")
+	ruleRegistry, _ := cmd.Flags().GetString("rule-registry")
+	if ruleRegistry == "" {
+		ruleRegistry = sast.DefaultRegistry
+	}
+	var ruleRefs []sast.RuleRef
+	for _, arg := range ruleArgs {
+		ref, err := sast.ParseRuleRef(arg)
 		if err != nil {
 			return err
 		}
-		concurrency, _ := cmd.Flags().GetInt("concurrency")
-		noProgress, _ := cmd.Flags().GetBool("no-progress")
-		showPaths, _ := cmd.Flags().GetBool("paths")
-		noExploits, _ := cmd.Flags().GetBool("no-exploits")
-		noRemediation, _ := cmd.Flags().GetBool("no-remediation")
-		noLicenses, _ := cmd.Flags().GetBool("no-licenses")
-		severityThreshold, _ := cmd.Flags().GetString("severity")
+		ruleRefs = append(ruleRefs, ref)
+	}
 
-		// Normalise and validate the severity threshold.
-		if severityThreshold != "" {
-			severityThreshold = strings.ToLower(strings.TrimSpace(severityThreshold))
-			valid := false
-			for _, v := range scan.ValidSeverityThresholds {
-				if severityThreshold == v {
-					valid = true
-					break
-				}
-			}
-			if !valid {
-				return fmt.Errorf("invalid --severity %q: must be one of: %s",
-					severityThreshold, strings.Join(scan.ValidSeverityThresholds, ", "))
-			}
+	if scanPath == "" {
+		scanPath = "."
+	}
+	if abs, err := filepath.Abs(scanPath); err == nil {
+		scanPath = abs
+	}
+
+	// ── 1. Collect git context early for display ───────────────────────
+	gitCtx := gitctx.Collect(scanPath)
+
+	fmt.Fprintf(os.Stderr, "Scanning %s (depth: %d)...\n", scanPath, depth)
+	if gitCtx != nil {
+		commitShort := gitCtx.CurrentCommit
+		if len(commitShort) > 8 {
+			commitShort = commitShort[:8]
 		}
-
-		blockMalware, _ := cmd.Flags().GetBool("block-malware")
-		blockEOL, _ := cmd.Flags().GetBool("block-eol")
-		blockUnpinned, _ := cmd.Flags().GetBool("block-unpinned")
-		exploitThreshold, _ := cmd.Flags().GetString("exploits")
-		resultsOnly, _ := cmd.Flags().GetBool("results-only")
-		versionLag, _ := cmd.Flags().GetInt("version-lag")
-		cooldownDays, _ := cmd.Flags().GetInt("cooldown")
-
-		// Normalise and validate the exploit threshold.
-		if exploitThreshold != "" {
-			exploitThreshold = strings.ToLower(strings.TrimSpace(exploitThreshold))
-			validExploit := false
-			for _, v := range scan.ValidExploitThresholds {
-				if exploitThreshold == v {
-					validExploit = true
-					break
-				}
-			}
-			if !validExploit {
-				return fmt.Errorf("invalid --exploits %q: must be one of: %s",
-					exploitThreshold, strings.Join(scan.ValidExploitThresholds, ", "))
-			}
+		remote := ""
+		if len(gitCtx.RemoteURLs) > 0 {
+			remote = gitCtx.RemoteURLs[0]
 		}
+		fmt.Fprintf(os.Stderr, "Git: %s @ %s (%s)\n", gitCtx.CurrentBranch, commitShort, remote)
+	}
+	fmt.Fprintln(os.Stderr)
 
-		// SAST flags.
-		disableSAST, _ := cmd.Flags().GetBool("disable-sast")
-		disableDefaultRules, _ := cmd.Flags().GetBool("disable-default-rules")
-		ruleArgs, _ := cmd.Flags().GetStringArray("rule")
-		ruleRegistry, _ := cmd.Flags().GetString("rule-registry")
-		if ruleRegistry == "" {
-			ruleRegistry = sast.DefaultRegistry
-		}
-		var ruleRefs []sast.RuleRef
-		for _, arg := range ruleArgs {
-			ref, err := sast.ParseRuleRef(arg)
-			if err != nil {
-				return err
-			}
-			ruleRefs = append(ruleRefs, ref)
-		}
+	// ── 2. Discover files ──────────────────────────────────────────────
+	files, err := scan.WalkForScanFiles(scan.WalkOptions{
+		RootPath: scanPath,
+		MaxDepth: depth,
+		Excludes: excludes,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to scan directory: %w", err)
+	}
 
-		if scanPath == "" {
-			scanPath = "."
-		}
-		if abs, err := filepath.Abs(scanPath); err == nil {
-			scanPath = abs
-		}
+	analytics.TrackScan("sbom", len(files))
+	if len(files) == 0 {
+		fmt.Fprintln(os.Stderr, "No scannable files detected.")
+		return nil
+	}
 
-		// ── 1. Collect git context early for display ───────────────────────
-		gitCtx := gitctx.Collect(scanPath)
-
-		fmt.Fprintf(os.Stderr, "Scanning %s (depth: %d)...\n", scanPath, depth)
-		if gitCtx != nil {
-			commitShort := gitCtx.CurrentCommit
-			if len(commitShort) > 8 {
-				commitShort = commitShort[:8]
-			}
-			remote := ""
-			if len(gitCtx.RemoteURLs) > 0 {
-				remote = gitCtx.RemoteURLs[0]
-			}
-			fmt.Fprintf(os.Stderr, "Git: %s @ %s (%s)\n", gitCtx.CurrentBranch, commitShort, remote)
-		}
-		fmt.Fprintln(os.Stderr)
-
-		// ── 2. Discover files ──────────────────────────────────────────────
-		files, err := scan.WalkForScanFiles(scan.WalkOptions{
-			RootPath: scanPath,
-			MaxDepth: depth,
-			Excludes: excludes,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to scan directory: %w", err)
-		}
-
-		analytics.TrackScan("sbom", len(files))
-		if len(files) == 0 {
-			fmt.Fprintln(os.Stderr, "No scannable files detected.")
-			return nil
-		}
-
-		// ── 3. Display detected files ──────────────────────────────────────
+	// ── 3. Display detected files ──────────────────────────────────────
+	if !resultsOnly {
 		fmt.Fprintln(os.Stderr, "Detected files:")
-		t := display.NewTerminal()
-		var seedBOM *cdx.BOM
-		var vulnetixSeedBOM *cdx.BOM
-		var supportedFiles []scan.DetectedFile
-		for _, f := range files {
-			switch f.FileType {
-			case scan.FileTypeManifest:
-				lockStr := ""
-				if f.ManifestInfo.IsLock {
-					lockStr = "lock"
-				}
-				supportedStr := ""
-				if !f.Supported {
-					supportedStr = " [not supported]"
-				}
+	}
+	t := display.NewTerminal()
+	var seedBOM *cdx.BOM
+	var vulnetixSeedBOM *cdx.BOM
+	var supportedFiles []scan.DetectedFile
+	for _, f := range files {
+		switch f.FileType {
+		case scan.FileTypeManifest:
+			lockStr := ""
+			if f.ManifestInfo.IsLock {
+				lockStr = "lock"
+			}
+			supportedStr := ""
+			if !f.Supported {
+				supportedStr = " [not supported]"
+			}
+			if !resultsOnly {
 				fmt.Fprintf(os.Stderr, "  %-40s manifest    %-10s (%s) %s%s\n",
 					f.RelPath, f.ManifestInfo.Ecosystem, f.ManifestInfo.Language, lockStr, supportedStr)
-			case scan.FileTypeSPDX:
+			}
+		case scan.FileTypeSPDX:
+			if !resultsOnly {
 				fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
-			case scan.FileTypeCycloneDX:
-				// Parse the CDX to check the producer.
-				cdxBom, cdxErr := parseCDXForScan(f.Path)
-				if cdxErr == nil && isVulnetixSCA(cdxBom) {
+			}
+		case scan.FileTypeCycloneDX:
+			// Parse the CDX to check the producer.
+			cdxBom, cdxErr := parseCDXForScan(f.Path)
+			if cdxErr == nil && isVulnetixSCA(cdxBom) {
+				if !resultsOnly {
 					fmt.Fprintf(os.Stderr, "  %-40s %s\n", f.RelPath,
 						display.Teal(t, "[skipped — produced by vulnetix-sca]"))
-					if vulnetixSCAVersion(cdxBom) == version {
-						vulnetixSeedBOM = cdxBom
-					}
-					continue
 				}
-				if cdxErr == nil && cdxBom != nil {
+				if vulnetixSCAVersion(cdxBom) == version {
+					vulnetixSeedBOM = cdxBom
+				}
+				continue
+			}
+			if cdxErr == nil && cdxBom != nil {
+				if !resultsOnly {
 					fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-8s (%d comp, %d vulns)\n",
 						f.RelPath, f.SBOMVersion, len(cdxBom.Components), len(cdxBom.Vulnerabilities))
-					if len(cdxBom.Components) > 0 || len(cdxBom.Vulnerabilities) > 0 {
-						seedBOM = cdxBom
-					}
-					if len(cdxBom.Components) > 0 {
-						f.Supported = true
-						supportedFiles = append(supportedFiles, f)
-					}
-				} else {
-					fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
 				}
-			}
-			if f.Supported && f.FileType == scan.FileTypeManifest {
-				supportedFiles = append(supportedFiles, f)
+				if len(cdxBom.Components) > 0 || len(cdxBom.Vulnerabilities) > 0 {
+					seedBOM = cdxBom
+				}
+				if len(cdxBom.Components) > 0 {
+					f.Supported = true
+					supportedFiles = append(supportedFiles, f)
+				}
+			} else {
+				fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
 			}
 		}
-
-		if len(supportedFiles) == 0 {
-			fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
-			return nil
+		if f.Supported && f.FileType == scan.FileTypeManifest {
+			supportedFiles = append(supportedFiles, f)
 		}
+	}
 
-		// ── 4. Collect host environment ─────────────────────────────────────
-		sysInfo := gitctx.CollectSystemInfo()
+	if len(supportedFiles) == 0 {
+		fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
+		return nil
+	}
 
-		// ── 5. Run local scan ──────────────────────────────────────────────
-		return runLocalScan(
-			cmd.Context(),
-			supportedFiles,
-			scanPath,
-			depth,
-			excludes,
-			outCfg,
-			concurrency,
-			noProgress,
-			showPaths,
-			noExploits,
-			noRemediation,
-			noLicenses,
-			severityThreshold,
-			blockMalware,
-			blockEOL,
-			blockUnpinned,
-			exploitThreshold,
-			resultsOnly,
-			versionLag,
-			cooldownDays,
-			disableSAST,
-			disableDefaultRules,
-			ruleRefs,
-			ruleRegistry,
-			seedBOM,
-			vulnetixSeedBOM,
-			gitCtx,
-			sysInfo,
-		)
-	},
+	// ── 4. Filter files by feature flags ──────────────────────────────
+	supportedFiles = filterFilesByFeature(supportedFiles, noSCA, noContainers, noIAC)
+
+	// ── 5. Collect host environment ─────────────────────────────────────
+	sysInfo := gitctx.CollectSystemInfo()
+
+	// ── 6. Run local scan ──────────────────────────────────────────────
+	return runLocalScan(
+		ctx,
+		supportedFiles,
+		scanPath,
+		depth,
+		excludes,
+		outCfg,
+		concurrency,
+		noProgress,
+		showPaths,
+		noExploits,
+		noRemediation,
+		noLicenses,
+		severityThreshold,
+		blockMalware,
+		blockEOL,
+		blockUnpinned,
+		exploitThreshold,
+		resultsOnly,
+		versionLag,
+		cooldownDays,
+		noSAST,
+		noSecrets,
+		noContainers,
+		noIAC,
+		disableDefaultRules,
+		ruleRefs,
+		ruleRegistry,
+		seedBOM,
+		vulnetixSeedBOM,
+		gitCtx,
+		sysInfo,
+	)
 }
 
 // scanStatusCmd is kept for backward compatibility — checks status of a previously
@@ -550,7 +601,10 @@ func runLocalScan(
 	resultsOnly bool,
 	versionLag int,
 	cooldownDays int,
-	disableSAST bool,
+	noSASTRules bool,
+	noSecrets bool,
+	noContainers bool,
+	noIAC bool,
 	disableDefaultRules bool,
 	ruleRefs []sast.RuleRef,
 	ruleRegistry string,
@@ -561,9 +615,9 @@ func runLocalScan(
 ) error {
 	// Create a v1 VDB client for package search (not the upload/scan v2 client).
 	client := newSearchClient()
-
-	fmt.Fprintf(os.Stderr, "\nAnalysing %d file(s)... parsing manifests locally.\n\n", len(files))
-
+	if !resultsOnly {
+		fmt.Fprintf(os.Stderr, "\nAnalysing %d file(s)... parsing manifests locally.\n\n", len(files))
+	}
 	// ── Parse manifests ────────────────────────────────────────────────────
 	var localResults []cdx.LocalScanResult
 	allPackages := make([]scan.ScopedPackage, 0, 256)
@@ -581,7 +635,9 @@ func runLocalScan(
 			for _, p := range pkgs {
 				scopeCounts[p.Scope]++
 			}
-			fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+			if !resultsOnly {
+				fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+			}
 			localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
 			allPackages = append(allPackages, pkgs...)
 			continue
@@ -606,8 +662,9 @@ func runLocalScan(
 			scopeCounts[p.Scope]++
 		}
 		scopeSummary := formatScopeCounts(scopeCounts)
-		fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), scopeSummary)
-
+		if !resultsOnly {
+			fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), scopeSummary)
+		}
 		localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
 		allPackages = append(allPackages, pkgs...)
 	}
@@ -862,13 +919,16 @@ func runLocalScan(
 	}
 
 	// ── SAST analysis ────────────────────────────────────────────────────
+	// Run SAST if at least one SAST sub-category is enabled.
+	disableAllSAST := noSASTRules && noSecrets && noContainers && noIAC
 	var sastReport *sast.SASTReport
-	if !disableSAST {
+	if !disableAllSAST {
 		modules, merr := sast.LoadAllModules(sast.DefaultRulesFS, disableDefaultRules, ruleRefs, ruleRegistry, os.Stderr)
 		if merr != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not load SAST rules: %v\n", merr)
 		}
 		if len(modules) > 0 {
+			modules = filterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
 			eng := sast.NewEngine(modules, rootPath)
 			var eerr error
 			sastReport, eerr = eng.Evaluate(sast.EvalOptions{MaxDepth: depth, Excludes: excludes})
@@ -2546,58 +2606,155 @@ func buildPackagesFromCDX(components []cdx.Component, sourceFile string) []scan.
 	return pkgs
 }
 
+// addScanFlags registers the common scan flags on cmd. Used by scan and all
+// specialized scan subcommands (sca, sast, secrets, containers, iac).
+func addScanFlags(cmd *cobra.Command) {
+	cmd.Flags().String("path", ".", "Directory to scan")
+	cmd.Flags().Int("depth", 3, "Max recursion depth")
+	cmd.Flags().StringArray("exclude", nil, "Exclude paths matching glob (repeatable)")
+	cmd.Flags().StringArrayP("output", "o", nil,
+		"Output target (repeatable): json-cyclonedx or json-sarif for stdout; file path (.cdx.json, .sarif) to write to file")
+	cmd.Flags().StringP("format", "f", "", "Deprecated: use --output instead")
+	cmd.Flags().Int("concurrency", 5, "Max concurrent VDB queries")
+	cmd.Flags().Bool("no-progress", false, "Suppress progress bar")
+	cmd.Flags().Bool("paths", false, "Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go)")
+	cmd.Flags().Bool("no-exploits", false, "Suppress detailed exploit intelligence section")
+	cmd.Flags().Bool("no-remediation", false, "Suppress detailed remediation section")
+	cmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")
+	cmd.Flags().Bool("block-malware", false, "Exit with code 1 when any dependency is a known malicious package.")
+	cmd.Flags().Bool("block-eol", false, "Exit with code 1 when a runtime or package dependency is end-of-life. Runtimes: Go, Node.js, Python, Ruby. Package-level checks activate when VDB has EOL data (404s are silently skipped).")
+	cmd.Flags().Bool("block-unpinned", false, "Exit with code 1 when any direct dependency uses a version range (^, ~, >=) instead of an exact pin.")
+	cmd.Flags().String("exploits", "", "Exit with code 1 when exploit maturity reaches the threshold: poc (any public exploit), active (CISA/EU KEV / actively exploited), weaponized (in-the-wild only).")
+	cmd.Flags().Bool("results-only", false, "Only output when findings exist; completely silent when the scan is clean.")
+	cmd.Flags().Int("version-lag", 0, "Exit with code 1 when any dependency is within the N most recently published versions of that package (0 = disabled).")
+	cmd.Flags().Int("cooldown", 0, "Exit with code 1 when any dependency version was published within the last N days (0 = disabled, best-effort).")
+	cmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
+	_ = cmd.Flags().MarkDeprecated("format", "use --output instead")
+	_ = cmd.RegisterFlagCompletionFunc("exploits", cobra.FixedCompletions(
+		scan.ValidExploitThresholds, cobra.ShellCompDirectiveNoFileComp))
+	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions(
+		[]string{"json-cyclonedx", "json-sarif"}, cobra.ShellCompDirectiveDefault))
+	_ = cmd.RegisterFlagCompletionFunc("severity", cobra.FixedCompletions(
+		[]string{"low", "medium", "high", "critical"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = cmd.MarkFlagDirname("path")
+}
+
+// addSASTFlags registers SAST-specific flags on cmd.
+func addSASTFlags(cmd *cobra.Command) {
+	cmd.Flags().Bool("disable-default-rules", false, "Skip built-in default SAST rules")
+	cmd.Flags().Bool("list-default-rules", false, "Print built-in SAST rules and exit")
+	cmd.Flags().StringArrayP("rule", "R", nil,
+		"External SAST rule repo in org/repo format (repeatable); fetched from GitHub or --rule-registry")
+	cmd.Flags().String("rule-registry", "",
+		"Override default registry (https://github.com) for all --rule repos")
+}
+
+// filterFilesByFeature removes detected files excluded by the active feature flags.
+// noSCA removes ordinary package manifests; noContainers removes docker/OCI
+// manifests; noIAC removes HCL and Nix manifests.
+func filterFilesByFeature(files []scan.DetectedFile, noSCA, noContainers, noIAC bool) []scan.DetectedFile {
+	if !noSCA && !noContainers && !noIAC {
+		return files
+	}
+	filtered := make([]scan.DetectedFile, 0, len(files))
+	for _, f := range files {
+		if f.ManifestInfo == nil {
+			// CDX / SPDX files — always include.
+			filtered = append(filtered, f)
+			continue
+		}
+		lang := f.ManifestInfo.Language
+		isContainer := lang == "docker"
+		isIAC := lang == "hcl" || lang == "nix"
+		isSCA := !isContainer && !isIAC
+		if isContainer && noContainers {
+			continue
+		}
+		if isIAC && noIAC {
+			continue
+		}
+		if isSCA && noSCA {
+			continue
+		}
+		filtered = append(filtered, f)
+	}
+	return filtered
+}
+
+// filterModulesByKind removes Rego modules whose declared kind does not match
+// the enabled feature flags. noSASTRules filters out "sast"-kind rules,
+// noSecrets filters "secrets"-kind, noContainers filters "oci"-kind, noIAC
+// filters "iac"-kind. Modules without a "kind" field default to "sast".
+func filterModulesByKind(modules map[string]string, noSASTRules, noSecrets, noContainers, noIAC bool) map[string]string {
+	if !noSASTRules && !noSecrets && !noContainers && !noIAC {
+		return modules
+	}
+	filtered := make(map[string]string, len(modules))
+	for name, src := range modules {
+		kind := extractRegoKind(src)
+		if kind == "sast" && noSASTRules {
+			continue
+		}
+		if kind == "secrets" && noSecrets {
+			continue
+		}
+		if kind == "oci" && noContainers {
+			continue
+		}
+		if kind == "iac" && noIAC {
+			continue
+		}
+		filtered[name] = src
+	}
+	return filtered
+}
+
+// extractRegoKind returns the value of the "kind" field from a Rego module's
+// metadata block. Returns "sast" when no kind is declared.
+func extractRegoKind(src string) string {
+	i := strings.Index(src, `"kind"`)
+	if i < 0 {
+		return "sast"
+	}
+	rest := src[i+6:]
+	j := strings.Index(rest, `"`)
+	if j < 0 {
+		return "sast"
+	}
+	rest = rest[j+1:]
+	k := strings.Index(rest, `"`)
+	if k < 0 {
+		return "sast"
+	}
+	return rest[:k]
+}
+
 func init() {
 	rootCmd.AddCommand(scanCmd)
 	scanCmd.AddCommand(scanStatusCmd)
 
-	// Scan flags
-	scanCmd.Flags().String("path", ".", "Directory to scan")
-	scanCmd.Flags().Int("depth", 3, "Max recursion depth")
-	scanCmd.Flags().StringArray("exclude", nil, "Exclude paths matching glob (repeatable)")
-	scanCmd.Flags().StringArrayP("output", "o", nil,
-		"Output target (repeatable): json-cyclonedx or json-sarif for stdout; file path (.cdx.json, .sarif) to write to file")
-	scanCmd.Flags().StringP("format", "f", "", "Deprecated: use --output instead")
-	scanCmd.Flags().Int("concurrency", 5, "Max concurrent VDB queries")
-	scanCmd.Flags().Bool("no-progress", false, "Suppress progress bar")
-	scanCmd.Flags().Bool("paths", false, "Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go)")
-	scanCmd.Flags().Bool("no-exploits", false, "Suppress detailed exploit intelligence section")
-	scanCmd.Flags().Bool("no-remediation", false, "Suppress detailed remediation section")
+	addScanFlags(scanCmd)
+	addSASTFlags(scanCmd)
+
+	// Feature control flags (scan command only — specialized commands hard-code these)
+	scanCmd.Flags().Bool("evaluate-sast", false, "Enable SAST analysis")
+	scanCmd.Flags().Bool("no-sast", false, "Skip SAST analysis")
+	scanCmd.Flags().Bool("evaluate-sca", false, "Enable SCA (Software Composition Analysis)")
+	scanCmd.Flags().Bool("no-sca", false, "Skip SCA (Software Composition Analysis)")
+	scanCmd.Flags().Bool("evaluate-licenses", false, "Enable license analysis")
 	scanCmd.Flags().Bool("no-licenses", false, "Skip license analysis during scan")
-	scanCmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")
-	scanCmd.Flags().Bool("block-malware", false, "Exit with code 1 when any dependency is a known malicious package.")
-	scanCmd.Flags().Bool("block-eol", false, "Exit with code 1 when a runtime or package dependency is end-of-life. Runtimes: Go, Node.js, Python, Ruby. Package-level checks activate when VDB has EOL data (404s are silently skipped).")
-	scanCmd.Flags().Bool("block-unpinned", false, "Exit with code 1 when any direct dependency uses a version range (^, ~, >=) instead of an exact pin.")
-	scanCmd.Flags().String("exploits", "", "Exit with code 1 when exploit maturity reaches the threshold: poc (any public exploit), active (CISA/EU KEV / actively exploited), weaponized (in-the-wild only).")
-	scanCmd.Flags().Bool("results-only", false, "Only output when findings exist; completely silent when the scan is clean.")
-	scanCmd.Flags().Int("version-lag", 0, "Exit with code 1 when any dependency is within the N most recently published versions of that package (0 = disabled).")
-	scanCmd.Flags().Int("cooldown", 0, "Exit with code 1 when any dependency version was published within the last N days (0 = disabled, best-effort).")
-	_ = scanCmd.RegisterFlagCompletionFunc("exploits", cobra.FixedCompletions(
-		scan.ValidExploitThresholds, cobra.ShellCompDirectiveNoFileComp))
+	scanCmd.Flags().Bool("evaluate-secrets", false, "Enable secret detection via SAST rules")
+	scanCmd.Flags().Bool("no-secrets", false, "Skip secret detection via SAST rules")
+	scanCmd.Flags().Bool("enable-containers", false, "Enable container file detection")
+	scanCmd.Flags().Bool("no-containers", false, "Skip container file detection")
+	scanCmd.Flags().Bool("evaluate-iac", false, "Enable Infrastructure as Code detection")
+	scanCmd.Flags().Bool("no-iac", false, "Skip Infrastructure as Code detection")
 
-	// --dry-run flag
-	scanCmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
-
-	// SAST flags
-	scanCmd.Flags().Bool("disable-sast", false, "Skip SAST analysis")
-	scanCmd.Flags().Bool("disable-default-rules", false, "Skip built-in default SAST rules")
-	scanCmd.Flags().Bool("list-default-rules", false, "Print built-in SAST rules and exit")
-	scanCmd.Flags().StringArrayP("rule", "R", nil,
-		"External SAST rule repo in org/repo format (repeatable); fetched from GitHub or --rule-registry")
-	scanCmd.Flags().String("rule-registry", "",
-		"Override default registry (https://github.com) for all --rule repos")
-
-	// --from-memory and --fresh-* flags
+	// --from-memory and --fresh-* flags (scan command only)
 	scanCmd.Flags().Bool("from-memory", false, "Reconstruct scan pretty output from .vulnetix/sbom.cdx.json without API calls")
 	scanCmd.Flags().Bool("fresh-exploits", false, "With --from-memory: fetch latest exploit intel from API")
 	scanCmd.Flags().Bool("fresh-advisories", false, "With --from-memory: fetch latest remediation plans from API")
 	scanCmd.Flags().Bool("fresh-vulns", false, "With --from-memory: re-fetch affected version checks and latest scoring from API")
-
-	_ = scanCmd.Flags().MarkDeprecated("format", "use --output instead")
-	_ = scanCmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions(
-		[]string{"json-cyclonedx", "json-sarif"}, cobra.ShellCompDirectiveDefault))
-	_ = scanCmd.RegisterFlagCompletionFunc("severity", cobra.FixedCompletions(
-		[]string{"low", "medium", "high", "critical"}, cobra.ShellCompDirectiveNoFileComp))
-	_ = scanCmd.MarkFlagDirname("path")
 
 	// scan status flags
 	scanStatusCmd.Flags().Bool("poll", false, "Poll until complete")

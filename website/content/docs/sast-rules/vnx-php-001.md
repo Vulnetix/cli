@@ -1,67 +1,75 @@
 ---
 title: "VNX-PHP-001 – Missing composer.lock"
-description: "Detect PHP projects that are missing a composer.lock file, leaving them vulnerable to non-deterministic dependency resolution and supply chain attacks."
+description: "Detect PHP projects that have a composer.json but no composer.lock, leaving dependency resolution non-deterministic and the supply chain open to substitution attacks."
 ---
 
 ## Overview
 
-This rule flags PHP projects that have a `composer.json` file but no corresponding `composer.lock`. The `composer.lock` file pins every dependency — direct and transitive — to an exact version and records the download URL and cryptographic hash of each package. Without it, running `composer install` on a fresh checkout resolves floating version ranges (`^1.2`, `~3.0`) at download time, meaning two builds from the same source tree can install entirely different code. This maps to [CWE-829: Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html).
+This rule fires when a directory contains a `composer.json` manifest but no `composer.lock` file. The lock file pins every dependency — direct and transitive — to an exact version, download URL, and cryptographic hash. Without it, `composer install` on a fresh checkout resolves floating version ranges (`^1.2`, `~3.0`) against whatever the Packagist registry returns at that moment, so two builds from the same source tree can install entirely different code.
 
-**Severity:** High | **CWE:** [CWE-829 – Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html)
+**Severity:** High | **CWE:** [CWE-829 – Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html) | **CAPEC:** [CAPEC-185](https://capec.mitre.org/data/definitions/185.html) | **ATT&CK:** [T1195.001](https://attack.mitre.org/techniques/T1195/001/)
+
+> **PHP default behavior:** Composer does NOT enforce a lock file by default. Running `composer install` without a `composer.lock` present silently resolves versions from the registry. Commit the lock file to version control and enforce `composer install` (not `composer update`) in CI to get deterministic builds.
 
 ## Why This Matters
 
-Without a `composer.lock`, an attacker who can influence the Packagist registry or your private repository — through a typosquat package, a compromised maintainer account, or a dependency confusion attack — can inject malicious code into your build without ever touching your repository. The substituted package arrives as a legitimate resolved version of a floating range you declared. In CI/CD pipelines, where `composer install` is run on every push, this attack is repeatable and invisible if no integrity check exists. A poisoned Composer package can exfiltrate environment variables containing database passwords and API keys, install a web shell, or silently modify application logic. MITRE ATT&CK technique T1195.001 (Supply Chain Compromise: Compromise Software Dependencies) covers this exact attack class.
+Without a `composer.lock`, an attacker who can influence the Packagist registry — through a typosquatted package, a compromised maintainer account, or a dependency confusion attack — can inject malicious code into your build without ever touching your repository. The substituted package arrives as a legitimately resolved version of a floating range you declared. In CI/CD pipelines where `composer install` runs on every push, this attack is repeatable and invisible unless integrity checks exist.
+
+Real-world impact from compromised Packagist packages has included exfiltration of environment variables containing database passwords and API keys, installation of web shells, and silent modification of application logic. MITRE ATT&CK technique T1195.001 (Supply Chain Compromise: Compromise Software Dependencies) covers this exact attack class.
+
+**OWASP ASVS v4.0 mapping:** V14.2.1 — Verify that all components are up to date, preferably using a dependency checker during build or compile time.
 
 ## What Gets Flagged
 
-The rule fires when a directory is registered as containing PHP source files but the file `composer.lock` is absent from that same directory. The most common causes are: `composer.json` was committed without running `composer install` first, or `composer.lock` was excluded from version control via `.gitignore` (a practice sometimes recommended for libraries but never appropriate for applications).
+The rule fires when a directory is registered as containing PHP source files but `composer.lock` is absent from that directory. Common causes:
 
-```php
+- `composer.json` was committed without running `composer install` first
+- `composer.lock` was excluded via `.gitignore` (correct for published libraries, never correct for applications)
+- A developer ran `composer update` and discarded the resulting lock file
+
+```
 // FLAGGED: project directory has composer.json but no composer.lock
 // $ ls
 // composer.json   src/   vendor/
-// (composer.lock is missing — dependencies are not pinned)
+// (composer.lock is missing — dependencies are resolved non-deterministically)
 ```
 
 ## Remediation
 
-1. **Generate the lock file.** Run `composer install` in the directory containing `composer.json`. This resolves the full dependency graph, downloads packages, and writes `composer.lock` alongside the existing manifest.
+**1. Generate and commit the lock file.**
 
 ```bash
-composer install
-```
-
-2. **Commit `composer.lock` to version control.** The file must be in source control so every developer checkout, CI build, and deployment uses the same verified package versions.
-
-```bash
+composer install   # resolves the graph, writes composer.lock
 git add composer.lock
 git commit -m "chore: add composer.lock to pin dependency versions"
 ```
 
-3. **Strip development dependencies from production.** When deploying to production, pass `--no-dev` to exclude packages that are only needed for testing and code quality tooling. This also shrinks the attack surface.
+**2. Use `composer install` (not `composer update`) in CI.** `install` reads the lock file; `update` re-resolves from the registry and rewrites it.
 
 ```bash
-# SAFE: production install — locked versions, no dev packages
+# SAFE: CI production install — locked versions, no dev packages
 composer install --no-dev --optimize-autoloader
 ```
 
-4. **Verify integrity before deploying.** Composer validates package hashes against the lock file automatically during install. Explicitly confirm the lock file matches the current `composer.json` in CI before the build proceeds:
+**3. Validate in CI before installing.**
 
 ```bash
-composer validate --strict
+composer validate --strict   # fails if composer.json is invalid or lock is stale
 composer install --no-dev
 ```
 
-5. **Prevent accidental exclusion.** Check that `composer.lock` is not listed in `.gitignore`. For application repositories it should never be excluded. For library repositories (packages you publish to Packagist), it is conventional to exclude the lock file, but this only applies when your consumers install your package as a dependency — not to your library's own test and integration environment.
+**4. Prevent accidental exclusion.** Ensure `composer.lock` is not in `.gitignore`. For application repositories it must always be committed.
 
-6. **Use `COMPOSER_MIRROR_PATH_REPOS=1`** or a private Satis mirror for internal packages. This ensures that even if Packagist is unreachable or compromised, your builds resolve packages from a source you control.
+**5. Use a private Satis mirror or Composer repository for internal packages** so your builds do not rely solely on Packagist availability.
+
+**6. Verify package hashes.** Composer automatically validates downloaded packages against the hashes stored in the lock file. Do not pass `--no-scripts` without understanding which autoload scripts you are disabling.
 
 ## References
 
 - [CWE-829: Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html)
 - [OWASP Software Component Verification Standard](https://owasp.org/www-project-software-component-verification-standard/)
-- [Composer documentation – composer.lock](https://getcomposer.org/doc/01-basic-usage.md#commit-your-composer-lock-file-to-version-control)
+- [OWASP PHP Configuration Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/PHP_Configuration_Cheat_Sheet.html)
+- [OWASP ASVS v4.0 – V14.2 Dependency](https://owasp.org/www-project-application-security-verification-standard/)
+- [Composer documentation – commit your composer.lock](https://getcomposer.org/doc/01-basic-usage.md#commit-your-composer-lock-file-to-version-control)
 - [MITRE ATT&CK T1195.001 – Supply Chain Compromise: Compromise Software Dependencies](https://attack.mitre.org/techniques/T1195/001/)
 - [CAPEC-185: Malicious Software Download](https://capec.mitre.org/data/definitions/185.html)
-- [OWASP PHP Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/PHP_Configuration_Cheat_Sheet.html)
