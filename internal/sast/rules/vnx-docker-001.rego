@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["docker"],
 	"severity": "medium",
 	"level": "warning",
-	"kind": "open",
+	"kind": "oci",
 	"cwe": [250],
 	"capec": ["CAPEC-69"],
 	"attack_technique": ["T1611"],

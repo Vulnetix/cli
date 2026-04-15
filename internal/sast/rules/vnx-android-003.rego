@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["android"],
 	"severity": "high",
 	"level": "error",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [926],
 	"capec": ["CAPEC-1"],
 	"attack_technique": ["T1427"],

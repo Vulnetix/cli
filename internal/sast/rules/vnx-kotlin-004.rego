@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["kotlin"],
 	"severity": "high",
 	"level": "error",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [319],
 	"capec": ["CAPEC-157"],
 	"attack_technique": ["T1557"],

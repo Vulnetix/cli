@@ -10,7 +10,7 @@ metadata := {
 	"languages": ["csharp"],
 	"severity": "high",
 	"level": "error",
-	"kind": "open",
+	"kind": "sast",
 	"cwe": [918],
 	"capec": ["CAPEC-664"],
 	"attack_technique": ["T1090"],
@@ -44,7 +44,7 @@ findings contains finding if {
 	some method in _http_methods
 	contains(line, method)
 	# Flag when the argument looks like a variable rather than a string literal
-	regex.match(`\.(` + method + `)\s*\(\s*[^"]`, line)
+	regex.match(sprintf(`\.\(%s\)\s*\(\s*[^"]`, [method]), line)
 	# Context: check for WebClient, HttpClient, WebRequest within nearby lines
 	window_start := max([0, i - 10])
 	window_end := min([count(lines) - 1, i + 2])
