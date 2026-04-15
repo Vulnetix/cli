@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-009",
 	"name": "SendGrid API key",
 	"description": "A SendGrid API key was found in source code. SendGrid keys grant access to email sending services and can be abused for phishing or spam.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-009",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-009/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

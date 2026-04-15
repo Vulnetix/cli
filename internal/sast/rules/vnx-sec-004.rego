@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-004",
 	"name": "GitHub or GitLab token",
 	"description": "A GitHub personal access token (ghp_/ghs_) or GitLab personal access token (glpat-) was found in source code. These tokens grant API access to repositories and should never be hardcoded.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-004",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-004/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

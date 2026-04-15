@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-010",
 	"name": "Package registry token",
 	"description": "An npm or PyPI registry token was found in source code. These tokens grant publish access to package registries, enabling supply chain attacks.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-010",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-010/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

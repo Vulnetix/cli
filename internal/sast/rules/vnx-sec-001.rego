@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-001",
 	"name": "AWS access key ID",
 	"description": "An AWS access key ID (AKIA prefix) was found in source code. Hardcoded cloud credentials enable account takeover and resource abuse.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-001",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-001/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

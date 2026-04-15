@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-003",
 	"name": "AWS secret access key",
 	"description": "An AWS secret access key was found in source code. Combined with an access key ID, this grants full programmatic access to AWS services.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-003",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-003/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

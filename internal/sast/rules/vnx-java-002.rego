@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-JAVA-002",
 	"name": "Spring actuator endpoints exposed",
 	"description": "Exposing all Spring Boot actuator endpoints (e.g. management.endpoints.web.exposure.include=*) can leak heap dumps, environment variables, and enable remote shutdown.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-JAVA-002",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-002/",
 	"languages": ["java"],
 	"severity": "medium",
 	"level": "warning",

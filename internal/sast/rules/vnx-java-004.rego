@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-JAVA-004",
 	"name": "XML external entity (XXE) injection",
 	"description": "XML parsers without secure processing features can resolve external entities, enabling file disclosure, SSRF, and denial of service via entity expansion.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-JAVA-004",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-004/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

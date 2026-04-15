@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-005",
 	"name": "GCP API key",
 	"description": "A Google Cloud Platform API key (AIza prefix) was found in source code. GCP API keys can be used to access billable services and exfiltrate data.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-005",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-005/",
 	"languages": [],
 	"severity": "critical",
 	"level": "error",

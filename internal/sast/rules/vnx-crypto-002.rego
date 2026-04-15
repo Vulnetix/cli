@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-CRYPTO-002",
 	"name": "SHA-1 usage detected",
 	"description": "SHA-1 is cryptographically broken. Practical collision attacks exist (SHAttered). Use SHA-256 or SHA-3 instead.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-CRYPTO-002",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-002/",
 	"languages": ["python", "node", "go", "java", "ruby", "php"],
 	"severity": "medium",
 	"level": "warning",

@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-DOCKER-001",
 	"name": "Dockerfile missing USER directive",
 	"description": "Without a USER directive the container runs as root, expanding the blast radius of any container escape or application compromise.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-DOCKER-001",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-001/",
 	"languages": ["docker"],
 	"severity": "medium",
 	"level": "warning",

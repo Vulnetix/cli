@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-DOCKER-004",
 	"name": "Dockerfile ADD with remote URL",
 	"description": "ADD with an HTTP/HTTPS URL downloads content without integrity verification. Use COPY with a separate RUN curl/wget that validates a checksum.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-DOCKER-004",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-004/",
 	"languages": ["docker"],
 	"severity": "medium",
 	"level": "warning",

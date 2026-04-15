@@ -10,4 +10,5 @@ Welcome to the Vulnetix CLI documentation. Choose a section to get started.
   {{< card link="cli-reference" title="CLI Reference" subtitle="Commands, flags, and usage patterns." icon="terminal" >}}
   {{< card link="ci-cd" title="CI/CD Integrations" subtitle="GitHub Actions, GitLab CI, Bitbucket, Azure DevOps." icon="cog" >}}
   {{< card link="enterprise" title="Enterprise" subtitle="Corporate proxy, publishing, and distribution." icon="globe-alt" >}}
+  {{< card link="sast-rules" title="SAST Rules" subtitle="Built-in static analysis rules with remediation guides." icon="shield-check" >}}
 {{< /cards >}}

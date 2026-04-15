@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-JAVA-005",
 	"name": "Insecure deserialization",
 	"description": "ObjectInputStream.readObject() deserializes arbitrary Java objects. Malicious serialized data can execute arbitrary code during deserialization via gadget chains.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-JAVA-005",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-005/",
 	"languages": ["java"],
 	"severity": "critical",
 	"level": "error",

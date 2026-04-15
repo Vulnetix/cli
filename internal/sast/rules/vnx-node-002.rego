@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-NODE-002",
 	"name": "eval() or new Function() in JavaScript",
 	"description": "eval() and new Function() execute arbitrary JavaScript code. If any part of the argument is user-controlled, this enables remote code execution.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-NODE-002",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-002/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",
