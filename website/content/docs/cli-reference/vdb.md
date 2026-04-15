@@ -38,6 +38,8 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb packages search](#vdb-packages-search)
   - [vdb ecosystem package](#vdb-ecosystem-package)
   - [vdb ecosystem group](#vdb-ecosystem-group)
+  - [vdb eol product](#vdb-eol-product)
+  - [vdb eol package](#vdb-eol-package)
 - [V2 Commands](#v2-commands)
 - [Output Management](#output-management)
   - [Output Formats](#output-formats)

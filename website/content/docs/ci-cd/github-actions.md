@@ -174,7 +174,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Gate on EOL and Severity
+### Gate on Vulnerabilities and Supply Chain
 
 Use `vulnetix scan` directly in a workflow to enforce policy gates. The scan exits with code `1` when any gate is breached, failing the CI step.
 
@@ -192,12 +192,56 @@ jobs:
         run: curl -fsSL https://vulnetix.com/install.sh | sh
 
       - name: Scan with gates
-        run: vulnetix scan --block-eol --severity high
+        run: vulnetix scan --block-eol --severity high --version-lag 1 --cooldown 3
         env:
           VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
 ```
 
-Available gates: `--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`. See the [Scan Command Reference]({{< relref "scan" >}}) for details.
+Available gates: `--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`, `--version-lag`, `--cooldown`. See the [Scan Command Reference]({{< relref "scan" >}}) for details.
+
+### SAST with Custom Rules
+
+Run built-in SAST rules alongside SCA, optionally loading additional rules from a repository. Upload the SARIF output to GitHub Code Scanning for tracking in the Security tab.
+
+```yaml
+name: Vulnetix SAST + SCA
+on: [push, pull_request]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write   # Required to upload SARIF to GitHub Code Scanning
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vulnetix CLI
+        run: curl -fsSL https://vulnetix.com/install.sh | sh
+
+      - name: Scan with SAST and SCA
+        run: vulnetix scan --severity high --output results.sarif
+        env:
+          VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+```
+
+The `--output results.sarif` flag writes a combined SARIF file (SCA + SAST findings) while still showing the pretty summary on stdout. The `.vulnetix/sast.sarif` file is also written automatically with SAST-only findings.
+
+To load custom rules from a private GitHub repository:
+
+```yaml
+      - name: Scan with custom SAST rules
+        run: vulnetix scan --severity high --rule myorg/security-rules --output results.sarif
+        env:
+          VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
 
 ## Edge Cases & Advanced Configuration
 

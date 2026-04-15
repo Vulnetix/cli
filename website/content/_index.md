@@ -48,15 +48,16 @@ Query vulnerabilities by any identifier format — CVE, GHSA, PYSEC, RUSTSEC, an
 
 <div class="vx-feature-section vx-feature-scan">
 
-## Software Composition Analysis
+## Software Composition Analysis & SAST
 
-Auto-discover and scan manifest files and SBOMs for known vulnerabilities across supported ecosystems. Zero-config scanning with SPDX and CycloneDX support.
+Auto-discover and scan manifest files and SBOMs for known vulnerabilities across supported ecosystems. Built-in SAST rules detect code-level issues — weak crypto, hardcoded secrets, missing lock files, and more. Zero-config scanning with SPDX, CycloneDX, and SARIF support.
 
 <ul>
   <li>Auto-discovery</li>
   <li>SPDX & CycloneDX</li>
   <li>Broad ecosystem coverage</li>
   <li>Zero-config scanning</li>
+  <li>Built-in SAST rules</li>
 </ul>
 
 <a href="docs/cli-reference/scan" class="vx-feature-link">Scan command reference &rarr;</a>
