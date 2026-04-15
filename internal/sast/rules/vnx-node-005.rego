@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-NODE-005",
 	"name": "innerHTML or dangerouslySetInnerHTML usage",
 	"description": "Setting innerHTML or using dangerouslySetInnerHTML with user-controlled data enables cross-site scripting (XSS).",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-NODE-005",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-005/",
 	"languages": ["node"],
 	"severity": "medium",
 	"level": "warning",

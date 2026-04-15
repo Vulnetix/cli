@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-007",
 	"name": "subprocess with shell=True",
 	"description": "subprocess calls with shell=True pass the command through the system shell, enabling command injection if any part of the command is user-controlled.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-007",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-007/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

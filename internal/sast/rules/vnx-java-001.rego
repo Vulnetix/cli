@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-JAVA-001",
 	"name": "Command injection via Runtime.exec()",
 	"description": "Runtime.getRuntime().exec() with string concatenation can inject shell commands when the concatenated value is user-controlled.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-JAVA-001",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-001/",
 	"languages": ["java"],
 	"severity": "high",
 	"level": "error",

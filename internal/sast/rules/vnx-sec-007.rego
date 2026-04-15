@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-SEC-007",
 	"name": "Slack token or webhook",
 	"description": "A Slack bot/user/app token or webhook URL was found in source code. These credentials grant access to Slack workspaces and channels.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-SEC-007",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-007/",
 	"languages": [],
 	"severity": "high",
 	"level": "error",

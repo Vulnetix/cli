@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-NODE-003",
 	"name": "Command injection via child_process",
 	"description": "child_process.exec() or execSync() with template literals or string concatenation can execute arbitrary shell commands if the interpolated value is user-controlled.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-NODE-003",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-003/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

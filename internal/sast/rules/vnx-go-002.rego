@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-GO-002",
 	"name": "Command injection via exec.Command",
 	"description": "exec.Command() with fmt.Sprintf or string concatenation can inject shell commands when the formatted value is user-controlled.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-GO-002",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-002/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",

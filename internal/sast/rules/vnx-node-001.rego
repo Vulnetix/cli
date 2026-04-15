@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-NODE-001",
 	"name": "Missing npm lock file",
 	"description": "No package-lock.json, yarn.lock, or pnpm-lock.yaml found alongside package.json. Without a lock file, npm install resolves floating ranges on every run, enabling dependency confusion and supply chain attacks.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-NODE-001",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-001/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

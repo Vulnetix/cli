@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-005",
 	"name": "Weak PRNG for security operations",
 	"description": "The random module uses a Mersenne Twister PRNG that is predictable. For security-sensitive values (tokens, passwords, nonces, salts), use the secrets module instead.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-005",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-005/",
 	"languages": ["python"],
 	"severity": "medium",
 	"level": "warning",

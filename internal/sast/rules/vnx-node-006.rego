@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-NODE-006",
 	"name": "Prototype pollution via merge",
 	"description": "Deep-merge operations (lodash _.merge, _.defaultsDeep, _.set) with user-controlled input can inject properties into Object.prototype, leading to denial of service or remote code execution.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-NODE-006",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-006/",
 	"languages": ["node"],
 	"severity": "high",
 	"level": "error",

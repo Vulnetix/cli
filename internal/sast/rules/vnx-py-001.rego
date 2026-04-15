@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-001",
 	"name": "Missing Python lock file",
 	"description": "A Python project manifest (pyproject.toml or Pipfile) exists without a corresponding lock file. Without pinned versions, dependency resolution is non-deterministic and vulnerable to supply chain attacks.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-001",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-001/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

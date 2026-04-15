@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-RUBY-003",
 	"name": "Insecure deserialization in Ruby",
 	"description": "Marshal.load and YAML.load (without safe class restrictions) deserialize arbitrary Ruby objects. Malicious data can execute arbitrary code during deserialization.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-RUBY-003",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-003/",
 	"languages": ["ruby"],
 	"severity": "critical",
 	"level": "error",

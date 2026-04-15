@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-002",
 	"name": "eval()/exec() usage in Python",
 	"description": "Use of eval() or exec() executes arbitrary Python code. If any part of the argument is user-controlled, this enables remote code execution.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-002",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-002/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "error",

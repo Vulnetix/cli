@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-PY-004",
 	"name": "yaml.load() without SafeLoader",
 	"description": "yaml.load() without an explicit safe Loader (SafeLoader, CSafeLoader, BaseLoader) can deserialize arbitrary Python objects, enabling remote code execution.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-PY-004",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-004/",
 	"languages": ["python"],
 	"severity": "high",
 	"level": "warning",

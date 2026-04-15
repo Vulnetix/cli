@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-DOCKER-003",
 	"name": "Secret in Dockerfile ARG or ENV",
 	"description": "ARG or ENV instructions with names suggesting credentials (PASSWORD, SECRET, TOKEN, KEY, CREDENTIAL) bake secrets into image layers and history, where they can be extracted.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-DOCKER-003",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-003/",
 	"languages": ["docker"],
 	"severity": "high",
 	"level": "error",

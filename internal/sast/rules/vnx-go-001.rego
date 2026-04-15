@@ -6,7 +6,7 @@ metadata := {
 	"id": "VNX-GO-001",
 	"name": "Missing go.sum",
 	"description": "Missing a version lock with checksums often leads to malware installation via software supply chain attacks.",
-	"help_uri": "https://docs.vulnetix.com/rules/VNX-GO-001",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-001/",
 	"languages": ["go"],
 	"severity": "high",
 	"level": "error",
