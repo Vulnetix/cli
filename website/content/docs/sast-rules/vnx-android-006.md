@@ -22,11 +22,11 @@ The correct approach is never to include long-lived credentials in client-side c
 ## What Gets Flagged
 
 ```xml
-<!-- FLAGGED: API key hardcoded as a string resource -->
+<!-- FLAGGED: API key hardcoded as a string resource (example patterns for testing) -->
 <resources>
-    <string name="google_api_key">AIzaSyD-9tSrke72I6e0a8oNsHkPbMmv9ABCDEF</string>
-    <string name="stripe_secret_token">sk_live_4eC39HqLyjWDarjtT1zdp7dc</string>
-    <string name="db_password">Sup3rS3cur3!</string>
+    <string name="google_api_key">AIzaSyD-9tSrke72I6e0a8oNsHkPbMmv9ABCDEF</string>  <!-- Test pattern, not real key -->
+    <string name="stripe_secret_token">sk_live_4eC39HqLyjWDarjtT1zdp7dc</string>  <!-- Test pattern, not real key -->
+    <string name="db_password">Sup3rS3cur3!</string>  <!-- Test pattern, not real password -->
 </resources>
 ```
 

@@ -25,18 +25,18 @@ Token types by prefix:
 ## What Gets Flagged
 
 ```python
-# FLAGGED: Slack bot token hardcoded
+# FLAGGED: Slack bot token hardcoded (example pattern for testing)
 from slack_sdk import WebClient
 
-client = WebClient(token="xoxb-123456789012-123456789012-xxxxxxxxxxxxxxxxxxxx")
+client = WebClient(token="xoxb-123456789012-123456789012-xxxxxxxxxxxxxxxxxxxx")  # Test pattern, not real token
 response = client.chat_postMessage(channel='#general', text='Hello!')
 ```
 
 ```bash
-# FLAGGED: webhook URL in shell script
+# FLAGGED: webhook URL in shell script (example pattern for testing)
 curl -X POST -H 'Content-type: application/json' \
   --data '{"text":"Deploy complete"}' \
-  https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+  https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX  # Test pattern, not real URL
 ```
 
 ## Remediation
