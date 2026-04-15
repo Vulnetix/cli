@@ -22,10 +22,10 @@ Note that Stripe also issues restricted keys and publishable keys — this rule 
 Any source line containing a string starting with `sk_live_` or `sk_test_` followed by at least 24 alphanumeric characters.
 
 ```python
-# FLAGGED: hardcoded Stripe live secret key
+# FLAGGED: hardcoded Stripe live secret key (example pattern for testing)
 import stripe
 
-stripe.api_key = 'sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+stripe.api_key = 'sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxx'  # This is a test pattern, not a real key
 
 charge = stripe.Charge.create(
     amount=2000,
@@ -35,8 +35,8 @@ charge = stripe.Charge.create(
 ```
 
 ```javascript
-// FLAGGED: key in Node.js application
-const stripe = require('stripe')('sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+// FLAGGED: key in Node.js application (example pattern for testing)
+const stripe = require('stripe')('sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxx');  // This is a test pattern, not a real key
 ```
 
 ## Remediation
