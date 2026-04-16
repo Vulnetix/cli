@@ -80,6 +80,7 @@ type SARIFArtifactLocation struct {
 // SARIFRegion identifies a portion of an artifact.
 type SARIFRegion struct {
 	StartLine int           `json:"startLine,omitempty"`
+	EndLine   int           `json:"endLine,omitempty"`
 	Snippet   *SARIFSnippet `json:"snippet,omitempty"`
 }
 
@@ -157,6 +158,9 @@ func BuildSARIF(findings []Finding, rules []RuleMetadata, toolVersion string) *S
 		if f.StartLine > 0 {
 			loc.PhysicalLocation.Region = &SARIFRegion{
 				StartLine: f.StartLine,
+			}
+			if f.EndLine > f.StartLine {
+				loc.PhysicalLocation.Region.EndLine = f.EndLine
 			}
 			if f.Snippet != "" {
 				loc.PhysicalLocation.Region.Snippet = &SARIFSnippet{Text: f.Snippet}

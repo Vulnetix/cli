@@ -28,7 +28,9 @@ findings contains finding if {
 	some path in object.keys(input.file_contents)
 	_is_js(path)
 	content := input.file_contents[path]
-	contains(content, "express()")
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "express()")
 	not contains(content, "helmet")
 	finding := {
 		"rule_id": metadata.id,
@@ -36,5 +38,7 @@ findings contains finding if {
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
 	}
 }

@@ -372,6 +372,13 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	disableDefaultRules, _ := cmd.Flags().GetBool("disable-default-rules")
 	ruleArgs, _ := cmd.Flags().GetStringArray("rule")
 	ruleRegistry, _ := cmd.Flags().GetString("rule-registry")
+	ruleID, _ := cmd.Flags().GetString("rule-id")
+	ruleID = strings.ToUpper(strings.TrimSpace(ruleID))
+	if ruleID != "" {
+		// Single-rule mode: skip SCA and license checks entirely.
+		noSCA = true
+		noLicenses = true
+	}
 	if ruleRegistry == "" {
 		ruleRegistry = sast.DefaultRegistry
 	}
@@ -525,6 +532,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		disableDefaultRules,
 		ruleRefs,
 		ruleRegistry,
+		ruleID,
 		seedBOM,
 		vulnetixSeedBOM,
 		gitCtx,
@@ -608,6 +616,7 @@ func runLocalScan(
 	disableDefaultRules bool,
 	ruleRefs []sast.RuleRef,
 	ruleRegistry string,
+	ruleID string,
 	seedBOM *cdx.BOM,
 	vulnetixSeedBOM *cdx.BOM,
 	gitCtx *gitctx.GitContext,
@@ -929,6 +938,7 @@ func runLocalScan(
 		}
 		if len(modules) > 0 {
 			modules = filterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
+			modules = filterModulesByID(modules, ruleID)
 			eng := sast.NewEngine(modules, rootPath)
 			var eerr error
 			sastReport, eerr = eng.Evaluate(sast.EvalOptions{MaxDepth: depth, Excludes: excludes})
@@ -2647,6 +2657,8 @@ func addSASTFlags(cmd *cobra.Command) {
 		"External SAST rule repo in org/repo format (repeatable); fetched from GitHub or --rule-registry")
 	cmd.Flags().String("rule-registry", "",
 		"Override default registry (https://github.com) for all --rule repos")
+	cmd.Flags().String("rule-id", "",
+		"Run only the single SAST rule with this ID (e.g. VNX-GQL-004); skips SCA and license checks")
 }
 
 // filterFilesByFeature removes detected files excluded by the active feature flags.
@@ -2707,6 +2719,44 @@ func filterModulesByKind(modules map[string]string, noSASTRules, noSecrets, noCo
 		filtered[name] = src
 	}
 	return filtered
+}
+
+// filterModulesByID retains only the Rego module whose metadata "id" field
+// matches ruleID (case-insensitive). Returns the original map unchanged when
+// ruleID is empty.
+func filterModulesByID(modules map[string]string, ruleID string) map[string]string {
+	if ruleID == "" {
+		return modules
+	}
+	target := strings.ToUpper(strings.TrimSpace(ruleID))
+	filtered := make(map[string]string, 1)
+	for name, src := range modules {
+		if strings.ToUpper(extractRegoID(src)) == target {
+			filtered[name] = src
+			break
+		}
+	}
+	return filtered
+}
+
+// extractRegoID returns the value of the "id" field from a Rego module's
+// metadata block. Returns "" when no id is declared.
+func extractRegoID(src string) string {
+	i := strings.Index(src, `"id"`)
+	if i < 0 {
+		return ""
+	}
+	rest := src[i+4:]
+	j := strings.Index(rest, `"`)
+	if j < 0 {
+		return ""
+	}
+	rest = rest[j+1:]
+	k := strings.Index(rest, `"`)
+	if k < 0 {
+		return ""
+	}
+	return rest[:k]
 }
 
 // extractRegoKind returns the value of the "kind" field from a Rego module's

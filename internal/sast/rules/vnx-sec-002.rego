@@ -29,14 +29,17 @@ _key_markers := [
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
-	content := input.file_contents[path]
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
 	some marker in _key_markers
-	contains(content, marker)
+	contains(line, marker)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("Private key (%s) found; remove it from the repository and rotate the key", [marker]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
 	}
 }

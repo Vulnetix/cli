@@ -29,6 +29,7 @@ type Finding struct {
 	Severity    string `json:"severity"`
 	Level       string `json:"level"`
 	StartLine   int    `json:"start_line"`
+	EndLine     int    `json:"end_line,omitempty"`
 	Snippet     string `json:"snippet"`
 	Fingerprint string `json:"-"`
 	Metadata    *RuleMetadata `json:"-"`

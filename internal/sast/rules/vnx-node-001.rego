@@ -27,11 +27,13 @@ findings contains finding if {
 	not input.file_set[pkg_lock]
 	not input.file_set[yarn_lock]
 	not input.file_set[pnpm_lock]
+	package_json := concat("/", [dir, "package.json"])
 	finding := {
 		"rule_id": metadata.id,
 		"message": "No lock file found (package-lock.json, yarn.lock, or pnpm-lock.yaml); add one to pin dependency versions",
-		"artifact_uri": dir,
+		"artifact_uri": package_json,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": 1,
 	}
 }
