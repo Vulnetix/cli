@@ -23,11 +23,13 @@ findings contains finding if {
 	some dir in input.dirs_by_language["ruby"]
 	lock := concat("/", [dir, "Gemfile.lock"])
 	not input.file_set[lock]
+	gemfile := concat("/", [dir, "Gemfile"])
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Gemfile.lock is missing; run bundle lock to pin dependency versions",
-		"artifact_uri": dir,
+		"artifact_uri": gemfile,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": 1,
 	}
 }

@@ -23,11 +23,13 @@ findings contains finding if {
 	some dir in input.dirs_by_language["php"]
 	lock := concat("/", [dir, "composer.lock"])
 	not input.file_set[lock]
+	composer_json := concat("/", [dir, "composer.json"])
 	finding := {
 		"rule_id": metadata.id,
 		"message": "composer.lock is missing; run composer install to generate a lock file",
-		"artifact_uri": dir,
+		"artifact_uri": composer_json,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": 1,
 	}
 }

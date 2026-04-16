@@ -56,7 +56,11 @@ func PrintPrettySummary(report *SASTReport, resultsOnly bool) {
 	for _, f := range sorted {
 		location := f.ArtifactURI
 		if f.StartLine > 0 {
-			location = fmt.Sprintf("%s:%d", f.ArtifactURI, f.StartLine)
+			if f.EndLine > f.StartLine {
+				location = fmt.Sprintf("%s:%d-%d", f.ArtifactURI, f.StartLine, f.EndLine)
+			} else {
+				location = fmt.Sprintf("%s:%d", f.ArtifactURI, f.StartLine)
+			}
 		}
 		label := f.Severity
 		if l, ok := SeverityLabel[f.Severity]; ok {

@@ -33,9 +33,10 @@ findings contains finding if {
 	finding := {
 		"rule_id": metadata.id,
 		"message": "pyproject.toml has no lock file (uv.lock, poetry.lock, or Pipfile.lock); add one to pin dependency versions",
-		"artifact_uri": dir,
+		"artifact_uri": pyproject,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": 1,
 	}
 }
 
@@ -49,8 +50,9 @@ findings contains finding if {
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Pipfile has no Pipfile.lock; run pipenv lock to pin dependency versions",
-		"artifact_uri": dir,
+		"artifact_uri": pipfile,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": 1,
 	}
 }

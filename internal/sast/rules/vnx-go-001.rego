@@ -23,11 +23,13 @@ findings contains finding if {
 	some dir in input.dirs_by_language["go"]
 	go_sum := concat("/", [dir, "go.sum"])
 	not input.file_set[go_sum]
+	go_mod := concat("/", [dir, "go.mod"])
 	finding := {
 		"rule_id": metadata.id,
 		"message": "go.sum is missing; add it to lock module checksums",
-		"artifact_uri": dir,
+		"artifact_uri": go_mod,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": 1,
 	}
 }

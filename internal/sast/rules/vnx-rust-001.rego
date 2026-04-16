@@ -23,11 +23,13 @@ findings contains finding if {
 	some dir in input.dirs_by_language["rust"]
 	lock := concat("/", [dir, "Cargo.lock"])
 	not input.file_set[lock]
+	cargo_toml := concat("/", [dir, "Cargo.toml"])
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Cargo.lock is missing; run cargo generate-lockfile to pin dependency versions",
-		"artifact_uri": dir,
+		"artifact_uri": cargo_toml,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": 1,
 	}
 }
