@@ -27,7 +27,6 @@ findings contains finding if {
 	_is_dockerfile(path)
 	content := input.file_contents[path]
 	contains(content, "FROM ")
-	not regex.match(`(?i)^\s*USER\s+`, content)
 	not _has_user_line(content)
 	finding := {
 		"rule_id": metadata.id,
@@ -35,6 +34,7 @@ findings contains finding if {
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
+		"start_line": 1,
 	}
 }
 
