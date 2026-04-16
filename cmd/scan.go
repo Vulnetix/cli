@@ -375,9 +375,14 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	ruleID, _ := cmd.Flags().GetString("rule-id")
 	ruleID = strings.ToUpper(strings.TrimSpace(ruleID))
 	if ruleID != "" {
-		// Single-rule mode: skip SCA and license checks entirely.
+		// Single-rule mode: run exactly the one named SAST rule.
+		// Suppress all manifest/package checks and force SAST enabled.
 		noSCA = true
 		noLicenses = true
+		noContainers = true
+		noIAC = true
+		noSAST = false
+		noSecrets = false
 	}
 	if ruleRegistry == "" {
 		ruleRegistry = sast.DefaultRegistry
@@ -937,7 +942,9 @@ func runLocalScan(
 			fmt.Fprintf(os.Stderr, "  warning: could not load SAST rules: %v\n", merr)
 		}
 		if len(modules) > 0 {
-			modules = filterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
+			if ruleID == "" {
+				modules = filterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
+			}
 			modules = filterModulesByID(modules, ruleID)
 			eng := sast.NewEngine(modules, rootPath)
 			var eerr error
