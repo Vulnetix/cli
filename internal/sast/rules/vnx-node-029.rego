@@ -19,13 +19,20 @@ metadata := {
     "tags": ["cookie", "httponly", "session"],
 }
 
+_is_js_file(path) if endswith(path, ".js")
+_is_js_file(path) if endswith(path, ".ts")
+
+_has_cookie_call(line) if contains(line, "cookie(")
+_has_cookie_call(line) if contains(line, ".cookie(")
+_has_cookie_call(line) if contains(line, "res.cookie(")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
-    (endswith(path, ".js"); endswith(path, ".ts"))
+    _is_js_file(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for cookie setting without HttpOnly
-    (contains(line, "cookie(") or contains(line, ".cookie(") or contains(line, "res.cookie(")) and
+    _has_cookie_call(line)
     not contains(line, "httpOnly")
     finding := {
         "rule_id": metadata.id,
