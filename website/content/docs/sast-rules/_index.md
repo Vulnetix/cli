@@ -25,20 +25,22 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
   {{< card link="#csharp" title="C# / .NET" subtitle="10 rules — SQL injection, command injection, deserialization, XXE, SSRF, CSRF" >}}
   {{< card link="#crypto" title="Cryptography" subtitle="10 rules — weak ciphers, broken hashes, TLS, key size, timing attacks, IV reuse" >}}
   {{< card link="#docker" title="Docker" subtitle="8 rules — least-privilege, supply chain, HEALTHCHECK, version pinning" >}}
-  {{< card link="#go" title="Go" subtitle="19 rules — injection, SSRF, path traversal, deserialization, concurrency bugs" >}}
+  {{< card link="#go" title="Go" subtitle="41 rules — injection, SSRF, path traversal, deserialization, concurrency, crypto, JWT, cookies" >}}
   {{< card link="#graphql" title="GraphQL" subtitle="4 rules — introspection, DoS, query injection, field suggestion disclosure" >}}
-  {{< card link="#java" title="Java" subtitle="27 rules — injection, deserialization, CSRF, XPath, JPQL, crypto, file upload" >}}
+  {{< card link="#java" title="Java" subtitle="29 rules — injection, deserialization, CSRF, XPath, JPQL, crypto, file upload, XXE" >}}
   {{< card link="#jwt" title="JWT" subtitle="6 rules — signature bypass, missing expiry, hardcoded secret, none algorithm" >}}
   {{< card link="#kotlin" title="Kotlin" subtitle="5 rules — ECB cipher, weak RSA, insecure cookie, cleartext socket, weak hash" >}}
   {{< card link="#llm" title="LLM / AI" subtitle="7 rules — prompt injection, RCE, hardcoded API key, SQL via LLM output" >}}
-  {{< card link="#nodejs" title="Node.js" subtitle="26 rules — injection, XSS, deserialization, crypto, YAML, JWT, shell injection" >}}
+  {{< card link="#nodejs" title="Node.js" subtitle="31 rules — injection, XSS, deserialization, crypto, YAML, JWT, shell injection, cookies, CSP" >}}
   {{< card link="#php" title="PHP" subtitle="26 rules — SQL, XSS, XXE, session fixation, file upload, LDAP, mass assignment" >}}
-  {{< card link="#python" title="Python" subtitle="21 rules — deserialization, SSTI, SSL, PRNG, paramiko, tarfile slip, ML models" >}}
+  {{< card link="#python" title="Python" subtitle="22 rules — deserialization, SSTI, SSL, PRNG, paramiko, tarfile slip, ML models, SQL injection" >}}
   {{< card link="#ruby" title="Ruby" subtitle="10 rules — deserialization, SQL injection, XSS, mass assignment, TLS, send injection" >}}
   {{< card link="#rust" title="Rust" subtitle="8 rules — lockfile, panic, unsafe, command injection, arithmetic overflow, path traversal" >}}
   {{< card link="#secrets" title="Secrets / Credentials" subtitle="32 rules — AWS, Azure, GCP, tokens, API keys, PGP, OAuth" >}}
   {{< card link="#swift" title="Swift / iOS" subtitle="6 rules — hardcoded keys, NSLog, UserDefaults, TLS disabled, WebView, PRNG" >}}
   {{< card link="#terraform" title="Terraform / IaC" subtitle="8 rules — S3 public, security groups, IAM wildcard, unencrypted storage, IMDSv1" >}}
+  {{< card link="#html" title="HTML / Templates" subtitle="1 rule — Jinja2 safe filter XSS" >}}
+  {{< card link="#cwe" title="CWE Auto-Rules" subtitle="13 rules — broad CWE-mapped detection across multiple languages" >}}
 {{< /cards >}}
 
 ## Android {#android}
@@ -142,6 +144,28 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
 | [VNX-GO-017](vnx-go-017) | Go SQL injection via fmt.Sprintf in db.Exec or db.Query | High |
 | [VNX-GO-018](vnx-go-018) | Go arbitrary file write via os.WriteFile with user-controlled path | High |
 | [VNX-GO-019](vnx-go-019) | Go server binding to all interfaces (0.0.0.0) without authentication | Medium |
+| [VNX-GO-020](vnx-go-020) | Use of template.HTML with potential user input | Medium |
+| [VNX-GO-021](vnx-go-021) | Potential XSS via fmt.Fprintf with HTML tags | Medium |
+| [VNX-GO-022](vnx-go-022) | Use of eval() or dynamic code execution | High |
+| [VNX-GO-023](vnx-go-023) | SQL injection via string concatenation | High |
+| [VNX-GO-024](vnx-go-024) | Missing input validation on HTTP request parameters | Medium |
+| [VNX-GO-025](vnx-go-025) | Potential open redirect via HTTP redirect | Medium |
+| [VNX-GO-026](vnx-go-026) | Missing file type validation on upload | High |
+| [VNX-GO-027](vnx-go-027) | Potential path traversal via file path construction | High |
+| [VNX-GO-028](vnx-go-028) | Use of weak cryptographic hash for password hashing | High |
+| [VNX-GO-029](vnx-go-029) | Hardcoded weak or default password | High |
+| [VNX-GO-030](vnx-go-030) | Missing Secure flag on cookie | Medium |
+| [VNX-GO-031](vnx-go-031) | Missing signature validation on JWT | High |
+| [VNX-GO-032](vnx-go-032) | JWT missing expiration validation | Medium |
+| [VNX-GO-033](vnx-go-033) | JWT missing audience validation | Medium |
+| [VNX-GO-034](vnx-go-034) | OAuth redirect URI without validation against allowlist | Medium |
+| [VNX-GO-035](vnx-go-035) | Missing HttpOnly flag on cookie | Medium |
+| [VNX-GO-036](vnx-go-036) | Use of ECB block mode | High |
+| [VNX-GO-037](vnx-go-037) | Missing security headers in HTTP response | Medium |
+| [VNX-GO-038](vnx-go-038) | Potential mass assignment via struct binding | Medium |
+| [VNX-GO-039](vnx-go-039) | Missing rate limiting on login endpoint | Medium |
+| [VNX-GO-040](vnx-go-040) | Logging of sensitive data | High |
+| [VNX-GO-041](vnx-go-041) | Use of deprecated TLS version | High |
 
 ## GraphQL {#graphql}
 
@@ -183,6 +207,8 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
 | [VNX-JAVA-025](vnx-java-025) | Java hardcoded password or credential | Critical |
 | [VNX-JAVA-026](vnx-java-026) | Java Spring file serving without access control | High |
 | [VNX-JAVA-027](vnx-java-027) | Java Spring security headers disabled | Medium |
+| [VNX-JAVA-028](vnx-java-028) | SQL injection via string concatenation in Java | High |
+| [VNX-JAVA-029](vnx-java-029) | XML External Entity (XXE) via DocumentBuilderFactory | High |
 
 ## JWT {#jwt}
 
@@ -247,6 +273,11 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
 | [VNX-NODE-024](vnx-node-024) | postMessage without origin validation | Medium |
 | [VNX-NODE-025](vnx-node-025) | Insecure express-session or cookie-session configuration | Medium |
 | [VNX-NODE-026](vnx-node-026) | Child process spawn with shell:true | High |
+| [VNX-NODE-027](vnx-node-027) | Assignment to innerHTML without sanitization | High |
+| [VNX-NODE-028](vnx-node-028) | Missing Content-Security-Policy header | Medium |
+| [VNX-NODE-029](vnx-node-029) | Missing HttpOnly flag on cookie | Medium |
+| [VNX-NODE-030](vnx-node-030) | TURN server allowing reserved IP addresses | Medium |
+| [VNX-NODE-031](vnx-node-031) | Logging of sensitive data | High |
 
 ## PHP {#php}
 
@@ -304,6 +335,7 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
 | [VNX-PY-019](vnx-py-019) | Paramiko implicit host key trust | High |
 | [VNX-PY-020](vnx-py-020) | tarfile.extractall() without path validation (zip slip) | High |
 | [VNX-PY-021](vnx-py-021) | Weak or deprecated SSL/TLS protocol version | High |
+| [VNX-PY-022](vnx-py-022) | SQL injection via string concatenation in Python | High |
 
 ## Ruby {#ruby}
 
@@ -393,3 +425,29 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
 | [VNX-TF-006](vnx-tf-006) | Terraform AWS EC2 IMDSv1 enabled (SSRF risk) | Medium |
 | [VNX-TF-007](vnx-tf-007) | Terraform AWS EKS cluster public API endpoint | Medium |
 | [VNX-TF-008](vnx-tf-008) | Terraform AWS provider with hardcoded static credentials | Critical |
+
+## HTML / Templates {#html}
+
+| Rule ID | Name | Severity |
+|---------|------|----------|
+| [VNX-HTML-001](vnx-html-001) | Use of Jinja2 \|safe filter | Medium |
+
+## CWE Auto-Rules {#cwe}
+
+These rules use broad pattern matching across multiple languages to detect common CWE vulnerability patterns. They may have higher false positive rates than the language-specific rules above.
+
+| Rule ID | Name | Severity | Languages |
+|---------|------|----------|-----------|
+| [VNX-1004](vnx-cwe1004-auto) | Excessive Use of Resource | Medium | Go, Java, Node.js, PHP, Python, Ruby |
+| [VNX-1021](vnx-cwe1021-auto) | Improper Restriction of Rendered UI Layers | Medium | Java, Node.js, PHP, Python, Ruby |
+| [VNX-1025](vnx-cwe1025-auto) | Improper Comparison of User-Supplied Input | Medium | Go, Node.js, Python |
+| [VNX-1037](vnx-cwe1037-auto) | Process Injection | Medium | Go, Java, Node.js, PHP, Python, Ruby |
+| [VNX-1041](vnx-cwe1041-auto) | SQL Injection via External Input | Medium | Go, Java, Node.js, PHP, Python |
+| [VNX-1043](vnx-cwe1043-auto) | Non-Thread-Safe Lock | Medium | Go, Java, Python |
+| [VNX-1044](vnx-cwe1044-auto) | File Upload without Size Limit | Medium | Go, Java, Node.js, PHP, Python |
+| [VNX-1045](vnx-cwe1045-auto) | File Upload without Type Restriction | Medium | Go, Java, Node.js, PHP, Python |
+| [VNX-1046](vnx-cwe1046-auto) | Open Redirect to Untrusted Site | Medium | Go, Java, Node.js, PHP, Python |
+| [VNX-1047](vnx-cwe1047-auto) | SSRF without Timeout | Medium | Go, Java, Node.js, PHP, Python |
+| [VNX-1048](vnx-cwe1048-auto) | Sensitive Data in Referrer | Medium | Go, Java, Node.js, PHP, Python |
+| [VNX-1052](vnx-cwe1052-auto) | Excessive Resource Usage | Medium | Go, Java, Node.js, Python |
+| [VNX-1054](vnx-cwe1054-auto) | GUI Input without Validation | Medium | Go, Java, Node.js, PHP, Python |
