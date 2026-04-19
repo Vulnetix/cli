@@ -21,22 +21,25 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_jwt_parse(line) if contains(line, "jwt.Parse")
+_has_jwt_parse(line) if contains(line, "jwt.Decode")
+_has_jwt_parse(line) if contains(line, "jwt.DecodeSegment")
+
+_has_validation(line) if contains(line, "VerifySignature")
+_has_validation(line) if contains(line, "Validate")
+_has_validation(line) if contains(line, "Valid")
+_has_validation(line) if contains(line, "ParseWithClaims")
+_has_validation(line) if contains(line, "jwt.ParseRSAPublicKeyFromPEM")
+_has_validation(line) if contains(line, "jwt.ParseECPublicKeyFromPEM")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for JWT parsing/usage without validation
-    (contains(line, "jwt.Parse") ;
-     contains(line, "jwt.Decode") ;
-     contains(line, "jwt.DecodeSegment")) and
-    # Check if there's no validation method called
-    not (contains(line, "VerifySignature") ;
-         contains(line, "Validate") ;
-         contains(line, "Valid") ;
-         contains(line, "ParseWithClaims") ;
-         contains(line, "jwt.ParseRSAPublicKeyFromPEM") ;
-         contains(line, "jwt.ParseECPublicKeyFromPEM"))
+    _has_jwt_parse(line)
+    not _has_validation(line)
     finding := {
         "rule_id": metadata.id,
         "message": "JWT token used without apparent signature validation; consider validating the token signature",

@@ -19,13 +19,17 @@ metadata := {
     "tags": ["rce", "eval", "dynamic-code-execution"],
 }
 
+_has_eval(line) if contains(line, "eval(")
+_has_eval(line) if contains(line, "template.Execute")
+_has_eval(line) if contains(line, "html/template.Execute")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     endswith(path, ".go")
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    (contains(line, "eval(") || contains(line, "template.Execute") || contains(line, "html/template.Execute"))
-    and not contains(line, "//nolint")
+    _has_eval(line)
+    not contains(line, "//nolint")
     finding := {
         "rule_id": metadata.id,
         "message": "Use of eval() or dynamic code execution may lead to RCE if user input is not properly sanitized",

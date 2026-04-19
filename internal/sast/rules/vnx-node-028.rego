@@ -19,15 +19,26 @@ metadata := {
     "tags": ["csp", "header", "security"],
 }
 
+_is_js_file(path) if endswith(path, ".js")
+_is_js_file(path) if endswith(path, ".ts")
+
+_has_header_call(line) if contains(line, ".writeHead")
+_has_header_call(line) if contains(line, ".setHeader")
+_has_header_call(line) if contains(line, ".header(")
+
+_has_csp(line) if contains(line, "Content-Security-Policy")
+_has_csp(line) if contains(line, "X-Content-Security-Policy")
+_has_csp(line) if contains(line, "X-WebKit-CSP")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
-    (endswith(path, ".js") || endswith(path, ".ts"))
+    _is_js_file(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for HTTP response setting without CSP header
-    contains(line, ".writeHead") or contains(line, ".setHeader") or contains(line, ".header(")
+    _has_header_call(line)
     # Simple check: if we see response headers being set but no CSP
-    not (contains(line, "Content-Security-Policy") or contains(line, "X-Content-Security-Policy") or contains(line, "X-WebKit-CSP"))
+    not _has_csp(line)
     finding := {
         "rule_id": metadata.id,
         "message": "HTTP response headers set without Content-Security-Policy; consider adding CSP header",
