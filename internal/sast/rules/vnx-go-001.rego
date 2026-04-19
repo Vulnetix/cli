@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Go - missing go.sum
+
 package vulnetix.rules.vnx_go_001
 
 import rego.v1
@@ -16,18 +19,16 @@ metadata := {
 	"attack_technique": ["T1195.001"],
 	"cvssv4": "",
 	"cwss": "CWSS:1.0/TI:H/AP:L/AL:L/IC:H/FC:H/RP:H/RL:H/AV:L/AS:L/IN:L/SC:N/CONF:N/T:P/P:H",
-	"tags": ["supply-chain", "lockfile", "integrity"],
+	"tags": ["supply-chain", "lockfile", "integrity"]
 }
 
 findings contains finding if {
-	some dir in input.dirs_by_language["go"]
-	go_sum := concat("/", [dir, "go.sum"])
-	not input.file_set[go_sum]
-	go_mod := concat("/", [dir, "go.mod"])
+	not input.file_set["go.sum"]
+	not input.file_set["go.mod"]
 	finding := {
 		"rule_id": metadata.id,
 		"message": "go.sum is missing; add it to lock module checksums",
-		"artifact_uri": go_mod,
+		"artifact_uri": "go.mod",
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": 1,
