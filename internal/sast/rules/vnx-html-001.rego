@@ -19,9 +19,14 @@ metadata := {
     "tags": ["xss", "template", "jinja2", "safe"],
 }
 
+_is_template_file(path) if endswith(path, ".html")
+_is_template_file(path) if endswith(path, ".htm")
+_is_template_file(path) if endswith(path, ".jinja")
+_is_template_file(path) if endswith(path, ".jinja2")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
-    (endswith(path, ".html") || endswith(path, ".htm") || endswith(path, ".jinja") || endswith(path, ".jinja2"))
+    _is_template_file(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     contains(line, "|safe")

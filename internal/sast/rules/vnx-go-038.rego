@@ -21,30 +21,34 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_binding(line) if contains(line, "Bind")
+_has_binding(line) if contains(line, "ShouldBind")
+_has_binding(line) if contains(line, "Decode")
+_has_binding(line) if contains(line, "Unmarshal")
+
+_has_input_source(line) if contains(line, "r.Body")
+_has_input_source(line) if contains(line, "r.Form")
+_has_input_source(line) if contains(line, "r.PostForm")
+_has_input_source(line) if contains(line, "ctx")
+_has_input_source(line) if contains(line, "json.NewDecoder")
+
+_has_validation(line) if contains(line, "binding:\"-\"")
+_has_validation(line) if contains(line, "json:\"-\"")
+_has_validation(line) if contains(line, "form:\"-\"")
+_has_validation(line) if contains(line, "validate:\"-\"")
+_has_validation(line) if contains(line, "validation.")
+_has_validation(line) if contains(line, "validate.")
+_has_validation(line) if contains(line, "structtag")
+_has_validation(line) if contains(line, "selector")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for struct binding from request data
-    (contains(line, "Bind") ;
-     contains(line, "ShouldBind") ;
-     contains(line, "Decode") ;
-     contains(line, "Unmarshal")) and
-    (contains(line, "r.Body") ;
-     contains(line, "r.Form") ;
-     contains(line, "r.PostForm") ;
-     contains(line, "ctx") ;
-     contains(line, "json.NewDecoder")) and
-    # Check if there's no field validation or struct tags limiting fields
-    not (contains(line, "binding:\"-\"") ;
-         contains(line, "json:\"-\"") ;
-         contains(line, "form:\"-\"") ;
-         contains(line, "validate:\"-\"") ;
-         contains(line, "validation.") ;
-         contains(line, "validate.") ;
-         contains(line, "structtag") ;
-         contains(line, "selector"))
+    _has_binding(line)
+    _has_input_source(line)
+    not _has_validation(line)
     finding := {
         "rule_id": metadata.id,
         "message": "Struct binding from user input without field restrictions may lead to mass assignment; consider using struct tags or validation to limit allowed fields",

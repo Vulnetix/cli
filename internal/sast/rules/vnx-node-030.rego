@@ -38,17 +38,18 @@ _has_reserved_ip(line) if contains(line, "169.254.")
 _has_reserved_ip(line) if contains(line, "0.0.0.0")
 _has_reserved_ip(line) if contains(line, "255.255.255.255")
 
+_lacks_exclusion(line) if {
+    _has_reserved_ip(line)
+    not contains(line, "!=")
+}
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_js_file(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for IP address validation or filtering
     _has_filter(line)
-    # Check for reserved IP patterns
-    _has_reserved_ip(line)
-    # Not properly excluded with !=
-    not (contains(line, "!=") and _has_reserved_ip(line))
+    _lacks_exclusion(line)
     finding := {
         "rule_id": metadata.id,
         "message": "IP address check may allow reserved IPs (localhost, private ranges); TURN server should not allow access to reserved IP addresses",

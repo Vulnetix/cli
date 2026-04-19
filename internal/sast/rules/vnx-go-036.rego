@@ -21,16 +21,17 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_ecb(line) if contains(line, "ECB")
+_has_cipher(line) if contains(line, "aes.NewCipher")
+_has_cipher(line) if contains(line, "des.NewTripleDESCipher")
+_has_cipher(line) if contains(line, "cipher.NewCTR")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for ECB mode usage
-    (contains(line, "ECB") ;
-     contains(line, "aes.NewCipher") and contains(line, "ECB") ;
-     contains(line, "des.NewTripleDESCipher") and contains(line, "ECB") ;
-     contains(line, "cipher.NewCTR") and contains(line, "ECB")) and
+    _has_ecb(line)
     not contains(line, "//nolint")
     finding := {
         "rule_id": metadata.id,

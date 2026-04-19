@@ -21,26 +21,31 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_login_keyword(line) if contains(line, "Login")
+_has_login_keyword(line) if contains(line, "login")
+_has_login_keyword(line) if contains(line, "SignIn")
+_has_login_keyword(line) if contains(line, "signIn")
+_has_login_keyword(line) if contains(line, "signin")
+
+_is_login_handler(line) if {
+    contains(line, "func ")
+    _has_login_keyword(line)
+}
+
+_has_rate_limiting(line) if contains(line, "rate")
+_has_rate_limiting(line) if contains(line, "throttle")
+_has_rate_limiting(line) if contains(line, "limiter")
+_has_rate_limiting(line) if contains(line, "RateLimit")
+_has_rate_limiting(line) if contains(line, "Throttle")
+_has_rate_limiting(line) if contains(line, "Limiter")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for HTTP handler functions that might be login endpoints
-    (contains(line, "func ") and
-     (contains(line, "Login") ;
-      contains(line, "login") ;
-      contains(line, "SignIn") ;
-      contains(line, "signIn") ;
-      contains(line, "signin"))) and
-    # Check if there's no rate limiting middleware or function call nearby (simple heuristic)
-    # We'll look in the same function or the next few lines for rate limiting terms
-    not (contains(line, "rate") ;
-         contains(line, "throttle") ;
-         contains(line, "limiter") ;
-         contains(line, "RateLimit") ;
-         contains(line, "Throttle") ;
-         contains(line, "Limiter"))
+    _is_login_handler(line)
+    not _has_rate_limiting(line)
     finding := {
         "rule_id": metadata.id,
         "message": "Login handler without apparent rate limiting; consider adding rate limiting to prevent brute force attacks",
