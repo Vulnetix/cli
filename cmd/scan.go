@@ -28,6 +28,14 @@ import (
 	"github.com/vulnetix/cli/pkg/vdb"
 )
 
+// Package-level display toggles populated from flags before any scan runs.
+// Kept here (not threaded through the many scan helpers) because they only
+// affect how detection and table output is rendered, not control flow.
+var (
+	showDetectedFiles bool
+	showCleanFiles    bool
+)
+
 // SeverityBreachError is returned when --severity threshold is breached.
 // It signals main() to exit with code 1 without printing a redundant error message.
 type SeverityBreachError struct {
@@ -215,6 +223,8 @@ Examples:
   vulnetix scan --dry-run --path ./myproject   # dry run on a specific directory`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		initDisplayContext(cmd, display.ModeText)
+		showDetectedFiles, _ = cmd.Flags().GetBool("show-detected")
+		showCleanFiles, _ = cmd.Flags().GetBool("show-clean")
 		// Credentials are optional — community fallback is used when absent.
 		return resolveVDBCredentials(false)
 	},
@@ -445,7 +455,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	}
 
 	// ── 3. Display detected files ──────────────────────────────────────
-	if !resultsOnly {
+	if !resultsOnly && showDetectedFiles {
 		fmt.Fprintln(os.Stderr, "Detected files:")
 	}
 	t := display.NewTerminal()
@@ -539,6 +549,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		versionLag,
 		cooldownDays,
 		noSAST,
+		noSCA,
 		noSecrets,
 		noContainers,
 		noIAC,
@@ -623,6 +634,7 @@ func runLocalScan(
 	versionLag int,
 	cooldownDays int,
 	noSASTRules bool,
+	noSCA bool,
 	noSecrets bool,
 	noContainers bool,
 	noIAC bool,
@@ -637,109 +649,117 @@ func runLocalScan(
 ) error {
 	// Create a v1 VDB client for package search (not the upload/scan v2 client).
 	client := newSearchClient()
-	if !resultsOnly {
-		fmt.Fprintf(os.Stderr, "\nAnalysing %d file(s)... parsing manifests locally.\n\n", len(files))
-	}
-	// ── Parse manifests ────────────────────────────────────────────────────
 	var localResults []cdx.LocalScanResult
-	allPackages := make([]scan.ScopedPackage, 0, 256)
-
-	for _, f := range files {
-		// CDX input files: extract components as packages.
-		if f.FileType == scan.FileTypeCycloneDX {
-			cdxBom, err := parseCDXForScan(f.Path)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
-				continue
-			}
-			pkgs := buildPackagesFromCDX(cdxBom.Components, f.RelPath)
-			scopeCounts := map[string]int{}
-			for _, p := range pkgs {
-				scopeCounts[p.Scope]++
-			}
-			if !resultsOnly {
-				fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
-			}
-			localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
-			allPackages = append(allPackages, pkgs...)
-			continue
-		}
-		if f.ManifestInfo == nil {
-			continue
-		}
-		pkgs, err := scan.ParseManifestWithScope(f.Path, f.ManifestInfo.Type)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
-			continue
-		}
-
-		// Replace absolute path with relative path in each package.
-		for i := range pkgs {
-			pkgs[i].SourceFile = f.RelPath
-		}
-
-		// Count by scope for the per-file summary line.
-		scopeCounts := map[string]int{}
-		for _, p := range pkgs {
-			scopeCounts[p.Scope]++
-		}
-		scopeSummary := formatScopeCounts(scopeCounts)
-		if !resultsOnly {
-			fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), scopeSummary)
-		}
-		localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
-		allPackages = append(allPackages, pkgs...)
-	}
-
-	if len(allPackages) == 0 {
-		fmt.Fprintln(os.Stderr, "\nNo packages found to analyse.")
-		// Still run license analysis and SAST even when no packages are found.
-		localResults = []cdx.LocalScanResult{}
-		allPackages = []scan.ScopedPackage{}
-	}
-
-	// ── Count unique packages to query ───────────────────────────────────
-	uniqueCount := countUniquePackages(allPackages)
-	fmt.Fprintf(os.Stderr, "\nQuerying VDB for %d unique package(s)...\n", uniqueCount)
-
-	// ── Query VDB ──────────────────────────────────────────────────────────
+	var allPackages []scan.ScopedPackage
+	var allVulns []scan.VulnFinding
 	isInteractive := tty.IsInteractive() && !noProgress
-	var progressFn func(done, total int)
-
-	if isInteractive {
-		progressFn = func(done, total int) {
-			pct := 0
-			if total > 0 {
-				pct = done * 100 / total
-			}
-			bar := renderProgressBar(done, total, 30)
-			fmt.Fprintf(os.Stderr, "\r  %s %d/%d (%d%%) ", bar, done, total, pct)
-		}
-	} else if !noProgress {
-		// Non-interactive: print dot per 10 packages
-		progressFn = func(done, total int) {
-			if done%10 == 0 || done == total {
-				fmt.Fprintf(os.Stderr, "\r  %d/%d", done, total)
-			}
-		}
-	}
 
 	queryCtx := ctx
 	if queryCtx == nil {
 		queryCtx = context.Background()
 	}
 
-	allVulns, lookupStats, lookupErr := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
-	if progressFn != nil {
-		fmt.Fprintln(os.Stderr) // newline after progress
-	}
+	// ── Parse manifests and query VDB (only if SCA is enabled) ───────────
+	if !noSCA {
+		if !resultsOnly {
+			fmt.Fprintf(os.Stderr, "\nAnalysing %d file(s)... parsing manifests locally.\n\n", len(files))
+		}
+		// ── Parse manifests ────────────────────────────────────────────────────
+		allPackages = make([]scan.ScopedPackage, 0, 256)
 
-	// ── Lookup summary ────────────────────────────────────────────────────
-	hasPartial := lookupErr != nil && len(allVulns) > 0
-	printLookupSummary(client, lookupStats, lookupErr, hasPartial)
+		for _, f := range files {
+			// CDX input files: extract components as packages.
+			if f.FileType == scan.FileTypeCycloneDX {
+				cdxBom, err := parseCDXForScan(f.Path)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
+					continue
+				}
+				pkgs := buildPackagesFromCDX(cdxBom.Components, f.RelPath)
+				scopeCounts := map[string]int{}
+				for _, p := range pkgs {
+					scopeCounts[p.Scope]++
+				}
+				if !resultsOnly {
+					fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+				}
+				localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
+				allPackages = append(allPackages, pkgs...)
+				continue
+			}
+			if f.ManifestInfo == nil {
+				continue
+			}
+			pkgs, err := scan.ParseManifestWithScope(f.Path, f.ManifestInfo.Type)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
+				continue
+			}
 
-	if lookupErr != nil && len(allVulns) == 0 {
-		return fmt.Errorf("VDB lookup failed: %w", lookupErr)
+			// Replace absolute path with relative path in each package.
+			for i := range pkgs {
+				pkgs[i].SourceFile = f.RelPath
+			}
+
+			// Count by scope for the per-file summary line.
+			scopeCounts := map[string]int{}
+			for _, p := range pkgs {
+				scopeCounts[p.Scope]++
+			}
+			scopeSummary := formatScopeCounts(scopeCounts)
+			if !resultsOnly {
+				fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), scopeSummary)
+			}
+			localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
+			allPackages = append(allPackages, pkgs...)
+		}
+
+		if len(allPackages) == 0 {
+			fmt.Fprintln(os.Stderr, "\nNo packages found to analyse.")
+			// Still run license analysis and SAST even when no packages are found.
+			localResults = []cdx.LocalScanResult{}
+			allPackages = []scan.ScopedPackage{}
+		}
+
+		// ── Count unique packages to query ───────────────────────────────────
+		uniqueCount := countUniquePackages(allPackages)
+		fmt.Fprintf(os.Stderr, "\nQuerying VDB for %d unique package(s)...\n", uniqueCount)
+
+		// ── Query VDB ──────────────────────────────────────────────────────────
+		isInteractive := tty.IsInteractive() && !noProgress
+		var progressFn func(done, total int)
+
+		if isInteractive {
+			progressFn = func(done, total int) {
+				pct := 0
+				if total > 0 {
+					pct = done * 100 / total
+				}
+				bar := renderProgressBar(done, total, 30)
+				fmt.Fprintf(os.Stderr, "\r  %s %d/%d (%d%%) ", bar, done, total, pct)
+			}
+		} else if !noProgress {
+			// Non-interactive: print dot per 10 packages
+			progressFn = func(done, total int) {
+				if done%10 == 0 || done == total {
+					fmt.Fprintf(os.Stderr, "\r  %d/%d", done, total)
+				}
+			}
+		}
+
+		scannedVulns, lookupStats, vulnsErr := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
+		if progressFn != nil {
+			fmt.Fprintln(os.Stderr) // newline after progress
+		}
+
+		// ── Lookup summary ────────────────────────────────────────────────────
+		hasPartial := vulnsErr != nil && len(scannedVulns) > 0
+		printLookupSummary(client, lookupStats, vulnsErr, hasPartial)
+
+		if vulnsErr != nil && len(scannedVulns) == 0 {
+			return fmt.Errorf("VDB lookup failed: %w", vulnsErr)
+		}
+		allVulns = scannedVulns
 	}
 
 	// Attach vulns to each file result.
@@ -2651,6 +2671,8 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("block-unpinned", false, "Exit with code 1 when any direct dependency uses a version range (^, ~, >=) instead of an exact pin.")
 	cmd.Flags().String("exploits", "", "Exit with code 1 when exploit maturity reaches the threshold: poc (any public exploit), active (CISA/EU KEV / actively exploited), weaponized (in-the-wild only).")
 	cmd.Flags().Bool("results-only", false, "Only output when findings exist; completely silent when the scan is clean.")
+	cmd.Flags().Bool("show-detected", false, "Show the 'Detected files:' listing and 'Analysing N file(s)…' progress banner.")
+	cmd.Flags().Bool("show-clean", false, "Include rows in the SCA table for manifests that have no vulnerabilities.")
 	cmd.Flags().Int("version-lag", 0, "Exit with code 1 when any dependency is within the N most recently published versions of that package (0 = disabled).")
 	cmd.Flags().Int("cooldown", 0, "Exit with code 1 when any dependency version was published within the last N days (0 = disabled, best-effort).")
 	cmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
