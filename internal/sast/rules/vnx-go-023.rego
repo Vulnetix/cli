@@ -6,7 +6,7 @@ metadata := {
     "id": "VNX-GO-023",
     "name": "SQL injection via string concatenation",
     "description": "Constructing SQL queries by concatenating user input can lead to SQL injection vulnerabilities.",
-    "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-023/",
+    "help_uri": "https:#docs.cli.vulnetix.com/docs/sast-rules/vnx-go-023/",
     "languages": ["go"],
     "severity": "high",
     "level": "error",
@@ -24,7 +24,7 @@ findings contains finding if {
     endswith(path, ".go")
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    contains(line, "exec") // looking for db.Exec or similar
+    contains(line, "exec") # looking for db.Exec or similar
     contains(line, "\"")
     contains(line, "+")
     # Simple heuristic: looks for string concatenation in SQL context

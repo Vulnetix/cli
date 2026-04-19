@@ -21,23 +21,27 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_request_param(line) if contains(line, "r.FormValue(")
+_has_request_param(line) if contains(line, "r.URL.Query().Get(")
+_has_request_param(line) if contains(line, "r.PostFormValue(")
+_has_request_param(line) if contains(line, "r.Header.Get(")
+_has_request_param(line) if contains(line, "ctx.Value(")
+
+_has_validation(line) if contains(line, "validation.")
+_has_validation(line) if contains(line, "validate.")
+_has_validation(line) if contains(line, "sanitize.")
+_has_validation(line) if contains(line, "html.EscapeString")
+_has_validation(line) if contains(line, "template.HTMLEscapeString")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for direct use of request params like r.FormValue, r.URL.Query().Get, etc.
-    (contains(line, "r.FormValue(") ||
-     contains(line, "r.URL.Query().Get(") ||
-     contains(line, "r.PostFormValue(") ||
-     contains(line, "r.Header.Get(") ||
-     contains(line, "ctx.Value("))
-    # And no validation/sanitization calls nearby (simple check)
-    not (contains(line, "validation.") ||
-         contains(line, "validate.") ||
-         contains(line, "sanitize.") ||
-         contains(line, "html.EscapeString") ||
-         contains(line, "template.HTMLEscapeString"))
+    # Look for direct use of request params
+    _has_request_param(line)
+    # And no validation/sanitization calls nearby
+    not _has_validation(line)
     finding := {
         "rule_id": metadata.id,
         "message": "HTTP request parameter used without apparent validation; consider validating input",

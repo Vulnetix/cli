@@ -21,60 +21,61 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
-# List of common weak/default passwords
-weak_passwords := [
-    "123456",
-    "password",
-    "12345678",
-    "qwerty",
-    "123456789",
-    "12345",
-    "1234",
-    "111111",
-    "1234567",
-    "dragon",
-    "123123",
-    "baseball",
-    "abc123",
-    "football",
-    "monkey",
-    "letmein",
-    "shadow",
-    "master",
-    "666666",
-    "qwertyuiop",
-    "123321",
-    "mustang",
-    "michael",
-    "superman",
-    "1qaz2wsx",
-    "password1",
-    "admin",
-    "administrator",
-    "root",
-    "sa",
-    "sys",
-    "guest",
-    "user",
-    "test",
-    "demo",
-]
+_has_assign(line) if contains(line, ":=")
+_has_assign(line) if contains(line, "=")
+
+_has_password_var(line) if contains(line, "password")
+_has_password_var(line) if contains(line, "passwd")
+_has_password_var(line) if contains(line, "pass")
+_has_password_var(line) if contains(line, "pwd")
+
+_has_weak_password(line) if contains(line, "123456")
+_has_weak_password(line) if contains(line, "password")
+_has_weak_password(line) if contains(line, "12345678")
+_has_weak_password(line) if contains(line, "qwerty")
+_has_weak_password(line) if contains(line, "123456789")
+_has_weak_password(line) if contains(line, "12345")
+_has_weak_password(line) if contains(line, "1234")
+_has_weak_password(line) if contains(line, "111111")
+_has_weak_password(line) if contains(line, "1234567")
+_has_weak_password(line) if contains(line, "dragon")
+_has_weak_password(line) if contains(line, "123123")
+_has_weak_password(line) if contains(line, "baseball")
+_has_weak_password(line) if contains(line, "abc123")
+_has_weak_password(line) if contains(line, "football")
+_has_weak_password(line) if contains(line, "monkey")
+_has_weak_password(line) if contains(line, "letmein")
+_has_weak_password(line) if contains(line, "shadow")
+_has_weak_password(line) if contains(line, "master")
+_has_weak_password(line) if contains(line, "666666")
+_has_weak_password(line) if contains(line, "qwertyuiop")
+_has_weak_password(line) if contains(line, "123321")
+_has_weak_password(line) if contains(line, "mustang")
+_has_weak_password(line) if contains(line, "michael")
+_has_weak_password(line) if contains(line, "superman")
+_has_weak_password(line) if contains(line, "1qaz2wsx")
+_has_weak_password(line) if contains(line, "password1")
+_has_weak_password(line) if contains(line, "admin")
+_has_weak_password(line) if contains(line, "administrator")
+_has_weak_password(line) if contains(line, "root")
+_has_weak_password(line) if contains(line, "sa")
+_has_weak_password(line) if contains(line, "sys")
+_has_weak_password(line) if contains(line, "guest")
+_has_weak_password(line) if contains(line, "user")
+_has_weak_password(line) if contains(line, "test")
+_has_weak_password(line) if contains(line, "demo")
 
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for assignment of a string literal to a variable that looks like a password
-    (contains(line, ":=") or contains(line, "=")) and
-    (contains(line, "password") or contains(line, "passwd") or contains(line, "pass") or contains(line, "pwd")) and
-    # Extract the string literal on the right side
-    # We'll do a simple check: if the line contains a quote and the string inside is in our weak_passwords list
-    some weak in weak_passwords
-    contains(line, `"` + weak + `"`) or contains(line, "`" + weak + "`") or contains(line, "'" + weak + "'")
+    _has_assign(line)
+    _has_password_var(line)
+    _has_weak_password(line)
     finding := {
         "rule_id": metadata.id,
-        "message": "Hardcoded weak or default password detected: " + weak,
+        "message": "Hardcoded weak or default password detected",
         "artifact_uri": path,
         "severity": metadata.severity,
         "level": metadata.level,
