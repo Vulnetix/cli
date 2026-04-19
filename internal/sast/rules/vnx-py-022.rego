@@ -19,18 +19,22 @@ metadata := {
     "tags": ["sql-injection", "database", "query"],
 }
 
+_has_execute(line) if contains(line, ".execute(")
+_has_execute(line) if contains(line, ".executescript(")
+_has_execute(line) if contains(line, "cursor.execute(")
+
+_has_concat(line) if contains(line, "+")
+_has_concat(line) if contains(line, "%")
+_has_concat(line) if contains(line, ".format(")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     endswith(path, ".py")
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for string concatenation with SQL keywords
-    (contains(line, ".execute(") ||
-     contains(line, ".executescript(") ||
-     contains(line, "cursor.execute(")) and
-    (contains(line, "+") ;
-     contains(line, "%") ;
-     contains(line, ".format("))
+    _has_execute(line)
+    _has_concat(line)
     finding := {
         "rule_id": metadata.id,
         "message": "Potential SQL injection via string concatenation; use parameterized queries instead",
