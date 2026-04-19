@@ -110,12 +110,15 @@ analyzing package dependencies, licenses, or other security issues.`,
 }
 
 func init() {
-	for _, cmd := range []*cobra.Command{scaCmd, secretsCmd, containersCmd, iacCmd} {
+	// scaCmd has no rule-pack support (pure dependency scanning).
+	addScanFlags(scaCmd)
+	rootCmd.AddCommand(scaCmd)
+
+	// secrets, containers, iac, sast all accept external Rego rule packs
+	// via --rule (along with --disable-default-rules, --list-default-rules, etc.)
+	for _, cmd := range []*cobra.Command{secretsCmd, containersCmd, iacCmd, sastCmd} {
 		addScanFlags(cmd)
+		addSASTFlags(cmd)
 		rootCmd.AddCommand(cmd)
 	}
-	// sast also gets SAST-specific flags (--rule, --disable-default-rules, etc.)
-	addScanFlags(sastCmd)
-	addSASTFlags(sastCmd)
-	rootCmd.AddCommand(sastCmd)
 }
