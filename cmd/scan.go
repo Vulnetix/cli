@@ -680,7 +680,7 @@ func runLocalScan(
 				for _, p := range pkgs {
 					scopeCounts[p.Scope]++
 				}
-				if !resultsOnly {
+				if !resultsOnly && showDetectedFiles {
 					fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
 				}
 				localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
@@ -707,7 +707,7 @@ func runLocalScan(
 				scopeCounts[p.Scope]++
 			}
 			scopeSummary := formatScopeCounts(scopeCounts)
-			if !resultsOnly {
+			if !resultsOnly && showDetectedFiles {
 				fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), scopeSummary)
 			}
 			localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
@@ -1604,8 +1604,10 @@ func runDryScan(
 			for _, p := range pkgs {
 				scopeCounts[p.Scope]++
 			}
-			fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n",
-				f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+			if showDetectedFiles {
+				fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n",
+					f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+			}
 			totalPkgs += len(pkgs)
 			continue
 		}
@@ -1624,8 +1626,10 @@ func runDryScan(
 		for _, p := range pkgs {
 			scopeCounts[p.Scope]++
 		}
-		fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n",
-			f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+		if showDetectedFiles {
+			fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n",
+				f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
+		}
 		totalPkgs += len(pkgs)
 	}
 
