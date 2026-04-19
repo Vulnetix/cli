@@ -395,6 +395,14 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		}
 		ruleRefs = append(ruleRefs, ref)
 	}
+	// When the user explicitly imports external rule repos, treat that as
+	// authoritative intent: don't silently suppress non-SAST kinds (iac,
+	// secrets, oci) just because the active subcommand defaulted them off.
+	if len(ruleRefs) > 0 {
+		noSecrets = false
+		noContainers = false
+		noIAC = false
+	}
 
 	if scanPath == "" {
 		scanPath = "."
@@ -2710,6 +2718,13 @@ func filterModulesByKind(modules map[string]string, noSASTRules, noSecrets, noCo
 	}
 	filtered := make(map[string]string, len(modules))
 	for name, src := range modules {
+		// Externally imported rules (loaded from --rule repos) bypass the
+		// kind filter — the user explicitly asked for them. Embedded
+		// default rules live under the "rules/" prefix in the embed.FS.
+		if !strings.HasPrefix(name, "rules/") {
+			filtered[name] = src
+			continue
+		}
 		kind := extractRegoKind(src)
 		if kind == "sast" && noSASTRules {
 			continue
