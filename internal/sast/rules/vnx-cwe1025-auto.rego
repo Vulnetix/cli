@@ -4,14 +4,13 @@
 package vulnetix.rules.vnx_1025
 
 import rego.v1
-import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1025",
 	"name": "Improper Comparison of User-Supplied Input",
 	"description": "Detects improper comparison of user-supplied input in source code.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1025/",
-	"languages": ['go', 'node', 'python'],
+	"languages": ["go", "node", "python"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
@@ -20,30 +19,26 @@ metadata := {
 	"attack_technique": ["T1557"],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ['weak-crypto'],
+	"tags": ["weak-crypto"],
 }
 
-_skip(path) if helpers._should_skip(path)
-
-_findings_core := {
-		"python ==",
-		"node ===",
-		"go ==",
-}
+_has_comparison(line) if contains(line, "python ==")
+_has_comparison(line) if contains(line, "node ===")
+_has_comparison(line) if contains(line, "go ==")
 
 findings contains finding if {
-	 some path in object.keys(helpers.input.file_contents)
-	 not _skip(path)
-	 lines := split(helpers.input.file_contents[path], "\n")
-	 some i, line in lines
-	 some indicator in _findings_core
-	 contains(line, indicator)
-	 not regex.match(`^\s*(//|/\*)`, line)
-	 finding := helpers.generate_finding(
-		"medium", "warning", metadata.id,
-		sprintf("Detected pattern", []),
-		helpers.input.artifact_uri,
-		i + 1,
-		line,
-	 )
+	some path in object.keys(input.file_contents)
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	_has_comparison(line)
+	not regex.match(`^\s*(//|/\*)`, line)
+	finding := {
+		"rule_id": metadata.id,
+		"message": "Improper comparison of user-supplied input detected",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
 }
