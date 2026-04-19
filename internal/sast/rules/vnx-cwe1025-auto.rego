@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1025 - Improper Comparison of User-Supplied Input
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1025 - Improper Comparison of User-Supplied Input
 
 package vulnetix.rules.vnx_1025
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1025",
 	"name": "Improper Comparison of User-Supplied Input",
 	"description": "Detects improper comparison of user-supplied input in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1025/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1025/",
 	"languages": ['go', 'node', 'python'],
 	"severity": "medium",
 	"level": "warning",

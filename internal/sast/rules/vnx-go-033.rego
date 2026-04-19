@@ -26,15 +26,15 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for JWT parsing/usage without checking audience
-    (contains(line, "jwt.Parse") or
-     contains(line, "jwt.Decode") or
+    # Look for JWT parsing/usage without checking audience
+    (contains(line, "jwt.Parse") ;
+     contains(line, "jwt.Decode") ;
      contains(line, "jwt.DecodeSegment")) and
-    // Check if there's no audience validation
-    not (contains(line, "VerifyAudience") or
-         contains(line, "ValidateAudience") or
-         contains(line, "Claims.Audience") or
-         contains(line, "StandardClaims.Audience") or
+    # Check if there's no audience validation
+    not (contains(line, "VerifyAudience") ;
+         contains(line, "ValidateAudience") ;
+         contains(line, "Claims.Audience") ;
+         contains(line, "StandardClaims.Audience") ;
          contains(line, "RegisteredClaims.Audience"))
     finding := {
         "rule_id": metadata.id,

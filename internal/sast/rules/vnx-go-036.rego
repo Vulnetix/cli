@@ -26,10 +26,10 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for ECB mode usage
-    (contains(line, "ECB") or
-     contains(line, "aes.NewCipher") and contains(line, "ECB") or
-     contains(line, "des.NewTripleDESCipher") and contains(line, "ECB") or
+    # Look for ECB mode usage
+    (contains(line, "ECB") ;
+     contains(line, "aes.NewCipher") and contains(line, "ECB") ;
+     contains(line, "des.NewTripleDESCipher") and contains(line, "ECB") ;
      contains(line, "cipher.NewCTR") and contains(line, "ECB")) and
     not contains(line, "//nolint")
     finding := {

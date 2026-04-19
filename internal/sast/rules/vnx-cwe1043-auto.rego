@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1043 - Non-Thread-Safe Lock
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1043 - Non-Thread-Safe Lock
 
 package vulnetix.rules.vnx_1043
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1043",
 	"name": "Non-Thread-Safe Lock",
 	"description": "Detects non-thread-safe lock in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1043/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1043/",
 	"languages": ['go', 'java', 'python'],
 	"severity": "medium",
 	"level": "warning",

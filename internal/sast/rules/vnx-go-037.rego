@@ -26,20 +26,20 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for HTTP response writing without setting common security headers
-    (contains(line, "WriteHeader") or
-     contains(line, "Header().Set") or
-     contains(line, "WriteHeader") or
+    # Look for HTTP response writing without setting common security headers
+    (contains(line, "WriteHeader") ;
+     contains(line, "Header().Set") ;
+     contains(line, "WriteHeader") ;
      contains(line, "http.ResponseWriter")) and
-    // Check if we are setting headers but missing some important ones
-    // We'll do a simple check: if we see any header setting, but not the specific ones we care about
-    // This is a heuristic and might have false positives/negatives.
-    not (contains(line, "X-Frame-Options") or
-         contains(line, "X-Content-Type-Options") or
-         contains(line, "X-XSS-Protection") or
-         contains(line, "Strict-Transport-Security") or
-         contains(line, "Content-Security-Policy") or
-         contains(line, "Referrer-Policy") or
+    # Check if we are setting headers but missing some important ones
+    # We'll do a simple check: if we see any header setting, but not the specific ones we care about
+    # This is a heuristic and might have false positives/negatives.
+    not (contains(line, "X-Frame-Options") ;
+         contains(line, "X-Content-Type-Options") ;
+         contains(line, "X-XSS-Protection") ;
+         contains(line, "Strict-Transport-Security") ;
+         contains(line, "Content-Security-Policy") ;
+         contains(line, "Referrer-Policy") ;
          contains(line, "Permissions-Policy"))
     finding := {
         "rule_id": metadata.id,

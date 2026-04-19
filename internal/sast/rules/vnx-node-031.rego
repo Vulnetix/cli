@@ -24,25 +24,25 @@ findings contains finding if {
     (endswith(path, ".js") || endswith(path, ".ts"))
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for logging functions
-    (contains(line, "console.log") or
-     contains(line, "console.info") or
-     contains(line, "console.warn") or
-     contains(line, "console.error") or
-     contains(line, "logger.") or
-     contains(line, "winston.") or
-     contains(line, "bunyan.") or
+    # Look for logging functions
+    (contains(line, "console.log") ;
+     contains(line, "console.info") ;
+     contains(line, "console.warn") ;
+     contains(line, "console.error") ;
+     contains(line, "logger.") ;
+     contains(line, "winston.") ;
+     contains(line, "bunyan.") ;
      contains(line, "pino.")) and
-    // Check if any sensitive data patterns are in the line
-    (contains(line, "password") or
-     contains(line, "passwd") or
-     contains(line, "secret") or
-     contains(line, "token") or
-     contains(line, "auth") or
-     contains(line, "credit") or
-     contains(line, "card") or
-     contains(line, "cvv") or
-     contains(line, "ssn") or
+    # Check if any sensitive data patterns are in the line
+    (contains(line, "password") ;
+     contains(line, "passwd") ;
+     contains(line, "secret") ;
+     contains(line, "token") ;
+     contains(line, "auth") ;
+     contains(line, "credit") ;
+     contains(line, "card") ;
+     contains(line, "cvv") ;
+     contains(line, "ssn") ;
      contains(line, "pin"))
     finding := {
         "rule_id": metadata.id,

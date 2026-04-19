@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
-// Go - missing go.sum
+# SPDX-License-Identifier: Apache-2.0
+# Go - missing go.sum
 
 package vulnetix.rules.vnx_go_001
 

@@ -26,13 +26,13 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for direct use of request params like r.FormValue, r.URL.Query().Get, etc.
+    # Look for direct use of request params like r.FormValue, r.URL.Query().Get, etc.
     (contains(line, "r.FormValue(") ||
      contains(line, "r.URL.Query().Get(") ||
      contains(line, "r.PostFormValue(") ||
      contains(line, "r.Header.Get(") ||
      contains(line, "ctx.Value("))
-    // And no validation/sanitization calls nearby (simple check)
+    # And no validation/sanitization calls nearby (simple check)
     not (contains(line, "validation.") ||
          contains(line, "validate.") ||
          contains(line, "sanitize.") ||

@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1041 - SQL Injection via External Input
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1041 - SQL Injection via External Input
 
 package vulnetix.rules.vnx_1041
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1041",
 	"name": "SQL Injection via External Input",
 	"description": "Detects sql injection via external input in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1041/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1041/",
 	"languages": ['go', 'java', 'node', 'php', 'python'],
 	"severity": "medium",
 	"level": "warning",

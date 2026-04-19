@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1021 - Improper Restriction of Rendered UI Layers
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1021 - Improper Restriction of Rendered UI Layers
 
 package vulnetix.rules.vnx_1021
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1021",
 	"name": "Improper Restriction of Rendered UI Layers",
 	"description": "Detects improper restriction of rendered ui layers in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1021/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1021/",
 	"languages": ['java', 'node', 'php', 'python', 'ruby'],
 	"severity": "medium",
 	"level": "warning",

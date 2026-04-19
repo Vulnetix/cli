@@ -24,7 +24,7 @@ findings contains finding if {
     (endswith(path, ".js"); endswith(path, ".ts"))
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for cookie setting without HttpOnly
+    # Look for cookie setting without HttpOnly
     (contains(line, "cookie(") or contains(line, ".cookie(") or contains(line, "res.cookie(")) and
     not contains(line, "httpOnly")
     finding := {

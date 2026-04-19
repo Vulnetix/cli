@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1004 - Excessive Use of Resource
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1004 - Excessive Use of Resource
 
 package vulnetix.rules.vnx_1004
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1004",
 	"name": "Excessive Use of Resource",
 	"description": "Detects excessive use of resource in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1004/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1004/",
 	"languages": ['go', 'java', 'node', 'php', 'python', 'ruby'],
 	"severity": "medium",
 	"level": "warning",

@@ -26,18 +26,18 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for multipart form handling or file upload handling
-    (contains(line, "r.MultipartForm") or
-     contains(line, "FormFile") or
-     contains(line, "ParseMultipartForm") or
+    # Look for multipart form handling or file upload handling
+    (contains(line, "r.MultipartForm") ;
+     contains(line, "FormFile") ;
+     contains(line, "ParseMultipartForm") ;
      contains(line, "UploadedFile")) and
-    // Check if there's no file type validation nearby (simple heuristic)
-    not (contains(line, "http.DetectContentType") or
-         contains(line, "mime.") or
-         contains(line, "filepath.Ext") or
-         contains(line, "strings.HasSuffix") or
-         contains(line, "strings.HasPrefix") or
-         contains(line, "validation.") or
+    # Check if there's no file type validation nearby (simple heuristic)
+    not (contains(line, "http.DetectContentType") ;
+         contains(line, "mime.") ;
+         contains(line, "filepath.Ext") ;
+         contains(line, "strings.HasSuffix") ;
+         contains(line, "strings.HasPrefix") ;
+         contains(line, "validation.") ;
          contains(line, "validate."))
     finding := {
         "rule_id": metadata.id,

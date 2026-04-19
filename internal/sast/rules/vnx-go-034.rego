@@ -26,24 +26,24 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for http.Redirect or similar redirect functions
-    (contains(line, "http.Redirect") or
-     contains(line, "Redirect") or
+    # Look for http.Redirect or similar redirect functions
+    (contains(line, "http.Redirect") ;
+     contains(line, "Redirect") ;
      contains(line, "http.RedirectHandler")) and
-    // Check if the redirect URI comes from a request parameter (user input)
-    (contains(line, "r.FormValue") or
-     contains(line, "r.URL.Query") or
-     contains(line, "r.PostFormValue") or
-     contains(line, "r.Header.Get") or
+    # Check if the redirect URI comes from a request parameter (user input)
+    (contains(line, "r.FormValue") ;
+     contains(line, "r.URL.Query") ;
+     contains(line, "r.PostFormValue") ;
+     contains(line, "r.Header.Get") ;
      contains(line, "ctx.Value")) and
-    // Check if there's no apparent validation (like against an allowlist)
-    not (contains(line, "allowlist") or
-         contains(line, "allowed") or
-         contains(line, "valid") or
-         contains(line, "validation.") or
-         contains(line, "validate.") or
-         contains(line, "sanitize.") or
-         contains(line, "isAllowed") or
+    # Check if there's no apparent validation (like against an allowlist)
+    not (contains(line, "allowlist") ;
+         contains(line, "allowed") ;
+         contains(line, "valid") ;
+         contains(line, "validation.") ;
+         contains(line, "validate.") ;
+         contains(line, "sanitize.") ;
+         contains(line, "isAllowed") ;
          contains(line, "isValid"))
     finding := {
         "rule_id": metadata.id,

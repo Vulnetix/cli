@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1037 - Process Injection
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1037 - Process Injection
 
 package vulnetix.rules.vnx_1037
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1037",
 	"name": "Process Injection",
 	"description": "Detects process injection in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1037/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1037/",
 	"languages": ['go', 'java', 'node', 'php', 'python', 'ruby'],
 	"severity": "medium",
 	"level": "warning",

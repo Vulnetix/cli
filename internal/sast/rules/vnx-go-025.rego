@@ -21,26 +21,30 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_redirect(line) if contains(line, "http.Redirect")
+_has_redirect(line) if contains(line, "Redirect")
+_has_redirect(line) if contains(line, "http.RedirectHandler")
+
+_has_user_input(line) if contains(line, "r.FormValue")
+_has_user_input(line) if contains(line, "r.URL.Query")
+_has_user_input(line) if contains(line, "r.PostFormValue")
+_has_user_input(line) if contains(line, "r.Header.Get")
+_has_user_input(line) if contains(line, "ctx.Value")
+
+_has_validation(line) if contains(line, "validation.")
+_has_validation(line) if contains(line, "validate.")
+_has_validation(line) if contains(line, "isSafeURL")
+_has_validation(line) if contains(line, "IsSafeURL")
+_has_validation(line) if contains(line, "sanitize.")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for http.Redirect or similar with user input
-    (contains(line, "http.Redirect") or
-     contains(line, "Redirect") or
-     contains(line, "http.RedirectHandler")) and
-    (contains(line, "r.FormValue") or
-     contains(line, "r.URL.Query") or
-     contains(line, "r.PostFormValue") or
-     contains(line, "r.Header.Get") or
-     contains(line, "ctx.Value"))
-    // And no validation/sanitization
-    not (contains(line, "validation.") or
-         contains(line, "validate.") or
-         contains(line, "isSafeURL") or
-         contains(line, "IsSafeURL") or
-         contains(line, "sanitize."))
+    _has_redirect(line)
+    _has_user_input(line)
+    not _has_validation(line)
     finding := {
         "rule_id": metadata.id,
         "message": "HTTP redirect with user input may lead to open redirect; validate the URL",
