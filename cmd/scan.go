@@ -33,7 +33,7 @@ import (
 // affect how detection and table output is rendered, not control flow.
 var (
 	showDetectedFiles bool
-	showCleanFiles    bool
+	showAllManifests  bool
 )
 
 // SeverityBreachError is returned when --severity threshold is breached.
@@ -224,7 +224,7 @@ Examples:
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		initDisplayContext(cmd, display.ModeText)
 		showDetectedFiles, _ = cmd.Flags().GetBool("show-detected")
-		showCleanFiles, _ = cmd.Flags().GetBool("show-clean")
+		showAllManifests, _ = cmd.Flags().GetBool("show-all-manifests")
 		// Credentials are optional — community fallback is used when absent.
 		return resolveVDBCredentials(false)
 	},
@@ -473,19 +473,19 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 			if !f.Supported {
 				supportedStr = " [not supported]"
 			}
-			if !resultsOnly {
+			if !resultsOnly && showDetectedFiles {
 				fmt.Fprintf(os.Stderr, "  %-40s manifest    %-10s (%s) %s%s\n",
 					f.RelPath, f.ManifestInfo.Ecosystem, f.ManifestInfo.Language, lockStr, supportedStr)
 			}
 		case scan.FileTypeSPDX:
-			if !resultsOnly {
+			if !resultsOnly && showDetectedFiles {
 				fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
 			}
 		case scan.FileTypeCycloneDX:
 			// Parse the CDX to check the producer.
 			cdxBom, cdxErr := parseCDXForScan(f.Path)
 			if cdxErr == nil && isVulnetixSCA(cdxBom) {
-				if !resultsOnly {
+				if !resultsOnly && showDetectedFiles {
 					fmt.Fprintf(os.Stderr, "  %-40s %s\n", f.RelPath,
 						display.Teal(t, "[skipped — produced by vulnetix-sca]"))
 				}
@@ -495,7 +495,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 				continue
 			}
 			if cdxErr == nil && cdxBom != nil {
-				if !resultsOnly {
+				if !resultsOnly && showDetectedFiles {
 					fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-8s (%d comp, %d vulns)\n",
 						f.RelPath, f.SBOMVersion, len(cdxBom.Components), len(cdxBom.Vulnerabilities))
 				}
@@ -506,7 +506,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 					f.Supported = true
 					supportedFiles = append(supportedFiles, f)
 				}
-			} else {
+			} else if showDetectedFiles {
 				fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
 			}
 		}
@@ -661,7 +661,7 @@ func runLocalScan(
 
 	// ── Parse manifests and query VDB (only if SCA is enabled) ───────────
 	if !noSCA {
-		if !resultsOnly {
+		if !resultsOnly && showDetectedFiles {
 			fmt.Fprintf(os.Stderr, "\nAnalysing %d file(s)... parsing manifests locally.\n\n", len(files))
 		}
 		// ── Parse manifests ────────────────────────────────────────────────────
@@ -1534,7 +1534,9 @@ func runDryScan(
 	}
 
 	// ── 3. Display detected files ─────────────────────────────────────────
-	fmt.Fprintln(os.Stderr, "Detected files:")
+	if showDetectedFiles {
+		fmt.Fprintln(os.Stderr, "Detected files:")
+	}
 	var supportedFiles []scan.DetectedFile
 	for _, f := range files {
 		switch f.FileType {
@@ -1547,23 +1549,31 @@ func runDryScan(
 			if !f.Supported {
 				supportedStr = " [not supported]"
 			}
-			fmt.Fprintf(os.Stderr, "  %-40s manifest    %-10s (%s) %s%s\n",
-				f.RelPath, f.ManifestInfo.Ecosystem, f.ManifestInfo.Language, lockStr, supportedStr)
+			if showDetectedFiles {
+				fmt.Fprintf(os.Stderr, "  %-40s manifest    %-10s (%s) %s%s\n",
+					f.RelPath, f.ManifestInfo.Ecosystem, f.ManifestInfo.Language, lockStr, supportedStr)
+			}
 		case scan.FileTypeSPDX:
-			fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
+			if showDetectedFiles {
+				fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
+			}
 		case scan.FileTypeCycloneDX:
 			cdxBom, cdxErr := parseCDXForScan(f.Path)
 			if cdxErr == nil && isVulnetixSCA(cdxBom) {
-				fmt.Fprintf(os.Stderr, "  %-40s %s\n", f.RelPath,
-					display.Teal(t, "[skipped — produced by vulnetix-sca]"))
+				if showDetectedFiles {
+					fmt.Fprintf(os.Stderr, "  %-40s %s\n", f.RelPath,
+						display.Teal(t, "[skipped — produced by vulnetix-sca]"))
+				}
 				continue
 			}
 			if cdxErr == nil && cdxBom != nil && len(cdxBom.Components) > 0 {
-				fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-8s (%d comp, %d vulns)\n",
-					f.RelPath, f.SBOMVersion, len(cdxBom.Components), len(cdxBom.Vulnerabilities))
+				if showDetectedFiles {
+					fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-8s (%d comp, %d vulns)\n",
+						f.RelPath, f.SBOMVersion, len(cdxBom.Components), len(cdxBom.Vulnerabilities))
+				}
 				f.Supported = true
 				supportedFiles = append(supportedFiles, f)
-			} else {
+			} else if showDetectedFiles {
 				fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
 			}
 		}
@@ -1787,6 +1797,9 @@ func printPrettyScanSummary(
 		dedupedVulns := res.dedupedVulns
 
 		if len(dedupedVulns) == 0 {
+			if !showAllManifests {
+				continue
+			}
 			// Sentinel row so the file still appears in the table.
 			row := make([]string, 16)
 			row[0] = primaryFile
@@ -2672,7 +2685,7 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().String("exploits", "", "Exit with code 1 when exploit maturity reaches the threshold: poc (any public exploit), active (CISA/EU KEV / actively exploited), weaponized (in-the-wild only).")
 	cmd.Flags().Bool("results-only", false, "Only output when findings exist; completely silent when the scan is clean.")
 	cmd.Flags().Bool("show-detected", false, "Show the 'Detected files:' listing and 'Analysing N file(s)…' progress banner.")
-	cmd.Flags().Bool("show-clean", false, "Include rows in the SCA table for manifests that have no vulnerabilities.")
+	cmd.Flags().Bool("show-all-manifests", false, "Include rows in the SCA table for manifests that have no vulnerabilities.")
 	cmd.Flags().Int("version-lag", 0, "Exit with code 1 when any dependency is within the N most recently published versions of that package (0 = disabled).")
 	cmd.Flags().Int("cooldown", 0, "Exit with code 1 when any dependency version was published within the last N days (0 = disabled, best-effort).")
 	cmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
