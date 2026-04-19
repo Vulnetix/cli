@@ -9,8 +9,13 @@ import rego.v1
 _is_lang(path, ext) if endswith(path, ext)
 
 is_c(path) if endswith(path, ".c")
-is_cpp(path) if endswith(path, ".cpp") or endswith(path, ".cc") or endswith(path, ".cxx")
-is_c_like(path) if is_c(path) or is_cpp(path)
+
+is_cpp(path) if endswith(path, ".cpp")
+is_cpp(path) if endswith(path, ".cc")
+is_cpp(path) if endswith(path, ".cxx")
+
+is_c_like(path) if is_c(path)
+is_c_like(path) if is_cpp(path)
 
 is_go(path) if endswith(path, ".go")
 is_java(path) if endswith(path, ".java")
@@ -22,9 +27,13 @@ is_php(path) if endswith(path, ".php")
 is_rust(path) if endswith(path, ".rs")
 is_swift(path) if endswith(path, ".swift")
 is_kotlin(path) if endswith(path, ".kt")
-is_docker(path) if endswith(path, ".dockerfile") or endswith(path, ".docker")
+is_docker(path) if endswith(path, ".dockerfile")
+is_docker(path) if endswith(path, ".docker")
+
 is_bash(path) if endswith(path, ".sh")
-is_gql(path) if endswith(path, ".graphql") or endswith(path, ".gql")
+
+is_gql(path) if endswith(path, ".graphql")
+is_gql(path) if endswith(path, ".gql")
 is_tf(path) if endswith(path, ".tf")
 is_sql(path) if endswith(path, ".sql")
 

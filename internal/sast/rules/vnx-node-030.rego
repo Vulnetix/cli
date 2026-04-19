@@ -19,39 +19,36 @@ metadata := {
     "tags": ["webrtc", "turn", "ip-address", "security"],
 }
 
+_is_js_file(path) if endswith(path, ".js")
+_is_js_file(path) if endswith(path, ".ts")
+
+_has_filter(line) if contains(line, ".filter(")
+_has_filter(line) if contains(line, ".includes(")
+_has_filter(line) if contains(line, ".indexOf(")
+_has_filter(line) if contains(line, "===")
+_has_filter(line) if contains(line, "!==")
+
+_has_reserved_ip(line) if contains(line, "127.0.0.1")
+_has_reserved_ip(line) if contains(line, "localhost")
+_has_reserved_ip(line) if contains(line, "10.")
+_has_reserved_ip(line) if contains(line, "192.168.")
+_has_reserved_ip(line) if contains(line, "172.16.")
+_has_reserved_ip(line) if contains(line, "172.31.")
+_has_reserved_ip(line) if contains(line, "169.254.")
+_has_reserved_ip(line) if contains(line, "0.0.0.0")
+_has_reserved_ip(line) if contains(line, "255.255.255.255")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
-    (endswith(path, ".js") || endswith(path, ".ts"))
+    _is_js_file(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for IP address validation or filtering
-    (contains(line, ".filter(") ;
-     contains(line, ".includes(") ;
-     contains(line, ".indexOf(") ;
-     contains(line, "===") ;
-     contains(line, "!==")) and
-    # Check for reserved IP patterns: localhost, private ranges, etc.
-    (contains(line, "127.0.0.1") ;
-     contains(line, "localhost") ;
-     contains(line, "10.") ;
-     contains(line, "192.168.") ;
-     contains(line, "172.16.") ;
-     contains(line, "172.31.") ;
-     contains(line, "169.254.") ;
-     contains(line, "0.0.0.0") ;
-     contains(line, "255.255.255.255")) and
-    # The context seems to be allowing these IPs (negative logic: we want to flag when they are ALLOWED)
-    # This is tricky; we'll look for lack of negation or exclusion
-    not (contains(line, "!=") and
-         (contains(line, "127.0.0.1") ;
-          contains(line, "localhost") ;
-          contains(line, "10.") ;
-          contains(line, "192.168.") ;
-          contains(line, "172.16.") ;
-          contains(line, "172.31.") ;
-          contains(line, "169.254.") ;
-          contains(line, "0.0.0.0") ;
-          contains(line, "255.255.255.255")))
+    _has_filter(line)
+    # Check for reserved IP patterns
+    _has_reserved_ip(line)
+    # Not properly excluded with !=
+    not (contains(line, "!=") and _has_reserved_ip(line))
     finding := {
         "rule_id": metadata.id,
         "message": "IP address check may allow reserved IPs (localhost, private ranges); TURN server should not allow access to reserved IP addresses",

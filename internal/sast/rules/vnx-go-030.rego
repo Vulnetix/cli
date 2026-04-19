@@ -21,13 +21,17 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_cookie(line) if contains(line, "http.Cookie")
+_has_cookie(line) if contains(line, "&http.Cookie")
+_has_cookie(line) if contains(line, "cookie := &http.Cookie")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for cookie setting without Secure
-    (contains(line, "http.Cookie") or contains(line, "&http.Cookie") or contains(line, "cookie := &http.Cookie")) and
+    _has_cookie(line)
     not contains(line, "Secure: true")
     finding := {
         "rule_id": metadata.id,

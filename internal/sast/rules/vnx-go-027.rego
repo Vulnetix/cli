@@ -21,29 +21,34 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_path_func(line) if contains(line, "filepath.Join")
+_has_path_func(line) if contains(line, "path.Join")
+_has_path_func(line) if contains(line, "/")
+_has_path_func(line) if contains(line, "\\")
+
+_has_user_input(line) if contains(line, "r.FormValue")
+_has_user_input(line) if contains(line, "r.URL.Query")
+_has_user_input(line) if contains(line, "r.PostFormValue")
+_has_user_input(line) if contains(line, "r.Header.Get")
+_has_user_input(line) if contains(line, "ctx.Value")
+_has_user_input(line) if contains(line, "os.Args")
+
+_has_validation(line) if contains(line, "filepath.Clean")
+_has_validation(line) if contains(line, "path.Clean")
+_has_validation(line) if contains(line, "validation.")
+_has_validation(line) if contains(line, "validate.")
+_has_validation(line) if contains(line, "sanitize.")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for path construction with user input
-    (contains(line, "filepath.Join") ;
-     contains(line, "path.Join") ;
-     contains(line, "/") ;
-     contains(line, "\\")) and
-    (contains(line, "r.FormValue") ;
-     contains(line, "r.URL.Query") ;
-     contains(line, "r.PostFormValue") ;
-     contains(line, "r.Header.Get") ;
-     contains(line, "ctx.Value") ;
-     contains(line, "os.Args"))
+    _has_path_func(line)
+    _has_user_input(line)
     # And no path validation/sanitization
-    not (contains(line, "filepath.Clean") ;
-         contains(line, "path.Clean") ;
-         contains(line, "strings.Contains") and contains(line, "..") ;
-         contains(line, "validation.") ;
-         contains(line, "validate.") ;
-         contains(line, "sanitize."))
+    not _has_validation(line)
     finding := {
         "rule_id": metadata.id,
         "message": "File path constructed with user input may lead to path traversal; validate and sanitize the path",
