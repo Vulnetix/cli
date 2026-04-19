@@ -7,10 +7,79 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	git "github.com/go-git/go-git/v5"
 )
+
+// sanitizeIdent converts an org/repo name fragment into a valid Rego identifier
+// component (letters, digits, underscore; must not start with a digit).
+func sanitizeIdent(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	out := b.String()
+	if out == "" || (out[0] >= '0' && out[0] <= '9') {
+		out = "r_" + out
+	}
+	return out
+}
+
+// repoNamespace returns the per-repo identifier injected into package paths.
+func repoNamespace(ref RuleRef) string {
+	return sanitizeIdent(ref.Org) + "_" + sanitizeIdent(ref.Repo)
+}
+
+var (
+	rePackage = regexp.MustCompile(`(?m)^(\s*package\s+)([A-Za-z_][A-Za-z0-9_.]*)`)
+	reImport  = regexp.MustCompile(`(?m)^(\s*import\s+)(data\.[A-Za-z_][A-Za-z0-9_.]*)`)
+)
+
+// namespacePath rewrites a dotted Rego path under the `vulnetix` root to
+// inject the per-repo namespace while keeping `vulnetix.rules.*` discoverable
+// by the engine's `data.vulnetix.rules` query.
+//
+//	vulnetix.rules.X[.Y...]    → vulnetix.rules.<ns>_X[.Y...]
+//	vulnetix.A[.B...]          → vulnetix.<ns>_A[.B...]        (A != "rules")
+//	anything else              → unchanged
+func namespacePath(path, ns string) string {
+	parts := strings.Split(path, ".")
+	if len(parts) < 2 || parts[0] != "vulnetix" {
+		return path
+	}
+	if parts[1] == "rules" {
+		if len(parts) < 3 {
+			return path
+		}
+		parts[2] = ns + "_" + parts[2]
+		return strings.Join(parts, ".")
+	}
+	parts[1] = ns + "_" + parts[1]
+	return strings.Join(parts, ".")
+}
+
+// namespaceRego rewrites all `package` and `import data.vulnetix.*` statements
+// in a Rego source file so that rules and helpers from different external
+// repositories cannot collide on identical package paths.
+func namespaceRego(src, ns string) string {
+	src = rePackage.ReplaceAllStringFunc(src, func(m string) string {
+		sub := rePackage.FindStringSubmatch(m)
+		return sub[1] + namespacePath(sub[2], ns)
+	})
+	src = reImport.ReplaceAllStringFunc(src, func(m string) string {
+		sub := reImport.FindStringSubmatch(m)
+		path := strings.TrimPrefix(sub[2], "data.")
+		return sub[1] + "data." + namespacePath(path, ns)
+	})
+	return src
+}
 
 // FetchRuleRepo clones or pulls a rule repository into the system cache.
 // Returns the local cache path. Prints progress to w.
@@ -94,6 +163,7 @@ func LoadAllModules(
 			continue
 		}
 
+		ns := repoNamespace(ref)
 		n := 0
 		rulesDir := filepath.Join(cacheDir, "rules")
 		err = filepath.WalkDir(rulesDir, func(path string, d os.DirEntry, err error) error {
@@ -109,7 +179,7 @@ func LoadAllModules(
 			}
 			relPath, _ := filepath.Rel(cacheDir, path)
 			key := ref.Org + "/" + ref.Repo + "/" + filepath.ToSlash(relPath)
-			modules[key] = string(data)
+			modules[key] = namespaceRego(string(data), ns)
 			n++
 			return nil
 		})
