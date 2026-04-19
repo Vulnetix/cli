@@ -11,7 +11,7 @@ metadata := {
 	"name": "SQL Injection via External Input",
 	"description": "Detects sql injection via external input in source code.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1041/",
-	"languages": ['go', 'java', 'node', 'php', 'python'],
+	"languages": ["go", "java", "node", "php", "python"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
@@ -20,7 +20,7 @@ metadata := {
 	"attack_technique": ["T1557"],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ['sql-injection'],
+	"tags": ["sql-injection"],
 }
 
 _skip(path) if helpers._should_skip(path)

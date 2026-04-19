@@ -44,20 +44,20 @@ sensitive_patterns := [
     "routing",
 ]
 
+_has_logging(line) if contains(line, "log.Print")
+_has_logging(line) if contains(line, "log.Println")
+_has_logging(line) if contains(line, "log.Printf")
+_has_logging(line) if contains(line, "logrus.")
+_has_logging(line) if contains(line, "zap.")
+_has_logging(line) if contains(line, "zerolog.")
+_has_logging(line) if contains(line, "logger.")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for logging functions
-    (contains(line, "log.Print") ;
-     contains(line, "log.Println") ;
-     contains(line, "log.Printf") ;
-     contains(line, "logrus.") ;
-     contains(line, "zap.") ;
-     contains(line, "zerolog.") ;
-     contains(line, "logger.")) and
-    # Check if any sensitive data patterns are in the line
+    _has_logging(line)
     some sensitive in sensitive_patterns
     contains(line, sensitive)
     finding := {

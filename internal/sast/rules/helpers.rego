@@ -49,7 +49,7 @@ _should_skip(path) if endswith(path, ".min.json")
 # CVSS base scores are mapped inline in rules
 
 # Generate standardized finding
-generate_finding(severity, level, rule_id, message, artifact_uri, start_line, snippet) = finding {
+generate_finding(severity, level, rule_id, message, artifact_uri, start_line, snippet) = finding if {
   finding := {
     "rule_id": rule_id,
     "message": message,

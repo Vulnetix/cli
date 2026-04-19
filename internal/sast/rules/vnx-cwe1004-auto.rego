@@ -11,7 +11,7 @@ metadata := {
 	"name": "Excessive Use of Resource",
 	"description": "Detects excessive use of resource in source code.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1004/",
-	"languages": ['go', 'java', 'node', 'php', 'python', 'ruby'],
+	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",

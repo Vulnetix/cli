@@ -21,21 +21,22 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_weak_tls_version(line) if contains(line, "tls.VersionTLS10")
+_has_weak_tls_version(line) if contains(line, "tls.VersionTLS11")
+_has_weak_tls_version(line) if contains(line, "tls.TLS10")
+_has_weak_tls_version(line) if contains(line, "tls.TLS11")
+
+_has_version_setting(line) if contains(line, "MinVersion")
+_has_version_setting(line) if contains(line, "MaxVersion")
+_has_version_setting(line) if contains(line, "Version")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for TLS configuration that sets min or max version to TLS 1.0 or 1.1
-    (contains(line, "tls.VersionTLS10") ;
-     contains(line, "tls.VersionTLS11") ;
-     contains(line, "TLS_RSA_WITH_") or // example of weak cipher suite, but we focus on version
-     contains(line, "tls.TLS10") ;
-     contains(line, "tls.TLS11")) and
-    # Check if it's being used to set the version (like in tls.Config)
-    (contains(line, "MinVersion") ;
-     contains(line, "MaxVersion") ;
-     contains(line, "Version"))
+    _has_weak_tls_version(line)
+    _has_version_setting(line)
     finding := {
         "rule_id": metadata.id,
         "message": "Deprecated TLS version (TLS 1.0 or 1.1) detected; use TLS 1.2 or 1.3 instead",

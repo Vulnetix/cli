@@ -19,21 +19,26 @@ metadata := {
     "tags": ["xxe", "xml", "parsing"],
 }
 
+_has_xml_factory(line) if contains(line, "DocumentBuilderFactory")
+_has_xml_factory(line) if contains(line, "SAXParserFactory")
+_has_xml_factory(line) if contains(line, "XMLReader")
+
+_has_secure_feature(line) if contains(line, "http://apache.org/xml/features/disallow-doctype-decl")
+_has_secure_feature(line) if contains(line, "http://xml.org/sax/features/external-general-entities")
+_has_secure_feature(line) if contains(line, "http://xml.org/sax/features/external-parameter-entities")
+_has_secure_feature(line) if contains(line, "http://javax.xml.XMLConstants/feature/secure-processing")
+
+_lacks_xxe_protection(line) if {
+    _has_xml_factory(line)
+    not (contains(line, "setFeature") and _has_secure_feature(line))
+}
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     endswith(path, ".java")
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for DocumentBuilderFactory usage
-    (contains(line, "DocumentBuilderFactory") ;
-     contains(line, "SAXParserFactory") ;
-     contains(line, "XMLReader")) and
-    # Check if there's no call to setFeature for external entities
-    not (contains(line, "setFeature") and
-         (contains(line, "http://apache.org/xml/features/disallow-doctype-decl") ;
-          contains(line, "http://xml.org/sax/features/external-general-entities") ;
-          contains(line, "http://xml.org/sax/features/external-parameter-entities") ;
-          contains(line, "http://javax.xml.XMLConstants/feature/secure-processing")))
+    _lacks_xxe_protection(line)
     finding := {
         "rule_id": metadata.id,
         "message": "XML factory used without disabling external entity processing; consider setting secure features to prevent XXE",
