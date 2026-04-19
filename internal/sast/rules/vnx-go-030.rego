@@ -26,7 +26,7 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for cookie setting without Secure
+    # Look for cookie setting without Secure
     (contains(line, "http.Cookie") or contains(line, "&http.Cookie") or contains(line, "cookie := &http.Cookie")) and
     not contains(line, "Secure: true")
     finding := {

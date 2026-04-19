@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1048 - Sensitive Data in Referrer
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1048 - Sensitive Data in Referrer
 
 package vulnetix.rules.vnx_1048
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1048",
 	"name": "Sensitive Data in Referrer",
 	"description": "Detects sensitive data in referrer in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1048/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1048/",
 	"languages": ['go', 'java', 'node', 'php', 'python'],
 	"severity": "medium",
 	"level": "warning",

@@ -24,12 +24,12 @@ findings contains finding if {
     endswith(path, ".py")
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for string concatenation with SQL keywords
+    # Look for string concatenation with SQL keywords
     (contains(line, ".execute(") ||
      contains(line, ".executescript(") ||
      contains(line, "cursor.execute(")) and
-    (contains(line, "+") or
-     contains(line, "%") or
+    (contains(line, "+") ;
+     contains(line, "%") ;
      contains(line, ".format("))
     finding := {
         "rule_id": metadata.id,

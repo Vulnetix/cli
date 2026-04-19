@@ -24,9 +24,9 @@ findings contains finding if {
     (endswith(path, ".js") || endswith(path, ".ts"))
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for HTTP response setting without CSP header
+    # Look for HTTP response setting without CSP header
     contains(line, ".writeHead") or contains(line, ".setHeader") or contains(line, ".header(")
-    // Simple check: if we see response headers being set but no CSP
+    # Simple check: if we see response headers being set but no CSP
     not (contains(line, "Content-Security-Policy") or contains(line, "X-Content-Security-Policy") or contains(line, "X-WebKit-CSP"))
     finding := {
         "rule_id": metadata.id,

@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1047 - SSRF without Timeout
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1047 - SSRF without Timeout
 
 package vulnetix.rules.vnx_1047
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1047",
 	"name": "SSRF without Timeout",
 	"description": "Detects ssrf without timeout in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1047/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1047/",
 	"languages": ['go', 'java', 'node', 'php', 'python'],
 	"severity": "medium",
 	"level": "warning",

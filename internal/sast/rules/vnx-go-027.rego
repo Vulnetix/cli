@@ -26,23 +26,23 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for path construction with user input
-    (contains(line, "filepath.Join") or
-     contains(line, "path.Join") or
-     contains(line, "/") or
+    # Look for path construction with user input
+    (contains(line, "filepath.Join") ;
+     contains(line, "path.Join") ;
+     contains(line, "/") ;
      contains(line, "\\")) and
-    (contains(line, "r.FormValue") or
-     contains(line, "r.URL.Query") or
-     contains(line, "r.PostFormValue") or
-     contains(line, "r.Header.Get") or
-     contains(line, "ctx.Value") or
+    (contains(line, "r.FormValue") ;
+     contains(line, "r.URL.Query") ;
+     contains(line, "r.PostFormValue") ;
+     contains(line, "r.Header.Get") ;
+     contains(line, "ctx.Value") ;
      contains(line, "os.Args"))
-    // And no path validation/sanitization
-    not (contains(line, "filepath.Clean") or
-         contains(line, "path.Clean") or
-         contains(line, "strings.Contains") and contains(line, "..") or
-         contains(line, "validation.") or
-         contains(line, "validate.") or
+    # And no path validation/sanitization
+    not (contains(line, "filepath.Clean") ;
+         contains(line, "path.Clean") ;
+         contains(line, "strings.Contains") and contains(line, "..") ;
+         contains(line, "validation.") ;
+         contains(line, "validate.") ;
          contains(line, "sanitize."))
     finding := {
         "rule_id": metadata.id,

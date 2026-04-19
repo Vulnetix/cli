@@ -26,24 +26,24 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for struct binding from request data
-    (contains(line, "Bind") or
-     contains(line, "ShouldBind") or
-     contains(line, "Decode") or
+    # Look for struct binding from request data
+    (contains(line, "Bind") ;
+     contains(line, "ShouldBind") ;
+     contains(line, "Decode") ;
      contains(line, "Unmarshal")) and
-    (contains(line, "r.Body") or
-     contains(line, "r.Form") or
-     contains(line, "r.PostForm") or
-     contains(line, "ctx") or
+    (contains(line, "r.Body") ;
+     contains(line, "r.Form") ;
+     contains(line, "r.PostForm") ;
+     contains(line, "ctx") ;
      contains(line, "json.NewDecoder")) and
-    // Check if there's no field validation or struct tags limiting fields
-    not (contains(line, "binding:\"-\"") or
-         contains(line, "json:\"-\"") or
-         contains(line, "form:\"-\"") or
-         contains(line, "validate:\"-\"") or
-         contains(line, "validation.") or
-         contains(line, "validate.") or
-         contains(line, "structtag") or
+    # Check if there's no field validation or struct tags limiting fields
+    not (contains(line, "binding:\"-\"") ;
+         contains(line, "json:\"-\"") ;
+         contains(line, "form:\"-\"") ;
+         contains(line, "validate:\"-\"") ;
+         contains(line, "validation.") ;
+         contains(line, "validate.") ;
+         contains(line, "structtag") ;
          contains(line, "selector"))
     finding := {
         "rule_id": metadata.id,

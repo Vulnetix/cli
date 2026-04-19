@@ -65,11 +65,11 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for assignment of a string literal to a variable that looks like a password
+    # Look for assignment of a string literal to a variable that looks like a password
     (contains(line, ":=") or contains(line, "=")) and
     (contains(line, "password") or contains(line, "passwd") or contains(line, "pass") or contains(line, "pwd")) and
-    // Extract the string literal on the right side
-    // We'll do a simple check: if the line contains a quote and the string inside is in our weak_passwords list
+    # Extract the string literal on the right side
+    # We'll do a simple check: if the line contains a quote and the string inside is in our weak_passwords list
     some weak in weak_passwords
     contains(line, `"` + weak + `"`) or contains(line, "`" + weak + "`") or contains(line, "'" + weak + "'")
     finding := {

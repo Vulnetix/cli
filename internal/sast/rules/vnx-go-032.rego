@@ -26,16 +26,16 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for JWT parsing/usage without checking expiration
-    (contains(line, "jwt.Parse") or
-     contains(line, "jwt.Decode") or
+    # Look for JWT parsing/usage without checking expiration
+    (contains(line, "jwt.Parse") ;
+     contains(line, "jwt.Decode") ;
      contains(line, "jwt.DecodeSegment")) and
-    // Check if there's no expiration validation
-    not (contains(line, "VerifyExpiresAt") or
-         contains(line, "Validate") or
-         contains(line, "Valid") or
-         contains(line, "Claims.ExpiresAt") or
-         contains(line, "StandardClaims.ExpiresAt") or
+    # Check if there's no expiration validation
+    not (contains(line, "VerifyExpiresAt") ;
+         contains(line, "Validate") ;
+         contains(line, "Valid") ;
+         contains(line, "Claims.ExpiresAt") ;
+         contains(line, "StandardClaims.ExpiresAt") ;
          contains(line, "RegisteredClaims.ExpiresAt"))
     finding := {
         "rule_id": metadata.id,

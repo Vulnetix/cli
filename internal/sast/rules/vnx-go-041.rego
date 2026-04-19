@@ -26,15 +26,15 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for TLS configuration that sets min or max version to TLS 1.0 or 1.1
-    (contains(line, "tls.VersionTLS10") or
-     contains(line, "tls.VersionTLS11") or
+    # Look for TLS configuration that sets min or max version to TLS 1.0 or 1.1
+    (contains(line, "tls.VersionTLS10") ;
+     contains(line, "tls.VersionTLS11") ;
      contains(line, "TLS_RSA_WITH_") or // example of weak cipher suite, but we focus on version
-     contains(line, "tls.TLS10") or
+     contains(line, "tls.TLS10") ;
      contains(line, "tls.TLS11")) and
-    // Check if it's being used to set the version (like in tls.Config)
-    (contains(line, "MinVersion") or
-     contains(line, "MaxVersion") or
+    # Check if it's being used to set the version (like in tls.Config)
+    (contains(line, "MinVersion") ;
+     contains(line, "MaxVersion") ;
      contains(line, "Version"))
     finding := {
         "rule_id": metadata.id,

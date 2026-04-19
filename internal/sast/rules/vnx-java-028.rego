@@ -24,12 +24,12 @@ findings contains finding if {
     endswith(path, ".java")
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for string concatenation with SQL keywords
-    (contains(line, ".execute(") or
-     contains(line, ".executeQuery(") or
+    # Look for string concatenation with SQL keywords
+    (contains(line, ".execute(") ;
+     contains(line, ".executeQuery(") ;
      contains(line, ".executeUpdate(")) and
-    (contains(line, "+") or
-     contains(line, ".concat(") or
+    (contains(line, "+") ;
+     contains(line, ".concat(") ;
      contains(line, "String.format("))
     finding := {
         "rule_id": metadata.id,

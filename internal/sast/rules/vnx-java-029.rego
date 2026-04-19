@@ -24,15 +24,15 @@ findings contains finding if {
     endswith(path, ".java")
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for DocumentBuilderFactory usage
-    (contains(line, "DocumentBuilderFactory") or
-     contains(line, "SAXParserFactory") or
+    # Look for DocumentBuilderFactory usage
+    (contains(line, "DocumentBuilderFactory") ;
+     contains(line, "SAXParserFactory") ;
      contains(line, "XMLReader")) and
-    // Check if there's no call to setFeature for external entities
+    # Check if there's no call to setFeature for external entities
     not (contains(line, "setFeature") and
-         (contains(line, "http://apache.org/xml/features/disallow-doctype-decl") or
-          contains(line, "http://xml.org/sax/features/external-general-entities") or
-          contains(line, "http://xml.org/sax/features/external-parameter-entities") or
+         (contains(line, "http://apache.org/xml/features/disallow-doctype-decl") ;
+          contains(line, "http://xml.org/sax/features/external-general-entities") ;
+          contains(line, "http://xml.org/sax/features/external-parameter-entities") ;
           contains(line, "http://javax.xml.XMLConstants/feature/secure-processing")))
     finding := {
         "rule_id": metadata.id,

@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1052 - Excessive Resource Usage
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1052 - Excessive Resource Usage
 
 package vulnetix.rules.vnx_1052
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1052",
 	"name": "Excessive Resource Usage",
 	"description": "Detects excessive resource usage in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1052/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1052/",
 	"languages": ['go', 'java', 'node', 'python'],
 	"severity": "medium",
 	"level": "warning",

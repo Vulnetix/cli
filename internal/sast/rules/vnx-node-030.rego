@@ -24,33 +24,33 @@ findings contains finding if {
     (endswith(path, ".js") || endswith(path, ".ts"))
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for IP address validation or filtering
-    (contains(line, ".filter(") or
-     contains(line, ".includes(") or
-     contains(line, ".indexOf(") or
-     contains(line, "===") or
+    # Look for IP address validation or filtering
+    (contains(line, ".filter(") ;
+     contains(line, ".includes(") ;
+     contains(line, ".indexOf(") ;
+     contains(line, "===") ;
      contains(line, "!==")) and
-    // Check for reserved IP patterns: localhost, private ranges, etc.
-    (contains(line, "127.0.0.1") or
-     contains(line, "localhost") or
-     contains(line, "10.") or
-     contains(line, "192.168.") or
-     contains(line, "172.16.") or
-     contains(line, "172.31.") or
-     contains(line, "169.254.") or
-     contains(line, "0.0.0.0") or
+    # Check for reserved IP patterns: localhost, private ranges, etc.
+    (contains(line, "127.0.0.1") ;
+     contains(line, "localhost") ;
+     contains(line, "10.") ;
+     contains(line, "192.168.") ;
+     contains(line, "172.16.") ;
+     contains(line, "172.31.") ;
+     contains(line, "169.254.") ;
+     contains(line, "0.0.0.0") ;
      contains(line, "255.255.255.255")) and
-    // The context seems to be allowing these IPs (negative logic: we want to flag when they are ALLOWED)
-    // This is tricky; we'll look for lack of negation or exclusion
+    # The context seems to be allowing these IPs (negative logic: we want to flag when they are ALLOWED)
+    # This is tricky; we'll look for lack of negation or exclusion
     not (contains(line, "!=") and
-         (contains(line, "127.0.0.1") or
-          contains(line, "localhost") or
-          contains(line, "10.") or
-          contains(line, "192.168.") or
-          contains(line, "172.16.") or
-          contains(line, "172.31.") or
-          contains(line, "169.254.") or
-          contains(line, "0.0.0.0") or
+         (contains(line, "127.0.0.1") ;
+          contains(line, "localhost") ;
+          contains(line, "10.") ;
+          contains(line, "192.168.") ;
+          contains(line, "172.16.") ;
+          contains(line, "172.31.") ;
+          contains(line, "169.254.") ;
+          contains(line, "0.0.0.0") ;
           contains(line, "255.255.255.255")))
     finding := {
         "rule_id": metadata.id,

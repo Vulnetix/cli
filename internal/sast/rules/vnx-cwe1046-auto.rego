@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1046 - Open Redirect to Untrusted Site
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1046 - Open Redirect to Untrusted Site
 
 package vulnetix.rules.vnx_1046
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1046",
 	"name": "Open Redirect to Untrusted Site",
 	"description": "Detects open redirect to untrusted site in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1046/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1046/",
 	"languages": ['go', 'java', 'node', 'php', 'python'],
 	"severity": "medium",
 	"level": "warning",

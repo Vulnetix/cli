@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: Apache-2.0
-// Cryptographic - MD5 usage detected
+# SPDX-License-Identifier: Apache-2.0
+# Cryptographic - MD5 usage detected
 
 package vulnetix.rules.vnx_crypto_001
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-CRYPTO-001",

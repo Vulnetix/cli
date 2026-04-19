@@ -49,15 +49,15 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for logging functions
-    (contains(line, "log.Print") or
-     contains(line, "log.Println") or
-     contains(line, "log.Printf") or
-     contains(line, "logrus.") or
-     contains(line, "zap.") or
-     contains(line, "zerolog.") or
+    # Look for logging functions
+    (contains(line, "log.Print") ;
+     contains(line, "log.Println") ;
+     contains(line, "log.Printf") ;
+     contains(line, "logrus.") ;
+     contains(line, "zap.") ;
+     contains(line, "zerolog.") ;
      contains(line, "logger.")) and
-    // Check if any sensitive data patterns are in the line
+    # Check if any sensitive data patterns are in the line
     some sensitive in sensitive_patterns
     contains(line, sensitive)
     finding := {

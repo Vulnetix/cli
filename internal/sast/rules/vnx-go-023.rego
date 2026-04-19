@@ -27,7 +27,7 @@ findings contains finding if {
     contains(line, "exec") // looking for db.Exec or similar
     contains(line, "\"")
     contains(line, "+")
-    // Simple heuristic: looks for string concatenation in SQL context
+    # Simple heuristic: looks for string concatenation in SQL context
     finding := {
         "rule_id": metadata.id,
         "message": "Potential SQL injection via string concatenation; use parameterized queries instead",

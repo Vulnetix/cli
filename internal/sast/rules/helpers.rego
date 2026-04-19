@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: Apache-2.0
-// Helper functions and templates for SAST rules
+# SPDX-License-Identifier: Apache-2.0
+# Helper functions and templates for SAST rules
 
 package vulnetix.helpers
 
 import rego.v1
 
-// Common language detection functions
+# Common language detection functions
 _is_lang(path, ext) if endswith(path, ext)
 
 is_c(path) if endswith(path, ".c")
@@ -28,7 +28,7 @@ is_gql(path) if endswith(path, ".graphql") or endswith(path, ".gql")
 is_tf(path) if endswith(path, ".tf")
 is_sql(path) if endswith(path, ".sql")
 
-// Skip patterns for generated/minified files
+# Skip patterns for generated/minified files
 _should_skip(path) if endswith(path, ".lock")
 _should_skip(path) if endswith(path, ".sum")
 _should_skip(path) if endswith(path, ".min.js")
@@ -36,21 +36,21 @@ _should_skip(path) if endswith(path, ".min.css")
 _should_skip(path) if endswith(path, ".min.html")
 _should_skip(path) if endswith(path, ".min.json")
 
-// Common dangerous function patterns
+# Common dangerous function patterns
 _bash_injection_indicators = ["eval ", "$( ", "`", "| sh", "| bash"]
 _sql_injection_indicators = ["SELECT * FROM", "INSERT INTO", "UPDATE ", "DELETE FROM",
   "WHERE ", "DROP ", "UNION SELECT", "OR 1=1", "' OR '", '" OR "']
 _xss_indicators = ["innerHTML", "outerHTML", "document.write", "eval(",
   "setTimeout(", "setInterval("]
 
-// CVSS base scores for severity mapping
+# CVSS base scores for severity mapping
 _cvss_severity_map = {
   "HIGH": 7.0..10.0,
   "MEDIUM": 4.0..6.9,
   "LOW": 0.1..3.9,
 }
 
-// Generate standardized finding
+# Generate standardized finding
 generate_finding(severity, level, rule_id, message, artifact_uri, start_line, snippet) = finding {
   finding := {
     "rule_id": rule_id,

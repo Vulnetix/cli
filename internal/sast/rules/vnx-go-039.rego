@@ -26,20 +26,20 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for HTTP handler functions that might be login endpoints
+    # Look for HTTP handler functions that might be login endpoints
     (contains(line, "func ") and
-     (contains(line, "Login") or
-      contains(line, "login") or
-      contains(line, "SignIn") or
-      contains(line, "signIn") or
+     (contains(line, "Login") ;
+      contains(line, "login") ;
+      contains(line, "SignIn") ;
+      contains(line, "signIn") ;
       contains(line, "signin"))) and
-    // Check if there's no rate limiting middleware or function call nearby (simple heuristic)
-    // We'll look in the same function or the next few lines for rate limiting terms
-    not (contains(line, "rate") or
-         contains(line, "throttle") or
-         contains(line, "limiter") or
-         contains(line, "RateLimit") or
-         contains(line, "Throttle") or
+    # Check if there's no rate limiting middleware or function call nearby (simple heuristic)
+    # We'll look in the same function or the next few lines for rate limiting terms
+    not (contains(line, "rate") ;
+         contains(line, "throttle") ;
+         contains(line, "limiter") ;
+         contains(line, "RateLimit") ;
+         contains(line, "Throttle") ;
          contains(line, "Limiter"))
     finding := {
         "rule_id": metadata.id,

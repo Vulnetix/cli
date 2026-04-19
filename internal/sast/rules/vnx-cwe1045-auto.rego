@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1045 - File Upload without Type Restriction
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1045 - File Upload without Type Restriction
 
 package vulnetix.rules.vnx_1045
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1045",
 	"name": "File Upload without Type Restriction",
 	"description": "Detects file upload without type restriction in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1045/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1045/",
 	"languages": ['go', 'java', 'node', 'php', 'python'],
 	"severity": "medium",
 	"level": "warning",

@@ -26,16 +26,16 @@ findings contains finding if {
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    // Look for JWT parsing/usage without validation
-    (contains(line, "jwt.Parse") or
-     contains(line, "jwt.Decode") or
+    # Look for JWT parsing/usage without validation
+    (contains(line, "jwt.Parse") ;
+     contains(line, "jwt.Decode") ;
      contains(line, "jwt.DecodeSegment")) and
-    // Check if there's no validation method called
-    not (contains(line, "VerifySignature") or
-         contains(line, "Validate") or
-         contains(line, "Valid") or
-         contains(line, "ParseWithClaims") or
-         contains(line, "jwt.ParseRSAPublicKeyFromPEM") or
+    # Check if there's no validation method called
+    not (contains(line, "VerifySignature") ;
+         contains(line, "Validate") ;
+         contains(line, "Valid") ;
+         contains(line, "ParseWithClaims") ;
+         contains(line, "jwt.ParseRSAPublicKeyFromPEM") ;
          contains(line, "jwt.ParseECPublicKeyFromPEM"))
     finding := {
         "rule_id": metadata.id,

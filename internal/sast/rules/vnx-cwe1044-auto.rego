@@ -1,16 +1,16 @@
-// SPDX-License-Identifier: Apache-2.0
-// VNX-1044 - File Upload without Size Limit
+# SPDX-License-Identifier: Apache-2.0
+# VNX-1044 - File Upload without Size Limit
 
 package vulnetix.rules.vnx_1044
 
 import rego.v1
-import vulnetix.helpers
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1044",
 	"name": "File Upload without Size Limit",
 	"description": "Detects file upload without size limit in source code.",
-	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1044/".format(rid),
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1044/",
 	"languages": ['go', 'java', 'node', 'php', 'python'],
 	"severity": "medium",
 	"level": "warning",
