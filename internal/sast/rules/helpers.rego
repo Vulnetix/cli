@@ -45,19 +45,8 @@ _should_skip(path) if endswith(path, ".min.css")
 _should_skip(path) if endswith(path, ".min.html")
 _should_skip(path) if endswith(path, ".min.json")
 
-# Common dangerous function patterns
-_bash_injection_indicators = ["eval ", "$( ", "`", "| sh", "| bash"]
-_sql_injection_indicators = ["SELECT * FROM", "INSERT INTO", "UPDATE ", "DELETE FROM",
-  "WHERE ", "DROP ", "UNION SELECT", "OR 1=1", "' OR '", '" OR "']
-_xss_indicators = ["innerHTML", "outerHTML", "document.write", "eval(",
-  "setTimeout(", "setInterval("]
-
-# CVSS base scores for severity mapping
-_cvss_severity_map = {
-  "HIGH": 7.0..10.0,
-  "MEDIUM": 4.0..6.9,
-  "LOW": 0.1..3.9,
-}
+# Note: Pattern indicators are checked inline in rules using contains()
+# CVSS base scores are mapped inline in rules
 
 # Generate standardized finding
 generate_finding(severity, level, rule_id, message, artifact_uri, start_line, snippet) = finding {

@@ -21,24 +21,28 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_upload(line) if contains(line, "r.MultipartForm")
+_has_upload(line) if contains(line, "FormFile")
+_has_upload(line) if contains(line, "ParseMultipartForm")
+_has_upload(line) if contains(line, "UploadedFile")
+
+_has_validation(line) if contains(line, "http.DetectContentType")
+_has_validation(line) if contains(line, "mime.")
+_has_validation(line) if contains(line, "filepath.Ext")
+_has_validation(line) if contains(line, "strings.HasSuffix")
+_has_validation(line) if contains(line, "strings.HasPrefix")
+_has_validation(line) if contains(line, "validation.")
+_has_validation(line) if contains(line, "validate.")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for multipart form handling or file upload handling
-    (contains(line, "r.MultipartForm") ;
-     contains(line, "FormFile") ;
-     contains(line, "ParseMultipartForm") ;
-     contains(line, "UploadedFile")) and
-    # Check if there's no file type validation nearby (simple heuristic)
-    not (contains(line, "http.DetectContentType") ;
-         contains(line, "mime.") ;
-         contains(line, "filepath.Ext") ;
-         contains(line, "strings.HasSuffix") ;
-         contains(line, "strings.HasPrefix") ;
-         contains(line, "validation.") ;
-         contains(line, "validate."))
+    _has_upload(line)
+    # Check if there's no file type validation nearby
+    not _has_validation(line)
     finding := {
         "rule_id": metadata.id,
         "message": "File upload detected without apparent file type validation; consider validating MIME type or file extension",

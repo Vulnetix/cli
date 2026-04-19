@@ -21,21 +21,25 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_has_jwt_parse(line) if contains(line, "jwt.Parse")
+_has_jwt_parse(line) if contains(line, "jwt.Decode")
+_has_jwt_parse(line) if contains(line, "jwt.DecodeSegment")
+
+_has_audience_validation(line) if contains(line, "VerifyAudience")
+_has_audience_validation(line) if contains(line, "ValidateAudience")
+_has_audience_validation(line) if contains(line, "Claims.Audience")
+_has_audience_validation(line) if contains(line, "StandardClaims.Audience")
+_has_audience_validation(line) if contains(line, "RegisteredClaims.Audience")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for JWT parsing/usage without checking audience
-    (contains(line, "jwt.Parse") ;
-     contains(line, "jwt.Decode") ;
-     contains(line, "jwt.DecodeSegment")) and
+    _has_jwt_parse(line)
     # Check if there's no audience validation
-    not (contains(line, "VerifyAudience") ;
-         contains(line, "ValidateAudience") ;
-         contains(line, "Claims.Audience") ;
-         contains(line, "StandardClaims.Audience") ;
-         contains(line, "RegisteredClaims.Audience"))
+    not _has_audience_validation(line)
     finding := {
         "rule_id": metadata.id,
         "message": "JWT token used without apparent audience validation; consider validating the token audience",

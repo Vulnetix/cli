@@ -19,31 +19,38 @@ metadata := {
     "tags": ["logging", "sensitive-data", "information-disclosure"],
 }
 
+_is_js_file(path) if endswith(path, ".js")
+_is_js_file(path) if endswith(path, ".ts")
+
+_has_logging(line) if contains(line, "console.log")
+_has_logging(line) if contains(line, "console.info")
+_has_logging(line) if contains(line, "console.warn")
+_has_logging(line) if contains(line, "console.error")
+_has_logging(line) if contains(line, "logger.")
+_has_logging(line) if contains(line, "winston.")
+_has_logging(line) if contains(line, "bunyan.")
+_has_logging(line) if contains(line, "pino.")
+
+_has_sensitive_data(line) if contains(line, "password")
+_has_sensitive_data(line) if contains(line, "passwd")
+_has_sensitive_data(line) if contains(line, "secret")
+_has_sensitive_data(line) if contains(line, "token")
+_has_sensitive_data(line) if contains(line, "auth")
+_has_sensitive_data(line) if contains(line, "credit")
+_has_sensitive_data(line) if contains(line, "card")
+_has_sensitive_data(line) if contains(line, "cvv")
+_has_sensitive_data(line) if contains(line, "ssn")
+_has_sensitive_data(line) if contains(line, "pin")
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
-    (endswith(path, ".js") || endswith(path, ".ts"))
+    _is_js_file(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
     # Look for logging functions
-    (contains(line, "console.log") ;
-     contains(line, "console.info") ;
-     contains(line, "console.warn") ;
-     contains(line, "console.error") ;
-     contains(line, "logger.") ;
-     contains(line, "winston.") ;
-     contains(line, "bunyan.") ;
-     contains(line, "pino.")) and
+    _has_logging(line)
     # Check if any sensitive data patterns are in the line
-    (contains(line, "password") ;
-     contains(line, "passwd") ;
-     contains(line, "secret") ;
-     contains(line, "token") ;
-     contains(line, "auth") ;
-     contains(line, "credit") ;
-     contains(line, "card") ;
-     contains(line, "cvv") ;
-     contains(line, "ssn") ;
-     contains(line, "pin"))
+    _has_sensitive_data(line)
     finding := {
         "rule_id": metadata.id,
         "message": "Potential logging of sensitive data",
