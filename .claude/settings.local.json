@@ -155,7 +155,8 @@
       "WebFetch(domain:cyclonedx.org)",
       "WebFetch(domain:aquasecurity.github.io)",
       "WebFetch(domain:trivy.dev)",
-      "WebFetch(domain:anchore.github.io)"
+      "WebFetch(domain:anchore.github.io)",
+      "Bash(echo \"test content\")"
     ],
     "deny": [
       "Bash(dd:*)",

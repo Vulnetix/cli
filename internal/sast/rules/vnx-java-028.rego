@@ -19,18 +19,26 @@ metadata := {
     "tags": ["sql-injection", "database", "query"],
 }
 
+_exec_patterns := {".execute(", ".executeQuery(", ".executeUpdate("}
+_concat_patterns := {"+", ".concat(", "String.format("}
+
+_has_exec(line) if {
+    some p in _exec_patterns
+    contains(line, p)
+}
+
+_has_concat(line) if {
+    some p in _concat_patterns
+    contains(line, p)
+}
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     endswith(path, ".java")
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for string concatenation with SQL keywords
-    (contains(line, ".execute(") ;
-     contains(line, ".executeQuery(") ;
-     contains(line, ".executeUpdate(")) and
-    (contains(line, "+") ;
-     contains(line, ".concat(") ;
-     contains(line, "String.format("))
+    _has_exec(line)
+    _has_concat(line)
     finding := {
         "rule_id": metadata.id,
         "message": "Potential SQL injection via string concatenation; use parameterized queries instead",

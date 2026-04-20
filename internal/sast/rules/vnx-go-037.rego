@@ -21,26 +21,33 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_writes_response(line) if contains(line, "WriteHeader")
+_writes_response(line) if contains(line, "Header().Set")
+_writes_response(line) if contains(line, "http.ResponseWriter")
+
+_security_headers := {
+    "X-Frame-Options",
+    "X-Content-Type-Options",
+    "X-XSS-Protection",
+    "Strict-Transport-Security",
+    "Content-Security-Policy",
+    "Referrer-Policy",
+    "Permissions-Policy",
+}
+
+_has_security_header(content) if {
+    some h in _security_headers
+    contains(content, h)
+}
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
-    lines := split(input.file_contents[path], "\n")
+    content := input.file_contents[path]
+    not _has_security_header(content)
+    lines := split(content, "\n")
     some i, line in lines
-    # Look for HTTP response writing without setting common security headers
-    (contains(line, "WriteHeader") ;
-     contains(line, "Header().Set") ;
-     contains(line, "WriteHeader") ;
-     contains(line, "http.ResponseWriter")) and
-    # Check if we are setting headers but missing some important ones
-    # We'll do a simple check: if we see any header setting, but not the specific ones we care about
-    # This is a heuristic and might have false positives/negatives.
-    not (contains(line, "X-Frame-Options") ;
-         contains(line, "X-Content-Type-Options") ;
-         contains(line, "X-XSS-Protection") ;
-         contains(line, "Strict-Transport-Security") ;
-         contains(line, "Content-Security-Policy") ;
-         contains(line, "Referrer-Policy") ;
-         contains(line, "Permissions-Policy"))
+    _writes_response(line)
     finding := {
         "rule_id": metadata.id,
         "message": "HTTP response headers set without common security headers (e.g., X-Frame-Options, X-Content-Type-Options); consider adding them",

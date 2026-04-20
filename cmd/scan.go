@@ -970,6 +970,8 @@ func runLocalScan(
 			fmt.Fprintf(os.Stderr, "  warning: could not load SAST rules: %v\n", merr)
 		}
 		if len(modules) > 0 {
+			totalLoaded := len(modules)
+			fmt.Fprintf(os.Stderr, "  Loaded %d SAST rules (pre-filter)\n", totalLoaded)
 			if ruleID == "" {
 				modules = filterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
 			}
@@ -979,6 +981,9 @@ func runLocalScan(
 			sastReport, eerr = eng.Evaluate(sast.EvalOptions{MaxDepth: depth, Excludes: excludes})
 			if eerr != nil {
 				fmt.Fprintf(os.Stderr, "  warning: SAST evaluation failed: %v\n", eerr)
+			}
+			if sastReport != nil {
+				sastReport.RulesTotal = totalLoaded
 			}
 		}
 		if sastReport != nil {

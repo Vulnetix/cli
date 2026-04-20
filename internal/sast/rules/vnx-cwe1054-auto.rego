@@ -1,42 +1,71 @@
 # SPDX-License-Identifier: Apache-2.0
-# VNX-1054 - GUI Input without Validation
-
 package vulnetix.rules.vnx_1054
 
 import rego.v1
 
 metadata := {
 	"id": "VNX-1054",
-	"name": "GUI Input without Validation",
-	"description": "Detects gui input without validation in source code.",
+	"name": "Invokable Control Element with Excessive Volume of Commented-out Code",
+	"description": "Large sections of commented-out code in security-critical functions indicate former implementations that may have been disabled rather than removed. These comments may contain sensitive logic, old credentials, deprecated security bypass patterns, or algorithms with known weaknesses that a developer could accidentally re-enable.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1054/",
-	"languages": ["go", "java", "node", "php", "python"],
-	"severity": "medium",
-	"level": "warning",
+	"languages": ["go", "java", "node", "php", "python", "ruby"],
+	"severity": "low",
+	"level": "note",
 	"kind": "sast",
 	"cwe": [1054],
-	"capec": ["CAPEC-97"],
-	"attack_technique": ["T1557"],
+	"capec": [],
+	"attack_technique": [],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ["xss"],
+	"tags": ["commented-code", "dead-code", "code-quality", "secrets-in-comments", "cwe-1054"],
 }
 
-_has_gui_input(line) if contains(line, "python input")
-_has_gui_input(line) if contains(line, "node prompt")
-_has_gui_input(line) if contains(line, "go fmt.Scanf")
-_has_gui_input(line) if contains(line, "java JOptionPane")
-_has_gui_input(line) if contains(line, "php $_GET")
+_skip(path) if endswith(path, ".lock")
+_skip(path) if endswith(path, ".sum")
+_skip(path) if endswith(path, ".min.js")
+_skip(path) if endswith(path, ".min.css")
+
+# Commented-out code patterns (comments containing code-like syntax)
+_commented_code_indicators := {
+	"// if ",
+	"// for ",
+	"// while ",
+	"// return ",
+	"// var ",
+	"// let ",
+	"// const ",
+	"# if ",
+	"# for ",
+	"# while ",
+	"# return ",
+	"# import ",
+	"// import ",
+	"// require(",
+	"// password",
+	"// token",
+	"// secret",
+	"# password",
+	"# token",
+	"# secret",
+}
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
+	not _skip(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	_has_gui_input(line)
-	not regex.match(`^\s*(//|/\*)`, line)
+	some p in _commented_code_indicators
+	startswith(trim_space(line), p)
+	# Check that there's a block of commented code (5+ consecutive comment lines)
+	some j
+	j > i
+	j <= i + 5
+	j < count(lines)
+	_is_commented_line(lines[j])
+	not _is_doc_comment(line)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "GUI input detected without validation",
+		"message": sprintf("Block of commented-out code starting with '%s'; commented-out code may contain old credentials, bypassed security checks, or deprecated logic. Remove it entirely rather than leaving it commented out", [p]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
@@ -44,3 +73,14 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+_is_commented_line(line) if startswith(trim_space(line), "//")
+_is_commented_line(line) if startswith(trim_space(line), "#")
+_is_commented_line(line) if startswith(trim_space(line), "*")
+
+_is_doc_comment(line) if contains(line, "TODO")
+_is_doc_comment(line) if contains(line, "FIXME")
+_is_doc_comment(line) if contains(line, "NOTE")
+_is_doc_comment(line) if contains(line, "HACK")
+_is_doc_comment(line) if contains(line, "@param")
+_is_doc_comment(line) if contains(line, "@return")
