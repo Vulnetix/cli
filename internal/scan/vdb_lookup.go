@@ -125,9 +125,13 @@ func LookupVulns(
 					firstErr = err
 				}
 				errMu.Unlock()
-				// Cancel remaining lookups — if one fails due to rate limit
-				// or auth error, the rest will too.
-				cancel()
+				// Only abort the whole batch on errors every worker will share:
+				// auth (401/403) or quota exhausted after fallback (429). Transient
+				// upstream errors (5xx, timeouts) already retry in the client, so
+				// one worker's failure shouldn't cancel the others.
+				if isFatalBatchError(err) {
+					cancel()
+				}
 			} else {
 				errMu.Lock()
 				stats.Succeeded++
@@ -256,4 +260,18 @@ func lookupOnePackage(ctx context.Context, client *vdb.Client, key PackageLookup
 		return findings, nil
 	}
 	return nil, nil
+}
+
+// isFatalBatchError reports whether an error from a single package lookup
+// implies every other concurrent lookup will also fail. These are errors
+// tied to identity or plan state (auth, quota after fallback) rather than
+// transient per-request upstream issues — which the client already retries.
+func isFatalBatchError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "API error (401)") ||
+		strings.Contains(s, "API error (403)") ||
+		strings.Contains(s, "quota exhausted")
 }
