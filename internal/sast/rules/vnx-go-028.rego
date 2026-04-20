@@ -21,23 +21,26 @@ metadata := {
 
 _is_go(path) if endswith(path, ".go")
 
+_weak_hashes := {"md5.New", "sha1.New", "md5.Sum", "sha1.Sum", "crypto/md5", "crypto/sha1"}
+_password_ctx := {"Password", "password", "Passwd", "passwd"}
+
+_has_weak_hash(line) if {
+    some h in _weak_hashes
+    contains(line, h)
+}
+
+_has_password_ctx(line) if {
+    some p in _password_ctx
+    contains(line, p)
+}
+
 findings contains finding if {
     some path in object.keys(input.file_contents)
     _is_go(path)
     lines := split(input.file_contents[path], "\n")
     some i, line in lines
-    # Look for weak hash functions being used
-    (contains(line, "md5.New") ;
-     contains(line, "sha1.New") ;
-     contains(line, "md5.Sum") ;
-     contains(line, "sha1.Sum") ;
-     contains(line, "crypto/md5") ;
-     contains(line, "crypto/sha1")) and
-    # Check if it's being used for password hashing (context clue)
-    (contains(line, "Password") ;
-     contains(line, "password") ;
-     contains(line, "Passwd") ;
-     contains(line, "passwd"))
+    _has_weak_hash(line)
+    _has_password_ctx(line)
     finding := {
         "rule_id": metadata.id,
         "message": "Weak cryptographic hash (MD5/SHA1) used for password hashing; use bcrypt, scrypt, or Argon2 instead",

@@ -1,50 +1,103 @@
 # SPDX-License-Identifier: Apache-2.0
-# VNX-1052 - Excessive Resource Usage
-
 package vulnetix.rules.vnx_1052
 
 import rego.v1
-import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1052",
-	"name": "Excessive Resource Usage",
-	"description": "Detects excessive resource usage in source code.",
+	"name": "Excessive Use of Hard-coded Literals in Initialization",
+	"description": "The code uses many magic numbers or string literals in initialization code rather than named constants. Magic numbers obscure intent, make security configurations hard to review (e.g. is 86400 a session timeout or a rate limit?), and are frequently misconfigured when copy-pasted.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1052/",
-	"languages": ["go", "java", "node", "python"],
-	"severity": "medium",
-	"level": "warning",
+	"languages": ["go", "java", "python", "node", "php"],
+	"severity": "low",
+	"level": "note",
 	"kind": "sast",
 	"cwe": [1052],
-	"capec": ["CAPEC-97"],
-	"attack_technique": ["T1557"],
+	"capec": [],
+	"attack_technique": [],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ['weak-crypto'],
+	"tags": ["magic-numbers", "hard-coded-literals", "code-quality", "configuration", "cwe-1052"],
 }
 
-_skip(path) if helpers._should_skip(path)
+_skip(path) if endswith(path, ".lock")
+_skip(path) if endswith(path, ".sum")
+_skip(path) if endswith(path, ".min.js")
+_skip(path) if endswith(path, ".min.css")
 
-_findings_core := {
-		"python time.sleep",
-		"node setTimeout",
-		"go time.Sleep",
-		"java Thread.sleep",
+# Security-relevant magic numbers in initialization contexts
+_security_magic_numbers := {
+	"= 86400",
+	"= 3600",
+	"= 31536000",
+	"= 2592000",
+	"= 604800",
+	"= 900",
+	"= 1800",
+	"= 7776000",
+}
+
+# Port numbers hardcoded
+_hardcoded_ports := {
+	"= 8080",
+	"= 3306",
+	"= 5432",
+	"= 6379",
+	"= 27017",
+	"= 1433",
+	"= 9200",
 }
 
 findings contains finding if {
-	 some path in object.keys(helpers.input.file_contents)
-	 not _skip(path)
-	 lines := split(helpers.input.file_contents[path], "\n")
-	 some i, line in lines
-	 some indicator in _findings_core
-	 contains(line, indicator)
-	 not regex.match(`^\s*(//|/\*)`, line)
-	 finding := helpers.generate_finding(
-		"medium", "warning", metadata.id,
-		sprintf("Detected pattern", []),
-		helpers.input.artifact_uri,
-		i + 1,
-		line,
-	 )
+	some path in object.keys(input.file_contents)
+	not _skip(path)
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	some p in _security_magic_numbers
+	contains(line, p)
+	not _is_constant_def(line)
+	not startswith(trim_space(line), "//")
+	not startswith(trim_space(line), "#")
+	not startswith(trim_space(line), "*")
+	finding := {
+		"rule_id": metadata.id,
+		"message": sprintf("Hard-coded time literal '%s' used directly; define a named constant (e.g. SESSION_TIMEOUT_SECONDS = 3600) so the value's intent is clear during security reviews", [p]),
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
 }
+
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	not _skip(path)
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	some p in _hardcoded_ports
+	contains(line, p)
+	not _is_constant_def(line)
+	not startswith(trim_space(line), "//")
+	not startswith(trim_space(line), "#")
+	not startswith(trim_space(line), "*")
+	finding := {
+		"rule_id": metadata.id,
+		"message": sprintf("Hard-coded port number '%s'; define a named constant or load from configuration so the service endpoint can be changed without code modification", [p]),
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+_is_constant_def(line) if {
+	upper(trim_space(line)) == trim_space(line)
+	contains(line, " = ")
+}
+
+_is_constant_def(line) if contains(line, "const ")
+_is_constant_def(line) if contains(line, "CONST ")
+_is_constant_def(line) if contains(line, "final ")
+_is_constant_def(line) if contains(line, "FINAL ")

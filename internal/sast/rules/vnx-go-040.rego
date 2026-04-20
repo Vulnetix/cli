@@ -62,7 +62,7 @@ findings contains finding if {
     contains(line, sensitive)
     finding := {
         "rule_id": metadata.id,
-        "message": "Potential logging of sensitive data: " + sensitive,
+        "message": sprintf("Potential logging of sensitive data: %v", [sensitive]),
         "artifact_uri": path,
         "severity": metadata.severity,
         "level": metadata.level,

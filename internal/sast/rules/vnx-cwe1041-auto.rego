@@ -1,51 +1,66 @@
 # SPDX-License-Identifier: Apache-2.0
-# VNX-1041 - SQL Injection via External Input
-
 package vulnetix.rules.vnx_1041
 
 import rego.v1
-import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-1041",
-	"name": "SQL Injection via External Input",
-	"description": "Detects sql injection via external input in source code.",
+	"name": "Use of Redundant Code",
+	"description": "Duplicate or redundant security checks indicate copy-paste errors that may result in one copy being updated while the other is not, creating inconsistent security enforcement. Redundant checks can also indicate dead code paths where the check is never actually reached.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1041/",
-	"languages": ["go", "java", "node", "php", "python"],
-	"severity": "medium",
-	"level": "warning",
+	"languages": ["go", "java", "node", "php", "python", "ruby"],
+	"severity": "low",
+	"level": "note",
 	"kind": "sast",
 	"cwe": [1041],
-	"capec": ["CAPEC-97"],
-	"attack_technique": ["T1557"],
+	"capec": ["CAPEC-204"],
+	"attack_technique": [],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ["sql-injection"],
+	"tags": ["redundant-code", "duplicate-check", "code-quality", "cwe-1041"],
 }
 
-_skip(path) if helpers._should_skip(path)
+_skip(path) if endswith(path, ".lock")
+_skip(path) if endswith(path, ".sum")
+_skip(path) if endswith(path, ".min.js")
+_skip(path) if endswith(path, ".min.css")
 
-_findings_core := {
-		"python cursor.execute",
-		"node query",
-		"go Exec",
-		"java PreparedStatement",
-		"php query",
+# Duplicate authentication/authorization check identifiers (same check appearing twice in proximity)
+_security_check_patterns := {
+	"checkPermission(",
+	"isAuthenticated(",
+	"isAuthorized(",
+	"hasPermission(",
+	"requireLogin(",
+	"verifyToken(",
+	"validateToken(",
+	"checkAuth(",
+	"authorize(",
 }
 
 findings contains finding if {
-	 some path in object.keys(helpers.input.file_contents)
-	 not _skip(path)
-	 lines := split(helpers.input.file_contents[path], "\n")
-	 some i, line in lines
-	 some indicator in _findings_core
-	 contains(line, indicator)
-	 not regex.match(`^\s*(//|/\*)`, line)
-	 finding := helpers.generate_finding(
-		"medium", "warning", metadata.id,
-		sprintf("Detected pattern", []),
-		helpers.input.artifact_uri,
-		i + 1,
-		line,
-	 )
+	some path in object.keys(input.file_contents)
+	not _skip(path)
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	some p in _security_check_patterns
+	contains(line, p)
+	# Check if the exact same line appears again within 10 lines
+	some j
+	j > i
+	j <= i + 10
+	j < count(lines)
+	line == lines[j]
+	not startswith(trim_space(line), "//")
+	not startswith(trim_space(line), "#")
+	not startswith(trim_space(line), "*")
+	finding := {
+		"rule_id": metadata.id,
+		"message": sprintf("Duplicate security check '%s' appears identically at nearby lines; this likely indicates a copy-paste error. Consolidate the check into a single function to ensure consistent enforcement", [p]),
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
 }

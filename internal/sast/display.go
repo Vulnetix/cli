@@ -24,8 +24,8 @@ func PrintPrettySummary(report *SASTReport, resultsOnly bool) {
 	fmt.Fprintln(os.Stdout, display.Header(t, "SAST Analysis"))
 
 	if len(report.Findings) == 0 {
-		fmt.Fprintf(os.Stdout, "  %s No findings (%d rules evaluated)\n",
-			display.CheckMark(t), report.RulesLoaded)
+		fmt.Fprintf(os.Stdout, "  %s No findings (%s)\n",
+			display.CheckMark(t), rulesEvaluatedPhrase(report))
 		return
 	}
 
@@ -83,9 +83,18 @@ func PrintPrettySummary(report *SASTReport, resultsOnly bool) {
 			parts = append(parts, fmt.Sprintf("%d %s", n, sev))
 		}
 	}
-	fmt.Fprintf(os.Stdout, "  %d %s across %d rules: %s\n",
+	fmt.Fprintf(os.Stdout, "  %d %s across %s: %s\n",
 		len(report.Findings), pluralize("finding", len(report.Findings)),
-		report.RulesLoaded, strings.Join(parts, ", "))
+		rulesEvaluatedPhrase(report), strings.Join(parts, ", "))
+}
+
+// rulesEvaluatedPhrase formats the rule count so the final summary carries
+// context about how many rules were loaded pre-filter versus evaluated.
+func rulesEvaluatedPhrase(r *SASTReport) string {
+	if r.RulesTotal > 0 && r.RulesTotal != r.RulesLoaded {
+		return fmt.Sprintf("%d of %d rules", r.RulesLoaded, r.RulesTotal)
+	}
+	return fmt.Sprintf("%d rules", r.RulesLoaded)
 }
 
 func severityOrd(s string) int {

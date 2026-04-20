@@ -28,9 +28,14 @@ _has_secure_feature(line) if contains(line, "http://xml.org/sax/features/externa
 _has_secure_feature(line) if contains(line, "http://xml.org/sax/features/external-parameter-entities")
 _has_secure_feature(line) if contains(line, "http://javax.xml.XMLConstants/feature/secure-processing")
 
+_has_secure_setfeature(line) if {
+    contains(line, "setFeature")
+    _has_secure_feature(line)
+}
+
 _lacks_xxe_protection(line) if {
     _has_xml_factory(line)
-    not (contains(line, "setFeature") and _has_secure_feature(line))
+    not _has_secure_setfeature(line)
 }
 
 findings contains finding if {

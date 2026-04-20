@@ -4,5 +4,6 @@ package sast
 type SASTReport struct {
 	Findings    []Finding
 	Rules       []RuleMetadata
-	RulesLoaded int
+	RulesLoaded int // rules after filtering (kind/id) that were evaluated
+	RulesTotal  int // rules loaded pre-filter (builtin + --rule repos)
 }
