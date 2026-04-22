@@ -1,33 +1,43 @@
 ---
-id: "VNX-15"
-title: "Placeholder for CWE-15"
-description: "This rule is a placeholder for CWE-15. Please refer to the CWE website for details and implement specific checks."
+title: "VNX-15 – External Control of System or Configuration Setting"
+description: "Detects Detects source patterns associated with CWE-15 (External Control of System or Configuration Setting). Each finding should be manually reviewed for exploitability in context."
 ---
 
-# Placeholder for CWE-15 ({VNX-15})
+## Overview
 
-## Description
+VNX-15 maps to [CWE-15: External Control of System or Configuration Setting](https://cwe.mitre.org/data/definitions/15.html). Detects source patterns associated with CWE-15 (External Control of System or Configuration Setting). Each finding should be manually reviewed for exploitability in context.
 
-This rule is a placeholder for CWE-15. Please refer to the CWE website for details and implement specific checks.
+**Severity:** Medium | **CWE:** [CWE-15](https://cwe.mitre.org/data/definitions/15.html) | **Languages:** go, node, python
 
 ## Why This Matters
 
-CWE-15 is a software weakness identified in the Common Weakness Enumeration (CWE) list.
-Refer to the [CWE website](https://cwe.mitre.org/data/definitions/15.html) for detailed information.
+This weakness class (External Control of System or Configuration Setting) creates a concrete exploit surface: the rule searches for the concrete source-level patterns most commonly associated with CWE-15 and surfaces them for review. Each finding should be evaluated in context — the rule catches the pattern, not the context.
 
-## How to Fix
+## What Gets Flagged
 
-This rule is currently a placeholder. To implement a meaningful check for CWE-15:
+```go
+// FLAGGED: contains 'os.Setenv(' pattern
+os.Setenv(
+```
 
-1. Review the CWE-15 definition and examples.
-2. Identify patterns in source code that indicate this weakness.
-3. Update the Rego rule in `internal/sast/rules/vnx-15.rego` to detect those patterns.
-4. Update this documentation with specific guidance.
+```python
+// FLAGGED: contains 'os.environ[' pattern
+os.environ[
+```
+
+```javascript
+// FLAGGED: contains 'req.body' pattern
+req.body
+```
+
+## Remediation
+
+1. Review each flagged line and determine whether the pattern represents a real instance of CWE-15 or a false positive.
+2. Replace the flagged construct with a documented safe alternative appropriate to your language and framework.
+3. For confirmed false positives, add a `# vulnetix-ignore: VNX-15` comment on the line.
+4. Ensure equivalent test coverage exists to prevent regression.
 
 ## References
 
-- [CWE-15: Placeholder for CWE-15](https://cwe.mitre.org/data/definitions/15.html)
-- [Vulnetix SAST Rules Documentation](https://docs.cli.vulnetix.com/docs/sast-rules/)
-
----
-*This documentation was automatically generated. Please update with specific information about CWE-15.*
+- [CWE-15: External Control of System or Configuration Setting](https://cwe.mitre.org/data/definitions/15.html)
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)

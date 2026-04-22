@@ -5,57 +5,32 @@ import rego.v1
 
 metadata := {
 	"id": "VNX-643",
-	"name": "XPath Injection",
-	"description": "User-controlled data is concatenated directly into an XPath expression. An attacker can manipulate the XPath query to bypass authentication, extract arbitrary XML node values, or enumerate the full document structure.",
+	"name": "CWE-643",
+	"description": "Detects source patterns associated with CWE-643 (CWE-643). Each finding should be manually reviewed for exploitability in context.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-643/",
-	"languages": ["java", "python", "node", "php", "ruby", "go"],
+	"languages": ["java", "python"],
 	"severity": "high",
 	"level": "error",
 	"kind": "sast",
 	"cwe": [643],
-	"capec": ["CAPEC-83"],
+	"capec": ["CAPEC-66"],
 	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ["xpath", "injection", "xml", "cwe-643"],
+	"tags": ["xpath-injection", "cwe-643"],
 }
 
 _skip(path) if endswith(path, ".lock")
 _skip(path) if endswith(path, ".sum")
 _skip(path) if endswith(path, ".min.js")
 _skip(path) if endswith(path, ".min.css")
+_skip(path) if endswith(path, ".min.html")
 
-# Java XPath evaluate/compile patterns
-_java_xpath_patterns := {
-	"xpath.evaluate(",
-	"xpath.compile(",
-	"XPath.evaluate(",
-	"xPath.evaluate(",
-	".evaluate(\"//",
-	".evaluate('//",
-}
-
-# Python lxml / ElementTree xpath patterns
-_python_xpath_patterns := {
-	".xpath(f\"",
-	".xpath(f'",
-	".xpath(\"//",
-	".xpath('//",
-	".xpath(user",
-	".xpath(request",
-	".xpath(input",
-	"findall(f\"",
-	"findall(f'",
-}
-
-# Generic string concatenation with XPath-like fragments
-_concat_xpath_patterns := {
-	"//user[name='\" +",
-	"//user[name=\"\" +",
-	"//[@name='\" +",
-	"//[@name=\"\" +",
-	"XPathExpression",
-}
+_is_comment_line(line) if startswith(trim_space(line), "//")
+_is_comment_line(line) if startswith(trim_space(line), "*")
+_is_comment_line(line) if startswith(trim_space(line), "/*")
+_is_comment_line(line) if startswith(trim_space(line), "#")
+_is_comment_line(line) if startswith(trim_space(line), "--")
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
@@ -63,14 +38,13 @@ findings contains finding if {
 	endswith(path, ".java")
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	some p in _java_xpath_patterns
-	contains(line, p)
-	_has_concat_or_var(line)
-	not startswith(trim_space(line), "//")
-	not startswith(trim_space(line), "*")
+	not _is_comment_line(line)
+	contains(line, "+")
+	some _pat in {"xpath.compile(", "XPath.evaluate("}
+	contains(line, _pat)
 	finding := {
 		"rule_id": metadata.id,
-		"message": sprintf("Java XPath operation '%s' appears to use dynamic input; use XPathVariableResolver or parameterised XPath queries to prevent XPath injection", [p]),
+		"message": "XPath constructed with string concatenation — XPath injection",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
@@ -78,19 +52,19 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
-
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	not _skip(path)
 	endswith(path, ".py")
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	some p in _python_xpath_patterns
-	contains(line, p)
-	not startswith(trim_space(line), "#")
+	not _is_comment_line(line)
+	contains(line, "xpath(")
+	some _pat in {"+", "%", "f\"", "f'"}
+	contains(line, _pat)
 	finding := {
 		"rule_id": metadata.id,
-		"message": sprintf("Python XPath call '%s' with dynamic data; use lxml's XPath variable substitution (e.g. tree.xpath('//user[@name=$n]', n=name)) instead of string interpolation", [p]),
+		"message": "XPath built via concatenation/f-string — XPath injection",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
@@ -98,33 +72,3 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
-
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	some p in _concat_xpath_patterns
-	contains(line, p)
-	not startswith(trim_space(line), "//")
-	not startswith(trim_space(line), "#")
-	not startswith(trim_space(line), "*")
-	finding := {
-		"rule_id": metadata.id,
-		"message": sprintf("XPath injection pattern '%s' detected; never concatenate user input into XPath expressions", [p]),
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
-
-_has_concat_or_var(line) if contains(line, " + ")
-_has_concat_or_var(line) if contains(line, "\"+")
-_has_concat_or_var(line) if contains(line, "'+")
-_has_concat_or_var(line) if contains(line, "request.")
-_has_concat_or_var(line) if contains(line, "req.")
-_has_concat_or_var(line) if contains(line, "getParameter(")
-_has_concat_or_var(line) if contains(line, "userInput")
-_has_concat_or_var(line) if contains(line, "user_input")

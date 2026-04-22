@@ -5,40 +5,32 @@ import rego.v1
 
 metadata := {
 	"id": "VNX-248",
-	"name": "Uncaught exception",
-	"description": "Checked exceptions that propagate uncaught terminate the program or current thread unexpectedly. In Java, checked exceptions not declared in throws or caught mean a compile-time gap; in Python, unhandled exceptions in main code paths crash the process.",
+	"name": "Uncaught Exception",
+	"description": "Detects source patterns associated with CWE-248 (Uncaught Exception). Each finding should be manually reviewed for exploitability in context.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-248/",
-	"languages": ["java", "python"],
-	"severity": "medium",
-	"level": "warning",
+	"languages": ["java"],
+	"severity": "low",
+	"level": "note",
 	"kind": "sast",
 	"cwe": [248],
-	"capec": ["CAPEC-17"],
-	"attack_technique": ["T1499"],
+	"capec": ["CAPEC-66"],
+	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ["error-handling", "uncaught-exception", "cwe-248"],
+	"tags": ["error-handling", "cwe-248"],
 }
 
 _skip(path) if endswith(path, ".lock")
 _skip(path) if endswith(path, ".sum")
 _skip(path) if endswith(path, ".min.js")
+_skip(path) if endswith(path, ".min.css")
+_skip(path) if endswith(path, ".min.html")
 
-_java_risky_patterns := {
-	"throws RuntimeException",
-	"throws Exception",
-	"throw new RuntimeException(",
-	"throw new Error(",
-	"throw new AssertionError(",
-}
-
-_python_risky_patterns := {
-	"raise Exception(",
-	"raise RuntimeError(",
-	"raise ValueError(",
-	"raise TypeError(",
-	"raise KeyError(",
-}
+_is_comment_line(line) if startswith(trim_space(line), "//")
+_is_comment_line(line) if startswith(trim_space(line), "*")
+_is_comment_line(line) if startswith(trim_space(line), "/*")
+_is_comment_line(line) if startswith(trim_space(line), "#")
+_is_comment_line(line) if startswith(trim_space(line), "--")
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
@@ -46,30 +38,13 @@ findings contains finding if {
 	endswith(path, ".java")
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	some pattern in _java_risky_patterns
-	contains(line, pattern)
+	not _is_comment_line(line)
+	contains(line, "catch(Exception")
+	not contains(line, "throw")
+	not contains(line, "log")
 	finding := {
 		"rule_id": metadata.id,
-		"message": sprintf("Uncaught exception risk near '%v'; ensure this exception is handled at an appropriate call-stack level, logged, and does not crash the application or leave resources unreleased", [pattern]),
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
-
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	endswith(path, ".py")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	some pattern in _python_risky_patterns
-	contains(line, pattern)
-	finding := {
-		"rule_id": metadata.id,
-		"message": sprintf("Exception raised near '%v'; verify this exception is caught at an appropriate level or will be surfaced to the user with a meaningful message rather than crashing the process", [pattern]),
+		"message": "Empty catch(Exception) — swallowed exception without logging or re-throw",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

@@ -1,33 +1,75 @@
 # SPDX-License-Identifier: Apache-2.0
-# Placeholder for CWE-404
-
 package vulnetix.rules.vnx_404
 
 import rego.v1
-import data.vulnetix.helpers
 
 metadata := {
-    "id": "VNX-404",
-    "name": "Placeholder for CWE-404",
-    "description": "This rule is a placeholder for CWE-404. Please refer to the CWE website for details and implement specific checks.",
-    "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-404/",
-    "languages": ["go", "java", "node", "php", "python", "ruby"],
-    "severity": "medium",
-    "level": "warning",
-    "kind": "sast",
-    "cwe": [404],
-    "capec": ["CAPEC-97"],
-    "attack_technique": ["T1557"],
-    "cvssv4": "",
-    "cwss": "",
-    "tags": ["placeholder", "cwe-404"],
+	"id": "VNX-404",
+	"name": "CWE-404",
+	"description": "Detects source patterns associated with CWE-404 (CWE-404). Each finding should be manually reviewed for exploitability in context.",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-404/",
+	"languages": ["java", "python"],
+	"severity": "low",
+	"level": "note",
+	"kind": "sast",
+	"cwe": [404],
+	"capec": ["CAPEC-66"],
+	"attack_technique": ["T1190"],
+	"cvssv4": "",
+	"cwss": "",
+	"tags": ["resource-release", "cwe-404"],
 }
 
-_skip(path) if helpers._should_skip(path)
+_skip(path) if endswith(path, ".lock")
+_skip(path) if endswith(path, ".sum")
+_skip(path) if endswith(path, ".min.js")
+_skip(path) if endswith(path, ".min.css")
+_skip(path) if endswith(path, ".min.html")
 
-# Look for comments referencing this CWE (e.g., // CWE-1000: ...)
-_findings_core := [
-    sprintf("CWE-%s:", ["404"]),
-]
+_is_comment_line(line) if startswith(trim_space(line), "//")
+_is_comment_line(line) if startswith(trim_space(line), "*")
+_is_comment_line(line) if startswith(trim_space(line), "/*")
+_is_comment_line(line) if startswith(trim_space(line), "#")
+_is_comment_line(line) if startswith(trim_space(line), "--")
 
-# Placeholder rule - no checks implemented
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	not _skip(path)
+	endswith(path, ".py")
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	not _is_comment_line(line)
+	some _pat in {"open("}
+	contains(line, _pat)
+	not contains(line, "with ")
+	not contains(line, ".close()")
+	finding := {
+		"rule_id": metadata.id,
+		"message": "File opened without context manager — may leak file descriptor",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	not _skip(path)
+	endswith(path, ".java")
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	not _is_comment_line(line)
+	some _pat in {"new FileInputStream(", "new FileReader("}
+	contains(line, _pat)
+	not contains(line, "try (")
+	finding := {
+		"rule_id": metadata.id,
+		"message": "Java stream not created with try-with-resources — may leak handle",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}

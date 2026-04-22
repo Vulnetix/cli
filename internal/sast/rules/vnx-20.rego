@@ -5,77 +5,47 @@ import rego.v1
 
 metadata := {
 	"id": "VNX-20",
-	"name": "Improper Input Validation",
-	"description": "User-controlled data is used directly without validation or sanitization. Accepting unvalidated input can lead to injection attacks, path traversal, denial of service, and unexpected application behaviour.",
+	"name": "CWE-20",
+	"description": "Detects request data flowing to sensitive sinks without an intervening validation call.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-20/",
-	"languages": ["go", "java", "node", "php", "python", "ruby", "csharp"],
-	"severity": "high",
-	"level": "error",
+	"languages": ["go", "java", "node", "python"],
+	"severity": "medium",
+	"level": "warning",
 	"kind": "sast",
 	"cwe": [20],
-	"capec": ["CAPEC-88"],
+	"capec": ["CAPEC-66"],
 	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ["input-validation", "injection", "cwe-20"],
+	"tags": ["input-validation", "cwe-20"],
 }
 
 _skip(path) if endswith(path, ".lock")
 _skip(path) if endswith(path, ".sum")
 _skip(path) if endswith(path, ".min.js")
 _skip(path) if endswith(path, ".min.css")
+_skip(path) if endswith(path, ".min.html")
 
-# Patterns that indicate unsanitised user input flowing into sensitive sinks
-_dangerous_patterns := {
-	# Node.js / Express — direct use of req.body/query/params without validation middleware
-	"req.body.",
-	"req.query.",
-	"req.params.",
-	# Python Django / Flask — request data direct use
-	"request.GET[",
-	"request.POST[",
-	"request.args[",
-	"request.form[",
-	"request.data",
-	# PHP superglobals
-	"$_GET[",
-	"$_POST[",
-	"$_REQUEST[",
-	"$_COOKIE[",
-	"$_SERVER[",
-	# Ruby on Rails — params without strong parameters
-	"params.permit!",
-	# Java — HttpServletRequest without validation
-	"getParameter(",
-	"getQueryString()",
-	"getHeader(",
-	# Go — r.FormValue / r.URL.Query without validation
-	"r.FormValue(",
-	"r.URL.Query()",
-	"r.PostFormValue(",
-	# C# — Request.Form / QueryString without validation
-	"Request.Form[",
-	"Request.QueryString[",
-	"Request.Params[",
-}
+_is_comment_line(line) if startswith(trim_space(line), "//")
+_is_comment_line(line) if startswith(trim_space(line), "*")
+_is_comment_line(line) if startswith(trim_space(line), "/*")
+_is_comment_line(line) if startswith(trim_space(line), "#")
+_is_comment_line(line) if startswith(trim_space(line), "--")
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	not _skip(path)
+	some _ext in {".py", ".js", ".ts", ".java", ".go"}
+	endswith(path, _ext)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	some pattern in _dangerous_patterns
-	contains(line, pattern)
-	# Exclude lines that clearly validate/sanitize (rudimentary heuristic)
-	not contains(line, "validate")
-	not contains(line, "sanitize")
-	not contains(line, "escape")
-	not contains(line, "filter")
-	not contains(line, "// ")
-	not contains(line, "# ")
+	not _is_comment_line(line)
+	contains(line, "exec(")
+	some _pat in {"request.", "req.body", "req.params", "req.query"}
+	contains(line, _pat)
 	finding := {
 		"rule_id": metadata.id,
-		"message": sprintf("Unvalidated user input via '%s'; validate and sanitize all user-controlled data before use", [pattern]),
+		"message": "User request data passed to exec/eval without validation",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

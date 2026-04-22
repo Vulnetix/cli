@@ -5,59 +5,49 @@ import rego.v1
 
 metadata := {
 	"id": "VNX-319",
-	"name": "Cleartext transmission of sensitive information",
-	"description": "Sensitive data such as credentials or authentication tokens is transmitted over an unencrypted HTTP connection. An attacker with network access can intercept and read the data in transit.",
+	"name": "Cleartext Transmission of Sensitive Information",
+	"description": "Detects embedded cleartext HTTP/FTP URLs that suggest credentials or data transmitted without encryption.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-319/",
-	"languages": ["go", "java", "javascript", "python", "php", "ruby", "typescript"],
+	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "high",
 	"level": "error",
 	"kind": "sast",
 	"cwe": [319],
-	"capec": ["CAPEC-94"],
-	"attack_technique": ["T1557"],
+	"capec": ["CAPEC-66"],
+	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ["http", "cleartext", "tls", "transmission", "network"],
+	"tags": ["cleartext-transmission", "cwe-319"],
 }
 
 _skip(path) if endswith(path, ".lock")
 _skip(path) if endswith(path, ".sum")
 _skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".md")
+_skip(path) if endswith(path, ".min.css")
+_skip(path) if endswith(path, ".min.html")
 
-_http_url_patterns := {
-	`"http://`,
-	`'http://`,
-}
-
-# Keywords that increase confidence that the URL carries sensitive data
-_sensitive_context_patterns := {
-	"login",
-	"auth",
-	"token",
-	"password",
-	"credential",
-	"secret",
-	"api",
-	"oauth",
-	"jwt",
-}
+_is_comment_line(line) if startswith(trim_space(line), "//")
+_is_comment_line(line) if startswith(trim_space(line), "*")
+_is_comment_line(line) if startswith(trim_space(line), "/*")
+_is_comment_line(line) if startswith(trim_space(line), "#")
+_is_comment_line(line) if startswith(trim_space(line), "--")
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	not _skip(path)
+	some _ext in {".py", ".js", ".ts", ".java", ".go", ".php", ".rb"}
+	endswith(path, _ext)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	some url_pattern in _http_url_patterns
-	contains(line, url_pattern)
-	some ctx_pattern in _sensitive_context_patterns
-	contains(lower(line), ctx_pattern)
+	not _is_comment_line(line)
+	some _pat in {"http://", "ftp://"}
+	contains(line, _pat)
 	not contains(line, "localhost")
 	not contains(line, "127.0.0.1")
-	not contains(line, "0.0.0.0")
+	not contains(line, "example.com")
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Sensitive data transmitted over plain HTTP; use HTTPS to encrypt data in transit",
+		"message": sprintf("Cleartext URL %s — use HTTPS/SFTP", [_pat]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

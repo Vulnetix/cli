@@ -1,33 +1,43 @@
 ---
-id: "VNX-59"
-title: "Placeholder for CWE-59"
-description: "This rule is a placeholder for CWE-59. Please refer to the CWE website for details and implement specific checks."
+title: "VNX-59 – Improper Link Resolution Before File Access ('Link Following')"
+description: "Detects Detects source patterns associated with CWE-59 (Improper Link Resolution Before File Access ('Link Following')). Each finding should be manually reviewed for exploitability in context."
 ---
 
-# Placeholder for CWE-59 ({VNX-59})
+## Overview
 
-## Description
+VNX-59 maps to [CWE-59: Improper Link Resolution Before File Access ('Link Following')](https://cwe.mitre.org/data/definitions/59.html). Detects source patterns associated with CWE-59 (Improper Link Resolution Before File Access ('Link Following')). Each finding should be manually reviewed for exploitability in context.
 
-This rule is a placeholder for CWE-59. Please refer to the CWE website for details and implement specific checks.
+**Severity:** High | **CWE:** [CWE-59](https://cwe.mitre.org/data/definitions/59.html) | **Languages:** c, cpp, go, python
 
 ## Why This Matters
 
-CWE-59 is a software weakness identified in the Common Weakness Enumeration (CWE) list.
-Refer to the [CWE website](https://cwe.mitre.org/data/definitions/59.html) for detailed information.
+This weakness class (Improper Link Resolution Before File Access ('Link Following')) creates a concrete exploit surface: the rule searches for the concrete source-level patterns most commonly associated with CWE-59 and surfaces them for review. Each finding should be evaluated in context — the rule catches the pattern, not the context.
 
-## How to Fix
+## What Gets Flagged
 
-This rule is currently a placeholder. To implement a meaningful check for CWE-59:
+```c
+// FLAGGED: contains 'open(' pattern
+open(
+```
 
-1. Review the CWE-59 definition and examples.
-2. Identify patterns in source code that indicate this weakness.
-3. Update the Rego rule in `internal/sast/rules/vnx-59.rego` to detect those patterns.
-4. Update this documentation with specific guidance.
+```go
+// FLAGGED: contains 'os.Readlink(' pattern
+os.Readlink(
+```
+
+```python
+// FLAGGED: contains 'os.readlink(' pattern
+os.readlink(
+```
+
+## Remediation
+
+1. Review each flagged line and determine whether the pattern represents a real instance of CWE-59 or a false positive.
+2. Replace the flagged construct with a documented safe alternative appropriate to your language and framework.
+3. For confirmed false positives, add a `# vulnetix-ignore: VNX-59` comment on the line.
+4. Ensure equivalent test coverage exists to prevent regression.
 
 ## References
 
-- [CWE-59: Placeholder for CWE-59](https://cwe.mitre.org/data/definitions/59.html)
-- [Vulnetix SAST Rules Documentation](https://docs.cli.vulnetix.com/docs/sast-rules/)
-
----
-*This documentation was automatically generated. Please update with specific information about CWE-59.*
+- [CWE-59: Improper Link Resolution Before File Access ('Link Following')](https://cwe.mitre.org/data/definitions/59.html)
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)

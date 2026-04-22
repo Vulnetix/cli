@@ -1,33 +1,56 @@
 # SPDX-License-Identifier: Apache-2.0
-# Placeholder for CWE-836
-
 package vulnetix.rules.vnx_836
 
 import rego.v1
-import data.vulnetix.helpers
 
 metadata := {
-    "id": "VNX-836",
-    "name": "Placeholder for CWE-836",
-    "description": "This rule is a placeholder for CWE-836. Please refer to the CWE website for details and implement specific checks.",
-    "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-836/",
-    "languages": ["go", "java", "node", "php", "python", "ruby"],
-    "severity": "medium",
-    "level": "warning",
-    "kind": "sast",
-    "cwe": [836],
-    "capec": ["CAPEC-97"],
-    "attack_technique": ["T1557"],
-    "cvssv4": "",
-    "cwss": "",
-    "tags": ["placeholder", "cwe-836"],
+	"id": "VNX-836",
+	"name": "Use of Password Hash Instead of Password for Authentication",
+	"description": "Detects source patterns associated with CWE-836 (Use of Password Hash Instead of Password for Authentication). Each finding should be manually reviewed for exploitability in context.",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-836/",
+	"languages": ["java", "node", "python"],
+	"severity": "medium",
+	"level": "warning",
+	"kind": "sast",
+	"cwe": [836],
+	"capec": ["CAPEC-66"],
+	"attack_technique": ["T1190"],
+	"cvssv4": "",
+	"cwss": "",
+	"tags": ["password-hash-auth", "cwe-836"],
 }
 
-_skip(path) if helpers._should_skip(path)
+_skip(path) if endswith(path, ".lock")
+_skip(path) if endswith(path, ".sum")
+_skip(path) if endswith(path, ".min.js")
+_skip(path) if endswith(path, ".min.css")
+_skip(path) if endswith(path, ".min.html")
 
-# Look for comments referencing this CWE (e.g., // CWE-1000: ...)
-_findings_core := [
-    sprintf("CWE-%s:", ["836"]),
-]
+_is_comment_line(line) if startswith(trim_space(line), "//")
+_is_comment_line(line) if startswith(trim_space(line), "*")
+_is_comment_line(line) if startswith(trim_space(line), "/*")
+_is_comment_line(line) if startswith(trim_space(line), "#")
+_is_comment_line(line) if startswith(trim_space(line), "--")
 
-# Placeholder rule - no checks implemented
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	not _skip(path)
+	some _ext in {".py", ".java", ".js", ".ts"}
+	endswith(path, _ext)
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	not _is_comment_line(line)
+	some _pat in {"password ==", "password.equals("}
+	contains(line, _pat)
+	not contains(line, "hash")
+	not contains(line, "digest")
+	finding := {
+		"rule_id": metadata.id,
+		"message": "Password compared in plaintext — should compare hashes via constant-time",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
