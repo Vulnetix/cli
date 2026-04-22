@@ -1,33 +1,54 @@
 # SPDX-License-Identifier: Apache-2.0
-# Placeholder for CWE-179
-
 package vulnetix.rules.vnx_179
 
 import rego.v1
-import data.vulnetix.helpers
 
 metadata := {
-    "id": "VNX-179",
-    "name": "Placeholder for CWE-179",
-    "description": "This rule is a placeholder for CWE-179. Please refer to the CWE website for details and implement specific checks.",
-    "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-179/",
-    "languages": ["go", "java", "node", "php", "python", "ruby"],
-    "severity": "medium",
-    "level": "warning",
-    "kind": "sast",
-    "cwe": [179],
-    "capec": ["CAPEC-97"],
-    "attack_technique": ["T1557"],
-    "cvssv4": "",
-    "cwss": "",
-    "tags": ["placeholder", "cwe-179"],
+	"id": "VNX-179",
+	"name": "Incorrect Behavior Order: Early Validation",
+	"description": "Detects source patterns associated with CWE-179 (Incorrect Behavior Order: Early Validation). Each finding should be manually reviewed for exploitability in context.",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-179/",
+	"languages": ["java"],
+	"severity": "medium",
+	"level": "warning",
+	"kind": "sast",
+	"cwe": [179],
+	"capec": ["CAPEC-66"],
+	"attack_technique": ["T1190"],
+	"cvssv4": "",
+	"cwss": "",
+	"tags": ["validation", "ordering", "cwe-179"],
 }
 
-_skip(path) if helpers._should_skip(path)
+_skip(path) if endswith(path, ".lock")
+_skip(path) if endswith(path, ".sum")
+_skip(path) if endswith(path, ".min.js")
+_skip(path) if endswith(path, ".min.css")
+_skip(path) if endswith(path, ".min.html")
 
-# Look for comments referencing this CWE (e.g., // CWE-1000: ...)
-_findings_core := [
-    sprintf("CWE-%s:", ["179"]),
-]
+_is_comment_line(line) if startswith(trim_space(line), "//")
+_is_comment_line(line) if startswith(trim_space(line), "*")
+_is_comment_line(line) if startswith(trim_space(line), "/*")
+_is_comment_line(line) if startswith(trim_space(line), "#")
+_is_comment_line(line) if startswith(trim_space(line), "--")
 
-# Placeholder rule - no checks implemented
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	not _skip(path)
+	endswith(path, ".java")
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	not _is_comment_line(line)
+	contains(line, ".trim()")
+	some _pat in {".validate(", ".check("}
+	contains(line, _pat)
+	finding := {
+		"rule_id": metadata.id,
+		"message": "Validation performed before canonicalisation — verify validation runs on fully-normalized data",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}

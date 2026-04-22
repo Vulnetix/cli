@@ -5,61 +5,46 @@ import rego.v1
 
 metadata := {
 	"id": "VNX-338",
-	"name": "Use of cryptographically weak pseudo-random number generator (PRNG)",
-	"description": "The code uses a PRNG that is not cryptographically secure. Weak PRNGs such as java.util.Random, Python's random module, or math/rand in Go produce statistically predictable sequences that attackers can reconstruct after observing a small number of outputs.",
+	"name": "Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)",
+	"description": "Detects source patterns associated with CWE-338 (Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)). Each finding should be manually reviewed for exploitability in context.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-338/",
-	"languages": ["go", "java", "javascript", "python", "php", "ruby", "typescript"],
+	"languages": ["go"],
 	"severity": "high",
 	"level": "error",
 	"kind": "sast",
 	"cwe": [338],
-	"capec": ["CAPEC-112"],
-	"attack_technique": ["T1078"],
+	"capec": ["CAPEC-66"],
+	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ["crypto", "prng", "random", "weak-random"],
+	"tags": ["prng", "security", "cwe-338"],
 }
 
 _skip(path) if endswith(path, ".lock")
 _skip(path) if endswith(path, ".sum")
 _skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".md")
+_skip(path) if endswith(path, ".min.css")
+_skip(path) if endswith(path, ".min.html")
 
-_weak_prng_patterns := {
-	# Go
-	`"math/rand"`,
-	"rand.New(rand.NewSource(",
-	"rand.Seed(",
-	# Java
-	"new Random(",
-	"new java.util.Random(",
-	"ThreadLocalRandom.current(",
-	# JavaScript
-	"Math.random(",
-	# Python
-	"import random",
-	"from random import",
-	"random.seed(",
-	"random.getstate(",
-	# PHP
-	"srand(",
-	"mt_srand(",
-	"lcg_value(",
-	# Ruby
-	"Random.new(",
-	"srand(",
-}
+_is_comment_line(line) if startswith(trim_space(line), "//")
+_is_comment_line(line) if startswith(trim_space(line), "*")
+_is_comment_line(line) if startswith(trim_space(line), "/*")
+_is_comment_line(line) if startswith(trim_space(line), "#")
+_is_comment_line(line) if startswith(trim_space(line), "--")
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	not _skip(path)
+	endswith(path, ".go")
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	some pattern in _weak_prng_patterns
-	contains(line, pattern)
+	not _is_comment_line(line)
+	contains(line, "token")
+	some _pat in {"math/rand"}
+	contains(line, _pat)
 	finding := {
 		"rule_id": metadata.id,
-		"message": sprintf("Cryptographically weak PRNG detected (pattern: %s); replace with a CSPRNG: crypto/rand (Go), secrets (Python), SecureRandom (Java), crypto.randomBytes (Node.js)", [pattern]),
+		"message": "math/rand used for cryptographic token — use crypto/rand",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
