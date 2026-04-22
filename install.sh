@@ -319,6 +319,23 @@ main() {
   echo "      agentic use cases: https://www.vulnetix.com/articles/bypassing-scanners"
   echo ""
   echo "Thanks for installing Vulnetix CLI -- Vulnetix Team"
+
+  # Fire-and-forget install beacon (respects opt-out; never blocks or fails install)
+  if [ "${VULNETIX_NO_ANALYTICS:-0}" != "1" ] && [ "${DO_NOT_TRACK:-0}" != "1" ]; then
+    _GA4_PAYLOAD="{\"client_id\":\"${OS}-${ARCH}\",\"events\":[{\"name\":\"cli_install\",\"params\":{\"os\":\"${OS}\",\"arch\":\"${ARCH}\",\"version\":\"${VERSION}\"}}]}"
+    _GA4_URL="https://www.google-analytics.com/mp/collect?measurement_id=G-NWBJE5RS0Q&api_secret=_XzmAjQNQwmsRiTG1oojbA"
+    if [ "$DOWNLOADER" = "curl" ]; then
+      curl -s -o /dev/null --max-time 3 -X POST \
+        -H 'Content-Type: application/json' \
+        -d "$_GA4_PAYLOAD" \
+        "$_GA4_URL" >/dev/null 2>&1 &
+    else
+      wget -q -O /dev/null -T 3 \
+        --post-data="$_GA4_PAYLOAD" \
+        --header='Content-Type: application/json' \
+        "$_GA4_URL" >/dev/null 2>&1 &
+    fi
+  fi
 }
 
 main "$@"
