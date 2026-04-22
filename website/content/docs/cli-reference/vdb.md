@@ -40,6 +40,10 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb ecosystem group](#vdb-ecosystem-group)
   - [vdb eol product](#vdb-eol-product)
   - [vdb eol package](#vdb-eol-package)
+  - [vdb kev list](#vdb-kev-list)
+  - [vdb kev get](#vdb-kev-get)
+  - [vdb kev download](#vdb-kev-download)
+  - [vdb kev reasons](#vdb-kev-reasons)
 - [V2 Commands](#v2-commands)
 - [Output Management](#output-management)
   - [Output Formats](#output-formats)
@@ -1109,6 +1113,149 @@ vulnetix vdb eol package npm express 3.0.0
 # JSON output for CI integration
 vulnetix vdb eol package pypi django 2.2 -o json
 ```
+
+---
+
+### vdb kev list
+
+**Description**: List the full Vulnetix KEV catalogue — the independent, evidence-driven Known-Exploited-Vulnerabilities list derived from multiple honeypot sources (CrowdSec, MISP, Shadowserver) and weaponisation signals (Snort rules, Nuclei templates, Metasploit modules), for CVEs that are **not** already in CISA KEV or VulnCheck KEV.
+
+The catalogue is refreshed daily by the `vulnetix-kev-processor` and cached at the edge for 1 hour.
+
+**Aliases**: — (use `vulnetix vdb kev download` for the CSV shorthand)
+
+**Usage**:
+```bash
+vulnetix vdb kev list [flags]
+```
+
+**Flags**:
+- `--format json|csv` — output format (default: `json`)
+- `--reason <enum>` — filter by qualifying reason (repeatable; see [vdb kev reasons](#vdb-kev-reasons))
+- `--all` — require **every** `--reason` to be present (AND). Default is any (OR).
+- `--limit <n>` — max items (JSON only; CSV streams the full set)
+- `--offset <n>` — pagination offset (JSON only)
+- `--no-references` — omit the per-entry `references` bucket (JSON only; references are included by default)
+- `-o, --output <file>` — write the response to a file instead of stdout
+
+**JSON response shape** (abbreviated):
+```json
+{
+  "generatedAt": 1714910400,
+  "total": 312,
+  "count": 312,
+  "items": [
+    {
+      "cveId": "CVE-2024-12847",
+      "vendorProject": "netgear",
+      "product": "dgn1000",
+      "vulnerabilityName": "NETGEAR DGN1000 Authentication Bypass",
+      "shortDescription": "…",
+      "requiredAction": "Deploy the available Snort/Suricata IDS rule and isolate exposed instances until a vendor patch is released.",
+      "dateAdded": "2026-04-23",
+      "dueDate": "2026-04-25",
+      "overdue": false,
+      "daysUntilDue": 2,
+      "knownRansomwareCampaignUse": null,
+      "reasons": ["crowdsec_sighting", "shadowserver_sighting", "multi_source_sighting", "snort_rule"],
+      "lastEvaluatedAt": "2026-04-23T10:30:00Z",
+      "references": {
+        "snort":      ["emergingthreats:2023456", "…"],
+        "nuclei":     ["cves/2024/CVE-2024-12847.yaml"],
+        "metasploit": ["https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/…"]
+      }
+    }
+  ]
+}
+```
+
+**Examples**:
+```bash
+# Full catalogue as JSON
+vulnetix vdb kev list
+
+# Just the CVEs flagged for ransomware use
+vulnetix vdb kev list --reason known_ransomware
+
+# CVEs matching any Snort or Metasploit tag (OR)
+vulnetix vdb kev list --reason snort_rule --reason metasploit_module
+
+# Critical-CVSS ransomware CVEs (AND)
+vulnetix vdb kev list --reason known_ransomware --reason critical_cvss --all
+
+# CSV export, saved to disk
+vulnetix vdb kev list --format csv -o vulnetix-kev.csv
+
+# Stream JSON to jq for ad-hoc analysis
+vulnetix vdb kev list --no-references | jq '.items[] | select(.overdue) | .cveId'
+```
+
+---
+
+### vdb kev get
+
+**Description**: Fetch a single Vulnetix KEV entry by CVE ID. Returns the same item shape as `vdb kev list`, always with `references` included. Exits with an error if the CVE is not in the catalogue.
+
+**Usage**:
+```bash
+vulnetix vdb kev get <CVE-ID> [flags]
+```
+
+**Flags**:
+- `-o, --output <file>` — write the entry JSON to a file instead of stdout
+
+**Example**:
+```bash
+vulnetix vdb kev get CVE-2024-12847
+vulnetix vdb kev get CVE-2024-12847 -o CVE-2024-12847.json
+```
+
+---
+
+### vdb kev download
+
+**Description**: Download the full Vulnetix KEV catalogue as CSV. Shorthand for `vdb kev list --format csv`. Writes to `vulnetix-kev.csv` in the current directory if `--output` is not given.
+
+**Usage**:
+```bash
+vulnetix vdb kev download [flags]
+```
+
+**Flags**: same as [vdb kev list](#vdb-kev-list) — `--reason`, `--all`, `-o/--output` are the most useful.
+
+**Examples**:
+```bash
+vulnetix vdb kev download                             # writes ./vulnetix-kev.csv
+vulnetix vdb kev download -o /tmp/kev.csv
+vulnetix vdb kev download --reason known_ransomware -o ransomware-kev.csv
+```
+
+---
+
+### vdb kev reasons
+
+**Description**: Print the valid enum values for the `--reason` flag. These are the qualifying-path labels the processor attaches to every catalogue entry.
+
+**Usage**:
+```bash
+vulnetix vdb kev reasons
+```
+
+**Output**:
+```
+crowdsec_sighting
+misp_sighting
+shadowserver_sighting
+shadowserver_surge
+multi_source_sighting
+snort_rule
+nuclei_template
+metasploit_module
+known_ransomware
+critical_cvss
+```
+
+See the [Vulnetix KEV design doc](https://github.com/Vulnetix/vdb-manager/blob/main/scripts/go-processors/vulnetix-kev-processor.design.md) for what each reason means and which qualifying path triggers a CVE's inclusion.
 
 ---
 
