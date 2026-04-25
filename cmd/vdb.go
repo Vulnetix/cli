@@ -287,7 +287,7 @@ var exploitsSearchCmd = &cobra.Command{
 
 Filters:
   --ecosystem    Package ecosystem (e.g. npm, pypi, maven)
-  --source       Exploit source (exploitdb, metasploit, nuclei, vulncheck-xdb, crowdsec, github, poc)
+  --source       Exploit source (exploitdb, metasploit, nuclei, nmap-nse, vulncheck-xdb, crowdsec, github, poc)
   --severity     CVSS severity (CRITICAL, HIGH, MEDIUM, LOW, NONE)
   --in-kev       Only show CVEs in CISA KEV
   --min-epss     Minimum EPSS score (0-1)
@@ -2109,7 +2109,7 @@ func init() {
 
 	// exploits search flags
 	exploitsSearchCmd.Flags().String("ecosystem", "", "Filter by package ecosystem")
-	exploitsSearchCmd.Flags().String("source", "", "Exploit source (exploitdb, metasploit, nuclei, vulncheck-xdb, crowdsec, github, poc)")
+	exploitsSearchCmd.Flags().String("source", "", "Exploit source (exploitdb, metasploit, nuclei, nmap-nse, vulncheck-xdb, crowdsec, github, poc)")
 	exploitsSearchCmd.Flags().String("severity", "", "CVSS severity (CRITICAL, HIGH, MEDIUM, LOW, NONE)")
 	exploitsSearchCmd.Flags().String("in-kev", "", "Only KEV CVEs (true/false)")
 	exploitsSearchCmd.Flags().String("min-epss", "", "Minimum EPSS score (0-1)")
@@ -2117,7 +2117,7 @@ func init() {
 	exploitsSearchCmd.Flags().String("sort", "", "Sort order (recent, epss, severity, maturity)")
 	exploitsSearchCmd.Flags().Int("limit", 100, "Maximum results (max 100)")
 	exploitsSearchCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
-	_ = exploitsSearchCmd.RegisterFlagCompletionFunc("source", cobra.FixedCompletions([]string{"exploitdb", "metasploit", "nuclei", "vulncheck-xdb", "crowdsec", "github", "poc"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = exploitsSearchCmd.RegisterFlagCompletionFunc("source", cobra.FixedCompletions([]string{"exploitdb", "metasploit", "nuclei", "nmap-nse", "vulncheck-xdb", "crowdsec", "github", "poc"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = exploitsSearchCmd.RegisterFlagCompletionFunc("severity", cobra.FixedCompletions([]string{"CRITICAL", "HIGH", "MEDIUM", "LOW", "NONE"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = exploitsSearchCmd.RegisterFlagCompletionFunc("sort", cobra.FixedCompletions([]string{"recent", "epss", "severity", "maturity"}, cobra.ShellCompDirectiveNoFileComp))
 
