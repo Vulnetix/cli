@@ -554,7 +554,7 @@ Vulnetix maintains several official OPA rule repositories you can use directly:
 
 | Repository | Rules | Coverage |
 |------------|-------|----------|
-| `Vulnetix/opa-gosec` | 58 | Go security checks — G101–G709 (gosec clean-room) |
+| `Vulnetix/opa-gosec` | 60 | Go security checks — G101–G709 (gosec clean-room) |
 | `Vulnetix/opa-aquasecurity-trivy` | 107 | Dockerfile and container configuration checks |
 | `Vulnetix/opa-fugue-regula` | 275 | Terraform, CloudFormation, Kubernetes, ARM templates |
 | `Vulnetix/opa-checkmarx-kics` | 205 | Infrastructure as Code across 20+ platforms |
