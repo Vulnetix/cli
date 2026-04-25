@@ -451,3 +451,27 @@ These rules use broad pattern matching across multiple languages to detect commo
 | [VNX-1048](vnx-cwe1048-auto) | Sensitive Data in Referrer | Medium | Go, Java, Node.js, PHP, Python |
 | [VNX-1052](vnx-cwe1052-auto) | Excessive Resource Usage | Medium | Go, Java, Node.js, Python |
 | [VNX-1054](vnx-cwe1054-auto) | GUI Input without Validation | Medium | Go, Java, Node.js, PHP, Python |
+
+## Community Rule Packs {#community}
+
+In addition to the built-in rules above, the following official community packs can be loaded on-demand with `--rule`:
+
+| Pack | Rules | Languages | Description |
+|------|-------|-----------|-------------|
+| [`Vulnetix/opa-py-ruff`](https://github.com/Vulnetix/opa-py-ruff) | 956 | Python | Clean-room OPA/Rego implementations of all [Ruff](https://docs.astral.sh/ruff/rules/) Python linting rules — pyflakes, pycodestyle, flake8-bandit, flake8-bugbear, pyupgrade, and 50+ more linters. Rule IDs use the `RUFF-` prefix (e.g. `RUFF-S101`, `RUFF-E711`). |
+| [`Vulnetix/opa-gosec`](https://github.com/Vulnetix/opa-gosec) | 60 | Go | gosec security rules for Go |
+| [`Vulnetix/opa-fugue-regula`](https://github.com/Vulnetix/opa-fugue-regula) | 275 | Terraform, CloudFormation | Fugue Regula IaC security rules |
+| [`Vulnetix/opa-aquasecurity-trivy`](https://github.com/Vulnetix/opa-aquasecurity-trivy) | 107 | Terraform, Kubernetes | Trivy misconfiguration rules |
+| [`Vulnetix/opa-checkmarx-kics`](https://github.com/Vulnetix/opa-checkmarx-kics) | 205 | Terraform, Dockerfile, Kubernetes | KICS IaC security queries |
+| [`Vulnetix/opa-cigna-tf`](https://github.com/Vulnetix/opa-cigna-tf) | 88 | Terraform | Cigna Terraform compliance rules |
+
+Load any pack alongside the built-in rules:
+
+```bash
+vulnetix scan --rule Vulnetix/opa-py-ruff
+
+# Python-only scan with Ruff rules, no built-in rules
+vulnetix sast --rule Vulnetix/opa-py-ruff --disable-default-rules
+```
+
+See [Custom Rule Repositories](custom-rules/) for authoring your own rules.
