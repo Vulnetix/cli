@@ -422,6 +422,15 @@ func parseExploitSummary(data map[string]interface{}) *ExploitSummary {
 			if !ok {
 				continue
 			}
+			source := strings.ToLower(stringVal(em, "source"))
+			// Nmap NSE scripts are weaponised tooling even when the API does
+			// not tag them with a maturity field (older responses).
+			if source == "nmap-nse" {
+				es.HasWeaponized = true
+				if es.HighestMaturity == "" || maturityRank("weaponized") < maturityRank(strings.ToLower(es.HighestMaturity)) {
+					es.HighestMaturity = "weaponized"
+				}
+			}
 			maturity := stringVal(em, "maturity")
 			maturityLower := strings.ToLower(maturity)
 			if maturityLower == "weaponized" || maturityLower == "functional" {

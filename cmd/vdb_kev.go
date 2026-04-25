@@ -21,6 +21,7 @@ var validKevReasons = []string{
 	"snort_rule",
 	"nuclei_template",
 	"metasploit_module",
+	"nse_script",
 	"known_ransomware",
 	"critical_cvss",
 }
