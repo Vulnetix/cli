@@ -548,6 +548,50 @@ Ensure the finding's `severity` field in `findings` matches or exceeds the thres
 
 ---
 
+## Official Rule Packs
+
+Vulnetix maintains several official OPA rule repositories you can use directly:
+
+| Repository | Rules | Coverage |
+|------------|-------|----------|
+| `Vulnetix/opa-gosec` | 58 | Go security checks — G101–G709 (gosec clean-room) |
+| `Vulnetix/opa-aquasecurity-trivy` | 107 | Dockerfile and container configuration checks |
+| `Vulnetix/opa-fugue-regula` | 275 | Terraform, CloudFormation, Kubernetes, ARM templates |
+| `Vulnetix/opa-checkmarx-kics` | 205 | Infrastructure as Code across 20+ platforms |
+| `Vulnetix/opa-cigna-tf` | 88 | AWS Terraform security controls |
+| `Vulnetix/community-rules` | 243 | Community-contributed rules across multiple languages |
+
+```bash
+# Run the gosec ruleset alongside built-in rules
+vulnetix sast --rule Vulnetix/opa-gosec
+
+# Run only gosec rules (no built-ins)
+vulnetix sast --rule Vulnetix/opa-gosec --disable-default-rules
+
+# Combine multiple official packs
+vulnetix sast \
+  --rule Vulnetix/opa-gosec \
+  --rule Vulnetix/opa-aquasecurity-trivy
+```
+
+## Community Rule Packs
+
+The following community-maintained repositories provide ready-to-use rule sets that can be loaded with `--rule`.
+
+### `Vulnetix/opa-py-ruff` — Python linting rules (Ruff clean-room)
+
+[`Vulnetix/opa-py-ruff`](https://github.com/Vulnetix/opa-py-ruff) is a community ruleset containing 956 OPA/Rego rules that are a clean-room implementation of all [Ruff](https://github.com/astral-sh/ruff) Python linting rules. Rule IDs use the prefix `RUFF-` followed by the original Ruff code (e.g. `RUFF-S101`, `RUFF-E711`, `RUFF-T201`). Each rule preserves the upstream Ruff metadata fields — `ruff_code`, `ruff_linter`, `ruff_name`, `ruff_since`, and `ruff_fix`. 478 rules have full regex/pattern-based detection; the remaining 478 are stubs reserved for AST-level checks.
+
+```bash
+# Run only the Ruff ruleset against a Python project (no built-ins)
+vulnetix scan --rule Vulnetix/opa-py-ruff --disable-default-rules
+
+# Combine with built-in rules
+vulnetix scan --rule Vulnetix/opa-py-ruff
+```
+
+---
+
 ## Related
 
 - [SAST Rules Reference](../) — All 253 built-in rule pages
