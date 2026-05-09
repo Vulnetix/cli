@@ -50,6 +50,27 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb snort-rules list](#vdb-snort-rules-list)
   - [vdb yara-rules get](#vdb-yara-rules-get)
   - [vdb yara-rules list](#vdb-yara-rules-list)
+  - [vdb exploits archived](#vdb-exploits-archived)
+  - [vdb exploits poc](#vdb-exploits-poc)
+  - [vdb exploits download](#vdb-exploits-download)
+  - [vdb iocs get](#vdb-iocs-get)
+  - [vdb iocs list](#vdb-iocs-list)
+  - [vdb sightings](#vdb-sightings)
+  - [vdb vex get](#vdb-vex-get)
+  - [vdb vex list](#vdb-vex-list)
+  - [vdb triage](#vdb-triage)
+  - [vdb raw sources](#vdb-raw-sources)
+  - [vdb raw get](#vdb-raw-get)
+  - [vdb nuclei get](#vdb-nuclei-get)
+  - [vdb kev sources](#vdb-kev-sources)
+  - [vdb msrc patch-tuesdays](#vdb-msrc-patch-tuesdays)
+  - [vdb msrc patch-tuesday](#vdb-msrc-patch-tuesday)
+  - [vdb vendor-trends](#vdb-vendor-trends)
+  - [vdb exploit-trends](#vdb-exploit-trends)
+  - [vdb ai-discoveries](#vdb-ai-discoveries)
+  - [vdb ai-assisted-exploits](#vdb-ai-assisted-exploits)
+  - [vdb ai-in-wild](#vdb-ai-in-wild)
+  - [vdb ai-malware](#vdb-ai-malware)
 - [V2 Commands](#v2-commands)
 - [Output Management](#output-management)
   - [Output Formats](#output-formats)
@@ -1137,12 +1158,15 @@ vulnetix vdb kev list [flags]
 
 **Flags**:
 - `--format json|csv` — output format (default: `json`)
-- `--reason <enum>` — filter by qualifying reason (repeatable; see [vdb kev reasons](#vdb-kev-reasons))
+- `--source <name>` — KEV catalogue source (repeatable; see [vdb kev sources](#vdb-kev-sources)). Valid values: `CISA`, `vulnetix`, `enisa`, `vulncheck`. **JSON listings merge all four sources by default**; pin a single source with `--source CISA` (etc.). The `--source` flag is JSON-only — `--format csv` always uses the vulnetix qualifying-reason export and ignores `--source`.
+- `--reason <enum>` — filter by qualifying reason (repeatable; vulnetix-source only — silently ignored on other sources). See [vdb kev reasons](#vdb-kev-reasons).
 - `--all` — require **every** `--reason` to be present (AND). Default is any (OR).
 - `--limit <n>` — max items (JSON only; CSV streams the full set)
 - `--offset <n>` — pagination offset (JSON only)
 - `--no-references` — omit the per-entry `references` bucket (JSON only; references are included by default)
 - `-o, --output <file>` — write the response to a file instead of stdout
+
+> **Behaviour change (v2.6+)**: `vdb kev list` (JSON) now merges all four KEV sources by default — CISA, vulnetix, enisa, and vulncheck — via the unified `/v2/kev` endpoint. To restore the previous vulnetix-only behaviour pass `--source vulnetix` (or use `--reason …` / `--format csv`, both of which still resolve to the vulnetix-only export).
 
 **JSON response shape** (abbreviated):
 ```json
@@ -1262,6 +1286,420 @@ critical_cvss
 ```
 
 See the [Vulnetix KEV design doc](https://github.com/Vulnetix/vdb-manager/blob/main/scripts/go-processors/vulnetix-kev-processor.design.md) for what each reason means and which qualifying path triggers a CVE's inclusion.
+
+---
+
+### vdb exploits archived
+
+**Description**: Per-CVE list of `Exploit` table rows, ranked by `datePublished DESC`. Each row carries `hasArchive: true` when the PoC payload is archived in object storage; the response includes a `pocUrl` that maps to [`vdb exploits poc`](#vdb-exploits-poc).
+
+**Usage**:
+```bash
+vulnetix vdb exploits archived <CVE-ID> [flags]
+```
+
+**Flags**:
+- `-o, --output <file>` — write JSON to a file
+
+**Example**:
+```bash
+vulnetix vdb exploits archived CVE-2021-44228
+```
+
+---
+
+### vdb exploits poc
+
+**Description**: Stream the raw PoC bytes for a single Exploit UUID. Used for fix verification: download the PoC, run it against your patched system, confirm the fix holds. Sets `Content-Disposition: attachment; filename="<original>"` and `X-Vulnetix-Sha256` for chain-of-custody. The CLI verifies the body sha256 against the header before writing the file.
+
+**Usage**:
+```bash
+vulnetix vdb exploits poc <exploit-uuid> [flags]
+```
+
+**Flags**:
+- `-o, --output <file>` — write to this path (default: filename from `Content-Disposition`)
+- `--print` — write to stdout instead of disk
+
+**Example**:
+```bash
+vulnetix vdb exploits poc 1c9f4a4b-… -o /tmp/log4shell.py
+```
+
+---
+
+### vdb exploits download
+
+**Description**: Bulk download every archived PoC for a CVE into a directory plus a `manifest.csv` with sha256 + originalUrl per file (chain-of-custody). External-only rows (no archive on file) are listed in the manifest as `external-only` with the upstream URL.
+
+**Usage**:
+```bash
+vulnetix vdb exploits download <CVE-ID> [flags]
+```
+
+**Flags**:
+- `--all` — pull every archived PoC (default behaviour)
+- `--dir <path>` — output directory (default: `./exploits-<CVE>/`)
+
+**Example**:
+```bash
+vulnetix vdb exploits download CVE-2024-12847 --all
+ls exploits-CVE-2024-12847/
+cat exploits-CVE-2024-12847/manifest.csv
+```
+
+---
+
+### vdb iocs get
+
+**Description**: IOC pivots for a CVE — `CrowdSecSighting` rows (per-IP attribution: AS, geo, behaviors, ATT&CK techniques, last-seen) + a Shadowserver summary block (count1d / count7dAvg / count30dAvg / count90dAvg + top countries).
+
+**Usage**:
+```bash
+vulnetix vdb iocs get <CVE-ID> [flags]
+```
+
+**Flags**:
+- `-o, --output <file>` — write JSON to a file
+
+**Example**:
+```bash
+vulnetix vdb iocs get CVE-2024-12847
+```
+
+---
+
+### vdb iocs list
+
+**Description**: Cross-CVE IOC search across CrowdSec sightings. Supports `--format stix` for STIX 2.1 bundle output that any commercial SOAR (Splunk, Sentinel, Cortex, Tines) ingests directly. Each indicator is rendered as a STIX `indicator` SDO with a `[ipv4-addr:value = '...']` pattern, sighted against a `vulnerability` SDO for the CVE.
+
+**Usage**:
+```bash
+vulnetix vdb iocs list [flags]
+```
+
+**Filter flags**:
+- `--cve-id <CVE>` — repeatable
+- `--country <CC>` — ISO-2; repeatable; AND
+- `--asn <int>` — repeatable; AND
+- `--behavior <text>` — substring of CrowdSec `behaviorsCsv` (ILIKE)
+- `--reputation <name>` — exact match (e.g. `malicious`, `suspicious`)
+- `--since <RFC3339>` — only sightings with `lastSeen >=`
+- `--limit <n>` (default 100, max 500), `--offset <n>`
+
+**Output flags**:
+- `--format <name>` — `json` (default) | `csv` | `stix`
+- `-o, --output <file>` — write to a file
+
+**Examples**:
+```bash
+# Threat-hunt for sightings of a CVE in Australia
+vulnetix vdb iocs list --cve-id CVE-2024-12847 --country AU
+
+# STIX 2.1 bundle for SOAR ingest
+vulnetix vdb iocs list --cve-id CVE-2024-12847 --format stix > log4shell-iocs.stix.json
+
+# CSV for offline analysis
+vulnetix vdb iocs list --behavior "http-scanning" --format csv -o scanners.csv
+```
+
+---
+
+### vdb sightings
+
+**Description**: Merged in-the-wild observation timeline across `ShadowserverTimeSeries`, `VulnCheckReportedExploitation`, and `CVEAiInWildExploitation`. Returns `firstObservation`, `lastObservation`, `daysSinceLastSeen` headlines plus an `events[]` lane chart suitable for direct rendering.
+
+**Usage**:
+```bash
+vulnetix vdb sightings <CVE-ID> [flags]
+```
+
+**Flags**:
+- `-o, --output <file>` — write JSON to a file
+
+**Example**:
+```bash
+vulnetix vdb sightings CVE-2021-44228
+```
+
+---
+
+### vdb vex get
+
+**Description**: Returns `OpenVexStatement` rows for the CVE that belong to the authenticated org's uploaded VEX documents. Used during triage to deprioritise findings the vendor has marked `not_affected`.
+
+**Usage**:
+```bash
+vulnetix vdb vex get <CVE-ID> [flags]
+```
+
+**Flags**:
+- `-o, --output <file>` — write JSON to a file
+
+**Example**:
+```bash
+vulnetix vdb vex get CVE-2024-12847
+```
+
+---
+
+### vdb vex list
+
+**Description**: Search VEX statements declared by your org. Filter by status, supplier, since.
+
+**Usage**:
+```bash
+vulnetix vdb vex list [flags]
+```
+
+**Filter flags**:
+- `--cve-id <CVE>` — repeatable
+- `--status <name>` — `not_affected` | `fixed` | `under_investigation` | `affected`
+- `--supplier <text>` — ILIKE substring
+- `--since <RFC3339>` — only statements with timestamp >=
+- `--limit <n>` (default 50, max 200), `--offset <n>`
+- `-o, --output <file>` — write JSON to a file
+
+**Examples**:
+```bash
+# All not_affected statements from any supplier
+vulnetix vdb vex list --status not_affected --limit 100
+
+# Red Hat's fixed statements in the last 30 days
+vulnetix vdb vex list --status fixed --supplier "Red Hat" --since 2026-04-01T00:00:00Z
+```
+
+---
+
+### vdb triage
+
+**Description**: The daily SOC pull. Combined filter across EPSS, CESS, CVSS, severity, KEV membership (across all four sources), CWE, vendor / product, and publication date. Returns rows ordered by EPSS by default; sort by `cess`, `cvss`, `published`, or `kev-due`.
+
+**Usage**:
+```bash
+vulnetix vdb triage [flags]
+```
+
+**Filter flags**:
+- `--min-epss <0..1>` — EPSS score floor
+- `--min-epss-percentile <0..100>` — EPSS percentile floor
+- `--min-cess <0..10>` — Coalition CESS score floor
+- `--min-cvss <0..10>` — best CVSS base score floor
+- `--severity <name>` — `critical` | `high` | `medium` | `low`
+- `--in-kev <true|false>` — limit to / exclude KEV-listed CVEs
+- `--kev-source <name>` — `CISA` | `vulnetix` | `enisa` | `vulncheck` (repeat for OR)
+- `--cwe <id>` — repeat for OR (e.g. `CWE-79`)
+- `--vendor <text>`, `--product <text>` — ILIKE
+- `--since <RFC3339>` — `datePublished >=`
+- `--sort <name>` — `epss` (default) | `cess` | `cvss` | `published` | `kev-due`
+- `--limit <n>` (default 50, max 200), `--offset <n>`
+
+**Output flags**:
+- `--format <name>` — `json` (default) | `csv`
+- `-o, --output <file>` — write to a file
+
+**Examples**:
+```bash
+# Daily 'EPSS > 0.7 + KEV + critical/high' sweep
+vulnetix vdb triage --min-epss 0.7 --in-kev --severity high --limit 50
+
+# Recently-published critical without KEV (potential 'gets KEV'd next' shortlist)
+vulnetix vdb triage --min-cvss 9.0 --in-kev false --since 2026-05-01T00:00:00Z --sort published
+
+# What's overdue per CISA?
+vulnetix vdb triage --in-kev --kev-source CISA --sort kev-due
+
+# CSV for ticket import
+vulnetix vdb triage --min-epss 0.5 --severity high --format csv -o triage.csv
+```
+
+---
+
+### vdb raw sources
+
+**Description**: Enumerate the upstream advisory sources whose raw payloads are archived in object storage. Each entry says whether per-CVE retrieval is supported (`perCVE`) and how many rows are archived.
+
+**Usage**:
+```bash
+vulnetix vdb raw sources [flags]
+```
+
+**Example**:
+```bash
+vulnetix vdb raw sources
+```
+
+---
+
+### vdb raw get
+
+**Description**: Fetch a CVE's raw upstream advisory bytes (the original JSON / XML the processor saw). Used for forensic / chain-of-custody work — proves what the upstream said at ingest time. The CLI verifies the body sha256 against the `X-Vulnetix-Sha256` response header and writes the bytes to disk with the original content-type.
+
+**Usage**:
+```bash
+vulnetix vdb raw get --source <slug> <CVE-ID> [flags]
+```
+
+**Flags**:
+- `--source <slug>` — required. Run `vdb raw sources` for the catalogue (`mitre-cve`, `ghsa`, `osv`, `euvd`, …).
+- `-o, --output <file>` — write to this path (default: `<source>-<CVE>.bin`)
+
+**Example**:
+```bash
+vulnetix vdb raw get --source mitre-cve CVE-2021-44228 -o log4shell-mitre.json
+```
+
+---
+
+### vdb nuclei get
+
+**Description**: Look up ProjectDiscovery Nuclei template paths attached to a CVE. With `--format yaml --first` the handler proxies the first template body inline so callers can pipe straight into `nuclei -t -` for a fix-verification run.
+
+**Usage**:
+```bash
+vulnetix vdb nuclei get <CVE-ID> [flags]
+```
+
+**Flags**:
+- `--format <name>` — `json` (default) | `yaml`
+- `--first` — (yaml only) return only the first template body
+- `-o, --output <file>` — write to a file
+
+**Examples**:
+```bash
+# JSON listing of every template path
+vulnetix vdb nuclei get CVE-2021-44228
+
+# Fetch + run loop
+vulnetix vdb nuclei get CVE-2021-44228 --format yaml --first | nuclei -t - -u https://your-target.example
+```
+
+---
+
+### vdb kev sources
+
+**Description**: Print the four KEV catalogue sources surfaced by `vdb kev list`. Lets you discover the valid `--source` values (also accepted on `vdb triage --kev-source`).
+
+**Usage**:
+```bash
+vulnetix vdb kev sources
+```
+
+**Output**:
+```
+CISA
+vulnetix
+enisa
+vulncheck
+```
+
+The `vdb kev list` flag `--source <name>` accepts any of these (repeatable). When omitted, JSON listings merge all four. The CSV export path (`--format csv`) remains vulnetix-only because the CSV schema is anchored on the qualifying-reason model that's specific to that source.
+
+---
+
+### vdb msrc patch-tuesdays
+
+**Description**: List Microsoft Patch Tuesday months with on-file rollup data.
+
+**Usage**:
+```bash
+vulnetix vdb msrc patch-tuesdays [flags]
+```
+
+**Flags**:
+- `-o, --output <file>` — write JSON to a file
+
+**Example**:
+```bash
+vulnetix vdb msrc patch-tuesdays
+```
+
+---
+
+### vdb msrc patch-tuesday
+
+**Description**: Get a specific Patch Tuesday rollup by ISO month.
+
+**Usage**:
+```bash
+vulnetix vdb msrc patch-tuesday <YYYY-MM> [flags]
+```
+
+**Example**:
+```bash
+vulnetix vdb msrc patch-tuesday 2026-04
+```
+
+---
+
+### vdb vendor-trends
+
+**Description**: Vendor-level trend data (monthly / yearly CVE+GHSA breakdown).
+
+**Usage**:
+```bash
+vulnetix vdb vendor-trends [--vendor <name>] [--year <YYYY>]
+```
+
+**Example**:
+```bash
+vulnetix vdb vendor-trends --vendor microsoft --year 2026
+```
+
+---
+
+### vdb exploit-trends
+
+**Description**: Severity-tier rollup of exploit signal counts (mention → bounty → sighting → theoretical → weaponised → known → predicted).
+
+**Usage**:
+```bash
+vulnetix vdb exploit-trends
+```
+
+---
+
+### vdb ai-discoveries
+
+**Description**: AI-discovered vulnerabilities (researcher leaderboard + per-CVE detail).
+
+**Usage**:
+```bash
+vulnetix vdb ai-discoveries [--cve <CVE-ID>] [--limit <n>]
+```
+
+---
+
+### vdb ai-assisted-exploits
+
+**Description**: Researcher AI-assisted exploit demonstrations (academic / red-team artefacts).
+
+**Usage**:
+```bash
+vulnetix vdb ai-assisted-exploits [--cve <CVE-ID>] [--limit <n>]
+```
+
+---
+
+### vdb ai-in-wild
+
+**Description**: AI-discovered in-the-wild exploitation observations.
+
+**Usage**:
+```bash
+vulnetix vdb ai-in-wild [--cve <CVE-ID>] [--since <RFC3339>] [--limit <n>]
+```
+
+---
+
+### vdb ai-malware
+
+**Description**: AI-authored / AI-runtime malware family intelligence.
+
+**Usage**:
+```bash
+vulnetix vdb ai-malware [--cve <CVE-ID>] [--limit <n>]
+```
 
 ---
 
