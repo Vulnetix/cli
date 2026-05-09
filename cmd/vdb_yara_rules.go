@@ -53,6 +53,7 @@ var yaraRulesGetCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cveID := strings.ToUpper(strings.TrimSpace(args[0]))
 		client := newVDBClient()
+		client.APIVersion = "/v2"
 		resp, err := client.V2YaraRules(cveID)
 		if err != nil {
 			return fmt.Errorf("yara-rules get: %w", err)
@@ -68,6 +69,7 @@ var yaraRulesListCmd = &cobra.Command{
 	Short: "Search YARA rules across all CVEs with expressive filters",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
+		client.APIVersion = "/v2"
 		resp, err := client.V2YaraRulesSearch(vdb.YaraSearchParams{
 			CveIDs:      upperAll(yaraSearchCveIDs),
 			Sources:     yaraSearchSources,

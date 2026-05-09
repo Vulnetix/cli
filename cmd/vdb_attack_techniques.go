@@ -50,6 +50,7 @@ var attackTechniquesGetCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cveID := strings.ToUpper(strings.TrimSpace(args[0]))
 		client := newVDBClient()
+		client.APIVersion = "/v2"
 		resp, err := client.V2AttackTechniques(cveID)
 		if err != nil {
 			return fmt.Errorf("attack-techniques get: %w", err)
@@ -69,6 +70,7 @@ var attackTechniquesListCmd = &cobra.Command{
 	Short: "Search ATT&CK technique mappings across CVEs",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
+		client.APIVersion = "/v2"
 		resp, err := client.V2AttackTechniquesSearch(vdb.AttackTechniquesSearchParams{
 			TechniqueIDs: atkSearchTechniques,
 			Tactics:      atkSearchTactics,

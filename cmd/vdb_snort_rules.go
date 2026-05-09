@@ -59,6 +59,7 @@ var snortRulesGetCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cveID := strings.ToUpper(strings.TrimSpace(args[0]))
 		client := newVDBClient()
+		client.APIVersion = "/v2"
 		resp, err := client.V2SnortRules(cveID)
 		if err != nil {
 			return fmt.Errorf("snort-rules get: %w", err)
@@ -74,6 +75,7 @@ var snortRulesListCmd = &cobra.Command{
 	Short: "Search Snort rules across all CVEs with expressive filters",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := newVDBClient()
+		client.APIVersion = "/v2"
 		resp, err := client.V2SnortRulesSearch(vdb.SnortSearchParams{
 			CveIDs:           upperAll(snortSearchCveIDs),
 			Sources:          snortSearchSources,
