@@ -35,7 +35,11 @@ var (
 	kevOffset     int
 	kevNoRefs     bool
 	kevOutput     string
+	kevSources    []string // CISA | vulnetix | enisa | vulncheck (repeat)
 )
+
+// validKevSources mirrors the four kev sources in the unified /v2/kev API.
+var validKevSources = []string{"CISA", "vulnetix", "enisa", "vulncheck"}
 
 var kevCmd = &cobra.Command{
 	Use:   "kev",
@@ -76,6 +80,23 @@ var kevGetCmd = &cobra.Command{
 	RunE:  runKevGet,
 }
 
+var kevSourcesCmd = &cobra.Command{
+	Use:   "sources",
+	Short: "List the four KEV sources surfaced by the API",
+	Long: `KEV catalogue sources combined by vulnetix vdb kev list:
+
+  CISA       — CISA Known Exploited Vulnerabilities catalogue
+  vulnetix   — Vulnetix-derived KEV (qualifying-reason model)
+  enisa      — ENISA EU KEV catalogue
+  vulncheck  — VulnCheck KEV (separate vendor table; folded into the same surface)`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		for _, s := range validKevSources {
+			fmt.Fprintln(cmd.OutOrStdout(), s)
+		}
+		return nil
+	},
+}
+
 var kevReasonsCmd = &cobra.Command{
 	Use:   "reasons",
 	Short: "List valid Vulnetix KEV qualifying-reason enum values",
@@ -103,10 +124,43 @@ func runKevList(cmd *cobra.Command, args []string) error {
 	if err := validateReasons(kevReasons); err != nil {
 		return err
 	}
+	if err := validateKevSources(kevSources); err != nil {
+		return err
+	}
 	format := strings.ToLower(kevFormat)
 	if format != "csv" {
 		format = "json"
 	}
+
+	// Routing:
+	//   * `--format csv` → vulnetix-only catalogue with CSV streaming (existing
+	//     /v2/vulnetix-kev path; CSV is the export format for SOAR ingest).
+	//   * `--reason …`  → vulnetix-source qualifying-reason filter (vulnetix-only).
+	//   * Otherwise   → unified /v2/kev (CISA + vulnetix + enisa + vulncheck);
+	//     `--source` narrows the merge.
+	useUnified := format == "json" && len(kevReasons) == 0
+	client := newVDBClient()
+
+	if useUnified {
+		client.APIVersion = "/v2"
+		resp, err := client.V2KevSearch(vdb.KevSearchParams{
+			Sources: kevSources,
+			Limit:   kevLimit,
+			Offset:  kevOffset,
+		})
+		if err != nil {
+			return fmt.Errorf("fetch unified KEV: %w", err)
+		}
+		printRateLimit(client)
+		recordVDBQuery("kev-list-unified",
+			fmt.Sprintf("sources=%s", strings.Join(kevSources, ",")))
+		body, err := json.MarshalIndent(resp, "", "  ")
+		if err != nil {
+			return err
+		}
+		return writeOutput(cmd, body, kevOutput)
+	}
+
 	params := vdb.VulnetixKevParams{
 		Format:            format,
 		Reasons:           kevReasons,
@@ -117,16 +171,30 @@ func runKevList(cmd *cobra.Command, args []string) error {
 	if kevAllReasons {
 		params.FilterMode = "all"
 	}
-
-	client := newVDBClient()
 	body, err := client.VulnetixKevList(params)
 	if err != nil {
 		return fmt.Errorf("fetch Vulnetix KEV: %w", err)
 	}
 	printRateLimit(client)
 	recordVDBQuery("kev-list", fmt.Sprintf("format=%s reasons=%s", format, strings.Join(kevReasons, ",")))
-
 	return writeOutput(cmd, body, kevOutput)
+}
+
+// validateKevSources rejects unknown values for --source.
+func validateKevSources(in []string) error {
+	if len(in) == 0 {
+		return nil
+	}
+	valid := map[string]struct{}{}
+	for _, s := range validKevSources {
+		valid[strings.ToLower(s)] = struct{}{}
+	}
+	for _, s := range in {
+		if _, ok := valid[strings.ToLower(strings.TrimSpace(s))]; !ok {
+			return fmt.Errorf("invalid --source %q (run `vulnetix vdb kev sources` to list valid values)", s)
+		}
+	}
+	return nil
 }
 
 func runKevGet(cmd *cobra.Command, args []string) error {
@@ -192,6 +260,9 @@ func init() {
 			"Omit the `references` bucket from each item (JSON only)")
 		c.Flags().StringVarP(&kevOutput, "output", "o", "",
 			"Write response body to this file instead of stdout")
+		c.Flags().StringSliceVar(&kevSources, "source", nil,
+			"KEV source to include (repeatable; one of CISA, vulnetix, enisa, vulncheck). "+
+				"When omitted with --format json, the unified /v2/kev surface returns all four.")
 	}
 	kevGetCmd.Flags().StringVarP(&kevOutput, "output", "o", "",
 		"Write the entry JSON to this file instead of stdout")
@@ -199,6 +270,7 @@ func init() {
 	kevCmd.AddCommand(kevListCmd)
 	kevCmd.AddCommand(kevGetCmd)
 	kevCmd.AddCommand(kevReasonsCmd)
+	kevCmd.AddCommand(kevSourcesCmd)
 	kevCmd.AddCommand(kevDownloadCmd)
 
 	// Wire under the existing `vdb` command root (vulnetix vdb kev …)

@@ -3,8 +3,11 @@ package vdb
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 // V2QueryParams holds common context-filter query parameters for V2 endpoints.
@@ -528,6 +531,342 @@ func (c *Client) V2AttackTechniquesSearch(p AttackTechniquesSearchParams) (map[s
 		q.Set("offset", fmt.Sprintf("%d", p.Offset))
 	}
 	path := "/attack-techniques"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	return doV2Get(c, path)
+}
+
+// ── SOC analyst surface ──────────────────────────────────────────────────
+
+// V2VulnExploits — GET /v2/vuln/{id}/exploits.
+func (c *Client) V2VulnExploits(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/exploits", url.PathEscape(id)))
+}
+
+// V2ExploitPoC — GET /v2/exploits/{exploitUuid}/poc. Returns raw bytes,
+// the original filename (from Content-Disposition), and the SHA-256 hash
+// (from X-Vulnetix-Sha256). The CLI uses these to write a file with a
+// chain-of-custody-friendly name + integrity check.
+func (c *Client) V2ExploitPoC(exploitUUID string) (body []byte, filename, sha256, originalURL string, err error) {
+	path := fmt.Sprintf("/exploits/%s/poc", url.PathEscape(exploitUUID))
+	urlStr := c.BaseURL + c.APIVersion + path
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return nil, "", "", "", fmt.Errorf("new request: %w", err)
+	}
+	if err := c.addAuthHeader(req); err != nil {
+		return nil, "", "", "", err
+	}
+	req.Header.Set("Accept", "application/octet-stream")
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	defer resp.Body.Close()
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	if resp.StatusCode != 200 {
+		return nil, "", "", "", fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+	}
+	cd := resp.Header.Get("Content-Disposition")
+	if i := strings.Index(cd, `filename="`); i >= 0 {
+		rest := cd[i+len(`filename="`):]
+		if j := strings.Index(rest, `"`); j > 0 {
+			filename = rest[:j]
+		}
+	}
+	sha256 = resp.Header.Get("X-Vulnetix-Sha256")
+	originalURL = resp.Header.Get("X-Vulnetix-Original-Url")
+	return body, filename, sha256, originalURL, nil
+}
+
+// IOCSearchParams ─ GET /v2/iocs.
+type IOCSearchParams struct {
+	CveIDs     []string
+	Countries  []string
+	ASNs       []int
+	Behavior   string
+	Reputation string
+	Since      string
+	Limit      int
+	Offset     int
+	Format     string // json | stix
+}
+
+func (c *Client) V2VulnIOCs(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/iocs", url.PathEscape(id)))
+}
+
+// V2IOCsSearch returns the raw response body so the caller can switch on
+// `format` (the STIX bundle is not JSON-shape compatible).
+func (c *Client) V2IOCsSearch(p IOCSearchParams) ([]byte, string, error) {
+	q := url.Values{}
+	for _, v := range p.CveIDs {
+		q.Add("cveId", v)
+	}
+	for _, v := range p.Countries {
+		q.Add("country", v)
+	}
+	for _, v := range p.ASNs {
+		q.Add("asn", fmt.Sprintf("%d", v))
+	}
+	if p.Behavior != "" {
+		q.Set("behavior", p.Behavior)
+	}
+	if p.Reputation != "" {
+		q.Set("reputation", p.Reputation)
+	}
+	if p.Since != "" {
+		q.Set("since", p.Since)
+	}
+	if p.Format != "" {
+		q.Set("format", p.Format)
+	}
+	if p.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", p.Limit))
+	}
+	if p.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", p.Offset))
+	}
+	path := "/iocs"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	body, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	return body, "application/json", nil
+}
+
+// V2VulnSightings — GET /v2/vuln/{id}/sightings.
+func (c *Client) V2VulnSightings(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/sightings", url.PathEscape(id)))
+}
+
+// V2VulnVex — GET /v2/vuln/{id}/vex.
+func (c *Client) V2VulnVex(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/vex", url.PathEscape(id)))
+}
+
+// VexSearchParams ─ GET /v2/vex.
+type VexSearchParams struct {
+	CveIDs   []string
+	Status   string
+	Supplier string
+	Since    string
+	Limit    int
+	Offset   int
+}
+
+func (c *Client) V2VexSearch(p VexSearchParams) (map[string]interface{}, error) {
+	q := url.Values{}
+	for _, v := range p.CveIDs {
+		q.Add("cveId", v)
+	}
+	if p.Status != "" {
+		q.Set("status", p.Status)
+	}
+	if p.Supplier != "" {
+		q.Set("supplier", p.Supplier)
+	}
+	if p.Since != "" {
+		q.Set("since", p.Since)
+	}
+	if p.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", p.Limit))
+	}
+	if p.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", p.Offset))
+	}
+	path := "/vex"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	return doV2Get(c, path)
+}
+
+// TriageParams ─ GET /v2/triage.
+type TriageParams struct {
+	MinEpss             *float64
+	MinEpssPercentile   *float64
+	MinCess             *float64
+	MinCvss             *float64
+	Severity            string
+	InKev               string // "true" / "false" / ""
+	KevSources          []string
+	CWEs                []string
+	Vendor              string
+	Product             string
+	Since               string
+	Sort                string
+	Limit               int
+	Offset              int
+}
+
+func (c *Client) V2Triage(p TriageParams) (map[string]interface{}, error) {
+	q := url.Values{}
+	if p.MinEpss != nil {
+		q.Set("minEpss", fmt.Sprintf("%g", *p.MinEpss))
+	}
+	if p.MinEpssPercentile != nil {
+		q.Set("minEpssPercentile", fmt.Sprintf("%g", *p.MinEpssPercentile))
+	}
+	if p.MinCess != nil {
+		q.Set("minCess", fmt.Sprintf("%g", *p.MinCess))
+	}
+	if p.MinCvss != nil {
+		q.Set("minCvss", fmt.Sprintf("%g", *p.MinCvss))
+	}
+	if p.Severity != "" {
+		q.Set("severity", p.Severity)
+	}
+	if p.InKev != "" {
+		q.Set("inKev", p.InKev)
+	}
+	for _, s := range p.KevSources {
+		q.Add("kevSource", s)
+	}
+	for _, c := range p.CWEs {
+		q.Add("cwe", c)
+	}
+	if p.Vendor != "" {
+		q.Set("vendor", p.Vendor)
+	}
+	if p.Product != "" {
+		q.Set("product", p.Product)
+	}
+	if p.Since != "" {
+		q.Set("since", p.Since)
+	}
+	if p.Sort != "" {
+		q.Set("sort", p.Sort)
+	}
+	if p.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", p.Limit))
+	}
+	if p.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", p.Offset))
+	}
+	path := "/triage"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	return doV2Get(c, path)
+}
+
+// V2RawSources — GET /v2/raw/sources.
+func (c *Client) V2RawSources() (map[string]interface{}, error) {
+	return doV2Get(c, "/raw/sources")
+}
+
+// V2RawArchive — GET /v2/raw/{source}/{cveId}. Returns raw bytes +
+// content-type + sha256.
+func (c *Client) V2RawArchive(source, cveID string) (body []byte, contentType, sha256, r2Path string, err error) {
+	path := fmt.Sprintf("/raw/%s/%s", url.PathEscape(source), url.PathEscape(cveID))
+	urlStr := c.BaseURL + c.APIVersion + path
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return nil, "", "", "", fmt.Errorf("new request: %w", err)
+	}
+	if err := c.addAuthHeader(req); err != nil {
+		return nil, "", "", "", err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	defer resp.Body.Close()
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	if resp.StatusCode != 200 {
+		return nil, "", "", "", fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+	}
+	contentType = resp.Header.Get("Content-Type")
+	sha256 = resp.Header.Get("X-Vulnetix-Sha256")
+	r2Path = resp.Header.Get("X-Vulnetix-R2-Path")
+	return body, contentType, sha256, r2Path, nil
+}
+
+// V2VulnNuclei — GET /v2/vuln/{id}/nuclei. The CLI calls without format for
+// the JSON listing, then optionally re-fetches with format=yaml&first=true
+// to print a single template body.
+func (c *Client) V2VulnNuclei(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/nuclei", url.PathEscape(id)))
+}
+
+// V2VulnNucleiYAML — GET /v2/vuln/{id}/nuclei?format=yaml. Returns the raw
+// YAML body. With first=true, returns the first template alone.
+func (c *Client) V2VulnNucleiYAML(id string, first bool) ([]byte, error) {
+	q := url.Values{}
+	q.Set("format", "yaml")
+	if first {
+		q.Set("first", "true")
+	}
+	path := fmt.Sprintf("/vuln/%s/nuclei?%s", url.PathEscape(id), q.Encode())
+	return c.DoRequest("GET", path, nil)
+}
+
+// KevSearchParams ─ GET /v2/kev (the 4-source merged collection).
+type KevSearchParams struct {
+	CveIDs    []string
+	Sources   []string // CISA | vulnetix | enisa | vulncheck (repeat for OR; default = all four)
+	Reason    string
+	Since     string
+	Until     string
+	DueBefore string
+	DueAfter  string
+	Vendor    string
+	Product   string
+	Sort      string // due | added | cve
+	Limit     int
+	Offset    int
+}
+
+func (c *Client) V2KevSearch(p KevSearchParams) (map[string]interface{}, error) {
+	q := url.Values{}
+	for _, v := range p.CveIDs {
+		q.Add("cveId", v)
+	}
+	for _, v := range p.Sources {
+		q.Add("source", v)
+	}
+	if p.Reason != "" {
+		q.Set("reason", p.Reason)
+	}
+	if p.Since != "" {
+		q.Set("since", p.Since)
+	}
+	if p.Until != "" {
+		q.Set("until", p.Until)
+	}
+	if p.DueBefore != "" {
+		q.Set("dueBefore", p.DueBefore)
+	}
+	if p.DueAfter != "" {
+		q.Set("dueAfter", p.DueAfter)
+	}
+	if p.Vendor != "" {
+		q.Set("vendor", p.Vendor)
+	}
+	if p.Product != "" {
+		q.Set("product", p.Product)
+	}
+	if p.Sort != "" {
+		q.Set("sort", p.Sort)
+	}
+	if p.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", p.Limit))
+	}
+	if p.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", p.Offset))
+	}
+	path := "/kev"
 	if encoded := q.Encode(); encoded != "" {
 		path += "?" + encoded
 	}
