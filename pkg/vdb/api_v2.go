@@ -323,6 +323,217 @@ func (c *Client) V2CloudLocators(vendor, product string) (map[string]interface{}
 	return doV2Get(c, path)
 }
 
+// SnortSearchParams carries the optional filter knobs for V2SnortRulesSearch.
+// All fields are optional; zero-valued slices and strings are skipped.
+type SnortSearchParams struct {
+	CveIDs           []string
+	Sources          []string
+	Techniques       []string // MITRE ATT&CK T-id (any of)
+	Tactics          []string // MITRE ATT&CK TA-id (any of)
+	Classtype        string
+	Severity         string
+	Protocol         string
+	Action           string
+	DstPort          string
+	SrcPort          string
+	Disabled         string // "true" / "false" / ""
+	Q                string // free-text on msg + rawText
+	AffectedProducts []string
+	Tags             []string
+	Since            string // RFC3339
+	Until            string // RFC3339
+	Sort             string // recent | severity | id
+	Limit            int
+	Offset           int
+}
+
+// V2SnortRules retrieves a CVE's Snort rules (per-CVE endpoint).
+func (c *Client) V2SnortRules(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/snort-rules", url.PathEscape(id)))
+}
+
+// V2SnortRulesSearch performs a collection-wide search for Snort rules with
+// expressive filters.
+func (c *Client) V2SnortRulesSearch(p SnortSearchParams) (map[string]interface{}, error) {
+	q := url.Values{}
+	for _, v := range p.CveIDs {
+		q.Add("cveId", v)
+	}
+	for _, v := range p.Sources {
+		q.Add("source", v)
+	}
+	for _, v := range p.Techniques {
+		q.Add("technique", v)
+	}
+	for _, v := range p.Tactics {
+		q.Add("tactic", v)
+	}
+	for _, v := range p.AffectedProducts {
+		q.Add("affectedProduct", v)
+	}
+	for _, v := range p.Tags {
+		q.Add("tag", v)
+	}
+	for k, v := range map[string]string{
+		"classtype": p.Classtype,
+		"severity":  p.Severity,
+		"protocol":  p.Protocol,
+		"action":    p.Action,
+		"dstPort":   p.DstPort,
+		"srcPort":   p.SrcPort,
+		"disabled":  p.Disabled,
+		"q":         p.Q,
+		"since":     p.Since,
+		"until":     p.Until,
+		"sort":      p.Sort,
+	} {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	if p.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", p.Limit))
+	}
+	if p.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", p.Offset))
+	}
+	path := "/snort-rules"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	return doV2Get(c, path)
+}
+
+// YaraSearchParams carries the optional filter knobs for V2YaraRulesSearch.
+type YaraSearchParams struct {
+	CveIDs      []string
+	Sources     []string
+	RuleName    string
+	Tags        []string
+	Imports     []string
+	Author      string
+	Q           string
+	MatchString string
+	MatchMeta   string
+	Since       string
+	Until       string
+	Sort        string // recent | name
+	Limit       int
+	Offset      int
+}
+
+// V2YaraRules retrieves a CVE's YARA rules (per-CVE endpoint).
+func (c *Client) V2YaraRules(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/yara-rules", url.PathEscape(id)))
+}
+
+// V2YaraRulesSearch performs a collection-wide search for YARA rules.
+func (c *Client) V2YaraRulesSearch(p YaraSearchParams) (map[string]interface{}, error) {
+	q := url.Values{}
+	for _, v := range p.CveIDs {
+		q.Add("cveId", v)
+	}
+	for _, v := range p.Sources {
+		q.Add("source", v)
+	}
+	for _, v := range p.Tags {
+		q.Add("tag", v)
+	}
+	for _, v := range p.Imports {
+		q.Add("imports", v)
+	}
+	for k, v := range map[string]string{
+		"ruleName":    p.RuleName,
+		"author":      p.Author,
+		"q":           p.Q,
+		"matchString": p.MatchString,
+		"matchMeta":   p.MatchMeta,
+		"since":       p.Since,
+		"until":       p.Until,
+		"sort":        p.Sort,
+	} {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	if p.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", p.Limit))
+	}
+	if p.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", p.Offset))
+	}
+	path := "/yara-rules"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	return doV2Get(c, path)
+}
+
+// AttackTechniquesSearchParams carries the optional filter knobs for the
+// MITRE ATT&CK collection endpoint.
+type AttackTechniquesSearchParams struct {
+	TechniqueIDs []string
+	Tactics      []string
+	CveIDs       []string
+	Sources      []string
+	CapecID      string
+	Domain       string
+	Subtechnique string
+	DerivedBy    string
+	Q            string
+	Since        string
+	Until        string
+	Limit        int
+	Offset       int
+}
+
+// V2AttackTechniques retrieves the ATT&CK technique mapping for a single CVE.
+func (c *Client) V2AttackTechniques(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/attack-techniques", url.PathEscape(id)))
+}
+
+// V2AttackTechniquesSearch performs a collection-wide search for ATT&CK
+// technique mappings across CVEs.
+func (c *Client) V2AttackTechniquesSearch(p AttackTechniquesSearchParams) (map[string]interface{}, error) {
+	q := url.Values{}
+	for _, v := range p.TechniqueIDs {
+		q.Add("techniqueId", v)
+	}
+	for _, v := range p.Tactics {
+		q.Add("tactic", v)
+	}
+	for _, v := range p.CveIDs {
+		q.Add("cveId", v)
+	}
+	for _, v := range p.Sources {
+		q.Add("source", v)
+	}
+	for k, v := range map[string]string{
+		"capecId":      p.CapecID,
+		"domain":       p.Domain,
+		"subtechnique": p.Subtechnique,
+		"derivedBy":    p.DerivedBy,
+		"q":            p.Q,
+		"since":        p.Since,
+		"until":        p.Until,
+	} {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	if p.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", p.Limit))
+	}
+	if p.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", p.Offset))
+	}
+	path := "/attack-techniques"
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	return doV2Get(c, path)
+}
+
 func readFileBytes(filePath string) ([]byte, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
