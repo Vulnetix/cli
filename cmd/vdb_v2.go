@@ -138,79 +138,16 @@ Examples:
 	},
 }
 
-// v2KevCmd retrieves CISA KEV data for a vulnerability
-var v2KevCmd = &cobra.Command{
-	Use:   "kev <vuln-id>",
-	Short: "Get CISA KEV status for a vulnerability (V2)",
-	Long: `Retrieve CISA Known Exploited Vulnerabilities (KEV) data from the V2 API.
-
-Requires -V v2.
-
-Examples:
-  vulnetix vdb kev CVE-2021-44228 -V v2
-  vulnetix vdb kev CVE-2021-44228 -V v2 --output json`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := requireV2("kev"); err != nil {
-			return err
-		}
-
-		client := newVDBClient()
-		vdbLog(cmd).Infof("🛡️ Fetching KEV status for %s...", args[0])
-
-		result, err := client.V2Kev(args[0])
-		if err != nil {
-			return fmt.Errorf("failed to get KEV data: %w", err)
-		}
-		printRateLimit(client)
-		recordVDBQuery("kev", args[0])
-		return vdbRender(cmd, result, display.RenderKev)
-	},
-}
-
-// v2TimelineCmd retrieves timeline data for a vulnerability
-var v2TimelineCmd = &cobra.Command{
-	Use:   "timeline <vuln-id>",
-	Short: "Get vulnerability timeline (V2)",
-	Long: `Retrieve the vulnerability timeline from the V2 API.
-
-Requires -V v2. Returns events[], sources{} (source transparency), and meta{}.
-
-Event types: source, exploit, score-change, patch, advisory, scorecard
-
-Examples:
-  vulnetix vdb timeline CVE-2021-44228 -V v2
-  vulnetix vdb timeline CVE-2021-44228 -V v2 --include exploit
-  vulnetix vdb timeline CVE-2021-44228 -V v2 --exclude score-change --scores-limit 10
-  vulnetix vdb timeline CVE-2021-44228 -V v2 --output json`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := requireV2("timeline"); err != nil {
-			return err
-		}
-
-		include, _ := cmd.Flags().GetString("include")
-		exclude, _ := cmd.Flags().GetString("exclude")
-		dates, _ := cmd.Flags().GetString("dates")
-		scoresLimit, _ := cmd.Flags().GetInt("scores-limit")
-
-		client := newVDBClient()
-		vdbLog(cmd).Infof("📅 Fetching timeline for %s...", args[0])
-
-		result, err := client.V2Timeline(args[0], vdb.V2TimelineParams{
-			Include:     include,
-			Exclude:     exclude,
-			Dates:       dates,
-			ScoresLimit: scoresLimit,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to get timeline: %w", err)
-		}
-		printRateLimit(client)
-		recordVDBQuery("timeline", args[0])
-		return vdbRender(cmd, result, display.RenderTimeline)
-	},
-}
+// Note: a standalone V2 `kev <CVE>` command used to live here. It was
+// removed because Cobra registered both it and `vdb kev get <CVE>` from
+// vdb_kev.go under the same parent — `vdb --help` showed two `kev`
+// entries. The unified `vdb kev get <CVE>` already returns the merged
+// 4-source view (CISA + vulnetix + enisa + vulncheck) via /v2/kev, so
+// the V2-only standalone is redundant.
+//
+// Note: a standalone V2 `timeline <CVE>` command used to live here.
+// Removed for the same reason — `timelineCmd` in vdb.go already
+// dispatches to V2Timeline when `-V v2` is passed.
 
 // v2AffectedCmd retrieves affected product/package data
 var v2AffectedCmd = &cobra.Command{
@@ -462,8 +399,6 @@ func init() {
 	vdbCmd.AddCommand(v2WorkaroundsCmd)
 	vdbCmd.AddCommand(v2AdvisoriesCmd)
 	vdbCmd.AddCommand(v2CweCmd)
-	vdbCmd.AddCommand(v2KevCmd)
-	vdbCmd.AddCommand(v2TimelineCmd)
 	vdbCmd.AddCommand(v2AffectedCmd)
 	vdbCmd.AddCommand(v2ScorecardCmd)
 	vdbCmd.AddCommand(v2RemediationCmd)
@@ -482,12 +417,8 @@ func init() {
 	// Remediation subcommands
 	v2RemediationCmd.AddCommand(v2RemediationPlanCmd)
 
-	// Timeline flags
-	v2TimelineCmd.Flags().String("include", "", "Comma-separated event types to include (source,exploit,score-change,patch,advisory,scorecard)")
-	v2TimelineCmd.Flags().String("exclude", "", "Comma-separated event types to exclude")
-	v2TimelineCmd.Flags().String("dates", "", "CVE date fields: published,modified,reserved (default: all)")
-	v2TimelineCmd.Flags().Int("scores-limit", 30, "Max score-change events (max 365)")
-	_ = v2TimelineCmd.RegisterFlagCompletionFunc("dates", cobra.FixedCompletions([]string{"published", "modified", "reserved"}, cobra.ShellCompDirectiveNoFileComp))
+	// V2 timeline flags now live on the unified `timelineCmd` in vdb.go;
+	// it dispatches to V2 when `-V v2` is set.
 
 	// Affected flags
 	addV2ContextFlags(v2AffectedCmd)
