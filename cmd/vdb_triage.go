@@ -22,6 +22,7 @@ var (
 	triageVendor            string
 	triageProduct           string
 	triageSince             string
+	triageDays              int
 	triageSort              string
 	triageLimit             int
 	triageOffset            int
@@ -58,6 +59,7 @@ CSV for ticketing import:
 			Vendor:     triageVendor,
 			Product:    triageProduct,
 			Since:      triageSince,
+			WindowDays: triageDays,
 			Sort:       triageSort,
 			Limit:      triageLimit,
 			Offset:     triageOffset,
@@ -142,8 +144,12 @@ func init() {
 	flags.StringSliceVar(&triageCWEs, "cwe", nil, "Filter by CWE id (repeat for OR)")
 	flags.StringVar(&triageVendor, "vendor", "", "ILIKE on affectedVendor")
 	flags.StringVar(&triageProduct, "product", "", "ILIKE on affectedProduct")
-	flags.StringVar(&triageSince, "since", "", "Only CVEs with datePublished >= RFC3339")
-	flags.StringVar(&triageSort, "sort", "epss", "Sort: epss | cess | cvss | published | kev-due")
+	flags.StringVar(&triageSince, "since", "", "Only CVEs with datePublished >= RFC3339 (overrides --days)")
+	flags.IntVarP(&triageDays, "days", "d", 0,
+		"Look-back window in days (1..30). Default 0 = no implicit window. "+
+			"Convenience for --since now-Nd; --since takes precedence when both are set.")
+	flags.StringVar(&triageSort, "sort", "cvss",
+		"Sort: cvss (default) | cess | epss (requires --min-epss >= 0.3) | published | kev-due")
 	flags.IntVar(&triageLimit, "limit", 50, "Max items per page (1-200)")
 	flags.IntVar(&triageOffset, "offset", 0, "Pagination offset")
 	flags.StringVar(&vdbTriageFormat, "format", "json", "Output format: json | csv")
