@@ -49,6 +49,22 @@ KEV due-date sweep — what's overdue?:
 CSV for ticketing import:
   vulnetix vdb triage --min-epss 0.5 --severity high --format csv -o triage.csv`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		filterFlags := []string{
+			"min-epss", "min-epss-percentile", "min-cess", "min-cvss",
+			"severity", "in-kev", "kev-source", "cwe",
+			"vendor", "product", "since", "days",
+		}
+		hasFilter := false
+		for _, name := range filterFlags {
+			if cmd.Flags().Changed(name) {
+				hasFilter = true
+				break
+			}
+		}
+		if !hasFilter {
+			return fmt.Errorf("at least one filter is required: --min-epss, --min-epss-percentile, --min-cess, --min-cvss, --severity, --in-kev, --kev-source, --cwe, --vendor, --product, --since, or --days")
+		}
+
 		client := newVDBClient()
 		client.APIVersion = "/v2"
 		params := vdb.TriageParams{
