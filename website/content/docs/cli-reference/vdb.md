@@ -1473,7 +1473,9 @@ vulnetix vdb vex list --status fixed --supplier "Red Hat" --since 2026-04-01T00:
 
 ### vdb triage
 
-**Description**: The daily SOC pull. Combined filter across EPSS, CESS, CVSS, severity, KEV membership (across all four sources), CWE, vendor / product, and publication date. Returns rows ordered by EPSS by default; sort by `cess`, `cvss`, `published`, or `kev-due`.
+**Description**: The daily SOC pull. Combined filter across EPSS, CESS, CVSS, severity, KEV membership (across all four sources), CWE, vendor / product, and publication date. Returns rows ordered by best CVSS by default; sort by `cess`, `epss` (with floor), `published`, or `kev-due`.
+
+> **Hard limit on `--sort epss`**: requires `--min-epss` (or `--min-epss-percentile`) to be set, and `--min-epss >= 0.3`. The query plan is backed by a partial index on EPSS score >= 0.3; without that floor the planner has to sort hundreds of millions of time-series rows. Below 0.3 is below SOC triage relevance — if you need to scan there, use `--sort cvss` or `--sort published`. The CLI surfaces a 400 with the constraint message when this is violated.
 
 **Usage**:
 ```bash
@@ -1490,8 +1492,9 @@ vulnetix vdb triage [flags]
 - `--kev-source <name>` — `CISA` | `vulnetix` | `enisa` | `vulncheck` (repeat for OR)
 - `--cwe <id>` — repeat for OR (e.g. `CWE-79`)
 - `--vendor <text>`, `--product <text>` — ILIKE
-- `--since <RFC3339>` — `datePublished >=`
-- `--sort <name>` — `epss` (default) | `cess` | `cvss` | `published` | `kev-due`
+- `-d, --days <N>` — look-back window in days (1..30). Convenience for `--since now-Nd`. Default 0 = no implicit window.
+- `--since <RFC3339>` — `datePublished >=`. Overrides `--days` when both are supplied.
+- `--sort <name>` — `cvss` (default) | `cess` | `epss` (requires `--min-epss >= 0.3`) | `published` | `kev-due`
 - `--limit <n>` (default 50, max 200), `--offset <n>`
 
 **Output flags**:
@@ -1500,17 +1503,20 @@ vulnetix vdb triage [flags]
 
 **Examples**:
 ```bash
-# Daily 'EPSS > 0.7 + KEV + critical/high' sweep
-vulnetix vdb triage --min-epss 0.7 --in-kev --severity high --limit 50
+# Daily 'EPSS > 0.7 + KEV + critical/high' sweep (last 24h is the sensible default)
+vulnetix vdb triage --min-epss 0.7 --in-kev --severity high --days 1 --limit 50
 
-# Recently-published critical without KEV (potential 'gets KEV'd next' shortlist)
+# Last week's published criticals without KEV (potential 'gets KEV'd next' shortlist)
+vulnetix vdb triage --min-cvss 9.0 --in-kev false -d 7 --sort published
+
+# Last 30 days, KEV due-date sweep — what's overdue per CISA?
+vulnetix vdb triage --in-kev --kev-source CISA --days 30 --sort kev-due
+
+# Explicit timestamp (overrides --days when both set)
 vulnetix vdb triage --min-cvss 9.0 --in-kev false --since 2026-05-01T00:00:00Z --sort published
 
-# What's overdue per CISA?
-vulnetix vdb triage --in-kev --kev-source CISA --sort kev-due
-
 # CSV for ticket import
-vulnetix vdb triage --min-epss 0.5 --severity high --format csv -o triage.csv
+vulnetix vdb triage --min-epss 0.5 --severity high -d 7 --format csv -o triage.csv
 ```
 
 ---

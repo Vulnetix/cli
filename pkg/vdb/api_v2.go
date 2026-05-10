@@ -702,6 +702,7 @@ type TriageParams struct {
 	Vendor              string
 	Product             string
 	Since               string
+	WindowDays          int // 0 = unset; 1..30
 	Sort                string
 	Limit               int
 	Offset              int
@@ -741,6 +742,9 @@ func (c *Client) V2Triage(p TriageParams) (map[string]interface{}, error) {
 	}
 	if p.Since != "" {
 		q.Set("since", p.Since)
+	}
+	if p.WindowDays > 0 {
+		q.Set("windowDays", fmt.Sprintf("%d", p.WindowDays))
 	}
 	if p.Sort != "" {
 		q.Set("sort", p.Sort)
