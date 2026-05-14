@@ -1,0 +1,9 @@
+{{- $link := .Get "link" -}}
+{{- $href := $link -}}
+{{- if and $link (not (or (hasPrefix $link "http") (hasPrefix $link "/"))) -}}
+  {{- $href = printf "%s%s/" .Page.RelPermalink $link -}}
+{{- end -}}
+<a class="section-list-card" href="{{ $href }}">
+  <div class="section-list-card__title">{{ .Get "title" }}</div>
+  {{ with .Get "subtitle" }}<div class="section-list-card__desc">{{ . | markdownify }}</div>{{ end }}
+</a>

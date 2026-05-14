@@ -1,0 +1,55 @@
+{{ $currentPage := . }}
+<aside class="sidebar">
+  {{ with .Site.GetPage "/docs/getting-started" }}
+    <div class="sidebar__section">
+      <div class="sidebar__heading">Getting Started</div>
+      <a class="sidebar__link{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">Overview</a>
+      {{ range .Pages }}
+        <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a>
+      {{ end }}
+    </div>
+  {{ end }}
+
+  {{ with .Site.GetPage "/docs/cli-reference" }}
+    <div class="sidebar__section">
+      <div class="sidebar__heading">CLI Reference</div>
+      <a class="sidebar__link{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">Overview</a>
+      {{ range .Pages.ByWeight }}
+        <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a>
+      {{ end }}
+    </div>
+  {{ end }}
+
+  {{ with .Site.GetPage "/docs/ci-cd" }}
+    <div class="sidebar__section">
+      <div class="sidebar__heading">CI / CD</div>
+      <a class="sidebar__link{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">Overview</a>
+      {{ range .Pages }}
+        <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a>
+      {{ end }}
+    </div>
+  {{ end }}
+
+  {{ with .Site.GetPage "/docs/enterprise" }}
+    <div class="sidebar__section">
+      <div class="sidebar__heading">Enterprise</div>
+      <a class="sidebar__link{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">Overview</a>
+      {{ range .Pages }}
+        <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a>
+      {{ end }}
+    </div>
+  {{ end }}
+
+  {{ with .Site.GetPage "/docs/sast-rules" }}
+    <div class="sidebar__section">
+      <div class="sidebar__heading">SAST Rules</div>
+      <a class="sidebar__link{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">Overview</a>
+      <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink (printf "%scustom-rules/" .RelPermalink) }} active{{ end }}" href="{{ "docs/sast-rules/custom-rules/" | relURL }}">Custom rules</a>
+      {{ range .Pages.ByTitle }}
+        {{ if ne .File.BaseFileName "custom-rules" }}
+          <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a>
+        {{ end }}
+      {{ end }}
+    </div>
+  {{ end }}
+</aside>

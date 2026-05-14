@@ -1,0 +1,108 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} — {{ .Site.Title }}{{ end }}</title>
+<meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ .Site.Params.description }}{{ end }}">
+
+<link rel="icon" type="image/png" sizes="32x32" href="{{ "favicon-32x32.png" | relURL }}">
+<link rel="icon" type="image/png" sizes="16x16" href="{{ "favicon-16x16.png" | relURL }}">
+<link rel="apple-touch-icon" href="{{ "apple-touch-icon.png" | relURL }}">
+<link rel="manifest" href="{{ "site.webmanifest" | relURL }}">
+
+<meta name="theme-color" content="#FFF8ED" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#002E29" media="(prefers-color-scheme: dark)">
+<meta name="msapplication-TileColor" content="#002E29">
+<meta name="msapplication-config" content="{{ "browserconfig.xml" | relURL }}">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} — {{ .Site.Title }}{{ end }}">
+<meta property="og:description" content="{{ with .Description }}{{ . }}{{ else }}{{ .Site.Params.description }}{{ end }}">
+<meta property="og:url" content="{{ .Permalink }}">
+{{ with index .Site.Params.images 0 }}<meta property="og:image" content="{{ . }}">{{ end }}
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }}{{ end }}">
+<meta property="og:locale" content="en_GB">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} — {{ .Site.Title }}{{ end }}">
+<meta name="twitter:description" content="{{ with .Description }}{{ . }}{{ else }}{{ .Site.Params.description }}{{ end }}">
+{{ with index .Site.Params.images 0 }}<meta name="twitter:image" content="{{ . }}">{{ end }}
+
+{{ $css := resources.Get "css/main.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+
+<script>
+  document.documentElement.classList.add('vdb-' + (localStorage.getItem('vdb-api-version') || 'v1'));
+</script>
+<script defer>
+document.addEventListener('DOMContentLoaded', function () {
+  var currentVersion = localStorage.getItem('vdb-api-version') || 'v1';
+  var navLinks = document.querySelector('.site-nav__links');
+  if (!navLinks) return;
+
+  var switcher = document.createElement('div');
+  switcher.className = 'vdb-version-switcher';
+  var btn = document.createElement('button');
+  btn.className = 'vdb-version-btn';
+  btn.type = 'button';
+  btn.setAttribute('aria-haspopup', 'true');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('data-state', 'closed');
+  function updateBtn(v){
+    btn.innerHTML = 'API ' + v + (v === 'v2' ? ' <span class="vdb-alpha-badge">alpha</span>' : '') +
+      ' <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>';
+  }
+  updateBtn(currentVersion);
+
+  var menu = document.createElement('ul');
+  menu.className = 'vdb-version-menu';
+  menu.setAttribute('data-show', 'false');
+  [{id:'v1',label:'v1'},{id:'v2',label:'v2',badge:true}].forEach(function(v){
+    var li = document.createElement('li');
+    var opt = document.createElement('button');
+    opt.setAttribute('role','menuitemradio');
+    opt.setAttribute('aria-checked', v.id === currentVersion ? 'true':'false');
+    opt.setAttribute('data-version', v.id);
+    opt.innerHTML = v.label + (v.badge ? ' <span class="vdb-alpha-badge">alpha</span>' : '');
+    opt.addEventListener('click', function(){ setVersion(v.id); close(); });
+    li.appendChild(opt);
+    menu.appendChild(li);
+  });
+  switcher.appendChild(btn);
+  switcher.appendChild(menu);
+  var insertBefore = navLinks.querySelector('.site-nav__signin') || navLinks.querySelector('.site-nav__github');
+  if (insertBefore) navLinks.insertBefore(switcher, insertBefore); else navLinks.appendChild(switcher);
+
+  function open(){ menu.setAttribute('data-show','true'); btn.setAttribute('aria-expanded','true'); btn.setAttribute('data-state','open'); }
+  function close(){ menu.setAttribute('data-show','false'); btn.setAttribute('aria-expanded','false'); btn.setAttribute('data-state','closed'); }
+  btn.addEventListener('click', function(e){ e.stopPropagation(); menu.getAttribute('data-show')==='true' ? close() : open(); });
+  document.addEventListener('click', function(e){ if (!switcher.contains(e.target)) close(); });
+
+  function setVersion(v){
+    currentVersion = v;
+    localStorage.setItem('vdb-api-version', v);
+    document.documentElement.classList.remove('vdb-v1','vdb-v2');
+    document.documentElement.classList.add('vdb-' + v);
+    updateBtn(v);
+    menu.querySelectorAll('button[role="menuitemradio"]').forEach(function(o){
+      o.setAttribute('aria-checked', o.getAttribute('data-version') === v ? 'true' : 'false');
+    });
+    document.querySelectorAll('a[href*="api.vdb.vulnetix.com"], a[href*="redocly.github.io"]').forEach(function(a){
+      a.href = a.href.replace(/\/v[12]\//g, '/' + v + '/');
+    });
+  }
+  if (currentVersion !== 'v1') setVersion(currentVersion);
+});
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {"@type": "Organization", "name": "Vulnetix", "url": "https://www.vulnetix.com", "logo": "https://www.vulnetix.com/images/og.png"},
+    {"@type": "WebSite", "name": "{{ site.Title }}", "url": "{{ site.BaseURL }}", "publisher": {"@type": "Organization", "name": "Vulnetix"}},
+    {"@type": "TechArticle", "headline": "{{ with .Title }}{{ . }}{{ else }}{{ site.Title }}{{ end }}", "description": "{{ with .Description }}{{ . }}{{ else }}{{ with site.Params.description }}{{ . }}{{ end }}{{ end }}", "url": "{{ .Permalink }}", "publisher": {"@type": "Organization", "name": "Vulnetix"}},
+    {"@type": "SoftwareApplication", "name": "Vulnetix CLI", "applicationCategory": "DeveloperApplication", "operatingSystem": "Linux, macOS, Windows", "url": "https://github.com/Vulnetix/cli"}
+  ]
+}
+</script>

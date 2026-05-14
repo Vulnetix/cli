@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  {{ partial "head.html" . }}
+</head>
+<body>
+  {{ partial "nav.html" . }}
+
+  <main>
+    <section class="home-hero">
+      <p class="home-hero__eyebrow">Vulnetix CLI</p>
+      <h1 class="home-hero__title">Unified vulnerability management from the command line.</h1>
+      <p class="home-hero__sub">Remediation over discovery. Collect, assess, triage, and remediate vulnerabilities from a single CLI — designed for CI/CD and for engineers who'd rather fix than file tickets.</p>
+      <div class="home-hero__cta">
+        <a href="{{ "docs/getting-started/" | relURL }}" class="vx-btn-primary">Get started</a>
+        <a href="https://www.vulnetix.com/vdb" class="vx-btn-secondary" target="_blank" rel="noopener">Live demo</a>
+      </div>
+      <a href="https://www.vulnetix.com" class="vx-subtle-link" target="_blank" rel="noopener">Learn more at vulnetix.com →</a>
+    </section>
+
+    <section class="home-features">
+      <div class="home-features__inner">
+        {{ .Content }}
+      </div>
+    </section>
+  </main>
+
+  {{ partial "footer.html" . }}
+</body>
+</html>

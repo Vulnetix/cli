@@ -1,0 +1,21 @@
+{{ define "main" }}
+<section class="section-hero">
+  <p class="section-hero__eyebrow">{{ with .Parent }}{{ .Title }}{{ else }}Vulnetix CLI{{ end }}</p>
+  <h1 class="section-hero__title">{{ .Title }}</h1>
+  {{ with .Description }}<p class="section-hero__desc">{{ . }}</p>{{ end }}
+</section>
+<section class="section-list">
+  {{ with .Content }}<div class="section-list__prose">{{ . }}</div>{{ end }}
+  {{ $children := .Pages }}
+  {{ if $children }}
+    <div class="section-list__grid">
+      {{ range $children }}
+        <a class="section-list-card" href="{{ .RelPermalink }}">
+          <div class="section-list-card__title">{{ .Title }}</div>
+          {{ with .Description }}<div class="section-list-card__desc">{{ . }}</div>{{ end }}
+        </a>
+      {{ end }}
+    </div>
+  {{ end }}
+</section>
+{{ end }}
