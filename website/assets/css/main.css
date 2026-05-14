@@ -349,12 +349,19 @@ img, svg { display: block; max-width: 100%; }
   margin: 40px 0;
 }
 
-.content a {
+.content a,
+.section-list__prose a,
+.home-features__inner a {
   color: var(--vx-mint-strong);
   border-bottom: 1px solid rgba(0,148,132,0.25);
   transition: border-color 0.15s;
 }
-.content a:hover { border-bottom-color: var(--vx-mint-strong); opacity: 1; }
+.content a:hover,
+.section-list__prose a:hover,
+.home-features__inner a:hover {
+  border-bottom-color: var(--vx-mint-strong);
+  opacity: 1;
+}
 
 /* =========================================================
    HOME PAGE — dark hero, then cream feature slabs
@@ -534,10 +541,9 @@ img, svg { display: block; max-width: 100%; }
   display: inline-block;
   margin-top: 14px;
   font-size: 13px;
-  color: var(--vx-bone);
-  opacity: 0.6;
+  color: var(--vx-mint);
 }
-.vx-subtle-link:hover { opacity: 0.95; }
+.vx-subtle-link:hover { opacity: 0.85; }
 
 .vx-coming-soon {
   padding: 28px 32px;
@@ -686,11 +692,10 @@ img, svg { display: block; max-width: 100%; }
 .site-footer__spacer { flex: 1; }
 .site-footer__link {
   font-size: 13px;
-  color: var(--vx-bone);
-  opacity: 0.55;
+  color: var(--vx-mint);
   transition: opacity 0.15s;
 }
-.site-footer__link:hover { opacity: 1; color: var(--vx-mint); }
+.site-footer__link:hover { opacity: 0.75; color: var(--vx-mint); }
 
 /* =========================================================
    VDB VERSION SWITCHER  (preserved from prior site)
