@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  {{ partial "head.html" . }}
+</head>
+<body>
+  {{ partial "nav.html" . }}
+  <div class="page-shell">
+    {{ partial "sidebar.html" . }}
+    <div class="content-wrap">
+      {{ block "main" . }}{{ end }}
+      {{ partial "footer.html" . }}
+    </div>
+  </div>
+</body>
+</html>
