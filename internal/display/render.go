@@ -55,6 +55,8 @@ func RenderVulnDetail(data any, ctx *Context) string {
 	var kevName, kevAction, kevDueDate string
 	var ssvcDecision, ssvcPriority string
 	var exploitLevel string
+	var affectedRoutines []string
+	var attackPaths []map[string]any
 
 	// CVE 5.0 format: extract from containers
 	if containers, ok := m["containers"].(map[string]any); ok {
@@ -129,6 +131,57 @@ func RenderVulnDetail(data any, ctx *Context) string {
 				// ADP-level references fallback
 				if len(refs) == 0 {
 					refs = extractRefs(adp)
+				}
+
+				// Vulnetix ADP extension: aggregated affected routines/functions/files.
+				if len(affectedRoutines) == 0 {
+					if list, ok := adp["x_affectedRoutines"].([]any); ok {
+						for _, item := range list {
+							if s := ToStringVal(item); s != "" {
+								affectedRoutines = append(affectedRoutines, s)
+							}
+						}
+					}
+				}
+
+				// Vulnetix ADP extension: ATT&CK techniques grouped by tactic.
+				if len(attackPaths) == 0 {
+					if list, ok := adp["x_attackPaths"].([]any); ok {
+						for _, item := range list {
+							if pm, ok := item.(map[string]any); ok {
+								attackPaths = append(attackPaths, pm)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Fallback: aggregate from CNA affected[] if Vulnetix ADP didn't carry the rollup.
+		if len(affectedRoutines) == 0 {
+			if cna, ok := containers["cna"].(map[string]any); ok {
+				if affList, ok := cna["affected"].([]any); ok {
+					seen := map[string]bool{}
+					addStr := func(s string) {
+						s = strings.TrimSpace(s)
+						if s != "" && !seen[s] {
+							seen[s] = true
+							affectedRoutines = append(affectedRoutines, s)
+						}
+					}
+					for _, a := range affList {
+						am, ok := a.(map[string]any)
+						if !ok {
+							continue
+						}
+						for _, key := range []string{"programRoutines", "programFiles"} {
+							if items, ok := am[key].([]any); ok {
+								for _, it := range items {
+									addStr(ToStringVal(it))
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -324,6 +377,53 @@ func RenderVulnDetail(data any, ctx *Context) string {
 		}
 		b.WriteString("\n" + Subheader(t, "CWEs") + "\n")
 		b.WriteString(BulletList(t, unique) + "\n")
+	}
+
+	// Affected Routines (aggregated programRoutines/programFiles + AI affected_functions)
+	if len(affectedRoutines) > 0 {
+		b.WriteString("\n" + Subheader(t, "Affected Routines") + "\n")
+		maxR := 20
+		if len(affectedRoutines) < maxR {
+			maxR = len(affectedRoutines)
+		}
+		items := make([]string, 0, maxR)
+		for i := 0; i < maxR; i++ {
+			items = append(items, Truncate(affectedRoutines[i], t.Width-6))
+		}
+		b.WriteString(BulletList(t, items) + "\n")
+		if len(affectedRoutines) > maxR {
+			b.WriteString(Muted(t, fmt.Sprintf("  ... and %d more", len(affectedRoutines)-maxR)) + "\n")
+		}
+	}
+
+	// Attack Paths (ATT&CK techniques grouped by tactic, in kill-chain order)
+	if len(attackPaths) > 0 {
+		b.WriteString("\n" + Subheader(t, "Attack Paths") + "\n")
+		for _, path := range attackPaths {
+			tactic := ToStringVal(path["tactic"])
+			if tactic == "" {
+				tactic = "Unknown"
+			}
+			b.WriteString("  " + Bold(t, tactic) + "\n")
+			techs, _ := path["techniques"].([]any)
+			for _, tItem := range techs {
+				tm, ok := tItem.(map[string]any)
+				if !ok {
+					continue
+				}
+				id := ToStringVal(tm["id"])
+				name := ToStringVal(tm["name"])
+				relation := ToStringVal(tm["relation"])
+				line := "    • " + id
+				if name != "" {
+					line += "  " + name
+				}
+				if relation != "" {
+					line += "  " + Muted(t, "("+strings.ToLower(relation)+")")
+				}
+				b.WriteString(line + "\n")
+			}
+		}
 	}
 
 	// References
