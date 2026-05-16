@@ -24,7 +24,7 @@ import (
 
 const (
 	DefaultBaseURL    = "https://api.vdb.vulnetix.com"
-	DefaultAPIVersion = "/v1"
+	DefaultAPIVersion = "/v2"
 	Region            = "us-east-1"
 	Service           = "vdb"
 	Algorithm         = "AWS4-HMAC-SHA512"

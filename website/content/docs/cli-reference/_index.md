@@ -406,7 +406,7 @@ vulnetix vdb <subcommand> [flags]
 
 <div class="vdb-v2-only">
 
-**V2-only subcommands** (use `-V v2`):
+**V2-only subcommands** — the v2 API is now the **default**; `-V v1` is the legacy override:
 
 | Subcommand | Description |
 |------------|-------------|
@@ -420,6 +420,10 @@ vulnetix vdb <subcommand> [flags]
 | `remediation plan <vuln-id>` | Get context-aware remediation plan |
 
 </div>
+
+### Tree-sitter reachability
+
+`vulnetix vdb vuln` and the remediation flows automatically perform tree-sitter reachability analysis against your project, recording exactly which files (and line ranges) match the vulnerable pattern. Control with `--reachability=direct|transitive|both|off` (default `both`). See the [Reachability Analysis](reachability/) section for the full feature overview, [Languages](reachability/languages/) for the 17 bundled grammars, and [Internals](reachability/internals/) for how the CGo cross-compile is structured.
 
 ---
 

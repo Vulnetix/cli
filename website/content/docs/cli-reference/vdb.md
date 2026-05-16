@@ -82,6 +82,8 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
 
 ## Overview
 
+> **Migration note — API v2 is now the default.** Previous releases of the CLI defaulted to `-V v1`; current releases default to **v2** (the richer surface that includes timelines, scorecards, KEV merging, fixes-in-parallel, and the tree-sitter reachability queries). Pass `-V v1` only if you specifically need the legacy surface — `v1` is retained for backwards compatibility and will be removed in a future release. Examples in this document that still show `-V v2` are correct but redundant; the flag can be omitted.
+
 The VDB API aggregates vulnerability data from:
 
 - **Primary Sources**: MITRE CVE, NIST NVD, CISA KEV
@@ -212,10 +214,12 @@ vulnetix vdb vuln <vuln-id> [flags]
 
 **Flags:**
 - `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
+- `--reachability {direct|transitive|both|off}`: Tree-sitter reachability analysis mode (default `both`). Direct scans the installed package folder; transitive scans the rest of the project tree. `off` skips the analysis and the additional `/vuln/{id}/tree-sitter` request entirely. See the [Reachability Analysis](reachability/) section for full details.
+- `-V, --api-version {v2|v1}`: VDB API version. **v2 is the default**; pass `-V v1` only when the legacy surface is required (reachability is not produced on v1).
 
 **Examples:**
 ```bash
-# CVE (MITRE / NVD)
+# CVE (MITRE / NVD) — reachability runs automatically when v2 (default)
 vulnetix vdb vuln CVE-2021-44228
 
 # GitHub Security Advisory
@@ -232,6 +236,12 @@ vulnetix vdb vuln CVE-2021-44228 --output json
 
 # Save to file
 vulnetix vdb vuln CVE-2021-44228 -o json > log4shell.json
+
+# Skip reachability for a strictly offline / non-source-aware lookup
+vulnetix vdb vuln CVE-2021-44228 --reachability=off
+
+# Direct-only (faster in CI; only scans node_modules/<pkg>)
+vulnetix vdb vuln CVE-2021-23337 --reachability=direct
 ```
 
 **Response includes:**
@@ -243,6 +253,7 @@ vulnetix vdb vuln CVE-2021-44228 -o json > log4shell.json
 - Affected products and versions
 - EPSS probability scores
 - KEV (Known Exploited Vulnerabilities) status
+- **Reachability** (`x_reachability`) — direct + transitive tree-sitter matches with file paths and line ranges; see the [Reachability Analysis](reachability/) section.
 
 ---
 

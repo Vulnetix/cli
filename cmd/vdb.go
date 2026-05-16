@@ -39,6 +39,7 @@ var (
 	vdbBaseURL       string
 	vdbOutput        string
 	vdbAPIVersion    string
+	vdbReachability  string
 	vdbNoCache       bool
 	vdbRefreshCache  bool
 	vdbNoCommunity   bool
@@ -92,11 +93,15 @@ Credential sources (checked in order):
   5. Home file: ~/.vulnetix/credentials.json
   6. Unauthenticated Community (built-in, --no-community to disable)
 
+API version:
+  Defaults to v2 (the richer, current surface). Pass -V v1 only if you specifically
+  need the legacy v1 endpoints. v1 is retained for backwards compatibility and will
+  be removed in a future release.
+
 Flag patterns:
   vulnetix vdb ecosystems --org-id UUID --api-key KEY      # Direct API Key
   vulnetix vdb ecosystems --org-id UUID --secret KEY        # SigV4
-  vulnetix vdb ecosystems --api-version v2                  # Target API v2
-  vulnetix vdb ecosystems -V v2                             # Short form
+  vulnetix vdb ecosystems -V v1                             # Force legacy v1 surface
 
 Examples:
   # Get information about a vulnerability (CVE, GHSA, PYSEC, ZDI, and 70+ more formats)
@@ -223,6 +228,21 @@ Examples:
 			vdbMemory.RecordVulnLookup(cveID, cveInfo.Data)
 		}
 		recordVDBQuery("vuln", cveID)
+
+		// Reachability analysis runs against any ecosystem+package
+		// pair extracted from the response. Failures are non-fatal —
+		// they log a warning so the vuln output itself still renders.
+		eco, pkg := extractEcoPkg(cveInfo.Data)
+		if rr, err := runReachability(cmd.Context(), client, cveID, eco, pkg); err != nil {
+			ctx.Logger.Warn(fmt.Sprintf("reachability analysis: %v", err))
+		} else if rr != nil {
+			if !disableMemory && vdbMemory != nil {
+				vdbMemory.RecordReachability(cveID, reachabilityToEvidence(rr))
+			}
+			if out := reachabilityToOutputMap(rr); out != nil {
+				attachReachability(&cveInfo.Data, out)
+			}
+		}
 
 		if vdbOutput == "pretty" || vdbOutput == "" {
 			return ctx.Render(cveInfo.Data, display.RenderVulnDetail)
@@ -2028,8 +2048,10 @@ func init() {
 	vdbCmd.PersistentFlags().StringVar(&vdbAPIKey, "api-key", "", "Direct API key (overrides VULNETIX_API_KEY env var)")
 	vdbCmd.PersistentFlags().StringVar(&vdbMethod, "method", "", "Auth method: apikey or sigv4 (auto-detected from flags if omitted)")
 	vdbCmd.PersistentFlags().StringVar(&vdbBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
-	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "", `API version path (default "v1"; e.g. "v2")`)
+	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "", `VDB API version: "v2" (default) or "v1" (legacy). v1 is retained for backwards compatibility and will be removed in a future release. New commands (timeline, affected, kev, advisories, workarounds, cwe, remediation, cloud-locators, fixes, scorecard, tree-sitter reachability) require v2.`)
 	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, yaml, pretty)")
+	vdbCmd.PersistentFlags().StringVar(&vdbReachability, "reachability", "both",
+		`Tree-sitter reachability analysis mode for vuln commands: "direct" (only scan the installed package folder), "transitive" (only scan the rest of the project for callers), "both" (default), or "off" (skip; no API call). Requires -V v2 (the default). Direct mode confirms the vulnerable pattern is present in the installed version; transitive mode finds first-party or other-dep code paths that reach it.`)
 	vdbCmd.PersistentFlags().BoolVar(&vdbNoCache, "no-cache", false, "Bypass local disk cache entirely")
 	vdbCmd.PersistentFlags().BoolVar(&vdbRefreshCache, "refresh-cache", false, "Ignore cached data and fetch fresh from API (updates cache)")
 	vdbCmd.PersistentFlags().BoolVar(&vdbNoCommunity, "no-community", false, "Disable community fallback credentials (require explicit authentication)")
@@ -2042,6 +2064,7 @@ func init() {
 	_ = vdbCmd.RegisterFlagCompletionFunc("method", cobra.FixedCompletions([]string{"apikey", "sigv4"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = vdbCmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{"json", "yaml", "pretty"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = vdbCmd.RegisterFlagCompletionFunc("api-version", cobra.FixedCompletions([]string{"v1", "v2"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = vdbCmd.RegisterFlagCompletionFunc("reachability", cobra.FixedCompletions([]string{"direct", "transitive", "both", "off"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = vdbCmd.RegisterFlagCompletionFunc("highlight", cobra.FixedCompletions([]string{"dark", "light", "none"}, cobra.ShellCompDirectiveNoFileComp))
 	vdbCmd.MarkFlagsMutuallyExclusive("comfortable", "compact", "sparse")
 

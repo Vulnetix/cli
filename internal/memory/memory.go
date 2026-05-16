@@ -29,14 +29,33 @@ type ScopeStats struct {
 
 // ThreatModel holds MITRE ATT&CK-derived threat modelling data.
 type ThreatModel struct {
-	Techniques         []string `yaml:"techniques,omitempty"`
-	Tactics            []string `yaml:"tactics,omitempty"`
-	AttackVector       string   `yaml:"attack_vector,omitempty"`
-	AttackComplexity   string   `yaml:"attack_complexity,omitempty"`
-	PrivilegesRequired string   `yaml:"privileges_required,omitempty"`
-	UserInteraction    string   `yaml:"user_interaction,omitempty"`
-	Reachability       string   `yaml:"reachability,omitempty"`
-	Exposure           string   `yaml:"exposure,omitempty"`
+	Techniques           []string              `yaml:"techniques,omitempty"`
+	Tactics              []string              `yaml:"tactics,omitempty"`
+	AttackVector         string                `yaml:"attack_vector,omitempty"`
+	AttackComplexity     string                `yaml:"attack_complexity,omitempty"`
+	PrivilegesRequired   string                `yaml:"privileges_required,omitempty"`
+	UserInteraction      string                `yaml:"user_interaction,omitempty"`
+	Reachability         string                `yaml:"reachability,omitempty"`
+	Exposure             string                `yaml:"exposure,omitempty"`
+	ReachabilityEvidence *ReachabilityEvidence `yaml:"reachability_evidence,omitempty"`
+}
+
+// ReachabilityMatch is one tree-sitter query hit recorded against a file.
+// The range is "start_line:end_line" (1-indexed, inclusive) matching the
+// "n:n" convention used elsewhere in CLI output.
+type ReachabilityMatch struct {
+	File  string `yaml:"file"`
+	Range string `yaml:"range"`
+	Query string `yaml:"query,omitempty"`
+}
+
+// ReachabilityEvidence is the result of a tree-sitter reachability scan
+// for a single finding. Direct matches live inside the installed-package
+// folder; transitive matches are first-party (or other-dep) code paths
+// that reach the vulnerable symbol.
+type ReachabilityEvidence struct {
+	Direct     []ReachabilityMatch `yaml:"direct,omitempty"`
+	Transitive []ReachabilityMatch `yaml:"transitive,omitempty"`
 }
 
 // CWSSData holds a CWSS-derived priority score.
@@ -367,6 +386,42 @@ func (m *Memory) RecordVulnLookup(vulnID string, data interface{}) {
 	rec.Source = "vulnetix-sca"
 
 	m.Findings[vulnID] = rec
+}
+
+// RecordReachability stores a tree-sitter reachability scan result on
+// an existing finding. Passing nil clears the field; passing an empty
+// evidence struct also clears it (so a clean rescan doesn't leak stale
+// matches). The function is a no-op when no finding exists yet — the
+// caller is expected to RecordVulnLookup first.
+func (m *Memory) RecordReachability(vulnID string, evidence *ReachabilityEvidence) {
+	if m.Findings == nil {
+		return
+	}
+	rec, ok := m.Findings[vulnID]
+	if !ok {
+		return
+	}
+	if rec.ThreatModel == nil {
+		rec.ThreatModel = &ThreatModel{}
+	}
+	if evidence == nil || (len(evidence.Direct) == 0 && len(evidence.Transitive) == 0) {
+		rec.ThreatModel.ReachabilityEvidence = nil
+	} else {
+		rec.ThreatModel.ReachabilityEvidence = evidence
+	}
+	rec.History = append(rec.History, HistoryEntry{
+		Date:   time.Now().UTC().Format(time.RFC3339),
+		Event:  "reachability-scan",
+		Detail: reachabilitySummary(evidence),
+	})
+	m.Findings[vulnID] = rec
+}
+
+func reachabilitySummary(ev *ReachabilityEvidence) string {
+	if ev == nil {
+		return "no matches"
+	}
+	return fmt.Sprintf("%d direct, %d transitive", len(ev.Direct), len(ev.Transitive))
 }
 
 // RecordEnrichedFindings upserts FindingRecords from enriched scan results.

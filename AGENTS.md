@@ -18,10 +18,10 @@ This is a Go-based CLI application with the following key components:
 
 ### VDB Subcommands
 
-The `vdb` command queries the Vulnetix Vulnerability Database API. Commands support `-V v1` (default) or `-V v2` for API version selection, and `-o json` for JSON output.
+The `vdb` command queries the Vulnetix Vulnerability Database API. Commands default to `-V v2`; pass `-V v1` only when the legacy surface is specifically required. `-o json` selects JSON output. v1 is retained for backwards compatibility and will be removed in a future release.
 
 **V1+V2 commands**: `vuln`, `exploits`, `info`, `gcve`, `product`, `packages`, `ecosystems`, `sources`, `summary`, `identifiers`, `eol`, `purl`
-**V2-only commands** (require `-V v2`): `scorecard` (+ `search` subcommand), `timeline`, `affected`, `kev`, `advisories`, `workarounds`, `cwe` (+ `guidance`), `remediation` (+ `plan`), `cloud-locators`, `fixes` (V2 fetches registry/distributions/source in parallel)
+**V2-only commands** (require v2, which is now the default — do not pass `-V v1`): `scorecard` (+ `search` subcommand), `timeline`, `affected`, `kev`, `advisories`, `workarounds`, `cwe` (+ `guidance`), `remediation` (+ `plan`), `cloud-locators`, `fixes` (V2 fetches registry/distributions/source in parallel), tree-sitter reachability (`x_treeSitterQueries`)
 **Utility**: `status`, `cache` (+ `clear`)
 
 ## Build and Development Commands

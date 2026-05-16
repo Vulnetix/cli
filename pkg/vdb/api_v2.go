@@ -877,6 +877,86 @@ func (c *Client) V2KevSearch(p KevSearchParams) (map[string]interface{}, error) 
 	return doV2Get(c, path)
 }
 
+// TreeSitterCapture describes a named capture inside a tree-sitter query.
+type TreeSitterCapture struct {
+	Name string `json:"name"`
+	Kind string `json:"kind,omitempty"`
+}
+
+// TreeSitterPredicate describes a predicate or directive attached to a query
+// (e.g. #eq?, #match?, #set!).
+type TreeSitterPredicate struct {
+	Kind    string   `json:"kind"`
+	Name    string   `json:"name"`
+	Negated bool     `json:"negated"`
+	Args    []string `json:"args"`
+}
+
+// TreeSitterQuery is a single S-expression query derived from CVE/OSV data
+// by vdb-manager. The CLI runs these against source files to determine
+// reachability of a vulnerable pattern.
+type TreeSitterQuery struct {
+	VulnID      string                `json:"vulnId,omitempty"`
+	Source      string                `json:"source,omitempty"`
+	Ecosystems  []string              `json:"ecosystems,omitempty"`
+	Language    string                `json:"language"`
+	Name        string                `json:"name"`
+	Description string                `json:"description,omitempty"`
+	QueryText   string                `json:"queryText"`
+	QueryHash   string                `json:"queryHash,omitempty"`
+	DerivedBy   string                `json:"derivedBy,omitempty"`
+	CreatedAt   int64                 `json:"createdAt,omitempty"`
+	Captures    []TreeSitterCapture   `json:"captures,omitempty"`
+	Predicates  []TreeSitterPredicate `json:"predicates,omitempty"`
+	Directives  []TreeSitterPredicate `json:"directives,omitempty"`
+}
+
+// TreeSitterFilters echoes the filter parameters back on the response.
+type TreeSitterFilters struct {
+	Language  string `json:"language,omitempty"`
+	Ecosystem string `json:"ecosystem,omitempty"`
+	VulnID    string `json:"vulnId,omitempty"`
+}
+
+// TreeSitterResponse is the body of GET /vuln/{id}/tree-sitter.
+type TreeSitterResponse struct {
+	Identifier string            `json:"identifier"`
+	Filters    TreeSitterFilters `json:"filters"`
+	Queries    []TreeSitterQuery `json:"queries"`
+}
+
+// V2TreeSitterParams filters the tree-sitter query endpoint.
+type V2TreeSitterParams struct {
+	Language  string
+	Ecosystem string
+}
+
+// V2TreeSitterQueries retrieves tree-sitter S-expression queries derived
+// from the named vulnerability. Returns a typed response (unlike most v2
+// helpers) because the scanner consumes the result programmatically.
+func (c *Client) V2TreeSitterQueries(id string, p V2TreeSitterParams) (*TreeSitterResponse, error) {
+	q := url.Values{}
+	if p.Language != "" {
+		q.Set("language", p.Language)
+	}
+	if p.Ecosystem != "" {
+		q.Set("ecosystem", p.Ecosystem)
+	}
+	path := fmt.Sprintf("/vuln/%s/tree-sitter", url.PathEscape(id))
+	if encoded := q.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	respBody, err := c.DoRequest("GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out TreeSitterResponse
+	if err := json.Unmarshal(respBody, &out); err != nil {
+		return nil, fmt.Errorf("failed to parse tree-sitter response: %w", err)
+	}
+	return &out, nil
+}
+
 func readFileBytes(filePath string) ([]byte, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {

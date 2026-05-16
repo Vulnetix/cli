@@ -453,7 +453,93 @@ func RenderVulnDetail(data any, ctx *Context) string {
 		}
 	}
 
+	if reach, ok := m["x_reachability"].(map[string]any); ok {
+		b.WriteString("\n" + renderReachability(t, reach))
+	}
+
 	return b.String()
+}
+
+// renderReachability renders the tree-sitter reachability block attached
+// to a vuln response under "x_reachability". Output groups matches by
+// mode (direct first, then transitive) and shows file:start:end so
+// editors with line-number support open the match directly.
+func renderReachability(t *Terminal, block map[string]any) string {
+	if block == nil {
+		return ""
+	}
+	var b strings.Builder
+	direct := toMatchSlice(block["direct"])
+	transitive := toMatchSlice(block["transitive"])
+	skippedD, _ := block["skipped_direct"].(string)
+	skippedT, _ := block["skipped_transitive"].(string)
+	queries, _ := block["queries_run"].(int)
+	if queries == 0 {
+		// JSON unmarshal may have promoted it to float64.
+		if f, ok := block["queries_run"].(float64); ok {
+			queries = int(f)
+		}
+	}
+
+	header := fmt.Sprintf("Reachability: %d direct, %d transitive (%d queries)",
+		len(direct), len(transitive), queries)
+	b.WriteString(Subheader(t, header) + "\n")
+
+	writeMatches := func(label string, ms []map[string]any) {
+		if len(ms) == 0 {
+			return
+		}
+		for _, m := range ms {
+			file := ToStringVal(m["file"])
+			start := toInt(m["start_line"])
+			end := toInt(m["end_line"])
+			query := ToStringVal(m["query"])
+			line := fmt.Sprintf("  %-10s %s  %d:%d", label, file, start, end)
+			if query != "" {
+				line += "  " + Muted(t, "("+query+")")
+			}
+			b.WriteString(line + "\n")
+		}
+	}
+	writeMatches("direct", direct)
+	writeMatches("transitive", transitive)
+	if skippedD != "" {
+		b.WriteString("  " + Muted(t, "direct skipped: "+skippedD) + "\n")
+	}
+	if skippedT != "" {
+		b.WriteString("  " + Muted(t, "transitive skipped: "+skippedT) + "\n")
+	}
+	return b.String()
+}
+
+func toMatchSlice(v any) []map[string]any {
+	arr, ok := v.([]any)
+	if !ok {
+		// May arrive as []reachability.Match (typed Go struct slice).
+		if reflectSlice, ok := v.([]map[string]any); ok {
+			return reflectSlice
+		}
+		return nil
+	}
+	out := make([]map[string]any, 0, len(arr))
+	for _, e := range arr {
+		if m, ok := e.(map[string]any); ok {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func toInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	}
+	return 0
 }
 
 // extractCVSS extracts CVSS score, severity, vector from a container (cna or adp).
