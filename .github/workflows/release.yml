@@ -75,7 +75,7 @@ jobs:
           build_target linux   amd64 x86_64-linux-musl     ""
           build_target linux   arm64 aarch64-linux-musl    ""
           build_target linux   arm   arm-linux-musleabihf  ""
-          build_target linux   386   i386-linux-musl       ""
+          build_target linux   386   x86-linux-musl        ""
           build_target darwin  amd64 x86_64-macos          ""
           build_target darwin  arm64 aarch64-macos         ""
           build_target windows amd64 x86_64-windows-gnu    ".exe"
