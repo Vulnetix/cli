@@ -331,9 +331,8 @@ update-packages VERSION="":
     LINUX_ARM64=$(hash_for vulnetix-linux-arm64)
     LINUX_AMD64=$(hash_for vulnetix-linux-amd64)
     WIN_AMD64=$(hash_for vulnetix-windows-amd64.exe)
-    WIN_386=$(hash_for vulnetix-windows-386.exe)
     WIN_ARM64=$(hash_for vulnetix-windows-arm64.exe)
-    echo "Checksums extracted for 7 binaries"
+    echo "Checksums extracted"
 
     # --- flake.nix ---
     echo ""
@@ -361,18 +360,18 @@ update-packages VERSION="":
     if [ -f "$SCOOP" ]; then
         echo ""
         echo "==> Updating Scoop manifest..."
+        # 32-bit Windows builds were dropped when CGO became a build
+        # requirement (zig cc + CGO is unstable for i386-windows).
         jq --indent 4 \
            --arg v "$VER_NUM" \
            --arg h64 "$WIN_AMD64" \
-           --arg h32 "$WIN_386" \
            --arg harm "$WIN_ARM64" \
            '.version = $v |
             .architecture."64bit".url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-amd64.exe#/vulnetix.exe" |
             .architecture."64bit".hash = $h64 |
-            .architecture."32bit".url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-386.exe#/vulnetix.exe" |
-            .architecture."32bit".hash = $h32 |
             .architecture.arm64.url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-arm64.exe#/vulnetix.exe" |
-            .architecture.arm64.hash = $harm' "$SCOOP" > "$TMPDIR/vulnetix.json"
+            .architecture.arm64.hash = $harm |
+            del(.architecture."32bit")' "$SCOOP" > "$TMPDIR/vulnetix.json"
         mv "$TMPDIR/vulnetix.json" "$SCOOP"
         echo "    vulnetix.json → ${VER_NUM}"
     else
