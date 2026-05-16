@@ -14,57 +14,96 @@ ldflags := "-s -w -X github.com/vulnetix/cli/cmd.version=" + version + " -X gith
 
 # --- Build tasks ---
 
-# Build binary for current platform
+# Build binary for current platform.
+# CGO is required for the bundled tree-sitter grammars (reachability).
 build:
     @echo "Building Vulnetix CLI..."
     @mkdir -p {{output_dir}}
-    go build -ldflags "{{ldflags}}" -o {{output_dir}}/{{binary}} .
+    CGO_ENABLED=1 go build -ldflags "{{ldflags}}" -o {{output_dir}}/{{binary}} .
     @echo "Built {{output_dir}}/{{binary}}"
 
 # Build development version (with debug info, -dev suffix)
 dev:
     @echo "Building development version..."
     @mkdir -p {{output_dir}}
-    go build -ldflags "-X github.com/vulnetix/cli/cmd.version={{version}}-dev -X github.com/vulnetix/cli/cmd.commit={{commit}} -X github.com/vulnetix/cli/cmd.buildDate={{build_date}}" -o {{output_dir}}/{{binary}} .
+    CGO_ENABLED=1 go build -ldflags "-X github.com/vulnetix/cli/cmd.version={{version}}-dev -X github.com/vulnetix/cli/cmd.commit={{commit}} -X github.com/vulnetix/cli/cmd.buildDate={{build_date}}" -o {{output_dir}}/{{binary}} .
     @echo "Built {{output_dir}}/{{binary}} (dev)"
+
+# Install zig (the C cross-compiler used for cross-target CGO builds)
+# into ./bin/zig. Idempotent: only downloads if missing.
+install-zig:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v zig >/dev/null 2>&1; then
+        echo "zig already on PATH: $(zig version)"
+        exit 0
+    fi
+    if [ -x ./bin/zig ]; then
+        echo "zig already in ./bin/zig"
+        exit 0
+    fi
+    mkdir -p ./bin
+    ZIG_VER="0.13.0"
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    case "$OS-$ARCH" in
+        linux-x86_64)  TARBALL="zig-linux-x86_64-${ZIG_VER}.tar.xz" ;;
+        linux-aarch64) TARBALL="zig-linux-aarch64-${ZIG_VER}.tar.xz" ;;
+        darwin-x86_64) TARBALL="zig-macos-x86_64-${ZIG_VER}.tar.xz" ;;
+        darwin-arm64)  TARBALL="zig-macos-aarch64-${ZIG_VER}.tar.xz" ;;
+        *) echo "unsupported host $OS-$ARCH for install-zig"; exit 1 ;;
+    esac
+    curl -sSL "https://ziglang.org/download/${ZIG_VER}/${TARBALL}" -o /tmp/zig.tar.xz
+    tar -xJf /tmp/zig.tar.xz -C /tmp
+    rm -f /tmp/zig.tar.xz
+    mv /tmp/zig-*-${ZIG_VER} ./bin/zig-dist
+    ln -sf zig-dist/zig ./bin/zig
+    echo "zig installed: $(./bin/zig version)"
 
 # Build for all platforms using build.sh
 build-all:
     @echo "Building for all platforms..."
     @VERSION={{version}} ./build.sh
 
-# Build release binaries for all platforms
+# Build release binaries for all platforms. CGO is required for the
+# bundled tree-sitter grammars. Uses `zig cc` as a cross-platform C
+# toolchain. Run `just install-zig` first if zig isn't on PATH.
 build-release: clean
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Building release binaries for all platforms..."
     mkdir -p {{output_dir}}
     ldflags="{{ldflags}}"
+    ZIG="$(command -v zig || echo "$PWD/bin/zig")"
+    if ! "$ZIG" version >/dev/null 2>&1; then
+        echo "ERROR: zig not found. Run 'just install-zig' first." >&2
+        exit 1
+    fi
 
-    echo "Building for Linux AMD64..."
-    GOOS=linux GOARCH=amd64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-linux-amd64 .
-    echo "Building for Linux ARM64..."
-    GOOS=linux GOARCH=arm64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-linux-arm64 .
-    echo "Building for Linux ARM..."
-    GOOS=linux GOARCH=arm go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-linux-arm .
-    echo "Building for Linux 386..."
-    GOOS=linux GOARCH=386 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-linux-386 .
+    build_target() {
+        local goos="$1" goarch="$2" triple="$3" suffix="$4"
+        echo "Building for ${goos}/${goarch} (${triple})..."
+        CGO_ENABLED=1 \
+            CC="$ZIG cc -target $triple" \
+            CXX="$ZIG c++ -target $triple" \
+            GOOS="$goos" GOARCH="$goarch" \
+            go build -ldflags "$ldflags" \
+            -o {{output_dir}}/{{binary}}-${goos}-${goarch}${suffix} .
+    }
 
-    echo "Building for macOS AMD64..."
-    GOOS=darwin GOARCH=amd64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-darwin-amd64 .
-    echo "Building for macOS ARM64..."
-    GOOS=darwin GOARCH=arm64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-darwin-arm64 .
+    build_target linux  amd64 x86_64-linux-musl       ""
+    build_target linux  arm64 aarch64-linux-musl      ""
+    build_target linux  arm   arm-linux-musleabihf    ""
+    build_target linux  386   i386-linux-musl         ""
+    build_target darwin amd64 x86_64-macos            ""
+    build_target darwin arm64 aarch64-macos           ""
+    build_target windows amd64 x86_64-windows-gnu    ".exe"
+    build_target windows arm64 aarch64-windows-gnu   ".exe"
 
-    echo "Building for Windows AMD64..."
-    GOOS=windows GOARCH=amd64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-windows-amd64.exe .
-    echo "Building for Windows ARM64..."
-    GOOS=windows GOARCH=arm64 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-windows-arm64.exe .
-    echo "Building for Windows ARM..."
-    GOOS=windows GOARCH=arm go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-windows-arm.exe .
-    echo "Building for Windows 386..."
-    GOOS=windows GOARCH=386 go build -ldflags "$ldflags" -o {{output_dir}}/{{binary}}-windows-386.exe .
+    # Dropped targets: windows/arm and windows/386 — zig cc + CGO is unstable
+    # for these triples in our matrix. Build manually if you need them.
 
-    echo "Built release binaries for all platforms"
+    echo "Built release binaries for all supported platforms"
 
 # Install to GOPATH
 install:

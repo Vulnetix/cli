@@ -59,6 +59,7 @@ vulnetix scan status <scan-id> [flags]
 | `--fresh-exploits` | bool | `false` | With `--from-memory`: fetch latest exploit intel from API |
 | `--fresh-advisories` | bool | `false` | With `--from-memory`: fetch latest remediation plans from API |
 | `--fresh-vulns` | bool | `false` | With `--from-memory`: re-fetch affected version checks and latest scoring from API |
+| `--reachability` | string | `both` | Tree-sitter reachability mode: `direct`, `transitive`, `both`, or `off`. Per-finding source-level reachability analysis runs against every produced CVE. Disable globally with `off` for large monorepos. See the [Reachability Analysis](reachability/) section. |
 
 ## Output Files
 
