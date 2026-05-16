@@ -15,30 +15,11 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  version:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-
-      - name: Install zig (C cross-compiler for CGO targets)
-        run: |
-          ZIG_VER="0.13.0"
-          curl -sSL "https://ziglang.org/download/${ZIG_VER}/zig-linux-x86_64-${ZIG_VER}.tar.xz" -o /tmp/zig.tar.xz
-          tar -xJf /tmp/zig.tar.xz -C /tmp
-          sudo mv /tmp/zig-linux-x86_64-${ZIG_VER} /opt/zig
-          sudo ln -sf /opt/zig/zig /usr/local/bin/zig
-          zig version
-
       - name: Get version
         id: version
         run: |
@@ -50,17 +31,35 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Releasing $VERSION"
 
-      - name: Build release binaries
+  build-cross:
+    # Linux + Windows targets are cross-compiled from ubuntu using zig cc.
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install zig
         run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
+          ZIG_VER="0.13.0"
+          curl -sSL "https://ziglang.org/download/${ZIG_VER}/zig-linux-x86_64-${ZIG_VER}.tar.xz" -o /tmp/zig.tar.xz
+          tar -xJf /tmp/zig.tar.xz -C /tmp
+          sudo mv /tmp/zig-linux-x86_64-${ZIG_VER} /opt/zig
+          sudo ln -sf /opt/zig/zig /usr/local/bin/zig
+          zig version
+
+      - name: Build linux + windows binaries
+        run: |
+          VERSION=${{ needs.version.outputs.version }}
           COMMIT=$(git rev-parse --short HEAD)
           BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           LDFLAGS="-s -w -X github.com/vulnetix/cli/cmd.version=${VERSION} -X github.com/vulnetix/cli/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/cmd.buildDate=${BUILD_DATE}"
           mkdir -p bin
 
-          # CGO is required for the bundled tree-sitter grammars used by the
-          # reachability analyser. zig cc cross-compiles the C grammar source
-          # for every supported (GOOS, GOARCH) target.
           build_target() {
             local goos="$1" goarch="$2" triple="$3" suffix="$4"
             echo "Building ${goos}/${goarch} (${triple})..."
@@ -76,14 +75,66 @@ jobs:
           build_target linux   arm64 aarch64-linux-musl    ""
           build_target linux   arm   arm-linux-musleabihf  ""
           build_target linux   386   x86-linux-musl        ""
-          build_target darwin  amd64 x86_64-macos          ""
-          build_target darwin  arm64 aarch64-macos         ""
           build_target windows amd64 x86_64-windows-gnu    ".exe"
           build_target windows arm64 aarch64-windows-gnu   ".exe"
 
-          # windows/arm and windows/386 dropped — zig cc + CGO is unstable
-          # for these triples. Scoop's 32-bit/arm slots remain in the manifest
-          # update step but pull the most recent successful builds.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cross-binaries
+          path: bin/*
+
+  build-darwin:
+    # Darwin builds run natively on macos so Apple's SDK is available for
+    # CGO (zig cc can't target macOS without the SDK).
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build darwin binaries
+        run: |
+          VERSION=${{ needs.version.outputs.version }}
+          COMMIT=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          LDFLAGS="-s -w -X github.com/vulnetix/cli/cmd.version=${VERSION} -X github.com/vulnetix/cli/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/cmd.buildDate=${BUILD_DATE}"
+          mkdir -p bin
+
+          # macos-latest is arm64; build amd64 with -arch x86_64 via the
+          # native cc which has access to the SDK.
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
+            go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-arm64 .
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
+            CGO_CFLAGS="-arch x86_64" CGO_LDFLAGS="-arch x86_64" \
+            go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-amd64 .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: darwin-binaries
+          path: bin/*
+
+  release:
+    needs: [version, build-cross, build-darwin]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cross-binaries
+          path: bin
+      - uses: actions/download-artifact@v4
+        with:
+          name: darwin-binaries
+          path: bin
 
       - name: Copy install script
         run: cp install.sh bin/install.sh
@@ -95,8 +146,7 @@ jobs:
 
       - name: Create or update Release
         run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
-          # Ensure tag exists for the release
+          VERSION=${{ needs.version.outputs.version }}
           if ! git tag -l "$VERSION" | grep -q "$VERSION"; then
             git tag -a "$VERSION" -m "Release $VERSION"
           fi
