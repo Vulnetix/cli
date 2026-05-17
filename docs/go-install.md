@@ -5,6 +5,6 @@ This documentation has moved to **[docs.cli.vulnetix.com/docs/getting-started/go
 ## Quick Start
 
 ```bash
-go install github.com/vulnetix/cli/v2@latest
+go install github.com/vulnetix/cli/v3@latest
 vulnetix auth login
 ```

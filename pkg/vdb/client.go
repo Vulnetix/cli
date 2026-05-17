@@ -17,9 +17,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/v2/pkg/auth"
-	"github.com/vulnetix/cli/v2/pkg/cache"
-	"github.com/vulnetix/cli/v2/pkg/tty"
+	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v3/pkg/cache"
+	"github.com/vulnetix/cli/v3/pkg/tty"
 )
 
 const (

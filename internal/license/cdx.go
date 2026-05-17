@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/vulnetix/cli/v2/internal/cdx"
-	"github.com/vulnetix/cli/v2/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
 const CDXSourceName = "vulnetix-license-analyzer"

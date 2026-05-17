@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/vulnetix/cli/v2/internal/treesitter"
+	"github.com/vulnetix/cli/v3/internal/treesitter"
 )
 
 func TestEngineRunsJavaScriptQuery(t *testing.T) {

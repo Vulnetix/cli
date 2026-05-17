@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v2/internal/display"
-	"github.com/vulnetix/cli/v2/internal/license"
-	"github.com/vulnetix/cli/v2/internal/memory"
-	"github.com/vulnetix/cli/v2/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/license"
+	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
 var licenseCmd = &cobra.Command{

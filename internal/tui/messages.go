@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/vulnetix/cli/v2/internal/scan"
+import "github.com/vulnetix/cli/v3/internal/scan"
 
 // TaskUpdatedMsg is sent when a scan task's status changes.
 type TaskUpdatedMsg struct {

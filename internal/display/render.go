@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/vulnetix/cli/v2/internal/tui"
+	"github.com/vulnetix/cli/v3/internal/tui"
 )
 
 // RenderVulnDetail renders a single vulnerability detail view.

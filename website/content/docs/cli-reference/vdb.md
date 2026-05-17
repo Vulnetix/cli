@@ -2618,4 +2618,4 @@ For complete API documentation, visit:
 For assistance:
 - Email: sales@vulnetix.com
 - Website: https://www.vulnetix.com
-- GitHub Issues: https://github.com/vulnetix/cli/v2/issues
+- GitHub Issues: https://github.com/vulnetix/cli/v3/issues

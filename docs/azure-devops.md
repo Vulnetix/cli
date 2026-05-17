@@ -16,7 +16,7 @@ steps:
     inputs:
       version: '1.21'
   - script: |
-      go install github.com/vulnetix/cli/v2@latest
+      go install github.com/vulnetix/cli/v3@latest
       vulnetix auth login --method apikey --org-id "$(VULNETIX_ORG_ID)" --secret "$(VULNETIX_API_KEY)" --store project
       vulnetix
     env:

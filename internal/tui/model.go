@@ -13,9 +13,9 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/vulnetix/cli/v2/internal/gitctx"
-	"github.com/vulnetix/cli/v2/internal/scan"
-	"github.com/vulnetix/cli/v2/pkg/vdb"
+	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 // Phase represents the current phase of the scan TUI.

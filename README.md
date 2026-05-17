@@ -107,7 +107,7 @@ Install the plugin:
 | [Homebrew](./docs/homebrew.md) | Linux, macOS | `brew install vulnetix/tap/vulnetix` |
 | [Scoop](./docs/scoop.md) | Windows | `scoop install vulnetix` |
 | [Nix](./docs/nix.md) | Linux, macOS | `nix profile install github:Vulnetix/cli` |
-| [Go Install](./docs/go-install.md) | All | `go install github.com/vulnetix/cli/v2@latest` |
+| [Go Install](./docs/go-install.md) | All | `go install github.com/vulnetix/cli/v3@latest` |
 | [Binary Download](./docs/curl.md) | All | [Direct download](https://github.com/Vulnetix/cli/releases/latest) |
 | [From Source](./docs/from-source.md) | All | Build from source |
 

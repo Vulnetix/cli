@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/vulnetix/cli/v2/internal/testutils"
+	"github.com/vulnetix/cli/v3/internal/testutils"
 )
 
 // executeCommand executes a cobra command and captures its output.

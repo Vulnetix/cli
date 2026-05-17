@@ -7,7 +7,7 @@ This documentation has moved to **[docs.cli.vulnetix.com/docs/enterprise/publish
 | Method | Automation | Installation |
 |--------|-----------|-------------|
 | GitHub Releases | Automated on tags | Direct binary download |
-| Go Install | Automated | `go install github.com/vulnetix/cli/v2@latest` |
+| Go Install | Automated | `go install github.com/vulnetix/cli/v3@latest` |
 | Homebrew Tap | Automated on release | `brew install vulnetix/tap/vulnetix` |
 | Scoop Bucket | Automated on release | `scoop install vulnetix` |
 | Nix Flake | Automated on release | `nix profile install github:Vulnetix/cli` |

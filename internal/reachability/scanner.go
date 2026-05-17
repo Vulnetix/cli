@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/v2/internal/treesitter"
-	"github.com/vulnetix/cli/v2/pkg/vdb"
+	"github.com/vulnetix/cli/v3/internal/treesitter"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 // MaxFileSize is the largest file the scanner will parse. Files above
