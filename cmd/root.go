@@ -10,13 +10,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vulnetix/cli/internal/analytics"
-	"github.com/vulnetix/cli/pkg/auth"
-	"github.com/vulnetix/cli/pkg/cache"
-	"github.com/vulnetix/cli/internal/config"
-	"github.com/vulnetix/cli/internal/display"
-	"github.com/vulnetix/cli/internal/update"
-	"github.com/vulnetix/cli/pkg/vdb"
+	"github.com/vulnetix/cli/v2/internal/analytics"
+	"github.com/vulnetix/cli/v2/pkg/auth"
+	"github.com/vulnetix/cli/v2/pkg/cache"
+	"github.com/vulnetix/cli/v2/internal/config"
+	"github.com/vulnetix/cli/v2/internal/display"
+	"github.com/vulnetix/cli/v2/internal/update"
+	"github.com/vulnetix/cli/v2/pkg/vdb"
 )
 
 var (
@@ -27,9 +27,9 @@ var (
 	noAnalytics   bool
 
 	// Build metadata (injected via ldflags)
-	version   = "1.0.0"   // -X github.com/vulnetix/cli/cmd.version=
-	commit    = "unknown" // -X github.com/vulnetix/cli/cmd.commit=
-	buildDate = "unknown" // -X github.com/vulnetix/cli/cmd.buildDate=
+	version   = "1.0.0"   // -X github.com/vulnetix/cli/v2/cmd.version=
+	commit    = "unknown" // -X github.com/vulnetix/cli/v2/cmd.commit=
+	buildDate = "unknown" // -X github.com/vulnetix/cli/v2/cmd.buildDate=
 )
 
 // updateCheckResult receives the update advisory message from the background goroutine.

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/pkg/vdb"
+	"github.com/vulnetix/cli/v2/pkg/vdb"
 )
 
 // PollEngine handles concurrent polling for scan results.

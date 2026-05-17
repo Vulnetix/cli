@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/vulnetix/cli/internal/memory"
+	"github.com/vulnetix/cli/v2/internal/memory"
 )
 
 // CDXVuln is a minimal representation of a vulnerability in a CycloneDX BOM.

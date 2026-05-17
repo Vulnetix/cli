@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vulnetix/cli/internal/gitctx"
-	"github.com/vulnetix/cli/internal/scan"
+	"github.com/vulnetix/cli/v2/internal/gitctx"
+	"github.com/vulnetix/cli/v2/internal/scan"
 )
 
 // CycloneDX BOM structs for versions 1.2 through 1.7 output.

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vulnetix/cli/internal/update"
-	"github.com/vulnetix/cli/pkg/vdb"
+	"github.com/vulnetix/cli/v2/internal/update"
+	"github.com/vulnetix/cli/v2/pkg/vdb"
 )
 
 // EnrichedVuln extends VulnFinding with version-filtered, enriched data.

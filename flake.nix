@@ -25,9 +25,9 @@
             ldflags = [
               "-s"
               "-w"
-              "-X github.com/vulnetix/cli/cmd.version=${version}"
-              "-X github.com/vulnetix/cli/cmd.commit=${self.shortRev or "dirty"}"
-              "-X github.com/vulnetix/cli/cmd.buildDate=1970-01-01T00:00:00Z"
+              "-X github.com/vulnetix/cli/v2/cmd.version=${version}"
+              "-X github.com/vulnetix/cli/v2/cmd.commit=${self.shortRev or "dirty"}"
+              "-X github.com/vulnetix/cli/v2/cmd.buildDate=1970-01-01T00:00:00Z"
             ];
 
             postInstall = ''

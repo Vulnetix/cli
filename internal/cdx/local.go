@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vulnetix/cli/internal/scan"
+	"github.com/vulnetix/cli/v2/internal/scan"
 )
 
 // LocalScanResult holds the parsed packages and found vulnerabilities for one manifest file.

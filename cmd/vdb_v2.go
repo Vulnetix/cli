@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/internal/display"
-	"github.com/vulnetix/cli/pkg/vdb"
+	"github.com/vulnetix/cli/v2/internal/display"
+	"github.com/vulnetix/cli/v2/pkg/vdb"
 )
 
 // requireV2 checks that -V v2 was specified

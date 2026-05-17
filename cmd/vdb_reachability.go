@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/vulnetix/cli/internal/memory"
-	"github.com/vulnetix/cli/internal/reachability"
-	"github.com/vulnetix/cli/pkg/vdb"
+	"github.com/vulnetix/cli/v2/internal/memory"
+	"github.com/vulnetix/cli/v2/internal/reachability"
+	"github.com/vulnetix/cli/v2/pkg/vdb"
 )
 
 // reachabilityEngine is shared across vdb command invocations within a

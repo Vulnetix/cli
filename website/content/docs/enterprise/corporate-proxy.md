@@ -85,7 +85,7 @@ export HTTP_PROXY="http://proxy.company.com:8080"
 export HTTPS_PROXY="http://proxy.company.com:8080"
 
 # Install Vulnetix
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 ```
 
 ### Binary Download with Proxy
@@ -93,14 +93,14 @@ go install github.com/vulnetix/cli@latest
 ```bash
 # Using curl with proxy
 curl -x http://proxy.company.com:8080 \
-  -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 \
+  -L https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64 \
   -o vulnetix
 
 # Using wget with proxy
 wget -e use_proxy=yes \
   -e http_proxy=http://proxy.company.com:8080 \
   -e https_proxy=http://proxy.company.com:8080 \
-  https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 \
+  https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64 \
   -O vulnetix
 
 chmod +x vulnetix
@@ -322,7 +322,7 @@ vulnetix-proxy:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   script:
     - vulnetix --org-id "$VULNETIX_ORG_ID"
 ```

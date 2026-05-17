@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vulnetix/cli/internal/gitctx"
-	"github.com/vulnetix/cli/pkg/vdb"
+	"github.com/vulnetix/cli/v2/internal/gitctx"
+	"github.com/vulnetix/cli/v2/pkg/vdb"
 )
 
 // UploadEngine handles concurrent file uploads to the VDB API.

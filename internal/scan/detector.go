@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/internal/cdx/schema"
+	"github.com/vulnetix/cli/v2/internal/cdx/schema"
 )
 
 // FileType represents the detected type of a file

@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/internal/display"
-	"github.com/vulnetix/cli/internal/update"
+	"github.com/vulnetix/cli/v2/internal/display"
+	"github.com/vulnetix/cli/v2/internal/update"
 )
 
 var versionShort bool

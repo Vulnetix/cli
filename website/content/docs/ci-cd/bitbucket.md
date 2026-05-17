@@ -512,7 +512,7 @@ apk add --no-cache curl bash
 curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | bash -x
 
 # Manual installation
-wget https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
+wget https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64.tar.gz
 tar -xzf vulnetix-linux-amd64.tar.gz
 mv vulnetix /usr/local/bin/
 chmod +x /usr/local/bin/vulnetix
@@ -522,7 +522,7 @@ chmod +x /usr/local/bin/vulnetix
 ```bash
 # Test connectivity
 curl -I https://app.vulnetix.com/api/check
-curl -I https://github.com/vulnetix/cli/releases/latest
+curl -I https://github.com/vulnetix/cli/v2/releases/latest
 
 # Debug with Vulnetix
 export VULNETIX_DEBUG=true

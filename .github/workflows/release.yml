@@ -57,7 +57,7 @@ jobs:
           VERSION=${{ needs.version.outputs.version }}
           COMMIT=$(git rev-parse --short HEAD)
           BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          LDFLAGS="-s -w -X github.com/vulnetix/cli/cmd.version=${VERSION} -X github.com/vulnetix/cli/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/cmd.buildDate=${BUILD_DATE}"
+          LDFLAGS="-s -w -X github.com/vulnetix/cli/v2/cmd.version=${VERSION} -X github.com/vulnetix/cli/v2/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/v2/cmd.buildDate=${BUILD_DATE}"
           mkdir -p bin
 
           build_target() {
@@ -101,7 +101,7 @@ jobs:
           VERSION=${{ needs.version.outputs.version }}
           COMMIT=$(git rev-parse --short HEAD)
           BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          LDFLAGS="-s -w -X github.com/vulnetix/cli/cmd.version=${VERSION} -X github.com/vulnetix/cli/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/cmd.buildDate=${BUILD_DATE}"
+          LDFLAGS="-s -w -X github.com/vulnetix/cli/v2/cmd.version=${VERSION} -X github.com/vulnetix/cli/v2/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/v2/cmd.buildDate=${BUILD_DATE}"
           mkdir -p bin
 
           # macos-latest is arm64; build amd64 with -arch x86_64 via the
@@ -172,13 +172,13 @@ jobs:
       - name: Test go install
         run: |
           sleep 30
-          go install github.com/vulnetix/cli@latest
+          go install github.com/vulnetix/cli/v2@latest
           vulnetix --help || echo "Binary not found in PATH"
 
       - name: Test specific version install
         run: |
           VERSION=${{ needs.release.outputs.version }}
-          go install github.com/vulnetix/cli@${VERSION}
+          go install github.com/vulnetix/cli/v2@${VERSION}
           vulnetix version --short || echo "Version command failed"
 
   update-packages:

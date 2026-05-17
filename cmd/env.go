@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/internal/config"
-	"github.com/vulnetix/cli/internal/gitctx"
-	"github.com/vulnetix/cli/internal/scan"
+	"github.com/vulnetix/cli/v2/internal/config"
+	"github.com/vulnetix/cli/v2/internal/gitctx"
+	"github.com/vulnetix/cli/v2/internal/scan"
 )
 
 var envOutput string

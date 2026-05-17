@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vulnetix/cli/internal/display"
+	"github.com/vulnetix/cli/v2/internal/display"
 )
 
 // PrintPrettySummary prints a styled SAST findings table to stdout.

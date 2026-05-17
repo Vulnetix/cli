@@ -36,12 +36,12 @@ Vulnetix CLI is distributed through the following channels:
 **Usage by end users:**
 ```bash
 # Direct download
-curl -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
+curl -L https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
 chmod +x vulnetix
 
 # Go install (uses GitHub releases via Go module proxy)
-go install github.com/vulnetix/cli@latest
-go install github.com/vulnetix/cli@v1.2.3
+go install github.com/vulnetix/cli/v2@latest
+go install github.com/vulnetix/cli/v2@v1.2.3
 ```
 
 ### 2. Go Install (Module Distribution)
@@ -52,8 +52,8 @@ Go install works automatically once a tagged release exists on GitHub. The Go mo
 
 **Usage by end users:**
 ```bash
-go install github.com/vulnetix/cli@latest
-go install github.com/vulnetix/cli@v1.2.3
+go install github.com/vulnetix/cli/v2@latest
+go install github.com/vulnetix/cli/v2@v1.2.3
 ```
 
 ### 3. GitHub Actions (CI/CD Integration)
@@ -124,7 +124,7 @@ nix profile install github:Vulnetix/cli
 
 The same GitHub releases serve all distribution methods:
 
-- **Go install:** `go install github.com/vulnetix/cli@latest`
+- **Go install:** `go install github.com/vulnetix/cli/v2@latest`
 - **Direct downloads:** `curl -L https://github.com/.../vulnetix-linux-amd64`
 - **Install script:** `curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh`
 
@@ -138,7 +138,7 @@ When creating a new release:
 2. **Monitor automation:** Check GitHub Actions workflows
 3. **Verify distributions:**
    - [ ] GitHub releases created with binaries
-   - [ ] `go install github.com/vulnetix/cli@v1.2.3` works
+   - [ ] `go install github.com/vulnetix/cli/v2@v1.2.3` works
    - [ ] Install script downloads correct version
    - [ ] Homebrew formula updated in `Vulnetix/homebrew-tap`
    - [ ] Scoop manifest updated in `Vulnetix/scoop-bucket` (hashes from checksums.txt)
@@ -147,8 +147,8 @@ When creating a new release:
    - [ ] `brew upgrade vulnetix`
    - [ ] `scoop update vulnetix`
    - [ ] `nix run github:Vulnetix/cli`
-   - [ ] `go install github.com/vulnetix/cli@v1.2.3`
-   - [ ] `curl -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o vulnetix`
+   - [ ] `go install github.com/vulnetix/cli/v2@v1.2.3`
+   - [ ] `curl -L https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64 -o vulnetix`
 
 ## Troubleshooting
 

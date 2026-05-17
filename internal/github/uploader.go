@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/vulnetix/cli/pkg/auth"
+	"github.com/vulnetix/cli/v2/pkg/auth"
 )
 
 var (
