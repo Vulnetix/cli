@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/vulnetix/cli/internal/triage"
+	"github.com/vulnetix/cli/v2/internal/triage"
 )
 
 type triageDetailTab int

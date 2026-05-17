@@ -8,10 +8,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vulnetix/cli/internal/cdx"
-	"github.com/vulnetix/cli/internal/display"
-	"github.com/vulnetix/cli/internal/scan"
-	"github.com/vulnetix/cli/pkg/vdb"
+	"github.com/vulnetix/cli/v2/internal/cdx"
+	"github.com/vulnetix/cli/v2/internal/display"
+	"github.com/vulnetix/cli/v2/internal/scan"
+	"github.com/vulnetix/cli/v2/pkg/vdb"
 )
 
 // LoadFromMemory reconstructs the scan pretty output from .vulnetix/sbom.cdx.json.

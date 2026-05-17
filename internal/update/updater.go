@@ -74,7 +74,7 @@ func Update(currentVersion, commit string) error {
 
 func updateViaGoInstall() error {
 	fmt.Println("Updating via go install...")
-	cmd := exec.Command("go", "install", "github.com/vulnetix/cli@latest")
+	cmd := exec.Command("go", "install", "github.com/vulnetix/cli/v2@latest")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

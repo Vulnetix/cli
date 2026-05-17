@@ -10,7 +10,7 @@ Install Vulnetix CLI directly from Go modules without building from source.
 
 ```bash
 # Install latest version
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 
 # Run Vulnetix
 vulnetix
@@ -49,7 +49,7 @@ echo 'export GOBIN="$HOME/go/bin"' >> ~/.bashrc
 
 ```bash
 # Install latest stable release
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 
 # Verify installation
 vulnetix --version
@@ -60,20 +60,20 @@ which vulnetix
 
 ```bash
 # Install specific version
-go install github.com/vulnetix/cli@v1.2.3
+go install github.com/vulnetix/cli/v2@v1.2.3
 
 # Install pre-release
-go install github.com/vulnetix/cli@v1.3.0-beta.1
+go install github.com/vulnetix/cli/v2@v1.3.0-beta.1
 
 # Install from specific commit
-go install github.com/vulnetix/cli@abc1234
+go install github.com/vulnetix/cli/v2@abc1234
 ```
 
 ## Upgrade
 
 ```bash
 # Reinstall latest version
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 ```
 
 Or use the built-in self-updater (works regardless of install method):
@@ -86,10 +86,10 @@ vulnetix update
 
 ```bash
 # Install from main branch (development)
-go install github.com/vulnetix/cli@main
+go install github.com/vulnetix/cli/v2@main
 
 # Install from specific branch
-go install github.com/vulnetix/cli@feature/new-feature
+go install github.com/vulnetix/cli/v2@feature/new-feature
 ```
 
 ## Shell Completions
@@ -192,11 +192,11 @@ vulnetix upload --file <artifact-path>
 
 ```bash
 # Install for different architectures
-GOOS=linux GOARCH=amd64 go install github.com/vulnetix/cli@latest
-GOOS=linux GOARCH=arm64 go install github.com/vulnetix/cli@latest
-GOOS=darwin GOARCH=amd64 go install github.com/vulnetix/cli@latest
-GOOS=darwin GOARCH=arm64 go install github.com/vulnetix/cli@latest
-GOOS=windows GOARCH=amd64 go install github.com/vulnetix/cli@latest
+GOOS=linux GOARCH=amd64 go install github.com/vulnetix/cli/v2@latest
+GOOS=linux GOARCH=arm64 go install github.com/vulnetix/cli/v2@latest
+GOOS=darwin GOARCH=amd64 go install github.com/vulnetix/cli/v2@latest
+GOOS=darwin GOARCH=arm64 go install github.com/vulnetix/cli/v2@latest
+GOOS=windows GOARCH=amd64 go install github.com/vulnetix/cli/v2@latest
 
 # List installed binaries
 ls -la $(go env GOPATH)/bin/
@@ -206,19 +206,19 @@ ls -la $(go env GOPATH)/bin/
 
 ```bash
 # Linux AMD64
-GOOS=linux GOARCH=amd64 go install github.com/vulnetix/cli@latest
+GOOS=linux GOARCH=amd64 go install github.com/vulnetix/cli/v2@latest
 
 # Linux ARM64 (Raspberry Pi, etc.)
-GOOS=linux GOARCH=arm64 go install github.com/vulnetix/cli@latest
+GOOS=linux GOARCH=arm64 go install github.com/vulnetix/cli/v2@latest
 
 # macOS Intel
-GOOS=darwin GOARCH=amd64 go install github.com/vulnetix/cli@latest
+GOOS=darwin GOARCH=amd64 go install github.com/vulnetix/cli/v2@latest
 
 # macOS Apple Silicon
-GOOS=darwin GOARCH=arm64 go install github.com/vulnetix/cli@latest
+GOOS=darwin GOARCH=arm64 go install github.com/vulnetix/cli/v2@latest
 
 # Windows
-GOOS=windows GOARCH=amd64 go install github.com/vulnetix/cli@latest
+GOOS=windows GOARCH=amd64 go install github.com/vulnetix/cli/v2@latest
 ```
 
 ## Edge Cases & Advanced Configuration
@@ -240,7 +240,7 @@ export HTTP_PROXY="http://username:password@proxy.company.com:8080"
 export HTTPS_PROXY="http://username:password@proxy.company.com:8080"
 
 # Install with proxy settings
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 ```
 
 ### Private Module Repository
@@ -262,7 +262,7 @@ go install github.com/yourcompany/vulnetix@latest
 
 ```bash
 # Download module for offline use (requires internet first)
-go mod download github.com/vulnetix/cli@latest
+go mod download github.com/vulnetix/cli/v2@latest
 
 # Create module cache archive
 tar -czf vulnetix-modules.tar.gz -C $(go env GOMODCACHE) .
@@ -271,33 +271,33 @@ tar -czf vulnetix-modules.tar.gz -C $(go env GOMODCACHE) .
 # 1. Extract modules to GOMODCACHE
 # 2. Set GOPROXY=off
 export GOPROXY=off
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 ```
 
 ### Custom Build Flags
 
 ```bash
 # Install with custom build flags
-go install -ldflags="-X main.version=custom" github.com/vulnetix/cli@latest
+go install -ldflags="-X main.version=custom" github.com/vulnetix/cli/v2@latest
 
 # Install with debug information
-go install -gcflags="all=-N -l" github.com/vulnetix/cli@latest
+go install -gcflags="all=-N -l" github.com/vulnetix/cli/v2@latest
 
 # Install with optimizations disabled
-go install -gcflags="all=-N" github.com/vulnetix/cli@latest
+go install -gcflags="all=-N" github.com/vulnetix/cli/v2@latest
 ```
 
 ### Version Management
 
 ```bash
 # Install multiple versions
-go install github.com/vulnetix/cli@v1.0.0
+go install github.com/vulnetix/cli/v2@v1.0.0
 mv $(go env GOPATH)/bin/vulnetix $(go env GOPATH)/bin/vulnetix-v1.0.0
 
-go install github.com/vulnetix/cli@v1.1.0
+go install github.com/vulnetix/cli/v2@v1.1.0
 mv $(go env GOPATH)/bin/vulnetix $(go env GOPATH)/bin/vulnetix-v1.1.0
 
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 # Latest version available as 'vulnetix'
 
 # Create version switcher script
@@ -343,7 +343,7 @@ echo "Vulnetix check passed."
 
 security-install:
 	@echo "Installing Vulnetix CLI..."
-	go install github.com/vulnetix/cli@latest
+	go install github.com/vulnetix/cli/v2@latest
 
 security-check: security-install
 	@echo "Running Vulnetix..."
@@ -374,7 +374,7 @@ jobs:
           go-version: '1.21'
 
       - name: Install Vulnetix
-        run: go install github.com/vulnetix/cli@latest
+        run: go install github.com/vulnetix/cli/v2@latest
 
       - name: Run Vulnetix
         env:
@@ -401,7 +401,7 @@ chmod 755 $(go env GOBIN)
 # Alternative: Install to user directory
 export GOBIN="$HOME/.local/bin"
 mkdir -p "$GOBIN"
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 ```
 
 #### Binary Not Found
@@ -437,7 +437,7 @@ go env -w GOSUMDB="sum.golang.org"
 go clean -modcache
 
 # Retry installation
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 ```
 
 #### Version Conflicts
@@ -450,7 +450,7 @@ go clean -modcache
 rm $(go env GOPATH)/bin/vulnetix*
 
 # Reinstall specific version
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 ```
 
 #### Corporate Firewall Issues
@@ -485,7 +485,7 @@ $env:PATH += ";$(go env GOBIN)"
 [Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";$(go env GOBIN)", "User")
 
 # Install in PowerShell
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 
 # Run with PowerShell
 vulnetix.exe --org-id "your-org-id-here"
@@ -496,11 +496,11 @@ vulnetix.exe --org-id "your-org-id-here"
 ```bash
 # macOS: Handle Apple Silicon vs Intel
 # For universal binary compatibility
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 
 # Force specific architecture if needed
-GOARCH=amd64 go install github.com/vulnetix/cli@latest  # Intel
-GOARCH=arm64 go install github.com/vulnetix/cli@latest  # Apple Silicon
+GOARCH=amd64 go install github.com/vulnetix/cli/v2@latest  # Intel
+GOARCH=arm64 go install github.com/vulnetix/cli/v2@latest  # Apple Silicon
 ```
 
 #### Linux
@@ -520,7 +520,7 @@ sudo pacman -S go
 apk add go
 
 # After installing Go
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 ```
 
 ### Performance Issues
@@ -536,7 +536,7 @@ go clean -cache
 go clean -modcache
 
 # Reinstall
-go install github.com/vulnetix/cli@latest
+go install github.com/vulnetix/cli/v2@latest
 ```
 
 ### Environment Debugging
@@ -565,7 +565,7 @@ vulnetix --version
 
 ```bash
 # Verify checksum (if available)
-go mod download -json github.com/vulnetix/cli@latest | jq -r .Sum
+go mod download -json github.com/vulnetix/cli/v2@latest | jq -r .Sum
 
 # Check binary signatures
 # (Implementation depends on signing setup)

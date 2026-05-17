@@ -3,8 +3,8 @@ package tui
 import (
 	"os"
 
-	"github.com/vulnetix/cli/internal/cdx"
-	"github.com/vulnetix/cli/internal/scan"
+	"github.com/vulnetix/cli/v2/internal/cdx"
+	"github.com/vulnetix/cli/v2/internal/scan"
 )
 
 func saveOutput(tasks []*scan.ScanTask, format, path string) error {

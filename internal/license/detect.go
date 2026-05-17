@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/vulnetix/cli/internal/scan"
+	"github.com/vulnetix/cli/v2/internal/scan"
 )
 
 // DetectLicenses takes already-parsed packages and resolves their licenses.

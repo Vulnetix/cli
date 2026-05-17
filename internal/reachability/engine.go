@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/vulnetix/cli/internal/treesitter"
+	"github.com/vulnetix/cli/v2/internal/treesitter"
 )
 
 // Engine compiles and runs tree-sitter queries against source files. It

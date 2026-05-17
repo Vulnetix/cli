@@ -409,7 +409,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Invoke-WebRequest -Uri "https://github.com/vulnetix/cli/releases/latest/download/vulnetix-windows-amd64.zip" -OutFile "vulnetix.zip"
+      Invoke-WebRequest -Uri "https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-windows-amd64.zip" -OutFile "vulnetix.zip"
       Expand-Archive vulnetix.zip -DestinationPath "C:\Tools\Vulnetix"
       $env:PATH += ";C:\Tools\Vulnetix"
       vulnetix --version
@@ -579,7 +579,7 @@ steps:
     targetType: 'inline'
     script: |
       # Test GitHub connectivity
-      curl -I https://github.com/vulnetix/cli/releases/latest
+      curl -I https://github.com/vulnetix/cli/v2/releases/latest
 
       # Test Vulnetix API connectivity
       curl -I https://app.vulnetix.com/api/check

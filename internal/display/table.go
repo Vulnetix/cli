@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/vulnetix/cli/internal/tui"
+	"github.com/vulnetix/cli/v2/internal/tui"
 )
 
 // Alignment controls column text alignment.

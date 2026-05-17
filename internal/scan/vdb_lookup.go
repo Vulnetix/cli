@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vulnetix/cli/pkg/vdb"
+	"github.com/vulnetix/cli/v2/pkg/vdb"
 )
 
 // VulnFinding represents a vulnerability found during a local scan.

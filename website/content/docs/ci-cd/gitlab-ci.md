@@ -17,7 +17,7 @@ vulnetix:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   script:
     - vulnetix upload --file <artifact-path>
   variables:
@@ -33,7 +33,7 @@ vulnetix:
   image: golang:1.21
   stage: security
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   script:
     - vulnetix upload --file <artifact-path>
 ```
@@ -46,7 +46,7 @@ vulnetix:
   stage: security
   before_script:
     - apk add --no-cache curl
-    - curl -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
+    - curl -L https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64 -o vulnetix
     - chmod +x vulnetix
   script:
     - ./vulnetix upload --file <artifact-path>
@@ -116,7 +116,7 @@ vulnetix:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   script:
     - vulnetix upload --file <artifact-path>
   artifacts:
@@ -215,7 +215,7 @@ vulnetix-assessment:
   stage: security-assessment
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   dependencies:
     - sast-scan
     - sca-scan
@@ -248,7 +248,7 @@ go-security-assessment:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
     - go install golang.org/x/vuln/cmd/govulncheck@latest
     - go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
   script:
@@ -285,7 +285,7 @@ nodejs-security-assessment:
   image: node:18
   before_script:
     - apk add --no-cache curl
-    - curl -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o /usr/local/bin/vulnetix
+    - curl -L https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64 -o /usr/local/bin/vulnetix
     - chmod +x /usr/local/bin/vulnetix
     - npm install -g audit-ci
   script:
@@ -319,7 +319,7 @@ python-security-assessment:
   image: python:3.9
   before_script:
     - pip install safety bandit
-    - curl -L https://github.com/vulnetix/cli/releases/latest/download/vulnetix-linux-amd64 -o /usr/local/bin/vulnetix
+    - curl -L https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64 -o /usr/local/bin/vulnetix
     - chmod +x /usr/local/bin/vulnetix
   script:
     - mkdir -p security-reports
@@ -365,7 +365,7 @@ vulnetix-proxy:
     - export http_proxy=$HTTP_PROXY
     - export https_proxy=$HTTPS_PROXY
     - export no_proxy=$NO_PROXY
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   script:
     - vulnetix upload --file <artifact-path>
 ```
@@ -377,7 +377,7 @@ vulnetix-self-hosted:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
     - df -h  # Check disk space
     - curl -I https://app.vulnetix.com/api/  # Test connectivity
   script:
@@ -447,19 +447,19 @@ vulnetix-dev:
   <<: *vulnetix-dev
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
 
 vulnetix-staging:
   <<: *vulnetix-staging
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
 
 vulnetix-prod:
   <<: *vulnetix-prod
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
 ```
 
 ### Parallel Security Assessments
@@ -519,7 +519,7 @@ vulnetix-custom-rules:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
     # Download custom security rules
     - curl -sSfL "$CUSTOM_RULES_URL" -o custom-rules.yaml
   script:
@@ -541,7 +541,7 @@ vulnetix-security-dashboard:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   script:
     - vulnetix upload --file <artifact-path>
   artifacts:
@@ -559,7 +559,7 @@ vulnetix-mr-security:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   script:
     - vulnetix upload --file <artifact-path>
     - |
@@ -583,7 +583,7 @@ vulnetix-pages:
   stage: deploy
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   script:
     - vulnetix upload --file <artifact-path>
     - mkdir public
@@ -609,7 +609,7 @@ vulnetix-with-validation:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
     - |
       if [ -z "$VULNETIX_ORG_ID" ]; then
         echo "ERROR: VULNETIX_ORG_ID not set"
@@ -630,7 +630,7 @@ vulnetix-debug-network:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
     - apt-get update && apt-get install -y curl dnsutils
     - echo "Testing connectivity..."
     - curl -I https://app.vulnetix.com/api/ || echo "API unreachable"
@@ -649,7 +649,7 @@ vulnetix-debug-artifacts:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   script:
     - vulnetix upload --file <artifact-path>
     - ls -la vulnetix-output/
@@ -672,7 +672,7 @@ vulnetix-optimized:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   variables:
     GIT_DEPTH: 10  # Shallow clone
     GIT_STRATEGY: clone
@@ -691,7 +691,7 @@ vulnetix-parallel-opt:
   stage: security
   image: golang:1.21
   before_script:
-    - go install github.com/vulnetix/cli@latest
+    - go install github.com/vulnetix/cli/v2@latest
   parallel: 3
   script:
     - vulnetix upload --file <artifact-path>

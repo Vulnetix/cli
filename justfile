@@ -10,7 +10,7 @@ commit := `git rev-parse --short HEAD 2>/dev/null || echo "unknown"`
 build_date := `date -u +%Y-%m-%dT%H:%M:%SZ`
 output_dir := "bin"
 binary := "vulnetix"
-ldflags := "-s -w -X github.com/vulnetix/cli/cmd.version=" + version + " -X github.com/vulnetix/cli/cmd.commit=" + commit + " -X github.com/vulnetix/cli/cmd.buildDate=" + build_date
+ldflags := "-s -w -X github.com/vulnetix/cli/v2/cmd.version=" + version + " -X github.com/vulnetix/cli/v2/cmd.commit=" + commit + " -X github.com/vulnetix/cli/v2/cmd.buildDate=" + build_date
 
 # --- Build tasks ---
 
@@ -26,7 +26,7 @@ build:
 dev:
     @echo "Building development version..."
     @mkdir -p {{output_dir}}
-    CGO_ENABLED=1 go build -ldflags "-X github.com/vulnetix/cli/cmd.version={{version}}-dev -X github.com/vulnetix/cli/cmd.commit={{commit}} -X github.com/vulnetix/cli/cmd.buildDate={{build_date}}" -o {{output_dir}}/{{binary}} .
+    CGO_ENABLED=1 go build -ldflags "-X github.com/vulnetix/cli/v2/cmd.version={{version}}-dev -X github.com/vulnetix/cli/v2/cmd.commit={{commit}} -X github.com/vulnetix/cli/v2/cmd.buildDate={{build_date}}" -o {{output_dir}}/{{binary}} .
     @echo "Built {{output_dir}}/{{binary}} (dev)"
 
 # Install zig (the C cross-compiler used for cross-target CGO builds)
@@ -229,7 +229,7 @@ dns-verify:
 #   5. Dispatches release.yml via workflow_dispatch
 #   6. release.yml builds binaries for all platforms, generates checksums,
 #      and publishes a GitHub Release with auto-generated release notes
-#   7. test-go-install job verifies `go install github.com/vulnetix/cli@latest` works
+#   7. test-go-install job verifies `go install github.com/vulnetix/cli/v2@latest` works
 #
 # Manual release:
 #   just release v1.2.3          — tag locally and push (triggers release.yml)

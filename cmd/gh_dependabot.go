@@ -12,12 +12,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vulnetix/cli/pkg/auth"
-	"github.com/vulnetix/cli/internal/memory"
-	"github.com/vulnetix/cli/internal/scan"
-	"github.com/vulnetix/cli/internal/triage"
-	"github.com/vulnetix/cli/internal/tui"
-	"github.com/vulnetix/cli/pkg/vdb"
+	"github.com/vulnetix/cli/v2/pkg/auth"
+	"github.com/vulnetix/cli/v2/internal/memory"
+	"github.com/vulnetix/cli/v2/internal/scan"
+	"github.com/vulnetix/cli/v2/internal/triage"
+	"github.com/vulnetix/cli/v2/internal/tui"
+	"github.com/vulnetix/cli/v2/pkg/vdb"
 )
 
 var (
