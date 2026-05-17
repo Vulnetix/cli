@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vulnetix/cli/v2/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
 func renderResultsPhase(m *Model) string {

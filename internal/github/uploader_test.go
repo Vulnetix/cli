@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v2/pkg/auth"
+	"github.com/vulnetix/cli/v3/pkg/auth"
 )
 
 func TestNewArtifactUploader(t *testing.T) {

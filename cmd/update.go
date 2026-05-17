@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v2/internal/update"
+	"github.com/vulnetix/cli/v3/internal/update"
 )
 
 var updateCmd = &cobra.Command{

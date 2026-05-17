@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/vulnetix/cli/v2/internal/tui"
+	"github.com/vulnetix/cli/v3/internal/tui"
 )
 
 // Style helpers that use the shared TUI color palette.

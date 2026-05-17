@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v2/pkg/auth"
-	"github.com/vulnetix/cli/v2/internal/display"
-	"github.com/vulnetix/cli/v2/internal/upload"
+	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/upload"
 )
 
 var (

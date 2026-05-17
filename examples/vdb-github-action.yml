@@ -42,8 +42,8 @@ jobs:
       - name: Install Vulnetix CLI
         run: |
           # Install from GitHub releases (adjust version as needed)
-          curl -LO https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64
-          curl -LO https://github.com/vulnetix/cli/v2/releases/latest/download/vulnetix-linux-amd64.sha256
+          curl -LO https://github.com/vulnetix/cli/v3/releases/latest/download/vulnetix-linux-amd64
+          curl -LO https://github.com/vulnetix/cli/v3/releases/latest/download/vulnetix-linux-amd64.sha256
           # Verify the downloaded binary against its SHA-256 checksum
           sha256sum -c vulnetix-linux-amd64.sha256
           chmod +x vulnetix-linux-amd64

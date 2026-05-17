@@ -3,7 +3,7 @@ package scan
 import (
 	"strings"
 
-	"github.com/vulnetix/cli/v2/internal/update"
+	"github.com/vulnetix/cli/v3/internal/update"
 )
 
 // IsVersionAffected checks whether installedVersion falls within the affected

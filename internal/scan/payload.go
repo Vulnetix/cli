@@ -5,8 +5,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/vulnetix/cli/v2/internal/filetree"
-	"github.com/vulnetix/cli/v2/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/filetree"
+	"github.com/vulnetix/cli/v3/internal/gitctx"
 )
 
 // version is injected at build time via ldflags.

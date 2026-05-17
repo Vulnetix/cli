@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v2/pkg/vdb"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 // VulnetixKevReason enum values — kept in sync with the VulnetixKevReason

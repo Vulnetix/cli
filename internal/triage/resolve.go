@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v2/internal/memory"
+	"github.com/vulnetix/cli/v3/internal/memory"
 )
 
 // ---------------------------------------------------------------------------

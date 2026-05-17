@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vulnetix/cli/v2/internal/memory"
+	"github.com/vulnetix/cli/v3/internal/memory"
 )
 
 // Alert represents a normalized vulnerability alert from any provider.
