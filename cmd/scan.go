@@ -996,22 +996,58 @@ func runLocalScan(
 				oldSARIF, _ := sast.LoadExistingSARIF(sarifPath)
 				resolved := sast.ResolvedFingerprints(oldSARIF, sastReport.Findings)
 
-				// Record SAST findings in memory.
-				memFindings := make([]memory.SASTFindingRecord, 0, len(sastReport.Findings))
+				// Partition findings by rule Kind: "sast" → SASTFindings map;
+				// "secrets" / "iac" / "oci" → categorised findings tagged with
+				// the appropriate memory.Tool* value so triage --tool can filter.
+				memSAST := make([]memory.SASTFindingRecord, 0, len(sastReport.Findings))
+				categorised := map[string]map[string]memory.FindingRecord{} // tool -> id -> record
 				for _, f := range sastReport.Findings {
-					mf := memory.SASTFindingRecord{
-						RuleID:      f.RuleID,
-						Severity:    f.Severity,
-						ArtifactURI: f.ArtifactURI,
-						StartLine:   f.StartLine,
-						Fingerprint: f.Fingerprint,
-					}
+					kind := ""
+					ruleName := ""
 					if f.Metadata != nil {
-						mf.RuleName = f.Metadata.Name
+						kind = f.Metadata.Kind
+						ruleName = f.Metadata.Name
 					}
-					memFindings = append(memFindings, mf)
+					switch kind {
+					case "secrets", "iac", "oci":
+						tool := memory.ToolSecrets
+						switch kind {
+						case "iac":
+							tool = memory.ToolIaC
+						case "oci":
+							tool = memory.ToolContainer
+						}
+						bucket, ok := categorised[tool]
+						if !ok {
+							bucket = map[string]memory.FindingRecord{}
+							categorised[tool] = bucket
+						}
+						bucket[f.Fingerprint] = memory.FindingRecord{
+							Aliases:  []string{f.RuleID},
+							Severity: f.Severity,
+							Source:   "vulnetix-" + tool,
+							Locations: []memory.Location{{
+								File:      f.ArtifactURI,
+								StartLine: f.StartLine,
+								EndLine:   f.EndLine,
+								Snippet:   f.Snippet,
+							}},
+						}
+					default:
+						memSAST = append(memSAST, memory.SASTFindingRecord{
+							RuleID:      f.RuleID,
+							RuleName:    ruleName,
+							Severity:    f.Severity,
+							ArtifactURI: f.ArtifactURI,
+							StartLine:   f.StartLine,
+							Fingerprint: f.Fingerprint,
+						})
+					}
 				}
-				mem.RecordSASTFindings(memFindings)
+				mem.RecordSASTFindings(memSAST)
+				for tool, bucket := range categorised {
+					mem.RecordCategorizedFindings(tool, bucket)
+				}
 				for _, fp := range resolved {
 					mem.MarkSASTFindingResolved(fp)
 				}
