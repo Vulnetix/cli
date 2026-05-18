@@ -14,6 +14,11 @@ on:
 permissions:
   contents: write
 
+env:
+  # Force JS actions to Node 24 so deprecated Node 20 runs stop firing while
+  # action versions catch up (silences upload-artifact@v5 et al.).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   version:
     runs-on: ubuntu-latest
