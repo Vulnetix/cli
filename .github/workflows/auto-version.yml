@@ -8,6 +8,9 @@ permissions:
   contents: write
   actions: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   auto-version:
     runs-on: ubuntu-latest
