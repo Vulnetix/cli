@@ -850,6 +850,24 @@ func runLocalScan(
 		mem = &memory.Memory{Version: "1"}
 	}
 
+	// Stamp this scan's branch / path onto every record we write below, so
+	// future scans can branch-gate reconciliation.
+	currentBranch := ""
+	if gitCtx != nil {
+		currentBranch = gitCtx.CurrentBranch
+	}
+	mem.SetScanContext(&memory.ScanContext{
+		Branch: currentBranch,
+		Path:   rootPath,
+	})
+
+	// installedPkgs lets the reconciler distinguish "dependency removed"
+	// from "patched upstream" when an SCA finding disappears.
+	installedPkgs := make(map[string]bool, len(allPackages))
+	for _, p := range allPackages {
+		installedPkgs[strings.ToLower(p.Ecosystem)+":"+strings.ToLower(p.Name)] = true
+	}
+
 	var stateChanges []memory.StateChange
 
 	// Write enriched findings to memory unless disabled.
@@ -936,10 +954,22 @@ func runLocalScan(
 		for _, ev := range enrichedVulns {
 			currentCVEs[ev.CveID] = true
 		}
-		stateChanges = mem.ReconcileFindings(currentCVEs)
+		stateChanges = mem.ReconcileTool(memory.ReconcileContext{
+			Tool:          memory.ToolSCA,
+			CurrentIDs:    currentCVEs,
+			InstalledPkgs: installedPkgs,
+			Branch:        currentBranch,
+			RootPath:      rootPath,
+		})
 	} else if !disableMemory {
-		// No vulns in current scan — reconcile all existing findings.
-		stateChanges = mem.ReconcileFindings(map[string]bool{})
+		// No vulns in current scan — reconcile all existing SCA findings.
+		stateChanges = mem.ReconcileTool(memory.ReconcileContext{
+			Tool:          memory.ToolSCA,
+			CurrentIDs:    map[string]bool{},
+			InstalledPkgs: installedPkgs,
+			Branch:        currentBranch,
+			RootPath:      rootPath,
+		})
 	}
 
 	// Record scan summary.
@@ -992,15 +1022,17 @@ func runLocalScan(
 
 			sarifPath := filepath.Join(vulnetixDir, "sast.sarif")
 			if !disableMemory {
-				// Reconcile with previous SARIF for resolved findings.
-				oldSARIF, _ := sast.LoadExistingSARIF(sarifPath)
-				resolved := sast.ResolvedFingerprints(oldSARIF, sastReport.Findings)
-
 				// Partition findings by rule Kind: "sast" → SASTFindings map;
 				// "secrets" / "iac" / "oci" → categorised findings tagged with
 				// the appropriate memory.Tool* value so triage --tool can filter.
 				memSAST := make([]memory.SASTFindingRecord, 0, len(sastReport.Findings))
 				categorised := map[string]map[string]memory.FindingRecord{} // tool -> id -> record
+				currentByTool := map[string]map[string]bool{
+					memory.ToolSAST:      {},
+					memory.ToolSecrets:   {},
+					memory.ToolIaC:       {},
+					memory.ToolContainer: {},
+				}
 				for _, f := range sastReport.Findings {
 					kind := ""
 					ruleName := ""
@@ -1033,6 +1065,7 @@ func runLocalScan(
 								Snippet:   f.Snippet,
 							}},
 						}
+						currentByTool[tool][f.Fingerprint] = true
 					default:
 						memSAST = append(memSAST, memory.SASTFindingRecord{
 							RuleID:      f.RuleID,
@@ -1041,15 +1074,35 @@ func runLocalScan(
 							ArtifactURI: f.ArtifactURI,
 							StartLine:   f.StartLine,
 							Fingerprint: f.Fingerprint,
+							Locations: []memory.Location{{
+								File:      f.ArtifactURI,
+								StartLine: f.StartLine,
+								EndLine:   f.EndLine,
+								Snippet:   f.Snippet,
+							}},
 						})
+						currentByTool[memory.ToolSAST][f.Fingerprint] = true
 					}
 				}
 				mem.RecordSASTFindings(memSAST)
 				for tool, bucket := range categorised {
 					mem.RecordCategorizedFindings(tool, bucket)
 				}
-				for _, fp := range resolved {
-					mem.MarkSASTFindingResolved(fp)
+
+				// Verify-then-resolve via on-disk inspection for sast/secrets/iac.
+				verifier := func(loc memory.Location) (bool, string) {
+					return scan.VerifyLocationGone(rootPath, loc, 5)
+				}
+				for _, tool := range []string{memory.ToolSAST, memory.ToolSecrets, memory.ToolIaC, memory.ToolContainer} {
+					ids := currentByTool[tool]
+					changes := mem.ReconcileTool(memory.ReconcileContext{
+						Tool:       tool,
+						CurrentIDs: ids,
+						Branch:     currentBranch,
+						RootPath:   rootPath,
+						Verifier:   verifier,
+					})
+					stateChanges = append(stateChanges, changes...)
 				}
 			}
 			// Write updated SARIF.
