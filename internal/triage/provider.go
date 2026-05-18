@@ -75,22 +75,13 @@ type TriageProvider interface {
 // TriageProviders is the registry of providers that support per-CVE triage.
 var TriageProviders = map[string]func() TriageProvider{}
 
-// providerKinds maps provider names to the GitHub alert kinds they cover.
-var providerKinds = map[string][]string{
-	"github":     {"dependabot", "codeql", "secrets"},
-	"dependabot": {"dependabot"},
-	"codeql":     {"codeql"},
-	"secrets":    {"secrets"},
-}
+// GitHubToolKinds is the canonical set of sub-tools available to the github provider.
+var GitHubToolKinds = []string{"dependabot", "codeql", "secrets"}
 
-// GetProvider returns the provider for the given name, or an error if unknown.
-// For GitHub-backed providers, a GitHubClient must be supplied.
-func GetProvider(name string, client *GitHubClient) (Provider, error) {
-	kinds, ok := providerKinds[name]
-	if !ok {
-		return nil, fmt.Errorf("unknown provider %q (supported: github, dependabot, codeql, secrets)", name)
-	}
-	return NewGitHubMultiProvider(client, kinds), nil
+// GetGitHubProvider returns a GitHub provider configured for the given sub-tool
+// kinds. Callers are expected to validate kinds against GitHubToolKinds.
+func GetGitHubProvider(client *GitHubClient, kinds []string) Provider {
+	return NewGitHubMultiProvider(client, kinds)
 }
 
 // GetTriageProvider returns a triage-capable provider for the given name.

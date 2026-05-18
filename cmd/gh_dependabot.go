@@ -22,6 +22,7 @@ import (
 
 var (
 	triageProvider        string
+	triageTool            string
 	triageRepo            string
 	triageAll             bool
 	triageConcurrency     int
@@ -41,6 +42,18 @@ var (
 	triageVEXJustification string
 )
 
+// vulnetixToolKinds is the canonical set of vulnetix sub-tools that can be
+// triaged from the on-disk .vulnetix/memory.yaml.
+var vulnetixToolKinds = []string{
+	memory.ToolSCA,
+	memory.ToolSAST,
+	memory.ToolIaC,
+	memory.ToolSecrets,
+	memory.ToolContainer,
+	memory.ToolQuality,
+	memory.ToolLicense,
+}
+
 // triageCmd represents the triage command, which can operate in two modes:
 // 1. GitHub provider mode (github, dependabot, codeql, secrets): fetches alerts from GitHub
 // 2. Vulnetix provider mode (vulnetix): triages vulnerability IDs and generates VEX
@@ -49,27 +62,32 @@ var triageCmd = &cobra.Command{
 	Short: "Triage vulnerabilities using GitHub alerts or Vulnetix VDB",
 	Long: `Triage vulnerabilities using either GitHub security alerts or the Vulnetix VDB.
 
-When using a GitHub provider (github, dependabot, codeql, secrets), this command
-fetches alerts from the GitHub API, enriches them with VDB data, and presents them
-in an interactive TUI or formatted output.
+Providers (-p / --provider) are: github or vulnetix (default: vulnetix).
+Sub-tools (--tool, comma-separated, or "all") select what to triage:
 
-When using the vulnetix provider, this command accepts a list of vulnerability IDs
-(CVE, GHSA, etc.), triages each using the Vulnetix VDB, and generates VEX attestations
-in OpenVEX or CycloneDX format. Vulnerability IDs can be provided as arguments,
-read from STDIN, or — when none are specified — loaded automatically from the
-project's .vulnetix/ memory for all findings that are "open" (under_investigation
-or affected).
+  github   : dependabot, codeql, secrets
+  vulnetix : sca, sast, iac, secrets, container, quality, license
+
+When --provider=github, alerts are fetched from the GitHub API and enriched
+with VDB data. When --provider=vulnetix, vulnerability IDs are read from
+arguments / STDIN / .vulnetix memory (filtered by --tool) and triaged
+against the Vulnetix VDB with VEX output.
 
 Examples:
-  # GitHub alerts mode (default)
-  vulnetix triage --provider dependabot
+  # GitHub Dependabot alerts only
+  vulnetix triage -p github --tool dependabot
 
-  # Tri-specific CVEs
-  vulnetix triage --provider vulnetix CVE-2021-44228 CVE-2022-22965
-  vulnetix triage -p vulnetix < vulns.txt
+  # Every GitHub security signal at once
+  vulnetix triage -p github --tool all
 
-  # Triage all open findings from memory
-  vulnetix triage --provider vulnetix
+  # Triage specific CVEs against VDB
+  vulnetix triage -p vulnetix CVE-2021-44228 CVE-2022-22965
+
+  # Triage only SAST findings from memory
+  vulnetix triage -p vulnetix --tool sast
+
+  # Triage all open findings from memory (default)
+  vulnetix triage
 `,
 	Args: cobra.ArbitraryArgs,
 }
@@ -79,7 +97,8 @@ func init() {
 	rootCmd.AddCommand(triageCmd)
 
 	// Configure flags
-	triageCmd.Flags().StringVarP(&triageProvider, "provider", "p", "vulnetix", "Alert source: github, dependabot, codeql, secrets, or vulnetix")
+	triageCmd.Flags().StringVarP(&triageProvider, "provider", "p", "vulnetix", "Alert source: github or vulnetix")
+	triageCmd.Flags().StringVar(&triageTool, "tool", "all", "Comma-separated sub-tools to triage. github: dependabot,codeql,secrets. vulnetix: sca,sast,iac,secrets,container,quality,license. Use 'all' for every tool of the chosen provider.")
 	triageCmd.Flags().StringVar(&triageRepo, "repo", "", "Repository in owner/repo format (auto-detected if not set)")
 	triageCmd.Flags().StringVar(&triageSeverity, "severity", "", "Filter alerts to only show those meeting this severity (low, medium, high, critical)")
 	triageCmd.Flags().BoolVar(&triageAll, "all", false, "Include dismissed alerts (open only by default)")
@@ -103,17 +122,71 @@ func init() {
 	triageCmd.AddCommand(triageStatusCmd)
 }
 
-func runTriageCmd(cmd *cobra.Command, args []string) error {
-	// Determine which provider mode we're in
-	if triageProvider == "vulnetix" {
-		return runVulnetixTriage(cmd, args)
+// parseToolList parses --tool into a deduped lowercased list of tool tags,
+// validating each against `valid`. The literal "all" expands to a copy of
+// `valid`. An empty string is treated as "all".
+func parseToolList(raw string, valid []string, provider string) ([]string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "all" {
+		out := make([]string, len(valid))
+		copy(out, valid)
+		return out, nil
 	}
+	validSet := make(map[string]bool, len(valid))
+	for _, v := range valid {
+		validSet[v] = true
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, tok := range strings.Split(raw, ",") {
+		tok = strings.ToLower(strings.TrimSpace(tok))
+		if tok == "" {
+			continue
+		}
+		if tok == "all" {
+			out = make([]string, len(valid))
+			copy(out, valid)
+			return out, nil
+		}
+		if !validSet[tok] {
+			return nil, fmt.Errorf("--tool %q is not valid for provider %s (valid: %s, all)", tok, provider, strings.Join(valid, ", "))
+		}
+		if !seen[tok] {
+			seen[tok] = true
+			out = append(out, tok)
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("--tool produced no values (provider=%s)", provider)
+	}
+	return out, nil
+}
 
-	// Validate flags for GitHub-based providers
+func runTriageCmd(cmd *cobra.Command, args []string) error {
+	switch triageProvider {
+	case "github":
+		return runGitHubTriage(cmd, args)
+	case "vulnetix":
+		return runVulnetixTriage(cmd, args)
+	default:
+		return fmt.Errorf("unknown --provider %q (supported: github, vulnetix)", triageProvider)
+	}
+}
+
+func runGitHubTriage(cmd *cobra.Command, args []string) error {
+	_ = args
+
+	// Validate format
 	switch triageFormat {
 	case "tui", "json", "text":
 	default:
 		return fmt.Errorf("unknown format %q (use tui, json, or text)", triageFormat)
+	}
+
+	// Resolve --tool to a kind list for the GitHub multi-provider.
+	kinds, err := parseToolList(triageTool, triage.GitHubToolKinds, "github")
+	if err != nil {
+		return err
 	}
 
 	// Create GitHub API client (resolves token from env or gh CLI)
@@ -129,11 +202,7 @@ func runTriageCmd(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "Authenticated as %s (token: %s)\n", login, ghClient.TokenSource())
 
-	// Get provider
-	provider, err := triage.GetProvider(triageProvider, ghClient)
-	if err != nil {
-		return err
-	}
+	provider := triage.GetGitHubProvider(ghClient, kinds)
 
 	// Determine repository
 	repo := triageRepo
@@ -145,7 +214,7 @@ func runTriageCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	// Fetch alerts from provider
-	fmt.Fprintf(os.Stderr, "Fetching alerts from %s (%s)...\n", triageProvider, repo)
+	fmt.Fprintf(os.Stderr, "Fetching alerts from github [%s] (%s)...\n", strings.Join(kinds, ","), repo)
 	alerts, err := provider.FetchAlerts(context.Background(), triage.FetchOptions{
 		IncludeDismissed: triageAll,
 		Repo:             repo,
@@ -209,6 +278,14 @@ func runTriageCmd(cmd *cobra.Command, args []string) error {
 func runVulnetixTriage(cmd *cobra.Command, args []string) error {
 	out := cmd.OutOrStdout()
 
+	// Resolve --tool list for vulnetix-provider filtering. This filters which
+	// memory-resident open findings count as a triage source when no IDs are
+	// supplied; explicit args / stdin override the filter.
+	toolList, err := parseToolList(triageTool, vulnetixToolKinds, "vulnetix")
+	if err != nil {
+		return err
+	}
+
 	// Validate VEX format
 	switch triageVEXFormat {
 	case "openvex", "cdx", "cyclonedx", "json":
@@ -264,7 +341,9 @@ func runVulnetixTriage(cmd *cobra.Command, args []string) error {
 		if fromMem {
 			if f := mem.GetFinding(vulnID); f != nil {
 				pkg = f.Package
-				ver = f.Versions.Current
+				if f.Versions != nil {
+					ver = f.Versions.Current
+				}
 				eco = f.Ecosystem
 			}
 		}
@@ -303,15 +382,18 @@ func runVulnetixTriage(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		// No ids provided — fall back to open findings from memory.
-		open := mem.GetOpenFindings()
+		// No ids provided — fall back to open findings from memory, filtered by --tool.
+		open := mem.GetOpenFindingsByTools(toolList)
 		if len(open) == 0 {
-			return fmt.Errorf("no vulnerability IDs provided and no open findings in memory")
+			return fmt.Errorf("no vulnerability IDs provided and no open findings in memory for tool(s) %s", strings.Join(toolList, ","))
 		}
-		fmt.Fprintf(os.Stderr, "Loading %d open finding(s) from memory as triage source\n", len(open))
+		fmt.Fprintf(os.Stderr, "Loading %d open finding(s) from memory as triage source (tools: %s)\n", len(open), strings.Join(toolList, ","))
 		for id, f := range open {
 			pkg := coalesceStr(f.Package, triagePkg)
-			ver := coalesceStr(f.Versions.Current, triageVersion)
+			ver := triageVersion
+			if f.Versions != nil {
+				ver = coalesceStr(f.Versions.Current, triageVersion)
+			}
 			eco := coalesceStr(f.Ecosystem, triageEcosystem)
 			vulnContexts = append(vulnContexts, struct{ id, pkg, ver, eco string }{id, pkg, ver, eco})
 		}
@@ -465,6 +547,7 @@ func updateMemoryFromFinding(mem *memory.Memory, vulnID string, finding *triage.
 		Aliases:   []string{finding.CVEID},
 		Package:   finding.Package,
 		Ecosystem: finding.Ecosystem,
+		Tool:      memory.ToolSCA,
 		Discovery: &memory.DiscoveryInfo{Source: "vulnetix-triage", Date: time.Now().UTC().Format(time.RFC3339)},
 		Versions: &memory.VersionInfo{
 			Current:   finding.InstalledVer,
@@ -761,12 +844,28 @@ func init() {
 }
 
 func runTriageStatus(cmd *cobra.Command, args []string) error {
+	_ = cmd
+	_ = args
 	switch triageProvider {
-	case "github", "dependabot", "codeql", "secrets":
+	case "github":
 		return statusGitHub(triageStatusFormat)
+	case "vulnetix":
+		return statusVulnetix(triageStatusFormat)
 	default:
-		return fmt.Errorf("unknown provider %q", triageProvider)
+		return fmt.Errorf("unknown provider %q (supported: github, vulnetix)", triageProvider)
 	}
+}
+
+// statusVulnetix is a placeholder so `triage status -p vulnetix` doesn't error;
+// the vulnetix provider has no separate CLI prerequisite, but the surface
+// should still respond predictably.
+func statusVulnetix(format string) error {
+	if format == "json" {
+		fmt.Println(`{"provider":"vulnetix","ok":true}`)
+		return nil
+	}
+	fmt.Println("vulnetix provider: VDB credentials resolved at request time; no separate CLI prerequisite.")
+	return nil
 }
 
 func statusGitHub(format string) error {

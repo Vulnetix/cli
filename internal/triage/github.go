@@ -104,11 +104,12 @@ type ghDependabotAlert struct {
 	} `json:"dependency"`
 	SecurityAdvisory struct {
 		CVEID       string `json:"cve_id"`
+		GHSAID      string `json:"ghsa_id"`
 		Severity    string `json:"severity"`
 		Summary     string `json:"summary"`
 		WithdrawnAt string `json:"withdrawn_at"`
 	} `json:"security_advisory"`
-	SecurityVulnerabilities []struct {
+	SecurityVulnerability struct {
 		Package struct {
 			Name      string `json:"name"`
 			Ecosystem string `json:"ecosystem"`
@@ -118,7 +119,7 @@ type ghDependabotAlert struct {
 		} `json:"first_patched_version"`
 		VulnerableVersionRange string `json:"vulnerable_version_range"`
 		Severity               string `json:"severity"`
-	} `json:"security_vulnerabilities"`
+	} `json:"security_vulnerability"`
 }
 
 // fetchDependabotAlerts retrieves Dependabot alerts for a repository using native HTTP.
@@ -153,27 +154,46 @@ func fetchDependabotAlerts(ctx context.Context, client *GitHubClient, repo strin
 }
 
 // mapGHAlertsToAlerts converts GitHub API alerts to normalized Alert structs.
+// One Alert is emitted per Dependabot alert, populated from `security_vulnerability`
+// (the per-alert match), falling back to the alert's `dependency` block for
+// package name/ecosystem when the matched-vuln package fields are empty.
 func mapGHAlertsToAlerts(ghAlerts []ghDependabotAlert) []Alert {
 	alerts := make([]Alert, 0, len(ghAlerts))
 	for _, ga := range ghAlerts {
-		for _, sv := range ga.SecurityVulnerabilities {
-			version := ""
-			if sv.FirstPatchedVersion != nil {
-				version = sv.FirstPatchedVersion.Identifier
-			}
+		sv := ga.SecurityVulnerability
 
-			alerts = append(alerts, Alert{
-				Number:    fmt.Sprintf("%d", ga.Number),
-				State:     ga.State,
-				CVE:       ga.SecurityAdvisory.CVEID,
-				Severity:  sv.Severity,
-				Package:   sv.Package.Name,
-				Version:   version,
-				Ecosystem: sv.Package.Ecosystem,
-				Manifest:  ga.Dependency.ManifestPath,
-				URL:       ga.HTMLURL,
-			})
+		pkgName := sv.Package.Name
+		if pkgName == "" {
+			pkgName = ga.Dependency.Package.Name
 		}
+		ecosystem := sv.Package.Ecosystem
+		if ecosystem == "" {
+			ecosystem = ga.Dependency.Package.Ecosystem
+		}
+		severity := sv.Severity
+		if severity == "" {
+			severity = ga.SecurityAdvisory.Severity
+		}
+		version := ""
+		if sv.FirstPatchedVersion != nil {
+			version = sv.FirstPatchedVersion.Identifier
+		}
+		cve := ga.SecurityAdvisory.CVEID
+		if cve == "" {
+			cve = ga.SecurityAdvisory.GHSAID
+		}
+
+		alerts = append(alerts, Alert{
+			Number:    fmt.Sprintf("%d", ga.Number),
+			State:     ga.State,
+			CVE:       cve,
+			Severity:  severity,
+			Package:   pkgName,
+			Version:   version,
+			Ecosystem: ecosystem,
+			Manifest:  ga.Dependency.ManifestPath,
+			URL:       ga.HTMLURL,
+		})
 	}
 	return alerts
 }

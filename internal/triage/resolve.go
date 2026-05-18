@@ -52,6 +52,22 @@ type ResolutionOption struct {
 // GitHubOnly returns true when this option produces a GitHub API call.
 func (r ResolutionOption) GitHubOnly() bool { return r.GitHubState == "" }
 
+// toolForEcosystem maps an Alert.Ecosystem tag onto a memory tool category.
+// GitHub alerts use the ecosystem slot to flag the source provider
+// (dependabot, codeql, secrets); other values fall through to "sca".
+func toolForEcosystem(eco string) string {
+	switch eco {
+	case "dependabot":
+		return memory.ToolSCA
+	case "codeql":
+		return memory.ToolSAST
+	case "secrets":
+		return memory.ToolSecrets
+	default:
+		return memory.ToolSCA
+	}
+}
+
 // VEXBadge returns a short string showing the VEX status (and justification).
 func (r ResolutionOption) VEXBadge() string {
 	if r.VEXJustification != "" {
@@ -316,6 +332,19 @@ func RecordResolutionInMemory(vulnetixDir string, a Alert, opt ResolutionOption,
 		rec.Severity = a.Severity
 	}
 	rec.Source = "github-triage"
+	rec.Tool = toolForEcosystem(a.Ecosystem)
+	if a.Manifest != "" {
+		seen := false
+		for _, l := range rec.Locations {
+			if l.File == a.Manifest && l.StartLine == 0 {
+				seen = true
+				break
+			}
+		}
+		if !seen {
+			rec.Locations = append(rec.Locations, memory.Location{File: a.Manifest})
+		}
+	}
 
 	rec.Decision = &memory.Decision{
 		Choice: opt.Label,

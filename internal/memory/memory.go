@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -119,6 +120,34 @@ type ScoreData struct {
 	MaxSeverity    string  `yaml:"max_severity,omitempty"`
 }
 
+// Tool identifies which scan family produced a finding. Persisted on every
+// FindingRecord / SASTFindingRecord so triage can filter by category.
+const (
+	ToolSCA       = "sca"
+	ToolSAST      = "sast"
+	ToolIaC       = "iac"
+	ToolSecrets   = "secrets"
+	ToolContainer = "container"
+	ToolQuality   = "quality"
+	ToolLicense   = "license"
+)
+
+// AllTools is the canonical list of tool tags persisted in memory.
+var AllTools = []string{
+	ToolSCA, ToolSAST, ToolIaC, ToolSecrets, ToolContainer, ToolQuality, ToolLicense,
+}
+
+// Location captures a code-level pointer for a finding: file + optional
+// line/column range + optional snippet. Stored on FindingRecord.Locations.
+type Location struct {
+	File      string `yaml:"file"`
+	StartLine int    `yaml:"start_line,omitempty"`
+	EndLine   int    `yaml:"end_line,omitempty"`
+	StartCol  int    `yaml:"start_col,omitempty"`
+	EndCol    int    `yaml:"end_col,omitempty"`
+	Snippet   string `yaml:"snippet,omitempty"`
+}
+
 // RemediationData captures remediation info stored in memory.
 type RemediationData struct {
 	FixAvailability string   `yaml:"fix_availability,omitempty"` // available | partial | no_fix
@@ -144,6 +173,8 @@ type FindingRecord struct {
 	Decision       *Decision      `yaml:"decision,omitempty"`
 	History        []HistoryEntry `yaml:"history,omitempty"`
 	Source         string         `yaml:"source,omitempty"` // "vulnetix-sca" | "github"
+	Tool           string         `yaml:"tool,omitempty"`   // sca | sast | iac | secrets | container | quality | license
+	Locations      []Location     `yaml:"locations,omitempty"`
 
 	// Enriched scan data — populated by vulnetix scan.
 	AffectedRange   string           `yaml:"affected_range,omitempty"`
@@ -222,6 +253,8 @@ type SASTFindingRecord struct {
 	StartLine   int                    `yaml:"start_line,omitempty"`
 	Fingerprint string                 `yaml:"fingerprint"`
 	Properties  map[string]interface{} `yaml:"properties,omitempty"`
+	Tool        string                 `yaml:"tool,omitempty"` // always "sast"; persisted for filter symmetry
+	Locations   []Location             `yaml:"locations,omitempty"`
 }
 
 // Memory is the top-level .vulnetix/memory.yaml structure.
@@ -256,7 +289,38 @@ func Load(vulnetixDir string) (*Memory, error) {
 	if m.Version == "" {
 		m.Version = "1"
 	}
+	normalizeTools(&m)
 	return &m, nil
+}
+
+// normalizeTools fills in the Tool field on records persisted before the field
+// existed. The mapping is heuristic but conservative: any FindingRecord with
+// Source containing "sca" or "sast" gets the corresponding tag; any record in
+// SASTFindings gets "sast". Records that can't be inferred are left blank and
+// will be excluded from tool-filtered queries until next write.
+func normalizeTools(m *Memory) {
+	if m.Findings != nil {
+		for id, f := range m.Findings {
+			if f.Tool != "" {
+				continue
+			}
+			switch {
+			case strings.Contains(f.Source, ToolSAST):
+				f.Tool = ToolSAST
+			case strings.Contains(f.Source, ToolSCA) || strings.Contains(f.Source, "vulnetix-sca") || strings.Contains(f.Source, "github") || strings.Contains(f.Source, "dependabot"):
+				f.Tool = ToolSCA
+			}
+			m.Findings[id] = f
+		}
+	}
+	if m.SASTFindings != nil {
+		for k, f := range m.SASTFindings {
+			if f.Tool == "" {
+				f.Tool = ToolSAST
+				m.SASTFindings[k] = f
+			}
+		}
+	}
 }
 
 // Save writes m to memory.yaml inside vulnetixDir, creating the directory if needed.
@@ -317,6 +381,62 @@ func (m *Memory) SetFinding(cveID string, data FindingRecord) {
 	m.Findings[cveID] = data
 }
 
+// RecordCategorizedFindings upserts findings tagged with a specific tool
+// category (iac, secrets, container, quality, license). The map key is the
+// finding identifier — a rule ID, secret fingerprint, license SPDX expression,
+// etc. — chosen by the producer. Each FindingRecord must already have at least
+// one Location populated; the function tags Tool and Status (default
+// "under_investigation" for fresh records) and merges over existing entries.
+func (m *Memory) RecordCategorizedFindings(tool string, findings map[string]FindingRecord) {
+	if m.Findings == nil {
+		m.Findings = make(map[string]FindingRecord)
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	for id, f := range findings {
+		f.Tool = tool
+		existing, hasExisting := m.Findings[id]
+		if hasExisting {
+			// Preserve prior triage decision and merge locations.
+			f.Status = existing.Status
+			f.Justification = existing.Justification
+			f.ActionResponse = existing.ActionResponse
+			f.Decision = existing.Decision
+			f.History = existing.History
+			locSet := map[string]bool{}
+			merged := make([]Location, 0, len(existing.Locations)+len(f.Locations))
+			for _, l := range existing.Locations {
+				key := fmt.Sprintf("%s:%d:%d", l.File, l.StartLine, l.StartCol)
+				if !locSet[key] {
+					merged = append(merged, l)
+					locSet[key] = true
+				}
+			}
+			for _, l := range f.Locations {
+				key := fmt.Sprintf("%s:%d:%d", l.File, l.StartLine, l.StartCol)
+				if !locSet[key] {
+					merged = append(merged, l)
+					locSet[key] = true
+				}
+			}
+			f.Locations = merged
+		} else if f.Status == "" {
+			f.Status = "under_investigation"
+		}
+		if f.Discovery == nil {
+			f.Discovery = &DiscoveryInfo{Date: now, Source: "scan"}
+			if len(f.Locations) > 0 {
+				f.Discovery.File = f.Locations[0].File
+			}
+		}
+		f.History = append(f.History, HistoryEntry{
+			Date:   now,
+			Event:  "scan",
+			Detail: fmt.Sprintf("Recorded by %s scan", tool),
+		})
+		m.Findings[id] = f
+	}
+}
+
 // RecordVDBQuery prepends a VDB query to the log, capping at maxVDBQueries.
 func (m *Memory) RecordVDBQuery(q VDBQuery) {
 	if q.Timestamp == "" {
@@ -345,6 +465,70 @@ func (m *Memory) GetOpenFindings() map[string]FindingRecord {
 		}
 	}
 	return open
+}
+
+// toolSet builds a lookup from a tool list. A nil/empty list or one containing
+// "all" returns nil, meaning "no filter".
+func toolSet(tools []string) map[string]bool {
+	if len(tools) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(tools))
+	for _, t := range tools {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if t == "" {
+			continue
+		}
+		if t == "all" {
+			return nil
+		}
+		set[t] = true
+	}
+	if len(set) == 0 {
+		return nil
+	}
+	return set
+}
+
+// GetOpenFindingsByTools returns open Findings filtered to the given tool tags.
+// An empty list or a list containing "all" returns every open finding.
+func (m *Memory) GetOpenFindingsByTools(tools []string) map[string]FindingRecord {
+	want := toolSet(tools)
+	out := make(map[string]FindingRecord)
+	for id, f := range m.Findings {
+		switch f.Status {
+		case "under_investigation", "affected":
+		default:
+			continue
+		}
+		if want != nil && !want[f.Tool] {
+			continue
+		}
+		out[id] = f
+	}
+	return out
+}
+
+// GetOpenSASTFindingsByTools returns open SAST findings filtered to the given
+// tool tags. Since SASTFindings only ever holds Tool="sast" records, this is a
+// no-op pass-through unless the filter explicitly excludes sast.
+func (m *Memory) GetOpenSASTFindingsByTools(tools []string) map[string]SASTFindingRecord {
+	want := toolSet(tools)
+	out := make(map[string]SASTFindingRecord)
+	for k, f := range m.SASTFindings {
+		if f.Status != "open" {
+			continue
+		}
+		tool := f.Tool
+		if tool == "" {
+			tool = ToolSAST
+		}
+		if want != nil && !want[tool] {
+			continue
+		}
+		out[k] = f
+	}
+	return out
 }
 
 // RecordVulnLookup upserts a FindingRecord from a VDB vuln response.
@@ -384,6 +568,9 @@ func (m *Memory) RecordVulnLookup(vulnID string, data interface{}) {
 		Detail: "Queried VDB for vulnerability details",
 	})
 	rec.Source = "vulnetix-sca"
+	if rec.Tool == "" {
+		rec.Tool = ToolSCA
+	}
 
 	m.Findings[vulnID] = rec
 }
@@ -451,6 +638,7 @@ func (m *Memory) RecordEnrichedFindings(findings []EnrichedFinding) {
 		existing.InEuKev = f.InEuKev
 		existing.PathCount = f.PathCount
 		existing.Source = "vulnetix-sca"
+		existing.Tool = ToolSCA
 
 		// Merge source files (deduplicated).
 		fileSet := map[string]bool{}
@@ -465,6 +653,21 @@ func (m *Memory) RecordEnrichedFindings(findings []EnrichedFinding) {
 			existing.SourceFiles = append(existing.SourceFiles, sf)
 		}
 		sort.Strings(existing.SourceFiles)
+
+		// Mirror SourceFiles into Locations for tool-agnostic readers.
+		// Line numbers are unknown for SCA, so File-only entries are correct.
+		locSet := map[string]bool{}
+		for _, l := range existing.Locations {
+			if l.StartLine == 0 && l.EndLine == 0 {
+				locSet[l.File] = true
+			}
+		}
+		for _, sf := range existing.SourceFiles {
+			if !locSet[sf] {
+				existing.Locations = append(existing.Locations, Location{File: sf})
+				locSet[sf] = true
+			}
+		}
 
 		// Introduced dependency paths.
 		if len(f.IntroducedPaths) > 0 {
@@ -703,10 +906,18 @@ func (m *Memory) RecordSASTFindings(findings []SASTFindingRecord) {
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	for _, f := range findings {
+		f.Tool = ToolSAST
+		// Mirror flat ArtifactURI+StartLine into Locations for filter symmetry.
+		if f.ArtifactURI != "" && len(f.Locations) == 0 {
+			f.Locations = []Location{{File: f.ArtifactURI, StartLine: f.StartLine}}
+		}
 		if existing, ok := m.SASTFindings[f.Fingerprint]; ok {
 			existing.LastSeen = now
+			existing.Tool = ToolSAST
+			if len(existing.Locations) == 0 && len(f.Locations) > 0 {
+				existing.Locations = f.Locations
+			}
 			if existing.Status == "resolved" {
-				// Regression — finding reappeared.
 				existing.Status = "open"
 				existing.ResolvedAt = ""
 			}
