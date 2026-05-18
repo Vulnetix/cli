@@ -333,6 +333,7 @@ func RecordResolutionInMemory(vulnetixDir string, a Alert, opt ResolutionOption,
 	}
 	rec.Source = "github-triage"
 	rec.Tool = toolForEcosystem(a.Ecosystem)
+	rec.LastSeenAt = now
 	if a.Manifest != "" {
 		seen := false
 		for _, l := range rec.Locations {

@@ -137,6 +137,16 @@ var AllTools = []string{
 	ToolSCA, ToolSAST, ToolIaC, ToolSecrets, ToolContainer, ToolQuality, ToolLicense,
 }
 
+// ScanContext is the per-scan metadata threaded into record writers so each
+// finding remembers when and where it was last seen. Branch in particular is
+// load-bearing for reconciliation: cross-branch scans must not auto-resolve
+// findings recorded under a different branch.
+type ScanContext struct {
+	Branch    string
+	Path      string
+	Timestamp string // RFC3339 UTC; if empty, writers fill with time.Now().
+}
+
 // Location captures a code-level pointer for a finding: file + optional
 // line/column range + optional snippet. Stored on FindingRecord.Locations.
 type Location struct {
@@ -175,6 +185,8 @@ type FindingRecord struct {
 	Source         string         `yaml:"source,omitempty"` // "vulnetix-sca" | "github"
 	Tool           string         `yaml:"tool,omitempty"`   // sca | sast | iac | secrets | container | quality | license
 	Locations      []Location     `yaml:"locations,omitempty"`
+	LastSeenBranch string         `yaml:"last_seen_branch,omitempty"`
+	LastSeenAt     string         `yaml:"last_seen_at,omitempty"`
 
 	// Enriched scan data — populated by vulnetix scan.
 	AffectedRange   string           `yaml:"affected_range,omitempty"`
@@ -253,8 +265,10 @@ type SASTFindingRecord struct {
 	StartLine   int                    `yaml:"start_line,omitempty"`
 	Fingerprint string                 `yaml:"fingerprint"`
 	Properties  map[string]interface{} `yaml:"properties,omitempty"`
-	Tool        string                 `yaml:"tool,omitempty"` // always "sast"; persisted for filter symmetry
-	Locations   []Location             `yaml:"locations,omitempty"`
+	Tool           string                 `yaml:"tool,omitempty"` // always "sast"; persisted for filter symmetry
+	Locations      []Location             `yaml:"locations,omitempty"`
+	LastSeenBranch string                 `yaml:"last_seen_branch,omitempty"`
+	LastSeenAt     string                 `yaml:"last_seen_at,omitempty"`
 }
 
 // Memory is the top-level .vulnetix/memory.yaml structure.
@@ -266,6 +280,30 @@ type Memory struct {
 	SASTFindings  map[string]SASTFindingRecord `yaml:"sast_findings,omitempty"`  // SAST findings keyed by fingerprint
 	Environment   *EnvironmentContext          `yaml:"environment,omitempty"`    // last-gathered env context
 	VDBQueries    []VDBQuery                   `yaml:"vdb_queries,omitempty"`    // recent VDB query log
+
+	// scanCtx is in-memory only — never serialised. Writers read it when
+	// stamping LastSeenBranch / LastSeenAt onto records.
+	scanCtx *ScanContext `yaml:"-"`
+}
+
+// SetScanContext stamps subsequent record writes with the given branch/path.
+// Pass nil to clear. Reset between scan runs.
+func (m *Memory) SetScanContext(ctx *ScanContext) {
+	m.scanCtx = ctx
+}
+
+// stampSeen sets LastSeenBranch/LastSeenAt on a FindingRecord from the
+// current scan context. now is the canonical timestamp for the calling
+// write batch (so all records in one batch share it).
+func (m *Memory) stampSeen(now string) (branch, ts string) {
+	ts = now
+	if m.scanCtx != nil {
+		branch = m.scanCtx.Branch
+		if m.scanCtx.Timestamp != "" {
+			ts = m.scanCtx.Timestamp
+		}
+	}
+	return
 }
 
 // Load reads memory.yaml from the given .vulnetix directory.
@@ -392,8 +430,11 @@ func (m *Memory) RecordCategorizedFindings(tool string, findings map[string]Find
 		m.Findings = make(map[string]FindingRecord)
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
+	branch, ts := m.stampSeen(now)
 	for id, f := range findings {
 		f.Tool = tool
+		f.LastSeenBranch = branch
+		f.LastSeenAt = ts
 		existing, hasExisting := m.Findings[id]
 		if hasExisting {
 			// Preserve prior triage decision and merge locations.
@@ -571,6 +612,7 @@ func (m *Memory) RecordVulnLookup(vulnID string, data interface{}) {
 	if rec.Tool == "" {
 		rec.Tool = ToolSCA
 	}
+	rec.LastSeenBranch, rec.LastSeenAt = m.stampSeen(time.Now().UTC().Format(time.RFC3339))
 
 	m.Findings[vulnID] = rec
 }
@@ -639,6 +681,7 @@ func (m *Memory) RecordEnrichedFindings(findings []EnrichedFinding) {
 		existing.PathCount = f.PathCount
 		existing.Source = "vulnetix-sca"
 		existing.Tool = ToolSCA
+		existing.LastSeenBranch, existing.LastSeenAt = m.stampSeen(now)
 
 		// Merge source files (deduplicated).
 		fileSet := map[string]bool{}
@@ -734,12 +777,162 @@ func (m *Memory) RecordEnrichedFindings(findings []EnrichedFinding) {
 // StateChange describes a finding whose status changed during reconciliation.
 type StateChange struct {
 	CveID     string
+	Tool      string
 	Package   string
 	Ecosystem string
 	OldStatus string
 	NewStatus string
 	Comment   string
 	Finding   FindingRecord
+}
+
+// ReconcileContext drives ReconcileTool. Behaviour varies by Tool:
+//
+//   - sca / container: CurrentIDs is the set of CVE IDs in the current scan.
+//     InstalledPkgs is "<ecosystem>:<name>"; used to distinguish
+//     "dependency removed" from "patched upstream".
+//   - sast / secrets / iac: CurrentIDs is the set of fingerprints emitted by
+//     the current scan. Verifier is consulted before flipping a record to
+//     `fixed` — if the on-disk evidence is still present (Verifier returns
+//     gone=false) the record is left untouched.
+//
+// Records whose LastSeenBranch is non-empty and differs from ctx.Branch are
+// skipped entirely — we never auto-resolve findings recorded on another
+// branch during a scan of this one.
+type ReconcileContext struct {
+	Tool          string
+	CurrentIDs    map[string]bool
+	InstalledPkgs map[string]bool
+	Branch        string
+	RootPath      string
+	Verifier      func(loc Location) (gone bool, reason string)
+}
+
+// ReconcileTool walks Findings (and SASTFindings when Tool==sast) and flips
+// status based on whether each record matches the current scan results, as
+// described on ReconcileContext.
+func (m *Memory) ReconcileTool(ctx ReconcileContext) []StateChange {
+	now := time.Now().UTC().Format(time.RFC3339)
+	var changes []StateChange
+
+	apply := func(id string, rec FindingRecord, inCurrent bool) (FindingRecord, *StateChange) {
+		if rec.LastSeenBranch != "" && ctx.Branch != "" && rec.LastSeenBranch != ctx.Branch {
+			return rec, nil
+		}
+		if !inCurrent {
+			if rec.Status == "fixed" || rec.Status == "not_affected" {
+				return rec, nil
+			}
+			var comment string
+			switch ctx.Tool {
+			case ToolSCA, ToolContainer:
+				pkgKey := strings.ToLower(rec.Ecosystem) + ":" + strings.ToLower(rec.Package)
+				if ctx.InstalledPkgs != nil && !ctx.InstalledPkgs[pkgKey] {
+					comment = "Dependency removed from manifest"
+				} else if ctx.InstalledPkgs == nil {
+					comment = "No longer reported by upstream source"
+				} else {
+					comment = "Package still present but no longer flagged — patched upstream"
+				}
+			case ToolSAST, ToolSecrets, ToolIaC:
+				if ctx.Verifier == nil || len(rec.Locations) == 0 {
+					return rec, nil
+				}
+				gone, reason := ctx.Verifier(rec.Locations[0])
+				if !gone {
+					return rec, nil
+				}
+				comment = "Verified gone: " + reason
+			default:
+				return rec, nil
+			}
+			old := rec.Status
+			rec.Status = "fixed"
+			rec.History = append(rec.History, HistoryEntry{
+				Date:   now,
+				Event:  "auto-resolved",
+				Detail: comment,
+			})
+			return rec, &StateChange{
+				CveID:     id,
+				Tool:      ctx.Tool,
+				Package:   rec.Package,
+				Ecosystem: rec.Ecosystem,
+				OldStatus: old,
+				NewStatus: "fixed",
+				Comment:   comment,
+				Finding:   rec,
+			}
+		}
+		// Present in current scan — flip back from fixed if needed.
+		if rec.Status == "fixed" {
+			rec.Status = "under_investigation"
+			rec.History = append(rec.History, HistoryEntry{
+				Date:   now,
+				Event:  "regression",
+				Detail: "Reappeared in scan results after previously being fixed",
+			})
+			return rec, &StateChange{
+				CveID:     id,
+				Tool:      ctx.Tool,
+				Package:   rec.Package,
+				Ecosystem: rec.Ecosystem,
+				OldStatus: "fixed",
+				NewStatus: "under_investigation",
+				Comment:   "Regression — reappeared in scan results after previously being fixed",
+				Finding:   rec,
+			}
+		}
+		return rec, nil
+	}
+
+	// SAST findings live in their own map; mirror their treatment via a
+	// synthetic FindingRecord adapter so the same logic runs.
+	if ctx.Tool == ToolSAST {
+		for fp, sf := range m.SASTFindings {
+			if sf.Status == "resolved" || sf.Status == "suppressed" {
+				continue
+			}
+			if sf.Tool != "" && sf.Tool != ToolSAST {
+				continue
+			}
+			synthetic := FindingRecord{
+				Status:         sf.Status,
+				Locations:      sf.Locations,
+				LastSeenBranch: sf.LastSeenBranch,
+			}
+			if synthetic.Status == "open" {
+				synthetic.Status = "affected"
+			}
+			updated, change := apply(fp, synthetic, ctx.CurrentIDs[fp])
+			if change == nil {
+				continue
+			}
+			if updated.Status == "fixed" {
+				sf.Status = "resolved"
+				sf.ResolvedAt = now
+			} else if updated.Status == "under_investigation" {
+				sf.Status = "open"
+				sf.ResolvedAt = ""
+			}
+			m.SASTFindings[fp] = sf
+			changes = append(changes, *change)
+		}
+		return changes
+	}
+
+	for id, rec := range m.Findings {
+		if rec.Tool != ctx.Tool {
+			continue
+		}
+		updated, change := apply(id, rec, ctx.CurrentIDs[id])
+		if change == nil {
+			continue
+		}
+		m.Findings[id] = updated
+		changes = append(changes, *change)
+	}
+	return changes
 }
 
 // ReconcileFindings compares the set of CVE IDs found in the current scan
@@ -905,14 +1098,19 @@ func (m *Memory) RecordSASTFindings(findings []SASTFindingRecord) {
 		m.SASTFindings = make(map[string]SASTFindingRecord)
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
+	branch, ts := m.stampSeen(now)
 	for _, f := range findings {
 		f.Tool = ToolSAST
+		f.LastSeenBranch = branch
+		f.LastSeenAt = ts
 		// Mirror flat ArtifactURI+StartLine into Locations for filter symmetry.
 		if f.ArtifactURI != "" && len(f.Locations) == 0 {
 			f.Locations = []Location{{File: f.ArtifactURI, StartLine: f.StartLine}}
 		}
 		if existing, ok := m.SASTFindings[f.Fingerprint]; ok {
 			existing.LastSeen = now
+			existing.LastSeenBranch = branch
+			existing.LastSeenAt = ts
 			existing.Tool = ToolSAST
 			if len(existing.Locations) == 0 && len(f.Locations) > 0 {
 				existing.Locations = f.Locations

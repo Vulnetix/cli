@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/triage"
@@ -238,6 +239,63 @@ func runGitHubTriage(cmd *cobra.Command, args []string) error {
 
 	// Sort by severity (most severe first)
 	sortAlertsBySeverity(enriched)
+
+	// Persist + reconcile against memory unless explicitly disabled, so a
+	// later scan (or the next triage run) knows which alerts have since been
+	// fixed/dismissed upstream.
+	memDir := triageMemoryDir
+	if memDir == "" {
+		memDir = ".vulnetix"
+	}
+	if !triageDisableMemory {
+		mem, merr := memory.Load(memDir)
+		if merr != nil || mem == nil {
+			mem = &memory.Memory{Version: "1"}
+		}
+		// Branch tag from the current working dir's git context (best-effort).
+		repoBranch := ""
+		if gc := gitctx.Collect("."); gc != nil {
+			repoBranch = gc.CurrentBranch
+		}
+		mem.SetScanContext(&memory.ScanContext{Branch: repoBranch})
+
+		currentIDs := make(map[string]bool, len(enriched))
+		seed := make(map[string]memory.FindingRecord, len(enriched))
+		for _, ea := range enriched {
+			id := ea.Alert.CVE
+			if id == "" {
+				id = ea.Alert.RuleID
+			}
+			if id == "" {
+				id = "#" + ea.Alert.Number
+			}
+			currentIDs[id] = true
+			rec := memory.FindingRecord{
+				Aliases:   []string{ea.Alert.CVE, ea.Alert.RuleID},
+				Package:   ea.Alert.Package,
+				Ecosystem: ea.Alert.Ecosystem,
+				Severity:  ea.Alert.Severity,
+				Tool:      memory.ToolSCA,
+				Source:    "github-dependabot",
+			}
+			if ea.Alert.Manifest != "" {
+				rec.Locations = []memory.Location{{File: ea.Alert.Manifest}}
+			}
+			seed[id] = rec
+		}
+		mem.RecordCategorizedFindings(memory.ToolSCA, seed)
+		changes := mem.ReconcileTool(memory.ReconcileContext{
+			Tool:       memory.ToolSCA,
+			CurrentIDs: currentIDs,
+			Branch:     repoBranch,
+		})
+		if len(changes) > 0 {
+			fmt.Fprintf(os.Stderr, "Reconciled %d Dependabot finding(s) against current GitHub state.\n", len(changes))
+		}
+		if err := memory.Save(memDir, mem); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not save memory: %v\n", err)
+		}
+	}
 
 	// Output based on format
 	switch triageFormat {
@@ -544,10 +602,11 @@ func updateMemoryFromFinding(mem *memory.Memory, vulnID string, finding *triage.
 	}
 
 	mem.SetFinding(vulnID, memory.FindingRecord{
-		Aliases:   []string{finding.CVEID},
-		Package:   finding.Package,
-		Ecosystem: finding.Ecosystem,
-		Tool:      memory.ToolSCA,
+		Aliases:    []string{finding.CVEID},
+		Package:    finding.Package,
+		Ecosystem:  finding.Ecosystem,
+		Tool:       memory.ToolSCA,
+		LastSeenAt: time.Now().UTC().Format(time.RFC3339),
 		Discovery: &memory.DiscoveryInfo{Source: "vulnetix-triage", Date: time.Now().UTC().Format(time.RFC3339)},
 		Versions: &memory.VersionInfo{
 			Current:   finding.InstalledVer,
