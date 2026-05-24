@@ -5,6 +5,12 @@ set dotenv-load
 
 # --- Build configuration ---
 
+# Silence harmless null-character warnings emitted by the vendored
+# tree-sitter parser.c files (notably go-tree-sitter/lua). GCC has no
+# specific -W flag for these, so -w suppresses CGO C-compiler warnings
+# wholesale. Override with `CGO_CFLAGS="..." just <task>` if needed.
+export CGO_CFLAGS := env("CGO_CFLAGS", "-w")
+
 version := env("VERSION", "dev")
 commit := `git rev-parse --short HEAD 2>/dev/null || echo "unknown"`
 build_date := `date -u +%Y-%m-%dT%H:%M:%SZ`

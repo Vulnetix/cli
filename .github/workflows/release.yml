@@ -69,6 +69,7 @@ jobs:
             local goos="$1" goarch="$2" triple="$3" suffix="$4"
             echo "Building ${goos}/${goarch} (${triple})..."
             CGO_ENABLED=1 \
+              CGO_CFLAGS="-w" \
               CC="zig cc -target ${triple}" \
               CXX="zig c++ -target ${triple}" \
               GOOS="${goos}" GOARCH="${goarch}" \
@@ -112,9 +113,10 @@ jobs:
           # macos-latest is arm64; build amd64 with -arch x86_64 via the
           # native cc which has access to the SDK.
           CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
+            CGO_CFLAGS="-w" \
             go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-arm64 .
           CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
-            CGO_CFLAGS="-arch x86_64" CGO_LDFLAGS="-arch x86_64" \
+            CGO_CFLAGS="-arch x86_64 -w" CGO_LDFLAGS="-arch x86_64" \
             go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-amd64 .
 
       - uses: actions/upload-artifact@v5
