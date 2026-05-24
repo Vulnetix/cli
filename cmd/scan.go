@@ -1883,6 +1883,18 @@ func printPrettyScanSummary(
 			}
 		}},
 		{Header: "Match", MinWidth: 5, MaxWidth: 14},
+		{Header: "Reach", MinWidth: 5, MaxWidth: 12, Color: func(s string) string {
+			switch strings.ToLower(strings.TrimSpace(s)) {
+			case "direct":
+				return display.ErrorStyle(t, s)
+			case "transitive":
+				return display.Accent(t, s)
+			case "unreachable":
+				return display.Success(t, s)
+			default:
+				return display.Muted(t, s)
+			}
+		}},
 	}
 
 	var allRows [][]string
@@ -1899,7 +1911,7 @@ func printPrettyScanSummary(
 				continue
 			}
 			// Sentinel row so the file still appears in the table.
-			row := make([]string, 16)
+			row := make([]string, 17)
 			row[0] = primaryFile
 			row[1] = "(no vulnerabilities)"
 			allRows = append(allRows, row)
@@ -1992,10 +2004,12 @@ func printPrettyScanSummary(
 				matchMethod = "name"
 			}
 
+			reach := v.Reachability
+
 			allRows = append(allRows, []string{
 				fileCell, vulnID, pkg, mal, maxSev,
 				cvss, cvssSev, epss, epssSev,
-				ssvc, ssvcSev, cess, cesSev, expl, fix, matchMethod,
+				ssvc, ssvcSev, cess, cesSev, expl, fix, matchMethod, reach,
 			})
 
 			if showPaths && mg.Graph != nil && !mg.Graph.IsDirect(v.PackageName) {

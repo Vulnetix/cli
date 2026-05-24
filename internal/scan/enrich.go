@@ -38,6 +38,12 @@ type EnrichedVuln struct {
 
 	// MatchMethod records how this vuln was matched to the package (e.g. "name+version", "cpe", "name-only").
 	MatchMethod string
+
+	// Reachability records the outcome of a tree-sitter reachability scan
+	// for this vuln: "direct" (vulnerable code path present in the
+	// installed package), "transitive" (called from first-party code),
+	// "unreachable" (queries ran but no matches), or empty (not analysed).
+	Reachability string
 }
 
 // ExploitSummary captures exploit intelligence for a vulnerability.

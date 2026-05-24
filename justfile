@@ -5,10 +5,11 @@ set dotenv-load
 
 # --- Build configuration ---
 
-# Silence harmless null-character warnings emitted by the vendored
-# tree-sitter parser.c files (notably go-tree-sitter/lua). GCC has no
-# specific -W flag for these, so -w suppresses CGO C-compiler warnings
-# wholesale. Override with `CGO_CFLAGS="..." just <task>` if needed.
+# Defense-in-depth: suppress CGO C-compiler warnings from vendored
+# tree-sitter parser.c files. The lua parser's null-character warning
+# is fixed at source in third_party/treesitter-lua/, so this is only
+# needed if a similar warning surfaces in another grammar in future.
+# Override with `CGO_CFLAGS="..." just <task>` for local debugging.
 export CGO_CFLAGS := env("CGO_CFLAGS", "-w")
 
 version := env("VERSION", "dev")
