@@ -3,10 +3,8 @@ name: Test Action
 on:
   pull_request:
     branches: [ main, master ]
-
-# Exclude rules folder from secret scanning
-paths-ignore:
-  - 'internal/sast/rules/**'
+    paths-ignore:
+      - 'internal/sast/rules/**'
 
 concurrency:
   group: test-${{ github.ref }}
