@@ -460,10 +460,11 @@ func RenderVulnDetail(data any, ctx *Context) string {
 	return b.String()
 }
 
-// renderReachability renders the tree-sitter reachability block attached
-// to a vuln response under "x_reachability". Output groups matches by
-// mode (direct first, then transitive) and shows file:start:end so
-// editors with line-number support open the match directly.
+// renderReachability renders the tree-sitter reachability analysis block
+// attached to a vuln response under "x_reachability". Matches are collated
+// by query name and presented as a reachability analysis section. Each match
+// shows the mode (direct/transitive), file and line range, and any tree-sitter
+// captures — which detail the semantic call graph of the matched pattern.
 func renderReachability(t *Terminal, block map[string]any) string {
 	if block == nil {
 		return ""
@@ -481,30 +482,80 @@ func renderReachability(t *Terminal, block map[string]any) string {
 		}
 	}
 
-	header := fmt.Sprintf("Reachability: %d direct, %d transitive (%d queries)",
-		len(direct), len(transitive), queries)
-	b.WriteString(Subheader(t, header) + "\n")
+	b.WriteString(Subheader(t, "Reachability Analysis") + "\n")
+	b.WriteString("  " + Muted(t, fmt.Sprintf("%d direct, %d transitive matches from %d queries",
+		len(direct), len(transitive), queries)) + "\n")
 
-	writeMatches := func(label string, ms []map[string]any) {
-		if len(ms) == 0 {
-			return
+	// Collate all matches by query name so related hits appear together.
+	type matchInfo struct {
+		mode string
+		m    map[string]any
+	}
+	byQuery := make(map[string][]matchInfo)
+	for _, m := range direct {
+		q := ToStringVal(m["query"])
+		if q == "" {
+			q = "(unnamed query)"
 		}
-		for _, m := range ms {
-			file := ToStringVal(m["file"])
-			start := toInt(m["start_line"])
-			end := toInt(m["end_line"])
-			query := ToStringVal(m["query"])
-			line := fmt.Sprintf("  %-10s %s  %d:%d", label, file, start, end)
-			if query != "" {
-				line += "  " + Muted(t, "("+query+")")
+		byQuery[q] = append(byQuery[q], matchInfo{mode: "direct", m: m})
+	}
+	for _, m := range transitive {
+		q := ToStringVal(m["query"])
+		if q == "" {
+			q = "(unnamed query)"
+		}
+		byQuery[q] = append(byQuery[q], matchInfo{mode: "transitive", m: m})
+	}
+
+	var queryNames []string
+	for q := range byQuery {
+		queryNames = append(queryNames, q)
+	}
+	sort.Strings(queryNames)
+
+	for _, q := range queryNames {
+		matches := byQuery[q]
+		b.WriteString("\n  " + Bold(t, q) + "\n")
+		for _, info := range matches {
+			file := ToStringVal(info.m["file"])
+			start := toInt(info.m["start_line"])
+			end := toInt(info.m["end_line"])
+			lang := ToStringVal(info.m["language"])
+
+			modeBadge := info.mode
+			if t.HasColor() {
+				if info.mode == "direct" {
+					modeBadge = lipgloss.NewStyle().Foreground(tui.ColorError).Render("direct")
+				} else {
+					modeBadge = lipgloss.NewStyle().Foreground(tui.ColorHigh).Render("transitive")
+				}
+			}
+
+			line := fmt.Sprintf("    %-10s %s  %d:%d", modeBadge, file, start, end)
+			if lang != "" {
+				line += "  " + Muted(t, "["+lang+"]")
 			}
 			b.WriteString(line + "\n")
+
+			// Captures represent the semantic call graph of the match.
+			if caps, ok := info.m["captures"].(map[string]any); ok && len(caps) > 0 {
+				var capNames []string
+				for name := range caps {
+					capNames = append(capNames, name)
+				}
+				sort.Strings(capNames)
+				for _, name := range capNames {
+					val := ToStringVal(caps[name])
+					b.WriteString(fmt.Sprintf("      %s %s\n",
+						Label(t, name+":"),
+						Truncate(val, t.Width-20)))
+				}
+			}
 		}
 	}
-	writeMatches("direct", direct)
-	writeMatches("transitive", transitive)
+
 	if skippedD != "" {
-		b.WriteString("  " + Muted(t, "direct skipped: "+skippedD) + "\n")
+		b.WriteString("\n  " + Muted(t, "direct skipped: "+skippedD) + "\n")
 	}
 	if skippedT != "" {
 		b.WriteString("  " + Muted(t, "transitive skipped: "+skippedT) + "\n")
