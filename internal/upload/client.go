@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DefaultBaseURL = "https://app.vulnetix.com/api"
+	DefaultBaseURL = "https://api.vdb.vulnetix.com/v1"
 	// ChunkThreshold is the file size above which chunked upload is used
 	ChunkThreshold = 10 * 1024 * 1024 // 10 MB
 	// DefaultChunkSize is the size of each chunk for large files
@@ -162,7 +162,7 @@ func (c *Client) InitiateSession(fileName string, fileSize int, contentType stri
 		body["githubContext"] = c.GitHubContext
 	}
 
-	respBody, err := c.doRequest("POST", "/artifact-upload/initiate", body)
+	respBody, err := c.doRequest("POST", "/uploads/initiate", body)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (c *Client) InitiateSession(fileName string, fileSize int, contentType stri
 
 // UploadChunk uploads a single chunk of data
 func (c *Client) UploadChunk(sessionID string, chunkNumber int, data []byte) (*ChunkResponse, error) {
-	path := fmt.Sprintf("/artifact-upload/chunk/%s/%d", sessionID, chunkNumber)
+	path := fmt.Sprintf("/uploads/chunk/%s/%d", sessionID, chunkNumber)
 
 	req, err := http.NewRequest("POST", c.BaseURL+path, bytes.NewReader(data))
 	if err != nil {
@@ -216,7 +216,7 @@ func (c *Client) UploadChunk(sessionID string, chunkNumber int, data []byte) (*C
 
 // FinalizeUpload completes the upload session
 func (c *Client) FinalizeUpload(sessionID string) (*FinalizeResponse, error) {
-	path := fmt.Sprintf("/artifact-upload/finalize/%s", sessionID)
+	path := fmt.Sprintf("/uploads/finalize/%s", sessionID)
 
 	// Finalize accepts an optional body with collectionUuid
 	respBody, err := c.doRequest("POST", path, map[string]interface{}{})
@@ -245,7 +245,7 @@ type VerifyResponse struct {
 
 // VerifyAuth checks that the provided credentials are valid
 func (c *Client) VerifyAuth() (*VerifyResponse, error) {
-	respBody, err := c.doRequest("GET", "/cli/verify", nil)
+	respBody, err := c.doRequest("GET", "/uploads/verify", nil)
 	if err != nil {
 		return nil, err
 	}
