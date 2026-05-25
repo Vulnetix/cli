@@ -134,6 +134,7 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 				Purl:    purl,
 				Properties: []Property{
 					{Name: "vulnetix:scope", Value: pkg.Scope},
+					{Name: "vulnetix:environment", Value: nativeScopeToEnvironment(pkg.Scope)},
 					{Name: "vulnetix:ecosystem", Value: pkg.Ecosystem},
 				},
 			}
@@ -349,6 +350,27 @@ func mapLocalScopeToCDX(scope string) string {
 		return "optional"
 	default:
 		return "required"
+	}
+}
+
+// nativeScopeToEnvironment maps native package manager scope labels to a
+// normalised runtime environment classification, written verbatim into the
+// CycloneDX `vulnetix:environment` per-component property. Downstream
+// notification rules (EnabledUploadNotifications.onlyProduction / ignoreTest)
+// read this property directly — see vdb-api-cyclonedx-uploads/internal/notify.
+// Empty string when the scope is unknown.
+func nativeScopeToEnvironment(scope string) string {
+	switch scope {
+	case scan.ScopeProduction, scan.ScopeRuntime:
+		return "production"
+	case scan.ScopeTest:
+		return "test"
+	case scan.ScopeDevelopment:
+		return "development"
+	case scan.ScopePeer, scan.ScopeOptional, scan.ScopeProvided, scan.ScopeSystem:
+		return "production"
+	default:
+		return ""
 	}
 }
 
