@@ -354,10 +354,11 @@ func populateMetadataFromContext(meta *Metadata, ctx *ScanContext) {
 		}
 
 		// VCS external references (one per remote URL).
+		// Normalize SSH git URLs to HTTPS so the value is a valid iri-reference.
 		for _, u := range g.RemoteURLs {
 			comp.ExternalReferences = append(comp.ExternalReferences, ExternalReference{
 				Type: "vcs",
-				URL:  u,
+				URL:  normalizeVCSURL(u),
 			})
 		}
 
@@ -447,6 +448,33 @@ func gitProjectVersion(g *gitctx.GitContext) string {
 		return g.CurrentCommit[:8]
 	}
 	return g.CurrentCommit
+}
+
+// normalizeVCSURL converts an SSH git remote URL to its HTTPS equivalent so
+// the result is a valid IRI-reference as required by CycloneDX schemas.
+//
+//	git@github.com:owner/repo.git  →  https://github.com/owner/repo
+//	https://github.com/owner/repo  →  https://github.com/owner/repo (unchanged)
+func normalizeVCSURL(rawURL string) string {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return ""
+	}
+	// Already an HTTP/HTTPS URL — just strip trailing .git for cleanliness.
+	if strings.HasPrefix(rawURL, "http://") || strings.HasPrefix(rawURL, "https://") {
+		return strings.TrimSuffix(rawURL, ".git")
+	}
+	// SSH SCP-style: git@host:path/to/repo.git
+	if idx := strings.IndexByte(rawURL, ':'); idx >= 0 {
+		// Extract host (strip any user@ prefix)
+		hostPart := rawURL[:idx]
+		if at := strings.IndexByte(hostPart, '@'); at >= 0 {
+			hostPart = hostPart[at+1:]
+		}
+		pathPart := strings.TrimSuffix(rawURL[idx+1:], ".git")
+		return "https://" + hostPart + "/" + pathPart
+	}
+	return rawURL
 }
 
 // extractRepoName parses a VCS URL (SSH or HTTPS) and returns "owner/repo".
