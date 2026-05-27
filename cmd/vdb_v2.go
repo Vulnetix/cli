@@ -60,9 +60,11 @@ Examples:
 		}
 
 		client := newVDBClient()
-		vdbLog(cmd).Infof("🔧 Fetching workarounds for %s...", args[0])
+		logCliOp("Fetching workarounds for %s via /v2/cli.workarounds...", args[0])
 
-		result, err := client.V2Workarounds(args[0])
+		// Primary: /v2/cli.workarounds (batched, envelope-shaped). Fall back
+		// to legacy single-id /v2/vuln/{id}/workarounds on 404.
+		result, err := callWorkarounds(client, args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get workarounds: %w", err)
 		}
@@ -90,9 +92,9 @@ Examples:
 		}
 
 		client := newVDBClient()
-		vdbLog(cmd).Infof("📋 Fetching advisories for %s...", args[0])
+		logCliOp("Fetching advisories for %s via /v2/cli.advisories...", args[0])
 
-		result, err := client.V2Advisories(args[0])
+		result, err := callAdvisories(client, args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get advisories: %w", err)
 		}
@@ -126,9 +128,9 @@ Examples:
 		}
 
 		client := newVDBClient()
-		vdbLog(cmd).Infof("📖 Fetching CWE guidance for %s...", args[0])
+		logCliOp("Fetching CWE guidance for %s via /v2/cli.cwe-guidance...", args[0])
 
-		result, err := client.V2CweGuidance(args[0])
+		result, err := callCweGuidance(client, args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get CWE guidance: %w", err)
 		}
@@ -200,9 +202,9 @@ Examples:
 		}
 
 		client := newVDBClient()
-		vdbLog(cmd).Infof("📊 Fetching scorecard for %s...", args[0])
+		logCliOp("Fetching scorecard for %s via /v2/cli.scorecard...", args[0])
 
-		result, err := client.V2Scorecard(args[0])
+		result, err := callScorecard(client, args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get scorecard: %w", err)
 		}
@@ -286,9 +288,9 @@ Examples:
 		p.IncludeGuidance, _ = cmd.Flags().GetBool("include-guidance")
 		p.IncludeVerificationSteps, _ = cmd.Flags().GetBool("include-verification-steps")
 
-		vdbLog(cmd).Infof("📋 Fetching remediation plan for %s...", args[0])
+		logCliOp("Fetching remediation plan for %s via /v2/cli.remediation...", args[0])
 
-		result, err := client.V2RemediationPlan(args[0], p)
+		result, err := callRemediation(client, args[0], p)
 		if err != nil {
 			return fmt.Errorf("failed to get remediation plan: %w", err)
 		}

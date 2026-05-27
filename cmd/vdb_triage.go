@@ -96,7 +96,8 @@ CSV for ticketing import:
 			v := triageMinCvss
 			params.MinCvss = &v
 		}
-		resp, err := client.V2Triage(params)
+		logCliOp("Fetching triage feed via /v2/cli.triage...")
+		resp, err := callTriage(client, params)
 		if err != nil {
 			return fmt.Errorf("triage: %w", err)
 		}

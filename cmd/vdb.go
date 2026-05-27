@@ -840,9 +840,9 @@ Examples:
 }
 
 // printRateLimit prints rate limit and cache status from the last API call to stderr.
-// Suppressed when --silent is active.
+// Suppressed unless --verbose is active (and always when --silent).
 func printRateLimit(client *vdb.Client) {
-	if silent {
+	if silent || !verbose {
 		return
 	}
 	if vdbCommunityMode {

@@ -375,6 +375,14 @@ func nativeScopeToEnvironment(scope string) string {
 }
 
 // buildLocalPurl builds a Package URL string for a dependency.
+// BuildLocalPurl is the exported wrapper used by cmd/scan.go and internal/scan
+// to derive the PURL the server-side /v2/cli.sca handler will use to key its
+// vulnerability rows. Keep the result byte-identical with buildLocalPurl so
+// both call sites produce the same purl string for the same package.
+func BuildLocalPurl(name, version, ecosystem string) string {
+	return buildLocalPurl(name, version, ecosystem)
+}
+
 func buildLocalPurl(name, version, ecosystem string) string {
 	purlType := localEcosystemToPurlType(ecosystem)
 	if purlType == "" {

@@ -240,7 +240,11 @@ Examples:
 			scanPath, _ := cmd.Flags().GetString("path")
 			depth, _ := cmd.Flags().GetInt("depth")
 			excludes, _ := cmd.Flags().GetStringArray("exclude")
-			showPaths, _ := cmd.Flags().GetBool("paths")
+			showPaths, _ := cmd.Flags().GetBool("show-introduced-paths")
+		if !showPaths {
+			// Deprecated alias for backward compatibility.
+			showPaths, _ = cmd.Flags().GetBool("paths")
+		}
 			noExploits, _ := cmd.Flags().GetBool("no-exploits")
 			noRemediation, _ := cmd.Flags().GetBool("no-remediation")
 			severityThreshold, _ := cmd.Flags().GetString("severity")
@@ -333,7 +337,10 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	}
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 	noProgress, _ := cmd.Flags().GetBool("no-progress")
-	showPaths, _ := cmd.Flags().GetBool("paths")
+	showPaths, _ := cmd.Flags().GetBool("show-introduced-paths")
+	if !showPaths {
+		showPaths, _ = cmd.Flags().GetBool("paths")
+	}
 	noExploits, _ := cmd.Flags().GetBool("no-exploits")
 	noRemediation, _ := cmd.Flags().GetBool("no-remediation")
 	severityThreshold, _ := cmd.Flags().GetString("severity")
@@ -652,6 +659,9 @@ func runLocalScan(
 	var localResults []cdx.LocalScanResult
 	var allPackages []scan.ScopedPackage
 	var allVulns []scan.VulnFinding
+	// scaEnrichedFromAPI is non-nil when /v2/cli.sca successfully served the
+	// SCA lookup, letting downstream code skip the legacy EnrichVulns loop.
+	var scaEnrichedFromAPI []scan.EnrichedVuln
 	isInteractive := tty.IsInteractive() && !noProgress
 
 	queryCtx := ctx
@@ -721,45 +731,53 @@ func runLocalScan(
 			allPackages = []scan.ScopedPackage{}
 		}
 
-		// ── Count unique packages to query ───────────────────────────────────
-		uniqueCount := countUniquePackages(allPackages)
-		fmt.Fprintf(os.Stderr, "\nQuerying VDB for %d unique package(s)...\n", uniqueCount)
+		// ── Try /v2/cli.sca first (one round-trip for the whole PURL list) ───
+		// This replaces the per-PURL LookupVulns + EnrichVulns fan-out below.
+		// Falls back to the legacy two-loop path on failure or when the
+		// operator sets VULNETIX_CLI_SCA_API=off.
+		apiServed, apiVulns, apiEnriched := tryCliSCA(allPackages, gitCtx, sysInfo, rootPath)
+		if apiServed {
+			allVulns = apiVulns
+			scaEnrichedFromAPI = apiEnriched
+		} else {
+			// ── Count unique packages to query ───────────────────────────────
+			uniqueCount := countUniquePackages(allPackages)
+			fmt.Fprintf(os.Stderr, "\nQuerying VDB for %d unique package(s)...\n", uniqueCount)
 
-		// ── Query VDB ──────────────────────────────────────────────────────────
-		isInteractive := tty.IsInteractive() && !noProgress
-		var progressFn func(done, total int)
+			// ── Query VDB ────────────────────────────────────────────────────
+			isInteractive := tty.IsInteractive() && !noProgress
+			var progressFn func(done, total int)
 
-		if isInteractive {
-			progressFn = func(done, total int) {
-				pct := 0
-				if total > 0 {
-					pct = done * 100 / total
+			if isInteractive {
+				progressFn = func(done, total int) {
+					pct := 0
+					if total > 0 {
+						pct = done * 100 / total
+					}
+					bar := renderProgressBar(done, total, 30)
+					fmt.Fprintf(os.Stderr, "\r  %s %d/%d (%d%%) ", bar, done, total, pct)
 				}
-				bar := renderProgressBar(done, total, 30)
-				fmt.Fprintf(os.Stderr, "\r  %s %d/%d (%d%%) ", bar, done, total, pct)
-			}
-		} else if !noProgress {
-			// Non-interactive: print dot per 10 packages
-			progressFn = func(done, total int) {
-				if done%10 == 0 || done == total {
-					fmt.Fprintf(os.Stderr, "\r  %d/%d", done, total)
+			} else if !noProgress {
+				progressFn = func(done, total int) {
+					if done%10 == 0 || done == total {
+						fmt.Fprintf(os.Stderr, "\r  %d/%d", done, total)
+					}
 				}
 			}
-		}
 
-		scannedVulns, lookupStats, vulnsErr := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
-		if progressFn != nil {
-			fmt.Fprintln(os.Stderr) // newline after progress
-		}
+			scannedVulns, lookupStats, vulnsErr := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
+			if progressFn != nil {
+				fmt.Fprintln(os.Stderr)
+			}
 
-		// ── Lookup summary ────────────────────────────────────────────────────
-		hasPartial := vulnsErr != nil && len(scannedVulns) > 0
-		printLookupSummary(client, lookupStats, vulnsErr, hasPartial)
+			hasPartial := vulnsErr != nil && len(scannedVulns) > 0
+			printLookupSummary(client, lookupStats, vulnsErr, hasPartial)
 
-		if vulnsErr != nil && len(scannedVulns) == 0 {
-			return fmt.Errorf("VDB lookup failed: %w", vulnsErr)
+			if vulnsErr != nil && len(scannedVulns) == 0 {
+				return fmt.Errorf("VDB lookup failed: %w", vulnsErr)
+			}
+			allVulns = scannedVulns
 		}
-		allVulns = scannedVulns
 	}
 
 	// Attach vulns to each file result.
@@ -771,32 +789,39 @@ func runLocalScan(
 		}
 	}
 	// ── Enrich: version filter, exploits, remediation ────────────────────
-	v2Client := newEnrichmentClient()
+	// Skipped when the API-served path populated enriched data already.
+	var enrichedVulns []scan.EnrichedVuln
+	if scaEnrichedFromAPI != nil {
+		enrichedVulns = scaEnrichedFromAPI
+	} else {
+		v2Client := newEnrichmentClient()
 
-	enrichCount := len(allVulns)
-	if enrichCount > 0 {
-		fmt.Fprintf(os.Stderr, "\nEnriching %s (version check, exploits, remediation)...\n",
-			pluralise("vulnerability", enrichCount))
-	}
-
-	var enrichProgressFn func(done, total int)
-	if isInteractive && enrichCount > 0 {
-		enrichProgressFn = func(done, total int) {
-			pct := 0
-			if total > 0 {
-				pct = done * 100 / total
-			}
-			bar := renderProgressBar(done, total, 30)
-			fmt.Fprintf(os.Stderr, "\r  %s %d/%d (%d%%) ", bar, done, total, pct)
+		enrichCount := len(allVulns)
+		if enrichCount > 0 {
+			fmt.Fprintf(os.Stderr, "\nEnriching %s (version check, exploits, remediation)...\n",
+				pluralise("vulnerability", enrichCount))
 		}
-	}
 
-	enrichedVulns, err := scan.EnrichVulns(queryCtx, client, v2Client, allVulns, allPackages, concurrency, enrichProgressFn)
-	if enrichProgressFn != nil {
-		fmt.Fprintln(os.Stderr)
-	}
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "  warning: enrichment failed: %v\n", err)
+		var enrichProgressFn func(done, total int)
+		if isInteractive && enrichCount > 0 {
+			enrichProgressFn = func(done, total int) {
+				pct := 0
+				if total > 0 {
+					pct = done * 100 / total
+				}
+				bar := renderProgressBar(done, total, 30)
+				fmt.Fprintf(os.Stderr, "\r  %s %d/%d (%d%%) ", bar, done, total, pct)
+			}
+		}
+
+		var enrichErr error
+		enrichedVulns, enrichErr = scan.EnrichVulns(queryCtx, client, v2Client, allVulns, allPackages, concurrency, enrichProgressFn)
+		if enrichProgressFn != nil {
+			fmt.Fprintln(os.Stderr)
+		}
+		if enrichErr != nil {
+			fmt.Fprintf(os.Stderr, "  warning: enrichment failed: %v\n", enrichErr)
+		}
 	}
 
 	// Attach enriched vulns back to their file results so the BOM gets full ratings.
@@ -1883,11 +1908,31 @@ func printPrettyScanSummary(
 			}
 		}},
 		{Header: "Match", MinWidth: 5, MaxWidth: 14},
-		{Header: "Reach", MinWidth: 5, MaxWidth: 12, Color: func(s string) string {
+		// Dependency relationship: direct (declared in manifest) or
+		// transitive (pulled in by another dep). Replaces the older
+		// asterisk footnote convention.
+		{Header: "Type", MinWidth: 6, MaxWidth: 10, Color: func(s string) string {
+			switch strings.ToLower(strings.TrimSpace(s)) {
+			case "direct":
+				return display.Accent(t, s)
+			case "transitive":
+				return display.Muted(t, s)
+			default:
+				return s
+			}
+		}},
+		// Reachability outcome from the local analysis. "direct" /
+		// "transitive" labels here describe call-graph reach (tree-sitter
+		// queries that ran against installed-package source vs first-party
+		// source); "semantic" is the import/symbol grep fallback; empty =
+		// no data to analyse.
+		{Header: "Reach", MinWidth: 6, MaxWidth: 12, Color: func(s string) string {
 			switch strings.ToLower(strings.TrimSpace(s)) {
 			case "direct":
 				return display.ErrorStyle(t, s)
 			case "transitive":
+				return display.Accent(t, s)
+			case "semantic":
 				return display.Accent(t, s)
 			case "unreachable":
 				return display.Success(t, s)
@@ -1937,8 +1982,10 @@ func printPrettyScanSummary(
 			if v.Scope != "" && v.Scope != scan.ScopeProduction {
 				pkg += " [" + v.Scope + "]"
 			}
+			// Type column (Direct/Transitive) — replaces the asterisk footnote.
+			depType := "direct"
 			if mg.Graph != nil && !mg.Graph.IsDirect(v.PackageName) {
-				pkg += " *"
+				depType = "transitive"
 			}
 
 			mal := ""
@@ -2009,7 +2056,7 @@ func printPrettyScanSummary(
 			allRows = append(allRows, []string{
 				fileCell, vulnID, pkg, mal, maxSev,
 				cvss, cvssSev, epss, epssSev,
-				ssvc, ssvcSev, cess, cesSev, expl, fix, matchMethod, reach,
+				ssvc, ssvcSev, cess, cesSev, expl, fix, matchMethod, depType, reach,
 			})
 
 			if showPaths && mg.Graph != nil && !mg.Graph.IsDirect(v.PackageName) {
@@ -2024,13 +2071,56 @@ func printPrettyScanSummary(
 	fmt.Fprintln(os.Stdout)
 	if len(allRows) > 0 {
 		fmt.Fprintln(os.Stdout, display.Table(t, cols, allRows))
-		fmt.Fprintln(os.Stdout, display.Muted(t, "  * = transitive dependency"))
 	}
 
-	// ── Dependency paths ──────────────────────────────────────────────────
+	// ── Semantic Reachability ─────────────────────────────────────────────
+	// Per-CVE file:line hits from the symbol-grep fallback. Shown
+	// independently of --show-introduced-paths because the file:line
+	// pinpoints where the affected dep is actually referenced in source.
+	if !resultsOnly {
+		type semHit struct {
+			cveID string
+			pkg   string
+			match scan.SemanticMatch
+		}
+		var sem []semHit
+		for _, res := range prepared {
+			for _, v := range res.dedupedVulns {
+				for _, m := range v.SemanticMatches {
+					sem = append(sem, semHit{cveID: v.CveID, pkg: v.PackageName, match: m})
+				}
+			}
+		}
+		if len(sem) > 0 {
+			fmt.Fprintln(os.Stdout)
+			fmt.Fprintln(os.Stdout, display.Subheader(t, "Semantic Reachability"))
+			fmt.Fprintln(os.Stdout, display.Muted(t, "  Affected symbol referenced literally in your source — lower confidence than tree-sitter call-graph reach but a strong intent signal."))
+			seen := map[string]bool{}
+			for _, h := range sem {
+				loc := h.match.File
+				if h.match.Line > 0 {
+					loc = fmt.Sprintf("%s:%d", h.match.File, h.match.Line)
+				}
+				key := h.cveID + "|" + loc + "|" + h.match.Symbol
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				fmt.Fprintf(os.Stdout, "  %s  %s  %s  %s\n",
+					display.Bold(t, h.cveID),
+					display.Muted(t, h.pkg),
+					h.match.Symbol,
+					display.Muted(t, loc))
+			}
+		}
+	}
+
+	// ── Introduced Via ────────────────────────────────────────────────────
+	// Only shown for transitive deps — direct deps are introduced by the
+	// manifest itself, so a one-link "chain" would be redundant.
 	if showPaths && len(allPaths) > 0 {
 		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, display.Subheader(t, "Dependency Paths"))
+		fmt.Fprintln(os.Stdout, display.Subheader(t, "Introduced Via"))
 		seenPaths := map[string]bool{}
 		for _, p := range allPaths {
 			if seenPaths[p.pkgName] {
@@ -2276,22 +2366,24 @@ func printLookupSummary(client *vdb.Client, stats *scan.LookupStats, lookupErr e
 		return
 	}
 
-	// Rate-limit info (shown whenever the API returned headers).
-	if rl := client.LastRateLimit; rl != nil && rl.Present {
-		if rl.DayLimit == 0 && rl.Remaining < 0 {
-			fmt.Fprintf(os.Stderr, "  Rate limit: unlimited")
-		} else {
-			fmt.Fprintf(os.Stderr, "  Rate limit: %d/%d req/day remaining (resets %s)",
-				rl.Remaining, rl.DayLimit, humanReset(rl.Reset))
-		}
-		if rl.Plan != "" {
-			label := rl.Plan
-			if rl.SoftLimits {
-				label += ", soft limits"
+	// Rate-limit info (verbose only — suppressed by default and when --silent).
+	if verbose && !silent {
+		if rl := client.LastRateLimit; rl != nil && rl.Present {
+			if rl.DayLimit == 0 && rl.Remaining < 0 {
+				fmt.Fprintf(os.Stderr, "  Rate limit: unlimited")
+			} else {
+				fmt.Fprintf(os.Stderr, "  Rate limit: %d/%d req/day remaining (resets %s)",
+					rl.Remaining, rl.DayLimit, humanReset(rl.Reset))
 			}
-			fmt.Fprintf(os.Stderr, " [%s]", label)
+			if rl.Plan != "" {
+				label := rl.Plan
+				if rl.SoftLimits {
+					label += ", soft limits"
+				}
+				fmt.Fprintf(os.Stderr, " [%s]", label)
+			}
+			fmt.Fprintln(os.Stderr)
 		}
-		fmt.Fprintln(os.Stderr)
 	}
 
 	// Nothing to report beyond rate limits when everything succeeded.
@@ -2787,7 +2879,14 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("format", "f", "", "Deprecated: use --output instead")
 	cmd.Flags().Int("concurrency", 5, "Max concurrent VDB queries")
 	cmd.Flags().Bool("no-progress", false, "Suppress progress bar")
-	cmd.Flags().Bool("paths", false, "Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go)")
+	cmd.Flags().Bool("show-introduced-paths", false, "Show the full chain from manifest to the affected transitive package (npm, Python, Rust, Ruby, PHP, Go). Direct deps are introduced by the manifest itself and omitted.")
+	// Deprecated alias retained for backward compatibility — the documented
+	// name is --show-introduced-paths.
+	cmd.Flags().Bool("paths", false, "Deprecated alias for --show-introduced-paths")
+	if hide := cmd.Flags().MarkHidden("paths"); hide != nil {
+		// non-fatal if rename hasn't propagated everywhere
+		_ = hide
+	}
 	cmd.Flags().Bool("no-exploits", false, "Suppress detailed exploit intelligence section")
 	cmd.Flags().Bool("no-remediation", false, "Suppress detailed remediation section")
 	cmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")

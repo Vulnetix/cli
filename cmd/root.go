@@ -23,6 +23,7 @@ var (
 	// Command line flags
 	orgID         string
 	silent        bool
+	verbose       bool
 	disableMemory bool
 	noAnalytics   bool
 
@@ -253,6 +254,9 @@ func Execute() error {
 
 // startupHooks runs before any command via cobra.OnInitialize.
 func startupHooks() {
+	// Propagate verbose flag into vdb client (gates retry/backoff stderr chatter).
+	vdb.Verbose = verbose
+
 	// Initialize GA4 analytics (respects VULNETIX_NO_ANALYTICS / DO_NOT_TRACK / --no-analytics)
 	if noAnalytics {
 		os.Setenv("VULNETIX_NO_ANALYTICS", "1")
@@ -309,6 +313,7 @@ func startupHooks() {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
 	rootCmd.PersistentFlags().BoolVar(&silent, "silent", false, "Suppress all log output, only print final result")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show verbose diagnostic output (rate limits, cache status, auth notes)")
 	rootCmd.PersistentFlags().BoolVar(&disableMemory, "disable-memory", false, "Disable memory file reads/writes. For users who do not use the Claude Code Plugin or for debugging. VDB commands will skip memory-related side effects when set.")
 	rootCmd.PersistentFlags().BoolVar(&noAnalytics, "no-analytics", false, "Disable anonymous usage analytics")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
