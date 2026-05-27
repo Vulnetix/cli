@@ -204,6 +204,58 @@ Results are saved to `.vulnetix/sbom.cdx.json`.
 
 ---
 
+## CLI Persistence Pipeline
+
+Every authenticated `vulnetix <scan-kind>` command produces a **snapshot URL** that anchors the run in the SaaS database and S3. The pipeline is **non-fatal**: a failed POST leaves the local artefacts (`.vulnetix/*.{sarif,cdx.json}` + `memory.yaml`) on disk as the source of truth; only the persistent snapshot is skipped.
+
+### One pipeline, two artefact shapes
+
+| Subcommand | Local artefact                | Endpoint                       | Server artefact in S3                                              |
+| ---------- | ----------------------------- | ------------------------------ | ------------------------------------------------------------------ |
+| `sca`      | `.vulnetix/sbom.cdx.json`     | `POST /v2/cli.sca` + `POST /v2/cli.sca-reachability` | CycloneDX SBOM + CDX-VEX                                          |
+| `sast`     | `.vulnetix/sast.sarif`        | `POST /v2/cli.sast`            | SARIF 2.1.0 + OpenVEX 0.2.0                                        |
+| `secrets`  | (in `.vulnetix/sast.sarif`)   | `POST /v2/cli.secrets`         | SARIF 2.1.0 + OpenVEX 0.2.0                                        |
+| `iac`      | (in `.vulnetix/sast.sarif`)   | `POST /v2/cli.iac`             | SARIF 2.1.0 + OpenVEX 0.2.0                                        |
+| `containers` | (in `.vulnetix/sast.sarif`) | `POST /v2/cli.containers`      | SARIF 2.1.0 + OpenVEX 0.2.0                                        |
+| `license`  | `.vulnetix/sbom.cdx.json`     | `POST /v2/cli.license`         | SARIF 2.1.0 (license-policy rules) + OpenVEX 0.2.0                 |
+
+When `vulnetix scan` runs the consolidated multi-kind scanner, the CLI partitions the local SAST-engine output by `rule.Kind` (`sast` | `secrets` | `iac` | `oci`) and **submits one POST per non-empty kind**, each producing its own snapshot URL.
+
+### What gets persisted (server side)
+
+For every authenticated submission the server writes, inside one PostgreSQL transaction:
+
+- **`Artifact` + `Link`** — primary artefact (CycloneDX or SARIF) in S3 at `{orgId}/{cyclonedx|sarif}/{prefix}-{snapshotUuid}.json`. Bucket name = the new bucket we landed on (column names `r2Bucket`/`r2Key` retained from the R2 era).
+- **`ArtifactPipeline`** — orgUuid scope, `source = CLI_{CATEGORY}`, `processingState = COMPLETED`, `createdByService = vulnetix-cli`.
+- **`ScannerRun`** — `toolName = vulnetix-cli-{kind}`, `category = SCA|SAST|SECRETS|IAC|OCI|LICENSE`, `vendor = Vulnetix`, `source = cli`.
+- **For SCA**: `CycloneDXInfo` + per-package `Dependency` + `DependencyRegistry` + `SBOMLicense` + `CycloneDXInfoLicense` + `PackageManagerDetection` + `PackageManagerCapability` + `SBOMToolMetadata` + per-finding `FindingIntroducedVia` chains.
+- **For SARIF flows**: `SARIFInfo` + per-result `SarifResults`.
+- **Per-finding**: `Finding` (linked to the scanner run + sarif/cdx artefact) + `Triage` (`analysisState` mirrors VEX status when memory.yaml carries one, otherwise `in_triage`).
+- **`OpenVex`** + one `OpenVexStatement` per finding + one `VexAnalysis` bridge row per finding (unique on `findingUuid`). The CycloneDX VEX (SCA only) and OpenVEX (every kind) are both stored to S3 and registered in `Artifact` + `Link`. `ScannerRun.vexArtifactUuid` points at the VEX artefact.
+- **`IngestionSnapshot`** — the row the snapshot URL resolves to. Severity counters are bucketed from the submission.
+- **`AccessLog`** — one row per CLI call.
+
+### Memory-yaml VEX is honoured
+
+`.vulnetix/memory.yaml` is the local triage source of truth. On every submission the CLI looks up each finding's status / justification / action-response in memory and forwards them as `memoryVexStatus` / `memoryVexJustification` / `memoryVexAction` payload fields. Server-side these win over the auto-computed reachability verdict (SCA) or default `in_triage` placeholder (SARIF), so the published `Triage` row + `OpenVexStatement` reflect the user's local decision.
+
+### Snapshot URL output
+
+On success the final stderr line is `{Kind} snapshot: https://www.vulnetix.com/vdb-snapshot/{uuid}`. The URL resolves to the IngestionSnapshot row and surfaces every artefact + finding + VEX statement attached to that run.
+
+### `.vulnetix/` directory layout
+
+```
+.vulnetix/
+├── memory.yaml          # local triage + VEX decisions (source of truth)
+├── sbom.cdx.json        # SCA CycloneDX BOM (used by `sca` and `license`)
+├── sast.sarif           # SAST/secrets/iac/oci consolidated SARIF
+```
+
+The server-side OpenVEX + CDX-VEX documents for any snapshot can be retrieved from S3 using the `r2Key` recorded against the relevant `Artifact` row.
+
+---
+
 ## VDB Memory Management
 
 ### Context Flags (inherited by all `vdb` subcommands)

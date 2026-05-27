@@ -11,12 +11,19 @@ package cmd
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/license"
+	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/reachability"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
@@ -66,6 +73,12 @@ func tryCliSCA(allPackages []scan.ScopedPackage, gitCtx *gitctx.GitContext, sysI
 	}
 
 	env := buildCliEnv(gitCtx, sysInfo)
+	enrichCliEnvForSCA(&env, scanPath, allPackages, gitCtx)
+
+	// Per-PURL Packages list with manifest + chain info. Sent on the first
+	// chunk only so the server creates exactly one IngestionSnapshot for the
+	// whole scan (subsequent chunks set Packages=nil and are discovery-only).
+	allCliPackages := buildCliPackages(allPackages)
 
 	mergedComponents := make([]any, 0, len(uniquePurls))
 	mergedVulns := make([]any, 0)
@@ -74,12 +87,18 @@ func tryCliSCA(allPackages []scan.ScopedPackage, gitCtx *gitctx.GitContext, sysI
 	var anyTierGated bool
 	var batchesOK, batchesFailed int
 	var firstErr error
+	var snapshot *vdb.CliIngestionSnapshot
+	var persistedFindings []vdb.CliFindingResult
 
 	for i, chunk := range chunks {
-		resp, err := client.CliSCA(env, vdb.CliSCARequest{
+		req := vdb.CliSCARequest{
 			Purls:   chunk,
 			Options: vdb.CliSCAOptions{IncludeReachability: boolPtrCLI(true)},
-		})
+		}
+		if i == 0 {
+			req.Packages = allCliPackages
+		}
+		resp, err := client.CliSCA(env, req)
 		if err != nil {
 			batchesFailed++
 			if firstErr == nil {
@@ -104,6 +123,12 @@ func tryCliSCA(allPackages []scan.ScopedPackage, gitCtx *gitctx.GitContext, sysI
 			mergedVulns = append(mergedVulns, vs...)
 		}
 		mergedReach = append(mergedReach, resp.Data.Reachability...)
+		// Snapshot + persisted findings only return on the chunk that carried
+		// Packages — typically chunk 0. Capture them once.
+		if snapshot == nil && resp.Data.IngestionSnapshot != nil {
+			snapshot = resp.Data.IngestionSnapshot
+			persistedFindings = resp.Data.Findings
+		}
 		if verbose {
 			fmt.Fprintf(os.Stderr, "  batch %d/%d: %d component(s), %d vuln(s), %d reachability query(ies)\n", i+1, len(chunks), len(mergedComponents), len(mergedVulns), len(mergedReach))
 		}
@@ -157,7 +182,190 @@ func tryCliSCA(allPackages []scan.ScopedPackage, gitCtx *gitctx.GitContext, sysI
 	// didn't verdict, grep local source for affectedRoutines/Files/Modules.
 	runSymbolFallback(enriched, scanPath)
 
+	// Post reachability evidence back to the server when persistence
+	// succeeded. Best-effort: a failure here doesn't break the local scan.
+	if snapshot != nil {
+		postReachabilityToSnapshot(client, env, snapshot, persistedFindings, enriched, gitCtx)
+		if !silent {
+			fmt.Fprintf(os.Stderr, "Snapshot: %s\n", snapshot.URL)
+		}
+	}
+
 	return true, findings, enriched
+}
+
+// buildCliPackages turns parsed ScopedPackages into the per-package metadata
+// the server uses to populate FindingIntroducedVia. Each package contributes
+// a single chain — `[manifest-derived-root, name@version]` for direct deps
+// and `[manifest-derived-root, ..., name@version]` for transitives (chain
+// length 2 for transitives is a fidelity loss vs. full upstream-walk, but
+// the manifestFile + IsDirect flag still let the server bucket the path).
+func buildCliPackages(pkgs []scan.ScopedPackage) []vdb.CliPackageEntry {
+	if len(pkgs) == 0 {
+		return nil
+	}
+	out := make([]vdb.CliPackageEntry, 0, len(pkgs))
+	for _, p := range pkgs {
+		key := fmt.Sprintf("%s@%s", p.Name, p.Version)
+		purl := cdx.BuildLocalPurl(p.Name, p.Version, p.Ecosystem)
+		scope := p.Scope
+		if scope == "" {
+			if p.IsDirect {
+				scope = "direct"
+			} else {
+				scope = "transitive"
+			}
+		}
+		chain := []string{key}
+		if !p.IsDirect {
+			// Mark the missing intermediate hops explicitly so the server
+			// knows the path was reconstructed from a flat lockfile.
+			chain = []string{"<unknown>", key}
+		}
+		out = append(out, vdb.CliPackageEntry{
+			Purl:          purl,
+			Name:          p.Name,
+			Version:       p.Version,
+			Ecosystem:     p.Ecosystem,
+			ManifestFile:  p.SourceFile,
+			Scope:         scope,
+			IntroducedVia: [][]string{chain},
+		})
+	}
+	return out
+}
+
+// postReachabilityToSnapshot sends the local tree-sitter + grep-symbol
+// reachability evidence to /v2/cli.sca-reachability so the server can:
+//   - persist CliReachabilityResult rows
+//   - update Triage automatically (UNREACHABLE → not_affected/code_not_reachable;
+//     reachable → affected)
+//   - upsert OpenVex + VexAnalysis records
+//   - merge reachability properties into the S3-stored SBOM
+//   - emit a CycloneDX VEX artefact alongside the SBOM
+// Memory-yaml VEX hints are attached so user-authored decisions win over the
+// auto-computed verdict.
+func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vdb.CliIngestionSnapshot, persisted []vdb.CliFindingResult, enriched []scan.EnrichedVuln, gitCtx *gitctx.GitContext) {
+	if snapshot == nil || len(enriched) == 0 {
+		return
+	}
+
+	// Map (cveId|packageName|packageVer) → findingUuid for fast lookup.
+	findingByKey := make(map[string]vdb.CliFindingResult, len(persisted))
+	for _, f := range persisted {
+		k := f.FindingID + "|" + f.PackageName + "|" + f.PackageVersion
+		findingByKey[k] = f
+	}
+
+	// Memory-yaml lookup — best-effort. The CLI already merges this into
+	// enriched but we need the raw status fields to forward upstream.
+	memRecords := loadMemoryRecords(gitCtx)
+
+	payloads := make([]vdb.CliReachabilityPayload, 0, len(enriched)*2)
+	for _, ev := range enriched {
+		fkey := ev.CveID + "|" + ev.PackageName + "|" + ev.PackageVer
+		finding := findingByKey[fkey]
+		memHit := memoryMatchForFinding(memRecords, ev.PackageName, ev.CveID)
+		fixedVer := ""
+		if ev.Remediation != nil {
+			fixedVer = ev.Remediation.FixVersion
+		}
+
+		base := vdb.CliReachabilityPayload{
+			CveID:                  ev.CveID,
+			FindingUuid:            finding.FindingUuid,
+			PackageName:            ev.PackageName,
+			PackageVersion:         ev.PackageVer,
+			Purl:                   finding.Purl,
+			Ecosystem:              ev.Ecosystem,
+			Severity:               ev.Severity,
+			FixedVersion:           fixedVer,
+			MemoryVexStatus:        memHit.Status,
+			MemoryVexJustification: memHit.Justification,
+			MemoryVexAction:        memHit.ActionResponse,
+		}
+
+		switch ev.Reachability {
+		case "direct", "transitive":
+			// Tree-sitter verdict — emit one row per affected routine if any.
+			row := base
+			row.Source = "TREE_SITTER"
+			row.Verdict = strings.ToUpper(ev.Reachability)
+			if len(ev.AffectedSymbols.Routines) > 0 {
+				row.MatchedRoutine = ev.AffectedSymbols.Routines[0]
+			}
+			payloads = append(payloads, row)
+		case "semantic":
+			// Symbol-fallback hits — one row per match.
+			if len(ev.SemanticMatches) == 0 {
+				row := base
+				row.Source = "SYMBOL_FALLBACK"
+				row.Verdict = "SEMANTIC"
+				payloads = append(payloads, row)
+			}
+			for _, m := range ev.SemanticMatches {
+				row := base
+				row.Source = "SEMANTIC_GREP"
+				row.Verdict = "SEMANTIC"
+				row.MatchedFile = m.File
+				row.MatchedRoutine = m.Symbol
+				row.MatchStartLine = m.Line
+				payloads = append(payloads, row)
+			}
+		default:
+			// No reachability verdict — treat as UNREACHABLE so the server
+			// records a not_affected/code_not_reachable VEX statement.
+			row := base
+			row.Source = "TREE_SITTER"
+			row.Verdict = "UNREACHABLE"
+			payloads = append(payloads, row)
+		}
+	}
+
+	if len(payloads) == 0 {
+		return
+	}
+
+	resp, err := client.CliSCAReachability(env, vdb.CliSCAReachabilityRequest{
+		IngestionSnapshotUuid: snapshot.Uuid,
+		Results:               payloads,
+	})
+	if err != nil {
+		if verbose {
+			fmt.Fprintf(os.Stderr, "  reachability post failed: %v\n", err)
+		}
+		return
+	}
+	if verbose {
+		fmt.Fprintf(os.Stderr, "  reachability persisted: %d (sbom=%s, vex=%s)\n", resp.Data.Persisted, resp.Data.SBOMUrl, resp.Data.VEXUrl)
+	}
+}
+
+// memoryHit captures the three VEX-relevant memory fields per finding.
+type memoryHit struct {
+	Status         string
+	Justification  string
+	ActionResponse string
+}
+
+func loadMemoryRecords(gitCtx *gitctx.GitContext) map[string]memory.FindingRecord {
+	if gitCtx == nil || gitCtx.RepoRootPath == "" {
+		return nil
+	}
+	vulnetixDir := filepath.Join(gitCtx.RepoRootPath, ".vulnetix")
+	store, err := memory.Load(vulnetixDir)
+	if err != nil || store == nil {
+		return nil
+	}
+	return store.Findings
+}
+
+func memoryMatchForFinding(records map[string]memory.FindingRecord, packageName, cveID string) memoryHit {
+	// Primary key in memory.yaml is the CVE id.
+	if r, ok := records[cveID]; ok && strings.EqualFold(r.Package, packageName) {
+		return memoryHit{Status: r.Status, Justification: r.Justification, ActionResponse: r.ActionResponse}
+	}
+	return memoryHit{}
 }
 
 // runSymbolFallback covers the everywhere-available lower-efficacy
@@ -392,7 +600,158 @@ func buildCliEnv(gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo) vdb.CliE
 			RepoRoot: gitCtx.RepoRootPath,
 		}
 	}
+	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
+		ToolName:    "vulnetix-cli",
+		ToolVersion: version,
+		ToolVendor:  "Vulnetix",
+		ToolHash:    commit,
+	}
 	return env
+}
+
+// enrichCliEnvForSCA populates the SaaS-persistence-only metadata: repo-level
+// licenses, manifest sha256/size, package-manager capabilities. Called only
+// from tryCliSCA so the env subcommand stays fast.
+func enrichCliEnvForSCA(env *vdb.CliEnv, scanPath string, allPackages []scan.ScopedPackage, gitCtx *gitctx.GitContext) {
+	if env == nil {
+		return
+	}
+	repoRoot := scanPath
+	if gitCtx != nil && gitCtx.RepoRootPath != "" {
+		repoRoot = gitCtx.RepoRootPath
+	}
+	for _, h := range license.DetectRepoLicense(repoRoot) {
+		env.Licenses = append(env.Licenses, vdb.CliLicenseHit{
+			SPDXID:      h.SPDXID,
+			Name:        h.Name,
+			URL:         h.URL,
+			Source:      h.Source,
+			Acknowledge: h.Acknowledge,
+			Text:        h.Text,
+		})
+	}
+
+	// Manifests: dedupe by absolute path; compute sha256 + size.
+	seenManifests := make(map[string]bool)
+	for _, pkg := range allPackages {
+		if pkg.SourceFile == "" || seenManifests[pkg.SourceFile] {
+			continue
+		}
+		seenManifests[pkg.SourceFile] = true
+		info, err := os.Stat(pkg.SourceFile)
+		if err != nil {
+			continue
+		}
+		body, rerr := os.ReadFile(pkg.SourceFile)
+		if rerr != nil {
+			continue
+		}
+		h := sha256.Sum256(body)
+		base := filepath.Base(pkg.SourceFile)
+		mi, _ := scan.ManifestFiles[base]
+		env.Manifests = append(env.Manifests, vdb.CliManifestMetadata{
+			Path:        relativePathFromRoot(repoRoot, pkg.SourceFile),
+			Ecosystem:   pkg.Ecosystem,
+			IsLock:      mi.IsLock,
+			SHA256:      hex.EncodeToString(h[:]),
+			Size:        int(info.Size()),
+			ContentType: detectManifestContentType(base),
+		})
+	}
+
+	// PackageManagers list (already populated for env subcommand) — replicate
+	// here from the manifest list so the SaaS PackageManagerDetection insert
+	// has a row per ecosystem.
+	seenEco := make(map[string]bool)
+	for _, m := range env.Manifests {
+		if m.Ecosystem == "" || seenEco[m.Ecosystem] {
+			continue
+		}
+		seenEco[m.Ecosystem] = true
+		env.PackageManagers = append(env.PackageManagers, vdb.CliPackageMgr{
+			Ecosystem: m.Ecosystem,
+			Manifest:  m.Path,
+			IsLock:    m.IsLock,
+		})
+	}
+
+	// Capabilities: probe each binary on PATH. Best-effort.
+	for eco := range seenEco {
+		env.Capabilities = append(env.Capabilities, probePackageManagerCapabilities(eco)...)
+	}
+}
+
+// probePackageManagerCapabilities runs a `<binary> --version` and reports back
+// whether the binary is installed. Confidence is 1.0 when found, 0.5 otherwise.
+func probePackageManagerCapabilities(ecosystem string) []vdb.CliPMCapability {
+	binaries := map[string][]string{
+		"npm":    {"npm"},
+		"yarn":   {"yarn"},
+		"pnpm":   {"pnpm"},
+		"pypi":   {"pip", "uv", "poetry"},
+		"python": {"pip", "uv", "poetry"},
+		"pip":    {"pip"},
+		"go":     {"go"},
+		"golang": {"go"},
+		"cargo":  {"cargo"},
+		"rust":   {"cargo"},
+		"gem":    {"gem", "bundle"},
+		"maven":  {"mvn"},
+		"java":   {"mvn", "gradle"},
+		"composer": {"composer"},
+		"php":    {"composer"},
+		"nuget":  {"dotnet"},
+	}
+	var out []vdb.CliPMCapability
+	for _, bin := range binaries[strings.ToLower(ecosystem)] {
+		detected := false
+		evidence := ""
+		if path, err := exec.LookPath(bin); err == nil {
+			detected = true
+			evidence = path
+		}
+		out = append(out, vdb.CliPMCapability{
+			Ecosystem:      ecosystem,
+			CapabilityName: "binary:" + bin,
+			Supported:      true,
+			Detected:       detected,
+			Confidence:     boolToConfidence(detected),
+			Evidence:       evidence,
+		})
+	}
+	return out
+}
+
+func boolToConfidence(b bool) float64 {
+	if b {
+		return 1.0
+	}
+	return 0.5
+}
+
+func detectManifestContentType(basename string) string {
+	switch {
+	case strings.HasSuffix(basename, ".json"):
+		return "application/json"
+	case strings.HasSuffix(basename, ".xml"):
+		return "application/xml"
+	case strings.HasSuffix(basename, ".yaml"), strings.HasSuffix(basename, ".yml"):
+		return "application/yaml"
+	case strings.HasSuffix(basename, ".toml"):
+		return "application/toml"
+	}
+	return "text/plain"
+}
+
+func relativePathFromRoot(root, p string) string {
+	if root == "" {
+		return p
+	}
+	rel, err := filepath.Rel(root, p)
+	if err != nil {
+		return p
+	}
+	return rel
 }
 
 func boolPtrCLI(b bool) *bool { return &b }

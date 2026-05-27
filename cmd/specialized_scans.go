@@ -5,40 +5,15 @@ import (
 	"github.com/vulnetix/cli/v3/internal/display"
 )
 
-// pullCliRules POSTs to the matching /v2/cli.<probe> endpoint before the
-// local scan runs so the server can deliver up-to-date rule packs, policy
-// patterns, or framework baselines that augment the embedded local
-// rule set. Operational chatter is gated behind --verbose; failures are
-// non-fatal (the local rule set always runs).
+// pullCliRules was the pre-scan rule-pack pre-fetch path. After Phase-2 the
+// matching /v2/cli.<probe> endpoints are persistence-only (they accept the
+// SARIF doc + findings and write SARIFInfo / SarifResults / Finding / Triage
+// rows). Rule packs are now strictly embedded; the call sites remain so we
+// can re-introduce server-pushed rules in a future iteration without touching
+// every subcommand. Today this is a no-op.
 func pullCliRules(probe string, payload any) {
-	c := newCliClient()
-	if c == nil {
-		return
-	}
-	logCliOp("Pulling server rules via /v2/cli.%s...", probe)
-	env := envForCli()
-	var (
-		resp any
-		err  error
-	)
-	switch probe {
-	case "sast":
-		resp, err = c.CliSAST(env, payload)
-	case "secrets":
-		resp, err = c.CliSecrets(env, payload)
-	case "iac":
-		resp, err = c.CliIAC(env, payload)
-	case "containers":
-		resp, err = c.CliContainers(env, payload)
-	}
-	if err != nil {
-		if !isCli404(err) {
-			logCliOp("  cli.%s errored (%v) — continuing with embedded rules", probe, err)
-		}
-		return
-	}
-	_ = resp // server rule overrides land in a follow-up; wire is in place
-	logCliOp("  cli.%s ok", probe)
+	_ = probe
+	_ = payload
 }
 
 // scaCmd runs a scan with only SCA enabled.

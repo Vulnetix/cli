@@ -1137,6 +1137,12 @@ func runLocalScan(
 			} else {
 				rec.SARIFPath = ".vulnetix/sast.sarif"
 			}
+
+			// Phase-2 persistence: split findings by rule.Kind and POST a
+			// SARIF doc per kind to /v2/cli.{sast,secrets,iac,containers}.
+			// Snapshot URLs print to stderr on success. Non-fatal: a local
+			// SARIF is still the source of truth on disk.
+			postScanSARIF(sastReport, gitCtx)
 		}
 	}
 

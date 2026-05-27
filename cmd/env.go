@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/config"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
@@ -84,6 +85,7 @@ type envFullOutput struct {
 	System          *gitctx.SystemInfo      `json:"system"`
 	Git             *envGitInfo             `json:"git,omitempty"`
 	PackageManagers []envPackageManagerInfo `json:"package_managers,omitempty"`
+	Licenses        []license.RepoLicenseHit `json:"licenses,omitempty"`
 	Memory          *envMemoryStatus        `json:"memory,omitempty"`
 }
 
@@ -135,6 +137,15 @@ func gatherFullEnvironment(cwd string) *envFullOutput {
 				}
 			}
 		}
+	}
+
+	// Repo-level licenses (LICENSE files + top-level manifest license field).
+	repoRoot := cwd
+	if gc != nil && gc.RepoRootPath != "" {
+		repoRoot = gc.RepoRootPath
+	}
+	if hits := license.DetectRepoLicense(repoRoot); len(hits) > 0 {
+		out.Licenses = hits
 	}
 
 	// Memory status
