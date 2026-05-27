@@ -3,6 +3,7 @@ package cdx
 import (
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -517,6 +518,36 @@ func BuildDependencies(groups []scan.ManifestGroup, compRefs map[string]string) 
 				DependsOn: childRefs,
 			})
 		}
+	}
+
+	// Add root-component entry so processors can identify direct dependencies.
+	// "urn:project" is the bom-ref assigned to metadata.component. Its
+	// dependsOn list is every package that appears in a manifest file directly
+	// (IsDirect=true), which is the canonical CycloneDX signal for "direct dep".
+	seenRoot := map[string]bool{}
+	var rootDeps []string
+	for _, mg := range groups {
+		for _, pkg := range mg.Packages {
+			if !pkg.IsDirect {
+				continue
+			}
+			key := pkg.Name + "@" + pkg.Version
+			ref, ok := compRefs[key]
+			if !ok {
+				ref, ok = nameToRef[pkg.Name]
+				if !ok {
+					continue
+				}
+			}
+			if !seenRoot[ref] {
+				seenRoot[ref] = true
+				rootDeps = append(rootDeps, ref)
+			}
+		}
+	}
+	if len(rootDeps) > 0 {
+		sort.Strings(rootDeps)
+		deps = append([]CDXDependency{{Ref: "urn:project", DependsOn: rootDeps}}, deps...)
 	}
 
 	return deps
