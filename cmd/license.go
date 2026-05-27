@@ -138,15 +138,12 @@ func runLicense(cmd *cobra.Command, args []string) error {
 		purlSeen[pu] = true
 		purls = append(purls, pu)
 	}
-	if c := newCliClient(); c != nil && len(purls) > 0 {
-		logCliOp("Querying /v2/cli.license for %d package(s)...", len(purls))
-		if resp, err := c.CliLicense(envForCli(), purls); err == nil {
-			logCliOp("  /v2/cli.license returned %d field(s)", len(resp.Data))
-			_ = resp // server-side license overrides land in a follow-up
-		} else if !isCli404(err) {
-			logCliOp("  cli.license errored (%v), continuing with local-only evaluation", err)
-		}
-	}
+	// Phase-2: /v2/cli.license is now persistence-only — it accepts a SARIF
+	// document of license-policy findings rather than returning per-purl
+	// license overrides. The post-scan submission happens via
+	// postScanSARIF("license", ...) at the end of this command, where the
+	// resolved license conflict list has been computed locally.
+	_ = purls
 
 	// ── Detect licenses ─────────────────────────────────────────────────
 	if verbose {
@@ -226,6 +223,9 @@ func runLicense(cmd *cobra.Command, args []string) error {
 	if !disableMemory {
 		writeLicenseMemory(vulnetixDir, result)
 	}
+
+	// ── Phase-2: persist license SARIF to /v2/cli.license ──────────────
+	postLicenseSARIF(result, rootPath)
 
 	// ── Output ──────────────────────────────────────────────────────────
 	switch outputFmt {

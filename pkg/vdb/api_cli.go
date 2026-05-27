@@ -22,17 +22,61 @@ import (
 // CliEnv carries local-machine context. Every field is optional; older CLIs
 // keep working as new fields are added server-side.
 type CliEnv struct {
-	CliVersion      string          `json:"cliVersion,omitempty"`
-	Commit          string          `json:"commit,omitempty"`
-	BuildDate       string          `json:"buildDate,omitempty"`
-	Platform        string          `json:"platform,omitempty"`
-	Arch            string          `json:"arch,omitempty"`
-	OS              string          `json:"os,omitempty"`
-	Hostname        string          `json:"hostname,omitempty"`
-	Shell           string          `json:"shell,omitempty"`
-	Git             *CliGitContext  `json:"git,omitempty"`
-	PackageManagers []CliPackageMgr `json:"packageManagers,omitempty"`
-	MemoryPath      string          `json:"memoryPath,omitempty"`
+	CliVersion      string                `json:"cliVersion,omitempty"`
+	Commit          string                `json:"commit,omitempty"`
+	BuildDate       string                `json:"buildDate,omitempty"`
+	Platform        string                `json:"platform,omitempty"`
+	Arch            string                `json:"arch,omitempty"`
+	OS              string                `json:"os,omitempty"`
+	Hostname        string                `json:"hostname,omitempty"`
+	Shell           string                `json:"shell,omitempty"`
+	Git             *CliGitContext        `json:"git,omitempty"`
+	PackageManagers []CliPackageMgr       `json:"packageManagers,omitempty"`
+	MemoryPath      string                `json:"memoryPath,omitempty"`
+	Licenses        []CliLicenseHit       `json:"licenses,omitempty"`
+	Manifests       []CliManifestMetadata `json:"manifests,omitempty"`
+	ToolMetadata    *CliSBOMToolMetadata  `json:"toolMetadata,omitempty"`
+	Capabilities    []CliPMCapability     `json:"capabilities,omitempty"`
+}
+
+// CliLicenseHit mirrors vdb-api/internal/handler/v2_cli_common.go.
+type CliLicenseHit struct {
+	SPDXID      string `json:"spdxId,omitempty"`
+	Name        string `json:"name,omitempty"`
+	URL         string `json:"url,omitempty"`
+	Source      string `json:"source,omitempty"`
+	Acknowledge string `json:"acknowledgement,omitempty"`
+	Text        string `json:"text,omitempty"`
+}
+
+// CliManifestMetadata describes one manifest the CLI parsed.
+type CliManifestMetadata struct {
+	Path        string `json:"path"`
+	Ecosystem   string `json:"ecosystem,omitempty"`
+	IsLock      bool   `json:"isLock,omitempty"`
+	SHA256      string `json:"sha256,omitempty"`
+	Size        int    `json:"size,omitempty"`
+	ContentType string `json:"contentType,omitempty"`
+	License     string `json:"license,omitempty"`
+}
+
+// CliSBOMToolMetadata describes the CLI tool itself for the SBOMToolMetadata row.
+type CliSBOMToolMetadata struct {
+	ToolName    string `json:"toolName,omitempty"`
+	ToolVersion string `json:"toolVersion,omitempty"`
+	ToolVendor  string `json:"toolVendor,omitempty"`
+	ToolHash    string `json:"toolHash,omitempty"`
+}
+
+// CliPMCapability — one detected package-manager capability on the host.
+type CliPMCapability struct {
+	Ecosystem      string  `json:"ecosystem"`
+	CapabilityName string  `json:"capabilityName"`
+	Supported      bool    `json:"supported"`
+	Detected       bool    `json:"detected"`
+	Confidence     float64 `json:"confidence,omitempty"`
+	Evidence       string  `json:"evidence,omitempty"`
+	FilePath       string  `json:"filePath,omitempty"`
 }
 
 // CliGitContext is the subset of repo state useful for triage correlation.
@@ -90,14 +134,140 @@ type CliSCAOptions struct {
 }
 
 type CliSCARequest struct {
-	Purls   []string      `json:"purls"`
-	Options CliSCAOptions `json:"options,omitempty"`
+	Purls    []string          `json:"purls"`
+	Packages []CliPackageEntry `json:"packages,omitempty"`
+	Options  CliSCAOptions     `json:"options,omitempty"`
+}
+
+// CliPackageEntry — per-package dependency-path context so the server can
+// compute FindingIntroducedVia paths.
+type CliPackageEntry struct {
+	Purl          string     `json:"purl"`
+	Name          string     `json:"name,omitempty"`
+	Version       string     `json:"version,omitempty"`
+	Ecosystem     string     `json:"ecosystem,omitempty"`
+	ManifestFile  string     `json:"manifestFile,omitempty"`
+	Scope         string     `json:"scope,omitempty"`
+	IntroducedVia [][]string `json:"introducedVia,omitempty"`
 }
 
 type CliSCAResponse struct {
-	CycloneDX    map[string]any        `json:"cyclonedx"`
-	Reachability []CliReachabilityHit  `json:"reachability"`
-	Stats        CliSCAStats           `json:"stats"`
+	CycloneDX         map[string]any        `json:"cyclonedx"`
+	Reachability      []CliReachabilityHit  `json:"reachability"`
+	Stats             CliSCAStats           `json:"stats"`
+	IngestionSnapshot *CliIngestionSnapshot `json:"ingestionSnapshot,omitempty"`
+	Findings          []CliFindingResult    `json:"findings,omitempty"`
+}
+
+// CliIngestionSnapshot is the persistent snapshot the server creates when
+// the authenticated org has a SaaS-side Org row. URL is the user-facing link.
+type CliIngestionSnapshot struct {
+	Uuid      string `json:"uuid"`
+	URL       string `json:"url"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+// CliFindingResult mirrors the persisted Finding for reachability correlation.
+type CliFindingResult struct {
+	FindingID      string                 `json:"findingId"`
+	FindingUuid    string                 `json:"findingUuid"`
+	PackageName    string                 `json:"packageName,omitempty"`
+	PackageVersion string                 `json:"packageVersion,omitempty"`
+	Purl           string                 `json:"purl,omitempty"`
+	IntroducedVia  []CliIntroducedViaPath `json:"introducedVia,omitempty"`
+}
+
+// CliIntroducedViaPath mirrors FindingIntroducedVia rows.
+type CliIntroducedViaPath struct {
+	PathIndex      int      `json:"pathIndex"`
+	PathLength     int      `json:"pathLength"`
+	PackageManager string   `json:"packageManager"`
+	ManifestFile   string   `json:"manifestFile"`
+	DependencyPath string   `json:"dependencyPath"`
+	DependencyKeys []string `json:"dependencyKeys"`
+}
+
+// CliSCAReachabilityRequest is the payload for the reachability post-step.
+type CliSCAReachabilityRequest struct {
+	IngestionSnapshotUuid string                   `json:"ingestionSnapshotUuid"`
+	Results               []CliReachabilityPayload `json:"results"`
+}
+
+// CliReachabilityPayload is one local reachability hit (tree-sitter OR grep-symbol).
+type CliReachabilityPayload struct {
+	CveID                  string `json:"cveId"`
+	FindingUuid            string `json:"findingUuid,omitempty"`
+	PackageName            string `json:"packageName"`
+	PackageVersion         string `json:"packageVersion,omitempty"`
+	Purl                   string `json:"purl,omitempty"`
+	Language               string `json:"language,omitempty"`
+	Ecosystem              string `json:"ecosystem,omitempty"`
+	Source                 string `json:"source"`
+	Verdict                string `json:"verdict"`
+	TreeSitterQueryUuid    string `json:"treeSitterQueryUuid,omitempty"`
+	QueryHash              string `json:"queryHash,omitempty"`
+	MatchedFile            string `json:"matchedFile,omitempty"`
+	MatchedRoutine         string `json:"matchedRoutine,omitempty"`
+	MatchedModule          string `json:"matchedModule,omitempty"`
+	MatchStartLine         int    `json:"matchStartLine,omitempty"`
+	MatchEndLine           int    `json:"matchEndLine,omitempty"`
+	EvidenceJSON           string `json:"evidenceJSON,omitempty"`
+	MemoryVexStatus        string `json:"memoryVexStatus,omitempty"`
+	MemoryVexJustification string `json:"memoryVexJustification,omitempty"`
+	MemoryVexAction        string `json:"memoryVexAction,omitempty"`
+	Severity               string `json:"severity,omitempty"`
+	FixedVersion           string `json:"fixedVersion,omitempty"`
+}
+
+// CliSCAReachabilityResponse is the success body.
+type CliSCAReachabilityResponse struct {
+	Persisted   int    `json:"persisted"`
+	SBOMUrl     string `json:"sbomUrl,omitempty"`
+	VEXUrl      string `json:"vexUrl,omitempty"`
+	OpenVexUuid string `json:"openVexUuid,omitempty"`
+}
+
+// CliSARIFRequest is the shared payload for every SARIF-shaped subcommand
+// (sast / secrets / iac / containers / license).
+type CliSARIFRequest struct {
+	SARIF    map[string]any    `json:"sarif"`
+	Findings []CliSARIFFinding `json:"findings"`
+}
+
+// CliSARIFFinding mirrors vdb-api/internal/handler/cli_persist_sarif.go.
+type CliSARIFFinding struct {
+	RuleID           string   `json:"ruleId"`
+	RuleName         string   `json:"ruleName,omitempty"`
+	Message          string   `json:"message,omitempty"`
+	Severity         string   `json:"severity,omitempty"`
+	Level            string   `json:"level,omitempty"`
+	SecuritySeverity string   `json:"securitySeverity,omitempty"`
+	File             string   `json:"file,omitempty"`
+	PackagePurl      string   `json:"packagePurl,omitempty"`
+	StartLine        int      `json:"startLine,omitempty"`
+	EndLine          int      `json:"endLine,omitempty"`
+	Fingerprint      string   `json:"fingerprint,omitempty"`
+	CWEs             []int    `json:"cwes,omitempty"`
+	Tags             []string `json:"tags,omitempty"`
+	SARIFGuid        string   `json:"sarifGuid,omitempty"`
+
+	MemoryVexStatus        string `json:"memoryVexStatus,omitempty"`
+	MemoryVexJustification string `json:"memoryVexJustification,omitempty"`
+	MemoryVexAction        string `json:"memoryVexAction,omitempty"`
+}
+
+// CliSARIFResponse is the typed response from every SARIF endpoint.
+type CliSARIFResponse struct {
+	IngestionSnapshot *CliIngestionSnapshot `json:"ingestionSnapshot,omitempty"`
+	Findings          []CliFindingResult    `json:"findings,omitempty"`
+	Stats             CliSARIFStats         `json:"stats"`
+}
+
+// CliSARIFStats summarises the run for end-of-scan CLI output.
+type CliSARIFStats struct {
+	Findings   int            `json:"findings"`
+	Rules      int            `json:"rules"`
+	BySeverity map[string]int `json:"bySeverity"`
 }
 
 type CliReachabilityHit struct {
@@ -207,6 +377,13 @@ func SnapshotEnv(cwd, cliVersion, cliCommit, cliBuildDate string) CliEnv {
 		}
 	}
 
+	env.ToolMetadata = &CliSBOMToolMetadata{
+		ToolName:    "vulnetix-cli",
+		ToolVersion: cliVersion,
+		ToolVendor:  "Vulnetix",
+		ToolHash:    cliCommit,
+	}
+
 	return env
 }
 
@@ -270,6 +447,13 @@ func (c *Client) CliSCA(env CliEnv, req CliSCARequest) (*CliResponse[CliSCARespo
 // CliScan — POST /v2/cli.scan. Superset of CliSCA with container/IaC inputs.
 func (c *Client) CliScan(env CliEnv, req CliScanRequest) (*CliResponse[CliSCAResponse], error) {
 	return cliPostWithEnv[CliSCAResponse](c, "cli.scan", env, req)
+}
+
+// CliSCAReachability — POST /v2/cli.sca-reachability. The second leg of the
+// SCA round-trip: send per-CVE local reachability evidence anchored to the
+// IngestionSnapshot.uuid returned from /v2/cli.sca.
+func (c *Client) CliSCAReachability(env CliEnv, req CliSCAReachabilityRequest) (*CliResponse[CliSCAReachabilityResponse], error) {
+	return cliPostWithEnv[CliSCAReachabilityResponse](c, "cli.sca-reachability", env, req)
 }
 
 // CliVuln — POST /v2/cli.vuln. Single-vuln envelope + metrics.
@@ -356,24 +540,27 @@ func (c *Client) CliFixes(env CliEnv, ids []string) (*CliResponse[map[string]any
 	return cliPostWithEnv[map[string]any](c, "cli.fixes", env, CliIDsRequest{IDs: ids})
 }
 
-// Stub-class endpoints (sast/secrets/iac/containers/license/ai/trends) — same
-// shape as other ids-style POSTs; backend returns shape-stable empty payloads
-// until the per-subcommand wire-up lands.
-func (c *Client) CliSAST(env CliEnv, payload any) (*CliResponse[map[string]any], error) {
-	return cliPostWithEnv[map[string]any](c, "cli.sast", env, payload)
+// SARIF-shaped scan endpoints. Each returns the same persistence response
+// (IngestionSnapshot + Findings + Stats) so the CLI's snapshot-URL output is
+// uniform across kinds.
+func (c *Client) CliSAST(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
+	return cliPostWithEnv[CliSARIFResponse](c, "cli.sast", env, req)
 }
-func (c *Client) CliSecrets(env CliEnv, payload any) (*CliResponse[map[string]any], error) {
-	return cliPostWithEnv[map[string]any](c, "cli.secrets", env, payload)
+func (c *Client) CliSecrets(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
+	return cliPostWithEnv[CliSARIFResponse](c, "cli.secrets", env, req)
 }
-func (c *Client) CliIAC(env CliEnv, payload any) (*CliResponse[map[string]any], error) {
-	return cliPostWithEnv[map[string]any](c, "cli.iac", env, payload)
+func (c *Client) CliIAC(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
+	return cliPostWithEnv[CliSARIFResponse](c, "cli.iac", env, req)
 }
-func (c *Client) CliContainers(env CliEnv, payload any) (*CliResponse[map[string]any], error) {
-	return cliPostWithEnv[map[string]any](c, "cli.containers", env, payload)
+func (c *Client) CliContainers(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
+	return cliPostWithEnv[CliSARIFResponse](c, "cli.containers", env, req)
 }
-func (c *Client) CliLicense(env CliEnv, purls []string) (*CliResponse[map[string]any], error) {
-	return cliPostWithEnv[map[string]any](c, "cli.license", env, CliPurlsRequest{Purls: purls})
+func (c *Client) CliLicense(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
+	return cliPostWithEnv[CliSARIFResponse](c, "cli.license", env, req)
 }
+
+// Remaining stub-class endpoints (ai/trends) — these still use the legacy
+// generic shape; they are not part of the SARIF persistence flow.
 func (c *Client) CliAI(env CliEnv, payload any) (*CliResponse[map[string]any], error) {
 	return cliPostWithEnv[map[string]any](c, "cli.ai", env, payload)
 }
