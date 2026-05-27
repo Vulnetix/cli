@@ -22,6 +22,11 @@ import (
 	"github.com/vulnetix/cli/v3/pkg/tty"
 )
 
+// Verbose controls whether transient retry/backoff progress messages
+// (rate-limit retries, countdown waits) are emitted to stderr. Final errors
+// are always returned to the caller. Set by the cmd layer from the --verbose flag.
+var Verbose bool
+
 const (
 	DefaultBaseURL    = "https://api.vdb.vulnetix.com"
 	DefaultAPIVersion = "/v2"
@@ -302,8 +307,10 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 				if ra := resolveRetryAfter(lastHeaders); ra > 0 {
 					backoff = ra
 				}
-				curlHint := retryCurlHint(req)
-				fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
+				if Verbose {
+					curlHint := retryCurlHint(req)
+					fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
+				}
 				countdownSleep(backoff)
 			}
 			skipBackoff = false
@@ -343,7 +350,9 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 			if rl := c.LastRateLimit; rl != nil && rl.Remaining == 0 {
 				c.applyFallbackCreds()
 				if authErr := c.addAuthHeader(req); authErr == nil {
-					fmt.Fprintf(os.Stderr, "[vdb] quota exhausted — retrying as community\n")
+					if Verbose {
+						fmt.Fprintf(os.Stderr, "[vdb] quota exhausted — retrying as community\n")
+					}
 					lastErr = fmt.Errorf("HTTP %d (quota exhausted)", resp.StatusCode)
 					skipBackoff = true
 					attempt = 0 // reset: after attempt++, becomes 1 with skipBackoff=true
@@ -437,8 +446,10 @@ func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusC
 				if ra := resolveRetryAfter(lastHeaders); ra > 0 {
 					backoff = ra
 				}
-				curlHint := retryCurlHint(req)
-				fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
+				if Verbose {
+					curlHint := retryCurlHint(req)
+					fmt.Fprintf(os.Stderr, "[vdb] %s retry %d/%d: %v%s\n", orangeText("rate limited", " "), attempt, MaxRetries, lastErr, curlHint)
+				}
 				countdownSleep(backoff)
 			}
 			skipBackoff = false
@@ -476,7 +487,9 @@ func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusC
 			if rl := c.LastRateLimit; rl != nil && rl.Remaining == 0 {
 				c.applyFallbackCreds()
 				if authErr := c.addAuthHeader(req); authErr == nil {
-					fmt.Fprintf(os.Stderr, "[vdb] quota exhausted — retrying as community\n")
+					if Verbose {
+						fmt.Fprintf(os.Stderr, "[vdb] quota exhausted — retrying as community\n")
+					}
 					lastErr = fmt.Errorf("HTTP %d (quota exhausted)", resp.StatusCode)
 					skipBackoff = true
 					attempt = 0 // reset: after attempt++, becomes 1 with skipBackoff=true
@@ -691,6 +704,10 @@ func orangeText(text, suffix string) string {
 // A single progress line is refreshed in-place via \r on terminals; for
 // non-TTY stderr a single message is printed at the start.
 func countdownSleep(d time.Duration) {
+	if !Verbose {
+		time.Sleep(d)
+		return
+	}
 	remaining := d
 	if tty.StderrIsTerminal() {
 		for {

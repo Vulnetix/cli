@@ -18,6 +18,29 @@ var (
 func aiSimpleGet(cmd *cobra.Command, label, path string) error {
 	client := newVDBClient()
 	client.APIVersion = "/v2"
+
+	logCliOp("Fetching %s via /v2/cli.ai...", label)
+
+	// Primary: /v2/cli.ai — single batched endpoint covering all four AI
+	// discovery feeds. Falls back to the legacy granular GET path on 404
+	// so we keep working until the deploy lands.
+	if c := newCliClient(); c != nil {
+		payload := map[string]any{
+			"feed":  label,
+			"cveId": aiCveID,
+			"since": aiSince,
+			"limit": aiLimit,
+		}
+		if resp, err := c.CliAI(envForCli(), payload); err == nil {
+			out, _ := json.MarshalIndent(resp.Data, "", "  ")
+			printRateLimit(c)
+			recordVDBQuery(label, aiCveID)
+			return writeOutput(cmd, out, aiOutput)
+		} else if !isCli404(err) {
+			logCliOp("  cli.ai errored (%v), falling back to legacy", err)
+		}
+	}
+
 	q := url.Values{}
 	if aiCveID != "" {
 		q.Set("cveId", aiCveID)

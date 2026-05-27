@@ -18,6 +18,19 @@ var vendorTrendsCmd = &cobra.Command{
 	Use:   "vendor-trends",
 	Short: "Vendor trend data — monthly/yearly CVE+GHSA breakdown",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logCliOp("Fetching vendor-trends via /v2/cli.trends...")
+		if c := newCliClient(); c != nil {
+			payload := map[string]any{"feed": "vendor", "vendor": vendorTrendsVendor, "year": vendorTrendsYear}
+			if resp, err := c.CliTrends(envForCli(), payload); err == nil {
+				out, _ := json.MarshalIndent(resp.Data, "", "  ")
+				printRateLimit(c)
+				recordVDBQuery("vendor-trends", vendorTrendsVendor)
+				return writeOutput(cmd, out, trendsOutput)
+			} else if !isCli404(err) {
+				logCliOp("  cli.trends errored (%v), falling back to legacy", err)
+			}
+		}
+
 		client := newVDBClient()
 		client.APIVersion = "/v2"
 		q := url.Values{}
@@ -48,6 +61,19 @@ var exploitTrendsCmd = &cobra.Command{
 	Use:   "exploit-trends",
 	Short: "Severity-tier rollup of exploit signal counts",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logCliOp("Fetching exploit-trends via /v2/cli.trends...")
+		if c := newCliClient(); c != nil {
+			payload := map[string]any{"feed": "exploit"}
+			if resp, err := c.CliTrends(envForCli(), payload); err == nil {
+				out, _ := json.MarshalIndent(resp.Data, "", "  ")
+				printRateLimit(c)
+				recordVDBQuery("exploit-trends", "")
+				return writeOutput(cmd, out, trendsOutput)
+			} else if !isCli404(err) {
+				logCliOp("  cli.trends errored (%v), falling back to legacy", err)
+			}
+		}
+
 		client := newVDBClient()
 		client.APIVersion = "/v2"
 		body, err := client.DoRequest("GET", "/exploit-trends", nil)

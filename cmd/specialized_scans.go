@@ -2,7 +2,44 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v3/internal/display"
 )
+
+// pullCliRules POSTs to the matching /v2/cli.<probe> endpoint before the
+// local scan runs so the server can deliver up-to-date rule packs, policy
+// patterns, or framework baselines that augment the embedded local
+// rule set. Operational chatter is gated behind --verbose; failures are
+// non-fatal (the local rule set always runs).
+func pullCliRules(probe string, payload any) {
+	c := newCliClient()
+	if c == nil {
+		return
+	}
+	logCliOp("Pulling server rules via /v2/cli.%s...", probe)
+	env := envForCli()
+	var (
+		resp any
+		err  error
+	)
+	switch probe {
+	case "sast":
+		resp, err = c.CliSAST(env, payload)
+	case "secrets":
+		resp, err = c.CliSecrets(env, payload)
+	case "iac":
+		resp, err = c.CliIAC(env, payload)
+	case "containers":
+		resp, err = c.CliContainers(env, payload)
+	}
+	if err != nil {
+		if !isCli404(err) {
+			logCliOp("  cli.%s errored (%v) — continuing with embedded rules", probe, err)
+		}
+		return
+	}
+	_ = resp // server rule overrides land in a follow-up; wire is in place
+	logCliOp("  cli.%s ok", probe)
+}
 
 // scaCmd runs a scan with only SCA enabled.
 var scaCmd = &cobra.Command{
@@ -13,7 +50,17 @@ var scaCmd = &cobra.Command{
 
 Performs vulnerability analysis on package dependencies only, without running
 SAST, license analysis, secret detection, container analysis, or IaC analysis.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		initDisplayContext(cmd, display.ModeText)
+		// Credentials are optional — community fallback is used when absent.
+		// But when the user IS authenticated (Pro subscription), this is
+		// what populates vdbCreds so the cli.sca call goes out under
+		// their plan rather than the embedded community fallback.
+		return resolveVDBCredentials(false)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// SCA fan-out happens inside runScanWithFeatures → tryCliSCA, no
+		// pre-pull needed here.
 		return runScanWithFeatures(cmd.Context(), cmd,
 			true,  // noSAST
 			false, // noSCA
@@ -34,7 +81,12 @@ var sastCmd = &cobra.Command{
 
 Performs static code analysis for security vulnerabilities only, without
 analyzing package dependencies, licenses, secrets, containers, or IaC.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		initDisplayContext(cmd, display.ModeText)
+		return resolveVDBCredentials(false)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		pullCliRules("sast", map[string]any{"languages": []string{}, "policy_set": ""})
 		return runScanWithFeatures(cmd.Context(), cmd,
 			false, // noSAST
 			true,  // noSCA
@@ -55,7 +107,12 @@ var secretsCmd = &cobra.Command{
 
 Detects hardcoded secrets (API keys, passwords, tokens, etc.) in source code
 only, without analyzing package dependencies, licenses, or other issues.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		initDisplayContext(cmd, display.ModeText)
+		return resolveVDBCredentials(false)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		pullCliRules("secrets", map[string]any{"policy_set": ""})
 		return runScanWithFeatures(cmd.Context(), cmd,
 			true,  // noSAST
 			true,  // noSCA
@@ -76,7 +133,12 @@ var containersCmd = &cobra.Command{
 
 Analyzes container files (Dockerfile, Containerfile) only, without analyzing
 package dependencies, licenses, or other security issues.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		initDisplayContext(cmd, display.ModeText)
+		return resolveVDBCredentials(false)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		pullCliRules("containers", map[string]any{"images": []string{}, "registries": []string{}})
 		return runScanWithFeatures(cmd.Context(), cmd,
 			true,  // noSAST
 			true,  // noSCA
@@ -97,7 +159,12 @@ var iacCmd = &cobra.Command{
 
 Analyzes Infrastructure as Code files (Terraform HCL, Nix) only, without
 analyzing package dependencies, licenses, or other security issues.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		initDisplayContext(cmd, display.ModeText)
+		return resolveVDBCredentials(false)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		pullCliRules("iac", map[string]any{"frameworks": []string{}})
 		return runScanWithFeatures(cmd.Context(), cmd,
 			true,  // noSAST
 			true,  // noSCA

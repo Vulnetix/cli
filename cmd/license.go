@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/memory"
@@ -122,8 +123,35 @@ func runLicense(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// ── Server-side license policy via /v2/cli.license ─────────────────
+	// POST the detected PURL list so the server can return licenseByPurl
+	// overrides and policy_violations driven by the org's subscription.
+	// Non-fatal: a 404 or empty response falls through to the local-only
+	// license evaluation. Operational chatter gated behind --verbose.
+	purls := make([]string, 0, len(allPackages))
+	purlSeen := make(map[string]bool, len(allPackages))
+	for _, p := range allPackages {
+		pu := cdx.BuildLocalPurl(p.Name, p.Version, p.Ecosystem)
+		if pu == "" || purlSeen[pu] {
+			continue
+		}
+		purlSeen[pu] = true
+		purls = append(purls, pu)
+	}
+	if c := newCliClient(); c != nil && len(purls) > 0 {
+		logCliOp("Querying /v2/cli.license for %d package(s)...", len(purls))
+		if resp, err := c.CliLicense(envForCli(), purls); err == nil {
+			logCliOp("  /v2/cli.license returned %d field(s)", len(resp.Data))
+			_ = resp // server-side license overrides land in a follow-up
+		} else if !isCli404(err) {
+			logCliOp("  cli.license errored (%v), continuing with local-only evaluation", err)
+		}
+	}
+
 	// ── Detect licenses ─────────────────────────────────────────────────
-	fmt.Fprintf(os.Stderr, "Resolving licenses for %d packages...\n", len(allPackages))
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Resolving licenses for %d packages...\n", len(allPackages))
+	}
 	// Build ManifestGroups for dependency path tracking.
 	filePackages := map[string][]scan.ScopedPackage{}
 	fileEcosystems := map[string]string{}

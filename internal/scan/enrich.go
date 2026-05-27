@@ -9,6 +9,24 @@ import (
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
+// AffectedSymbols carries the lower-efficacy symbol-level fallback shipped on
+// every cli.sca response (all tiers). The CLI greps local source for these
+// literal names to emit a "grep-match" reachability signal when the
+// higher-efficacy tree-sitter path has no queries for the CVE.
+type AffectedSymbols struct {
+	Routines []string
+	Files    []string
+	Modules  []string
+}
+
+// HasAny returns true if any list is populated.
+func (a *AffectedSymbols) HasAny() bool {
+	if a == nil {
+		return false
+	}
+	return len(a.Routines) > 0 || len(a.Files) > 0 || len(a.Modules) > 0
+}
+
 // EnrichedVuln extends VulnFinding with version-filtered, enriched data.
 type EnrichedVuln struct {
 	VulnFinding
@@ -39,11 +57,39 @@ type EnrichedVuln struct {
 	// MatchMethod records how this vuln was matched to the package (e.g. "name+version", "cpe", "name-only").
 	MatchMethod string
 
-	// Reachability records the outcome of a tree-sitter reachability scan
-	// for this vuln: "direct" (vulnerable code path present in the
-	// installed package), "transitive" (called from first-party code),
-	// "unreachable" (queries ran but no matches), or empty (not analysed).
+	// Reachability records the outcome of the local code-analysis pass
+	// for this vuln. Values:
+	//   "direct"      — vulnerable AST node lives inside the installed
+	//                    package's own source (highest confidence).
+	//   "transitive"  — vulnerable AST node lives in first-party code
+	//                    that calls into the affected dep.
+	//   "semantic"    — the lower-efficacy fallback: the affected
+	//                    routine / file / module name appears literally
+	//                    in your source (e.g. an import statement or
+	//                    typed usage). Indicates intent to use the
+	//                    affected element but not a proven call path.
+	//   "unreachable" — queries ran and nothing matched.
+	//   empty         — no analysis was performed (no data to compare).
 	Reachability string
+
+	// AffectedSymbols is the symbol-level fallback returned by the API for
+	// every tier. Populated whether or not tree-sitter queries existed.
+	AffectedSymbols *AffectedSymbols
+
+	// SemanticMatches lists per-CVE source hits from the semantic
+	// reachability pass — one entry per (file, line, symbol). Empty when
+	// Reachability != "semantic".
+	SemanticMatches []SemanticMatch
+}
+
+// SemanticMatch is one source hit produced by the semantic reachability
+// fallback. The CLI's pretty-printer renders these under a Semantic
+// Reachability section so users can jump straight to file:line.
+type SemanticMatch struct {
+	File   string
+	Line   int
+	Symbol string
+	Kind   string // "routine" | "file" | "module"
 }
 
 // ExploitSummary captures exploit intelligence for a vulnerability.
