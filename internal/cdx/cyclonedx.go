@@ -28,8 +28,8 @@ type BOM struct {
 
 // CDXDependency represents a CycloneDX dependency graph node.
 type CDXDependency struct {
-	Ref          string   `json:"ref"`
-	Dependencies []string `json:"dependencies,omitempty"`
+	Ref       string   `json:"ref"`
+	DependsOn []string `json:"dependsOn,omitempty"`
 }
 
 // Metadata describes the BOM creation context (CycloneDX 1.5+).

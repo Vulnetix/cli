@@ -511,8 +511,8 @@ func BuildDependencies(groups []scan.ManifestGroup, compRefs map[string]string) 
 				}
 			}
 			deps = append(deps, CDXDependency{
-				Ref:          parentRef,
-				Dependencies: childRefs,
+				Ref:       parentRef,
+				DependsOn: childRefs,
 			})
 		}
 	}
