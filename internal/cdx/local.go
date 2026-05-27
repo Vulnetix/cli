@@ -504,9 +504,11 @@ func BuildDependencies(groups []scan.ManifestGroup, compRefs map[string]string) 
 			}
 			seen[parentRef] = true
 
+			seenChild := map[string]bool{}
 			var childRefs []string
 			for _, child := range children {
-				if childRef, ok := nameToRef[child]; ok {
+				if childRef, ok := nameToRef[child]; ok && !seenChild[childRef] {
+					seenChild[childRef] = true
 					childRefs = append(childRefs, childRef)
 				}
 			}
