@@ -13,8 +13,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/analytics"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/cache"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
@@ -22,9 +20,11 @@ import (
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/sast"
 	"github.com/vulnetix/cli/v3/internal/scan"
-	"github.com/vulnetix/cli/v3/internal/update"
-	"github.com/vulnetix/cli/v3/pkg/tty"
 	"github.com/vulnetix/cli/v3/internal/tui"
+	"github.com/vulnetix/cli/v3/internal/update"
+	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v3/pkg/cache"
+	"github.com/vulnetix/cli/v3/pkg/tty"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
@@ -241,10 +241,10 @@ Examples:
 			depth, _ := cmd.Flags().GetInt("depth")
 			excludes, _ := cmd.Flags().GetStringArray("exclude")
 			showPaths, _ := cmd.Flags().GetBool("show-introduced-paths")
-		if !showPaths {
-			// Deprecated alias for backward compatibility.
-			showPaths, _ = cmd.Flags().GetBool("paths")
-		}
+			if !showPaths {
+				// Deprecated alias for backward compatibility.
+				showPaths, _ = cmd.Flags().GetBool("paths")
+			}
 			noExploits, _ := cmd.Flags().GetBool("no-exploits")
 			noRemediation, _ := cmd.Flags().GetBool("no-remediation")
 			severityThreshold, _ := cmd.Flags().GetString("severity")
@@ -323,6 +323,10 @@ Examples:
 func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA, noLicenses, noSecrets, noContainers, noIAC bool) error {
 	scanPath, _ := cmd.Flags().GetString("path")
 	depth, _ := cmd.Flags().GetInt("depth")
+	snippetContext := -1
+	if cmd.Flags().Changed("snippet-context") {
+		snippetContext, _ = cmd.Flags().GetInt("snippet-context")
+	}
 	excludes, _ := cmd.Flags().GetStringArray("exclude")
 	outputArgs, _ := cmd.Flags().GetStringArray("output")
 	// Backward compat: if --format is set and --output is not, map it.
@@ -568,6 +572,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		vulnetixSeedBOM,
 		gitCtx,
 		sysInfo,
+		snippetContext,
 	)
 }
 
@@ -653,11 +658,14 @@ func runLocalScan(
 	vulnetixSeedBOM *cdx.BOM,
 	gitCtx *gitctx.GitContext,
 	sysInfo *gitctx.SystemInfo,
+	snippetContext int,
 ) error {
 	// Create a v1 VDB client for package search (not the upload/scan v2 client).
 	client := newSearchClient()
 	var localResults []cdx.LocalScanResult
 	var allPackages []scan.ScopedPackage
+	var manifestGroups []scan.ManifestGroup
+	var licensedPackages []license.PackageLicense
 	var allVulns []scan.VulnFinding
 	// scaEnrichedFromAPI is non-nil when /v2/cli.sca successfully served the
 	// SCA lookup, letting downstream code skip the legacy EnrichVulns loop.
@@ -731,11 +739,37 @@ func runLocalScan(
 			allPackages = []scan.ScopedPackage{}
 		}
 
+		// Build manifest groups (dependency graphs) and run per-package license
+		// detection BEFORE the SCA round-trip so the payload can carry accurate
+		// introduced-via chains and per-dependency licenses. License detection
+		// always runs here so the API receives it; the result is reused for the
+		// later SBOM/evaluation step (display is still gated by --no-licenses).
+		filePackages := map[string][]scan.ScopedPackage{}
+		fileEcosystems := map[string]string{}
+		for _, r := range localResults {
+			filePackages[r.File.RelPath] = r.Packages
+			if r.File.ManifestInfo != nil {
+				fileEcosystems[r.File.RelPath] = r.File.ManifestInfo.Ecosystem
+			}
+		}
+		manifestGroups = scan.BuildManifestGroups(filePackages, fileEcosystems)
+		scan.PopulateInstalledEdges(manifestGroups, rootPath)
+
+		licenseByKey := map[string]string{}
+		if len(allPackages) > 0 {
+			licensedPackages = license.DetectLicenses(allPackages, manifestGroups)
+			for _, lp := range licensedPackages {
+				if lp.LicenseSpdxID != "" && lp.LicenseSpdxID != "UNKNOWN" {
+					licenseByKey[lp.PackageName+"@"+lp.PackageVersion] = lp.LicenseSpdxID
+				}
+			}
+		}
+
 		// ── Try /v2/cli.sca first (one round-trip for the whole PURL list) ───
 		// This replaces the per-PURL LookupVulns + EnrichVulns fan-out below.
 		// Falls back to the legacy two-loop path on failure or when the
 		// operator sets VULNETIX_CLI_SCA_API=off.
-		apiServed, apiVulns, apiEnriched := tryCliSCA(allPackages, gitCtx, sysInfo, rootPath)
+		apiServed, apiVulns, apiEnriched := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath)
 		if apiServed {
 			allVulns = apiVulns
 			scaEnrichedFromAPI = apiEnriched
@@ -848,20 +882,21 @@ func runLocalScan(
 		localResults[i].EnrichedVulns = deduped
 	}
 
-	// Build manifest groups for dep graph display.
-	filePackages := map[string][]scan.ScopedPackage{}
-	fileEcosystems := map[string]string{}
-	for _, r := range localResults {
-		filePackages[r.File.RelPath] = r.Packages
-		if r.File.ManifestInfo != nil {
-			fileEcosystems[r.File.RelPath] = r.File.ManifestInfo.Ecosystem
+	// Manifest groups + dependency-graph edges were built before the SCA
+	// round-trip (see above). When SCA is disabled they remain nil, which the
+	// downstream SBOM/display code handles as "no dependency tree".
+	if manifestGroups == nil {
+		filePackages := map[string][]scan.ScopedPackage{}
+		fileEcosystems := map[string]string{}
+		for _, r := range localResults {
+			filePackages[r.File.RelPath] = r.Packages
+			if r.File.ManifestInfo != nil {
+				fileEcosystems[r.File.RelPath] = r.File.ManifestInfo.Ecosystem
+			}
 		}
+		manifestGroups = scan.BuildManifestGroups(filePackages, fileEcosystems)
+		scan.PopulateInstalledEdges(manifestGroups, rootPath)
 	}
-	manifestGroups := scan.BuildManifestGroups(filePackages, fileEcosystems)
-
-	// Populate dependency graph edges from locally installed packages.
-	// This improves SBOM dependency tree accuracy and enables --paths for all ecosystems.
-	scan.PopulateInstalledEdges(manifestGroups, rootPath)
 
 	// Collect IDS rules.
 	idsRules := scan.CollectIDSRules(enrichedVulns)
@@ -1142,7 +1177,7 @@ func runLocalScan(
 			// SARIF doc per kind to /v2/cli.{sast,secrets,iac,containers}.
 			// Snapshot URLs print to stderr on success. Non-fatal: a local
 			// SARIF is still the source of truth on disk.
-			postScanSARIF(sastReport, gitCtx)
+			postScanSARIF(sastReport, gitCtx, rootPath, snippetContext)
 		}
 	}
 
@@ -1203,7 +1238,11 @@ func runLocalScan(
 	// ── License analysis (unless --no-licenses) ────────────────────────────
 	var licenseResult *license.AnalysisResult
 	if !noLicenses {
-		licensedPackages := license.DetectLicenses(allPackages, manifestGroups)
+		// Reuse the license detection run before the SCA round-trip; only
+		// recompute if it was skipped (e.g. SCA disabled).
+		if licensedPackages == nil {
+			licensedPackages = license.DetectLicenses(allPackages, manifestGroups)
+		}
 		licenseResult = license.Evaluate(licensedPackages, license.EvalConfig{Mode: "inclusive"})
 
 		// Append license findings as CDX vulnerabilities.
@@ -1228,8 +1267,8 @@ func runLocalScan(
 					Ecosystem:       f.Package.Ecosystem,
 					Severity:        f.Severity,
 					Status:          "affected",
-					Source:           license.CDXSourceName,
-					Versions:         &memory.VersionInfo{Current: f.Package.PackageVersion},
+					Source:          license.CDXSourceName,
+					Versions:        &memory.VersionInfo{Current: f.Package.PackageVersion},
 					SourceFiles:     []string{f.Package.SourceFile},
 					IntroducedPaths: f.IntroducedPaths,
 					PathCount:       f.PathCount,
@@ -3073,6 +3112,7 @@ func init() {
 	scanCmd.Flags().Bool("no-containers", false, "Skip container file detection")
 	scanCmd.Flags().Bool("evaluate-iac", false, "Enable Infrastructure as Code detection")
 	scanCmd.Flags().Bool("no-iac", false, "Skip Infrastructure as Code detection")
+	scanCmd.Flags().Int("snippet-context", -1, "Surrounding non-empty source lines to capture around each SARIF finding (-1 = dynamic: 3 if span <10 lines else 5; 0 disables)")
 
 	// --from-memory and --fresh-* flags (scan command only)
 	scanCmd.Flags().Bool("from-memory", false, "Reconstruct scan pretty output from .vulnetix/sbom.cdx.json without API calls")

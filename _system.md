@@ -227,13 +227,28 @@ For every authenticated submission the server writes, inside one PostgreSQL tran
 
 - **`Artifact` + `Link`** — primary artefact (CycloneDX or SARIF) in S3 at `{orgId}/{cyclonedx|sarif}/{prefix}-{snapshotUuid}.json`. Bucket name = the new bucket we landed on (column names `r2Bucket`/`r2Key` retained from the R2 era).
 - **`ArtifactPipeline`** — orgUuid scope, `source = CLI_{CATEGORY}`, `processingState = COMPLETED`, `createdByService = vulnetix-cli`.
-- **`ScannerRun`** — `toolName = vulnetix-cli-{kind}`, `category = SCA|SAST|SECRETS|IAC|OCI|LICENSE`, `vendor = Vulnetix`, `source = cli`.
-- **For SCA**: `CycloneDXInfo` + per-package `Dependency` + `DependencyRegistry` + `SBOMLicense` + `CycloneDXInfoLicense` + `PackageManagerDetection` + `PackageManagerCapability` + `SBOMToolMetadata` + per-finding `FindingIntroducedVia` chains.
-- **For SARIF flows**: `SARIFInfo` + per-result `SarifResults`.
+- **`ScannerRun`** — `toolName = Vulnetix {Sub}` (`Vulnetix SCA`/`Vulnetix SAST`/`Vulnetix Secrets`/`Vulnetix IaC`/`Vulnetix Containers`/`Vulnetix License`), `category = SCA|SAST|SECRETS|IAC|OCI|LICENSE`, `vendor = Vulnetix`, `source = www.vulnetix.com/vdb`. The same `toolName`/`source` are written to `CycloneDXInfo`, `SARIFInfo`, `IngestionSnapshot`, `SBOMToolMetadata`, `Finding`, and the server-built CycloneDX `metadata.tools[0]`. (A CVE's advisory `source` — nvd/github/etc. — is preserved separately on the vuln rating, untouched.)
+- **`CliScanEnvironment`** — one row per ScannerRun capturing the full CLI env block: cliVersion/commit/buildDate, platform/arch/os, hostname/shell, git branch/commit/author/remotes/dirty/repoRoot, memoryPath. Previously sent but dropped; now persisted for every CLI endpoint (SCA + SARIF).
+- **For SCA**: `CycloneDXInfo` + per-package `Dependency` (now incl. `license`) + `DependencyRegistry` + `SBOMLicense` + `CycloneDXInfoLicense` + `SBOMToolMetadata` + per-finding `FindingIntroducedVia` chains (now the full root→leaf path from the dependency graph, not `[<unknown>, key]`) + per-manifest `CliManifest` (raw body archived as a `type='manifest'` Artifact in S3 at `{orgId}/manifests/{sha256}{ext}`, with ecosystem/provider/registry/sha256/declaredLicense) + `PackageManagerDetection` (stamped with `scannerRunUuid`) + `PackageManagerCapability` (with resolved `binary`/`binaryPath`/`version`/`versionCommand`/`authoritative`).
+- **For SARIF flows**: `SARIFInfo` + per-result `SarifResults` (now incl. `codeSnippet`/`snippetStartLine`/`snippetEndLine` — the captured source context for file+line findings).
 - **Per-finding**: `Finding` (linked to the scanner run + sarif/cdx artefact) + `Triage` (`analysisState` mirrors VEX status when memory.yaml carries one, otherwise `in_triage`).
 - **`OpenVex`** + one `OpenVexStatement` per finding + one `VexAnalysis` bridge row per finding (unique on `findingUuid`). The CycloneDX VEX (SCA only) and OpenVEX (every kind) are both stored to S3 and registered in `Artifact` + `Link`. `ScannerRun.vexArtifactUuid` points at the VEX artefact.
 - **`IngestionSnapshot`** — the row the snapshot URL resolves to. Severity counters are bucketed from the submission.
 - **`AccessLog`** — one row per CLI call.
+
+### Per-package licenses, binary resolution, and SARIF snippets
+
+- **Per-package licenses (SCA)**: `vulnetix scan`/`sca` always runs the per-dependency license waterfall (`license.DetectLicenses`) and attaches each package's SPDX id to the SCA payload → `Dependency.license`. Detection runs regardless of `--no-licenses`; that flag only gates whether license output is *displayed* and whether the local license evaluation/findings run.
+- **Package-manager binary resolution**: detected manifests map to candidate binaries (e.g. `pyproject.toml` → pip/uv/poetry/pdm/hatch/pipenv); a lockfile narrows to the authoritative resolver (`uv.lock` → uv). Each candidate is probed on `PATH` and, when found, its path + version are captured via a per-binary version command. See `internal/scan/binaries.go`.
+- **SARIF code snippets**: for findings with a file + line, the CLI captures the affected source plus surrounding context. `--snippet-context` controls the window: `-1` (default) is dynamic (3 non-empty surrounding lines when the affected span is < 10 lines, else 5); `>0` is a fixed count; `0` disables capture. Blank lines are skipped when counting but kept in the emitted text so line numbers stay aligned.
+
+### Manifest bodies on chunk 0 only
+
+The SCA round-trip chunks PURLs (25/req). Raw manifest bodies ride only on the chunk-0 env (the chunk that carries `Packages` and triggers persistence); discovery-only chunks send a stripped env to stay within the 8 MiB request cap.
+
+### Follow-ups (not yet implemented)
+
+- **Non-package-manager dependency detection** — dependencies not declared in a manifest (installed `node_modules/*/package.json`, site-packages `*.dist-info/METADATA`, `*.jar` `MANIFEST.MF`/`pom.properties`, vendored dirs) are not yet detected. When added they will flow through the same `Dependency`/`CliManifest` path with a `detectionSource=filesystem` marker.
 
 ### Memory-yaml VEX is honoured
 

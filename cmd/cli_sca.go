@@ -15,7 +15,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -31,7 +30,7 @@ import (
 
 const scaAPIDisabledEnv = "VULNETIX_CLI_SCA_API"
 
-func tryCliSCA(allPackages []scan.ScopedPackage, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln) {
+func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln) {
 	if v := os.Getenv(scaAPIDisabledEnv); v == "off" || v == "0" || v == "false" {
 		return false, nil, nil
 	}
@@ -75,15 +74,22 @@ func tryCliSCA(allPackages []scan.ScopedPackage, gitCtx *gitctx.GitContext, sysI
 	env := buildCliEnv(gitCtx, sysInfo)
 	enrichCliEnvForSCA(&env, scanPath, allPackages, gitCtx)
 
+	// The heavy env (raw manifest bodies) rides only on chunk 0 — the chunk that
+	// carries Packages and triggers server-side persistence. Subsequent chunks
+	// are discovery-only, so we strip the manifest bodies to stay within the
+	// request size cap.
+	lightEnv := env
+	lightEnv.Manifests = stripManifestContent(env.Manifests)
+
 	// Per-PURL Packages list with manifest + chain info. Sent on the first
 	// chunk only so the server creates exactly one IngestionSnapshot for the
 	// whole scan (subsequent chunks set Packages=nil and are discovery-only).
-	allCliPackages := buildCliPackages(allPackages)
+	allCliPackages := buildCliPackages(allPackages, manifestGroups, licenseByKey)
 
 	mergedComponents := make([]any, 0, len(uniquePurls))
 	mergedVulns := make([]any, 0)
 	mergedReach := make([]vdb.CliReachabilityHit, 0)
-	tierObserved := ""  // "pro" wins over any spurious community batch
+	tierObserved := "" // "pro" wins over any spurious community batch
 	var anyTierGated bool
 	var batchesOK, batchesFailed int
 	var firstErr error
@@ -95,10 +101,12 @@ func tryCliSCA(allPackages []scan.ScopedPackage, gitCtx *gitctx.GitContext, sysI
 			Purls:   chunk,
 			Options: vdb.CliSCAOptions{IncludeReachability: boolPtrCLI(true)},
 		}
+		reqEnv := lightEnv
 		if i == 0 {
 			req.Packages = allCliPackages
+			reqEnv = env
 		}
-		resp, err := client.CliSCA(env, req)
+		resp, err := client.CliSCA(reqEnv, req)
 		if err != nil {
 			batchesFailed++
 			if firstErr == nil {
@@ -200,7 +208,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, gitCtx *gitctx.GitContext, sysI
 // and `[manifest-derived-root, ..., name@version]` for transitives (chain
 // length 2 for transitives is a fidelity loss vs. full upstream-walk, but
 // the manifestFile + IsDirect flag still let the server bucket the path).
-func buildCliPackages(pkgs []scan.ScopedPackage) []vdb.CliPackageEntry {
+func buildCliPackages(pkgs []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string) []vdb.CliPackageEntry {
 	if len(pkgs) == 0 {
 		return nil
 	}
@@ -216,12 +224,7 @@ func buildCliPackages(pkgs []scan.ScopedPackage) []vdb.CliPackageEntry {
 				scope = "transitive"
 			}
 		}
-		chain := []string{key}
-		if !p.IsDirect {
-			// Mark the missing intermediate hops explicitly so the server
-			// knows the path was reconstructed from a flat lockfile.
-			chain = []string{"<unknown>", key}
-		}
+		chain := introducedViaChain(p, key, manifestGroups)
 		out = append(out, vdb.CliPackageEntry{
 			Purl:          purl,
 			Name:          p.Name,
@@ -229,10 +232,35 @@ func buildCliPackages(pkgs []scan.ScopedPackage) []vdb.CliPackageEntry {
 			Ecosystem:     p.Ecosystem,
 			ManifestFile:  p.SourceFile,
 			Scope:         scope,
+			License:       licenseByKey[key],
 			IntroducedVia: [][]string{chain},
 		})
 	}
 	return out
+}
+
+// introducedViaChain computes the full root→leaf dependency chain for a package
+// using the per-ecosystem dependency graph. Direct deps return [key]; transitive
+// deps return the real chain from a direct dep when the graph has edges,
+// otherwise the reconstructed [<unknown>, key] fallback.
+func introducedViaChain(p scan.ScopedPackage, key string, manifestGroups []scan.ManifestGroup) []string {
+	if p.IsDirect {
+		return []string{key}
+	}
+	for _, mg := range manifestGroups {
+		if mg.Graph == nil || mg.Graph.IsDirect(p.Name) {
+			continue
+		}
+		if path := mg.Graph.FindPath(p.Name); len(path) > 1 {
+			// Graph paths are package names; append the version to the leaf so the
+			// chain ends with the resolved key the server can match.
+			chain := make([]string, len(path))
+			copy(chain, path)
+			chain[len(chain)-1] = key
+			return chain
+		}
+	}
+	return []string{"<unknown>", key}
 }
 
 // postReachabilityToSnapshot sends the local tree-sitter + grep-symbol
@@ -243,6 +271,7 @@ func buildCliPackages(pkgs []scan.ScopedPackage) []vdb.CliPackageEntry {
 //   - upsert OpenVex + VexAnalysis records
 //   - merge reachability properties into the S3-stored SBOM
 //   - emit a CycloneDX VEX artefact alongside the SBOM
+//
 // Memory-yaml VEX hints are attached so user-authored decisions win over the
 // auto-computed verdict.
 func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vdb.CliIngestionSnapshot, persisted []vdb.CliFindingResult, enriched []scan.EnrichedVuln, gitCtx *gitctx.GitContext) {
@@ -601,12 +630,26 @@ func buildCliEnv(gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo) vdb.CliE
 		}
 	}
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
-		ToolName:    "vulnetix-cli",
+		ToolName:    "Vulnetix SCA",
 		ToolVersion: version,
 		ToolVendor:  "Vulnetix",
 		ToolHash:    commit,
 	}
 	return env
+}
+
+// stripManifestContent returns a copy of the manifests with raw bodies removed,
+// for the discovery-only chunks that don't trigger persistence.
+func stripManifestContent(in []vdb.CliManifestMetadata) []vdb.CliManifestMetadata {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]vdb.CliManifestMetadata, len(in))
+	copy(out, in)
+	for i := range out {
+		out[i].Content = ""
+	}
+	return out
 }
 
 // enrichCliEnvForSCA populates the SaaS-persistence-only metadata: repo-level
@@ -656,6 +699,9 @@ func enrichCliEnvForSCA(env *vdb.CliEnv, scanPath string, allPackages []scan.Sco
 			SHA256:      hex.EncodeToString(h[:]),
 			Size:        int(info.Size()),
 			ContentType: detectManifestContentType(base),
+			Registry:    registryForEcosystem(pkg.Ecosystem),
+			Provider:    providerForEcosystem(pkg.Ecosystem),
+			Content:     string(body),
 		})
 	}
 
@@ -675,51 +721,73 @@ func enrichCliEnvForSCA(env *vdb.CliEnv, scanPath string, allPackages []scan.Sco
 		})
 	}
 
-	// Capabilities: probe each binary on PATH. Best-effort.
-	for eco := range seenEco {
-		env.Capabilities = append(env.Capabilities, probePackageManagerCapabilities(eco)...)
+	// Capabilities: map detected manifest/lockfile basenames → candidate
+	// binaries, narrow via lockfiles, and probe each binary for path + version.
+	presentFiles := make([]string, 0, len(env.Manifests))
+	for _, m := range env.Manifests {
+		presentFiles = append(presentFiles, filepath.Base(m.Path))
+	}
+	for _, rb := range scan.ResolvePackageManagerBinaries(presentFiles) {
+		env.Capabilities = append(env.Capabilities, vdb.CliPMCapability{
+			Ecosystem:      rb.Ecosystem,
+			CapabilityName: "binary:" + rb.Binary,
+			Supported:      true,
+			Detected:       rb.Detected,
+			Confidence:     boolToConfidence(rb.Detected),
+			Evidence:       rb.BinaryPath,
+			Binary:         rb.Binary,
+			BinaryPath:     rb.BinaryPath,
+			Version:        rb.Version,
+			VersionCommand: rb.VersionCommand,
+			Authoritative:  rb.Authoritative,
+		})
 	}
 }
 
-// probePackageManagerCapabilities runs a `<binary> --version` and reports back
-// whether the binary is installed. Confidence is 1.0 when found, 0.5 otherwise.
-func probePackageManagerCapabilities(ecosystem string) []vdb.CliPMCapability {
-	binaries := map[string][]string{
-		"npm":    {"npm"},
-		"yarn":   {"yarn"},
-		"pnpm":   {"pnpm"},
-		"pypi":   {"pip", "uv", "poetry"},
-		"python": {"pip", "uv", "poetry"},
-		"pip":    {"pip"},
-		"go":     {"go"},
-		"golang": {"go"},
-		"cargo":  {"cargo"},
-		"rust":   {"cargo"},
-		"gem":    {"gem", "bundle"},
-		"maven":  {"mvn"},
-		"java":   {"mvn", "gradle"},
-		"composer": {"composer"},
-		"php":    {"composer"},
-		"nuget":  {"dotnet"},
+// registryForEcosystem returns the canonical registry base URL for an ecosystem.
+func registryForEcosystem(eco string) string {
+	switch strings.ToLower(eco) {
+	case "npm":
+		return "https://registry.npmjs.org"
+	case "pypi", "pip", "python":
+		return "https://pypi.org"
+	case "golang", "go":
+		return "https://proxy.golang.org"
+	case "cargo", "rust", "crates":
+		return "https://crates.io"
+	case "rubygems", "gem":
+		return "https://rubygems.org"
+	case "maven", "java":
+		return "https://repo.maven.apache.org"
+	case "composer", "packagist", "php":
+		return "https://packagist.org"
+	case "nuget", ".net":
+		return "https://www.nuget.org"
 	}
-	var out []vdb.CliPMCapability
-	for _, bin := range binaries[strings.ToLower(ecosystem)] {
-		detected := false
-		evidence := ""
-		if path, err := exec.LookPath(bin); err == nil {
-			detected = true
-			evidence = path
-		}
-		out = append(out, vdb.CliPMCapability{
-			Ecosystem:      ecosystem,
-			CapabilityName: "binary:" + bin,
-			Supported:      true,
-			Detected:       detected,
-			Confidence:     boolToConfidence(detected),
-			Evidence:       evidence,
-		})
+	return ""
+}
+
+// providerForEcosystem returns the human-readable registry provider name.
+func providerForEcosystem(eco string) string {
+	switch strings.ToLower(eco) {
+	case "npm":
+		return "npm"
+	case "pypi", "pip", "python":
+		return "PyPI"
+	case "golang", "go":
+		return "Go Module Proxy"
+	case "cargo", "rust", "crates":
+		return "crates.io"
+	case "rubygems", "gem":
+		return "RubyGems"
+	case "maven", "java":
+		return "Maven Central"
+	case "composer", "packagist", "php":
+		return "Packagist"
+	case "nuget", ".net":
+		return "NuGet"
 	}
-	return out
+	return ""
 }
 
 func boolToConfidence(b bool) float64 {

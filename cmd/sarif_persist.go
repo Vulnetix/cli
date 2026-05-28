@@ -42,7 +42,7 @@ var sarifKinds = []sarifScanKind{
 // postScanSARIF is the single entry point. Called from scan.go after the local
 // SARIF is on disk. Splits findings by rule kind, posts each non-empty kind to
 // its matching /v2/cli.<kind> endpoint, and prints the resulting snapshot URLs.
-func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext) {
+func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int) {
 	if report == nil || len(report.Findings) == 0 {
 		return
 	}
@@ -59,13 +59,22 @@ func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext) {
 		if !ok || len(bucket.findings) == 0 {
 			continue
 		}
-		submitSARIFKind(client, env, sk, bucket, memRecords)
+		submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext)
 	}
 }
 
 // submitSARIFKind builds the SARIF doc for one kind and POSTs it.
-func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord) {
+func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int) {
 	sarifLog := sast.BuildSARIF(bucket.findings, bucket.rules, version)
+
+	// Make the per-kind tool intent explicit (server is authoritative, but this
+	// keeps the env block self-describing): "Vulnetix SAST", "Vulnetix IaC", etc.
+	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
+		ToolName:    "Vulnetix " + sk.label,
+		ToolVersion: version,
+		ToolVendor:  "Vulnetix",
+		ToolHash:    commit,
+	}
 
 	// Convert local findings → API typed findings, enriched with memory.yaml VEX.
 	apiFindings := make([]vdb.CliSARIFFinding, 0, len(bucket.findings))
@@ -79,6 +88,7 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 			tags = append(tags, f.Metadata.Tags...)
 		}
 		mem := memHitForRule(memRecords, f.RuleID)
+		snippet, snipStart, snipEnd := captureSnippet(rootPath, f.ArtifactURI, f.StartLine, f.EndLine, snippetContext)
 		apiFindings = append(apiFindings, vdb.CliSARIFFinding{
 			RuleID:                 f.RuleID,
 			RuleName:               ruleName,
@@ -92,6 +102,9 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 			CWEs:                   cwes,
 			Tags:                   tags,
 			SARIFGuid:              f.Fingerprint,
+			CodeSnippet:            snippet,
+			SnippetStartLine:       snipStart,
+			SnippetEndLine:         snipEnd,
 			MemoryVexStatus:        mem.Status,
 			MemoryVexJustification: mem.Justification,
 			MemoryVexAction:        mem.ActionResponse,
@@ -236,7 +249,7 @@ func memHitForRule(records map[string]memory.FindingRecord, ruleID string) memor
 // policy violation in `result` and POSTs it to /v2/cli.license. Mirrors
 // postScanSARIF but the input source is the license analyzer rather than the
 // SAST engine.
-func postLicenseSARIF(result *license.AnalysisResult, rootPath string) {
+func postLicenseSARIF(result *license.AnalysisResult, rootPath string, snippetContext int) {
 	if result == nil {
 		return
 	}
@@ -290,6 +303,8 @@ func postLicenseSARIF(result *license.AnalysisResult, rootPath string) {
 
 	apiFindings := make([]vdb.CliSARIFFinding, 0, len(findings))
 	memRecords := loadMemoryRecordsForSARIF(gitctx.Collect(rootPath))
+	// License findings are package-level (no source line), so no snippet capture.
+	_ = snippetContext
 	for _, f := range findings {
 		mem := memHitForRule(memRecords, f.RuleID)
 		apiFindings = append(apiFindings, vdb.CliSARIFFinding{
@@ -310,6 +325,12 @@ func postLicenseSARIF(result *license.AnalysisResult, rootPath string) {
 	}
 
 	env := envForCli()
+	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
+		ToolName:    "Vulnetix License",
+		ToolVersion: version,
+		ToolVendor:  "Vulnetix",
+		ToolHash:    commit,
+	}
 	resp, err := client.CliLicense(env, vdb.CliSARIFRequest{
 		SARIF:    sarifLogToMap(sarifLog),
 		Findings: apiFindings,
@@ -326,6 +347,65 @@ func postLicenseSARIF(result *license.AnalysisResult, rootPath string) {
 	if !silent {
 		fmt.Fprintf(os.Stderr, "License snapshot: %s\n", resp.Data.IngestionSnapshot.URL)
 	}
+}
+
+// captureSnippet reads the affected source span plus surrounding context for a
+// finding that has a file + line. snippetContext semantics:
+//   - 0  → capture disabled (returns "")
+//   - >0 → that many non-empty surrounding lines on each side
+//   - <0 → dynamic: 3 surrounding lines when the affected span is < 10 lines, else 5
+//
+// Blank/whitespace-only lines are skipped when counting context but kept in the
+// emitted text so line numbers stay aligned. Returns the snippet plus the actual
+// first/last 1-based line numbers captured.
+func captureSnippet(rootPath, file string, startLine, endLine, snippetContext int) (string, int, int) {
+	if snippetContext == 0 || file == "" || startLine <= 0 {
+		return "", 0, 0
+	}
+	if endLine < startLine {
+		endLine = startLine
+	}
+	context := snippetContext
+	if context < 0 {
+		if endLine-startLine+1 < 10 {
+			context = 3
+		} else {
+			context = 5
+		}
+	}
+
+	path := file
+	if !filepath.IsAbs(path) && rootPath != "" {
+		path = filepath.Join(rootPath, file)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", 0, 0
+	}
+	lines := strings.Split(string(data), "\n")
+	n := len(lines)
+	if startLine > n {
+		return "", 0, 0
+	}
+	if endLine > n {
+		endLine = n
+	}
+
+	top := startLine
+	for cnt := 0; top > 1 && cnt < context; {
+		top--
+		if strings.TrimSpace(lines[top-1]) != "" {
+			cnt++
+		}
+	}
+	bot := endLine
+	for cnt := 0; bot < n && cnt < context; {
+		bot++
+		if strings.TrimSpace(lines[bot-1]) != "" {
+			cnt++
+		}
+	}
+	return strings.Join(lines[top-1:bot], "\n"), top, bot
 }
 
 func severityToLevel(severity string) string {

@@ -225,7 +225,9 @@ func runLicense(cmd *cobra.Command, args []string) error {
 	}
 
 	// ── Phase-2: persist license SARIF to /v2/cli.license ──────────────
-	postLicenseSARIF(result, rootPath)
+	// License findings are package-level (no source line), so snippet capture
+	// is not applicable (0).
+	postLicenseSARIF(result, rootPath, 0)
 
 	// ── Output ──────────────────────────────────────────────────────────
 	switch outputFmt {

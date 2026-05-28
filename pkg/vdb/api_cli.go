@@ -49,7 +49,9 @@ type CliLicenseHit struct {
 	Text        string `json:"text,omitempty"`
 }
 
-// CliManifestMetadata describes one manifest the CLI parsed.
+// CliManifestMetadata describes one manifest the CLI parsed. Content is the raw
+// file body; it is populated only on the chunk-0 env (the chunk that carries
+// Packages, where persistence runs) to keep within the request size cap.
 type CliManifestMetadata struct {
 	Path        string `json:"path"`
 	Ecosystem   string `json:"ecosystem,omitempty"`
@@ -57,7 +59,10 @@ type CliManifestMetadata struct {
 	SHA256      string `json:"sha256,omitempty"`
 	Size        int    `json:"size,omitempty"`
 	ContentType string `json:"contentType,omitempty"`
-	License     string `json:"license,omitempty"`
+	License     string `json:"license,omitempty"` // declared license from the manifest field
+	Provider    string `json:"provider,omitempty"`
+	Registry    string `json:"registry,omitempty"`
+	Content     string `json:"content,omitempty"` // raw manifest body (chunk-0 only)
 }
 
 // CliSBOMToolMetadata describes the CLI tool itself for the SBOMToolMetadata row.
@@ -68,7 +73,9 @@ type CliSBOMToolMetadata struct {
 	ToolHash    string `json:"toolHash,omitempty"`
 }
 
-// CliPMCapability — one detected package-manager capability on the host.
+// CliPMCapability — one detected package-manager capability on the host. The
+// binary/version fields describe a concrete resolver binary; Authoritative is
+// true when a lockfile narrowed the manifest to this specific binary.
 type CliPMCapability struct {
 	Ecosystem      string  `json:"ecosystem"`
 	CapabilityName string  `json:"capabilityName"`
@@ -77,6 +84,11 @@ type CliPMCapability struct {
 	Confidence     float64 `json:"confidence,omitempty"`
 	Evidence       string  `json:"evidence,omitempty"`
 	FilePath       string  `json:"filePath,omitempty"`
+	Binary         string  `json:"binary,omitempty"`
+	BinaryPath     string  `json:"binaryPath,omitempty"`
+	Version        string  `json:"version,omitempty"`
+	VersionCommand string  `json:"versionCommand,omitempty"`
+	Authoritative  bool    `json:"authoritative,omitempty"`
 }
 
 // CliGitContext is the subset of repo state useful for triage correlation.
@@ -148,6 +160,7 @@ type CliPackageEntry struct {
 	Ecosystem     string     `json:"ecosystem,omitempty"`
 	ManifestFile  string     `json:"manifestFile,omitempty"`
 	Scope         string     `json:"scope,omitempty"`
+	License       string     `json:"license,omitempty"`
 	IntroducedVia [][]string `json:"introducedVia,omitempty"`
 }
 
@@ -250,6 +263,10 @@ type CliSARIFFinding struct {
 	CWEs             []int    `json:"cwes,omitempty"`
 	Tags             []string `json:"tags,omitempty"`
 	SARIFGuid        string   `json:"sarifGuid,omitempty"`
+
+	CodeSnippet      string `json:"codeSnippet,omitempty"`
+	SnippetStartLine int    `json:"snippetStartLine,omitempty"`
+	SnippetEndLine   int    `json:"snippetEndLine,omitempty"`
 
 	MemoryVexStatus        string `json:"memoryVexStatus,omitempty"`
 	MemoryVexJustification string `json:"memoryVexJustification,omitempty"`
