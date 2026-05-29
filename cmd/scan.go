@@ -672,6 +672,9 @@ func runLocalScan(
 	// scaInsights holds per-package policy-gate signals returned by /v2/cli.sca
 	// (publish dates, version lists, EOL, malware) consumed by the gate block.
 	var scaInsights []vdb.CliPackageInsight
+	// scaSnapshotUuid is the IngestionSnapshot UUID from /v2/cli.sca; used to
+	// report the gate finalization back to the server after evaluation.
+	var scaSnapshotUuid string
 	isInteractive := tty.IsInteractive() && !noProgress
 
 	queryCtx := ctx
@@ -777,11 +780,12 @@ func runLocalScan(
 			EOL:        blockEOL,
 			Malware:    blockMalware,
 		}
-		apiServed, apiVulns, apiEnriched, apiInsights := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts)
+		apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts)
 		if apiServed {
 			allVulns = apiVulns
 			scaEnrichedFromAPI = apiEnriched
 			scaInsights = apiInsights
+			scaSnapshotUuid = apiSnapshotUuid
 		} else {
 			// ── Count unique packages to query ───────────────────────────────
 			uniqueCount := countUniquePackages(allPackages)
@@ -1572,6 +1576,38 @@ func runLocalScan(
 			})
 		}
 	}
+
+	// ── Report finalization ───────────────────────────────────────────────
+	// Once all gates are decided, report the outcome (exit code + per-gate
+	// breaches) back to the server against the scan's snapshot so the env row
+	// records what the gates decided. Runs on every scan (pass or fail) and is
+	// best-effort — it never affects this scan's own exit code.
+	//
+	// controlFlags records EVERY control flag the user set — not just the gates
+	// that breached — so the GUI can reconstruct the full invocation.
+	controlFlags := []vdb.CliControlFlag{}
+	if severityThreshold != "" {
+		controlFlags = append(controlFlags, vdb.CliControlFlag{Flag: "--severity", Value: severityThreshold})
+	}
+	if exploitThreshold != "" {
+		controlFlags = append(controlFlags, vdb.CliControlFlag{Flag: "--exploits", Value: exploitThreshold})
+	}
+	if versionLag > 0 {
+		controlFlags = append(controlFlags, vdb.CliControlFlag{Flag: "--version-lag", Value: fmt.Sprintf("%d", versionLag)})
+	}
+	if cooldownDays > 0 {
+		controlFlags = append(controlFlags, vdb.CliControlFlag{Flag: "--cooldown", Value: fmt.Sprintf("%d", cooldownDays)})
+	}
+	if blockMalware {
+		controlFlags = append(controlFlags, vdb.CliControlFlag{Flag: "--block-malware", Value: "true"})
+	}
+	if blockEOL {
+		controlFlags = append(controlFlags, vdb.CliControlFlag{Flag: "--block-eol", Value: "true"})
+	}
+	if blockUnpinned {
+		controlFlags = append(controlFlags, vdb.CliControlFlag{Flag: "--block-unpinned", Value: "true"})
+	}
+	reportScanFinalization(scaSnapshotUuid, breaches, controlFlags, gitCtx, sysInfo)
 
 	// ── Output ────────────────────────────────────────────────────────────
 
