@@ -262,6 +262,37 @@ type CliReachabilityPayload struct {
 	FixedVersion           string `json:"fixedVersion,omitempty"`
 }
 
+// CliFinalizeRequest reports the scan's policy-gate decision back to the
+// server, anchored to the IngestionSnapshot.uuid from /v2/cli.sca.
+type CliFinalizeRequest struct {
+	IngestionSnapshotUuid string           `json:"ingestionSnapshotUuid"`
+	ExitCode              int              `json:"exitCode"`             // 0 = pass, 1 = break build
+	BreakBuild            bool             `json:"breakBuild"`           // true when a gate breached
+	Gates                 []CliGateResult  `json:"gates"`                // per-gate breach detail (empty when clean)
+	ControlFlags          []CliControlFlag `json:"controlFlags,omitempty"` // every control flag in effect (incl. non-breaching)
+}
+
+// CliGateResult is one gate's decision — mirrors cmd.GateBreach.
+type CliGateResult struct {
+	Gate    string `json:"gate"`
+	Count   int    `json:"count"`
+	Message string `json:"message"`
+}
+
+// CliControlFlag is one control flag in effect for the scan (e.g.
+// {"--severity","high"}, {"--block-malware","true"}). Captures every control
+// flag the user set — not only the ones that breached — so the server can
+// reconstruct the full invocation for the build-outcome display.
+type CliControlFlag struct {
+	Flag  string `json:"flag"`
+	Value string `json:"value"`
+}
+
+// CliFinalizeResponse is the success body.
+type CliFinalizeResponse struct {
+	Persisted bool `json:"persisted"`
+}
+
 // CliSCAReachabilityResponse is the success body.
 type CliSCAReachabilityResponse struct {
 	Persisted   int    `json:"persisted"`
@@ -501,6 +532,13 @@ func (c *Client) CliScan(env CliEnv, req CliScanRequest) (*CliResponse[CliSCARes
 // IngestionSnapshot.uuid returned from /v2/cli.sca.
 func (c *Client) CliSCAReachability(env CliEnv, req CliSCAReachabilityRequest) (*CliResponse[CliSCAReachabilityResponse], error) {
 	return cliPostWithEnv[CliSCAReachabilityResponse](c, "cli.sca-reachability", env, req)
+}
+
+// CliFinalize — POST /v2/cli.finalize. The final leg: report the scan's policy
+// gate decision (exit code + per-gate breaches) anchored to the
+// IngestionSnapshot.uuid so the server records it on the env row.
+func (c *Client) CliFinalize(env CliEnv, req CliFinalizeRequest) (*CliResponse[CliFinalizeResponse], error) {
+	return cliPostWithEnv[CliFinalizeResponse](c, "cli.finalize", env, req)
 }
 
 // CliVuln — POST /v2/cli.vuln. Single-vuln envelope + metrics.

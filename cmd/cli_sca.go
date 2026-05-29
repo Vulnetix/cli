@@ -39,12 +39,12 @@ type cliSCAGateOptions struct {
 	Malware    bool // --block-malware
 }
 
-func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string, gateOpts cliSCAGateOptions) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight) {
+func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string, gateOpts cliSCAGateOptions) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight, snapshotUuid string) {
 	if v := os.Getenv(scaAPIDisabledEnv); v == "off" || v == "0" || v == "false" {
-		return false, nil, nil, nil
+		return false, nil, nil, nil, ""
 	}
 	if len(allPackages) == 0 {
-		return false, nil, nil, nil
+		return false, nil, nil, nil, ""
 	}
 
 	purls := make([]string, len(allPackages))
@@ -60,7 +60,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		uniquePurls = append(uniquePurls, pu)
 	}
 	if len(uniquePurls) == 0 {
-		return false, nil, nil, nil
+		return false, nil, nil, nil, ""
 	}
 
 	// Chunk PURLs to stay well inside CloudFront's 60s origin timeout.
@@ -77,7 +77,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 
 	client := newCliClient() // /v2 client with 180s timeout for fan-out lookups
 	if client == nil {
-		return false, nil, nil, nil
+		return false, nil, nil, nil, ""
 	}
 
 	env := buildCliEnv(gitCtx, sysInfo)
@@ -165,7 +165,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		if !silent {
 			fmt.Fprintf(os.Stderr, "  /v2/cli.sca all %d batch(es) failed (%v), falling back to legacy lookup\n", len(chunks), firstErr)
 		}
-		return false, nil, nil, nil
+		return false, nil, nil, nil, ""
 	}
 	if batchesFailed > 0 && !silent {
 		fmt.Fprintf(os.Stderr, "  /v2/cli.sca completed with %d/%d batch(es) ok, %d failed\n", batchesOK, len(chunks), batchesFailed)
@@ -189,7 +189,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		if !silent {
 			fmt.Fprintln(os.Stderr, "  /v2/cli.sca returned no CycloneDX document, falling back to legacy lookup")
 		}
-		return false, nil, nil, nil
+		return false, nil, nil, nil, ""
 	}
 	if verbose {
 		fmt.Fprintf(os.Stderr, "  /v2/cli.sca returned %d finding(s) across %d package(s)\n", len(findings), len(uniquePurls))
@@ -216,7 +216,11 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 	}
 
-	return true, findings, enriched, mergedInsights
+	finalSnapshotUuid := ""
+	if snapshot != nil {
+		finalSnapshotUuid = snapshot.Uuid
+	}
+	return true, findings, enriched, mergedInsights, finalSnapshotUuid
 }
 
 // buildCliPackages turns parsed ScopedPackages into the per-package metadata
@@ -840,3 +844,44 @@ func relativePathFromRoot(root, p string) string {
 }
 
 func boolPtrCLI(b bool) *bool { return &b }
+
+// reportScanFinalization posts the scan's policy-gate decision back to the
+// server (POST /v2/cli.finalize), anchored to the IngestionSnapshot UUID, so
+// the CliScanEnvironment row records the emitted exit code + per-gate breaches.
+// Best-effort: any failure is logged (verbose only) and never changes the
+// scan's own exit code. Called on every scan that produced a snapshot, whether
+// or not any gate breached.
+func reportScanFinalization(snapshotUuid string, breaches []GateBreach, controlFlags []vdb.CliControlFlag, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo) {
+	if snapshotUuid == "" {
+		return
+	}
+	client := newCliClient()
+	if client == nil {
+		return
+	}
+	gates := make([]vdb.CliGateResult, 0, len(breaches))
+	for _, b := range breaches {
+		gates = append(gates, vdb.CliGateResult{Gate: b.Gate, Count: b.Count, Message: b.Message})
+	}
+	exitCode := 0
+	if len(breaches) > 0 {
+		exitCode = 1
+	}
+	env := buildCliEnv(gitCtx, sysInfo)
+	resp, err := client.CliFinalize(env, vdb.CliFinalizeRequest{
+		IngestionSnapshotUuid: snapshotUuid,
+		ExitCode:              exitCode,
+		BreakBuild:            len(breaches) > 0,
+		Gates:                 gates,
+		ControlFlags:          controlFlags,
+	})
+	if err != nil {
+		if verbose {
+			fmt.Fprintf(os.Stderr, "  finalize post failed: %v\n", err)
+		}
+		return
+	}
+	if verbose {
+		fmt.Fprintf(os.Stderr, "  finalize: persisted=%v (exitCode=%d, gates=%d)\n", resp.Data.Persisted, exitCode, len(gates))
+	}
+}
