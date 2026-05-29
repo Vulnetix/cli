@@ -155,6 +155,10 @@ type CliSCARequest struct {
 	Purls    []string          `json:"purls"`
 	Packages []CliPackageEntry `json:"packages,omitempty"`
 	Options  CliSCAOptions     `json:"options,omitempty"`
+	// IngestionSnapshotUuid is set on discovery chunks (i>0) to the snapshot UUID
+	// chunk 0 returned, so the server appends each chunk's findings under one run
+	// instead of persisting only chunk 0's. Empty on chunk 0.
+	IngestionSnapshotUuid string `json:"ingestionSnapshotUuid,omitempty"`
 }
 
 // CliPackageEntry — per-package dependency-path context so the server can

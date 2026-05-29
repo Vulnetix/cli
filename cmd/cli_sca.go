@@ -119,8 +119,17 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 		reqEnv := lightEnv
 		if i == 0 {
+			// Chunk 0 carries the heavy env (manifest bodies) + the full package
+			// list, and creates the run/snapshot.
 			req.Packages = allCliPackages
 			reqEnv = env
+		} else if snapshot != nil {
+			// Discovery chunks append their findings under chunk-0's run. Send the
+			// lightweight package list (no manifest bodies) so each chunk's findings
+			// get package context; only when chunk 0 actually persisted (snapshot set),
+			// so we never create duplicate runs.
+			req.Packages = allCliPackages
+			req.IngestionSnapshotUuid = snapshot.Uuid
 		}
 		resp, err := client.CliSCA(reqEnv, req)
 		if err != nil {
@@ -148,12 +157,13 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 		mergedReach = append(mergedReach, resp.Data.Reachability...)
 		mergedInsights = append(mergedInsights, resp.Data.PackageInsights...)
-		// Snapshot + persisted findings only return on the chunk that carried
-		// Packages — typically chunk 0. Capture them once.
+		// Capture the snapshot once (chunk 0 creates it). Findings now come back
+		// from every chunk (chunk 0 + appended discovery chunks); accumulate all
+		// of them so reachability can correlate findings across the whole scan.
 		if snapshot == nil && resp.Data.IngestionSnapshot != nil {
 			snapshot = resp.Data.IngestionSnapshot
-			persistedFindings = resp.Data.Findings
 		}
+		persistedFindings = append(persistedFindings, resp.Data.Findings...)
 		if verbose {
 			fmt.Fprintf(os.Stderr, "  batch %d/%d: %d component(s), %d vuln(s), %d reachability query(ies)\n", i+1, len(chunks), len(mergedComponents), len(mergedVulns), len(mergedReach))
 		}
