@@ -143,6 +143,12 @@ type CliResponse[T any] struct {
 type CliSCAOptions struct {
 	IncludeReachability *bool `json:"includeReachability,omitempty"`
 	IncludeVEX          *bool `json:"includeVEX,omitempty"`
+	// Gate-data toggles: request per-package policy signals (PackageInsights)
+	// only when a `scan` gate is active, so a plain scan pays nothing extra.
+	IncludeCooldown   bool `json:"includeCooldown,omitempty"`   // installed-version publish dates (--cooldown)
+	IncludeVersionLag bool `json:"includeVersionLag,omitempty"` // full version list (--version-lag)
+	IncludeEOL        bool `json:"includeEol,omitempty"`        // package-level EOL (--block-eol)
+	IncludeMalware    bool `json:"includeMalware,omitempty"`    // malicious-package check (--block-malware)
 }
 
 type CliSCARequest struct {
@@ -170,6 +176,30 @@ type CliSCAResponse struct {
 	Stats             CliSCAStats           `json:"stats"`
 	IngestionSnapshot *CliIngestionSnapshot `json:"ingestionSnapshot,omitempty"`
 	Findings          []CliFindingResult    `json:"findings,omitempty"`
+	PackageInsights   []CliPackageInsight   `json:"packageInsights,omitempty"`
+}
+
+// CliPackageInsight carries per-package policy-gate signals the server computes
+// for --cooldown, --version-lag, --block-eol and --block-malware. Mirrors the
+// vdb-api handler.CliPackageInsight contract.
+type CliPackageInsight struct {
+	Purl           string            `json:"purl"`
+	Name           string            `json:"name"`
+	Version        string            `json:"version"`
+	Ecosystem      string            `json:"ecosystem"`
+	PublishedAt    *int64            `json:"publishedAt,omitempty"`    // ms epoch — installed version (--cooldown)
+	PublishSource  string            `json:"publishSource,omitempty"`  // "db" | "deps.dev"
+	LatestVersions []CliVersionStamp `json:"latestVersions,omitempty"` // newest-first by publish date (--version-lag)
+	IsEOL          bool              `json:"isEol,omitempty"`
+	EOLFrom        string            `json:"eolFrom,omitempty"`
+	IsMalicious    bool              `json:"isMalicious,omitempty"`
+	MalwareSource  string            `json:"malwareSource,omitempty"`
+}
+
+// CliVersionStamp is one version + its publish date (ms epoch).
+type CliVersionStamp struct {
+	Version     string `json:"version"`
+	PublishedAt *int64 `json:"publishedAt,omitempty"`
 }
 
 // CliIngestionSnapshot is the persistent snapshot the server creates when

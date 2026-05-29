@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -44,8 +43,8 @@ type SeverityBreachError struct {
 }
 
 func (e *SeverityBreachError) Error() string {
-	return fmt.Sprintf("severity threshold %q breached: %d %s",
-		e.threshold, e.count, pluralise("vulnerability", e.count))
+	return fmt.Sprintf("severity threshold %q breached: %s",
+		e.threshold, pluralise("vulnerability", e.count))
 }
 
 // PolicyBreachError is implemented by all quality-gate breach errors.
@@ -670,6 +669,9 @@ func runLocalScan(
 	// scaEnrichedFromAPI is non-nil when /v2/cli.sca successfully served the
 	// SCA lookup, letting downstream code skip the legacy EnrichVulns loop.
 	var scaEnrichedFromAPI []scan.EnrichedVuln
+	// scaInsights holds per-package policy-gate signals returned by /v2/cli.sca
+	// (publish dates, version lists, EOL, malware) consumed by the gate block.
+	var scaInsights []vdb.CliPackageInsight
 	isInteractive := tty.IsInteractive() && !noProgress
 
 	queryCtx := ctx
@@ -769,10 +771,17 @@ func runLocalScan(
 		// This replaces the per-PURL LookupVulns + EnrichVulns fan-out below.
 		// Falls back to the legacy two-loop path on failure or when the
 		// operator sets VULNETIX_CLI_SCA_API=off.
-		apiServed, apiVulns, apiEnriched := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath)
+		gateOpts := cliSCAGateOptions{
+			Cooldown:   cooldownDays > 0,
+			VersionLag: versionLag > 0,
+			EOL:        blockEOL,
+			Malware:    blockMalware,
+		}
+		apiServed, apiVulns, apiEnriched, apiInsights := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts)
 		if apiServed {
 			allVulns = apiVulns
 			scaEnrichedFromAPI = apiEnriched
+			scaInsights = apiInsights
 		} else {
 			// ── Count unique packages to query ───────────────────────────────
 			uniqueCount := countUniquePackages(allPackages)
@@ -1294,20 +1303,42 @@ func runLocalScan(
 	// the full findings even when the build is broken.
 	var breaches []GateBreach
 
-	// Gate 1: malware
+	// Index /v2/cli.sca per-package insights by the exact PURL the CLI sent
+	// (the server echoes it back verbatim), so the cooldown / version-lag /
+	// EOL / malware gates read freshly-resolved signals from the single
+	// round-trip instead of extra per-package API calls.
+	insightByPurl := make(map[string]vdb.CliPackageInsight, len(scaInsights))
+	for _, ins := range scaInsights {
+		if ins.Purl != "" {
+			insightByPurl[ins.Purl] = ins
+		}
+	}
+
+	// Gate 1: malware — CVE-flagged malicious packages (from enrichment) plus
+	// the direct malicious-package verdict the server returns in PackageInsights
+	// (catches malicious packages even when no version-specific CVE resolved).
 	if blockMalware {
-		var malwareVulns []scan.EnrichedVuln
+		maliciousNames := map[string]bool{}
+		var malwareLabels []string
 		for _, ev := range enrichedVulns {
-			if ev.IsMalicious {
-				malwareVulns = append(malwareVulns, ev)
+			if ev.IsMalicious && !maliciousNames[ev.PackageName] {
+				maliciousNames[ev.PackageName] = true
+				malwareLabels = append(malwareLabels, ev.PackageName)
 			}
 		}
-		if len(malwareVulns) > 0 {
+		for _, ins := range scaInsights {
+			if ins.IsMalicious && !maliciousNames[ins.Name] {
+				maliciousNames[ins.Name] = true
+				malwareLabels = append(malwareLabels, ins.Name)
+			}
+		}
+		if len(malwareLabels) > 0 {
 			breaches = append(breaches, GateBreach{
 				Gate:  "malware",
-				Count: len(malwareVulns),
-				Message: fmt.Sprintf("--block-malware: %d malicious %s detected",
-					len(malwareVulns), pluralise("package", len(malwareVulns))),
+				Count: len(malwareLabels),
+				Message: fmt.Sprintf("--block-malware: %s flagged as malicious: %s",
+					pluralise("package", len(malwareLabels)),
+					strings.Join(malwareLabels, ", ")),
 			})
 		}
 	}
@@ -1324,8 +1355,8 @@ func runLocalScan(
 			breaches = append(breaches, GateBreach{
 				Gate:  "exploits",
 				Count: len(exploitVulns),
-				Message: fmt.Sprintf("--exploits %s: %d %s",
-					exploitThreshold, len(exploitVulns), pluralise("vulnerability", len(exploitVulns))),
+				Message: fmt.Sprintf("--exploits %s: %s at or above the threshold",
+					exploitThreshold, pluralise("vulnerability", len(exploitVulns))),
 			})
 		}
 	}
@@ -1342,8 +1373,8 @@ func runLocalScan(
 			breaches = append(breaches, GateBreach{
 				Gate:  "severity",
 				Count: len(severityVulns),
-				Message: fmt.Sprintf("--severity %s: %d %s",
-					severityThreshold, len(severityVulns), pluralise("vulnerability", len(severityVulns))),
+				Message: fmt.Sprintf("--severity %s: %s at or above the threshold",
+					severityThreshold, pluralise("vulnerability", len(severityVulns))),
 			})
 		}
 	}
@@ -1366,53 +1397,42 @@ func runLocalScan(
 			breaches = append(breaches, GateBreach{
 				Gate:  "eol",
 				Count: len(eolViolations),
-				Message: fmt.Sprintf("--block-eol: %d end-of-life %s: %s",
-					len(eolViolations), pluralise("runtime", len(eolViolations)),
+				Message: fmt.Sprintf("--block-eol: %s end-of-life: %s",
+					pluralise("runtime", len(eolViolations)),
 					strings.Join(eolViolations, ", ")),
 			})
 		}
 
-		// Package-level EOL — silently skips packages not yet in VDB EOL database.
-		type pkgEOLKey struct{ ecosystem, name, version string }
-		seen := map[pkgEOLKey]bool{}
-		var pkgItems []pkgEOLKey
+		// Package-level EOL — from /v2/cli.sca PackageInsights (the server maps
+		// each package to its EolProduct/EolRelease and matches the installed
+		// version's release line). Packages with no EOL row are skipped.
+		seenPkgEol := map[string]bool{}
+		var eolPkgList []string
 		for _, p := range allPackages {
-			key := pkgEOLKey{p.Ecosystem, p.Name, p.Version}
-			if seen[key] || p.Version == "" {
+			if p.Version == "" {
 				continue
 			}
-			seen[key] = true
-			pkgItems = append(pkgItems, key)
-		}
-		eolPkgResults := make([]string, len(pkgItems))
-		eolPkgSem := make(chan struct{}, concurrency)
-		var eolPkgWg sync.WaitGroup
-		for idx, item := range pkgItems {
-			eolPkgWg.Add(1)
-			go func(i int, it pkgEOLKey) {
-				defer eolPkgWg.Done()
-				eolPkgSem <- struct{}{}
-				defer func() { <-eolPkgSem }()
-				resp, err := eolClient.EOLPackageVersion(it.ecosystem, it.name, it.version)
-				if err != nil || resp == nil || !resp.Release.IsEol {
-					return
-				}
-				eolPkgResults[i] = fmt.Sprintf("%s@%s (%s)", it.name, it.version, it.ecosystem)
-			}(idx, item)
-		}
-		eolPkgWg.Wait()
-		var eolPkgList []string
-		for _, v := range eolPkgResults {
-			if v != "" {
-				eolPkgList = append(eolPkgList, v)
+			purl := cdx.BuildLocalPurl(p.Name, p.Version, p.Ecosystem)
+			if purl == "" || seenPkgEol[purl] {
+				continue
 			}
+			seenPkgEol[purl] = true
+			ins, ok := insightByPurl[purl]
+			if !ok || !ins.IsEOL {
+				continue
+			}
+			label := fmt.Sprintf("%s@%s (%s)", p.Name, p.Version, p.Ecosystem)
+			if ins.EOLFrom != "" {
+				label = fmt.Sprintf("%s@%s (%s, EOL since %s)", p.Name, p.Version, p.Ecosystem, ins.EOLFrom)
+			}
+			eolPkgList = append(eolPkgList, label)
 		}
 		if len(eolPkgList) > 0 {
 			breaches = append(breaches, GateBreach{
 				Gate:  "eol",
 				Count: len(eolPkgList),
-				Message: fmt.Sprintf("--block-eol: %d end-of-life %s: %s",
-					len(eolPkgList), pluralise("package", len(eolPkgList)),
+				Message: fmt.Sprintf("--block-eol: %s end-of-life: %s",
+					pluralise("package", len(eolPkgList)),
 					strings.Join(eolPkgList, ", ")),
 			})
 		}
@@ -1439,46 +1459,18 @@ func runLocalScan(
 			breaches = append(breaches, GateBreach{
 				Gate:  "unpinned",
 				Count: len(unpinnedPkgs),
-				Message: fmt.Sprintf("--block-unpinned: %d %s with unpinned version spec",
-					len(unpinnedPkgs), pluralise("dependency", len(unpinnedPkgs))),
+				Message: fmt.Sprintf("--block-unpinned: %s with an unpinned version spec",
+					pluralise("dependency", len(unpinnedPkgs))),
 			})
 		}
 	}
 
-	// Gates 6 & 7: version-lag and cooldown — share a single batch version fetch.
+	// Gates 6 & 7: version-lag and cooldown — both read the per-package signals
+	// returned by /v2/cli.sca (publish dates + version lists), so there are no
+	// extra per-package round-trips here.
 	if versionLag > 0 || cooldownDays > 0 {
-		type pkgVersionData struct {
-			versions []vdb.VersionRecord
-		}
-		versionDataMap := make(map[string]pkgVersionData)
-
-		type pkgKey struct{ Name, Ecosystem string }
-		uniquePkgKeys := map[pkgKey]bool{}
-		for _, p := range allPackages {
-			uniquePkgKeys[pkgKey{p.Name, p.Ecosystem}] = true
-		}
-
-		var vdMu sync.Mutex
-		var vdWg sync.WaitGroup
-		vdSem := make(chan struct{}, concurrency)
-		for k := range uniquePkgKeys {
-			vdWg.Add(1)
-			vdSem <- struct{}{}
-			go func(name, ecosystem string) {
-				defer vdWg.Done()
-				defer func() { <-vdSem }()
-				resp, err := client.GetProductVersions(name, 200, 0)
-				if err != nil {
-					return
-				}
-				vdMu.Lock()
-				versionDataMap[name+"::"+ecosystem] = pkgVersionData{versions: resp.Versions}
-				vdMu.Unlock()
-			}(k.Name, k.Ecosystem)
-		}
-		vdWg.Wait()
-
-		// Gate 6: version-lag
+		// Gate 6: version-lag — rank the installed version against the package's
+		// recent releases (newest-first by semver).
 		if versionLag > 0 {
 			seenLag := map[string]bool{}
 			var lagViolations []string
@@ -1488,11 +1480,15 @@ func runLocalScan(
 					continue
 				}
 				seenLag[key] = true
-				data, ok := versionDataMap[key]
-				if !ok || len(data.versions) == 0 {
+				ins, ok := insightByPurl[cdx.BuildLocalPurl(p.Name, p.Version, p.Ecosystem)]
+				if !ok || len(ins.LatestVersions) == 0 {
 					continue
 				}
-				sorted := sortVersionsDesc(data.versions)
+				recs := make([]vdb.VersionRecord, 0, len(ins.LatestVersions))
+				for _, s := range ins.LatestVersions {
+					recs = append(recs, vdb.VersionRecord{Version: s.Version})
+				}
+				sorted := sortVersionsDesc(recs)
 				installedParsed, err := update.ParseVersion(strings.TrimPrefix(p.Version, "v"))
 				if err != nil {
 					continue
@@ -1515,17 +1511,19 @@ func runLocalScan(
 				breaches = append(breaches, GateBreach{
 					Gate:  "version-lag",
 					Count: len(lagViolations),
-					Message: fmt.Sprintf("--version-lag %d: %d %s within the %d most recent %s: %s",
-						versionLag, len(lagViolations), pluralise("dependency", len(lagViolations)),
-						versionLag, pluralise("release", versionLag),
+					Message: fmt.Sprintf("--version-lag %d: %s within the %d most recent %s: %s",
+						versionLag, pluralise("dependency", len(lagViolations)),
+						versionLag, plural("release", versionLag),
 						strings.Join(lagViolations, ", ")),
 				})
 			}
 		}
 
-		// Gate 7: cooldown
+		// Gate 7: cooldown — uses the installed version's publish date, which the
+		// server resolves cache-first from the Dependency table and refreshes
+		// from deps.dev on a miss, so the date is always current.
 		if cooldownDays > 0 {
-			cutoff := time.Now().UTC().AddDate(0, 0, -cooldownDays)
+			cutoffMs := time.Now().UTC().AddDate(0, 0, -cooldownDays).UnixMilli()
 			seenCooldown := map[string]bool{}
 			var cooldownViolations []string
 			for _, p := range allPackages {
@@ -1534,29 +1532,23 @@ func runLocalScan(
 					continue
 				}
 				seenCooldown[key] = true
-				data, ok := versionDataMap[key]
-				if !ok {
+				ins, ok := insightByPurl[cdx.BuildLocalPurl(p.Name, p.Version, p.Ecosystem)]
+				if !ok || ins.PublishedAt == nil {
 					continue
 				}
-				for _, rec := range data.versions {
-					if strings.TrimPrefix(rec.Version, "v") != strings.TrimPrefix(p.Version, "v") {
-						continue
-					}
-					t := extractPublishDate(rec)
-					if t != nil && t.After(cutoff) {
-						cooldownViolations = append(cooldownViolations,
-							fmt.Sprintf("%s@%s (published %s)", p.Name, p.Version, t.Format("2006-01-02")))
-					}
-					break
+				if *ins.PublishedAt > cutoffMs {
+					t := time.UnixMilli(*ins.PublishedAt).UTC()
+					cooldownViolations = append(cooldownViolations,
+						fmt.Sprintf("%s@%s (published %s)", p.Name, p.Version, t.Format("2006-01-02")))
 				}
 			}
 			if len(cooldownViolations) > 0 {
 				breaches = append(breaches, GateBreach{
 					Gate:  "cooldown",
 					Count: len(cooldownViolations),
-					Message: fmt.Sprintf("--cooldown %d: %d %s published within last %d %s: %s",
-						cooldownDays, len(cooldownViolations), pluralise("dependency", len(cooldownViolations)),
-						cooldownDays, pluralise("day", cooldownDays),
+					Message: fmt.Sprintf("--cooldown %d: %s published within the last %d %s: %s",
+						cooldownDays, pluralise("dependency", len(cooldownViolations)),
+						cooldownDays, plural("day", cooldownDays),
 						strings.Join(cooldownViolations, ", ")),
 				})
 			}
@@ -1575,8 +1567,8 @@ func runLocalScan(
 			breaches = append(breaches, GateBreach{
 				Gate:  "sast-severity",
 				Count: n,
-				Message: fmt.Sprintf("--severity %s: %d SAST %s",
-					severityThreshold, n, pluralise("finding", n)),
+				Message: fmt.Sprintf("--severity %s: %s at or above the threshold",
+					severityThreshold, pluralise("SAST finding", n)),
 			})
 		}
 	}
@@ -2646,9 +2638,19 @@ func appendUnique(slice []string, s string) []string {
 	return append(slice, s)
 }
 
+// pluralise returns "<n> <word>" with the word pluralised for n
+// (e.g. "1 dependency", "2 dependencies"). Do not also print the count
+// separately in the same phrase — that double-counts.
 func pluralise(word string, n int) string {
+	return fmt.Sprintf("%d %s", n, plural(word, n))
+}
+
+// plural returns word pluralised for n, with NO count prefix — for phrases
+// that already state the number explicitly (e.g. "within the 1 most recent
+// releases"). For the count+word form use pluralise.
+func plural(word string, n int) string {
 	if n == 1 {
-		return "1 " + word
+		return word
 	}
 	plurals := map[string]string{
 		"vulnerability": "vulnerabilities",
@@ -2658,10 +2660,10 @@ func pluralise(word string, n int) string {
 		"entry":         "entries",
 		"match":         "matches",
 	}
-	if plural, ok := plurals[word]; ok {
-		return fmt.Sprintf("%d %s", n, plural)
+	if p, ok := plurals[word]; ok {
+		return p
 	}
-	return fmt.Sprintf("%d %ss", n, word)
+	return word + "s"
 }
 
 // renderProgressBar renders a Unicode block progress bar of the given width.
@@ -3151,30 +3153,4 @@ func sortVersionsDesc(records []vdb.VersionRecord) []vdb.VersionRecord {
 		return vi.IsNewerThan(vj)
 	})
 	return out
-}
-
-// extractPublishDate probes common metadata keys in a VersionRecord's sources for
-// a publication date. Returns nil when no parseable date is found (best-effort).
-func extractPublishDate(rec vdb.VersionRecord) *time.Time {
-	candidates := []string{"publishedAt", "published_at", "date", "createdAt", "created_at"}
-	for _, src := range rec.Sources {
-		for _, key := range candidates {
-			val, ok := src.Metadata[key]
-			if !ok {
-				continue
-			}
-			s, ok := val.(string)
-			if !ok || s == "" {
-				continue
-			}
-			// Try RFC3339, then date-only.
-			for _, layout := range []string{time.RFC3339, "2006-01-02"} {
-				if t, err := time.Parse(layout, s); err == nil {
-					t = t.UTC()
-					return &t
-				}
-			}
-		}
-	}
-	return nil
 }

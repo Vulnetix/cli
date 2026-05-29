@@ -30,12 +30,21 @@ import (
 
 const scaAPIDisabledEnv = "VULNETIX_CLI_SCA_API"
 
-func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln) {
+// cliSCAGateOptions tells tryCliSCA which per-package gate signals the active
+// scan flags need, so the cli.sca round-trip requests them (and only them).
+type cliSCAGateOptions struct {
+	Cooldown   bool // --cooldown
+	VersionLag bool // --version-lag
+	EOL        bool // --block-eol (package-level)
+	Malware    bool // --block-malware
+}
+
+func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string, gateOpts cliSCAGateOptions) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight) {
 	if v := os.Getenv(scaAPIDisabledEnv); v == "off" || v == "0" || v == "false" {
-		return false, nil, nil
+		return false, nil, nil, nil
 	}
 	if len(allPackages) == 0 {
-		return false, nil, nil
+		return false, nil, nil, nil
 	}
 
 	purls := make([]string, len(allPackages))
@@ -51,7 +60,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		uniquePurls = append(uniquePurls, pu)
 	}
 	if len(uniquePurls) == 0 {
-		return false, nil, nil
+		return false, nil, nil, nil
 	}
 
 	// Chunk PURLs to stay well inside CloudFront's 60s origin timeout.
@@ -68,7 +77,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 
 	client := newCliClient() // /v2 client with 180s timeout for fan-out lookups
 	if client == nil {
-		return false, nil, nil
+		return false, nil, nil, nil
 	}
 
 	env := buildCliEnv(gitCtx, sysInfo)
@@ -89,6 +98,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	mergedComponents := make([]any, 0, len(uniquePurls))
 	mergedVulns := make([]any, 0)
 	mergedReach := make([]vdb.CliReachabilityHit, 0)
+	mergedInsights := make([]vdb.CliPackageInsight, 0)
 	tierObserved := "" // "pro" wins over any spurious community batch
 	var anyTierGated bool
 	var batchesOK, batchesFailed int
@@ -98,8 +108,14 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 
 	for i, chunk := range chunks {
 		req := vdb.CliSCARequest{
-			Purls:   chunk,
-			Options: vdb.CliSCAOptions{IncludeReachability: boolPtrCLI(true)},
+			Purls: chunk,
+			Options: vdb.CliSCAOptions{
+				IncludeReachability: boolPtrCLI(true),
+				IncludeCooldown:     gateOpts.Cooldown,
+				IncludeVersionLag:   gateOpts.VersionLag,
+				IncludeEOL:          gateOpts.EOL,
+				IncludeMalware:      gateOpts.Malware,
+			},
 		}
 		reqEnv := lightEnv
 		if i == 0 {
@@ -131,6 +147,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 			mergedVulns = append(mergedVulns, vs...)
 		}
 		mergedReach = append(mergedReach, resp.Data.Reachability...)
+		mergedInsights = append(mergedInsights, resp.Data.PackageInsights...)
 		// Snapshot + persisted findings only return on the chunk that carried
 		// Packages — typically chunk 0. Capture them once.
 		if snapshot == nil && resp.Data.IngestionSnapshot != nil {
@@ -148,7 +165,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		if !silent {
 			fmt.Fprintf(os.Stderr, "  /v2/cli.sca all %d batch(es) failed (%v), falling back to legacy lookup\n", len(chunks), firstErr)
 		}
-		return false, nil, nil
+		return false, nil, nil, nil
 	}
 	if batchesFailed > 0 && !silent {
 		fmt.Fprintf(os.Stderr, "  /v2/cli.sca completed with %d/%d batch(es) ok, %d failed\n", batchesOK, len(chunks), batchesFailed)
@@ -172,7 +189,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		if !silent {
 			fmt.Fprintln(os.Stderr, "  /v2/cli.sca returned no CycloneDX document, falling back to legacy lookup")
 		}
-		return false, nil, nil
+		return false, nil, nil, nil
 	}
 	if verbose {
 		fmt.Fprintf(os.Stderr, "  /v2/cli.sca returned %d finding(s) across %d package(s)\n", len(findings), len(uniquePurls))
@@ -199,7 +216,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 	}
 
-	return true, findings, enriched
+	return true, findings, enriched, mergedInsights
 }
 
 // buildCliPackages turns parsed ScopedPackages into the per-package metadata
