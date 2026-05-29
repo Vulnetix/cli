@@ -40,6 +40,25 @@ type VersionSource struct {
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// UnmarshalJSON tolerates both shapes the API uses for a version "source":
+// the structured object ({"sourceTable":..,"sourceId":..}) emitted by /product,
+// and the bare string (e.g. "nvd", "GHSA") emitted by /vulns. A bare string is
+// stored as SourceTable so callers see a non-empty source either way.
+func (s *VersionSource) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		s.SourceTable = str
+		return nil
+	}
+	type alias VersionSource
+	var a alias
+	if err := json.Unmarshal(data, (*alias)(&a)); err != nil {
+		return err
+	}
+	*s = VersionSource(a)
+	return nil
+}
+
 // VersionRecord represents a single version entry with ecosystem and sources
 type VersionRecord struct {
 	Version   string          `json:"version"`
