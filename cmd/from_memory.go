@@ -103,6 +103,7 @@ func LoadFromMemory(rootPath string, freshExploits, freshAdvisories, freshVulns 
 		filepath.Join(rootPath, ".vulnetix"),
 		"",    // rulesPath
 		false, // resultsOnly
+		"",    // snapshotURL
 	)
 
 	return nil

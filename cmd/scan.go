@@ -675,6 +675,7 @@ func runLocalScan(
 	// scaSnapshotUuid is the IngestionSnapshot UUID from /v2/cli.sca; used to
 	// report the gate finalization back to the server after evaluation.
 	var scaSnapshotUuid string
+	var scaSnapshotURL string
 	isInteractive := tty.IsInteractive() && !noProgress
 
 	queryCtx := ctx
@@ -780,12 +781,13 @@ func runLocalScan(
 			EOL:        blockEOL,
 			Malware:    blockMalware,
 		}
-		apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts)
+		apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts)
 		if apiServed {
 			allVulns = apiVulns
 			scaEnrichedFromAPI = apiEnriched
 			scaInsights = apiInsights
 			scaSnapshotUuid = apiSnapshotUuid
+			scaSnapshotURL = apiSnapshotURL
 		} else {
 			// ── Count unique packages to query ───────────────────────────────
 			uniqueCount := countUniquePackages(allPackages)
@@ -1654,7 +1656,7 @@ func runLocalScan(
 	}
 
 	// Pretty output (default, or when only file outputs were requested).
-	printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, sbomPath, vulnetixDir, rulesPath, resultsOnly)
+	printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, sbomPath, vulnetixDir, rulesPath, resultsOnly, scaSnapshotURL)
 	if licenseResult != nil && len(licenseResult.Findings) > 0 {
 		printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
 	}
@@ -1882,6 +1884,7 @@ func printPrettyScanSummary(
 	noRemediation bool,
 	sbomPath, vulnetixDir, rulesPath string,
 	resultsOnly bool,
+	snapshotURL string,
 ) {
 	// --results-only: stay silent when there are no findings.
 	if resultsOnly && len(enrichedVulns) == 0 {
@@ -2333,10 +2336,13 @@ func printPrettyScanSummary(
 	fmt.Fprintln(os.Stdout)
 
 	// Artefact paths.
-	fmt.Fprintf(os.Stdout, "  %s BOM:    %s\n", display.CheckMark(t), sbomPath)
-	fmt.Fprintf(os.Stdout, "  %s Memory: %s\n", display.CheckMark(t), filepath.Join(vulnetixDir, memory.FileName))
+	fmt.Fprintf(os.Stdout, "  %s BOM:      %s\n", display.CheckMark(t), sbomPath)
+	fmt.Fprintf(os.Stdout, "  %s Memory:   %s\n", display.CheckMark(t), filepath.Join(vulnetixDir, memory.FileName))
 	if rulesPath != "" {
-		fmt.Fprintf(os.Stdout, "  %s Rules:  %s\n", display.CheckMark(t), rulesPath)
+		fmt.Fprintf(os.Stdout, "  %s Rules:    %s\n", display.CheckMark(t), rulesPath)
+	}
+	if snapshotURL != "" {
+		fmt.Fprintf(os.Stdout, "  %s Snapshot: %s\n", display.CheckMark(t), snapshotURL)
 	}
 	fmt.Fprintln(os.Stdout)
 }

@@ -256,7 +256,7 @@ The SCA round-trip chunks PURLs (25/req). Raw manifest bodies ride only on the c
 
 ### Snapshot URL output
 
-On success the final stderr line is `{Kind} snapshot: https://www.vulnetix.com/vdb-snapshot/{uuid}`. The URL resolves to the IngestionSnapshot row and surfaces every artefact + finding + VEX statement attached to that run.
+On success the final stderr line is `{Kind} snapshot: https://www.vulnetix.com/vdb-scanner-results/{uuid}`. The URL resolves to the IngestionSnapshot row and surfaces every artefact + finding + VEX statement attached to that run.
 
 ### `.vulnetix/` directory layout
 
