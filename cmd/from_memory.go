@@ -10,6 +10,7 @@ import (
 
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
+	purlpkg "github.com/vulnetix/cli/v3/internal/purl"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -566,6 +567,17 @@ func buildPkgFromComponent(c cdx.Component) scan.ScopedPackage {
 		Name:    c.Name,
 		Version: c.Version,
 	}
+	if parsed, err := purlpkg.Parse(c.Purl); err == nil && parsed != nil {
+		if name := packageNameFromParsedPURL(parsed); name != "" {
+			pkg.Name = name
+		}
+		if parsed.Version != "" {
+			pkg.Version = parsed.Version
+		}
+		if parsed.Type != "" {
+			pkg.Ecosystem = parsed.Type
+		}
+	}
 	for _, p := range c.Properties {
 		switch p.Name {
 		case "vulnetix:ecosystem":
@@ -577,6 +589,33 @@ func buildPkgFromComponent(c cdx.Component) scan.ScopedPackage {
 		}
 	}
 	return pkg
+}
+
+func packageNameFromParsedPURL(p *purlpkg.PackageURL) string {
+	if p == nil {
+		return ""
+	}
+	switch p.Type {
+	case "npm":
+		if p.Namespace == "" {
+			return p.Name
+		}
+		ns := strings.TrimPrefix(p.Namespace, "@")
+		return "@" + ns + "/" + p.Name
+	case "maven":
+		if p.Namespace != "" {
+			return p.Namespace + ":" + p.Name
+		}
+	case "golang":
+		if p.Namespace != "" {
+			return p.Namespace + "/" + p.Name
+		}
+	default:
+		if p.Namespace != "" {
+			return p.Namespace + "/" + p.Name
+		}
+	}
+	return p.Name
 }
 
 // inferSSVCDecision maps severity back to SSVC decision for reconstruction.
