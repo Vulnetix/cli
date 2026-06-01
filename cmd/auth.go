@@ -493,19 +493,25 @@ var verifyBaseURL string
 func runAuthVerify(cmd *cobra.Command) error {
 	ctx := display.FromCommand(cmd)
 	t := ctx.Term
+	progress := ctx.Progress("Authentication verify", 3)
 
+	progress.SetStage("Loading stored credentials")
 	creds, err := auth.LoadCredentials()
 	if err != nil {
+		progress.Fail("credentials not found")
 		return fmt.Errorf("no credentials found: %w\nRun 'vulnetix auth login' to authenticate", err)
 	}
+	progress.Update(1, fmt.Sprintf("Loaded credentials for org %s", creds.OrgID))
 
-	ctx.Logger.Infof("Verifying credentials for org %s...", creds.OrgID)
-
+	progress.SetStage("Verifying credentials with Vulnetix API")
 	client := upload.NewClient(verifyBaseURL, creds)
 	result, err := client.VerifyAuth()
 	if err != nil {
+		progress.Fail("verification failed")
 		return fmt.Errorf("verification failed: %w", err)
 	}
+	progress.Update(2, "Vulnetix API accepted credentials")
+	progress.Complete("authentication verified")
 
 	ctx.Logger.Info(display.CheckMark(t) + " Authentication verified successfully")
 	ctx.Logger.Result(display.KeyValue(t, []display.KVPair{

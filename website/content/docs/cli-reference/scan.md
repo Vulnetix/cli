@@ -25,7 +25,7 @@ vulnetix scan status <scan-id> [flags]
 | `-o, --output` | stringArray | - | Output target (repeatable): `json-cyclonedx` or `json-sarif` for stdout; file path (`.cdx.json`, `.cdx`, `.bom.json`, `.sbom.json`) for CycloneDX to file; file path (`.sarif`, `.sarif.json`) for SARIF to file. Multiple flags combine file outputs with pretty display. |
 | `-f, --format` | string | - | **Deprecated** — maps to `--output json-cyclonedx`. Use `--output` instead. |
 | `--concurrency` | int | `5` | Max concurrent VDB queries |
-| `--no-progress` | bool | `false` | Suppress the progress bar |
+| `--no-progress` | bool | `false` | Suppress progress indicators |
 | `--paths` | bool | `false` | Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go). Edges are built from locally installed packages (`node_modules/`, venv, `vendor/`, `cargo metadata`). |
 | `--no-exploits` | bool | `false` | Suppress the detailed exploit intelligence section |
 | `--no-remediation` | bool | `false` | Suppress the detailed remediation section |
@@ -635,7 +635,7 @@ vulnetix scan --output /tmp/sbom.cdx.json --output /tmp/results.sarif
 vulnetix scan -o json-cyclonedx | jq '.components'
 ```
 
-### Suppress progress bar (useful in CI without a TTY)
+### Suppress progress indicators (useful in CI without a TTY)
 
 ```bash
 vulnetix scan --no-progress

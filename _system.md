@@ -33,20 +33,32 @@
 
 9. **Output modes** — VDB commands support `--output pretty` (default, human-friendly JSON to stdout) and `--output json` (machine JSON to stdout, status messages to stderr).
 
-10. **PURL dispatch** — The `vdb purl` command maps PURL strings to VDB endpoints:
+10. **Progress reporting** — Long-running CLI activities use the shared `internal/display.Progress` reporter and write progress to stderr, never stdout. Progress is enabled by default and suppressed by the global `--no-progress` flag or `--silent`.
+
+   A progress activity must stay simple and transparent:
+   - Use one stable activity title (for example, `Scan`, `License analysis`, `Upload artifacts`).
+   - Use one static numeric goal for the activity (`done/total` plus percent). The goal represents the current activity plan, not an unbounded stream.
+   - Use a current stage title to explain what is happening now. Stage changes should correlate with numeric activity progress when moving between plan stages.
+   - Stage text may change within a stage to show internal progress (for example, `Querying VDB packages 12/50`) without changing the stage's own numeric representation.
+   - TTY stderr gets subtle animation on one refreshed line. Non-TTY stderr gets plain stage lines. JSON/data output remains clean on stdout.
+   - Prefer reusing `display.Context.Progress(...)` over direct `fmt.Fprintf(os.Stderr, "\r...")` spinners or one-off progress bars.
+
+   Command code should declare the activity plan, then call `SetStage`, `Update`, `Advance`, `Complete`, or `Fail`. Libraries that perform nested work may accept an optional callback, but should not render terminal output directly.
+
+11. **PURL dispatch** — The `vdb purl` command maps PURL strings to VDB endpoints:
     - Has version + known ecosystem → `GET /product/{name}/{version}/{ecosystem}`
     - Has version + unknown ecosystem → `GET /product/{name}/{version}`
     - No version + `--vulns` → `GET /{name}/vulns`
     - No version (default) → `GET /product/{name}`
 
-11. **VDB memory management** — All VDB subcommands automatically record queries and environment context to `.vulnetix/memory.yaml` unless `--disable-memory` is set. Memory writes are non-fatal (warnings on stderr). The `vdb vuln` command additionally extracts severity, aliases, and safeHarbour from the API response and upserts a `FindingRecord`.
+12. **VDB memory management** — All VDB subcommands automatically record queries and environment context to `.vulnetix/memory.yaml` unless `--disable-memory` is set. Memory writes are non-fatal (warnings on stderr). The `vdb vuln` command additionally extracts severity, aliases, and safeHarbour from the API response and upserts a `FindingRecord`.
 
-12. **Environment context priority** — When gathering environment context for memory, values are merged in this order (last wins):
+13. **Environment context priority** — When gathering environment context for memory, values are merged in this order (last wins):
     1. Auto-gathered from git repo and env vars (unless `--ignore-env`)
     2. `--context` JSON string overrides
     3. Explicit flags (`--git-branch`, `--github-org`, etc.) — highest priority
 
-13. **Binary self-containment** — The CLI binary embeds all static reference data and requires no external files at runtime:
+14. **Binary self-containment** — The CLI binary embeds all static reference data and requires no external files at runtime:
     - **Embedded** (static, changes rarely): SPDX license database (`spdx_licenses.json` via `//go:embed`), well-known package→license mappings, Docker official image licenses, `ClassifyLicenseText` patterns, `NormalizeSPDX` rules.
     - **Network-fetched** (fresh data on demand): ecosystem registry APIs (deps.dev, RubyGems, Hex.pm, Hackage, CRAN, Packagist, pub.dev, CocoaPods, JuliaRegistries, GitHub), VDB API, Terraform Registry, Docker Hub API.
     - **Filesystem reads** (user's own project files): manifest files, Go module cache, user allow-list YAML.

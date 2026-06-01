@@ -134,18 +134,22 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	collector := github.NewArtifactCollector(token, apiURL, repository, runID)
 
 	// List all artifacts
-	dctx.Logger.Info("Fetching workflow artifacts...")
+	progress := dctx.Progress("GitHub Actions artifact upload", 4)
+	progress.SetStage("Fetching workflow artifacts")
 	ctx := cmd.Context()
 	artifacts, err := collector.ListArtifacts(ctx)
 	if err != nil {
+		progress.Fail("failed to fetch workflow artifacts")
 		return fmt.Errorf("failed to list artifacts: %w", err)
 	}
 
 	if len(artifacts) == 0 {
+		progress.Complete("no artifacts found")
 		dctx.Logger.Warn("No artifacts found in this workflow run")
 		return nil
 	}
 
+	progress.Update(1, fmt.Sprintf("Found %d artifact(s)", len(artifacts)))
 	dctx.Logger.Infof("Found %d artifact(s)", len(artifacts))
 	for i, artifact := range artifacts {
 		dctx.Logger.Infof("   %d. %s (%d bytes)", i+1, artifact.Name, artifact.SizeInBytes)
@@ -155,6 +159,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	// Load credentials for upload client
 	creds, err := auth.LoadCredentials()
 	if err != nil {
+		progress.Fail("authentication failed")
 		return fmt.Errorf("authentication required: %w\nRun 'vulnetix auth login' first", err)
 	}
 	if creds != nil {
@@ -168,7 +173,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	uploadClient.GitHubContext = collectGitHubActionsContext()
 
 	// Download and upload each artifact
-	dctx.Logger.Info("Uploading artifacts...")
+	progress.Update(2, "Prepared upload client")
 	type uploadResult struct {
 		Name       string `json:"name"`
 		File       string `json:"file"`
@@ -179,12 +184,12 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	var results []uploadResult
 
 	for i, artifact := range artifacts {
-		dctx.Logger.Infof("   [%d/%d] Processing %s...", i+1, len(artifacts), artifact.Name)
+		progress.Update(2, fmt.Sprintf("Processing artifact %d/%d: %s", i+1, len(artifacts), artifact.Name))
 
 		// Download and extract artifact from GitHub
 		artifactDir, err := collector.DownloadArtifact(ctx, artifact)
 		if err != nil {
-			dctx.Logger.Errorf("      Failed to download: %v", err)
+			progress.SetStage(fmt.Sprintf("Failed to download %s: %v", artifact.Name, err))
 			results = append(results, uploadResult{
 				Name:   artifact.Name,
 				Status: "error",
@@ -197,7 +202,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		files, err := findFiles(artifactDir)
 		if err != nil {
 			os.RemoveAll(artifactDir)
-			dctx.Logger.Errorf("      Failed to read files: %v", err)
+			progress.SetStage(fmt.Sprintf("Failed to read %s: %v", artifact.Name, err))
 			results = append(results, uploadResult{
 				Name:   artifact.Name,
 				Status: "error",
@@ -207,13 +212,15 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		}
 
 		// Upload each file using the standard upload API
-		for _, filePath := range files {
+		for j, filePath := range files {
 			fileName := filepath.Base(filePath)
-			dctx.Logger.Infof("      Uploading %s...", fileName)
+			progress.SetStage(fmt.Sprintf("Uploading %s file %d/%d: %s", artifact.Name, j+1, len(files), fileName))
 
-			resp, err := uploadClient.UploadFile(filePath, "")
+			resp, err := uploadClient.UploadFileWithProgress(filePath, "", func(done, total int, stage string) {
+				progress.SetStage(fmt.Sprintf("%s/%s: %s %d/%d", artifact.Name, fileName, stage, done, total))
+			})
 			if err != nil {
-				dctx.Logger.Errorf("      Failed to upload %s: %v", fileName, err)
+				progress.SetStage(fmt.Sprintf("Failed to upload %s: %v", fileName, err))
 				results = append(results, uploadResult{
 					Name:   artifact.Name,
 					File:   fileName,
@@ -233,7 +240,6 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 				status = "duplicate"
 			}
 
-			dctx.Logger.Infof("      %s %s (pipeline: %s)", display.CheckMark(t), fileName, pipelineID)
 			results = append(results, uploadResult{
 				Name:       artifact.Name,
 				File:       fileName,
@@ -245,15 +251,14 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		os.RemoveAll(artifactDir)
 	}
 
-	dctx.Logger.Info("")
-
 	successCount := 0
 	for _, r := range results {
 		if r.Status != "error" {
 			successCount++
 		}
 	}
-	dctx.Logger.Infof("Upload complete: %d/%d files uploaded successfully", successCount, len(results))
+	progress.Update(3, fmt.Sprintf("Uploaded %d/%d file(s)", successCount, len(results)))
+	progress.Complete("GitHub Actions upload complete")
 
 	// Output JSON if requested
 	if ghaOutputJSON {
@@ -288,6 +293,7 @@ func findFiles(dir string) ([]string, error) {
 }
 
 func runGHAStatus(cmd *cobra.Command, args []string) error {
+	dctx := display.FromCommand(cmd)
 	resolvedOrgID, err := resolveOrgID()
 	if err != nil {
 		return err
@@ -307,18 +313,21 @@ func runGHAStatus(cmd *cobra.Command, args []string) error {
 	uploader := github.NewArtifactUploader(ghaBaseURL, orgID)
 
 	var statusResp *github.StatusResponse
+	progress := dctx.Progress("GitHub Actions artifact status", 1)
 
 	if ghaTxnID != "" {
-		fmt.Fprintf(os.Stderr, "Checking transaction status: %s\n", ghaTxnID)
+		progress.SetStage(fmt.Sprintf("Checking transaction status: %s", ghaTxnID))
 		statusResp, err = uploader.GetTransactionStatus(ghaTxnID)
 	} else {
-		fmt.Fprintf(os.Stderr, "Checking artifact status: %s\n", ghaUUID)
+		progress.SetStage(fmt.Sprintf("Checking artifact status: %s", ghaUUID))
 		statusResp, err = uploader.GetArtifactStatus(ghaUUID)
 	}
 
 	if err != nil {
+		progress.Fail("status lookup failed")
 		return fmt.Errorf("failed to get status: %w", err)
 	}
+	progress.Complete("status lookup complete")
 
 	// Output JSON if requested
 	if ghaOutputJSON {

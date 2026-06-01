@@ -42,7 +42,8 @@ Examples:
 	RunE: runLicense,
 }
 
-func runLicense(cmd *cobra.Command, args []string) error {
+func runLicense(cmd *cobra.Command, args []string) (retErr error) {
+	dctx := display.FromCommand(cmd)
 	rootPath, _ := cmd.Flags().GetString("path")
 	maxDepth, _ := cmd.Flags().GetInt("depth")
 	excludes, _ := cmd.Flags().GetStringArray("exclude")
@@ -51,18 +52,34 @@ func runLicense(cmd *cobra.Command, args []string) error {
 	allowFile, _ := cmd.Flags().GetString("allow-file")
 	severityThreshold, _ := cmd.Flags().GetString("severity")
 	outputFmt, _ := cmd.Flags().GetString("output")
-	noProgress, _ := cmd.Flags().GetBool("no-progress")
 	fromMemory, _ := cmd.Flags().GetBool("from-memory")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	resultsOnly, _ := cmd.Flags().GetBool("results-only")
 
-	_ = noProgress // reserved for future progress bar
-
 	vulnetixDir := filepath.Join(rootPath, ".vulnetix")
+	progress := dctx.Progress("License analysis", 6)
+	progress.SetStage("Discovering package manifests")
+	progressComplete := false
+	defer func() {
+		if progressComplete {
+			return
+		}
+		if retErr != nil {
+			progress.Fail("failed")
+			return
+		}
+		progress.Complete("complete")
+	}()
 
 	// ── --from-memory path ──────────────────────────────────────────────
 	if fromMemory {
-		return loadLicenseFromMemory(vulnetixDir, outputFmt)
+		progress.Update(6, "Loading license results from memory")
+		if err := loadLicenseFromMemory(vulnetixDir, outputFmt); err != nil {
+			return err
+		}
+		progress.Complete("loaded from memory")
+		progressComplete = true
+		return nil
 	}
 
 	// ── Walk and detect manifests ───────────────────────────────────────
@@ -84,13 +101,17 @@ func runLicense(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(manifests) == 0 {
+		progress.Complete("no manifest files found")
+		progressComplete = true
 		fmt.Fprintln(os.Stderr, "No manifest files found.")
 		return nil
 	}
+	progress.Update(1, fmt.Sprintf("Discovered %d manifest(s)", len(manifests)))
 
 	// ── Parse packages ──────────────────────────────────────────────────
 	var allPackages []scan.ScopedPackage
-	for _, m := range manifests {
+	for i, m := range manifests {
+		progress.SetStage(fmt.Sprintf("Parsing manifests %d/%d: %s", i+1, len(manifests), m.RelPath))
 		pkgs, err := scan.ParseManifestWithScope(m.Path, m.ManifestInfo.Type)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: failed to parse %s: %v\n", m.RelPath, err)
@@ -108,13 +129,18 @@ func runLicense(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(allPackages) == 0 {
+		progress.Complete("no packages found in manifests")
+		progressComplete = true
 		fmt.Fprintln(os.Stderr, "No packages found in manifests.")
 		return nil
 	}
+	progress.Update(2, fmt.Sprintf("Parsed %d package(s)", len(allPackages)))
 
 	// ── Dry run ─────────────────────────────────────────────────────────
 	if dryRun {
-		t := display.NewTerminal()
+		progress.Complete("dry run complete")
+		progressComplete = true
+		t := dctx.Term
 		fmt.Fprintf(os.Stderr, "%s Found %d manifests, %d packages\n",
 			display.CheckMark(t), len(manifests), len(allPackages))
 		for _, m := range manifests {
@@ -149,6 +175,7 @@ func runLicense(cmd *cobra.Command, args []string) error {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Resolving licenses for %d packages...\n", len(allPackages))
 	}
+	progress.SetStage("Building dependency graph")
 	// Build ManifestGroups for dependency path tracking.
 	filePackages := map[string][]scan.ScopedPackage{}
 	fileEcosystems := map[string]string{}
@@ -165,6 +192,7 @@ func runLicense(cmd *cobra.Command, args []string) error {
 		}
 	}
 	manifestGroups := scan.BuildManifestGroups(filePackages, fileEcosystems)
+	progress.Update(3, "Built dependency graph")
 	for i := range manifestGroups {
 		mg := &manifestGroups[i]
 		if mg.Graph != nil && mg.Ecosystem == "golang" {
@@ -178,6 +206,7 @@ func runLicense(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	progress.SetStage(fmt.Sprintf("Resolving licenses for %d package(s)", len(allPackages)))
 	licensedPackages := license.DetectLicenses(allPackages, manifestGroups)
 
 	// Count resolved.
@@ -188,8 +217,10 @@ func runLicense(cmd *cobra.Command, args []string) error {
 		}
 	}
 	fmt.Fprintf(os.Stderr, "  %d/%d licenses resolved\n", resolved, len(licensedPackages))
+	progress.Update(4, fmt.Sprintf("Resolved %d/%d license(s)", resolved, len(licensedPackages)))
 
 	// ── Build allow list ────────────────────────────────────────────────
+	progress.SetStage("Loading license policy")
 	var allowedLicenses []string
 	if allowFile != "" {
 		al, err := license.LoadAllowListFromFile(allowFile)
@@ -203,6 +234,7 @@ func runLicense(cmd *cobra.Command, args []string) error {
 	}
 
 	// ── Evaluate ────────────────────────────────────────────────────────
+	progress.SetStage("Evaluating license policy")
 	result := license.Evaluate(licensedPackages, license.EvalConfig{
 		Mode:              mode,
 		AllowedLicenses:   allowedLicenses,
@@ -218,8 +250,10 @@ func runLicense(cmd *cobra.Command, args []string) error {
 
 	// Populate license data on BOM components and dependency tree.
 	license.PopulateBOMLicenses(sbomPath, result.Packages, manifestGroups)
+	progress.Update(5, "Updated CycloneDX license data")
 
 	// ── Write to memory ─────────────────────────────────────────────────
+	progress.SetStage("Persisting license results")
 	if !disableMemory {
 		writeLicenseMemory(vulnetixDir, result)
 	}
@@ -228,6 +262,9 @@ func runLicense(cmd *cobra.Command, args []string) error {
 	// License findings are package-level (no source line), so snippet capture
 	// is not applicable (0).
 	postLicenseSARIF(result, rootPath, 0)
+	progress.Update(6, "Submitted license findings")
+	progress.Complete("license analysis complete")
+	progressComplete = true
 
 	// ── Output ──────────────────────────────────────────────────────────
 	switch outputFmt {
@@ -647,7 +684,6 @@ func init() {
 	licenseCmd.Flags().String("allow-file", "", "Path to YAML allow list file")
 	licenseCmd.Flags().String("severity", "", "Exit with code 1 if any finding meets or exceeds this severity (low, medium, high, critical)")
 	licenseCmd.Flags().StringP("output", "o", "", "Output format: pretty (default), json (CycloneDX), json-spdx (SPDX 2.3)")
-	licenseCmd.Flags().Bool("no-progress", false, "Suppress progress indicators")
 	licenseCmd.Flags().Bool("from-memory", false, "Reconstruct license output from .vulnetix/memory.yaml without re-scanning")
 	licenseCmd.Flags().Bool("dry-run", false, "Detect files and parse packages only — no license evaluation")
 	licenseCmd.Flags().Bool("results-only", false, "Only show output when there are findings or conflicts (summary + issues only, no full package table)")

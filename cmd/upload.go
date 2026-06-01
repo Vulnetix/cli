@@ -79,12 +79,21 @@ func runUpload(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("cannot access file %s: %w", uploadFile, err)
 		}
-		ctx.Logger.Infof("Uploading %s (%d bytes)...", uploadFile, info.Size())
+		total := 3
+		if info.Size() >= upload.ChunkThreshold {
+			total = int((info.Size()+upload.DefaultChunkSize-1)/upload.DefaultChunkSize) + 2
+		}
+		progress := ctx.Progress("Upload artifact", total)
+		progress.SetStage(fmt.Sprintf("Preparing %s (%d bytes)", filepath.Base(uploadFile), info.Size()))
 
-		result, err := client.UploadFile(uploadFile, uploadFormat)
+		result, err := client.UploadFileWithProgress(uploadFile, uploadFormat, func(done, total int, stage string) {
+			progress.Update(done, fmt.Sprintf("%s: %s", filepath.Base(uploadFile), stage))
+		})
 		if err != nil {
+			progress.Fail("upload failed")
 			return fmt.Errorf("upload failed: %w", err)
 		}
+		progress.Complete("upload complete")
 		printUploadResult(t, uploadFile, result, uploadOutputJSON)
 		return nil
 	}
@@ -120,30 +129,37 @@ func runUpload(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ctx.Logger.Infof("Found %d artifact(s) in %s", len(files), discoverDir)
+	progress := ctx.Progress("Upload artifacts", len(files))
+	progress.SetStage(fmt.Sprintf("Found %d artifact(s) in %s", len(files), discoverDir))
 
 	var anyError bool
-	for _, f := range files {
+	for i, f := range files {
 		info, err := os.Stat(f.Path)
 		if err != nil {
-			ctx.Logger.Infof("skip %s: %v", f.Path, err)
+			progress.SetStage(fmt.Sprintf("Skipping %s: %v", filepath.Base(f.Path), err))
 			anyError = true
 			continue
 		}
-		ctx.Logger.Infof("Uploading %s (%d bytes, format: %s)...", filepath.Base(f.Path), info.Size(), f.Format)
+		fileName := filepath.Base(f.Path)
+		progress.Update(i, fmt.Sprintf("Uploading %s (%d bytes, format: %s)", fileName, info.Size(), f.Format))
 
-		result, err := client.UploadFile(f.Path, f.Format)
+		result, err := client.UploadFileWithProgress(f.Path, f.Format, func(done, total int, stage string) {
+			progress.SetStage(fmt.Sprintf("%s: %s %d/%d", fileName, stage, done, total))
+		})
 		if err != nil {
-			ctx.Logger.Infof("%s %s: %v", display.CrossMark(t), filepath.Base(f.Path), err)
+			progress.SetStage(fmt.Sprintf("%s failed: %v", fileName, err))
 			anyError = true
 			continue
 		}
+		progress.Update(i+1, fmt.Sprintf("Uploaded %s", fileName))
 		printUploadResult(t, f.Path, result, uploadOutputJSON)
 	}
 
 	if anyError {
+		progress.Fail("one or more uploads failed")
 		return fmt.Errorf("one or more uploads failed")
 	}
+	progress.Complete("all artifacts uploaded")
 	return nil
 }
 
