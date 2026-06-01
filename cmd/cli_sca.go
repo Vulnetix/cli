@@ -710,30 +710,38 @@ func enrichCliEnvForSCA(env *vdb.CliEnv, scanPath string, allPackages []scan.Sco
 	// Manifests: dedupe by absolute path; compute sha256 + size.
 	seenManifests := make(map[string]bool)
 	for _, pkg := range allPackages {
-		if pkg.SourceFile == "" || seenManifests[pkg.SourceFile] {
+		manifestPath, ok := resolveScanSourcePath(scanPath, pkg.SourceFile)
+		if !ok || seenManifests[manifestPath] {
 			continue
 		}
-		seenManifests[pkg.SourceFile] = true
-		info, err := os.Stat(pkg.SourceFile)
+		mi, ok := scan.DetectManifest(manifestPath)
+		if !ok || mi == nil {
+			continue
+		}
+		seenManifests[manifestPath] = true
+		info, err := os.Stat(manifestPath)
 		if err != nil {
 			continue
 		}
-		body, rerr := os.ReadFile(pkg.SourceFile)
+		body, rerr := os.ReadFile(manifestPath)
 		if rerr != nil {
 			continue
 		}
 		h := sha256.Sum256(body)
-		base := filepath.Base(pkg.SourceFile)
-		mi, _ := scan.ManifestFiles[base]
+		base := filepath.Base(manifestPath)
+		ecosystem := mi.Ecosystem
+		if ecosystem == "" {
+			ecosystem = pkg.Ecosystem
+		}
 		env.Manifests = append(env.Manifests, vdb.CliManifestMetadata{
-			Path:        relativePathFromRoot(repoRoot, pkg.SourceFile),
-			Ecosystem:   pkg.Ecosystem,
+			Path:        relativePathFromRoot(repoRoot, manifestPath),
+			Ecosystem:   ecosystem,
 			IsLock:      mi.IsLock,
 			SHA256:      hex.EncodeToString(h[:]),
 			Size:        int(info.Size()),
 			ContentType: detectManifestContentType(base),
-			Registry:    registryForEcosystem(pkg.Ecosystem),
-			Provider:    providerForEcosystem(pkg.Ecosystem),
+			Registry:    registryForEcosystem(ecosystem),
+			Provider:    providerForEcosystem(ecosystem),
 			Content:     string(body),
 		})
 	}
@@ -853,6 +861,31 @@ func relativePathFromRoot(root, p string) string {
 		return p
 	}
 	return rel
+}
+
+func resolveScanSourcePath(scanRoot, sourceFile string) (string, bool) {
+	if sourceFile == "" {
+		return "", false
+	}
+	candidates := []string{}
+	if filepath.IsAbs(sourceFile) {
+		candidates = append(candidates, sourceFile)
+	} else {
+		if scanRoot != "" {
+			candidates = append(candidates, filepath.Join(scanRoot, sourceFile))
+		}
+		candidates = append(candidates, sourceFile)
+	}
+	for _, candidate := range candidates {
+		abs, err := filepath.Abs(candidate)
+		if err != nil {
+			continue
+		}
+		if info, err := os.Stat(abs); err == nil && !info.IsDir() {
+			return abs, true
+		}
+	}
+	return "", false
 }
 
 func boolPtrCLI(b bool) *bool { return &b }
