@@ -72,6 +72,14 @@ type EnrichedVuln struct {
 	//   empty         — no analysis was performed (no data to compare).
 	Reachability string
 
+	// ReachabilityAssessed is true when tree-sitter queries actually ran
+	// for this CVE (i.e. the CVE was in the evaluated set).
+	ReachabilityAssessed bool
+
+	// ReachabilityQueryHashes are the query hashes that ran for this CVE.
+	// Populated when ReachabilityAssessed is true.
+	ReachabilityQueryHashes []string
+
 	// AffectedSymbols is the symbol-level fallback returned by the API for
 	// every tier. Populated whether or not tree-sitter queries existed.
 	AffectedSymbols *AffectedSymbols

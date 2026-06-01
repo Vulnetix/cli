@@ -2347,6 +2347,13 @@ func printPrettyScanSummary(
 	totalPkgs := len(countUniqueMap(allPackages))
 	summary := fmt.Sprintf("  %d packages | %s", totalPkgs, pluralise("vulnerability", totalVulns))
 	fmt.Fprintln(os.Stdout, display.Bold(t, summary))
+
+	// Reachability summary (only when reachability ran).
+	if anyReachabilityAssessed(enrichedVulns) {
+		assessed, reachable, notReachable, notAssessable := countReachability(enrichedVulns)
+		fmt.Fprintf(os.Stdout, "  Reachability: %d assessed, %d reachable, %d not reachable, %d not assessable/no data\n",
+			assessed, reachable, notReachable, notAssessable)
+	}
 	fmt.Fprintln(os.Stdout)
 
 	// Artefact paths.
@@ -2359,6 +2366,38 @@ func printPrettyScanSummary(
 		fmt.Fprintf(os.Stdout, "  %s Snapshot: %s\n", display.CheckMark(t), snapshotURL)
 	}
 	fmt.Fprintln(os.Stdout)
+}
+
+// anyReachabilityAssessed returns true if any vuln has ReachabilityAssessed set.
+func anyReachabilityAssessed(vulns []scan.EnrichedVuln) bool {
+	for _, v := range vulns {
+		if v.ReachabilityAssessed {
+			return true
+		}
+	}
+	return false
+}
+
+// countReachability returns (assessed, reachable, notReachable, notAssessable)
+// across all vulns. A vuln is "assessed" when ReachabilityAssessed is true and
+// the verdict is reachable or unreachable. Unassessed counts as notAssessable.
+func countReachability(vulns []scan.EnrichedVuln) (assessed, reachable, notReachable, notAssessable int) {
+	for _, v := range vulns {
+		if !v.ReachabilityAssessed {
+			notAssessable++
+			continue
+		}
+		assessed++
+		switch v.Reachability {
+		case "direct", "transitive", "semantic":
+			reachable++
+		case "unreachable":
+			notReachable++
+		default:
+			notAssessable++
+		}
+	}
+	return
 }
 
 // printCollapsedActions deduplicates actions and collapses groups that share a
