@@ -691,21 +691,21 @@ func (c *Client) V2VexSearch(p VexSearchParams) (map[string]interface{}, error) 
 
 // TriageParams ─ GET /v2/triage.
 type TriageParams struct {
-	MinEpss             *float64
-	MinEpssPercentile   *float64
-	MinCess             *float64
-	MinCvss             *float64
-	Severity            string
-	InKev               string // "true" / "false" / ""
-	KevSources          []string
-	CWEs                []string
-	Vendor              string
-	Product             string
-	Since               string
-	WindowDays          int // 0 = unset; 1..30
-	Sort                string
-	Limit               int
-	Offset              int
+	MinEpss           *float64
+	MinEpssPercentile *float64
+	MinCess           *float64
+	MinCvss           *float64
+	Severity          string
+	InKev             string // "true" / "false" / ""
+	KevSources        []string
+	CWEs              []string
+	Vendor            string
+	Product           string
+	Since             string
+	WindowDays        int // 0 = unset; 1..30
+	Sort              string
+	Limit             int
+	Offset            int
 }
 
 func (c *Client) V2Triage(p TriageParams) (map[string]interface{}, error) {

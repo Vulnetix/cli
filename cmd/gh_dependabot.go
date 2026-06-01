@@ -12,12 +12,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/triage"
 	"github.com/vulnetix/cli/v3/internal/tui"
+	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
@@ -607,7 +607,7 @@ func updateMemoryFromFinding(mem *memory.Memory, vulnID string, finding *triage.
 		Ecosystem:  finding.Ecosystem,
 		Tool:       memory.ToolSCA,
 		LastSeenAt: time.Now().UTC().Format(time.RFC3339),
-		Discovery: &memory.DiscoveryInfo{Source: "vulnetix-triage", Date: time.Now().UTC().Format(time.RFC3339)},
+		Discovery:  &memory.DiscoveryInfo{Source: "vulnetix-triage", Date: time.Now().UTC().Format(time.RFC3339)},
 		Versions: &memory.VersionInfo{
 			Current:   finding.InstalledVer,
 			FixedIn:   finding.FixedVer,

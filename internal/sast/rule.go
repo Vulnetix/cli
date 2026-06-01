@@ -23,15 +23,15 @@ type RuleMetadata struct {
 // Detection fields (ArtifactURI, StartLine, Snippet) are set by Rego logic.
 // Fingerprint and Metadata are set by the engine after evaluation.
 type Finding struct {
-	RuleID      string `json:"rule_id"`
-	Message     string `json:"message"`
-	ArtifactURI string `json:"artifact_uri"`
-	Severity    string `json:"severity"`
-	Level       string `json:"level"`
-	StartLine   int    `json:"start_line"`
-	EndLine     int    `json:"end_line,omitempty"`
-	Snippet     string `json:"snippet"`
-	Fingerprint string `json:"-"`
+	RuleID      string        `json:"rule_id"`
+	Message     string        `json:"message"`
+	ArtifactURI string        `json:"artifact_uri"`
+	Severity    string        `json:"severity"`
+	Level       string        `json:"level"`
+	StartLine   int           `json:"start_line"`
+	EndLine     int           `json:"end_line,omitempty"`
+	Snippet     string        `json:"snippet"`
+	Fingerprint string        `json:"-"`
 	Metadata    *RuleMetadata `json:"-"`
 }
 

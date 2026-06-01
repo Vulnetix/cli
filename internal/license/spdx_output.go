@@ -11,14 +11,14 @@ import (
 
 // SPDXDocument represents an SPDX 2.3 JSON document.
 type SPDXDocument struct {
-	SPDXVersion           string                  `json:"spdxVersion"`
-	DataLicense           string                  `json:"dataLicense"`
-	SPDXID                string                  `json:"SPDXID"`
-	Name                  string                  `json:"name"`
-	DocumentNamespace     string                  `json:"documentNamespace"`
-	CreationInfo          SPDXCreationInfo        `json:"creationInfo"`
-	Packages              []SPDXPackage           `json:"packages"`
-	Relationships         []SPDXRelationship      `json:"relationships,omitempty"`
+	SPDXVersion             string                 `json:"spdxVersion"`
+	DataLicense             string                 `json:"dataLicense"`
+	SPDXID                  string                 `json:"SPDXID"`
+	Name                    string                 `json:"name"`
+	DocumentNamespace       string                 `json:"documentNamespace"`
+	CreationInfo            SPDXCreationInfo       `json:"creationInfo"`
+	Packages                []SPDXPackage          `json:"packages"`
+	Relationships           []SPDXRelationship     `json:"relationships,omitempty"`
 	ExtractedLicensingInfos []SPDXExtractedLicense `json:"extractedLicensingInfos,omitempty"`
 }
 
@@ -30,15 +30,15 @@ type SPDXCreationInfo struct {
 
 // SPDXPackage is an SPDX package entry.
 type SPDXPackage struct {
-	SPDXID            string `json:"SPDXID"`
-	Name              string `json:"name"`
-	VersionInfo       string `json:"versionInfo,omitempty"`
-	DownloadLocation  string `json:"downloadLocation"`
-	LicenseConcluded  string `json:"licenseConcluded"`
-	LicenseDeclared   string `json:"licenseDeclared"`
-	CopyrightText     string `json:"copyrightText"`
-	FilesAnalyzed     bool   `json:"filesAnalyzed"`
-	ExternalRefs      []SPDXExternalRef `json:"externalRefs,omitempty"`
+	SPDXID           string            `json:"SPDXID"`
+	Name             string            `json:"name"`
+	VersionInfo      string            `json:"versionInfo,omitempty"`
+	DownloadLocation string            `json:"downloadLocation"`
+	LicenseConcluded string            `json:"licenseConcluded"`
+	LicenseDeclared  string            `json:"licenseDeclared"`
+	CopyrightText    string            `json:"copyrightText"`
+	FilesAnalyzed    bool              `json:"filesAnalyzed"`
+	ExternalRefs     []SPDXExternalRef `json:"externalRefs,omitempty"`
 }
 
 // SPDXExternalRef is a package external reference.
@@ -50,16 +50,16 @@ type SPDXExternalRef struct {
 
 // SPDXRelationship defines a relationship between SPDX elements.
 type SPDXRelationship struct {
-	Element     string `json:"spdxElementId"`
-	RelType     string `json:"relationshipType"`
+	Element        string `json:"spdxElementId"`
+	RelType        string `json:"relationshipType"`
 	RelatedElement string `json:"relatedSpdxElement"`
 }
 
 // SPDXExtractedLicense captures non-standard license text.
 type SPDXExtractedLicense struct {
-	LicenseID    string `json:"licenseId"`
+	LicenseID     string `json:"licenseId"`
 	ExtractedText string `json:"extractedText"`
-	Name         string `json:"name"`
+	Name          string `json:"name"`
 }
 
 // BuildSPDXDocument creates an SPDX 2.3 JSON document from license analysis results.

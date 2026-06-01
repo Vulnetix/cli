@@ -33,8 +33,8 @@ func TestLookupSPDX(t *testing.T) {
 
 func TestLookupSPDX_Categories(t *testing.T) {
 	tests := []struct {
-		id       string
-		wantCat  Category
+		id      string
+		wantCat Category
 	}{
 		{"MIT", CategoryPermissive},
 		{"Apache-2.0", CategoryPermissive},

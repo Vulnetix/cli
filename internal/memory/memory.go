@@ -230,41 +230,41 @@ type VDBQuery struct {
 
 // ScanRecord summarises one scan run.
 type ScanRecord struct {
-	Timestamp      string                `yaml:"timestamp"`
-	Path           string                `yaml:"path,omitempty"`
-	GitBranch      string                `yaml:"git_branch,omitempty"`
-	GitCommit      string                `yaml:"git_commit,omitempty"`
-	GitRemote      string                `yaml:"git_remote,omitempty"`
-	FilesScanned   int                   `yaml:"files_scanned"`
-	Packages       int                   `yaml:"packages"`
-	Vulns          int                   `yaml:"vulns"`
-	Critical       int                   `yaml:"critical"`
-	High           int                   `yaml:"high"`
-	Medium         int                   `yaml:"medium"`
-	Low            int                   `yaml:"low"`
-	SBOMPath       string                `yaml:"sbom_path,omitempty"`
-	ScopeBreakdown map[string]ScopeStats `yaml:"scope_breakdown,omitempty"`
-	IDSRulesPath   string                `yaml:"ids_rules_path,omitempty"`
-	IDSRulesCount  int                   `yaml:"ids_rules_count,omitempty"`
-	SASTRulesLoaded  int    `yaml:"sast_rules_loaded,omitempty"`
-	SASTFindingCount int    `yaml:"sast_finding_count,omitempty"`
-	SARIFPath        string `yaml:"sarif_path,omitempty"`
+	Timestamp        string                `yaml:"timestamp"`
+	Path             string                `yaml:"path,omitempty"`
+	GitBranch        string                `yaml:"git_branch,omitempty"`
+	GitCommit        string                `yaml:"git_commit,omitempty"`
+	GitRemote        string                `yaml:"git_remote,omitempty"`
+	FilesScanned     int                   `yaml:"files_scanned"`
+	Packages         int                   `yaml:"packages"`
+	Vulns            int                   `yaml:"vulns"`
+	Critical         int                   `yaml:"critical"`
+	High             int                   `yaml:"high"`
+	Medium           int                   `yaml:"medium"`
+	Low              int                   `yaml:"low"`
+	SBOMPath         string                `yaml:"sbom_path,omitempty"`
+	ScopeBreakdown   map[string]ScopeStats `yaml:"scope_breakdown,omitempty"`
+	IDSRulesPath     string                `yaml:"ids_rules_path,omitempty"`
+	IDSRulesCount    int                   `yaml:"ids_rules_count,omitempty"`
+	SASTRulesLoaded  int                   `yaml:"sast_rules_loaded,omitempty"`
+	SASTFindingCount int                   `yaml:"sast_finding_count,omitempty"`
+	SARIFPath        string                `yaml:"sarif_path,omitempty"`
 }
 
 // SASTFindingRecord stores triage data for a single SAST finding,
 // keyed by fingerprint in the SASTFindings map.
 type SASTFindingRecord struct {
-	RuleID      string                 `yaml:"rule_id"`
-	RuleName    string                 `yaml:"rule_name"`
-	Severity    string                 `yaml:"severity"`
-	FirstSeen   string                 `yaml:"first_seen"`
-	LastSeen    string                 `yaml:"last_seen"`
-	Status      string                 `yaml:"status"` // "open"|"resolved"|"suppressed"
-	ResolvedAt  string                 `yaml:"resolved_at,omitempty"`
-	ArtifactURI string                 `yaml:"artifact_uri,omitempty"`
-	StartLine   int                    `yaml:"start_line,omitempty"`
-	Fingerprint string                 `yaml:"fingerprint"`
-	Properties  map[string]interface{} `yaml:"properties,omitempty"`
+	RuleID         string                 `yaml:"rule_id"`
+	RuleName       string                 `yaml:"rule_name"`
+	Severity       string                 `yaml:"severity"`
+	FirstSeen      string                 `yaml:"first_seen"`
+	LastSeen       string                 `yaml:"last_seen"`
+	Status         string                 `yaml:"status"` // "open"|"resolved"|"suppressed"
+	ResolvedAt     string                 `yaml:"resolved_at,omitempty"`
+	ArtifactURI    string                 `yaml:"artifact_uri,omitempty"`
+	StartLine      int                    `yaml:"start_line,omitempty"`
+	Fingerprint    string                 `yaml:"fingerprint"`
+	Properties     map[string]interface{} `yaml:"properties,omitempty"`
 	Tool           string                 `yaml:"tool,omitempty"` // always "sast"; persisted for filter symmetry
 	Locations      []Location             `yaml:"locations,omitempty"`
 	LastSeenBranch string                 `yaml:"last_seen_branch,omitempty"`
@@ -273,13 +273,13 @@ type SASTFindingRecord struct {
 
 // Memory is the top-level .vulnetix/memory.yaml structure.
 type Memory struct {
-	Version       string                       `yaml:"version"`
-	LastScan      *ScanRecord                  `yaml:"last_scan,omitempty"`
-	History       []ScanRecord                 `yaml:"history,omitempty"`
-	Findings      map[string]FindingRecord     `yaml:"findings,omitempty"`       // triage findings keyed by CVE ID
-	SASTFindings  map[string]SASTFindingRecord `yaml:"sast_findings,omitempty"`  // SAST findings keyed by fingerprint
-	Environment   *EnvironmentContext          `yaml:"environment,omitempty"`    // last-gathered env context
-	VDBQueries    []VDBQuery                   `yaml:"vdb_queries,omitempty"`    // recent VDB query log
+	Version      string                       `yaml:"version"`
+	LastScan     *ScanRecord                  `yaml:"last_scan,omitempty"`
+	History      []ScanRecord                 `yaml:"history,omitempty"`
+	Findings     map[string]FindingRecord     `yaml:"findings,omitempty"`      // triage findings keyed by CVE ID
+	SASTFindings map[string]SASTFindingRecord `yaml:"sast_findings,omitempty"` // SAST findings keyed by fingerprint
+	Environment  *EnvironmentContext          `yaml:"environment,omitempty"`   // last-gathered env context
+	VDBQueries   []VDBQuery                   `yaml:"vdb_queries,omitempty"`   // recent VDB query log
 
 	// scanCtx is in-memory only — never serialised. Writers read it when
 	// stamping LastSeenBranch / LastSeenAt onto records.

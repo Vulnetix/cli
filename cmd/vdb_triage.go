@@ -15,7 +15,7 @@ var (
 	triageMinEpssPercentile float64
 	triageMinCess           float64
 	triageMinCvss           float64
-	vdbTriageSeverity          string
+	vdbTriageSeverity       string
 	triageInKev             string
 	triageKevSources        []string
 	triageCWEs              []string
@@ -26,7 +26,7 @@ var (
 	triageSort              string
 	triageLimit             int
 	triageOffset            int
-	vdbTriageFormat            string
+	vdbTriageFormat         string
 	triageOutput            string
 )
 

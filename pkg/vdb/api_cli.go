@@ -270,9 +270,9 @@ type CliReachabilityPayload struct {
 // server, anchored to the IngestionSnapshot.uuid from /v2/cli.sca.
 type CliFinalizeRequest struct {
 	IngestionSnapshotUuid string           `json:"ingestionSnapshotUuid"`
-	ExitCode              int              `json:"exitCode"`             // 0 = pass, 1 = break build
-	BreakBuild            bool             `json:"breakBuild"`           // true when a gate breached
-	Gates                 []CliGateResult  `json:"gates"`                // per-gate breach detail (empty when clean)
+	ExitCode              int              `json:"exitCode"`               // 0 = pass, 1 = break build
+	BreakBuild            bool             `json:"breakBuild"`             // true when a gate breached
+	Gates                 []CliGateResult  `json:"gates"`                  // per-gate breach detail (empty when clean)
 	ControlFlags          []CliControlFlag `json:"controlFlags,omitempty"` // every control flag in effect (incl. non-breaching)
 }
 

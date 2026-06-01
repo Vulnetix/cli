@@ -11,11 +11,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/v3/internal/analytics"
-	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/cache"
 	"github.com/vulnetix/cli/v3/internal/config"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/update"
+	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v3/pkg/cache"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 

@@ -8,9 +8,9 @@ import (
 
 // EOLProductResponse is the response from GET /v1/eol/products/{product}.
 type EOLProductResponse struct {
-	Timestamp int64               `json:"timestamp"`
-	Product   EOLProductDetail    `json:"product"`
-	Releases  []EOLReleaseDetail  `json:"releases"`
+	Timestamp int64              `json:"timestamp"`
+	Product   EOLProductDetail   `json:"product"`
+	Releases  []EOLReleaseDetail `json:"releases"`
 }
 
 // EOLProductDetail contains product metadata.

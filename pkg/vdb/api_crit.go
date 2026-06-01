@@ -4,17 +4,17 @@ import "encoding/json"
 
 // CritLookupResponse is the response from POST /v1/crit/lookup.
 type CritLookupResponse struct {
-	Count   int              `json:"count"`
+	Count   int               `json:"count"`
 	Matches []CritLookupMatch `json:"matches"`
 }
 
 // CritLookupMatch is a single matched CRIT record with enrichment data.
 type CritLookupMatch struct {
-	Crit           CritRecord          `json:"crit"`
-	VulnID         string              `json:"vuln_id"`
-	Aliases        []string            `json:"aliases,omitempty"`
-	Kev            *CritLookupKev      `json:"kev,omitempty"`
-	ExploitSummary *CritLookupExploits `json:"exploit_summary,omitempty"`
+	Crit           CritRecord            `json:"crit"`
+	VulnID         string                `json:"vuln_id"`
+	Aliases        []string              `json:"aliases,omitempty"`
+	Kev            *CritLookupKev        `json:"kev,omitempty"`
+	ExploitSummary *CritLookupExploits   `json:"exploit_summary,omitempty"`
 	SnortRules     []CritLookupSnortRule `json:"snort_rules,omitempty"`
 }
 
