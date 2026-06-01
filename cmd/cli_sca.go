@@ -13,6 +13,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -307,22 +308,9 @@ func introducedViaChain(p scan.ScopedPackage, key string, manifestGroups []scan.
 //
 // Memory-yaml VEX hints are attached so user-authored decisions win over the
 // auto-computed verdict.
-func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vdb.CliIngestionSnapshot, persisted []vdb.CliFindingResult, enriched []scan.EnrichedVuln, gitCtx *gitctx.GitContext) {
-	if snapshot == nil || len(enriched) == 0 {
-		return
-	}
-
-	// Map (cveId|packageName|packageVer) → findingUuid for fast lookup.
-	findingByKey := make(map[string]vdb.CliFindingResult, len(persisted))
-	for _, f := range persisted {
-		k := f.FindingID + "|" + f.PackageName + "|" + f.PackageVersion
-		findingByKey[k] = f
-	}
-
-	// Memory-yaml lookup — best-effort. The CLI already merges this into
-	// enriched but we need the raw status fields to forward upstream.
-	memRecords := loadMemoryRecords(gitCtx)
-
+// buildReachabilityPayloads turns enriched vulns into CliReachabilityPayload
+// rows. It is pure (no side effects, no network) so it is unit-testable.
+func buildReachabilityPayloads(enriched []scan.EnrichedVuln, findingByKey map[string]vdb.CliFindingResult, memRecords map[string]memory.FindingRecord) []vdb.CliReachabilityPayload {
 	payloads := make([]vdb.CliReachabilityPayload, 0, len(enriched)*2)
 	for _, ev := range enriched {
 		fkey := ev.CveID + "|" + ev.PackageName + "|" + ev.PackageVer
@@ -349,21 +337,19 @@ func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vd
 
 		switch ev.Reachability {
 		case "direct", "transitive":
-			// Tree-sitter verdict — emit one row per affected routine if any.
 			row := base
 			row.Source = "TREE_SITTER"
 			row.Verdict = strings.ToUpper(ev.Reachability)
-			if len(ev.AffectedSymbols.Routines) > 0 {
+			if ev.AffectedSymbols != nil && len(ev.AffectedSymbols.Routines) > 0 {
 				row.MatchedRoutine = ev.AffectedSymbols.Routines[0]
+			}
+			if len(ev.ReachabilityQueryHashes) > 0 {
+				row.QueryHash = ev.ReachabilityQueryHashes[0]
 			}
 			payloads = append(payloads, row)
 		case "semantic":
-			// Symbol-fallback hits — one row per match.
 			if len(ev.SemanticMatches) == 0 {
-				row := base
-				row.Source = "SYMBOL_FALLBACK"
-				row.Verdict = "SEMANTIC"
-				payloads = append(payloads, row)
+				break
 			}
 			for _, m := range ev.SemanticMatches {
 				row := base
@@ -374,15 +360,47 @@ func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vd
 				row.MatchStartLine = m.Line
 				payloads = append(payloads, row)
 			}
-		default:
-			// No reachability verdict — treat as UNREACHABLE so the server
-			// records a not_affected/code_not_reachable VEX statement.
+		case "unreachable":
+			if !ev.ReachabilityAssessed {
+				break
+			}
 			row := base
 			row.Source = "TREE_SITTER"
 			row.Verdict = "UNREACHABLE"
+			if len(ev.ReachabilityQueryHashes) > 0 {
+				row.QueryHash = ev.ReachabilityQueryHashes[0]
+			}
+			if ev.AffectedSymbols != nil && (len(ev.AffectedSymbols.Routines) > 0 || len(ev.AffectedSymbols.Files) > 0 || len(ev.AffectedSymbols.Modules) > 0) {
+				evidence := map[string]any{
+					"routines": ev.AffectedSymbols.Routines,
+					"files":    ev.AffectedSymbols.Files,
+					"modules":  ev.AffectedSymbols.Modules,
+				}
+				if b, err := json.Marshal(evidence); err == nil {
+					row.EvidenceJSON = string(b)
+				}
+			}
 			payloads = append(payloads, row)
+		default:
+			// Empty / unassessed — emit no row.
 		}
 	}
+	return payloads
+}
+
+func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vdb.CliIngestionSnapshot, persisted []vdb.CliFindingResult, enriched []scan.EnrichedVuln, gitCtx *gitctx.GitContext) {
+	if snapshot == nil || len(enriched) == 0 {
+		return
+	}
+
+	findingByKey := make(map[string]vdb.CliFindingResult, len(persisted))
+	for _, f := range persisted {
+		k := f.FindingID + "|" + f.PackageName + "|" + f.PackageVersion
+		findingByKey[k] = f
+	}
+
+	memRecords := loadMemoryRecords(gitCtx)
+	payloads := buildReachabilityPayloads(enriched, findingByKey, memRecords)
 
 	if len(payloads) == 0 {
 		return
@@ -608,6 +626,19 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 
 	for i := range enriched {
 		cve := enriched[i].CveID
+		if evaluatedCVEs[cve] {
+			enriched[i].ReachabilityAssessed = true
+		}
+		// Collect query hashes for this CVE
+		var hashes []string
+		for _, e := range byHash {
+			if e.cves[cve] {
+				hashes = append(hashes, e.query.QueryHash)
+			}
+		}
+		if len(hashes) > 0 {
+			enriched[i].ReachabilityQueryHashes = hashes
+		}
 		switch {
 		case reachableCVEs[cve]:
 			enriched[i].Reachability = "transitive"
