@@ -8,10 +8,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/github"
 	"github.com/vulnetix/cli/v3/internal/upload"
+	"github.com/vulnetix/cli/v3/pkg/auth"
 )
 
 var (

@@ -24,12 +24,12 @@ type LicenseRecord struct {
 
 // PackageLicense ties a detected package to its resolved license.
 type PackageLicense struct {
-	PackageName    string         `json:"packageName"`
-	PackageVersion string         `json:"packageVersion"`
-	Ecosystem      string         `json:"ecosystem"`
-	Scope          string         `json:"scope"`
-	LicenseSpdxID  string         `json:"licenseSpdxId"`
-	LicenseSource  string         `json:"licenseSource"` // "manifest", "lockfile", "embedded-db"
+	PackageName     string         `json:"packageName"`
+	PackageVersion  string         `json:"packageVersion"`
+	Ecosystem       string         `json:"ecosystem"`
+	Scope           string         `json:"scope"`
+	LicenseSpdxID   string         `json:"licenseSpdxId"`
+	LicenseSource   string         `json:"licenseSource"` // "manifest", "lockfile", "embedded-db"
 	SourceFile      string         `json:"sourceFile"`
 	IsDirect        bool           `json:"isDirect"`
 	GitHubURL       string         `json:"-"` // optional: "owner/repo" from manifest, used for license resolution
@@ -40,12 +40,12 @@ type PackageLicense struct {
 
 // LicenseConflict describes an incompatibility between two licenses.
 type LicenseConflict struct {
-	Type           string `json:"type"`     // "incompatible", "copyleft-mixing", "deprecated", "version-incompatible"
-	Severity       string `json:"severity"` // critical, high, medium, low
-	License1       string `json:"license1"`
-	License2       string `json:"license2"`
-	Package1       string `json:"package1"`
-	Package2       string `json:"package2"`
+	Type           string     `json:"type"`     // "incompatible", "copyleft-mixing", "deprecated", "version-incompatible"
+	Severity       string     `json:"severity"` // critical, high, medium, low
+	License1       string     `json:"license1"`
+	License2       string     `json:"license2"`
+	Package1       string     `json:"package1"`
+	Package2       string     `json:"package2"`
 	Description    string     `json:"description"`
 	Recommendation string     `json:"recommendation"`
 	Package1Paths  [][]string `json:"package1Paths,omitempty"`
@@ -63,11 +63,11 @@ type EvidenceStep struct {
 
 // Finding is a single license issue produced by evaluation.
 type Finding struct {
-	ID          string         `json:"id"`
-	Title       string         `json:"title"`
-	Description string         `json:"description"`
-	Severity    string         `json:"severity"`
-	Confidence  float64        `json:"confidence"`
+	ID              string         `json:"id"`
+	Title           string         `json:"title"`
+	Description     string         `json:"description"`
+	Severity        string         `json:"severity"`
+	Confidence      float64        `json:"confidence"`
 	Package         PackageLicense `json:"package"`
 	Category        string         `json:"category"` // rule category
 	Evidence        []EvidenceStep `json:"evidence"`

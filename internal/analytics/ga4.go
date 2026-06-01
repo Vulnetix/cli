@@ -37,12 +37,12 @@ const (
 
 // Event categories matching the website's ga4-client.ts patterns
 const (
-	CategoryCommand     = "cli_command"
-	CategoryAuth        = "authentication"
-	CategoryVDB         = "vulnerability_database"
-	CategoryScan        = "scanning"
-	CategoryError       = "error"
-	CategoryEngagement  = "engagement"
+	CategoryCommand    = "cli_command"
+	CategoryAuth       = "authentication"
+	CategoryVDB        = "vulnerability_database"
+	CategoryScan       = "scanning"
+	CategoryError      = "error"
+	CategoryEngagement = "engagement"
 )
 
 // event represents a single GA4 event in the Measurement Protocol payload.

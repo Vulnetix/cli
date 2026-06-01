@@ -18,8 +18,8 @@ type SARIFLog struct {
 
 // SARIFRun represents a single analysis run.
 type SARIFRun struct {
-	Tool      SARIFTool      `json:"tool"`
-	Results   []SARIFResult  `json:"results"`
+	Tool      SARIFTool       `json:"tool"`
+	Results   []SARIFResult   `json:"results"`
 	Artifacts []SARIFArtifact `json:"artifacts,omitempty"`
 }
 
@@ -30,18 +30,18 @@ type SARIFTool struct {
 
 // SARIFToolDriver describes the primary analysis tool component.
 type SARIFToolDriver struct {
-	Name            string                     `json:"name"`
-	Version         string                     `json:"version,omitempty"`
-	InformationURI  string                     `json:"informationUri,omitempty"`
-	Rules           []SARIFReportingDescriptor `json:"rules,omitempty"`
+	Name           string                     `json:"name"`
+	Version        string                     `json:"version,omitempty"`
+	InformationURI string                     `json:"informationUri,omitempty"`
+	Rules          []SARIFReportingDescriptor `json:"rules,omitempty"`
 }
 
 // SARIFReportingDescriptor describes a rule.
 type SARIFReportingDescriptor struct {
-	ID               string          `json:"id"`
-	Name             string          `json:"name,omitempty"`
-	ShortDescription *SARIFMessage   `json:"shortDescription,omitempty"`
-	HelpURI          string          `json:"helpUri,omitempty"`
+	ID               string           `json:"id"`
+	Name             string           `json:"name,omitempty"`
+	ShortDescription *SARIFMessage    `json:"shortDescription,omitempty"`
+	HelpURI          string           `json:"helpUri,omitempty"`
 	Properties       SARIFPropertyBag `json:"properties,omitempty"`
 }
 

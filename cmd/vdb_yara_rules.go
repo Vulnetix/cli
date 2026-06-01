@@ -10,22 +10,22 @@ import (
 )
 
 var (
-	yaraSearchCveIDs    []string
-	yaraSearchSources   []string
-	yaraSearchTags      []string
-	yaraSearchImports   []string
-	yaraSearchRuleName  string
-	yaraSearchAuthor    string
-	yaraSearchQ         string
-	yaraSearchString    string
-	yaraSearchMeta      string
-	yaraSearchSince     string
-	yaraSearchUntil     string
-	yaraSearchSort      string
-	yaraSearchLimit     int
-	yaraSearchOffset    int
-	yaraSearchOutput    string
-	yaraSearchFormat    string // json | rules
+	yaraSearchCveIDs   []string
+	yaraSearchSources  []string
+	yaraSearchTags     []string
+	yaraSearchImports  []string
+	yaraSearchRuleName string
+	yaraSearchAuthor   string
+	yaraSearchQ        string
+	yaraSearchString   string
+	yaraSearchMeta     string
+	yaraSearchSince    string
+	yaraSearchUntil    string
+	yaraSearchSort     string
+	yaraSearchLimit    int
+	yaraSearchOffset   int
+	yaraSearchOutput   string
+	yaraSearchFormat   string // json | rules
 )
 
 var yaraRulesCmd = &cobra.Command{

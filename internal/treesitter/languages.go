@@ -20,7 +20,6 @@ import (
 	"github.com/smacker/go-tree-sitter/java"
 	"github.com/smacker/go-tree-sitter/javascript"
 	"github.com/smacker/go-tree-sitter/kotlin"
-	lua "github.com/vulnetix/cli/v3/third_party/treesitter-lua"
 	"github.com/smacker/go-tree-sitter/php"
 	"github.com/smacker/go-tree-sitter/python"
 	"github.com/smacker/go-tree-sitter/ruby"
@@ -29,6 +28,7 @@ import (
 	"github.com/smacker/go-tree-sitter/swift"
 	"github.com/smacker/go-tree-sitter/typescript/tsx"
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
+	lua "github.com/vulnetix/cli/v3/third_party/treesitter-lua"
 )
 
 // LanguageID is the canonical identifier emitted by vdb-manager in the

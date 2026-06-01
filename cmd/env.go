@@ -80,13 +80,13 @@ type envMemoryStatus struct {
 }
 
 type envFullOutput struct {
-	CLI             envCLIInfo              `json:"cli"`
-	Platform        string                  `json:"platform"`
-	System          *gitctx.SystemInfo      `json:"system"`
-	Git             *envGitInfo             `json:"git,omitempty"`
-	PackageManagers []envPackageManagerInfo `json:"package_managers,omitempty"`
+	CLI             envCLIInfo               `json:"cli"`
+	Platform        string                   `json:"platform"`
+	System          *gitctx.SystemInfo       `json:"system"`
+	Git             *envGitInfo              `json:"git,omitempty"`
+	PackageManagers []envPackageManagerInfo  `json:"package_managers,omitempty"`
 	Licenses        []license.RepoLicenseHit `json:"licenses,omitempty"`
-	Memory          *envMemoryStatus        `json:"memory,omitempty"`
+	Memory          *envMemoryStatus         `json:"memory,omitempty"`
 }
 
 func gatherFullEnvironment(cwd string) *envFullOutput {

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	depsDevBaseURL  = "https://api.deps.dev/v3"
+	depsDevBaseURL = "https://api.deps.dev/v3"
 	depsDevTimeout = 10 * time.Second
 	depsDevMaxConc = 5
 )

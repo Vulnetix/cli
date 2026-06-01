@@ -21,7 +21,7 @@ type RepoLicenseHit struct {
 	SPDXID      string `json:"spdxId,omitempty"`
 	Name        string `json:"name,omitempty"`
 	URL         string `json:"url,omitempty"`
-	Source      string `json:"source,omitempty"`      // "file:LICENSE" | "manifest:package.json"
+	Source      string `json:"source,omitempty"`          // "file:LICENSE" | "manifest:package.json"
 	Acknowledge string `json:"acknowledgement,omitempty"` // "declared" | "concluded"
 	Text        string `json:"text,omitempty"`            // first N bytes of license text
 }
@@ -182,9 +182,9 @@ func parseComposerJSONLicense(path string) string {
 // extractor — we deliberately avoid pulling in a TOML parser dependency for
 // what is two trivial string lookups.
 var (
-	cargoLicRe   = regexp.MustCompile(`(?m)^\s*license\s*=\s*"([^"]+)"`)
-	pyprojectRe  = regexp.MustCompile(`(?m)^\s*license\s*=\s*"([^"]+)"`)
-	setupcfgRe   = regexp.MustCompile(`(?m)^\s*license\s*=\s*(.+)$`)
+	cargoLicRe  = regexp.MustCompile(`(?m)^\s*license\s*=\s*"([^"]+)"`)
+	pyprojectRe = regexp.MustCompile(`(?m)^\s*license\s*=\s*"([^"]+)"`)
+	setupcfgRe  = regexp.MustCompile(`(?m)^\s*license\s*=\s*(.+)$`)
 )
 
 func parseCargoTOMLLicense(path string) string {
