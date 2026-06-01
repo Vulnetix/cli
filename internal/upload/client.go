@@ -48,6 +48,9 @@ type Client struct {
 	GitHubContext *GitHubActionsContext
 }
 
+// ProgressFunc reports upload stage progress against a fixed per-file goal.
+type ProgressFunc func(done, total int, stage string)
+
 // InitiateResponse is returned when starting an upload session
 type InitiateResponse struct {
 	OK              bool   `json:"ok"`
@@ -98,6 +101,12 @@ func NewClient(baseURL string, creds *auth.Credentials) *Client {
 
 // UploadFile uploads a file to Vulnetix, choosing simple or chunked based on size
 func (c *Client) UploadFile(filePath string, formatOverride string) (*FinalizeResponse, error) {
+	return c.UploadFileWithProgress(filePath, formatOverride, nil)
+}
+
+// UploadFileWithProgress uploads a file and reports per-file upload progress
+// when progress is non-nil.
+func (c *Client) UploadFileWithProgress(filePath string, formatOverride string, progress ProgressFunc) (*FinalizeResponse, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
@@ -117,28 +126,45 @@ func (c *Client) UploadFile(filePath string, formatOverride string) (*FinalizeRe
 	}
 
 	if len(data) < ChunkThreshold {
-		return c.SimpleUpload(fileName, data, contentType, format)
+		return c.SimpleUploadWithProgress(fileName, data, contentType, format, progress)
 	}
-	return c.ChunkedUpload(fileName, data, contentType, format)
+	return c.ChunkedUploadWithProgress(fileName, data, contentType, format, progress)
 }
 
 // SimpleUpload performs a single-request upload for small files
 func (c *Client) SimpleUpload(fileName string, data []byte, contentType, format string) (*FinalizeResponse, error) {
+	return c.SimpleUploadWithProgress(fileName, data, contentType, format, nil)
+}
+
+// SimpleUploadWithProgress performs a single-request upload for small files.
+func (c *Client) SimpleUploadWithProgress(fileName string, data []byte, contentType, format string, progress ProgressFunc) (*FinalizeResponse, error) {
+	if progress != nil {
+		progress(0, 3, "Initiating upload session")
+	}
 	// Initiate
 	session, err := c.InitiateSession(fileName, len(data), contentType, 1, len(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initiate upload: %w", err)
+	}
+	if progress != nil {
+		progress(1, 3, "Uploading data")
 	}
 
 	// Single chunk
 	if _, err := c.UploadChunk(session.UploadSessionID, 1, data); err != nil {
 		return nil, fmt.Errorf("failed to upload data: %w", err)
 	}
+	if progress != nil {
+		progress(2, 3, "Finalizing upload")
+	}
 
 	// Finalize
 	result, err := c.FinalizeUpload(session.UploadSessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to finalize upload: %w", err)
+	}
+	if progress != nil {
+		progress(3, 3, "Upload finalized")
 	}
 
 	return result, nil

@@ -10,20 +10,27 @@ type contextKey struct{}
 
 // Context bundles display capabilities for a command.
 type Context struct {
-	Logger *Logger
-	Term   *Terminal
-	Mode   OutputMode
-	Silent bool
+	Logger     *Logger
+	Term       *Terminal
+	Mode       OutputMode
+	Silent     bool
+	NoProgress bool
 }
 
 // New creates a display context from mode and silent flag.
 func New(mode OutputMode, silent bool) *Context {
+	return NewWithProgress(mode, silent, false)
+}
+
+// NewWithProgress creates a display context from output and progress flags.
+func NewWithProgress(mode OutputMode, silent bool, noProgress bool) *Context {
 	term := NewTerminal()
 	return &Context{
-		Logger: NewLogger(mode, silent, term),
-		Term:   term,
-		Mode:   mode,
-		Silent: silent,
+		Logger:     NewLogger(mode, silent, term),
+		Term:       term,
+		Mode:       mode,
+		Silent:     silent,
+		NoProgress: noProgress,
 	}
 }
 

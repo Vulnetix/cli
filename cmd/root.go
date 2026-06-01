@@ -24,6 +24,7 @@ var (
 	orgID         string
 	silent        bool
 	verbose       bool
+	noProgress    bool
 	disableMemory bool
 	noAnalytics   bool
 
@@ -69,7 +70,7 @@ vulnerabilities efficiently.`,
 
 // initDisplayContext creates and attaches a display.Context to the command.
 func initDisplayContext(cmd *cobra.Command, mode display.OutputMode) {
-	dc := display.New(mode, silent)
+	dc := display.NewWithProgress(mode, silent, noProgress)
 	dc.Attach(cmd)
 }
 
@@ -77,6 +78,7 @@ func initDisplayContext(cmd *cobra.Command, mode display.OutputMode) {
 func runInfoTask(cmd *cobra.Command) error {
 	ctx := display.FromCommand(cmd)
 	t := ctx.Term
+	progress := ctx.Progress("Authentication healthcheck", 5)
 
 	var b strings.Builder
 	b.WriteString(display.Bold(t, fmt.Sprintf("Vulnetix CLI v%s", version)) + "\n")
@@ -100,6 +102,7 @@ func runInfoTask(cmd *cobra.Command) error {
 	}
 
 	// 1. Check Direct API Key env vars
+	progress.SetStage("Checking Direct API Key environment credentials")
 	apiKey := os.Getenv("VULNETIX_API_KEY")
 	envOrgID := os.Getenv("VULNETIX_ORG_ID")
 	if apiKey != "" && envOrgID != "" {
@@ -117,8 +120,10 @@ func runInfoTask(cmd *cobra.Command) error {
 	} else {
 		formatNotSet("VULNETIX_API_KEY + VULNETIX_ORG_ID (env)", "···")
 	}
+	progress.Update(1, "Checked Direct API Key environment credentials")
 
 	// 2. Check SigV4 env vars
+	progress.SetStage("Checking SigV4 environment credentials")
 	vvdOrg := os.Getenv("VVD_ORG")
 	vvdSecret := os.Getenv("VVD_SECRET")
 	if vvdOrg != "" && vvdSecret != "" {
@@ -131,8 +136,10 @@ func runInfoTask(cmd *cobra.Command) error {
 	} else {
 		formatNotSet("VVD_ORG + VVD_SECRET (env)", "···············")
 	}
+	progress.Update(2, "Checked SigV4 environment credentials")
 
 	// 3. Check project dotfile
+	progress.SetStage("Checking project credential file")
 	if creds, err := loadCredentialFile(auth.StoreProject); err == nil {
 		anyFound = true
 		if verr := verifyCredentials(creds); verr != nil {
@@ -143,8 +150,10 @@ func runInfoTask(cmd *cobra.Command) error {
 	} else {
 		formatNotFound(".vulnetix/credentials.json (project)", "······")
 	}
+	progress.Update(3, "Checked project credential file")
 
 	// 4. Check home directory
+	progress.SetStage("Checking home credential file")
 	homeDir, _ := os.UserHomeDir()
 	homePath := filepath.Join(homeDir, ".vulnetix", "credentials.json")
 	homeLabel := homePath + " (home)"
@@ -158,9 +167,12 @@ func runInfoTask(cmd *cobra.Command) error {
 	} else {
 		formatNotFound(homeLabel, "···")
 	}
+	progress.Update(4, "Checked home credential file")
 
 	// 5. Community fallback (VDB only)
+	progress.SetStage("Checking community fallback availability")
 	formatSource("Unauthenticated Community (VDB only)", "······", display.Muted(t, "available"), true)
+	progress.Complete("authentication healthcheck complete")
 
 	if !anyFound {
 		b.WriteString("\n" + display.Muted(t, "No credentials configured. Run 'vulnetix auth login' to get started.") + "\n")
@@ -254,6 +266,8 @@ func Execute() error {
 
 // startupHooks runs before any command via cobra.OnInitialize.
 func startupHooks() {
+	installCommandProgress()
+
 	// Propagate verbose flag into vdb client (gates retry/backoff stderr chatter).
 	vdb.Verbose = verbose
 
@@ -314,6 +328,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
 	rootCmd.PersistentFlags().BoolVar(&silent, "silent", false, "Suppress all log output, only print final result")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show verbose diagnostic output (rate limits, cache status, auth notes)")
+	rootCmd.PersistentFlags().BoolVar(&noProgress, "no-progress", false, "Suppress progress indicators")
 	rootCmd.PersistentFlags().BoolVar(&disableMemory, "disable-memory", false, "Disable memory file reads/writes. For users who do not use the Claude Code Plugin or for debugging. VDB commands will skip memory-related side effects when set.")
 	rootCmd.PersistentFlags().BoolVar(&noAnalytics, "no-analytics", false, "Disable anonymous usage analytics")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true

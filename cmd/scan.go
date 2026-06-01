@@ -23,7 +23,6 @@ import (
 	"github.com/vulnetix/cli/v3/internal/update"
 	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/pkg/cache"
-	"github.com/vulnetix/cli/v3/pkg/tty"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
@@ -202,7 +201,7 @@ Examples:
   vulnetix scan -o /tmp/out.cdx.json   # save CDX to file, pretty to stdout
   vulnetix scan -o /tmp/out.sarif      # save SARIF to file, pretty to stdout
   vulnetix scan -o /tmp/out.cdx.json -o /tmp/out.sarif  # save both, pretty to stdout
-  vulnetix scan --no-progress          # suppress progress bar
+  vulnetix scan --no-progress          # suppress progress indicators
   vulnetix scan --severity high        # exit 1 if any vuln is high or critical
   vulnetix scan --severity low         # exit 1 on any scored severity (low+)
   vulnetix scan --block-malware        # exit 1 on any known malicious package
@@ -339,7 +338,6 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		return err
 	}
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
-	noProgress, _ := cmd.Flags().GetBool("no-progress")
 	showPaths, _ := cmd.Flags().GetBool("show-introduced-paths")
 	if !showPaths {
 		showPaths, _ = cmd.Flags().GetBool("paths")
@@ -658,9 +656,23 @@ func runLocalScan(
 	gitCtx *gitctx.GitContext,
 	sysInfo *gitctx.SystemInfo,
 	snippetContext int,
-) error {
+) (retErr error) {
 	// Create a v1 VDB client for package search (not the upload/scan v2 client).
 	client := newSearchClient()
+	dctx := display.NewWithProgress(display.ModeText, silent, noProgress)
+	scanProgress := dctx.Progress("Scan", 7)
+	scanProgress.SetStage(fmt.Sprintf("Parsing %d detected file(s)", len(files)))
+	progressComplete := false
+	defer func() {
+		if progressComplete {
+			return
+		}
+		if retErr != nil {
+			scanProgress.Fail("failed")
+			return
+		}
+		scanProgress.Complete("complete")
+	}()
 	var localResults []cdx.LocalScanResult
 	var allPackages []scan.ScopedPackage
 	var manifestGroups []scan.ManifestGroup
@@ -676,7 +688,6 @@ func runLocalScan(
 	// report the gate finalization back to the server after evaluation.
 	var scaSnapshotUuid string
 	var scaSnapshotURL string
-	isInteractive := tty.IsInteractive() && !noProgress
 
 	queryCtx := ctx
 	if queryCtx == nil {
@@ -744,6 +755,7 @@ func runLocalScan(
 			localResults = []cdx.LocalScanResult{}
 			allPackages = []scan.ScopedPackage{}
 		}
+		scanProgress.Update(1, fmt.Sprintf("Parsed %d package(s)", len(allPackages)))
 
 		// Build manifest groups (dependency graphs) and run per-package license
 		// detection BEFORE the SCA round-trip so the payload can carry accurate
@@ -759,10 +771,12 @@ func runLocalScan(
 			}
 		}
 		manifestGroups = scan.BuildManifestGroups(filePackages, fileEcosystems)
+		scanProgress.SetStage("Building dependency graph")
 		scan.PopulateInstalledEdges(manifestGroups, rootPath)
 
 		licenseByKey := map[string]string{}
 		if len(allPackages) > 0 {
+			scanProgress.SetStage(fmt.Sprintf("Resolving package licenses for %d package(s)", len(allPackages)))
 			licensedPackages = license.DetectLicenses(allPackages, manifestGroups)
 			for _, lp := range licensedPackages {
 				if lp.LicenseSpdxID != "" && lp.LicenseSpdxID != "UNKNOWN" {
@@ -770,6 +784,7 @@ func runLocalScan(
 				}
 			}
 		}
+		scanProgress.Update(2, "Prepared dependency metadata")
 
 		// ── Try /v2/cli.sca first (one round-trip for the whole PURL list) ───
 		// This replaces the per-PURL LookupVulns + EnrichVulns fan-out below.
@@ -781,6 +796,7 @@ func runLocalScan(
 			EOL:        blockEOL,
 			Malware:    blockMalware,
 		}
+		scanProgress.SetStage(fmt.Sprintf("Querying VDB for %d package(s)", countUniquePackages(allPackages)))
 		apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts)
 		if apiServed {
 			allVulns = apiVulns
@@ -788,36 +804,23 @@ func runLocalScan(
 			scaInsights = apiInsights
 			scaSnapshotUuid = apiSnapshotUuid
 			scaSnapshotURL = apiSnapshotURL
+			scanProgress.Update(3, fmt.Sprintf("VDB returned %d finding(s)", len(allVulns)))
 		} else {
 			// ── Count unique packages to query ───────────────────────────────
 			uniqueCount := countUniquePackages(allPackages)
 			fmt.Fprintf(os.Stderr, "\nQuerying VDB for %d unique package(s)...\n", uniqueCount)
 
 			// ── Query VDB ────────────────────────────────────────────────────
-			isInteractive := tty.IsInteractive() && !noProgress
 			var progressFn func(done, total int)
-
-			if isInteractive {
+			if !noProgress {
 				progressFn = func(done, total int) {
-					pct := 0
-					if total > 0 {
-						pct = done * 100 / total
-					}
-					bar := renderProgressBar(done, total, 30)
-					fmt.Fprintf(os.Stderr, "\r  %s %d/%d (%d%%) ", bar, done, total, pct)
-				}
-			} else if !noProgress {
-				progressFn = func(done, total int) {
-					if done%10 == 0 || done == total {
-						fmt.Fprintf(os.Stderr, "\r  %d/%d", done, total)
+					if scanProgress.Interactive() || done%10 == 0 || done == total {
+						scanProgress.SetStage(fmt.Sprintf("Querying VDB packages %d/%d", done, total))
 					}
 				}
 			}
 
 			scannedVulns, lookupStats, vulnsErr := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
-			if progressFn != nil {
-				fmt.Fprintln(os.Stderr)
-			}
 
 			hasPartial := vulnsErr != nil && len(scannedVulns) > 0
 			printLookupSummary(client, lookupStats, vulnsErr, hasPartial)
@@ -826,7 +829,10 @@ func runLocalScan(
 				return fmt.Errorf("VDB lookup failed: %w", vulnsErr)
 			}
 			allVulns = scannedVulns
+			scanProgress.Update(3, fmt.Sprintf("VDB returned %d finding(s)", len(allVulns)))
 		}
+	} else {
+		scanProgress.Update(3, "Skipped SCA package vulnerability lookup")
 	}
 
 	// Attach vulns to each file result.
@@ -842,6 +848,7 @@ func runLocalScan(
 	var enrichedVulns []scan.EnrichedVuln
 	if scaEnrichedFromAPI != nil {
 		enrichedVulns = scaEnrichedFromAPI
+		scanProgress.Update(4, fmt.Sprintf("Received %d enriched finding(s)", len(enrichedVulns)))
 	} else {
 		v2Client := newEnrichmentClient()
 
@@ -852,25 +859,20 @@ func runLocalScan(
 		}
 
 		var enrichProgressFn func(done, total int)
-		if isInteractive && enrichCount > 0 {
+		if !noProgress && enrichCount > 0 {
 			enrichProgressFn = func(done, total int) {
-				pct := 0
-				if total > 0 {
-					pct = done * 100 / total
+				if scanProgress.Interactive() || done%10 == 0 || done == total {
+					scanProgress.SetStage(fmt.Sprintf("Enriching vulnerabilities %d/%d", done, total))
 				}
-				bar := renderProgressBar(done, total, 30)
-				fmt.Fprintf(os.Stderr, "\r  %s %d/%d (%d%%) ", bar, done, total, pct)
 			}
 		}
 
 		var enrichErr error
 		enrichedVulns, enrichErr = scan.EnrichVulns(queryCtx, client, v2Client, allVulns, allPackages, concurrency, enrichProgressFn)
-		if enrichProgressFn != nil {
-			fmt.Fprintln(os.Stderr)
-		}
 		if enrichErr != nil {
 			fmt.Fprintf(os.Stderr, "  warning: enrichment failed: %v\n", enrichErr)
 		}
+		scanProgress.Update(4, fmt.Sprintf("Enriched %d finding(s)", len(enrichedVulns)))
 	}
 
 	// Attach enriched vulns back to their file results so the BOM gets full ratings.
@@ -1070,6 +1072,7 @@ func runLocalScan(
 	disableAllSAST := noSASTRules && noSecrets && noContainers && noIAC
 	var sastReport *sast.SASTReport
 	if !disableAllSAST {
+		scanProgress.SetStage("Loading SAST rules")
 		modules, merr := sast.LoadAllModules(sast.DefaultRulesFS, disableDefaultRules, ruleRefs, ruleRegistry, os.Stderr)
 		if merr != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not load SAST rules: %v\n", merr)
@@ -1083,6 +1086,7 @@ func runLocalScan(
 			modules = filterModulesByID(modules, ruleID)
 			eng := sast.NewEngine(modules, rootPath)
 			var eerr error
+			scanProgress.SetStage(fmt.Sprintf("Evaluating %d SAST rule(s)", len(modules)))
 			sastReport, eerr = eng.Evaluate(sast.EvalOptions{MaxDepth: depth, Excludes: excludes})
 			if eerr != nil {
 				fmt.Fprintf(os.Stderr, "  warning: SAST evaluation failed: %v\n", eerr)
@@ -1195,7 +1199,13 @@ func runLocalScan(
 			postScanSARIF(sastReport, gitCtx, rootPath, snippetContext)
 		}
 	}
+	if sastReport != nil {
+		scanProgress.Update(5, fmt.Sprintf("SAST found %d issue(s)", len(sastReport.Findings)))
+	} else {
+		scanProgress.Update(5, "SAST analysis skipped or produced no findings")
+	}
 
+	scanProgress.SetStage("Persisting scan memory")
 	mem.RecordScan(rec)
 
 	if err := memory.Save(vulnetixDir, mem); err != nil {
@@ -1302,6 +1312,7 @@ func runLocalScan(
 	if err := writeBOMToFile(bom, sbomPath); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
 	}
+	scanProgress.Update(6, "Wrote SBOM and local scan state")
 
 	// ── Quality gate evaluation ───────────────────────────────────────────
 	// Evaluated after writing artefacts so that the SBOM and memory.yaml are
@@ -1610,6 +1621,9 @@ func runLocalScan(
 		controlFlags = append(controlFlags, vdb.CliControlFlag{Flag: "--block-unpinned", Value: "true"})
 	}
 	reportScanFinalization(scaSnapshotUuid, breaches, controlFlags, gitCtx, sysInfo)
+	scanProgress.Update(7, "Evaluated quality gates")
+	scanProgress.Complete("scan complete")
+	progressComplete = true
 
 	// ── Output ────────────────────────────────────────────────────────────
 
@@ -2708,18 +2722,6 @@ func plural(word string, n int) string {
 	return word + "s"
 }
 
-// renderProgressBar renders a Unicode block progress bar of the given width.
-func renderProgressBar(done, total, width int) string {
-	if total == 0 {
-		return strings.Repeat("░", width)
-	}
-	filled := done * width / total
-	if filled > width {
-		filled = width
-	}
-	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
-}
-
 // buildScanRecord constructs a memory.ScanRecord from scan results.
 func buildScanRecord(
 	results []cdx.LocalScanResult,
@@ -2967,7 +2969,6 @@ func addScanFlags(cmd *cobra.Command) {
 		"Output target (repeatable): json-cyclonedx or json-sarif for stdout; file path (.cdx.json, .sarif) to write to file")
 	cmd.Flags().StringP("format", "f", "", "Deprecated: use --output instead")
 	cmd.Flags().Int("concurrency", 5, "Max concurrent VDB queries")
-	cmd.Flags().Bool("no-progress", false, "Suppress progress bar")
 	cmd.Flags().Bool("show-introduced-paths", false, "Show the full chain from manifest to the affected transitive package (npm, Python, Rust, Ruby, PHP, Go). Direct deps are introduced by the manifest itself and omitted.")
 	// Deprecated alias retained for backward compatibility — the documented
 	// name is --show-introduced-paths.

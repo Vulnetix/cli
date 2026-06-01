@@ -225,7 +225,7 @@ vulnetix scan status <scan-id> [flags]
 | `--exclude` | - | Exclude paths matching glob (repeatable) |
 | `-o, --output` | - | Output target (repeatable): `json-cyclonedx`, `json-sarif` for stdout; `.cdx.json`, `.sarif` file paths to write to file |
 | `--concurrency` | `5` | Max concurrent VDB queries |
-| `--no-progress` | `false` | Suppress progress bar |
+| `--no-progress` | `false` | Suppress progress indicators |
 | `--severity` | - | Exit `1` if any vuln or SAST finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--block-malware` | `false` | Exit `1` when any dependency is a known malicious package |
 | `--block-eol` | `false` | Exit `1` when a runtime or package dependency is end-of-life |
