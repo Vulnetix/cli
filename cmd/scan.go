@@ -661,6 +661,7 @@ func runLocalScan(
 	client := newSearchClient()
 	dctx := display.NewWithProgress(display.ModeText, silent, noProgress)
 	scanProgress := dctx.Progress("Scan", 7)
+	progressStderr := scanProgress.Writer(os.Stderr)
 	scanProgress.SetStage(fmt.Sprintf("Parsing %d detected file(s)", len(files)))
 	progressComplete := false
 	defer func() {
@@ -800,7 +801,7 @@ func runLocalScan(
 			Malware:    blockMalware,
 		}
 		scanProgress.SetStage(fmt.Sprintf("Querying VDB for %d package(s)", countUniquePackages(allPackages)))
-		apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts)
+		apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts, progressStderr)
 		if apiServed {
 			allVulns = apiVulns
 			scaEnrichedFromAPI = apiEnriched
@@ -1076,13 +1077,13 @@ func runLocalScan(
 	var sastReport *sast.SASTReport
 	if !disableAllSAST {
 		scanProgress.SetStage("Loading SAST rules")
-		modules, merr := sast.LoadAllModules(sast.DefaultRulesFS, disableDefaultRules, ruleRefs, ruleRegistry, os.Stderr)
+		modules, merr := sast.LoadAllModules(sast.DefaultRulesFS, disableDefaultRules, ruleRefs, ruleRegistry, progressStderr)
 		if merr != nil {
-			fmt.Fprintf(os.Stderr, "  warning: could not load SAST rules: %v\n", merr)
+			fmt.Fprintf(progressStderr, "  warning: could not load SAST rules: %v\n", merr)
 		}
 		if len(modules) > 0 {
 			totalLoaded := len(modules)
-			fmt.Fprintf(os.Stderr, "  Loaded %d SAST rules (pre-filter)\n", totalLoaded)
+			fmt.Fprintf(progressStderr, "  Loaded %d SAST rules (pre-filter)\n", totalLoaded)
 			if ruleID == "" {
 				modules = filterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
 			}
@@ -1092,7 +1093,7 @@ func runLocalScan(
 			scanProgress.SetStage(fmt.Sprintf("Evaluating %d SAST rule(s)", len(modules)))
 			sastReport, eerr = eng.Evaluate(sast.EvalOptions{MaxDepth: depth, Excludes: excludes})
 			if eerr != nil {
-				fmt.Fprintf(os.Stderr, "  warning: SAST evaluation failed: %v\n", eerr)
+				fmt.Fprintf(progressStderr, "  warning: SAST evaluation failed: %v\n", eerr)
 			}
 			if sastReport != nil {
 				sastReport.RulesTotal = totalLoaded
@@ -1190,7 +1191,7 @@ func runLocalScan(
 			// Write updated SARIF.
 			sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
 			if werr := sast.WriteSARIF(sarifLog, sarifPath); werr != nil {
-				fmt.Fprintf(os.Stderr, "  warning: could not write sast.sarif: %v\n", werr)
+				fmt.Fprintf(progressStderr, "  warning: could not write sast.sarif: %v\n", werr)
 			} else {
 				rec.SARIFPath = ".vulnetix/sast.sarif"
 			}
@@ -1199,7 +1200,7 @@ func runLocalScan(
 			// SARIF doc per kind to /v2/cli.{sast,secrets,iac,containers}.
 			// Snapshot URLs print to stderr on success. Non-fatal: a local
 			// SARIF is still the source of truth on disk.
-			sarifSnapshots = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext)
+			sarifSnapshots = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext, progressStderr)
 		}
 	}
 	if sastReport != nil {
