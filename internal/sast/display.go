@@ -73,6 +73,31 @@ func PrintPrettySummary(report *SASTReport, resultsOnly bool) {
 	fmt.Fprintln(os.Stdout)
 
 	// Summary counts.
+	total, parts := severityBreakdown(report)
+	fmt.Fprintf(os.Stdout, "  %d %s across %s: %s\n",
+		total, pluralize("finding", total),
+		rulesEvaluatedPhrase(report), strings.Join(parts, ", "))
+}
+
+// PrintHeadline prints a bold SAST headline (finding count + severity
+// breakdown) above the analysis table. Used as the top-of-output summary when
+// SCA did not run (so the SCA "X packages | Y vulnerabilities" line is absent).
+func PrintHeadline(report *SASTReport) {
+	if report == nil || len(report.Findings) == 0 {
+		return
+	}
+	t := display.NewTerminal()
+	total, parts := severityBreakdown(report)
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout, display.Divider(t))
+	fmt.Fprintln(os.Stdout, display.Bold(t,
+		fmt.Sprintf("  %d SAST %s | %s", total, pluralize("finding", total), strings.Join(parts, ", "))))
+	fmt.Fprintln(os.Stdout)
+}
+
+// severityBreakdown returns the total finding count and a "N critical, N high,
+// …" parts slice ordered by descending severity (empty buckets omitted).
+func severityBreakdown(report *SASTReport) (int, []string) {
 	counts := map[string]int{}
 	for _, f := range report.Findings {
 		counts[f.Severity]++
@@ -83,9 +108,7 @@ func PrintPrettySummary(report *SASTReport, resultsOnly bool) {
 			parts = append(parts, fmt.Sprintf("%d %s", n, sev))
 		}
 	}
-	fmt.Fprintf(os.Stdout, "  %d %s across %s: %s\n",
-		len(report.Findings), pluralize("finding", len(report.Findings)),
-		rulesEvaluatedPhrase(report), strings.Join(parts, ", "))
+	return len(report.Findings), parts
 }
 
 // rulesEvaluatedPhrase formats the rule count so the final summary carries

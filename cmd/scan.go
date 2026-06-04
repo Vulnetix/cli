@@ -688,6 +688,9 @@ func runLocalScan(
 	// report the gate finalization back to the server after evaluation.
 	var scaSnapshotUuid string
 	var scaSnapshotURL string
+	// sarifSnapshots holds per-kind (SAST/Secrets/IaC/Containers) ingestion
+	// snapshot links from postScanSARIF, surfaced in the artefact summary.
+	var sarifSnapshots []snapshotLink
 
 	queryCtx := ctx
 	if queryCtx == nil {
@@ -1196,7 +1199,7 @@ func runLocalScan(
 			// SARIF doc per kind to /v2/cli.{sast,secrets,iac,containers}.
 			// Snapshot URLs print to stderr on success. Non-fatal: a local
 			// SARIF is still the source of truth on disk.
-			postScanSARIF(sastReport, gitCtx, rootPath, snippetContext)
+			sarifSnapshots = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext)
 		}
 	}
 	if sastReport != nil {
@@ -1206,13 +1209,8 @@ func runLocalScan(
 	}
 
 	scanProgress.SetStage("Persisting scan memory")
-	mem.RecordScan(rec)
 
-	if err := memory.Save(vulnetixDir, mem); err != nil {
-		fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
-	}
-
-	// ── Write .vulnetix/sbom.cdx.json ────────────────────────────────────
+	// ── Build .vulnetix/sbom.cdx.json (written below only if non-empty) ──
 	scanCtx := &cdx.ScanContext{
 		Git:         gitCtx,
 		System:      sysInfo,
@@ -1284,7 +1282,8 @@ func runLocalScan(
 		}
 		cdx.PopulateLicenses(bom, licenseMap)
 
-		// Write license findings to memory.
+		// Write license findings to memory (persisted by the single
+		// memory.Save below, alongside the scan record).
 		if !disableMemory && mem != nil && len(licenseResult.Findings) > 0 {
 			for _, f := range licenseResult.Findings {
 				mem.Findings[f.ID] = memory.FindingRecord{
@@ -1299,9 +1298,6 @@ func runLocalScan(
 					PathCount:       f.PathCount,
 				}
 			}
-			if err := memory.Save(vulnetixDir, mem); err != nil {
-				fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml with license findings: %v\n", err)
-			}
 		}
 	}
 
@@ -1309,10 +1305,26 @@ func runLocalScan(
 	compRefs := cdx.ExportCompRefs(bom)
 	bom.Dependencies = cdx.BuildDependencies(manifestGroups, compRefs)
 
-	if err := writeBOMToFile(bom, sbomPath); err != nil {
-		fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
+	// Skip writing an empty SBOM: a SAST-only scan resolves 0 packages, so the
+	// BOM would have no components or vulnerabilities — the SARIF is the
+	// relevant artefact in that case. Don't claim a BOM artefact we didn't write.
+	bomWritten := false
+	if len(bom.Components) > 0 || len(bom.Vulnerabilities) > 0 {
+		if err := writeBOMToFile(bom, sbomPath); err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
+		} else {
+			bomWritten = true
+		}
 	}
-	scanProgress.Update(6, "Wrote SBOM and local scan state")
+	if !bomWritten {
+		rec.SBOMPath = "" // omitempty → not serialised into memory.yaml
+	}
+
+	mem.RecordScan(rec)
+	if err := memory.Save(vulnetixDir, mem); err != nil {
+		fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
+	}
+	scanProgress.Update(6, "Wrote local scan state")
 
 	// ── Quality gate evaluation ───────────────────────────────────────────
 	// Evaluated after writing artefacts so that the SBOM and memory.yaml are
@@ -1641,12 +1653,15 @@ func runLocalScan(
 		}
 	}
 
-	// Stdout format: emit machine-readable JSON, no pretty output.
+	// Stdout format: emit machine-readable JSON, no pretty output. The pretty
+	// artefact summary is skipped, so echo any ingestion snapshot URLs to stderr
+	// instead of losing them.
 	if outCfg.stdoutFmt == "json-cyclonedx" {
 		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
 		if err := outBOM.WriteJSON(os.Stdout); err != nil {
 			return err
 		}
+		printSnapshotsToStderr(sarifSnapshots)
 		if len(breaches) > 0 {
 			return &MultiPolicyBreachError{Breaches: breaches}
 		}
@@ -1663,6 +1678,7 @@ func runLocalScan(
 		}
 		os.Stdout.Write(data)
 		fmt.Fprintln(os.Stdout)
+		printSnapshotsToStderr(sarifSnapshots)
 		if len(breaches) > 0 {
 			return &MultiPolicyBreachError{Breaches: breaches}
 		}
@@ -1670,11 +1686,31 @@ func runLocalScan(
 	}
 
 	// Pretty output (default, or when only file outputs were requested).
-	printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, sbomPath, vulnetixDir, rulesPath, resultsOnly, scaSnapshotURL)
+	// Only surface the BOM artefact line when we actually wrote one; surface
+	// the SARIF line whenever a SAST report (and thus sast.sarif) was produced.
+	displaySBOM := ""
+	if bomWritten {
+		displaySBOM = sbomPath
+	}
+	sarifPath := ""
+	if sastReport != nil {
+		sarifPath = filepath.Join(vulnetixDir, "sast.sarif")
+	}
+	// SCA summary (vuln tables + "X packages | Y vulnerabilities") only when SCA
+	// ran. For a SAST-only scan the SCA headline is meaningless, so show a
+	// SAST-specific headline instead.
+	if !noSCA {
+		printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, resultsOnly)
+	} else if sastReport != nil {
+		sast.PrintHeadline(sastReport)
+	}
 	if licenseResult != nil && len(licenseResult.Findings) > 0 {
 		printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
 	}
 	sast.PrintPrettySummary(sastReport, resultsOnly)
+
+	// Artefact links print last, after all analysis output.
+	printScanArtifacts(displaySBOM, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL, sarifSnapshots)
 
 	if len(breaches) > 0 {
 		fmt.Fprintln(os.Stderr)
@@ -1896,9 +1932,7 @@ func printPrettyScanSummary(
 	showPaths bool,
 	noExploits bool,
 	noRemediation bool,
-	sbomPath, vulnetixDir, rulesPath string,
 	resultsOnly bool,
-	snapshotURL string,
 ) {
 	// --results-only: stay silent when there are no findings.
 	if resultsOnly && len(enrichedVulns) == 0 {
@@ -2355,17 +2389,49 @@ func printPrettyScanSummary(
 			assessed, reachable, notReachable, notAssessable)
 	}
 	fmt.Fprintln(os.Stdout)
+}
 
-	// Artefact paths.
-	fmt.Fprintf(os.Stdout, "  %s BOM:      %s\n", display.CheckMark(t), sbomPath)
+// printScanArtifacts prints the artefact links (BOM / Memory / SARIF / Rules and
+// ingestion snapshot URLs) at the very bottom of the scan output, after all
+// analysis tables. Each line is gated on a non-empty value. scaSnapshotURL is
+// the /v2/cli.sca snapshot; snapshots carries one link per SARIF kind
+// (SAST/Secrets/IaC/Containers) submitted this scan.
+func printScanArtifacts(sbomPath, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL string, snapshots []snapshotLink) {
+	t := display.NewTerminal()
+	if sbomPath != "" {
+		fmt.Fprintf(os.Stdout, "  %s BOM:      %s\n", display.CheckMark(t), sbomPath)
+	}
 	fmt.Fprintf(os.Stdout, "  %s Memory:   %s\n", display.CheckMark(t), filepath.Join(vulnetixDir, memory.FileName))
+	if sarifPath != "" {
+		fmt.Fprintf(os.Stdout, "  %s SARIF:    %s\n", display.CheckMark(t), sarifPath)
+	}
 	if rulesPath != "" {
 		fmt.Fprintf(os.Stdout, "  %s Rules:    %s\n", display.CheckMark(t), rulesPath)
 	}
-	if snapshotURL != "" {
-		fmt.Fprintf(os.Stdout, "  %s Snapshot: %s\n", display.CheckMark(t), snapshotURL)
+	if scaSnapshotURL != "" {
+		fmt.Fprintf(os.Stdout, "  %s Snapshot: %s\n", display.CheckMark(t), scaSnapshotURL)
+	}
+	for _, s := range snapshots {
+		if s.URL == "" {
+			continue
+		}
+		fmt.Fprintf(os.Stdout, "  %s %s Snapshot: %s\n", display.CheckMark(t), s.Label, s.URL)
 	}
 	fmt.Fprintln(os.Stdout)
+}
+
+// printSnapshotsToStderr echoes SARIF ingestion snapshot links to stderr, used
+// by the machine-readable output modes that skip the pretty artefact summary.
+func printSnapshotsToStderr(snapshots []snapshotLink) {
+	if silent {
+		return
+	}
+	for _, s := range snapshots {
+		if s.URL == "" {
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "%s snapshot: %s\n", s.Label, s.URL)
+	}
 }
 
 // anyReachabilityAssessed returns true if any vuln has ReachabilityAssessed set.
