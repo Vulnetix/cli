@@ -14,6 +14,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,9 +50,12 @@ var sarifKinds = []sarifScanKind{
 // postScanSARIF is the single entry point. Called from scan.go after the local
 // SARIF is on disk. Splits findings by rule kind, posts each non-empty kind to
 // its matching /v2/cli.<kind> endpoint, and prints the resulting snapshot URLs.
-func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int) []snapshotLink {
+func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, w io.Writer) []snapshotLink {
 	if report == nil || len(report.Findings) == 0 {
 		return nil
+	}
+	if w == nil {
+		w = os.Stderr
 	}
 	client := newCliClient()
 	if client == nil {
@@ -69,7 +73,7 @@ func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath 
 		if !ok || len(bucket.findings) == 0 {
 			continue
 		}
-		if link, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext); ok {
+		if link, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, w); ok {
 			snapshots = append(snapshots, link)
 		}
 	}
@@ -91,7 +95,7 @@ const sarifChunkMaxFindings = 2000
 // large submissions into sub-8-MiB chunks. Chunk 0 creates the snapshot/run;
 // chunks 1..N carry its uuid so the server appends under one snapshot. Returns
 // the (single) ingestion snapshot link for the summary.
-func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int) (snapshotLink, bool) {
+func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int, w io.Writer) (snapshotLink, bool) {
 	// Make the per-kind tool intent explicit (server is authoritative, but this
 	// keeps the env block self-describing): "Vulnetix SAST", "Vulnetix IaC", etc.
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
@@ -132,7 +136,7 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 		resp, err := dispatchSARIFRequest(client, env, sk.category, req)
 		if err != nil {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "  /v2/cli.%s chunk %d/%d submit failed: %v\n", sk.category, i+1, len(chunks), err)
+				fmt.Fprintf(w, "  /v2/cli.%s chunk %d/%d submit failed: %v\n", sk.category, i+1, len(chunks), err)
 			}
 			if i == 0 {
 				return snapshotLink{}, false

@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,7 +41,10 @@ type cliSCAGateOptions struct {
 	Malware    bool // --block-malware
 }
 
-func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string, gateOpts cliSCAGateOptions) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight, snapshotUuid string, snapshotURL string) {
+func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string, gateOpts cliSCAGateOptions, w io.Writer) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight, snapshotUuid string, snapshotURL string) {
+	if w == nil {
+		w = os.Stderr
+	}
 	if v := os.Getenv(scaAPIDisabledEnv); v == "off" || v == "0" || v == "false" {
 		return false, nil, nil, nil, "", ""
 	}
@@ -73,7 +77,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 
 	// One default-visible status line; per-batch progress is verbose-only.
 	if !silent {
-		fmt.Fprintf(os.Stderr, "Querying VDB via /v2/cli.sca: %d unique package(s) in %d batch(es)...\n", len(uniquePurls), len(chunks))
+		fmt.Fprintf(w, "Querying VDB via /v2/cli.sca: %d unique package(s) in %d batch(es)...\n", len(uniquePurls), len(chunks))
 	}
 
 	client := newCliClient() // /v2 client with 180s timeout for fan-out lookups
@@ -168,7 +172,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 				firstErr = err
 			}
 			if verbose {
-				fmt.Fprintf(os.Stderr, "  batch %d/%d failed (%v), continuing\n", i+1, nReq, err)
+				fmt.Fprintf(w, "  batch %d/%d failed (%v), continuing\n", i+1, nReq, err)
 			}
 			continue
 		}
@@ -195,7 +199,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 		persistedFindings = append(persistedFindings, resp.Data.Findings...)
 		if verbose {
-			fmt.Fprintf(os.Stderr, "  batch %d/%d: %d component(s), %d vuln(s), %d reachability query(ies)\n", i+1, nReq, len(mergedComponents), len(mergedVulns), len(mergedReach))
+			fmt.Fprintf(w, "  batch %d/%d: %d component(s), %d vuln(s), %d reachability query(ies)\n", i+1, nReq, len(mergedComponents), len(mergedVulns), len(mergedReach))
 		}
 	}
 
@@ -203,19 +207,19 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	// over the legacy per-PURL loop.
 	if batchesOK == 0 {
 		if !silent {
-			fmt.Fprintf(os.Stderr, "  /v2/cli.sca all %d batch(es) failed (%v), falling back to legacy lookup\n", len(chunks), firstErr)
+			fmt.Fprintf(w, "  /v2/cli.sca all %d batch(es) failed (%v), falling back to legacy lookup\n", len(chunks), firstErr)
 		}
 		return false, nil, nil, nil, "", ""
 	}
 	if batchesFailed > 0 && !silent {
-		fmt.Fprintf(os.Stderr, "  /v2/cli.sca completed with %d/%d batch(es) ok, %d failed\n", batchesOK, len(chunks), batchesFailed)
+		fmt.Fprintf(w, "  /v2/cli.sca completed with %d/%d batch(es) ok, %d failed\n", batchesOK, len(chunks), batchesFailed)
 	}
 
 	// Only show the upgrade note when we *consistently* observed community
 	// across every batch. A single Pro response is enough to suppress it —
 	// guards against transient replica/cache flaps on the server.
 	if anyTierGated && tierObserved != "pro" && !silent {
-		fmt.Fprintln(os.Stderr, "Note: reachability requires Pro / Team / Business / Enterprise — upgrade at https://www.vulnetix.com/pricing")
+		fmt.Fprintln(w, "Note: reachability requires Pro / Team / Business / Enterprise — upgrade at https://www.vulnetix.com/pricing")
 	}
 
 	merged := map[string]any{
@@ -227,12 +231,12 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	findings, enriched, _ = scan.SynthesiseFromCDX(merged, allPackages, purls)
 	if findings == nil {
 		if !silent {
-			fmt.Fprintln(os.Stderr, "  /v2/cli.sca returned no CycloneDX document, falling back to legacy lookup")
+			fmt.Fprintln(w, "  /v2/cli.sca returned no CycloneDX document, falling back to legacy lookup")
 		}
 		return false, nil, nil, nil, "", ""
 	}
 	if verbose {
-		fmt.Fprintf(os.Stderr, "  /v2/cli.sca returned %d finding(s) across %d package(s)\n", len(findings), len(uniquePurls))
+		fmt.Fprintf(w, "  /v2/cli.sca returned %d finding(s) across %d package(s)\n", len(findings), len(uniquePurls))
 	}
 
 	// Pro+ tiers: run the returned tree-sitter queries locally so the
@@ -240,19 +244,19 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	// not just whether the server delivered queries. Community gets nothing
 	// here because the server already returned reachability=nil.
 	if len(mergedReach) > 0 {
-		runReachabilityForFindings(mergedReach, enriched, scanPath)
+		runReachabilityForFindings(mergedReach, enriched, scanPath, w)
 	}
 
 	// Symbol fallback (all tiers): for any finding the tree-sitter pass
 	// didn't verdict, grep local source for affectedRoutines/Files/Modules.
-	runSymbolFallback(enriched, scanPath)
+	runSymbolFallback(enriched, scanPath, w)
 
 	// Post reachability evidence back to the server when persistence
 	// succeeded. Best-effort: a failure here doesn't break the local scan.
 	if snapshot != nil {
-		postReachabilityToSnapshot(client, env, snapshot, persistedFindings, enriched, gitCtx)
+		postReachabilityToSnapshot(client, env, snapshot, persistedFindings, enriched, gitCtx, w)
 		if !silent {
-			fmt.Fprintf(os.Stderr, "Snapshot: %s\n", snapshot.URL)
+			fmt.Fprintf(w, "Snapshot: %s\n", snapshot.URL)
 		}
 	}
 
@@ -417,7 +421,10 @@ func buildReachabilityPayloads(enriched []scan.EnrichedVuln, findingByKey map[st
 	return payloads
 }
 
-func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vdb.CliIngestionSnapshot, persisted []vdb.CliFindingResult, enriched []scan.EnrichedVuln, gitCtx *gitctx.GitContext) {
+func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vdb.CliIngestionSnapshot, persisted []vdb.CliFindingResult, enriched []scan.EnrichedVuln, gitCtx *gitctx.GitContext, w io.Writer) {
+	if w == nil {
+		w = os.Stderr
+	}
 	if snapshot == nil || len(enriched) == 0 {
 		return
 	}
@@ -441,12 +448,12 @@ func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vd
 	})
 	if err != nil {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "  reachability post failed: %v\n", err)
+			fmt.Fprintf(w, "  reachability post failed: %v\n", err)
 		}
 		return
 	}
 	if verbose {
-		fmt.Fprintf(os.Stderr, "  reachability persisted: %d (sbom=%s, vex=%s)\n", resp.Data.Persisted, resp.Data.SBOMUrl, resp.Data.VEXUrl)
+		fmt.Fprintf(w, "  reachability persisted: %d (sbom=%s, vex=%s)\n", resp.Data.Persisted, resp.Data.SBOMUrl, resp.Data.VEXUrl)
 	}
 }
 
@@ -484,7 +491,10 @@ func memoryMatchForFinding(records map[string]memory.FindingRecord, packageName,
 // your code" signal — see Semantic Reachability docs). CVEs that the
 // tree-sitter pass already verdicted are skipped: we don't want to
 // downgrade a higher-confidence label to the semantic fallback.
-func runSymbolFallback(enriched []scan.EnrichedVuln, projectRoot string) {
+func runSymbolFallback(enriched []scan.EnrichedVuln, projectRoot string, w io.Writer) {
+	if w == nil {
+		w = os.Stderr
+	}
 	inputs := make([]reachability.CveSymbols, 0, len(enriched))
 	for _, ev := range enriched {
 		if ev.Reachability != "" {
@@ -513,7 +523,7 @@ func runSymbolFallback(enriched []scan.EnrichedVuln, projectRoot string) {
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "  running symbol fallback for %d CVE(s) in %s...\n", len(inputs), cwd)
+		fmt.Fprintf(w, "  running symbol fallback for %d CVE(s) in %s...\n", len(inputs), cwd)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -524,13 +534,13 @@ func runSymbolFallback(enriched []scan.EnrichedVuln, projectRoot string) {
 	})
 	if err != nil {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "  symbol fallback failed: %v\n", err)
+			fmt.Fprintf(w, "  symbol fallback failed: %v\n", err)
 		}
 		return
 	}
 	if res == nil || len(res.HitsByCVE) == 0 {
 		if verbose {
-			fmt.Fprintln(os.Stderr, "  symbol fallback: no hits")
+			fmt.Fprintln(w, "  symbol fallback: no hits")
 		}
 		return
 	}
@@ -557,7 +567,7 @@ func runSymbolFallback(enriched []scan.EnrichedVuln, projectRoot string) {
 		}
 	}
 	if verbose {
-		fmt.Fprintf(os.Stderr, "  semantic reachability: %d CVE(s) matched in source\n", len(res.HitsByCVE))
+		fmt.Fprintf(w, "  semantic reachability: %d CVE(s) matched in source\n", len(res.HitsByCVE))
 	}
 }
 
@@ -567,7 +577,10 @@ func runSymbolFallback(enriched []scan.EnrichedVuln, projectRoot string) {
 // whose queries run cleanly with zero matches → "unreachable"; CVEs we
 // couldn't evaluate stay empty. Direct-mode (per-install-directory) requires
 // ScopedPackage routing and lands in a follow-up.
-func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.EnrichedVuln, projectRoot string) {
+func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.EnrichedVuln, projectRoot string, w io.Writer) {
+	if w == nil {
+		w = os.Stderr
+	}
 	if len(hits) == 0 || len(enriched) == 0 {
 		return
 	}
@@ -615,7 +628,7 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "  running %d reachability query(ies) across %s...\n", len(queries), cwd)
+		fmt.Fprintf(w, "  running %d reachability query(ies) across %s...\n", len(queries), cwd)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -628,7 +641,7 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 	})
 	if err != nil {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "  reachability scan failed: %v\n", err)
+			fmt.Fprintf(w, "  reachability scan failed: %v\n", err)
 		}
 		return
 	}
@@ -677,7 +690,7 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "  reachability: %d/%d evaluated CVE(s) reached\n", len(reachableCVEs), len(evaluatedCVEs))
+		fmt.Fprintf(w, "  reachability: %d/%d evaluated CVE(s) reached\n", len(reachableCVEs), len(evaluatedCVEs))
 	}
 }
 

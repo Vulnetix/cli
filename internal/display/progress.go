@@ -2,6 +2,7 @@ package display
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -26,6 +27,8 @@ type Progress struct {
 
 	stop  chan struct{}
 	donec chan struct{}
+
+	writeMu sync.Mutex
 }
 
 // Progress creates and starts a progress activity. When progress is disabled,
@@ -73,6 +76,20 @@ func (p *Progress) SetStage(stage string) {
 // Interactive reports whether progress is rendering as a live TTY line.
 func (p *Progress) Interactive() bool {
 	return p != nil && p.enabled && p.interactive
+}
+
+// Writer returns a writer that can be used for ordinary log output while this
+// progress activity is active. On interactive terminals it clears the live
+// progress row before writing and redraws it afterwards, so log lines do not
+// leave behind duplicate progress bars.
+func (p *Progress) Writer(w io.Writer) io.Writer {
+	if w == nil {
+		return io.Discard
+	}
+	if p == nil || !p.enabled || !p.interactive {
+		return w
+	}
+	return progressWriter{progress: p, writer: w}
 }
 
 // Update sets the numeric progress and, when non-empty, the current stage.
@@ -201,6 +218,8 @@ func (p *Progress) line(prefix string) string {
 }
 
 func (p *Progress) write(line string, final bool) {
+	p.writeMu.Lock()
+	defer p.writeMu.Unlock()
 	if p.interactive {
 		fmt.Fprint(os.Stderr, "\r\033[2K"+line)
 		if final {
@@ -209,6 +228,42 @@ func (p *Progress) write(line string, final bool) {
 		return
 	}
 	fmt.Fprintln(os.Stderr, line)
+}
+
+type progressWriter struct {
+	progress *Progress
+	writer   io.Writer
+}
+
+func (w progressWriter) Write(b []byte) (int, error) {
+	p := w.progress
+	p.writeMu.Lock()
+	defer p.writeMu.Unlock()
+
+	fmt.Fprint(w.writer, "\r\033[2K")
+	n, err := w.writer.Write(b)
+	if err != nil {
+		return n, err
+	}
+	if !p.isFinished() {
+		if len(b) == 0 || b[len(b)-1] != '\n' {
+			fmt.Fprintln(w.writer)
+		}
+		fmt.Fprint(w.writer, "\r\033[2K"+p.currentLine())
+	}
+	return n, nil
+}
+
+func (p *Progress) isFinished() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.finished
+}
+
+func (p *Progress) currentLine() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.line(spinnerFrame(p.tick))
 }
 
 func spinnerFrame(i int) string {
