@@ -949,6 +949,9 @@ func formatNumber(n int) string {
 // e.g. "V2" → "/v2", "/v2/" → "/v2", "v2" → "/v2"
 func normalizeAPIVersion(input string) string {
 	s := strings.ToLower(strings.Trim(input, "/"))
+	if s == "" {
+		s = "v2"
+	}
 	return "/" + s
 }
 
@@ -2048,7 +2051,7 @@ func init() {
 	vdbCmd.PersistentFlags().StringVar(&vdbAPIKey, "api-key", "", "Direct API key (overrides VULNETIX_API_KEY env var)")
 	vdbCmd.PersistentFlags().StringVar(&vdbMethod, "method", "", "Auth method: apikey or sigv4 (auto-detected from flags if omitted)")
 	vdbCmd.PersistentFlags().StringVar(&vdbBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
-	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "", `VDB API version: "v2" (default) or "v1" (legacy). v1 is retained for backwards compatibility and will be removed in a future release. New commands (timeline, affected, kev, advisories, workarounds, cwe, remediation, cloud-locators, fixes, scorecard, tree-sitter reachability) require v2.`)
+	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "v2", `VDB API version: "v2" (default) or "v1" (legacy). v1 is retained for backwards compatibility and will be removed in a future release. New commands (timeline, affected, kev, advisories, workarounds, cwe, remediation, cloud-locators, fixes, scorecard, tree-sitter reachability) require v2.`)
 	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, yaml, pretty)")
 	vdbCmd.PersistentFlags().StringVar(&vdbReachability, "reachability", "both",
 		`Tree-sitter reachability analysis mode for vuln commands: "direct" (only scan the installed package folder), "transitive" (only scan the rest of the project for callers), "both" (default), or "off" (skip; no API call). Requires -V v2 (the default). Direct mode confirms the vulnerable pattern is present in the installed version; transitive mode finds first-party or other-dep code paths that reach it.`)

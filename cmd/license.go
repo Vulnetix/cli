@@ -56,6 +56,17 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	resultsOnly, _ := cmd.Flags().GetBool("results-only")
 
+	switch mode {
+	case "inclusive", "individual":
+	default:
+		return fmt.Errorf("--mode must be one of: inclusive, individual")
+	}
+	switch outputFmt {
+	case "", "pretty", "json", "json-spdx":
+	default:
+		return fmt.Errorf("--output must be one of: pretty, json, json-spdx")
+	}
+
 	vulnetixDir := filepath.Join(rootPath, ".vulnetix")
 	progress := dctx.Progress("License analysis", 6)
 	progress.SetStage("Discovering package manifests")
@@ -604,6 +615,10 @@ func writeLicenseMemory(vulnetixDir string, result *license.AnalysisResult) {
 
 // loadLicenseFromMemory reconstructs license output from memory.
 func loadLicenseFromMemory(vulnetixDir, outputFmt string) error {
+	if outputFmt == "json-spdx" {
+		return fmt.Errorf("--output json-spdx is not supported with --from-memory; rerun 'vulnetix license' without --from-memory to generate SPDX output")
+	}
+
 	mem, err := memory.Load(vulnetixDir)
 	if err != nil {
 		return fmt.Errorf("failed to load memory: %w", err)

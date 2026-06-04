@@ -156,7 +156,8 @@
       "WebFetch(domain:aquasecurity.github.io)",
       "WebFetch(domain:trivy.dev)",
       "WebFetch(domain:anchore.github.io)",
-      "Bash(echo \"test content\")"
+      "Bash(echo \"test content\")",
+      "Read(//home/chris/GitHub/Vulnetix/website/**)"
     ],
     "deny": [
       "Bash(dd:*)",

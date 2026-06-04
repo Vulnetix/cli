@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -13,6 +14,18 @@ var completionCmd = &cobra.Command{
 
 Enable tab completion for commands, subcommands, flags, and flag values.
 See the subcommand help for shell-specific installation instructions.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return nil
+		}
+		return fmt.Errorf("unknown shell %q: expected bash, zsh, fish, or powershell", args[0])
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 0 {
+			return fmt.Errorf("unknown shell %q: expected bash, zsh, fish, or powershell", args[0])
+		}
+		return cmd.Help()
+	},
 }
 
 var completionBashCmd = &cobra.Command{
