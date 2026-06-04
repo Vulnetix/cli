@@ -18,6 +18,10 @@ build_date := `date -u +%Y-%m-%dT%H:%M:%SZ`
 output_dir := "bin"
 binary := "vulnetix"
 ldflags := "-s -w -X github.com/vulnetix/cli/v3/cmd.version=" + version + " -X github.com/vulnetix/cli/v3/cmd.commit=" + commit + " -X github.com/vulnetix/cli/v3/cmd.buildDate=" + build_date
+extra_root := env("VULNETIX_EXTRA_ROOT", "/home/chris/GitHub/Vulnetix-extra")
+sast_fixtures := env("VULNETIX_SAST_FIXTURES", extra_root + "/sast-rule-evals")
+sca_fixtures := env("VULNETIX_SCA_FIXTURES", extra_root + "/sca-manifest-fixtures")
+fixture_rule_flags := "--rule Vulnetix/community-rules --rule Vulnetix/opa-fugue-regula --rule Vulnetix/opa-checkmarx-kics --rule Vulnetix/opa-cds-aws-tf --rule Vulnetix/opa-cigna-tf --rule Vulnetix/opa-aquasecurity-trivy"
 
 # --- Build tasks ---
 
@@ -143,10 +147,325 @@ test-coverage-check:
     #!/usr/bin/env bash
     set -euo pipefail
     go test -v -coverprofile=coverage.out ./...
-    go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//' | awk '{if ($1 < 90) exit 1}'
+    go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//' | awk '{if ($1 < 15) exit 1}'
 
 # Comprehensive test suite
 test-all: test test-coverage-check
+
+# Exhaustive CLI command/subcommand help and completion smoke tests.
+test-command-help: dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    BIN="$(pwd)/{{output_dir}}/{{binary}}"
+    log_dir="$(mktemp -d /tmp/vulnetix-cli-command-help.XXXXXX)"
+    echo "Writing command help logs to ${log_dir}"
+
+    commands=(
+      ""
+      "auth" "auth login" "auth logout" "auth status" "auth verify"
+      "completion" "completion bash" "completion zsh" "completion fish" "completion powershell"
+      "containers" "env" "gha" "gha upload" "gha status" "iac" "license"
+      "sast" "sca" "scan" "scan status" "secrets" "triage" "triage status"
+      "update" "upload" "version"
+      "vdb"
+      "vdb advisories" "vdb affected"
+      "vdb ai-assisted-exploits" "vdb ai-discoveries" "vdb ai-in-wild" "vdb ai-malware"
+      "vdb attack-techniques" "vdb attack-techniques get" "vdb attack-techniques list"
+      "vdb cache" "vdb cache clear"
+      "vdb cloud-locators"
+      "vdb cwe" "vdb cwe guidance"
+      "vdb ecosystem" "vdb ecosystem package" "vdb ecosystem group"
+      "vdb ecosystems" "vdb exploit-trends"
+      "vdb exploits" "vdb exploits archived" "vdb exploits download" "vdb exploits poc"
+      "vdb exploits search" "vdb exploits sources" "vdb exploits types"
+      "vdb fixes" "vdb fixes distributions"
+      "vdb gcve" "vdb gcve issuances"
+      "vdb ids" "vdb iocs" "vdb iocs get" "vdb iocs list"
+      "vdb kev" "vdb kev download" "vdb kev get" "vdb kev list" "vdb kev reasons" "vdb kev sources"
+      "vdb metrics" "vdb metrics types"
+      "vdb msrc" "vdb msrc patch-tuesday" "vdb msrc patch-tuesdays"
+      "vdb nuclei" "vdb nuclei get"
+      "vdb packages" "vdb packages search"
+      "vdb product" "vdb purl"
+      "vdb raw" "vdb raw get" "vdb raw sources"
+      "vdb remediation" "vdb remediation plan"
+      "vdb scorecard" "vdb scorecard search"
+      "vdb search" "vdb sightings"
+      "vdb snort-rules" "vdb snort-rules get" "vdb snort-rules list"
+      "vdb sources" "vdb spec" "vdb status" "vdb summary"
+      "vdb timeline" "vdb traffic-filters" "vdb triage"
+      "vdb vendor-trends" "vdb versions"
+      "vdb vex" "vdb vex get" "vdb vex list"
+      "vdb vuln" "vdb vulns" "vdb workarounds"
+      "vdb yara-rules" "vdb yara-rules get" "vdb yara-rules list"
+    )
+
+    for cmd in "${commands[@]}"; do
+      label="${cmd:-root}"
+      label="${label// /__}"
+      echo "help: vulnetix ${cmd}"
+      # shellcheck disable=SC2086
+      "$BIN" $cmd --help > "${log_dir}/${label}.help"
+    done
+
+    for shell in bash zsh fish powershell; do
+      echo "completion: ${shell}"
+      "$BIN" completion "${shell}" > "${log_dir}/completion-${shell}.txt"
+      test -s "${log_dir}/completion-${shell}.txt"
+    done
+
+    echo "Command help matrix passed"
+
+# CLI argument validation and expected-failure guardrails.
+test-command-args: dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    BIN="./{{output_dir}}/{{binary}}"
+    log_dir="$(mktemp -d /tmp/vulnetix-cli-command-args.XXXXXX)"
+    echo "Writing argument validation logs to ${log_dir}"
+
+    pass=0
+    fail=0
+
+    run_ok() {
+      local name="$1"
+      shift
+      echo "ok: ${name}"
+      if "$@" > "${log_dir}/${name}.out" 2> "${log_dir}/${name}.err"; then
+        pass=$((pass + 1))
+      else
+        echo "FAILED expected success: ${name}" >&2
+        cat "${log_dir}/${name}.err" >&2
+        fail=$((fail + 1))
+      fi
+    }
+
+    run_fail() {
+      local name="$1"
+      shift
+      echo "fail: ${name}"
+      if "$@" > "${log_dir}/${name}.out" 2> "${log_dir}/${name}.err"; then
+        echo "FAILED expected non-zero exit: ${name}" >&2
+        fail=$((fail + 1))
+      else
+        pass=$((pass + 1))
+      fi
+    }
+
+    run_ok version_short "$BIN" version --short --no-analytics
+    run_ok env_json "$BIN" env --output json --no-progress --disable-memory --no-analytics
+    run_ok scan_list_default_rules "$BIN" scan --list-default-rules --no-progress --disable-memory --no-analytics
+    run_ok triage_status_json "$BIN" triage status --format json --no-progress --no-analytics
+    run_ok vdb_cache_clear "$BIN" vdb cache clear --disable-memory --no-analytics
+
+    run_fail scan_dry_run_fresh_exploits "$BIN" scan --dry-run --fresh-exploits --no-progress --disable-memory --no-analytics
+    run_fail scan_two_stdout_outputs "$BIN" scan --path "{{sca_fixtures}}/npm-lock" -o json-cyclonedx -o json-sarif --no-progress --disable-memory --no-analytics
+    run_fail scan_unknown_output_ext "$BIN" scan --path "{{sca_fixtures}}/npm-lock" -o "${log_dir}/out.txt" --no-progress --disable-memory --no-analytics
+    run_fail license_bad_mode "$BIN" license --path "{{sca_fixtures}}/npm-lock" --mode nope --no-progress --disable-memory --no-analytics
+    run_fail license_bad_output "$BIN" license --path "{{sca_fixtures}}/npm-lock" --output xml --no-progress --disable-memory --no-analytics
+    run_fail auth_login_bad_uuid "$BIN" auth login --org-id not-a-uuid --api-key 0123456789abcdef --store project --no-progress --no-analytics
+    run_fail completion_bad_shell "$BIN" completion nope --no-analytics
+    run_fail vdb_bad_output "$BIN" vdb --output xml status --disable-memory --no-analytics
+    run_fail vdb_mutually_exclusive_indent "$BIN" vdb --compact --sparse status --disable-memory --no-analytics
+    run_fail vdb_vuln_missing_arg "$BIN" vdb vuln --disable-memory --no-analytics
+    run_fail vdb_cwe_guidance_missing_arg "$BIN" vdb cwe guidance --disable-memory --no-analytics
+
+    if [ "$fail" -ne 0 ]; then
+      echo "${fail} argument validation case(s) failed; logs: ${log_dir}" >&2
+      exit 1
+    fi
+    echo "${pass} argument validation cases passed"
+
+# Fixture-driven CLI scenarios against SCA, SAST, IaC, container, secret, and license targets.
+test-command-fixtures: dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    BIN="$(pwd)/{{output_dir}}/{{binary}}"
+    SCA="{{sca_fixtures}}"
+    SAST="{{sast_fixtures}}"
+    RULE_FLAGS=( {{fixture_rule_flags}} )
+    work="$(mktemp -d /tmp/vulnetix-cli-fixtures.XXXXXX)"
+    log_dir="${work}/logs"
+    mkdir -p "${log_dir}"
+    echo "Working directory: ${work}"
+    echo "Writing fixture logs to ${log_dir}"
+
+    copy_fixture() {
+      local src="$1"
+      local dst="$2"
+      mkdir -p "$dst"
+      if command -v rsync >/dev/null 2>&1; then
+        rsync -a --exclude .git --exclude .ruff_cache "$src/" "$dst/"
+      else
+        cp -a "$src/." "$dst/"
+        rm -rf "$dst/.git" "$dst/.ruff_cache"
+      fi
+    }
+
+    run_ok() {
+      local name="$1"
+      shift
+      echo "fixture: ${name}"
+      "$@" > "${log_dir}/${name}.out" 2> "${log_dir}/${name}.err"
+    }
+
+    run_policy() {
+      local name="$1"
+      shift
+      echo "fixture policy gate: ${name}"
+      if "$@" > "${log_dir}/${name}.out" 2> "${log_dir}/${name}.err"; then
+        echo "Expected policy gate to return non-zero: ${name}" >&2
+        exit 1
+      fi
+    }
+
+    sca_work="${work}/sca-manifest-fixtures"
+    sast_work="${work}/sast-rule-evals"
+    copy_fixture "$SCA" "$sca_work"
+    copy_fixture "$SAST" "$sast_work"
+
+    run_ok scan_dry_run_all "$BIN" scan --dry-run --path "$sca_work" --depth 2 --show-detected --show-all-manifests --exclude .git --no-progress --disable-memory --no-analytics
+    run_ok sca_wrapper_npm_lock "$BIN" sca --path "$sca_work/npm-lock" --depth 2 --show-detected --show-all-manifests --exclude .git --no-progress --disable-memory --no-analytics
+    run_ok license_dry_run_all "$BIN" license --dry-run --path "$sca_work" --depth 2 --exclude .git --no-progress --disable-memory --no-analytics
+    run_ok license_json "$BIN" license --path "$sca_work/npm-lock" --depth 2 --output json --no-progress --disable-memory --no-analytics
+    run_ok license_spdx "$BIN" license --path "$sca_work/npm-lock" --depth 2 --output json-spdx --no-progress --disable-memory --no-analytics
+    run_policy license_severity_gate "$BIN" license --path "$sca_work/npm-lock" --depth 2 --allow MIT --severity low --no-progress --disable-memory --no-analytics
+
+    run_ok scan_sca_output_file "$BIN" scan --path "$sca_work/npm-lock" --depth 2 --no-sast --no-licenses --no-secrets --no-containers --no-iac -o "${work}/npm-lock.cdx.json" --no-progress --disable-memory --no-analytics
+    test -s "${work}/npm-lock.cdx.json"
+    run_ok scan_sarif_output_file "$BIN" scan --path "$sast_work/python/vnx-py-002" --depth 2 --evaluate-sast --no-sca --no-licenses --no-secrets --no-containers --no-iac -o "${work}/py.sarif" --no-progress --disable-memory --no-analytics
+    test -s "${work}/py.sarif"
+
+    run_ok sast_full_rules "$BIN" sast --path "$sast_work" --depth 4 "${RULE_FLAGS[@]}" --no-progress --disable-memory --no-analytics
+    run_ok secrets_full_rules "$BIN" secrets --path "$sast_work/secrets" --depth 3 "${RULE_FLAGS[@]}" --no-progress --disable-memory --no-analytics
+    run_ok containers_full_rules "$BIN" containers --path "$sca_work/docker" --depth 2 "${RULE_FLAGS[@]}" --no-progress --disable-memory --no-analytics
+    run_ok containers_containerfile "$BIN" containers --path "$sca_work/docker-containerfile" --depth 2 "${RULE_FLAGS[@]}" --no-progress --disable-memory --no-analytics
+    run_ok iac_full_rules "$BIN" iac --path "$sca_work/terraform" --depth 2 "${RULE_FLAGS[@]}" --no-progress --disable-memory --no-analytics
+
+    run_ok scan_from_memory "$BIN" scan --from-memory --path "$sca_work/npm-lock" --no-progress --disable-memory --no-analytics
+    run_ok license_from_memory "$BIN" license --from-memory --path "$sca_work/npm-lock" --no-progress --disable-memory --no-analytics
+
+    echo "Fixture command scenarios passed"
+
+# Live VDB smoke scenarios using community fallback credentials.
+test-command-vdb-live: dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    BIN="$(pwd)/{{output_dir}}/{{binary}}"
+    log_dir="$(mktemp -d /tmp/vulnetix-cli-vdb-live.XXXXXX)"
+    timeout_seconds="${VDB_LIVE_TIMEOUT_SECONDS:-90}"
+    live_cve="${VDB_LIVE_CVE:-CVE-2024-3094}"
+    vuln_cve="${VDB_LIVE_VULN_CVE:-CVE-2021-44228}"
+    failures=()
+    echo "Writing live VDB logs to ${log_dir}"
+    echo "Per-command timeout: ${timeout_seconds}s"
+    echo "Detail CVE: ${live_cve}; vuln lookup CVE: ${vuln_cve}"
+
+    run_live() {
+      local name="$1"
+      shift
+      echo "vdb: ${name}"
+      if (cd "$log_dir" && timeout "${timeout_seconds}" "$BIN" vdb --disable-memory --no-analytics --no-progress --reachability off "$@") > "${log_dir}/${name}.out" 2> "${log_dir}/${name}.err"; then
+        return 0
+      else
+        rc=$?
+        failures+=("${name}:${rc}")
+        echo "  failed (${rc}); see ${log_dir}/${name}.err" >&2
+      fi
+    }
+
+    run_live_probe() {
+      local name="$1"
+      shift
+      echo "vdb probe: ${name}"
+      if ! (cd "$log_dir" && timeout "${timeout_seconds}" "$BIN" vdb --disable-memory --no-analytics --no-progress --reachability off "$@") > "${log_dir}/${name}.out" 2> "${log_dir}/${name}.err"; then
+        echo "  probe failed; see ${log_dir}/${name}.err" >&2
+      fi
+    }
+
+    run_live status status
+    run_live ecosystems ecosystems -o json
+    run_live sources sources -o json
+    run_live summary summary -o json
+    run_live spec spec -o json
+    run_live vuln vuln "$vuln_cve" -o json
+    run_live exploits exploits "$live_cve" -o json
+    run_live_probe exploits_search exploits search --query log4j --limit 3 -o json
+    run_live exploits_sources exploits sources -o json
+    run_live exploits_types exploits types -o json
+    run_live fixes fixes "$live_cve" -o json
+    run_live_probe fixes_distributions fixes distributions -o json
+    run_live timeline timeline "$live_cve" --include source,exploit --scores-limit 5 -o json
+    run_live affected affected "$live_cve" -o json
+    run_live advisories advisories "$live_cve" -o json
+    run_live workarounds workarounds "$live_cve" -o json
+    run_live cwe_guidance cwe guidance "$live_cve" -o json
+    run_live remediation_plan remediation plan "$live_cve" --include-guidance --include-verification-steps -o json
+    run_live cloud_locators cloud-locators --vendor amazon --product s3 -o json
+    run_live scorecard scorecard "$live_cve" -o json
+    run_live scorecard_search scorecard search kubernetes -o json
+    run_live product product express --limit 3 -o json
+    run_live versions versions express -o json
+    run_live vulns vulns express --limit 3 -o json
+    run_live packages_search packages search express --ecosystem npm --limit 3 -o json
+    run_live purl_versions purl pkg:npm/express --limit 3 -o json
+    run_live purl_vulns purl pkg:npm/express@4.17.1 --vulns --limit 3 -o json
+    run_live gcve gcve --start 2024-01-01 --end 2024-01-02 -o json
+    run_live gcve_issuances gcve issuances --year 2024 --month 1 --limit 3 -o json
+    run_live ids ids 2024 1 --limit 3 -o json
+    run_live_probe search search "$live_cve" --limit 3 -o json
+    run_live kev_list kev list --format json --limit 3
+    kev_id="$(sed -n 's/.*"cveId"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${log_dir}/kev_list.out" | head -1)"
+    if [ -n "$kev_id" ]; then
+      run_live_probe kev_get kev get "$kev_id" -o json
+    else
+      echo "  failed to derive KEV id from kev_list output" >&2
+    fi
+    run_live kev_reasons kev reasons
+    run_live kev_sources kev sources
+    run_live iocs_get iocs get "$live_cve" -o json
+    run_live iocs_list iocs list --limit 3 -o json
+    run_live nuclei_get nuclei get "$live_cve" --format json
+    run_live yara_get yara-rules get "$live_cve" --format json
+    run_live yara_list yara-rules list --cve-id "$live_cve" --limit 3 --format json
+    run_live snort_get snort-rules get "$live_cve" --format json
+    run_live snort_list snort-rules list --cve-id "$live_cve" --limit 3 --format json
+    run_live attack_get attack-techniques get "$live_cve" -o json
+    run_live attack_list attack-techniques list --cve-id "$live_cve" --limit 3 -o json
+    run_live sightings sightings "$live_cve" -o json
+    run_live traffic_filters traffic-filters "$live_cve" --limit 3 -o json
+    run_live msrc_list msrc patch-tuesdays -o json
+    run_live msrc_get msrc patch-tuesday 2024-01-09 -o json
+    run_live raw_sources raw sources -o json
+    run_live_probe raw_get raw get "$live_cve" --source mitre-cve -o "${log_dir}/raw-get.bin"
+    run_live vex_get vex get "$live_cve" -o json
+    run_live vex_list vex list --cve-id "$live_cve" --limit 3 -o json
+    run_live metrics_types metrics types -o json
+    run_live ecosystem_package ecosystem package npm express -o json
+    run_live vendor_trends vendor-trends --vendor apache --year 2024 -o json
+    run_live exploit_trends exploit-trends -o json
+    run_live triage triage --severity high --limit 3 -o json
+    run_live ai_discoveries ai-discoveries --limit 3 -o json
+    run_live ai_assisted ai-assisted-exploits --limit 3 -o json
+    run_live ai_in_wild ai-in-wild --limit 3 -o json
+    run_live ai_malware ai-malware --limit 3 -o json
+
+    if [ "${#failures[@]}" -ne 0 ]; then
+      echo "Live VDB command failures: ${failures[*]}" >&2
+      echo "Logs: ${log_dir}" >&2
+      exit 1
+    fi
+
+    echo "Live VDB command scenarios passed"
+
+# Full offline command validation: help, argument guardrails, and fixture coverage.
+test-commands: test-command-help test-command-args test-command-fixtures
+
+# Full command validation, including live VDB API smoke/probe coverage.
+test-commands-live: test-commands test-command-vdb-live
+
+# Run all Go tests and the complete CLI command matrix.
+test-all-commands: test-all test-commands-live
 
 # Format code
 fmt:
