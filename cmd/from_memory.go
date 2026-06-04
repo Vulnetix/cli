@@ -92,6 +92,12 @@ func LoadFromMemory(rootPath string, freshExploits, freshAdvisories, freshVulns 
 	manifestGroups := buildGroupsFromMemory(enrichedVulns)
 	allPackages := buildPackagesFromMemory(bom.Components)
 
+	// Surface the SARIF artefact line if a prior scan left one on disk.
+	sarifPath := filepath.Join(rootPath, ".vulnetix", "sast.sarif")
+	if _, statErr := os.Stat(sarifPath); statErr != nil {
+		sarifPath = ""
+	}
+
 	// ── Print pretty summary (same renderer as full scan). ──
 	printPrettyScanSummary(
 		enrichedVulns,
@@ -100,12 +106,10 @@ func LoadFromMemory(rootPath string, freshExploits, freshAdvisories, freshVulns 
 		false, // showPaths — dep graph not reconstructed
 		false, // noExploits
 		false, // noRemediation
-		sbomPath,
-		filepath.Join(rootPath, ".vulnetix"),
-		"",    // rulesPath
 		false, // resultsOnly
-		"",    // snapshotURL
 	)
+	// Artefact links at the bottom (no snapshots in the offline render).
+	printScanArtifacts(sbomPath, sarifPath, filepath.Join(rootPath, ".vulnetix"), "", "", nil)
 
 	return nil
 }

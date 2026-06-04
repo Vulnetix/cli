@@ -310,6 +310,11 @@ type CliSCAReachabilityResponse struct {
 type CliSARIFRequest struct {
 	SARIF    map[string]any    `json:"sarif"`
 	Findings []CliSARIFFinding `json:"findings"`
+	// IngestionSnapshotUuid is empty on chunk 0 (server creates the snapshot/run)
+	// and set on chunks 1..N to the uuid chunk 0 returned, so the server appends
+	// each chunk's findings under one snapshot/run instead of creating new ones.
+	// Lets the CLI split a large SARIF submission into sub-8-MiB requests.
+	IngestionSnapshotUuid string `json:"ingestionSnapshotUuid,omitempty"`
 }
 
 // CliSARIFFinding mirrors vdb-api/internal/handler/cli_persist_sarif.go.

@@ -84,16 +84,20 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	env := buildCliEnv(gitCtx, sysInfo)
 	enrichCliEnvForSCA(&env, scanPath, allPackages, gitCtx)
 
-	// The heavy env (raw manifest bodies) rides only on chunk 0 — the chunk that
-	// carries Packages and triggers server-side persistence. Subsequent chunks
-	// are discovery-only, so we strip the manifest bodies to stay within the
-	// request size cap.
+	// Raw manifest bodies (lockfiles) can be large, so we don't cram them all
+	// onto chunk 0 — that would blow the server's 8 MiB request cap. Chunk 0
+	// carries metadata-only manifests (creates the CliManifest rows + a stable
+	// bundle hash); the raw bodies are spread, size-bounded, across the
+	// snapshot-anchored requests (plus extra manifest-only requests if needed),
+	// where the server fills in each row's rawArtifactUuid.
 	lightEnv := env
 	lightEnv.Manifests = stripManifestContent(env.Manifests)
+	metaEnv := env
+	metaEnv.Manifests = stripManifestContent(env.Manifests)
+	bodySlots := packManifestsBySize(env.Manifests, scaManifestByteBudget)
 
-	// Per-PURL Packages list with manifest + chain info. Sent on the first
-	// chunk only so the server creates exactly one IngestionSnapshot for the
-	// whole scan (subsequent chunks set Packages=nil and are discovery-only).
+	// Per-PURL Packages list with manifest + chain info. Sent on the chunks that
+	// carry purls so each chunk's findings get package context.
 	allCliPackages := buildCliPackages(allPackages, manifestGroups, licenseByKey)
 
 	mergedComponents := make([]any, 0, len(uniquePurls))
@@ -107,9 +111,24 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	var snapshot *vdb.CliIngestionSnapshot
 	var persistedFindings []vdb.CliFindingResult
 
-	for i, chunk := range chunks {
+	// Total requests cover both the PURL chunks (indices 0..len-1) and the
+	// manifest-body slots (slot s rides request s+1). Always at least one (the
+	// snapshot-creating chunk 0).
+	nReq := len(chunks)
+	if 1+len(bodySlots) > nReq {
+		nReq = 1 + len(bodySlots)
+	}
+	if nReq == 0 {
+		nReq = 1
+	}
+
+	for i := 0; i < nReq; i++ {
+		var purls []string
+		if i < len(chunks) {
+			purls = chunks[i]
+		}
 		req := vdb.CliSCARequest{
-			Purls: chunk,
+			Purls: purls,
 			Options: vdb.CliSCAOptions{
 				IncludeReachability: boolPtrCLI(true),
 				IncludeCooldown:     gateOpts.Cooldown,
@@ -118,19 +137,29 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 				IncludeMalware:      gateOpts.Malware,
 			},
 		}
-		reqEnv := lightEnv
+		var reqEnv vdb.CliEnv
 		if i == 0 {
-			// Chunk 0 carries the heavy env (manifest bodies) + the full package
-			// list, and creates the run/snapshot.
+			// Chunk 0: metadata-only manifests + the full package list; creates the
+			// run/snapshot.
+			reqEnv = metaEnv
 			req.Packages = allCliPackages
-			reqEnv = env
-		} else if snapshot != nil {
-			// Discovery chunks append their findings under chunk-0's run. Send the
-			// lightweight package list (no manifest bodies) so each chunk's findings
-			// get package context; only when chunk 0 actually persisted (snapshot set),
-			// so we never create duplicate runs.
-			req.Packages = allCliPackages
-			req.IngestionSnapshotUuid = snapshot.Uuid
+		} else {
+			reqEnv = lightEnv
+			if snapshot != nil {
+				// Append under chunk-0's run. Carry packages for finding context on
+				// chunks that have purls, and this request's slice of manifest bodies.
+				req.IngestionSnapshotUuid = snapshot.Uuid
+				if i < len(chunks) {
+					req.Packages = allCliPackages
+				}
+				if slot := i - 1; slot >= 0 && slot < len(bodySlots) {
+					reqEnv.Manifests = bodySlots[slot]
+				}
+			} else if i >= len(chunks) {
+				// No snapshot to anchor a manifest-only request; skip it. (Discovery
+				// chunks with purls still run below for CDX/vuln data.)
+				continue
+			}
 		}
 		resp, err := client.CliSCA(reqEnv, req)
 		if err != nil {
@@ -139,7 +168,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 				firstErr = err
 			}
 			if verbose {
-				fmt.Fprintf(os.Stderr, "  batch %d/%d failed (%v), continuing\n", i+1, len(chunks), err)
+				fmt.Fprintf(os.Stderr, "  batch %d/%d failed (%v), continuing\n", i+1, nReq, err)
 			}
 			continue
 		}
@@ -166,7 +195,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 		persistedFindings = append(persistedFindings, resp.Data.Findings...)
 		if verbose {
-			fmt.Fprintf(os.Stderr, "  batch %d/%d: %d component(s), %d vuln(s), %d reachability query(ies)\n", i+1, len(chunks), len(mergedComponents), len(mergedVulns), len(mergedReach))
+			fmt.Fprintf(os.Stderr, "  batch %d/%d: %d component(s), %d vuln(s), %d reachability query(ies)\n", i+1, nReq, len(mergedComponents), len(mergedVulns), len(mergedReach))
 		}
 	}
 
@@ -714,6 +743,37 @@ func stripManifestContent(in []vdb.CliManifestMetadata) []vdb.CliManifestMetadat
 		out[i].Content = ""
 	}
 	return out
+}
+
+// scaManifestByteBudget bounds the raw manifest-body bytes carried per /v2/cli.sca
+// request, kept well under the server's 8 MiB cap so a repo with large lockfiles
+// doesn't overflow a single request.
+const scaManifestByteBudget = 3 << 20 // 3 MiB
+
+// packManifestsBySize groups the manifests that carry a raw Content body into
+// size-bounded slots (slot s ships on SCA request s+1). A single manifest larger
+// than the budget ships alone. Manifests without Content are skipped — their
+// metadata rows are created on chunk 0.
+func packManifestsBySize(in []vdb.CliManifestMetadata, budget int) [][]vdb.CliManifestMetadata {
+	var slots [][]vdb.CliManifestMetadata
+	var cur []vdb.CliManifestMetadata
+	curBytes := 0
+	for _, m := range in {
+		if m.Content == "" {
+			continue
+		}
+		sz := len(m.Content)
+		if len(cur) > 0 && curBytes+sz > budget {
+			slots = append(slots, cur)
+			cur, curBytes = nil, 0
+		}
+		cur = append(cur, m)
+		curBytes += sz
+	}
+	if len(cur) > 0 {
+		slots = append(slots, cur)
+	}
+	return slots
 }
 
 // enrichCliEnvForSCA populates the SaaS-persistence-only metadata: repo-level

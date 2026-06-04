@@ -32,6 +32,13 @@ type sarifScanKind struct {
 	label    string // human-readable name used in CLI output
 }
 
+// snapshotLink is one successful SARIF submission's ingestion snapshot, surfaced
+// as an artifact link in the scan summary.
+type snapshotLink struct {
+	Label string
+	URL   string
+}
+
 var sarifKinds = []sarifScanKind{
 	{kind: "sast", category: "sast", label: "SAST"},
 	{kind: "secrets", category: "secrets", label: "Secrets"},
@@ -42,31 +49,47 @@ var sarifKinds = []sarifScanKind{
 // postScanSARIF is the single entry point. Called from scan.go after the local
 // SARIF is on disk. Splits findings by rule kind, posts each non-empty kind to
 // its matching /v2/cli.<kind> endpoint, and prints the resulting snapshot URLs.
-func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int) {
+func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int) []snapshotLink {
 	if report == nil || len(report.Findings) == 0 {
-		return
+		return nil
 	}
 	client := newCliClient()
 	if client == nil {
-		return
+		return nil
 	}
 	env := envForCli()
 	memRecords := loadMemoryRecordsForSARIF(gitCtx)
 
+	var snapshots []snapshotLink
 	byKind := partitionFindingsByKind(report.Findings, report.Rules)
 	for _, sk := range sarifKinds {
 		bucket, ok := byKind[sk.kind]
 		if !ok || len(bucket.findings) == 0 {
 			continue
 		}
-		submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext)
+		if link, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext); ok {
+			snapshots = append(snapshots, link)
+		}
 	}
+	return snapshots
 }
 
-// submitSARIFKind builds the SARIF doc for one kind and POSTs it.
-func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int) {
-	sarifLog := sast.BuildSARIF(bucket.findings, bucket.rules, version)
+// sarifChunkByteBudget bounds the per-request typed-findings JSON size. The
+// wire body carries the findings array AND a per-chunk SARIF doc that embeds the
+// same code snippets, so the actual body is roughly double this — the budget is
+// set well under the server's 8 MiB limit (v2_cli_common.go) to leave margin
+// for the duplicated SARIF + rule descriptors.
+const sarifChunkByteBudget = 3 << 20 // 3 MiB
 
+// sarifChunkMaxFindings is a secondary guard so a kind with many tiny findings
+// still splits into reasonable requests (also stays under the 50000 server cap).
+const sarifChunkMaxFindings = 2000
+
+// submitSARIFKind builds the SARIF doc(s) for one kind and POSTs them, splitting
+// large submissions into sub-8-MiB chunks. Chunk 0 creates the snapshot/run;
+// chunks 1..N carry its uuid so the server appends under one snapshot. Returns
+// the (single) ingestion snapshot link for the summary.
+func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int) (snapshotLink, bool) {
 	// Make the per-kind tool intent explicit (server is authoritative, but this
 	// keeps the env block self-describing): "Vulnetix SAST", "Vulnetix IaC", etc.
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
@@ -76,59 +99,131 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 		ToolHash:    commit,
 	}
 
-	// Convert local findings → API typed findings, enriched with memory.yaml VEX.
-	apiFindings := make([]vdb.CliSARIFFinding, 0, len(bucket.findings))
-	for _, f := range bucket.findings {
-		ruleName := ""
-		cwes := []int{}
-		tags := []string{}
-		if f.Metadata != nil {
-			ruleName = f.Metadata.Name
-			cwes = append(cwes, f.Metadata.CWE...)
-			tags = append(tags, f.Metadata.Tags...)
-		}
-		mem := memHitForRule(memRecords, f.RuleID)
-		snippet, snipStart, snipEnd := captureSnippet(rootPath, f.ArtifactURI, f.StartLine, f.EndLine, snippetContext)
-		apiFindings = append(apiFindings, vdb.CliSARIFFinding{
-			RuleID:                 f.RuleID,
-			RuleName:               ruleName,
-			Message:                f.Message,
-			Severity:               f.Severity,
-			Level:                  f.Level,
-			File:                   f.ArtifactURI,
-			StartLine:              f.StartLine,
-			EndLine:                f.EndLine,
-			Fingerprint:            f.Fingerprint,
-			CWEs:                   cwes,
-			Tags:                   tags,
-			SARIFGuid:              f.Fingerprint,
-			CodeSnippet:            snippet,
-			SnippetStartLine:       snipStart,
-			SnippetEndLine:         snipEnd,
-			MemoryVexStatus:        mem.Status,
-			MemoryVexJustification: mem.Justification,
-			MemoryVexAction:        mem.ActionResponse,
-		})
+	// Build typed findings once (with snippet capture + memory.yaml VEX), keeping
+	// them index-aligned with bucket.findings so each chunk's SARIF doc is built
+	// from the matching sast.Finding subset.
+	apiFindings := make([]vdb.CliSARIFFinding, len(bucket.findings))
+	for i, f := range bucket.findings {
+		apiFindings[i] = buildAPISARIFFinding(f, memRecords, rootPath, snippetContext)
 	}
 
-	req := vdb.CliSARIFRequest{
-		SARIF:    sarifLogToMap(sarifLog),
-		Findings: apiFindings,
-	}
+	chunks := chunkSARIFFindings(bucket.findings, apiFindings)
 
-	resp, err := dispatchSARIFRequest(client, env, sk.category, req)
-	if err != nil {
-		if verbose {
-			fmt.Fprintf(os.Stderr, "  /v2/cli.%s submit failed: %v\n", sk.category, err)
+	var link snapshotLink
+	var snapshotUuid string
+	anyOK := false
+	for i, ch := range chunks {
+		sarifLog := sast.BuildSARIF(ch.sast, bucket.rules, version)
+		req := vdb.CliSARIFRequest{
+			SARIF:    sarifLogToMap(sarifLog),
+			Findings: ch.api,
 		}
-		return
+		if i > 0 {
+			if snapshotUuid == "" {
+				// Chunk 0 never persisted a snapshot (unauth / server skip); the
+				// remaining chunks can't anchor to one, so stop — local SARIF on
+				// disk is still authoritative.
+				break
+			}
+			req.IngestionSnapshotUuid = snapshotUuid
+		}
+		resp, err := dispatchSARIFRequest(client, env, sk.category, req)
+		if err != nil {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "  /v2/cli.%s chunk %d/%d submit failed: %v\n", sk.category, i+1, len(chunks), err)
+			}
+			if i == 0 {
+				return snapshotLink{}, false
+			}
+			continue
+		}
+		anyOK = true
+		if i == 0 && resp != nil && resp.Data.IngestionSnapshot != nil {
+			snapshotUuid = resp.Data.IngestionSnapshot.Uuid
+			link = snapshotLink{Label: sk.label, URL: resp.Data.IngestionSnapshot.URL}
+		}
 	}
-	if resp == nil || resp.Data.IngestionSnapshot == nil {
-		return
+	if !anyOK || link.URL == "" {
+		return snapshotLink{}, false
 	}
-	if !silent {
-		fmt.Fprintf(os.Stderr, "%s snapshot: %s\n", sk.label, resp.Data.IngestionSnapshot.URL)
+	return link, true
+}
+
+// buildAPISARIFFinding converts one local SAST finding into the typed API shape,
+// capturing its code snippet and merging any memory.yaml VEX hint.
+func buildAPISARIFFinding(f sast.Finding, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int) vdb.CliSARIFFinding {
+	ruleName := ""
+	cwes := []int{}
+	tags := []string{}
+	if f.Metadata != nil {
+		ruleName = f.Metadata.Name
+		cwes = append(cwes, f.Metadata.CWE...)
+		tags = append(tags, f.Metadata.Tags...)
 	}
+	mem := memHitForRule(memRecords, f.RuleID)
+	snippet, snipStart, snipEnd := captureSnippet(rootPath, f.ArtifactURI, f.StartLine, f.EndLine, snippetContext)
+	return vdb.CliSARIFFinding{
+		RuleID:                 f.RuleID,
+		RuleName:               ruleName,
+		Message:                f.Message,
+		Severity:               f.Severity,
+		Level:                  f.Level,
+		File:                   f.ArtifactURI,
+		StartLine:              f.StartLine,
+		EndLine:                f.EndLine,
+		Fingerprint:            f.Fingerprint,
+		CWEs:                   cwes,
+		Tags:                   tags,
+		SARIFGuid:              f.Fingerprint,
+		CodeSnippet:            snippet,
+		SnippetStartLine:       snipStart,
+		SnippetEndLine:         snipEnd,
+		MemoryVexStatus:        mem.Status,
+		MemoryVexJustification: mem.Justification,
+		MemoryVexAction:        mem.ActionResponse,
+	}
+}
+
+// sarifChunk pairs a slice of local findings with their index-aligned typed
+// findings so each chunk can build a matching per-chunk SARIF doc.
+type sarifChunk struct {
+	sast []sast.Finding
+	api  []vdb.CliSARIFFinding
+}
+
+// chunkSARIFFindings greedily groups findings so each chunk's typed-findings
+// JSON stays under sarifChunkByteBudget (and sarifChunkMaxFindings). A single
+// oversized finding still ships alone. Returns at least one chunk (possibly
+// empty, for a probe-style submission).
+func chunkSARIFFindings(sastFindings []sast.Finding, apiFindings []vdb.CliSARIFFinding) []sarifChunk {
+	if len(apiFindings) == 0 {
+		return []sarifChunk{{}}
+	}
+	var chunks []sarifChunk
+	var curSast []sast.Finding
+	var curAPI []vdb.CliSARIFFinding
+	curBytes := 0
+	flush := func() {
+		if len(curAPI) == 0 {
+			return
+		}
+		chunks = append(chunks, sarifChunk{sast: curSast, api: curAPI})
+		curSast, curAPI, curBytes = nil, nil, 0
+	}
+	for i := range apiFindings {
+		sz := 256 // base per-finding overhead
+		if b, err := json.Marshal(apiFindings[i]); err == nil {
+			sz = len(b)
+		}
+		if len(curAPI) > 0 && (curBytes+sz > sarifChunkByteBudget || len(curAPI) >= sarifChunkMaxFindings) {
+			flush()
+		}
+		curSast = append(curSast, sastFindings[i])
+		curAPI = append(curAPI, apiFindings[i])
+		curBytes += sz
+	}
+	flush()
+	return chunks
 }
 
 // dispatchSARIFRequest picks the right typed client method by category. Kept
