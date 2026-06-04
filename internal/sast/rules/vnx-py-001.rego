@@ -22,14 +22,11 @@ metadata := {
 # Fire when pyproject.toml exists without any lock file.
 findings contains finding if {
 	some dir in input.dirs_by_language["python"]
-	pyproject := concat("/", [dir, "pyproject.toml"])
+	pyproject := _dir_path(dir, "pyproject.toml")
 	input.file_set[pyproject]
-	uv_lock := concat("/", [dir, "uv.lock"])
-	poetry_lock := concat("/", [dir, "poetry.lock"])
-	pipfile_lock := concat("/", [dir, "Pipfile.lock"])
-	not input.file_set[uv_lock]
-	not input.file_set[poetry_lock]
-	not input.file_set[pipfile_lock]
+	not input.file_set[_dir_path(dir, "uv.lock")]
+	not input.file_set[_dir_path(dir, "poetry.lock")]
+	not input.file_set[_dir_path(dir, "Pipfile.lock")]
 	finding := {
 		"rule_id": metadata.id,
 		"message": "pyproject.toml has no lock file (uv.lock, poetry.lock, or Pipfile.lock); add one to pin dependency versions",
@@ -43,10 +40,9 @@ findings contains finding if {
 # Fire when Pipfile exists without Pipfile.lock.
 findings contains finding if {
 	some dir in input.dirs_by_language["python"]
-	pipfile := concat("/", [dir, "Pipfile"])
+	pipfile := _dir_path(dir, "Pipfile")
 	input.file_set[pipfile]
-	pipfile_lock := concat("/", [dir, "Pipfile.lock"])
-	not input.file_set[pipfile_lock]
+	not input.file_set[_dir_path(dir, "Pipfile.lock")]
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Pipfile has no Pipfile.lock; run pipenv lock to pin dependency versions",
@@ -56,3 +52,9 @@ findings contains finding if {
 		"start_line": 1,
 	}
 }
+
+# _dir_path joins a detected dir with a filename to match the file_set key
+# format (root files are stored bare; dirs_by_language uses "." for the root).
+_dir_path(dir, name) := name if dir == "."
+
+_dir_path(dir, name) := concat("/", [dir, name]) if dir != "."

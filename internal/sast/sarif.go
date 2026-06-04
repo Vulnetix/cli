@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -203,6 +204,13 @@ func WriteSARIF(log *SARIFLog, path string) error {
 	data, err := json.MarshalIndent(log, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal sarif: %w", err)
+	}
+	// Ensure the parent (.vulnetix) exists — on a fresh --path target it may not
+	// have been created yet when the SARIF is the first artefact written.
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("create sarif dir: %w", err)
+		}
 	}
 	return os.WriteFile(path, data, 0o644)
 }

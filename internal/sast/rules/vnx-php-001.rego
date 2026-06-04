@@ -21,15 +21,19 @@ metadata := {
 
 findings contains finding if {
 	some dir in input.dirs_by_language["php"]
-	lock := concat("/", [dir, "composer.lock"])
-	not input.file_set[lock]
-	composer_json := concat("/", [dir, "composer.json"])
+	not input.file_set[_dir_path(dir, "composer.lock")]
 	finding := {
 		"rule_id": metadata.id,
 		"message": "composer.lock is missing; run composer install to generate a lock file",
-		"artifact_uri": composer_json,
+		"artifact_uri": _dir_path(dir, "composer.json"),
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": 1,
 	}
 }
+
+# _dir_path joins a detected dir with a filename to match the file_set key
+# format (root files are stored bare; dirs_by_language uses "." for the root).
+_dir_path(dir, name) := name if dir == "."
+
+_dir_path(dir, name) := concat("/", [dir, name]) if dir != "."
