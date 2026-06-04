@@ -21,15 +21,19 @@ metadata := {
 
 findings contains finding if {
 	some dir in input.dirs_by_language["ruby"]
-	lock := concat("/", [dir, "Gemfile.lock"])
-	not input.file_set[lock]
-	gemfile := concat("/", [dir, "Gemfile"])
+	not input.file_set[_dir_path(dir, "Gemfile.lock")]
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Gemfile.lock is missing; run bundle lock to pin dependency versions",
-		"artifact_uri": gemfile,
+		"artifact_uri": _dir_path(dir, "Gemfile"),
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": 1,
 	}
 }
+
+# _dir_path joins a detected dir with a filename to match the file_set key
+# format (root files are stored bare; dirs_by_language uses "." for the root).
+_dir_path(dir, name) := name if dir == "."
+
+_dir_path(dir, name) := concat("/", [dir, name]) if dir != "."

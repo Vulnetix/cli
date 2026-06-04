@@ -21,15 +21,19 @@ metadata := {
 
 findings contains finding if {
 	some dir in input.dirs_by_language["rust"]
-	lock := concat("/", [dir, "Cargo.lock"])
-	not input.file_set[lock]
-	cargo_toml := concat("/", [dir, "Cargo.toml"])
+	not input.file_set[_dir_path(dir, "Cargo.lock")]
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Cargo.lock is missing; run cargo generate-lockfile to pin dependency versions",
-		"artifact_uri": cargo_toml,
+		"artifact_uri": _dir_path(dir, "Cargo.toml"),
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": 1,
 	}
 }
+
+# _dir_path joins a detected dir with a filename to match the file_set key
+# format (root files are stored bare; dirs_by_language uses "." for the root).
+_dir_path(dir, name) := name if dir == "."
+
+_dir_path(dir, name) := concat("/", [dir, name]) if dir != "."

@@ -23,14 +23,23 @@ metadata := {
 }
 
 findings contains finding if {
-	not input.file_set["go.sum"]
-	not input.file_set["go.mod"]
+	# Only flag dirs where Go was actually detected (a go.mod is present —
+	# dirs_by_language["go"] is keyed on go.mod), and go.sum is absent.
+	some dir in input.dirs_by_language["go"]
+	not input.file_set[_dir_path(dir, "go.sum")]
 	finding := {
 		"rule_id": metadata.id,
 		"message": "go.sum is missing; add it to lock module checksums",
-		"artifact_uri": "go.mod",
+		"artifact_uri": _dir_path(dir, "go.mod"),
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": 1,
 	}
 }
+
+# _dir_path joins a detected dir with a filename, matching the file_set key
+# format: root-level files are stored bare ("go.mod"), nested ones with their
+# dir prefix ("svc/go.mod"). dirs_by_language uses "." for the scan root.
+_dir_path(dir, name) := name if dir == "."
+
+_dir_path(dir, name) := concat("/", [dir, name]) if dir != "."

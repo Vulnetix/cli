@@ -21,19 +21,21 @@ metadata := {
 
 findings contains finding if {
 	some dir in input.dirs_by_language["node"]
-	pkg_lock := concat("/", [dir, "package-lock.json"])
-	yarn_lock := concat("/", [dir, "yarn.lock"])
-	pnpm_lock := concat("/", [dir, "pnpm-lock.yaml"])
-	not input.file_set[pkg_lock]
-	not input.file_set[yarn_lock]
-	not input.file_set[pnpm_lock]
-	package_json := concat("/", [dir, "package.json"])
+	not input.file_set[_dir_path(dir, "package-lock.json")]
+	not input.file_set[_dir_path(dir, "yarn.lock")]
+	not input.file_set[_dir_path(dir, "pnpm-lock.yaml")]
 	finding := {
 		"rule_id": metadata.id,
 		"message": "No lock file found (package-lock.json, yarn.lock, or pnpm-lock.yaml); add one to pin dependency versions",
-		"artifact_uri": package_json,
+		"artifact_uri": _dir_path(dir, "package.json"),
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": 1,
 	}
 }
+
+# _dir_path joins a detected dir with a filename to match the file_set key
+# format (root files are stored bare; dirs_by_language uses "." for the root).
+_dir_path(dir, name) := name if dir == "."
+
+_dir_path(dir, name) := concat("/", [dir, name]) if dir != "."
