@@ -4,7 +4,9 @@ package schema
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -14,7 +16,7 @@ import (
 var schemaFS embed.FS
 
 // validVersions lists supported CDX spec versions from highest to lowest.
-// ValidateCDX tries each in order and short-circuits on the first match.
+// ValidateCDX honors the document's declared specVersion when present.
 var validVersions = []string{"1.7", "1.6", "1.5", "1.4"}
 
 // compiled caches compiled schemas so repeated validations are fast.
@@ -35,6 +37,7 @@ func ensureCompiled() error {
 		}{
 			{"spdx.schema.json", "http://cyclonedx.org/schema/spdx.schema.json"},
 			{"jsf-0.82.schema.json", "http://cyclonedx.org/schema/jsf-0.82.schema.json"},
+			{"cryptography-defs.schema.json", "http://cyclonedx.org/schema/cryptography-defs.schema.json"},
 		}
 
 		for _, v := range validVersions {
@@ -89,8 +92,6 @@ func ensureCompiled() error {
 }
 
 // ValidateCDX validates raw CycloneDX JSON against embedded schemas.
-// It tries versions from highest (1.7) to lowest (1.4) and returns the
-// first version that validates successfully (short-circuit).
 func ValidateCDX(data []byte) (string, error) {
 	if err := ensureCompiled(); err != nil {
 		return "", fmt.Errorf("schema init: %w", err)
@@ -99,6 +100,24 @@ func ValidateCDX(data []byte) (string, error) {
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	if err != nil {
 		return "", fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	var header struct {
+		SpecVersion string `json:"specVersion"`
+	}
+	if err := json.Unmarshal(data, &header); err != nil {
+		return "", fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	if header.SpecVersion != "" {
+		sch, ok := compiled[header.SpecVersion]
+		if !ok {
+			return "", fmt.Errorf("unsupported CDX specVersion %q (supported: %s)", header.SpecVersion, strings.Join(validVersions, ", "))
+		}
+		if err := sch.Validate(doc); err != nil {
+			return "", fmt.Errorf("CDX document does not validate against declared specVersion %s: %w", header.SpecVersion, err)
+		}
+		return header.SpecVersion, nil
 	}
 
 	for _, v := range validVersions {
