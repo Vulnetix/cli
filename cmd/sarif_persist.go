@@ -57,7 +57,9 @@ func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath 
 	if client == nil {
 		return nil
 	}
-	env := envForCli()
+	// Use the scan target's git context (not the CWD's) so the snapshot's repo
+	// identity matches --path.
+	env := envForCliWithGit(gitCtx)
 	memRecords := loadMemoryRecordsForSARIF(gitCtx)
 
 	var snapshots []snapshotLink
@@ -419,7 +421,7 @@ func postLicenseSARIF(result *license.AnalysisResult, rootPath string, snippetCo
 		})
 	}
 
-	env := envForCli()
+	env := envForCliWithGit(gitctx.Collect(rootPath))
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
 		ToolName:    "Vulnetix License",
 		ToolVersion: version,

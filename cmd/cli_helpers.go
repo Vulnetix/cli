@@ -17,10 +17,20 @@ import (
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
-// envForCli builds the standard CliEnv that ships with every cli.* call.
-// Reuses gitctx + sysenv collectors that cmd/env.go already exercises.
+// envForCli builds the standard CliEnv that ships with every cli.* call,
+// deriving git context from the current working directory. Used by the vdb
+// query subcommands (vuln, exploits, …) which have no scan target.
 func envForCli() vdb.CliEnv {
-	cwd, _ := os.Getwd()
+	return envForCliWithGit(nil)
+}
+
+// envForCliWithGit builds the standard CliEnv but uses the supplied git context
+// (collected from the scan's --path target) rather than the CWD. Scan
+// subcommands that persist findings under a repo identity (SAST/Secrets/IaC/
+// Containers/License) MUST use this so the snapshot's repo name, branch, remote
+// and root reflect the scanned path, not wherever the CLI was invoked from. A
+// nil git falls back to the CWD (envForCli's behaviour).
+func envForCliWithGit(git *gitctx.GitContext) vdb.CliEnv {
 	env := vdb.CliEnv{
 		CliVersion: version,
 		Commit:     commit,
@@ -33,16 +43,19 @@ func envForCli() vdb.CliEnv {
 		env.Hostname = sys.Hostname
 		env.Shell = sys.Shell
 	}
-	if cwd != "" {
-		if gc := gitctx.Collect(cwd); gc != nil {
-			env.Git = &vdb.CliGitContext{
-				Branch:   gc.CurrentBranch,
-				Commit:   gc.CurrentCommit,
-				Author:   gc.HeadCommitAuthor,
-				Remotes:  gc.RemoteURLs,
-				Dirty:    gc.IsDirty,
-				RepoRoot: gc.RepoRootPath,
-			}
+	if git == nil {
+		if cwd, _ := os.Getwd(); cwd != "" {
+			git = gitctx.Collect(cwd)
+		}
+	}
+	if git != nil {
+		env.Git = &vdb.CliGitContext{
+			Branch:   git.CurrentBranch,
+			Commit:   git.CurrentCommit,
+			Author:   git.HeadCommitAuthor,
+			Remotes:  git.RemoteURLs,
+			Dirty:    git.IsDirty,
+			RepoRoot: git.RepoRootPath,
 		}
 	}
 	return env
