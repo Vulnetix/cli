@@ -111,6 +111,7 @@ func TestCredentialSource_None(t *testing.T) {
 	t.Setenv("VULNETIX_ORG_ID", "")
 	t.Setenv("VVD_ORG", "")
 	t.Setenv("VVD_SECRET", "")
+	t.Setenv("HOME", t.TempDir())
 	source := CredentialSource()
 	if source != "none" {
 		t.Errorf("expected 'none', got %q", source)
@@ -121,8 +122,8 @@ func TestAllSourceStatus(t *testing.T) {
 	t.Setenv("VULNETIX_API_KEY", "k")
 	t.Setenv("VULNETIX_ORG_ID", "o")
 	lines := AllSourceStatus()
-	if len(lines) != 5 {
-		t.Errorf("expected 5 lines, got %d", len(lines))
+	if len(lines) != 6 {
+		t.Errorf("expected 6 lines, got %d", len(lines))
 	}
 }
 
@@ -163,6 +164,7 @@ func TestCredentialStatus(t *testing.T) {
 	t.Setenv("VULNETIX_ORG_ID", "")
 	t.Setenv("VVD_ORG", "")
 	t.Setenv("VVD_SECRET", "")
+	t.Setenv("HOME", t.TempDir())
 
 	status, creds := CredentialStatus()
 	if creds != nil {

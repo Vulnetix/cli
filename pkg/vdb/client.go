@@ -84,6 +84,14 @@ type TokenResponse struct {
 	Exp   int64  `json:"exp"`
 }
 
+// APIKeyResponse represents the derived API key response for SigV4 users.
+type APIKeyResponse struct {
+	Success bool   `json:"success"`
+	OrgID   string `json:"orgId"`
+	APIKey  string `json:"apiKey"`
+	Error   string `json:"error,omitempty"`
+}
+
 // ErrorResponse represents an API error response
 type ErrorResponse struct {
 	Success bool   `json:"success"`
@@ -175,7 +183,7 @@ func (c *Client) requestNewTokenLocked() (string, error) {
 	}
 
 	// Sign the request with AWS SigV4
-	if err := c.signRequest(req, path, ""); err != nil {
+	if err := c.signRequest(req, c.APIVersion+path, ""); err != nil {
 		return "", fmt.Errorf("failed to sign request: %w", err)
 	}
 
@@ -214,6 +222,53 @@ func (c *Client) requestNewTokenLocked() (string, error) {
 	}
 
 	return tokenResp.Token, nil
+}
+
+// GetDerivedAPIKey retrieves the static API key derived from SigV4 credentials.
+func (c *Client) GetDerivedAPIKey() (*APIKeyResponse, error) {
+	path := "/auth/api-key"
+	url := c.BaseURL + c.APIVersion + path
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if err := c.signRequest(req, c.APIVersion+path, ""); err != nil {
+		return nil, fmt.Errorf("failed to sign request: %w", err)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error != "" {
+			return nil, fmt.Errorf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
+		}
+		var apiKeyResp APIKeyResponse
+		if err := json.Unmarshal(body, &apiKeyResp); err == nil && apiKeyResp.Error != "" {
+			return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, apiKeyResp.Error)
+		}
+		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var apiKeyResp APIKeyResponse
+	if err := json.Unmarshal(body, &apiKeyResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	if apiKeyResp.OrgID == "" || apiKeyResp.APIKey == "" {
+		return nil, fmt.Errorf("API response missing orgId or apiKey")
+	}
+	return &apiKeyResp, nil
 }
 
 // signRequest signs an HTTP request using AWS Signature Version 4 (SHA-512)

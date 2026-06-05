@@ -1,6 +1,9 @@
 package vdb
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/vulnetix/cli/v3/pkg/auth"
@@ -93,5 +96,34 @@ func TestTokenResponse(t *testing.T) {
 	}
 	if tr.Token != "jwt-token" || tr.Sub != "test-sub" {
 		t.Errorf("unexpected values: %+v", tr)
+	}
+}
+
+func TestGetDerivedAPIKey(t *testing.T) {
+	var gotPath, gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"orgId":"org","apiKey":"key"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient("org", "secret")
+	c.BaseURL = srv.URL
+	c.APIVersion = "/v2"
+
+	resp, err := c.GetDerivedAPIKey()
+	if err != nil {
+		t.Fatalf("GetDerivedAPIKey: %v", err)
+	}
+	if resp.OrgID != "org" || resp.APIKey != "key" {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+	if gotPath != "/v2/auth/api-key" {
+		t.Fatalf("path = %q", gotPath)
+	}
+	if !strings.Contains(gotAuth, "Credential=org/") {
+		t.Fatalf("Authorization header missing credential org: %q", gotAuth)
 	}
 }

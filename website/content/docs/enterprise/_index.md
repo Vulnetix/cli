@@ -7,5 +7,6 @@ Enterprise features for corporate environments, distribution, and advanced deplo
 
 {{< cards >}}
   {{< card link="corporate-proxy" title="Corporate Proxy" subtitle="Proxy servers, firewalls, and restricted networks." >}}
+  {{< card link="package-firewall" title="Package Firewall" subtitle="Go proxy setup, netrc auth, and dependency policy enforcement." >}}
   {{< card link="publishing" title="Publishing & Distribution" subtitle="How Vulnetix CLI is published and distributed." >}}
 {{< /cards >}}

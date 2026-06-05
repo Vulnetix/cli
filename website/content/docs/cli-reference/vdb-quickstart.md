@@ -75,6 +75,24 @@ EOF
 chmod 600 ~/.vulnetix/credentials.json
 ```
 
+### Method 4: `.netrc`
+
+The CLI can use the same `.netrc` credentials created for the Vulnetix Package Firewall.
+
+```netrc
+machine packages.vulnetix.com
+login your-organization-uuid
+password your-api-key-hex
+```
+
+On Linux and macOS, secure the file:
+
+```bash
+chmod 600 ~/.netrc
+```
+
+On Windows, use `%USERPROFILE%\_netrc`.
+
 ## 3. Verify Setup
 
 ```bash
