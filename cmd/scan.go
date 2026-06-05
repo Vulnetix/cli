@@ -1199,8 +1199,12 @@ func runLocalScan(
 			// Phase-2 persistence: split findings by rule.Kind and POST a
 			// SARIF doc per kind to /v2/cli.{sast,secrets,iac,containers}.
 			// Snapshot URLs print to stderr on success. Non-fatal: a local
-			// SARIF is still the source of truth on disk.
-			sarifSnapshots = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext, progressStderr)
+			// SARIF is still the source of truth on disk. Skipped for
+			// unauthenticated scans — the server persists nothing for the
+			// shared community credential, so the calls only burn shared quota.
+			if !isUnauthenticatedScan() {
+				sarifSnapshots = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext, progressStderr)
+			}
 		}
 	}
 	if sastReport != nil {
@@ -1712,6 +1716,9 @@ func runLocalScan(
 
 	// Artefact links print last, after all analysis output.
 	printScanArtifacts(displaySBOM, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL, sarifSnapshots)
+	if isUnauthenticatedScan() {
+		printCommunitySignupReminder()
+	}
 
 	if len(breaches) > 0 {
 		fmt.Fprintln(os.Stderr)
@@ -2419,6 +2426,25 @@ func printScanArtifacts(sbomPath, sarifPath, vulnetixDir, rulesPath, scaSnapshot
 		fmt.Fprintf(os.Stdout, "  %s %s Snapshot: %s\n", display.CheckMark(t), s.Label, s.URL)
 	}
 	fmt.Fprintln(os.Stdout)
+}
+
+// isUnauthenticatedScan reports whether the scan is running without a real org
+// account — i.e. on the shared embedded community credentials (or no creds at
+// all). Such scans still get vuln enrichment, but the server never persists a
+// snapshot for them, so the CLI skips the persist-only calls + snapshot output
+// and nudges the user to claim their own free Community Plan key.
+func isUnauthenticatedScan() bool {
+	return vdbCreds == nil || auth.IsCommunity(vdbCreds)
+}
+
+// printCommunitySignupReminder tells unauthenticated users why no snapshot was
+// produced and how to get one (a free Community Plan account with its own
+// dedicated quota, instead of the shared embedded credentials).
+func printCommunitySignupReminder() {
+	fmt.Fprintln(os.Stderr, "  ℹ Snapshots are skipped for unauthenticated scans.")
+	fmt.Fprintln(os.Stderr, "    Get a free Community Plan API key (your own dedicated quota) at")
+	fmt.Fprintln(os.Stderr, "    https://www.vulnetix.com/vdb-register, then run 'vulnetix auth login'.")
+	fmt.Fprintln(os.Stderr)
 }
 
 // printSnapshotsToStderr echoes SARIF ingestion snapshot links to stderr, used
