@@ -159,18 +159,26 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 // capturing its code snippet and merging any memory.yaml VEX hint.
 func buildAPISARIFFinding(f sast.Finding, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int) vdb.CliSARIFFinding {
 	ruleName := ""
+	description := ""
 	cwes := []int{}
 	tags := []string{}
 	if f.Metadata != nil {
 		ruleName = f.Metadata.Name
+		description = f.Metadata.Description
 		cwes = append(cwes, f.Metadata.CWE...)
 		tags = append(tags, f.Metadata.Tags...)
 	}
 	mem := memHitForRule(memRecords, f.RuleID)
 	snippet, snipStart, snipEnd := captureSnippet(rootPath, f.ArtifactURI, f.StartLine, f.EndLine, snippetContext)
+	if snippet == "" && f.Snippet != "" {
+		snippet = f.Snippet
+		snipStart = f.StartLine
+		snipEnd = f.EndLine
+	}
 	return vdb.CliSARIFFinding{
 		RuleID:                 f.RuleID,
 		RuleName:               ruleName,
+		Description:            description,
 		Message:                f.Message,
 		Severity:               f.Severity,
 		Level:                  f.Level,
