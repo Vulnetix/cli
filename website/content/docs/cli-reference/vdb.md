@@ -125,6 +125,24 @@ Create `~/.vulnetix/credentials.json`:
 }
 ```
 
+### `.netrc`
+
+The CLI also supports the Package Firewall `.netrc` entry as Direct API Key credentials:
+
+```netrc
+machine packages.vulnetix.com
+login your-organization-uuid
+password your-api-key-hex
+```
+
+On Linux and macOS, the file must be restricted:
+
+```bash
+chmod 600 ~/.netrc
+```
+
+On Windows, use `%USERPROFILE%\_netrc`.
+
 ### Command-Line Flags
 
 ```bash
@@ -142,6 +160,7 @@ vulnetix vdb ecosystems --org-id "your-uuid" --secret "your-secret"
 3. Environment variables: `VVD_ORG` + `VVD_SECRET`
 4. Project file: `.vulnetix/credentials.json`
 5. Home file: `~/.vulnetix/credentials.json`
+6. `.netrc` / `_netrc` machine `packages.vulnetix.com`
 
 ### Obtaining Credentials
 
@@ -2543,7 +2562,8 @@ All `vdb` commands support these global flags:
 2. **Use environment variables** or secure configuration files
 3. **Rotate secrets regularly** for production use
 4. **Store secrets securely** using secrets managers in CI/CD
-5. **Limit access** to credentials on shared systems
+5. **Restrict `.netrc` permissions** with `chmod 600 ~/.netrc` on Linux/macOS
+6. **Limit access** to credentials on shared systems
 
 ## Troubleshooting
 
@@ -2573,6 +2593,10 @@ cat > ~/.vulnetix/credentials.json << EOF
   "method": "apikey"
 }
 EOF
+
+# Or check Package Firewall netrc credentials
+vulnetix auth status
+chmod 600 ~/.netrc
 ```
 
 ### Token Expiration

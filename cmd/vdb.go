@@ -91,7 +91,8 @@ Credential sources (checked in order):
   3. Environment variables: VVD_ORG + VVD_SECRET (SigV4)
   4. Project file: .vulnetix/credentials.json
   5. Home file: ~/.vulnetix/credentials.json
-  6. Unauthenticated Community (built-in, --no-community to disable)
+  6. netrc machine packages.vulnetix.com (Direct API Key)
+  7. Unauthenticated Community (built-in, --no-community to disable)
 
 API version:
   Defaults to v2 (the richer, current surface). Pass -V v1 only if you specifically

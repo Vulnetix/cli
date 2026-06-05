@@ -38,6 +38,7 @@ func SaveCredentials(creds *Credentials, store CredentialStore) error {
 //  1. Environment variables (VULNETIX_API_KEY + VULNETIX_ORG_ID for Direct, VVD_ORG + VVD_SECRET for SigV4)
 //  2. Project dotfile (.vulnetix/credentials.json)
 //  3. Home directory (~/.vulnetix/credentials.json)
+//  4. Package Firewall netrc entry (packages.vulnetix.com)
 func LoadCredentials() (*Credentials, error) {
 	// 1. Try Direct API Key env vars
 	apiKey := os.Getenv("VULNETIX_API_KEY")
@@ -69,6 +70,13 @@ func LoadCredentials() (*Credentials, error) {
 	// 4. Try home directory
 	if creds, err := loadFromFile(StoreHome); err == nil {
 		return creds, nil
+	}
+
+	// 5. Try Package Firewall netrc credentials
+	if creds, err := LoadNetrcCredentials(); err == nil {
+		return creds, nil
+	} else if status := NetrcStatus(); status.Found && status.Err != nil {
+		return nil, fmt.Errorf("netrc credentials are not usable: %w", status.Err)
 	}
 
 	return nil, fmt.Errorf("no credentials found. Run 'vulnetix auth login' or set VULNETIX_API_KEY + VULNETIX_ORG_ID environment variables")
@@ -103,6 +111,9 @@ func CredentialSource() string {
 	}
 	if _, err := loadFromFile(StoreHome); err == nil {
 		return "home (~/.vulnetix/credentials.json)"
+	}
+	if _, err := LoadNetrcCredentials(); err == nil {
+		return "netrc (" + PackageFirewallHost + ")"
 	}
 	return "none"
 }
@@ -145,6 +156,18 @@ func AllSourceStatus() []string {
 		lines = append(lines, "home ~/.vulnetix/credentials.json: found")
 	} else {
 		lines = append(lines, "home ~/.vulnetix/credentials.json: not found")
+	}
+
+	netrc := NetrcStatus()
+	switch {
+	case !netrc.Found:
+		lines = append(lines, fmt.Sprintf("netrc %s: not found", netrc.Path))
+	case netrc.Err != nil:
+		lines = append(lines, fmt.Sprintf("netrc %s: unusable (%s)", netrc.Path, netrc.Err))
+	case netrc.MachineFound:
+		lines = append(lines, fmt.Sprintf("netrc %s machine %s: found", netrc.Path, PackageFirewallHost))
+	default:
+		lines = append(lines, fmt.Sprintf("netrc %s machine %s: not found", netrc.Path, PackageFirewallHost))
 	}
 
 	lines = append(lines, "Unauthenticated Community (VDB only): available")

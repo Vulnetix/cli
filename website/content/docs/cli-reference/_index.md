@@ -69,7 +69,7 @@ Running `vulnetix auth` without a subcommand also triggers login.
 
 #### auth status
 
-Show current authentication state, including the credential source, method, and masked key.
+Show current authentication state, including the credential source, method, masked key, and Package Firewall `.netrc` status.
 
 ```bash
 vulnetix auth status
@@ -94,6 +94,35 @@ Remove stored credentials from all file-based stores.
 ```bash
 vulnetix auth logout
 ```
+
+---
+
+### vulnetix package-firewall
+
+Configure package managers to use the Vulnetix Package Firewall.
+
+```bash
+vulnetix package-firewall go [flags]
+```
+
+#### package-firewall go
+
+Configure Go to use `https://packages.vulnetix.com` with `.netrc` authentication.
+
+```bash
+vulnetix package-firewall go
+vulnetix package-firewall go --dry-run
+```
+
+This command writes a `machine packages.vulnetix.com` entry to `.netrc`, persists `GOPROXY` and `GOAUTH=netrc` in your shell configuration, and updates detected project files at the git root (`.env`, `.envrc`, `Makefile`).
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--base-url` | string | `https://api.vdb.vulnetix.com` | VDB API base URL |
+| `--proxy-url` | string | `https://packages.vulnetix.com` | Package Firewall Go proxy URL |
+| `--dry-run` | bool | `false` | Show planned changes without writing files |
 
 ---
 
@@ -576,13 +605,14 @@ Uses `VVD_ORG` and `VVD_SECRET` environment variables, or stored credentials wit
 
 ### Credential Storage
 
-Credentials are stored as JSON in one of two locations:
+Credentials are stored as JSON in one of two locations. The CLI can also use Package Firewall `.netrc` credentials as a Direct API Key fallback.
 
 | Store | Path | Use Case |
 |-------|------|----------|
 | `home` (default) | `~/.vulnetix/credentials.json` | User-wide credentials |
 | `project` | `.vulnetix/credentials.json` | Project-specific credentials |
 | `keyring` | System keyring | Secure OS-level secret storage (not yet implemented) |
+| `.netrc` | `~/.netrc` or `%USERPROFILE%\_netrc` | Package Firewall credentials; fallback Direct API Key auth |
 
 ### Credential Precedence
 
@@ -593,6 +623,7 @@ The CLI loads credentials in this order (first match wins):
 3. Environment variables: `VVD_ORG` + `VVD_SECRET` (SigV4)
 4. Project dotfile: `.vulnetix/credentials.json`
 5. Home directory: `~/.vulnetix/credentials.json`
+6. `.netrc` / `_netrc` machine `packages.vulnetix.com`
 
 ## Global Flags
 

@@ -78,7 +78,7 @@ func initDisplayContext(cmd *cobra.Command, mode display.OutputMode) {
 func runInfoTask(cmd *cobra.Command) error {
 	ctx := display.FromCommand(cmd)
 	t := ctx.Term
-	progress := ctx.Progress("Authentication healthcheck", 5)
+	progress := ctx.Progress("Authentication healthcheck", 6)
 
 	var b strings.Builder
 	b.WriteString(display.Bold(t, fmt.Sprintf("Vulnetix CLI v%s", version)) + "\n")
@@ -169,7 +169,34 @@ func runInfoTask(cmd *cobra.Command) error {
 	}
 	progress.Update(4, "Checked home credential file")
 
-	// 5. Community fallback (VDB only)
+	// 5. Check Package Firewall netrc
+	progress.SetStage("Checking Package Firewall netrc credentials")
+	netrc := auth.NetrcStatus()
+	netrcLabel := fmt.Sprintf("%s machine %s (netrc)", netrc.Path, auth.PackageFirewallHost)
+	switch {
+	case netrc.Found && netrc.Err != nil:
+		anyFound = true
+		formatSource(netrcLabel, "······", fmt.Sprintf("(%s)", netrc.Err), false)
+	case netrc.Found && netrc.MachineFound:
+		anyFound = true
+		creds := &auth.Credentials{
+			OrgID:  netrc.OrgID,
+			APIKey: netrc.APIKey,
+			Method: auth.DirectAPIKey,
+		}
+		if verr := verifyCredentials(creds); verr != nil {
+			formatSource(netrcLabel, "······", fmt.Sprintf("(%s)", verr), false)
+		} else {
+			formatSource(netrcLabel, "······", display.Muted(t, fmt.Sprintf("%s, org: %s", creds.Method, creds.OrgID)), true)
+		}
+	case netrc.Found:
+		formatNotFound(netrcLabel, "······")
+	default:
+		formatNotFound(netrcLabel, "······")
+	}
+	progress.Update(5, "Checked Package Firewall netrc credentials")
+
+	// 6. Community fallback (VDB only)
 	progress.SetStage("Checking community fallback availability")
 	formatSource("Unauthenticated Community (VDB only)", "······", display.Muted(t, "available"), true)
 	progress.Complete("authentication healthcheck complete")
