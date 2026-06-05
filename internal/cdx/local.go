@@ -1,6 +1,8 @@
 package cdx
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"sort"
@@ -144,6 +146,27 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 					Name:  "vulnetix:source-file",
 					Value: pkg.SourceFile,
 				})
+			}
+			for _, cs := range pkg.Checksums {
+				switch cs.Alg {
+				case "SHA-256", "SHA-1":
+					comp.Hashes = append(comp.Hashes, Hash{Alg: cs.Alg, Content: cs.Value})
+				case "SHA-512":
+					content := cs.Value
+					if decoded, err := base64.StdEncoding.DecodeString(cs.Value); err == nil {
+						content = hex.EncodeToString(decoded)
+					}
+					comp.Hashes = append(comp.Hashes, Hash{Alg: "SHA-512", Content: content})
+					comp.Properties = append(comp.Properties, Property{
+						Name:  "vulnetix:integrity",
+						Value: cs.Value,
+					})
+				case "H1":
+					comp.Properties = append(comp.Properties, Property{
+						Name:  "vulnetix:gosum-h1",
+						Value: cs.Value,
+					})
+				}
 			}
 			bom.Components = append(bom.Components, comp)
 		}

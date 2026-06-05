@@ -290,15 +290,16 @@ func parseMixScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parseMixLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	lineRe := regexp.MustCompile(`^\s*"([^"]+)"\s*:\s*\{:hex\s*,\s*:[a-z_]+\s*,\s*"([^"]+)"`)
+	lineRe := regexp.MustCompile(`^\s*"([^"]+)"\s*:\s*\{:hex\s*,\s*:[a-z_]+\s*,\s*"([^"]+)"\s*,\s*"([a-fA-F0-9]{64})"`)
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
 		m := lineRe.FindStringSubmatch(line)
 		if m != nil {
-			pkgs = append(pkgs, ScopedPackage{
-				Name: m[1], Version: m[2],
-				Ecosystem: "hex", Scope: ScopeProduction,
-			})
+			sp := ScopedPackage{Name: m[1], Version: m[2], Ecosystem: "hex", Scope: ScopeProduction}
+			if c := normalizeChecksum(m[3]); c.Alg != "" {
+				sp.Checksums = []PackageChecksum{c}
+			}
+			pkgs = append(pkgs, sp)
 		}
 	}
 	return pkgs, nil
@@ -621,6 +622,43 @@ func parsePodfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // ---------------------------------------------------------------------------
 
 func parsePodfileLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
+	// First pass: build SHA-1 checksum map from SPEC CHECKSUMS: section.
+	// Format: "  PodName: 40hexchars" (colon) or "  PodName = 0x..." (equals).
+	podChecksums := map[string]string{}
+	{
+		sc := bufio.NewScanner(strings.NewReader(string(data)))
+		inSpec := false
+		for sc.Scan() {
+			line := sc.Text()
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "SPEC CHECKSUMS:" {
+				inSpec = true
+				continue
+			}
+			if inSpec && len(line) > 0 && line[0] != ' ' {
+				inSpec = false
+				continue
+			}
+			if !inSpec || trimmed == "" {
+				continue
+			}
+			// Support both ": " and " = " separators.
+			var name, raw string
+			if idx := strings.Index(trimmed, ": "); idx > 0 {
+				name, raw = trimmed[:idx], strings.TrimSpace(trimmed[idx+2:])
+			} else if idx := strings.Index(trimmed, " = "); idx > 0 {
+				name, raw = trimmed[:idx], strings.TrimSpace(trimmed[idx+3:])
+			}
+			if name == "" {
+				continue
+			}
+			if strings.HasPrefix(raw, "0x") || strings.HasPrefix(raw, "0X") {
+				raw = raw[2:]
+			}
+			podChecksums[name] = raw
+		}
+	}
+
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	inPods := false
@@ -648,10 +686,16 @@ func parsePodfileLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			ver := strings.Trim(entry[idx+1:], "()")
 			if !seen[name] {
 				seen[name] = true
-				pkgs = append(pkgs, ScopedPackage{
+				sp := ScopedPackage{
 					Name: name, Version: ver,
 					Ecosystem: "cocoapods", Scope: ScopeProduction,
-				})
+				}
+				if raw, ok := podChecksums[name]; ok {
+					if c := normalizeChecksum(raw); c.Alg != "" {
+						sp.Checksums = []PackageChecksum{c}
+					}
+				}
+				pkgs = append(pkgs, sp)
 			}
 		}
 	}
@@ -763,16 +807,17 @@ func parseProjectTomlScoped(data []byte, _ string) ([]ScopedPackage, error) {
 func parseManifestTomlScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	var currentName, currentVer string
+	var currentName, currentVer, currentSHA1 string
 
 	flush := func() {
 		if currentName != "" {
-			pkgs = append(pkgs, ScopedPackage{
-				Name: currentName, Version: currentVer,
-				Ecosystem: "julia", Scope: ScopeProduction,
-			})
+			sp := ScopedPackage{Name: currentName, Version: currentVer, Ecosystem: "julia", Scope: ScopeProduction}
+			if c := normalizeChecksum(currentSHA1); c.Alg != "" {
+				sp.Checksums = []PackageChecksum{c}
+			}
+			pkgs = append(pkgs, sp)
 		}
-		currentName, currentVer = "", ""
+		currentName, currentVer, currentSHA1 = "", "", ""
 	}
 
 	for scanner.Scan() {
@@ -789,6 +834,9 @@ func parseManifestTomlScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		}
 		if strings.HasPrefix(line, "version = ") {
 			currentVer = strings.Trim(strings.TrimPrefix(line, "version = "), `"`)
+		}
+		if strings.HasPrefix(line, "git-tree-sha1 = ") {
+			currentSHA1 = strings.Trim(strings.TrimPrefix(line, "git-tree-sha1 = "), `"`)
 		}
 	}
 	flush()
@@ -951,6 +999,7 @@ func parseDenoLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	var lock struct {
 		Packages struct {
 			Specifiers map[string]string `json:"specifiers"`
+			Integrity  map[string]string `json:"integrity"`
 		} `json:"packages"`
 		Remote map[string]string `json:"remote"`
 	}
@@ -964,7 +1013,18 @@ func parseDenoLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			name, ver = parseDenoSpecifier(resolved)
 		}
 		if name != "" {
-			pkgs = append(pkgs, ScopedPackage{Name: name, Version: ver, Ecosystem: "deno", Scope: ScopeProduction})
+			sp := ScopedPackage{Name: name, Version: ver, Ecosystem: "deno", Scope: ScopeProduction}
+			// Look for integrity by resolved URL or specifier itself
+			rawHash := ""
+			if h, ok := lock.Packages.Integrity[resolved]; ok {
+				rawHash = h
+			} else if h, ok := lock.Packages.Integrity[spec]; ok {
+				rawHash = h
+			}
+			if c := normalizeChecksum(rawHash); c.Alg != "" {
+				sp.Checksums = []PackageChecksum{c}
+			}
+			pkgs = append(pkgs, sp)
 		}
 	}
 	return pkgs, nil
@@ -1061,6 +1121,7 @@ func parseRenvLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		Packages map[string]struct {
 			Package string `json:"Package"`
 			Version string `json:"Version"`
+			Hash    string `json:"Hash"`
 		} `json:"Packages"`
 	}
 	if err := json.Unmarshal(data, &lock); err != nil {
@@ -1068,10 +1129,11 @@ func parseRenvLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	}
 	var pkgs []ScopedPackage
 	for _, pkg := range lock.Packages {
-		pkgs = append(pkgs, ScopedPackage{
-			Name: pkg.Package, Version: pkg.Version,
-			Ecosystem: "cran", Scope: ScopeProduction,
-		})
+		sp := ScopedPackage{Name: pkg.Package, Version: pkg.Version, Ecosystem: "cran", Scope: ScopeProduction}
+		if c := normalizeChecksum(pkg.Hash); c.Alg != "" {
+			sp.Checksums = []PackageChecksum{c}
+		}
+		pkgs = append(pkgs, sp)
 	}
 	return pkgs, nil
 }
@@ -1304,10 +1366,11 @@ func parseFlakeLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	var lock struct {
 		Nodes map[string]struct {
 			Locked struct {
-				Type string `json:"type"`
-				Rev  string `json:"rev"`
-				Tag  string `json:"tag"`
-				Ref  string `json:"ref"`
+				Type    string `json:"type"`
+				Rev     string `json:"rev"`
+				Tag     string `json:"tag"`
+				Ref     string `json:"ref"`
+				NarHash string `json:"narHash"`
 			} `json:"locked"`
 		} `json:"nodes"`
 	}
@@ -1326,7 +1389,11 @@ func parseFlakeLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		if ver == "" && len(node.Locked.Rev) >= 8 {
 			ver = node.Locked.Rev[:8]
 		}
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: ver, Ecosystem: "nix", Scope: ScopeProduction})
+		sp := ScopedPackage{Name: name, Version: ver, Ecosystem: "nix", Scope: ScopeProduction}
+		if c := normalizeChecksum(node.Locked.NarHash); c.Alg != "" {
+			sp.Checksums = []PackageChecksum{c}
+		}
+		pkgs = append(pkgs, sp)
 	}
 	return pkgs, nil
 }

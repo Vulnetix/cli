@@ -292,7 +292,8 @@ func buildCliPackages(pkgs []scan.ScopedPackage, manifestGroups []scan.ManifestG
 			}
 		}
 		chain := introducedViaChain(p, key, manifestGroups)
-		out = append(out, vdb.CliPackageEntry{
+
+		entry := vdb.CliPackageEntry{
 			Purl:          purl,
 			Name:          p.Name,
 			Version:       p.Version,
@@ -301,7 +302,17 @@ func buildCliPackages(pkgs []scan.ScopedPackage, manifestGroups []scan.ManifestG
 			Scope:         scope,
 			License:       licenseByKey[key],
 			IntroducedVia: [][]string{chain},
-		})
+		}
+
+		if len(p.Checksums) > 0 {
+			cs := make([]vdb.CliPackageChecksum, len(p.Checksums))
+			for i, c := range p.Checksums {
+				cs[i] = vdb.CliPackageChecksum{Alg: c.Alg, Value: c.Value}
+			}
+			entry.Checksums = cs
+		}
+
+		out = append(out, entry)
 	}
 	return out
 }

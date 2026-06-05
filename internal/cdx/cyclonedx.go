@@ -62,6 +62,12 @@ type Tools struct {
 	Components []Component `json:"components,omitempty"`
 }
 
+// Hash represents a cryptographic hash of a component, per CycloneDX spec.
+type Hash struct {
+	Alg     string `json:"alg"`
+	Content string `json:"content"`
+}
+
 // Component represents a software component.
 type Component struct {
 	Type        string `json:"type"`
@@ -71,6 +77,8 @@ type Component struct {
 	Description string `json:"description,omitempty"`
 	Scope       string `json:"scope,omitempty"`
 	Purl        string `json:"purl,omitempty"`
+	// Hashes represents cryptographic hashes (e.g., SHA-256, SHA-512).
+	Hashes []Hash `json:"hashes,omitempty"`
 	// Licenses is a CycloneDX 1.5+ licenseChoice array.
 	Licenses []LicenseChoice `json:"licenses,omitempty"`
 	// Authors is supported in CycloneDX 1.6+.

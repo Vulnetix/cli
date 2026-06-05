@@ -161,17 +161,24 @@ type CliSCARequest struct {
 	IngestionSnapshotUuid string `json:"ingestionSnapshotUuid,omitempty"`
 }
 
+// CliPackageChecksum represents an integrity hash for a package.
+type CliPackageChecksum struct {
+	Alg   string `json:"alg"`
+	Value string `json:"value"`
+}
+
 // CliPackageEntry — per-package dependency-path context so the server can
 // compute FindingIntroducedVia paths.
 type CliPackageEntry struct {
-	Purl          string     `json:"purl"`
-	Name          string     `json:"name,omitempty"`
-	Version       string     `json:"version,omitempty"`
-	Ecosystem     string     `json:"ecosystem,omitempty"`
-	ManifestFile  string     `json:"manifestFile,omitempty"`
-	Scope         string     `json:"scope,omitempty"`
-	License       string     `json:"license,omitempty"`
-	IntroducedVia [][]string `json:"introducedVia,omitempty"`
+	Purl          string               `json:"purl"`
+	Name          string               `json:"name,omitempty"`
+	Version       string               `json:"version,omitempty"`
+	Ecosystem     string               `json:"ecosystem,omitempty"`
+	ManifestFile  string               `json:"manifestFile,omitempty"`
+	Scope         string               `json:"scope,omitempty"`
+	License       string               `json:"license,omitempty"`
+	IntroducedVia [][]string           `json:"introducedVia,omitempty"`
+	Checksums     []CliPackageChecksum `json:"checksums,omitempty"`
 }
 
 type CliSCAResponse struct {
