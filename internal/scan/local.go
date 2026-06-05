@@ -21,6 +21,37 @@ const (
 	ScopeSystem      = "system"
 )
 
+// PackageChecksum holds one integrity hash extracted from a lock file.
+type PackageChecksum struct {
+	Alg   string // CycloneDX alg label: "SHA-256", "SHA-512", "SHA-1", "H1"
+	Value string // hex or base64 string, stripped of the lock-file prefix
+}
+
+// normalizeChecksum parses and normalizes a raw checksum string into a PackageChecksum.
+func normalizeChecksum(raw string) PackageChecksum {
+	raw = strings.TrimSpace(raw)
+	switch {
+	case strings.HasPrefix(raw, "sha512-"):  return PackageChecksum{"SHA-512", raw[7:]}
+	case strings.HasPrefix(raw, "sha256:"):  return PackageChecksum{"SHA-256", raw[7:]}
+	case strings.HasPrefix(raw, "sha256-"):  return PackageChecksum{"SHA-256", raw[7:]}
+	case strings.HasPrefix(raw, "sha1:"):    return PackageChecksum{"SHA-1",   raw[5:]}
+	case strings.HasPrefix(raw, "h1:"):      return PackageChecksum{"H1",      raw[3:]}
+	case len(raw) == 64 && isHex(raw):       return PackageChecksum{"SHA-256", raw}
+	case len(raw) == 40 && isHex(raw):       return PackageChecksum{"SHA-1",   raw}
+	}
+	return PackageChecksum{}
+}
+
+// isHex returns true if all runes in s are valid hexadecimal characters.
+func isHex(s string) bool {
+	for _, r := range s {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
 // ScopeIcon returns a display icon for a scope category.
 func ScopeIcon(scope string) string {
 	switch scope {
@@ -47,12 +78,13 @@ func ScopeIcon(scope string) string {
 type ScopedPackage struct {
 	Name        string
 	Version     string
-	VersionSpec string // raw version spec from manifest before cleaning (e.g. "^1.0.0", ">=2.3"); empty for lock-file entries
+	VersionSpec string            // raw version spec from manifest before cleaning (e.g. "^1.0.0", ">=2.3"); empty for lock-file entries
 	Ecosystem   string
-	Scope       string // native scope label (production, development, test, peer, etc.)
-	SourceFile  string // relative path of the manifest file that declared this package
-	IsDirect    bool   // true if declared in the manifest (e.g., go.mod), false if transitive (e.g., go.sum)
-	GitHubURL   string // optional: "owner/repo" for packages whose VCS is known from the manifest
+	Scope       string            // native scope label (production, development, test, peer, etc.)
+	SourceFile  string            // relative path of the manifest file that declared this package
+	IsDirect    bool              // true if declared in the manifest (e.g., go.mod), false if transitive (e.g., go.sum)
+	GitHubURL   string            // optional: "owner/repo" for packages whose VCS is known from the manifest
+	Checksums   []PackageChecksum // per-package integrity hashes extracted from lock files
 }
 
 // ParseManifestWithScope parses a manifest file and returns packages with scope information.
@@ -272,16 +304,18 @@ func parsePackageLockJSONScoped(data []byte, filePath string) ([]ScopedPackage, 
 	var lock struct {
 		LockfileVersion int `json:"lockfileVersion"`
 		Packages        map[string]struct {
-			Version     string `json:"version"`
-			Dev         bool   `json:"dev"`
-			DevOptional bool   `json:"devOptional"`
-			Optional    bool   `json:"optional"`
-			Peer        bool   `json:"peer"`
+			Version   string `json:"version"`
+			Dev       bool   `json:"dev"`
+			DevOptional bool `json:"devOptional"`
+			Optional  bool   `json:"optional"`
+			Peer      bool   `json:"peer"`
+			Integrity string `json:"integrity"`
 		} `json:"packages"`
 		Dependencies map[string]struct {
-			Version  string `json:"version"`
-			Dev      bool   `json:"dev"`
-			Optional bool   `json:"optional"`
+			Version   string `json:"version"`
+			Dev       bool   `json:"dev"`
+			Optional  bool   `json:"optional"`
+			Integrity string `json:"integrity"`
 		} `json:"dependencies"`
 	}
 	if err := json.Unmarshal(data, &lock); err != nil {
@@ -313,7 +347,11 @@ func parsePackageLockJSONScoped(data []byte, filePath string) ([]ScopedPackage, 
 		} else if pkg.Optional {
 			scope = ScopeOptional
 		}
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: pkg.Version, Ecosystem: "npm", Scope: scope, SourceFile: filePath})
+		sp := ScopedPackage{Name: name, Version: pkg.Version, Ecosystem: "npm", Scope: scope, SourceFile: filePath}
+		if c := normalizeChecksum(pkg.Integrity); c.Alg != "" {
+			sp.Checksums = []PackageChecksum{c}
+		}
+		pkgs = append(pkgs, sp)
 	}
 
 	// v1/v2 format: dependencies field
@@ -329,7 +367,11 @@ func parsePackageLockJSONScoped(data []byte, filePath string) ([]ScopedPackage, 
 		} else if pkg.Optional {
 			scope = ScopeOptional
 		}
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: pkg.Version, Ecosystem: "npm", Scope: scope, SourceFile: filePath})
+		sp := ScopedPackage{Name: name, Version: pkg.Version, Ecosystem: "npm", Scope: scope, SourceFile: filePath}
+		if c := normalizeChecksum(pkg.Integrity); c.Alg != "" {
+			sp.Checksums = []PackageChecksum{c}
+		}
+		pkgs = append(pkgs, sp)
 	}
 	return pkgs, nil
 }
@@ -341,7 +383,7 @@ func parseYarnLockScoped(data []byte, filePath string) ([]ScopedPackage, error) 
 	var pkgs []ScopedPackage
 	seen := make(map[string]bool)
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	var currentName string
+	var currentName, currentIntegrity string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -372,11 +414,22 @@ func parseYarnLockScoped(data []byte, filePath string) ([]ScopedPackage, error) 
 					currentName = cleaned[:idx]
 				}
 			}
+			currentIntegrity = ""
 			continue
 		}
 
 		if currentName == "" {
 			continue
+		}
+
+		// Integrity/checksum line.
+		// Classic v1: integrity sha512-...
+		// Berry v4: checksum: ...
+		switch {
+		case strings.HasPrefix(trimmed, "integrity "):
+			currentIntegrity = strings.Trim(strings.TrimPrefix(trimmed, "integrity "), `"`)
+		case strings.HasPrefix(trimmed, "checksum: "):
+			currentIntegrity = strings.Trim(strings.TrimPrefix(trimmed, "checksum: "), `"`)
 		}
 
 		// Resolved version line.
@@ -395,7 +448,11 @@ func parseYarnLockScoped(data []byte, filePath string) ([]ScopedPackage, error) 
 			key := currentName + "@" + version
 			if !seen[key] {
 				seen[key] = true
-				pkgs = append(pkgs, ScopedPackage{Name: currentName, Version: version, Ecosystem: "npm", Scope: ScopeProduction, SourceFile: filePath})
+				sp := ScopedPackage{Name: currentName, Version: version, Ecosystem: "npm", Scope: ScopeProduction, SourceFile: filePath}
+				if c := normalizeChecksum(currentIntegrity); c.Alg != "" {
+					sp.Checksums = []PackageChecksum{c}
+				}
+				pkgs = append(pkgs, sp)
 			}
 			currentName = ""
 		}
@@ -410,6 +467,7 @@ func parsePnpmLockScoped(data []byte, filePath string) ([]ScopedPackage, error) 
 	seen := make(map[string]bool)
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	inPackages := false
+	var currentName, currentVersion, currentIntegrity string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -420,22 +478,44 @@ func parsePnpmLockScoped(data []byte, filePath string) ([]ScopedPackage, error) 
 			continue
 		}
 		if inPackages && len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
+			if currentName != "" && currentVersion != "" {
+				key := currentName + "@" + currentVersion
+				if !seen[key] {
+					seen[key] = true
+					sp := ScopedPackage{Name: currentName, Version: currentVersion, Ecosystem: "npm", Scope: ScopeProduction, SourceFile: filePath}
+					if c := normalizeChecksum(currentIntegrity); c.Alg != "" {
+						sp.Checksums = []PackageChecksum{c}
+					}
+					pkgs = append(pkgs, sp)
+				}
+			}
+			currentName, currentVersion, currentIntegrity = "", "", ""
 			inPackages = false
 			continue
 		}
 
-		if inPackages && strings.HasPrefix(trimmed, "/") && strings.Contains(trimmed, "@") {
-			entry := strings.TrimPrefix(strings.TrimSuffix(trimmed, ":"), "/")
-			lastAt := strings.LastIndex(entry, "@")
-			if lastAt > 0 {
-				name := entry[:lastAt]
-				version := entry[lastAt+1:]
-				key := name + "@" + version
-				if !seen[key] {
-					seen[key] = true
-					pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, Ecosystem: "npm", Scope: ScopeProduction, SourceFile: filePath})
+		if inPackages {
+			if strings.HasPrefix(trimmed, "/") && strings.Contains(trimmed, "@") {
+				entry := strings.TrimPrefix(strings.TrimSuffix(trimmed, ":"), "/")
+				lastAt := strings.LastIndex(entry, "@")
+				if lastAt > 0 {
+					currentName = entry[:lastAt]
+					currentVersion = entry[lastAt+1:]
 				}
+			} else if strings.HasPrefix(trimmed, "integrity:") {
+				currentIntegrity = strings.Trim(strings.TrimPrefix(trimmed, "integrity:"), `"`)
 			}
+		}
+	}
+	if inPackages && currentName != "" && currentVersion != "" {
+		key := currentName + "@" + currentVersion
+		if !seen[key] {
+			seen[key] = true
+			sp := ScopedPackage{Name: currentName, Version: currentVersion, Ecosystem: "npm", Scope: ScopeProduction, SourceFile: filePath}
+			if c := normalizeChecksum(currentIntegrity); c.Alg != "" {
+				sp.Checksums = []PackageChecksum{c}
+			}
+			pkgs = append(pkgs, sp)
 		}
 	}
 	return pkgs, nil
@@ -451,10 +531,10 @@ func parseRequirementsTxtScoped(data []byte, filePath string) ([]ScopedPackage, 
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "-") {
+		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		var name, version, versionSpec string
+		var name, version, versionSpec, rawHash string
 		for _, sep := range []string{"==", ">=", "<=", "~=", "!=", ">", "<"} {
 			if idx := strings.Index(line, sep); idx > 0 {
 				name = strings.TrimSpace(line[:idx])
@@ -464,6 +544,11 @@ func parseRequirementsTxtScoped(data []byte, filePath string) ([]ScopedPackage, 
 				if bIdx := strings.Index(name, "["); bIdx > 0 {
 					name = name[:bIdx]
 				}
+				// strip --hash=... from version
+				if hIdx := strings.Index(version, "--hash="); hIdx > 0 {
+					rawHash = strings.TrimSpace(version[hIdx+7:])
+					version = strings.TrimSpace(version[:hIdx])
+				}
 				break
 			}
 		}
@@ -472,9 +557,17 @@ func parseRequirementsTxtScoped(data []byte, filePath string) ([]ScopedPackage, 
 			if bIdx := strings.Index(name, "["); bIdx > 0 {
 				name = name[:bIdx]
 			}
+			if hIdx := strings.Index(name, "--hash="); hIdx > 0 {
+				rawHash = strings.TrimSpace(name[hIdx+7:])
+				name = strings.TrimSpace(name[:hIdx])
+			}
 		}
 		if name != "" {
-			pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, VersionSpec: versionSpec, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
+			sp := ScopedPackage{Name: name, Version: version, VersionSpec: versionSpec, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true}
+			if c := normalizeChecksum(rawHash); c.Alg != "" {
+				sp.Checksums = []PackageChecksum{c}
+			}
+			pkgs = append(pkgs, sp)
 		}
 	}
 	return pkgs, nil
@@ -484,10 +577,12 @@ func parsePipfileLockScoped(data []byte, filePath string) ([]ScopedPackage, erro
 	// Pipfile.lock separates [default] (production) from [develop] (development).
 	var lock struct {
 		Default map[string]struct {
-			Version string `json:"version"`
+			Version string   `json:"version"`
+			Hashes  []string `json:"hashes"`
 		} `json:"default"`
 		Develop map[string]struct {
-			Version string `json:"version"`
+			Version string   `json:"version"`
+			Hashes  []string `json:"hashes"`
 		} `json:"develop"`
 	}
 	if err := json.Unmarshal(data, &lock); err != nil {
@@ -496,10 +591,22 @@ func parsePipfileLockScoped(data []byte, filePath string) ([]ScopedPackage, erro
 
 	var pkgs []ScopedPackage
 	for name, pkg := range lock.Default {
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(pkg.Version), Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath})
+		sp := ScopedPackage{Name: name, Version: cleanLocalVersion(pkg.Version), Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath}
+		for _, h := range pkg.Hashes {
+			if c := normalizeChecksum(h); c.Alg != "" {
+				sp.Checksums = append(sp.Checksums, c)
+			}
+		}
+		pkgs = append(pkgs, sp)
 	}
 	for name, pkg := range lock.Develop {
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(pkg.Version), Ecosystem: "pypi", Scope: ScopeDevelopment, SourceFile: filePath})
+		sp := ScopedPackage{Name: name, Version: cleanLocalVersion(pkg.Version), Ecosystem: "pypi", Scope: ScopeDevelopment, SourceFile: filePath}
+		for _, h := range pkg.Hashes {
+			if c := normalizeChecksum(h); c.Alg != "" {
+				sp.Checksums = append(sp.Checksums, c)
+			}
+		}
+		pkgs = append(pkgs, sp)
 	}
 	return pkgs, nil
 }
@@ -515,51 +622,68 @@ func parseUVLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	var name, version string
+	var checksums []PackageChecksum
 	inPackage := false
+	inHashSection := false
+
+	flushCurrent := func() {
+		if name != "" {
+			sp := ScopedPackage{Name: name, Version: version, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath}
+			if len(checksums) > 0 {
+				sp.Checksums = checksums
+			}
+			pkgs = append(pkgs, sp)
+		}
+		name, version = "", ""
+		checksums = nil
+		inHashSection = false
+	}
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "[[package]]" {
-			if inPackage && name != "" {
-				pkgs = append(pkgs, ScopedPackage{
-					Name: name, Version: version,
-					Ecosystem: "pypi", Scope: ScopeProduction,
-					SourceFile: filePath,
-				})
-			}
-			name, version = "", ""
-			inPackage = true
-			continue
-		}
-		if !inPackage {
-			continue
-		}
 		// A new top-level section (non-indented "[") that is not "[[package]]" ends the current block.
-		if strings.HasPrefix(line, "[") && !strings.HasPrefix(line, "[[package]]") {
-			if name != "" {
-				pkgs = append(pkgs, ScopedPackage{
-					Name: name, Version: version,
-					Ecosystem: "pypi", Scope: ScopeProduction,
-					SourceFile: filePath,
-				})
-				name, version = "", ""
-			}
+		if strings.HasPrefix(line, "[") && !strings.HasPrefix(line, "[[package]]") && inPackage {
+			flushCurrent()
 			inPackage = false
 			continue
 		}
+
+		if line == "[[package]]" {
+			flushCurrent()
+			inPackage = true
+			continue
+		}
+
+		if !inPackage {
+			continue
+		}
+
 		if strings.HasPrefix(line, "name = ") {
 			name = strings.Trim(strings.TrimPrefix(line, "name = "), `"`)
 		}
 		if strings.HasPrefix(line, "version = ") {
 			version = strings.Trim(strings.TrimPrefix(line, "version = "), `"`)
 		}
+
+		// Track sub-sections for hashes
+		if strings.HasPrefix(line, "[package.sdist]") || strings.HasPrefix(line, "[[package.wheels]]") {
+			inHashSection = true
+			continue
+		}
+
+		// End of a sub-section (a line that starts with '[' but not [[package.wheels]] or [package.sdist])
+		// Actually, any line starting with '[' already handled above (it flushes and ends package)
+		// But we still need to capture hashes if they exist
+		if inHashSection && strings.HasPrefix(line, "hash = ") {
+			rawHash := strings.Trim(strings.TrimPrefix(line, "hash = "), `"`)
+			if c := normalizeChecksum(rawHash); c.Alg != "" {
+				checksums = append(checksums, c)
+			}
+		}
 	}
 	// Flush the last package block.
-	if inPackage && name != "" {
-		pkgs = append(pkgs, ScopedPackage{
-			Name: name, Version: version,
-			Ecosystem: "pypi", Scope: ScopeProduction,
-			SourceFile: filePath,
-		})
+	if inPackage {
+		flushCurrent()
 	}
 	return pkgs, nil
 }
@@ -766,16 +890,23 @@ func parseGoSumScoped(data []byte, filePath string) ([]ScopedPackage, error) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		parts := strings.Fields(line)
-		if len(parts) < 2 {
+		if len(parts) < 3 {
 			continue
 		}
 		name := parts[0]
-		version := strings.TrimSuffix(parts[1], "/go.mod")
+		version := parts[1]
+		if strings.HasSuffix(version, "/go.mod") {
+			continue
+		}
 		version = strings.TrimPrefix(version, "v")
 		key := name + "@" + version
 		if !seen[key] {
 			seen[key] = true
-			pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, Ecosystem: "golang", Scope: ScopeProduction, SourceFile: filePath, IsDirect: false})
+			sp := ScopedPackage{Name: name, Version: version, Ecosystem: "golang", Scope: ScopeProduction, SourceFile: filePath, IsDirect: false}
+			if c := normalizeChecksum(parts[2]); c.Alg != "" {
+				sp.Checksums = []PackageChecksum{c}
+			}
+			pkgs = append(pkgs, sp)
 		}
 	}
 	return pkgs, nil
@@ -821,14 +952,18 @@ func parseCargoLockScoped(data []byte, filePath string) ([]ScopedPackage, error)
 	// Cargo.lock does not distinguish dev-dependencies; scope comes from Cargo.toml.
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	var name, version string
+	var name, version, checksum string
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "[[package]]" {
 			if name != "" {
-				pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, Ecosystem: "cargo", Scope: ScopeProduction, SourceFile: filePath})
+				sp := ScopedPackage{Name: name, Version: version, Ecosystem: "cargo", Scope: ScopeProduction, SourceFile: filePath}
+				if c := normalizeChecksum(checksum); c.Alg != "" {
+					sp.Checksums = []PackageChecksum{c}
+				}
+				pkgs = append(pkgs, sp)
 			}
-			name, version = "", ""
+			name, version, checksum = "", "", ""
 			continue
 		}
 		if strings.HasPrefix(line, "name = ") {
@@ -837,9 +972,16 @@ func parseCargoLockScoped(data []byte, filePath string) ([]ScopedPackage, error)
 		if strings.HasPrefix(line, "version = ") {
 			version = strings.Trim(strings.TrimPrefix(line, "version = "), "\"")
 		}
+		if strings.HasPrefix(line, "checksum = ") {
+			checksum = strings.Trim(strings.TrimPrefix(line, "checksum = "), "\"")
+		}
 	}
 	if name != "" {
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, Ecosystem: "cargo", Scope: ScopeProduction, SourceFile: filePath})
+		sp := ScopedPackage{Name: name, Version: version, Ecosystem: "cargo", Scope: ScopeProduction, SourceFile: filePath}
+		if c := normalizeChecksum(checksum); c.Alg != "" {
+			sp.Checksums = []PackageChecksum{c}
+		}
+		pkgs = append(pkgs, sp)
 	}
 	return pkgs, nil
 }
