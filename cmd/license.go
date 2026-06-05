@@ -271,9 +271,12 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 
 	// ── Phase-2: persist license SARIF to /v2/cli.license ──────────────
 	// License findings are package-level (no source line), so snippet capture
-	// is not applicable (0).
-	postLicenseSARIF(result, rootPath, 0)
-	progress.Update(6, "Submitted license findings")
+	// is not applicable (0). Skipped for unauthenticated scans — the server
+	// persists nothing for the shared community credential.
+	if !isUnauthenticatedScan() {
+		postLicenseSARIF(result, rootPath, 0)
+		progress.Update(6, "Submitted license findings")
+	}
 	progress.Complete("license analysis complete")
 	progressComplete = true
 
@@ -295,6 +298,10 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 		fmt.Fprintln(os.Stdout, string(data))
 	default:
 		printPrettyLicenseSummary(result, sbomPath, vulnetixDir, resultsOnly)
+	}
+
+	if isUnauthenticatedScan() {
+		printCommunitySignupReminder()
 	}
 
 	// ── Severity threshold check ────────────────────────────────────────
