@@ -334,6 +334,7 @@ type CliSARIFFinding struct {
 	Tags             []string `json:"tags,omitempty"`
 	SARIFGuid        string   `json:"sarifGuid,omitempty"`
 
+	Description      string `json:"description,omitempty"`
 	CodeSnippet      string `json:"codeSnippet,omitempty"`
 	SnippetStartLine int    `json:"snippetStartLine,omitempty"`
 	SnippetEndLine   int    `json:"snippetEndLine,omitempty"`
