@@ -15,6 +15,10 @@ This documentation has moved to **[docs.cli.vulnetix.com/docs/cli-reference](htt
 | `vulnetix gha upload` | Upload GitHub Actions workflow artifacts |
 | `vulnetix gha status` | Check artifact processing status |
 | `vulnetix scan` | Auto-discover and scan manifests for vulnerabilities |
+| `vulnetix package-firewall go` | Configure Go to use Package Firewall |
+| `vulnetix package-firewall npm` | Configure npm to use Package Firewall |
+| `vulnetix package-firewall pypi` | Configure PyPI/pip to use Package Firewall |
+| `vulnetix package-firewall <ecosystem>` | Configure another package manager for Package Firewall |
 | `vulnetix vdb <subcommand>` | Vulnerability Database queries |
 | `vulnetix version` | Print version and check for updates |
 | `vulnetix update` | Update CLI to latest release |
