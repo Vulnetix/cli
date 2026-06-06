@@ -38,7 +38,10 @@ func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
 	case "pypi":
 		return []ConfigFile{{Path: filepath.Join(home, ".config", "pip", "pip.conf"), Content: pypiConfig(eco, opts)}}, nil
 	case "cargo":
-		return []ConfigFile{{Path: filepath.Join(home, ".cargo", "config.toml"), Content: cargoConfig(eco, opts)}}, nil
+		return []ConfigFile{
+			{Path: filepath.Join(home, ".cargo", "config.toml"), Content: cargoConfig(eco, opts)},
+			{Path: filepath.Join(home, ".cargo", "credentials.toml"), Content: cargoCredentials(eco, opts)},
+		}, nil
 	case "gem":
 		return []ConfigFile{{Path: filepath.Join(home, ".gemrc"), Content: gemConfig(eco, opts)}}, nil
 	case "hex":
@@ -96,13 +99,31 @@ func cargoConfig(eco Ecosystem, opts ConfigOptions) string {
 		"[source.vulnetix]",
 		`registry = "` + proxy + `"`,
 		"",
+		"[registries.vulnetix]",
+		`index = "` + proxy + `"`,
+		`credential-provider = ["cargo:token"]`,
+		"",
 	}, "\n")
 }
 
+// cargoCredentials writes the Basic auth token cargo sends verbatim in the
+// Authorization header to the sparse registry (cargo does not read netrc).
+func cargoCredentials(_ Ecosystem, opts ConfigOptions) string {
+	token := "Basic " + base64.StdEncoding.EncodeToString([]byte(opts.OrgID+":"+opts.APIKey))
+	return strings.Join([]string{
+		"[registries.vulnetix]",
+		`token = "` + token + `"`,
+		"",
+	}, "\n")
+}
+
+// gemConfig embeds the credentials in the source URL; RubyGems/Bundler do not
+// read netrc, so userinfo in the source is the portable way to authenticate.
 func gemConfig(eco Ecosystem, opts ConfigOptions) string {
+	src := withBasicAuth(ProxyURLWithSlash(opts.ProxyURL, eco), opts.OrgID, opts.APIKey)
 	return strings.Join([]string{
 		":sources:",
-		"- " + ProxyURLWithSlash(opts.ProxyURL, eco),
+		"- " + src,
 		"",
 	}, "\n")
 }

@@ -156,6 +156,38 @@ func TestHelmConfig(t *testing.T) {
 	}
 }
 
+func TestCargoConfigHasCredentials(t *testing.T) {
+	eco, _ := ByCommand("cargo")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("cargo files = %d, want 2 (config + credentials)", len(files))
+	}
+	if !strings.Contains(files[0].Content, `registry = "sparse+https://packages.vulnetix.com/cargo/"`) {
+		t.Errorf("cargo config.toml missing sparse source:\n%s", files[0].Content)
+	}
+	if files[1].Path != "/home/test/.cargo/credentials.toml" {
+		t.Fatalf("cargo creds path = %q", files[1].Path)
+	}
+	// Basic base64("org-123:secret") == "b3JnLTEyMzpzZWNyZXQ="
+	if want := `token = "Basic b3JnLTEyMzpzZWNyZXQ="`; !strings.Contains(files[1].Content, want) {
+		t.Errorf("cargo credentials missing %q:\n%s", want, files[1].Content)
+	}
+}
+
+func TestGemConfigHasAuth(t *testing.T) {
+	eco, _ := ByCommand("gem")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "https://org-123:secret@packages.vulnetix.com/gem/"; !strings.Contains(files[0].Content, want) {
+		t.Errorf("gem source missing embedded credentials %q:\n%s", want, files[0].Content)
+	}
+}
+
 func TestUnsupportedWriter(t *testing.T) {
 	eco, _ := ByCommand("docker")
 	if _, err := ConfigFiles(eco, opts()); err == nil {

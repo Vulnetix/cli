@@ -1,0 +1,9 @@
+{{- $type := .Get "type" | default "note" -}}
+{{- $colors := dict "note" "#3b82f6" "info" "#3b82f6" "tip" "#10b981" "warning" "#f59e0b" "error" "#ef4444" -}}
+{{- $labels := dict "note" "Note" "info" "Note" "tip" "Tip" "warning" "Warning" "error" "Important" -}}
+{{- $c := index $colors $type | default "#3b82f6" -}}
+{{- $l := index $labels $type | default "Note" -}}
+<div class="vnx-callout vnx-callout--{{ $type }}" style="border-left:4px solid {{ $c }};background:rgba(127,127,127,0.07);padding:0.75rem 1rem;margin:1.1rem 0;border-radius:4px;">
+  <strong style="color:{{ $c }};display:block;margin-bottom:0.25rem;">{{ $l }}</strong>
+  {{ .Inner | markdownify }}
+</div>
