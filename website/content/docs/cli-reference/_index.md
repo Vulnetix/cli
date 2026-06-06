@@ -126,6 +126,76 @@ This command writes a `machine packages.vulnetix.com` entry to `.netrc`, persist
 
 ---
 
+### vulnetix config
+
+Manage Vulnetix configuration. Today this manages the [Package Firewall](/docs/enterprise/package-firewall/policies/) per-organization policy and ecosystem mirrors. The organization is resolved from your authenticated session (`vulnetix auth login`).
+
+```bash
+vulnetix config set package-firewall [ecosystem] [url] [flags]
+vulnetix config get package-firewall [flags]
+```
+
+#### config set package-firewall
+
+Two forms, distinguished by positional arguments.
+
+**Policy form** (no positionals) — updates the org-wide policy. Each call is a partial update; only the flags you pass change.
+
+```bash
+vulnetix config set package-firewall --cvss-threshold 8.0 --block-malware true --cooldown-days 7
+```
+
+| Flag | Type | Value | Description |
+|------|------|-------|-------------|
+| `--cvss-threshold` | float | `0`–`10` | Block when max CVSS ≥ value (`0` disables) |
+| `--epss-threshold` | float | `0`–`1` | Block when EPSS probability ≥ value |
+| `--cess-threshold` | float | `0`–`10` | Block when Vulnetix CESS ≥ value |
+| `--block-malware` | bool | `true\|false` | Block known-malicious packages |
+| `--block-eol` | bool | `true\|false` | Block end-of-life versions |
+| `--block-kev` | bool | `true\|false` | Block CISA KEV / VulnCheck KEV CVEs |
+| `--block-weaponized-exploits` | bool | `true\|false` | Block weaponized exploitation |
+| `--block-active-exploits` | bool | `true\|false` | Block active exploitation sightings |
+| `--block-poc-exploits` | bool | `true\|false` | Block public PoC / exploit records |
+| `--block-bad-actors` | bool | `true\|false` | Block CVEs linked to malicious actors |
+| `--cooldown-days` | int | `≥ 0` | Quarantine versions published within the last *n* days |
+| `--version-lag` | int | `≥ 0` | Require *n* newer versions before a version is allowed |
+
+**Mirror form** (`<ecosystem> <url>`) — adds, updates, enables, or disables one upstream mirror.
+
+```bash
+# Add a mirror; priority auto-increments per ecosystem when omitted
+vulnetix config set package-firewall npm https://registry.npmjs.org
+
+# Pin a priority, or toggle a mirror by ecosystem + url
+vulnetix config set package-firewall npm https://npm.internal.example --priority 0
+vulnetix config set package-firewall npm https://registry.npmjs.org --disable
+```
+
+| Argument / Flag | Type | Description |
+|------|------|-------------|
+| `<ecosystem>` | string | Ecosystem id (`go`, `npm`, `pypi`, …) |
+| `<url>` | string | Absolute upstream mirror URL |
+| `--priority` | int | Order within the ecosystem (auto `max+1` if omitted) |
+| `--enable` / `--disable` | bool | Toggle `isActive` on the mirror matched by ecosystem + url |
+
+Both forms share `--base-url` (default `https://api.vdb.vulnetix.com`) and `-o, --output` (`pretty`, `json`).
+
+#### config get package-firewall
+
+Print the org-wide policy and every mirror across all ecosystems.
+
+```bash
+vulnetix config get package-firewall
+vulnetix config get package-firewall -o json
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--base-url` | string | `https://api.vdb.vulnetix.com` | VDB API base URL |
+| `-o, --output` | string | `pretty` | Output format: `pretty`, `json` |
+
+---
+
 ### vulnetix upload
 
 Upload a security artifact file (SBOM, SARIF, VEX, CSAF) to Vulnetix for processing.
