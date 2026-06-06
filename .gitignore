@@ -55,6 +55,7 @@ src/@iconify/icons-bundle.js
 
 # Go specific
 /cli
+/vulnetix
 bin/
 dist/
 .cache/

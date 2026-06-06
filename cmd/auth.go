@@ -18,6 +18,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/upload"
 	"github.com/vulnetix/cli/v3/pkg/auth"
+	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
@@ -106,6 +107,18 @@ var authStatusCmd = &cobra.Command{
 		ctx.Logger.Result(display.Subheader(t, "\nAll credential sources:"))
 		for _, line := range auth.AllSourceStatus() {
 			ctx.Logger.Result("  " + line)
+		}
+
+		// Package Firewall: which package managers are pointed at the firewall.
+		if home, err := os.UserHomeDir(); err == nil {
+			ctx.Logger.Result(display.Subheader(t, "\nPackage Firewall ecosystems:"))
+			for _, d := range pfw.Detect(home, auth.PackageFirewallHost) {
+				state := "not configured"
+				if d.Configured {
+					state = "configured (" + d.Path + ")"
+				}
+				ctx.Logger.Result("  " + d.Ecosystem.DisplayName + ": " + state)
+			}
 		}
 		return nil
 	},
