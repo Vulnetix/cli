@@ -66,7 +66,7 @@ See [vulnetix.com/pricing](https://www.vulnetix.com/pricing) for details.
 
 {{< cards >}}
   {{< card link="responses" title="Block responses & exit codes" subtitle="HTTP status codes, what each means, and CLI exit codes." >}}
-  {{< card link="policies" title="Configuring policies" subtitle="Set thresholds, block toggles, and cooldown in the console." >}}
+  {{< card link="policies" title="Configuring policies" subtitle="Set thresholds, block toggles, cooldown, and mirrors — in the console or with the CLI." >}}
   {{< card link="troubleshooting" title="Troubleshooting" subtitle="Auth, shells, and package-manager issues." >}}
 {{< /cards >}}
 

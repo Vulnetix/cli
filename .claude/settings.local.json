@@ -191,7 +191,8 @@
     ],
     "additionalDirectories": [
       "/home/chris/GitHub/Vulnetix/vdb-api",
-      "/home/chris/GitHub/Vulnetix/vdb-site"
+      "/home/chris/GitHub/Vulnetix/vdb-site",
+      "/home/chris/GitHub/Vulnetix/saas"
     ]
   },
   "enableAllProjectMcpServers": true,

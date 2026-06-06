@@ -437,6 +437,28 @@ type CliRemediationRequest struct {
 	Context map[string]string `json:"context,omitempty"`
 }
 
+type CliPackageFirewallConfigRequest struct {
+	CvssThreshold   *float64 `json:"cvssThreshold,omitempty"`
+	EpssThreshold   *float64 `json:"epssThreshold,omitempty"`
+	CessThreshold   *float64 `json:"cessThreshold,omitempty"`
+	BlockMalware    *bool    `json:"blockMalware,omitempty"`
+	BlockEol        *bool    `json:"blockEol,omitempty"`
+	BlockKev        *bool    `json:"blockKev,omitempty"`
+	BlockWeaponized *bool    `json:"blockWeaponized,omitempty"`
+	BlockActive     *bool    `json:"blockActive,omitempty"`
+	BlockPoc        *bool    `json:"blockPoc,omitempty"`
+	BlockBadActors  *bool    `json:"blockBadActors,omitempty"`
+	CooldownDays    *int     `json:"cooldownDays,omitempty"`
+	VersionLag      *int     `json:"versionLag,omitempty"`
+}
+
+type CliPackageFirewallMirrorRequest struct {
+	Ecosystem string `json:"ecosystem"`
+	URL       string `json:"url"`
+	Priority  *int   `json:"priority,omitempty"`
+	IsActive  *bool  `json:"isActive,omitempty"`
+}
+
 // ─── Env snapshot ────────────────────────────────────────────────────────
 
 // SnapshotEnv assembles the CliEnv block from the running CLI process. Safe
@@ -640,6 +662,22 @@ func (c *Client) CliScorecard(env CliEnv, purls []string) (*CliResponse[map[stri
 // CliFixes — POST /v2/cli.fixes. Replaces the 3-call registry/distributions/source dance.
 func (c *Client) CliFixes(env CliEnv, ids []string) (*CliResponse[map[string]any], error) {
 	return cliPostWithEnv[map[string]any](c, "cli.fixes", env, CliIDsRequest{IDs: ids})
+}
+
+func (c *Client) CliPackageFirewallConfig(env CliEnv, req CliPackageFirewallConfigRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.package-firewall-config", env, req)
+}
+
+func (c *Client) CliPackageFirewallMirror(env CliEnv, req CliPackageFirewallMirrorRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.package-firewall-mirror", env, req)
+}
+
+// CliPackageFirewallGet — POST /v2/cli.package-firewall-get. Read-only: returns
+// the org's policy ({"config": {...}|null}) plus every mirror across all
+// ecosystems ({"mirrors": [...]}). Org is resolved from the authenticated
+// request, so the payload is empty.
+func (c *Client) CliPackageFirewallGet(env CliEnv) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.package-firewall-get", env, struct{}{})
 }
 
 // SARIF-shaped scan endpoints. Each returns the same persistence response
