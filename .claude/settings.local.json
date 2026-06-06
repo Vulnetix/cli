@@ -188,6 +188,10 @@
       "Bash(git revert:*)",
       "Bash(git branch:*)",
       "Bash(git remote:*)"
+    ],
+    "additionalDirectories": [
+      "/home/chris/GitHub/Vulnetix/vdb-api",
+      "/home/chris/GitHub/Vulnetix/vdb-site"
     ]
   },
   "enableAllProjectMcpServers": true,

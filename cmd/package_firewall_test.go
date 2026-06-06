@@ -1,8 +1,13 @@
 package cmd
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
 )
 
 func TestUpsertNetrcMachine(t *testing.T) {
@@ -17,6 +22,32 @@ func TestUpsertNetrcMachine(t *testing.T) {
 	}
 	if !strings.Contains(got, "machine packages.vulnetix.com\nlogin org\npassword key\n") {
 		t.Fatalf("new entry missing:\n%s", got)
+	}
+}
+
+func TestUpsertStructuredPackageFirewallConfigFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	file := pfw.ConfigFile{Path: path, Content: `{"repositories":{"vulnetix":{"type":"composer"}}}` + "\n", Structured: true}
+
+	result, err := upsertPackageFirewallConfigFile(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != "updated package manager config" {
+		t.Fatalf("result = %q", result)
+	}
+	gotBytes, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(gotBytes)
+	if strings.Contains(got, vulnetixBlockStart) {
+		t.Fatalf("structured config contains managed comments:\n%s", got)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(gotBytes, &parsed); err != nil {
+		t.Fatalf("structured config is not valid JSON: %v\n%s", err, got)
 	}
 }
 
@@ -49,5 +80,37 @@ func TestUpsertGoEnvValues(t *testing.T) {
 	}
 	if !strings.Contains(got, body) {
 		t.Fatalf("new Go env body missing:\n%s", got)
+	}
+}
+
+func TestUpsertPackageFirewallConfigFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".npmrc")
+	file := pfw.ConfigFile{Path: path, Content: "registry=https://packages.vulnetix.com/npm/\n"}
+
+	result, err := upsertPackageFirewallConfigFile(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != "updated package manager config" {
+		t.Fatalf("result = %q", result)
+	}
+	gotBytes, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(gotBytes)
+	if !strings.Contains(got, vulnetixBlockStart) || !strings.Contains(got, "registry=https://packages.vulnetix.com/npm/") {
+		t.Fatalf("managed config missing:\n%s", got)
+	}
+
+	file.Content = "registry=https://packages.vulnetix.com/npm2/\n"
+	if _, err := upsertPackageFirewallConfigFile(file, false); err != nil {
+		t.Fatal(err)
+	}
+	gotBytes, _ = os.ReadFile(path)
+	got = string(gotBytes)
+	if strings.Contains(got, "/npm/") || !strings.Contains(got, "/npm2/") {
+		t.Fatalf("managed config was not replaced:\n%s", got)
 	}
 }

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+
+	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
 )
 
 // credentialsFile is the JSON file name for stored credentials
@@ -170,9 +173,44 @@ func AllSourceStatus() []string {
 		lines = append(lines, fmt.Sprintf("netrc %s machine %s: not found", netrc.Path, PackageFirewallHost))
 	}
 
+	lines = append(lines, packageFirewallConfigStatus())
 	lines = append(lines, "Unauthenticated Community (VDB only): available")
 
 	return lines
+}
+
+func packageFirewallConfigStatus() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "package firewall package-manager configs: unknown (" + err.Error() + ")"
+	}
+	var found []string
+	for _, eco := range pfw.All() {
+		if !eco.LiveWriter {
+			continue
+		}
+		files, err := pfw.ConfigFiles(eco, pfw.ConfigOptions{
+			HomeDir:  home,
+			ProxyURL: "https://" + PackageFirewallHost,
+			OrgID:    "org",
+			APIKey:   "key",
+		})
+		if err != nil {
+			continue
+		}
+		needle := pfw.ProxyURL("https://"+PackageFirewallHost, eco)
+		for _, file := range files {
+			data, err := os.ReadFile(file.Path)
+			if err == nil && strings.Contains(string(data), needle) {
+				found = append(found, eco.Command)
+				break
+			}
+		}
+	}
+	if len(found) == 0 {
+		return "package firewall package-manager configs: none found"
+	}
+	return "package firewall package-manager configs: " + strings.Join(found, ", ")
 }
 
 func loadFromFile(store CredentialStore) (*Credentials, error) {

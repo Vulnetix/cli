@@ -1,0 +1,164 @@
+package packagefirewall
+
+import (
+	"strings"
+	"testing"
+)
+
+func opts() ConfigOptions {
+	return ConfigOptions{
+		HomeDir:  "/home/test",
+		ProxyURL: "https://packages.vulnetix.com",
+		OrgID:    "org-123",
+		APIKey:   "secret",
+	}
+}
+
+func TestNPMConfig(t *testing.T) {
+	eco, _ := ByCommand("npm")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files[0].Path != "/home/test/.npmrc" {
+		t.Fatalf("path = %q", files[0].Path)
+	}
+	for _, want := range []string{
+		"registry=https://packages.vulnetix.com/npm/",
+		"//packages.vulnetix.com/npm/:username=org-123",
+		"//packages.vulnetix.com/npm/:_password=c2VjcmV0",
+	} {
+		if !strings.Contains(files[0].Content, want) {
+			t.Errorf("npm config missing %q:\n%s", want, files[0].Content)
+		}
+	}
+}
+
+func TestPyPIConfigUsesBasicAuthIndex(t *testing.T) {
+	eco, _ := ByCommand("pypi")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "index-url = https://org-123:secret@packages.vulnetix.com/pypi/simple/"
+	if !strings.Contains(files[0].Content, want) {
+		t.Errorf("pypi config missing %q:\n%s", want, files[0].Content)
+	}
+}
+
+func TestMavenConfig(t *testing.T) {
+	eco, _ := ByCommand("maven")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"<id>vulnetix-package-firewall</id>",
+		"<username>org-123</username>",
+		"<password>secret</password>",
+		"<url>https://packages.vulnetix.com/maven/</url>",
+	} {
+		if !strings.Contains(files[0].Content, want) {
+			t.Errorf("maven config missing %q:\n%s", want, files[0].Content)
+		}
+	}
+}
+
+func TestHexConfig(t *testing.T) {
+	eco, _ := ByCommand("hex")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files[0].Path != "/home/test/.config/vulnetix/package-firewall/hex.env" {
+		t.Fatalf("path = %q", files[0].Path)
+	}
+	if want := `export HEX_MIRROR="https://packages.vulnetix.com/hex"`; !strings.Contains(files[0].Content, want) {
+		t.Errorf("hex config missing %q:\n%s", want, files[0].Content)
+	}
+}
+
+func TestConanConfig(t *testing.T) {
+	eco, _ := ByCommand("conan")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("files = %d, want 2", len(files))
+	}
+	if files[0].Path != "/home/test/.conan2/remotes.json" || !files[0].Structured {
+		t.Fatalf("unexpected remotes file: %+v", files[0])
+	}
+	for _, want := range []string{
+		`"name": "vulnetix"`,
+		`"url": "https://packages.vulnetix.com/conan"`,
+		`"name": "conancenter"`,
+		`"disabled": true`,
+	} {
+		if !strings.Contains(files[0].Content, want) {
+			t.Errorf("conan remotes missing %q:\n%s", want, files[0].Content)
+		}
+	}
+	if files[1].Path != "/home/test/.conan2/credentials.json" || !files[1].Structured {
+		t.Fatalf("unexpected credentials file: %+v", files[1])
+	}
+	for _, want := range []string{
+		`"remote": "vulnetix"`,
+		`"user": "org-123"`,
+		`"password": "secret"`,
+	} {
+		if !strings.Contains(files[1].Content, want) {
+			t.Errorf("conan credentials missing %q:\n%s", want, files[1].Content)
+		}
+	}
+}
+
+func TestCRANConfig(t *testing.T) {
+	eco, _ := ByCommand("cran")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files[0].Path != "/home/test/.Rprofile" {
+		t.Fatalf("path = %q", files[0].Path)
+	}
+	for _, want := range []string{
+		`options(repos = c(CRAN = "https://packages.vulnetix.com/cran"))`,
+		`options(download.file.method = "libcurl")`,
+	} {
+		if !strings.Contains(files[0].Content, want) {
+			t.Errorf("cran config missing %q:\n%s", want, files[0].Content)
+		}
+	}
+}
+
+func TestHelmConfig(t *testing.T) {
+	eco, _ := ByCommand("helm")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files[0].Path != "/home/test/.config/helm/repositories.yaml" || !files[0].Structured {
+		t.Fatalf("unexpected helm file: %+v", files[0])
+	}
+	for _, want := range []string{
+		"apiVersion: v1",
+		"- name: vulnetix",
+		`  url: "https://packages.vulnetix.com/helm"`,
+		`  username: "org-123"`,
+		`  password: "secret"`,
+		"  pass_credentials_all: true",
+	} {
+		if !strings.Contains(files[0].Content, want) {
+			t.Errorf("helm config missing %q:\n%s", want, files[0].Content)
+		}
+	}
+}
+
+func TestUnsupportedWriter(t *testing.T) {
+	eco, _ := ByCommand("docker")
+	if _, err := ConfigFiles(eco, opts()); err == nil {
+		t.Fatal("expected unsupported writer error")
+	}
+}

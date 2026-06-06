@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/pkg/auth"
+	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
@@ -104,6 +105,81 @@ func runPackageFirewallGo(cmd *cobra.Command, args []string) error {
 		{Key: "Organization", Value: orgID},
 		{Key: "Proxy", Value: proxyURL},
 		{Key: "GOAUTH", Value: "netrc"},
+		{Key: "API key", Value: maskSecret(apiKey)},
+	}) + "\n")
+	b.WriteString("\n" + display.Subheader(t, "Actions") + "\n")
+	for _, action := range actions {
+		b.WriteString(fmt.Sprintf("  %s: %s\n", action.Target, action.Result))
+	}
+	ctx.Logger.Result(strings.TrimRight(b.String(), "\n"))
+	return nil
+}
+
+func runPackageFirewallEcosystem(cmd *cobra.Command, eco pfw.Ecosystem) error {
+	if err := pfw.RequireWriter(eco); err != nil {
+		return err
+	}
+
+	ctx := display.FromCommand(cmd)
+	t := ctx.Term
+
+	proxyURL := strings.TrimSpace(packageFirewallProxyURL)
+	if proxyURL == "" {
+		proxyURL = packageFirewallDefaultProxy
+	}
+	proxyHost, err := parseProxyHost(proxyURL)
+	if err != nil {
+		return err
+	}
+
+	ctx.Logger.Info("Configuring Vulnetix Package Firewall for " + eco.DisplayName + "...")
+	orgID, apiKey, credentialSource, err := packageFirewallAPIKey(packageFirewallBaseURL)
+	if err != nil {
+		return err
+	}
+
+	var actions []packageFirewallAction
+	netrcPath, err := auth.NetrcPath()
+	if err != nil {
+		return err
+	}
+	result, err := upsertNetrc(netrcPath, proxyHost, orgID, apiKey, packageFirewallDryRun)
+	if err != nil {
+		return err
+	}
+	actions = append(actions, packageFirewallAction{Target: netrcPath, Result: result})
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	files, err := pfw.ConfigFiles(eco, pfw.ConfigOptions{
+		HomeDir:  home,
+		ProxyURL: proxyURL,
+		OrgID:    orgID,
+		APIKey:   apiKey,
+	})
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		result, err := upsertPackageFirewallConfigFile(file, packageFirewallDryRun)
+		if err != nil {
+			return err
+		}
+		actions = append(actions, packageFirewallAction{Target: file.Path, Result: result})
+	}
+
+	var b strings.Builder
+	if packageFirewallDryRun {
+		b.WriteString(display.Bold(t, "Vulnetix Package Firewall "+eco.DisplayName+" setup dry run") + "\n")
+	} else {
+		b.WriteString(display.Bold(t, "Vulnetix Package Firewall "+eco.DisplayName+" setup complete") + "\n")
+	}
+	b.WriteString(display.KeyValue(t, []display.KVPair{
+		{Key: "Credential source", Value: credentialSource},
+		{Key: "Organization", Value: orgID},
+		{Key: "Proxy", Value: pfw.ProxyURL(proxyURL, eco)},
 		{Key: "API key", Value: maskSecret(apiKey)},
 	}) + "\n")
 	b.WriteString("\n" + display.Subheader(t, "Actions") + "\n")
@@ -367,6 +443,41 @@ func upsertBlockFile(path, block string, dryRun bool) (string, error) {
 	return "updated persistent shell config", nil
 }
 
+func upsertPackageFirewallConfigFile(file pfw.ConfigFile, dryRun bool) (string, error) {
+	var existing string
+	if data, err := os.ReadFile(file.Path); err == nil {
+		existing = string(data)
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	next := file.Content
+	if !file.Structured {
+		block := strings.Join([]string{
+			vulnetixBlockStart,
+			strings.TrimRight(file.Content, "\n"),
+			vulnetixBlockEnd,
+			"",
+		}, "\n")
+		next = upsertManagedBlock(existing, block)
+	}
+	if dryRun {
+		if existing == next {
+			return "already configured", nil
+		}
+		return "would update package manager config", nil
+	}
+	if err := os.MkdirAll(filepath.Dir(file.Path), 0700); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(file.Path, []byte(next), 0600); err != nil {
+		return "", err
+	}
+	if existing == next {
+		return "already configured", nil
+	}
+	return "updated package manager config", nil
+}
+
 func upsertManagedBlock(existing, block string) string {
 	start := strings.Index(existing, vulnetixBlockStart)
 	if start >= 0 {
@@ -444,9 +555,28 @@ func maskSecret(s string) string {
 }
 
 func init() {
-	packageFirewallGoCmd.Flags().StringVar(&packageFirewallBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
-	packageFirewallGoCmd.Flags().StringVar(&packageFirewallProxyURL, "proxy-url", packageFirewallDefaultProxy, "Package Firewall Go proxy URL")
-	packageFirewallGoCmd.Flags().BoolVar(&packageFirewallDryRun, "dry-run", false, "Show planned changes without writing files")
+	addPackageFirewallFlags(packageFirewallGoCmd, "Go")
 	packageFirewallCmd.AddCommand(packageFirewallGoCmd)
+	for _, eco := range pfw.All() {
+		if eco.Command == "go" {
+			continue
+		}
+		eco := eco
+		c := &cobra.Command{
+			Use:   eco.Command,
+			Short: "Configure " + eco.DisplayName + " to use Vulnetix Package Firewall",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return runPackageFirewallEcosystem(cmd, eco)
+			},
+		}
+		addPackageFirewallFlags(c, eco.DisplayName)
+		packageFirewallCmd.AddCommand(c)
+	}
 	rootCmd.AddCommand(packageFirewallCmd)
+}
+
+func addPackageFirewallFlags(cmd *cobra.Command, label string) {
+	cmd.Flags().StringVar(&packageFirewallBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
+	cmd.Flags().StringVar(&packageFirewallProxyURL, "proxy-url", packageFirewallDefaultProxy, "Package Firewall "+label+" proxy URL")
+	cmd.Flags().BoolVar(&packageFirewallDryRun, "dry-run", false, "Show planned changes without writing files")
 }

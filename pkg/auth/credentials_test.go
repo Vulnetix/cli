@@ -3,6 +3,7 @@ package auth
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -122,8 +123,22 @@ func TestAllSourceStatus(t *testing.T) {
 	t.Setenv("VULNETIX_API_KEY", "k")
 	t.Setenv("VULNETIX_ORG_ID", "o")
 	lines := AllSourceStatus()
-	if len(lines) != 6 {
-		t.Errorf("expected 6 lines, got %d", len(lines))
+	if len(lines) != 7 {
+		t.Errorf("expected 7 lines, got %d", len(lines))
+	}
+}
+
+func TestPackageFirewallConfigStatus(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	npmrc := filepath.Join(home, ".npmrc")
+	if err := os.WriteFile(npmrc, []byte("registry=https://packages.vulnetix.com/npm/\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	status := packageFirewallConfigStatus()
+	if !strings.Contains(status, "npm") {
+		t.Fatalf("expected npm config status, got %q", status)
 	}
 }
 

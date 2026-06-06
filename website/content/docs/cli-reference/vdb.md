@@ -143,6 +143,36 @@ chmod 600 ~/.netrc
 
 On Windows, use `%USERPROFILE%\_netrc`.
 
+### Package Firewall Setup
+
+Use `vulnetix package-firewall <ecosystem>` to configure package managers to use `https://packages.vulnetix.com`.
+
+```bash
+vulnetix package-firewall go
+vulnetix package-firewall npm
+vulnetix package-firewall pypi
+vulnetix package-firewall cargo
+vulnetix package-firewall gem
+vulnetix package-firewall hex
+vulnetix package-firewall pub
+vulnetix package-firewall maven
+vulnetix package-firewall nuget
+vulnetix package-firewall composer
+vulnetix package-firewall conan
+vulnetix package-firewall cran
+vulnetix package-firewall helm
+```
+
+Every setup command supports:
+
+```bash
+vulnetix package-firewall npm --dry-run
+vulnetix package-firewall npm --proxy-url https://packages.vulnetix.com
+vulnetix package-firewall npm --base-url https://app.vulnetix.com/api
+```
+
+Run `vulnetix auth status` to see which package-manager configs already point at Package Firewall.
+
 ### Command-Line Flags
 
 ```bash
