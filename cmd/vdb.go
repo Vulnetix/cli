@@ -118,6 +118,7 @@ Examples:
   # Get vulnerabilities for a package
   vulnetix vdb vulns express`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			printBanner(cmd)
 		// Initialize display context with correct output mode
 		mode := display.ModeText
 		if vdbOutput == "json" || vdbOutput == "yaml" {
@@ -788,6 +789,7 @@ Examples:
   vulnetix vdb spec --output json > vdb-spec.json`,
 	// Override parent's PersistentPreRunE — spec is public, no auth required
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			printBanner(cmd)
 		mode := display.ModeText
 		if vdbOutput == "json" || vdbOutput == "yaml" {
 			mode = display.ModeJSON
@@ -1683,6 +1685,7 @@ Examples:
 	Args: cobra.NoArgs,
 	// Own PersistentPreRunE overrides parent vdbCmd's — soft-loads creds (no error if absent)
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			printBanner(cmd)
 		mode := display.ModeText
 		if vdbOutput == "json" || vdbOutput == "yaml" {
 			mode = display.ModeJSON
@@ -1917,10 +1920,11 @@ var cacheClearCmd = &cobra.Command{
 This forces the next API call to fetch fresh data from the server.
 
 Examples:
-  vulnetix vdb cache clear`,
+	  vulnetix vdb cache clear`,
 	// Override parent's PersistentPreRunE — cache clear needs no auth
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		initDisplayContext(cmd, display.ModeText)
+			printBanner(cmd)
 		return validateOutputFlags()
 	},
 	Args: cobra.NoArgs,
