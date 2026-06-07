@@ -99,16 +99,32 @@ func readNpmPkgDeps(g *DepGraph, nodeModDir, pkgName string) {
 		return
 	}
 	var pj struct {
-		Dependencies map[string]string `json:"dependencies"`
+		Dependencies     map[string]string `json:"dependencies"`
+		PeerDependencies map[string]string `json:"peerDependencies"`
 	}
 	if err := json.Unmarshal(data, &pj); err != nil {
 		return
 	}
-	if len(pj.Dependencies) > 0 {
-		deps := make([]string, 0, len(pj.Dependencies))
-		for dep := range pj.Dependencies {
-			deps = append(deps, dep)
+	if g.EdgeRanges == nil {
+		g.EdgeRanges = make(map[string]map[string]string)
+	}
+	add := func(dep, r string, deps *[]string) {
+		*deps = append(*deps, dep)
+		if r != "" {
+			if g.EdgeRanges[pkgName] == nil {
+				g.EdgeRanges[pkgName] = make(map[string]string)
+			}
+			g.EdgeRanges[pkgName][dep] = r
 		}
+	}
+	deps := make([]string, 0, len(pj.Dependencies)+len(pj.PeerDependencies))
+	for dep, r := range pj.Dependencies {
+		add(dep, r, &deps)
+	}
+	for dep, r := range pj.PeerDependencies {
+		add(dep, r, &deps)
+	}
+	if len(deps) > 0 {
 		g.Edges[pkgName] = deps
 	}
 }

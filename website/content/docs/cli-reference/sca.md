@@ -43,6 +43,11 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--results-only` | bool | `false` | Only output when findings exist |
 | `--version-lag` | int | `0` | Exit `1` when any dep is within the N most recently published versions (0 = disabled) |
 | `--cooldown` | int | `0` | Exit `1` when any dep was published within the last N days (0 = disabled) |
+| `--sca-autofix` | bool | `false` | Apply validated SCA fixes with the project package manager, then rescan to confirm |
+| `--sca-autofix-strategy` | string | `stable` | Target strategy: `stable`, `safest`, or `latest` |
+| `--sca-autofix-manifest` | string | - | Restrict autofix edits to one manifest file |
+| `--sca-autofix-max-major-bump` | int | `0` | Refuse targets crossing more than N major versions |
+| `--yes` | bool | `false` | Non-interactive autofix mode: auto-pick safe defaults and never prompt |
 | `--dry-run` | bool | `false` | Detect files and parse packages locally, check memory, then exit — zero API calls |
 
 ## Examples
@@ -68,6 +73,12 @@ vulnetix sca --output sbom.cdx.json
 
 # Silent when clean
 vulnetix sca --results-only
+
+# Preview vetted dependency fixes without editing files
+vulnetix sca --sca-autofix --dry-run
+
+# Apply stable Safe-Harbour fixes in CI
+vulnetix sca --sca-autofix --yes
 ```
 
 ## Output Files

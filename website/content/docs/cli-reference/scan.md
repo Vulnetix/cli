@@ -38,6 +38,11 @@ vulnetix scan status <scan-id> [flags]
 | `--results-only` | bool | `false` | Only output when findings exist; completely silent when the scan is clean. Also suppresses exploit and remediation detail sections. |
 | `--version-lag` | int | `0` | Exit with code `1` when any dependency is within the N most recently published versions of that package (0 = disabled). |
 | `--cooldown` | int | `0` | Exit with code `1` when any dependency version was published within the last N days (0 = disabled, best-effort). |
+| `--sca-autofix` | bool | `false` | Apply validated SCA fixes with the project package manager, then rescan to confirm. See [SCA Autofix](sca-autofix/). |
+| `--sca-autofix-strategy` | string | `stable` | Target strategy for `--sca-autofix`: `stable`, `safest`, or `latest`. |
+| `--sca-autofix-manifest` | string | - | Restrict autofix edits to one manifest file; implies non-interactive manifest selection. |
+| `--sca-autofix-max-major-bump` | int | `0` | Refuse autofix targets crossing more than N major versions. |
+| `--yes` | bool | `false` | Non-interactive autofix mode: auto-pick safe defaults and never prompt. |
 | `--evaluate-sast` | bool | `false` | Enable SAST analysis (exclusive mode — disables all other features not explicitly enabled) |
 | `--no-sast` | bool | `false` | Skip SAST (sast-kind) rules |
 | `--evaluate-sca` | bool | `false` | Enable SCA — package manifest analysis (exclusive mode) |

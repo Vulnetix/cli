@@ -35,21 +35,22 @@ const scaAPIDisabledEnv = "VULNETIX_CLI_SCA_API"
 // cliSCAGateOptions tells tryCliSCA which per-package gate signals the active
 // scan flags need, so the cli.sca round-trip requests them (and only them).
 type cliSCAGateOptions struct {
-	Cooldown   bool // --cooldown
-	VersionLag bool // --version-lag
-	EOL        bool // --block-eol (package-level)
-	Malware    bool // --block-malware
+	Cooldown     bool // --cooldown
+	VersionLag   bool // --version-lag
+	SafeVersions bool // --sca-autofix
+	EOL          bool // --block-eol (package-level)
+	Malware      bool // --block-malware
 }
 
-func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string, gateOpts cliSCAGateOptions, w io.Writer) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight, snapshotUuid string, snapshotURL string) {
+func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string, gateOpts cliSCAGateOptions, w io.Writer) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight, snapshotUuid string, snapshotURL string, persisted []vdb.CliFindingResult) {
 	if w == nil {
 		w = os.Stderr
 	}
 	if v := os.Getenv(scaAPIDisabledEnv); v == "off" || v == "0" || v == "false" {
-		return false, nil, nil, nil, "", ""
+		return false, nil, nil, nil, "", "", nil
 	}
 	if len(allPackages) == 0 {
-		return false, nil, nil, nil, "", ""
+		return false, nil, nil, nil, "", "", nil
 	}
 
 	purls := make([]string, len(allPackages))
@@ -65,7 +66,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		uniquePurls = append(uniquePurls, pu)
 	}
 	if len(uniquePurls) == 0 {
-		return false, nil, nil, nil, "", ""
+		return false, nil, nil, nil, "", "", nil
 	}
 
 	// Chunk PURLs to stay well inside CloudFront's 60s origin timeout.
@@ -82,7 +83,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 
 	client := newCliClient() // /v2 client with 180s timeout for fan-out lookups
 	if client == nil {
-		return false, nil, nil, nil, "", ""
+		return false, nil, nil, nil, "", "", nil
 	}
 
 	env := buildCliEnv(gitCtx, sysInfo)
@@ -137,6 +138,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 				IncludeReachability: boolPtrCLI(true),
 				IncludeCooldown:     gateOpts.Cooldown,
 				IncludeVersionLag:   gateOpts.VersionLag,
+				IncludeSafeVersions: gateOpts.SafeVersions,
 				IncludeEOL:          gateOpts.EOL,
 				IncludeMalware:      gateOpts.Malware,
 			},
@@ -209,7 +211,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		if !silent {
 			fmt.Fprintf(w, "  /v2/cli.sca all %d batch(es) failed (%v), falling back to legacy lookup\n", len(chunks), firstErr)
 		}
-		return false, nil, nil, nil, "", ""
+		return false, nil, nil, nil, "", "", nil
 	}
 	if batchesFailed > 0 && !silent {
 		fmt.Fprintf(w, "  /v2/cli.sca completed with %d/%d batch(es) ok, %d failed\n", batchesOK, len(chunks), batchesFailed)
@@ -233,7 +235,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		if !silent {
 			fmt.Fprintln(w, "  /v2/cli.sca returned no CycloneDX document, falling back to legacy lookup")
 		}
-		return false, nil, nil, nil, "", ""
+		return false, nil, nil, nil, "", "", nil
 	}
 	if verbose {
 		fmt.Fprintf(w, "  /v2/cli.sca returned %d finding(s) across %d package(s)\n", len(findings), len(uniquePurls))
@@ -266,7 +268,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		finalSnapshotUuid = snapshot.Uuid
 		finalSnapshotURL = snapshot.URL
 	}
-	return true, findings, enriched, mergedInsights, finalSnapshotUuid, finalSnapshotURL
+	return true, findings, enriched, mergedInsights, finalSnapshotUuid, finalSnapshotURL, persistedFindings
 }
 
 // buildCliPackages turns parsed ScopedPackages into the per-package metadata
