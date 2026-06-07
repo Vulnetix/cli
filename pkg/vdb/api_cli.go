@@ -10,9 +10,14 @@ package vdb
 // /v2/vuln/{id}/* surface.
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"runtime"
+	"time"
 
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 )
@@ -567,6 +572,59 @@ func cliPostWithEnv[T any](c *Client, route string, env CliEnv, payload any) (*C
 	return decodeCliResponse[T](raw)
 }
 
+func cliPostWithEnvContext[T any](ctx context.Context, c *Client, route string, env CliEnv, payload any) (*CliResponse[T], error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	bodyBytes, err := json.Marshal(cliRequestEnvelope{Env: env, Payload: payload})
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to marshal request body: %w", route, err)
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+c.APIVersion+"/"+route, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to create request: %w", route, err)
+	}
+	if err := c.addAuthHeader(req); err != nil {
+		return nil, fmt.Errorf("%s: %w", route, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.NoCache || c.RefreshCache {
+		req.Header.Set("Cache-Control", "no-cache")
+		q := req.URL.Query()
+		q.Set("_t", fmt.Sprintf("%d", time.Now().UnixMilli()))
+		req.URL.RawQuery = q.Encode()
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to execute request: %w", route, err)
+	}
+	defer resp.Body.Close()
+	c.LastRateLimit = parseRateLimitHeaders(resp)
+	c.LastCacheStatus = resp.Header.Get("X-Cache")
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to read response: %w", route, err)
+	}
+	if resp.StatusCode >= 400 {
+		var errResp ErrorResponse
+		if err := json.Unmarshal(raw, &errResp); err == nil {
+			msg := fmt.Sprintf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
+			if resp.StatusCode == http.StatusNotFound {
+				return nil, &NotFoundError{Message: msg}
+			}
+			return nil, fmt.Errorf("%s: %s", route, msg)
+		}
+		msg := fmt.Sprintf("API error (%d): %s", resp.StatusCode, string(raw))
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, &NotFoundError{Message: msg}
+		}
+		return nil, fmt.Errorf("%s: %s", route, msg)
+	}
+	return decodeCliResponse[T](raw)
+}
+
 func decodeCliResponse[T any](raw []byte) (*CliResponse[T], error) {
 	var wire cliResponseEnvelope
 	if err := json.Unmarshal(raw, &wire); err != nil {
@@ -587,6 +645,10 @@ func decodeCliResponse[T any](raw []byte) (*CliResponse[T], error) {
 // reachability + stats in a single round-trip.
 func (c *Client) CliSCA(env CliEnv, req CliSCARequest) (*CliResponse[CliSCAResponse], error) {
 	return cliPostWithEnv[CliSCAResponse](c, "cli.sca", env, req)
+}
+
+func (c *Client) CliSCAWithContext(ctx context.Context, env CliEnv, req CliSCARequest) (*CliResponse[CliSCAResponse], error) {
+	return cliPostWithEnvContext[CliSCAResponse](ctx, c, "cli.sca", env, req)
 }
 
 // CliScan — POST /v2/cli.scan. Superset of CliSCA with container/IaC inputs.

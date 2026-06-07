@@ -894,11 +894,20 @@ func runLocalScan(
 		scanProgress.Update(4, fmt.Sprintf("Received %d enriched finding(s)", len(enrichedVulns)))
 	} else {
 		v2Client := newEnrichmentClient()
+		autofixFallback := scaAutofix
+		if autofixFallback && v2Client != nil && v2Client.HTTPClient != nil {
+			v2Client.HTTPClient.Timeout = 10 * time.Second
+		}
 
 		enrichCount := len(allVulns)
 		if enrichCount > 0 {
-			fmt.Fprintf(os.Stderr, "\nEnriching %s (version check, exploits, remediation)...\n",
-				pluralise("vulnerability", enrichCount))
+			if autofixFallback {
+				fmt.Fprintf(os.Stderr, "\nEnriching %s (autofix remediation fallback)...\n",
+					pluralise("vulnerability", enrichCount))
+			} else {
+				fmt.Fprintf(os.Stderr, "\nEnriching %s (version check, exploits, remediation)...\n",
+					pluralise("vulnerability", enrichCount))
+			}
 		}
 
 		var enrichProgressFn func(done, total int)
@@ -911,7 +920,11 @@ func runLocalScan(
 		}
 
 		var enrichErr error
-		enrichedVulns, enrichErr = scan.EnrichVulns(queryCtx, client, v2Client, allVulns, allPackages, concurrency, enrichProgressFn)
+		enrichedVulns, enrichErr = scan.EnrichVulnsWithOptions(queryCtx, client, v2Client, allVulns, allPackages, concurrency, enrichProgressFn, scan.EnrichOptions{
+			SkipAffected:    autofixFallback,
+			SkipExploits:    noExploits || autofixFallback,
+			SkipRemediation: noRemediation,
+		})
 		if enrichErr != nil {
 			fmt.Fprintf(os.Stderr, "  warning: enrichment failed: %v\n", enrichErr)
 		}
@@ -978,6 +991,9 @@ func runLocalScan(
 		}
 		if len(selected) == 0 {
 			fmt.Fprintln(progressStderr, "No SCA autofix candidates found.")
+		} else if !hasActionableAutofixPlan(selected) {
+			autofixReportPlans = selected
+			autofixReportCounts = selectedCounts
 		} else {
 			fmt.Fprintln(progressStderr, "Applying SCA autofix plan...")
 			if err := autofix.Apply(rootPath, selected); err != nil {
@@ -2647,6 +2663,15 @@ func printAutofixCounts(counts autofix.ProofCounts) {
 		counts.Direct, counts.TransitiveParentUpdate, counts.TransitiveParentUpgrade, counts.TransitiveOverride, counts.UnresolvedDeepChains)
 }
 
+func hasActionableAutofixPlan(plans []autofix.FixCandidate) bool {
+	for _, p := range plans {
+		if !p.Skipped {
+			return true
+		}
+	}
+	return false
+}
+
 func rewriteAutofixCommandsForPackageManagers(plans []autofix.FixCandidate, files []scan.DetectedFile) []autofix.FixCandidate {
 	if len(plans) == 0 {
 		return plans
@@ -2671,9 +2696,6 @@ func rewriteAutofixCommandsForPackageManagers(plans []autofix.FixCandidate, file
 	yarnModernByDir := yarnModernByDir(files)
 	out := append([]autofix.FixCandidate(nil), plans...)
 	for i := range out {
-		if out[i].Skipped {
-			continue
-		}
 		eco := strings.ToLower(out[i].Ecosystem)
 		dir := filepath.Dir(filepath.Clean(out[i].SourceFile))
 		pm := pmByDir[dir]
@@ -2687,7 +2709,7 @@ func rewriteAutofixCommandsForPackageManagers(plans []autofix.FixCandidate, file
 		if pm != "" && !detected[pm] {
 			if alt := firstInstalledForEcosystem(eco, detectedByEcosystem); alt != "" {
 				pm = alt
-			} else if requiresInstalledManager(eco) {
+			} else if requiresInstalledManager(eco) && !out[i].Skipped {
 				out[i].Skipped = true
 				out[i].SkipReason = fmt.Sprintf("no %s package manager detected on PATH to apply and re-resolve the fix", eco)
 				continue

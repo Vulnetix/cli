@@ -9,7 +9,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
+
+const installCommandTimeout = 2 * time.Minute
 
 func RunInstall(ctx context.Context, batches []FixBatch, dryRun bool, w io.Writer) error {
 	if ctx == nil {
@@ -33,13 +36,19 @@ func RunInstall(ctx context.Context, batches []FixBatch, dryRun bool, w io.Write
 			if dryRun {
 				continue
 			}
-			if err := runShell(ctx, b.Dir, p.Command); err != nil {
+			cmdCtx, cancel := context.WithTimeout(ctx, installCommandTimeout)
+			err := runShell(cmdCtx, b.Dir, p.Command)
+			cancel()
+			if err != nil {
 				if isNpmPeerConflict(err) && batchHasNpmPlans(b) {
 					fmt.Fprintln(w, "    npm peer dependency conflict detected; adding vetted overrides and retrying")
 					if overrideErr := applyNpmOverrides(b); overrideErr != nil {
 						return fmt.Errorf("%s failed in %s: %w; override retry failed: %v", p.Command, b.Dir, err, overrideErr)
 					}
-					if retryErr := runShell(ctx, b.Dir, p.Command); retryErr == nil {
+					retryCtx, retryCancel := context.WithTimeout(ctx, installCommandTimeout)
+					retryErr := runShell(retryCtx, b.Dir, p.Command)
+					retryCancel()
+					if retryErr == nil {
 						continue
 					} else {
 						return fmt.Errorf("%s failed in %s after override retry: %w", p.Command, b.Dir, retryErr)
@@ -100,6 +109,12 @@ func runShell(ctx context.Context, dir, command string) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(out))
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			if msg != "" {
+				return fmt.Errorf("%w after %s: %s", ctxErr, installCommandTimeout, msg)
+			}
+			return fmt.Errorf("%w after %s", ctxErr, installCommandTimeout)
+		}
 		if msg != "" {
 			return fmt.Errorf("%w: %s", err, msg)
 		}

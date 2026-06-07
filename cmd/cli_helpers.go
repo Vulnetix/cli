@@ -62,9 +62,9 @@ func envForCliWithGit(git *gitctx.GitContext) vdb.CliEnv {
 }
 
 // newCliClient returns a /v2 vdb client configured for cli.* endpoints.
-// Shares the same auth, retry, and quota fallback as the legacy clients.
-// Bumps the HTTP timeout to 180s — cli.sca scans can fan out across
-// hundreds of PURLs per call, well past the 30s default.
+// It shares the same auth configuration as the legacy clients. Individual
+// cli.* callers may tighten timeouts or bypass generic retries when a bounded
+// request path is more appropriate.
 func newCliClient() *vdb.Client {
 	c := newEnrichmentClient()
 	if c == nil {
