@@ -26,12 +26,10 @@ This resolves your organization credentials, writes them to `~/.netrc`, and writ
 
 ```ini
 registry=https://packages.vulnetix.com/npm/
-//packages.vulnetix.com/npm/:username=YOUR_ORG_UUID
-//packages.vulnetix.com/npm/:_password=BASE64(YOUR_API_KEY)
-//packages.vulnetix.com/npm/:always-auth=true
+//packages.vulnetix.com/npm/:_auth=BASE64(YOUR_ORG_UUID:YOUR_API_KEY)
 ```
 
-`_password` is the base64 of your API key. Per-project, write the same lines to a project `.npmrc`.
+`_auth` is the base64 encoding of `YOUR_ORG_UUID:YOUR_API_KEY`. Per-project, write the same lines to a project `.npmrc`.
 
 ## Use it
 
