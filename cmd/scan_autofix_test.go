@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,7 +59,10 @@ func TestRecordAutofixMemoryEventsDoesNotDuplicateHistory(t *testing.T) {
 	assert.Equal(t, 1, autofixEvents)
 }
 
-func TestRewriteAutofixCommandsUsesAuthoritativeNpmLockfile(t *testing.T) {
+func TestRewriteAutofixCommandsUsesYarnClassicLockfile(t *testing.T) {
+	dir := t.TempDir()
+	requireNoErr(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"packageManager":"yarn@1.22.22"}`), 0o644))
+	requireNoErr(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte("# yarn lockfile v1\n"), 0o644))
 	plans := []autofix.FixCandidate{{
 		PackageName: "vulnerable-child",
 		Ecosystem:   "npm",
@@ -68,13 +73,36 @@ func TestRewriteAutofixCommandsUsesAuthoritativeNpmLockfile(t *testing.T) {
 		Command:     "npm update parent",
 	}}
 	files := []scan.DetectedFile{
-		{RelPath: "web/package.json"},
-		{RelPath: "web/yarn.lock"},
+		{Path: filepath.Join(dir, "package.json"), RelPath: "web/package.json"},
+		{Path: filepath.Join(dir, "yarn.lock"), RelPath: "web/yarn.lock"},
 	}
 
 	out := rewriteAutofixCommandsForPackageManagers(plans, files)
 
 	assert.Equal(t, "yarn upgrade parent", out[0].Command)
+}
+
+func TestRewriteAutofixCommandsUsesYarnBerryUp(t *testing.T) {
+	dir := t.TempDir()
+	requireNoErr(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"packageManager":"yarn@4.5.0"}`), 0o644))
+	requireNoErr(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte("__metadata:\n  version: 8\n"), 0o644))
+	plans := []autofix.FixCandidate{{
+		PackageName: "vulnerable-child",
+		Ecosystem:   "npm",
+		SourceFile:  "web/package.json",
+		ParentName:  "parent",
+		TargetVer:   "2.0.0",
+		Method:      autofix.MethodParentUpdate,
+		Command:     "npm update parent",
+	}}
+	files := []scan.DetectedFile{
+		{Path: filepath.Join(dir, "package.json"), RelPath: "web/package.json"},
+		{Path: filepath.Join(dir, "yarn.lock"), RelPath: "web/yarn.lock"},
+	}
+
+	out := rewriteAutofixCommandsForPackageManagers(plans, files)
+
+	assert.Equal(t, "yarn up parent", out[0].Command)
 }
 
 func TestRewriteAutofixCommandsUsesAuthoritativePythonLockfile(t *testing.T) {
@@ -93,4 +121,34 @@ func TestRewriteAutofixCommandsUsesAuthoritativePythonLockfile(t *testing.T) {
 	out := rewriteAutofixCommandsForPackageManagers(plans, files)
 
 	assert.Equal(t, "uv sync", out[0].Command)
+}
+
+func TestAutofixEvidencePayloadIncludesProofOfWork(t *testing.T) {
+	payload := autofixEvidencePayload(&triage.TriageFinding{
+		Package:      "lodash",
+		Ecosystem:    "npm",
+		InstalledVer: "4.17.20",
+		FixedVer:     "4.17.21",
+	}, autofix.FixCandidate{
+		PackageName: "lodash",
+		Ecosystem:   "npm",
+		SourceFile:  "package.json",
+		TargetVer:   "4.17.21",
+		Method:      autofix.MethodDirectBump,
+		Command:     "yarn up lodash",
+		Reason:      "safe harbour target selected",
+	}, autofix.ProofCounts{Direct: 1, TransitiveParentUpdate: 2})
+
+	assert.Equal(t, "vulnetix-cli sca-autofix", payload["source"])
+	assert.Equal(t, "direct-bump", payload["method"])
+	assert.Equal(t, "yarn up lodash", payload["command"])
+	proof, ok := payload["proof_of_work"].(map[string]int)
+	assert.True(t, ok)
+	assert.Equal(t, 1, proof["direct"])
+	assert.Equal(t, 2, proof["transitive_parent_update"])
+}
+
+func requireNoErr(t *testing.T, err error) {
+	t.Helper()
+	assert.NoError(t, err)
 }
