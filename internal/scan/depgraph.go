@@ -11,9 +11,10 @@ import (
 // DepGraph tracks direct vs transitive dependency relationships for a manifest group.
 // A manifest group is a set of related files in the same directory (e.g., go.mod + go.sum).
 type DepGraph struct {
-	DirectDeps map[string]ScopedPackage // name → direct dependency
-	AllDeps    map[string]ScopedPackage // name → any dependency (direct or transitive)
-	Edges      map[string][]string      // parent module name → child module names (from go mod graph, etc.)
+	DirectDeps map[string]ScopedPackage     // name → direct dependency
+	AllDeps    map[string]ScopedPackage     // name → any dependency (direct or transitive)
+	Edges      map[string][]string          // parent module name → child module names (from go mod graph, etc.)
+	EdgeRanges map[string]map[string]string // parent → child → declared range, when the lock/manifest exposes it
 }
 
 // IsDirect returns true if the package was declared directly in the manifest.
@@ -166,10 +167,73 @@ func (g *DepGraph) PopulateNpmLockEdges(lockFilePath string) error {
 	if g.Edges == nil {
 		g.Edges = make(map[string][]string)
 	}
+	if g.EdgeRanges == nil {
+		g.EdgeRanges = make(map[string]map[string]string)
+	}
 
-	// Build edges from the nested node_modules path structure.
-	// "node_modules/express/node_modules/body-parser" → express depends on body-parser
-	// "node_modules/express" (no nesting) → root depends on express
+	type npmLockPkg struct {
+		Dependencies     map[string]string `json:"dependencies"`
+		PeerDependencies map[string]string `json:"peerDependencies"`
+	}
+	var lockWithDeps struct {
+		Packages map[string]npmLockPkg `json:"packages"`
+	}
+	if err := json.Unmarshal(data, &lockWithDeps); err != nil {
+		return err
+	}
+
+	pathToName := func(path string) string {
+		if path == "" {
+			return ""
+		}
+		cleaned := path
+		if strings.HasPrefix(cleaned, "node_modules/") {
+			cleaned = strings.TrimPrefix(cleaned, "node_modules/")
+		}
+		if idx := strings.LastIndex(cleaned, "/node_modules/"); idx >= 0 {
+			return cleaned[idx+len("/node_modules/"):]
+		}
+		return cleaned
+	}
+	addEdge := func(parent, child, declaredRange string) {
+		if parent == "" || child == "" {
+			return
+		}
+		seen := false
+		for _, existing := range g.Edges[parent] {
+			if existing == child {
+				seen = true
+				break
+			}
+		}
+		if !seen {
+			g.Edges[parent] = append(g.Edges[parent], child)
+		}
+		if declaredRange != "" {
+			if g.EdgeRanges[parent] == nil {
+				g.EdgeRanges[parent] = make(map[string]string)
+			}
+			g.EdgeRanges[parent][child] = declaredRange
+		}
+	}
+
+	// Prefer declared dependency maps: they expose the exact parent-child range
+	// strings package-lock v2/v3 recorded for each installed package.
+	for path, pkg := range lockWithDeps.Packages {
+		parent := pathToName(path)
+		if parent == "" {
+			continue
+		}
+		for child, r := range pkg.Dependencies {
+			addEdge(parent, child, r)
+		}
+		for child, r := range pkg.PeerDependencies {
+			addEdge(parent, child, r)
+		}
+	}
+
+	// Fallback: build edges from the nested node_modules path structure.
+	// "node_modules/express/node_modules/body-parser" → express depends on body-parser.
 	for path := range lock.Packages {
 		if path == "" {
 			continue // root package
@@ -185,16 +249,7 @@ func (g *DepGraph) PopulateNpmLockEdges(lockFilePath string) error {
 			parent := cleaned[:idx]
 			// Handle scoped packages in parent (e.g., @scope/pkg).
 			child := cleaned[idx+len("/node_modules/"):]
-			seen := false
-			for _, existing := range g.Edges[parent] {
-				if existing == child {
-					seen = true
-					break
-				}
-			}
-			if !seen {
-				g.Edges[parent] = append(g.Edges[parent], child)
-			}
+			addEdge(parent, child, "")
 		}
 		// Top-level packages (no nested node_modules) are direct deps — no edge needed
 		// since they're already in DirectDeps.

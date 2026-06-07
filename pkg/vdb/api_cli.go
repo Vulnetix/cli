@@ -145,10 +145,11 @@ type CliSCAOptions struct {
 	IncludeVEX          *bool `json:"includeVEX,omitempty"`
 	// Gate-data toggles: request per-package policy signals (PackageInsights)
 	// only when a `scan` gate is active, so a plain scan pays nothing extra.
-	IncludeCooldown   bool `json:"includeCooldown,omitempty"`   // installed-version publish dates (--cooldown)
-	IncludeVersionLag bool `json:"includeVersionLag,omitempty"` // full version list (--version-lag)
-	IncludeEOL        bool `json:"includeEol,omitempty"`        // package-level EOL (--block-eol)
-	IncludeMalware    bool `json:"includeMalware,omitempty"`    // malicious-package check (--block-malware)
+	IncludeCooldown     bool `json:"includeCooldown,omitempty"`     // installed-version publish dates (--cooldown)
+	IncludeVersionLag   bool `json:"includeVersionLag,omitempty"`   // full version list (--version-lag)
+	IncludeSafeVersions bool `json:"includeSafeVersions,omitempty"` // ranked Safe-Harbour versions (--sca-autofix)
+	IncludeEOL          bool `json:"includeEol,omitempty"`          // package-level EOL (--block-eol)
+	IncludeMalware      bool `json:"includeMalware,omitempty"`      // malicious-package check (--block-malware)
 }
 
 type CliSCARequest struct {
@@ -194,23 +195,50 @@ type CliSCAResponse struct {
 // for --cooldown, --version-lag, --block-eol and --block-malware. Mirrors the
 // vdb-api handler.CliPackageInsight contract.
 type CliPackageInsight struct {
-	Purl           string            `json:"purl"`
-	Name           string            `json:"name"`
-	Version        string            `json:"version"`
-	Ecosystem      string            `json:"ecosystem"`
-	PublishedAt    *int64            `json:"publishedAt,omitempty"`    // ms epoch — installed version (--cooldown)
-	PublishSource  string            `json:"publishSource,omitempty"`  // "db" | "deps.dev"
-	LatestVersions []CliVersionStamp `json:"latestVersions,omitempty"` // newest-first by publish date (--version-lag)
-	IsEOL          bool              `json:"isEol,omitempty"`
-	EOLFrom        string            `json:"eolFrom,omitempty"`
-	IsMalicious    bool              `json:"isMalicious,omitempty"`
-	MalwareSource  string            `json:"malwareSource,omitempty"`
+	Purl           string                  `json:"purl"`
+	Name           string                  `json:"name"`
+	Version        string                  `json:"version"`
+	Ecosystem      string                  `json:"ecosystem"`
+	PublishedAt    *int64                  `json:"publishedAt,omitempty"`    // ms epoch — installed version (--cooldown)
+	PublishSource  string                  `json:"publishSource,omitempty"`  // "db" | "deps.dev"
+	LatestVersions []CliVersionStamp       `json:"latestVersions,omitempty"` // newest-first by publish date (--version-lag)
+	SafeVersions   []CliSafeHarbourVersion `json:"safeVersions,omitempty"`
+	SafeHarbour    *CliSafeHarbourSummary  `json:"safeHarbour,omitempty"`
+	IsEOL          bool                    `json:"isEol,omitempty"`
+	EOLFrom        string                  `json:"eolFrom,omitempty"`
+	IsMalicious    bool                    `json:"isMalicious,omitempty"`
+	MalwareSource  string                  `json:"malwareSource,omitempty"`
 }
 
 // CliVersionStamp is one version + its publish date (ms epoch).
 type CliVersionStamp struct {
 	Version     string `json:"version"`
 	PublishedAt *int64 `json:"publishedAt,omitempty"`
+}
+
+// CliSafeHarbourVersion mirrors the vdb-api SafeHarbourVersion shape used by
+// /v2/cli.sca. The CLI only depends on the stable subset below; extra
+// server-side fields are ignored by encoding/json.
+type CliSafeHarbourVersion struct {
+	Version            string   `json:"version,omitempty"`
+	VulnerabilityCount int      `json:"vulnerabilityCount,omitempty"`
+	SafeHarbourScore   float64  `json:"safeHarbourScore,omitempty"`
+	IsMalware          bool     `json:"isMalware,omitempty"`
+	ExploitCount       int      `json:"exploitCount,omitempty"`
+	CveIds             []string `json:"cveIds,omitempty"`
+}
+
+// CliSafeHarbourSummary mirrors the recommendation block returned with ranked
+// safe versions. Recommendation.Version is used as a fallback by --sca-autofix.
+type CliSafeHarbourSummary struct {
+	RecommendedVersions []string                      `json:"recommendedVersions,omitempty"`
+	HighestScore        float64                       `json:"highestScore,omitempty"`
+	Recommendation      *CliSafeHarbourRecommendation `json:"recommendation,omitempty"`
+}
+
+type CliSafeHarbourRecommendation struct {
+	Version string `json:"version,omitempty"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // CliIngestionSnapshot is the persistent snapshot the server creates when

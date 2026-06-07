@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,11 +15,13 @@ import (
 	"github.com/vulnetix/cli/v3/internal/analytics"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
+	autofix "github.com/vulnetix/cli/v3/internal/fix"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/sast"
 	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/triage"
 	"github.com/vulnetix/cli/v3/internal/tui"
 	"github.com/vulnetix/cli/v3/internal/update"
 	"github.com/vulnetix/cli/v3/pkg/auth"
@@ -229,7 +232,8 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// ── --dry-run path ──────────────────────────────────────────────────
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
-		if dryRun {
+		scaAutofix, _ := cmd.Flags().GetBool("sca-autofix")
+		if dryRun && !scaAutofix {
 			for _, freshFlag := range []string{"fresh-exploits", "fresh-advisories", "fresh-vulns"} {
 				if v, _ := cmd.Flags().GetBool(freshFlag); v {
 					return fmt.Errorf("--%s cannot be used with --dry-run (dry run makes no API calls)", freshFlag)
@@ -369,6 +373,21 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	resultsOnly, _ := cmd.Flags().GetBool("results-only")
 	versionLag, _ := cmd.Flags().GetInt("version-lag")
 	cooldownDays, _ := cmd.Flags().GetInt("cooldown")
+	dryRun, _ := cmd.Flags().GetBool("dry-run")
+	scaAutofix, _ := cmd.Flags().GetBool("sca-autofix")
+	scaAutofixStrategyRaw, _ := cmd.Flags().GetString("sca-autofix-strategy")
+	scaAutofixManifest, _ := cmd.Flags().GetString("sca-autofix-manifest")
+	scaAutofixMaxMajorBump, _ := cmd.Flags().GetInt("sca-autofix-max-major-bump")
+	yes, _ := cmd.Flags().GetBool("yes")
+	pathExplicit := cmd.Flags().Changed("path")
+	scaAutofixStrategy, err := autofix.ValidateStrategy(scaAutofixStrategyRaw)
+	if err != nil {
+		return err
+	}
+	if scaAutofix && noSCA {
+		fmt.Fprintln(os.Stderr, "Note: --sca-autofix was requested, but SCA is disabled; no autofix will run.")
+		scaAutofix = false
+	}
 
 	// Normalise and validate the exploit threshold.
 	if exploitThreshold != "" {
@@ -570,6 +589,16 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		gitCtx,
 		sysInfo,
 		snippetContext,
+		dryRun,
+		scaAutofix,
+		autofix.Options{
+			Strategy:     scaAutofixStrategy,
+			MaxMajorBump: scaAutofixMaxMajorBump,
+			Manifest:     scaAutofixManifest,
+			Yes:          yes,
+			PathExplicit: pathExplicit,
+		},
+		nil,
 	)
 }
 
@@ -656,6 +685,10 @@ func runLocalScan(
 	gitCtx *gitctx.GitContext,
 	sysInfo *gitctx.SystemInfo,
 	snippetContext int,
+	dryRun bool,
+	scaAutofix bool,
+	scaAutofixOpts autofix.Options,
+	autofixResolved []*triage.TriageFinding,
 ) (retErr error) {
 	// Create a v1 VDB client for package search (not the upload/scan v2 client).
 	client := newSearchClient()
@@ -689,6 +722,7 @@ func runLocalScan(
 	// report the gate finalization back to the server after evaluation.
 	var scaSnapshotUuid string
 	var scaSnapshotURL string
+	var scaPersistedFindings []vdb.CliFindingResult
 	// sarifSnapshots holds per-kind (SAST/Secrets/IaC/Containers) ingestion
 	// snapshot links from postScanSARIF, surfaced in the artefact summary.
 	var sarifSnapshots []snapshotLink
@@ -795,19 +829,21 @@ func runLocalScan(
 		// Falls back to the legacy two-loop path on failure or when the
 		// operator sets VULNETIX_CLI_SCA_API=off.
 		gateOpts := cliSCAGateOptions{
-			Cooldown:   cooldownDays > 0,
-			VersionLag: versionLag > 0,
-			EOL:        blockEOL,
-			Malware:    blockMalware,
+			Cooldown:     cooldownDays > 0,
+			VersionLag:   versionLag > 0 || scaAutofix,
+			SafeVersions: scaAutofix,
+			EOL:          blockEOL,
+			Malware:      blockMalware,
 		}
 		scanProgress.SetStage(fmt.Sprintf("Querying VDB for %d package(s)", countUniquePackages(allPackages)))
-		apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts, progressStderr)
+		apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL, apiPersistedFindings := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts, progressStderr)
 		if apiServed {
 			allVulns = apiVulns
 			scaEnrichedFromAPI = apiEnriched
 			scaInsights = apiInsights
 			scaSnapshotUuid = apiSnapshotUuid
 			scaSnapshotURL = apiSnapshotURL
+			scaPersistedFindings = apiPersistedFindings
 			scanProgress.Update(3, fmt.Sprintf("VDB returned %d finding(s)", len(allVulns)))
 		} else {
 			// ── Count unique packages to query ───────────────────────────────
@@ -917,6 +953,93 @@ func runLocalScan(
 		}
 		manifestGroups = scan.BuildManifestGroups(filePackages, fileEcosystems)
 		scan.PopulateInstalledEdges(manifestGroups, rootPath)
+	}
+
+	if scaAutofix {
+		batch := autofix.BuildPlans(enrichedVulns, allPackages, manifestGroups, scaInsights, scaAutofixOpts)
+		chosenManifest, chooseErr := chooseAutofixManifest(batch.Plans, scaAutofixOpts.Manifest, scaAutofixOpts.Yes, scaAutofixOpts.PathExplicit)
+		if chooseErr != nil {
+			return chooseErr
+		}
+		selected, selectErr := autofix.SelectManifests(batch.Plans, chosenManifest, scaAutofixOpts.Yes)
+		if selectErr != nil {
+			return selectErr
+		}
+		selected = rewriteAutofixCommandsForPackageManagers(selected, files)
+		selectedCounts := autofix.CountPlans(selected)
+		if dryRun {
+			printAutofixProposal(selected, selectedCounts)
+			return nil
+		}
+		if len(selected) == 0 {
+			fmt.Fprintln(os.Stderr, "No SCA autofix candidates found.")
+			return nil
+		}
+		fmt.Fprintln(os.Stderr, "Applying SCA autofix plan...")
+		if err := autofix.Apply(rootPath, selected); err != nil {
+			printAutofixReport(selected, selectedCounts, 0, err)
+			return err
+		}
+		batches := autofix.GroupBatches(rootPath, selected)
+		if err := autofix.RunInstall(queryCtx, batches, false, os.Stderr); err != nil {
+			printAutofixReport(selected, selectedCounts, 0, err)
+			return err
+		}
+		afterEnriched, confirmErr := scanAfterAutofix(queryCtx, files, rootPath, concurrency)
+		if confirmErr != nil {
+			fmt.Fprintf(os.Stderr, "  warning: autofix confirmation scan failed before final rescan: %v\n", confirmErr)
+		}
+		resolvedFindings := resolvedAutofixFindings(selected, afterEnriched)
+		vexPath, vexErr := writeAutofixVEX(rootPath, resolvedFindings)
+		if vexErr != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not write autofix VEX: %v\n", vexErr)
+		}
+		postAutofixVEXToSnapshot(scaSnapshotUuid, scaPersistedFindings, resolvedFindings, gitCtx, sysInfo, rootPath, allPackages, progressStderr)
+		printAutofixReport(selected, selectedCounts, len(resolvedFindings), nil)
+		if vexPath != "" {
+			fmt.Fprintf(os.Stdout, "  VEX: %s\n", vexPath)
+		}
+		fmt.Fprintln(os.Stderr, "Re-scanning to confirm SCA autofix results...")
+		return runLocalScan(
+			ctx,
+			files,
+			rootPath,
+			depth,
+			excludes,
+			outCfg,
+			concurrency,
+			noProgress,
+			showPaths,
+			noExploits,
+			noRemediation,
+			noLicenses,
+			severityThreshold,
+			blockMalware,
+			blockEOL,
+			blockUnpinned,
+			exploitThreshold,
+			resultsOnly,
+			versionLag,
+			cooldownDays,
+			noSASTRules,
+			noSCA,
+			noSecrets,
+			noContainers,
+			noIAC,
+			disableDefaultRules,
+			ruleRefs,
+			ruleRegistry,
+			ruleID,
+			seedBOM,
+			vulnetixSeedBOM,
+			gitCtx,
+			sysInfo,
+			snippetContext,
+			false,
+			false,
+			autofix.Options{},
+			resolvedFindings,
+		)
 	}
 
 	// Collect IDS rules.
@@ -1325,6 +1448,9 @@ func runLocalScan(
 		rec.SBOMPath = "" // omitempty → not serialised into memory.yaml
 	}
 
+	if !disableMemory {
+		recordAutofixMemoryEvents(mem, autofixResolved)
+	}
 	mem.RecordScan(rec)
 	if err := memory.Save(vulnetixDir, mem); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
@@ -2399,6 +2525,490 @@ func printPrettyScanSummary(
 	fmt.Fprintln(os.Stdout)
 }
 
+func printAutofixProposal(plans []autofix.FixCandidate, counts autofix.ProofCounts) {
+	t := display.NewTerminal()
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout, display.Divider(t))
+	fmt.Fprintln(os.Stdout, display.Subheader(t, "SCA Autofix Dry Run"))
+	if len(plans) == 0 {
+		fmt.Fprintln(os.Stdout, "  No autofix candidates found.")
+		return
+	}
+	for _, p := range plans {
+		status := "will fix"
+		if p.Skipped {
+			status = "manual"
+		}
+		target := p.TargetVer
+		if target == "" {
+			target = "<no vetted target>"
+		}
+		fmt.Fprintf(os.Stdout, "  %s  %s %s -> %s  %s  %s\n",
+			display.Bold(t, status),
+			p.PackageName,
+			p.CurrentVer,
+			target,
+			p.Method,
+			display.Muted(t, p.SourceFile))
+		if p.Reason != "" {
+			fmt.Fprintf(os.Stdout, "    %s\n", p.Reason)
+		}
+		if p.SkipReason != "" {
+			fmt.Fprintf(os.Stdout, "    skipped: %s\n", p.SkipReason)
+		}
+		if p.Command != "" {
+			fmt.Fprintf(os.Stdout, "    $ %s\n", p.Command)
+		}
+	}
+	printAutofixCounts(counts)
+	fmt.Fprintln(os.Stdout, "  Dry run only: no manifests changed, no install ran, no rescan ran.")
+	fmt.Fprintln(os.Stdout, display.Divider(t))
+}
+
+func printAutofixReport(plans []autofix.FixCandidate, counts autofix.ProofCounts, applied int, err error) {
+	t := display.NewTerminal()
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout, display.Divider(t))
+	fmt.Fprintln(os.Stdout, display.Subheader(t, "SCA Autofix"))
+	if err != nil {
+		fmt.Fprintf(os.Stdout, "  %s %v\n", display.ErrorStyle(t, "failed:"), err)
+	}
+	if applied > 0 {
+		fmt.Fprintf(os.Stdout, "  Resolved findings confirmed: %d\n", applied)
+	}
+	for _, p := range plans {
+		if p.Skipped {
+			fmt.Fprintf(os.Stdout, "  Not fixed: %s %s (%s)\n", p.PackageName, p.CurrentVer, p.SkipReason)
+			if p.Command != "" {
+				fmt.Fprintf(os.Stdout, "    manual: %s\n", p.Command)
+			}
+			continue
+		}
+		fmt.Fprintf(os.Stdout, "  Fixed: %s %s -> %s  %s  %s\n",
+			p.PackageName, p.CurrentVer, p.TargetVer, p.Method, display.Muted(t, p.SourceFile))
+		if p.Command != "" {
+			fmt.Fprintf(os.Stdout, "    used: %s\n", p.Command)
+		}
+	}
+	printAutofixCounts(counts)
+	fmt.Fprintln(os.Stdout, "  Reminder: commit manifest and lockfile changes together.")
+	fmt.Fprintln(os.Stdout, display.Divider(t))
+}
+
+func printAutofixCounts(counts autofix.ProofCounts) {
+	fmt.Fprintf(os.Stdout, "  Proof-of-work: %d direct, %d transitive via parent-update, %d transitive via parent-upgrade, %d transitive via override, %d unresolved deep chains\n",
+		counts.Direct, counts.TransitiveParentUpdate, counts.TransitiveParentUpgrade, counts.TransitiveOverride, counts.UnresolvedDeepChains)
+}
+
+func rewriteAutofixCommandsForPackageManagers(plans []autofix.FixCandidate, files []scan.DetectedFile) []autofix.FixCandidate {
+	if len(plans) == 0 {
+		return plans
+	}
+	presentFiles := make([]string, 0, len(files))
+	for _, f := range files {
+		if f.RelPath != "" {
+			presentFiles = append(presentFiles, filepath.Base(f.RelPath))
+		}
+	}
+	// Which resolver binaries are actually installed on this host, by ecosystem.
+	detected := map[string]bool{}
+	detectedByEcosystem := map[string][]string{}
+	for _, rb := range scan.ResolvePackageManagerBinaries(presentFiles) {
+		if rb.Detected {
+			detected[rb.Binary] = true
+			detectedByEcosystem[rb.Ecosystem] = append(detectedByEcosystem[rb.Ecosystem], rb.Binary)
+		}
+	}
+
+	pmByDir := packageManagersByDir(files)
+	out := append([]autofix.FixCandidate(nil), plans...)
+	for i := range out {
+		if out[i].Skipped {
+			continue
+		}
+		eco := strings.ToLower(out[i].Ecosystem)
+		pm := pmByDir[filepath.Dir(filepath.Clean(out[i].SourceFile))]
+		if pm == "" {
+			pm = defaultPackageManagerForEcosystem(eco)
+		}
+		// Prefer the lockfile-implied PM; if it is not installed, fall back to any
+		// installed resolver for the same ecosystem. If none is installed we
+		// cannot install/re-resolve, so mark the fix manual rather than emit a
+		// command that will fail.
+		if pm != "" && !detected[pm] {
+			if alt := firstInstalledForEcosystem(eco, detectedByEcosystem); alt != "" {
+				pm = alt
+			} else if requiresInstalledManager(eco) {
+				out[i].Skipped = true
+				out[i].SkipReason = fmt.Sprintf("no %s package manager detected on PATH to apply and re-resolve the fix", eco)
+				continue
+			}
+		}
+		out[i].PackageManager = pm
+		switch eco {
+		case "npm":
+			out[i].Command = npmCommandForManager(out[i], pm)
+		case "pypi":
+			out[i].Command = pythonCommandForManager(out[i], pm)
+		}
+	}
+	return out
+}
+
+// defaultPackageManagerForEcosystem returns the conventional resolver when no
+// lockfile narrowed the choice.
+func defaultPackageManagerForEcosystem(ecosystem string) string {
+	switch ecosystem {
+	case "npm":
+		return "npm"
+	case "pypi":
+		return "pip"
+	case "golang":
+		return "go"
+	case "cargo":
+		return "cargo"
+	case "composer":
+		return "composer"
+	case "rubygems":
+		return "bundle"
+	case "maven":
+		return "mvn"
+	default:
+		return ""
+	}
+}
+
+func firstInstalledForEcosystem(ecosystem string, detectedByEcosystem map[string][]string) string {
+	bins := detectedByEcosystem[ecosystem]
+	if len(bins) == 0 {
+		return ""
+	}
+	return bins[0]
+}
+
+// requiresInstalledManager reports whether applying a fix for the ecosystem
+// requires an installed resolver to regenerate the lockfile.
+func requiresInstalledManager(ecosystem string) bool {
+	switch ecosystem {
+	case "npm", "pypi", "golang", "cargo", "composer", "rubygems", "maven":
+		return true
+	default:
+		return false
+	}
+}
+
+func packageManagersByDir(files []scan.DetectedFile) map[string]string {
+	out := map[string]string{}
+	for _, f := range files {
+		dir := filepath.Dir(filepath.Clean(f.RelPath))
+		base := filepath.Base(f.RelPath)
+		switch base {
+		case "package-lock.json":
+			out[dir] = "npm"
+		case "yarn.lock":
+			out[dir] = "yarn"
+		case "pnpm-lock.yaml":
+			out[dir] = "pnpm"
+		case "bun.lockb":
+			out[dir] = "bun"
+		case "uv.lock":
+			out[dir] = "uv"
+		case "poetry.lock":
+			out[dir] = "poetry"
+		case "pdm.lock":
+			out[dir] = "pdm"
+		case "Pipfile.lock":
+			out[dir] = "pipenv"
+		}
+	}
+	return out
+}
+
+func npmCommandForManager(p autofix.FixCandidate, pm string) string {
+	name := p.PackageName
+	if p.Method == autofix.MethodParentUpgrade && p.ParentName != "" {
+		name = p.ParentName
+	}
+	switch p.Method {
+	case autofix.MethodDirectBump, autofix.MethodOverride:
+		switch pm {
+		case "yarn", "pnpm", "bun":
+			return pm + " install"
+		default:
+			return "npm install"
+		}
+	case autofix.MethodParentUpdate:
+		if p.ParentName != "" {
+			name = p.ParentName
+		}
+		switch pm {
+		case "yarn":
+			return "yarn upgrade " + name
+		case "pnpm", "bun":
+			return pm + " update " + name
+		default:
+			return "npm update " + name
+		}
+	case autofix.MethodParentUpgrade:
+		target := p.TargetVer
+		if target == "" {
+			target = "<safe-version>"
+		}
+		switch pm {
+		case "yarn":
+			return "yarn add " + name + "@" + target
+		case "pnpm", "bun":
+			return pm + " add " + name + "@" + target
+		default:
+			return "npm install " + name + "@" + target
+		}
+	default:
+		return p.Command
+	}
+}
+
+func pythonCommandForManager(p autofix.FixCandidate, pm string) string {
+	switch pm {
+	case "uv":
+		return "uv sync"
+	case "poetry":
+		return "poetry update " + p.PackageName
+	case "pdm":
+		return "pdm update " + p.PackageName
+	case "pipenv":
+		return "pipenv update " + p.PackageName
+	default:
+		return p.Command
+	}
+}
+
+func scanAfterAutofix(ctx context.Context, files []scan.DetectedFile, rootPath string, concurrency int) ([]scan.EnrichedVuln, error) {
+	var allPackages []scan.ScopedPackage
+	for _, f := range files {
+		if f.FileType == scan.FileTypeCycloneDX {
+			cdxBom, err := parseCDXForScan(f.Path)
+			if err != nil {
+				continue
+			}
+			pkgs := buildPackagesFromCDX(cdxBom.Components, f.RelPath)
+			allPackages = append(allPackages, pkgs...)
+			continue
+		}
+		if f.ManifestInfo == nil || !f.Supported {
+			continue
+		}
+		pkgs, err := scan.ParseManifestWithScope(f.Path, f.ManifestInfo.Type)
+		if err != nil {
+			continue
+		}
+		for i := range pkgs {
+			pkgs[i].SourceFile = f.RelPath
+		}
+		allPackages = append(allPackages, pkgs...)
+	}
+	if len(allPackages) == 0 {
+		return nil, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	client := newSearchClient()
+	scannedVulns, _, err := scan.LookupVulns(ctx, client, allPackages, concurrency, nil)
+	if err != nil && len(scannedVulns) == 0 {
+		return nil, err
+	}
+	enriched, enrichErr := scan.EnrichVulns(ctx, client, newEnrichmentClient(), scannedVulns, allPackages, concurrency, nil)
+	if enrichErr != nil {
+		return enriched, enrichErr
+	}
+	return enriched, err
+}
+
+func resolvedAutofixFindings(plans []autofix.FixCandidate, after []scan.EnrichedVuln) []*triage.TriageFinding {
+	remaining := map[string]bool{}
+	for _, ev := range after {
+		remaining[autofixFindingKey(ev.CveID, ev.PackageName, ev.Ecosystem)] = true
+	}
+	var findings []*triage.TriageFinding
+	for _, p := range plans {
+		if p.Skipped || p.TargetVer == "" {
+			continue
+		}
+		for _, id := range p.CveIDs {
+			if remaining[autofixFindingKey(id, p.PackageName, p.Ecosystem)] {
+				continue
+			}
+			findings = append(findings, &triage.TriageFinding{
+				CVEID:         id,
+				Package:       p.PackageName,
+				Ecosystem:     p.Ecosystem,
+				InstalledVer:  p.CurrentVer,
+				FixedVer:      p.TargetVer,
+				Status:        "not_affected",
+				Justification: "vulnerable_code_not_present",
+			})
+		}
+	}
+	return findings
+}
+
+func autofixFindingKey(cveID, packageName, ecosystem string) string {
+	return strings.ToLower(cveID) + "::" + strings.ToLower(packageName) + "::" + strings.ToLower(ecosystem)
+}
+
+func writeAutofixVEX(root string, findings []*triage.TriageFinding) (string, error) {
+	if len(findings) == 0 {
+		return "", nil
+	}
+	data, err := triage.GenerateOpenVEX(findings, triage.OpenVEXOptions{Tooling: "vulnetix-cli sca-autofix"})
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(root, ".vulnetix", "vex-autofix.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func postAutofixVEXToSnapshot(snapshotUuid string, persisted []vdb.CliFindingResult, findings []*triage.TriageFinding, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, rootPath string, packages []scan.ScopedPackage, w io.Writer) {
+	if snapshotUuid == "" || len(findings) == 0 || isUnauthenticatedScan() {
+		return
+	}
+	if w == nil {
+		w = os.Stderr
+	}
+	client := newCliClient()
+	if client == nil {
+		return
+	}
+
+	byExact := map[string]vdb.CliFindingResult{}
+	byPackage := map[string]vdb.CliFindingResult{}
+	for _, f := range persisted {
+		if f.FindingID == "" || f.PackageName == "" {
+			continue
+		}
+		byPackage[autofixPersistedKey(f.FindingID, f.PackageName, "")] = f
+		if f.PackageVersion != "" {
+			byExact[autofixPersistedKey(f.FindingID, f.PackageName, f.PackageVersion)] = f
+		}
+	}
+
+	rows := make([]vdb.CliReachabilityPayload, 0, len(findings))
+	for _, f := range findings {
+		if f == nil || f.CVEID == "" || f.Package == "" {
+			continue
+		}
+		persistedFinding := byExact[autofixPersistedKey(f.CVEID, f.Package, f.InstalledVer)]
+		if persistedFinding.FindingUuid == "" {
+			persistedFinding = byPackage[autofixPersistedKey(f.CVEID, f.Package, "")]
+		}
+		evidence, _ := json.Marshal(map[string]string{
+			"source":        "vulnetix-cli sca-autofix",
+			"installed":     f.InstalledVer,
+			"fixed_version": f.FixedVer,
+		})
+		rows = append(rows, vdb.CliReachabilityPayload{
+			CveID:                  f.CVEID,
+			FindingUuid:            persistedFinding.FindingUuid,
+			PackageName:            f.Package,
+			PackageVersion:         f.InstalledVer,
+			Ecosystem:              f.Ecosystem,
+			Source:                 "SYMBOL_FALLBACK",
+			Verdict:                "UNREACHABLE",
+			EvidenceJSON:           string(evidence),
+			MemoryVexStatus:        "not_affected",
+			MemoryVexJustification: "vulnerable_code_not_present",
+			MemoryVexAction:        "fixed by vulnetix sca --sca-autofix",
+			FixedVersion:           f.FixedVer,
+		})
+	}
+	if len(rows) == 0 {
+		return
+	}
+
+	env := buildCliEnv(gitCtx, sysInfo)
+	enrichCliEnvForSCA(&env, rootPath, packages, gitCtx)
+	resp, err := client.CliSCAReachability(env, vdb.CliSCAReachabilityRequest{
+		IngestionSnapshotUuid: snapshotUuid,
+		Results:               rows,
+	})
+	if err != nil {
+		fmt.Fprintf(w, "  warning: autofix VEX publish failed: %v\n", err)
+		return
+	}
+	if resp != nil && resp.Data.VEXUrl != "" {
+		fmt.Fprintf(w, "  autofix VEX published: %s\n", resp.Data.VEXUrl)
+	}
+}
+
+func autofixPersistedKey(cveID, packageName, version string) string {
+	return strings.ToLower(cveID) + "::" + strings.ToLower(packageName) + "::" + version
+}
+
+func recordAutofixMemoryEvents(mem *memory.Memory, findings []*triage.TriageFinding) {
+	if mem == nil || len(findings) == 0 {
+		return
+	}
+	if mem.Findings == nil {
+		mem.Findings = map[string]memory.FindingRecord{}
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	for _, f := range findings {
+		if f == nil || f.CVEID == "" {
+			continue
+		}
+		rec := mem.Findings[f.CVEID]
+		if rec.Package == "" {
+			rec.Package = f.Package
+		}
+		if rec.Ecosystem == "" {
+			rec.Ecosystem = f.Ecosystem
+		}
+		rec.Status = "fixed"
+		rec.Source = "vulnetix-sca"
+		rec.Tool = memory.ToolSCA
+		rec.Justification = "vulnerable_code_not_present"
+		rec.ActionResponse = "fixed by vulnetix sca --sca-autofix"
+		if rec.Versions == nil {
+			rec.Versions = &memory.VersionInfo{}
+		}
+		if rec.Versions.Current == "" {
+			rec.Versions.Current = f.InstalledVer
+		}
+		rec.Versions.FixedIn = f.FixedVer
+		rec.Versions.FixSource = "sca-autofix"
+		if rec.Remediation == nil {
+			rec.Remediation = &memory.RemediationData{}
+		}
+		rec.Remediation.FixAvailability = "available"
+		rec.Remediation.FixVersion = f.FixedVer
+
+		detail := fmt.Sprintf("%s %s -> %s via vulnetix sca --sca-autofix", f.Package, f.InstalledVer, f.FixedVer)
+		if !hasAutofixHistory(rec, detail) {
+			rec.History = append(rec.History, memory.HistoryEntry{
+				Date:   now,
+				Event:  "autofix-applied",
+				Detail: detail,
+			})
+		}
+		mem.Findings[f.CVEID] = rec
+	}
+}
+
+func hasAutofixHistory(rec memory.FindingRecord, detail string) bool {
+	for _, h := range rec.History {
+		if h.Event == "autofix-applied" && h.Detail == detail {
+			return true
+		}
+	}
+	return false
+}
+
 // printScanArtifacts prints the artefact links (BOM / Memory / SARIF / Rules and
 // ingestion snapshot URLs) at the very bottom of the scan output, after all
 // analysis tables. Each line is gated on a non-empty value. scaSnapshotURL is
@@ -3121,8 +3731,15 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("show-all-manifests", false, "Include rows in the SCA table for manifests that have no vulnerabilities.")
 	cmd.Flags().Int("version-lag", 0, "Exit with code 1 when any dependency is within the N most recently published versions of that package (0 = disabled).")
 	cmd.Flags().Int("cooldown", 0, "Exit with code 1 when any dependency version was published within the last N days (0 = disabled, best-effort).")
+	cmd.Flags().Bool("sca-autofix", false, "Apply validated SCA fixes with the project package manager, then rescan to confirm")
+	cmd.Flags().String("sca-autofix-strategy", "stable", "SCA autofix target strategy: latest, safest, or stable")
+	cmd.Flags().String("sca-autofix-manifest", "", "Restrict SCA autofix edits to one manifest file")
+	cmd.Flags().Bool("yes", false, "Non-interactive mode for SCA autofix: auto-pick safe defaults and never prompt")
+	cmd.Flags().Int("sca-autofix-max-major-bump", 0, "Refuse SCA autofix targets crossing more than N major versions")
 	cmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
 	_ = cmd.Flags().MarkDeprecated("format", "use --output instead")
+	_ = cmd.RegisterFlagCompletionFunc("sca-autofix-strategy", cobra.FixedCompletions(
+		[]string{"stable", "safest", "latest"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = cmd.RegisterFlagCompletionFunc("exploits", cobra.FixedCompletions(
 		scan.ValidExploitThresholds, cobra.ShellCompDirectiveNoFileComp))
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions(
