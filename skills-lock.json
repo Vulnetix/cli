@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "skills": {
+    "attack-mapping": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/attack-mapping/SKILL.md",
+      "computedHash": "daf28c371e339dd482093c3f8e8a6a74ccee7bb4757382514c43b0d9093eefde"
+    },
+    "capabilities-detect": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/capabilities-detect/SKILL.md",
+      "computedHash": "89b979e09b5d9642a17d76433dea8fd5295e6600857853bdc6167357739196ea"
+    },
+    "code-review-security": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/code-review-security/SKILL.md",
+      "computedHash": "338c6a896a19c5f0bca352c5594775939cc0abc7ca498e0add1242fc88c48810"
+    },
+    "compliance-report": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/compliance-report/SKILL.md",
+      "computedHash": "b052563a80311b3134e9857a17288bc01d5b4df48935fe2e7bf23095a9fc44da"
+    },
+    "container-scan": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/container-scan/SKILL.md",
+      "computedHash": "f55216409fb666a741a76eee0fa963a10218846fc2609a925cc5bd38c90fe9b8"
+    },
+    "dashboard": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/dashboard/SKILL.md",
+      "computedHash": "8d7315c73f8207163b20f4d46266aeed0a280ce933d74c8a0d9e7d63962bf8e7"
+    },
+    "dep-add-guard": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/dep-add-guard/SKILL.md",
+      "computedHash": "bb74602035271a132bfd9254f418ea62c7e3fa500cd2afe7095b59d3ceee597e"
+    },
+    "dep-resolve": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/dep-resolve/SKILL.md",
+      "computedHash": "d10f1d1e78264a4629b7eb99a115707c6aec5ecc29c1edf12cc4b9d702bde6e0"
+    },
+    "detection-rules": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/detection-rules/SKILL.md",
+      "computedHash": "bf3ad4ebb862945193f2a06ef75da58283baec5a097f8cea6b4894d3e81505d3"
+    },
+    "eol-check": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/eol-check/SKILL.md",
+      "computedHash": "6fad8470f70be14e26ebc20f2533c59ecf51a2ebd8b3f279966be592e6ffe698"
+    },
+    "exploit-test": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/exploit-test/SKILL.md",
+      "computedHash": "028dfbf6578752a8bb319bcb490be2c987a4b390a7723d30f357521ab2b8cf84"
+    },
+    "exploits": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/exploits/SKILL.md",
+      "computedHash": "4d942efe645d3546534047223bb7b7e2926c09df780cc875be70423a5b6341a7"
+    },
+    "exploits-search": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/exploits-search/SKILL.md",
+      "computedHash": "83577b6c5407f084ef24225e09a5ec1bc39e7be83e04029d31681814830d56b8"
+    },
+    "fix": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/fix/SKILL.md",
+      "computedHash": "656e05bbcb7cf3da3f3e5ba6cd8638cba09eee98197ebcf697f1338de754d66e"
+    },
+    "iac-scan": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/iac-scan/SKILL.md",
+      "computedHash": "cc302fcaac9b0b3e069ea6642dc54db418ea289a58e74f49b2fe95029bcdf2b7"
+    },
+    "incident-respond": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/incident-respond/SKILL.md",
+      "computedHash": "ae776d9660b1382668ac08d05a16b2a3fa297b3c00b092c569811f80946b692b"
+    },
+    "ioc-pivot": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/ioc-pivot/SKILL.md",
+      "computedHash": "6832a8aad79547cbcaca5a5c900a16fa826df1135bc93810c6aaba15d3a18225"
+    },
+    "kev-watch": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/kev-watch/SKILL.md",
+      "computedHash": "3bd936d6b5c1eb5d41b1783088c26cfaa242b1ab830b16715ec8b497019b4cd7"
+    },
+    "license-check": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/license-check/SKILL.md",
+      "computedHash": "56529eefc1e046d49601a5c985750798fdbcae7847ab408ccc1adfd678649332"
+    },
+    "package-search": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/package-search/SKILL.md",
+      "computedHash": "62c4ae9722a454807794b000be4701f0bd7c7c52f10ab75664a2febe7cb90995"
+    },
+    "remediation": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/remediation/SKILL.md",
+      "computedHash": "805293fb25565ea6d97ea74f13815e5da24b708c6ec23629a2b40adec6b0ddf0"
+    },
+    "safe-version": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/safe-version/SKILL.md",
+      "computedHash": "1ee7364179b16e443ad18e7d82e4799f1c57bab959db70af5ff7a23000e7ab30"
+    },
+    "sast-scan": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/sast-scan/SKILL.md",
+      "computedHash": "73019ff8d69603f6a4c3562b3bb2c04979aa4d744913b397b9ed41bec9632e80"
+    },
+    "sbom-generate": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/sbom-generate/SKILL.md",
+      "computedHash": "ccac3f6da1bf3ab58c24cfc5ffb5b574bae4faa8592618e54a815eb2490d975a"
+    },
+    "secret-scan": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/secret-scan/SKILL.md",
+      "computedHash": "7fdc231ad80ef48ba5006b2a3c267ac7271b2ff2e0b77d8cf602227a3bfae76f"
+    },
+    "secure-code-write": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/secure-code-write/SKILL.md",
+      "computedHash": "265dd1ec4cb66ced6daeb48d3f9745cfb2e2e03e6e99283e9d3a533ea1b030be"
+    },
+    "soc-triage": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/soc-triage/SKILL.md",
+      "computedHash": "71cb435bc6a4eb968f5982aeb74b38fc04dff2b2f5156dcae536853039a0261a"
+    },
+    "threat-feed": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/threat-feed/SKILL.md",
+      "computedHash": "a47bf929f8328181af2bcd61c3ae29f031a75d24e6b026195be8f89b701a05b1"
+    },
+    "typosquat-check": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/typosquat-check/SKILL.md",
+      "computedHash": "b0fbc3386b7109e0a811f0b9c55b0057dae9f49ce80b5b716bafd93ecf383e65"
+    },
+    "verify-fix": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/verify-fix/SKILL.md",
+      "computedHash": "6725489567abbe9d8dd7583e1f5301352979f7065d0df56e2de27883b0a2724c"
+    },
+    "vex-publish": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/vex-publish/SKILL.md",
+      "computedHash": "710703b5ca7f91fa90e95754c424e697992c92f52bd4b3c682cb09ffea7bf71f"
+    },
+    "vuln": {
+      "source": "Vulnetix/pix-ai-coding-assistant",
+      "sourceType": "github",
+      "skillPath": "vulnetix/skills/vuln/SKILL.md",
+      "computedHash": "3799308282121da0378204537cb485056f0287dd9b2a0f4e920299092cc1ea7b"
+    }
+  }
+}

@@ -72,12 +72,10 @@ func npmConfig(eco Ecosystem, opts ConfigOptions) string {
 	proxy := ProxyURLWithSlash(opts.ProxyURL, eco)
 	u, _ := url.Parse(proxy)
 	hostPath := strings.TrimPrefix(u.Host+u.Path, "/")
-	password := base64.StdEncoding.EncodeToString([]byte(opts.APIKey))
+	auth := base64.StdEncoding.EncodeToString([]byte(opts.OrgID + ":" + opts.APIKey))
 	return strings.Join([]string{
 		"registry=" + proxy,
-		"//" + hostPath + ":username=" + opts.OrgID,
-		"//" + hostPath + ":_password=" + password,
-		"//" + hostPath + ":always-auth=true",
+		"//" + hostPath + ":_auth=" + auth,
 		"",
 	}, "\n")
 }
