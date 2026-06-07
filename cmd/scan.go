@@ -223,6 +223,7 @@ Examples:
   vulnetix scan --dry-run                      # detect files + parse packages, then show memory — zero API calls
   vulnetix scan --dry-run --path ./myproject   # dry run on a specific directory`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
 		showDetectedFiles, _ = cmd.Flags().GetBool("show-detected")
 		showAllManifests, _ = cmd.Flags().GetBool("show-all-manifests")

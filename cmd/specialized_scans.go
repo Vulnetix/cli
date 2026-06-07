@@ -26,6 +26,7 @@ var scaCmd = &cobra.Command{
 Performs vulnerability analysis on package dependencies only, without running
 SAST, license analysis, secret detection, container analysis, or IaC analysis.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
 		// Credentials are optional — community fallback is used when absent.
 		// But when the user IS authenticated (Pro subscription), this is
@@ -52,11 +53,12 @@ var sastCmd = &cobra.Command{
 	Use:   "sast",
 	Short: "Run only Static Application Security Testing (SAST) scan",
 	Long: `Run a scan with only SAST enabled. Equivalent to:
-  vulnetix scan --evaluate-sast --no-licenses --no-sca --no-containers --no-secrets --no-iac
+  vulnetix scan --evaluate-sast --no-licenses --no-sast --no-containers --no-secrets --no-iac
 
 Performs static code analysis for security vulnerabilities only, without
 analyzing package dependencies, licenses, secrets, containers, or IaC.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
 		return resolveVDBCredentials(false)
 	},
@@ -83,6 +85,7 @@ var secretsCmd = &cobra.Command{
 Detects hardcoded secrets (API keys, passwords, tokens, etc.) in source code
 only, without analyzing package dependencies, licenses, or other issues.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
 		return resolveVDBCredentials(false)
 	},
@@ -109,6 +112,7 @@ var containersCmd = &cobra.Command{
 Analyzes container files (Dockerfile, Containerfile) only, without analyzing
 package dependencies, licenses, or other security issues.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
 		return resolveVDBCredentials(false)
 	},
@@ -135,6 +139,7 @@ var iacCmd = &cobra.Command{
 Analyzes Infrastructure as Code files (Terraform HCL, Nix) only, without
 analyzing package dependencies, licenses, or other security issues.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
 		return resolveVDBCredentials(false)
 	},
