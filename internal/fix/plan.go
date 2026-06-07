@@ -96,6 +96,7 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 	}
 
 	byFinding := map[string]*FixCandidate{}
+	legacyFixVersions := map[string][]string{}
 	for _, v := range vulns {
 		p := pkgByKey[packageKey(v.PackageName, v.PackageVer, v.Ecosystem, v.SourceFile)]
 		if p.Name == "" {
@@ -118,7 +119,7 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 		if opts.Manifest != "" && !sameManifest(opts.Manifest, editFile) {
 			continue
 		}
-		key := strings.ToLower(v.Ecosystem) + "::" + strings.ToLower(v.PackageName) + "::" + editFile
+		key := packagePlanKey(v.Ecosystem, v.PackageName, editFile)
 		fc := byFinding[key]
 		if fc == nil {
 			fc = &FixCandidate{
@@ -131,6 +132,9 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 			byFinding[key] = fc
 		}
 		fc.CveIDs = appendUnique(fc.CveIDs, v.CveID)
+		if v.Remediation != nil && v.Remediation.FixVersion != "" {
+			legacyFixVersions[key] = appendUnique(legacyFixVersions[key], v.Remediation.FixVersion)
+		}
 	}
 
 	out := make([]FixCandidate, 0, len(byFinding))
@@ -139,6 +143,13 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 		purl := cdx.BuildLocalPurl(fc.PackageName, fc.CurrentVer, fc.Ecosystem)
 		ins := insightByPurl[purl]
 		target, decision := ResolveTarget(fc.CurrentVer, opts.Strategy, ins.LatestVersions, ins.SafeVersions, ins.SafeHarbour, opts.MaxMajorBump)
+		if decision.Skipped && strings.Contains(decision.Reason, "no Safe-Harbour") {
+			if fallback, fallbackDecision := remediationFallbackTarget(fc.CurrentVer, legacyFixVersions[packagePlanKey(fc.Ecosystem, fc.PackageName, fc.SourceFile)], opts.MaxMajorBump); fallback != "" {
+				target = fallback
+				decision = fallbackDecision
+				fc.Reason = "using legacy remediation fix version because Safe-Harbour data was unavailable"
+			}
+		}
 		if decision.Skipped {
 			fc.Skipped = true
 			fc.SkipReason = decision.Reason
@@ -259,6 +270,42 @@ func packageKey(name, version, ecosystem, source string) string {
 
 func identityKey(name, version, ecosystem string) string {
 	return strings.ToLower(ecosystem) + "::" + strings.ToLower(name) + "::" + version
+}
+
+func packagePlanKey(ecosystem, name, source string) string {
+	return strings.ToLower(ecosystem) + "::" + strings.ToLower(name) + "::" + source
+}
+
+func remediationFallbackTarget(current string, versions []string, maxMajorBump int) (string, TargetDecision) {
+	if len(versions) == 0 {
+		return "", TargetDecision{Skipped: true, Reason: "no remediation fix version available"}
+	}
+	current = normalizeVersion(current)
+	candidates := make([]string, 0, len(versions))
+	seen := map[string]bool{}
+	for _, v := range versions {
+		v = normalizeVersion(v)
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		if current != "" && (v == current || lessThan(v, current)) {
+			continue
+		}
+		if maxMajorBump >= 0 && current != "" {
+			curMajor, okCur := majorOf(current)
+			tgtMajor, okTarget := majorOf(v)
+			if okCur && okTarget && int(tgtMajor-curMajor) > maxMajorBump {
+				continue
+			}
+		}
+		candidates = append(candidates, v)
+	}
+	sorted := sortableVersions(candidates, true)
+	if len(sorted) == 0 {
+		return "", TargetDecision{Skipped: true, Reason: "remediation fix version was unavailable within autofix guardrails"}
+	}
+	return sorted[0], TargetDecision{}
 }
 
 func sameManifest(want, got string) bool {

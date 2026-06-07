@@ -40,6 +40,9 @@ func ResolveTarget(current string, strategy Strategy, latest []vdb.CliVersionSta
 	if target == "" {
 		return "", TargetDecision{Skipped: true, Reason: "no Safe-Harbour fix version available"}
 	}
+	if current != "" && normalizeVersion(target) == current {
+		return "", TargetDecision{Skipped: true, Reason: fmt.Sprintf("target %s is already installed", target)}
+	}
 	if current != "" && lessThan(target, current) {
 		return "", TargetDecision{Skipped: true, Reason: fmt.Sprintf("target %s would downgrade from %s", target, current)}
 	}

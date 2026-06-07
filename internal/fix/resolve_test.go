@@ -26,6 +26,18 @@ func TestResolveTargetRejectsMajorCap(t *testing.T) {
 	require.Contains(t, decision.Reason, "major")
 }
 
+func TestResolveTargetSkipsAlreadyInstalledTarget(t *testing.T) {
+	target, decision := ResolveTarget("1.2.3", StrategySafest, nil, []vdb.CliSafeHarbourVersion{{
+		Version:            "1.2.3",
+		VulnerabilityCount: 0,
+		ExploitCount:       0,
+	}}, nil, 0)
+
+	require.Empty(t, target)
+	require.True(t, decision.Skipped)
+	require.Contains(t, decision.Reason, "already installed")
+}
+
 func TestResolveTargetSafestUsesHighestScoreThenNewest(t *testing.T) {
 	target, decision := ResolveTarget("1.0.0", StrategySafest, nil, []vdb.CliSafeHarbourVersion{
 		{Version: "1.2.0", SafeHarbourScore: 0.9},

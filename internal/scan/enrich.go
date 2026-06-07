@@ -115,6 +115,14 @@ type RemediationInfo struct {
 	Actions         []string
 }
 
+// EnrichOptions controls optional enrichment calls. A zero value preserves the
+// historical behavior: fetch affected ranges, exploit intel, and remediation.
+type EnrichOptions struct {
+	SkipAffected    bool
+	SkipExploits    bool
+	SkipRemediation bool
+}
+
 // IDSRule represents a snort or suricata detection rule.
 type IDSRule struct {
 	Type    string // "snort" or "suricata"
@@ -133,6 +141,19 @@ func EnrichVulns(
 	packages []ScopedPackage,
 	concurrency int,
 	progress func(done, total int),
+) ([]EnrichedVuln, error) {
+	return EnrichVulnsWithOptions(ctx, v1Client, v2Client, findings, packages, concurrency, progress, EnrichOptions{})
+}
+
+func EnrichVulnsWithOptions(
+	ctx context.Context,
+	v1Client *vdb.Client,
+	v2Client *vdb.Client,
+	findings []VulnFinding,
+	packages []ScopedPackage,
+	concurrency int,
+	progress func(done, total int),
+	opts EnrichOptions,
 ) ([]EnrichedVuln, error) {
 	if concurrency <= 0 {
 		concurrency = 5
@@ -186,7 +207,7 @@ func EnrichVulns(
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			ev := enrichOne(ctx, v1Client, v2Client, f, packages)
+			ev := enrichOne(ctx, v1Client, v2Client, f, packages, opts)
 			if ev != nil {
 				ev.PathCount = pathCount
 				resultsCh <- enrichResult{idx: idx, enriched: ev}
@@ -229,6 +250,7 @@ func enrichOne(
 	v2Client *vdb.Client,
 	f VulnFinding,
 	packages []ScopedPackage,
+	opts EnrichOptions,
 ) *EnrichedVuln {
 	ev := &EnrichedVuln{
 		VulnFinding: f,
@@ -236,7 +258,7 @@ func enrichOne(
 	}
 
 	// ── 1. Check affected version range ────────────────────────────────
-	if v2Client != nil && f.CveID != "" {
+	if !opts.SkipAffected && v2Client != nil && f.CveID != "" {
 		affected, err := v2Client.V2Affected(f.CveID, vdb.V2QueryParams{
 			Ecosystem:   f.Ecosystem,
 			PackageName: f.PackageName,
@@ -253,7 +275,7 @@ func enrichOne(
 	}
 
 	// ── 2. Fetch exploit intelligence ──────────────────────────────────
-	if v1Client != nil && f.CveID != "" {
+	if !opts.SkipExploits && v1Client != nil && f.CveID != "" {
 		exploitData, err := v1Client.GetExploits(f.CveID)
 		if err == nil {
 			ev.ExploitIntel = parseExploitSummary(exploitData)
@@ -262,7 +284,7 @@ func enrichOne(
 	}
 
 	// ── 3. Fetch remediation plan ──────────────────────────────────────
-	if v2Client != nil && f.CveID != "" {
+	if !opts.SkipRemediation && v2Client != nil && f.CveID != "" {
 		remParams := vdb.V2RemediationParams{}
 		remParams.Ecosystem = f.Ecosystem
 		remParams.PackageName = f.PackageName

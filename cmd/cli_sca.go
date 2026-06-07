@@ -30,7 +30,10 @@ import (
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
-const scaAPIDisabledEnv = "VULNETIX_CLI_SCA_API"
+const (
+	scaAPIDisabledEnv  = "VULNETIX_CLI_SCA_API"
+	cliSCABatchTimeout = 30 * time.Second
+)
 
 // cliSCAGateOptions tells tryCliSCA which per-package gate signals the active
 // scan flags need, so the cli.sca round-trip requests them (and only them).
@@ -81,9 +84,12 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		fmt.Fprintf(w, "Querying VDB via /v2/cli.sca: %d unique package(s) in %d batch(es)...\n", len(uniquePurls), len(chunks))
 	}
 
-	client := newCliClient() // /v2 client with 180s timeout for fan-out lookups
+	client := newCliClient()
 	if client == nil {
 		return false, nil, nil, nil, "", "", nil
+	}
+	if client.HTTPClient != nil {
+		client.HTTPClient.Timeout = cliSCABatchTimeout
 	}
 
 	env := buildCliEnv(gitCtx, sysInfo)
@@ -112,6 +118,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	tierObserved := "" // "pro" wins over any spurious community batch
 	var anyTierGated bool
 	var batchesOK, batchesFailed int
+	var packageRequestsFailed int
 	var firstErr error
 	var snapshot *vdb.CliIngestionSnapshot
 	var persistedFindings []vdb.CliFindingResult
@@ -167,9 +174,14 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 				continue
 			}
 		}
-		resp, err := client.CliSCA(reqEnv, req)
+		reqCtx, cancel := context.WithTimeout(context.Background(), cliSCABatchTimeout)
+		resp, err := client.CliSCAWithContext(reqCtx, reqEnv, req)
+		cancel()
 		if err != nil {
 			batchesFailed++
+			if i < len(chunks) {
+				packageRequestsFailed++
+			}
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -209,12 +221,18 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	// over the legacy per-PURL loop.
 	if batchesOK == 0 {
 		if !silent {
-			fmt.Fprintf(w, "  /v2/cli.sca all %d batch(es) failed (%v), falling back to legacy lookup\n", len(chunks), firstErr)
+			fmt.Fprintf(w, "  /v2/cli.sca all %d request(s) failed (%v), falling back to legacy lookup\n", nReq, firstErr)
 		}
 		return false, nil, nil, nil, "", "", nil
 	}
 	if batchesFailed > 0 && !silent {
-		fmt.Fprintf(w, "  /v2/cli.sca completed with %d/%d batch(es) ok, %d failed\n", batchesOK, len(chunks), batchesFailed)
+		fmt.Fprintf(w, "  /v2/cli.sca completed with %d/%d request(s) ok, %d failed\n", batchesOK, nReq, batchesFailed)
+	}
+	if packageRequestsFailed > 0 {
+		if !silent {
+			fmt.Fprintf(w, "  /v2/cli.sca missed %d package request(s), falling back to legacy lookup for complete package coverage\n", packageRequestsFailed)
+		}
+		return false, nil, nil, nil, "", "", nil
 	}
 
 	// Only show the upgrade note when we *consistently* observed community

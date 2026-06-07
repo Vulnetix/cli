@@ -105,6 +105,30 @@ func TestRewriteAutofixCommandsUsesYarnBerryUp(t *testing.T) {
 	assert.Equal(t, "yarn up parent", out[0].Command)
 }
 
+func TestRewriteAutofixCommandsRewritesSkippedManualCommands(t *testing.T) {
+	dir := t.TempDir()
+	requireNoErr(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"packageManager":"yarn@1.22.22"}`), 0o644))
+	requireNoErr(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte("# yarn lockfile v1\n"), 0o644))
+	plans := []autofix.FixCandidate{{
+		PackageName: "lodash",
+		Ecosystem:   "npm",
+		SourceFile:  "web/package.json",
+		Method:      autofix.MethodDirectBump,
+		Command:     "npm install",
+		Skipped:     true,
+		SkipReason:  "no Safe-Harbour fix version available",
+	}}
+	files := []scan.DetectedFile{
+		{Path: filepath.Join(dir, "package.json"), RelPath: "web/package.json"},
+		{Path: filepath.Join(dir, "yarn.lock"), RelPath: "web/yarn.lock"},
+	}
+
+	out := rewriteAutofixCommandsForPackageManagers(plans, files)
+
+	assert.True(t, out[0].Skipped)
+	assert.Equal(t, "yarn install", out[0].Command)
+}
+
 func TestRewriteAutofixCommandsUsesAuthoritativePythonLockfile(t *testing.T) {
 	plans := []autofix.FixCandidate{{
 		PackageName: "requests",
@@ -146,6 +170,11 @@ func TestAutofixEvidencePayloadIncludesProofOfWork(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 1, proof["direct"])
 	assert.Equal(t, 2, proof["transitive_parent_update"])
+}
+
+func TestHasActionableAutofixPlan(t *testing.T) {
+	assert.False(t, hasActionableAutofixPlan([]autofix.FixCandidate{{Skipped: true}}))
+	assert.True(t, hasActionableAutofixPlan([]autofix.FixCandidate{{Skipped: true}, {PackageName: "lodash"}}))
 }
 
 func requireNoErr(t *testing.T, err error) {
