@@ -36,23 +36,34 @@ type Options struct {
 	PathExplicit bool
 }
 
+// SafeVersionRejection records why a candidate Safe-Harbour version could not
+// be used as an autofix target (vuln count, exploit count, or malware flag).
+type SafeVersionRejection struct {
+	Version   string
+	VulnCount int
+	ExplCount int
+	IsMalware bool
+}
+
 type FixCandidate struct {
-	PackageName    string
-	Ecosystem      string
-	CurrentVer     string
-	SourceFile     string
-	IsDirect       bool
-	ParentName     string
-	ParentRange    string
-	ParentTarget   string // resolved parent version for a parent-upgrade (npm only)
-	TargetVer      string
-	Method         FixMethod
-	PackageManager string // concrete resolver (npm/pnpm/yarn/bun/...) for the manifest, when known
-	Command        string
-	CveIDs         []string
-	Reason         string
-	Skipped        bool
-	SkipReason     string
+	PackageName      string
+	Ecosystem        string
+	CurrentVer       string
+	SourceFile       string
+	IsDirect         bool
+	ParentName       string
+	ParentRange      string
+	ParentTarget     string // resolved parent version for a parent-upgrade (npm only)
+	TargetVer        string
+	Method           FixMethod
+	PackageManager   string // concrete resolver (npm/pnpm/yarn/bun/...) for the manifest, when known
+	Command          string
+	CveIDs           []string
+	Reason           string
+	Skipped          bool
+	SkipReason       string
+	RejectedVersions []SafeVersionRejection // populated when SkipReason contains "no Safe-Harbour"
+	LatestAvailable  string                 // newest known version for context in the proof-of-work output
 }
 
 type FixBatch struct {
@@ -148,6 +159,25 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 				target = fallback
 				decision = fallbackDecision
 				fc.Reason = "using legacy remediation fix version because Safe-Harbour data was unavailable"
+			} else {
+				// Record why every candidate was rejected so the proof-of-work
+				// output can explain which options were considered.
+				for _, sv := range ins.SafeVersions {
+					if sv.Version == "" {
+						continue
+					}
+					if !isUsableSafeVersion(sv) {
+						fc.RejectedVersions = append(fc.RejectedVersions, SafeVersionRejection{
+							Version:   sv.Version,
+							VulnCount: sv.VulnerabilityCount,
+							ExplCount: sv.ExploitCount,
+							IsMalware: sv.IsMalware,
+						})
+					}
+				}
+				if len(ins.LatestVersions) > 0 {
+					fc.LatestAvailable = ins.LatestVersions[0].Version
+				}
 			}
 		}
 		if decision.Skipped {
