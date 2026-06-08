@@ -852,7 +852,7 @@ func runLocalScan(
 		} else {
 			// ── Count unique packages to query ───────────────────────────────
 			uniqueCount := countUniquePackages(allPackages)
-			fmt.Fprintf(os.Stderr, "\nQuerying VDB for %d unique package(s)...\n", uniqueCount)
+			fmt.Fprintf(progressStderr, "\nQuerying VDB for %d unique package(s)...\n", uniqueCount)
 
 			// ── Query VDB ────────────────────────────────────────────────────
 			var progressFn func(done, total int)
@@ -867,7 +867,7 @@ func runLocalScan(
 			scannedVulns, lookupStats, vulnsErr := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
 
 			hasPartial := vulnsErr != nil && len(scannedVulns) > 0
-			printLookupSummary(client, lookupStats, vulnsErr, hasPartial)
+			printLookupSummary(client, lookupStats, vulnsErr, hasPartial, progressStderr)
 
 			if vulnsErr != nil && len(scannedVulns) == 0 {
 				return fmt.Errorf("VDB lookup failed: %w", vulnsErr)
@@ -903,10 +903,10 @@ func runLocalScan(
 		enrichCount := len(allVulns)
 		if enrichCount > 0 {
 			if autofixFallback {
-				fmt.Fprintf(os.Stderr, "\nEnriching %s (autofix remediation fallback)...\n",
+				fmt.Fprintf(progressStderr, "\nEnriching %s (autofix remediation fallback)...\n",
 					pluralise("vulnerability", enrichCount))
 			} else {
-				fmt.Fprintf(os.Stderr, "\nEnriching %s (version check, exploits, remediation)...\n",
+				fmt.Fprintf(progressStderr, "\nEnriching %s (version check, exploits, remediation)...\n",
 					pluralise("vulnerability", enrichCount))
 			}
 		}
@@ -927,7 +927,7 @@ func runLocalScan(
 			SkipRemediation: noRemediation,
 		})
 		if enrichErr != nil {
-			fmt.Fprintf(os.Stderr, "  warning: enrichment failed: %v\n", enrichErr)
+			fmt.Fprintf(progressStderr, "  warning: enrichment failed: %v\n", enrichErr)
 		}
 		scanProgress.Update(4, fmt.Sprintf("Enriched %d finding(s)", len(enrichedVulns)))
 	}
@@ -995,12 +995,35 @@ func runLocalScan(
 		} else if !hasActionableAutofixPlan(selected) {
 			autofixReportPlans = selected
 			autofixReportCounts = selectedCounts
+			// For packages skipped because every version has vulnerabilities,
+			// generate and post a risk-acceptance VEX so the snapshot records
+			// the intentional decision.
+			skippedNoFix := skippedPlansWithNoSafeVersion(selected)
+			if len(skippedNoFix) > 0 {
+				vexPath, vexErr := writeRiskAcceptedVEX(rootPath, skippedNoFix, enrichedVulns)
+				if vexErr != nil {
+					fmt.Fprintf(progressStderr, "  warning: could not write risk-accepted VEX: %v\n", vexErr)
+				} else if vexPath != "" {
+					fmt.Fprintf(progressStderr, "  VEX (risk-accepted): %s\n", vexPath)
+				}
+				postRiskAcceptedVEXToSnapshot(scaSnapshotUuid, scaPersistedFindings, skippedNoFix, enrichedVulns, selectedCounts, gitCtx, sysInfo, rootPath, allPackages, progressStderr)
+			}
 		} else {
 			fmt.Fprintln(progressStderr, "Applying SCA autofix plan...")
 			if err := autofix.Apply(rootPath, selected); err != nil {
 				autofixReportPlans = selected
 				autofixReportCounts = selectedCounts
 				autofixReportErr = err
+				skippedNoFix := skippedPlansWithNoSafeVersion(selected)
+				if len(skippedNoFix) > 0 {
+					vexPath, vexErr := writeRiskAcceptedVEX(rootPath, skippedNoFix, enrichedVulns)
+					if vexErr != nil {
+						fmt.Fprintf(progressStderr, "  warning: could not write risk-accepted VEX: %v\n", vexErr)
+					} else if vexPath != "" {
+						fmt.Fprintf(progressStderr, "  VEX (risk-accepted): %s\n", vexPath)
+					}
+					postRiskAcceptedVEXToSnapshot(scaSnapshotUuid, scaPersistedFindings, skippedNoFix, enrichedVulns, selectedCounts, gitCtx, sysInfo, rootPath, allPackages, progressStderr)
+				}
 			} else {
 				batches := autofix.GroupBatches(rootPath, selected)
 				if err := autofix.RunInstall(queryCtx, batches, false, progressStderr); err != nil {
@@ -1882,8 +1905,16 @@ func runLocalScan(
 	// SCA summary (vuln tables + "X packages | Y vulnerabilities") only when SCA
 	// ran. For a SAST-only scan the SCA headline is meaningless, so show a
 	// SAST-specific headline instead.
+	//
+	// Order: table → SCA Autofix (if any) → summary footer → artifact links.
+	// This keeps the snapshot URL visible at the very end.
+	var scaTotalPkgs, scaTotalVulns int
 	if !noSCA {
-		printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, resultsOnly)
+		scaTotalPkgs, scaTotalVulns = printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, resultsOnly)
+		if autofixReportPlans != nil {
+			printAutofixReport(autofixReportPlans, autofixReportCounts, 0, autofixReportErr)
+		}
+		printScanSummaryFooter(scaTotalPkgs, scaTotalVulns, enrichedVulns)
 	} else if sastReport != nil {
 		sast.PrintHeadline(sastReport)
 	}
@@ -1894,9 +1925,6 @@ func runLocalScan(
 
 	// Artefact links print last, after all analysis output.
 	printScanArtifacts(displaySBOM, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL, sarifSnapshots)
-	if autofixReportPlans != nil {
-		printAutofixReport(autofixReportPlans, autofixReportCounts, 0, autofixReportErr)
-	}
 	if isUnauthenticatedScan() {
 		printCommunitySignupReminder()
 	}
@@ -2125,10 +2153,10 @@ func printPrettyScanSummary(
 	noExploits bool,
 	noRemediation bool,
 	resultsOnly bool,
-) {
+) (int, int) {
 	// --results-only: stay silent when there are no findings.
 	if resultsOnly && len(enrichedVulns) == 0 {
-		return
+		return 0, 0
 	}
 
 	t := display.NewTerminal()
@@ -2567,14 +2595,18 @@ func printPrettyScanSummary(
 		}
 	}
 
-	fmt.Fprintln(os.Stdout, display.Divider(t))
-
-	// Summary line.
 	totalPkgs := len(countUniqueMap(allPackages))
+	return totalPkgs, totalVulns
+}
+
+// printScanSummaryFooter prints the closing divider, "N packages | M vulnerabilities"
+// summary line, and optional reachability breakdown. Called after SCA Autofix output
+// so the final artifact links come last.
+func printScanSummaryFooter(totalPkgs, totalVulns int, enrichedVulns []scan.EnrichedVuln) {
+	t := display.NewTerminal()
+	fmt.Fprintln(os.Stdout, display.Divider(t))
 	summary := fmt.Sprintf("  %d packages | %s", totalPkgs, pluralise("vulnerability", totalVulns))
 	fmt.Fprintln(os.Stdout, display.Bold(t, summary))
-
-	// Reachability summary (only when reachability ran).
 	if anyReachabilityAssessed(enrichedVulns) {
 		assessed, reachable, notReachable, notAssessable := countReachability(enrichedVulns)
 		fmt.Fprintf(os.Stdout, "  Reachability: %d assessed, %d reachable, %d not reachable, %d not assessable/no data\n",
@@ -2639,6 +2671,28 @@ func printAutofixReport(plans []autofix.FixCandidate, counts autofix.ProofCounts
 			fmt.Fprintf(os.Stdout, "  Not fixed: %s %s (%s)\n", p.PackageName, p.CurrentVer, p.SkipReason)
 			if p.Command != "" {
 				fmt.Fprintf(os.Stdout, "    manual: %s\n", p.Command)
+			}
+			if len(p.RejectedVersions) > 0 {
+				fmt.Fprintf(os.Stdout, "    Rationale (safest strategy): no vulnerability-free version available\n")
+				for _, rv := range p.RejectedVersions {
+					marker := ""
+					if rv.Version == p.CurrentVer {
+						marker = "  ← installed"
+					}
+					switch {
+					case rv.IsMalware:
+						fmt.Fprintf(os.Stdout, "      • %s: malware%s\n", rv.Version, marker)
+					case rv.ExplCount > 0:
+						fmt.Fprintf(os.Stdout, "      • %s: %d vuln(s), %d exploit(s)%s\n", rv.Version, rv.VulnCount, rv.ExplCount, marker)
+					default:
+						fmt.Fprintf(os.Stdout, "      • %s: %d vuln(s)%s\n", rv.Version, rv.VulnCount, marker)
+					}
+				}
+				latest := p.LatestAvailable
+				if latest == "" {
+					latest = p.CurrentVer
+				}
+				fmt.Fprintf(os.Stdout, "    Upgrading to latest (%s) would not reduce risk; staying at current version is risk-accepted.\n", latest)
 			}
 			continue
 		}
@@ -3117,6 +3171,166 @@ func autofixEvidencePayload(f *triage.TriageFinding, plan autofix.FixCandidate, 
 	return payload
 }
 
+// skippedPlansWithNoSafeVersion returns the subset of plans that were skipped
+// because no vulnerability-free Safe-Harbour version exists.
+func skippedPlansWithNoSafeVersion(plans []autofix.FixCandidate) []autofix.FixCandidate {
+	var out []autofix.FixCandidate
+	for _, p := range plans {
+		if p.Skipped && strings.Contains(p.SkipReason, "no Safe-Harbour") {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// writeRiskAcceptedVEX generates an OpenVEX document for packages that could
+// not be fixed because every available version has vulnerabilities. The
+// document records a risk-accepted decision and is written to
+// .vulnetix/vex-risk-accepted.json.
+func writeRiskAcceptedVEX(root string, skipped []autofix.FixCandidate, enrichedVulns []scan.EnrichedVuln) (string, error) {
+	if len(skipped) == 0 {
+		return "", nil
+	}
+
+	skipSet := map[string]bool{}
+	for _, p := range skipped {
+		skipSet[strings.ToLower(p.PackageName+"::"+p.Ecosystem)] = true
+	}
+
+	var findings []*triage.TriageFinding
+	seen := map[string]bool{}
+	for i := range enrichedVulns {
+		v := &enrichedVulns[i]
+		if !skipSet[strings.ToLower(v.PackageName+"::"+v.Ecosystem)] {
+			continue
+		}
+		key := strings.ToLower(v.CveID + "::" + v.PackageName)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		findings = append(findings, &triage.TriageFinding{
+			CVEID:          v.CveID,
+			Package:        v.PackageName,
+			Ecosystem:      v.Ecosystem,
+			InstalledVer:   v.PackageVer,
+			Status:         "affected",
+			ActionResponse: "risk-accepted: no vulnerability-free version available under safest strategy",
+		})
+	}
+	if len(findings) == 0 {
+		return "", nil
+	}
+
+	data, err := triage.GenerateOpenVEX(findings, triage.OpenVEXOptions{Tooling: "vulnetix-cli sca-autofix safest"})
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(root, ".vulnetix", "vex-risk-accepted.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// postRiskAcceptedVEXToSnapshot posts risk-acceptance VEX entries for packages
+// that have no vulnerability-free Safe-Harbour version. Mirrors
+// postAutofixVEXToSnapshot but uses Verdict "AFFECTED" and VEX status
+// "affected" to record that the team is aware and has accepted the risk.
+func postRiskAcceptedVEXToSnapshot(snapshotUuid string, persisted []vdb.CliFindingResult, skipped []autofix.FixCandidate, enrichedVulns []scan.EnrichedVuln, counts autofix.ProofCounts, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, rootPath string, packages []scan.ScopedPackage, w io.Writer) {
+	if snapshotUuid == "" || len(skipped) == 0 || isUnauthenticatedScan() {
+		return
+	}
+	if w == nil {
+		w = os.Stderr
+	}
+	client := newCliClient()
+	if client == nil {
+		return
+	}
+
+	byExact := map[string]vdb.CliFindingResult{}
+	byPackage := map[string]vdb.CliFindingResult{}
+	for _, f := range persisted {
+		if f.FindingID == "" || f.PackageName == "" {
+			continue
+		}
+		byPackage[autofixPersistedKey(f.FindingID, f.PackageName, "")] = f
+		if f.PackageVersion != "" {
+			byExact[autofixPersistedKey(f.FindingID, f.PackageName, f.PackageVersion)] = f
+		}
+	}
+
+	skipSet := map[string]bool{}
+	planByFinding := map[string]autofix.FixCandidate{}
+	for _, p := range skipped {
+		skipSet[strings.ToLower(p.PackageName+"::"+p.Ecosystem)] = true
+		for _, id := range p.CveIDs {
+			planByFinding[autofixFindingKey(id, p.PackageName, p.Ecosystem)] = p
+		}
+	}
+
+	seen := map[string]bool{}
+	var rows []vdb.CliReachabilityPayload
+	for i := range enrichedVulns {
+		v := &enrichedVulns[i]
+		if !skipSet[strings.ToLower(v.PackageName+"::"+v.Ecosystem)] {
+			continue
+		}
+		key := strings.ToLower(v.CveID + "::" + v.PackageName)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		pf := byExact[autofixPersistedKey(v.CveID, v.PackageName, v.PackageVer)]
+		if pf.FindingUuid == "" {
+			pf = byPackage[autofixPersistedKey(v.CveID, v.PackageName, "")]
+		}
+		plan := planByFinding[autofixFindingKey(v.CveID, v.PackageName, v.Ecosystem)]
+		f := &triage.TriageFinding{
+			CVEID:        v.CveID,
+			Package:      v.PackageName,
+			Ecosystem:    v.Ecosystem,
+			InstalledVer: v.PackageVer,
+		}
+		evidence, _ := json.Marshal(autofixEvidencePayload(f, plan, counts))
+		rows = append(rows, vdb.CliReachabilityPayload{
+			CveID:                  v.CveID,
+			FindingUuid:            pf.FindingUuid,
+			PackageName:            v.PackageName,
+			PackageVersion:         v.PackageVer,
+			Ecosystem:              v.Ecosystem,
+			Source:                 "SAFE_HARBOUR_ANALYSIS",
+			Verdict:                "AFFECTED",
+			EvidenceJSON:           string(evidence),
+			MemoryVexStatus:        "affected",
+			MemoryVexJustification: "",
+			MemoryVexAction:        "risk-accepted: no vulnerability-free version available under safest strategy",
+		})
+	}
+	if len(rows) == 0 {
+		return
+	}
+
+	env := buildCliEnv(gitCtx, sysInfo)
+	enrichCliEnvForSCA(&env, rootPath, packages, gitCtx)
+	resp, err := client.CliSCAReachability(env, vdb.CliSCAReachabilityRequest{
+		IngestionSnapshotUuid: snapshotUuid,
+		Results:               rows,
+	})
+	if err != nil {
+		fmt.Fprintf(w, "  warning: risk-accepted VEX publish failed: %v\n", err)
+		return
+	}
+	if resp != nil && resp.Data.VEXUrl != "" {
+		fmt.Fprintf(w, "  risk-accepted VEX published: %s\n", resp.Data.VEXUrl)
+	}
+}
+
 func autofixPersistedKey(cveID, packageName, version string) string {
 	return strings.ToLower(cveID) + "::" + strings.ToLower(packageName) + "::" + version
 }
@@ -3367,18 +3581,21 @@ func sortByThreat(vulns []scan.EnrichedVuln) {
 // When hasPartialResults is true, the error is printed inline (the caller
 // will continue); when false the caller returns the error to Cobra, so we
 // skip it here to avoid duplication.
-func printLookupSummary(client *vdb.Client, stats *scan.LookupStats, lookupErr error, hasPartialResults bool) {
+func printLookupSummary(client *vdb.Client, stats *scan.LookupStats, lookupErr error, hasPartialResults bool, w io.Writer) {
 	if stats == nil {
 		return
+	}
+	if w == nil {
+		w = os.Stderr
 	}
 
 	// Rate-limit info (verbose only — suppressed by default and when --silent).
 	if verbose && !silent {
 		if rl := client.LastRateLimit; rl != nil && rl.Present {
 			if rl.DayLimit == 0 && rl.Remaining < 0 {
-				fmt.Fprintf(os.Stderr, "  Rate limit: unlimited")
+				fmt.Fprintf(w, "  Rate limit: unlimited")
 			} else {
-				fmt.Fprintf(os.Stderr, "  Rate limit: %d/%d req/day remaining (resets %s)",
+				fmt.Fprintf(w, "  Rate limit: %d/%d req/day remaining (resets %s)",
 					rl.Remaining, rl.DayLimit, humanReset(rl.Reset))
 			}
 			if rl.Plan != "" {
@@ -3386,9 +3603,9 @@ func printLookupSummary(client *vdb.Client, stats *scan.LookupStats, lookupErr e
 				if rl.SoftLimits {
 					label += ", soft limits"
 				}
-				fmt.Fprintf(os.Stderr, " [%s]", label)
+				fmt.Fprintf(w, " [%s]", label)
 			}
-			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(w)
 		}
 	}
 
@@ -3411,10 +3628,10 @@ func printLookupSummary(client *vdb.Client, stats *scan.LookupStats, lookupErr e
 	if stats.Skipped > 0 {
 		parts = append(parts, fmt.Sprintf("%d skipped (name < 3 chars)", stats.Skipped))
 	}
-	fmt.Fprintf(os.Stderr, "  VDB lookup: %s of %d\n", strings.Join(parts, ", "), stats.Total)
+	fmt.Fprintf(w, "  VDB lookup: %s of %d\n", strings.Join(parts, ", "), stats.Total)
 
 	if lookupErr != nil && hasPartialResults {
-		fmt.Fprintf(os.Stderr, "  Error: %v\n", lookupErr)
+		fmt.Fprintf(w, "  Error: %v\n", lookupErr)
 	}
 }
 
