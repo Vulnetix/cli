@@ -609,18 +609,22 @@ func cliPostWithEnvContext[T any](ctx context.Context, c *Client, route string, 
 	}
 	if resp.StatusCode >= 400 {
 		var errResp ErrorResponse
+		var msg string
 		if err := json.Unmarshal(raw, &errResp); err == nil {
-			msg := fmt.Sprintf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
-			if resp.StatusCode == http.StatusNotFound {
-				return nil, &NotFoundError{Message: msg}
-			}
-			return nil, fmt.Errorf("%s: %s", route, msg)
+			msg = fmt.Sprintf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
+		} else {
+			msg = fmt.Sprintf("API error (%d): %s", resp.StatusCode, string(raw))
 		}
-		msg := fmt.Sprintf("API error (%d): %s", resp.StatusCode, string(raw))
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, &NotFoundError{Message: msg}
 		}
-		return nil, fmt.Errorf("%s: %s", route, msg)
+		// Typed so the self-healing retry loop (cli_sca.go) can branch on the
+		// status code and honour any Retry-After hint.
+		return nil, &CliAPIError{
+			StatusCode: resp.StatusCode,
+			RetryAfter: resolveRetryAfter(resp.Header),
+			Message:    fmt.Sprintf("%s: %s", route, msg),
+		}
 	}
 	return decodeCliResponse[T](raw)
 }
