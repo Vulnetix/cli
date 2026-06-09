@@ -14,35 +14,75 @@ func opts() ConfigOptions {
 	}
 }
 
+// TestNPMConfig covers the npm-ecosystem clients. .npmrc serves npm, pnpm, bun,
+// and Yarn Classic (v1); Yarn Berry (v2+) ignores .npmrc and gets its own
+// .yarnrc.yml. base64("org-123:secret") == "b3JnLTEyMzpzZWNyZXQ=".
 func TestNPMConfig(t *testing.T) {
 	eco, _ := ByCommand("npm")
 	files, err := ConfigFiles(eco, opts())
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(files) != 2 {
+		t.Fatalf("npm files = %d, want 2 (.npmrc + .yarnrc.yml)", len(files))
+	}
 	if files[0].Path != "/home/test/.npmrc" {
 		t.Fatalf("path = %q", files[0].Path)
 	}
 	for _, want := range []string{
 		"registry=https://packages.vulnetix.com/npm/",
-		"//packages.vulnetix.com/npm/:username=org-123",
-		"//packages.vulnetix.com/npm/:_password=c2VjcmV0",
+		"//packages.vulnetix.com/npm/:_auth=b3JnLTEyMzpzZWNyZXQ=",
 	} {
 		if !strings.Contains(files[0].Content, want) {
 			t.Errorf("npm config missing %q:\n%s", want, files[0].Content)
 		}
 	}
+
+	if files[1].Path != "/home/test/.yarnrc.yml" {
+		t.Fatalf("yarn berry path = %q", files[1].Path)
+	}
+	for _, want := range []string{
+		`npmRegistryServer: "https://packages.vulnetix.com/npm/"`,
+		`  "//packages.vulnetix.com/npm/":`,
+		"    npmAlwaysAuth: true",
+		`    npmAuthIdent: "org-123:secret"`,
+	} {
+		if !strings.Contains(files[1].Content, want) {
+			t.Errorf("yarn berry config missing %q:\n%s", want, files[1].Content)
+		}
+	}
 }
 
-func TestPyPIConfigUsesBasicAuthIndex(t *testing.T) {
+// TestPyPIConfig covers the pypi-ecosystem clients. pip.conf serves pip and
+// pipenv; uv ignores pip.conf and gets its own uv.toml.
+func TestPyPIConfig(t *testing.T) {
 	eco, _ := ByCommand("pypi")
 	files, err := ConfigFiles(eco, opts())
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(files) != 2 {
+		t.Fatalf("pypi files = %d, want 2 (pip.conf + uv.toml)", len(files))
+	}
+	if files[0].Path != "/home/test/.config/pip/pip.conf" {
+		t.Fatalf("pip path = %q", files[0].Path)
+	}
 	want := "index-url = https://org-123:secret@packages.vulnetix.com/pypi/simple/"
 	if !strings.Contains(files[0].Content, want) {
 		t.Errorf("pypi config missing %q:\n%s", want, files[0].Content)
+	}
+
+	if files[1].Path != "/home/test/.config/uv/uv.toml" {
+		t.Fatalf("uv path = %q", files[1].Path)
+	}
+	for _, want := range []string{
+		"[[index]]",
+		`url = "https://org-123:secret@packages.vulnetix.com/pypi/simple/"`,
+		"default = true",
+	} {
+		if !strings.Contains(files[1].Content, want) {
+			t.Errorf("uv config missing %q:\n%s", want, files[1].Content)
+		}
 	}
 }
 

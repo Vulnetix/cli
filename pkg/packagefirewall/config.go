@@ -34,9 +34,19 @@ func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
 	}
 	switch eco.ID {
 	case "npm":
-		return []ConfigFile{{Path: filepath.Join(home, ".npmrc"), Content: npmConfig(eco, opts)}}, nil
+		// .npmrc covers npm, pnpm, bun, and Yarn Classic (v1). Yarn Berry (v2+)
+		// ignores .npmrc and needs its own .yarnrc.yml.
+		return []ConfigFile{
+			{Path: filepath.Join(home, ".npmrc"), Content: npmConfig(eco, opts)},
+			{Path: filepath.Join(home, ".yarnrc.yml"), Content: yarnBerryConfig(eco, opts)},
+		}, nil
 	case "pypi":
-		return []ConfigFile{{Path: filepath.Join(home, ".config", "pip", "pip.conf"), Content: pypiConfig(eco, opts)}}, nil
+		// pip.conf covers pip, pipenv, and Poetry's legacy resolver. uv ignores
+		// pip.conf and needs its own uv.toml.
+		return []ConfigFile{
+			{Path: filepath.Join(home, ".config", "pip", "pip.conf"), Content: pypiConfig(eco, opts)},
+			{Path: filepath.Join(home, ".config", "uv", "uv.toml"), Content: uvConfig(eco, opts)},
+		}, nil
 	case "cargo":
 		return []ConfigFile{
 			{Path: filepath.Join(home, ".cargo", "config.toml"), Content: cargoConfig(eco, opts)},
@@ -84,6 +94,37 @@ func pypiConfig(eco Ecosystem, opts ConfigOptions) string {
 	return strings.Join([]string{
 		"[global]",
 		"index-url = " + withBasicAuth(ProxyURLWithSlash(opts.ProxyURL, eco)+"simple/", opts.OrgID, opts.APIKey),
+		"",
+	}, "\n")
+}
+
+// yarnBerryConfig configures Yarn Berry (v2+), which ignores .npmrc. It pins the
+// default registry to the firewall and scopes Basic auth to the firewall host.
+// npmAuthIdent is the plaintext "user:password" pair; Yarn base64-encodes it when
+// it contains a colon (an org UUID never does).
+func yarnBerryConfig(eco Ecosystem, opts ConfigOptions) string {
+	proxy := ProxyURLWithSlash(opts.ProxyURL, eco)
+	u, _ := url.Parse(proxy)
+	scope := "//" + strings.TrimPrefix(u.Host+u.Path, "/")
+	return strings.Join([]string{
+		"npmRegistryServer: " + yamlString(proxy),
+		"npmRegistries:",
+		"  " + yamlString(scope) + ":",
+		"    npmAlwaysAuth: true",
+		"    npmAuthIdent: " + yamlString(opts.OrgID+":"+opts.APIKey),
+		"",
+	}, "\n")
+}
+
+// uvConfig configures uv, which ignores pip.conf. The credentials are embedded in
+// the index URL userinfo (url.String percent-encodes them); default = true makes
+// the firewall the sole index, with no implicit fallback to pypi.org.
+func uvConfig(eco Ecosystem, opts ConfigOptions) string {
+	index := withBasicAuth(ProxyURLWithSlash(opts.ProxyURL, eco)+"simple/", opts.OrgID, opts.APIKey)
+	return strings.Join([]string{
+		"[[index]]",
+		`url = "` + index + `"`,
+		"default = true",
 		"",
 	}, "\n")
 }
