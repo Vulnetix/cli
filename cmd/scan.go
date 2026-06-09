@@ -691,8 +691,6 @@ func runLocalScan(
 	scaAutofixOpts autofix.Options,
 	autofixResolved []*triage.TriageFinding,
 ) (retErr error) {
-	// Create a v1 VDB client for package search (not the upload/scan v2 client).
-	client := newSearchClient()
 	dctx := display.NewWithProgress(display.ModeText, silent, noProgress)
 	scanProgress := dctx.Progress("Scan", 7)
 	progressStderr := scanProgress.Writer(os.Stderr)
@@ -713,8 +711,8 @@ func runLocalScan(
 	var manifestGroups []scan.ManifestGroup
 	var licensedPackages []license.PackageLicense
 	var allVulns []scan.VulnFinding
-	// scaEnrichedFromAPI is non-nil when /v2/cli.sca successfully served the
-	// SCA lookup, letting downstream code skip the legacy EnrichVulns loop.
+	// scaEnrichedFromAPI holds the version-filtered, enriched findings returned
+	// by /v2/cli.sca (the sole SCA path). nil only when SCA is skipped.
 	var scaEnrichedFromAPI []scan.EnrichedVuln
 	// scaInsights holds per-package policy-gate signals returned by /v2/cli.sca
 	// (publish dates, version lists, EOL, malware) consumed by the gate block.
@@ -828,10 +826,10 @@ func runLocalScan(
 		}
 		scanProgress.Update(2, "Prepared dependency metadata")
 
-		// ── Try /v2/cli.sca first (one round-trip for the whole PURL list) ───
-		// This replaces the per-PURL LookupVulns + EnrichVulns fan-out below.
-		// Falls back to the legacy two-loop path on failure or when the
-		// operator sets VULNETIX_CLI_SCA_API=off.
+		// ── Query /v2/cli.sca (one self-healing round-trip for the PURL list) ─
+		// The endpoint returns CycloneDX + enriched findings + reachability in a
+		// single call, retrying/backing-off and reducing chunk size on transient
+		// failure. It is the only SCA path — there is no legacy per-PURL fallback.
 		gateOpts := cliSCAGateOptions{
 			Cooldown:     cooldownDays > 0,
 			VersionLag:   versionLag > 0 || scaAutofix,
@@ -850,30 +848,13 @@ func runLocalScan(
 			scaPersistedFindings = apiPersistedFindings
 			scanProgress.Update(3, fmt.Sprintf("VDB returned %d finding(s)", len(allVulns)))
 		} else {
-			// ── Count unique packages to query ───────────────────────────────
-			uniqueCount := countUniquePackages(allPackages)
-			fmt.Fprintf(progressStderr, "\nQuerying VDB for %d unique package(s)...\n", uniqueCount)
-
-			// ── Query VDB ────────────────────────────────────────────────────
-			var progressFn func(done, total int)
-			if !noProgress {
-				progressFn = func(done, total int) {
-					if scanProgress.Interactive() || done%10 == 0 || done == total {
-						scanProgress.SetStage(fmt.Sprintf("Querying VDB packages %d/%d", done, total))
-					}
-				}
-			}
-
-			scannedVulns, lookupStats, vulnsErr := scan.LookupVulns(queryCtx, client, allPackages, concurrency, progressFn)
-
-			hasPartial := vulnsErr != nil && len(scannedVulns) > 0
-			printLookupSummary(client, lookupStats, vulnsErr, hasPartial, progressStderr)
-
-			if vulnsErr != nil && len(scannedVulns) == 0 {
-				return fmt.Errorf("VDB lookup failed: %w", vulnsErr)
-			}
-			allVulns = scannedVulns
-			scanProgress.Update(3, fmt.Sprintf("VDB returned %d finding(s)", len(allVulns)))
+			// /v2/cli.sca is the only path to the VDB for SCA — the legacy
+			// per-PURL lookup has been removed. The endpoint self-heals (retry,
+			// backoff, adaptive chunk-size reduction), so apiServed=false means
+			// the API is genuinely unusable: a missing/expired credential, bad
+			// config, or an unreachable network. Surface that as an actionable
+			// error rather than silently degrading.
+			return fmt.Errorf("VDB SCA lookup failed: /v2/cli.sca was unavailable (check credentials, config, and network connectivity)")
 		}
 	} else {
 		scanProgress.Update(3, "Skipped SCA package vulnerability lookup")
@@ -889,48 +870,8 @@ func runLocalScan(
 	}
 	// ── Enrich: version filter, exploits, remediation ────────────────────
 	// Skipped when the API-served path populated enriched data already.
-	var enrichedVulns []scan.EnrichedVuln
-	if scaEnrichedFromAPI != nil {
-		enrichedVulns = scaEnrichedFromAPI
-		scanProgress.Update(4, fmt.Sprintf("Received %d enriched finding(s)", len(enrichedVulns)))
-	} else {
-		v2Client := newEnrichmentClient()
-		autofixFallback := scaAutofix
-		if autofixFallback && v2Client != nil && v2Client.HTTPClient != nil {
-			v2Client.HTTPClient.Timeout = 10 * time.Second
-		}
-
-		enrichCount := len(allVulns)
-		if enrichCount > 0 {
-			if autofixFallback {
-				fmt.Fprintf(progressStderr, "\nEnriching %s (autofix remediation fallback)...\n",
-					pluralise("vulnerability", enrichCount))
-			} else {
-				fmt.Fprintf(progressStderr, "\nEnriching %s (version check, exploits, remediation)...\n",
-					pluralise("vulnerability", enrichCount))
-			}
-		}
-
-		var enrichProgressFn func(done, total int)
-		if !noProgress && enrichCount > 0 {
-			enrichProgressFn = func(done, total int) {
-				if scanProgress.Interactive() || done%10 == 0 || done == total {
-					scanProgress.SetStage(fmt.Sprintf("Enriching vulnerabilities %d/%d", done, total))
-				}
-			}
-		}
-
-		var enrichErr error
-		enrichedVulns, enrichErr = scan.EnrichVulnsWithOptions(queryCtx, client, v2Client, allVulns, allPackages, concurrency, enrichProgressFn, scan.EnrichOptions{
-			SkipAffected:    autofixFallback,
-			SkipExploits:    noExploits || autofixFallback,
-			SkipRemediation: noRemediation,
-		})
-		if enrichErr != nil {
-			fmt.Fprintf(progressStderr, "  warning: enrichment failed: %v\n", enrichErr)
-		}
-		scanProgress.Update(4, fmt.Sprintf("Enriched %d finding(s)", len(enrichedVulns)))
-	}
+	enrichedVulns := scaEnrichedFromAPI
+	scanProgress.Update(4, fmt.Sprintf("Received %d enriched finding(s)", len(enrichedVulns)))
 
 	// Attach enriched vulns back to their file results so the BOM gets full ratings.
 	enrichedByKey := make(map[string]scan.EnrichedVuln, len(enrichedVulns))
@@ -1031,11 +972,15 @@ func runLocalScan(
 					autofixReportCounts = selectedCounts
 					autofixReportErr = err
 				} else {
-					afterEnriched, confirmErr := scanAfterAutofix(queryCtx, files, rootPath, concurrency)
+					afterEnriched, confirmErr := scanAfterAutofix(files)
+					var resolvedFindings []*triage.TriageFinding
 					if confirmErr != nil {
-						fmt.Fprintf(progressStderr, "  warning: autofix confirmation scan failed before final rescan: %v\n", confirmErr)
+						// Don't claim resolutions we couldn't verify — leave
+						// resolvedFindings empty so nothing is marked not_affected.
+						fmt.Fprintf(progressStderr, "  warning: autofix confirmation scan failed; not marking fixes as resolved: %v\n", confirmErr)
+					} else {
+						resolvedFindings = resolvedAutofixFindings(selected, afterEnriched)
 					}
-					resolvedFindings := resolvedAutofixFindings(selected, afterEnriched)
 					vexPath, vexErr := writeAutofixVEX(rootPath, resolvedFindings)
 					if vexErr != nil {
 						fmt.Fprintf(progressStderr, "  warning: could not write autofix VEX: %v\n", vexErr)
@@ -2971,7 +2916,11 @@ func pythonCommandForManager(p autofix.FixCandidate, pm string) string {
 	}
 }
 
-func scanAfterAutofix(ctx context.Context, files []scan.DetectedFile, rootPath string, concurrency int) ([]scan.EnrichedVuln, error) {
+// scanAfterAutofix re-parses the (post-fix) manifests and re-queries the VDB to
+// determine which vulnerabilities remain. It routes through the same self-healing
+// /v2/cli.sca path as the primary scan (confirmation mode: no reachability,
+// snapshot, or persistence) — there is no legacy per-PURL fallback.
+func scanAfterAutofix(files []scan.DetectedFile) ([]scan.EnrichedVuln, error) {
 	var allPackages []scan.ScopedPackage
 	for _, f := range files {
 		if f.FileType == scan.FileTypeCycloneDX {
@@ -2998,19 +2947,7 @@ func scanAfterAutofix(ctx context.Context, files []scan.DetectedFile, rootPath s
 	if len(allPackages) == 0 {
 		return nil, nil
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	client := newSearchClient()
-	scannedVulns, _, err := scan.LookupVulns(ctx, client, allPackages, concurrency, nil)
-	if err != nil && len(scannedVulns) == 0 {
-		return nil, err
-	}
-	enriched, enrichErr := scan.EnrichVulns(ctx, client, newEnrichmentClient(), scannedVulns, allPackages, concurrency, nil)
-	if enrichErr != nil {
-		return enriched, enrichErr
-	}
-	return enriched, err
+	return confirmVulnsViaCliSCA(allPackages)
 }
 
 func resolvedAutofixFindings(plans []autofix.FixCandidate, after []scan.EnrichedVuln) []*triage.TriageFinding {
@@ -3574,82 +3511,6 @@ func sortByThreat(vulns []scan.EnrichedVuln) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-// printLookupSummary writes a concise VDB lookup summary to stderr.
-// It always shows rate-limit status when available, and lists any skipped,
-// failed, or cancelled packages so the user knows what was not checked.
-// When hasPartialResults is true, the error is printed inline (the caller
-// will continue); when false the caller returns the error to Cobra, so we
-// skip it here to avoid duplication.
-func printLookupSummary(client *vdb.Client, stats *scan.LookupStats, lookupErr error, hasPartialResults bool, w io.Writer) {
-	if stats == nil {
-		return
-	}
-	if w == nil {
-		w = os.Stderr
-	}
-
-	// Rate-limit info (verbose only — suppressed by default and when --silent).
-	if verbose && !silent {
-		if rl := client.LastRateLimit; rl != nil && rl.Present {
-			if rl.DayLimit == 0 && rl.Remaining < 0 {
-				fmt.Fprintf(w, "  Rate limit: unlimited")
-			} else {
-				fmt.Fprintf(w, "  Rate limit: %d/%d req/day remaining (resets %s)",
-					rl.Remaining, rl.DayLimit, humanReset(rl.Reset))
-			}
-			if rl.Plan != "" {
-				label := rl.Plan
-				if rl.SoftLimits {
-					label += ", soft limits"
-				}
-				fmt.Fprintf(w, " [%s]", label)
-			}
-			fmt.Fprintln(w)
-		}
-	}
-
-	// Nothing to report beyond rate limits when everything succeeded.
-	if stats.Failed == 0 && stats.Skipped == 0 && stats.Cancelled == 0 {
-		return
-	}
-
-	// Build a concise one-line summary of non-successful outcomes.
-	var parts []string
-	if stats.Succeeded > 0 {
-		parts = append(parts, fmt.Sprintf("%d succeeded", stats.Succeeded))
-	}
-	if stats.Failed > 0 {
-		parts = append(parts, fmt.Sprintf("%d failed", stats.Failed))
-	}
-	if stats.Cancelled > 0 {
-		parts = append(parts, fmt.Sprintf("%d cancelled", stats.Cancelled))
-	}
-	if stats.Skipped > 0 {
-		parts = append(parts, fmt.Sprintf("%d skipped (name < 3 chars)", stats.Skipped))
-	}
-	fmt.Fprintf(w, "  VDB lookup: %s of %d\n", strings.Join(parts, ", "), stats.Total)
-
-	if lookupErr != nil && hasPartialResults {
-		fmt.Fprintf(w, "  Error: %v\n", lookupErr)
-	}
-}
-
-// humanReset formats a rate-limit reset value into "in <duration>".
-// The value may be a Unix epoch timestamp (>1_000_000_000) or relative seconds.
-func humanReset(val int) string {
-	if val <= 0 {
-		return "now"
-	}
-	secs := val
-	if val > 1_000_000_000 {
-		secs = val - int(time.Now().Unix())
-		if secs <= 0 {
-			return "now"
-		}
-	}
-	return "in " + formatDuration(secs)
-}
 
 // newSearchClient creates a VDB v1 client for package search using stored credentials.
 // Falls back to embedded community credentials when no user credentials are configured.

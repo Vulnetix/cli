@@ -1,12 +1,7 @@
 package scan
 
 import (
-	"context"
 	"strings"
-	"sync"
-
-	"github.com/vulnetix/cli/v3/internal/update"
-	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 // AffectedSymbols carries the lower-efficacy symbol-level fallback shipped on
@@ -27,7 +22,10 @@ func (a *AffectedSymbols) HasAny() bool {
 	return len(a.Routines) > 0 || len(a.Files) > 0 || len(a.Modules) > 0
 }
 
-// EnrichedVuln extends VulnFinding with version-filtered, enriched data.
+// EnrichedVuln extends VulnFinding with version-filtered, enriched data. It is
+// populated by SynthesiseFromCDX from the /v2/cli.sca response — the server now
+// performs version filtering, exploit-intel, and remediation enrichment in the
+// same round-trip, so there is no separate client-side enrichment loop.
 type EnrichedVuln struct {
 	VulnFinding
 	Confirmed       bool    // true if installed version is in affected range
@@ -131,208 +129,10 @@ type IDSRule struct {
 	CveID   string
 }
 
-// EnrichVulns filters vulnerabilities by affected version range (via V2Affected),
-// fetches exploit intelligence and remediation plans, and deduplicates by (CveID, PkgName).
-func EnrichVulns(
-	ctx context.Context,
-	v1Client *vdb.Client,
-	v2Client *vdb.Client,
-	findings []VulnFinding,
-	packages []ScopedPackage,
-	concurrency int,
-	progress func(done, total int),
-) ([]EnrichedVuln, error) {
-	return EnrichVulnsWithOptions(ctx, v1Client, v2Client, findings, packages, concurrency, progress, EnrichOptions{})
-}
-
-func EnrichVulnsWithOptions(
-	ctx context.Context,
-	v1Client *vdb.Client,
-	v2Client *vdb.Client,
-	findings []VulnFinding,
-	packages []ScopedPackage,
-	concurrency int,
-	progress func(done, total int),
-	opts EnrichOptions,
-) ([]EnrichedVuln, error) {
-	if concurrency <= 0 {
-		concurrency = 5
-	}
-
-	// Deduplicate findings by (CveID, PkgName) and count paths.
-	type dedupKey struct {
-		CveID   string
-		PkgName string
-	}
-	type dedupEntry struct {
-		finding   VulnFinding
-		pathCount int
-	}
-	deduped := map[dedupKey]*dedupEntry{}
-	var orderedKeys []dedupKey
-
-	for _, f := range findings {
-		dk := dedupKey{f.CveID, f.PackageName}
-		if entry, ok := deduped[dk]; ok {
-			entry.pathCount++
-		} else {
-			deduped[dk] = &dedupEntry{finding: f, pathCount: 1}
-			orderedKeys = append(orderedKeys, dk)
-		}
-	}
-
-	total := len(orderedKeys)
-	if total == 0 {
-		return nil, nil
-	}
-
-	type enrichResult struct {
-		idx      int
-		enriched *EnrichedVuln
-	}
-	resultsCh := make(chan enrichResult, total)
-	sem := make(chan struct{}, concurrency)
-	var wg sync.WaitGroup
-	var doneCount int
-	var doneMu sync.Mutex
-
-	for i, dk := range orderedKeys {
-		if ctx.Err() != nil {
-			break
-		}
-		entry := deduped[dk]
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(idx int, f VulnFinding, pathCount int) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			ev := enrichOne(ctx, v1Client, v2Client, f, packages, opts)
-			if ev != nil {
-				ev.PathCount = pathCount
-				resultsCh <- enrichResult{idx: idx, enriched: ev}
-			}
-
-			doneMu.Lock()
-			doneCount++
-			if progress != nil {
-				progress(doneCount, total)
-			}
-			doneMu.Unlock()
-		}(i, entry.finding, entry.pathCount)
-	}
-
-	go func() {
-		wg.Wait()
-		close(resultsCh)
-	}()
-
-	// Collect results preserving order for determinism.
-	indexed := make(map[int]*EnrichedVuln)
-	for r := range resultsCh {
-		indexed[r.idx] = r.enriched
-	}
-
-	var result []EnrichedVuln
-	for i := 0; i < total; i++ {
-		if ev, ok := indexed[i]; ok {
-			result = append(result, *ev)
-		}
-	}
-	return result, nil
-}
-
-// enrichOne processes a single VulnFinding: checks affected version, fetches exploits
-// and remediation plan. Returns nil if the installed version is not affected.
-func enrichOne(
-	ctx context.Context,
-	v1Client *vdb.Client,
-	v2Client *vdb.Client,
-	f VulnFinding,
-	packages []ScopedPackage,
-	opts EnrichOptions,
-) *EnrichedVuln {
-	ev := &EnrichedVuln{
-		VulnFinding: f,
-		Confirmed:   true,
-	}
-
-	// ── 1. Check affected version range ────────────────────────────────
-	if !opts.SkipAffected && v2Client != nil && f.CveID != "" {
-		affected, err := v2Client.V2Affected(f.CveID, vdb.V2QueryParams{
-			Ecosystem:   f.Ecosystem,
-			PackageName: f.PackageName,
-		})
-		if err == nil {
-			versionRange, confirmed, matchMethod := checkAffectedResponse(affected, f.PackageName, f.PackageVer, f.Ecosystem)
-			ev.AffectedRange = versionRange
-			ev.MatchMethod = matchMethod
-			if versionRange != "" && !confirmed {
-				return nil // installed version is NOT in affected range
-			}
-		}
-		// If the call fails, keep the vuln (err on side of caution).
-	}
-
-	// ── 2. Fetch exploit intelligence ──────────────────────────────────
-	if !opts.SkipExploits && v1Client != nil && f.CveID != "" {
-		exploitData, err := v1Client.GetExploits(f.CveID)
-		if err == nil {
-			ev.ExploitIntel = parseExploitSummary(exploitData)
-			ev.IDSRules = extractIDSRules(exploitData, f.CveID)
-		}
-	}
-
-	// ── 3. Fetch remediation plan ──────────────────────────────────────
-	if !opts.SkipRemediation && v2Client != nil && f.CveID != "" {
-		remParams := vdb.V2RemediationParams{}
-		remParams.Ecosystem = f.Ecosystem
-		remParams.PackageName = f.PackageName
-		remParams.CurrentVersion = f.PackageVer
-		remData, err := v2Client.V2RemediationPlan(f.CveID, remParams)
-		if err == nil {
-			ev.Remediation = parseRemediationInfo(remData)
-			ParseRemediationScores(remData, ev)
-		}
-	}
-
-	// ── 4. Fix-version safety net ─────────────────────────────────────
-	// As a final check for all confirmed vulns, if remediation data provides
-	// a fix version and the installed version is at or above it, filter out.
-	// For wildcards (*) with no fix, assume all versions are affected.
-	if fixVer := ev.bestFixVersion(); fixVer != "" {
-		installed, errI := update.ParseVersion(strings.TrimPrefix(f.PackageVer, "v"))
-		fix, errF := update.ParseVersion(strings.TrimPrefix(fixVer, "v"))
-		if errI == nil && errF == nil && installed.Compare(fix) >= 0 {
-			return nil // installed version is at or above the fix — not affected
-		}
-		// Below the fix — append +fix-check to record that we verified.
-		if !strings.HasSuffix(ev.MatchMethod, "+fix-check") {
-			ev.MatchMethod = strings.TrimSuffix(ev.MatchMethod, "+wildcard") + "+fix-check"
-		}
-	} else if strings.HasSuffix(ev.MatchMethod, "+wildcard") {
-		// Wildcard with no fix from any source — keep as affected, clean up method.
-		ev.MatchMethod = strings.TrimSuffix(ev.MatchMethod, "+wildcard") + "+wildcard-no-fix"
-	}
-
-	// ── 5. Compute per-source severities and MaxSeverity ───────────────
-	ComputeEnrichedSeverities(ev)
-
-	return ev
-}
-
 // isWildcardRange returns true if the version range means "all versions".
 func isWildcardRange(vr string) bool {
 	vr = strings.TrimSpace(vr)
 	return vr == "*" || vr == ">= 0" || vr == ">= 0.0.0" || vr == "<= 99999"
-}
-
-// bestFixVersion returns the best available fix version from remediation data.
-func (ev *EnrichedVuln) bestFixVersion() string {
-	if ev.Remediation != nil && ev.Remediation.FixVersion != "" {
-		return ev.Remediation.FixVersion
-	}
-	return ""
 }
 
 // checkAffectedResponse parses the V2Affected response and determines if the
@@ -388,7 +188,7 @@ func checkAffectedResponse(data map[string]interface{}, pkgName, installedVer, e
 		allRanges = append(allRanges, vr)
 
 		if isWildcardRange(vr) {
-			// Wildcard — defer to fix-version check in enrichOne.
+			// Wildcard — defer to fix-version check.
 			return vr, true, "name+wildcard"
 		}
 
@@ -476,94 +276,6 @@ func matchesByCPE(am map[string]interface{}, lowerPkg string) bool {
 
 	_ = vendor // vendor alone is too broad to match on
 	return false
-}
-
-// parseExploitSummary extracts exploit intelligence summary from the GetExploits response.
-func parseExploitSummary(data map[string]interface{}) *ExploitSummary {
-	es := &ExploitSummary{}
-
-	if ec, ok := data["exploitCount"].(float64); ok {
-		es.ExploitCount = int(ec)
-	} else if ec, ok := data["count"].(float64); ok {
-		es.ExploitCount = int(ec)
-	}
-
-	// Source breakdown from summary.
-	if summary, ok := data["summary"].(map[string]interface{}); ok {
-		for source, count := range summary {
-			if c, ok := count.(float64); ok && c > 0 {
-				es.Sources = append(es.Sources, source)
-			}
-		}
-	}
-
-	// Detailed exploits array — check for weaponized maturity.
-	if exploits, ok := data["exploits"].([]interface{}); ok {
-		for _, exp := range exploits {
-			em, ok := exp.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			source := strings.ToLower(stringVal(em, "source"))
-			// Nmap NSE scripts are weaponised tooling even when the API does
-			// not tag them with a maturity field (older responses).
-			if source == "nmap-nse" {
-				es.HasWeaponized = true
-				if es.HighestMaturity == "" || maturityRank("weaponized") < maturityRank(strings.ToLower(es.HighestMaturity)) {
-					es.HighestMaturity = "weaponized"
-				}
-			}
-			maturity := stringVal(em, "maturity")
-			maturityLower := strings.ToLower(maturity)
-			if maturityLower == "weaponized" || maturityLower == "functional" {
-				es.HasWeaponized = true
-			}
-			if es.HighestMaturity == "" || maturityRank(maturityLower) < maturityRank(strings.ToLower(es.HighestMaturity)) {
-				es.HighestMaturity = maturity
-			}
-		}
-	}
-
-	return es
-}
-
-// maturityRank returns a rank for exploit maturity (lower = more dangerous).
-func maturityRank(m string) int {
-	switch m {
-	case "weaponized":
-		return 0
-	case "functional":
-		return 1
-	case "poc":
-		return 2
-	case "unproven":
-		return 3
-	default:
-		return 4
-	}
-}
-
-// parseRemediationInfo extracts remediation details from V2RemediationPlan response.
-func parseRemediationInfo(data map[string]interface{}) *RemediationInfo {
-	ri := &RemediationInfo{}
-
-	ri.FixAvailability = stringVal(data, "fixAvailability")
-
-	// Extract SSVC and fix version from actions.
-	if actions, ok := data["actions"].([]interface{}); ok {
-		for _, act := range actions {
-			am, ok := act.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			title := stringVal(am, "title")
-			if title != "" {
-				ri.Actions = append(ri.Actions, title)
-			}
-		}
-	}
-
-	return ri
 }
 
 // ParseRemediationScores extracts scores from the remediation plan response
@@ -659,58 +371,6 @@ func ComputeEnrichedSeverities(ev *EnrichedVuln) {
 		best = "unscored"
 	}
 	ev.MaxSeverity = best
-}
-
-// extractIDSRules looks for snort/suricata rules in the exploit response.
-func extractIDSRules(data map[string]interface{}, cveID string) []IDSRule {
-	var rules []IDSRule
-
-	// Check for dedicated IDS/detection rules section.
-	for _, key := range []string{"idsRules", "ids_rules", "detectionRules", "detection_rules"} {
-		if ruleList, ok := data[key].([]interface{}); ok {
-			for _, r := range ruleList {
-				if rm, ok := r.(map[string]interface{}); ok {
-					rule := IDSRule{
-						Type:    stringVal(rm, "type"),
-						Content: stringVal(rm, "content"),
-						Source:  stringVal(rm, "source"),
-						CveID:   cveID,
-					}
-					if rule.Content != "" {
-						rules = append(rules, rule)
-					}
-				}
-			}
-		}
-	}
-
-	// Check individual exploits for embedded rules.
-	if exploits, ok := data["exploits"].([]interface{}); ok {
-		for _, exp := range exploits {
-			em, ok := exp.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			expType := strings.ToLower(stringVal(em, "type"))
-			source := strings.ToLower(stringVal(em, "source"))
-			if expType == "snort" || expType == "suricata" || source == "snort" || source == "suricata" {
-				content := stringVal(em, "content")
-				if content == "" {
-					content = stringVal(em, "rule")
-				}
-				if content != "" {
-					rules = append(rules, IDSRule{
-						Type:    expType,
-						Content: content,
-						Source:  source,
-						CveID:   cveID,
-					})
-				}
-			}
-		}
-	}
-
-	return rules
 }
 
 // CollectIDSRules gathers all IDS rules from enriched vulns.

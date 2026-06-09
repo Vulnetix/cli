@@ -108,6 +108,20 @@ func (e *NotFoundError) Error() string {
 	return e.Message
 }
 
+// CliAPIError is returned by the cli.* endpoints when the API responds with an
+// HTTP status >= 400. It carries the status code (so callers can distinguish
+// retryable 5xx/429 from terminal 4xx) and any Retry-After hint parsed from the
+// response headers, enabling the self-healing retry/backoff loop in cli_sca.go.
+type CliAPIError struct {
+	StatusCode int
+	RetryAfter time.Duration // parsed from the Retry-After header; 0 if absent
+	Message    string
+}
+
+func (e *CliAPIError) Error() string {
+	return e.Message
+}
+
 // sharedTransport is reused across clients for connection pooling.
 var sharedTransport = &http.Transport{
 	MaxIdleConns:        20,

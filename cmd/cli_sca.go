@@ -1,21 +1,22 @@
 package cmd
 
-// tryCliSCA encapsulates the /v2/cli.sca round-trip that replaces the
-// per-PURL LookupVulns + EnrichVulns fan-out. Returns:
-//   - apiServed=true  → caller uses findings/enriched as-is, skips legacy
-//   - apiServed=false → caller falls back to the legacy two-loop path
-//
-// Failures are non-fatal — a one-line note goes to stderr, but the scan
-// continues via the legacy path so a flaky network or expired credential
-// never breaks `vulnetix sca`.
+// tryCliSCA performs the /v2/cli.sca round-trip — the single path to the VDB
+// for SCA (there is no legacy per-PURL fallback). It self-heals: each batch is
+// retried with backoff, and a batch that keeps failing is split into smaller
+// chunks (down to a single PURL) before being recorded as unservable. Returns:
+//   - apiServed=true  → caller uses findings/enriched as-is
+//   - apiServed=false → the API is genuinely unusable (auth/config/network);
+//     the caller surfaces this as an error.
 
 import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,9 +31,19 @@ import (
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
+const cliSCABatchTimeout = 30 * time.Second
+
+// Self-healing retry/backoff knobs for the cli.sca sender. Declared as vars
+// (not consts) so tests can shrink them — the production values stay fixed.
+var (
+	maxBatchAttempts = 3                      // attempts per request before giving up
+	scaBackoffBase   = 500 * time.Millisecond // first backoff step
+	scaBackoffMax    = 8 * time.Second        // backoff ceiling
+)
+
 const (
-	scaAPIDisabledEnv  = "VULNETIX_CLI_SCA_API"
-	cliSCABatchTimeout = 30 * time.Second
+	minChunkSize = 1  // a job at this size can no longer be split on failure
+	sCAChunkSize = 25 // PURLs per batch; halved adaptively on transient failure
 )
 
 // cliSCAGateOptions tells tryCliSCA which per-package gate signals the active
@@ -48,9 +59,6 @@ type cliSCAGateOptions struct {
 func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string, gateOpts cliSCAGateOptions, w io.Writer) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight, snapshotUuid string, snapshotURL string, persisted []vdb.CliFindingResult) {
 	if w == nil {
 		w = os.Stderr
-	}
-	if v := os.Getenv(scaAPIDisabledEnv); v == "off" || v == "0" || v == "false" {
-		return false, nil, nil, nil, "", "", nil
 	}
 	if len(allPackages) == 0 {
 		return false, nil, nil, nil, "", "", nil
@@ -76,7 +84,6 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	// Smaller chunks trade a few extra round-trips for predictable latency
 	// against vuln-dense fixtures where each PURL may fan out to dozens of
 	// CVE rows in the handler.
-	const sCAChunkSize = 25
 	chunks := chunkPurls(uniquePurls, sCAChunkSize)
 
 	// One default-visible status line; per-batch progress is verbose-only.
@@ -117,30 +124,28 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	mergedInsights := make([]vdb.CliPackageInsight, 0)
 	tierObserved := "" // "pro" wins over any spurious community batch
 	var anyTierGated bool
-	var batchesOK, batchesFailed int
-	var packageRequestsFailed int
-	var firstErr error
 	var snapshot *vdb.CliIngestionSnapshot
 	var persistedFindings []vdb.CliFindingResult
 
-	// Total requests cover both the PURL chunks (indices 0..len-1) and the
-	// manifest-body slots (slot s rides request s+1). Always at least one (the
-	// snapshot-creating chunk 0).
-	nReq := len(chunks)
-	if 1+len(bodySlots) > nReq {
-		nReq = 1 + len(bodySlots)
+	// Seed the self-healing job queue. The first PURL chunk is the primary job —
+	// it carries the metadata manifests + full package list and creates the
+	// run/snapshot. Remaining PURL chunks are discovery jobs; the size-bounded
+	// manifest-body slots each ride their own job, anchored to the snapshot once
+	// it exists.
+	jobs := make([]scaJob, 0, len(chunks)+len(bodySlots))
+	for i, c := range chunks {
+		jobs = append(jobs, scaJob{purls: c, primary: i == 0, manifestSlot: -1})
 	}
-	if nReq == 0 {
-		nReq = 1
+	for s := range bodySlots {
+		jobs = append(jobs, scaJob{primary: false, manifestSlot: s})
+	}
+	if len(jobs) == 0 {
+		jobs = append(jobs, scaJob{primary: true, manifestSlot: -1})
 	}
 
-	for i := 0; i < nReq; i++ {
-		var purls []string
-		if i < len(chunks) {
-			purls = chunks[i]
-		}
+	buildReq := func(job scaJob) (vdb.CliEnv, vdb.CliSCARequest, bool) {
 		req := vdb.CliSCARequest{
-			Purls: purls,
+			Purls: job.purls,
 			Options: vdb.CliSCAOptions{
 				IncludeReachability: boolPtrCLI(true),
 				IncludeCooldown:     gateOpts.Cooldown,
@@ -150,47 +155,31 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 				IncludeMalware:      gateOpts.Malware,
 			},
 		}
-		var reqEnv vdb.CliEnv
-		if i == 0 {
-			// Chunk 0: metadata-only manifests + the full package list; creates the
-			// run/snapshot.
-			reqEnv = metaEnv
+		if job.primary {
+			// Creates the run/snapshot: metadata-only manifests + full package list.
 			req.Packages = allCliPackages
-		} else {
-			reqEnv = lightEnv
-			if snapshot != nil {
-				// Append under chunk-0's run. Carry packages for finding context on
-				// chunks that have purls, and this request's slice of manifest bodies.
-				req.IngestionSnapshotUuid = snapshot.Uuid
-				if i < len(chunks) {
-					req.Packages = allCliPackages
-				}
-				if slot := i - 1; slot >= 0 && slot < len(bodySlots) {
-					reqEnv.Manifests = bodySlots[slot]
-				}
-			} else if i >= len(chunks) {
-				// No snapshot to anchor a manifest-only request; skip it. (Discovery
-				// chunks with purls still run below for CDX/vuln data.)
-				continue
-			}
+			return metaEnv, req, false
 		}
-		reqCtx, cancel := context.WithTimeout(context.Background(), cliSCABatchTimeout)
-		resp, err := client.CliSCAWithContext(reqCtx, reqEnv, req)
-		cancel()
-		if err != nil {
-			batchesFailed++
-			if i < len(chunks) {
-				packageRequestsFailed++
+		reqEnv := lightEnv
+		if snapshot != nil {
+			// Append under the primary's run. Carry packages for finding context on
+			// jobs that have purls, plus this job's slice of manifest bodies.
+			req.IngestionSnapshotUuid = snapshot.Uuid
+			if len(job.purls) > 0 {
+				req.Packages = allCliPackages
 			}
-			if firstErr == nil {
-				firstErr = err
+			if job.manifestSlot >= 0 && job.manifestSlot < len(bodySlots) {
+				reqEnv.Manifests = bodySlots[job.manifestSlot]
 			}
-			if verbose {
-				fmt.Fprintf(w, "  batch %d/%d failed (%v), continuing\n", i+1, nReq, err)
-			}
-			continue
+		} else if len(job.purls) == 0 {
+			// No snapshot to anchor a manifest-only request; skip it. (Discovery
+			// jobs with purls still run for CDX/vuln data.)
+			return reqEnv, req, true
 		}
-		batchesOK++
+		return reqEnv, req, false
+	}
+
+	onResult := func(_ scaJob, resp *vdb.CliResponse[vdb.CliSCAResponse]) {
 		if resp.Meta.Tier == "pro" {
 			tierObserved = "pro"
 		}
@@ -205,34 +194,33 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 		mergedReach = append(mergedReach, resp.Data.Reachability...)
 		mergedInsights = append(mergedInsights, resp.Data.PackageInsights...)
-		// Capture the snapshot once (chunk 0 creates it). Findings now come back
-		// from every chunk (chunk 0 + appended discovery chunks); accumulate all
-		// of them so reachability can correlate findings across the whole scan.
+		// Capture the snapshot once (the primary job creates it). Findings come
+		// back from every job; accumulate them so reachability can correlate
+		// findings across the whole scan.
 		if snapshot == nil && resp.Data.IngestionSnapshot != nil {
 			snapshot = resp.Data.IngestionSnapshot
 		}
 		persistedFindings = append(persistedFindings, resp.Data.Findings...)
-		if verbose {
-			fmt.Fprintf(w, "  batch %d/%d: %d component(s), %d vuln(s), %d reachability query(ies)\n", i+1, nReq, len(mergedComponents), len(mergedVulns), len(mergedReach))
-		}
 	}
 
-	// Only fall back when *every* batch failed. Partial success is still a win
-	// over the legacy per-PURL loop.
-	if batchesOK == 0 {
+	unservable, anyOK, firstErr := runSCAJobs(client, jobs, buildReq, onResult, w)
+
+	// The v2 endpoint is the only path now: there is no legacy fallback. A total
+	// failure means the API is genuinely unusable (auth/config/network), which
+	// the caller surfaces as an actionable error.
+	if !anyOK {
 		if !silent {
-			fmt.Fprintf(w, "  /v2/cli.sca all %d request(s) failed (%v), falling back to legacy lookup\n", nReq, firstErr)
+			fmt.Fprintf(w, "  /v2/cli.sca all request(s) failed (%v)\n", firstErr)
 		}
 		return false, nil, nil, nil, "", "", nil
 	}
-	if batchesFailed > 0 && !silent {
-		fmt.Fprintf(w, "  /v2/cli.sca completed with %d/%d request(s) ok, %d failed\n", batchesOK, nReq, batchesFailed)
-	}
-	if packageRequestsFailed > 0 {
-		if !silent {
-			fmt.Fprintf(w, "  /v2/cli.sca missed %d package request(s), falling back to legacy lookup for complete package coverage\n", packageRequestsFailed)
+	if len(unservable) > 0 && !silent {
+		fmt.Fprintf(w, "  /v2/cli.sca could not retrieve %d package(s) after retries; results omit them\n", len(unservable))
+		if verbose {
+			for _, p := range unservable {
+				fmt.Fprintf(w, "    unservable: %s\n", p)
+			}
 		}
-		return false, nil, nil, nil, "", "", nil
 	}
 
 	// Only show the upgrade note when we *consistently* observed community
@@ -251,7 +239,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	findings, enriched, _ = scan.SynthesiseFromCDX(merged, allPackages, purls)
 	if findings == nil {
 		if !silent {
-			fmt.Fprintln(w, "  /v2/cli.sca returned no CycloneDX document, falling back to legacy lookup")
+			fmt.Fprintln(w, "  /v2/cli.sca returned no CycloneDX document")
 		}
 		return false, nil, nil, nil, "", "", nil
 	}
@@ -287,6 +275,86 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		finalSnapshotURL = snapshot.URL
 	}
 	return true, findings, enriched, mergedInsights, finalSnapshotUuid, finalSnapshotURL, persistedFindings
+}
+
+// confirmVulnsViaCliSCA re-queries the given packages through /v2/cli.sca in a
+// lightweight "confirmation" mode — no reachability, no snapshot/persistence, no
+// manifest bodies — and returns the enriched findings. The post-autofix re-scan
+// uses it to learn which vulnerabilities remain. It shares the same self-healing
+// sender as the primary path (retry, backoff, adaptive chunk-size reduction);
+// there is no legacy per-PURL fallback.
+//
+// It is deliberately conservative: if the API is unreachable or any package
+// can't be re-queried after retries, it returns an error rather than an
+// incomplete result, so the caller never mistakes "couldn't check" for "fixed".
+func confirmVulnsViaCliSCA(allPackages []scan.ScopedPackage) ([]scan.EnrichedVuln, error) {
+	if len(allPackages) == 0 {
+		return nil, nil
+	}
+	purls := make([]string, len(allPackages))
+	deduped := make(map[string]bool, len(allPackages))
+	uniquePurls := make([]string, 0, len(allPackages))
+	for i, p := range allPackages {
+		pu := cdx.BuildLocalPurl(p.Name, p.Version, p.Ecosystem)
+		purls[i] = pu
+		if pu == "" || deduped[pu] {
+			continue
+		}
+		deduped[pu] = true
+		uniquePurls = append(uniquePurls, pu)
+	}
+	if len(uniquePurls) == 0 {
+		return nil, nil
+	}
+
+	client := newCliClient()
+	if client == nil {
+		return nil, fmt.Errorf("cli.sca confirmation: no API client (missing credentials)")
+	}
+	if client.HTTPClient != nil {
+		client.HTTPClient.Timeout = cliSCABatchTimeout
+	}
+	env := buildCliEnv(nil, nil)
+
+	jobs := make([]scaJob, 0)
+	for _, c := range chunkPurls(uniquePurls, sCAChunkSize) {
+		jobs = append(jobs, scaJob{purls: c, primary: false, manifestSlot: -1})
+	}
+
+	mergedComponents := make([]any, 0, len(uniquePurls))
+	mergedVulns := make([]any, 0)
+
+	buildReq := func(job scaJob) (vdb.CliEnv, vdb.CliSCARequest, bool) {
+		return env, vdb.CliSCARequest{
+			Purls:   job.purls,
+			Options: vdb.CliSCAOptions{IncludeReachability: boolPtrCLI(false)},
+		}, false
+	}
+	onResult := func(_ scaJob, resp *vdb.CliResponse[vdb.CliSCAResponse]) {
+		if cs, ok := resp.Data.CycloneDX["components"].([]any); ok {
+			mergedComponents = append(mergedComponents, cs...)
+		}
+		if vs, ok := resp.Data.CycloneDX["vulnerabilities"].([]any); ok {
+			mergedVulns = append(mergedVulns, vs...)
+		}
+	}
+
+	unservable, anyOK, firstErr := runSCAJobs(client, jobs, buildReq, onResult, io.Discard)
+	if !anyOK {
+		return nil, fmt.Errorf("cli.sca confirmation lookup failed: %w", firstErr)
+	}
+	if len(unservable) > 0 {
+		return nil, fmt.Errorf("cli.sca confirmation could not re-query %d package(s); cannot verify autofix", len(unservable))
+	}
+
+	merged := map[string]any{
+		"bomFormat":       "CycloneDX",
+		"specVersion":     "1.6",
+		"components":      mergedComponents,
+		"vulnerabilities": mergedVulns,
+	}
+	_, enriched, _ := scan.SynthesiseFromCDX(merged, allPackages, purls)
+	return enriched, nil
 }
 
 // buildCliPackages turns parsed ScopedPackages into the per-package metadata
@@ -722,6 +790,165 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 
 	if verbose {
 		fmt.Fprintf(w, "  reachability: %d/%d evaluated CVE(s) reached\n", len(reachableCVEs), len(evaluatedCVEs))
+	}
+}
+
+// scaJob is one unit of work for the self-healing cli.sca sender. A job either
+// carries a slice of PURLs (a discovery/primary request) or a manifest-body
+// slot (manifestSlot >= 0). The primary job creates the run/snapshot.
+type scaJob struct {
+	purls        []string
+	primary      bool
+	manifestSlot int // index into the body slots, or -1 for none
+}
+
+// runSCAJobs drives jobs through send-with-retry and adaptive chunk-size
+// reduction. It is the single code path to /v2/cli.sca — there is no legacy
+// fallback. Jobs run serially (the primary must succeed before dependent jobs
+// can anchor to its snapshot). On a job that still fails after retries:
+//   - a multi-PURL job is split in half and both halves are re-queued at the
+//     front (the first half inherits the primary flag), so vuln-dense chunks
+//     that blow the per-request timeout succeed once small enough;
+//   - a single-PURL job that still fails is recorded as unservable (its results
+//     are simply omitted — never fetched via a legacy per-PURL loop);
+//   - a manifest-only job (no PURLs) that fails is non-fatal and dropped.
+//
+// buildReq turns a job into the env + request to send (and may signal skip);
+// onResult merges each successful response. Returns the unservable PURLs, a
+// flag indicating whether any request succeeded, and the first error seen.
+func runSCAJobs(
+	client *vdb.Client,
+	jobs []scaJob,
+	buildReq func(job scaJob) (vdb.CliEnv, vdb.CliSCARequest, bool),
+	onResult func(job scaJob, resp *vdb.CliResponse[vdb.CliSCAResponse]),
+	w io.Writer,
+) (unservable []string, anyOK bool, firstErr error) {
+	queue := append([]scaJob(nil), jobs...)
+	for len(queue) > 0 {
+		job := queue[0]
+		queue = queue[1:]
+
+		env, req, skip := buildReq(job)
+		if skip {
+			continue
+		}
+
+		label := scaJobLabel(job)
+		resp, err := sendCliSCAWithRetry(client, env, req, label, w)
+		if err == nil {
+			anyOK = true
+			onResult(job, resp)
+			if verbose {
+				fmt.Fprintf(w, "  %s ok\n", label)
+			}
+			continue
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+
+		switch {
+		case len(job.purls) > minChunkSize:
+			// Chunk-size reduction: halve and retry the pieces before anything else.
+			a, b := splitPurls(job.purls)
+			j1 := scaJob{purls: a, primary: job.primary, manifestSlot: -1}
+			j2 := scaJob{purls: b, primary: false, manifestSlot: -1}
+			queue = append([]scaJob{j1, j2}, queue...)
+			if verbose {
+				fmt.Fprintf(w, "  %s failed (%v); splitting into %d + %d package(s)\n", label, err, len(a), len(b))
+			}
+		case len(job.purls) == 1:
+			unservable = append(unservable, job.purls...)
+			if verbose {
+				fmt.Fprintf(w, "  %s unservable after retries (%v)\n", label, err)
+			}
+		default:
+			// Manifest-only job: non-fatal, drop it.
+			if verbose {
+				fmt.Fprintf(w, "  %s failed (%v); manifest body dropped\n", label, err)
+			}
+		}
+	}
+	return unservable, anyOK, firstErr
+}
+
+// sendCliSCAWithRetry sends one cli.sca request, retrying transient failures
+// (5xx, 429, network/timeout) with exponential backoff + jitter and honouring
+// any server Retry-After hint. Terminal errors (400/401/403, decode failures)
+// return immediately so we don't burn attempts on unrecoverable conditions.
+func sendCliSCAWithRetry(client *vdb.Client, env vdb.CliEnv, req vdb.CliSCARequest, label string, w io.Writer) (*vdb.CliResponse[vdb.CliSCAResponse], error) {
+	var lastErr error
+	for attempt := 1; attempt <= maxBatchAttempts; attempt++ {
+		reqCtx, cancel := context.WithTimeout(context.Background(), cliSCABatchTimeout)
+		resp, err := client.CliSCAWithContext(reqCtx, env, req)
+		cancel()
+		if err == nil {
+			return resp, nil
+		}
+		lastErr = err
+		if attempt == maxBatchAttempts || !isRetryableCliErr(err) {
+			return nil, err
+		}
+		delay := backoffDelay(attempt, err)
+		if verbose {
+			fmt.Fprintf(w, "  %s attempt %d/%d failed (%v); retrying in %s\n", label, attempt, maxBatchAttempts, err, delay.Round(time.Millisecond))
+		}
+		time.Sleep(delay)
+	}
+	return nil, lastErr
+}
+
+// isRetryableCliErr classifies an error from CliSCAWithContext. Retryable:
+// 429, any 5xx, and transport-level failures (timeouts, resets, deadline).
+// Terminal: 4xx (auth/bad-request), 404, and response-decode errors.
+func isRetryableCliErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr *vdb.CliAPIError
+	if errors.As(err, &apiErr) {
+		return apiErr.StatusCode == http.StatusTooManyRequests || apiErr.StatusCode >= 500
+	}
+	var nf *vdb.NotFoundError
+	if errors.As(err, &nf) {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	// Transport-level failures surface as wrapped "failed to execute request"
+	// strings; treat those as transient. Decode/marshal failures are terminal.
+	return strings.Contains(err.Error(), "failed to execute request")
+}
+
+// backoffDelay returns the wait before the next attempt: the server Retry-After
+// when present (capped), otherwise capped exponential backoff with light jitter.
+func backoffDelay(attempt int, err error) time.Duration {
+	var apiErr *vdb.CliAPIError
+	if errors.As(err, &apiErr) && apiErr.RetryAfter > 0 {
+		return min(apiErr.RetryAfter, scaBackoffMax)
+	}
+	d := min(scaBackoffBase<<(attempt-1), scaBackoffMax)
+	// Deterministic jitter (serial sends, so cross-batch desync isn't needed —
+	// this just avoids lock-stepping with server-side windows).
+	return d + time.Duration(attempt)*scaBackoffBase/10
+}
+
+// splitPurls divides a PURL slice into two roughly equal halves.
+func splitPurls(in []string) ([]string, []string) {
+	mid := max(len(in)/2, 1)
+	return in[:mid], in[mid:]
+}
+
+// scaJobLabel renders a short human-readable label for progress output.
+func scaJobLabel(job scaJob) string {
+	switch {
+	case len(job.purls) > 0 && job.primary:
+		return fmt.Sprintf("primary batch (%d package(s))", len(job.purls))
+	case len(job.purls) > 0:
+		return fmt.Sprintf("batch (%d package(s))", len(job.purls))
+	default:
+		return "manifest body"
 	}
 }
 
