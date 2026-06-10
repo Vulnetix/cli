@@ -57,13 +57,24 @@ func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
 	case "hex":
 		return []ConfigFile{{Path: filepath.Join(home, ".config", "vulnetix", "package-firewall", "hex.env"), Content: hexConfig(eco, opts)}}, nil
 	case "pub":
-		return []ConfigFile{{Path: filepath.Join(home, ".config", "vulnetix", "package-firewall", "pub.env"), Content: pubConfig(eco, opts)}}, nil
+		// Dart pub rejects userinfo in PUB_HOSTED_URL and authenticates only via a
+		// bearer token in pub-tokens.json; the firewall accepts that token (it is
+		// base64("org:key"), the same secret as Basic).
+		return []ConfigFile{
+			{Path: filepath.Join(home, ".config", "vulnetix", "package-firewall", "pub.env"), Content: pubConfig(eco, opts)},
+			{Path: filepath.Join(home, ".config", "dart", "pub-tokens.json"), Content: pubTokensConfig(eco, opts), Structured: true},
+		}, nil
 	case "maven":
 		return []ConfigFile{{Path: filepath.Join(home, ".m2", "settings.xml"), Content: mavenConfig(eco, opts), Structured: true}}, nil
 	case "nuget":
 		return []ConfigFile{{Path: filepath.Join(home, ".nuget", "NuGet", "NuGet.Config"), Content: nugetConfig(eco, opts), Structured: true}}, nil
 	case "composer":
-		return []ConfigFile{{Path: filepath.Join(home, ".composer", "config.json"), Content: composerConfig(eco, opts), Structured: true}}, nil
+		// Composer reads repository config from config.json but credentials only
+		// from auth.json (top-level http-basic) — not from config.json's top level.
+		return []ConfigFile{
+			{Path: filepath.Join(home, ".composer", "config.json"), Content: composerConfig(eco, opts), Structured: true},
+			{Path: filepath.Join(home, ".composer", "auth.json"), Content: composerAuthConfig(opts), Structured: true},
+		}, nil
 	case "conan":
 		return []ConfigFile{
 			{Path: filepath.Join(home, ".conan2", "remotes.json"), Content: conanRemotesConfig(eco, opts), Structured: true},
@@ -167,9 +178,13 @@ func gemConfig(eco Ecosystem, opts ConfigOptions) string {
 	}, "\n")
 }
 
+// hexConfig embeds the credentials in HEX_MIRROR; Hex/mix has no separate auth
+// file for a mirror, and the firewall requires auth on every request. Hex honors
+// userinfo in the mirror URL.
 func hexConfig(eco Ecosystem, opts ConfigOptions) string {
+	mirror := withBasicAuth(ProxyURL(opts.ProxyURL, eco), opts.OrgID, opts.APIKey)
 	return strings.Join([]string{
-		`export HEX_MIRROR="` + ProxyURL(opts.ProxyURL, eco) + `"`,
+		`export HEX_MIRROR="` + mirror + `"`,
 		"",
 	}, "\n")
 }
@@ -179,6 +194,21 @@ func pubConfig(eco Ecosystem, opts ConfigOptions) string {
 		`export PUB_HOSTED_URL="` + ProxyURL(opts.ProxyURL, eco) + `"`,
 		"",
 	}, "\n")
+}
+
+// pubTokensConfig writes Dart's pub-tokens.json. pub cannot send Basic auth or
+// userinfo, so it carries a per-host bearer token; the firewall accepts that
+// token as base64("orgID:apiKey") — the same secret it accepts via Basic.
+func pubTokensConfig(eco Ecosystem, opts ConfigOptions) string {
+	token := base64.StdEncoding.EncodeToString([]byte(opts.OrgID + ":" + opts.APIKey))
+	cfg := map[string]any{
+		"version": 1,
+		"hosted": []map[string]string{
+			{"url": ProxyURL(opts.ProxyURL, eco), "token": token},
+		},
+	}
+	out, _ := json.MarshalIndent(cfg, "", "  ")
+	return string(out) + "\n"
 }
 
 func mavenConfig(eco Ecosystem, opts ConfigOptions) string {
@@ -232,6 +262,16 @@ func composerConfig(eco Ecosystem, opts ConfigOptions) string {
 			},
 			"packagist.org": false,
 		},
+	}
+	out, _ := json.MarshalIndent(cfg, "", "  ")
+	return string(out) + "\n"
+}
+
+// composerAuthConfig writes ~/.composer/auth.json. Composer only reads HTTP Basic
+// credentials from auth.json (or config.http-basic) — http-basic at the top level
+// of config.json is ignored, which otherwise yields a 401 against the firewall.
+func composerAuthConfig(opts ConfigOptions) string {
+	cfg := map[string]any{
 		"http-basic": map[string]map[string]string{
 			proxyHost(opts.ProxyURL): {
 				"username": opts.OrgID,
@@ -277,9 +317,13 @@ func conanCredentialsConfig(opts ConfigOptions) string {
 	return string(out) + "\n"
 }
 
+// cranConfig embeds the credentials in the repos URL. R/Bioconductor have no
+// netrc-independent auth file; libcurl (the configured downloader) honors
+// userinfo in the URL, and the firewall requires auth on every request.
 func cranConfig(eco Ecosystem, opts ConfigOptions) string {
+	repo := withBasicAuth(ProxyURL(opts.ProxyURL, eco), opts.OrgID, opts.APIKey)
 	return strings.Join([]string{
-		`options(repos = c(CRAN = "` + ProxyURL(opts.ProxyURL, eco) + `"))`,
+		`options(repos = c(CRAN = "` + repo + `"))`,
 		`options(download.file.method = "libcurl")`,
 		"",
 	}, "\n")
