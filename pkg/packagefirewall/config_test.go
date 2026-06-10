@@ -113,7 +113,7 @@ func TestHexConfig(t *testing.T) {
 	if files[0].Path != "/home/test/.config/vulnetix/package-firewall/hex.env" {
 		t.Fatalf("path = %q", files[0].Path)
 	}
-	if want := `export HEX_MIRROR="https://packages.vulnetix.com/hex"`; !strings.Contains(files[0].Content, want) {
+	if want := `export HEX_MIRROR="https://org-123:secret@packages.vulnetix.com/hex"`; !strings.Contains(files[0].Content, want) {
 		t.Errorf("hex config missing %q:\n%s", want, files[0].Content)
 	}
 }
@@ -164,7 +164,7 @@ func TestCRANConfig(t *testing.T) {
 		t.Fatalf("path = %q", files[0].Path)
 	}
 	for _, want := range []string{
-		`options(repos = c(CRAN = "https://packages.vulnetix.com/cran"))`,
+		`options(repos = c(CRAN = "https://org-123:secret@packages.vulnetix.com/cran"))`,
 		`options(download.file.method = "libcurl")`,
 	} {
 		if !strings.Contains(files[0].Content, want) {
@@ -225,6 +225,50 @@ func TestGemConfigHasAuth(t *testing.T) {
 	}
 	if want := "https://org-123:secret@packages.vulnetix.com/gem/"; !strings.Contains(files[0].Content, want) {
 		t.Errorf("gem source missing embedded credentials %q:\n%s", want, files[0].Content)
+	}
+}
+
+func TestComposerWritesAuthJSON(t *testing.T) {
+	eco, _ := ByCommand("composer")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("composer files = %d, want 2 (config.json + auth.json)", len(files))
+	}
+	// Credentials must live in auth.json, not config.json (composer ignores
+	// top-level http-basic in config.json).
+	if strings.Contains(files[0].Content, "http-basic") {
+		t.Errorf("config.json should not carry credentials:\n%s", files[0].Content)
+	}
+	if files[1].Path != "/home/test/.composer/auth.json" {
+		t.Fatalf("auth path = %q", files[1].Path)
+	}
+	for _, want := range []string{`"http-basic"`, `"packages.vulnetix.com"`, `"username": "org-123"`, `"password": "secret"`} {
+		if !strings.Contains(files[1].Content, want) {
+			t.Errorf("auth.json missing %q:\n%s", want, files[1].Content)
+		}
+	}
+}
+
+func TestPubWritesBearerToken(t *testing.T) {
+	eco, _ := ByCommand("pub")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("pub files = %d, want 2 (pub.env + pub-tokens.json)", len(files))
+	}
+	if files[1].Path != "/home/test/.config/dart/pub-tokens.json" {
+		t.Fatalf("pub-tokens path = %q", files[1].Path)
+	}
+	// base64("org-123:secret") == "b3JnLTEyMzpzZWNyZXQ="
+	for _, want := range []string{`"url": "https://packages.vulnetix.com/pub"`, `"token": "b3JnLTEyMzpzZWNyZXQ="`} {
+		if !strings.Contains(files[1].Content, want) {
+			t.Errorf("pub-tokens.json missing %q:\n%s", want, files[1].Content)
+		}
 	}
 }
 
