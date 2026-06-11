@@ -2,6 +2,8 @@ package scan
 
 import (
 	"strings"
+
+	"github.com/vulnetix/cli/v3/internal/versions"
 )
 
 // AffectedSymbols carries the lower-efficacy symbol-level fallback shipped on
@@ -31,6 +33,7 @@ type EnrichedVuln struct {
 	Confirmed       bool    // true if installed version is in affected range
 	IsMalicious     bool    // malware/malicious package — highest sort priority
 	AffectedRange   string  // e.g., ">= 2.0.0, < 2.3.1"
+	VersionStatus   string  // "affected" | "unaffected" | "unknown" — version evaluation verdict
 	PathCount       int     // number of source files / transitive paths introducing this vuln
 	ThreatExposure  float64 // x_threatExposure from VDB — primary sort key
 	EPSSScore       float64 // displayed
@@ -131,8 +134,115 @@ type IDSRule struct {
 
 // isWildcardRange returns true if the version range means "all versions".
 func isWildcardRange(vr string) bool {
-	vr = strings.TrimSpace(vr)
-	return vr == "*" || vr == ">= 0" || vr == ">= 0.0.0" || vr == "<= 99999"
+	return versions.IsWildcardRange(vr)
+}
+
+// decodeVersionEntries converts the structured `versions` array of a
+// V2Affected entry into canonical version entries. Returns nil when the
+// entry carries no structured version data.
+func decodeVersionEntries(am map[string]interface{}) []versions.VersionEntry {
+	raw, ok := am["versions"].([]interface{})
+	if !ok {
+		return nil
+	}
+	var out []versions.VersionEntry
+	for _, item := range raw {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		entry := versions.VersionEntry{
+			Version:     stringVal(m, "version"),
+			Status:      versions.NormalizeStatus(stringVal(m, "status")),
+			VersionType: stringVal(m, "versionType"),
+		}
+		if lt := stringVal(m, "lessThan"); lt != "" {
+			entry.LessThan = &lt
+		}
+		if lte := stringVal(m, "lessThanOrEqual"); lte != "" {
+			entry.LessThanOrEqual = &lte
+		}
+		if changes, ok := m["changes"].([]interface{}); ok {
+			for _, c := range changes {
+				cm, ok := c.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				at := stringVal(cm, "at")
+				st := stringVal(cm, "status")
+				if at == "" || st == "" {
+					continue
+				}
+				entry.Changes = append(entry.Changes, versions.VersionChange{
+					At: at, Status: versions.NormalizeStatus(st),
+				})
+			}
+		}
+		if entry.Version == "" && entry.LessThan == nil && entry.LessThanOrEqual == nil {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+// EvaluateAffectedEntry determines the version status of installedVer against
+// one affected entry from a V2Affected response. Evaluation order:
+//
+//  1. Structured `versions` array (+ defaultStatus) — CVE 5.1 precedence via
+//     versions.EvaluateStatus, so an exact "unaffected" match beats an
+//     affected range.
+//  2. String fields: "unaffectedVersions" (checked first), then
+//     "versionRange" / legacy string "versions".
+//  3. Neither present — StatusUnknown (caller decides the posture).
+//
+// Returns the range expression used for the verdict, the status, and a
+// match-method label for MatchMethod reporting.
+func EvaluateAffectedEntry(am map[string]interface{}, installedVer, ecosystem string) (string, versions.Status, string) {
+	opt := versions.Options{Ecosystem: ecosystem}
+
+	entries := decodeVersionEntries(am)
+	defaultStatus := stringVal(am, "defaultStatus")
+	if len(entries) > 0 || defaultStatus != "" {
+		status, evidence := versions.EvaluateStatus(installedVer, entries, defaultStatus, opt)
+		rangeStr, _ := versions.BuildRangeStrings(entries, defaultStatus)
+		if rangeStr == "" {
+			rangeStr = evidence.RangeString
+		}
+		if status != versions.StatusUnknown {
+			return rangeStr, status, "versions-array:" + evidence.MatchKind
+		}
+		// Inconclusive structured data — fall through to string fields.
+	}
+
+	policy := versions.ResolvePseudoPolicy(opt)
+	if uv := stringVal(am, "unaffectedVersions"); uv != "" {
+		if rs, err := versions.ParseRange(uv); err == nil {
+			if v, err := versions.Parse(installedVer); err == nil && rs.Contains(v, policy) {
+				return uv, versions.StatusUnaffected, "string-range:unaffected"
+			}
+		}
+	}
+
+	vr := stringVal(am, "versionRange")
+	if vr == "" {
+		vr = stringVal(am, "versions") // legacy string form
+	}
+	if vr == "" {
+		if len(entries) > 0 || defaultStatus != "" {
+			// Structured data existed but evaluated inconclusively (junk
+			// constraints) — distinct from having no version data at all.
+			return "", versions.StatusUnknown, "inconclusive-version-data"
+		}
+		return "", versions.StatusUnknown, "no-version-data"
+	}
+	if isWildcardRange(vr) {
+		return vr, versions.StatusAffected, "string-range:wildcard"
+	}
+	if IsVersionAffected(installedVer, vr, ecosystem) {
+		return vr, versions.StatusAffected, "string-range"
+	}
+	return vr, versions.StatusUnaffected, "string-range"
 }
 
 // checkAffectedResponse parses the V2Affected response and determines if the
@@ -153,7 +263,8 @@ func checkAffectedResponse(data map[string]interface{}, pkgName, installedVer, e
 
 	// Pass 1: match by package name / product name.
 	var matched bool
-	var allRanges []string
+	var unaffectedRanges []string
+	var sawInconclusiveData bool
 	for _, a := range affected {
 		am, ok := a.(map[string]interface{})
 		if !ok {
@@ -175,34 +286,35 @@ func checkAffectedResponse(data map[string]interface{}, pkgName, installedVer, e
 
 		matched = true
 
-		vr := stringVal(am, "versionRange")
-		if vr == "" {
-			vr = stringVal(am, "versions")
-		}
-		if vr == "" {
-			// Entry matches our package but has no range — can't rule it out,
-			// but keep checking other entries.
+		rangeStr, status, method := EvaluateAffectedEntry(am, installedVer, ecosystem)
+		switch {
+		case method == "no-version-data":
+			// Entry matches our package but has no version data — can't rule
+			// it out, but keep checking other entries.
 			continue
-		}
-
-		allRanges = append(allRanges, vr)
-
-		if isWildcardRange(vr) {
+		case status == versions.StatusAffected && method == "string-range:wildcard":
 			// Wildcard — defer to fix-version check.
-			return vr, true, "name+wildcard"
-		}
-
-		if IsVersionAffected(installedVer, vr, ecosystem) {
-			return vr, true, "name+version"
+			return rangeStr, true, "name+wildcard"
+		case status == versions.StatusAffected:
+			return rangeStr, true, "name+version"
+		case status == versions.StatusUnaffected:
+			if rangeStr != "" {
+				unaffectedRanges = append(unaffectedRanges, rangeStr)
+			} else {
+				unaffectedRanges = append(unaffectedRanges, "unaffected")
+			}
+		default:
+			// Version data existed but was inconclusive (junk constraints).
+			sawInconclusiveData = true
 		}
 	}
 
-	// If we found name-matched entries with version ranges but none matched
-	// the installed version, the package is not affected.
-	if matched && len(allRanges) > 0 {
-		return strings.Join(allRanges, " | "), false, "name+version"
+	// Name-matched entries with version data all evaluated to unaffected —
+	// the package is not affected (explicit unaffected matches included).
+	if matched && len(unaffectedRanges) > 0 && !sawInconclusiveData {
+		return strings.Join(unaffectedRanges, " | "), false, "name+version"
 	}
-	// Name matched but no ranges — can't determine, assume affected.
+	// Name matched but no conclusive version data — assume affected.
 	if matched {
 		return "", true, "name-only"
 	}
@@ -218,20 +330,19 @@ func checkAffectedResponse(data map[string]interface{}, pkgName, installedVer, e
 		}
 
 		if matchesByCPE(am, lowerPkg) {
-			vr := stringVal(am, "versionRange")
-			if vr == "" {
-				vr = stringVal(am, "versions")
-			}
-			if vr == "" {
+			rangeStr, status, method := EvaluateAffectedEntry(am, installedVer, ecosystem)
+			switch {
+			case method == "no-version-data":
 				return "", true, "cpe" // CPE matches but no range — assume affected
+			case status == versions.StatusAffected && method == "string-range:wildcard":
+				return rangeStr, true, "cpe+wildcard"
+			case status == versions.StatusAffected:
+				return rangeStr, true, "cpe+version"
+			case status == versions.StatusUnaffected:
+				return rangeStr, false, "cpe+version"
+			default:
+				return "", true, "cpe" // inconclusive — assume affected
 			}
-			if isWildcardRange(vr) {
-				return vr, true, "cpe+wildcard"
-			}
-			if IsVersionAffected(installedVer, vr, ecosystem) {
-				return vr, true, "cpe+version"
-			}
-			return vr, false, "cpe+version"
 		}
 	}
 

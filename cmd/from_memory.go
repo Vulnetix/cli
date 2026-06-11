@@ -12,6 +12,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/display"
 	purlpkg "github.com/vulnetix/cli/v3/internal/purl"
 	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/versions"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
@@ -272,7 +273,11 @@ func fetchFreshVulns(vulns []scan.EnrichedVuln) {
 	wg.Wait()
 }
 
-// recheckAffected is like checkAffectedResponse from enrich.go but updates in-place.
+// recheckAffected re-evaluates the installed version against the V2Affected
+// response and updates the vuln in-place. The structured `versions` array is
+// evaluated with CVE 5.1 precedence (an exact "unaffected" match beats an
+// affected range); an inconclusive verdict leaves Confirmed untouched so the
+// finding stays under investigation rather than flipping state.
 func recheckAffected(installedVer, pkgName string, data map[string]interface{}, ev *scan.EnrichedVuln) {
 	affected, ok := data["affected"].([]interface{})
 	if !ok || len(affected) == 0 {
@@ -297,14 +302,18 @@ func recheckAffected(installedVer, pkgName string, data map[string]interface{}, 
 			continue
 		}
 
-		vr := stringVal(am, "versionRange")
-		if vr == "" {
-			vr = stringVal(am, "versions")
+		rangeStr, status, _ := scan.EvaluateAffectedEntry(am, installedVer, ev.Ecosystem)
+		if rangeStr != "" {
+			ev.AffectedRange = rangeStr
 		}
-		ev.AffectedRange = vr
-		if vr != "" {
-			ev.Confirmed = scan.IsVersionAffected(installedVer, vr, ev.Ecosystem)
+		ev.VersionStatus = string(status)
+		switch status {
+		case versions.StatusAffected:
+			ev.Confirmed = true
+		case versions.StatusUnaffected:
+			ev.Confirmed = false
 		}
+		// StatusUnknown: leave Confirmed as-is — under investigation.
 		return
 	}
 }

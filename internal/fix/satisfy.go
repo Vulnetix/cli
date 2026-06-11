@@ -5,8 +5,19 @@ import (
 	"strings"
 
 	semver "github.com/Masterminds/semver/v3"
+
+	vers "github.com/vulnetix/cli/v3/internal/versions"
 )
 
+// Satisfies reports whether version satisfies an npm-style constraint
+// (^, ~, ranges) via Masterminds/semver.
+//
+// NOTE: Masterminds constraints EXCLUDE prerelease versions unless the
+// constraint itself contains one (">= 1.0.0" does not match "1.2.0-beta").
+// That posture is acceptable here because Satisfies is only used for
+// fix-version SELECTION (picking an upgrade target); it must never be used
+// for affected-status determination — that lives in internal/versions,
+// where prereleases are included in vulnerability ranges.
 func Satisfies(version, constraint string) bool {
 	version = normalizeVersion(version)
 	constraint = strings.TrimSpace(constraint)
@@ -35,12 +46,7 @@ func BestInRange(candidates []string, constraint string) string {
 }
 
 func normalizeVersion(v string) string {
-	v = strings.TrimSpace(v)
-	v = strings.TrimPrefix(v, "v")
-	for _, prefix := range []string{"npm:", "v"} {
-		v = strings.TrimPrefix(v, prefix)
-	}
-	return v
+	return vers.Normalize(v)
 }
 
 func sortableVersions(input []string, asc bool) []string {

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/versions"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
@@ -86,11 +88,15 @@ func (p *VulnetixProvider) TriageCVE(ctx context.Context, cveID string, pkgName,
 			PackageName: pkgName,
 		})
 		if err == nil {
-			isAffected := checkAffected(affectedResp, pkgVersion)
-			if !isAffected {
+			switch checkAffected(affectedResp, pkgName, ecosystem, pkgVersion) {
+			case versions.StatusUnaffected:
 				finding.Status = "not_affected"
 				finding.Justification = "vulnerable_code_not_present"
+			case versions.StatusAffected:
+				finding.Status = "affected"
 			}
+			// StatusUnknown: stay "under_investigation" — never auto-resolve
+			// on inconclusive version data.
 		}
 	}
 
@@ -226,23 +232,72 @@ func parseCVEInfo(info *vdb.CVEInfo) *parsedCVE {
 	return p
 }
 
-// checkAffected inspects the V2Affected response to determine if the installed
-// version is within the affected range. Returns false if the version is safe.
-func checkAffected(resp map[string]interface{}, installedVer string) bool {
+// checkAffected inspects the V2Affected response (whose "affected" key is an
+// array of affected entries with structured version data) and evaluates the
+// installed version against the entries matching pkgName/ecosystem.
+// Precedence across matched entries: any affected wins, else any explicit
+// unaffected, else unknown (inconclusive — callers must not auto-resolve).
+func checkAffected(resp map[string]interface{}, pkgName, ecosystem, installedVer string) versions.Status {
 	if resp == nil {
-		return true // assume affected when API fails
+		return versions.StatusUnknown
 	}
-	// The response structure from V2Affected contains an "affected" key.
-	if affected, ok := resp["affected"].(bool); ok {
-		return affected
+	// Legacy bool-shaped responses ({"affected": true|false}) map directly.
+	if b, ok := resp["affected"].(bool); ok {
+		if b {
+			return versions.StatusAffected
+		}
+		return versions.StatusUnaffected
 	}
-	// Fall back: if the response has "fixed_in" and we can compare versions,
-	// check if installed is below the fix.
-	if fixedIn, ok := resp["fixed_in"].(string); ok && fixedIn != "" {
-		// Simple semver-like comparison for equal/less.
-		return true // conservative: still affected until version is verified below fixed
+	affected, ok := resp["affected"].([]interface{})
+	if !ok || len(affected) == 0 {
+		return versions.StatusUnknown
 	}
-	return true
+
+	sawUnaffected := false
+	for _, a := range affected {
+		am, ok := a.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name := stringFromMap(am, "packageName")
+		if name == "" {
+			name = stringFromMap(am, "product")
+		}
+		eco := stringFromMap(am, "ecosystem")
+		if !strings.EqualFold(name, pkgName) {
+			continue
+		}
+		if eco != "" && ecosystem != "" && !strings.EqualFold(eco, ecosystem) {
+			continue
+		}
+
+		// Evaluate with the entry's declared ecosystem when the caller has
+		// none — pseudo-version policy is ecosystem-keyed, so a Go entry
+		// must get PseudoStrict even without an explicit --ecosystem.
+		evalEco := ecosystem
+		if evalEco == "" {
+			evalEco = eco
+		}
+		_, status, _ := scan.EvaluateAffectedEntry(am, installedVer, evalEco)
+		switch status {
+		case versions.StatusAffected:
+			return versions.StatusAffected
+		case versions.StatusUnaffected:
+			sawUnaffected = true
+		}
+	}
+	if sawUnaffected {
+		return versions.StatusUnaffected
+	}
+	return versions.StatusUnknown
+}
+
+// stringFromMap safely extracts a string value from a generic map.
+func stringFromMap(m map[string]interface{}, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
 }
 
 // countExploits counts exploit records in the response.

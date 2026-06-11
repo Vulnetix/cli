@@ -31,13 +31,20 @@ type PackageChecksum struct {
 func normalizeChecksum(raw string) PackageChecksum {
 	raw = strings.TrimSpace(raw)
 	switch {
-	case strings.HasPrefix(raw, "sha512-"):  return PackageChecksum{"SHA-512", raw[7:]}
-	case strings.HasPrefix(raw, "sha256:"):  return PackageChecksum{"SHA-256", raw[7:]}
-	case strings.HasPrefix(raw, "sha256-"):  return PackageChecksum{"SHA-256", raw[7:]}
-	case strings.HasPrefix(raw, "sha1:"):    return PackageChecksum{"SHA-1",   raw[5:]}
-	case strings.HasPrefix(raw, "h1:"):      return PackageChecksum{"H1",      raw[3:]}
-	case len(raw) == 64 && isHex(raw):       return PackageChecksum{"SHA-256", raw}
-	case len(raw) == 40 && isHex(raw):       return PackageChecksum{"SHA-1",   raw}
+	case strings.HasPrefix(raw, "sha512-"):
+		return PackageChecksum{"SHA-512", raw[7:]}
+	case strings.HasPrefix(raw, "sha256:"):
+		return PackageChecksum{"SHA-256", raw[7:]}
+	case strings.HasPrefix(raw, "sha256-"):
+		return PackageChecksum{"SHA-256", raw[7:]}
+	case strings.HasPrefix(raw, "sha1:"):
+		return PackageChecksum{"SHA-1", raw[5:]}
+	case strings.HasPrefix(raw, "h1:"):
+		return PackageChecksum{"H1", raw[3:]}
+	case len(raw) == 64 && isHex(raw):
+		return PackageChecksum{"SHA-256", raw}
+	case len(raw) == 40 && isHex(raw):
+		return PackageChecksum{"SHA-1", raw}
 	}
 	return PackageChecksum{}
 }
@@ -78,7 +85,7 @@ func ScopeIcon(scope string) string {
 type ScopedPackage struct {
 	Name        string
 	Version     string
-	VersionSpec string            // raw version spec from manifest before cleaning (e.g. "^1.0.0", ">=2.3"); empty for lock-file entries
+	VersionSpec string // raw version spec from manifest before cleaning (e.g. "^1.0.0", ">=2.3"); empty for lock-file entries
 	Ecosystem   string
 	Scope       string            // native scope label (production, development, test, peer, etc.)
 	SourceFile  string            // relative path of the manifest file that declared this package
@@ -304,12 +311,12 @@ func parsePackageLockJSONScoped(data []byte, filePath string) ([]ScopedPackage, 
 	var lock struct {
 		LockfileVersion int `json:"lockfileVersion"`
 		Packages        map[string]struct {
-			Version   string `json:"version"`
-			Dev       bool   `json:"dev"`
-			DevOptional bool `json:"devOptional"`
-			Optional  bool   `json:"optional"`
-			Peer      bool   `json:"peer"`
-			Integrity string `json:"integrity"`
+			Version     string `json:"version"`
+			Dev         bool   `json:"dev"`
+			DevOptional bool   `json:"devOptional"`
+			Optional    bool   `json:"optional"`
+			Peer        bool   `json:"peer"`
+			Integrity   string `json:"integrity"`
 		} `json:"packages"`
 		Dependencies map[string]struct {
 			Version   string `json:"version"`
