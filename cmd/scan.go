@@ -725,6 +725,9 @@ func runLocalScan(
 	// sarifSnapshots holds per-kind (SAST/Secrets/IaC/Containers) ingestion
 	// snapshot links from postScanSARIF, surfaced in the artefact summary.
 	var sarifSnapshots []snapshotLink
+	// sarifSnapshotUuids maps category → snapshotUuid for SARIF kinds, used to
+	// call cli.finalize for each SARIF-only snapshot.
+	var sarifSnapshotUuids map[string]string
 	var autofixReportPlans []autofix.FixCandidate
 	var autofixReportCounts autofix.ProofCounts
 	var autofixReportErr error
@@ -1322,7 +1325,7 @@ func runLocalScan(
 			// unauthenticated scans — the server persists nothing for the
 			// shared community credential, so the calls only burn shared quota.
 			if !isUnauthenticatedScan() {
-				sarifSnapshots = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext, progressStderr)
+				sarifSnapshots, sarifSnapshotUuids = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext, progressStderr)
 			}
 		}
 	}
@@ -1778,6 +1781,9 @@ func runLocalScan(
 		})
 	}
 	reportScanFinalization(scaSnapshotUuid, finalizationBreaches, controlFlags, gitCtx, sysInfo)
+	for _, uuid := range sarifSnapshotUuids {
+		reportScanFinalization(uuid, finalizationBreaches, controlFlags, gitCtx, sysInfo)
+	}
 	scanProgress.Update(7, "Evaluated quality gates")
 	scanProgress.Complete("scan complete")
 	progressComplete = true

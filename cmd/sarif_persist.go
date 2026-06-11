@@ -50,16 +50,18 @@ var sarifKinds = []sarifScanKind{
 // postScanSARIF is the single entry point. Called from scan.go after the local
 // SARIF is on disk. Splits findings by rule kind, posts each non-empty kind to
 // its matching /v2/cli.<kind> endpoint, and prints the resulting snapshot URLs.
-func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, w io.Writer) []snapshotLink {
+// Returns the snapshot links for display and a map of category → snapshotUuid
+// for use by the finalize step.
+func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, w io.Writer) ([]snapshotLink, map[string]string) {
 	if report == nil || len(report.Findings) == 0 {
-		return nil
+		return nil, nil
 	}
 	if w == nil {
 		w = os.Stderr
 	}
 	client := newCliClient()
 	if client == nil {
-		return nil
+		return nil, nil
 	}
 	// Use the scan target's git context (not the CWD's) so the snapshot's repo
 	// identity matches --path.
@@ -67,17 +69,21 @@ func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath 
 	memRecords := loadMemoryRecordsForSARIF(gitCtx)
 
 	var snapshots []snapshotLink
+	uuidByCategory := make(map[string]string)
 	byKind := partitionFindingsByKind(report.Findings, report.Rules)
 	for _, sk := range sarifKinds {
 		bucket, ok := byKind[sk.kind]
 		if !ok || len(bucket.findings) == 0 {
 			continue
 		}
-		if link, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, w); ok {
+		if link, snapshotUuid, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, w); ok {
 			snapshots = append(snapshots, link)
+			if snapshotUuid != "" {
+				uuidByCategory[sk.category] = snapshotUuid
+			}
 		}
 	}
-	return snapshots
+	return snapshots, uuidByCategory
 }
 
 // sarifChunkByteBudget bounds the per-request typed-findings JSON size. The
@@ -94,8 +100,8 @@ const sarifChunkMaxFindings = 2000
 // submitSARIFKind builds the SARIF doc(s) for one kind and POSTs them, splitting
 // large submissions into sub-8-MiB chunks. Chunk 0 creates the snapshot/run;
 // chunks 1..N carry its uuid so the server appends under one snapshot. Returns
-// the (single) ingestion snapshot link for the summary.
-func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int, w io.Writer) (snapshotLink, bool) {
+// the (single) ingestion snapshot link, the snapshot UUID, and an ok flag.
+func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int, w io.Writer) (snapshotLink, string, bool) {
 	// Make the per-kind tool intent explicit (server is authoritative, but this
 	// keeps the env block self-describing): "Vulnetix SAST", "Vulnetix IaC", etc.
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
@@ -139,7 +145,7 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 				fmt.Fprintf(w, "  /v2/cli.%s chunk %d/%d submit failed: %v\n", sk.category, i+1, len(chunks), err)
 			}
 			if i == 0 {
-				return snapshotLink{}, false
+				return snapshotLink{}, "", false
 			}
 			continue
 		}
@@ -150,9 +156,9 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 		}
 	}
 	if !anyOK || link.URL == "" {
-		return snapshotLink{}, false
+		return snapshotLink{}, "", false
 	}
-	return link, true
+	return link, snapshotUuid, true
 }
 
 // buildAPISARIFFinding converts one local SAST finding into the typed API shape,
@@ -433,7 +439,8 @@ func postLicenseSARIF(result *license.AnalysisResult, rootPath string, snippetCo
 		})
 	}
 
-	env := envForCliWithGit(gitctx.Collect(rootPath))
+	gitCtx := gitctx.Collect(rootPath)
+	env := envForCliWithGit(gitCtx)
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
 		ToolName:    "Vulnetix License",
 		ToolVersion: version,
@@ -456,6 +463,7 @@ func postLicenseSARIF(result *license.AnalysisResult, rootPath string, snippetCo
 	if !silent {
 		fmt.Fprintf(os.Stderr, "License snapshot: %s\n", resp.Data.IngestionSnapshot.URL)
 	}
+	reportScanFinalization(resp.Data.IngestionSnapshot.Uuid, nil, nil, gitCtx, gitctx.CollectSystemInfo())
 }
 
 // captureSnippet reads the affected source span plus surrounding context for a
