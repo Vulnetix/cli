@@ -6,10 +6,20 @@ import (
 
 func TestSupportedVersions(t *testing.T) {
 	versions := SupportedVersions()
-	expected := []string{"1.7", "1.6", "1.5", "1.4"}
+	expected := []string{"1.7", "1.6", "1.5", "1.4", "1.3", "1.2"}
 	if len(versions) != len(expected) {
 		t.Fatalf("expected %d versions, got %d: %v", len(expected), len(versions), versions)
 	}
+	for i, v := range expected {
+		if versions[i] != v {
+			t.Fatalf("versions[%d]: expected %q, got %q", i, v, versions[i])
+		}
+	}
+}
+
+func TestSupportedVersionsAscending(t *testing.T) {
+	versions := SupportedVersionsAscending()
+	expected := []string{"1.2", "1.3", "1.4", "1.5", "1.6", "1.7"}
 	for i, v := range expected {
 		if versions[i] != v {
 			t.Fatalf("versions[%d]: expected %q, got %q", i, v, versions[i])
@@ -74,6 +84,30 @@ func TestValidateCDX_ValidBOM14(t *testing.T) {
 	}
 	if version != "1.4" {
 		t.Fatalf("expected version 1.4, got %q", version)
+	}
+}
+
+func TestValidateCycloneDX_UnsupportedVersionViolation(t *testing.T) {
+	bom := []byte(`{"bomFormat":"CycloneDX","specVersion":"9.9"}`)
+	version, violations, err := ValidateCycloneDX(bom)
+	if err != nil {
+		t.Fatalf("unexpected fatal error: %v", err)
+	}
+	if version != "9.9" {
+		t.Fatalf("expected version 9.9, got %q", version)
+	}
+	if len(violations) != 1 || violations[0].Path != "/specVersion" {
+		t.Fatalf("expected /specVersion violation, got %#v", violations)
+	}
+}
+
+func TestValidateCycloneDX_NonCycloneDXJSON(t *testing.T) {
+	version, violations, err := ValidateCycloneDX([]byte(`{"spdxVersion":"SPDX-2.3"}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if version != "" || len(violations) != 0 {
+		t.Fatalf("expected non-CDX pass-through, got version=%q violations=%#v", version, violations)
 	}
 }
 
