@@ -381,6 +381,25 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	scaAutofixMaxMajorBump, _ := cmd.Flags().GetInt("sca-autofix-max-major-bump")
 	yes, _ := cmd.Flags().GetBool("yes")
 	pathExplicit := cmd.Flags().Changed("path")
+
+	// Org quality-gate enforcement override. Applied after all nine control
+	// flags are read but BEFORE any is consumed (sca-autofix strategy parsing
+	// below, runLocalScan, and the gate options). For an authenticated org with
+	// a quality-gate policy, a set org value overwrites the local in place —
+	// org policy always wins, even over an explicitly-passed flag. Unauthenticated
+	// / community scans and orgs without a policy leave these values untouched.
+	applyOrgQualityGate(cmd, qualityGateOverridePointers{
+		blockEol:               &blockEOL,
+		blockMalware:           &blockMalware,
+		blockUnpinned:          &blockUnpinned,
+		cooldown:               &cooldownDays,
+		versionLag:             &versionLag,
+		scaAutofixMaxMajorBump: &scaAutofixMaxMajorBump,
+		exploits:               &exploitThreshold,
+		severity:               &severityThreshold,
+		scaAutofixStrategy:     &scaAutofixStrategyRaw,
+	})
+
 	scaAutofixStrategy, err := autofix.ValidateStrategy(scaAutofixStrategyRaw)
 	if err != nil {
 		return err

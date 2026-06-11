@@ -128,11 +128,15 @@ This command writes a `machine packages.vulnetix.com` entry to `.netrc`, persist
 
 ### vulnetix config
 
-Manage Vulnetix configuration. Today this manages the [Package Firewall](/docs/enterprise/package-firewall/policies/) per-organization policy and ecosystem mirrors. The organization is resolved from your authenticated session (`vulnetix auth login`).
+Manage Vulnetix configuration. This manages the [Package Firewall](/docs/enterprise/package-firewall/policies/) per-organization policy and ecosystem mirrors, the org-wide [Quality Gate](/docs/enterprise/quality-gates/) scan-enforcement policy, and the Quality Gate end-of-life severity buckets. The organization is resolved from your authenticated session (`vulnetix auth login`).
 
 ```bash
 vulnetix config set package-firewall [ecosystem] [url] [flags]
 vulnetix config get package-firewall [flags]
+vulnetix config set quality-gate [flags]
+vulnetix config get quality-gate [flags]
+vulnetix config set eol-policy [flags]
+vulnetix config get eol-policy [flags]
 ```
 
 #### config set package-firewall
@@ -187,6 +191,87 @@ Print the org-wide policy and every mirror across all ecosystems.
 ```bash
 vulnetix config get package-firewall
 vulnetix config get package-firewall -o json
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--base-url` | string | `https://api.vdb.vulnetix.com` | VDB API base URL |
+| `-o, --output` | string | `pretty` | Output format: `pretty`, `json` |
+
+#### config set quality-gate
+
+Set the org-wide [Quality Gate](/docs/enterprise/quality-gates/) scan-enforcement policy. When a member runs `vulnetix scan` (or `sca`, `sast`, …) while authenticated, every value you set here **overrides** the equivalent scan flag — **org policy always wins**, even over an explicitly-passed flag. Settings you leave unset fall back to the caller's flag or the builtin default.
+
+Each call is a **partial update** — only the flags you pass change; everything else keeps its current value. To clear a setting back to "not enforced", pass `null` as the flag's value (e.g. `--severity null`) — members then fall back to their own scan flag or the builtin default.
+
+```bash
+vulnetix config set quality-gate --severity high --block-malware true --cooldown 3
+```
+
+| Flag | Value | Description |
+|------|-------|-------------|
+| `--block-eol` | `true\|false\|null` | Exit `1` when a runtime or package dependency is end-of-life |
+| `--block-malware` | `true\|false\|null` | Exit `1` when any dependency is a known malicious package |
+| `--block-unpinned` | `true\|false\|null` | Exit `1` when any direct dependency uses a version range instead of an exact pin |
+| `--cooldown` | `≥ 0 \| null` | Exit `1` when any dependency version was published within the last *n* days (`0` disables) |
+| `--version-lag` | `≥ 0 \| null` | Exit `1` when any dependency is within the *n* most recently published versions (`0` disables) |
+| `--sca-autofix-max-major-bump` | `≥ 0 \| null` | Refuse autofix targets crossing more than *n* major versions |
+| `--exploits` | `poc\|active\|weaponized\|null` | Exit `1` when exploit maturity reaches the threshold |
+| `--severity` | `low\|medium\|high\|critical\|null` | Exit `1` when any vulnerability or SAST finding meets or exceeds this level |
+| `--sca-autofix-strategy` | `latest\|safest\|stable\|null` | Target strategy for `--sca-autofix` |
+
+Every flag takes a value (e.g. `--block-malware true`). Pass **`null`** to unset a setting entirely for the org — the value is cleared and members fall back to their own scan flag or the builtin default:
+
+```bash
+vulnetix config set quality-gate --severity null --cooldown null
+```
+
+Omitting a flag leaves its stored value unchanged. Both this command and `config get quality-gate` share `--base-url` (default `https://api.vdb.vulnetix.com`) and `-o, --output` (`pretty`, `json`).
+
+#### config get quality-gate
+
+Print the org-wide Quality Gate enforcement policy. Settings the organization never configured render as **not set** (the caller's flag or builtin default applies for those).
+
+```bash
+vulnetix config get quality-gate
+vulnetix config get quality-gate -o json
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--base-url` | string | `https://api.vdb.vulnetix.com` | VDB API base URL |
+| `-o, --output` | string | `pretty` | Output format: `pretty`, `json` |
+
+#### config set eol-policy
+
+Set the four end-of-life **calendar-quarter severity buckets** of the Quality Gate. These map an upcoming or past EOL date to a synthetic finding severity during `vulnetix scan` (opt-in via the org policy). The buckets are literal calendar quarters (Q1 Jan–Mar, Q2 Apr–Jun, Q3 Jul–Sep, Q4 Oct–Dec); a date is classified by which quarter it lands in. This is **not** a per-product mapping — it is the four shared time buckets.
+
+Each call is a **partial update**.
+
+```bash
+vulnetix config set eol-policy \
+  --next-quarter-severity low \
+  --this-quarter-severity medium \
+  --within-30-days-severity high \
+  --retired-severity critical
+```
+
+| Flag | Type | Value | Description |
+|------|------|-------|-------------|
+| `--next-quarter-severity` | string | `skip\|low\|medium\|high\|critical` | Severity for products reaching EOL in the next calendar quarter |
+| `--this-quarter-severity` | string | `skip\|low\|medium\|high\|critical` | Severity for products reaching EOL in the current calendar quarter |
+| `--within-30-days-severity` | string | `skip\|low\|medium\|high\|critical` | Severity for products reaching EOL within the next 30 days |
+| `--retired-severity` | string | `skip\|low\|medium\|high\|critical` | Severity for products already past EOL (retired) |
+
+Use `skip` to suppress findings for a bucket entirely. Both this command and `config get eol-policy` share `--base-url` (default `https://api.vdb.vulnetix.com`) and `-o, --output` (`pretty`, `json`).
+
+#### config get eol-policy
+
+Print the four EOL calendar-quarter severity buckets.
+
+```bash
+vulnetix config get eol-policy
+vulnetix config get eol-policy -o json
 ```
 
 | Flag | Type | Default | Description |

@@ -760,6 +760,18 @@ vulnetix scan status abc123def
 vulnetix scan status abc123def --poll --poll-interval 10
 ```
 
+## Org Quality Gate Policy
+
+When you run a scan while authenticated and your organization has configured a [Quality Gate](/docs/enterprise/quality-gates/), its settings are pulled in before the gate is evaluated and **override the matching scan flag defaults — org policy always wins**, even over a flag you pass explicitly. The override applies to `--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`, `--version-lag`, `--cooldown`, `--sca-autofix-strategy`, and `--sca-autofix-max-major-bump`. Settings the org left unset fall back to your flag or the builtin default.
+
+Run with `--verbose` to see which settings were applied or superseded. Inspect the active policy with:
+
+```bash
+vulnetix config get quality-gate
+```
+
+Non-authenticated scans (no credentials, or the community fallback) have no organization to read from and use only the CLI flags you pass.
+
 ## Exit Codes
 
 | Code | Meaning |
