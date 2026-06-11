@@ -492,6 +492,31 @@ type CliPackageFirewallMirrorRequest struct {
 	IsActive  *bool  `json:"isActive,omitempty"`
 }
 
+type CliQualityGateConfigRequest struct {
+	EolNextQuarterSeverity  *string `json:"eolNextQuarterSeverity,omitempty"`
+	EolThisQuarterSeverity  *string `json:"eolThisQuarterSeverity,omitempty"`
+	EolWithin30DaysSeverity *string `json:"eolWithin30DaysSeverity,omitempty"`
+	EolRetiredSeverity      *string `json:"eolRetiredSeverity,omitempty"`
+
+	// Org-wide CLI scan enforcement settings (all nullable — a nil pointer means
+	// the org did not set this, so the caller's flag / builtin default stands).
+	// The upsert merges on conflict (COALESCE), so omitted fields preserve their
+	// stored value; clearing a value is done via the website full-replace PUT.
+	BlockEol               *bool   `json:"blockEol,omitempty"`
+	BlockMalware           *bool   `json:"blockMalware,omitempty"`
+	BlockUnpinned          *bool   `json:"blockUnpinned,omitempty"`
+	Cooldown               *int    `json:"cooldown,omitempty"`
+	VersionLag             *int    `json:"versionLag,omitempty"`
+	ScaAutofixMaxMajorBump *int    `json:"scaAutofixMaxMajorBump,omitempty"`
+	Exploits               *string `json:"exploits,omitempty"`
+	Severity               *string `json:"severity,omitempty"`
+	ScaAutofixStrategy     *string `json:"scaAutofixStrategy,omitempty"`
+
+	// Clear lists camelCase enforcement field names to reset to NULL (unset) for
+	// the org — distinct from an omitted field, which preserves its stored value.
+	Clear []string `json:"clear,omitempty"`
+}
+
 // ─── Env snapshot ────────────────────────────────────────────────────────
 
 // SnapshotEnv assembles the CliEnv block from the running CLI process. Safe
@@ -772,6 +797,20 @@ func (c *Client) CliPackageFirewallMirror(env CliEnv, req CliPackageFirewallMirr
 // request, so the payload is empty.
 func (c *Client) CliPackageFirewallGet(env CliEnv) (*CliResponse[map[string]any], error) {
 	return cliPostWithEnv[map[string]any](c, "cli.package-firewall-get", env, struct{}{})
+}
+
+// CliQualityGateConfig — POST /v2/cli.quality-gate-config. Upserts the org's
+// EOL-severity quality-gate policy. Only changed fields are sent (pointer
+// fields nil otherwise), so an unset severity preserves its current value.
+func (c *Client) CliQualityGateConfig(env CliEnv, req CliQualityGateConfigRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.quality-gate-config", env, req)
+}
+
+// CliQualityGateGet — POST /v2/cli.quality-gate-get. Read-only: returns the
+// org's quality-gate policy ({"config": {...}|null}). Org is resolved from the
+// authenticated request, so the payload is empty.
+func (c *Client) CliQualityGateGet(env CliEnv) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.quality-gate-get", env, struct{}{})
 }
 
 // SARIF-shaped scan endpoints. Each returns the same persistence response

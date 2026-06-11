@@ -204,7 +204,7 @@ func (c *Client) MultipartUploadWithProgress(fileName string, data []byte, conte
 		return nil, fmt.Errorf("failed to close multipart body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", c.BaseURL+"/uploads", &buf)
+	req, err := http.NewRequest("POST", strings.TrimSuffix(c.BaseURL, "/v1") + "/v2/cli.upload", &buf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create upload request: %w", err)
 	}
