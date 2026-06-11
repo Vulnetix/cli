@@ -17,7 +17,12 @@ var schemaFS embed.FS
 
 // validVersions lists supported CDX spec versions from highest to lowest.
 // ValidateCDX honors the document's declared specVersion when present.
-var validVersions = []string{"1.7", "1.6", "1.5", "1.4"}
+var validVersions = []string{"1.7", "1.6", "1.5", "1.4", "1.3", "1.2"}
+
+type ValidationViolation struct {
+	Path    string `json:"path"`
+	Message string `json:"message"`
+}
 
 // compiled caches compiled schemas so repeated validations are fast.
 var (
@@ -91,48 +96,99 @@ func ensureCompiled() error {
 	return compileErr
 }
 
-// ValidateCDX validates raw CycloneDX JSON against embedded schemas.
-func ValidateCDX(data []byte) (string, error) {
+// ValidateCycloneDX validates raw CycloneDX JSON against the schema declared
+// by bom.specVersion. It mirrors the website upload validator: non-CycloneDX
+// JSON returns specVersion="" with no violations, schema failures return a
+// bounded path/message list, and malformed JSON is fatal.
+func ValidateCycloneDX(data []byte) (string, []ValidationViolation, error) {
 	if err := ensureCompiled(); err != nil {
-		return "", fmt.Errorf("schema init: %w", err)
+		return "", nil, fmt.Errorf("schema init: %w", err)
 	}
 
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
 	if err != nil {
-		return "", fmt.Errorf("invalid JSON: %w", err)
+		return "", nil, fmt.Errorf("invalid JSON: %w", err)
 	}
 
 	var header struct {
+		BomFormat   string `json:"bomFormat"`
 		SpecVersion string `json:"specVersion"`
 	}
 	if err := json.Unmarshal(data, &header); err != nil {
-		return "", fmt.Errorf("invalid JSON: %w", err)
+		return "", nil, fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	if header.SpecVersion != "" {
-		sch, ok := compiled[header.SpecVersion]
-		if !ok {
-			return "", fmt.Errorf("unsupported CDX specVersion %q (supported: %s)", header.SpecVersion, strings.Join(validVersions, ", "))
-		}
-		if err := sch.Validate(doc); err != nil {
-			return "", fmt.Errorf("CDX document does not validate against declared specVersion %s: %w", header.SpecVersion, err)
-		}
-		return header.SpecVersion, nil
+	if !strings.EqualFold(header.BomFormat, "CycloneDX") || header.SpecVersion == "" {
+		return "", nil, nil
 	}
 
-	for _, v := range validVersions {
-		sch := compiled[v]
-		if err := sch.Validate(doc); err == nil {
-			return v, nil
-		}
+	sch, ok := compiled[header.SpecVersion]
+	if !ok {
+		return header.SpecVersion, []ValidationViolation{{
+			Path:    "/specVersion",
+			Message: fmt.Sprintf("unsupported CycloneDX version %q (supported: %s)", header.SpecVersion, strings.Join(SupportedVersionsAscending(), ", ")),
+		}}, nil
 	}
+	if err := sch.Validate(doc); err != nil {
+		return header.SpecVersion, flattenValidationErrors(err), nil
+	}
+	return header.SpecVersion, nil, nil
+}
 
-	return "", fmt.Errorf("CDX document does not validate against any supported schema (1.4–1.7)")
+// ValidateCDX validates raw CycloneDX JSON against embedded schemas.
+func ValidateCDX(data []byte) (string, error) {
+	version, violations, err := ValidateCycloneDX(data)
+	if err != nil {
+		return "", err
+	}
+	if version == "" {
+		return "", fmt.Errorf("not a CycloneDX BOM")
+	}
+	if len(violations) > 0 {
+		return "", fmt.Errorf("CDX document does not validate against declared specVersion %s: %s", version, violations[0].Message)
+	}
+	return version, nil
 }
 
 // SupportedVersions returns the list of CDX spec versions supported for validation.
 func SupportedVersions() []string {
 	out := make([]string, len(validVersions))
 	copy(out, validVersions)
+	return out
+}
+
+func SupportedVersionsAscending() []string {
+	out := SupportedVersions()
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+	return out
+}
+
+func flattenValidationErrors(err error) []ValidationViolation {
+	const cap = 25
+	ve, ok := err.(*jsonschema.ValidationError)
+	if !ok {
+		return []ValidationViolation{{Path: "", Message: err.Error()}}
+	}
+	var out []ValidationViolation
+	var walk func(*jsonschema.ValidationError)
+	walk = func(e *jsonschema.ValidationError) {
+		if len(out) >= cap {
+			return
+		}
+		if len(e.Causes) == 0 {
+			path := "/" + strings.Join(e.InstanceLocation, "/")
+			out = append(out, ValidationViolation{Path: path, Message: e.Error()})
+			return
+		}
+		for _, c := range e.Causes {
+			walk(c)
+		}
+	}
+	walk(ve)
+	if len(out) == cap {
+		out = append(out, ValidationViolation{Path: "", Message: fmt.Sprintf("...additional violations truncated (first %d shown)", cap)})
+	}
 	return out
 }

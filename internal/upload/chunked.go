@@ -20,7 +20,7 @@ func (c *Client) ChunkedUploadWithProgress(fileName string, data []byte, content
 	if progress != nil {
 		progress(0, totalSteps, "Initiating chunked upload session")
 	}
-	session, err := c.InitiateSession(fileName, fileSize, contentType, totalChunks, chunkSize)
+	session, err := c.InitiateSession(fileName, fileSize, contentType, totalChunks, chunkSize, format)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initiate chunked upload: %w", err)
 	}

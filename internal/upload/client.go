@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/vulnetix/cli/v3/internal/cdx/schema"
 	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 const (
@@ -46,6 +50,7 @@ type Client struct {
 	Creds         *auth.Credentials
 	HTTPClient    *http.Client
 	GitHubContext *GitHubActionsContext
+	CliEnv        *vdb.CliEnv
 }
 
 // ProgressFunc reports upload stage progress against a fixed per-file goal.
@@ -83,6 +88,18 @@ type FinalizeResponse struct {
 	PipelineRecord *PipelineRecord `json:"pipelineRecord,omitempty"`
 	IsDuplicate    bool            `json:"isDuplicate,omitempty"`
 	Error          string          `json:"error,omitempty"`
+}
+
+type CycloneDXValidationError struct {
+	SpecVersion string                       `json:"specVersion,omitempty"`
+	Violations  []schema.ValidationViolation `json:"violations"`
+}
+
+func (e *CycloneDXValidationError) Error() string {
+	if len(e.Violations) == 0 {
+		return "CycloneDX schema validation failed"
+	}
+	return fmt.Sprintf("CycloneDX schema validation failed at %s: %s", e.Violations[0].Path, e.Violations[0].Message)
 }
 
 // NewClient creates a new upload client
@@ -125,8 +142,18 @@ func (c *Client) UploadFileWithProgress(filePath string, formatOverride string, 
 		contentType = "application/xml"
 	}
 
+	if format == "cyclonedx" {
+		specVersion, violations, err := schema.ValidateCycloneDX(data)
+		if err != nil {
+			return nil, err
+		}
+		if len(violations) > 0 {
+			return nil, &CycloneDXValidationError{SpecVersion: specVersion, Violations: violations}
+		}
+	}
+
 	if len(data) < ChunkThreshold {
-		return c.SimpleUploadWithProgress(fileName, data, contentType, format, progress)
+		return c.MultipartUploadWithProgress(fileName, data, contentType, format, progress)
 	}
 	return c.ChunkedUploadWithProgress(fileName, data, contentType, format, progress)
 }
@@ -138,43 +165,87 @@ func (c *Client) SimpleUpload(fileName string, data []byte, contentType, format 
 
 // SimpleUploadWithProgress performs a single-request upload for small files.
 func (c *Client) SimpleUploadWithProgress(fileName string, data []byte, contentType, format string, progress ProgressFunc) (*FinalizeResponse, error) {
+	return c.MultipartUploadWithProgress(fileName, data, contentType, format, progress)
+}
+
+// MultipartUploadWithProgress performs the same single-request multipart upload
+// used by the website drop zone, with optional CLI environment metadata.
+func (c *Client) MultipartUploadWithProgress(fileName string, data []byte, contentType, format string, progress ProgressFunc) (*FinalizeResponse, error) {
 	if progress != nil {
-		progress(0, 3, "Initiating upload session")
-	}
-	// Initiate
-	session, err := c.InitiateSession(fileName, len(data), contentType, 1, len(data))
-	if err != nil {
-		return nil, fmt.Errorf("failed to initiate upload: %w", err)
-	}
-	if progress != nil {
-		progress(1, 3, "Uploading data")
+		progress(0, 3, "Preparing multipart upload")
 	}
 
-	// Single chunk
-	if _, err := c.UploadChunk(session.UploadSessionID, 1, data); err != nil {
-		return nil, fmt.Errorf("failed to upload data: %w", err)
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	partHeader := make(textproto.MIMEHeader)
+	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, escapeQuotes(fileName)))
+	partHeader.Set("Content-Type", contentType)
+	part, err := mw.CreatePart(partHeader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create multipart file part: %w", err)
 	}
+	if _, err := part.Write(data); err != nil {
+		return nil, fmt.Errorf("failed to write multipart file part: %w", err)
+	}
+	if format != "" && format != "auto" {
+		_ = mw.WriteField("format", format)
+	}
+	if c.CliEnv != nil {
+		envBytes, err := json.Marshal(c.CliEnv)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal cli env: %w", err)
+		}
+		_ = mw.WriteField("cliEnv", string(envBytes))
+	}
+	if progress != nil {
+		progress(1, 3, "Uploading file")
+	}
+	if err := mw.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close multipart body: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", c.BaseURL+"/uploads", &buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create upload request: %w", err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	c.addAuth(req)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("upload failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read upload response: %w", err)
+	}
+	if resp.StatusCode >= 400 {
+		return nil, uploadHTTPError(resp.StatusCode, respBody)
+	}
+
 	if progress != nil {
 		progress(2, 3, "Finalizing upload")
 	}
-
-	// Finalize
-	result, err := c.FinalizeUpload(session.UploadSessionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to finalize upload: %w", err)
+	var out FinalizeResponse
+	if err := json.Unmarshal(respBody, &out); err != nil {
+		return nil, fmt.Errorf("failed to parse upload response: %w", err)
+	}
+	if !out.OK {
+		return nil, fmt.Errorf("upload failed: %s", out.Error)
 	}
 	if progress != nil {
 		progress(3, 3, "Upload finalized")
 	}
-
-	return result, nil
+	return &out, nil
 }
 
 // InitiateSession starts a new upload session
-func (c *Client) InitiateSession(fileName string, fileSize int, contentType string, totalChunks, chunkSize int) (*InitiateResponse, error) {
-	source := "CLI"
+func (c *Client) InitiateSession(fileName string, fileSize int, contentType string, totalChunks, chunkSize int, format string) (*InitiateResponse, error) {
+	source := "CLI_UPLOAD"
 	if os.Getenv("GITHUB_ACTIONS") == "true" {
-		source = "GITHUB_ACTIONS"
+		source = "GITHUB_ACTIONS_UPLOAD"
 	}
 	body := map[string]interface{}{
 		"fileName":    fileName,
@@ -183,9 +254,13 @@ func (c *Client) InitiateSession(fileName string, fileSize int, contentType stri
 		"totalChunks": totalChunks,
 		"chunkSize":   chunkSize,
 		"source":      source,
+		"format":      format,
 	}
 	if c.GitHubContext != nil {
 		body["githubContext"] = c.GitHubContext
+	}
+	if c.CliEnv != nil {
+		body["cliEnv"] = c.CliEnv
 	}
 
 	respBody, err := c.doRequest("POST", "/uploads/initiate", body)
@@ -203,6 +278,26 @@ func (c *Client) InitiateSession(fileName string, fileSize int, contentType stri
 	}
 
 	return &resp, nil
+}
+
+func uploadHTTPError(status int, body []byte) error {
+	var payload struct {
+		Error      string                       `json:"error"`
+		Violations []schema.ValidationViolation `json:"violations"`
+	}
+	if err := json.Unmarshal(body, &payload); err == nil {
+		if len(payload.Violations) > 0 {
+			return &CycloneDXValidationError{Violations: payload.Violations}
+		}
+		if payload.Error != "" {
+			return fmt.Errorf("API error (HTTP %d): %s", status, payload.Error)
+		}
+	}
+	return fmt.Errorf("API error (HTTP %d): %s", status, string(body))
+}
+
+func escapeQuotes(s string) string {
+	return strings.NewReplacer("\\", "\\\\", `"`, `\"`).Replace(s)
 }
 
 // UploadChunk uploads a single chunk of data

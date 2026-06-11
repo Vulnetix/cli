@@ -72,6 +72,8 @@ func runUpload(cmd *cobra.Command, args []string) error {
 
 	// Create upload client
 	client := upload.NewClient(uploadBaseURL, creds)
+	env := envForCli()
+	client.CliEnv = &env
 
 	// Single-file mode
 	if uploadFile != "" {
@@ -91,6 +93,10 @@ func runUpload(cmd *cobra.Command, args []string) error {
 		})
 		if err != nil {
 			progress.Fail("upload failed")
+			if vErr, ok := err.(*upload.CycloneDXValidationError); ok {
+				printValidationFailure(t, uploadFile, vErr, uploadOutputJSON)
+				return err
+			}
 			return fmt.Errorf("upload failed: %w", err)
 		}
 		progress.Complete("upload complete")
@@ -148,6 +154,9 @@ func runUpload(cmd *cobra.Command, args []string) error {
 		})
 		if err != nil {
 			progress.SetStage(fmt.Sprintf("%s failed: %v", fileName, err))
+			if vErr, ok := err.(*upload.CycloneDXValidationError); ok {
+				printValidationFailure(t, f.Path, vErr, uploadOutputJSON)
+			}
 			anyError = true
 			continue
 		}
@@ -161,6 +170,35 @@ func runUpload(cmd *cobra.Command, args []string) error {
 	}
 	progress.Complete("all artifacts uploaded")
 	return nil
+}
+
+func printValidationFailure(t *display.Terminal, filePath string, result *upload.CycloneDXValidationError, asJSON bool) {
+	if asJSON {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		_ = encoder.Encode(map[string]any{
+			"ok":          false,
+			"file":        filePath,
+			"specVersion": result.SpecVersion,
+			"violations":  result.Violations,
+		})
+		return
+	}
+
+	var b strings.Builder
+	b.WriteString(display.WarningMark(t) + " " + display.Bold(t, filepath.Base(filePath)) + " — CycloneDX schema validation failed\n")
+	for i, v := range result.Violations {
+		if i >= 5 {
+			b.WriteString(fmt.Sprintf("  ...%d more violation(s)\n", len(result.Violations)-i))
+			break
+		}
+		path := v.Path
+		if path == "" {
+			path = "/"
+		}
+		b.WriteString(fmt.Sprintf("  %s: %s\n", path, v.Message))
+	}
+	fmt.Print(b.String())
 }
 
 func printUploadResult(t *display.Terminal, filePath string, result *upload.FinalizeResponse, asJSON bool) {
