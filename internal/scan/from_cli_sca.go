@@ -26,6 +26,8 @@ package scan
 import (
 	"strconv"
 	"strings"
+
+	"github.com/vulnetix/cli/v3/internal/versions"
 )
 
 // epssSeverity tiers EPSS probability into the legacy severity ladder.
@@ -201,6 +203,16 @@ func SynthesiseFromCDX(cdxDoc map[string]any, packages []ScopedPackage, purls []
 				MaxSeverity:     maxSeverity(severity, epssSeverity(epssScore), cessSeverity(props.cessScore), ssvcSeverity(props.ssvcDecision)),
 				MatchMethod:     "name+version",
 				AffectedRange:   props.affectedRange,
+				VersionStatus:   props.versionStatus,
+			}
+			if ev.VersionStatus == "" {
+				// Older servers don't emit vulnetix:versionStatus — derive
+				// from the multi-source confirmation flag.
+				if props.confirmed {
+					ev.VersionStatus = string(versions.StatusAffected)
+				} else {
+					ev.VersionStatus = string(versions.StatusUnknown)
+				}
 			}
 			if props.exploitCount > 0 {
 				ev.ExploitIntel = &ExploitSummary{
@@ -353,6 +365,7 @@ type vulnetixProps struct {
 	inEuKev            bool
 	isMalicious        bool
 	confirmed          bool
+	versionStatus      string
 	exploitCount       int
 	exploitSources     []string
 	hasWeaponized      bool
@@ -393,6 +406,8 @@ func extractVulnetixProps(vuln map[string]any) vulnetixProps {
 			p.isMalicious = val == "true"
 		case "vulnetix:confirmed":
 			p.confirmed = val == "true"
+		case "vulnetix:versionStatus":
+			p.versionStatus = val
 		case "vulnetix:exploitCount":
 			if n, err := parseInt(val); err == nil {
 				p.exploitCount = n

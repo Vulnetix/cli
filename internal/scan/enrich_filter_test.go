@@ -219,6 +219,124 @@ func TestCheckAffectedResponse_VersionRangeFiltering(t *testing.T) {
 			wantAffected: true,
 			wantMethod:   "name-only",
 		},
+		{
+			name: "structured versions: exact unaffected beats affected range",
+			data: map[string]interface{}{
+				"affected": []interface{}{
+					map[string]interface{}{
+						"packageName": "jwt",
+						"ecosystem":   "npm",
+						"versions": []interface{}{
+							map[string]interface{}{"version": "0", "status": "affected", "lessThan": "2.0.0"},
+							map[string]interface{}{"version": "1.5.0", "status": "unaffected"},
+						},
+					},
+				},
+			},
+			pkgName:      "jwt",
+			installedVer: "1.5.0",
+			ecosystem:    "npm",
+			wantAffected: false,
+			wantMethod:   "name+version",
+		},
+		{
+			name: "structured versions: inside affected range",
+			data: map[string]interface{}{
+				"affected": []interface{}{
+					map[string]interface{}{
+						"packageName": "jwt",
+						"ecosystem":   "npm",
+						"versions": []interface{}{
+							map[string]interface{}{"version": "1.0.0", "status": "affected", "lessThan": "2.0.0"},
+						},
+					},
+				},
+			},
+			pkgName:      "jwt",
+			installedVer: "1.5.0",
+			ecosystem:    "npm",
+			wantAffected: true,
+			wantMethod:   "name+version",
+		},
+		{
+			name: "structured versions: below introduced lower bound, default unaffected",
+			data: map[string]interface{}{
+				"affected": []interface{}{
+					map[string]interface{}{
+						"packageName":   "jwt",
+						"ecosystem":     "npm",
+						"defaultStatus": "unaffected",
+						"versions": []interface{}{
+							map[string]interface{}{"version": "1.0.0", "status": "affected", "lessThan": "2.0.0"},
+						},
+					},
+				},
+			},
+			pkgName:      "jwt",
+			installedVer: "0.9.0",
+			ecosystem:    "npm",
+			wantAffected: false,
+			wantMethod:   "name+version",
+		},
+		{
+			name: "structured versions: pseudo-version equals unaffected base outside go",
+			data: map[string]interface{}{
+				"affected": []interface{}{
+					map[string]interface{}{
+						"packageName": "jwt",
+						"ecosystem":   "npm",
+						"versions": []interface{}{
+							map[string]interface{}{"version": "0", "status": "affected", "lessThan": "6.0.0"},
+							map[string]interface{}{"version": "5.3.2", "status": "unaffected"},
+						},
+					},
+				},
+			},
+			pkgName:      "jwt",
+			installedVer: "5.3.2-0.20260526213025-e8e5b83ca9a5",
+			ecosystem:    "npm",
+			wantAffected: false,
+			wantMethod:   "name+version",
+		},
+		{
+			name: "structured versions: go pseudo-version stays in affected range",
+			data: map[string]interface{}{
+				"affected": []interface{}{
+					map[string]interface{}{
+						"packageName": "github.com/golang-jwt/jwt",
+						"ecosystem":   "go",
+						"versions": []interface{}{
+							map[string]interface{}{"version": "0", "status": "affected", "lessThan": "6.0.0"},
+							map[string]interface{}{"version": "5.3.2", "status": "unaffected"},
+						},
+					},
+				},
+			},
+			pkgName:      "github.com/golang-jwt/jwt",
+			installedVer: "5.3.2-0.20260526213025-e8e5b83ca9a5",
+			ecosystem:    "go",
+			wantAffected: true,
+			wantMethod:   "name+version",
+		},
+		{
+			name: "structured versions: junk entries fall back to assume affected",
+			data: map[string]interface{}{
+				"affected": []interface{}{
+					map[string]interface{}{
+						"packageName": "jwt",
+						"ecosystem":   "npm",
+						"versions": []interface{}{
+							map[string]interface{}{"version": "unspecified", "status": "affected"},
+						},
+					},
+				},
+			},
+			pkgName:      "jwt",
+			installedVer: "1.5.0",
+			ecosystem:    "npm",
+			wantAffected: true,
+			wantMethod:   "name-only",
+		},
 	}
 
 	for _, tt := range tests {

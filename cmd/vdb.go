@@ -118,7 +118,7 @@ Examples:
   # Get vulnerabilities for a package
   vulnetix vdb vulns express`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			printBanner(cmd)
+		printBanner(cmd)
 		// Initialize display context with correct output mode
 		mode := display.ModeText
 		if vdbOutput == "json" || vdbOutput == "yaml" {
@@ -789,7 +789,7 @@ Examples:
   vulnetix vdb spec --output json > vdb-spec.json`,
 	// Override parent's PersistentPreRunE — spec is public, no auth required
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			printBanner(cmd)
+		printBanner(cmd)
 		mode := display.ModeText
 		if vdbOutput == "json" || vdbOutput == "yaml" {
 			mode = display.ModeJSON
@@ -1685,7 +1685,7 @@ Examples:
 	Args: cobra.NoArgs,
 	// Own PersistentPreRunE overrides parent vdbCmd's — soft-loads creds (no error if absent)
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			printBanner(cmd)
+		printBanner(cmd)
 		mode := display.ModeText
 		if vdbOutput == "json" || vdbOutput == "yaml" {
 			mode = display.ModeJSON
@@ -1924,7 +1924,7 @@ Examples:
 	// Override parent's PersistentPreRunE — cache clear needs no auth
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		initDisplayContext(cmd, display.ModeText)
-			printBanner(cmd)
+		printBanner(cmd)
 		return validateOutputFlags()
 	},
 	Args: cobra.NoArgs,
