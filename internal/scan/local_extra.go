@@ -14,6 +14,8 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // ---------------------------------------------------------------------------
@@ -363,46 +365,302 @@ func parseBuildLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 }
 
 // ---------------------------------------------------------------------------
-// Docker — Dockerfile
+// Containers — Dockerfile / Containerfile / Gockerfile / Pkgfile / Compose
 // ---------------------------------------------------------------------------
 
-func parseDockerfileScoped(data []byte, _ string) ([]ScopedPackage, error) {
+func parseDockerfileScoped(data []byte, filePath string) ([]ScopedPackage, error) {
 	var pkgs []ScopedPackage
-	for _, line := range strings.Split(string(data), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(strings.ToUpper(trimmed), "FROM ") {
-			continue
-		}
-		ref := strings.TrimSpace(trimmed[5:])
-		if idx := strings.Index(strings.ToUpper(ref), " AS "); idx > 0 {
-			ref = strings.TrimSpace(ref[:idx])
-		}
-		// Strip --platform=linux/amd64 etc.
-		if strings.HasPrefix(ref, "--") {
-			if spIdx := strings.Index(ref, " "); spIdx > 0 {
-				ref = strings.TrimSpace(ref[spIdx+1:])
+	seen := map[string]bool{}
+	for _, instruction := range dockerfileInstructions(string(data)) {
+		upper := strings.ToUpper(instruction)
+		switch {
+		case strings.HasPrefix(upper, "FROM "):
+			ref := dockerfileFromImage(instruction)
+			appendContainerImagePackage(&pkgs, seen, ref, filePath)
+		case strings.HasPrefix(upper, "RUN "):
+			for _, pkg := range parseContainerRunPackages(strings.TrimSpace(instruction[4:]), filePath) {
+				appendScopedPackage(&pkgs, seen, pkg)
 			}
 		}
-		if ref == "scratch" {
-			continue
-		}
-		name, ver := splitDockerRef(ref)
-		pkgs = append(pkgs, ScopedPackage{
-			Name: name, Version: ver,
-			Ecosystem: "docker", Scope: ScopeProduction, IsDirect: true,
-		})
 	}
 	return pkgs, nil
 }
 
+func parseComposeScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	type composeService struct {
+		Image string `yaml:"image"`
+		Build any    `yaml:"build"`
+	}
+	var doc struct {
+		Services map[string]composeService `yaml:"services"`
+	}
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	for _, svc := range doc.Services {
+		appendContainerImagePackage(&pkgs, seen, svc.Image, filePath)
+	}
+	return pkgs, nil
+}
+
+func dockerfileInstructions(content string) []string {
+	var out []string
+	var current strings.Builder
+	for _, raw := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(stripInlineComment(raw))
+		if line == "" {
+			continue
+		}
+		continued := strings.HasSuffix(line, "\\")
+		line = strings.TrimSpace(strings.TrimSuffix(line, "\\"))
+		if current.Len() > 0 {
+			current.WriteByte(' ')
+		}
+		current.WriteString(line)
+		if continued {
+			continue
+		}
+		out = append(out, current.String())
+		current.Reset()
+	}
+	if current.Len() > 0 {
+		out = append(out, current.String())
+	}
+	return out
+}
+
+func dockerfileFromImage(instruction string) string {
+	fields := strings.Fields(strings.TrimSpace(instruction[4:]))
+	for len(fields) > 0 && strings.HasPrefix(fields[0], "--") {
+		fields = fields[1:]
+	}
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
+}
+
+func appendContainerImagePackage(pkgs *[]ScopedPackage, seen map[string]bool, ref, source string) {
+	ref = strings.Trim(strings.TrimSpace(ref), `"'`)
+	if ref == "" || ref == "scratch" || strings.HasPrefix(ref, "$") {
+		return
+	}
+	name, ver := splitDockerRef(ref)
+	if name == "" {
+		return
+	}
+	appendScopedPackage(pkgs, seen, ScopedPackage{
+		Name: name, Version: ver,
+		Ecosystem: "oci", Scope: ScopeProduction, SourceFile: source, IsDirect: true,
+	})
+}
+
+func appendScopedPackage(pkgs *[]ScopedPackage, seen map[string]bool, pkg ScopedPackage) {
+	if pkg.Name == "" {
+		return
+	}
+	key := strings.ToLower(pkg.Ecosystem + "::" + pkg.Name + "::" + pkg.Version + "::" + pkg.SourceFile)
+	if seen[key] {
+		return
+	}
+	seen[key] = true
+	*pkgs = append(*pkgs, pkg)
+}
+
 func splitDockerRef(ref string) (name, ver string) {
+	ref = strings.TrimSpace(ref)
 	if idx := strings.Index(ref, "@"); idx > 0 {
 		return ref[:idx], ref[idx+1:]
 	}
-	if idx := strings.LastIndex(ref, ":"); idx > 0 {
-		return ref[:idx], ref[idx+1:]
+	lastSlash := strings.LastIndex(ref, "/")
+	lastColon := strings.LastIndex(ref, ":")
+	if lastColon > lastSlash {
+		return ref[:lastColon], ref[lastColon+1:]
 	}
 	return ref, ""
+}
+
+type containerInstallSpec struct {
+	Ecosystem string
+	Commands  []string
+	Subcmds   []string
+}
+
+var containerInstallSpecs = []containerInstallSpec{
+	{Ecosystem: "apk", Commands: []string{"apk"}, Subcmds: []string{"add"}},
+	{Ecosystem: "deb", Commands: []string{"apt", "apt-get", "aptitude"}, Subcmds: []string{"install"}},
+	{Ecosystem: "deb", Commands: []string{"dpkg"}, Subcmds: []string{"-i", "--install"}},
+	{Ecosystem: "rpm", Commands: []string{"yum", "dnf", "microdnf"}, Subcmds: []string{"install", "localinstall", "groupinstall"}},
+	{Ecosystem: "rpm", Commands: []string{"rpm"}, Subcmds: []string{"-i", "-U", "-Uvh", "--install", "--upgrade"}},
+	{Ecosystem: "arch", Commands: []string{"pacman", "yay", "paru"}, Subcmds: []string{"-S", "-Sy", "-Syu", "--sync"}},
+	{Ecosystem: "npm", Commands: []string{"npm"}, Subcmds: []string{"install", "i", "add"}},
+	{Ecosystem: "npm", Commands: []string{"yarn"}, Subcmds: []string{"add", "install"}},
+	{Ecosystem: "npm", Commands: []string{"pnpm"}, Subcmds: []string{"add", "install"}},
+	{Ecosystem: "npm", Commands: []string{"bun"}, Subcmds: []string{"add", "install"}},
+	{Ecosystem: "pypi", Commands: []string{"pip", "pip3", "uv"}, Subcmds: []string{"install", "add"}},
+	{Ecosystem: "conda", Commands: []string{"conda", "mamba", "micromamba"}, Subcmds: []string{"install"}},
+	{Ecosystem: "gem", Commands: []string{"gem"}, Subcmds: []string{"install"}},
+	{Ecosystem: "maven", Commands: []string{"mvn"}, Subcmds: []string{"dependency:get"}},
+	{Ecosystem: "maven", Commands: []string{"gradle", "./gradlew"}, Subcmds: []string{"dependencies"}},
+	{Ecosystem: "golang", Commands: []string{"go"}, Subcmds: []string{"get", "install"}},
+}
+
+func parseContainerRunPackages(command, source string) []ScopedPackage {
+	tokens := shellishFields(command)
+	var pkgs []ScopedPackage
+	for i := 0; i < len(tokens); i++ {
+		cmd := baseCommand(tokens[i])
+		spec, ok := matchInstallCommand(cmd)
+		if !ok || i+1 >= len(tokens) {
+			continue
+		}
+		j := i + 1
+		if commandMatches(tokens[j], spec.Subcmds) {
+			j++
+		} else if len(spec.Subcmds) > 0 {
+			continue
+		}
+		for ; j < len(tokens); j++ {
+			tok := tokens[j]
+			if isShellBoundary(tok) || matchAnyInstallCommand(tok) {
+				break
+			}
+			if shouldSkipInstallToken(tok) {
+				continue
+			}
+			name, version := splitInstalledPackage(tok, spec.Ecosystem)
+			if name == "" {
+				continue
+			}
+			pkgs = append(pkgs, ScopedPackage{
+				Name: name, Version: version, Ecosystem: spec.Ecosystem,
+				Scope: ScopeProduction, SourceFile: source, IsDirect: true,
+			})
+		}
+	}
+	return pkgs
+}
+
+func matchInstallCommand(cmd string) (containerInstallSpec, bool) {
+	for _, spec := range containerInstallSpecs {
+		for _, c := range spec.Commands {
+			if cmd == c {
+				return spec, true
+			}
+		}
+	}
+	return containerInstallSpec{}, false
+}
+
+func matchAnyInstallCommand(tok string) bool {
+	_, ok := matchInstallCommand(baseCommand(tok))
+	return ok
+}
+
+func commandMatches(tok string, allowed []string) bool {
+	for _, a := range allowed {
+		if tok == a {
+			return true
+		}
+	}
+	return false
+}
+
+func baseCommand(tok string) string {
+	tok = strings.TrimSpace(tok)
+	if idx := strings.LastIndex(tok, "/"); idx >= 0 {
+		tok = tok[idx+1:]
+	}
+	return tok
+}
+
+func shellishFields(s string) []string {
+	replacer := strings.NewReplacer("&&", " && ", "||", " || ", ";", " ; ", "|", " | ")
+	s = replacer.Replace(s)
+	raw := strings.Fields(s)
+	out := make([]string, 0, len(raw))
+	for _, tok := range raw {
+		tok = strings.Trim(tok, `"'`)
+		if tok != "" {
+			out = append(out, tok)
+		}
+	}
+	return out
+}
+
+func isShellBoundary(tok string) bool {
+	switch tok {
+	case "&&", "||", ";", "|":
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldSkipInstallToken(tok string) bool {
+	if tok == "" || strings.HasPrefix(tok, "$") {
+		return true
+	}
+	if strings.HasPrefix(tok, "-") {
+		return true
+	}
+	switch tok {
+	case "\\", ".", "./", "true", "false":
+		return true
+	}
+	return false
+}
+
+func splitInstalledPackage(tok, ecosystem string) (name, version string) {
+	tok = strings.Trim(strings.TrimSpace(tok), `"'`)
+	tok = strings.TrimSuffix(tok, ",")
+	if tok == "" || strings.HasPrefix(tok, "http://") || strings.HasPrefix(tok, "https://") {
+		return "", ""
+	}
+	switch ecosystem {
+	case "apk", "deb", "rpm", "arch", "conda":
+		for _, sep := range []string{"==", "="} {
+			if idx := strings.Index(tok, sep); idx > 0 {
+				return tok[:idx], tok[idx+len(sep):]
+			}
+		}
+	case "npm":
+		if strings.HasPrefix(tok, "@") {
+			rest := strings.TrimPrefix(tok, "@")
+			if slash := strings.Index(rest, "/"); slash >= 0 {
+				afterScope := rest[slash+1:]
+				if at := strings.LastIndex(afterScope, "@"); at > 0 {
+					return "@" + rest[:slash+1+at], afterScope[at+1:]
+				}
+			}
+			return tok, ""
+		}
+		if at := strings.LastIndex(tok, "@"); at > 0 {
+			return tok[:at], tok[at+1:]
+		}
+	case "pypi", "gem", "golang":
+		for _, sep := range []string{"==", "@", ":"} {
+			if idx := strings.LastIndex(tok, sep); idx > 0 {
+				return tok[:idx], strings.TrimPrefix(tok[idx+len(sep):], "v")
+			}
+		}
+	case "maven":
+		if strings.Count(tok, ":") >= 2 {
+			parts := strings.Split(tok, ":")
+			return parts[0] + ":" + parts[1], parts[2]
+		}
+	}
+	return tok, ""
+}
+
+func stripInlineComment(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmed, "#") {
+		return ""
+	}
+	return line
 }
 
 // ---------------------------------------------------------------------------

@@ -56,7 +56,7 @@ type cliSCAGateOptions struct {
 	Malware      bool // --block-malware
 }
 
-func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath string, gateOpts cliSCAGateOptions, w io.Writer) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight, snapshotUuid string, snapshotURL string, persisted []vdb.CliFindingResult) {
+func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath, toolName string, gateOpts cliSCAGateOptions, w io.Writer) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight, snapshotUuid string, snapshotURL string, persisted []vdb.CliFindingResult) {
 	if w == nil {
 		w = os.Stderr
 	}
@@ -100,6 +100,12 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	}
 
 	env := buildCliEnv(gitCtx, sysInfo)
+	if toolName != "" {
+		if env.ToolMetadata == nil {
+			env.ToolMetadata = &vdb.CliSBOMToolMetadata{}
+		}
+		env.ToolMetadata.ToolName = toolName
+	}
 	enrichCliEnvForSCA(&env, scanPath, allPackages, gitCtx)
 
 	// Raw manifest bodies (lockfiles) can be large, so we don't cram them all
@@ -275,6 +281,119 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		finalSnapshotURL = snapshot.URL
 	}
 	return true, findings, enriched, mergedInsights, finalSnapshotUuid, finalSnapshotURL, persistedFindings
+}
+
+// postCliSCABOM persists the package/container inventory to /v2/cli.sca without
+// using the response as SCA findings. Container scans use this to create the
+// run's SBOM snapshot before posting container SARIF to /v2/cli.containers.
+func postCliSCABOM(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath, toolName string, w io.Writer) (apiServed bool, insights []vdb.CliPackageInsight, snapshotUuid string, snapshotURL string, persisted []vdb.CliFindingResult) {
+	if w == nil {
+		w = os.Stderr
+	}
+	if len(allPackages) == 0 {
+		return false, nil, "", "", nil
+	}
+
+	deduped := make(map[string]bool, len(allPackages))
+	uniquePurls := make([]string, 0, len(allPackages))
+	for _, p := range allPackages {
+		pu := cdx.BuildLocalPurl(p.Name, p.Version, p.Ecosystem)
+		if pu == "" || deduped[pu] {
+			continue
+		}
+		deduped[pu] = true
+		uniquePurls = append(uniquePurls, pu)
+	}
+	if len(uniquePurls) == 0 {
+		return false, nil, "", "", nil
+	}
+
+	client := newCliClient()
+	if client == nil {
+		return false, nil, "", "", nil
+	}
+	if client.HTTPClient != nil {
+		client.HTTPClient.Timeout = cliSCABatchTimeout
+	}
+
+	env := buildCliEnv(gitCtx, sysInfo)
+	if env.ToolMetadata == nil {
+		env.ToolMetadata = &vdb.CliSBOMToolMetadata{}
+	}
+	if toolName != "" {
+		env.ToolMetadata.ToolName = toolName
+	}
+	enrichCliEnvForSCA(&env, scanPath, allPackages, gitCtx)
+
+	metaEnv := env
+	metaEnv.Manifests = stripManifestContent(env.Manifests)
+	lightEnv := env
+	lightEnv.Manifests = stripManifestContent(env.Manifests)
+	bodySlots := packManifestsBySize(env.Manifests, scaManifestByteBudget)
+	allCliPackages := buildCliPackages(allPackages, manifestGroups, licenseByKey)
+
+	chunks := chunkPurls(uniquePurls, sCAChunkSize)
+	jobs := make([]scaJob, 0, len(chunks)+len(bodySlots))
+	for i, c := range chunks {
+		jobs = append(jobs, scaJob{purls: c, primary: i == 0, manifestSlot: -1})
+	}
+	for s := range bodySlots {
+		jobs = append(jobs, scaJob{primary: false, manifestSlot: s})
+	}
+	if len(jobs) == 0 {
+		jobs = append(jobs, scaJob{primary: true, manifestSlot: -1})
+	}
+
+	var snapshot *vdb.CliIngestionSnapshot
+	var mergedInsights []vdb.CliPackageInsight
+	var persistedFindings []vdb.CliFindingResult
+	buildReq := func(job scaJob) (vdb.CliEnv, vdb.CliSCARequest, bool) {
+		req := vdb.CliSCARequest{
+			Purls: job.purls,
+			Options: vdb.CliSCAOptions{
+				IncludeReachability: boolPtrCLI(false),
+			},
+		}
+		if job.primary {
+			req.Packages = allCliPackages
+			return metaEnv, req, false
+		}
+		reqEnv := lightEnv
+		if snapshot != nil {
+			req.IngestionSnapshotUuid = snapshot.Uuid
+			if len(job.purls) > 0 {
+				req.Packages = allCliPackages
+			}
+			if job.manifestSlot >= 0 && job.manifestSlot < len(bodySlots) {
+				reqEnv.Manifests = bodySlots[job.manifestSlot]
+			}
+		} else if len(job.purls) == 0 {
+			return reqEnv, req, true
+		}
+		return reqEnv, req, false
+	}
+	onResult := func(_ scaJob, resp *vdb.CliResponse[vdb.CliSCAResponse]) {
+		if snapshot == nil && resp.Data.IngestionSnapshot != nil {
+			snapshot = resp.Data.IngestionSnapshot
+		}
+		mergedInsights = append(mergedInsights, resp.Data.PackageInsights...)
+		persistedFindings = append(persistedFindings, resp.Data.Findings...)
+	}
+
+	unservable, anyOK, firstErr := runSCAJobs(client, jobs, buildReq, onResult, w)
+	if !anyOK {
+		if verbose {
+			fmt.Fprintf(w, "  /v2/cli.sca BOM persistence failed (%v)\n", firstErr)
+		}
+		return false, nil, "", "", nil
+	}
+	if len(unservable) > 0 && verbose {
+		fmt.Fprintf(w, "  /v2/cli.sca BOM persistence omitted %d package(s) after retries\n", len(unservable))
+	}
+	if snapshot == nil {
+		return true, mergedInsights, "", "", persistedFindings
+	}
+	return true, mergedInsights, snapshot.Uuid, snapshot.URL, persistedFindings
 }
 
 // confirmVulnsViaCliSCA re-queries the given packages through /v2/cli.sca in a
@@ -756,10 +875,18 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 			reachableCVEs[cve] = true
 		}
 	}
-	// Track which CVEs had at least one query run for them so we can mark
-	// unreachable confidently (vs "no queries returned, can't say").
+	// Track which CVEs had at least one query that *actually executed* (compiled
+	// and ran against ≥1 matching-language source file) so we can mark unreachable
+	// confidently. A query that was dropped (unsupported language), had no files
+	// of its language in the project, or failed to compile is NOT evidence of
+	// non-reachability — its CVE stays unassessed (and is never posted as
+	// UNREACHABLE), so the server leaves it under_investigation rather than
+	// auto-resolving it to not_affected.
 	evaluatedCVEs := map[string]bool{}
 	for _, e := range byHash {
+		if !res.Executed[reachability.QueryKey(e.query)] {
+			continue
+		}
 		for cve := range e.cves {
 			evaluatedCVEs[cve] = true
 		}

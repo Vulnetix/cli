@@ -87,8 +87,16 @@ var ManifestFiles = map[string]ManifestInfo{
 	"build.sbt":  {Type: "build.sbt", Ecosystem: "maven", Language: "scala", IsLock: false},
 	"build.lock": {Type: "build.lock", Ecosystem: "maven", Language: "scala", IsLock: true},
 	// ── Docker / OCI container files ─────────────────────────────────────
-	"Dockerfile":    {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
-	"Containerfile": {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"Dockerfile":          {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"Containerfile":       {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"Gockerfile":          {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"Pkgfile":             {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"compose.yaml":        {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"compose.yml":         {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"docker-compose.yaml": {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"docker-compose.yml":  {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"podman-compose.yaml": {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
+	"podman-compose.yml":  {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
 	// ── Bazel ─────────────────────────────────────────────────────────────
 	"WORKSPACE":       {Type: "WORKSPACE", Ecosystem: "bazel", Language: "starlark", IsLock: false},
 	"WORKSPACE.bazel": {Type: "WORKSPACE", Ecosystem: "bazel", Language: "starlark", IsLock: false},
@@ -201,7 +209,8 @@ var SupportedManifestTypes = map[string]bool{
 	"build.sbt":  true,
 	"build.lock": true,
 	// Docker / OCI container files
-	"Dockerfile": true,
+	"Dockerfile":   true,
+	"compose.yaml": true,
 	// Terraform
 	"*.tf": true,
 	// GitHub Actions
@@ -262,13 +271,25 @@ var SupportedManifestTypes = map[string]bool{
 // It checks in order: exact basename → file extension → path pattern (GitHub Actions).
 func DetectManifest(filename string) (*ManifestInfo, bool) {
 	base := filepath.Base(filename)
+	lowerBase := strings.ToLower(base)
 
 	// 1. Exact basename match.
 	if info, ok := ManifestFiles[base]; ok {
 		return &info, true
 	}
 
-	// 2. Extension-based match (e.g. foo.csproj, main.tf, mylib.opam, myapp.cabal).
+	// 2. Name-variant match for Dockerfile / Containerfile families.
+	if strings.Contains(lowerBase, "dockerfile") || strings.Contains(lowerBase, "containerfile") {
+		info := ManifestInfo{
+			Type:      "Dockerfile",
+			Ecosystem: "docker",
+			Language:  "docker",
+			IsLock:    false,
+		}
+		return &info, true
+	}
+
+	// 3. Extension-based match (e.g. foo.csproj, main.tf, mylib.opam, myapp.cabal).
 	ext := strings.ToLower(filepath.Ext(base))
 	if info, ok := ManifestExtensions[ext]; ok {
 		// Avoid matching obviously wrong files (e.g. a random .tf that isn't Terraform).
@@ -277,7 +298,7 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 		return &infoCopy, true
 	}
 
-	// 3. Content-checked: CMakeLists.txt with CPMAddPackage calls.
+	// 4. Content-checked: CMakeLists.txt with CPMAddPackage calls.
 	if base == "CMakeLists.txt" {
 		content, err := os.ReadFile(filename)
 		if err == nil && strings.Contains(string(content), "CPMAddPackage") {
@@ -291,9 +312,20 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 		}
 	}
 
-	// 4. Path-pattern: GitHub Actions workflow files under .github/workflows/.
-	lowerBase := strings.ToLower(base)
+	// 5. Content-checked: compose-compatible YAML files with service image/build keys.
 	if strings.HasSuffix(lowerBase, ".yml") || strings.HasSuffix(lowerBase, ".yaml") {
+		content, err := os.ReadFile(filename)
+		if err == nil && looksLikeComposeYAML(string(content)) {
+			info := ManifestInfo{
+				Type:      "compose.yaml",
+				Ecosystem: "docker",
+				Language:  "docker",
+				IsLock:    false,
+			}
+			return &info, true
+		}
+
+		// 6. Path-pattern: GitHub Actions workflow files under .github/workflows/.
 		slash := filepath.ToSlash(filename)
 		if strings.Contains(slash, "/.github/workflows/") ||
 			strings.HasPrefix(slash, ".github/workflows/") {
@@ -308,6 +340,17 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 	}
 
 	return nil, false
+}
+
+func looksLikeComposeYAML(content string) bool {
+	lower := strings.ToLower(content)
+	if !strings.Contains(lower, "services:") {
+		return false
+	}
+	return strings.Contains(lower, "\n    image:") ||
+		strings.Contains(lower, "\n  image:") ||
+		strings.Contains(lower, "\n    build:") ||
+		strings.Contains(lower, "\n  build:")
 }
 
 // DetectSBOM reads the first bytes of a JSON file and determines if it's an SPDX or CycloneDX document.

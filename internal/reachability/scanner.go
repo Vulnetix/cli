@@ -46,7 +46,7 @@ func Scan(ctx context.Context, engine *Engine, req ScanRequest) (*Result, error)
 		return &Result{}, nil
 	}
 
-	res := &Result{}
+	res := &Result{Executed: map[string]bool{}}
 	for _, qs := range byLang {
 		res.QueriesRun += len(qs)
 	}
@@ -57,7 +57,7 @@ func Scan(ctx context.Context, engine *Engine, req ScanRequest) (*Result, error)
 		if installDir == "" {
 			res.SkippedDirect = fmt.Sprintf("install directory for %s/%s not found", req.Ecosystem, req.Package)
 		} else {
-			matches, err := scanRoot(ctx, engine, installDir, byLang, nil)
+			matches, err := scanRoot(ctx, engine, installDir, byLang, nil, res.Executed)
 			if err != nil {
 				return nil, fmt.Errorf("direct scan: %w", err)
 			}
@@ -82,7 +82,7 @@ func Scan(ctx context.Context, engine *Engine, req ScanRequest) (*Result, error)
 					}
 				}
 				return false
-			})
+			}, res.Executed)
 			if err != nil {
 				return nil, fmt.Errorf("transitive scan: %w", err)
 			}
@@ -99,6 +99,18 @@ func Scan(ctx context.Context, engine *Engine, req ScanRequest) (*Result, error)
 		relativiseAll(req.ProjectRoot, res.Transitive)
 	}
 	return res, nil
+}
+
+// QueryKey is the stable identity for a query: its server-provided hash when
+// present, else name + normalised language. The engine records this key in
+// Result.Executed for every query that actually compiled and ran against a
+// source file, so callers can distinguish "ran but matched nothing" from
+// "never ran" (unsupported language / no matching files / compile failure).
+func QueryKey(q vdb.TreeSitterQuery) string {
+	if q.QueryHash != "" {
+		return q.QueryHash
+	}
+	return q.Name + ":" + string(treesitter.Normalise(q.Language))
 }
 
 func groupQueriesByLanguage(qs []vdb.TreeSitterQuery) map[treesitter.LanguageID][]vdb.TreeSitterQuery {
@@ -124,6 +136,7 @@ func scanRoot(
 	root string,
 	byLang map[treesitter.LanguageID][]vdb.TreeSitterQuery,
 	excludePath func(string) bool,
+	executed map[string]bool,
 ) ([]Match, error) {
 	if root == "" {
 		return nil, nil
@@ -177,6 +190,13 @@ func scanRoot(
 			if err != nil {
 				// Bad query for this grammar version; keep scanning.
 				continue
+			}
+			// The query compiled and ran against this file — record it as
+			// genuinely executed regardless of match count, so callers don't
+			// treat "no matching files / unsupported language" as evidence of
+			// non-reachability.
+			if executed != nil {
+				executed[QueryKey(q)] = true
 			}
 			for _, m := range matches {
 				out = append(out, Match{

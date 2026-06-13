@@ -1,6 +1,8 @@
 package scan
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -14,6 +16,110 @@ func findPkg(pkgs []ScopedPackage, name string) (ScopedPackage, bool) {
 		}
 	}
 	return ScopedPackage{}, false
+}
+
+func findPkgEco(pkgs []ScopedPackage, ecosystem, name string) (ScopedPackage, bool) {
+	for _, p := range pkgs {
+		if p.Ecosystem == ecosystem && p.Name == name {
+			return p, true
+		}
+	}
+	return ScopedPackage{}, false
+}
+
+// ── container definition detection / parsing ────────────────────────────────
+
+func TestDetectManifestContainerVariantsAndCompose(t *testing.T) {
+	dir := t.TempDir()
+	cases := map[string]string{
+		"Containerfile.prod": "FROM alpine:3.20\n",
+		"service.Dockerfile": "FROM node:22-alpine\n",
+		"Gockerfile":         "FROM cgr.dev/chainguard/go:latest\n",
+		"Pkgfile":            "FROM ghcr.io/acme/base@sha256:abc123\n",
+		"deploy.yaml":        "services:\n  api:\n    image: postgres:16-alpine\n",
+	}
+	for name, body := range cases {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+		info, ok := DetectManifest(path)
+		if !ok {
+			t.Fatalf("%s was not detected", name)
+		}
+		if info.Language != "docker" {
+			t.Fatalf("%s Language = %q, want docker", name, info.Language)
+		}
+	}
+}
+
+func TestParseDockerfileScopedImagesAndRunInstalls(t *testing.T) {
+	data := []byte(`
+FROM --platform=linux/amd64 golang:1.24-alpine AS builder
+RUN apk add --no-cache git openssl=3.3.2-r0 \
+    && apt-get update && apt-get install -y curl=8.0.1 ca-certificates \
+    && npm install -g yarn@1.22.22 pnpm \
+    && pip install requests==2.32.3 \
+    && go install golang.org/x/tools/cmd/stringer@v0.24.0
+FROM gcr.io/distroless/static-debian12@sha256:abcdef
+`)
+	pkgs, err := parseDockerfileScoped(data, "Dockerfile")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	tests := []struct {
+		ecosystem string
+		name      string
+		version   string
+	}{
+		{"oci", "golang", "1.24-alpine"},
+		{"oci", "gcr.io/distroless/static-debian12", "sha256:abcdef"},
+		{"apk", "openssl", "3.3.2-r0"},
+		{"deb", "curl", "8.0.1"},
+		{"npm", "yarn", "1.22.22"},
+		{"pypi", "requests", "2.32.3"},
+		{"golang", "golang.org/x/tools/cmd/stringer", "0.24.0"},
+	}
+	for _, tt := range tests {
+		p, ok := findPkgEco(pkgs, tt.ecosystem, tt.name)
+		if !ok {
+			t.Fatalf("%s package %q not found in %+v", tt.ecosystem, tt.name, pkgs)
+		}
+		if p.Version != tt.version {
+			t.Fatalf("%s/%s Version = %q, want %q", tt.ecosystem, tt.name, p.Version, tt.version)
+		}
+	}
+}
+
+func TestParseComposeScopedImages(t *testing.T) {
+	data := []byte(`
+services:
+  api:
+    image: ghcr.io/acme/api:1.2.3
+  worker:
+    build: .
+  db:
+    image: postgres@sha256:feedface
+`)
+	pkgs, err := parseComposeScoped(data, "compose.yaml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	api, ok := findPkgEco(pkgs, "oci", "ghcr.io/acme/api")
+	if !ok {
+		t.Fatalf("compose image not found in %+v", pkgs)
+	}
+	if api.Version != "1.2.3" {
+		t.Fatalf("api Version = %q, want 1.2.3", api.Version)
+	}
+	db, ok := findPkgEco(pkgs, "oci", "postgres")
+	if !ok {
+		t.Fatalf("digest image not found in %+v", pkgs)
+	}
+	if db.Version != "sha256:feedface" {
+		t.Fatalf("db Version = %q, want sha256:feedface", db.Version)
+	}
 }
 
 // ── parsePackageJSONScoped ───────────────────────────────────────────────────

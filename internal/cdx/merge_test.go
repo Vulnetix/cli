@@ -135,3 +135,90 @@ func TestParseUpstreamFromJSON(t *testing.T) {
 		t.Errorf("decode wrong: %v", doc)
 	}
 }
+
+func TestMergeBOMs_PreservesContainerAndSCAScanData(t *testing.T) {
+	containerBOM := &BOM{
+		BOMFormat:   "CycloneDX",
+		SpecVersion: "1.7",
+		Version:     1,
+		Metadata: &Metadata{Tools: &Tools{Components: []Component{
+			{Type: "application", Name: "vulnetix-containers", Version: "1.0.0"},
+		}}},
+		Components: []Component{
+			{Type: "container", BOMRef: "pkg:oci/alpine@3.21", Name: "alpine", Version: "3.21", Purl: "pkg:oci/alpine@3.21"},
+			{Type: "library", BOMRef: "pkg:apk/git", Name: "git", Purl: "pkg:apk/git"},
+		},
+	}
+	scaBOM := &BOM{
+		BOMFormat:   "CycloneDX",
+		SpecVersion: "1.7",
+		Version:     1,
+		Metadata: &Metadata{Tools: &Tools{Components: []Component{
+			{Type: "application", Name: "vulnetix-sca", Version: "1.0.0"},
+		}}},
+		Components: []Component{
+			{Type: "library", BOMRef: "pkg:golang/github.com/go-chi/chi/v5@5.2.1", Name: "github.com/go-chi/chi/v5", Version: "5.2.1", Purl: "pkg:golang/github.com/go-chi/chi/v5@5.2.1"},
+		},
+	}
+
+	merged := MergeBOMs(containerBOM, scaBOM)
+	assertComponent(t, merged, "container", "alpine", "3.21")
+	assertComponent(t, merged, "library", "git", "")
+	assertComponent(t, merged, "library", "github.com/go-chi/chi/v5", "5.2.1")
+	assertTool(t, merged, "vulnetix-containers")
+	assertTool(t, merged, "vulnetix-sca")
+}
+
+func TestMergeBOMs_PreservesSCAWhenContainerRunsSecond(t *testing.T) {
+	scaBOM := &BOM{
+		BOMFormat:   "CycloneDX",
+		SpecVersion: "1.7",
+		Version:     1,
+		Metadata: &Metadata{Tools: &Tools{Components: []Component{
+			{Type: "application", Name: "vulnetix-sca", Version: "1.0.0"},
+		}}},
+		Components: []Component{
+			{Type: "library", BOMRef: "pkg:npm/lodash@4.17.21", Name: "lodash", Version: "4.17.21", Purl: "pkg:npm/lodash@4.17.21"},
+		},
+	}
+	containerBOM := &BOM{
+		BOMFormat:   "CycloneDX",
+		SpecVersion: "1.7",
+		Version:     1,
+		Metadata: &Metadata{Tools: &Tools{Components: []Component{
+			{Type: "application", Name: "vulnetix-containers", Version: "1.0.0"},
+		}}},
+		Components: []Component{
+			{Type: "container", BOMRef: "pkg:oci/golang@1.25-alpine", Name: "golang", Version: "1.25-alpine", Purl: "pkg:oci/golang@1.25-alpine"},
+		},
+	}
+
+	merged := MergeBOMs(scaBOM, containerBOM)
+	assertComponent(t, merged, "library", "lodash", "4.17.21")
+	assertComponent(t, merged, "container", "golang", "1.25-alpine")
+	assertTool(t, merged, "vulnetix-sca")
+	assertTool(t, merged, "vulnetix-containers")
+}
+
+func assertComponent(t *testing.T, bom *BOM, typ, name, version string) {
+	t.Helper()
+	for _, c := range bom.Components {
+		if c.Type == typ && c.Name == name && c.Version == version {
+			return
+		}
+	}
+	t.Fatalf("component %s/%s@%s not found in %+v", typ, name, version, bom.Components)
+}
+
+func assertTool(t *testing.T, bom *BOM, name string) {
+	t.Helper()
+	if bom.Metadata == nil || bom.Metadata.Tools == nil {
+		t.Fatalf("missing metadata tools")
+	}
+	for _, c := range bom.Metadata.Tools.Components {
+		if c.Name == name {
+			return
+		}
+	}
+	t.Fatalf("tool %s not found in %+v", name, bom.Metadata.Tools.Components)
+}
