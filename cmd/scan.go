@@ -157,6 +157,11 @@ func inferFileKind(path string) string {
 	return ""
 }
 
+func applyScanDisplayFlags(cmd *cobra.Command) {
+	showDetectedFiles, _ = cmd.Flags().GetBool("show-detected")
+	showAllManifests, _ = cmd.Flags().GetBool("show-all-manifests")
+}
+
 // scanCmd is the top-level scan command — discovers manifests, parses them locally,
 // queries the VDB for vulnerabilities, writes a CycloneDX BOM and memory.yaml,
 // then outputs either a pretty summary or CycloneDX JSON.
@@ -225,8 +230,7 @@ Examples:
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
-		showDetectedFiles, _ = cmd.Flags().GetBool("show-detected")
-		showAllManifests, _ = cmd.Flags().GetBool("show-all-manifests")
+		applyScanDisplayFlags(cmd)
 		// Credentials are optional — community fallback is used when absent.
 		return resolveVDBCredentials(false)
 	},
@@ -452,10 +456,19 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		}
 		ruleRefs = append(ruleRefs, ref)
 	}
-	// When the user explicitly imports external rule repos, treat that as
-	// authoritative intent: don't silently suppress non-SAST kinds (iac,
-	// secrets, oci) just because the active subcommand defaulted them off.
-	if len(ruleRefs) > 0 {
+
+	// Specialized subcommands (containers/secrets/iac/sast) are locked to their
+	// own rule kind: only rules of these kinds run, embedded *and* externally
+	// imported, so a `containers --rule <pack>` scan never bleeds into the
+	// pack's secrets/iac/api rules. The generic `scan` command has no lock
+	// (lockedKinds == nil) and keeps the "run everything imported" behavior.
+	lockedKinds := specializedRuleKinds(cmd.Name())
+
+	// When the user explicitly imports external rule repos into the generic
+	// `scan` command, treat that as authoritative intent: don't silently
+	// suppress non-SAST kinds (iac, secrets, oci) just because a feature
+	// defaulted off. For a locked specialized subcommand the lock wins instead.
+	if len(ruleRefs) > 0 && lockedKinds == nil {
 		noSecrets = false
 		noContainers = false
 		noIAC = false
@@ -502,7 +515,8 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	}
 
 	// ── 3. Display detected files ──────────────────────────────────────
-	if !resultsOnly && showDetectedFiles {
+	showDetectedForRun := showDetectedFiles || (showAllManifests && noSCA && !noContainers)
+	if !resultsOnly && showDetectedForRun {
 		fmt.Fprintln(os.Stderr, "Detected files:")
 	}
 	t := display.NewTerminal()
@@ -520,19 +534,19 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 			if !f.Supported {
 				supportedStr = " [not supported]"
 			}
-			if !resultsOnly && showDetectedFiles {
+			if !resultsOnly && showDetectedForRun {
 				fmt.Fprintf(os.Stderr, "  %-40s manifest    %-10s (%s) %s%s\n",
 					f.RelPath, f.ManifestInfo.Ecosystem, f.ManifestInfo.Language, lockStr, supportedStr)
 			}
 		case scan.FileTypeSPDX:
-			if !resultsOnly && showDetectedFiles {
+			if !resultsOnly && showDetectedForRun {
 				fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
 			}
 		case scan.FileTypeCycloneDX:
 			// Parse the CDX to check the producer.
 			cdxBom, cdxErr := parseCDXForScan(f.Path)
 			if cdxErr == nil && isVulnetixSCA(cdxBom) {
-				if !resultsOnly && showDetectedFiles {
+				if !resultsOnly && showDetectedForRun {
 					fmt.Fprintf(os.Stderr, "  %-40s %s\n", f.RelPath,
 						display.Teal(t, "[skipped — produced by vulnetix-sca]"))
 				}
@@ -542,7 +556,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 				continue
 			}
 			if cdxErr == nil && cdxBom != nil {
-				if !resultsOnly && showDetectedFiles {
+				if !resultsOnly && showDetectedForRun {
 					fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-8s (%d comp, %d vulns)\n",
 						f.RelPath, f.SBOMVersion, len(cdxBom.Components), len(cdxBom.Vulnerabilities))
 				}
@@ -553,7 +567,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 					f.Supported = true
 					supportedFiles = append(supportedFiles, f)
 				}
-			} else if showDetectedFiles {
+			} else if showDetectedForRun {
 				fmt.Fprintf(os.Stderr, "  %-40s cyclonedx   v%-9s\n", f.RelPath, f.SBOMVersion)
 			}
 		}
@@ -604,6 +618,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		ruleRefs,
 		ruleRegistry,
 		ruleID,
+		lockedKinds,
 		seedBOM,
 		vulnetixSeedBOM,
 		gitCtx,
@@ -700,6 +715,7 @@ func runLocalScan(
 	ruleRefs []sast.RuleRef,
 	ruleRegistry string,
 	ruleID string,
+	lockedKinds []string,
 	seedBOM *cdx.BOM,
 	vulnetixSeedBOM *cdx.BOM,
 	gitCtx *gitctx.GitContext,
@@ -729,6 +745,7 @@ func runLocalScan(
 	var allPackages []scan.ScopedPackage
 	var manifestGroups []scan.ManifestGroup
 	var licensedPackages []license.PackageLicense
+	licenseByKey := map[string]string{}
 	var allVulns []scan.VulnFinding
 	// scaEnrichedFromAPI holds the version-filtered, enriched findings returned
 	// by /v2/cli.sca (the sole SCA path). nil only when SCA is skipped.
@@ -750,15 +767,27 @@ func runLocalScan(
 	var autofixReportPlans []autofix.FixCandidate
 	var autofixReportCounts autofix.ProofCounts
 	var autofixReportErr error
+	containerOnly := noSASTRules && noSCA && noSecrets && !noContainers && noIAC
+	analysisLabel := "SAST"
+	analysisTitle := "SAST Analysis"
+	sarifFileName := "sast.sarif"
+	bomToolName := "vulnetix-sca"
+	if containerOnly {
+		analysisLabel = "Container"
+		analysisTitle = "Container Analysis"
+		sarifFileName = "containers.sarif"
+		bomToolName = "vulnetix-containers"
+	}
+	showManifestDetails := !resultsOnly && (showDetectedFiles || (showAllManifests && containerOnly))
 
 	queryCtx := ctx
 	if queryCtx == nil {
 		queryCtx = context.Background()
 	}
 
-	// ── Parse manifests and query VDB (only if SCA is enabled) ───────────
-	if !noSCA {
-		if !resultsOnly && showDetectedFiles {
+	// ── Parse manifests and query VDB (SCA manifests and/or container inputs) ─
+	if !noSCA || !noContainers {
+		if showManifestDetails {
 			fmt.Fprintf(os.Stderr, "\nAnalysing %d file(s)... parsing manifests locally.\n\n", len(files))
 		}
 		// ── Parse manifests ────────────────────────────────────────────────────
@@ -777,7 +806,7 @@ func runLocalScan(
 				for _, p := range pkgs {
 					scopeCounts[p.Scope]++
 				}
-				if !resultsOnly && showDetectedFiles {
+				if showManifestDetails {
 					fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), formatScopeCounts(scopeCounts))
 				}
 				localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
@@ -804,7 +833,7 @@ func runLocalScan(
 				scopeCounts[p.Scope]++
 			}
 			scopeSummary := formatScopeCounts(scopeCounts)
-			if !resultsOnly && showDetectedFiles {
+			if showManifestDetails {
 				fmt.Fprintf(os.Stderr, "  %-40s %d packages%s\n", f.RelPath, len(pkgs), scopeSummary)
 			}
 			localResults = append(localResults, cdx.LocalScanResult{File: f, Packages: pkgs})
@@ -836,7 +865,6 @@ func runLocalScan(
 		scanProgress.SetStage("Building dependency graph")
 		scan.PopulateInstalledEdges(manifestGroups, rootPath)
 
-		licenseByKey := map[string]string{}
 		if len(allPackages) > 0 {
 			scanProgress.SetStage(fmt.Sprintf("Resolving package licenses for %d package(s)", len(allPackages)))
 			licensedPackages = license.DetectLicenses(allPackages, manifestGroups)
@@ -848,35 +876,53 @@ func runLocalScan(
 		}
 		scanProgress.Update(2, "Prepared dependency metadata")
 
-		// ── Query /v2/cli.sca (one self-healing round-trip for the PURL list) ─
-		// The endpoint returns CycloneDX + enriched findings + reachability in a
-		// single call, retrying/backing-off and reducing chunk size on transient
-		// failure. It is the only SCA path — there is no legacy per-PURL fallback.
-		gateOpts := cliSCAGateOptions{
-			Cooldown:     cooldownDays > 0,
-			VersionLag:   versionLag > 0 || scaAutofix,
-			SafeVersions: scaAutofix,
-			EOL:          blockEOL,
-			Malware:      blockMalware,
-		}
-		scanProgress.SetStage(fmt.Sprintf("Querying VDB for %d package(s)", countUniquePackages(allPackages)))
-		apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL, apiPersistedFindings := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, gateOpts, progressStderr)
-		if apiServed {
-			allVulns = apiVulns
-			scaEnrichedFromAPI = apiEnriched
-			scaInsights = apiInsights
-			scaSnapshotUuid = apiSnapshotUuid
-			scaSnapshotURL = apiSnapshotURL
-			scaPersistedFindings = apiPersistedFindings
-			scanProgress.Update(3, fmt.Sprintf("VDB returned %d finding(s)", len(allVulns)))
+		// Container-only scans also resolve their parsed components (base images
+		// + RUN-installed OS/lang packages) against the VDB so the same CVE data
+		// other scanners surface shows up here too. This reuses the SCA path but
+		// labels the snapshot as containers and treats an unavailable API as
+		// non-fatal (the rego container rules still run).
+		runSCAQuery := !noSCA || (containerOnly && len(allPackages) > 0)
+		if runSCAQuery {
+			// ── Query /v2/cli.sca (one self-healing round-trip for the PURL list) ─
+			// The endpoint returns CycloneDX + enriched findings + reachability in a
+			// single call, retrying/backing-off and reducing chunk size on transient
+			// failure. It is the only SCA path — there is no legacy per-PURL fallback.
+			gateOpts := cliSCAGateOptions{
+				Cooldown:     cooldownDays > 0,
+				VersionLag:   versionLag > 0 || scaAutofix,
+				SafeVersions: scaAutofix,
+				EOL:          blockEOL,
+				Malware:      blockMalware,
+			}
+			scaToolName := ""
+			if containerOnly {
+				scaToolName = "vulnetix-containers"
+			}
+			scanProgress.SetStage(fmt.Sprintf("Querying VDB for %d package(s)", countUniquePackages(allPackages)))
+			apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL, apiPersistedFindings := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, scaToolName, gateOpts, progressStderr)
+			if apiServed {
+				allVulns = apiVulns
+				scaEnrichedFromAPI = apiEnriched
+				scaInsights = apiInsights
+				scaSnapshotUuid = apiSnapshotUuid
+				scaSnapshotURL = apiSnapshotURL
+				scaPersistedFindings = apiPersistedFindings
+				scanProgress.Update(3, fmt.Sprintf("VDB returned %d finding(s)", len(allVulns)))
+			} else if containerOnly {
+				// Container scans degrade gracefully: the misconfiguration rego
+				// rules still run and write SARIF, even with no VDB connectivity.
+				scanProgress.Update(3, fmt.Sprintf("Parsed %d container component(s); VDB lookup unavailable", len(allPackages)))
+			} else {
+				// /v2/cli.sca is the only path to the VDB for SCA — the legacy
+				// per-PURL lookup has been removed. The endpoint self-heals (retry,
+				// backoff, adaptive chunk-size reduction), so apiServed=false means
+				// the API is genuinely unusable: a missing/expired credential, bad
+				// config, or an unreachable network. Surface that as an actionable
+				// error rather than silently degrading.
+				return fmt.Errorf("VDB SCA lookup failed: /v2/cli.sca was unavailable (check credentials, config, and network connectivity)")
+			}
 		} else {
-			// /v2/cli.sca is the only path to the VDB for SCA — the legacy
-			// per-PURL lookup has been removed. The endpoint self-heals (retry,
-			// backoff, adaptive chunk-size reduction), so apiServed=false means
-			// the API is genuinely unusable: a missing/expired credential, bad
-			// config, or an unreachable network. Surface that as an actionable
-			// error rather than silently degrading.
-			return fmt.Errorf("VDB SCA lookup failed: /v2/cli.sca was unavailable (check credentials, config, and network connectivity)")
+			scanProgress.Update(3, fmt.Sprintf("Parsed %d container component(s)", len(allPackages)))
 		}
 	} else {
 		scanProgress.Update(3, "Skipped SCA package vulnerability lookup")
@@ -893,7 +939,11 @@ func runLocalScan(
 	// ── Enrich: version filter, exploits, remediation ────────────────────
 	// Skipped when the API-served path populated enriched data already.
 	enrichedVulns := scaEnrichedFromAPI
-	scanProgress.Update(4, fmt.Sprintf("Received %d enriched finding(s)", len(enrichedVulns)))
+	if noSCA && !containerOnly {
+		scanProgress.Update(4, "Skipped SCA vulnerability enrichment")
+	} else {
+		scanProgress.Update(4, fmt.Sprintf("Received %d enriched finding(s)", len(enrichedVulns)))
+	}
 
 	// Attach enriched vulns back to their file results so the BOM gets full ratings.
 	enrichedByKey := make(map[string]scan.EnrichedVuln, len(enrichedVulns))
@@ -1045,6 +1095,7 @@ func runLocalScan(
 						ruleRefs,
 						ruleRegistry,
 						ruleID,
+						lockedKinds,
 						seedBOM,
 						vulnetixSeedBOM,
 						gitCtx,
@@ -1092,8 +1143,12 @@ func runLocalScan(
 
 	var stateChanges []memory.StateChange
 
-	// Write enriched findings to memory unless disabled.
-	if !disableMemory && len(enrichedVulns) > 0 {
+	// Write enriched findings to memory unless disabled. Container-only scans
+	// record their own findings too (so they persist and show in dashboards),
+	// but skip the SCA reconcile-all below: a container scan only sees container
+	// packages and must not mark unrelated SCA findings from a prior full scan
+	// as remediated.
+	if (!noSCA || containerOnly) && !disableMemory && len(enrichedVulns) > 0 {
 		// Build a map of source files per (CveID, PkgName) from all local results.
 		sourceFileMap := map[string][]string{} // key: CveID::PkgName
 		for _, r := range localResults {
@@ -1171,19 +1226,22 @@ func runLocalScan(
 		}
 		mem.RecordEnrichedFindings(findings)
 
-		// Reconcile: detect remediated and regressed findings.
-		currentCVEs := make(map[string]bool, len(enrichedVulns))
-		for _, ev := range enrichedVulns {
-			currentCVEs[ev.CveID] = true
+		// Reconcile: detect remediated and regressed findings. Only for true SCA
+		// scans — see the comment above on why container scans skip this.
+		if !noSCA {
+			currentCVEs := make(map[string]bool, len(enrichedVulns))
+			for _, ev := range enrichedVulns {
+				currentCVEs[ev.CveID] = true
+			}
+			stateChanges = mem.ReconcileTool(memory.ReconcileContext{
+				Tool:          memory.ToolSCA,
+				CurrentIDs:    currentCVEs,
+				InstalledPkgs: installedPkgs,
+				Branch:        currentBranch,
+				RootPath:      rootPath,
+			})
 		}
-		stateChanges = mem.ReconcileTool(memory.ReconcileContext{
-			Tool:          memory.ToolSCA,
-			CurrentIDs:    currentCVEs,
-			InstalledPkgs: installedPkgs,
-			Branch:        currentBranch,
-			RootPath:      rootPath,
-		})
-	} else if !disableMemory {
+	} else if !noSCA && !disableMemory {
 		// No vulns in current scan — reconcile all existing SCA findings.
 		stateChanges = mem.ReconcileTool(memory.ReconcileContext{
 			Tool:          memory.ToolSCA,
@@ -1217,21 +1275,27 @@ func runLocalScan(
 	disableAllSAST := noSASTRules && noSecrets && noContainers && noIAC
 	var sastReport *sast.SASTReport
 	if !disableAllSAST {
-		scanProgress.SetStage("Loading SAST rules")
+		scanProgress.SetStage(fmt.Sprintf("Loading %s rules", strings.ToLower(analysisLabel)))
 		modules, merr := sast.LoadAllModules(sast.DefaultRulesFS, disableDefaultRules, ruleRefs, ruleRegistry, progressStderr)
 		if merr != nil {
 			fmt.Fprintf(progressStderr, "  warning: could not load SAST rules: %v\n", merr)
 		}
 		if len(modules) > 0 {
 			totalLoaded := len(modules)
-			fmt.Fprintf(progressStderr, "  Loaded %d SAST rules (pre-filter)\n", totalLoaded)
+			fmt.Fprintf(progressStderr, "  Loaded %d rules (pre-filter)\n", totalLoaded)
 			if ruleID == "" {
-				modules = filterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
+				if len(lockedKinds) > 0 {
+					// Specialized subcommand: lock to its kind-set, embedded and
+					// externally imported rules alike.
+					modules = filterModulesToKinds(modules, lockedKinds)
+				} else {
+					modules = filterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
+				}
 			}
 			modules = filterModulesByID(modules, ruleID)
 			eng := sast.NewEngine(modules, rootPath)
 			var eerr error
-			scanProgress.SetStage(fmt.Sprintf("Evaluating %d SAST rule(s)", len(modules)))
+			scanProgress.SetStage(fmt.Sprintf("Evaluating %d %s rule(s)", len(modules), strings.ToLower(analysisLabel)))
 			sastReport, eerr = eng.Evaluate(sast.EvalOptions{MaxDepth: depth, Excludes: excludes})
 			if eerr != nil {
 				fmt.Fprintf(progressStderr, "  warning: SAST evaluation failed: %v\n", eerr)
@@ -1244,7 +1308,7 @@ func runLocalScan(
 			rec.SASTRulesLoaded = sastReport.RulesLoaded
 			rec.SASTFindingCount = len(sastReport.Findings)
 
-			sarifPath := filepath.Join(vulnetixDir, "sast.sarif")
+			sarifPath := filepath.Join(vulnetixDir, sarifFileName)
 			if !disableMemory {
 				// Partition findings by rule Kind: "sast" → SASTFindings map;
 				// "secrets" / "iac" / "oci" → categorised findings tagged with
@@ -1265,12 +1329,12 @@ func runLocalScan(
 						ruleName = f.Metadata.Name
 					}
 					switch kind {
-					case "secrets", "iac", "oci":
+					case "secrets", "iac", "oci", "container":
 						tool := memory.ToolSecrets
 						switch kind {
 						case "iac":
 							tool = memory.ToolIaC
-						case "oci":
+						case "oci", "container":
 							tool = memory.ToolContainer
 						}
 						bucket, ok := categorised[tool]
@@ -1329,29 +1393,54 @@ func runLocalScan(
 					stateChanges = append(stateChanges, changes...)
 				}
 			}
-			// Write updated SARIF.
-			sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
-			if werr := sast.WriteSARIF(sarifLog, sarifPath); werr != nil {
-				fmt.Fprintf(progressStderr, "  warning: could not write sast.sarif: %v\n", werr)
+			// Write SARIF only when findings exist. A clean container scan should
+			// not leave a misleading empty SARIF artifact behind.
+			if len(sastReport.Findings) > 0 {
+				sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
+				if werr := sast.WriteSARIF(sarifLog, sarifPath); werr != nil {
+					fmt.Fprintf(progressStderr, "  warning: could not write %s: %v\n", sarifFileName, werr)
+				} else {
+					rec.SARIFPath = ".vulnetix/" + sarifFileName
+				}
 			} else {
-				rec.SARIFPath = ".vulnetix/sast.sarif"
+				_ = os.Remove(sarifPath)
+				if containerOnly {
+					_ = os.Remove(filepath.Join(vulnetixDir, "sast.sarif"))
+				}
+			}
+
+			// Container scans persist their BOM/package inventory through
+			// /v2/cli.sca first. The returned snapshot UUID is then supplied to
+			// /v2/cli.containers so SARIF findings attach to the same run snapshot.
+			if containerOnly && len(allPackages) > 0 && scaSnapshotUuid == "" && !isUnauthenticatedScan() {
+				scanProgress.SetStage("Persisting container BOM")
+				apiServed, apiInsights, apiSnapshotUuid, apiSnapshotURL, apiPersistedFindings := postCliSCABOM(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, "vulnetix-containers", io.Discard)
+				if apiServed {
+					scaInsights = apiInsights
+					scaSnapshotUuid = apiSnapshotUuid
+					scaSnapshotURL = apiSnapshotURL
+					scaPersistedFindings = apiPersistedFindings
+				} else if verbose {
+					fmt.Fprintln(progressStderr, "  /v2/cli.sca container BOM persistence skipped")
+				}
 			}
 
 			// Phase-2 persistence: split findings by rule.Kind and POST a
 			// SARIF doc per kind to /v2/cli.{sast,secrets,iac,containers}.
-			// Snapshot URLs print to stderr on success. Non-fatal: a local
-			// SARIF is still the source of truth on disk. Skipped for
-			// unauthenticated scans — the server persists nothing for the
-			// shared community credential, so the calls only burn shared quota.
+			// If /v2/cli.sca already created a snapshot, pass its UUID so SARIF
+			// attaches to that snapshot; with no UUID, the SARIF endpoint creates
+			// its own. Non-fatal: local SARIF remains authoritative on disk.
+			// Skipped for unauthenticated scans — the server persists nothing for
+			// the shared community credential, so the calls only burn shared quota.
 			if !isUnauthenticatedScan() {
-				sarifSnapshots, sarifSnapshotUuids = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext, progressStderr)
+				sarifSnapshots, sarifSnapshotUuids = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext, scaSnapshotUuid, progressStderr)
 			}
 		}
 	}
 	if sastReport != nil {
-		scanProgress.Update(5, fmt.Sprintf("SAST found %d issue(s)", len(sastReport.Findings)))
+		scanProgress.Update(5, fmt.Sprintf("%s analysis found %d issue(s)", analysisLabel, len(sastReport.Findings)))
 	} else {
-		scanProgress.Update(5, "SAST analysis skipped or produced no findings")
+		scanProgress.Update(5, fmt.Sprintf("%s analysis skipped or produced no findings", analysisLabel))
 	}
 
 	scanProgress.SetStage("Persisting scan memory")
@@ -1361,6 +1450,7 @@ func runLocalScan(
 		Git:         gitCtx,
 		System:      sysInfo,
 		ToolVersion: version,
+		ToolName:    bomToolName,
 	}
 	// Prefer vulnetix-sca seed (version-matched) over external CDX seed.
 	effectiveSeed := seedBOM
@@ -1456,6 +1546,9 @@ func runLocalScan(
 	// relevant artefact in that case. Don't claim a BOM artefact we didn't write.
 	bomWritten := false
 	if len(bom.Components) > 0 || len(bom.Vulnerabilities) > 0 {
+		if existingBOM, err := parseCDXForScan(sbomPath); err == nil && existingBOM != nil {
+			bom = cdx.MergeBOMs(existingBOM, bom)
+		}
 		if err := writeBOMToFile(bom, sbomPath); err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
 		} else {
@@ -1799,9 +1892,17 @@ func runLocalScan(
 			Message: fmt.Sprintf("--sca-autofix failed: %v", autofixReportErr),
 		})
 	}
-	reportScanFinalization(scaSnapshotUuid, finalizationBreaches, controlFlags, gitCtx, sysInfo)
+	finalizedSnapshots := map[string]bool{}
+	if scaSnapshotUuid != "" {
+		reportScanFinalization(scaSnapshotUuid, finalizationBreaches, controlFlags, gitCtx, sysInfo)
+		finalizedSnapshots[scaSnapshotUuid] = true
+	}
 	for _, uuid := range sarifSnapshotUuids {
+		if uuid == "" || finalizedSnapshots[uuid] {
+			continue
+		}
 		reportScanFinalization(uuid, finalizationBreaches, controlFlags, gitCtx, sysInfo)
+		finalizedSnapshots[uuid] = true
 	}
 	scanProgress.Update(7, "Evaluated quality gates")
 	scanProgress.Complete("scan complete")
@@ -1869,8 +1970,8 @@ func runLocalScan(
 		displaySBOM = sbomPath
 	}
 	sarifPath := ""
-	if sastReport != nil {
-		sarifPath = filepath.Join(vulnetixDir, "sast.sarif")
+	if sastReport != nil && len(sastReport.Findings) > 0 {
+		sarifPath = filepath.Join(vulnetixDir, sarifFileName)
 	}
 	// SCA summary (vuln tables + "X packages | Y vulnerabilities") only when SCA
 	// ran. For a SAST-only scan the SCA headline is meaningless, so show a
@@ -1886,12 +1987,12 @@ func runLocalScan(
 		}
 		printScanSummaryFooter(scaTotalPkgs, scaTotalVulns, enrichedVulns)
 	} else if sastReport != nil {
-		sast.PrintHeadline(sastReport)
+		sast.PrintHeadlineWithLabel(sastReport, analysisLabel)
 	}
 	if licenseResult != nil && len(licenseResult.Findings) > 0 {
 		printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
 	}
-	sast.PrintPrettySummary(sastReport, resultsOnly)
+	sast.PrintPrettySummaryWithTitle(sastReport, resultsOnly, analysisTitle)
 
 	// Artefact links print last, after all analysis output.
 	printScanArtifacts(displaySBOM, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL, sarifSnapshots)
@@ -3377,7 +3478,7 @@ func printScanArtifacts(sbomPath, sarifPath, vulnetixDir, rulesPath, scaSnapshot
 		fmt.Fprintf(os.Stdout, "  %s Snapshot: %s\n", display.CheckMark(t), scaSnapshotURL)
 	}
 	for _, s := range snapshots {
-		if s.URL == "" {
+		if s.URL == "" || s.URL == scaSnapshotURL {
 			continue
 		}
 		fmt.Fprintf(os.Stdout, "  %s %s Snapshot: %s\n", display.CheckMark(t), s.Label, s.URL)
@@ -4045,8 +4146,14 @@ func filterFilesByFeature(files []scan.DetectedFile, noSCA, noContainers, noIAC 
 	filtered := make([]scan.DetectedFile, 0, len(files))
 	for _, f := range files {
 		if f.ManifestInfo == nil {
-			// CDX / SPDX files — always include.
-			filtered = append(filtered, f)
+			// CDX / SPDX SBOM inputs are SCA content (a committed SBOM is not a
+			// container/IaC/SAST target). Include them only when SCA is active,
+			// so e.g. a `containers` scan of a repo that happens to carry an
+			// osv.cdx.json doesn't pull that SBOM's whole package set into the
+			// container component list.
+			if !noSCA {
+				filtered = append(filtered, f)
+			}
 			continue
 		}
 		lang := f.ManifestInfo.Language
@@ -4063,6 +4170,57 @@ func filterFilesByFeature(files []scan.DetectedFile, noSCA, noContainers, noIAC 
 			continue
 		}
 		filtered = append(filtered, f)
+	}
+	return filtered
+}
+
+// specializedRuleKinds returns the locked Rego kind-set for a specialized scan
+// subcommand, or nil for the generic "scan" command (and "sca", which runs no
+// Rego). When non-nil the kinds are authoritative: only rules of these kinds
+// run, embedded and externally imported alike (see filterModulesToKinds), so a
+// `containers --rule <pack>` scan cannot bleed into the pack's secrets/iac/api
+// rules. Container rules are tagged inconsistently across rule sources —
+// embedded rules use "oci", community-rules uses "container" — so both are in
+// the container scope.
+func specializedRuleKinds(cmdName string) []string {
+	switch cmdName {
+	case "containers":
+		return []string{"oci", "container"}
+	case "secrets":
+		return []string{"secrets"}
+	case "iac":
+		return []string{"iac"}
+	case "sast":
+		return []string{"sast"}
+	default:
+		return nil
+	}
+}
+
+// filterModulesToKinds keeps only the Rego modules whose declared kind is in the
+// allowed set. Unlike filterModulesByKind it does NOT exempt externally imported
+// (--rule) packs: a locked specialized subcommand applies its kind scope to
+// every rule regardless of origin.
+//
+// Library/helper modules — those declaring no rule "id" (e.g. a pack's shared
+// _lib/docker.rego) — are always retained: the kept rules compile against them,
+// and OPA compiles every module together, so dropping a dependency would fail
+// the whole evaluation. Libraries produce no findings, so keeping a few extra is
+// harmless. Modules without a "kind" field default to "sast" (see extractRegoKind).
+func filterModulesToKinds(modules map[string]string, kinds []string) map[string]string {
+	if len(kinds) == 0 {
+		return modules
+	}
+	allowed := make(map[string]bool, len(kinds))
+	for _, k := range kinds {
+		allowed[k] = true
+	}
+	filtered := make(map[string]string, len(modules))
+	for name, src := range modules {
+		// Retain shared libraries (no rule id) as compile dependencies.
+		if extractRegoID(src) == "" || allowed[extractRegoKind(src)] {
+			filtered[name] = src
+		}
 	}
 	return filtered
 }

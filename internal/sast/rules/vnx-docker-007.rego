@@ -24,9 +24,14 @@ _has_healthcheck(lines) if {
 	regex.match(`^\s*HEALTHCHECK\s+`, line)
 }
 
+_is_dockerfile(path) if endswith(path, "Dockerfile")
+_is_dockerfile(path) if endswith(path, "Containerfile")
+_is_dockerfile(path) if endswith(path, ".dockerfile")
+_is_dockerfile(path) if endswith(path, ".containerfile")
+
 findings contains finding if {
 	some path in object.keys(input.file_contents)
-	endswith(path, "Dockerfile")
+	_is_dockerfile(path)
 	lines := split(input.file_contents[path], "\n")
 	not _has_healthcheck(lines)
 	# Only flag if there's a CMD or ENTRYPOINT (i.e., it's a runtime image, not a base/builder stage only)

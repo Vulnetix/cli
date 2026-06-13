@@ -70,6 +70,12 @@ type Result struct {
 	SkippedTransitive string `json:"skipped_transitive,omitempty"`
 	// QueriesRun is the count of distinct query/language pairs executed.
 	QueriesRun int `json:"queries_run"`
+	// Executed is the set of query identities (see QueryKey) that compiled and
+	// ran against at least one matching-language source file. A query whose
+	// language was unsupported, had no files in the scanned tree, or failed to
+	// compile for every file is absent — callers must not treat its CVE as
+	// assessed.
+	Executed map[string]bool `json:"executed,omitempty"`
 }
 
 // Empty reports whether no matches were recorded.

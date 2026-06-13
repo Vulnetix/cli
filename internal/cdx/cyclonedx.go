@@ -123,6 +123,9 @@ type ScanContext struct {
 	System *gitctx.SystemInfo
 	// ToolVersion is the version string injected at build time (e.g. "1.2.3").
 	ToolVersion string
+	// ToolName is the CycloneDX metadata tool component name. Defaults to
+	// vulnetix-sca for backward compatibility.
+	ToolName string
 }
 
 // Vulnerability represents a CycloneDX vulnerability entry.

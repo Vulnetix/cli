@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,6 +11,56 @@ import (
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
+
+// jsMemberCallQuery matches `_.template(x)`-style member calls.
+const jsMemberCallQuery = `(call_expression function: (member_expression) @callee)`
+
+// TestRunReachabilityForFindings_OnlyExecutedQueriesAssessed verifies the core
+// fix: a CVE is only marked unreachable/assessed when its tree-sitter query
+// actually ran against a matching-language file. A CVE whose query language has
+// no files in the project must stay unassessed (so it is never posted as
+// UNREACHABLE → never auto-resolved to not_affected server-side).
+func TestRunReachabilityForFindings_OnlyExecutedQueriesAssessed(t *testing.T) {
+	// Project has only a .js file. A JS query will run; a Python query has no
+	// matching files and must not be treated as evidence.
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "app.js"), []byte("const a = 1;\nconst b = a + 2;\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	enriched := []scan.EnrichedVuln{
+		{VulnFinding: scan.VulnFinding{CveID: "CVE-JS-NOMATCH", PackageName: "lodash", PackageVer: "4.17.20", Ecosystem: "npm"}},
+		{VulnFinding: scan.VulnFinding{CveID: "CVE-PY-NOFILE", PackageName: "requests", PackageVer: "2.0.0", Ecosystem: "pypi"}},
+	}
+	hits := []vdb.CliReachabilityHit{
+		{VulnID: "CVE-JS-NOMATCH", Language: "javascript", Name: "js-q", QueryText: jsMemberCallQuery, QueryHash: "h-js"},
+		{VulnID: "CVE-PY-NOFILE", Language: "python", Name: "py-q", QueryText: `(call (identifier) @c)`, QueryHash: "h-py"},
+	}
+
+	runReachabilityForFindings(hits, enriched, root, io.Discard)
+
+	byCVE := map[string]scan.EnrichedVuln{}
+	for _, ev := range enriched {
+		byCVE[ev.CveID] = ev
+	}
+
+	// JS query ran against app.js but matched nothing → unreachable + assessed.
+	js := byCVE["CVE-JS-NOMATCH"]
+	assert.True(t, js.ReachabilityAssessed, "JS query ran, so the CVE should be assessed")
+	assert.Equal(t, "unreachable", js.Reachability)
+
+	// Python query had no .py files → never executed → must stay unassessed so
+	// it is not posted as UNREACHABLE.
+	py := byCVE["CVE-PY-NOFILE"]
+	assert.False(t, py.ReachabilityAssessed, "Python query never executed; CVE must not be assessed")
+	assert.Equal(t, "", py.Reachability)
+
+	// And confirm the unassessed CVE produces no UNREACHABLE payload.
+	payloads := buildReachabilityPayloads(enriched, nil, nil)
+	for _, p := range payloads {
+		assert.NotEqual(t, "CVE-PY-NOFILE", p.CveID, "unassessed CVE must not be posted")
+	}
+}
 
 func TestBuildReachabilityPayloads_EmptyReachabilityEmitsNoRow(t *testing.T) {
 	enriched := []scan.EnrichedVuln{

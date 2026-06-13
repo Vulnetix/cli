@@ -186,6 +186,8 @@ func ParseManifestWithScope(filePath, manifestType string) ([]ScopedPackage, err
 	// ── Docker ────────────────────────────────────────────────────────────
 	case "Dockerfile":
 		return parseDockerfileScoped(data, filePath)
+	case "compose.yaml":
+		return parseComposeScoped(data, filePath)
 	// ── GitHub Actions ────────────────────────────────────────────────────
 	case "github-actions.yml":
 		return parseGithubActionsScoped(data, filePath)

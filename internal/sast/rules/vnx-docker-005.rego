@@ -19,9 +19,14 @@ metadata := {
 	"tags": ["docker", "privilege-escalation", "container-escape"],
 }
 
+_is_dockerfile(path) if endswith(path, "Dockerfile")
+_is_dockerfile(path) if endswith(path, "Containerfile")
+_is_dockerfile(path) if endswith(path, ".dockerfile")
+_is_dockerfile(path) if endswith(path, ".containerfile")
+
 findings contains finding if {
 	some path in object.keys(input.file_contents)
-	endswith(path, "Dockerfile")
+	_is_dockerfile(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
 	contains(line, "--privileged")

@@ -20,6 +20,261 @@ import (
 	"strings"
 )
 
+// MergeBOMs merges two locally-built CycloneDX documents. It is designed for
+// the shared .vulnetix/sbom.cdx.json file where SCA and container scans both
+// write component inventory. Existing data is preserved, incoming data fills
+// gaps and adds new components, tools, vulnerabilities, and dependencies.
+func MergeBOMs(existing, incoming *BOM) *BOM {
+	if existing == nil {
+		return incoming
+	}
+	if incoming == nil {
+		return existing
+	}
+
+	if existing.BOMFormat == "" {
+		existing.BOMFormat = incoming.BOMFormat
+	}
+	if existing.SpecVersion == "" {
+		existing.SpecVersion = incoming.SpecVersion
+	}
+	if existing.SerialNumber == "" {
+		existing.SerialNumber = incoming.SerialNumber
+	}
+	if existing.Version == 0 {
+		existing.Version = incoming.Version
+	}
+	mergeMetadata(existing, incoming)
+	mergeComponents(existing, incoming.Components)
+	mergeVulnerabilities(existing, incoming.Vulnerabilities)
+	mergeDependencies(existing, incoming.Dependencies)
+	return existing
+}
+
+func mergeMetadata(existing, incoming *BOM) {
+	if incoming.Metadata == nil {
+		return
+	}
+	if existing.Metadata == nil {
+		existing.Metadata = incoming.Metadata
+		return
+	}
+	if incoming.Metadata.Timestamp != "" {
+		existing.Metadata.Timestamp = incoming.Metadata.Timestamp
+	}
+	if len(existing.Metadata.Lifecycles) == 0 {
+		existing.Metadata.Lifecycles = incoming.Metadata.Lifecycles
+	}
+	if existing.Metadata.Component == nil {
+		existing.Metadata.Component = incoming.Metadata.Component
+	}
+	if len(existing.Metadata.Authors) == 0 {
+		existing.Metadata.Authors = incoming.Metadata.Authors
+	}
+	existing.Metadata.Properties = mergeProperties(existing.Metadata.Properties, incoming.Metadata.Properties)
+
+	if incoming.Metadata.Tools == nil {
+		return
+	}
+	if existing.Metadata.Tools == nil {
+		existing.Metadata.Tools = incoming.Metadata.Tools
+		return
+	}
+	for _, tool := range incoming.Metadata.Tools.Components {
+		if findComponentIndex(existing.Metadata.Tools.Components, tool) < 0 {
+			existing.Metadata.Tools.Components = append(existing.Metadata.Tools.Components, tool)
+		}
+	}
+}
+
+func mergeComponents(bom *BOM, incoming []Component) {
+	for _, comp := range incoming {
+		idx := findComponentIndex(bom.Components, comp)
+		if idx < 0 {
+			bom.Components = append(bom.Components, comp)
+			continue
+		}
+		mergeComponentGaps(&bom.Components[idx], comp)
+	}
+}
+
+func findComponentIndex(components []Component, target Component) int {
+	for i, comp := range components {
+		switch {
+		case target.Purl != "" && comp.Purl == target.Purl:
+			return i
+		case target.BOMRef != "" && comp.BOMRef == target.BOMRef:
+			return i
+		case target.Name != "" && comp.Name == target.Name && comp.Version == target.Version && comp.Type == target.Type:
+			return i
+		}
+	}
+	return -1
+}
+
+func mergeComponentGaps(existing *Component, incoming Component) {
+	if existing.Type == "" {
+		existing.Type = incoming.Type
+	}
+	if existing.BOMRef == "" {
+		existing.BOMRef = incoming.BOMRef
+	}
+	if existing.Name == "" {
+		existing.Name = incoming.Name
+	}
+	if existing.Version == "" {
+		existing.Version = incoming.Version
+	}
+	if existing.Description == "" {
+		existing.Description = incoming.Description
+	}
+	if existing.Scope == "" {
+		existing.Scope = incoming.Scope
+	}
+	if existing.Purl == "" {
+		existing.Purl = incoming.Purl
+	}
+	existing.Hashes = mergeHashes(existing.Hashes, incoming.Hashes)
+	existing.Licenses = mergeLicenses(existing.Licenses, incoming.Licenses)
+	existing.Authors = mergeContacts(existing.Authors, incoming.Authors)
+	existing.ExternalReferences = mergeExternalRefs(existing.ExternalReferences, incoming.ExternalReferences)
+	existing.Properties = mergeProperties(existing.Properties, incoming.Properties)
+}
+
+func mergeVulnerabilities(bom *BOM, incoming []Vulnerability) {
+	seen := map[string]bool{}
+	for _, v := range bom.Vulnerabilities {
+		seen[vulnerabilityKey(v)] = true
+	}
+	for _, v := range incoming {
+		key := vulnerabilityKey(v)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		bom.Vulnerabilities = append(bom.Vulnerabilities, v)
+	}
+}
+
+func vulnerabilityKey(v Vulnerability) string {
+	var affects []string
+	for _, a := range v.Affects {
+		affects = append(affects, a.Ref)
+	}
+	return v.ID + "::" + v.BOMRef + "::" + strings.Join(affects, ",")
+}
+
+func mergeDependencies(bom *BOM, incoming []CDXDependency) {
+	byRef := map[string]int{}
+	for i, dep := range bom.Dependencies {
+		if dep.Ref != "" {
+			byRef[dep.Ref] = i
+		}
+	}
+	for _, dep := range incoming {
+		if dep.Ref == "" {
+			continue
+		}
+		if idx, ok := byRef[dep.Ref]; ok {
+			bom.Dependencies[idx].DependsOn = mergeStringSlices(bom.Dependencies[idx].DependsOn, dep.DependsOn)
+			continue
+		}
+		byRef[dep.Ref] = len(bom.Dependencies)
+		bom.Dependencies = append(bom.Dependencies, dep)
+	}
+}
+
+func mergeProperties(existing, incoming []Property) []Property {
+	for _, prop := range incoming {
+		existing = appendPropIfMissing(existing, prop.Name, prop.Value)
+	}
+	return existing
+}
+
+func mergeHashes(existing, incoming []Hash) []Hash {
+	seen := map[string]bool{}
+	for _, h := range existing {
+		seen[h.Alg+"::"+h.Content] = true
+	}
+	for _, h := range incoming {
+		key := h.Alg + "::" + h.Content
+		if !seen[key] {
+			seen[key] = true
+			existing = append(existing, h)
+		}
+	}
+	return existing
+}
+
+func mergeLicenses(existing, incoming []LicenseChoice) []LicenseChoice {
+	seen := map[string]bool{}
+	for _, l := range existing {
+		seen[licenseKey(l)] = true
+	}
+	for _, l := range incoming {
+		key := licenseKey(l)
+		if !seen[key] {
+			seen[key] = true
+			existing = append(existing, l)
+		}
+	}
+	return existing
+}
+
+func licenseKey(l LicenseChoice) string {
+	if l.Expression != "" {
+		return "expr:" + l.Expression
+	}
+	if l.License != nil {
+		return "license:" + l.License.ID + ":" + l.License.Name + ":" + l.License.URL
+	}
+	return ""
+}
+
+func mergeContacts(existing, incoming []OrganizationalContact) []OrganizationalContact {
+	seen := map[string]bool{}
+	for _, c := range existing {
+		seen[c.Name+"::"+c.Email] = true
+	}
+	for _, c := range incoming {
+		key := c.Name + "::" + c.Email
+		if !seen[key] {
+			seen[key] = true
+			existing = append(existing, c)
+		}
+	}
+	return existing
+}
+
+func mergeExternalRefs(existing, incoming []ExternalReference) []ExternalReference {
+	seen := map[string]bool{}
+	for _, r := range existing {
+		seen[r.Type+"::"+r.URL] = true
+	}
+	for _, r := range incoming {
+		key := r.Type + "::" + r.URL
+		if !seen[key] {
+			seen[key] = true
+			existing = append(existing, r)
+		}
+	}
+	return existing
+}
+
+func mergeStringSlices(existing, incoming []string) []string {
+	seen := map[string]bool{}
+	for _, s := range existing {
+		seen[s] = true
+	}
+	for _, s := range incoming {
+		if !seen[s] {
+			seen[s] = true
+			existing = append(existing, s)
+		}
+	}
+	return existing
+}
+
 // MergeUpstream returns local mutated with upstream's vulns and component
 // gap-fills applied. It is safe to pass nil for either side — a nil local is
 // initialised as an empty BOM; a nil upstream is a no-op.

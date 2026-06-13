@@ -48,11 +48,11 @@ var sarifKinds = []sarifScanKind{
 }
 
 // postScanSARIF is the single entry point. Called from scan.go after the local
-// SARIF is on disk. Splits findings by rule kind, posts each non-empty kind to
-// its matching /v2/cli.<kind> endpoint, and prints the resulting snapshot URLs.
-// Returns the snapshot links for display and a map of category → snapshotUuid
-// for use by the finalize step.
-func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, w io.Writer) ([]snapshotLink, map[string]string) {
+// SARIF is on disk. Splits findings by rule kind and posts each non-empty kind
+// to its matching /v2/cli.<kind> endpoint. When baseSnapshotUuid is set, the
+// first SARIF request attaches to that existing SCA snapshot; otherwise the
+// SARIF endpoint creates its own snapshot as before.
+func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, baseSnapshotUuid string, w io.Writer) ([]snapshotLink, map[string]string) {
 	if report == nil || len(report.Findings) == 0 {
 		return nil, nil
 	}
@@ -76,7 +76,7 @@ func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath 
 		if !ok || len(bucket.findings) == 0 {
 			continue
 		}
-		if link, snapshotUuid, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, w); ok {
+		if link, snapshotUuid, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, baseSnapshotUuid, w); ok {
 			snapshots = append(snapshots, link)
 			if snapshotUuid != "" {
 				uuidByCategory[sk.category] = snapshotUuid
@@ -101,7 +101,7 @@ const sarifChunkMaxFindings = 2000
 // large submissions into sub-8-MiB chunks. Chunk 0 creates the snapshot/run;
 // chunks 1..N carry its uuid so the server appends under one snapshot. Returns
 // the (single) ingestion snapshot link, the snapshot UUID, and an ok flag.
-func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int, w io.Writer) (snapshotLink, string, bool) {
+func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int, baseSnapshotUuid string, w io.Writer) (snapshotLink, string, bool) {
 	// Make the per-kind tool intent explicit (server is authoritative, but this
 	// keeps the env block self-describing): "Vulnetix SAST", "Vulnetix IaC", etc.
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
@@ -122,13 +122,16 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 	chunks := chunkSARIFFindings(bucket.findings, apiFindings)
 
 	var link snapshotLink
-	var snapshotUuid string
+	snapshotUuid := baseSnapshotUuid
 	anyOK := false
 	for i, ch := range chunks {
 		sarifLog := sast.BuildSARIF(ch.sast, bucket.rules, version)
 		req := vdb.CliSARIFRequest{
 			SARIF:    sarifLogToMap(sarifLog),
 			Findings: ch.api,
+		}
+		if snapshotUuid != "" {
+			req.IngestionSnapshotUuid = snapshotUuid
 		}
 		if i > 0 {
 			if snapshotUuid == "" {
@@ -137,7 +140,6 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 				// disk is still authoritative.
 				break
 			}
-			req.IngestionSnapshotUuid = snapshotUuid
 		}
 		resp, err := dispatchSARIFRequest(client, env, sk.category, req)
 		if err != nil {

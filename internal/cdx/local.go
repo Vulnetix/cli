@@ -51,6 +51,10 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 	if scanCtx != nil && scanCtx.ToolVersion != "" {
 		toolVersion = scanCtx.ToolVersion
 	}
+	toolName := "vulnetix-sca"
+	if scanCtx != nil && scanCtx.ToolName != "" {
+		toolName = scanCtx.ToolName
+	}
 
 	bom := &BOM{
 		BOMFormat:    "CycloneDX",
@@ -62,7 +66,7 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 			Lifecycles: []Lifecycle{{Phase: "build"}},
 			Tools: &Tools{
 				Components: []Component{
-					{Type: "application", Name: "vulnetix-sca", Version: toolVersion},
+					{Type: "application", Name: toolName, Version: toolVersion},
 				},
 			},
 		},
@@ -128,8 +132,12 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 			}
 			compRefs[compKey] = bomRef
 
+			compType := "library"
+			if strings.EqualFold(pkg.Ecosystem, "oci") {
+				compType = "container"
+			}
 			comp := Component{
-				Type:    "library",
+				Type:    compType,
 				BOMRef:  bomRef,
 				Name:    pkg.Name,
 				Version: pkg.Version,

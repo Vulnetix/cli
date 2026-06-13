@@ -28,6 +28,7 @@ SAST, license analysis, secret detection, container analysis, or IaC analysis.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
+		applyScanDisplayFlags(cmd)
 		// Credentials are optional — community fallback is used when absent.
 		// But when the user IS authenticated (Pro subscription), this is
 		// what populates vdbCreds so the cli.sca call goes out under
@@ -60,6 +61,7 @@ analyzing package dependencies, licenses, secrets, containers, or IaC.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
+		applyScanDisplayFlags(cmd)
 		return resolveVDBCredentials(false)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,6 +89,7 @@ only, without analyzing package dependencies, licenses, or other issues.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
+		applyScanDisplayFlags(cmd)
 		return resolveVDBCredentials(false)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -114,6 +117,7 @@ package dependencies, licenses, or other security issues.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
+		applyScanDisplayFlags(cmd)
 		return resolveVDBCredentials(false)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -141,6 +145,7 @@ analyzing package dependencies, licenses, or other security issues.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
+		applyScanDisplayFlags(cmd)
 		return resolveVDBCredentials(false)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {

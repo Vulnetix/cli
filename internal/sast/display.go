@@ -12,6 +12,13 @@ import (
 // PrintPrettySummary prints a styled SAST findings table to stdout.
 // If resultsOnly is true, stays silent when there are no findings.
 func PrintPrettySummary(report *SASTReport, resultsOnly bool) {
+	PrintPrettySummaryWithTitle(report, resultsOnly, "SAST Analysis")
+}
+
+// PrintPrettySummaryWithTitle prints a styled findings table with a caller
+// supplied heading. Container/IaC/Secrets subcommands share the SAST engine but
+// should not call their output "SAST".
+func PrintPrettySummaryWithTitle(report *SASTReport, resultsOnly bool, title string) {
 	if report == nil {
 		return
 	}
@@ -21,7 +28,10 @@ func PrintPrettySummary(report *SASTReport, resultsOnly bool) {
 
 	t := display.NewTerminal()
 	fmt.Fprintln(os.Stdout)
-	fmt.Fprintln(os.Stdout, display.Header(t, "SAST Analysis"))
+	if title == "" {
+		title = "SAST Analysis"
+	}
+	fmt.Fprintln(os.Stdout, display.Header(t, title))
 
 	if len(report.Findings) == 0 {
 		fmt.Fprintf(os.Stdout, "  %s No findings (%s)\n",
@@ -83,15 +93,24 @@ func PrintPrettySummary(report *SASTReport, resultsOnly bool) {
 // breakdown) above the analysis table. Used as the top-of-output summary when
 // SCA did not run (so the SCA "X packages | Y vulnerabilities" line is absent).
 func PrintHeadline(report *SASTReport) {
+	PrintHeadlineWithLabel(report, "SAST")
+}
+
+// PrintHeadlineWithLabel prints a bold findings headline using the scan family
+// label supplied by the caller.
+func PrintHeadlineWithLabel(report *SASTReport, label string) {
 	if report == nil || len(report.Findings) == 0 {
 		return
+	}
+	if label == "" {
+		label = "SAST"
 	}
 	t := display.NewTerminal()
 	total, parts := severityBreakdown(report)
 	fmt.Fprintln(os.Stdout)
 	fmt.Fprintln(os.Stdout, display.Divider(t))
 	fmt.Fprintln(os.Stdout, display.Bold(t,
-		fmt.Sprintf("  %d SAST %s | %s", total, pluralize("finding", total), strings.Join(parts, ", "))))
+		fmt.Sprintf("  %d %s %s | %s", total, label, pluralize("finding", total), strings.Join(parts, ", "))))
 	fmt.Fprintln(os.Stdout)
 }
 
