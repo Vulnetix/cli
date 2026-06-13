@@ -19,10 +19,13 @@ metadata := {
 	"tags": ["docker", "privilege-escalation", "container-escape"],
 }
 
-_is_dockerfile(path) if endswith(path, "Dockerfile")
-_is_dockerfile(path) if endswith(path, "Containerfile")
-_is_dockerfile(path) if endswith(path, ".dockerfile")
-_is_dockerfile(path) if endswith(path, ".containerfile")
+_is_dockerfile(path) if contains(lower(_dockerfile_base(path)), "dockerfile")
+_is_dockerfile(path) if contains(lower(_dockerfile_base(path)), "containerfile")
+
+_dockerfile_base(path) := base if {
+	parts := split(path, "/")
+	base := parts[count(parts) - 1]
+}
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
@@ -43,7 +46,9 @@ findings contains finding if {
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
-	regex.match(`docker-compose\.ya?ml$`, path)
+	# Match all compose filenames the detector recognises: compose.ya?ml,
+	# docker-compose.ya?ml, podman-compose.ya?ml (optionally path-prefixed).
+	regex.match(`(^|/)(docker-|podman-)?compose\.ya?ml$`, path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
 	regex.match(`^\s*privileged\s*:\s*true`, line)
