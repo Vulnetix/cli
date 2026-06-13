@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vulnetix.com/schemas/binary-analyze.schema.json",
+  "title": "CliBinaryAnalyzeRequest",
+  "description": "CLI binary analysis payload for POST /v2/cli.analyze — one request per container filesystem scan. Mirrors the server schema so the CLI verifies its own request before sending.",
+  "type": "object",
+  "required": ["scannerRunUuid", "path", "binaries"],
+  "properties": {
+    "scannerRunUuid": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UUID of the ScannerRun anchoring this binary scan."
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Absolute path to the scanned container filesystem root on the scanner host."
+    },
+    "binaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "size", "hashes"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Absolute path to the ELF binary inside the container filesystem."
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "File size in bytes."
+          },
+          "elfType": { "type": "string" },
+          "elfArch": { "type": "string" },
+          "elfOSABI": { "type": "string" },
+          "hashes": {
+            "type": "object",
+            "required": ["sha256", "md5", "sha1"],
+            "properties": {
+              "sha256": { "type": "string" },
+              "md5": { "type": "string" },
+              "sha1": { "type": "string" },
+              "ssdeep": { "type": "string" },
+              "tlsh": { "type": "string" },
+              "sha256Raw": { "type": "string" },
+              "md5Raw": { "type": "string" },
+              "sha1Raw": { "type": "string" }
+            }
+          },
+          "weaknesses": { "type": "array", "items": { "type": "string" } },
+          "capabilities": { "type": "array", "items": { "type": "string" } },
+          "strings": { "type": "array", "items": { "type": "string" } },
+          "exif": { "type": "object" },
+          "hashlookup": {
+            "type": "object",
+            "properties": {
+              "fileName": { "type": "string" },
+              "fileSize": { "type": "string" },
+              "md5": { "type": "string" },
+              "sha1": { "type": "string" },
+              "sha256": { "type": "string" },
+              "ssdeep": { "type": "string" },
+              "tlsh": { "type": "string" },
+              "packageName": { "type": "string" },
+              "packageVersion": { "type": "string" }
+            }
+          },
+          "malwareBazaar": {
+            "type": "object",
+            "properties": {
+              "malicious": { "type": "boolean" },
+              "fileName": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

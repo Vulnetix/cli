@@ -841,5 +841,77 @@ func (c *Client) CliTrends(env CliEnv, payload any) (*CliResponse[map[string]any
 	return cliPostWithEnv[map[string]any](c, "cli.trends", env, payload)
 }
 
+// ── Binary Analyze: POST /v2/cli.analyze ────────────────────────────────
+
+// CliBinaryHashes carries every hash the CLI computed for one ELF binary.
+type CliBinaryHashes struct {
+	SHA256    string `json:"sha256"`
+	MD5       string `json:"md5"`
+	SHA1      string `json:"sha1"`
+	SSDEEP    string `json:"ssdeep,omitempty"`
+	TLSH      string `json:"tlsh,omitempty"`
+	SHA256Raw string `json:"sha256Raw,omitempty"`
+	MD5Raw    string `json:"md5Raw,omitempty"`
+	SHA1Raw   string `json:"sha1Raw,omitempty"`
+}
+
+// CliHashlookupResult carries the CIRCL hashlookup response subset the CLI
+// forwards to the API. The API uses PackageName+PackageVersion for CVE matching.
+type CliHashlookupResult struct {
+	FileName       string `json:"fileName,omitempty"`
+	FileSize       string `json:"fileSize,omitempty"`
+	MD5            string `json:"md5,omitempty"`
+	SHA1           string `json:"sha1,omitempty"`
+	SHA256         string `json:"sha256,omitempty"`
+	SSDEEP         string `json:"ssdeep,omitempty"`
+	TLSH           string `json:"tlsh,omitempty"`
+	PackageName    string `json:"packageName,omitempty"`
+	PackageVersion string `json:"packageVersion,omitempty"`
+}
+
+// CliMalwareBazaarResult carries the local malware corpus check result.
+type CliMalwareBazaarResult struct {
+	Malicious bool   `json:"malicious"`
+	FileName  string `json:"fileName,omitempty"`
+}
+
+// CliBinaryAnalyzeEntry is one ELF binary in the /v2/cli.analyze payload.
+type CliBinaryAnalyzeEntry struct {
+	Path          string                   `json:"path"`
+	Size          int64                    `json:"size"`
+	ELFType       string                   `json:"elfType,omitempty"`
+	ELFArch       string                   `json:"elfArch,omitempty"`
+	ELFOSABI      string                   `json:"elfOSABI,omitempty"`
+	Hashes        CliBinaryHashes          `json:"hashes"`
+	Weaknesses    []string                 `json:"weaknesses,omitempty"`
+	Capabilities  []string                 `json:"capabilities,omitempty"`
+	Strings       []string                 `json:"strings,omitempty"`
+	Exif          map[string]any           `json:"exif,omitempty"`
+	Hashlookup    *CliHashlookupResult     `json:"hashlookup,omitempty"`
+	MalwareBazaar *CliMalwareBazaarResult  `json:"malwareBazaar,omitempty"`
+}
+
+// CliBinaryAnalyzeRequest is the full payload for POST /v2/cli.analyze.
+type CliBinaryAnalyzeRequest struct {
+	ScannerRunUUID string                 `json:"scannerRunUuid"`
+	Path           string                 `json:"path"`
+	Binaries       []CliBinaryAnalyzeEntry `json:"binaries"`
+}
+
+// CliBinaryAnalyzeResponse is the typed response from /v2/cli.analyze.
+type CliBinaryAnalyzeResponse struct {
+	BinariesStored  int `json:"binariesStored"`
+	FindingsCreated int `json:"findingsCreated"`
+	MalwareHits     int `json:"malwareHits"`
+	CveMatches      int `json:"cveMatches"`
+}
+
+// CliBinaryAnalyze — POST /v2/cli.analyze. Sends the full binary scan
+// payload (ELF metadata, hashes, weaknesses, CIRCL correlation, MalwareBazaar
+// results) to the server for persistence and CVE correlation.
+func (c *Client) CliBinaryAnalyze(env CliEnv, req CliBinaryAnalyzeRequest) (*CliResponse[CliBinaryAnalyzeResponse], error) {
+	return cliPostWithEnv[CliBinaryAnalyzeResponse](c, "cli.analyze", env, req)
+}
+
 // Suppress unused import errors if generic helper inlining hides usage.
 var _ = cliPost[any]

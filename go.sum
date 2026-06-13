@@ -84,6 +84,10 @@ github.com/fortytw2/leaktest v1.3.0 h1:u8491cBMTQ8ft8aeV+adlcytMZylmA5nnwwkRZjI8
 github.com/fortytw2/leaktest v1.3.0/go.mod h1:jDsjWgpAGjm2CA7WthBh/CdZYEPF31XHquHwclZch5g=
 github.com/foxcpp/go-mockdns v1.2.0 h1:omK3OrHRD1IWJz1FuFBCFquhXslXoF17OvBS6JPzZF0=
 github.com/foxcpp/go-mockdns v1.2.0/go.mod h1:IhLeSFGed3mJIAXPH2aiRQB+kqz7oqu8ld2qVbOu7Wk=
+github.com/glaslos/ssdeep v1.0.0 h1:WsUwoekrlkTzi43/SBO1LXQIOQfkMc2lv4mPsBp3bd0=
+github.com/glaslos/ssdeep v1.0.0/go.mod h1:FFtDB/oyQPP8LaI8y0WIOa6LoAMQiIVG1YAqXxFJJio=
+github.com/glaslos/tlsh v0.4.0 h1:rWheIm8wSO8FqVGW3nrGaVvjXvLWRtF/HBIrih6TltE=
+github.com/glaslos/tlsh v0.4.0/go.mod h1:Fg7YBN7EUtifZmdJrQOQHvebtw5RF89IX7nWFsmaqeE=
 github.com/gliderlabs/ssh v0.3.8 h1:a4YXD1V7xMF9g5nTkdfnja3Sxy1PVDCj1Zg4Wb8vY6c=
 github.com/gliderlabs/ssh v0.3.8/go.mod h1:xYoytBv1sV0aL3CavoDuJIQNURXkkfPA/wxQ1pL1fAU=
 github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 h1:+zs/tPmkDkHx3U66DAb0lQFJrpS6731Oaa12ikc+DiI=
