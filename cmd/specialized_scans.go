@@ -122,7 +122,7 @@ package dependencies, licenses, or other security issues.`,
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pullCliRules("containers", map[string]any{"images": []string{}, "registries": []string{}})
-		return runScanWithFeatures(cmd.Context(), cmd,
+		scanErr := runScanWithFeatures(cmd.Context(), cmd,
 			true,  // noSAST
 			true,  // noSCA
 			true,  // noLicenses
@@ -130,6 +130,13 @@ package dependencies, licenses, or other security issues.`,
 			false, // noContainers
 			true,  // noIAC
 		)
+		// Binary ELF analysis is a second, internal pass over the same path:
+		// the Rego pass above scans Dockerfile/Containerfile text, this walks
+		// the filesystem for ELF binaries and analyzes them. It is non-fatal —
+		// errors are logged to stderr inside runBinaryScan — so the container
+		// (Dockerfile) scan result governs the command's exit code.
+		_ = runBinaryScan(cmd)
+		return scanErr
 	},
 }
 
@@ -168,6 +175,10 @@ func init() {
 
 	// secrets, containers, iac, sast all accept external Rego rule packs
 	// via --rule (along with --disable-default-rules, --list-default-rules, etc.)
+	//
+	// containers additionally runs an internal ELF binary analysis pass
+	// (runBinaryScan, in binary_scan.go) over the same --path; there is no
+	// standalone binary-scan command exposed to callers.
 	for _, cmd := range []*cobra.Command{secretsCmd, containersCmd, iacCmd, sastCmd} {
 		addScanFlags(cmd)
 		addSASTFlags(cmd)
