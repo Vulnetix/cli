@@ -56,3 +56,16 @@ func TestDockerRules_FireOnDotContainerfile(t *testing.T) {
 		t.Fatalf("expected VNX-DOCKER-001 to fire on *.containerfile; fired=%v", fired)
 	}
 }
+
+// Suffix-style names (Containerfile.postgres, Dockerfile.prod) are detected by
+// detector.go via basename-contains; the rego matcher must agree, otherwise a
+// repo whose compose.yml builds from Containerfile.<svc> gets SCA but no
+// misconfiguration findings.
+func TestDockerRules_FireOnSuffixVariants(t *testing.T) {
+	for _, name := range []string{"Containerfile.postgres", "Dockerfile.prod", "go-processors.Containerfile"} {
+		fired := evalDockerRulesOn(t, name, "FROM alpine:3.21\nRUN echo hi\n")
+		if !fired["VNX-DOCKER-001"] {
+			t.Fatalf("expected VNX-DOCKER-001 to fire on %q; fired=%v", name, fired)
+		}
+	}
+}

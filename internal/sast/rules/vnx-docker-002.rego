@@ -19,10 +19,13 @@ metadata := {
 	"tags": ["docker", "supply-chain", "pinning"],
 }
 
-_is_dockerfile(path) if endswith(path, "Dockerfile")
-_is_dockerfile(path) if endswith(path, "Containerfile")
-_is_dockerfile(path) if endswith(path, ".dockerfile")
-_is_dockerfile(path) if endswith(path, ".containerfile")
+_is_dockerfile(path) if contains(lower(_dockerfile_base(path)), "dockerfile")
+_is_dockerfile(path) if contains(lower(_dockerfile_base(path)), "containerfile")
+
+_dockerfile_base(path) := base if {
+	parts := split(path, "/")
+	base := parts[count(parts) - 1]
+}
 
 findings contains finding if {
 	some path in object.keys(input.file_contents)
