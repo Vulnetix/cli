@@ -27,10 +27,10 @@ The rule matches any file (excluding lock files, checksums, and minified assets)
 
 ```bash
 # FLAGGED: DigitalOcean token hardcoded in a deployment script
-DIGITALOCEAN_TOKEN=dop_v1_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+DIGITALOCEAN_TOKEN=dop_v1_EXAMPLE_REDACTED
 
 # FLAGGED: token in application configuration
-do_token = "dop_v1_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+do_token = "dop_v1_EXAMPLE_REDACTED"
 ```
 
 ## Remediation

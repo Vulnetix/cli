@@ -27,10 +27,10 @@ Rotating a hardcoded credential requires a code change, a review cycle, a new bu
 
 ```swift
 // FLAGGED: API key assigned directly as a string literal
-let apiKey = "AIzaSyD-9tSrke72I6qDCgx"
+let apiKey = "AIzaSy_EXAMPLE_REDACTED"
 
 // FLAGGED: access token hardcoded at module scope
-private let accessToken: String = "sk-live-abcdef1234567890abcdef"
+private let accessToken: String = "sk-live-EXAMPLE_REDACTED"
 
 // FLAGGED: password stored as a constant
 let adminPassword = "Sup3rS3cr3t!"

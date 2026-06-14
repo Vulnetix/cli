@@ -335,6 +335,12 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		snippetContext, _ = cmd.Flags().GetInt("snippet-context")
 	}
 	excludes, _ := cmd.Flags().GetStringArray("exclude")
+	ignoreGlobs, _ := cmd.Flags().GetStringArray("ignore")
+	ignoreGit, _ := cmd.Flags().GetBool("ignore-git")
+	ignoreBinaries, _ := cmd.Flags().GetBool("ignore-binaries")
+	gitHistory, _ := cmd.Flags().GetBool("git-history")
+	gitHistoryMaxCommits, _ := cmd.Flags().GetInt("git-history-max-commits")
+	gitHistoryMaxFiles, _ := cmd.Flags().GetInt("git-history-max-files")
 	outputArgs, _ := cmd.Flags().GetStringArray("output")
 	// Backward compat: if --format is set and --output is not, map it.
 	if len(outputArgs) == 0 {
@@ -510,8 +516,16 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 
 	analytics.TrackScan("sbom", len(files))
 	if len(files) == 0 {
-		fmt.Fprintln(os.Stderr, "No scannable files detected.")
-		return nil
+		// WalkForScanFiles only detects dependency manifests and SBOM
+		// documents. The SAST-family analyses (sast / secrets / containers /
+		// iac) walk the filesystem independently through the SAST engine, so
+		// a repo with no manifest (e.g. a data-only repo) must still be
+		// secret-scanned. Only short-circuit when no SAST sub-category runs.
+		sastFamilyEnabled := !noSAST || !noSecrets || !noContainers || !noIAC
+		if !sastFamilyEnabled {
+			fmt.Fprintln(os.Stderr, "No scannable files detected.")
+			return nil
+		}
 	}
 
 	// ── 3. Display detected files ──────────────────────────────────────
@@ -577,8 +591,15 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	}
 
 	if len(supportedFiles) == 0 {
-		fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
-		return nil
+		// As above: SAST-family analyses do not need a dependency manifest.
+		// Continue into runLocalScan (which drives the SAST engine) whenever a
+		// SAST sub-category is enabled, and only bail when there is genuinely
+		// nothing to scan.
+		sastFamilyEnabled := !noSAST || !noSecrets || !noContainers || !noIAC
+		if !sastFamilyEnabled {
+			fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
+			return nil
+		}
 	}
 
 	// ── 4. Filter files by feature flags ──────────────────────────────
@@ -634,6 +655,12 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 			PathExplicit: pathExplicit,
 		},
 		nil,
+		ignoreGlobs,
+		ignoreGit,
+		ignoreBinaries,
+		gitHistory,
+		gitHistoryMaxCommits,
+		gitHistoryMaxFiles,
 	)
 }
 
@@ -725,6 +752,17 @@ func runLocalScan(
 	scaAutofix bool,
 	scaAutofixOpts autofix.Options,
 	autofixResolved []*triage.TriageFinding,
+	// Secrets-stage options. These only affect the SAST engine when the
+	// "secrets" kind is enabled; other kinds ignore them. They are
+	// threaded explicitly so that the secrets subcommand can enable
+	// binary + git-history inspection without affecting the generic
+	// scan behaviour.
+	ignoreGlobs []string,
+	ignoreGit bool,
+	ignoreBinaries bool,
+	gitHistory bool,
+	gitHistoryMaxCommits int,
+	gitHistoryMaxFiles int,
 ) (retErr error) {
 	dctx := display.NewWithProgress(display.ModeText, silent, noProgress)
 	scanProgress := dctx.Progress("Scan", 7)
@@ -768,6 +806,12 @@ func runLocalScan(
 	var autofixReportCounts autofix.ProofCounts
 	var autofixReportErr error
 	containerOnly := noSASTRules && noSCA && noSecrets && !noContainers && noIAC
+	// SAST-family-only scans (secrets / sast / iac with no SCA, not container)
+	// resolve no packages, so the only thing a CycloneDX BOM could carry is
+	// auto-VEX noise from SAST finding state-changes. The SARIF is the report
+	// for these scans — never write a stray sbom.cdx.json. (The generic `scan`
+	// command does SCA → noSCA is false; container scans are handled above.)
+	suppressBOM := noSCA && !containerOnly
 	analysisLabel := "SAST"
 	analysisTitle := "SAST Analysis"
 	sarifFileName := "sast.sarif"
@@ -1105,6 +1149,12 @@ func runLocalScan(
 						false,
 						autofix.Options{},
 						resolvedFindings,
+						ignoreGlobs,
+						ignoreGit,
+						ignoreBinaries,
+						gitHistory,
+						gitHistoryMaxCommits,
+						gitHistoryMaxFiles,
 					)
 				}
 			}
@@ -1296,7 +1346,26 @@ func runLocalScan(
 			eng := sast.NewEngine(modules, rootPath)
 			var eerr error
 			scanProgress.SetStage(fmt.Sprintf("Evaluating %d %s rule(s)", len(modules), strings.ToLower(analysisLabel)))
-			sastReport, eerr = eng.Evaluate(sast.EvalOptions{MaxDepth: depth, Excludes: excludes})
+			// Binary and git-history scanning only make sense for the secrets
+			// subcommand. We enable them automatically when the SAST engine
+			// is being driven by kind "secrets"; the user can still turn
+			// them off with --ignore-binaries / --ignore-git.
+			enableBinaryInspection := !noSecrets
+			enableGitHistory := !noSecrets
+			sastReport, eerr = eng.Evaluate(sast.EvalOptions{
+				MaxDepth:             depth,
+				Excludes:             excludes,
+				IgnoreGlobs:          ignoreGlobs,
+				IgnoreGit:            ignoreGit,
+				IgnoreBinaries:       ignoreBinaries,
+				GitHistory:           enableGitHistory && gitHistory,
+				GitHistoryMaxCommits: gitHistoryMaxCommits,
+				GitHistoryMaxFiles:   gitHistoryMaxFiles,
+			})
+			// Hint the caller that the synthetic-content behaviour was engaged.
+			if enableBinaryInspection && !ignoreBinaries {
+				_ = enableBinaryInspection // currently a no-op; binary inspection always runs when not ignored
+			}
 			if eerr != nil {
 				fmt.Fprintf(progressStderr, "  warning: SAST evaluation failed: %v\n", eerr)
 			}
@@ -1459,39 +1528,45 @@ func runLocalScan(
 	}
 	bom := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, effectiveSeed)
 
-	// Inject VEX entries for remediated and regressed findings.
-	for _, sc := range stateChanges {
-		vexVuln := cdx.Vulnerability{
-			BOMRef: sc.CveID,
-			ID:     sc.CveID,
-			Source: &cdx.Source{
-				Name: "vulnetix-sca",
-			},
-		}
-		switch sc.NewStatus {
-		case "fixed":
-			vexVuln.Analysis = &cdx.Analysis{
-				State:         "resolved",
-				Justification: "update",
-				Detail:        sc.Comment,
+	// Inject VEX entries for remediated and regressed findings. This is the
+	// CycloneDX VEX channel, used only by SCA / container scans that emit a
+	// BOM. Static-analysis scans (suppressBOM) emit no BOM, so their finding
+	// transitions are attested as a standalone OpenVEX document instead (see
+	// writeStaticAnalysisVEX, called below).
+	if !suppressBOM {
+		for _, sc := range stateChanges {
+			vexVuln := cdx.Vulnerability{
+				BOMRef: sc.CveID,
+				ID:     sc.CveID,
+				Source: &cdx.Source{
+					Name: "vulnetix-sca",
+				},
 			}
-		case "under_investigation":
-			vexVuln.Analysis = &cdx.Analysis{
-				State:  "in_triage",
-				Detail: sc.Comment,
+			switch sc.NewStatus {
+			case "fixed":
+				vexVuln.Analysis = &cdx.Analysis{
+					State:         "resolved",
+					Justification: "update",
+					Detail:        sc.Comment,
+				}
+			case "under_investigation":
+				vexVuln.Analysis = &cdx.Analysis{
+					State:  "in_triage",
+					Detail: sc.Comment,
+				}
 			}
-		}
-		vexVuln.Properties = append(vexVuln.Properties, cdx.Property{
-			Name:  "vulnetix:vex-auto",
-			Value: "true",
-		})
-		if sc.Package != "" {
 			vexVuln.Properties = append(vexVuln.Properties, cdx.Property{
-				Name:  "vulnetix:package",
-				Value: sc.Package,
+				Name:  "vulnetix:vex-auto",
+				Value: "true",
 			})
+			if sc.Package != "" {
+				vexVuln.Properties = append(vexVuln.Properties, cdx.Property{
+					Name:  "vulnetix:package",
+					Value: sc.Package,
+				})
+			}
+			bom.Vulnerabilities = append(bom.Vulnerabilities, vexVuln)
 		}
-		bom.Vulnerabilities = append(bom.Vulnerabilities, vexVuln)
 	}
 
 	// ── License analysis (unless --no-licenses) ────────────────────────────
@@ -1545,7 +1620,7 @@ func runLocalScan(
 	// BOM would have no components or vulnerabilities — the SARIF is the
 	// relevant artefact in that case. Don't claim a BOM artefact we didn't write.
 	bomWritten := false
-	if len(bom.Components) > 0 || len(bom.Vulnerabilities) > 0 {
+	if !suppressBOM && (len(bom.Components) > 0 || len(bom.Vulnerabilities) > 0) {
 		if existingBOM, err := parseCDXForScan(sbomPath); err == nil && existingBOM != nil {
 			bom = cdx.MergeBOMs(existingBOM, bom)
 		}
@@ -1557,6 +1632,16 @@ func runLocalScan(
 	}
 	if !bomWritten {
 		rec.SBOMPath = "" // omitempty → not serialised into memory.yaml
+	}
+
+	// Static-analysis scans (secrets / sast / iac) emit SARIF + OpenVEX, never a
+	// CycloneDX BOM. Attest any finding transitions as an OpenVEX document.
+	if suppressBOM {
+		if vexPath, vexErr := writeStaticAnalysisVEX(rootPath, stateChanges); vexErr != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not write OpenVEX: %v\n", vexErr)
+		} else if vexPath != "" {
+			fmt.Fprintf(os.Stdout, "  %s VEX:      %s\n", display.CheckMark(display.NewTerminal()), vexPath)
+		}
 	}
 
 	if !disableMemory {
@@ -3246,6 +3331,48 @@ func skippedPlansWithNoSafeVersion(plans []autofix.FixCandidate) []autofix.FixCa
 	return out
 }
 
+// writeStaticAnalysisVEX writes an OpenVEX document recording triage state
+// changes for static-analysis findings (sast / secrets / iac / container).
+// Static-analysis scans emit SARIF + OpenVEX only — never a CycloneDX BOM — so
+// finding transitions (fixed, regressed/under-investigation) are attested here
+// rather than in a CDX VEX section. Returns "" when there is nothing to attest.
+func writeStaticAnalysisVEX(root string, changes []memory.StateChange) (string, error) {
+	if len(changes) == 0 {
+		return "", nil
+	}
+	findings := make([]*triage.TriageFinding, 0, len(changes))
+	for i := range changes {
+		sc := changes[i]
+		// Prefer the human-readable rule ID (carried as the first alias) over
+		// the internal fingerprint for the OpenVEX vulnerability identifier.
+		name := sc.CveID
+		if len(sc.Finding.Aliases) > 0 && sc.Finding.Aliases[0] != "" {
+			name = sc.Finding.Aliases[0]
+		}
+		tf := &triage.TriageFinding{
+			CVEID:    name,
+			Status:   sc.NewStatus,
+			Severity: sc.Finding.Severity,
+		}
+		if sc.NewStatus == "fixed" && sc.Comment != "" {
+			tf.ActionResponse = sc.Comment
+		}
+		findings = append(findings, tf)
+	}
+	data, err := triage.GenerateOpenVEX(findings, triage.OpenVEXOptions{Tooling: "vulnetix-cli static-analysis"})
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(root, ".vulnetix", "vex.openvex.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
 // writeRiskAcceptedVEX generates an OpenVEX document for packages that could
 // not be fixed because every available version has vulnerabilities. The
 // document records a risk-accepted decision and is written to
@@ -4112,6 +4239,22 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("yes", false, "Non-interactive mode for SCA autofix: auto-pick safe defaults and never prompt")
 	cmd.Flags().Int("sca-autofix-max-major-bump", 0, "Refuse SCA autofix targets crossing more than N major versions")
 	cmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
+	// Secrets-only flags. They are registered on every scan-style subcommand
+	// so that `scan --evaluate-secrets --ignore-git` works just as well as
+	// `secrets --ignore-git`, but the flags are documented under the
+	// secrets subcommand and only meaningfully affect the secrets stage.
+	cmd.Flags().StringArray("ignore", nil,
+		"Glob pattern (relative to scan root) to skip during the secrets stage; repeatable")
+	cmd.Flags().Bool("ignore-git", false,
+		"Skip the .git directory during the secrets stage. Default is to scan .git so credentials in past commits are surfaced")
+	cmd.Flags().Bool("ignore-binaries", false,
+		"Skip binary files during the secrets stage. Default is to extract printable strings and EXIF metadata from binaries")
+	cmd.Flags().Bool("git-history", true,
+		"When the secrets stage runs, walk git history (newest first) and scan the file contents of every changed path")
+	cmd.Flags().Int("git-history-max-commits", 500,
+		"Cap the number of commits walked during the git-history secrets stage (0 = no cap)")
+	cmd.Flags().Int("git-history-max-files", 5000,
+		"Cap the number of file versions extracted from git history (0 = no cap)")
 	_ = cmd.Flags().MarkDeprecated("format", "use --output instead")
 	_ = cmd.RegisterFlagCompletionFunc("sca-autofix-strategy", cobra.FixedCompletions(
 		[]string{"stable", "safest", "latest"}, cobra.ShellCompDirectiveNoFileComp))

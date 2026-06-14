@@ -27,10 +27,10 @@ The rule matches any file (excluding lock files, checksums, and minified assets)
 
 ```bash
 # FLAGGED: npm token in .npmrc or deployment script
-//registry.npmjs.org/:_authToken=npm_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789
+//registry.npmjs.org/:_authToken=npm_EXAMPLE_REDACTED
 
 # FLAGGED: token in CI configuration
-NPM_TOKEN=npm_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789
+NPM_TOKEN=npm_EXAMPLE_REDACTED
 ```
 
 ## Remediation

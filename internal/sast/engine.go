@@ -5,21 +5,42 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/vulnetix/cli/v3/internal/secretscan"
 )
 
 // Engine compiles Rego modules and evaluates them against a filesystem scan.
 type Engine struct {
 	modules  map[string]string // filename → rego source
 	scanRoot string
+
+	// Compiling ~3000 embedded modules is the dominant fixed cost; a process
+	// that both lists and evaluates rules would otherwise pay it twice. Cache
+	// the compiled result so all rules compile exactly once per Engine.
+	compileOnce sync.Once
+	compiler    *ast.Compiler
+	compileErr  error
 }
 
 // EvalOptions configures the SAST evaluation.
 type EvalOptions struct {
 	MaxDepth int
 	Excludes []string
+
+	// IgnoreGit, IgnoreGlobs, IgnoreBinaries, GitHistory, etc. are
+	// forwarded to BuildScanInputWithOptions / LoadFileContentsWithOptions
+	// so the secrets subcommand can enable binary and history scanning
+	// without affecting the generic scan command's behaviour.
+	IgnoreGit            bool
+	IgnoreGlobs          []string
+	IgnoreBinaries       bool
+	GitHistory           bool
+	GitHistoryMaxCommits int
+	GitHistoryMaxFiles   int
+	MinStringLength      int
 }
 
 // NewEngine constructs an Engine with the given Rego modules.
@@ -27,8 +48,17 @@ func NewEngine(modules map[string]string, scanRoot string) *Engine {
 	return &Engine{modules: modules, scanRoot: scanRoot}
 }
 
-// compile parses and compiles all loaded Rego modules.
+// compile parses and compiles all loaded Rego modules, caching the result so
+// repeated ListRules/Evaluate calls on the same Engine compile only once.
 func (e *Engine) compile() (*ast.Compiler, error) {
+	e.compileOnce.Do(func() {
+		e.compiler, e.compileErr = e.doCompile()
+	})
+	return e.compiler, e.compileErr
+}
+
+// doCompile performs the actual parse + compile of all loaded Rego modules.
+func (e *Engine) doCompile() (*ast.Compiler, error) {
 	parsed := make(map[string]*ast.Module, len(e.modules))
 	for name, src := range e.modules {
 		mod, err := ast.ParseModuleWithOpts(name, src, ast.ParserOptions{
@@ -78,14 +108,37 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	}
 
 	// Build OPA input from filesystem.
-	scanInput, err := BuildScanInput(e.scanRoot, opts.MaxDepth, opts.Excludes)
+	scanInput, err := BuildScanInputWithOptions(e.scanRoot, BuildOptions{
+		MaxDepth:             opts.MaxDepth,
+		Excludes:             opts.Excludes,
+		IgnoreGit:            opts.IgnoreGit,
+		IgnoreGlobs:          opts.IgnoreGlobs,
+		IgnoreBinaries:       opts.IgnoreBinaries,
+		GitHistory:           opts.GitHistory,
+		GitHistoryMaxCommits: opts.GitHistoryMaxCommits,
+		GitHistoryMaxFiles:   opts.GitHistoryMaxFiles,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("build scan input: %w", err)
 	}
 
 	// Check if any rule references input.file_contents; if so, load contents.
 	if needsFileContents(e.modules) {
-		LoadFileContents(scanInput, 1<<20) // 1MB max
+		LoadFileContentsWithOptions(scanInput, LoadOptions{
+			MaxFileSize:     1 << 20, // 1 MiB cap on raw text
+			IgnoreBinaries:  opts.IgnoreBinaries,
+			MinStringLength: opts.MinStringLength,
+		})
+		if opts.GitHistory && !opts.IgnoreGit {
+			entries, herr := secretscan.ScanGitHistory(e.scanRoot, secretscan.GitHistoryOptions{
+				MaxCommits:   opts.GitHistoryMaxCommits,
+				MaxFiles:     opts.GitHistoryMaxFiles,
+				MaxFileBytes: 4 << 20,
+			})
+			if herr == nil && len(entries) > 0 {
+				MergeGitHistoryEntries(scanInput, entries)
+			}
+		}
 	}
 
 	ctx := context.Background()

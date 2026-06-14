@@ -26,7 +26,7 @@ Beyond the immediate credential exposure, hardcoded secrets tend to be long-live
 PASSWORD='supersecret123'
 
 # FLAGGED: API key hardcoded in script
-API_KEY="sk-prod-abcdef1234567890abcdef"
+API_KEY="sk-prod-EXAMPLE_REDACTED"
 
 # FLAGGED: token embedded in .env file
 AUTH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.real"

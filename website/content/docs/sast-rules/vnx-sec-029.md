@@ -29,10 +29,10 @@ The rule matches any file (excluding lock files, checksums, and minified assets)
 # FLAGGED: token hardcoded in .pypirc
 [pypi]
   username = __token__
-  password = pypi-AgEIcHlwaS5vcmcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  password = pypi-EXAMPLE_REDACTED
 
 # FLAGGED: token in a CI environment file
-TWINE_PASSWORD=pypi-AgEIcHlwaS5vcmcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+TWINE_PASSWORD=pypi-EXAMPLE_REDACTED
 ```
 
 ## Remediation

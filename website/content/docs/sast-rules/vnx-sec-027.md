@@ -28,10 +28,10 @@ The rule matches any file (excluding lock files, checksums, and minified assets)
 ```python
 # FLAGGED: token hardcoded in a training script
 from huggingface_hub import login
-login(token="hf_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789AB")
+login(token="hf_EXAMPLE_REDACTED")
 
 # FLAGGED: token in environment setup
-HF_TOKEN = "hf_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789AB"
+HF_TOKEN = "hf_EXAMPLE_REDACTED"
 ```
 
 ## Remediation

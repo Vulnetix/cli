@@ -23,13 +23,13 @@ Any source line containing a string matching `AIza` followed by 35 alphanumeric,
 # FLAGGED: hardcoded GCP API key
 import googlemaps
 
-gmaps = googlemaps.Client(key='AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+gmaps = googlemaps.Client(key='AIzaSy_EXAMPLE_REDACTED')
 result = gmaps.geocode('Sydney, Australia')
 ```
 
 ```javascript
 // FLAGGED: key embedded in JavaScript
-const apiKey = 'AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+const apiKey = 'AIzaSy_EXAMPLE_REDACTED';
 const map = new google.maps.Map(document.getElementById('map'), {
   zoom: 10,
   center: { lat: -33.8688, lng: 151.2195 }
