@@ -4,8 +4,8 @@ import "testing"
 
 func TestAllMatchesPlan(t *testing.T) {
 	got := All()
-	if len(got) != 22 {
-		t.Fatalf("All() length = %d, want 22", len(got))
+	if len(got) != 23 {
+		t.Fatalf("All() length = %d, want 23", len(got))
 	}
 	cases := map[string]struct {
 		prefix string
@@ -32,6 +32,7 @@ func TestAllMatchesPlan(t *testing.T) {
 		"helm":      {"helm", TierEnterprise},
 		"chef":      {"chef", TierEnterprise},
 		"terraform": {"terraform", TierEnterprise},
+		"homebrew":  {"homebrew", TierPro},
 	}
 	for command, want := range cases {
 		eco, ok := ByCommand(command)

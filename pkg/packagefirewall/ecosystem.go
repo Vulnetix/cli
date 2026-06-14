@@ -47,6 +47,7 @@ var ecosystems = []Ecosystem{
 	// Arch Linux: one command configures paru/yay (AUR, /aur prefix) and stages a
 	// pacman mirrorlist for the official repos (/arch prefix). Free (community).
 	{ID: "aur", Command: "aur", DisplayName: "Arch Linux", Prefix: "aur", Tier: TierCommunity, LiveWriter: true},
+	{ID: "homebrew", Command: "homebrew", DisplayName: "Homebrew", Prefix: "homebrew", Tier: TierPro, LiveWriter: true},
 }
 
 func All() []Ecosystem {

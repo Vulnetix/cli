@@ -381,3 +381,31 @@ func TestAURConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestHomebrewConfig(t *testing.T) {
+	eco, _ := ByCommand("homebrew")
+	files, err := ConfigFiles(eco, ConfigOptions{
+		HomeDir:  "/home/test",
+		ProxyURL: "https://packages.vulnetix.com",
+		OrgID:    "org-123",
+		APIKey:   "secret",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("want 1 file, got %d", len(files))
+	}
+	if files[0].Path != "/home/test/.config/vulnetix/package-firewall/homebrew.env" {
+		t.Errorf("path = %q", files[0].Path)
+	}
+	for _, want := range []string{
+		"HOMEBREW_API_DOMAIN=\"https://org-123:secret@packages.vulnetix.com/homebrew/api\"",
+		"HOMEBREW_ARTIFACT_DOMAIN=\"https://org-123:secret@packages.vulnetix.com/homebrew-bottle\"",
+		"HOMEBREW_ARTIFACT_DOMAIN_NO_FALLBACK=\"1\"",
+	} {
+		if !strings.Contains(files[0].Content, want) {
+			t.Errorf("homebrew.env missing %q:\n%s", want, files[0].Content)
+		}
+	}
+}
