@@ -112,6 +112,14 @@ func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
 				Content:    archMirrorlist(opts),
 				Structured: true,
 			},
+			{
+				// A complete, ready-to-use pacman config pointing the official repos
+				// at the /arch prefix. Usable directly (pacman --config <this> -Syp ...)
+				// and as the reference for the /etc/pacman.conf merge.
+				Path:       filepath.Join(home, ".config", "vulnetix", "package-firewall", "pacman.conf"),
+				Content:    pacmanConfig(opts),
+				Structured: true,
+			},
 		}, nil
 	default:
 		return nil, fmt.Errorf("automatic %s configuration is not implemented yet", eco.DisplayName)
@@ -505,6 +513,31 @@ func archMirrorlist(opts ConfigOptions) string {
 		"# or place this Server line first in /etc/pacman.d/mirrorlist.",
 		"Server = " + server + "/$repo/os/$arch",
 		"",
+	}, "\n")
+}
+
+// pacmanConfig is a complete pacman configuration whose official repositories
+// ([core], [extra], [multilib]) are served through the /arch firewall prefix.
+// It is self-contained so it can drive a scoped, no-root test
+// (`pacman --config <this> --dbpath <tmp> --cachedir <tmp> -Syp <pkg>`) and also
+// serves as the reference for merging the Server lines into /etc/pacman.conf.
+func pacmanConfig(opts ConfigOptions) string {
+	server := withBasicAuth(archBaseURL(opts), opts.OrgID, opts.APIKey) + "/$repo/os/$arch"
+	repo := func(name string) string {
+		return strings.Join([]string{"[" + name + "]", "Server = " + server, ""}, "\n")
+	}
+	return strings.Join([]string{
+		"# Vulnetix Package Firewall — pacman config for the Arch official repos.",
+		"# Scoped test (no root):",
+		"#   pacman --config " + "<this file>" + " --dbpath /tmp/vx-db --cachedir /tmp/vx-cache -Syp <pkg>",
+		"# Or merge the [core]/[extra]/[multilib] Server lines into /etc/pacman.conf.",
+		"[options]",
+		"Architecture = auto",
+		"SigLevel = Required DatabaseOptional",
+		"",
+		repo("core"),
+		repo("extra"),
+		repo("multilib"),
 	}, "\n")
 }
 
