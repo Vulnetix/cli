@@ -26,7 +26,7 @@ Any source line containing a string matching `ghp_[A-Za-z0-9_]{36,}`, `ghs_[A-Za
 import requests
 
 headers = {
-    'Authorization': 'token ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    'Authorization': 'token ghp_EXAMPLE_REDACTED',
     'Accept': 'application/vnd.github.v3+json'
 }
 response = requests.get('https://api.github.com/user/repos', headers=headers)
@@ -34,7 +34,7 @@ response = requests.get('https://api.github.com/user/repos', headers=headers)
 
 ```bash
 # FLAGGED: GitLab token in script
-curl --header "PRIVATE-TOKEN: glpat-xxxxxxxxxxxxxxxxxxxx" \
+curl --header "PRIVATE-TOKEN: glpat-EXAMPLE_REDACTED" \
   "https://gitlab.com/api/v4/projects"
 ```
 

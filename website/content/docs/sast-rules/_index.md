@@ -36,7 +36,7 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
   {{< card link="#python" title="Python" subtitle="22 rules — deserialization, SSTI, SSL, PRNG, paramiko, tarfile slip, ML models, SQL injection" >}}
   {{< card link="#ruby" title="Ruby" subtitle="10 rules — deserialization, SQL injection, XSS, mass assignment, TLS, send injection" >}}
   {{< card link="#rust" title="Rust" subtitle="8 rules — lockfile, panic, unsafe, command injection, arithmetic overflow, path traversal" >}}
-  {{< card link="#secrets" title="Secrets / Credentials" subtitle="32 rules — AWS, Azure, GCP, tokens, API keys, PGP, OAuth" >}}
+  {{< card link="secrets/" title="Secrets / Credentials" subtitle="1090+ rules — cloud, source control, AI, payment, communication, SaaS, databases, private keys, crypto, webhooks; entropy + allowlist filtered" >}}
   {{< card link="#swift" title="Swift / iOS" subtitle="6 rules — hardcoded keys, NSLog, UserDefaults, TLS disabled, WebView, PRNG" >}}
   {{< card link="#terraform" title="Terraform / IaC" subtitle="8 rules — S3 public, security groups, IAM wildcard, unencrypted storage, IMDSv1" >}}
   {{< card link="#html" title="HTML / Templates" subtitle="1 rule — Jinja2 safe filter XSS" >}}
@@ -367,6 +367,25 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
 
 ## Secrets / Credentials {#secrets}
 
+Vulnetix ships **1090+ high-fidelity secret-detection rules**. Each runs a cheap keyword/prefix prefilter, extracts the candidate token, then applies a placeholder allowlist and a Shannon-entropy threshold (via the `vulnetix.shannon_entropy` OPA builtin) to suppress false positives. They scan source, configuration, binaries (printable-string + EXIF extraction) and full git history. The complete catalog is organised into category pages:
+
+{{< cards >}}
+  {{< card link="secrets/cloud/" title="Cloud Providers" >}}
+  {{< card link="secrets/source-control/" title="Source Control & CI/CD" >}}
+  {{< card link="secrets/ai/" title="AI / LLM Providers" >}}
+  {{< card link="secrets/payment/" title="Payment Processors" >}}
+  {{< card link="secrets/communication/" title="Communication & Messaging" >}}
+  {{< card link="secrets/saas/" title="SaaS & Developer APIs" >}}
+  {{< card link="secrets/database/" title="Database Credentials" >}}
+  {{< card link="secrets/monitoring/" title="Monitoring & Observability" >}}
+  {{< card link="secrets/private-keys/" title="Private Keys & Certificates" >}}
+  {{< card link="secrets/crypto-blockchain/" title="Crypto & Blockchain" >}}
+  {{< card link="secrets/webhooks/" title="Webhooks & Signed URLs" >}}
+  {{< card link="secrets/package-registries/" title="Package Registries" >}}
+{{< /cards >}}
+
+The curated core rules (VNX-SEC-001 … VNX-SEC-080) have detailed per-rule pages and are listed below; the category pages above cover the full set.
+
 | Rule ID | Name | Severity |
 |---------|------|----------|
 | [VNX-SEC-001](vnx-sec-001) | AWS access key ID | Critical |
@@ -401,6 +420,54 @@ All sub-categories run by default with `vulnetix scan`. Use `--no-sast`, `--no-s
 | [VNX-SEC-030](vnx-sec-030) | Google OAuth client secret hardcoded | High |
 | [VNX-SEC-031](vnx-sec-031) | Mailgun API key hardcoded | High |
 | [VNX-SEC-032](vnx-sec-032) | PGP private key block hardcoded | Critical |
+| [VNX-SEC-033](vnx-sec-033) | AWS Bedrock long-lived API key | Critical |
+| [VNX-SEC-034](vnx-sec-034) | Alibaba Cloud access key | Critical |
+| [VNX-SEC-035](vnx-sec-035) | DigitalOcean personal access token | Critical |
+| [VNX-SEC-036](vnx-sec-036) | Heroku API key | Critical |
+| [VNX-SEC-037](vnx-sec-037) | HashiCorp Vault token | Critical |
+| [VNX-SEC-038](vnx-sec-038) | HashiCorp Terraform Cloud token | Critical |
+| [VNX-SEC-039](vnx-sec-039) | GitLab personal access token (legacy) | Critical |
+| [VNX-SEC-040](vnx-sec-040) | GitLab pipeline / deploy / runner / agent token | Critical |
+| [VNX-SEC-041](vnx-sec-041) | Atlassian API token | Critical |
+| [VNX-SEC-042](vnx-sec-042) | Slack incoming webhook URL | High |
+| [VNX-SEC-043](vnx-sec-043) | Twilio API key | Critical |
+| [VNX-SEC-044](vnx-sec-044) | Microsoft Teams webhook URL | High |
+| [VNX-SEC-045](vnx-sec-045) | Discord bot token | Critical |
+| [VNX-SEC-046](vnx-sec-046) | Square access token | Critical |
+| [VNX-SEC-047](vnx-sec-047) | Shopify access token | Critical |
+| [VNX-SEC-048](vnx-sec-048) | OpenAI project / service / admin key | Critical |
+| [VNX-SEC-049](vnx-sec-049) | Anthropic admin API key | Critical |
+| [VNX-SEC-050](vnx-sec-050) | Google Gemini / Vertex AI / PaLM API key | Critical |
+| [VNX-SEC-051](vnx-sec-051) | RubyGems API token | Critical |
+| [VNX-SEC-052](vnx-sec-052) | Artifactory / JFrog API key | Critical |
+| [VNX-SEC-053](vnx-sec-053) | SonarQube API token | Critical |
+| [VNX-SEC-054](vnx-sec-054) | Datadog API / APP key | Critical |
+| [VNX-SEC-055](vnx-sec-055) | New Relic API key | Critical |
+| [VNX-SEC-056](vnx-sec-056) | Sentry auth token | Critical |
+| [VNX-SEC-057](vnx-sec-057) | Grafana API / service account token | Critical |
+| [VNX-SEC-058](vnx-sec-058) | Notion API token | Critical |
+| [VNX-SEC-059](vnx-sec-059) | Linear API key | Critical |
+| [VNX-SEC-060](vnx-sec-060) | Airtable personal access token | Critical |
+| [VNX-SEC-061](vnx-sec-061) | PostgreSQL connection string with credentials | Critical |
+| [VNX-SEC-062](vnx-sec-062) | MySQL connection string with credentials | Critical |
+| [VNX-SEC-063](vnx-sec-063) | MongoDB connection string with credentials | Critical |
+| [VNX-SEC-064](vnx-sec-064) | Redis connection string with credentials | Critical |
+| [VNX-SEC-065](vnx-sec-065) | HTTP Basic authentication header | High |
+| [VNX-SEC-066](vnx-sec-066) | HTTP Bearer authentication header | High |
+| [VNX-SEC-067](vnx-sec-067) | Curl command with embedded credentials | High |
+| [VNX-SEC-068](vnx-sec-068) | Ethereum private key | Critical |
+| [VNX-SEC-069](vnx-sec-069) | age secret key | Critical |
+| [VNX-SEC-070](vnx-sec-070) | 1Password secret key / service account | Critical |
+| [VNX-SEC-071](vnx-sec-071) | GitLab session cookie | Critical |
+| [VNX-SEC-072](vnx-sec-072) | Generic high-entropy API key / secret | High |
+| [VNX-SEC-073](vnx-sec-073) | URL with embedded credentials | High |
+| [VNX-SEC-074](vnx-sec-074) | Kubernetes Secret manifest with credentials | High |
+| [VNX-SEC-075](vnx-sec-075) | WireGuard private key | Critical |
+| [VNX-SEC-076](vnx-sec-076) | Telegram bot API token | Critical |
+| [VNX-SEC-077](vnx-sec-077) | Mapbox access token | High |
+| [VNX-SEC-078](vnx-sec-078) | Doppler API token | Critical |
+| [VNX-SEC-079](vnx-sec-079) | GitHub fine-grained personal access token | Critical |
+| [VNX-SEC-080](vnx-sec-080) | GitHub OAuth / App / Refresh token | Critical |
 
 ## Swift / iOS {#swift}
 

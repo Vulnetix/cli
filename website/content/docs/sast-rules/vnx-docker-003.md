@@ -27,7 +27,7 @@ The rule matches `ARG` or `ENV` lines where the variable name contains a credent
 
 ```dockerfile
 # FLAGGED: API key baked into image layer
-ENV API_KEY=sk-prod-abc123def456
+ENV API_KEY=sk-prod-EXAMPLE_REDACTED
 
 # FLAGGED: database password as build argument with a default value
 ARG DATABASE_PASSWORD=supersecret

@@ -30,7 +30,7 @@ The rule matches any file (excluding lock files, checksums, and minified assets)
 AZURE_STORAGE_ACCOUNT_KEY = "dGhpcyBpcyBhIGZha2Uga2V5IGZvciBkZW1vIHB1cnBvc2VzIG9ubHkgYW5kIG5vdCByZWFsISE="
 
 # FLAGGED: connection string with embedded key
-connection_string = "DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=dGhpcyBpcyBhIGZha2Uga2V5IGZvciBkZW1vIHB1cnBvc2VzIG9ubHkgYW5kIG5vdCByZWFsISE=;EndpointSuffix=core.windows.net"
+connection_string = "DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=EXAMPLE_REDACTED;EndpointSuffix=core.windows.net"
 ```
 
 ## Remediation

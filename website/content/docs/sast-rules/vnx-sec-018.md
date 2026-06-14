@@ -23,7 +23,7 @@ Hugging Face tokens with write or admin scopes can modify model repositories, da
 # FLAGGED: Anthropic API key hardcoded
 import anthropic
 
-client = anthropic.Anthropic(api_key="sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+client = anthropic.Anthropic(api_key="sk-ant-api03-EXAMPLE_REDACTED")
 message = client.messages.create(
     model="claude-opus-4-5",
     max_tokens=1024,
@@ -35,7 +35,7 @@ message = client.messages.create(
 # FLAGGED: OpenAI API key hardcoded
 from openai import OpenAI
 
-client = OpenAI(api_key="sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+client = OpenAI(api_key="sk-proj-EXAMPLE_REDACTED")
 completion = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "Hello"}]
@@ -46,7 +46,7 @@ completion = client.chat.completions.create(
 # FLAGGED: Hugging Face token hardcoded
 from huggingface_hub import InferenceClient
 
-client = InferenceClient(token="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+client = InferenceClient(token="hf_EXAMPLE_REDACTED")
 ```
 
 Note: lock files (`.lock`, `.sum`) and minified JavaScript (`.min.js`) are excluded from analysis.

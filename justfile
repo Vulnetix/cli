@@ -120,6 +120,11 @@ build-release: clean
 install:
     go install -ldflags "{{ldflags}}" .
 
+# Regenerate secret-detection rules + docs from the catalog (single source of truth)
+gen-secrets:
+    go run ./internal/sast/secretsgen .
+    just fmt
+
 # Run tests (updates statusline cache)
 test:
     #!/usr/bin/env bash

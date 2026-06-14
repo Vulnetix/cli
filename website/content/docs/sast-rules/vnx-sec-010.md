@@ -24,12 +24,12 @@ npm token types and their risk:
 
 ```ini
 # FLAGGED: npm token hardcoded in .npmrc
-//registry.npmjs.org/:_authToken=npm_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+//registry.npmjs.org/:_authToken=npm_EXAMPLE_REDACTED
 ```
 
 ```python
 # FLAGGED: PyPI token in setup script or CI config
-PYPI_TOKEN = "pypi-AgEIcHlwaS5vcmcxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+PYPI_TOKEN = "pypi-EXAMPLE_REDACTED"
 ```
 
 ```yaml
@@ -37,7 +37,7 @@ PYPI_TOKEN = "pypi-AgEIcHlwaS5vcmcxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 - name: Publish
   run: npm publish
   env:
-    NODE_AUTH_TOKEN: npm_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    NODE_AUTH_TOKEN: npm_EXAMPLE_REDACTED
 ```
 
 ## Remediation

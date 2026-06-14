@@ -28,7 +28,7 @@ Token types by prefix:
 # FLAGGED: Slack bot token hardcoded (example pattern for testing)
 from slack_sdk import WebClient
 
-client = WebClient(token="xoxb-123456789012-123456789012-xxxxxxxxxxxxxxxxxxxx")  # Test pattern, not real token
+client = WebClient(token="xoxb-EXAMPLE-REDACTED")  # Test pattern, not real token
 response = client.chat_postMessage(channel='#general', text='Hello!')
 ```
 

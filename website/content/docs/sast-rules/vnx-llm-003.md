@@ -19,13 +19,13 @@ Hardcoded string literals matching known LLM API key patterns, or assignments to
 
 ```python
 # FLAGGED: OpenAI key hardcoded
-openai.api_key = "sk-proj-abcdefghijklmnopqrstuvwxyz1234567890"
+openai.api_key = "sk-proj-EXAMPLE_REDACTED"
 
 # FLAGGED: Anthropic key in variable
-ANTHROPIC_API_KEY = "sk-ant-api03-XXXXXXXXXXXXXXXXXXXXXXX"
+ANTHROPIC_API_KEY = "sk-ant-api03-EXAMPLE_REDACTED"
 
 # FLAGGED: key in constructor argument
-client = openai.OpenAI(api_key="sk-abcdefghijklmnop1234567890ABCDEF")
+client = openai.OpenAI(api_key="sk-EXAMPLE_REDACTED")
 ```
 
 ## Remediation

@@ -23,20 +23,20 @@ GitLab has built-in token detection but detection alone is insufficient — the 
 # FLAGGED: GitLab PAT hardcoded
 import gitlab
 
-gl = gitlab.Gitlab('https://gitlab.com', private_token='glpat-xxxxxxxxxxxxxxxxxxxx')
+gl = gitlab.Gitlab('https://gitlab.com', private_token='glpat-EXAMPLE_REDACTED')
 projects = gl.projects.list()
 ```
 
 ```bash
 # FLAGGED: token in curl command for CI script
-curl --header "PRIVATE-TOKEN: glpat-xxxxxxxxxxxxxxxxxxxx" \
+curl --header "PRIVATE-TOKEN: glpat-EXAMPLE_REDACTED" \
   "https://gitlab.com/api/v4/projects/123/pipelines"
 ```
 
 ```yaml
 # FLAGGED: token in .gitlab-ci.yml
 variables:
-  DEPLOY_TOKEN: "glpat-xxxxxxxxxxxxxxxxxxxx"
+  DEPLOY_TOKEN: "glpat-EXAMPLE_REDACTED"
 ```
 
 ## Remediation

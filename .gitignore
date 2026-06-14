@@ -76,3 +76,7 @@ website/.hugo_build.lock
 
 # Nix
 result
+/secretsgen
+/vulnetix-new
+/secrets.sarif
+internal/sast/secretsgen/batches/

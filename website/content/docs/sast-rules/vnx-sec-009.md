@@ -22,7 +22,7 @@ Beyond phishing, an attacker can use your SendGrid account to send bulk spam, wh
 import sendgrid
 from sendgrid.helpers.mail import Mail
 
-sg = sendgrid.SendGridAPIClient(api_key='SG.xxxxxxxxxxxxxxxxxxxxxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+sg = sendgrid.SendGridAPIClient(api_key='SG.EXAMPLE.REDACTED')
 message = Mail(
     from_email='no-reply@example.com',
     to_emails='customer@example.com',
@@ -35,7 +35,7 @@ sg.send(message)
 ```javascript
 // FLAGGED: SendGrid key in Node.js
 const sgMail = require('@sendgrid/mail');
-sgMail.setApiKey('SG.xxxxxxxxxxxxxxxxxxxxxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+sgMail.setApiKey('SG.EXAMPLE.REDACTED');
 ```
 
 ## Remediation
