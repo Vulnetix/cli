@@ -22,6 +22,11 @@ type ConfigFile struct {
 	Path       string
 	Content    string
 	Structured bool
+	// Merge, when set, computes the new file content from the file's existing
+	// content (read by the writer) instead of replacing it. Used to fold the
+	// firewall settings into a user's real config non-destructively (paru.conf,
+	// yay config.json). The writer backs up the original before writing.
+	Merge func(existing string) (string, error)
 }
 
 func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
@@ -84,6 +89,30 @@ func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
 		return []ConfigFile{{Path: filepath.Join(home, ".Rprofile"), Content: cranConfig(eco, opts)}}, nil
 	case "helm":
 		return []ConfigFile{{Path: filepath.Join(home, ".config", "helm", "repositories.yaml"), Content: helmConfig(eco, opts), Structured: true}}, nil
+	case "aur":
+		// paru and yay (AUR helpers) get the AUR RPC + git base pointed at the
+		// /aur prefix; merged non-destructively into their real configs. pacman's
+		// official repos need root-owned /etc files, so the mirrorlist for the
+		// /arch prefix is staged under the user's config dir for `sudo` install.
+		aurURL := withBasicAuth(ProxyURL(opts.ProxyURL, eco), opts.OrgID, opts.APIKey)
+		rpcURL := withBasicAuth(ProxyURL(opts.ProxyURL, eco)+"/rpc", opts.OrgID, opts.APIKey)
+		return []ConfigFile{
+			{
+				Path:    filepath.Join(home, ".config", "paru", "paru.conf"),
+				Content: paruConfig(aurURL, rpcURL),
+				Merge:   mergeParuConf(aurURL, rpcURL),
+			},
+			{
+				Path:    filepath.Join(home, ".config", "yay", "config.json"),
+				Content: yayConfig(aurURL, rpcURL),
+				Merge:   mergeYayConfig(aurURL, rpcURL),
+			},
+			{
+				Path:       filepath.Join(home, ".config", "vulnetix", "package-firewall", "arch-mirrorlist"),
+				Content:    archMirrorlist(opts),
+				Structured: true,
+			},
+		}, nil
 	default:
 		return nil, fmt.Errorf("automatic %s configuration is not implemented yet", eco.DisplayName)
 	}
@@ -339,6 +368,142 @@ func helmConfig(eco Ecosystem, opts ConfigOptions) string {
 		"  username: " + yamlString(opts.OrgID),
 		"  password: " + yamlString(opts.APIKey),
 		"  pass_credentials_all: true",
+		"",
+	}, "\n")
+}
+
+// paruConfig is the from-scratch paru.conf written when the user has none.
+func paruConfig(aurURL, rpcURL string) string {
+	return strings.Join([]string{
+		"[options]",
+		"AurUrl = " + aurURL,
+		"AurRpcUrl = " + rpcURL,
+		"",
+	}, "\n")
+}
+
+// mergeParuConf folds AurUrl/AurRpcUrl into an existing paru.conf's [options]
+// section, preserving every other line; a missing [options] section is created.
+func mergeParuConf(aurURL, rpcURL string) func(string) (string, error) {
+	return func(existing string) (string, error) {
+		if strings.TrimSpace(existing) == "" {
+			return paruConfig(aurURL, rpcURL), nil
+		}
+		return upsertINIOptions(existing, map[string]string{
+			"AurUrl":    aurURL,
+			"AurRpcUrl": rpcURL,
+		}, []string{"AurUrl", "AurRpcUrl"}), nil
+	}
+}
+
+// upsertINIOptions sets the given keys (in order) under the [options] section of
+// an INI-style file, replacing an existing (or commented-out) line in place.
+func upsertINIOptions(existing string, values map[string]string, order []string) string {
+	lines := strings.Split(existing, "\n")
+	written := map[string]bool{}
+	optionsIdx := -1
+	currentSection := ""
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			currentSection = trimmed
+			if trimmed == "[options]" {
+				optionsIdx = i
+			}
+			continue
+		}
+		if currentSection == "[options]" {
+			for _, key := range order {
+				if !written[key] && iniKeyMatch(trimmed, key) {
+					lines[i] = key + " = " + values[key]
+					written[key] = true
+					break
+				}
+			}
+		}
+	}
+
+	var pending []string
+	for _, key := range order {
+		if !written[key] {
+			pending = append(pending, key+" = "+values[key])
+		}
+	}
+	if len(pending) == 0 {
+		return ensureTrailingNewline(strings.Join(lines, "\n"))
+	}
+	if optionsIdx >= 0 {
+		out := append([]string{}, lines[:optionsIdx+1]...)
+		out = append(out, pending...)
+		out = append(out, lines[optionsIdx+1:]...)
+		return ensureTrailingNewline(strings.Join(out, "\n"))
+	}
+	header := append([]string{"[options]"}, pending...)
+	return ensureTrailingNewline(strings.Join(header, "\n") + "\n\n" + existing)
+}
+
+func iniKeyMatch(line, key string) bool {
+	line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "#"))
+	return strings.HasPrefix(line, key+" ") || strings.HasPrefix(line, key+"=")
+}
+
+func ensureTrailingNewline(s string) string {
+	return strings.TrimRight(s, "\n") + "\n"
+}
+
+// yayConfig is the from-scratch yay config.json written when the user has none.
+func yayConfig(aurURL, rpcURL string) string {
+	out, _ := json.MarshalIndent(map[string]string{
+		"aururl":    aurURL,
+		"aurrpcurl": rpcURL,
+	}, "", "\t")
+	return string(out) + "\n"
+}
+
+// mergeYayConfig overlays aururl/aurrpcurl onto an existing yay config.json,
+// preserving all other keys and their exact values.
+func mergeYayConfig(aurURL, rpcURL string) func(string) (string, error) {
+	return func(existing string) (string, error) {
+		m := map[string]json.RawMessage{}
+		if strings.TrimSpace(existing) != "" {
+			if err := json.Unmarshal([]byte(existing), &m); err != nil {
+				return "", fmt.Errorf("parse existing yay config.json: %w", err)
+			}
+		}
+		au, _ := json.Marshal(aurURL)
+		ru, _ := json.Marshal(rpcURL)
+		m["aururl"] = au
+		m["aurrpcurl"] = ru
+		out, err := json.MarshalIndent(m, "", "\t")
+		if err != nil {
+			return "", err
+		}
+		return string(out) + "\n", nil
+	}
+}
+
+// archBaseURL is the firewall base for pacman's official repos (the /arch prefix).
+func archBaseURL(opts ConfigOptions) string {
+	base := strings.TrimRight(strings.TrimSpace(opts.ProxyURL), "/")
+	if base == "" {
+		base = "https://packages.vulnetix.com"
+	}
+	return base + "/arch"
+}
+
+// archMirrorlist stages a pacman mirrorlist fragment for the official repos.
+// pacman config lives in root-owned /etc, so this is written under the user's
+// config dir with instructions to install it with sudo.
+func archMirrorlist(opts ConfigOptions) string {
+	server := withBasicAuth(archBaseURL(opts), opts.OrgID, opts.APIKey)
+	return strings.Join([]string{
+		"# Vulnetix Package Firewall — Arch Linux official repositories",
+		"# pacman config is root-owned, so install this with sudo, e.g.:",
+		"#   sudo cp " + "this file" + " /etc/pacman.d/vulnetix-mirrorlist",
+		"# then add 'Include = /etc/pacman.d/vulnetix-mirrorlist' above the other",
+		"# Server/Include lines in [core], [extra] (and [multilib]) in /etc/pacman.conf,",
+		"# or place this Server line first in /etc/pacman.d/mirrorlist.",
+		"Server = " + server + "/$repo/os/$arch",
 		"",
 	}, "\n")
 }

@@ -45,6 +45,12 @@ func ConfigPaths(eco Ecosystem, home string) []string {
 		return []string{filepath.Join(home, ".Rprofile")}
 	case "helm":
 		return []string{filepath.Join(home, ".config", "helm", "repositories.yaml")}
+	case "aur":
+		return []string{
+			filepath.Join(home, ".config", "paru", "paru.conf"),
+			filepath.Join(home, ".config", "yay", "config.json"),
+			filepath.Join(home, ".config", "vulnetix", "package-firewall", "arch-mirrorlist"),
+		}
 	default:
 		return nil
 	}
