@@ -50,6 +50,7 @@ func ConfigPaths(eco Ecosystem, home string) []string {
 			filepath.Join(home, ".config", "paru", "paru.conf"),
 			filepath.Join(home, ".config", "yay", "config.json"),
 			filepath.Join(home, ".config", "vulnetix", "package-firewall", "arch-mirrorlist"),
+			filepath.Join(home, ".config", "vulnetix", "package-firewall", "pacman.conf"),
 		}
 	default:
 		return nil

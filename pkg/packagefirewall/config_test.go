@@ -291,8 +291,8 @@ func TestAURConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 3 {
-		t.Fatalf("aur files = %d, want 3 (paru.conf + yay config.json + mirrorlist)", len(files))
+	if len(files) != 4 {
+		t.Fatalf("aur files = %d, want 4 (paru.conf + yay config.json + mirrorlist + pacman.conf)", len(files))
 	}
 
 	// paru.conf
@@ -366,5 +366,18 @@ func TestAURConfig(t *testing.T) {
 	want := "Server = https://org-123:secret@packages.vulnetix.com/arch/$repo/os/$arch"
 	if !strings.Contains(files[2].Content, want) {
 		t.Errorf("mirrorlist missing %q:\n%s", want, files[2].Content)
+	}
+
+	// complete pacman.conf (official repos via /arch)
+	if files[3].Path != "/home/test/.config/vulnetix/package-firewall/pacman.conf" {
+		t.Fatalf("pacman.conf path = %q", files[3].Path)
+	}
+	for _, want := range []string{
+		"[core]", "[extra]", "[multilib]",
+		"Server = https://org-123:secret@packages.vulnetix.com/arch/$repo/os/$arch",
+	} {
+		if !strings.Contains(files[3].Content, want) {
+			t.Errorf("pacman.conf missing %q:\n%s", want, files[3].Content)
+		}
 	}
 }
