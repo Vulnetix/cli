@@ -4,8 +4,8 @@ import "testing"
 
 func TestAllMatchesPlan(t *testing.T) {
 	got := All()
-	if len(got) != 21 {
-		t.Fatalf("All() length = %d, want 21", len(got))
+	if len(got) != 22 {
+		t.Fatalf("All() length = %d, want 22", len(got))
 	}
 	cases := map[string]struct {
 		prefix string

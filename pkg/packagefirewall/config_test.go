@@ -278,3 +278,93 @@ func TestUnsupportedWriter(t *testing.T) {
 		t.Fatal("expected unsupported writer error")
 	}
 }
+
+// TestAURConfig covers the Arch Linux command: paru.conf + yay config.json (both
+// merged non-destructively, pointing at the /aur prefix) and a staged pacman
+// mirrorlist for the official repos (/arch prefix).
+func TestAURConfig(t *testing.T) {
+	eco, ok := ByCommand("aur")
+	if !ok {
+		t.Fatal("ByCommand(aur) not found")
+	}
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 3 {
+		t.Fatalf("aur files = %d, want 3 (paru.conf + yay config.json + mirrorlist)", len(files))
+	}
+
+	// paru.conf
+	if files[0].Path != "/home/test/.config/paru/paru.conf" {
+		t.Fatalf("paru path = %q", files[0].Path)
+	}
+	if files[0].Merge == nil {
+		t.Fatal("paru.conf must be a merge writer")
+	}
+	paruFromScratch, err := files[0].Merge("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"[options]",
+		"AurUrl = https://org-123:secret@packages.vulnetix.com/aur",
+		"AurRpcUrl = https://org-123:secret@packages.vulnetix.com/aur/rpc",
+	} {
+		if !strings.Contains(paruFromScratch, want) {
+			t.Errorf("paru.conf missing %q:\n%s", want, paruFromScratch)
+		}
+	}
+
+	// paru.conf merge into an existing file preserves other settings and replaces
+	// a commented-out key in place.
+	existing := "[options]\nBottomUp\n#AurUrl = https://aur.archlinux.org\n\n[bin]\nSudo = doas\n"
+	merged, err := files[0].Merge(existing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"BottomUp",
+		"[bin]",
+		"Sudo = doas",
+		"AurUrl = https://org-123:secret@packages.vulnetix.com/aur",
+		"AurRpcUrl = https://org-123:secret@packages.vulnetix.com/aur/rpc",
+	} {
+		if !strings.Contains(merged, want) {
+			t.Errorf("merged paru.conf missing %q:\n%s", want, merged)
+		}
+	}
+	if strings.Contains(merged, "#AurUrl") {
+		t.Errorf("merged paru.conf should replace the commented AurUrl:\n%s", merged)
+	}
+
+	// yay config.json
+	if files[1].Path != "/home/test/.config/yay/config.json" {
+		t.Fatalf("yay path = %q", files[1].Path)
+	}
+	if files[1].Merge == nil {
+		t.Fatal("yay config.json must be a merge writer")
+	}
+	yayMerged, err := files[1].Merge(`{"buildDir":"/tmp/yay","cleanAfter":true}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`"buildDir": "/tmp/yay"`,
+		`"aururl": "https://org-123:secret@packages.vulnetix.com/aur"`,
+		`"aurrpcurl": "https://org-123:secret@packages.vulnetix.com/aur/rpc"`,
+	} {
+		if !strings.Contains(yayMerged, want) {
+			t.Errorf("merged yay config missing %q:\n%s", want, yayMerged)
+		}
+	}
+
+	// staged pacman mirrorlist (official repos via /arch)
+	if files[2].Path != "/home/test/.config/vulnetix/package-firewall/arch-mirrorlist" {
+		t.Fatalf("mirrorlist path = %q", files[2].Path)
+	}
+	want := "Server = https://org-123:secret@packages.vulnetix.com/arch/$repo/os/$arch"
+	if !strings.Contains(files[2].Content, want) {
+		t.Errorf("mirrorlist missing %q:\n%s", want, files[2].Content)
+	}
+}

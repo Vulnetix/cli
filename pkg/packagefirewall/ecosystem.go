@@ -44,6 +44,9 @@ var ecosystems = []Ecosystem{
 	{ID: "helm", Command: "helm", DisplayName: "Helm", Prefix: "helm", Tier: TierEnterprise, LiveWriter: true},
 	{ID: "chef", Command: "chef", DisplayName: "Chef", Prefix: "chef", Tier: TierEnterprise, LiveWriter: false},
 	{ID: "terraform", Command: "terraform", DisplayName: "Terraform", Prefix: "terraform", Tier: TierEnterprise, LiveWriter: false},
+	// Arch Linux: one command configures paru/yay (AUR, /aur prefix) and stages a
+	// pacman mirrorlist for the official repos (/arch prefix). Free (community).
+	{ID: "aur", Command: "aur", DisplayName: "Arch Linux", Prefix: "aur", Tier: TierCommunity, LiveWriter: true},
 }
 
 func All() []Ecosystem {

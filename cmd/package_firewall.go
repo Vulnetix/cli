@@ -445,13 +445,25 @@ func upsertBlockFile(path, block string, dryRun bool) (string, error) {
 
 func upsertPackageFirewallConfigFile(file pfw.ConfigFile, dryRun bool) (string, error) {
 	var existing string
+	existed := false
 	if data, err := os.ReadFile(file.Path); err == nil {
 		existing = string(data)
+		existed = true
 	} else if !os.IsNotExist(err) {
 		return "", err
 	}
-	next := file.Content
-	if !file.Structured {
+
+	var next string
+	switch {
+	case file.Merge != nil:
+		merged, err := file.Merge(existing)
+		if err != nil {
+			return "", err
+		}
+		next = merged
+	case file.Structured:
+		next = file.Content
+	default:
 		block := strings.Join([]string{
 			vulnetixBlockStart,
 			strings.TrimRight(file.Content, "\n"),
@@ -460,20 +472,30 @@ func upsertPackageFirewallConfigFile(file pfw.ConfigFile, dryRun bool) (string, 
 		}, "\n")
 		next = upsertManagedBlock(existing, block)
 	}
+
 	if dryRun {
 		if existing == next {
 			return "already configured", nil
 		}
 		return "would update package manager config", nil
 	}
+	if existing == next {
+		return "already configured", nil
+	}
 	if err := os.MkdirAll(filepath.Dir(file.Path), 0700); err != nil {
 		return "", err
+	}
+	// Back up a real config we are merging into, so the user can restore it.
+	if file.Merge != nil && existed {
+		if err := os.WriteFile(file.Path+".vulnetix.bak", []byte(existing), 0600); err != nil {
+			return "", fmt.Errorf("failed to back up %s: %w", file.Path, err)
+		}
 	}
 	if err := os.WriteFile(file.Path, []byte(next), 0600); err != nil {
 		return "", err
 	}
-	if existing == next {
-		return "already configured", nil
+	if file.Merge != nil && existed {
+		return "merged firewall settings (backup written)", nil
 	}
 	return "updated package manager config", nil
 }
