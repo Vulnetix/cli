@@ -46,6 +46,16 @@ they are updated as well.`,
 	RunE: runPackageFirewallGo,
 }
 
+var packageFirewallGoDevCmd = &cobra.Command{
+	Use:   "go-dev",
+	Short: "Configure pkgsite-cli to use Vulnetix Package Firewall",
+	Long: `Configure pkgsite-cli to use the Vulnetix pkg.go.dev API proxy.
+
+This writes Basic auth credentials to netrc for packages.vulnetix.com and prints
+the shell alias or function needed to point pkgsite-cli at the firewall.`,
+	RunE: runPackageFirewallGoDev,
+}
+
 type packageFirewallAction struct {
 	Target string
 	Result string
@@ -111,6 +121,64 @@ func runPackageFirewallGo(cmd *cobra.Command, args []string) error {
 	for _, action := range actions {
 		b.WriteString(fmt.Sprintf("  %s: %s\n", action.Target, action.Result))
 	}
+	ctx.Logger.Result(strings.TrimRight(b.String(), "\n"))
+	return nil
+}
+
+func runPackageFirewallGoDev(cmd *cobra.Command, args []string) error {
+	ctx := display.FromCommand(cmd)
+	t := ctx.Term
+
+	proxyURL := strings.TrimSpace(packageFirewallProxyURL)
+	if proxyURL == "" {
+		proxyURL = packageFirewallDefaultProxy
+	}
+	proxyHost, err := parseProxyHost(proxyURL)
+	if err != nil {
+		return err
+	}
+	apiURL := strings.TrimRight(proxyURL, "/") + "/go-dev/v1beta"
+
+	ctx.Logger.Info("Configuring Vulnetix pkg.go.dev API proxy...")
+	orgID, apiKey, credentialSource, err := packageFirewallAPIKey(packageFirewallBaseURL)
+	if err != nil {
+		return err
+	}
+
+	var actions []packageFirewallAction
+	netrcPath, err := auth.NetrcPath()
+	if err != nil {
+		return err
+	}
+	result, err := upsertNetrc(netrcPath, proxyHost, orgID, apiKey, packageFirewallDryRun)
+	if err != nil {
+		return err
+	}
+	actions = append(actions, packageFirewallAction{Target: netrcPath, Result: result})
+
+	var b strings.Builder
+	if packageFirewallDryRun {
+		b.WriteString(display.Bold(t, "Vulnetix pkg.go.dev API proxy dry run") + "\n")
+	} else {
+		b.WriteString(display.Bold(t, "Vulnetix pkg.go.dev API proxy configured") + "\n")
+	}
+	b.WriteString(display.KeyValue(t, []display.KVPair{
+		{Key: "Credential source", Value: credentialSource},
+		{Key: "Organization", Value: orgID},
+		{Key: "API base URL", Value: apiURL},
+		{Key: "API key", Value: maskSecret(apiKey)},
+	}) + "\n")
+	b.WriteString("\n" + display.Subheader(t, "Actions") + "\n")
+	for _, action := range actions {
+		b.WriteString(fmt.Sprintf("  %s: %s\n", action.Target, action.Result))
+	}
+	b.WriteString("\n" + display.Subheader(t, "pkgsite-cli setup") + "\n")
+	b.WriteString("  pkgsite-cli does not persist a config file, so use one of the following:\n\n")
+	b.WriteString("  Shell alias:\n")
+	b.WriteString(fmt.Sprintf("    alias pkgsite-cli='pkgsite-cli -api %s'\n\n", apiURL))
+	b.WriteString("  Or set for a single invocation:\n")
+	b.WriteString(fmt.Sprintf("    pkgsite-cli -api %s search uuid\n\n", apiURL))
+	b.WriteString("  Your netrc credentials will be used automatically for Basic auth.\n")
 	ctx.Logger.Result(strings.TrimRight(b.String(), "\n"))
 	return nil
 }
@@ -186,6 +254,26 @@ func runPackageFirewallEcosystem(cmd *cobra.Command, eco pfw.Ecosystem) error {
 	for _, action := range actions {
 		b.WriteString(fmt.Sprintf("  %s: %s\n", action.Target, action.Result))
 	}
+
+	if eco.ID == "homebrew" {
+		b.WriteString("\n" + display.Subheader(t, "Homebrew setup") + "\n")
+		b.WriteString("  Homebrew reads these settings from environment variables.\n")
+		if packageFirewallDryRun {
+			b.WriteString("  After running without --dry-run, source the env file:\n")
+		} else {
+			b.WriteString("  Source the env file to activate the firewall:\n")
+		}
+		envFile := ""
+		for _, a := range actions {
+			if strings.HasSuffix(a.Target, "homebrew.env") {
+				envFile = a.Target
+				break
+			}
+		}
+		b.WriteString(fmt.Sprintf("    source %s\n", envFile))
+		b.WriteString("  Add that line to your shell profile (e.g. ~/.zshrc or ~/.bashrc) to persist it.\n")
+	}
+
 	ctx.Logger.Result(strings.TrimRight(b.String(), "\n"))
 	return nil
 }
@@ -579,6 +667,8 @@ func maskSecret(s string) string {
 func init() {
 	addPackageFirewallFlags(packageFirewallGoCmd, "Go")
 	packageFirewallCmd.AddCommand(packageFirewallGoCmd)
+	addPackageFirewallFlags(packageFirewallGoDevCmd, "Go pkg.go.dev API")
+	packageFirewallCmd.AddCommand(packageFirewallGoDevCmd)
 	for _, eco := range pfw.All() {
 		if eco.Command == "go" {
 			continue

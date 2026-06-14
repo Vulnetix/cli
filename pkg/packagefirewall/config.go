@@ -89,6 +89,10 @@ func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
 		return []ConfigFile{{Path: filepath.Join(home, ".Rprofile"), Content: cranConfig(eco, opts)}}, nil
 	case "helm":
 		return []ConfigFile{{Path: filepath.Join(home, ".config", "helm", "repositories.yaml"), Content: helmConfig(eco, opts), Structured: true}}, nil
+	case "homebrew":
+		// Homebrew reads the API and bottle domains from environment variables.
+		// We write a dedicated env file and instruct the user to source it.
+		return []ConfigFile{{Path: filepath.Join(home, ".config", "vulnetix", "package-firewall", "homebrew.env"), Content: homebrewEnvConfig(opts)}}, nil
 	case "aur":
 		// paru and yay (AUR helpers) get the AUR RPC + git base pointed at the
 		// /aur prefix; merged non-destructively into their real configs. pacman's
@@ -543,6 +547,31 @@ func pacmanConfig(opts ConfigOptions) string {
 
 func yamlString(s string) string {
 	return strconv.Quote(s)
+}
+
+// homebrewEnvConfig returns a shell snippet that sets Homebrew's API and
+// artifact domain variables to the firewall. Credentials are embedded in the
+// URL userinfo so curl (which Homebrew spawns) sends Basic auth.
+func homebrewEnvConfig(opts ConfigOptions) string {
+	apiDomain := withBasicAuth(ProxyURLWithSlash(opts.ProxyURL, Ecosystem{Prefix: "homebrew"})+"api", opts.OrgID, opts.APIKey)
+	artifactDomain := withBasicAuth(proxyURLTrim(opts.ProxyURL)+"/homebrew-bottle", opts.OrgID, opts.APIKey)
+	return strings.Join([]string{
+		"# Vulnetix Package Firewall — Homebrew",
+		"# Source this file in your shell, e.g. add to ~/.zshrc:",
+		"#   source " + filepath.Join(opts.HomeDir, ".config", "vulnetix", "package-firewall", "homebrew.env"),
+		"export HOMEBREW_API_DOMAIN=\"" + apiDomain + "\"",
+		"export HOMEBREW_ARTIFACT_DOMAIN=\"" + artifactDomain + "\"",
+		"export HOMEBREW_ARTIFACT_DOMAIN_NO_FALLBACK=\"1\"",
+		"",
+	}, "\n")
+}
+
+func proxyURLTrim(rawURL string) string {
+	base := strings.TrimRight(strings.TrimSpace(rawURL), "/")
+	if base == "" {
+		return "https://packages.vulnetix.com"
+	}
+	return base
 }
 
 func withBasicAuth(rawURL, username, password string) string {

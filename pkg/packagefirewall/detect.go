@@ -52,6 +52,10 @@ func ConfigPaths(eco Ecosystem, home string) []string {
 			filepath.Join(home, ".config", "vulnetix", "package-firewall", "arch-mirrorlist"),
 			filepath.Join(home, ".config", "vulnetix", "package-firewall", "pacman.conf"),
 		}
+	case "homebrew":
+		return []string{
+			filepath.Join(home, ".config", "vulnetix", "package-firewall", "homebrew.env"),
+		}
 	default:
 		return nil
 	}
