@@ -3801,6 +3801,13 @@ func newEnrichmentClient() *vdb.Client {
 	client := vdb.NewClientFromCredentials(creds)
 	client.APIVersion = "/v2"
 
+	// Allow pointing the CLI at an alternate VDB API (a local mock for
+	// performance/parity testing, or a self-hosted deployment) without
+	// recompiling. Empty/unset keeps the production default.
+	if u := strings.TrimSpace(os.Getenv("VULNETIX_API_URL")); u != "" {
+		client.BaseURL = strings.TrimRight(u, "/")
+	}
+
 	if dc, err := cache.NewDiskCache(version); err == nil {
 		client.Cache = dc
 	}
