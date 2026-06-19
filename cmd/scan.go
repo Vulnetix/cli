@@ -1261,11 +1261,13 @@ func runLocalScan(
 				}
 			}
 
-			// Compute introduced dependency paths when --paths was used.
+			// Compute introduced dependency paths when --paths was used. FindPathMemo
+			// caches per (graph, package) so the same chain is not recomputed for
+			// every finding here and again in the pretty-printer.
 			if showPaths {
 				for _, mg := range manifestGroups {
 					if mg.Graph != nil && !mg.Graph.IsDirect(ev.PackageName) {
-						if chain := mg.Graph.FindPath(ev.PackageName); len(chain) > 1 {
+						if chain := mg.Graph.FindPathMemo(ev.PackageName); len(chain) > 1 {
 							ef.IntroducedPaths = append(ef.IntroducedPaths, chain)
 						}
 					}
@@ -2560,7 +2562,7 @@ func printPrettyScanSummary(
 			})
 
 			if showPaths && mg.Graph != nil && !mg.Graph.IsDirect(v.PackageName) {
-				if chain := mg.Graph.FindPath(v.PackageName); len(chain) > 1 {
+				if chain := mg.Graph.FindPathMemo(v.PackageName); len(chain) > 1 {
 					allPaths = append(allPaths, pathEntry{pkgName: v.PackageName, chain: chain})
 				}
 			}
@@ -3092,7 +3094,9 @@ func npmCommandForManager(p autofix.FixCandidate, pm string, modernYarn bool) st
 			return "npm update " + name
 		}
 	case autofix.MethodParentUpgrade:
-		target := p.TargetVer
+		// Install the PARENT at its resolved version (ParentTarget), not the child's
+		// safe version (TargetVer) — upgrading the parent is what pulls the safe child.
+		target := p.ParentTarget
 		if target == "" {
 			target = "<safe-version>"
 		}

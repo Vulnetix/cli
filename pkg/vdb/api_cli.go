@@ -213,6 +213,21 @@ type CliPackageInsight struct {
 	EOLFrom        string                  `json:"eolFrom,omitempty"`
 	IsMalicious    bool                    `json:"isMalicious,omitempty"`
 	MalwareSource  string                  `json:"malwareSource,omitempty"`
+	// TransitiveFix is the server-resolved cross-ecosystem parent-upgrade for a
+	// transitive vulnerable package. When present, --sca-autofix prefers it over a
+	// deterministic override; the CLI no longer queries a registry directly.
+	TransitiveFix *CliTransitiveFix `json:"transitiveFix,omitempty"`
+}
+
+// CliTransitiveFix mirrors the vdb-api TransitiveFixRecommendation contract.
+type CliTransitiveFix struct {
+	Method       string `json:"method"`
+	ParentName   string `json:"parentName"`
+	ParentTarget string `json:"parentTarget"`
+	ChildName    string `json:"childName"`
+	ChildTarget  string `json:"childTarget"`
+	Ecosystem    string `json:"ecosystem"`
+	Reason       string `json:"reason"`
 }
 
 // CliVersionStamp is one version + its publish date (ms epoch).
@@ -877,24 +892,24 @@ type CliMalwareBazaarResult struct {
 
 // CliBinaryAnalyzeEntry is one ELF binary in the /v2/cli.analyze payload.
 type CliBinaryAnalyzeEntry struct {
-	Path          string                   `json:"path"`
-	Size          int64                    `json:"size"`
-	ELFType       string                   `json:"elfType,omitempty"`
-	ELFArch       string                   `json:"elfArch,omitempty"`
-	ELFOSABI      string                   `json:"elfOSABI,omitempty"`
-	Hashes        CliBinaryHashes          `json:"hashes"`
-	Weaknesses    []string                 `json:"weaknesses,omitempty"`
-	Capabilities  []string                 `json:"capabilities,omitempty"`
-	Strings       []string                 `json:"strings,omitempty"`
-	Exif          map[string]any           `json:"exif,omitempty"`
-	Hashlookup    *CliHashlookupResult     `json:"hashlookup,omitempty"`
-	MalwareBazaar *CliMalwareBazaarResult  `json:"malwareBazaar,omitempty"`
+	Path          string                  `json:"path"`
+	Size          int64                   `json:"size"`
+	ELFType       string                  `json:"elfType,omitempty"`
+	ELFArch       string                  `json:"elfArch,omitempty"`
+	ELFOSABI      string                  `json:"elfOSABI,omitempty"`
+	Hashes        CliBinaryHashes         `json:"hashes"`
+	Weaknesses    []string                `json:"weaknesses,omitempty"`
+	Capabilities  []string                `json:"capabilities,omitempty"`
+	Strings       []string                `json:"strings,omitempty"`
+	Exif          map[string]any          `json:"exif,omitempty"`
+	Hashlookup    *CliHashlookupResult    `json:"hashlookup,omitempty"`
+	MalwareBazaar *CliMalwareBazaarResult `json:"malwareBazaar,omitempty"`
 }
 
 // CliBinaryAnalyzeRequest is the full payload for POST /v2/cli.analyze.
 type CliBinaryAnalyzeRequest struct {
-	ScannerRunUUID string                 `json:"scannerRunUuid"`
-	Path           string                 `json:"path"`
+	ScannerRunUUID string                  `json:"scannerRunUuid"`
+	Path           string                  `json:"path"`
 	Binaries       []CliBinaryAnalyzeEntry `json:"binaries"`
 }
 

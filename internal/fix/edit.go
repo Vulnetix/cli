@@ -27,9 +27,9 @@ func Apply(root string, plans []FixCandidate) error {
 			}
 			continue
 		case MethodOverride:
-			// Deterministically pin the vulnerable child via the package
-			// manager's override mechanism.
-			if err := ApplyOverride(root, p); err != nil {
+			// Deterministically pin the vulnerable child via the ecosystem's
+			// override / pin mechanism (cross-ecosystem).
+			if err := applyOverride(root, p); err != nil {
 				return err
 			}
 			continue
@@ -68,7 +68,15 @@ func applyParentUpgrade(root string, p FixCandidate) error {
 	if err != nil {
 		return err
 	}
-	next, changed := replaceScopedJSONDependency(string(data), p.ParentName, p.ParentTarget)
+	// Edit the PARENT dependency's declared version using the same per-manifest
+	// logic as a direct bump, so parent-upgrade works across ecosystems
+	// (package.json, go.mod, Cargo.toml, …) — not just npm.
+	next, changed := editManifest(string(data), FixCandidate{
+		PackageName: p.ParentName,
+		Ecosystem:   p.Ecosystem,
+		SourceFile:  p.SourceFile,
+		TargetVer:   p.ParentTarget,
+	})
 	if !changed {
 		return nil
 	}
@@ -281,6 +289,130 @@ func ApplyOverride(root string, p FixCandidate) error {
 		return nil
 	}
 	return applyPackageJSONOverrides(path, p.PackageManager, map[string]string{p.PackageName: p.TargetVer})
+}
+
+// applyOverride realises a transitive override/pin for the candidate's ecosystem:
+//
+//	npm family  → package.json overrides/resolutions (ApplyOverride)
+//	go, cargo   → no manifest edit; the install command (`go get …@safe && go mod
+//	              tidy`, `cargo update -p … --precise safe`) performs the pin
+//	pypi        → pin/append the child in requirements.txt (or pyproject)
+//	maven       → add a <dependencyManagement> pin in pom.xml
+//	composer    → add the child to "require" in composer.json
+//	rubygems    → pin/append a gem entry in the Gemfile
+//
+// All edits are best-effort: when the manifest cannot be located or edited the
+// install command still runs and the proof-of-work report records the pin.
+func applyOverride(root string, p FixCandidate) error {
+	switch strings.ToLower(p.Ecosystem) {
+	case "npm":
+		return ApplyOverride(root, p)
+	case "golang", "cargo":
+		return nil
+	default:
+		return applyTransitivePin(root, p)
+	}
+}
+
+func applyTransitivePin(root string, p FixCandidate) error {
+	if p.PackageName == "" || p.TargetVer == "" {
+		return nil
+	}
+	path := filepath.Join(root, p.SourceFile)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	next, changed := pinTransitive(string(data), p)
+	if !changed {
+		return nil
+	}
+	return os.WriteFile(path, []byte(next), 0o644)
+}
+
+// pinTransitive forces the resolver to select the safe child version by editing
+// the manifest with the ecosystem's pin mechanism. Returns (content, false) when
+// no edit applies (the install command remains the fallback).
+func pinTransitive(content string, p FixCandidate) (string, bool) {
+	base := strings.ToLower(filepath.Base(p.SourceFile))
+	switch {
+	case base == "requirements.txt" || strings.HasSuffix(base, ".in"):
+		return ensureRequirementPinned(content, p.PackageName, p.TargetVer)
+	case base == "pyproject.toml":
+		// Transitive children are rarely declared here; pin only if already present.
+		return replacePyproject(content, p.PackageName, p.TargetVer)
+	case base == "pom.xml":
+		return ensureMavenManaged(content, p.PackageName, p.TargetVer)
+	case base == "composer.json":
+		return ensureComposerRequire(content, p.PackageName, p.TargetVer)
+	case base == "gemfile":
+		return ensureGemfilePinned(content, p.PackageName, p.TargetVer)
+	default:
+		return content, false
+	}
+}
+
+// ensureRequirementPinned replaces an existing requirement line or, when the
+// (transitive) package is not declared, appends a hard pin so pip/uv resolve it
+// to the safe version.
+func ensureRequirementPinned(content, name, target string) (string, bool) {
+	if next, ok := replaceRequirements(content, name, target); ok {
+		return next, true
+	}
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	return content + name + "==" + target + "\n", true
+}
+
+// ensureMavenManaged pins the artifact via <dependencyManagement>, creating the
+// section when absent. A maven package name is groupId:artifactId; a bare
+// artifactId is also accepted.
+func ensureMavenManaged(content, name, target string) (string, bool) {
+	group, artifact := splitMaven(name)
+	if artifact == "" {
+		return content, false
+	}
+	entry := "    <dependency>\n      <groupId>" + group + "</groupId>\n      <artifactId>" + artifact +
+		"</artifactId>\n      <version>" + target + "</version>\n    </dependency>"
+	if loc := regexp.MustCompile(`(?s)<dependencyManagement>\s*<dependencies>`).FindStringIndex(content); loc != nil {
+		return content[:loc[1]] + "\n" + entry + content[loc[1]:], true
+	}
+	if loc := regexp.MustCompile(`</project>`).FindStringIndex(content); loc != nil {
+		section := "  <dependencyManagement>\n    <dependencies>\n" + entry + "\n    </dependencies>\n  </dependencyManagement>\n"
+		return content[:loc[0]] + section + content[loc[0]:], true
+	}
+	return content, false
+}
+
+// ensureComposerRequire pins the child in composer's "require" block, adding it
+// when the transitive dependency is not declared directly.
+func ensureComposerRequire(content, name, target string) (string, bool) {
+	if next, ok := replaceScopedJSONDependency(content, name, "^"+target); ok {
+		return next, true
+	}
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(content), &doc); err != nil {
+		return content, false
+	}
+	childObject(doc, "require")[name] = "^" + target
+	next, err := json.MarshalIndent(doc, "", "    ")
+	if err != nil {
+		return content, false
+	}
+	return string(next) + "\n", true
+}
+
+// ensureGemfilePinned replaces an existing gem line or appends a pinned entry so
+// bundler resolves the (transitive) gem to the safe version.
+func ensureGemfilePinned(content, name, target string) (string, bool) {
+	if next, ok := replaceGemfile(content, name, target); ok {
+		return next, true
+	}
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	return content + "gem \"" + name + "\", \"" + target + "\"\n", true
 }
 
 // applyPackageJSONOverrides merges the given name→version pins into package.json
