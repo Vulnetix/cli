@@ -1,18 +1,15 @@
 package fix
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
+	"slices"
+	"sort"
 	"strings"
-	"time"
 
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
-func resolveTransitive(fc *FixCandidate, groups []scan.ManifestGroup, packages []scan.ScopedPackage) {
+func resolveTransitive(fc *FixCandidate, groups []scan.ManifestGroup) {
 	if fc.TargetVer == "" {
 		fc.Skipped = true
 		if fc.SkipReason == "" {
@@ -20,17 +17,11 @@ func resolveTransitive(fc *FixCandidate, groups []scan.ManifestGroup, packages [
 		}
 		return
 	}
-	npmFamily := strings.EqualFold(fc.Ecosystem, "npm")
 	for _, g := range groups {
 		if g.Graph == nil || !groupContainsFile(g, fc.SourceFile) {
 			continue
 		}
-		paths := allPathsTo(g.Graph, fc.PackageName)
-		for _, path := range paths {
-			if len(path) < 2 {
-				continue
-			}
-			parent := path[len(path)-2]
+		for _, parent := range immediateParents(g.Graph, fc.PackageName) {
 			rng := ""
 			if g.Graph.EdgeRanges != nil && g.Graph.EdgeRanges[parent] != nil {
 				rng = g.Graph.EdgeRanges[parent][fc.PackageName]
@@ -45,43 +36,53 @@ func resolveTransitive(fc *FixCandidate, groups []scan.ManifestGroup, packages [
 				fc.Reason = fmt.Sprintf("%s@%s satisfies %s's declared range %q", fc.PackageName, fc.TargetVer, parent, rng)
 				return
 			}
-			// (b) parent-upgrade — only when the parent is a DIRECT dependency we
-			// can edit in place, and (npm) we can pin it to a version whose range
-			// admits the safe child. Upgrading a *transitive* parent via the
-			// manifest would wrongly promote it to a direct dependency, so those
-			// fall through to the deterministic child override below.
-			if g.Graph.IsDirect(parent) {
-				parentPkg := packageByName(packages, parent, fc.Ecosystem)
-				parentTarget := ""
-				if npmFamily {
-					parentTarget = bestNpmParentVersion(parent, parentPkg.Version, fc.PackageName, fc.TargetVer)
-				}
-				if parentTarget != "" {
-					fc.Method = MethodParentUpgrade
-					fc.ParentTarget = parentTarget
-					fc.Command = npmTransitiveCommand(MethodParentUpgrade, parent, parentTarget)
-					fc.Reason = fmt.Sprintf("upgrade direct dependency %s %s -> %s so its declared %s range admits %s@%s", parent, parentPkg.Version, parentTarget, fc.PackageName, fc.PackageName, fc.TargetVer)
-					return
-				}
-			}
+			// (b) parent-upgrade — finding a parent version whose declared range
+			// admits the safe child requires per-version registry metadata. That
+			// resolution is now performed server-side (cross-ecosystem) and arrives
+			// as a TransitiveFixRecommendation; the CLI no longer queries a registry
+			// directly. Without a recommendation we fall through to the deterministic
+			// override below.
 		}
 	}
-	// (c) deterministic override — pin the vulnerable child to the safe version
-	// via the package manager's override mechanism. This is the reliable fix for
-	// deep transitive chains with no editable parent path.
-	if npmFamily {
-		fc.Method = MethodOverride
-		fc.Skipped = false
-		fc.Reason = fmt.Sprintf("pin %s to %s via a package-manager override (no editable parent path resolved the chain)", fc.PackageName, fc.TargetVer)
+	// (c) deterministic override/pin — force the resolver to select the safe child
+	// version via the ecosystem's override / pin / update mechanism. This is the
+	// reliable, cross-ecosystem fix for deep transitive chains with no editable
+	// parent path. Every supported ecosystem resolves here rather than skipping;
+	// the per-ecosystem manifest edit (or, for go/cargo, the install command
+	// itself) is applied during Apply/RunInstall.
+	fc.Method = MethodOverride
+	fc.Skipped = false
+	fc.Reason = fmt.Sprintf("pin %s to %s via %s (no editable parent path resolved the chain)", fc.PackageName, fc.TargetVer, overrideMechanism(fc.Ecosystem))
+	if strings.EqualFold(fc.Ecosystem, "npm") {
+		// Placeholder; cmd rewrites this to the concrete `<pm> install` after the
+		// package.json override is written.
 		fc.Command = overrideInstallNote
 		return
 	}
-	fc.Skipped = true
-	fc.Method = MethodOverride
-	if fc.SkipReason == "" {
-		fc.SkipReason = "transitive dependency path could not be resolved to an editable parent"
-	}
 	fc.Command = commandFor(*fc, fc.TargetVer)
+}
+
+// overrideMechanism returns a human-readable label for how the override pin is
+// realised for the ecosystem, used in the proof-of-work reason text.
+func overrideMechanism(ecosystem string) string {
+	switch strings.ToLower(ecosystem) {
+	case "npm":
+		return "a package-manager override"
+	case "pypi":
+		return "a pinned requirement"
+	case "golang":
+		return "go get + go mod tidy"
+	case "cargo":
+		return "cargo update --precise"
+	case "maven":
+		return "a <dependencyManagement> pin"
+	case "composer":
+		return "a composer require constraint"
+	case "rubygems":
+		return "a pinned Gemfile entry"
+	default:
+		return "a package-manager pin"
+	}
 }
 
 // overrideInstallNote is a placeholder command for override plans; the real
@@ -89,108 +90,53 @@ func resolveTransitive(fc *FixCandidate, groups []scan.ManifestGroup, packages [
 const overrideInstallNote = "# pin via package-manager override, then install"
 
 func groupContainsFile(g scan.ManifestGroup, file string) bool {
-	for _, f := range g.Files {
-		if f == file {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(g.Files, file)
 }
 
-func allPathsTo(g *scan.DepGraph, target string) [][]string {
-	var paths [][]string
-	for root := range g.DirectDeps {
-		walkGraph(g, root, target, map[string]bool{}, []string{root}, &paths)
+// immediateParents returns the distinct immediate parents of target that are
+// reachable from a direct dependency: every node that declares an edge to target
+// and is itself reachable from the manifest's direct deps.
+//
+// This replaces an earlier routine (allPathsTo/walkGraph) that enumerated *every*
+// simple path from each direct dep to the target — exponential on real dependency
+// graphs, and the cause of a multi-hour autofix hang. Only the immediate parent
+// (path[len-2]) of each path was ever consumed, so the full set of those parents
+// is all that is needed. A single O(V+E) BFS from the direct deps yields it.
+//
+// Matching is case-insensitive to mirror the previous behaviour (edge keys from
+// "go mod graph" etc. may differ in case from the package name). The order is
+// sorted for determinism; the old path order was already non-deterministic (it
+// ranged over the DirectDeps map), so callers must not rely on a specific order.
+func immediateParents(g *scan.DepGraph, target string) []string {
+	if g == nil || len(g.Edges) == 0 {
+		return nil
 	}
-	if len(paths) == 0 {
-		if p := g.FindPath(target); len(p) > 1 {
-			paths = append(paths, p)
+	visited := make(map[string]bool, len(g.DirectDeps))
+	queue := make([]string, 0, len(g.DirectDeps))
+	for name := range g.DirectDeps {
+		if !visited[name] {
+			visited[name] = true
+			queue = append(queue, name)
 		}
 	}
-	return paths
-}
-
-func walkGraph(g *scan.DepGraph, cur, target string, seen map[string]bool, path []string, out *[][]string) {
-	if seen[cur] {
-		return
-	}
-	seen[cur] = true
-	if strings.EqualFold(cur, target) {
-		cp := make([]string, len(path))
-		copy(cp, path)
-		*out = append(*out, cp)
-		return
-	}
-	for _, child := range g.Edges[cur] {
-		nextSeen := make(map[string]bool, len(seen))
-		for k, v := range seen {
-			nextSeen[k] = v
-		}
-		walkGraph(g, child, target, nextSeen, append(path, child), out)
-	}
-}
-
-func packageByName(packages []scan.ScopedPackage, name, ecosystem string) scan.ScopedPackage {
-	for _, p := range packages {
-		if strings.EqualFold(p.Name, name) && strings.EqualFold(p.Ecosystem, ecosystem) {
-			return p
+	parents := map[string]bool{}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, child := range g.Edges[cur] {
+			if strings.EqualFold(child, target) {
+				parents[cur] = true
+			}
+			if !visited[child] {
+				visited[child] = true
+				queue = append(queue, child)
+			}
 		}
 	}
-	return scan.ScopedPackage{}
-}
-
-type npmRegistryPackage struct {
-	Versions map[string]npmRegistryVersion `json:"versions"`
-}
-
-type npmRegistryVersion struct {
-	Dependencies     map[string]string `json:"dependencies"`
-	PeerDependencies map[string]string `json:"peerDependencies"`
-}
-
-func bestNpmParentVersion(parent, currentParentVersion, child, targetChildVersion string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://registry.npmjs.org/"+url.PathEscape(parent), nil)
-	if err != nil {
-		return ""
+	out := make([]string, 0, len(parents))
+	for p := range parents {
+		out = append(out, p)
 	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "vulnetix-cli-autofix")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return ""
-	}
-
-	var meta npmRegistryPackage
-	if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {
-		return ""
-	}
-	return bestParentVersionFromNpmMeta(meta, currentParentVersion, child, targetChildVersion)
-}
-
-func bestParentVersionFromNpmMeta(meta npmRegistryPackage, currentParentVersion, child, targetChildVersion string) string {
-	candidates := make([]string, 0, len(meta.Versions))
-	for ver, entry := range meta.Versions {
-		if currentParentVersion != "" && !greaterOrEqual(ver, currentParentVersion) {
-			continue
-		}
-		rng := entry.Dependencies[child]
-		if rng == "" {
-			rng = entry.PeerDependencies[child]
-		}
-		if rng != "" && Satisfies(targetChildVersion, rng) {
-			candidates = append(candidates, ver)
-		}
-	}
-	sorted := sortableVersions(candidates, true)
-	if len(sorted) == 0 {
-		return ""
-	}
-	return sorted[0]
+	sort.Strings(out)
+	return out
 }

@@ -201,7 +201,12 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 			continue
 		}
 
-		resolveTransitive(fc, groups, packages)
+		// Prefer the server-resolved cross-ecosystem parent-upgrade when present
+		// (replaces the old direct npm-registry probe); otherwise resolve a
+		// deterministic parent-update / override locally.
+		if !applyTransitiveRecommendation(fc, ins.TransitiveFix) {
+			resolveTransitive(fc, groups)
+		}
 		if fc.Command == "" {
 			fc.Command = commandFor(*fc, fc.TargetVer)
 		}
@@ -222,6 +227,8 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 		out = append(out, *fc)
 	}
 
+	reconcileParentUpgrades(out)
+
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].SourceFile != out[j].SourceFile {
 			return out[i].SourceFile < out[j].SourceFile
@@ -229,6 +236,60 @@ func BuildPlans(vulns []scan.EnrichedVuln, packages []scan.ScopedPackage, groups
 		return out[i].PackageName < out[j].PackageName
 	})
 	return Batch{Plans: out, Counts: counts}
+}
+
+// applyTransitiveRecommendation applies a server-resolved parent-upgrade to the
+// candidate. The vdb-api resolves "which parent version admits the safe child"
+// cross-ecosystem (via the shared registry module), so the CLI no longer probes a
+// registry itself. Returns true when a concrete parent-upgrade was applied;
+// otherwise the caller resolves a deterministic parent-update / override locally.
+func applyTransitiveRecommendation(fc *FixCandidate, rec *vdb.CliTransitiveFix) bool {
+	if rec == nil || rec.Method != "parent-upgrade" || rec.ParentName == "" || rec.ParentTarget == "" {
+		return false
+	}
+	fc.Method = MethodParentUpgrade
+	fc.ParentName = rec.ParentName
+	fc.ParentTarget = rec.ParentTarget
+	if rec.ChildTarget != "" {
+		fc.TargetVer = rec.ChildTarget
+	}
+	fc.Skipped = false
+	if rec.Reason != "" {
+		fc.Reason = rec.Reason
+	}
+	fc.Command = commandFor(*fc, fc.TargetVer)
+	return true
+}
+
+// parentReconcileKey identifies a dependency within a manifest for matching a
+// parent-upgrade's parent against a direct bump of the same package.
+func parentReconcileKey(ecosystem, name, sourceFile string) string {
+	return strings.ToLower(ecosystem) + "\x00" + strings.ToLower(name) + "\x00" + sourceFile
+}
+
+// reconcileParentUpgrades raises a parent-upgrade target to the higher of itself
+// and a direct bump of the SAME parent in the same manifest. When a parent is
+// itself vulnerable and being bumped (e.g. to the latest safe version), a
+// transitive parent-upgrade that only raised it just enough to admit the safe
+// child would undershoot — and, applied together, the two edits conflict. Taking
+// the higher version makes the parent end safe AND still admit the safe child.
+func reconcileParentUpgrades(out []FixCandidate) {
+	directTargets := map[string]string{}
+	for _, c := range out {
+		if c.Method == MethodDirectBump && !c.Skipped && c.TargetVer != "" {
+			directTargets[parentReconcileKey(c.Ecosystem, c.PackageName, c.SourceFile)] = c.TargetVer
+		}
+	}
+	for i := range out {
+		if out[i].Method != MethodParentUpgrade || out[i].ParentName == "" {
+			continue
+		}
+		dt, ok := directTargets[parentReconcileKey(out[i].Ecosystem, out[i].ParentName, out[i].SourceFile)]
+		if ok && dt != "" && (out[i].ParentTarget == "" || greaterOrEqual(dt, out[i].ParentTarget)) {
+			out[i].ParentTarget = dt
+			out[i].Command = commandFor(out[i], out[i].TargetVer)
+		}
+	}
 }
 
 func GroupBatches(root string, plans []FixCandidate) []FixBatch {

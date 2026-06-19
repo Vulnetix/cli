@@ -15,6 +15,8 @@ type DepGraph struct {
 	AllDeps    map[string]ScopedPackage     // name → any dependency (direct or transitive)
 	Edges      map[string][]string          // parent module name → child module names (from go mod graph, etc.)
 	EdgeRanges map[string]map[string]string // parent → child → declared range, when the lock/manifest exposes it
+
+	pathCache map[string][]string // memoised FindPath results, see FindPathMemo
 }
 
 // IsDirect returns true if the package was declared directly in the manifest.
@@ -103,6 +105,29 @@ func (g *DepGraph) FindPath(targetPkg string) []string {
 		}
 	}
 	return nil
+}
+
+// FindPathMemo is a memoised FindPath. The shortest chain to a given package is
+// identical no matter which vulnerability references it, yet the display path was
+// previously recomputed per finding (and again by the pretty-printer), making the
+// introduced-paths render O(vulns × manifests × BFS). Callers share one *DepGraph,
+// so caching on the graph collapses that to one BFS per distinct package.
+//
+// Not safe for concurrent use; FindPath is only ever called from the sequential
+// enrichment and rendering loops, consistent with the rest of DepGraph.
+func (g *DepGraph) FindPathMemo(target string) []string {
+	if g == nil {
+		return nil
+	}
+	if cached, ok := g.pathCache[target]; ok {
+		return cached
+	}
+	chain := g.FindPath(target)
+	if g.pathCache == nil {
+		g.pathCache = map[string][]string{}
+	}
+	g.pathCache[target] = chain
+	return chain
 }
 
 // PopulateGoModGraph runs "go mod graph" in the given directory and populates

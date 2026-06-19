@@ -1,6 +1,7 @@
 package display
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -9,6 +10,24 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/vulnetix/cli/v3/internal/tui"
 )
+
+// structToMap converts any JSON-serialisable value to a map[string]any via a
+// JSON round-trip, so renderers can read typed structs uniformly. Returns nil
+// when the value does not marshal to a JSON object.
+func structToMap(data any) map[string]any {
+	if m, ok := data.(map[string]any); ok {
+		return m
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal(b, &m) != nil {
+		return nil
+	}
+	return m
+}
 
 // RenderVulnDetail renders a single vulnerability detail view.
 // Handles both flat vuln objects and CVE 5.0 JSON format (array of records with containers/cveMetadata).
@@ -876,8 +895,8 @@ func RenderSummary(data any, ctx *Context) string {
 
 // RenderStatus renders VDB status/health information.
 func RenderStatus(data any, ctx *Context) string {
-	m, ok := data.(map[string]any)
-	if !ok {
+	m := structToMap(data)
+	if m == nil {
 		return fmt.Sprintf("%v", data)
 	}
 	t := ctx.Term
@@ -885,27 +904,26 @@ func RenderStatus(data any, ctx *Context) string {
 
 	b.WriteString(Header(t, "VDB Status"))
 
-	// CLI info
+	// CLI info (keys are the status command's snake_case JSON tags).
 	if cli, ok := m["cli"].(map[string]any); ok {
 		b.WriteString("\n" + Subheader(t, "CLI") + "\n")
 		pairs := []KVPair{
 			{Key: "Version", Value: ToStringVal(cli["version"])},
 			{Key: "Commit", Value: ToStringVal(cli["commit"])},
-			{Key: "Build Date", Value: ToStringVal(cli["buildDate"])},
-			{Key: "Go", Value: ToStringVal(cli["goVersion"])},
+			{Key: "Build Date", Value: ToStringVal(cli["build_date"])},
+			{Key: "Go", Value: ToStringVal(cli["go_version"])},
 			{Key: "Platform", Value: ToStringVal(cli["platform"])},
+			{Key: "API Version", Value: ToStringVal(cli["api_version"])},
 		}
 		b.WriteString(KeyValue(t, pairs) + "\n")
+		if oas := ToStringVal(cli["oas_spec_url"]); oas != "" {
+			b.WriteString("\n" + Subheader(t, "OpenAPI Spec") + "\n")
+			b.WriteString("  " + Accent(t, oas) + "\n")
+		}
 	}
 
-	// OAS URL
-	if oas := ToStringVal(m["oasUrl"]); oas != "" {
-		b.WriteString("\n" + Subheader(t, "OpenAPI Spec") + "\n")
-		b.WriteString("  " + Accent(t, oas) + "\n")
-	}
-
-	// API Health
-	if health, ok := m["health"].(map[string]any); ok {
+	// API Health (the command stores the raw health map under "api").
+	if health, ok := m["api"].(map[string]any); ok {
 		b.WriteString("\n" + Subheader(t, "API Health") + "\n")
 		status := ToStringVal(health["status"])
 		mark := CheckMark(t)
@@ -913,12 +931,16 @@ func RenderStatus(data any, ctx *Context) string {
 			mark = CrossMark(t)
 		}
 		b.WriteString(fmt.Sprintf("  %s %s\n", mark, status))
-		// Show additional health fields
-		for k, v := range health {
-			if k == "status" {
-				continue
+		// Show additional health fields deterministically.
+		keys := make([]string, 0, len(health))
+		for k := range health {
+			if k != "status" {
+				keys = append(keys, k)
 			}
-			b.WriteString(fmt.Sprintf("  %s %s\n", Label(t, k+":"), ToStringVal(v)))
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			b.WriteString(fmt.Sprintf("  %s %s\n", Label(t, k+":"), ToStringVal(health[k])))
 		}
 	}
 

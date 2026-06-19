@@ -129,6 +129,9 @@ Examples:
 		if err := validateOutputFlags(); err != nil {
 			return err
 		}
+		if err := validateAPIVersion(); err != nil {
+			return err
+		}
 		if err := resolveVDBCredentials(true); err != nil {
 			return err
 		}
@@ -946,6 +949,18 @@ func formatNumber(n int) string {
 		result = append(result, byte(c))
 	}
 	return string(result)
+}
+
+// validateAPIVersion rejects any -V/--api-version that is not v1 or v2 client-side,
+// so an invalid version is not interpolated into the request path (which surfaces
+// as a misleading 404 / "not found" for resources that actually exist).
+func validateAPIVersion() error {
+	switch strings.ToLower(strings.Trim(vdbAPIVersion, "/")) {
+	case "", "v1", "v2":
+		return nil
+	default:
+		return fmt.Errorf("invalid --api-version %q: expected \"v1\" or \"v2\"", vdbAPIVersion)
+	}
 }
 
 // normalizeAPIVersion normalizes user input into a clean version path prefix.

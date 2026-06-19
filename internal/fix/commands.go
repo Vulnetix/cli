@@ -5,7 +5,11 @@ import "strings"
 func commandFor(p FixCandidate, target string) string {
 	name := p.PackageName
 	if p.Method == MethodParentUpgrade && p.ParentName != "" {
+		// A parent-upgrade installs the PARENT at its resolved version, not the
+		// vulnerable child at its safe version — use ParentName + ParentTarget for
+		// every ecosystem (npm has its own helper below).
 		name = p.ParentName
+		target = p.ParentTarget
 	}
 	switch strings.ToLower(p.Ecosystem) {
 	case "npm":
