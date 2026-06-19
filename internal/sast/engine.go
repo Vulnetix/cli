@@ -4,12 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"os"
+	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/vulnetix/cli/v3/internal/secretscan"
+)
+
+// Sharded compilation tuning. Compiling the full embedded rule set (~1900
+// modules) into one OPA compiler is the dominant fixed cost of a scan (~85s on
+// this host) and is single-threaded; evaluation then scales with files on top.
+// Rules live in independent `vulnetix.rules.<id>` packages, so splitting them
+// across N compilers and evaluating each shard concurrently against the shared
+// input produces the identical union of findings while using all cores.
+const (
+	shardMinRules = 64 // below this, a single compile is cheaper than sharding
+	shardMaxCount = 16 // ceiling on concurrent compiler+eval shards
 )
 
 // Engine compiles Rego modules and evaluates them against a filesystem scan.
@@ -59,8 +75,14 @@ func (e *Engine) compile() (*ast.Compiler, error) {
 
 // doCompile performs the actual parse + compile of all loaded Rego modules.
 func (e *Engine) doCompile() (*ast.Compiler, error) {
-	parsed := make(map[string]*ast.Module, len(e.modules))
-	for name, src := range e.modules {
+	return compileModules(e.modules)
+}
+
+// compileModules parses and compiles a set of Rego modules into a fresh
+// compiler. Stateless so it can run concurrently across shards.
+func compileModules(modules map[string]string) (*ast.Compiler, error) {
+	parsed := make(map[string]*ast.Module, len(modules))
+	for name, src := range modules {
 		mod, err := ast.ParseModuleWithOpts(name, src, ast.ParserOptions{
 			RegoVersion: ast.RegoV1,
 		})
@@ -102,11 +124,6 @@ func (e *Engine) ListRules() ([]RuleMetadata, error) {
 
 // Evaluate runs all loaded Rego policies against the filesystem at scanRoot.
 func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
-	compiler, err := e.compile()
-	if err != nil {
-		return nil, err
-	}
-
 	// Build OPA input from filesystem.
 	scanInput, err := BuildScanInputWithOptions(e.scanRoot, BuildOptions{
 		MaxDepth:             opts.MaxDepth,
@@ -141,35 +158,159 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		}
 	}
 
-	ctx := context.Background()
+	// Partition shared modules (helpers) from independent rule packages and
+	// decide how many shards to run. Each shard compiles helpers + its rule
+	// subset and evaluates against the shared, read-only input; the union of
+	// per-shard findings is identical to a single combined evaluation.
+	shared, rules := partitionModules(e.modules)
+	n := shardCount(len(rules))
+	if n <= 1 {
+		return evalModules(e.modules, scanInput)
+	}
 
-	// Evaluate all rules in one query.
+	shards := shardModules(rules, n)
+	reports := make([]*SASTReport, len(shards))
+	errs := make([]error, len(shards))
+	var wg sync.WaitGroup
+	for i := range shards {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			mods := make(map[string]string, len(shared)+len(shards[i]))
+			maps.Copy(mods, shared)
+			maps.Copy(mods, shards[i])
+			reports[i], errs[i] = evalModules(mods, scanInput)
+		}(i)
+	}
+	wg.Wait()
+
+	// A compile/eval error in any shard is fatal, matching the previous
+	// all-or-nothing single-compile behaviour.
+	for _, e := range errs {
+		if e != nil {
+			return nil, e
+		}
+	}
+
+	var allRules []RuleMetadata
+	var allFindings []Finding
+	for _, rep := range reports {
+		if rep == nil {
+			continue
+		}
+		allRules = append(allRules, rep.Rules...)
+		allFindings = append(allFindings, rep.Findings...)
+	}
+	// Deterministic order across shards/runs (the single-eval path was already
+	// map-order, so callers must not depend on order; this just makes it stable).
+	sortFindings(allFindings)
+
+	return &SASTReport{
+		Findings:    allFindings,
+		Rules:       allRules,
+		RulesLoaded: len(allRules),
+	}, nil
+}
+
+// evalModules compiles the given modules and evaluates them against scanInput,
+// returning the rules and findings for that module set. Used per shard and for
+// the single-shard fast path.
+func evalModules(modules map[string]string, scanInput any) (*SASTReport, error) {
+	compiler, err := compileModules(modules)
+	if err != nil {
+		return nil, err
+	}
 	r := rego.New(
 		rego.Compiler(compiler),
 		rego.Query("data.vulnetix.rules"),
 		rego.Input(scanInput),
 	)
-
-	rs, err := r.Eval(ctx)
+	rs, err := r.Eval(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("eval: %w", err)
 	}
-
 	rules, err := extractAllMetadata(rs)
 	if err != nil {
 		return nil, err
 	}
-
 	findings, err := extractAllFindings(rs, rules)
 	if err != nil {
 		return nil, err
 	}
+	return &SASTReport{Findings: findings, Rules: rules, RulesLoaded: len(rules)}, nil
+}
 
-	return &SASTReport{
-		Findings:    findings,
-		Rules:       rules,
-		RulesLoaded: len(rules),
-	}, nil
+// partitionModules splits modules into shared (helpers/libraries, included in
+// every shard) and independent rule packages (sharded across compilers).
+func partitionModules(modules map[string]string) (shared, rules map[string]string) {
+	shared = map[string]string{}
+	rules = map[string]string{}
+	for name, src := range modules {
+		if strings.Contains(src, "package vulnetix.rules.") {
+			rules[name] = src
+		} else {
+			shared[name] = src
+		}
+	}
+	return shared, rules
+}
+
+// shardModules distributes rule modules round-robin (by sorted name, for
+// determinism) into n maps.
+func shardModules(rules map[string]string, n int) []map[string]string {
+	names := make([]string, 0, len(rules))
+	for k := range rules {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	shards := make([]map[string]string, n)
+	for i := range shards {
+		shards[i] = map[string]string{}
+	}
+	for i, name := range names {
+		shards[i%n][name] = rules[name]
+	}
+	return shards
+}
+
+// shardCount picks the number of concurrent compile+eval shards: bounded by
+// cores, the shard ceiling, and a minimum rules-per-shard so tiny rule sets
+// (e.g. a single --rule) keep the cheaper single-compile path. VULNETIX_SAST_SHARDS
+// overrides it (1 forces the single-compile parity baseline).
+func shardCount(nRules int) int {
+	if v := strings.TrimSpace(os.Getenv("VULNETIX_SAST_SHARDS")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 1 {
+			if n > nRules {
+				n = nRules
+			}
+			return max(n, 1)
+		}
+	}
+	if nRules <= shardMinRules {
+		return 1
+	}
+	n := min(runtime.GOMAXPROCS(0), shardMaxCount)
+	if byMin := nRules / shardMinRules; byMin >= 1 {
+		n = min(n, byMin)
+	}
+	return max(n, 1)
+}
+
+// sortFindings orders findings deterministically by rule, file, line, message.
+func sortFindings(fs []Finding) {
+	sort.Slice(fs, func(i, j int) bool {
+		a, b := fs[i], fs[j]
+		if a.RuleID != b.RuleID {
+			return a.RuleID < b.RuleID
+		}
+		if a.ArtifactURI != b.ArtifactURI {
+			return a.ArtifactURI < b.ArtifactURI
+		}
+		if a.StartLine != b.StartLine {
+			return a.StartLine < b.StartLine
+		}
+		return a.Message < b.Message
+	})
 }
 
 // extractAllMetadata walks the data.vulnetix.rules result tree and extracts
