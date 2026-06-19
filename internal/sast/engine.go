@@ -139,8 +139,17 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		return nil, fmt.Errorf("build scan input: %w", err)
 	}
 
-	// Check if any rule references input.file_contents; if so, load contents.
-	if needsFileContents(e.modules) {
+	// Drop rules whose declared languages are entirely absent from the repo: they
+	// can never fire, so skipping them avoids their (dominant) compile cost and
+	// their eval cost. Universal/unknown rules are kept. Opt out with
+	// VULNETIX_SAST_NO_LANG_FILTER for debugging or exhaustive runs.
+	modules := e.modules
+	if os.Getenv("VULNETIX_SAST_NO_LANG_FILTER") == "" {
+		modules = filterModulesByLanguage(e.modules, scanInput.FileSet)
+	}
+
+	// Check if any surviving rule references input.file_contents; if so, load them.
+	if needsFileContents(modules) {
 		LoadFileContentsWithOptions(scanInput, LoadOptions{
 			MaxFileSize:     1 << 20, // 1 MiB cap on raw text
 			IgnoreBinaries:  opts.IgnoreBinaries,
@@ -162,10 +171,10 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	// decide how many shards to run. Each shard compiles helpers + its rule
 	// subset and evaluates against the shared, read-only input; the union of
 	// per-shard findings is identical to a single combined evaluation.
-	shared, rules := partitionModules(e.modules)
+	shared, rules := partitionModules(modules)
 	n := shardCount(len(rules))
 	if n <= 1 {
-		return evalModules(e.modules, scanInput)
+		return evalModules(modules, scanInput)
 	}
 
 	shards := shardModules(rules, n)
