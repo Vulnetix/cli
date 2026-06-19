@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-const installCommandTimeout = 2 * time.Minute
+// installCommandTimeout bounds a single install command. It must accommodate one
+// full dependency re-resolution (e.g. `go mod tidy` / `npm install`) which, on a
+// slow/cooldown-prone module proxy, can take several minutes — so it is generous.
+const installCommandTimeout = 10 * time.Minute
 
 func RunInstall(ctx context.Context, batches []FixBatch, dryRun bool, w io.Writer) error {
 	if ctx == nil {
@@ -23,23 +26,20 @@ func RunInstall(ctx context.Context, batches []FixBatch, dryRun bool, w io.Write
 	}
 	seen := map[string]bool{}
 	for _, b := range batches {
+		// Batchable ecosystems (Go) collapse all fixes in this directory into ONE
+		// install command (e.g. `go get m1@v m2@v … && go mod tidy`) so the
+		// expensive dependency re-resolution runs once, not once per fix.
+		if cmd, ok := batchInstallCommand(b); ok {
+			if err := runInstallCommand(ctx, b.Dir, cmd, dryRun, w, seen); err != nil {
+				return fmt.Errorf("%s failed in %s: %w", cmd, b.Dir, err)
+			}
+			continue
+		}
 		for _, p := range b.Plans {
 			if p.Skipped || p.Command == "" {
 				continue
 			}
-			key := b.Dir + "::" + p.Command
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-			fmt.Fprintf(w, "  $ (cd %s && %s)\n", b.Dir, p.Command)
-			if dryRun {
-				continue
-			}
-			cmdCtx, cancel := context.WithTimeout(ctx, installCommandTimeout)
-			err := runShell(cmdCtx, b.Dir, p.Command)
-			cancel()
-			if err != nil {
+			if err := runInstallCommand(ctx, b.Dir, p.Command, dryRun, w, seen); err != nil {
 				if isNpmPeerConflict(err) && batchHasNpmPlans(b) {
 					fmt.Fprintln(w, "    npm peer dependency conflict detected; adding vetted overrides and retrying")
 					if overrideErr := applyNpmOverrides(b); overrideErr != nil {
@@ -50,15 +50,35 @@ func RunInstall(ctx context.Context, batches []FixBatch, dryRun bool, w io.Write
 					retryCancel()
 					if retryErr == nil {
 						continue
-					} else {
-						return fmt.Errorf("%s failed in %s after override retry: %w", p.Command, b.Dir, retryErr)
 					}
+					return fmt.Errorf("%s failed in %s after override retry: %w", p.Command, b.Dir, retryErr)
 				}
 				return fmt.Errorf("%s failed in %s: %w", p.Command, b.Dir, err)
 			}
 		}
 	}
 	return nil
+}
+
+// runInstallCommand runs one command in dir, deduplicated by (dir, command). It
+// returns nil when the command was already run (deduped) or succeeds, and the raw
+// shell error otherwise (callers add context). Honors dryRun and the timeout.
+func runInstallCommand(ctx context.Context, dir, command string, dryRun bool, w io.Writer, seen map[string]bool) error {
+	if command == "" {
+		return nil
+	}
+	key := dir + "::" + command
+	if seen[key] {
+		return nil
+	}
+	seen[key] = true
+	fmt.Fprintf(w, "  $ (cd %s && %s)\n", dir, command)
+	if dryRun {
+		return nil
+	}
+	cmdCtx, cancel := context.WithTimeout(ctx, installCommandTimeout)
+	defer cancel()
+	return runShell(cmdCtx, dir, command)
 }
 
 func isNpmPeerConflict(err error) bool {
