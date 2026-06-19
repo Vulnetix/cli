@@ -1130,11 +1130,14 @@ func runLocalScan(
 						resultsOnly,
 						versionLag,
 						cooldownDays,
-						noSASTRules,
+						// SCA-only confirmation re-scan: a dependency fix changes only
+						// SCA, so re-running SAST/secrets/containers/IaC just doubles the
+						// cost. Keep noSCA as-is so SCA re-runs to confirm the fixes.
+						true, // noSASTRules
 						noSCA,
-						noSecrets,
-						noContainers,
-						noIAC,
+						true, // noSecrets
+						true, // noContainers
+						true, // noIAC
 						disableDefaultRules,
 						ruleRefs,
 						ruleRegistry,
