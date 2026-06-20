@@ -1,3 +1,6 @@
+# Benchmark outputs (machine/network-specific timings + per-run logs)
+benchmark/results/
+
 # Logs
 **/logs
 **/*.log

@@ -136,6 +136,18 @@ test:
         exit 1
     fi
 
+# Benchmark the installed vulnetix CLI against this repo: sca, sast,
+# sca+autofix(safest), scan, scan+autofix(safest). Each scenario runs on a fresh
+# repo copy; min/median/max wall-clock + findings are written to a Markdown
+# report under benchmark/results/. Defaults to `vulnetix` on PATH (brew install);
+# override with env vars, e.g.:
+#   RUNS=5 just benchmark
+#   VULNETIX_BIN=./bin/vulnetix just benchmark         # benchmark a local build
+#   GOPROXY=https://proxy.golang.org,direct just benchmark
+# See benchmark/README.md for the full scenario list and env knobs.
+benchmark:
+    bash benchmark/run.sh
+
 # Coverage reporting
 test-coverage:
     go test -v -cover ./...
