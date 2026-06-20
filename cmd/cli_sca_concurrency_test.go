@@ -9,9 +9,34 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
+
+// TestScaBatchTimeout covers the env override + clamp for the per-request
+// cli.sca deadline (default sits above the ~60s CDN edge).
+func TestScaBatchTimeout(t *testing.T) {
+	cases := []struct {
+		env  string
+		want time.Duration
+	}{
+		{"", cliSCABatchTimeoutDefault},
+		{"120", 120 * time.Second},
+		{"1", 10 * time.Second},     // clamp low
+		{"9999", 300 * time.Second}, // clamp high
+		{"abc", cliSCABatchTimeoutDefault},
+	}
+	for _, c := range cases {
+		t.Setenv("VULNETIX_SCA_TIMEOUT", c.env)
+		if got := scaBatchTimeout(); got != c.want {
+			t.Errorf("VULNETIX_SCA_TIMEOUT=%q: got %v, want %v", c.env, got, c.want)
+		}
+	}
+	if cliSCABatchTimeoutDefault <= 60*time.Second {
+		t.Errorf("default %v must exceed the ~60s CDN edge", cliSCABatchTimeoutDefault)
+	}
+}
 
 // TestRunSCAJobs_ConcurrencyParity proves the parallel fan-out (Phase B) sends
 // the identical set of batches and merges the identical findings as the legacy
