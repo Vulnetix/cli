@@ -640,8 +640,10 @@ func cliPostWithEnvContext[T any](ctx context.Context, c *Client, route string, 
 		return nil, fmt.Errorf("%s: failed to execute request: %w", route, err)
 	}
 	defer resp.Body.Close()
+	c.metaMu.Lock()
 	c.LastRateLimit = parseRateLimitHeaders(resp)
 	c.LastCacheStatus = resp.Header.Get("X-Cache")
+	c.metaMu.Unlock()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
