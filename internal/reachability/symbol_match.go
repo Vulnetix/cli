@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"unicode"
 )
 
@@ -124,13 +125,17 @@ func MatchAffectedSymbols(ctx context.Context, req SymbolMatchRequest) (*SymbolM
 	}
 
 	result := &SymbolMatchResult{HitsByCVE: map[string][]SymbolMatch{}}
-	addHit := func(cves []string, hit SymbolMatch) {
-		for _, c := range cves {
-			result.HitsByCVE[c] = append(result.HitsByCVE[c], hit)
-		}
-	}
 
+	// Phase 1 — walk the tree once (deterministic order) collecting every file
+	// plus its size. The dir-skip filter is applied here exactly as before; the
+	// per-file matching is deferred to Phase 2 so it can run concurrently.
+	type symFile struct {
+		path string
+		base string
+		size int64
+	}
 	skip := skipDirs()
+	var files []symFile
 	err := filepath.WalkDir(req.ProjectRoot, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			if errors.Is(walkErr, os.ErrPermission) {
@@ -149,37 +154,48 @@ func MatchAffectedSymbols(ctx context.Context, req SymbolMatchRequest) (*SymbolM
 			}
 			return nil
 		}
+		var size int64
+		if info, err := d.Info(); err == nil {
+			size = info.Size()
+		}
+		files = append(files, symFile{path: path, base: filepath.Base(path), size: size})
+		return nil
+	})
+	if err != nil {
+		return result, err
+	}
+	if len(files) == 0 {
+		return result, nil
+	}
 
+	// matchFile produces one file's hits in the same order the serial walk did:
+	// file-name hits first, then content (routine/module) hits in regex order.
+	// It reads only shared read-only state (the reverse indexes + bodyRE) plus a
+	// file-local seen set, so it is safe to run concurrently.
+	type hitPair struct {
+		cves []string
+		hit  SymbolMatch
+	}
+	matchFile := func(f symFile) []hitPair {
+		var hits []hitPair
 		// File-name hits: exact basename or suffix match (common for paths
 		// like "src/foo/bar.c" listed in programFiles).
-		base := filepath.Base(path)
-		for f, cves := range fileToCVEs {
-			if f == base || strings.HasSuffix(path, f) {
-				addHit(cves, SymbolMatch{File: path, Symbol: f, Kind: "file"})
+		for name, cves := range fileToCVEs {
+			if name == f.base || strings.HasSuffix(f.path, name) {
+				hits = append(hits, hitPair{cves: cves, hit: SymbolMatch{File: f.path, Symbol: name, Kind: "file"}})
 			}
 		}
-
-		// Content scan only for files that look like source we'd analyse.
-		if bodyRE == nil {
-			return nil
+		// Content scan only for source-looking files within the size budget.
+		if bodyRE == nil || !looksLikeSource(f.path) || f.size == 0 || f.size > MaxFileSize {
+			return hits
 		}
-		if !looksLikeSource(path) {
-			return nil
-		}
-		info, err := d.Info()
-		if err != nil || info.Size() == 0 || info.Size() > MaxFileSize {
-			return nil
-		}
-		src, err := os.ReadFile(path)
+		src, err := os.ReadFile(f.path)
 		if err != nil {
-			return nil
+			return hits
 		}
-
-		// Find all symbol hits in this file. A single file might mention
-		// many distinct symbols — emit one SymbolMatch per (file, symbol)
-		// at the first source line where the symbol appears. The line
-		// lookup is one O(n) pass since FindAllSubmatchIndex returns
-		// byte offsets.
+		// Emit one SymbolMatch per (file, symbol) at the first source line
+		// where the symbol appears. The line lookup is one O(n) pass since
+		// FindAllSubmatchIndex returns byte offsets.
 		seenInFile := map[string]bool{}
 		for _, idx := range bodyRE.FindAllSubmatchIndex(src, -1) {
 			if len(idx) < 4 {
@@ -192,16 +208,54 @@ func MatchAffectedSymbols(ctx context.Context, req SymbolMatchRequest) (*SymbolM
 			seenInFile[sym] = true
 			line := byteOffsetToLine(src, idx[0])
 			if cves, ok := routineToCVEs[sym]; ok {
-				addHit(cves, SymbolMatch{File: path, Line: line, Symbol: sym, Kind: "routine"})
+				hits = append(hits, hitPair{cves: cves, hit: SymbolMatch{File: f.path, Line: line, Symbol: sym, Kind: "routine"}})
 			}
 			if cves, ok := moduleToCVEs[sym]; ok {
-				addHit(cves, SymbolMatch{File: path, Line: line, Symbol: sym, Kind: "module"})
+				hits = append(hits, hitPair{cves: cves, hit: SymbolMatch{File: f.path, Line: line, Symbol: sym, Kind: "module"}})
 			}
 		}
-		return nil
-	})
-	if err != nil {
-		return result, err
+		return hits
+	}
+
+	// Phase 2 — match files concurrently, keeping each file's hits in a slot so
+	// Phase 3 can merge them in the exact walk order (byte-identical to serial).
+	perFile := make([][]hitPair, len(files))
+	conc := reachabilityConcurrency()
+	if conc <= 1 || len(files) == 1 {
+		for i, f := range files {
+			if ctx.Err() != nil {
+				return result, ctx.Err()
+			}
+			perFile[i] = matchFile(f)
+		}
+	} else {
+		sem := make(chan struct{}, conc)
+		var wg sync.WaitGroup
+		for i, f := range files {
+			if ctx.Err() != nil {
+				break
+			}
+			wg.Add(1)
+			sem <- struct{}{}
+			go func(i int, f symFile) {
+				defer wg.Done()
+				defer func() { <-sem }()
+				perFile[i] = matchFile(f)
+			}(i, f)
+		}
+		wg.Wait()
+		if ctx.Err() != nil {
+			return result, ctx.Err()
+		}
+	}
+
+	// Phase 3 — merge in walk order.
+	for i := range files {
+		for _, hp := range perFile[i] {
+			for _, c := range hp.cves {
+				result.HitsByCVE[c] = append(result.HitsByCVE[c], hp.hit)
+			}
+		}
 	}
 	return result, nil
 }

@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/vulnetix/cli/v3/internal/treesitter"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
@@ -142,8 +145,16 @@ func scanRoot(
 		return nil, nil
 	}
 	skip := skipDirs()
-	var out []Match
 
+	// Phase 1 — walk the tree once (deterministic order) collecting the files
+	// to analyse. The dir-skip / exclude / language / size filters are applied
+	// here exactly as before; only the per-file read + query execution is
+	// deferred to Phase 2 so it can run concurrently.
+	type fileTask struct {
+		path string
+		lang treesitter.LanguageID
+	}
+	var tasks []fileTask
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, os.ErrPermission) {
@@ -173,48 +184,117 @@ func scanRoot(
 		if lang == "" {
 			return nil
 		}
-		qs, ok := byLang[lang]
-		if !ok {
+		if _, ok := byLang[lang]; !ok {
 			return nil
 		}
 		info, err := d.Info()
 		if err != nil || info.Size() == 0 || info.Size() > MaxFileSize {
 			return nil
 		}
-		src, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		for _, q := range qs {
-			matches, err := engine.Run(ctx, lang, src, q.QueryText)
-			if err != nil {
-				// Bad query for this grammar version; keep scanning.
-				continue
-			}
-			// The query compiled and ran against this file — record it as
-			// genuinely executed regardless of match count, so callers don't
-			// treat "no matching files / unsupported language" as evidence of
-			// non-reachability.
-			if executed != nil {
-				executed[QueryKey(q)] = true
-			}
-			for _, m := range matches {
-				out = append(out, Match{
-					File:      path,
-					StartLine: m.StartLine,
-					EndLine:   m.EndLine,
-					Query:     q.Name,
-					Language:  string(lang),
-					Captures:  m.Captures,
-				})
-			}
-		}
+		tasks = append(tasks, fileTask{path: path, lang: lang})
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+	if len(tasks) == 0 {
+		return nil, nil
+	}
+
+	// Phase 2 — run each file's queries. Results are stored per-task so the
+	// merge in Phase 3 can reassemble them in the exact walk order, making the
+	// output byte-identical to the former serial loop regardless of how many
+	// workers run. The engine is safe for concurrent use (pooled parsers).
+	perFileMatches := make([][]Match, len(tasks))
+	perFileExecuted := make([][]string, len(tasks))
+	conc := reachabilityConcurrency()
+	if conc <= 1 || len(tasks) == 1 {
+		for i, t := range tasks {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			perFileMatches[i], perFileExecuted[i] = runFileQueries(ctx, engine, t.path, t.lang, byLang[t.lang])
+		}
+	} else {
+		sem := make(chan struct{}, conc)
+		var wg sync.WaitGroup
+		for i, t := range tasks {
+			if ctx.Err() != nil {
+				break
+			}
+			wg.Add(1)
+			sem <- struct{}{}
+			go func(i int, t fileTask) {
+				defer wg.Done()
+				defer func() { <-sem }()
+				perFileMatches[i], perFileExecuted[i] = runFileQueries(ctx, engine, t.path, t.lang, byLang[t.lang])
+			}(i, t)
+		}
+		wg.Wait()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+	}
+
+	// Phase 3 — merge in walk order: concatenate matches and union the executed
+	// query-key set (order-independent).
+	var out []Match
+	for i := range tasks {
+		out = append(out, perFileMatches[i]...)
+		if executed != nil {
+			for _, k := range perFileExecuted[i] {
+				executed[k] = true
+			}
+		}
+	}
 	return out, nil
+}
+
+// runFileQueries reads one source file and runs every query for its language,
+// returning the matches (in query- then match-order) and the keys of the
+// queries that actually compiled and ran (so the caller can mark them executed).
+func runFileQueries(ctx context.Context, engine *Engine, path string, lang treesitter.LanguageID, qs []vdb.TreeSitterQuery) ([]Match, []string) {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil
+	}
+	var matches []Match
+	var executed []string
+	for _, q := range qs {
+		ms, err := engine.Run(ctx, lang, src, q.QueryText)
+		if err != nil {
+			// Bad query for this grammar version; keep scanning.
+			continue
+		}
+		// The query compiled and ran against this file — record it as genuinely
+		// executed regardless of match count, so callers don't treat "no
+		// matching files / unsupported language" as evidence of non-reachability.
+		executed = append(executed, QueryKey(q))
+		for _, m := range ms {
+			matches = append(matches, Match{
+				File:      path,
+				StartLine: m.StartLine,
+				EndLine:   m.EndLine,
+				Query:     q.Name,
+				Language:  string(lang),
+				Captures:  m.Captures,
+			})
+		}
+	}
+	return matches, executed
+}
+
+// reachabilityConcurrency is how many source files the tree-sitter scan analyses
+// in parallel. Defaults to GOMAXPROCS; VULNETIX_REACHABILITY_CONCURRENCY
+// overrides it (clamped 1–32; 1 = the legacy strictly-serial walk).
+func reachabilityConcurrency() int {
+	n := runtime.GOMAXPROCS(0)
+	if v := strings.TrimSpace(os.Getenv("VULNETIX_REACHABILITY_CONCURRENCY")); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			n = parsed
+		}
+	}
+	return min(max(n, 1), 32)
 }
 
 func relativiseAll(root string, matches []Match) {
