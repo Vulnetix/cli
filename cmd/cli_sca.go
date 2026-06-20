@@ -34,7 +34,25 @@ import (
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
-const cliSCABatchTimeout = 30 * time.Second
+// cliSCABatchTimeoutDefault must sit ABOVE the ~60s CDN edge timeout: a cold
+// first cli.sca request (RDS cold cache / first-request) can take 30–55s, and a
+// 30s client deadline aborted it mid-flight and forced a wasteful retry — the
+// retry got the identical response, so a longer deadline is parity-preserving and
+// just lets the cold request finish on attempt 1. Warm requests finish in well
+// under this ceiling, so it never slows the common case.
+const cliSCABatchTimeoutDefault = 75 * time.Second
+
+// scaBatchTimeout is the per-request cli.sca deadline. VULNETIX_SCA_TIMEOUT (in
+// seconds) overrides it, clamped to 10s–300s.
+func scaBatchTimeout() time.Duration {
+	if v := strings.TrimSpace(os.Getenv("VULNETIX_SCA_TIMEOUT")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			d := time.Duration(n) * time.Second
+			return min(max(d, 10*time.Second), 300*time.Second)
+		}
+	}
+	return cliSCABatchTimeoutDefault
+}
 
 // Self-healing retry/backoff knobs for the cli.sca sender. Declared as vars
 // (not consts) so tests can shrink them — the production values stay fixed.
@@ -99,7 +117,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		return false, nil, nil, nil, "", "", nil
 	}
 	if client.HTTPClient != nil {
-		client.HTTPClient.Timeout = cliSCABatchTimeout
+		client.HTTPClient.Timeout = scaBatchTimeout()
 	}
 
 	env := buildCliEnv(gitCtx, sysInfo)
@@ -316,7 +334,7 @@ func postCliSCABOM(allPackages []scan.ScopedPackage, manifestGroups []scan.Manif
 		return false, nil, "", "", nil
 	}
 	if client.HTTPClient != nil {
-		client.HTTPClient.Timeout = cliSCABatchTimeout
+		client.HTTPClient.Timeout = scaBatchTimeout()
 	}
 
 	env := buildCliEnv(gitCtx, sysInfo)
@@ -434,7 +452,7 @@ func confirmVulnsViaCliSCA(allPackages []scan.ScopedPackage) ([]scan.EnrichedVul
 		return nil, fmt.Errorf("cli.sca confirmation: no API client (missing credentials)")
 	}
 	if client.HTTPClient != nil {
-		client.HTTPClient.Timeout = cliSCABatchTimeout
+		client.HTTPClient.Timeout = scaBatchTimeout()
 	}
 	env := buildCliEnv(nil, nil)
 
@@ -1087,7 +1105,7 @@ func scaConcurrency() int {
 func sendCliSCAWithRetry(client *vdb.Client, env vdb.CliEnv, req vdb.CliSCARequest, label string, w io.Writer) (*vdb.CliResponse[vdb.CliSCAResponse], error) {
 	var lastErr error
 	for attempt := 1; attempt <= maxBatchAttempts; attempt++ {
-		reqCtx, cancel := context.WithTimeout(context.Background(), cliSCABatchTimeout)
+		reqCtx, cancel := context.WithTimeout(context.Background(), scaBatchTimeout())
 		resp, err := client.CliSCAWithContext(reqCtx, env, req)
 		cancel()
 		if err == nil {
