@@ -61,13 +61,17 @@ type Client struct {
 	HTTPClient      *http.Client
 	LastRateLimit   *RateLimitInfo
 	LastCacheStatus string // "HIT", "MISS", "LOCAL", "REVALIDATED", or "" if no X-Cache header
-	Cache           *cache.DiskCache
-	NoCache         bool
-	RefreshCache    bool
-	FallbackCreds   *auth.Credentials // community creds to use when quota exhausted; nil = disabled
-	UsingFallback   bool              // true after client switched to fallback (readable by cmd layer)
-	token           *TokenCache
-	tokenMutex      sync.RWMutex
+	// metaMu guards LastRateLimit/LastCacheStatus. These are informational
+	// (surfaced by the `vdb` subcommand) and irrelevant to scan/sca, but the
+	// cli.* POST path now fans out concurrently, so the writes must be serialized.
+	metaMu        sync.Mutex
+	Cache         *cache.DiskCache
+	NoCache       bool
+	RefreshCache  bool
+	FallbackCreds *auth.Credentials // community creds to use when quota exhausted; nil = disabled
+	UsingFallback bool              // true after client switched to fallback (readable by cmd layer)
+	token         *TokenCache
+	tokenMutex    sync.RWMutex
 }
 
 // TokenCache stores the JWT token and its expiration

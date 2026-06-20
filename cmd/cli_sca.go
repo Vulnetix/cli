@@ -19,7 +19,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vulnetix/cli/v3/internal/cdx"
@@ -950,39 +953,42 @@ func runSCAJobs(
 	onResult func(job scaJob, resp *vdb.CliResponse[vdb.CliSCAResponse]),
 	w io.Writer,
 ) (unservable []string, anyOK bool, firstErr error) {
-	queue := append([]scaJob(nil), jobs...)
-	for len(queue) > 0 {
-		job := queue[0]
-		queue = queue[1:]
+	var mu sync.Mutex
 
+	// work sends one job and folds the result into the shared accumulators. The
+	// network call (sendCliSCAWithRetry) runs WITHOUT the lock so jobs overlap;
+	// only the merge + counters are mutex-guarded. Returns the split children to
+	// process when a vuln-dense chunk needs shrinking. buildReq reads `snapshot`,
+	// which is written once by the primary in Phase A and only read afterwards.
+	work := func(job scaJob) []scaJob {
 		env, req, skip := buildReq(job)
 		if skip {
-			continue
+			return nil
 		}
-
 		label := scaJobLabel(job)
 		resp, err := sendCliSCAWithRetry(client, env, req, label, w)
+		mu.Lock()
+		defer mu.Unlock()
 		if err == nil {
 			anyOK = true
 			onResult(job, resp)
 			if verbose {
 				fmt.Fprintf(w, "  %s ok\n", label)
 			}
-			continue
+			return nil
 		}
 		if firstErr == nil {
 			firstErr = err
 		}
-
 		switch {
 		case len(job.purls) > minChunkSize:
-			// Chunk-size reduction: halve and retry the pieces before anything else.
 			a, b := splitPurls(job.purls)
-			j1 := scaJob{purls: a, primary: job.primary, manifestSlot: -1}
-			j2 := scaJob{purls: b, primary: false, manifestSlot: -1}
-			queue = append([]scaJob{j1, j2}, queue...)
 			if verbose {
 				fmt.Fprintf(w, "  %s failed (%v); splitting into %d + %d package(s)\n", label, err, len(a), len(b))
+			}
+			return []scaJob{
+				{purls: a, primary: job.primary, manifestSlot: -1},
+				{purls: b, primary: false, manifestSlot: -1},
 			}
 		case len(job.purls) == 1:
 			unservable = append(unservable, job.purls...)
@@ -995,8 +1001,83 @@ func runSCAJobs(
 				fmt.Fprintf(w, "  %s failed (%v); manifest body dropped\n", label, err)
 			}
 		}
+		return nil
 	}
+
+	concurrency := scaConcurrency()
+	if concurrency <= 1 {
+		// Legacy serial drain (regression baseline): primary first (it's job 0),
+		// splits re-queued at the front, exactly as before.
+		queue := append([]scaJob(nil), jobs...)
+		for len(queue) > 0 {
+			job := queue[0]
+			queue = queue[1:]
+			queue = append(work(job), queue...)
+		}
+		sort.Strings(unservable)
+		return unservable, anyOK, firstErr
+	}
+
+	// Phase A — run the primary job(s) serially so the snapshot exists before any
+	// concurrent job tries to anchor to it. A primary chunk that splits keeps its
+	// primary half in Phase A; non-primary halves fall through to Phase B.
+	var rest []scaJob
+	var pq []scaJob
+	for _, j := range jobs {
+		if j.primary {
+			pq = append(pq, j)
+		} else {
+			rest = append(rest, j)
+		}
+	}
+	for len(pq) > 0 {
+		j := pq[0]
+		pq = pq[1:]
+		for _, c := range work(j) {
+			if c.primary {
+				pq = append([]scaJob{c}, pq...)
+			} else {
+				rest = append(rest, c)
+			}
+		}
+	}
+
+	// Phase B — the remaining jobs all anchor to the (now-fixed) snapshot, so run
+	// them through a bounded pool. Split children are processed recursively within
+	// the spawning goroutine (splits are the rare failure path).
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+	var run func(j scaJob)
+	run = func(j scaJob) {
+		for _, c := range work(j) {
+			run(c)
+		}
+	}
+	for _, j := range rest {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(j scaJob) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			run(j)
+		}(j)
+	}
+	wg.Wait()
+	sort.Strings(unservable)
 	return unservable, anyOK, firstErr
+}
+
+// scaConcurrency is how many cli.sca discovery batches the CLI sends in parallel
+// after the primary snapshot is created. Default 6; VULNETIX_SCA_CONCURRENCY
+// overrides (clamped 1–16; 1 = the legacy strictly-serial path).
+func scaConcurrency() int {
+	n := 6
+	if v := strings.TrimSpace(os.Getenv("VULNETIX_SCA_CONCURRENCY")); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			n = parsed
+		}
+	}
+	return min(max(n, 1), 16)
 }
 
 // sendCliSCAWithRetry sends one cli.sca request, retrying transient failures
