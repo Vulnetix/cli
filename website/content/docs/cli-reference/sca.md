@@ -14,6 +14,8 @@ No SAST rules, license analysis, secret detection, container analysis, or IaC an
 
 > **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
 
+For npm projects, lock files remain the preferred source of truth. If a `package.json` has no sibling `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml`, `vulnetix sca` resolves from installed `node_modules/` instead: it verifies every direct dependency is installed, uses the installed versions for `/v2/cli.sca`, and reads package manifests in `node_modules/` to build a best-effort transitive tree. If `node_modules/` is absent or incomplete, the command exits before querying the VDB.
+
 ## Usage
 
 ```bash

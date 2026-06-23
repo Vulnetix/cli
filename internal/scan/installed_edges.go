@@ -54,35 +54,11 @@ func populateNpmInstalledEdges(g *DepGraph, projectDir string) {
 		_ = g.PopulateNpmLockEdges(lockPath)
 		return
 	}
-
-	if g.Edges == nil {
-		g.Edges = make(map[string][]string)
-	}
-
-	entries, err := os.ReadDir(nodeModDir)
+	installed, err := readNpmInstalledPackages(nodeModDir)
 	if err != nil {
 		return
 	}
-
-	for _, entry := range entries {
-		name := entry.Name()
-		if strings.HasPrefix(name, ".") {
-			continue // skip .bin, .cache, .pnpm, etc.
-		}
-		if strings.HasPrefix(name, "@") {
-			// Scoped package: read sub-entries.
-			scopedDir := filepath.Join(nodeModDir, name)
-			scopedEntries, err := os.ReadDir(scopedDir)
-			if err != nil {
-				continue
-			}
-			for _, se := range scopedEntries {
-				readNpmPkgDeps(g, nodeModDir, name+"/"+se.Name())
-			}
-		} else {
-			readNpmPkgDeps(g, nodeModDir, name)
-		}
-	}
+	populateNpmGraphFromInstalled(g, installed)
 
 	// Also walk pnpm virtual store for transitive deps not hoisted to top level.
 	pnpmDir := filepath.Join(nodeModDir, ".pnpm")

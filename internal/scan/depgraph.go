@@ -357,7 +357,9 @@ func BuildNpmDepGraph(pkgJsonPkgs, lockPkgs []ScopedPackage) *DepGraph {
 		AllDeps:    make(map[string]ScopedPackage),
 	}
 	for _, p := range pkgJsonPkgs {
-		g.DirectDeps[p.Name] = p
+		if p.IsDirect {
+			g.DirectDeps[p.Name] = p
+		}
 		g.AllDeps[p.Name] = p
 	}
 	for _, p := range lockPkgs {
