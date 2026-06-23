@@ -502,6 +502,23 @@ deps:
     go mod download
     go mod tidy
 
+# Refresh the in-repo copy of the canonical vdb-cyclonedx module. The CLI is
+# released from a standalone checkout (no sibling on disk), so we carry a synced
+# copy under third_party/ and replace onto it. Run this after changing
+# ../vdb-cyclonedx so the CLI picks up the new parser/validator + schemas.
+sync-vdb-cyclonedx:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    src="../vdb-cyclonedx"
+    dst="third_party/vdb-cyclonedx"
+    if [ ! -d "$src" ]; then echo "ERROR: $src not found (clone it alongside the CLI)"; exit 1; fi
+    rm -rf "$dst"
+    mkdir -p "$dst"
+    cp -a "$src"/. "$dst"/
+    rm -rf "$dst/.git" "$dst/.vulnetix"
+    go mod tidy
+    echo "synced $dst from $src"
+
 # Build and run with test UUID
 run: build
     ./{{output_dir}}/{{binary}} --org-id "123e4567-e89b-12d3-a456-426614174000"

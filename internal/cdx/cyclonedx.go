@@ -1,12 +1,14 @@
 package cdx
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/google/uuid"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/scan"
@@ -161,10 +163,36 @@ type Affect struct {
 }
 
 // Analysis contains vulnerability analysis state (CycloneDX VEX profile).
+//
+// Note the two distinct enums: Justification (impactAnalysisJustification) is
+// only meaningful when State == "not_affected", whereas Response
+// (impactAnalysisResponse: can_not_fix, will_not_fix, update, rollback,
+// workaround_available) describes the remediation taken and is the correct
+// home for values like "update" on a "resolved" finding.
 type Analysis struct {
-	State         string `json:"state,omitempty"`
-	Justification string `json:"justification,omitempty"`
-	Detail        string `json:"detail,omitempty"`
+	State         string   `json:"state,omitempty"`
+	Justification string   `json:"justification,omitempty"`
+	Response      []string `json:"response,omitempty"`
+	Detail        string   `json:"detail,omitempty"`
+}
+
+// AnalysisForStateChange builds a CycloneDX VEX analysis block for an
+// auto-generated finding state transition. status is the Vulnetix finding
+// status (e.g. "fixed", "under_investigation"); detail carries free-text
+// context. Returns nil for statuses that carry no analysis block.
+//
+// A "fixed" finding maps to state=resolved with response=["update"] — "update"
+// is an impactAnalysisResponse value (the remediation taken), NOT a
+// justification. justification (impactAnalysisJustification) is reserved for
+// state=not_affected and would fail CycloneDX schema validation here.
+func AnalysisForStateChange(status, detail string) *Analysis {
+	switch status {
+	case "fixed":
+		return &Analysis{State: "resolved", Response: []string{"update"}, Detail: detail}
+	case "under_investigation":
+		return &Analysis{State: "in_triage", Detail: detail}
+	}
+	return nil
 }
 
 // Advisory is an external advisory reference.
@@ -326,6 +354,29 @@ func BuildFromScanTasks(tasks []*scan.ScanTask, specVersion string, scanCtx *Sca
 	}
 
 	return bom
+}
+
+// MarshalValidatedJSON serializes the BOM to indented JSON and validates the
+// result against the canonical CycloneDX schema (vdb-cyclonedx) for its declared
+// specVersion. It returns an error — without producing output — when the
+// document does not validate, so callers never persist an SBOM that downstream
+// consumers (the website upload page and the backend upload pipeline) would
+// reject. This is the write-time guard that turns a generator regression (e.g.
+// an invalid analysis enum) into an immediate, local failure.
+func (b *BOM) MarshalValidatedJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	if err := b.WriteJSON(&buf); err != nil {
+		return nil, err
+	}
+	version, violations, err := cyclonedx.ValidateCycloneDX(buf.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("validating generated CycloneDX BOM: %w", err)
+	}
+	if len(violations) > 0 {
+		return nil, fmt.Errorf("generated CycloneDX %s BOM failed schema validation (%d issue(s)); first: %s — %s",
+			version, len(violations), violations[0].Path, violations[0].Message)
+	}
+	return buf.Bytes(), nil
 }
 
 // WriteJSON writes the BOM as indented JSON to the writer.

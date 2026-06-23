@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
+	github.com/Vulnetix/vdb-cyclonedx v0.0.0
 	github.com/alecthomas/chroma/v2 v2.26.1
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
@@ -93,3 +94,12 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+// vdb-cyclonedx is the canonical CycloneDX parser/validator shared across the
+// Vulnetix Go services. The CLI is released as a standalone binary built from a
+// CLI-only checkout (Dockerfile / GitHub Action / goreleaser), so the sibling
+// module is not on disk at build time. We carry a synced copy under
+// third_party/ (refresh with: just sync-vdb-cyclonedx) and replace onto it so
+// release builds stay hermetic without full vendoring (which prunes the
+// go-tree-sitter CGO headers).
+replace github.com/Vulnetix/vdb-cyclonedx => ./third_party/vdb-cyclonedx

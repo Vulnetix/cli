@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vulnetix/cli/v3/internal/cdx/schema"
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -91,8 +91,8 @@ type FinalizeResponse struct {
 }
 
 type CycloneDXValidationError struct {
-	SpecVersion string                       `json:"specVersion,omitempty"`
-	Violations  []schema.ValidationViolation `json:"violations"`
+	SpecVersion string                          `json:"specVersion,omitempty"`
+	Violations  []cyclonedx.ValidationViolation `json:"violations"`
 }
 
 func (e *CycloneDXValidationError) Error() string {
@@ -143,7 +143,7 @@ func (c *Client) UploadFileWithProgress(filePath string, formatOverride string, 
 	}
 
 	if format == "cyclonedx" {
-		specVersion, violations, err := schema.ValidateCycloneDX(data)
+		specVersion, violations, err := cyclonedx.ValidateCycloneDX(data)
 		if err != nil {
 			return nil, err
 		}
@@ -204,7 +204,7 @@ func (c *Client) MultipartUploadWithProgress(fileName string, data []byte, conte
 		return nil, fmt.Errorf("failed to close multipart body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", strings.TrimSuffix(c.BaseURL, "/v1") + "/v2/cli.upload", &buf)
+	req, err := http.NewRequest("POST", strings.TrimSuffix(c.BaseURL, "/v1")+"/v2/cli.upload", &buf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create upload request: %w", err)
 	}
@@ -282,8 +282,8 @@ func (c *Client) InitiateSession(fileName string, fileSize int, contentType stri
 
 func uploadHTTPError(status int, body []byte) error {
 	var payload struct {
-		Error      string                       `json:"error"`
-		Violations []schema.ValidationViolation `json:"violations"`
+		Error      string                          `json:"error"`
+		Violations []cyclonedx.ValidationViolation `json:"violations"`
 	}
 	if err := json.Unmarshal(body, &payload); err == nil {
 		if len(payload.Violations) > 0 {
