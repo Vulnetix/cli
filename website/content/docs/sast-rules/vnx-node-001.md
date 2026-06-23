@@ -31,6 +31,12 @@ my-service/
   # FLAGGED: no package-lock.json, yarn.lock, or pnpm-lock.yaml present
 ```
 
+## Scanner Behavior Without a Lock File
+
+The SAST rule still reports this as a high-severity supply-chain issue. For SCA, Vulnetix can continue only when the project already has an installed `node_modules/` tree. In that case, the CLI reads installed package manifests to resolve actual package versions, verifies that every direct dependency declared in `package.json` is present, and treats installed packages that are not declared directly as transitives when it can connect them through dependency fields.
+
+If `node_modules/` is missing or a declared direct dependency is absent, the CLI stops before calling `/v2/cli.sca`. This avoids reporting vulnerability results against version ranges such as `^1.2.3`, which are not real installed versions.
+
 ## Remediation
 
 1. **Generate a lock file immediately.** Run the package manager you already use:
