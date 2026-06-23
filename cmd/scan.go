@@ -865,6 +865,13 @@ func runLocalScan(
 				fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
 				continue
 			}
+			if f.ManifestInfo.Type == "package.json" && len(pkgs) > 0 && !scan.NpmLockfilePresent(f.Path) {
+				resolved, err := scan.ResolveNpmPackageJSONFromNodeModules(f.Path, f.RelPath, pkgs)
+				if err != nil {
+					return err
+				}
+				pkgs = resolved
+			}
 
 			// Replace absolute path with relative path in each package.
 			for i := range pkgs {
@@ -1547,19 +1554,7 @@ func runLocalScan(
 					Name: "vulnetix-sca",
 				},
 			}
-			switch sc.NewStatus {
-			case "fixed":
-				vexVuln.Analysis = &cdx.Analysis{
-					State:         "resolved",
-					Justification: "update",
-					Detail:        sc.Comment,
-				}
-			case "under_investigation":
-				vexVuln.Analysis = &cdx.Analysis{
-					State:  "in_triage",
-					Detail: sc.Comment,
-				}
-			}
+			vexVuln.Analysis = cdx.AnalysisForStateChange(sc.NewStatus, sc.Comment)
 			vexVuln.Properties = append(vexVuln.Properties, cdx.Property{
 				Name:  "vulnetix:vex-auto",
 				Value: "true",
@@ -2019,6 +2014,7 @@ func runLocalScan(
 	// instead of losing them.
 	if outCfg.stdoutFmt == "json-cyclonedx" {
 		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
+		outBOM.NormalizeForSchema()
 		if err := outBOM.WriteJSON(os.Stdout); err != nil {
 			return err
 		}
@@ -4061,17 +4057,24 @@ func buildScanRecord(
 	return rec
 }
 
-// writeBOMToFile writes a CycloneDX BOM as JSON to the given path, creating directories as needed.
+// writeBOMToFile writes a CycloneDX BOM as JSON to the given path, creating
+// directories as needed. The BOM is validated against the canonical CycloneDX
+// schema before anything is written: an invalid document fails fast and the
+// file on disk is left untouched, so we never persist an SBOM the upload
+// pipeline would later reject.
 func writeBOMToFile(bom *cdx.BOM, path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	f, err := os.Create(path)
+	// Heal known legacy enum classes (e.g. severity "unscored", a stale
+	// justification carried forward from an older on-disk SBOM during merge)
+	// before validating, so a rescan never fails on values it did not author.
+	bom.NormalizeForSchema()
+	data, err := bom.MarshalValidatedJSON()
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return bom.WriteJSON(f)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
 }
 
 // writeRawLocalJSON writes scan findings as a raw JSON document to stdout.

@@ -1,19 +1,17 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
 # Install git (needed for go mod)
 RUN apk add --no-cache git
 
-# Copy go mod files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy source code
+# Copy the full source first. The go.mod replace points at the in-repo
+# third_party/vdb-cyclonedx copy, which must be present before dependency
+# resolution — so it cannot be split into a go.mod-only cache layer.
 COPY . .
+
+RUN go mod download
 
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build \

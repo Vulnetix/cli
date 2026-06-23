@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/cdx/schema"
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 )
 
 // DiscoveredFile is an artifact file ready for upload.
@@ -67,7 +67,7 @@ func DiscoverVulnetixFiles(dir string) ([]DiscoveredFile, []string, error) {
 
 			// Validate CycloneDX locally; warn and skip on failure.
 			if format == "cyclonedx" {
-				if _, err := schema.ValidateCDX(data); err != nil {
+				if err := cyclonedx.ValidateCDX(data); err != nil {
 					warnings = append(warnings, fmt.Sprintf("skip %s: CDX schema validation failed: %v", path, err))
 					continue
 				}

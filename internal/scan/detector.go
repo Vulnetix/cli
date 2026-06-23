@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/cdx/schema"
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 )
 
 // FileType represents the detected type of a file
@@ -402,8 +402,8 @@ func DetectSBOM(filePath string) (FileType, string, bool) {
 			if readErr != nil {
 				return FileTypeCycloneDX, specVersion, false
 			}
-			validatedVersion, valErr := schema.ValidateCDX(fullData)
-			if valErr != nil {
+			validatedVersion, violations, valErr := cyclonedx.ValidateCycloneDX(fullData)
+			if valErr != nil || len(violations) > 0 || validatedVersion == "" {
 				return FileTypeCycloneDX, specVersion, false
 			}
 			return FileTypeCycloneDX, validatedVersion, true
