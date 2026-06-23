@@ -152,13 +152,12 @@
       "Bash(source:*)",
       "Bash(env:*)",
       "Bash(export:*)",
-      "Bash(mv /tmp/cat.json internal/sast/secretsgen/catalog.json)",
-      "Bash(GOPROXY=https://proxy.golang.org,direct go run ./internal/sast/secretsgen .)"
+      "Read(/tmp/**)",
+      "Read(//home/chris/GitHub/Vulnetix/**)"
     ],
     "deny": [
       "Bash(git rm:*)",
       "Bash(git reset:*)",
-      "Bash(git add .)",
       "Bash(git rebase:*)",
       "Bash(dd:*)",
       "Bash(chmod:*)",
