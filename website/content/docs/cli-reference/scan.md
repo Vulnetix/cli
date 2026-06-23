@@ -127,6 +127,8 @@ The scanner recognizes these package manager manifest and lock files:
 | `yarn.lock` | npm | Yes |
 | `pnpm-lock.yaml` | npm | Yes |
 
+When `package.json` is present without `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml`, SCA resolves from the installed `node_modules/` tree. The scan fails before the VDB lookup if `node_modules/` is missing or if any direct dependency declared in `package.json` is not installed. When the install tree is present, Vulnetix reads each installed package's `package.json`, uses the actual installed versions in the `/v2/cli.sca` request, and adds installed undeclared packages as transitive dependencies where it can connect them through package manifest dependency fields.
+
 ### Python
 
 | Filename | Ecosystem | Lock file? |
@@ -583,6 +585,8 @@ After parsing manifests, the scanner also reads locally installed package direct
 | Go | `go mod graph` subprocess |
 
 If the install directory is not present, the scanner falls back to lock-file edge parsing where available.
+
+For npm projects without a lock file, the installed `node_modules/` tree is not just an edge source: it is the authoritative source for resolved package versions. Orphaned installed packages are tolerated as best-effort transitives, but missing direct dependencies stop the scan early because the CLI cannot safely infer what version should be reported.
 
 ## Examples
 
