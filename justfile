@@ -125,6 +125,10 @@ gen-secrets:
     go run ./internal/sast/secretsgen .
     just fmt
 
+# Regenerate AIBOM detection docs from the catalog (single source of truth)
+gen-aibom:
+    go run ./internal/aibom/aibomgen
+
 # Run tests (updates statusline cache)
 test:
     #!/usr/bin/env bash

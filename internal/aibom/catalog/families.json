@@ -1,0 +1,344 @@
+{
+  "model_families": [
+    {
+      "prefix_regex": "^claude-",
+      "provider": "Anthropic",
+      "family": "Claude"
+    },
+    {
+      "prefix_regex": "^(?:gpt-|o[134]\\b|o[134]-|chatgpt-|text-embedding-|text-davinci|dall-e|whisper-|tts-|gpt-image)",
+      "provider": "OpenAI",
+      "family": "GPT"
+    },
+    {
+      "prefix_regex": "^gemini-",
+      "provider": "Google",
+      "family": "Gemini"
+    },
+    {
+      "prefix_regex": "^(?:text-bison|chat-bison|textembedding-gecko)",
+      "provider": "Google",
+      "family": "PaLM"
+    },
+    {
+      "prefix_regex": "^(?:anthropic\\.claude|us\\.anthropic\\.claude|eu\\.anthropic\\.claude)",
+      "provider": "AWS Bedrock",
+      "family": "Claude (Bedrock)"
+    },
+    {
+      "prefix_regex": "^(?:amazon\\.titan|amazon\\.nova)",
+      "provider": "AWS Bedrock",
+      "family": "Amazon Titan/Nova"
+    },
+    {
+      "prefix_regex": "^(?:meta\\.llama|us\\.meta\\.llama)",
+      "provider": "AWS Bedrock",
+      "family": "Llama (Bedrock)"
+    },
+    {
+      "prefix_regex": "^(?:cohere\\.|mistral\\.|ai21\\.)",
+      "provider": "AWS Bedrock",
+      "family": "Bedrock-hosted"
+    },
+    {
+      "prefix_regex": "^(?:llama-?\\d|codellama|meta-llama/)",
+      "provider": "Meta",
+      "family": "Llama"
+    },
+    {
+      "prefix_regex": "^(?:mistral-|mixtral-|ministral-|codestral-|magistral-|devstral-|open-mi)",
+      "provider": "Mistral AI",
+      "family": "Mistral"
+    },
+    {
+      "prefix_regex": "^command",
+      "provider": "Cohere",
+      "family": "Command"
+    },
+    {
+      "prefix_regex": "^(?:deepseek-|deepseek/)",
+      "provider": "DeepSeek",
+      "family": "DeepSeek"
+    },
+    {
+      "prefix_regex": "^(?:qwen|Qwen/)",
+      "provider": "Alibaba",
+      "family": "Qwen"
+    },
+    {
+      "prefix_regex": "^grok-",
+      "provider": "xAI",
+      "family": "Grok"
+    },
+    {
+      "prefix_regex": "^(?:gemma-|gemma:)",
+      "provider": "Google",
+      "family": "Gemma"
+    },
+    {
+      "prefix_regex": "^(?:phi-|phi:)",
+      "provider": "Microsoft",
+      "family": "Phi"
+    },
+    {
+      "prefix_regex": "^(?:us|eu|apac|jp|au|us-gov|global)\\.anthropic\\.claude",
+      "provider": "AWS Bedrock",
+      "family": "Claude (Bedrock)"
+    },
+    {
+      "prefix_regex": "^(?:us|eu|apac|jp|au|us-gov|global)\\.amazon\\.nova",
+      "provider": "AWS Bedrock",
+      "family": "Amazon Nova (Bedrock)"
+    },
+    {
+      "prefix_regex": "^(?:us|eu|apac|jp|au|us-gov|global)\\.meta\\.llama",
+      "provider": "AWS Bedrock",
+      "family": "Llama (Bedrock)"
+    },
+    {
+      "prefix_regex": "^(?:us|eu|apac|jp|au|us-gov|global)\\.(?:mistral|cohere|ai21|deepseek|qwen|stability|writer|amazon)\\.",
+      "provider": "AWS Bedrock",
+      "family": "Bedrock-hosted (cross-region)"
+    },
+    {
+      "prefix_regex": "^(?:deepseek\\.|qwen\\.|stability\\.|writer\\.palmyra|luma\\.|twelvelabs\\.)",
+      "provider": "AWS Bedrock",
+      "family": "Bedrock-hosted"
+    },
+    {
+      "prefix_regex": "^(?:gpt-35-turbo|gpt-4o-realtime|gpt-4o-transcribe|gpt-4o-mini-tts|gpt-oss-)",
+      "provider": "OpenAI",
+      "family": "GPT"
+    },
+    {
+      "prefix_regex": "^openai/gpt-oss-",
+      "provider": "OpenAI",
+      "family": "GPT-OSS"
+    },
+    {
+      "prefix_regex": "^imagen-",
+      "provider": "Google",
+      "family": "Imagen"
+    },
+    {
+      "prefix_regex": "^(?:text-multilingual-embedding-|gemini-embedding-)",
+      "provider": "Google",
+      "family": "Vertex Embeddings"
+    },
+    {
+      "prefix_regex": "^(?:google/gemma|google/codegemma|google/paligemma|codegemma-|paligemma-)",
+      "provider": "Google",
+      "family": "Gemma"
+    },
+    {
+      "prefix_regex": "^(?:veo-|chirp)",
+      "provider": "Google",
+      "family": "Veo/Chirp"
+    },
+    {
+      "prefix_regex": "^(?:voyage-|rerank-2)",
+      "provider": "Voyage AI",
+      "family": "Voyage"
+    },
+    {
+      "prefix_regex": "^(?:embed-english|embed-multilingual|embed-v4|rerank-english|rerank-multilingual|rerank-v3)",
+      "provider": "Cohere",
+      "family": "Embed/Rerank"
+    },
+    {
+      "prefix_regex": "^(?:jina-embeddings-|jina-clip-|jina-reranker-|jina-colbert-)",
+      "provider": "Jina AI",
+      "family": "Jina"
+    },
+    {
+      "prefix_regex": "^(?:nomic-embed-|mxbai-embed-|mxbai-rerank-)",
+      "provider": "Open Embeddings",
+      "family": "Embeddings"
+    },
+    {
+      "prefix_regex": "^(?:bge-|BAAI/bge-)",
+      "provider": "BAAI",
+      "family": "BGE Embeddings"
+    },
+    {
+      "prefix_regex": "^(?:gte-|thenlper/gte-|Alibaba-NLP/gte-)",
+      "provider": "Alibaba",
+      "family": "GTE Embeddings"
+    },
+    {
+      "prefix_regex": "^(?:multilingual-e5-|intfloat/(?:multilingual-)?e5-)",
+      "provider": "Microsoft",
+      "family": "E5 Embeddings"
+    },
+    {
+      "prefix_regex": "^sentence-transformers/",
+      "provider": "Sentence Transformers",
+      "family": "Embeddings"
+    },
+    {
+      "prefix_regex": "^(?:flux|black-forest-labs/FLUX)",
+      "provider": "Black Forest Labs",
+      "family": "FLUX"
+    },
+    {
+      "prefix_regex": "^(?:stable-diffusion|sd3|sdxl|stabilityai/stable-diffusion)",
+      "provider": "Stability AI",
+      "family": "Stable Diffusion"
+    },
+    {
+      "prefix_regex": "^ideogram-",
+      "provider": "Ideogram",
+      "family": "Ideogram"
+    },
+    {
+      "prefix_regex": "^recraft",
+      "provider": "Recraft",
+      "family": "Recraft"
+    },
+    {
+      "prefix_regex": "^playground-v",
+      "provider": "Playground AI",
+      "family": "Playground"
+    },
+    {
+      "prefix_regex": "^eleven_",
+      "provider": "ElevenLabs",
+      "family": "ElevenLabs"
+    },
+    {
+      "prefix_regex": "^scribe_",
+      "provider": "ElevenLabs",
+      "family": "Scribe"
+    },
+    {
+      "prefix_regex": "^(?:nova-2|nova-3)",
+      "provider": "Deepgram",
+      "family": "Nova (STT)"
+    },
+    {
+      "prefix_regex": "^(?:PlayDialog|Play3\\.0)",
+      "provider": "PlayHT",
+      "family": "PlayHT"
+    },
+    {
+      "prefix_regex": "^(?:musicgen|facebook/musicgen)",
+      "provider": "Meta",
+      "family": "MusicGen"
+    },
+    {
+      "prefix_regex": "^(?:sonar|llama-3\\.[0-9]+-sonar-)",
+      "provider": "Perplexity",
+      "family": "Sonar"
+    },
+    {
+      "prefix_regex": "^(?:codellama-|CodeLlama-|codellama/CodeLlama-|meta-llama/CodeLlama-)",
+      "provider": "Meta",
+      "family": "Code Llama"
+    },
+    {
+      "prefix_regex": "^(?:pixtral-|open-mistral-|open-mixtral-|mistralai/)",
+      "provider": "Mistral AI",
+      "family": "Mistral"
+    },
+    {
+      "prefix_regex": "^(?:starcoder|bigcode/starcoder)",
+      "provider": "BigCode",
+      "family": "StarCoder"
+    },
+    {
+      "prefix_regex": "^(?:codegen|Salesforce/codegen)",
+      "provider": "Salesforce",
+      "family": "CodeGen"
+    },
+    {
+      "prefix_regex": "^(?:glm-[0-9]|chatglm[0-9]?|THUDM/[Gg]lm|THUDM/[Gg]LM|zai-org/GLM)",
+      "provider": "Zhipu AI",
+      "family": "GLM"
+    },
+    {
+      "prefix_regex": "^(?:moonshot-v1-|kimi-k[0-9]|moonshotai/Kimi)",
+      "provider": "Moonshot AI",
+      "family": "Kimi"
+    },
+    {
+      "prefix_regex": "^(?:baichuan[0-9-]|Baichuan[0-9-]|baichuan-inc/Baichuan)",
+      "provider": "Baichuan",
+      "family": "Baichuan"
+    },
+    {
+      "prefix_regex": "^(?:abab[0-9]|MiniMax-|MiniMaxAI/MiniMax)",
+      "provider": "MiniMax",
+      "family": "MiniMax"
+    },
+    {
+      "prefix_regex": "^(?:yi-(?:large|medium|small|spark|lightning|vision|coder|34b|9b|6b)|01-ai/Yi)",
+      "provider": "01.AI",
+      "family": "Yi"
+    },
+    {
+      "prefix_regex": "^(?:internlm[0-9]|internlm/internlm)",
+      "provider": "Shanghai AI Lab",
+      "family": "InternLM"
+    },
+    {
+      "prefix_regex": "^step-[12]",
+      "provider": "StepFun",
+      "family": "Step"
+    },
+    {
+      "prefix_regex": "^(?:granite-[0-9]|ibm-granite/granite)",
+      "provider": "IBM",
+      "family": "Granite"
+    },
+    {
+      "prefix_regex": "^(?:dbrx-|databricks/dbrx|databricks-dbrx)",
+      "provider": "Databricks",
+      "family": "DBRX"
+    },
+    {
+      "prefix_regex": "^(?:snowflake-arctic|snowflake/snowflake-arctic)",
+      "provider": "Snowflake",
+      "family": "Arctic"
+    },
+    {
+      "prefix_regex": "^(?:jamba-|ai21labs/Jamba)",
+      "provider": "AI21 Labs",
+      "family": "Jamba"
+    },
+    {
+      "prefix_regex": "^reka-",
+      "provider": "Reka AI",
+      "family": "Reka"
+    },
+    {
+      "prefix_regex": "^palmyra-",
+      "provider": "Writer",
+      "family": "Palmyra"
+    },
+    {
+      "prefix_regex": "^luminous-",
+      "provider": "Aleph Alpha",
+      "family": "Luminous"
+    },
+    {
+      "prefix_regex": "^(?:falcon-|tiiuae/falcon)",
+      "provider": "TII",
+      "family": "Falcon"
+    },
+    {
+      "prefix_regex": "^(?:stablelm|stabilityai/stablelm)",
+      "provider": "Stability AI",
+      "family": "StableLM"
+    },
+    {
+      "prefix_regex": "^(?:OLMo-|allenai/OLMo|allenai/[Tt]ulu)",
+      "provider": "Allen AI",
+      "family": "OLMo/Tulu"
+    },
+    {
+      "prefix_regex": "^(?:[Nn]emotron|nvidia/(?:Nemotron|NV-Embed|Llama))",
+      "provider": "NVIDIA",
+      "family": "Nemotron"
+    }
+  ]
+}

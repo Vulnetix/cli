@@ -393,6 +393,31 @@ vulnetix license [flags]
 
 ---
 
+### vulnetix aibom
+
+Discover AI coding agents/assistants and AI usage, and emit a CycloneDX AI Bill of Materials. See the full [AIBOM Command Reference](aibom/) and the [AIBOM](../aibom/) overview.
+
+```bash
+vulnetix aibom [path] [flags]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `.` | Directory to scan (positional `[path]` overrides) |
+| `--depth` | `25` | Max recursion depth |
+| `-o, --output` | `cyclonedx-json` | Output format: `cyclonedx-json`, `json`, `table` |
+| `--output-file` | - | Write output to a file instead of stdout |
+| `--spec-version` | `1.7` | CycloneDX spec version: `1.6` or `1.7` |
+| `--catalog` | - | Catalog file to merge over (or replace) the builtin catalog |
+| `--no-builtin-catalog` | `false` | Use only `--catalog`, not the embedded catalog |
+| `--no-env` | `false` | Skip the environment-variable detection pass |
+| `--include-home` | `false` | Also probe the home directory for tool config dirs |
+| `--no-source` | `false` | Skip the source-code SDK / model detection pass |
+
+> Detection is catalog-driven (42+ tools, AI SDKs, model-name extraction). The environment pass records variable **names** only — never their values.
+
+---
+
 ### vulnetix scan
 
 Walk the local directory tree, parse package manifests, and query the VDB for vulnerabilities — no files are uploaded. See the full [Scan Command Reference](scan/) for details.
