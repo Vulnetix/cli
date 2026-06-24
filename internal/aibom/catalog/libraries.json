@@ -1,0 +1,2243 @@
+{
+  "libraries": [
+    {
+      "id": "openai-python",
+      "name": "openai",
+      "provider": "OpenAI",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "openai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+openai\\b",
+        "\\b(?:OpenAI|AzureOpenAI|AsyncOpenAI)\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "deployment",
+          "pattern": "\\b(?:deployment_name|engine|azure_deployment)\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "anthropic-python",
+      "name": "anthropic",
+      "provider": "Anthropic",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "anthropic"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+anthropic\\b",
+        "\\b(?:Anthropic|AsyncAnthropic|AnthropicBedrock|AnthropicVertex)\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "boto3-bedrock",
+      "name": "boto3 (AWS Bedrock)",
+      "provider": "AWS Bedrock",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "boto3"
+      },
+      "import_patterns": [
+        "[\"']bedrock(?:-runtime)?[\"']",
+        "\\bbedrock[_-]?runtime\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "modelId",
+          "pattern": "\\bmodelId\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "azure-openai-python",
+      "name": "azure openai",
+      "provider": "Azure OpenAI",
+      "languages": [
+        "python"
+      ],
+      "import_patterns": [
+        "\\bAzureOpenAI\\s*\\(",
+        "azure\\.ai\\.(?:inference|openai)"
+      ],
+      "model_extractors": [
+        {
+          "param": "deployment",
+          "pattern": "\\b(?:deployment_name|azure_deployment|model)\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "google-generativeai-python",
+      "name": "google-generativeai",
+      "provider": "Google",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "google-generativeai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+google\\.generativeai\\b",
+        "from\\s+google\\s+import\\s+genai",
+        "\\bgenai\\.(?:GenerativeModel|Client)\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bGenerativeModel\\(\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "vertexai-python",
+      "name": "vertexai",
+      "provider": "Google Vertex AI",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "google-cloud-aiplatform"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+vertexai\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bGenerativeModel\\(\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bfrom_pretrained\\(\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "litellm-python",
+      "name": "litellm",
+      "provider": "LiteLLM",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "litellm"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+litellm\\b",
+        "\\blitellm\\.(?:completion|acompletion|embedding)\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-python",
+      "name": "langchain",
+      "provider": "LangChain",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langchain"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+langchain",
+        "from\\s+langchain_\\w+",
+        "\\bChat(?:OpenAI|Anthropic|GoogleGenerativeAI|Bedrock|Ollama|Mistral)\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model_name",
+          "pattern": "\\bmodel_name\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "llama-index-python",
+      "name": "llama-index",
+      "provider": "LlamaIndex",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "llama-index"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+llama_index\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "ollama-python",
+      "name": "ollama",
+      "provider": "Ollama",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "ollama"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+ollama\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "transformers-python",
+      "name": "transformers",
+      "provider": "Hugging Face",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "transformers"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+transformers\\b",
+        "\\bAuto(?:Model|Tokenizer|ModelForCausalLM)\\b",
+        "\\bpipeline\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "pretrained",
+          "pattern": "\\bfrom_pretrained\\(\\s*[\"']([^\"']+)[\"']",
+          "task": "model-load"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "model-load"
+        }
+      ]
+    },
+    {
+      "id": "huggingface-hub-python",
+      "name": "huggingface_hub",
+      "provider": "Hugging Face",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "huggingface-hub"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+huggingface_hub\\b",
+        "\\bInferenceClient\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "cohere-python",
+      "name": "cohere",
+      "provider": "Cohere",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "cohere"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+cohere\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "mistralai-python",
+      "name": "mistralai",
+      "provider": "Mistral AI",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "mistralai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+mistralai\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "groq-python",
+      "name": "groq",
+      "provider": "Groq",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "groq"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+groq\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "replicate-python",
+      "name": "replicate",
+      "provider": "Replicate",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "replicate"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+replicate\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "ref",
+          "pattern": "\\breplicate\\.run\\(\\s*[\"']([^\"']+)[\"']",
+          "task": "inference"
+        }
+      ]
+    },
+    {
+      "id": "dspy-python",
+      "name": "dspy",
+      "provider": "DSPy",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "dspy-ai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+dspy\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\b(?:model|model_name)\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "autogen-python",
+      "name": "autogen",
+      "provider": "Microsoft AutoGen",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "pyautogen"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+autogen\\b",
+        "autogen_(?:agentchat|core|ext)"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "crewai-python",
+      "name": "crewai",
+      "provider": "CrewAI",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "crewai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+crewai\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "openai-node",
+      "name": "openai",
+      "provider": "OpenAI",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "openai"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']openai[\"']",
+        "\\bnew\\s+(?:OpenAI|AzureOpenAI)\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "anthropic-node",
+      "name": "@anthropic-ai/sdk",
+      "provider": "Anthropic",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@anthropic-ai/sdk"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@anthropic-ai/sdk[\"']",
+        "\\bnew\\s+Anthropic\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "vercel-ai-sdk",
+      "name": "ai (Vercel AI SDK)",
+      "provider": "Vercel",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "ai"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']ai[\"']",
+        "(?:from|require\\()\\s*[\"']@ai-sdk/"
+      ],
+      "model_extractors": [
+        {
+          "param": "provider-model",
+          "pattern": "\\b(?:openai|anthropic|google|mistral|groq|xai|deepseek)\\(\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-js",
+      "name": "@langchain",
+      "provider": "LangChain",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "langchain"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@langchain/",
+        "(?:from|require\\()\\s*[\"']langchain"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\b(?:model|modelName)\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "google-genai-js",
+      "name": "@google/generative-ai",
+      "provider": "Google",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@google/generative-ai"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@google/gen(?:erative-)?ai[\"']"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "ollama-js",
+      "name": "ollama",
+      "provider": "Ollama",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "ollama"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']ollama[\"']"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "go-openai",
+      "name": "go-openai",
+      "provider": "OpenAI",
+      "languages": [
+        "go"
+      ],
+      "purl_names": {
+        "golang": "github.com/sashabaranov/go-openai"
+      },
+      "import_patterns": [
+        "[\"']github\\.com/sashabaranov/go-openai[\"']"
+      ],
+      "model_extractors": [
+        {
+          "param": "Model",
+          "pattern": "\\bModel\\s*:\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "anthropic-sdk-go",
+      "name": "anthropic-sdk-go",
+      "provider": "Anthropic",
+      "languages": [
+        "go"
+      ],
+      "purl_names": {
+        "golang": "github.com/anthropics/anthropic-sdk-go"
+      },
+      "import_patterns": [
+        "[\"']github\\.com/anthropics/anthropic-sdk-go"
+      ],
+      "model_extractors": [
+        {
+          "param": "Model",
+          "pattern": "\\bModel\\s*:\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "aws-bedrock-go",
+      "name": "aws-sdk-go-v2 bedrockruntime",
+      "provider": "AWS Bedrock",
+      "languages": [
+        "go"
+      ],
+      "purl_names": {
+        "golang": "github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
+      },
+      "import_patterns": [
+        "aws-sdk-go-v2/service/bedrockruntime"
+      ],
+      "model_extractors": [
+        {
+          "param": "ModelId",
+          "pattern": "ModelId\\s*:\\s*aws\\.String\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain4j",
+      "name": "langchain4j",
+      "provider": "LangChain4j",
+      "languages": [
+        "java"
+      ],
+      "purl_names": {
+        "maven": "dev.langchain4j:langchain4j"
+      },
+      "import_patterns": [
+        "import\\s+dev\\.langchain4j"
+      ],
+      "model_extractors": [
+        {
+          "param": "modelName",
+          "pattern": "\\.modelName\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "openai-java",
+      "name": "openai-java",
+      "provider": "OpenAI",
+      "languages": [
+        "java"
+      ],
+      "purl_names": {
+        "maven": "com.openai:openai-java"
+      },
+      "import_patterns": [
+        "import\\s+com\\.openai\\."
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\.model\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "ruby-openai",
+      "name": "ruby-openai",
+      "provider": "OpenAI",
+      "languages": [
+        "ruby"
+      ],
+      "purl_names": {
+        "gem": "ruby-openai"
+      },
+      "import_patterns": [
+        "require\\s+[\"']openai[\"']",
+        "\\bOpenAI::Client\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "openai-dotnet",
+      "name": "OpenAI / Azure.AI.OpenAI",
+      "provider": "OpenAI",
+      "languages": [
+        "csharp"
+      ],
+      "purl_names": {
+        "nuget": "OpenAI"
+      },
+      "import_patterns": [
+        "using\\s+OpenAI",
+        "using\\s+Azure\\.AI\\.OpenAI"
+      ],
+      "model_extractors": [
+        {
+          "param": "deployment",
+          "pattern": "\\bDeploymentName\\s*=\\s*\"([^\"]+)\"",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bChatClient\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "async-openai-rust",
+      "name": "async-openai",
+      "provider": "OpenAI",
+      "languages": [
+        "rust"
+      ],
+      "purl_names": {
+        "cargo": "async-openai"
+      },
+      "import_patterns": [
+        "\\buse\\s+async_openai",
+        "async_openai::"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\.model\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "openai-php",
+      "name": "openai-php",
+      "provider": "OpenAI",
+      "languages": [
+        "php"
+      ],
+      "purl_names": {
+        "composer": "openai-php/client"
+      },
+      "import_patterns": [
+        "use\\s+OpenAI\\b",
+        "OpenAI::client\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "[\"']model[\"']\\s*=>\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "openai-agents-python",
+      "name": "openai-agents",
+      "provider": "OpenAI",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "openai-agents"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+agents\\b",
+        "\\bRunner\\.run(?:_sync)?\\s*\\(",
+        "\\bAgent\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "pydantic-ai-python",
+      "name": "pydantic-ai",
+      "provider": "Pydantic AI",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "pydantic-ai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+pydantic_ai\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bAgent\\(\\s*[\"']([a-z0-9-]+:[^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "smolagents-python",
+      "name": "smolagents",
+      "provider": "Hugging Face",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "smolagents"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+smolagents\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model_id",
+          "pattern": "\\bmodel_id\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langgraph-python",
+      "name": "langgraph",
+      "provider": "LangChain",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langgraph"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+langgraph\\b",
+        "\\bcreate_react_agent\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "haystack-ai-python",
+      "name": "haystack-ai",
+      "provider": "deepset Haystack",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "haystack-ai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+haystack\\b",
+        "\\bhaystack\\.components\\."
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "guidance-python",
+      "name": "guidance",
+      "provider": "Guidance",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "guidance"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+guidance\\b",
+        "\\bguidance\\.models\\."
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodels\\.(?:OpenAI|Anthropic|Transformers|LlamaCpp|Azure(?:OpenAI)?|Google(?:AI)?|VertexAI)\\(\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "outlines-python",
+      "name": "outlines",
+      "provider": "Outlines",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "outlines"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+outlines\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bfrom_(?:openai|anthropic|gemini|transformers|vllm|ollama|mlxlm)\\([^)]*?,\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bmodels\\.transformers\\(\\s*[\"']([^\"']+)[\"']",
+          "task": "model-load"
+        }
+      ]
+    },
+    {
+      "id": "instructor-python",
+      "name": "instructor",
+      "provider": "Instructor",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "instructor"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+instructor\\b",
+        "\\binstructor\\.(?:from_|patch\\()"
+      ],
+      "model_extractors": [
+        {
+          "param": "provider-model",
+          "pattern": "\\bfrom_provider\\(\\s*[\"']([^\"'/]+/[^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "marvin-python",
+      "name": "marvin",
+      "provider": "Marvin",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "marvin"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+marvin\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "mirascope-python",
+      "name": "mirascope",
+      "provider": "Mirascope",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "mirascope"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+mirascope\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "magentic-python",
+      "name": "magentic",
+      "provider": "Magentic",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "magentic"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+magentic\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\b(?:Openai|Anthropic|LiteLLM)ChatModel\\(\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "google-genai-python",
+      "name": "google-genai",
+      "provider": "Google",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "google-genai"
+      },
+      "import_patterns": [
+        "from\\s+google\\s+import\\s+genai",
+        "(?m)^\\s*(?:from|import)\\s+google\\.genai\\b",
+        "\\bgenai\\.Client\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-openai-python",
+      "name": "langchain-openai",
+      "provider": "LangChain",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langchain-openai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*from\\s+langchain_openai\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\b(?:model|model_name)\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-anthropic-python",
+      "name": "langchain-anthropic",
+      "provider": "LangChain",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langchain-anthropic"
+      },
+      "import_patterns": [
+        "(?m)^\\s*from\\s+langchain_anthropic\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\b(?:model|model_name)\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-google-genai-python",
+      "name": "langchain-google-genai",
+      "provider": "LangChain",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langchain-google-genai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*from\\s+langchain_google_genai\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-aws-python",
+      "name": "langchain-aws",
+      "provider": "AWS Bedrock",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langchain-aws"
+      },
+      "import_patterns": [
+        "(?m)^\\s*from\\s+langchain_aws\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model_id",
+          "pattern": "\\bmodel_id\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-mistralai-python",
+      "name": "langchain-mistralai",
+      "provider": "LangChain",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langchain-mistralai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*from\\s+langchain_mistralai\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\b(?:model|model_name)\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-groq-python",
+      "name": "langchain-groq",
+      "provider": "Groq",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langchain-groq"
+      },
+      "import_patterns": [
+        "(?m)^\\s*from\\s+langchain_groq\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\b(?:model|model_name)\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-cohere-python",
+      "name": "langchain-cohere",
+      "provider": "Cohere",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langchain-cohere"
+      },
+      "import_patterns": [
+        "(?m)^\\s*from\\s+langchain_cohere\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchain-ollama-python",
+      "name": "langchain-ollama",
+      "provider": "Ollama",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "langchain-ollama"
+      },
+      "import_patterns": [
+        "(?m)^\\s*from\\s+langchain_ollama\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "vllm-python",
+      "name": "vllm",
+      "provider": "vLLM",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "vllm"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+vllm\\b",
+        "\\bvllm\\.(?:LLM|AsyncLLMEngine)\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "inference"
+        }
+      ]
+    },
+    {
+      "id": "sglang-python",
+      "name": "sglang",
+      "provider": "SGLang",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "sglang"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+sglang\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model_path",
+          "pattern": "\\bmodel_path\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "inference"
+        }
+      ]
+    },
+    {
+      "id": "llama-cpp-python",
+      "name": "llama-cpp-python",
+      "provider": "llama.cpp",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "llama-cpp-python"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+llama_cpp\\b",
+        "\\bLlama\\.from_pretrained\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "repo_id",
+          "pattern": "\\brepo_id\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "model-load"
+        }
+      ]
+    },
+    {
+      "id": "together-python",
+      "name": "together",
+      "provider": "Together AI",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "together"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+together\\b",
+        "\\bTogether\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "fireworks-ai-python",
+      "name": "fireworks-ai",
+      "provider": "Fireworks AI",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "fireworks-ai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+fireworks\\b",
+        "\\bfireworks\\.client\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "ai21-python",
+      "name": "ai21",
+      "provider": "AI21 Labs",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "ai21"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+ai21\\b",
+        "\\bAI21Client\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "sentence-transformers-python",
+      "name": "sentence-transformers",
+      "provider": "Sentence Transformers",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "sentence-transformers"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+sentence_transformers\\b",
+        "\\bSentenceTransformer\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bSentenceTransformer\\(\\s*[\"']([^\"']+)[\"']",
+          "task": "embedding"
+        }
+      ]
+    },
+    {
+      "id": "semantic-kernel-python",
+      "name": "semantic-kernel",
+      "provider": "Microsoft Semantic Kernel",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "semantic-kernel"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+semantic_kernel\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model_id",
+          "pattern": "\\b(?:ai_model_id|chat_model_id|gemini_model_id|model_id|deployment_name)\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "agno-python",
+      "name": "agno",
+      "provider": "Agno",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "agno"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+agno\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "id",
+          "pattern": "\\b(?:OpenAIChat|Claude|Gemini|Groq|Ollama|Mistral|DeepSeek|Cohere|AzureOpenAI|Together|Fireworks)\\(\\s*id\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "griptape-python",
+      "name": "griptape",
+      "provider": "Griptape",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "griptape"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+griptape\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "azure-ai-inference-python",
+      "name": "azure-ai-inference",
+      "provider": "Azure AI Inference",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "azure-ai-inference"
+      },
+      "import_patterns": [
+        "(?m)^\\s*from\\s+azure\\.ai\\.inference\\b",
+        "\\bChatCompletionsClient\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "ibm-watsonx-ai-python",
+      "name": "ibm-watsonx-ai",
+      "provider": "IBM watsonx.ai",
+      "languages": [
+        "python"
+      ],
+      "purl_names": {
+        "pypi": "ibm-watsonx-ai"
+      },
+      "import_patterns": [
+        "(?m)^\\s*(?:from|import)\\s+ibm_watsonx_ai\\b",
+        "\\bModelInference\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model_id",
+          "pattern": "\\bmodel_id\\s*=\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "mistralai-node",
+      "name": "@mistralai/mistralai",
+      "provider": "Mistral AI",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@mistralai/mistralai"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@mistralai/mistralai[\"']",
+        "\\bnew\\s+Mistral\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "cohere-node",
+      "name": "cohere-ai",
+      "provider": "Cohere",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "cohere-ai"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']cohere-ai[\"']",
+        "\\bnew\\s+CohereClient(?:V2)?\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "huggingface-inference-node",
+      "name": "@huggingface/inference",
+      "provider": "Hugging Face",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@huggingface/inference"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@huggingface/inference[\"']",
+        "\\bnew\\s+(?:InferenceClient|HfInference)\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "groq-node",
+      "name": "groq-sdk",
+      "provider": "Groq",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "groq-sdk"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']groq-sdk[\"']",
+        "\\bnew\\s+Groq\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "together-node",
+      "name": "together-ai",
+      "provider": "Together AI",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "together-ai"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']together-ai[\"']",
+        "\\bnew\\s+Together\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "replicate-node",
+      "name": "replicate",
+      "provider": "Replicate",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "replicate"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']replicate[\"']",
+        "\\bnew\\s+Replicate\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "ref",
+          "pattern": "\\.run\\(\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "inference"
+        }
+      ]
+    },
+    {
+      "id": "google-genai-node",
+      "name": "@google/genai",
+      "provider": "Google",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@google/genai"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@google/genai[\"']",
+        "\\bnew\\s+GoogleGenAI\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "google-vertexai-node",
+      "name": "@google-cloud/vertexai",
+      "provider": "Google Vertex AI",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@google-cloud/vertexai"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@google-cloud/vertexai[\"']",
+        "\\bnew\\s+VertexAI\\s*\\(",
+        "\\bgetGenerativeModel\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "aws-bedrock-runtime-node",
+      "name": "@aws-sdk/client-bedrock-runtime",
+      "provider": "AWS Bedrock",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@aws-sdk/client-bedrock-runtime"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@aws-sdk/client-bedrock-runtime[\"']",
+        "\\bnew\\s+BedrockRuntime(?:Client)?\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "modelId",
+          "pattern": "\\bmodelId\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "cerebras-node",
+      "name": "@cerebras/cerebras_cloud_sdk",
+      "provider": "Cerebras",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@cerebras/cerebras_cloud_sdk"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@cerebras/cerebras_cloud_sdk[\"']",
+        "\\bnew\\s+Cerebras\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "voyageai-node",
+      "name": "voyageai",
+      "provider": "Voyage AI",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "voyageai"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']voyageai[\"']",
+        "\\bnew\\s+VoyageAIClient\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "embedding"
+        }
+      ]
+    },
+    {
+      "id": "fal-client-node",
+      "name": "@fal-ai/client",
+      "provider": "fal.ai",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@fal-ai/client"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@fal-ai/(?:client|serverless-client)[\"']",
+        "\\bfal\\.(?:subscribe|run)\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "ref",
+          "pattern": "\\bfal\\.(?:subscribe|run)\\(\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "inference"
+        }
+      ]
+    },
+    {
+      "id": "openrouter-ai-sdk",
+      "name": "@openrouter/ai-sdk-provider",
+      "provider": "OpenRouter",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@openrouter/ai-sdk-provider"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@openrouter/ai-sdk-provider[\"']",
+        "\\bcreateOpenRouter\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bopenrouter(?:\\.(?:chat|completion))?\\(\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "llamaindex-ts",
+      "name": "llamaindex",
+      "provider": "LlamaIndex",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "llamaindex"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']llamaindex[\"']",
+        "(?:from|require\\()\\s*[\"']@llamaindex/"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "mastra-node",
+      "name": "@mastra/core",
+      "provider": "Mastra",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "@mastra/core"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']@mastra/core",
+        "\\bnew\\s+Agent\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"'`]([^\"'`/]+/[^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "genkit-node",
+      "name": "genkit",
+      "provider": "Google Genkit",
+      "languages": [
+        "javascript"
+      ],
+      "purl_names": {
+        "npm": "genkit"
+      },
+      "import_patterns": [
+        "(?:from|require\\()\\s*[\"']genkit[\"']",
+        "(?:from|require\\()\\s*[\"']@genkit-ai/"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\.model\\(\\s*[\"'`]([^\"'`]+)[\"'`]",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "openai-go-official",
+      "name": "openai-go (official)",
+      "provider": "OpenAI",
+      "languages": [
+        "go"
+      ],
+      "purl_names": {
+        "golang": "github.com/openai/openai-go"
+      },
+      "import_patterns": [
+        "[\"']github\\.com/openai/openai-go(?:/v\\d+)?"
+      ],
+      "model_extractors": [
+        {
+          "param": "Model",
+          "pattern": "\\bModel\\s*:\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "google-genai-go",
+      "name": "google.golang.org/genai",
+      "provider": "Google",
+      "languages": [
+        "go"
+      ],
+      "purl_names": {
+        "golang": "google.golang.org/genai"
+      },
+      "import_patterns": [
+        "[\"']google\\.golang\\.org/genai[\"']",
+        "[\"']github\\.com/google/generative-ai-go/genai[\"']"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "GenerateContent\\([^,]+,\\s*\"([^\"]+)\"",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "GenerativeModel\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchaingo",
+      "name": "langchaingo",
+      "provider": "LangChain",
+      "languages": [
+        "go"
+      ],
+      "purl_names": {
+        "golang": "github.com/tmc/langchaingo"
+      },
+      "import_patterns": [
+        "[\"']github\\.com/tmc/langchaingo"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "WithModel\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "ollama-go",
+      "name": "ollama (Go client)",
+      "provider": "Ollama",
+      "languages": [
+        "go"
+      ],
+      "purl_names": {
+        "golang": "github.com/ollama/ollama/api"
+      },
+      "import_patterns": [
+        "[\"']github\\.com/ollama/ollama/api[\"']"
+      ],
+      "model_extractors": [
+        {
+          "param": "Model",
+          "pattern": "\\bModel\\s*:\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "spring-ai",
+      "name": "Spring AI",
+      "provider": "Spring AI",
+      "languages": [
+        "java"
+      ],
+      "purl_names": {
+        "maven": "org.springframework.ai:spring-ai-openai"
+      },
+      "import_patterns": [
+        "import\\s+org\\.springframework\\.ai\\."
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\.model\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "anthropic-java",
+      "name": "anthropic-java (official)",
+      "provider": "Anthropic",
+      "languages": [
+        "java"
+      ],
+      "purl_names": {
+        "maven": "com.anthropic:anthropic-java"
+      },
+      "import_patterns": [
+        "import\\s+com\\.anthropic\\."
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\.model\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "google-genai-java",
+      "name": "google-genai (Java)",
+      "provider": "Google",
+      "languages": [
+        "java"
+      ],
+      "purl_names": {
+        "maven": "com.google.genai:google-genai"
+      },
+      "import_patterns": [
+        "import\\s+com\\.google\\.genai\\."
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "generateContent\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "semantic-kernel-dotnet",
+      "name": "Microsoft.SemanticKernel",
+      "provider": "Microsoft Semantic Kernel",
+      "languages": [
+        "csharp"
+      ],
+      "purl_names": {
+        "nuget": "Microsoft.SemanticKernel"
+      },
+      "import_patterns": [
+        "using\\s+Microsoft\\.SemanticKernel"
+      ],
+      "model_extractors": [
+        {
+          "param": "modelId",
+          "pattern": "\\bmodelId\\s*:\\s*\"([^\"]+)\"",
+          "task": "chat"
+        },
+        {
+          "param": "deploymentName",
+          "pattern": "\\bdeploymentName\\s*:\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "anthropic-dotnet",
+      "name": "Anthropic.SDK / Anthropic",
+      "provider": "Anthropic",
+      "languages": [
+        "csharp"
+      ],
+      "purl_names": {
+        "nuget": "Anthropic.SDK"
+      },
+      "import_patterns": [
+        "using\\s+Anthropic\\.SDK",
+        "using\\s+Anthropic\\b"
+      ]
+    },
+    {
+      "id": "rig-rust",
+      "name": "rig",
+      "provider": "rig",
+      "languages": [
+        "rust"
+      ],
+      "purl_names": {
+        "cargo": "rig-core"
+      },
+      "import_patterns": [
+        "\\buse\\s+rig::",
+        "\\brig::providers::"
+      ]
+    },
+    {
+      "id": "ollama-rs",
+      "name": "ollama-rs",
+      "provider": "Ollama",
+      "languages": [
+        "rust"
+      ],
+      "purl_names": {
+        "cargo": "ollama-rs"
+      },
+      "import_patterns": [
+        "\\buse\\s+ollama_rs",
+        "ollama_rs::"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "(?:GenerationRequest|ChatMessageRequest)::new\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "anthropic-rust",
+      "name": "anthropic (Rust)",
+      "provider": "Anthropic",
+      "languages": [
+        "rust"
+      ],
+      "purl_names": {
+        "cargo": "anthropic"
+      },
+      "import_patterns": [
+        "\\buse\\s+anthropic(?:::|\\s*;)"
+      ]
+    },
+    {
+      "id": "anthropic-ruby",
+      "name": "anthropic (official Ruby SDK)",
+      "provider": "Anthropic",
+      "languages": [
+        "ruby"
+      ],
+      "purl_names": {
+        "gem": "anthropic"
+      },
+      "import_patterns": [
+        "require\\s+[\"']anthropic[\"']",
+        "\\bAnthropic::Client\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "langchainrb",
+      "name": "langchainrb",
+      "provider": "LangChain",
+      "languages": [
+        "ruby"
+      ],
+      "purl_names": {
+        "gem": "langchainrb"
+      },
+      "import_patterns": [
+        "require\\s+[\"']langchain[\"']",
+        "\\bLangchain::LLM::"
+      ],
+      "model_extractors": [
+        {
+          "param": "chat_model",
+          "pattern": "\\bchat_model\\s*:\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "ruby-llm",
+      "name": "ruby_llm",
+      "provider": "RubyLLM",
+      "languages": [
+        "ruby"
+      ],
+      "purl_names": {
+        "gem": "ruby_llm"
+      },
+      "import_patterns": [
+        "require\\s+[\"']ruby_llm[\"']",
+        "\\bRubyLLM\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s+[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "anthropic-php",
+      "name": "anthropic-php (official SDK)",
+      "provider": "Anthropic",
+      "languages": [
+        "php"
+      ],
+      "purl_names": {
+        "composer": "anthropic-ai/sdk"
+      },
+      "import_patterns": [
+        "use\\s+Anthropic\\b",
+        "Anthropic\\\\Client"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        },
+        {
+          "param": "model",
+          "pattern": "[\"']model[\"']\\s*=>\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "gemini-php",
+      "name": "google-gemini-php",
+      "provider": "Google",
+      "languages": [
+        "php"
+      ],
+      "purl_names": {
+        "composer": "google-gemini-php/client"
+      },
+      "import_patterns": [
+        "use\\s+Gemini\\b",
+        "Gemini::client\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "generativeModel\\(\\s*model:\\s*[\"']([^\"']+)[\"']",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "openai-kotlin",
+      "name": "openai-kotlin",
+      "provider": "OpenAI",
+      "languages": [
+        "kotlin"
+      ],
+      "purl_names": {
+        "maven": "com.aallam.openai:openai-client"
+      },
+      "import_patterns": [
+        "import\\s+com\\.aallam\\.openai"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bModelId\\(\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    },
+    {
+      "id": "openai-swift-macpaw",
+      "name": "OpenAI (MacPaw)",
+      "provider": "OpenAI",
+      "languages": [
+        "swift"
+      ],
+      "purl_names": {},
+      "import_patterns": [
+        "\\bimport\\s+OpenAI\\b",
+        "\\bChatQuery\\s*\\("
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "\\bmodel\\s*:\\s*\"([^\"]+)\"",
+          "task": "chat"
+        }
+      ]
+    }
+  ]
+}

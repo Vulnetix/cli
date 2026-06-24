@@ -839,6 +839,26 @@ func (c *Client) CliSAST(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIF
 func (c *Client) CliSecrets(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
 	return cliPostWithEnv[CliSARIFResponse](c, "cli.secrets", env, req)
 }
+
+// CliAIBOMRequest is the payload for POST /v2/cli.ai-bom: the validated
+// CycloneDX AIBOM (BomJSON, stored verbatim for lossless reconstruction) plus
+// the structured detections that the server decomposes into relational rows.
+type CliAIBOMRequest struct {
+	SpecVersion    string          `json:"specVersion,omitempty"`
+	CatalogVersion string          `json:"catalogVersion,omitempty"`
+	BomJSON        string          `json:"bomJson,omitempty"`
+	Detections     json.RawMessage `json:"detections,omitempty"`
+}
+
+// CliAIBOMResponse is returned by /v2/cli.ai-bom; Aibom carries the user-facing
+// AI Inventory link (nil for community/unauthenticated callers — no persistence).
+type CliAIBOMResponse struct {
+	Aibom *CliIngestionSnapshot `json:"aibom,omitempty"`
+}
+
+func (c *Client) CliAIBOM(env CliEnv, req CliAIBOMRequest) (*CliResponse[CliAIBOMResponse], error) {
+	return cliPostWithEnv[CliAIBOMResponse](c, "cli.ai-bom", env, req)
+}
 func (c *Client) CliIAC(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
 	return cliPostWithEnv[CliSARIFResponse](c, "cli.iac", env, req)
 }

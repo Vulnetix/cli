@@ -1,0 +1,2545 @@
+{
+  "version": "2026.06.3",
+  "tools": [
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "vendor": "Anthropic",
+      "type": "cli-agent",
+      "homepage": "https://www.anthropic.com/claude-code",
+      "env": [
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+        "CLAUDE_CODE_*",
+        "CLAUDECODE",
+        "CLAUDE_PLUGIN_ROOT"
+      ],
+      "paths": {
+        "config": [
+          ".claude/settings.json",
+          ".claude/settings.local.json",
+          ".mcp.json"
+        ],
+        "instructions": [
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/CLAUDE.md"
+        ],
+        "agents": [
+          ".claude/agents/**"
+        ],
+        "commands": [
+          ".claude/commands/**"
+        ],
+        "skills": [
+          ".claude/skills/**",
+          "skills-lock.json"
+        ],
+        "hooks": [
+          ".claude/hooks/**"
+        ],
+        "plugins": [
+          ".claude/plugins/**"
+        ],
+        "marketplace": [
+          ".claude-plugin/marketplace.json",
+          "**/.claude-plugin/plugin.json"
+        ],
+        "memory": [
+          ".claude/**/memory/**",
+          ".vulnetix/memory.yaml"
+        ],
+        "ignore": [
+          ".claudeignore"
+        ]
+      },
+      "model_config_extractors": [
+        {
+          "file_glob": ".claude/settings.json",
+          "json_key": "model"
+        }
+      ],
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*claude\\b",
+        "(?i)^\\s*claude-session:\\s*https://claude\\.ai",
+        "(?i)generated with \\[?claude code",
+        "(?i)<noreply@anthropic\\.com>"
+      ]
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "vendor": "Anysphere",
+      "type": "ide",
+      "homepage": "https://cursor.com",
+      "env": [
+        "CURSOR_*"
+      ],
+      "paths": {
+        "config": [
+          ".cursor/**",
+          ".cursor/mcp.json"
+        ],
+        "instructions": [
+          ".cursorrules",
+          ".cursor/rules/**",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".cursor/skills/**"
+        ],
+        "ignore": [
+          ".cursorignore",
+          ".cursorindexingignore"
+        ],
+        "commands": [
+          ".cursor/commands/**"
+        ],
+        "hooks": [
+          ".cursor/hooks.json"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*cursor(?:\\s+agent)?\\b",
+        "(?i)<cursoragent@cursor\\.com>"
+      ]
+    },
+    {
+      "id": "github-copilot",
+      "name": "GitHub Copilot",
+      "vendor": "GitHub",
+      "type": "ide-extension",
+      "homepage": "https://github.com/features/copilot",
+      "env": [
+        "GITHUB_COPILOT_*",
+        "COPILOT_*"
+      ],
+      "paths": {
+        "config": [
+          ".copilot/**",
+          ".vscode/mcp.json"
+        ],
+        "instructions": [
+          ".github/copilot-instructions.md",
+          ".github/instructions/**",
+          "AGENTS.md"
+        ],
+        "prompts": [
+          ".github/prompts/**"
+        ],
+        "skills": [
+          ".copilot/skills/**"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*copilot\\s*<copilot@github\\.com>",
+        "(?i)<copilot@github\\.com>",
+        "copilot-swe-agent\\[bot\\]",
+        "(?i)<\\d+\\+copilot@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "openai-codex",
+      "name": "OpenAI Codex",
+      "vendor": "OpenAI",
+      "type": "cli-agent",
+      "homepage": "https://openai.com/codex",
+      "env": [
+        "OPENAI_API_KEY",
+        "CODEX_*"
+      ],
+      "paths": {
+        "config": [
+          ".codex/**",
+          ".codex/config.toml"
+        ],
+        "instructions": [
+          "AGENTS.md",
+          ".codex/AGENTS.md"
+        ],
+        "skills": [
+          ".codex/skills/**"
+        ]
+      },
+      "model_config_extractors": [
+        {
+          "file_glob": ".codex/config.toml",
+          "pattern": "(?m)^\\s*model\\s*=\\s*[\"']([^\"'\\s#]+)"
+        }
+      ],
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*codex\\s*<(?:noreply|codex)@openai\\.com>",
+        "(?i)<(?:noreply|codex)@openai\\.com>",
+        "chatgpt-codex-connector\\[bot\\]"
+      ]
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Gemini CLI",
+      "vendor": "Google",
+      "type": "cli-agent",
+      "homepage": "https://github.com/google-gemini/gemini-cli",
+      "env": [
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "GOOGLE_GENAI_USE_VERTEXAI"
+      ],
+      "paths": {
+        "config": [
+          ".gemini/**",
+          ".gemini/settings.json"
+        ],
+        "instructions": [
+          "GEMINI.md",
+          ".gemini/GEMINI.md",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".gemini/skills/**"
+        ]
+      },
+      "model_config_extractors": [
+        {
+          "file_glob": ".gemini/settings.json",
+          "json_key": "model"
+        }
+      ]
+    },
+    {
+      "id": "amazon-q",
+      "name": "Amazon Q Developer",
+      "vendor": "Amazon",
+      "type": "ide-extension",
+      "homepage": "https://aws.amazon.com/q/developer/",
+      "env": [
+        "AMAZON_Q_*"
+      ],
+      "paths": {
+        "config": [
+          ".amazonq/**"
+        ],
+        "instructions": [
+          ".amazonq/rules/**",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".amazonq/skills/**"
+        ]
+      },
+      "commit_patterns": [
+        "amazon-q-developer\\[bot\\]"
+      ]
+    },
+    {
+      "id": "windsurf",
+      "name": "Windsurf",
+      "vendor": "Codeium",
+      "type": "ide",
+      "homepage": "https://windsurf.com",
+      "paths": {
+        "config": [
+          ".windsurf/**"
+        ],
+        "instructions": [
+          ".windsurfrules",
+          ".windsurf/rules/**",
+          "AGENTS.md"
+        ],
+        "hooks": [
+          ".windsurf/hooks.json"
+        ],
+        "skills": [
+          ".windsurf/skills/**"
+        ],
+        "commands": [
+          ".windsurf/workflows/**"
+        ],
+        "ignore": [
+          ".codeiumignore"
+        ]
+      }
+    },
+    {
+      "id": "cline",
+      "name": "Cline",
+      "vendor": "Cline",
+      "type": "ide-extension",
+      "homepage": "https://cline.bot",
+      "paths": {
+        "config": [
+          ".cline/**"
+        ],
+        "instructions": [
+          ".clinerules",
+          ".clinerules/**",
+          "AGENTS.md"
+        ],
+        "hooks": [
+          ".clinerules/hooks/**"
+        ],
+        "skills": [
+          ".cline/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "roo-code",
+      "name": "Roo Code",
+      "vendor": "Roo",
+      "type": "ide-extension",
+      "homepage": "https://roocode.com",
+      "paths": {
+        "config": [
+          ".roo/**",
+          ".roomodes"
+        ],
+        "instructions": [
+          ".roorules",
+          ".roo/rules/**",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".roo/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "kilo-code",
+      "name": "Kilo Code",
+      "vendor": "Kilo",
+      "type": "ide-extension",
+      "homepage": "https://kilocode.ai",
+      "paths": {
+        "config": [
+          ".kilocode/**",
+          ".kilocodemodes"
+        ],
+        "instructions": [
+          ".kilocode/rules/**",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".kilocode/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "kiro",
+      "name": "Kiro",
+      "vendor": "Amazon",
+      "type": "ide",
+      "homepage": "https://kiro.dev",
+      "paths": {
+        "config": [
+          ".kiro/**"
+        ],
+        "steering": [
+          ".kiro/steering/**"
+        ],
+        "instructions": [
+          ".kiro/specs/**",
+          "AGENTS.md"
+        ],
+        "hooks": [
+          ".kiro/hooks/**"
+        ],
+        "skills": [
+          ".kiro/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "aider",
+      "name": "Aider",
+      "vendor": "Aider",
+      "type": "cli-agent",
+      "homepage": "https://aider.chat",
+      "env": [
+        "AIDER_*",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY"
+      ],
+      "paths": {
+        "config": [
+          ".aider/**",
+          ".aider.conf.yml"
+        ],
+        "memory": [
+          ".aider.chat.history.md",
+          ".aider.input.history"
+        ],
+        "ignore": [
+          ".aiderignore"
+        ],
+        "skills": [
+          ".aider/skills/**"
+        ]
+      },
+      "model_config_extractors": [
+        {
+          "file_glob": ".aider.conf.yml",
+          "pattern": "(?m)^\\s*(?:model|weak-model|editor-model)\\s*:\\s*[\"']?([^\"'\\s#]+)"
+        }
+      ],
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*aider\\s*\\([^)]*\\)\\s*<aider@aider\\.chat>",
+        "(?i)<aider@aider\\.chat>"
+      ]
+    },
+    {
+      "id": "continue",
+      "name": "Continue",
+      "vendor": "Continue",
+      "type": "ide-extension",
+      "homepage": "https://continue.dev",
+      "env": [
+        "CONTINUE_*"
+      ],
+      "paths": {
+        "config": [
+          ".continue/**",
+          ".continue/config.json",
+          ".continue/config.yaml",
+          ".continuerc.json"
+        ],
+        "instructions": [
+          ".continue/rules/**",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".continue/skills/**"
+        ],
+        "ignore": [
+          ".continueignore"
+        ]
+      },
+      "model_config_extractors": [
+        {
+          "file_glob": ".continue/config.json",
+          "pattern": "\"model\"\\s*:\\s*\"([^\"]+)\""
+        },
+        {
+          "file_glob": ".continue/config.yaml",
+          "pattern": "(?m)^\\s*model\\s*:\\s*[\"']?([^\"'\\s#]+)"
+        }
+      ]
+    },
+    {
+      "id": "sourcegraph-cody",
+      "name": "Sourcegraph Cody",
+      "vendor": "Sourcegraph",
+      "type": "ide-extension",
+      "homepage": "https://sourcegraph.com/cody",
+      "env": [
+        "SRC_ACCESS_TOKEN"
+      ],
+      "paths": {
+        "config": [
+          ".cody/**",
+          ".sourcegraph/**",
+          "cody.json"
+        ],
+        "instructions": [
+          ".sourcegraph/**/*.rule.md",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".cody/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "zed",
+      "name": "Zed",
+      "vendor": "Zed Industries",
+      "type": "ide",
+      "homepage": "https://zed.dev",
+      "paths": {
+        "config": [
+          ".zed/**",
+          ".zed/settings.json"
+        ],
+        "instructions": [
+          ".rules",
+          "AGENT.md",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".zed/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "tabnine",
+      "name": "Tabnine",
+      "vendor": "Tabnine",
+      "type": "ide-extension",
+      "homepage": "https://www.tabnine.com",
+      "paths": {
+        "config": [
+          ".tabnine/**",
+          ".tabnine_root"
+        ],
+        "skills": [
+          ".tabnine/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "goose",
+      "name": "Goose",
+      "vendor": "Block",
+      "type": "cli-agent",
+      "homepage": "https://block.github.io/goose/",
+      "paths": {
+        "config": [
+          ".goose/**"
+        ],
+        "instructions": [
+          ".goosehints",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".goose/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "augment",
+      "name": "Augment",
+      "vendor": "Augment Code",
+      "type": "ide-extension",
+      "homepage": "https://www.augmentcode.com",
+      "paths": {
+        "config": [
+          ".augment/**"
+        ],
+        "instructions": [
+          ".augment-guidelines",
+          ".augment/rules/**",
+          "AGENTS.md"
+        ],
+        "ignore": [
+          ".augmentignore"
+        ],
+        "skills": [
+          ".augment/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "junie",
+      "name": "Junie",
+      "vendor": "JetBrains",
+      "type": "ide-extension",
+      "homepage": "https://www.jetbrains.com/junie/",
+      "paths": {
+        "config": [
+          ".junie/**"
+        ],
+        "instructions": [
+          ".junie/guidelines.md",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".junie/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "openhands",
+      "name": "OpenHands",
+      "vendor": "All Hands AI",
+      "type": "cli-agent",
+      "homepage": "https://www.all-hands.dev",
+      "paths": {
+        "config": [
+          ".openhands/**"
+        ],
+        "instructions": [
+          ".openhands/microagents/**",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".openhands/skills/**"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)<openhands@all-hands\\.dev>",
+        "openhands-ai\\[bot\\]"
+      ]
+    },
+    {
+      "id": "qwen-code",
+      "name": "Qwen Code",
+      "vendor": "Alibaba",
+      "type": "cli-agent",
+      "homepage": "https://github.com/QwenLM/qwen-code",
+      "env": [
+        "DASHSCOPE_API_KEY"
+      ],
+      "paths": {
+        "config": [
+          ".qwen/**"
+        ],
+        "instructions": [
+          "QWEN.md",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".qwen/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "iflow",
+      "name": "iFlow CLI",
+      "vendor": "iFlow",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".iflow/**"
+        ],
+        "instructions": [
+          "IFLOW.md",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".iflow/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "crush",
+      "name": "Crush",
+      "vendor": "Charm",
+      "type": "cli-agent",
+      "homepage": "https://github.com/charmbracelet/crush",
+      "paths": {
+        "config": [
+          ".crush/**",
+          "crush.json",
+          ".crush.json"
+        ],
+        "instructions": [
+          "CRUSH.md",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".crush/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "codebuddy",
+      "name": "CodeBuddy",
+      "vendor": "Tencent",
+      "type": "ide-extension",
+      "paths": {
+        "config": [
+          ".codebuddy/**"
+        ],
+        "skills": [
+          ".codebuddy/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "cortex-code",
+      "name": "Cortex Code",
+      "vendor": "Cortex",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".cortex/**"
+        ],
+        "skills": [
+          ".cortex/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "qoder",
+      "name": "Qoder",
+      "vendor": "Alibaba",
+      "type": "ide",
+      "paths": {
+        "config": [
+          ".qoder/**"
+        ],
+        "skills": [
+          ".qoder/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md",
+          ".qoder/rules/**"
+        ],
+        "memory": [
+          ".qoder/repowiki/**"
+        ],
+        "ignore": [
+          ".qoderignore"
+        ]
+      },
+      "homepage": "https://qoder.com"
+    },
+    {
+      "id": "trae",
+      "name": "Trae",
+      "vendor": "ByteDance",
+      "type": "ide",
+      "homepage": "https://www.trae.ai",
+      "paths": {
+        "config": [
+          ".trae/**"
+        ],
+        "instructions": [
+          ".trae/rules/**",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".trae/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "trae-cn",
+      "name": "Trae CN",
+      "vendor": "ByteDance",
+      "type": "ide",
+      "paths": {
+        "config": [
+          ".trae/**"
+        ],
+        "instructions": [
+          ".trae/rules/**",
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".trae/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "droid",
+      "name": "Droid",
+      "vendor": "Factory",
+      "type": "cli-agent",
+      "homepage": "https://factory.ai",
+      "paths": {
+        "config": [
+          ".factory/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".factory/skills/**"
+        ]
+      },
+      "commit_patterns": [
+        "factory-droid\\[bot\\]",
+        "(?i)<\\d+\\+factory-droid\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "zencoder",
+      "name": "Zencoder",
+      "vendor": "Zencoder",
+      "type": "ide-extension",
+      "paths": {
+        "config": [
+          ".zencoder/**"
+        ],
+        "skills": [
+          ".zencoder/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "mistral-vibe",
+      "name": "Mistral Vibe",
+      "vendor": "Mistral AI",
+      "type": "cli-agent",
+      "env": [
+        "MISTRAL_API_KEY"
+      ],
+      "paths": {
+        "config": [
+          ".vibe/**"
+        ],
+        "skills": [
+          ".vibe/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "mux",
+      "name": "Mux",
+      "vendor": "Mux",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".mux/**"
+        ],
+        "skills": [
+          ".mux/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "mcpjam",
+      "name": "MCPJam",
+      "vendor": "MCPJam",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".mcpjam/**"
+        ],
+        "skills": [
+          ".mcpjam/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "kode",
+      "name": "Kode",
+      "vendor": "Kode",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".kode/**"
+        ],
+        "skills": [
+          ".kode/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "ibm-bob",
+      "name": "IBM Bob",
+      "vendor": "IBM",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".bob/**"
+        ],
+        "skills": [
+          ".bob/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "command-code",
+      "name": "Command Code",
+      "vendor": "Command",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".commandcode/**"
+        ],
+        "skills": [
+          ".commandcode/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "adal",
+      "name": "AdaL",
+      "vendor": "AdaL",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".adal/**"
+        ],
+        "skills": [
+          ".adal/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "pochi",
+      "name": "Pochi",
+      "vendor": "Pochi",
+      "type": "ide-extension",
+      "paths": {
+        "config": [
+          ".pochi/**"
+        ],
+        "skills": [
+          ".pochi/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "pi",
+      "name": "Pi",
+      "vendor": "Pi",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".pi/**"
+        ],
+        "plugins": [
+          ".pi/extensions/**"
+        ],
+        "skills": [
+          ".pi/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "neovate",
+      "name": "Neovate",
+      "vendor": "Neovate",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".neovate/**"
+        ],
+        "plugins": [
+          ".neovate/plugins/**"
+        ],
+        "skills": [
+          ".neovate/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "openclaw",
+      "name": "OpenClaw",
+      "vendor": "OpenClaw",
+      "type": "cli-agent",
+      "paths": {
+        "config": [
+          ".openclaw/**"
+        ],
+        "skills": [
+          ".openclaw/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "opencode",
+      "name": "opencode",
+      "vendor": "SST",
+      "type": "cli-agent",
+      "homepage": "https://opencode.ai",
+      "env": [
+        "OPENCODE_*"
+      ],
+      "paths": {
+        "config": [
+          ".opencode/**",
+          "opencode.json",
+          "opencode.jsonc",
+          ".opencode.json"
+        ],
+        "instructions": [
+          "AGENTS.md",
+          ".opencode/AGENTS.md"
+        ],
+        "agents": [
+          ".opencode/agent/**"
+        ],
+        "commands": [
+          ".opencode/command/**"
+        ],
+        "skills": [
+          ".opencode/skills/**"
+        ]
+      },
+      "model_config_extractors": [
+        {
+          "file_glob": "opencode.json",
+          "pattern": "\"model\"\\s*:\\s*\"([^\"]+)\""
+        }
+      ]
+    },
+    {
+      "id": "agents-md",
+      "name": "AGENTS.md instructions",
+      "vendor": "agents.md (community)",
+      "type": "convention",
+      "homepage": "https://agents.md",
+      "paths": {
+        "instructions": [
+          "**/AGENTS.md",
+          "**/AGENT.md",
+          ".rules"
+        ]
+      }
+    },
+    {
+      "id": "mcp",
+      "name": "Model Context Protocol",
+      "vendor": "Anthropic",
+      "type": "convention",
+      "homepage": "https://modelcontextprotocol.io",
+      "paths": {
+        "config": [
+          "**/mcp.json",
+          ".mcp.json",
+          "**/.mcp.json"
+        ]
+      }
+    },
+    {
+      "id": "openai-api",
+      "name": "OpenAI API",
+      "vendor": "OpenAI",
+      "type": "service",
+      "homepage": "https://platform.openai.com",
+      "env": [
+        "OPENAI_API_KEY",
+        "OPENAI_ORG_ID",
+        "OPENAI_ORGANIZATION",
+        "OPENAI_BASE_URL",
+        "OPENAI_API_BASE"
+      ]
+    },
+    {
+      "id": "anthropic-api",
+      "name": "Anthropic API",
+      "vendor": "Anthropic",
+      "type": "service",
+      "homepage": "https://www.anthropic.com",
+      "env": [
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+        "ANTHROPIC_BASE_URL"
+      ]
+    },
+    {
+      "id": "aws-bedrock",
+      "name": "AWS Bedrock",
+      "vendor": "Amazon",
+      "type": "service",
+      "homepage": "https://aws.amazon.com/bedrock/",
+      "env": [
+        "AWS_BEARER_TOKEN_BEDROCK",
+        "BEDROCK_*"
+      ]
+    },
+    {
+      "id": "azure-openai",
+      "name": "Azure OpenAI",
+      "vendor": "Microsoft",
+      "type": "service",
+      "homepage": "https://azure.microsoft.com/products/ai-services/openai-service",
+      "env": [
+        "AZURE_OPENAI_API_KEY",
+        "AZURE_OPENAI_ENDPOINT",
+        "AZURE_OPENAI_*"
+      ]
+    },
+    {
+      "id": "google-ai",
+      "name": "Google AI / Vertex",
+      "vendor": "Google",
+      "type": "service",
+      "homepage": "https://ai.google.dev",
+      "env": [
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "GOOGLE_GENAI_USE_VERTEXAI",
+        "GOOGLE_CLOUD_PROJECT"
+      ]
+    },
+    {
+      "id": "cohere-api",
+      "name": "Cohere API",
+      "vendor": "Cohere",
+      "type": "service",
+      "env": [
+        "COHERE_API_KEY",
+        "CO_API_KEY"
+      ]
+    },
+    {
+      "id": "mistral-api",
+      "name": "Mistral API",
+      "vendor": "Mistral AI",
+      "type": "service",
+      "env": [
+        "MISTRAL_API_KEY"
+      ]
+    },
+    {
+      "id": "groq-api",
+      "name": "Groq API",
+      "vendor": "Groq",
+      "type": "service",
+      "env": [
+        "GROQ_API_KEY"
+      ]
+    },
+    {
+      "id": "together-api",
+      "name": "Together AI",
+      "vendor": "Together",
+      "type": "service",
+      "env": [
+        "TOGETHER_API_KEY",
+        "TOGETHER_AI_API_KEY"
+      ]
+    },
+    {
+      "id": "openrouter-api",
+      "name": "OpenRouter",
+      "vendor": "OpenRouter",
+      "type": "service",
+      "env": [
+        "OPENROUTER_API_KEY"
+      ]
+    },
+    {
+      "id": "huggingface",
+      "name": "Hugging Face",
+      "vendor": "Hugging Face",
+      "type": "service",
+      "env": [
+        "HF_TOKEN",
+        "HUGGING_FACE_HUB_TOKEN",
+        "HUGGINGFACEHUB_API_TOKEN"
+      ]
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "vendor": "Ollama",
+      "type": "service",
+      "homepage": "https://ollama.com",
+      "env": [
+        "OLLAMA_HOST",
+        "OLLAMA_MODELS"
+      ]
+    },
+    {
+      "id": "replicate",
+      "name": "Replicate",
+      "vendor": "Replicate",
+      "type": "service",
+      "env": [
+        "REPLICATE_API_TOKEN"
+      ]
+    },
+    {
+      "id": "perplexity-api",
+      "name": "Perplexity API",
+      "vendor": "Perplexity",
+      "type": "service",
+      "env": [
+        "PERPLEXITY_API_KEY",
+        "PPLX_API_KEY"
+      ]
+    },
+    {
+      "id": "deepseek-api",
+      "name": "DeepSeek API",
+      "vendor": "DeepSeek",
+      "type": "service",
+      "env": [
+        "DEEPSEEK_API_KEY"
+      ]
+    },
+    {
+      "id": "xai-api",
+      "name": "xAI API",
+      "vendor": "xAI",
+      "type": "service",
+      "env": [
+        "XAI_API_KEY",
+        "GROK_API_KEY"
+      ]
+    },
+    {
+      "id": "amp",
+      "name": "Amp",
+      "vendor": "Sourcegraph",
+      "type": "cli-agent",
+      "homepage": "https://ampcode.com",
+      "env": [
+        "AMP_API_KEY",
+        "AMP_SETTINGS_FILE",
+        "AMP_TOOLBOX",
+        "AMP_LOG_LEVEL",
+        "AMP_FORCE_BEL",
+        "AMP_SKIP_UPDATE_CHECK"
+      ],
+      "paths": {
+        "config": [
+          ".amp/**",
+          ".amp/settings.json",
+          ".amp/settings.jsonc"
+        ],
+        "plugins": [
+          ".amp/plugins/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".amp/skills/**"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*amp\\s*<amp@ampcode\\.com>",
+        "(?i)<amp@ampcode\\.com>",
+        "(?i)^\\s*amp-thread:\\s*https://"
+      ]
+    },
+    {
+      "id": "gptme",
+      "name": "gptme",
+      "vendor": "gptme",
+      "type": "cli-agent",
+      "homepage": "https://gptme.org",
+      "env": [
+        "GPTME_*"
+      ],
+      "paths": {
+        "config": [
+          "gptme.toml",
+          "gptme.local.toml"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ],
+        "skills": [
+          ".gptme/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "forge",
+      "name": "Forge",
+      "vendor": "Antinomy (ForgeCode)",
+      "type": "cli-agent",
+      "homepage": "https://forgecode.dev",
+      "env": [
+        "FORGE_*"
+      ],
+      "paths": {
+        "config": [
+          ".forge/**",
+          "forge.yaml",
+          ".forge.toml"
+        ],
+        "agents": [
+          ".forge/agents/**"
+        ],
+        "commands": [
+          ".forge/commands/**"
+        ],
+        "skills": [
+          ".forge/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "codebuff",
+      "name": "Codebuff",
+      "vendor": "Codebuff",
+      "type": "cli-agent",
+      "homepage": "https://www.codebuff.com",
+      "env": [
+        "CODEBUFF_*"
+      ],
+      "paths": {
+        "config": [
+          ".codebuff/**",
+          "codebuff.json"
+        ],
+        "ignore": [
+          ".codebuffignore"
+        ],
+        "skills": [
+          ".codebuff/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "letta-code",
+      "name": "Letta Code",
+      "vendor": "Letta",
+      "type": "cli-agent",
+      "homepage": "https://docs.letta.com/letta-code",
+      "env": [
+        "LETTA_API_KEY",
+        "LETTA_BASE_URL",
+        "LETTA_AGENT_ID",
+        "LETTA_CONVERSATION_ID"
+      ],
+      "paths": {
+        "config": [
+          ".letta/**",
+          ".letta/settings.json"
+        ],
+        "ignore": [
+          ".letta/.lettaignore"
+        ],
+        "skills": [
+          ".letta/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "vtcode",
+      "name": "VT Code",
+      "vendor": "vinhnx",
+      "type": "cli-agent",
+      "homepage": "https://github.com/vinhnx/vtcode",
+      "env": [
+        "VTCODE_*"
+      ],
+      "paths": {
+        "config": [
+          "vtcode.toml",
+          ".vtcode/**"
+        ],
+        "agents": [
+          ".vtcode/agents/**"
+        ],
+        "skills": [
+          ".vtcode/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      },
+      "model_config_extractors": [
+        {
+          "file_glob": "vtcode.toml",
+          "pattern": "(?m)^\\s*default_model\\s*=\\s*[\"']([^\"'\\s#]+)"
+        }
+      ]
+    },
+    {
+      "id": "kimi-cli",
+      "name": "Kimi Code CLI",
+      "vendor": "Moonshot AI",
+      "type": "cli-agent",
+      "homepage": "https://github.com/MoonshotAI/kimi-cli",
+      "env": [
+        "KIMI_API_KEY",
+        "KIMI_CODE_HOME",
+        "KIMI_MODEL_NAME"
+      ],
+      "paths": {
+        "skills": [
+          ".kimi/skills/**"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "nanocoder",
+      "name": "Nanocoder",
+      "vendor": "Nano Collective",
+      "type": "cli-agent",
+      "homepage": "https://github.com/Nano-Collective/nanocoder",
+      "env": [
+        "NANOCODER_CONFIG_DIR",
+        "NANOCODER_CONTEXT_LIMIT"
+      ],
+      "paths": {
+        "config": [
+          "agents.config.json"
+        ],
+        "instructions": [
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "jetbrains-ai-assistant",
+      "name": "JetBrains AI Assistant",
+      "vendor": "JetBrains",
+      "type": "ide-extension",
+      "homepage": "https://www.jetbrains.com/ai-assistant/",
+      "paths": {
+        "config": [
+          ".aiassistant/**"
+        ],
+        "instructions": [
+          ".aiassistant/rules/**",
+          "AGENTS.md"
+        ]
+      }
+    },
+    {
+      "id": "tongyi-lingma",
+      "name": "Tongyi Lingma",
+      "vendor": "Alibaba",
+      "type": "ide-extension",
+      "homepage": "https://lingma.aliyun.com",
+      "paths": {
+        "config": [
+          ".lingma/**"
+        ],
+        "instructions": [
+          ".lingma/rules/**",
+          "AGENTS.md"
+        ],
+        "ignore": [
+          ".tongyiignore"
+        ]
+      }
+    },
+    {
+      "id": "tabby",
+      "name": "Tabby",
+      "vendor": "TabbyML",
+      "type": "ide-extension",
+      "homepage": "https://www.tabbyml.com",
+      "paths": {
+        "ignore": [
+          ".tabbyignore"
+        ]
+      }
+    },
+    {
+      "id": "bito",
+      "name": "Bito",
+      "vendor": "Bito",
+      "type": "ide-extension",
+      "homepage": "https://bito.ai",
+      "paths": {
+        "config": [
+          ".bito.yaml",
+          ".bito.yml"
+        ]
+      }
+    },
+    {
+      "id": "sourcery",
+      "name": "Sourcery",
+      "vendor": "Sourcery",
+      "type": "ide-extension",
+      "homepage": "https://sourcery.ai",
+      "paths": {
+        "config": [
+          ".sourcery.yaml"
+        ]
+      }
+    },
+    {
+      "id": "qodo",
+      "name": "Qodo",
+      "vendor": "Qodo",
+      "type": "ide-extension",
+      "homepage": "https://www.qodo.ai",
+      "paths": {
+        "config": [
+          ".codiumai.toml",
+          ".ai_config.toml"
+        ]
+      }
+    },
+    {
+      "id": "fireworks-api",
+      "name": "Fireworks AI",
+      "vendor": "Fireworks AI",
+      "type": "service",
+      "homepage": "https://fireworks.ai",
+      "env": [
+        "FIREWORKS_API_KEY"
+      ]
+    },
+    {
+      "id": "cerebras-api",
+      "name": "Cerebras Inference",
+      "vendor": "Cerebras",
+      "type": "service",
+      "homepage": "https://inference-docs.cerebras.ai",
+      "env": [
+        "CEREBRAS_API_KEY"
+      ]
+    },
+    {
+      "id": "sambanova-api",
+      "name": "SambaNova Cloud",
+      "vendor": "SambaNova",
+      "type": "service",
+      "homepage": "https://cloud.sambanova.ai",
+      "env": [
+        "SAMBANOVA_API_KEY"
+      ]
+    },
+    {
+      "id": "deepinfra-api",
+      "name": "DeepInfra",
+      "vendor": "DeepInfra",
+      "type": "service",
+      "homepage": "https://deepinfra.com",
+      "env": [
+        "DEEPINFRA_API_KEY",
+        "DEEPINFRA_API_TOKEN"
+      ]
+    },
+    {
+      "id": "novita-api",
+      "name": "Novita AI",
+      "vendor": "Novita AI",
+      "type": "service",
+      "homepage": "https://novita.ai",
+      "env": [
+        "NOVITA_API_KEY"
+      ]
+    },
+    {
+      "id": "baseten-api",
+      "name": "Baseten",
+      "vendor": "Baseten",
+      "type": "service",
+      "homepage": "https://www.baseten.co",
+      "env": [
+        "BASETEN_API_KEY"
+      ]
+    },
+    {
+      "id": "ai21-api",
+      "name": "AI21 Labs",
+      "vendor": "AI21 Labs",
+      "type": "service",
+      "homepage": "https://www.ai21.com",
+      "env": [
+        "AI21_API_KEY"
+      ]
+    },
+    {
+      "id": "voyage-api",
+      "name": "Voyage AI",
+      "vendor": "Voyage AI",
+      "type": "service",
+      "homepage": "https://www.voyageai.com",
+      "env": [
+        "VOYAGE_API_KEY"
+      ]
+    },
+    {
+      "id": "jina-api",
+      "name": "Jina AI",
+      "vendor": "Jina AI",
+      "type": "service",
+      "homepage": "https://jina.ai",
+      "env": [
+        "JINA_API_KEY",
+        "JINA_AUTH_TOKEN"
+      ]
+    },
+    {
+      "id": "nvidia-nim",
+      "name": "NVIDIA NIM / build.nvidia.com",
+      "vendor": "NVIDIA",
+      "type": "service",
+      "homepage": "https://build.nvidia.com",
+      "env": [
+        "NVIDIA_API_KEY",
+        "NVIDIA_NIM_API_KEY"
+      ]
+    },
+    {
+      "id": "writer-api",
+      "name": "Writer",
+      "vendor": "Writer",
+      "type": "service",
+      "homepage": "https://writer.com",
+      "env": [
+        "WRITER_API_KEY"
+      ]
+    },
+    {
+      "id": "aleph-alpha-api",
+      "name": "Aleph Alpha",
+      "vendor": "Aleph Alpha",
+      "type": "service",
+      "homepage": "https://aleph-alpha.com",
+      "env": [
+        "AA_TOKEN",
+        "ALEPH_ALPHA_API_KEY"
+      ]
+    },
+    {
+      "id": "moonshot-api",
+      "name": "Moonshot AI (Kimi)",
+      "vendor": "Moonshot AI",
+      "type": "service",
+      "homepage": "https://platform.moonshot.ai",
+      "env": [
+        "MOONSHOT_API_KEY"
+      ]
+    },
+    {
+      "id": "zhipu-api",
+      "name": "Zhipu AI / BigModel (GLM)",
+      "vendor": "Zhipu AI",
+      "type": "service",
+      "homepage": "https://bigmodel.cn",
+      "env": [
+        "ZHIPUAI_API_KEY",
+        "ZHIPU_API_KEY",
+        "BIGMODEL_API_KEY"
+      ]
+    },
+    {
+      "id": "baichuan-api",
+      "name": "Baichuan",
+      "vendor": "Baichuan Intelligence",
+      "type": "service",
+      "homepage": "https://platform.baichuan-ai.com",
+      "env": [
+        "BAICHUAN_API_KEY"
+      ]
+    },
+    {
+      "id": "minimax-api",
+      "name": "MiniMax",
+      "vendor": "MiniMax",
+      "type": "service",
+      "homepage": "https://www.minimax.io",
+      "env": [
+        "MINIMAX_API_KEY",
+        "MINIMAX_GROUP_ID"
+      ]
+    },
+    {
+      "id": "stepfun-api",
+      "name": "StepFun",
+      "vendor": "StepFun",
+      "type": "service",
+      "homepage": "https://platform.stepfun.com",
+      "env": [
+        "STEPFUN_API_KEY",
+        "STEP_API_KEY"
+      ]
+    },
+    {
+      "id": "dashscope-api",
+      "name": "Alibaba DashScope (Qwen)",
+      "vendor": "Alibaba",
+      "type": "service",
+      "homepage": "https://www.alibabacloud.com/help/en/model-studio",
+      "env": [
+        "DASHSCOPE_API_KEY"
+      ]
+    },
+    {
+      "id": "volcengine-ark",
+      "name": "Volcengine Ark (Doubao)",
+      "vendor": "ByteDance",
+      "type": "service",
+      "homepage": "https://www.volcengine.com/product/ark",
+      "env": [
+        "ARK_API_KEY",
+        "VOLCENGINE_API_KEY"
+      ]
+    },
+    {
+      "id": "hyperbolic-api",
+      "name": "Hyperbolic",
+      "vendor": "Hyperbolic",
+      "type": "service",
+      "homepage": "https://www.hyperbolic.ai",
+      "env": [
+        "HYPERBOLIC_API_KEY"
+      ]
+    },
+    {
+      "id": "nebius-api",
+      "name": "Nebius AI Studio",
+      "vendor": "Nebius",
+      "type": "service",
+      "homepage": "https://studio.nebius.com",
+      "env": [
+        "NEBIUS_API_KEY"
+      ]
+    },
+    {
+      "id": "lepton-api",
+      "name": "Lepton AI",
+      "vendor": "Lepton AI",
+      "type": "service",
+      "homepage": "https://www.lepton.ai",
+      "env": [
+        "LEPTON_API_TOKEN"
+      ]
+    },
+    {
+      "id": "lambda-api",
+      "name": "Lambda Inference API",
+      "vendor": "Lambda",
+      "type": "service",
+      "homepage": "https://lambda.ai/inference",
+      "env": [
+        "LAMBDA_API_KEY"
+      ]
+    },
+    {
+      "id": "elevenlabs-api",
+      "name": "ElevenLabs",
+      "vendor": "ElevenLabs",
+      "type": "service",
+      "homepage": "https://elevenlabs.io",
+      "env": [
+        "ELEVENLABS_API_KEY"
+      ]
+    },
+    {
+      "id": "deepgram-api",
+      "name": "Deepgram",
+      "vendor": "Deepgram",
+      "type": "service",
+      "homepage": "https://deepgram.com",
+      "env": [
+        "DEEPGRAM_API_KEY",
+        "DEEPGRAM_TOKEN"
+      ]
+    },
+    {
+      "id": "assemblyai-api",
+      "name": "AssemblyAI",
+      "vendor": "AssemblyAI",
+      "type": "service",
+      "homepage": "https://www.assemblyai.com",
+      "env": [
+        "ASSEMBLYAI_API_KEY"
+      ]
+    },
+    {
+      "id": "stability-api",
+      "name": "Stability AI",
+      "vendor": "Stability AI",
+      "type": "service",
+      "homepage": "https://stability.ai",
+      "env": [
+        "STABILITY_API_KEY"
+      ]
+    },
+    {
+      "id": "black-forest-labs",
+      "name": "Black Forest Labs (FLUX)",
+      "vendor": "Black Forest Labs",
+      "type": "service",
+      "homepage": "https://blackforestlabs.ai",
+      "env": [
+        "BFL_API_KEY"
+      ]
+    },
+    {
+      "id": "fal-api",
+      "name": "Fal.ai",
+      "vendor": "Fal",
+      "type": "service",
+      "homepage": "https://fal.ai",
+      "env": [
+        "FAL_KEY",
+        "FAL_API_KEY"
+      ]
+    },
+    {
+      "id": "luma-api",
+      "name": "Luma AI",
+      "vendor": "Luma AI",
+      "type": "service",
+      "homepage": "https://lumalabs.ai",
+      "env": [
+        "LUMA_API_KEY"
+      ]
+    },
+    {
+      "id": "runway-api",
+      "name": "Runway",
+      "vendor": "Runway",
+      "type": "service",
+      "homepage": "https://runwayml.com",
+      "env": [
+        "RUNWAY_API_KEY",
+        "RUNWAYML_API_SECRET"
+      ]
+    },
+    {
+      "id": "reka-api",
+      "name": "Reka AI",
+      "vendor": "Reka AI",
+      "type": "service",
+      "homepage": "https://www.reka.ai",
+      "env": [
+        "REKA_API_KEY"
+      ]
+    },
+    {
+      "id": "upstage-api",
+      "name": "Upstage (Solar)",
+      "vendor": "Upstage",
+      "type": "service",
+      "homepage": "https://www.upstage.ai",
+      "env": [
+        "UPSTAGE_API_KEY"
+      ]
+    },
+    {
+      "id": "friendli-api",
+      "name": "FriendliAI",
+      "vendor": "FriendliAI",
+      "type": "service",
+      "homepage": "https://friendli.ai",
+      "env": [
+        "FRIENDLI_TOKEN"
+      ]
+    },
+    {
+      "id": "sarvam-api",
+      "name": "Sarvam AI",
+      "vendor": "Sarvam AI",
+      "type": "service",
+      "homepage": "https://www.sarvam.ai",
+      "env": [
+        "SARVAM_API_KEY"
+      ]
+    },
+    {
+      "id": "predibase-api",
+      "name": "Predibase",
+      "vendor": "Predibase",
+      "type": "service",
+      "homepage": "https://predibase.com",
+      "env": [
+        "PREDIBASE_API_TOKEN",
+        "PREDIBASE_TENANT_ID"
+      ]
+    },
+    {
+      "id": "featherless-api",
+      "name": "Featherless AI",
+      "vendor": "Featherless AI",
+      "type": "service",
+      "homepage": "https://featherless.ai",
+      "env": [
+        "FEATHERLESS_API_KEY",
+        "FEATHERLESS_AI_API_KEY"
+      ]
+    },
+    {
+      "id": "inception-api",
+      "name": "Inception Labs (Mercury)",
+      "vendor": "Inception Labs",
+      "type": "service",
+      "homepage": "https://www.inceptionlabs.ai",
+      "env": [
+        "MERCURY_API_KEY",
+        "INCEPTION_API_KEY"
+      ]
+    },
+    {
+      "id": "codestral-api",
+      "name": "Mistral Codestral",
+      "vendor": "Mistral AI",
+      "type": "service",
+      "homepage": "https://docs.mistral.ai/capabilities/code_generation/",
+      "env": [
+        "CODESTRAL_API_KEY"
+      ]
+    },
+    {
+      "id": "portkey-api",
+      "name": "Portkey",
+      "vendor": "Portkey",
+      "type": "service",
+      "homepage": "https://portkey.ai",
+      "env": [
+        "PORTKEY_API_KEY"
+      ]
+    },
+    {
+      "id": "helicone-api",
+      "name": "Helicone",
+      "vendor": "Helicone",
+      "type": "service",
+      "homepage": "https://www.helicone.ai",
+      "env": [
+        "HELICONE_API_KEY"
+      ]
+    },
+    {
+      "id": "langfuse-api",
+      "name": "Langfuse",
+      "vendor": "Langfuse",
+      "type": "service",
+      "homepage": "https://langfuse.com",
+      "env": [
+        "LANGFUSE_PUBLIC_KEY",
+        "LANGFUSE_SECRET_KEY",
+        "LANGFUSE_HOST"
+      ]
+    },
+    {
+      "id": "langsmith-api",
+      "name": "LangSmith",
+      "vendor": "LangChain",
+      "type": "service",
+      "homepage": "https://www.langchain.com/langsmith",
+      "env": [
+        "LANGSMITH_API_KEY",
+        "LANGCHAIN_API_KEY",
+        "LANGSMITH_ENDPOINT",
+        "LANGCHAIN_TRACING_V2"
+      ]
+    },
+    {
+      "id": "braintrust-api",
+      "name": "Braintrust",
+      "vendor": "Braintrust",
+      "type": "service",
+      "homepage": "https://www.braintrust.dev",
+      "env": [
+        "BRAINTRUST_API_KEY"
+      ]
+    },
+    {
+      "id": "vercel-ai-gateway",
+      "name": "Vercel AI Gateway",
+      "vendor": "Vercel",
+      "type": "service",
+      "homepage": "https://vercel.com/docs/ai-gateway",
+      "env": [
+        "AI_GATEWAY_API_KEY"
+      ]
+    },
+    {
+      "id": "watsonx-api",
+      "name": "IBM watsonx.ai",
+      "vendor": "IBM",
+      "type": "service",
+      "homepage": "https://www.ibm.com/products/watsonx-ai",
+      "env": [
+        "WATSONX_APIKEY",
+        "WATSONX_URL",
+        "WATSONX_PROJECT_ID"
+      ]
+    },
+    {
+      "id": "tavily-api",
+      "name": "Tavily",
+      "vendor": "Tavily",
+      "type": "service",
+      "homepage": "https://www.tavily.com",
+      "env": [
+        "TAVILY_API_KEY"
+      ]
+    },
+    {
+      "id": "exa-api",
+      "name": "Exa",
+      "vendor": "Exa",
+      "type": "service",
+      "homepage": "https://exa.ai",
+      "env": [
+        "EXA_API_KEY"
+      ]
+    },
+    {
+      "id": "serper-api",
+      "name": "Serper",
+      "vendor": "Serper",
+      "type": "service",
+      "homepage": "https://serper.dev",
+      "env": [
+        "SERPER_API_KEY"
+      ]
+    },
+    {
+      "id": "devin",
+      "name": "Devin",
+      "vendor": "Cognition",
+      "type": "cloud-agent",
+      "homepage": "https://devin.ai",
+      "commit_patterns": [
+        "devin-ai-integration\\[bot\\]",
+        "(?i)<158243242\\+devin-ai-integration\\[bot\\]@users\\.noreply\\.github\\.com>",
+        "(?i)co-authored-by:\\s*devin ai\\b"
+      ]
+    },
+    {
+      "id": "google-jules",
+      "name": "Jules",
+      "vendor": "Google",
+      "type": "cloud-agent",
+      "homepage": "https://jules.google",
+      "commit_patterns": [
+        "google-labs-jules\\[bot\\]",
+        "(?i)<161369871\\+google-labs-jules\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "coderabbit",
+      "name": "CodeRabbit",
+      "vendor": "CodeRabbit",
+      "type": "service",
+      "homepage": "https://coderabbit.ai",
+      "commit_patterns": [
+        "coderabbitai\\[bot\\]",
+        "(?i)<coderabbitai@users\\.noreply\\.github\\.com>"
+      ],
+      "paths": {
+        "config": [
+          ".coderabbit.yaml",
+          ".coderabbit.yml"
+        ]
+      }
+    },
+    {
+      "id": "sweep",
+      "name": "Sweep",
+      "vendor": "Sweep",
+      "type": "service",
+      "homepage": "https://sweep.dev",
+      "commit_patterns": [
+        "(?i)<sweep@sweep\\.dev>",
+        "(?i)<\\d+\\+sweep-nightly\\[bot\\]@users\\.noreply\\.github\\.com>",
+        "sweep-nightly\\[bot\\]"
+      ],
+      "paths": {
+        "config": [
+          "sweep.yaml"
+        ]
+      }
+    },
+    {
+      "id": "codegen",
+      "name": "Codegen",
+      "vendor": "Codegen",
+      "type": "cloud-agent",
+      "homepage": "https://codegen.com",
+      "commit_patterns": [
+        "codegen-sh\\[bot\\]",
+        "(?i)<131295404\\+codegen-sh\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "ellipsis",
+      "name": "Ellipsis",
+      "vendor": "Ellipsis",
+      "type": "service",
+      "homepage": "https://www.ellipsis.dev",
+      "commit_patterns": [
+        "ellipsis-dev\\[bot\\]",
+        "(?i)<65095814\\+ellipsis-dev\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ],
+      "paths": {
+        "config": [
+          "ellipsis.yaml",
+          "ellipsis.yml"
+        ]
+      }
+    },
+    {
+      "id": "tembo",
+      "name": "Tembo",
+      "vendor": "Tembo",
+      "type": "cloud-agent",
+      "homepage": "https://www.tembo.io",
+      "commit_patterns": [
+        "tembo\\[bot\\]",
+        "tembo-io\\[bot\\]",
+        "(?i)<208362400\\+tembo(?:-io)?\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "charlie",
+      "name": "Charlie",
+      "vendor": "Charlie Labs",
+      "type": "cloud-agent",
+      "homepage": "https://charlielabs.ai",
+      "commit_patterns": [
+        "charliecreates\\[bot\\]",
+        "(?i)<198680274\\+charliecreates\\[bot\\]@users\\.noreply\\.github\\.com>",
+        "(?i)co-authored-by:\\s*charliehelps\\s*<charlie@charlielabs\\.ai>",
+        "(?i)<charlie@charlielabs\\.ai>"
+      ]
+    },
+    {
+      "id": "swe-agent",
+      "name": "SWE-agent",
+      "vendor": "Princeton NLP",
+      "type": "cloud-agent",
+      "homepage": "https://swe-agent.com",
+      "commit_patterns": [
+        "(?i)<noemail@swe-agent\\.com>"
+      ]
+    },
+    {
+      "id": "antigravity",
+      "name": "Google Antigravity",
+      "vendor": "Google",
+      "type": "ide",
+      "homepage": "https://antigravity.google",
+      "paths": {
+        "instructions": [
+          ".agents/rules/**",
+          ".agent/rules/**"
+        ],
+        "commands": [
+          ".agents/workflows/**",
+          ".agent/workflows/**"
+        ],
+        "skills": [
+          ".agents/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "warp",
+      "name": "Warp",
+      "vendor": "Warp.dev",
+      "type": "cli-agent",
+      "homepage": "https://www.warp.dev",
+      "env": [
+        "WARP_HONOR_PS1",
+        "WARP_IS_LOCAL_SHELL_SESSION",
+        "WARP_USE_SSH_WRAPPER"
+      ],
+      "paths": {
+        "instructions": [
+          "WARP.md",
+          "**/WARP.md"
+        ],
+        "ignore": [
+          ".warpindexingignore"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*oz(?:\\s+agent)?\\s*<oz-agent@warp\\.dev>",
+        "(?i)<(?:oz-)?agent@warp\\.dev>"
+      ]
+    },
+    {
+      "id": "replit-agent",
+      "name": "Replit Agent",
+      "vendor": "Replit",
+      "type": "cloud-agent",
+      "homepage": "https://replit.com",
+      "paths": {
+        "memory": [
+          "replit.md"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)<no-reply@replit\\.com>",
+        "(?im)^author:?\\s*replit\\s+(?:ai\\s+)?agent\\b",
+        "(?im)^author:?\\s*replit\\s+assistant\\b"
+      ]
+    },
+    {
+      "id": "lovable",
+      "name": "Lovable",
+      "vendor": "Lovable",
+      "type": "cloud-agent",
+      "homepage": "https://lovable.dev",
+      "paths": {
+        "config": [
+          ".lovable/**"
+        ]
+      },
+      "commit_patterns": [
+        "(?im)^\\s*x-lovable-edit-id:\\s*edt-[0-9a-f-]+",
+        "(?i)<159125892\\+gpt-engineer-app\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "bolt",
+      "name": "Bolt",
+      "vendor": "StackBlitz",
+      "type": "cloud-agent",
+      "homepage": "https://bolt.new",
+      "paths": {
+        "config": [
+          ".bolt/**",
+          ".bolt/config.json"
+        ],
+        "instructions": [
+          ".bolt/prompt"
+        ],
+        "ignore": [
+          ".bolt/ignore"
+        ]
+      }
+    },
+    {
+      "id": "v0",
+      "name": "v0",
+      "vendor": "Vercel",
+      "type": "cloud-agent",
+      "homepage": "https://v0.app",
+      "env": [
+        "V0_API_KEY"
+      ],
+      "commit_patterns": [
+        "(?i)<it\\+v0agent@vercel\\.com>",
+        "(?i)<v0\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "ona",
+      "name": "Ona (Gitpod)",
+      "vendor": "Gitpod",
+      "type": "cloud-agent",
+      "homepage": "https://ona.com",
+      "paths": {
+        "config": [
+          ".ona/**",
+          ".ona/automations.yaml"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*ona\\s*<no-reply@ona\\.com>",
+        "(?i)<no-reply@ona\\.com>"
+      ]
+    },
+    {
+      "id": "cosine",
+      "name": "Cosine Genie",
+      "vendor": "Cosine",
+      "type": "cloud-agent",
+      "homepage": "https://cosine.sh",
+      "env": [
+        "COSINE_*"
+      ],
+      "paths": {
+        "config": [
+          ".cosine/**",
+          "cosine.toml",
+          ".cosine.toml"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*(?:cosine|genie)\\s*<(?:agent|genie)@cosine\\.sh>",
+        "(?i)<(?:agent|genie)@cosine\\.sh>"
+      ]
+    },
+    {
+      "id": "tusk",
+      "name": "Tusk",
+      "vendor": "Tusk",
+      "type": "cloud-agent",
+      "homepage": "https://www.usetusk.ai",
+      "paths": {
+        "config": [
+          ".github/workflows/tusk-sanity-check.yml"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)<[0-9]+\\+use-tusk\\[bot\\]@users\\.noreply\\.github\\.com>",
+        "(?i)co-authored-by:\\s*use-tusk\\[bot\\]\\b"
+      ]
+    },
+    {
+      "id": "solver",
+      "name": "Solver",
+      "vendor": "Laredo Labs",
+      "type": "cloud-agent",
+      "homepage": "https://solverai.com",
+      "env": [
+        "SOLVER_*"
+      ],
+      "commit_patterns": [
+        "(?i)<152345546\\+solver-app\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "claude-github",
+      "name": "Claude GitHub App",
+      "vendor": "Anthropic",
+      "type": "cloud-agent",
+      "homepage": "https://github.com/apps/claude",
+      "commit_patterns": [
+        "(?i)<209825114\\+claude\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "codex-cloud",
+      "name": "OpenAI Codex Cloud",
+      "vendor": "OpenAI",
+      "type": "cloud-agent",
+      "homepage": "https://openai.com/codex",
+      "commit_patterns": [
+        "(?i)<199175422\\+chatgpt-codex-connector\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "qodo-merge",
+      "name": "Qodo Merge (PR-Agent)",
+      "vendor": "Qodo",
+      "type": "service",
+      "homepage": "https://www.qodo.ai",
+      "paths": {
+        "config": [
+          ".pr_agent.toml"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)<[0-9]+\\+qodo-merge\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "korbit",
+      "name": "Korbit",
+      "vendor": "Korbit",
+      "type": "service",
+      "homepage": "https://www.korbit.ai",
+      "paths": {
+        "ignore": [
+          ".korbitignore"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)<[0-9]+\\+korbit-ai\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "greptile",
+      "name": "Greptile",
+      "vendor": "Greptile",
+      "type": "service",
+      "homepage": "https://www.greptile.com",
+      "paths": {
+        "config": [
+          "greptile.json",
+          ".greptile/**"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)<[0-9]+\\+greptile-apps\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "refact",
+      "name": "Refact.ai",
+      "vendor": "Small Magellanic Cloud AI",
+      "type": "cli-agent",
+      "homepage": "https://refact.ai",
+      "paths": {
+        "config": [
+          ".refact/**"
+        ]
+      },
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*refact\\s+agent\\s*<agent@refact\\.ai>",
+        "(?i)<agent@refact\\.ai>"
+      ]
+    },
+    {
+      "id": "supermaven",
+      "name": "Supermaven",
+      "vendor": "Supermaven",
+      "type": "ide-extension",
+      "homepage": "https://supermaven.com",
+      "paths": {
+        "ignore": [
+          ".supermavenignore"
+        ]
+      }
+    },
+    {
+      "id": "plandex",
+      "name": "Plandex",
+      "vendor": "Plandex",
+      "type": "cli-agent",
+      "homepage": "https://plandex.ai",
+      "env": [
+        "PLANDEX_*"
+      ],
+      "paths": {
+        "config": [
+          ".plandex-v2/**",
+          ".plandex-dev-v2/**"
+        ],
+        "ignore": [
+          ".plandexignore"
+        ]
+      },
+      "commit_patterns": [
+        "(?m)^\\s*\\xf0\\x9f\\xa4\\x96 Plandex \\xe2\\x86\\x92\\s"
+      ]
+    },
+    {
+      "id": "traycer",
+      "name": "Traycer",
+      "vendor": "Traycer",
+      "type": "ide-extension",
+      "homepage": "https://traycer.ai",
+      "env": [
+        "TRAYCER_*"
+      ],
+      "paths": {
+        "agents": [
+          ".traycer/cli-agents/**"
+        ],
+        "config": [
+          ".traycer/**"
+        ]
+      }
+    },
+    {
+      "id": "conductor",
+      "name": "Conductor",
+      "vendor": "Conductor",
+      "type": "ide",
+      "homepage": "https://conductor.build",
+      "env": [
+        "CONDUCTOR_*"
+      ],
+      "paths": {
+        "config": [
+          ".conductor/settings.toml",
+          ".conductor/**"
+        ],
+        "instructions": [
+          ".worktreeinclude"
+        ]
+      }
+    },
+    {
+      "id": "sketch",
+      "name": "Sketch",
+      "vendor": "Bold Software",
+      "type": "cli-agent",
+      "homepage": "https://sketch.dev",
+      "commit_patterns": [
+        "(?i)co-authored-by:\\s*sketch\\s*<hello@sketch\\.dev>",
+        "(?im)^\\s*change-id:\\s*s[0-9a-f]{16}k\\b"
+      ]
+    },
+    {
+      "id": "grok-cli",
+      "name": "Grok CLI",
+      "vendor": "Grok CLI (community)",
+      "type": "cli-agent",
+      "homepage": "https://github.com/superagent-ai/grok-cli",
+      "paths": {
+        "config": [
+          ".grok/settings.json"
+        ]
+      }
+    },
+    {
+      "id": "octofriend",
+      "name": "Octofriend",
+      "vendor": "Synthetic",
+      "type": "cli-agent",
+      "homepage": "https://github.com/synthetic-lab/octofriend",
+      "paths": {
+        "instructions": [
+          "OCTO.md"
+        ]
+      }
+    },
+    {
+      "id": "coro-code",
+      "name": "Coro Code",
+      "vendor": "Coro",
+      "type": "cli-agent",
+      "homepage": "https://github.com/Holmeyoung/coro-code",
+      "env": [
+        "CORO_*"
+      ],
+      "paths": {
+        "config": [
+          ".coro/context.json"
+        ]
+      }
+    },
+    {
+      "id": "g3",
+      "name": "g3",
+      "vendor": "dhanji",
+      "type": "cli-agent",
+      "homepage": "https://github.com/dhanji/g3",
+      "env": [
+        "G3_*"
+      ],
+      "paths": {
+        "memory": [
+          ".g3/sessions/**"
+        ],
+        "skills": [
+          ".g3/skills/**"
+        ]
+      }
+    },
+    {
+      "id": "devlo",
+      "name": "Devlo",
+      "vendor": "Devlo",
+      "type": "service",
+      "homepage": "https://devlo.ai",
+      "commit_patterns": [
+        "(?i)<[0-9]+\\+devloai\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    },
+    {
+      "id": "cubic",
+      "name": "Cubic",
+      "vendor": "Cubic",
+      "type": "service",
+      "homepage": "https://cubic.dev",
+      "commit_patterns": [
+        "(?i)<[0-9]+\\+cubic-dev-ai\\[bot\\]@users\\.noreply\\.github\\.com>"
+      ]
+    }
+  ]
+}

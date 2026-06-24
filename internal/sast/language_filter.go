@@ -288,6 +288,41 @@ func presentLanguages(fileSet map[string]bool) map[string]bool {
 	return present
 }
 
+// LanguagesForPath returns the set of canonical ecosystem keys that a single
+// file path maps to, by extension suffix, basename substring, or special
+// filename. Exported so other packages (e.g. the AIBOM detector) can scope
+// per-file content rules to the languages they target, reusing the same
+// extension table as the SAST language pre-filter.
+func LanguagesForPath(path string) map[string]bool {
+	present := map[string]bool{}
+	base := strings.ToLower(filepath.Base(path))
+	if labels, ok := languageFilenames[base]; ok {
+		for _, l := range labels {
+			present[canonicalLang(l)] = true
+		}
+	}
+	for sub, labels := range languageBasenameSubstrings {
+		if strings.Contains(base, sub) {
+			for _, l := range labels {
+				present[canonicalLang(l)] = true
+			}
+		}
+	}
+	for canon, exts := range languageExtensions {
+		for _, ext := range exts {
+			if strings.HasSuffix(base, ext) {
+				present[canon] = true
+				break
+			}
+		}
+	}
+	return present
+}
+
+// CanonicalLanguage exposes the alias-collapse used by the language pre-filter
+// (e.g. "node"/"ts" -> "javascript") so callers can normalise catalog labels.
+func CanonicalLanguage(label string) string { return canonicalLang(label) }
+
 // keepModuleForLanguages decides whether a single rego module survives the
 // language pre-filter. Universal/unknown rules are always kept; a rule is dropped
 // only when every declared language is known AND absent from the repository.

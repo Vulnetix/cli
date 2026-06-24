@@ -72,8 +72,13 @@ type Hash struct {
 
 // Component represents a software component.
 type Component struct {
-	Type        string `json:"type"`
-	BOMRef      string `json:"bom-ref,omitempty"`
+	Type   string `json:"type"`
+	BOMRef string `json:"bom-ref,omitempty"`
+	// Publisher / Group identify the producer of the component. Used by the
+	// AIBOM builder to attribute an AI tool to its vendor and a model to its
+	// provider (e.g. "Anthropic", "OpenAI").
+	Publisher   string `json:"publisher,omitempty"`
+	Group       string `json:"group,omitempty"`
 	Name        string `json:"name"`
 	Version     string `json:"version,omitempty"`
 	Description string `json:"description,omitempty"`
@@ -87,6 +92,9 @@ type Component struct {
 	Authors            []OrganizationalContact `json:"authors,omitempty"`
 	ExternalReferences []ExternalReference     `json:"externalReferences,omitempty"`
 	Properties         []Property              `json:"properties,omitempty"`
+	// ModelCard (CycloneDX 1.5+) describes a machine learning model. The schema
+	// requires it to appear ONLY on components of type "machine-learning-model".
+	ModelCard *ModelCard `json:"modelCard,omitempty"`
 }
 
 // LicenseChoice represents either a specific license or an SPDX expression.
