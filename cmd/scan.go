@@ -317,7 +317,19 @@ Examples:
 			noIAC = noIAC || !evaluateIAC
 		}
 
-		return runScanWithFeatures(cmd.Context(), cmd, noSAST, noSCA, noLicenses, noSecrets, noContainers, noIAC)
+		scanErr := runScanWithFeatures(cmd.Context(), cmd, noSAST, noSCA, noLicenses, noSecrets, noContainers, noIAC)
+
+		// Capture AI coding-agent / SDK / model inventory alongside the scan.
+		// Best-effort and authenticated-only; never changes the scan's exit code.
+		if noAibom, _ := cmd.Flags().GetBool("no-aibom"); !noAibom {
+			scanPath, _ := cmd.Flags().GetString("path")
+			if scanPath == "" {
+				scanPath = "."
+			}
+			detectAndUploadAIBOM(scanPath, gitctx.Collect(scanPath))
+		}
+
+		return scanErr
 
 	},
 }
@@ -4488,6 +4500,7 @@ func init() {
 	// Feature control flags (scan command only — specialized commands hard-code these)
 	scanCmd.Flags().Bool("evaluate-sast", false, "Enable SAST analysis")
 	scanCmd.Flags().Bool("no-sast", false, "Skip SAST analysis")
+	scanCmd.Flags().Bool("no-aibom", false, "Skip AI Bill of Materials (AIBOM) detection + submission during scan")
 	scanCmd.Flags().Bool("evaluate-sca", false, "Enable SCA (Software Composition Analysis)")
 	scanCmd.Flags().Bool("no-sca", false, "Skip SCA (Software Composition Analysis)")
 	scanCmd.Flags().Bool("evaluate-licenses", false, "Enable license analysis")

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/aibom"
@@ -156,6 +157,50 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	}
 }
 
+// detectAndUploadAIBOM runs the AIBOM detection passes against rootPath and
+// submits the result to the backend. Best-effort: silent on any error and never
+// affects the caller's exit code. Used by `scan` to capture AI coding-agent /
+// SDK / model inventory alongside the rest of the scan. Skips the submission
+// entirely when nothing AI-related is detected (no empty snapshots).
+func detectAndUploadAIBOM(rootPath string, gitCtx *gitctx.GitContext) {
+	if rootPath == "" {
+		rootPath = "."
+	}
+	cat, err := aibom.LoadCatalog("", false)
+	if err != nil {
+		return
+	}
+	compiled, err := cat.Compile()
+	if err != nil {
+		return
+	}
+	det, err := aibom.Detect(aibom.Options{
+		Root:        rootPath,
+		ScanEnv:     true,
+		ScanSource:  true,
+		ScanCommits: true,
+		Catalog:     compiled,
+	})
+	if err != nil || len(det.Tools)+len(det.Libraries)+len(det.Models) == 0 {
+		return
+	}
+	ctx := &cdx.ScanContext{
+		Git:         gitCtx,
+		System:      gitctx.CollectSystemInfo(),
+		ToolVersion: version,
+		ToolName:    "vulnetix-aibom",
+	}
+	bom, err := cdx.BuildAIBOM(det, "1.7", ctx)
+	if err != nil {
+		return
+	}
+	data, err := bom.MarshalValidatedJSON()
+	if err != nil {
+		return
+	}
+	uploadAIBOM("1.7", det, data, gitCtx)
+}
+
 // uploadAIBOM submits the AIBOM to POST /v2/cli.ai-bom. It is best-effort:
 // community/unauthenticated callers are skipped (the server does not persist
 // their data — see the community no-persist gate) and any error is non-fatal.
@@ -164,9 +209,14 @@ func uploadAIBOM(specVersion string, det cdx.AIDetections, bomData []byte, git *
 	if err != nil || creds == nil || auth.IsCommunity(creds) {
 		return
 	}
-	client := newCliClient()
-	if client == nil {
-		return
+	// Build the client directly from the resolved credentials. We must NOT use
+	// newCliClient() here: it reads the package global vdbCreds, which the aibom
+	// command never populates, so it would silently fall back to community creds
+	// and the server would refuse to persist (community no-persist gate).
+	client := vdb.NewClientFromCredentials(creds)
+	client.APIVersion = "/v2"
+	if client.HTTPClient != nil {
+		client.HTTPClient.Timeout = 180 * time.Second
 	}
 	detJSON, err := json.Marshal(det)
 	if err != nil {
