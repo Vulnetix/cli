@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -38,10 +39,14 @@ Three detection passes, all driven by a maintainable catalog:
 The catalog is embedded and can be extended or replaced at runtime with
 --catalog. No source content is ever uploaded.
 
+The CycloneDX AIBOM is always written to .vulnetix/ai-bom.cdx.json (override the
+path with --output-file). The terminal output format is set by -o.
+
 Examples:
-  vulnetix aibom                                  # scan ., emit CycloneDX AIBOM
-  vulnetix aibom ./myproject -o table             # human-readable summary
-  vulnetix aibom --output-file aibom.cdx.json     # write the AIBOM to a file
+  vulnetix aibom                                  # pretty summary; writes .vulnetix/ai-bom.cdx.json
+  vulnetix aibom ./myproject -o json              # print detections as JSON
+  vulnetix aibom -o cyclonedx-json                # print CycloneDX to stdout (still saved to file)
+  vulnetix aibom --output-file build/aibom.json   # write the AIBOM to a custom path
   vulnetix aibom --no-env --no-source             # filesystem evidence only
   vulnetix aibom --catalog ./extra-rules.json     # extend the builtin catalog`,
 	Args: cobra.MaximumNArgs(1),
@@ -52,8 +57,8 @@ func init() {
 	aibomCmd.Flags().String("path", ".", "Directory to scan")
 	aibomCmd.Flags().Int("depth", 25, "Maximum recursion depth for file discovery")
 	aibomCmd.Flags().StringArray("ignore", nil, "Exclude paths matching glob pattern (repeatable)")
-	aibomCmd.Flags().StringP("output", "o", "cyclonedx-json", "Output format: cyclonedx-json, json, table")
-	aibomCmd.Flags().String("output-file", "", "Write output to this file instead of stdout")
+	aibomCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty, json, cyclonedx-json")
+	aibomCmd.Flags().String("output-file", "", "Path to write the CycloneDX AIBOM (default: <path>/.vulnetix/ai-bom.cdx.json)")
 	aibomCmd.Flags().String("spec-version", "1.7", "CycloneDX spec version: 1.6 or 1.7")
 	aibomCmd.Flags().String("catalog", "", "Path to a catalog file to merge over (or replace) the builtin catalog")
 	aibomCmd.Flags().Bool("no-builtin-catalog", false, "Do not load the embedded catalog (use only --catalog)")
@@ -86,9 +91,9 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	noUpload, _ := cmd.Flags().GetBool("no-upload")
 
 	switch outputFmt {
-	case "cyclonedx-json", "json", "table":
+	case "pretty", "table", "json", "cyclonedx-json":
 	default:
-		return fmt.Errorf("--output must be one of: cyclonedx-json, json, table")
+		return fmt.Errorf("--output must be one of: pretty, json, cyclonedx-json")
 	}
 	switch specVersion {
 	case "1.6", "1.7":
@@ -141,17 +146,30 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 		uploadAIBOM(specVersion, det, bomData, gitCtx)
 	}
 
+	// Always persist the CycloneDX AIBOM to a file. Default location is
+	// <path>/.vulnetix/ai-bom.cdx.json; --output-file overrides the path.
+	outFile := outputFile
+	if outFile == "" {
+		outFile = filepath.Join(rootPath, ".vulnetix", "ai-bom.cdx.json")
+	}
+	if err := writeAIBOMFile(outFile, bomData); err != nil {
+		return err
+	}
+
+	// Terminal rendering (the file above is written regardless of format).
 	switch outputFmt {
-	case "table":
-		return renderAIBOMTable(cmd, det)
 	case "json":
 		data, err := json.MarshalIndent(det, "", "  ")
 		if err != nil {
 			return err
 		}
-		return writeAIBOMOutput(outputFile, append(data, '\n'))
-	default: // cyclonedx-json
-		return writeAIBOMOutput(outputFile, bomData)
+		fmt.Fprintln(os.Stdout, string(data))
+		return nil
+	case "cyclonedx-json":
+		fmt.Fprintln(os.Stdout, string(bomData))
+		return nil
+	default: // pretty / table
+		return renderAIBOMTable(cmd, det)
 	}
 }
 
@@ -269,15 +287,20 @@ func uploadAIBOM(specVersion string, det cyclonedx.AIDetections, bomData []byte,
 	}
 }
 
-func writeAIBOMOutput(path string, data []byte) error {
-	if path == "" {
-		_, err := os.Stdout.Write(data)
-		return err
+// writeAIBOMFile writes the CycloneDX AIBOM to path, creating the parent
+// directory (e.g. .vulnetix/) when needed.
+func writeAIBOMFile(path string, data []byte) error {
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("creating %s: %w", dir, err)
+		}
 	}
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
-	fmt.Fprintf(os.Stderr, "Wrote AIBOM to %s\n", path)
+	if !silent {
+		fmt.Fprintf(os.Stderr, "Wrote AIBOM to %s\n", path)
+	}
 	return nil
 }
 
