@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	cdx "github.com/Vulnetix/vdb-cyclonedx"
 )
 
 func compiledCatalog(t *testing.T) *CompiledCatalog {

@@ -7,7 +7,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	cdx "github.com/Vulnetix/vdb-cyclonedx"
 )
 
 // defaultCommitScanMax bounds how many commits (from HEAD backwards) the commit

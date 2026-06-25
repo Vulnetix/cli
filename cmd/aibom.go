@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/aibom"
 	"github.com/vulnetix/cli/v3/internal/cdx"
@@ -120,18 +121,15 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	}
 
 	// Build the CycloneDX AIBOM once — used both for cyclonedx-json output and
-	// for the backend submission below.
-	ctx := &cdx.ScanContext{
-		Git:         gitctx.Collect(rootPath),
-		System:      gitctx.CollectSystemInfo(),
-		ToolVersion: version,
+	// for the backend submission below. The format (build + validate) lives in
+	// the shared vdb-cyclonedx module so producers and consumers agree.
+	gitCtx := gitctx.Collect(rootPath)
+	bomData, err := cyclonedx.BuildAIBOM(det, cyclonedx.AIBOMOptions{
+		SpecVersion: specVersion,
 		ToolName:    "vulnetix-aibom",
-	}
-	bom, err := cdx.BuildAIBOM(det, specVersion, ctx)
-	if err != nil {
-		return err
-	}
-	bomData, err := bom.MarshalValidatedJSON()
+		ToolVersion: version,
+		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
+	})
 	if err != nil {
 		return err
 	}
@@ -140,7 +138,7 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	// fails the command, and community/unauthenticated callers are skipped (the
 	// server would not persist their data anyway).
 	if !noUpload {
-		uploadAIBOM(specVersion, det, bomData, ctx.Git)
+		uploadAIBOM(specVersion, det, bomData, gitCtx)
 	}
 
 	switch outputFmt {
@@ -184,27 +182,52 @@ func detectAndUploadAIBOM(rootPath string, gitCtx *gitctx.GitContext) {
 	if err != nil || len(det.Tools)+len(det.Libraries)+len(det.Models) == 0 {
 		return
 	}
-	ctx := &cdx.ScanContext{
-		Git:         gitCtx,
-		System:      gitctx.CollectSystemInfo(),
-		ToolVersion: version,
+	data, err := cyclonedx.BuildAIBOM(det, cyclonedx.AIBOMOptions{
+		SpecVersion: "1.7",
 		ToolName:    "vulnetix-aibom",
-	}
-	bom, err := cdx.BuildAIBOM(det, "1.7", ctx)
-	if err != nil {
-		return
-	}
-	data, err := bom.MarshalValidatedJSON()
+		ToolVersion: version,
+		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
+	})
 	if err != nil {
 		return
 	}
 	uploadAIBOM("1.7", det, data, gitCtx)
 }
 
+// aibomProject maps the CLI's git/system context to the shared AIBOMProject the
+// vdb-cyclonedx builder consumes for metadata.component and git/env properties.
+func aibomProject(g *gitctx.GitContext, sys *gitctx.SystemInfo) *cyclonedx.AIBOMProject {
+	p := &cyclonedx.AIBOMProject{}
+	if g != nil {
+		p.Name = cdx.GitProjectName(g)
+		p.Version = cdx.GitProjectVersion(g)
+		p.Branch = g.CurrentBranch
+		p.Commit = g.CurrentCommit
+		p.CommitTimestamp = g.HeadCommitTimestamp
+		p.CommitMessage = g.HeadCommitMessage
+		p.CommitAuthor = g.HeadCommitAuthor
+		p.CommitEmail = g.HeadCommitEmail
+		p.Tags = g.HeadTags
+		p.IsDirty = g.IsDirty
+		p.IsWorktree = g.IsWorktree
+		p.RepoRoot = g.RepoRootPath
+		p.RemoteURLs = g.RemoteURLs
+		for _, c := range g.RecentCommitters {
+			p.RecentCommitters = append(p.RecentCommitters, cyclonedx.AIBOMContact{Name: c.Name, Email: c.Email})
+		}
+	}
+	if sys != nil {
+		p.System = &cyclonedx.AIBOMSystem{
+			Hostname: sys.Hostname, Shell: sys.Shell, OS: sys.OS, Arch: sys.Arch, Username: sys.Username,
+		}
+	}
+	return p
+}
+
 // uploadAIBOM submits the AIBOM to POST /v2/cli.ai-bom. It is best-effort:
 // community/unauthenticated callers are skipped (the server does not persist
 // their data — see the community no-persist gate) and any error is non-fatal.
-func uploadAIBOM(specVersion string, det cdx.AIDetections, bomData []byte, git *gitctx.GitContext) {
+func uploadAIBOM(specVersion string, det cyclonedx.AIDetections, bomData []byte, git *gitctx.GitContext) {
 	creds, err := auth.LoadCredentials()
 	if err != nil || creds == nil || auth.IsCommunity(creds) {
 		return
@@ -258,7 +281,7 @@ func writeAIBOMOutput(path string, data []byte) error {
 	return nil
 }
 
-func renderAIBOMTable(cmd *cobra.Command, det cdx.AIDetections) error {
+func renderAIBOMTable(cmd *cobra.Command, det cyclonedx.AIDetections) error {
 	dctx := display.FromCommand(cmd)
 	if dctx.IsJSON() {
 		data, err := json.MarshalIndent(det, "", "  ")

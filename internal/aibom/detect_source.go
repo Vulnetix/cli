@@ -1,7 +1,7 @@
 package aibom
 
 import (
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	cdx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v3/internal/sast"
 )
 

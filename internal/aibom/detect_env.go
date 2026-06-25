@@ -3,7 +3,7 @@ package aibom
 import (
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/cdx"
+	cdx "github.com/Vulnetix/vdb-cyclonedx"
 )
 
 // detectEnv records which catalog env-var names are present in the environment.

@@ -412,8 +412,8 @@ func populateMetadataFromContext(meta *Metadata, ctx *ScanContext) {
 
 	// ── git context → metadata.component ─────────────────────────────────
 	if g := ctx.Git; g != nil {
-		projName := gitProjectName(g)
-		projVersion := gitProjectVersion(g)
+		projName := GitProjectName(g)
+		projVersion := GitProjectVersion(g)
 
 		comp := &Component{
 			Type:        "application",
@@ -492,9 +492,9 @@ func populateMetadataFromContext(meta *Metadata, ctx *ScanContext) {
 	}
 }
 
-// gitProjectName derives a human-readable project name from the git context.
+// GitProjectName derives a human-readable project name from the git context.
 // Priority: first remote URL path → repo root directory name → "unknown".
-func gitProjectName(g *gitctx.GitContext) string {
+func GitProjectName(g *gitctx.GitContext) string {
 	if len(g.RemoteURLs) > 0 {
 		if name := extractRepoName(g.RemoteURLs[0]); name != "" {
 			return name
@@ -508,9 +508,9 @@ func gitProjectName(g *gitctx.GitContext) string {
 	return "unknown"
 }
 
-// gitProjectVersion returns the best available version string for the project.
+// GitProjectVersion returns the best available version string for the project.
 // Priority: first tag at HEAD → short commit SHA → empty.
-func gitProjectVersion(g *gitctx.GitContext) string {
+func GitProjectVersion(g *gitctx.GitContext) string {
 	if len(g.HeadTags) > 0 {
 		return g.HeadTags[0]
 	}
