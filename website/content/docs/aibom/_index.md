@@ -17,7 +17,7 @@ Three passes, all driven by a maintainable catalog:
 - **Source code** — AI SDK/framework usage per language, and the model-name literals passed to them. Model names are extracted by anchoring on the SDK parameter (`model=`, `modelId=`, `deployment_name=`), so **future / unknown model names are still captured**.
 - **Commit history** — commits authored by an AI agent, identified by `Co-Authored-By` trailers, session markers (e.g. `Claude-Session:`), agent bot authors, or "Generated with <tool>" lines. Catches agent use that left no file/env/source trace.
 
-The builtin catalog (version `2026.06.3`) covers **84 AI coding agents**, **73 AI provider services**, **2 conventions**, and **101 AI SDKs** across many languages.
+The builtin catalog (version `2026.06.4`) covers **84 AI coding agents**, **73 AI provider services**, **2 conventions**, and **102 AI SDKs** across many languages.
 
 {{< cards >}}
   {{< card link="supported-tools" title="Supported Agents" subtitle="Every AI coding tool & provider the catalog detects." icon="chip" >}}

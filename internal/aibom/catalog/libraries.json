@@ -2238,6 +2238,36 @@
           "task": "chat"
         }
       ]
+    },
+    {
+      "id": "cloudflare-workers-ai",
+      "name": "Cloudflare Workers AI",
+      "provider": "Cloudflare Workers AI",
+      "languages": [
+        "javascript",
+        "bash",
+        "go",
+        "python"
+      ],
+      "purl_names": {
+        "npm": "workers-ai-provider"
+      },
+      "import_patterns": [
+        "\\bcloudflare-workers-ai\\b",
+        "@cf/[A-Za-z0-9._-]+/",
+        "/ai/run/@cf/",
+        "\\bworkers-ai-provider\\b",
+        "@cloudflare/ai\\b",
+        "\\benv\\.AI\\.run\\s*\\(",
+        "\\bcreateWorkersAI\\b"
+      ],
+      "model_extractors": [
+        {
+          "param": "model",
+          "pattern": "(@cf/[A-Za-z0-9._-]+/[A-Za-z0-9._:-]+)",
+          "task": "chat"
+        }
+      ]
     }
   ]
 }
