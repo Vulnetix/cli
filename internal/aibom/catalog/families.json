@@ -339,6 +339,11 @@
       "prefix_regex": "^(?:[Nn]emotron|nvidia/(?:Nemotron|NV-Embed|Llama))",
       "provider": "NVIDIA",
       "family": "Nemotron"
+    },
+    {
+      "prefix_regex": "^@cf/",
+      "provider": "Cloudflare Workers AI",
+      "family": "Workers AI"
     }
   ]
 }

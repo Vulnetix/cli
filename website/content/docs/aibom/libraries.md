@@ -27,6 +27,7 @@ The source-code pass scans files in the matching language for these SDKs. When a
 | azure-ai-inference | Azure AI Inference | python | `model` |
 | azure openai | Azure OpenAI | python | `deployment` |
 | @cerebras/cerebras_cloud_sdk | Cerebras | javascript | `model` |
+| Cloudflare Workers AI | Cloudflare Workers AI | javascript, bash, go, python | `model` |
 | cohere | Cohere | python | `model` |
 | cohere-ai | Cohere | javascript | `model` |
 | langchain-cohere | Cohere | python | `model` |
@@ -77,8 +78,8 @@ The source-code pass scans files in the matching language for these SDKs. When a
 | @mistralai/mistralai | Mistral AI | javascript | `model` |
 | mistralai | Mistral AI | python | `model` |
 | langchain-ollama | Ollama | python | `model` |
-| ollama | Ollama | python | `model` |
 | ollama | Ollama | javascript | `model` |
+| ollama | Ollama | python | `model` |
 | ollama (Go client) | Ollama | go | `Model` |
 | ollama-rs | Ollama | rust | `model` |
 | OpenAI (MacPaw) | OpenAI | swift | `model` |
