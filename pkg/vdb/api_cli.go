@@ -859,6 +859,50 @@ type CliAIBOMResponse struct {
 func (c *Client) CliAIBOM(env CliEnv, req CliAIBOMRequest) (*CliResponse[CliAIBOMResponse], error) {
 	return cliPostWithEnv[CliAIBOMResponse](c, "cli.ai-bom", env, req)
 }
+
+// CliMalscanIOC is one indicator of compromise the local malscan extracted, plus
+// the offending-file sample so the server can persist a MalwareIoc row and store
+// the sample to S3 linked to it (attributed to the IOC's ecosystem processor).
+// Mirrors vdb-api/internal/handler/cli_persist_malscan.go.
+type CliMalscanIOC struct {
+	Type         string   `json:"type"`                   // domain|url|ipv4|ipv6|file-hash|exfil-endpoint|wallet|install-command|email|package-name
+	Value        string   `json:"value"`                  // the observable
+	Ecosystem    string   `json:"ecosystem,omitempty"`    // npm|pypi|cargo|… (selects the S3 processor prefix)
+	FilePath     string   `json:"filePath,omitempty"`     // path (relative to scan root) the IOC was found in
+	RuleID       string   `json:"ruleId,omitempty"`       // originating malscan rule/signal id
+	Severity     string   `json:"severity,omitempty"`     // STIX severity, when known
+	References   []string `json:"references,omitempty"`   // STIX external references / provenance URLs
+	SampleSHA256 string   `json:"sampleSha256,omitempty"` // sha256 of the offending-file sample (S3 key component)
+	SampleBase64 string   `json:"sampleBase64,omitempty"` // offending-file content (size-capped), base64-encoded
+	SampleName   string   `json:"sampleName,omitempty"`   // original sample file name
+}
+
+// CliMalscanRequest is the payload for POST /v2/cli.malscan. It carries the same
+// SARIF doc + typed findings shape as the other scan endpoints (so persistence
+// reuses the SARIF path) plus the extracted IOCs + samples that the server folds
+// into MalwareIoc rows. Chunked uploads anchor to IngestionSnapshotUuid exactly
+// like the SARIF endpoints.
+type CliMalscanRequest struct {
+	SARIF                 map[string]any    `json:"sarif"`
+	Findings              []CliSARIFFinding `json:"findings"`
+	IOCs                  []CliMalscanIOC   `json:"iocs,omitempty"`
+	IngestionSnapshotUuid string            `json:"ingestionSnapshotUuid,omitempty"`
+}
+
+// CliMalscanResponse is returned by /v2/cli.malscan: the ingestion snapshot link
+// (nil for community/unauthenticated callers — no persistence) plus persisted
+// finding handles and run stats.
+type CliMalscanResponse struct {
+	IngestionSnapshot *CliIngestionSnapshot `json:"ingestionSnapshot,omitempty"`
+	Findings          []CliFindingResult    `json:"findings,omitempty"`
+	Stats             CliSARIFStats         `json:"stats"`
+}
+
+// CliMalscan — POST /v2/cli.malscan. Persists a malware ScannerRun + snapshot +
+// Finding/Triage/OpenVEX + MalwareIoc rows (with S3-stored samples).
+func (c *Client) CliMalscan(env CliEnv, req CliMalscanRequest) (*CliResponse[CliMalscanResponse], error) {
+	return cliPostWithEnv[CliMalscanResponse](c, "cli.malscan", env, req)
+}
 func (c *Client) CliIAC(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
 	return cliPostWithEnv[CliSARIFResponse](c, "cli.iac", env, req)
 }

@@ -527,6 +527,17 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	}
 
 	analytics.TrackScan("sbom", len(files))
+
+	// ── Local malware scan (malscan-engine, in-process) ─────────────────
+	// Runs as a pass on `scan`; on `sca` only when --block-malware / org
+	// blockMalware is in effect (see shouldRunMalscanPass). It scans the
+	// project's dependency install dirs directly, uploads findings to
+	// /v2/cli.malscan, and — only when blockMalware is effective — yields a
+	// malware quality-gate breach. Computed before any no-files / no-manifest
+	// bail so `scan`/`sca --block-malware` still gate on installed-dependency
+	// malware in repos with no scannable root manifest; merged into every return.
+	malscanBreach := runMalscanPassForScan(cmd, scanPath, blockMalware, gitCtx)
+
 	if len(files) == 0 {
 		// WalkForScanFiles only detects dependency manifests and SBOM
 		// documents. The SAST-family analyses (sast / secrets / containers /
@@ -536,7 +547,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		sastFamilyEnabled := !noSAST || !noSecrets || !noContainers || !noIAC
 		if !sastFamilyEnabled {
 			fmt.Fprintln(os.Stderr, "No scannable files detected.")
-			return nil
+			return mergeMalscanBreach(nil, malscanBreach)
 		}
 	}
 
@@ -610,7 +621,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		sastFamilyEnabled := !noSAST || !noSecrets || !noContainers || !noIAC
 		if !sastFamilyEnabled {
 			fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
-			return nil
+			return mergeMalscanBreach(nil, malscanBreach)
 		}
 	}
 
@@ -621,7 +632,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	sysInfo := gitctx.CollectSystemInfo()
 
 	// ── 6. Run local scan ──────────────────────────────────────────────
-	return runLocalScan(
+	scanErr := runLocalScan(
 		ctx,
 		supportedFiles,
 		scanPath,
@@ -674,6 +685,8 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		gitHistoryMaxCommits,
 		gitHistoryMaxFiles,
 	)
+
+	return mergeMalscanBreach(scanErr, malscanBreach)
 }
 
 // scanStatusCmd is kept for backward compatibility — checks status of a previously
@@ -4254,6 +4267,7 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("no-remediation", false, "Suppress detailed remediation section")
 	cmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")
 	cmd.Flags().Bool("block-malware", false, "Exit with code 1 when any dependency is a known malicious package.")
+	cmd.Flags().Bool("no-malscan", false, "Skip the in-process malscan-engine pass over local dependency install dirs.")
 	cmd.Flags().Bool("block-eol", false, "Exit with code 1 when a runtime or package dependency is end-of-life. Runtimes: Go, Node.js, Python, Ruby. Package-level checks activate when VDB has EOL data (404s are silently skipped).")
 	cmd.Flags().Bool("block-unpinned", false, "Exit with code 1 when any direct dependency uses a version range (^, ~, >=) instead of an exact pin.")
 	cmd.Flags().String("exploits", "", "Exit with code 1 when exploit maturity reaches the threshold: poc (any public exploit), active (CISA/EU KEV / actively exploited), weaponized (in-the-wild only).")
