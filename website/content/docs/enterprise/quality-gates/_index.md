@@ -15,7 +15,7 @@ Nine settings map one-to-one onto the equivalent `vulnetix scan` flags. Each is 
 | Setting | Type | Value | Gates on |
 | --- | --- | --- | --- |
 | **Block EOL** | bool | `true\|false` | A runtime or package dependency that is end-of-life. |
-| **Block malware** | bool | `true\|false` | A dependency that is a known malicious package. |
+| **Block malware** | bool | `true\|false` | A dependency that is a known malicious package — **and** any malware found by the in-process [malscan](../../cli-reference/malscan/) pass over the installed bytes. |
 | **Block unpinned** | bool | `true\|false` | A direct dependency using a version range instead of an exact pin. |
 | **Cooldown** | int | `≥ 0` | A dependency version published within the last *n* days (`0` disables). |
 | **Version lag** | int | `≥ 0` | A dependency within the *n* most recently published versions (`0` disables). |
@@ -25,6 +25,8 @@ Nine settings map one-to-one onto the equivalent `vulnetix scan` flags. Each is 
 | **SCA autofix strategy** | string | `latest\|safest\|stable` | Target strategy for `--sca-autofix`. |
 
 Each setting is independently **set**, **unset**, or **left unchanged**. From the CLI, pass a value to set it, or `null` to unset it entirely for the org (`vulnetix config set quality-gate --severity null`); from the console, clear the field. An **unset** setting reverts to the member's own scan flag or the builtin default — it is not the same as setting `false` or `0`, which actively enforce that value.
+
+> **Block malware covers two layers.** When enforced, the malware gate fails the build on both the backend known-malicious-package verdict (a name+version lookup) **and** any malware the in-process [malscan](../../cli-reference/malscan/) pass finds in the installed bytes (STIX IOCs, install-script patterns, bad hashes). `malscan` runs automatically as part of `scan`; `sca` runs it when the malware gate is in effect.
 
 ## EOL severity buckets
 

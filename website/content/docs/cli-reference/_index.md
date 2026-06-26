@@ -445,6 +445,7 @@ vulnetix scan status <scan-id> [flags]
 | `--evaluate-secrets` / `--no-secrets` | - | Enable/disable secret-detection rules |
 | `--enable-containers` / `--no-containers` | - | Enable/disable container file analysis |
 | `--evaluate-iac` / `--no-iac` | - | Enable/disable IaC file analysis |
+| `--no-malscan` | `false` | Skip the in-process [malscan](malscan/) malware pass (runs by default) |
 | `--disable-default-rules` | `false` | Skip built-in SAST rules (external `--rule` repos still loaded) |
 | `-R, --rule` | - | External SAST rule repo in `org/repo` format (repeatable) — see [Custom Rule Repositories](../sast-rules/custom-rules/) |
 | `--dry-run` | `false` | Detect files and parse packages only — zero API calls |
@@ -461,6 +462,30 @@ vulnetix sca [flags]
 ```
 
 Equivalent to `vulnetix scan --evaluate-sca --no-sast --no-secrets --no-containers --no-iac --no-licenses`.
+
+When `--block-malware` (or the org `blockMalware` policy) is in effect, `sca` also runs the in-process [malscan](malscan/) pass over the installed dependencies and gates on any locally-detected malware.
+
+---
+
+### vulnetix malscan
+
+Scan the project's locally-installed dependencies for malware in-process — STIX IOC filesystem scan, manifest/install-script pattern detection, IOC extraction, and known-bad artifact hashing — and emit SARIF evidence. Complements `--block-malware` (a known-malicious-package policy lookup) by inspecting the installed bytes themselves. See the full [Malscan Command Reference](malscan/).
+
+```bash
+vulnetix malscan [path] [flags]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `.` | Directory to scan (positional `[path]` overrides; defaults to the git root) |
+| `--include-home` | `false` | Also scan user-scoped/home caches (`~/.npm`, `~/go/pkg/mod`, `~/.cargo`, …) |
+| `-o, --output` | `pretty` | Terminal output format: `pretty`, `json`, `sarif` |
+| `--output-file` | - | SARIF output path (default `.vulnetix/malscan.sarif`) |
+| `--no-ioc-feeds` | `false` | Skip the STIX network fetch; run `detect` + `badhash` only (offline) |
+| `--no-binary-analysis` | `false` | Do not extract/match IOCs in binary files |
+| `--no-upload` | `false` | Do not submit findings (submitted automatically when authenticated) |
+
+Exit code `1` on any malware found. Also runs as a pass inside `scan` (default on) and `sca` (when `--block-malware`/org policy is in effect).
 
 ---
 
