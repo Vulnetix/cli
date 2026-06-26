@@ -199,6 +199,15 @@ jobs:
 
 Available gates: `--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`, `--version-lag`, `--cooldown`. See the [Scan Command Reference]({{< relref "scan" >}}) for details.
 
+`--block-malware` gates on both the known-malicious-package verdict **and** the in-process [malscan]({{< relref "malscan" >}}) pass, which scans the installed dependency bytes for embedded malware. To run malware scanning as its own step (no SCA), use `vulnetix malscan` — it exits `1` on any finding and writes `.vulnetix/malscan.sarif`:
+
+```yaml
+      - name: Malware scan
+        run: vulnetix malscan
+        env:
+          VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+```
+
 ### SAST with Custom Rules
 
 Run built-in SAST rules alongside SCA, optionally loading additional rules from a repository. Upload the SARIF output to GitHub Code Scanning for tracking in the Security tab.
