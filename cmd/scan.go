@@ -2048,6 +2048,9 @@ func runLocalScan(
 	// Write any requested file outputs.
 	if outCfg.cdxFile != "" {
 		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
+		// Carry the dependency tree into the file output too, so `-o file.cdx.json`
+		// is as complete as the canonical .vulnetix/sbom.cdx.json.
+		outBOM.Dependencies = cdx.BuildDependencies(manifestGroups, cdx.ExportCompRefs(outBOM))
 		if err := writeBOMToFile(outBOM, outCfg.cdxFile); err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not write CDX to %s: %v\n", outCfg.cdxFile, err)
 		}
