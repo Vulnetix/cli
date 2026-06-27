@@ -898,9 +898,34 @@ func runLocalScan(
 				pkgs = resolved
 			}
 
-			// Replace absolute path with relative path in each package.
+			// Python build-or-lock gate: an unpinned pip manifest (requirements
+			// files, pyproject.toml, Pipfile) with no sibling lock must resolve
+			// against the installed environment. A confident file that can't be
+			// resolved is a fatal error (build the app or generate a lock file); a
+			// tentatively-detected file (bare names, ambiguous) that can't be
+			// confirmed against installed packages is silently disregarded.
+			if scan.IsPythonGatedManifest(f.ManifestInfo.Type) && len(pkgs) > 0 &&
+				!scan.RequirementsFullyLocked(pkgs) && !scan.PyLockfilePresent(filepath.Dir(f.Path)) {
+				confident := f.ManifestInfo.Confidence != scan.ConfidenceTentative
+				resolved, rerr := scan.ResolvePythonRequirementsFromSitePackages(f.Path, f.RelPath, pkgs, confident)
+				if rerr != nil {
+					if confident {
+						return rerr
+					}
+					continue // tentative + unconfirmed → not a requirements file
+				}
+				pkgs = resolved
+			}
+
+			// Replace absolute path with relative path in each package, and tag
+			// manifest-declared packages. The npm node_modules resolver may have
+			// already flagged install-only packages as "installed" — don't clobber
+			// that; only default the unset (manifest-parsed) packages.
 			for i := range pkgs {
 				pkgs[i].SourceFile = f.RelPath
+				if pkgs[i].SourceType == "" {
+					pkgs[i].SourceType = scan.SourceTypeManifest
+				}
 			}
 
 			// Count by scope for the per-file summary line.

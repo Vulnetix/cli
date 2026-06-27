@@ -7,6 +7,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/BurntSushi/toml"
 )
 
 // Scope constants use native package manager terminology.
@@ -19,6 +21,15 @@ const (
 	ScopeProvided    = "provided"
 	ScopeRuntime     = "runtime"
 	ScopeSystem      = "system"
+)
+
+// Discovery-source provenance: how the CLI found a package. A package declared in
+// a manifest is fixed by editing that manifest; a package found only in an install
+// directory (e.g. a transitive in node_modules, not in any manifest) is fixed by
+// pinning/reinstalling — so the two are tracked distinctly for remediation.
+const (
+	SourceTypeManifest  = "manifest"  // declared in a manifest/lockfile
+	SourceTypeInstalled = "installed" // found in an install dir, not declared
 )
 
 // PackageChecksum holds one integrity hash extracted from a lock file.
@@ -92,6 +103,13 @@ type ScopedPackage struct {
 	IsDirect    bool              // true if declared in the manifest (e.g., go.mod), false if transitive (e.g., go.sum)
 	GitHubURL   string            // optional: "owner/repo" for packages whose VCS is known from the manifest
 	Checksums   []PackageChecksum // per-package integrity hashes extracted from lock files
+
+	// Discovery-source provenance (see SourceType* consts). SourceType is
+	// "manifest" when the package was declared, "installed" when it was found only
+	// in an install directory. InstalledPath is the root-relative install location
+	// (e.g. "node_modules/lodash") for installed packages; empty otherwise.
+	SourceType    string
+	InstalledPath string
 }
 
 // ParseManifestWithScope parses a manifest file and returns packages with scope information.
@@ -117,6 +135,8 @@ func ParseManifestWithScope(filePath, manifestType string) ([]ScopedPackage, err
 		return parsePipfileLockScoped(data, filePath)
 	case "uv.lock":
 		return parseUVLockScoped(data, filePath)
+	case "pylock.toml":
+		return parsePylockTOMLScoped(data, filePath)
 	case "pyproject.toml":
 		return parsePyprojectTOMLScoped(data, filePath)
 	case "go.sum":
@@ -534,52 +554,193 @@ func parsePnpmLockScoped(data []byte, filePath string) ([]ScopedPackage, error) 
 // Python
 // ---------------------------------------------------------------------------
 
+// parseRequirementsTxtScoped parses a pip requirements file (requirements.txt,
+// requirements.in, or any content-detected variant). It handles the full shape
+// emitted by `pip freeze` and `uv/pip compile --generate-hashes`:
+//   - `\` line continuations joining a requirement to its `--hash=` lines,
+//   - multiple `--hash=ALG:VALUE` tokens per package (sdist + every wheel),
+//   - the trailing `# via` comment block, which encodes how a package entered the
+//     resolution: a `-r <file>`/`-c <file>` source means the package is a direct
+//     requirement; otherwise (only parent package names) it is transitive.
+//
+// requirements.txt has no prod/dev scope concept, so all deps are production.
 func parseRequirementsTxtScoped(data []byte, filePath string) ([]ScopedPackage, error) {
-	// requirements.txt has no scope concept; all deps are treated as production.
 	var pkgs []ScopedPackage
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+
+	// 1. Join backslash continuations into logical lines (comment lines are never
+	//    continued, so a `# via` block stays one logical line per entry).
+	logical := joinReqContinuations(string(data))
+
+	// 2. Walk logical lines. A `# via` block annotates the package that preceded
+	//    it; a package is direct unless its via block lists only parent packages.
+	curIdx := -1       // pkgs index the current via block annotates
+	curVia := false    // saw a `via` marker for the current package
+	curDirect := false // via block referenced an -r/-c include (a direct source)
+
+	finalize := func() {
+		if curIdx >= 0 && curVia && !curDirect {
+			pkgs[curIdx].IsDirect = false
+		}
+		curVia, curDirect = false, false
+	}
+
+	for _, ll := range logical {
+		line := strings.TrimSpace(ll)
+		if line == "" {
 			continue
 		}
-		var name, version, versionSpec, rawHash string
-		for _, sep := range []string{"==", ">=", "<=", "~=", "!=", ">", "<"} {
-			if idx := strings.Index(line, sep); idx > 0 {
-				name = strings.TrimSpace(line[:idx])
-				rawSpec := strings.TrimSpace(line[idx:]) // includes the operator
-				versionSpec = rawSpec
-				version = strings.TrimSpace(line[idx+len(sep):])
-				if bIdx := strings.Index(name, "["); bIdx > 0 {
-					name = name[:bIdx]
-				}
-				// strip --hash=... from version
-				if hIdx := strings.Index(version, "--hash="); hIdx > 0 {
-					rawHash = strings.TrimSpace(version[hIdx+7:])
-					version = strings.TrimSpace(version[:hIdx])
-				}
-				break
+
+		// Comment line: possibly part of the current package's `# via` block.
+		if strings.HasPrefix(line, "#") {
+			if curIdx < 0 {
+				continue
 			}
+			body := strings.TrimSpace(strings.TrimPrefix(line, "#"))
+			if rest, ok := strings.CutPrefix(body, "via"); ok {
+				curVia = true
+				body = strings.TrimSpace(rest)
+			}
+			if curVia && body != "" && isRequirementsInclude(body) {
+				curDirect = true
+			}
+			continue
 		}
-		if name == "" {
-			name = strings.TrimSpace(line)
-			if bIdx := strings.Index(name, "["); bIdx > 0 {
-				name = name[:bIdx]
-			}
-			if hIdx := strings.Index(name, "--hash="); hIdx > 0 {
-				rawHash = strings.TrimSpace(name[hIdx+7:])
-				name = strings.TrimSpace(name[:hIdx])
-			}
+
+		// Any non-comment line ends the previous package's via block.
+		finalize()
+		curIdx = -1
+
+		// Strip an inline trailing comment (" # note"); not present on hash lines.
+		if ci := strings.Index(line, " #"); ci >= 0 {
+			line = strings.TrimSpace(line[:ci])
 		}
-		if name != "" {
-			sp := ScopedPackage{Name: name, Version: version, VersionSpec: versionSpec, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true}
-			if c := normalizeChecksum(rawHash); c.Alg != "" {
-				sp.Checksums = []PackageChecksum{c}
+
+		// Directives (-r/-c/-e/-i/--index-url/--hash on its own/…).
+		if strings.HasPrefix(line, "-") {
+			if name := editableEggName(line); name != "" {
+				pkgs = append(pkgs, ScopedPackage{Name: name, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true})
+				curIdx = len(pkgs) - 1
 			}
-			pkgs = append(pkgs, sp)
+			continue
+		}
+
+		// Separate the requirement spec from any trailing --hash= tokens.
+		var specParts []string
+		var checksums []PackageChecksum
+		for _, tok := range strings.Fields(line) {
+			if h, ok := strings.CutPrefix(tok, "--hash="); ok {
+				if c := normalizeChecksum(strings.TrimSpace(h)); c.Alg != "" {
+					checksums = append(checksums, c)
+				}
+				continue
+			}
+			specParts = append(specParts, tok)
+		}
+		name, version, versionSpec, ok := parsePEP508(strings.Join(specParts, " "))
+		if !ok || name == "" {
+			continue
+		}
+		pkgs = append(pkgs, ScopedPackage{
+			Name: name, Version: version, VersionSpec: versionSpec,
+			Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath,
+			IsDirect: true, Checksums: checksums,
+		})
+		curIdx = len(pkgs) - 1
+	}
+	finalize()
+	return pkgs, nil
+}
+
+// joinReqContinuations splits requirements-file text into logical lines, joining
+// `\`-continuation lines (so a requirement and its trailing `--hash=` lines form
+// one record). Comment lines are never continued.
+func joinReqContinuations(data string) []string {
+	raw := strings.Split(strings.ReplaceAll(data, "\r\n", "\n"), "\n")
+	var logical []string
+	var buf strings.Builder
+	for _, ln := range raw {
+		if strings.HasSuffix(strings.TrimRight(ln, " \t"), `\`) {
+			buf.WriteString(strings.TrimSuffix(strings.TrimRight(ln, " \t"), `\`))
+			buf.WriteString(" ")
+			continue
+		}
+		buf.WriteString(ln)
+		logical = append(logical, buf.String())
+		buf.Reset()
+	}
+	if buf.Len() > 0 {
+		logical = append(logical, buf.String())
+	}
+	return logical
+}
+
+// parsePEP508 parses a PEP 508 requirement specifier (e.g. "PyYAML[yaml]>=6.0 ;
+// python_version>='3.8'"). It strips extras and environment markers, splits on
+// the version operator, and supports bare names (no version). Returns the name,
+// the cleaned exact version (first version token), the full version spec
+// (operator+version), and ok=false for non-requirement input.
+func parsePEP508(raw string) (name, version, versionSpec string, ok bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.HasPrefix(raw, "#") {
+		return "", "", "", false
+	}
+	// Strip environment markers ("pkg>=1.0 ; python_version>='3.8'").
+	if idx := strings.Index(raw, ";"); idx >= 0 {
+		raw = strings.TrimSpace(raw[:idx])
+	}
+	// Strip extras ("pkg[extra]>=1.0").
+	if bIdx := strings.Index(raw, "["); bIdx > 0 {
+		if eIdx := strings.Index(raw, "]"); eIdx > bIdx {
+			raw = strings.TrimSpace(raw[:bIdx] + raw[eIdx+1:])
 		}
 	}
-	return pkgs, nil
+	if raw == "" {
+		return "", "", "", false
+	}
+	for _, sep := range []string{"===", "==", ">=", "<=", "~=", "!=", ">", "<"} {
+		if idx := strings.Index(raw, sep); idx > 0 {
+			return strings.TrimSpace(raw[:idx]),
+				cleanReqVersion(raw[idx+len(sep):]),
+				strings.TrimSpace(raw[idx:]),
+				true
+		}
+	}
+	// Bare name (no version specifier).
+	return raw, "", "", true
+}
+
+// cleanReqVersion returns the first version token from a (possibly multi-clause)
+// version string, e.g. ">=1.0,<2.0" → "1.0".
+func cleanReqVersion(v string) string {
+	v = strings.TrimSpace(v)
+	if i := strings.IndexAny(v, ", "); i >= 0 {
+		v = v[:i]
+	}
+	return v
+}
+
+// isRequirementsInclude reports whether a `# via` token is an -r/-c file include
+// (which marks the annotated package as a direct requirement) rather than a
+// parent package name.
+func isRequirementsInclude(s string) bool {
+	s = strings.TrimSpace(s)
+	return s == "-r" || s == "-c" ||
+		strings.HasPrefix(s, "-r ") || strings.HasPrefix(s, "-c ") ||
+		strings.HasPrefix(s, "--requirement") || strings.HasPrefix(s, "--constraint")
+}
+
+// editableEggName extracts the package name from an editable/VCS requirement
+// (e.g. "-e git+https://host/repo.git#egg=name"). Returns "" when absent.
+func editableEggName(line string) string {
+	i := strings.Index(line, "#egg=")
+	if i < 0 {
+		return ""
+	}
+	name := line[i+len("#egg="):]
+	if j := strings.IndexAny(name, " \t&"); j >= 0 {
+		name = name[:j]
+	}
+	return strings.TrimSpace(name)
 }
 
 func parsePipfileLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
@@ -624,77 +785,122 @@ func parsePipfileLockScoped(data []byte, filePath string) ([]ScopedPackage, erro
 // Python (uv.lock + pyproject.toml)
 // ---------------------------------------------------------------------------
 
-// parseUVLockScoped parses a uv.lock file (TOML, [[package]] sections).
-// uv.lock does not encode production/dev scope per-package; all packages are
-// marked as production. Scope correlation would require pairing with pyproject.toml.
+// uvLockArtifact / uvLockDep / uvLockPackage / uvLockFile decode a uv.lock file.
+// uv.lock uses inline tables (`sdist = { url=…, hash="sha256:…" }`, `wheels =
+// [{…},…]`, `dependencies = [{ name=… }]`), which a real TOML decoder reads
+// losslessly — the previous hand-rolled scanner missed all of it.
+type uvLockArtifact struct {
+	URL  string `toml:"url"`
+	Hash string `toml:"hash"`
+}
+type uvLockDep struct {
+	Name string `toml:"name"`
+}
+type uvLockPackage struct {
+	Name                 string                 `toml:"name"`
+	Version              string                 `toml:"version"`
+	Sdist                *uvLockArtifact        `toml:"sdist"`
+	Wheels               []uvLockArtifact       `toml:"wheels"`
+	Dependencies         []uvLockDep            `toml:"dependencies"`
+	OptionalDependencies map[string][]uvLockDep `toml:"optional-dependencies"`
+}
+type uvLockFile struct {
+	Package []uvLockPackage `toml:"package"`
+}
+
+// parseUVLockScoped parses a uv.lock file (TOML, [[package]] tables). It captures
+// every sdist + wheel hash. uv.lock does not encode prod/dev scope per-package,
+// so all packages are marked production; the dependency tree (the `dependencies`
+// tables) is consumed separately by PopulatePypiLockEdges for the SBOM graph.
 func parseUVLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var lock uvLockFile
+	if _, err := toml.Decode(string(data), &lock); err != nil {
+		return nil, fmt.Errorf("invalid uv.lock: %w", err)
+	}
 	var pkgs []ScopedPackage
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	var name, version string
-	var checksums []PackageChecksum
-	inPackage := false
-	inHashSection := false
-
-	flushCurrent := func() {
-		if name != "" {
-			sp := ScopedPackage{Name: name, Version: version, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath}
-			if len(checksums) > 0 {
-				sp.Checksums = checksums
-			}
-			pkgs = append(pkgs, sp)
-		}
-		name, version = "", ""
-		checksums = nil
-		inHashSection = false
-	}
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		// A new top-level section (non-indented "[") that is not "[[package]]" ends the current block.
-		if strings.HasPrefix(line, "[") && !strings.HasPrefix(line, "[[package]]") && inPackage {
-			flushCurrent()
-			inPackage = false
+	for _, p := range lock.Package {
+		if p.Name == "" {
 			continue
 		}
-
-		if line == "[[package]]" {
-			flushCurrent()
-			inPackage = true
-			continue
-		}
-
-		if !inPackage {
-			continue
-		}
-
-		if strings.HasPrefix(line, "name = ") {
-			name = strings.Trim(strings.TrimPrefix(line, "name = "), `"`)
-		}
-		if strings.HasPrefix(line, "version = ") {
-			version = strings.Trim(strings.TrimPrefix(line, "version = "), `"`)
-		}
-
-		// Track sub-sections for hashes
-		if strings.HasPrefix(line, "[package.sdist]") || strings.HasPrefix(line, "[[package.wheels]]") {
-			inHashSection = true
-			continue
-		}
-
-		// End of a sub-section (a line that starts with '[' but not [[package.wheels]] or [package.sdist])
-		// Actually, any line starting with '[' already handled above (it flushes and ends package)
-		// But we still need to capture hashes if they exist
-		if inHashSection && strings.HasPrefix(line, "hash = ") {
-			rawHash := strings.Trim(strings.TrimPrefix(line, "hash = "), `"`)
-			if c := normalizeChecksum(rawHash); c.Alg != "" {
-				checksums = append(checksums, c)
+		sp := ScopedPackage{Name: p.Name, Version: p.Version, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath}
+		if p.Sdist != nil {
+			if c := normalizeChecksum(p.Sdist.Hash); c.Alg != "" {
+				sp.Checksums = append(sp.Checksums, c)
 			}
 		}
-	}
-	// Flush the last package block.
-	if inPackage {
-		flushCurrent()
+		for _, w := range p.Wheels {
+			if c := normalizeChecksum(w.Hash); c.Alg != "" {
+				sp.Checksums = append(sp.Checksums, c)
+			}
+		}
+		pkgs = append(pkgs, sp)
 	}
 	return pkgs, nil
+}
+
+// pylockHashes / pylockArtifact / pylockPackage / pylockFile decode a PEP 751
+// pylock.toml. Hashes are a sub-table keyed by algorithm with bare-hex values
+// (`hashes = { sha256 = "HEX" }`), unlike uv.lock's prefixed `hash = "sha256:…"`.
+type pylockHashes struct {
+	SHA256 string `toml:"sha256"`
+	SHA512 string `toml:"sha512"`
+	SHA1   string `toml:"sha1"`
+}
+type pylockArtifact struct {
+	URL    string       `toml:"url"`
+	Hashes pylockHashes `toml:"hashes"`
+}
+type pylockPackage struct {
+	Name         string           `toml:"name"`
+	Version      string           `toml:"version"`
+	Sdist        *pylockArtifact  `toml:"sdist"`
+	Wheels       []pylockArtifact `toml:"wheels"`
+	Dependencies []struct {
+		Name string `toml:"name"`
+	} `toml:"dependencies"`
+}
+type pylockFile struct {
+	Packages []pylockPackage `toml:"packages"`
+}
+
+// parsePylockTOMLScoped parses a PEP 751 pylock.toml lock file, capturing every
+// sdist + wheel hash per package. pylock.toml is a fully-pinned lock, so all
+// entries are production with exact versions.
+func parsePylockTOMLScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var lock pylockFile
+	if _, err := toml.Decode(string(data), &lock); err != nil {
+		return nil, fmt.Errorf("invalid pylock.toml: %w", err)
+	}
+	var pkgs []ScopedPackage
+	for _, p := range lock.Packages {
+		if p.Name == "" {
+			continue
+		}
+		sp := ScopedPackage{Name: p.Name, Version: p.Version, Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath}
+		addPylockHashes(&sp, p.Sdist)
+		for i := range p.Wheels {
+			addPylockHashes(&sp, &p.Wheels[i])
+		}
+		pkgs = append(pkgs, sp)
+	}
+	return pkgs, nil
+}
+
+// addPylockHashes appends the algorithm-keyed bare-hex hashes of a pylock.toml
+// artifact (sdist or wheel) to the package's checksum list.
+func addPylockHashes(sp *ScopedPackage, a *pylockArtifact) {
+	if a == nil {
+		return
+	}
+	if a.Hashes.SHA256 != "" {
+		sp.Checksums = append(sp.Checksums, PackageChecksum{Alg: "SHA-256", Value: a.Hashes.SHA256})
+	}
+	if a.Hashes.SHA512 != "" {
+		sp.Checksums = append(sp.Checksums, PackageChecksum{Alg: "SHA-512", Value: a.Hashes.SHA512})
+	}
+	if a.Hashes.SHA1 != "" {
+		sp.Checksums = append(sp.Checksums, PackageChecksum{Alg: "SHA-1", Value: a.Hashes.SHA1})
+	}
 }
 
 // parsePyprojectTOMLScoped parses a pyproject.toml file without a TOML library.
@@ -731,37 +937,17 @@ func parsePyprojectTOMLScoped(data []byte, filePath string) ([]ScopedPackage, er
 		}
 	}
 
-	// extractPyDep parses a PEP 508 dependency specifier string (e.g. "PyYAML>=6.0").
-	// Returns name, cleaned version, full version spec (operator+version), and ok.
-	// Skips group-include dicts.
+	// extractPyDep parses a TOML array item holding a PEP 508 dependency specifier
+	// (e.g. `"PyYAML>=6.0",`). It strips TOML quoting/commas and group-include
+	// dicts, then defers to parsePEP508 for the actual specifier parsing.
 	extractPyDep := func(raw string) (name, ver, versionSpec string, ok bool) {
-		// Strip outer quotes and trailing comma.
 		raw = strings.TrimSpace(raw)
 		raw = strings.Trim(raw, `"',`)
 		raw = strings.TrimSpace(raw)
 		if raw == "" || strings.HasPrefix(raw, "{") || strings.HasPrefix(raw, "#") {
 			return "", "", "", false
 		}
-		// Strip any environment markers ("pkg>=1.0 ; python_version>='3.8'").
-		if idx := strings.Index(raw, ";"); idx > 0 {
-			raw = strings.TrimSpace(raw[:idx])
-		}
-		// Strip extras ("pkg[extra]>=1.0").
-		if bIdx := strings.Index(raw, "["); bIdx > 0 {
-			if eIdx := strings.Index(raw, "]"); eIdx > bIdx {
-				raw = raw[:bIdx] + raw[eIdx+1:]
-			}
-		}
-		for _, sep := range []string{"==", ">=", "<=", "~=", "!=", ">", "<"} {
-			if idx := strings.Index(raw, sep); idx > 0 {
-				return strings.TrimSpace(raw[:idx]), strings.TrimSpace(raw[idx+len(sep):]), strings.TrimSpace(raw[idx:]), true
-			}
-		}
-		// No version specifier — just a bare name.
-		if raw != "" {
-			return raw, "", "", true
-		}
-		return "", "", "", false
+		return parsePEP508(raw)
 	}
 
 	for scanner.Scan() {

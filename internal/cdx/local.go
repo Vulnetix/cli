@@ -507,8 +507,16 @@ func PopulateLicenses(bom *BOM, licenseMap map[string]string) {
 // BuildDependencies creates the CycloneDX dependencies array from ManifestGroup edges.
 // compRefs maps "name@version" → bom-ref for cross-referencing.
 func BuildDependencies(groups []scan.ManifestGroup, compRefs map[string]string) []CDXDependency {
-	// Build name → bom-ref index (without version, since edges use bare names).
+	// normName folds PyPI naming quirks (case, dash/underscore/dot) so edges keyed
+	// in normalised form still resolve to components keyed by their literal name.
+	normName := func(s string) string {
+		return strings.ToLower(strings.NewReplacer("-", "_", ".", "_").Replace(s))
+	}
+
+	// Build name → bom-ref indexes (without version, since edges use bare names):
+	// one raw, one normalised. Raw wins; the normalised index is a fallback.
 	nameToRef := map[string]string{}
+	normToRef := map[string]string{}
 	for key, ref := range compRefs {
 		// key is "name@version"; extract name.
 		if idx := strings.LastIndex(key, "@"); idx > 0 {
@@ -516,7 +524,19 @@ func BuildDependencies(groups []scan.ManifestGroup, compRefs map[string]string) 
 			if _, exists := nameToRef[name]; !exists {
 				nameToRef[name] = ref
 			}
+			if nk := normName(name); nk != "" {
+				if _, exists := normToRef[nk]; !exists {
+					normToRef[nk] = ref
+				}
+			}
 		}
+	}
+	resolveRef := func(name string) (string, bool) {
+		if ref, ok := nameToRef[name]; ok {
+			return ref, true
+		}
+		ref, ok := normToRef[normName(name)]
+		return ref, ok
 	}
 
 	seen := map[string]bool{}
@@ -527,7 +547,7 @@ func BuildDependencies(groups []scan.ManifestGroup, compRefs map[string]string) 
 			continue
 		}
 		for parent, children := range mg.Graph.Edges {
-			parentRef, ok := nameToRef[parent]
+			parentRef, ok := resolveRef(parent)
 			if !ok {
 				continue
 			}
@@ -539,7 +559,7 @@ func BuildDependencies(groups []scan.ManifestGroup, compRefs map[string]string) 
 			seenChild := map[string]bool{}
 			var childRefs []string
 			for _, child := range children {
-				if childRef, ok := nameToRef[child]; ok && !seenChild[childRef] {
+				if childRef, ok := resolveRef(child); ok && !seenChild[childRef] {
 					seenChild[childRef] = true
 					childRefs = append(childRefs, childRef)
 				}

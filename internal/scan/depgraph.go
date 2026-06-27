@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/BurntSushi/toml"
 )
 
 // DepGraph tracks direct vs transitive dependency relationships for a manifest group.
@@ -283,6 +285,150 @@ func (g *DepGraph) PopulateNpmLockEdges(lockFilePath string) error {
 	return nil
 }
 
+// PopulatePypiLockEdges builds dependency-tree edges for a pypi manifest group
+// from the lock files in dir. Edge keys/values are normalised (normPypi) so the
+// lock, `# via`, and installed-METADATA sources all merge on one key form;
+// BuildDependencies resolves SBOM component names against the same normalisation.
+// uv.lock and pylock.toml carry an explicit dependency tree; a `pip/uv compile`
+// requirements.txt carries it as inverted `# via` comments. All present sources
+// are merged.
+func (g *DepGraph) PopulatePypiLockEdges(dir string) {
+	if g == nil {
+		return
+	}
+	if g.Edges == nil {
+		g.Edges = make(map[string][]string)
+	}
+
+	// uv.lock — richest tree (explicit dependencies + optional-dependencies).
+	if data, err := os.ReadFile(filepath.Join(dir, "uv.lock")); err == nil {
+		var lock uvLockFile
+		if _, derr := toml.Decode(string(data), &lock); derr == nil {
+			for _, p := range lock.Package {
+				var children []string
+				for _, d := range p.Dependencies {
+					if d.Name != "" {
+						children = append(children, d.Name)
+					}
+				}
+				for _, deps := range p.OptionalDependencies {
+					for _, d := range deps {
+						if d.Name != "" {
+							children = append(children, d.Name)
+						}
+					}
+				}
+				g.addPypiEdges(normPypi(p.Name), normPypiList(children))
+			}
+		}
+	}
+
+	// pylock.toml — PEP 751 per-package dependencies, when the generator emits them.
+	if data, err := os.ReadFile(filepath.Join(dir, "pylock.toml")); err == nil {
+		var lock pylockFile
+		if _, derr := toml.Decode(string(data), &lock); derr == nil {
+			for _, p := range lock.Packages {
+				var children []string
+				for _, d := range p.Dependencies {
+					if d.Name != "" {
+						children = append(children, d.Name)
+					}
+				}
+				g.addPypiEdges(normPypi(p.Name), normPypiList(children))
+			}
+		}
+	}
+
+	// requirements.txt — invert the `# via` comments (only tree source when no
+	// lock file exists alongside a compiled, hashed requirements.txt).
+	if data, err := os.ReadFile(filepath.Join(dir, "requirements.txt")); err == nil {
+		for parent, children := range parseRequirementsViaEdges(string(data)) {
+			g.addPypiEdges(normPypi(parent), normPypiList(children))
+		}
+	}
+}
+
+// normPypiList normalises a list of PyPI package names (dropping empties).
+func normPypiList(names []string) []string {
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		if n != "" {
+			out = append(out, normPypi(n))
+		}
+	}
+	return out
+}
+
+// addPypiEdges appends children under parent, de-duplicating existing edges.
+func (g *DepGraph) addPypiEdges(parent string, children []string) {
+	if parent == "" || len(children) == 0 {
+		return
+	}
+	existing := make(map[string]bool, len(g.Edges[parent]))
+	for _, c := range g.Edges[parent] {
+		existing[c] = true
+	}
+	for _, c := range children {
+		if c != "" && !existing[c] {
+			g.Edges[parent] = append(g.Edges[parent], c)
+			existing[c] = true
+		}
+	}
+}
+
+// parseRequirementsViaEdges inverts the `# via` annotations of a compiled
+// requirements.txt into forward edges (parent → child). A `# via -r file`
+// reference is an include, not a parent package, and is skipped.
+func parseRequirementsViaEdges(content string) map[string][]string {
+	edges := map[string][]string{}
+	curName := ""
+	curVia := false
+	for _, ll := range joinReqContinuations(content) {
+		line := strings.TrimSpace(ll)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
+			if curName == "" {
+				continue
+			}
+			body := strings.TrimSpace(strings.TrimPrefix(line, "#"))
+			if rest, ok := strings.CutPrefix(body, "via"); ok {
+				curVia = true
+				body = strings.TrimSpace(rest)
+			}
+			if !curVia || body == "" || isRequirementsInclude(body) {
+				continue
+			}
+			if parent, _, _, ok := parsePEP508(body); ok && parent != "" {
+				edges[parent] = append(edges[parent], curName)
+			}
+			continue
+		}
+		curVia = false
+		if strings.HasPrefix(line, "-") {
+			curName = ""
+			continue
+		}
+		if ci := strings.Index(line, " #"); ci >= 0 {
+			line = strings.TrimSpace(line[:ci])
+		}
+		var specParts []string
+		for _, tok := range strings.Fields(line) {
+			if strings.HasPrefix(tok, "--hash=") {
+				continue
+			}
+			specParts = append(specParts, tok)
+		}
+		if name, _, _, ok := parsePEP508(strings.Join(specParts, " ")); ok {
+			curName = name
+		} else {
+			curName = ""
+		}
+	}
+	return edges
+}
+
 // BuildGoDepGraph correlates go.mod (direct) and go.sum (all) packages from the
 // same directory to determine which dependencies are direct vs transitive.
 func BuildGoDepGraph(goModPkgs, goSumPkgs []ScopedPackage) *DepGraph {
@@ -425,9 +571,9 @@ func BuildManifestGroups(filePackages map[string][]ScopedPackage, fileEcosystems
 			for relPath, pkgs := range gd.files {
 				base := strings.ToLower(filepath.Base(relPath))
 				switch base {
-				case "pyproject.toml":
-					directPkgs = pkgs
-				case "uv.lock", "pipfile.lock", "poetry.lock", "requirements.txt":
+				case "pyproject.toml", "requirements.in":
+					directPkgs = append(directPkgs, pkgs...)
+				case "uv.lock", "pipfile.lock", "poetry.lock", "pylock.toml", "requirements.txt":
 					lockPkgs = append(lockPkgs, pkgs...)
 				}
 			}

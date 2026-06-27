@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
@@ -19,12 +20,30 @@ const (
 	FileTypeUnknown   FileType = "unknown"
 )
 
+// Detection confidence for content/name-detected pip requirements files.
+const (
+	// ConfidenceConfident: a clear requirements file — matched by name pattern or
+	// by content carrying requirement syntax (version specs, --hash=, pip
+	// directives). The build-or-lock gate treats these as definitive: an
+	// unresolvable confident file is a fatal error.
+	ConfidenceConfident = "confident"
+	// ConfidenceTentative: an ambiguous file that is only bare package names. It is
+	// confirmed a requirements file only by cross-checking its names against
+	// installed packages; if it can't be confirmed it is silently disregarded.
+	ConfidenceTentative = "tentative"
+)
+
 // ManifestInfo describes a known manifest file
 type ManifestInfo struct {
 	Type      string // canonical filename used as the manifest "type" parameter
 	Ecosystem string
 	Language  string
 	IsLock    bool
+
+	// Confidence is set only for pip requirements files detected by name pattern
+	// or content (ConfidenceConfident / ConfidenceTentative). Empty for every
+	// other manifest, including exact-name matches of non-requirements files.
+	Confidence string
 }
 
 // DetectedFile represents a detected scannable file
@@ -52,6 +71,7 @@ var ManifestFiles = map[string]ManifestInfo{
 	"Pipfile.lock":     {Type: "Pipfile.lock", Ecosystem: "pypi", Language: "python", IsLock: true},
 	"poetry.lock":      {Type: "poetry.lock", Ecosystem: "pypi", Language: "python", IsLock: true},
 	"uv.lock":          {Type: "uv.lock", Ecosystem: "pypi", Language: "python", IsLock: true},
+	"pylock.toml":      {Type: "pylock.toml", Ecosystem: "pypi", Language: "python", IsLock: true},
 	// ── Go ────────────────────────────────────────────────────────────────
 	"go.sum": {Type: "go.sum", Ecosystem: "golang", Language: "go", IsLock: true},
 	"go.mod": {Type: "go.mod", Ecosystem: "golang", Language: "go", IsLock: false},
@@ -174,6 +194,7 @@ var SupportedManifestTypes = map[string]bool{
 	"Pipfile.lock":     true,
 	"poetry.lock":      true,
 	"uv.lock":          true,
+	"pylock.toml":      true,
 	// Go
 	"go.sum": true,
 	"go.mod": true,
@@ -275,6 +296,10 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 
 	// 1. Exact basename match.
 	if info, ok := ManifestFiles[base]; ok {
+		// Exact requirements files are unambiguously requirements files.
+		if info.Type == "requirements.txt" || info.Type == "requirements.in" {
+			info.Confidence = ConfidenceConfident
+		}
 		return &info, true
 	}
 
@@ -296,6 +321,13 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 		// All extension matches are considered valid — the parser handles false positives.
 		infoCopy := info
 		return &infoCopy, true
+	}
+
+	// 3a. Pip requirements files with non-standard names, matched by name pattern
+	// (requirements-dev.txt, requirements/base.in, constraints.txt, foo.pip, …).
+	// String-only — no file read.
+	if looksLikeRequirementsName(filename) {
+		return &ManifestInfo{Type: "requirements.txt", Ecosystem: "pypi", Language: "python", IsLock: false, Confidence: ConfidenceConfident}, true
 	}
 
 	// 4. Content-checked: CMakeLists.txt with CPMAddPackage calls.
@@ -339,6 +371,12 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 		}
 	}
 
+	// 7. Content-checked: arbitrarily-named pip requirements files. Gated to small
+	// .txt/.in/.pip/extensionless files and run last, so cheaper rules win first.
+	if conf := classifyRequirementsContent(filename, lowerBase); conf != "" {
+		return &ManifestInfo{Type: "requirements.txt", Ecosystem: "pypi", Language: "python", IsLock: false, Confidence: conf}, true
+	}
+
 	return nil, false
 }
 
@@ -351,6 +389,156 @@ func looksLikeComposeYAML(content string) bool {
 		strings.Contains(lower, "\n  image:") ||
 		strings.Contains(lower, "\n    build:") ||
 		strings.Contains(lower, "\n  build:")
+}
+
+// looksLikeRequirementsName reports whether a filename matches a common pip
+// requirements/constraints naming convention (without reading the file).
+func looksLikeRequirementsName(filename string) bool {
+	base := strings.ToLower(filepath.Base(filename))
+	ext := filepath.Ext(base)
+	if ext == ".pip" {
+		return true
+	}
+	if ext == ".txt" || ext == ".in" {
+		stem := strings.TrimSuffix(base, ext)
+		if strings.Contains(stem, "requirements") || strings.Contains(stem, "constraints") {
+			return true
+		}
+		switch strings.ToLower(filepath.Base(filepath.Dir(filename))) {
+		case "requirements", "requires":
+			return true
+		}
+	}
+	return false
+}
+
+// Per-line shape tests for pip requirements content.
+var (
+	reqVersionedLine = regexp.MustCompile(`^[A-Za-z0-9._-]+(\[[A-Za-z0-9,._-]+\])?\s*(===|==|>=|<=|~=|!=|>|<)\s*\S`)
+	reqURLRefLine    = regexp.MustCompile(`^[A-Za-z0-9._-]+\s*@\s+\S`)
+	reqBareNameLine  = regexp.MustCompile(`^[A-Za-z0-9._-]+(\[[A-Za-z0-9,._-]+\])?$`)
+)
+
+// reqCandidateExts gates which files get a content sniff for pip requirements.
+// It covers plausible requirements/constraints/text-list extensions plus
+// extensionless files, while excluding source-code/binary extensions so the
+// walker doesn't read every file in the tree. (Source files would be rejected by
+// the classifier anyway; the gate just avoids the I/O.)
+var reqCandidateExts = map[string]bool{
+	"":              true,
+	".txt":          true,
+	".in":           true,
+	".pip":          true,
+	".reqs":         true,
+	".requirements": true,
+	".list":         true,
+	".lst":          true,
+	".text":         true,
+}
+
+// classifyRequirementsContent reads a small prefix of a plausible file and
+// classifies it as a pip requirements file. Returns ConfidenceConfident,
+// ConfidenceTentative, or "" (not a requirements file). Gated by extension and
+// size to bound the I/O the walker incurs.
+func classifyRequirementsContent(filename, lowerBase string) string {
+	if !reqCandidateExts[filepath.Ext(lowerBase)] {
+		return ""
+	}
+	info, err := os.Stat(filename)
+	if err != nil || info.IsDir() || info.Size() > 256*1024 {
+		return ""
+	}
+	f, err := os.Open(filename)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	buf := make([]byte, 8192)
+	n, _ := f.Read(buf)
+	s := string(buf[:n])
+	// Drop a possibly-truncated final line when the prefix filled the buffer.
+	if n == len(buf) {
+		if idx := strings.LastIndex(s, "\n"); idx >= 0 {
+			s = s[:idx]
+		}
+	}
+	return classifyRequirementsText(s)
+}
+
+// classifyRequirementsText classifies already-read text. confident when a line
+// carries requirement syntax (version op, --hash=, URL ref, or a pip directive);
+// tentative when every meaningful line is a bare package name; "" as soon as any
+// line cannot be a requirement (so prose, wordlists with paths, gitignores, etc.
+// are rejected).
+func classifyRequirementsText(content string) string {
+	confident := false
+	sawName := false
+	for _, ln := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(ln)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "-") {
+			if hasPipDirective(line) {
+				confident = true
+				continue
+			}
+			return ""
+		}
+		// Strip an inline comment.
+		if ci := strings.Index(line, " #"); ci >= 0 {
+			line = strings.TrimSpace(line[:ci])
+		}
+		hadHash := strings.Contains(line, "--hash=")
+		if hadHash {
+			var keep []string
+			for _, fld := range strings.Fields(line) {
+				if strings.HasPrefix(fld, "--hash=") {
+					continue
+				}
+				keep = append(keep, fld)
+			}
+			line = strings.Join(keep, " ")
+		}
+		spec := line
+		if i := strings.Index(spec, ";"); i >= 0 {
+			spec = strings.TrimSpace(spec[:i])
+		}
+		switch {
+		case reqVersionedLine.MatchString(spec) || reqURLRefLine.MatchString(spec):
+			confident, sawName = true, true
+		case reqBareNameLine.MatchString(spec):
+			sawName = true
+			if hadHash {
+				confident = true // pinned by hash → not ambiguous
+			}
+		default:
+			return "" // not a requirement line
+		}
+	}
+	switch {
+	case confident:
+		return ConfidenceConfident
+	case sawName:
+		return ConfidenceTentative
+	default:
+		return ""
+	}
+}
+
+// hasPipDirective reports whether a line is a pip requirements directive/option.
+func hasPipDirective(line string) bool {
+	for _, d := range []string{
+		"-r", "-c", "-e", "-i", "-f",
+		"--requirement", "--constraint", "--editable", "--index-url",
+		"--extra-index-url", "--find-links", "--hash", "--no-binary",
+		"--only-binary", "--pre", "--no-index", "--trusted-host",
+	} {
+		if line == d || strings.HasPrefix(line, d+" ") || strings.HasPrefix(line, d+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 // DetectSBOM reads the first bytes of a JSON file and determines if it's an SPDX or CycloneDX document.
