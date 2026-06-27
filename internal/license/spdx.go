@@ -70,6 +70,22 @@ func NormalizeSPDX(id string) string {
 	return id
 }
 
+// CanonicalSPDXID returns the canonical SPDX identifier for a case-insensitive
+// input when it is a recognised single SPDX license, or "" otherwise.
+//
+// Unlike NormalizeSPDX (which echoes unknown input back), this reports
+// recognisability, so CycloneDX writers can decide whether a value is safe to
+// emit as the schema-constrained license.id versus a free-form license.name.
+// The embedded SPDX database is a subset of the SPDX enum baked into the
+// CycloneDX schema, so a non-empty result is always accepted as license.id.
+func CanonicalSPDXID(id string) string {
+	loadSPDX()
+	if canonical, ok := spdxLow[strings.ToLower(id)]; ok {
+		return canonical
+	}
+	return ""
+}
+
 // AllLicenses returns the full embedded SPDX license database.
 func AllLicenses() map[string]LicenseRecord {
 	loadSPDX()

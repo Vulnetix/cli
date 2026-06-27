@@ -29,12 +29,21 @@ func PopulateInstalledEdges(groups []ManifestGroup, rootPath string) {
 			populatePypiInstalledEdges(mg.Graph, projectDir)
 		case "cargo":
 			populateCargoInstalledEdges(mg.Graph, projectDir, mg.Dir)
+			mg.Graph.PopulateCargoLockEdges(projectDir) // offline fallback / merge from Cargo.lock
 		case "rubygems":
 			populateRubyInstalledEdges(mg.Graph, projectDir)
+			mg.Graph.PopulateGemfileLockEdges(projectDir)
 		case "composer":
 			populateComposerInstalledEdges(mg.Graph, projectDir)
+			mg.Graph.PopulateComposerLockEdges(projectDir)
+		case "nuget":
+			mg.Graph.PopulateNugetLockEdges(projectDir)
+		case "hex":
+			mg.Graph.PopulateMixLockEdges(projectDir)
 		case "golang":
 			if err := mg.Graph.PopulateGoModGraph(projectDir); err != nil {
+				// Non-fatal: without go tooling / go.sum the transitive tree is
+				// simply unavailable (go.mod is still scanned at exact versions).
 				fmt.Fprintf(os.Stderr, "  warning: go mod graph failed in %s: %v\n", mg.Dir, err)
 			}
 		}
@@ -182,7 +191,7 @@ func populatePypiInstalledEdges(g *DepGraph, projectDir string) {
 		metadataPath := filepath.Join(sitePackages, entry.Name(), "METADATA")
 		name, deps := parsePythonMetadata(metadataPath) // already normPypi-normalised
 		if name != "" {
-			g.addPypiEdges(name, deps)
+			g.addEdges(name, deps)
 		}
 	}
 }

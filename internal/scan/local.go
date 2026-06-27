@@ -1187,28 +1187,54 @@ func parseCargoLockScoped(data []byte, filePath string) ([]ScopedPackage, error)
 
 func parseGemfileLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
 	// Gemfile.lock lists all specs; group info comes from Gemfile which isn't parsed here.
+	// Under GEM/specs: a spec line is indented 4 spaces ("    name (version)") and its
+	// dependency lines 6 spaces ("      dep (constraint)"). Earlier code treated the
+	// 6-space dependency lines as packages too, producing garbage like actionpack@"=".
+	// Bundler 2.5+ also emits a CHECKSUMS section ("  name (version) sha256=…").
 	var pkgs []ScopedPackage
+	checksums := map[string]PackageChecksum{} // "name@version" → checksum
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	inSpecs := false
+	inChecksums := false
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
+		indent := len(line) - len(strings.TrimLeft(line, " "))
 
 		if trimmed == "specs:" {
-			inSpecs = true
+			inSpecs, inChecksums = true, false
 			continue
 		}
-		if inSpecs && len(line) > 0 && line[0] != ' ' {
-			inSpecs = false
+		if trimmed == "CHECKSUMS" {
+			inSpecs, inChecksums = false, true
 			continue
 		}
-		if inSpecs {
+		// A non-indented, non-empty line ends the current section.
+		if (inSpecs || inChecksums) && len(line) > 0 && line[0] != ' ' {
+			inSpecs, inChecksums = false, false
+		}
+
+		switch {
+		case inSpecs && indent == 4: // a spec (package)
 			parts := strings.Fields(trimmed)
 			if len(parts) >= 2 {
-				name := parts[0]
-				version := strings.Trim(parts[1], "()")
-				pkgs = append(pkgs, ScopedPackage{Name: name, Version: version, Ecosystem: "gem", Scope: ScopeProduction, SourceFile: filePath})
+				pkgs = append(pkgs, ScopedPackage{Name: parts[0], Version: strings.Trim(parts[1], "()"), Ecosystem: "rubygems", Scope: ScopeProduction, SourceFile: filePath})
 			}
+		case inChecksums && indent == 2: // "name (version) sha256=HEX"
+			parts := strings.Fields(trimmed)
+			if len(parts) >= 3 {
+				key := parts[0] + "@" + strings.Trim(parts[1], "()")
+				if alg := strings.TrimPrefix(parts[2], "sha256="); alg != parts[2] {
+					if c := normalizeChecksum("sha256:" + alg); c.Alg != "" {
+						checksums[key] = c
+					}
+				}
+			}
+		}
+	}
+	for i := range pkgs {
+		if c, ok := checksums[pkgs[i].Name+"@"+pkgs[i].Version]; ok {
+			pkgs[i].Checksums = []PackageChecksum{c}
 		}
 	}
 	return pkgs, nil
@@ -1269,29 +1295,36 @@ func parsePomXMLScoped(data []byte, filePath string) ([]ScopedPackage, error) {
 // PHP / Composer
 // ---------------------------------------------------------------------------
 
+type composerLockEntry struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Dist    struct {
+		Shasum string `json:"shasum"` // hex SHA-1 (or SHA-256) of the dist archive
+	} `json:"dist"`
+}
+
 func parseComposerLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
 	// composer.lock separates "packages" (production) from "packages-dev" (development).
 	var lock struct {
-		Packages []struct {
-			Name    string `json:"name"`
-			Version string `json:"version"`
-		} `json:"packages"`
-		PackagesDev []struct {
-			Name    string `json:"name"`
-			Version string `json:"version"`
-		} `json:"packages-dev"`
+		Packages    []composerLockEntry `json:"packages"`
+		PackagesDev []composerLockEntry `json:"packages-dev"`
 	}
 	if err := json.Unmarshal(data, &lock); err != nil {
 		return nil, fmt.Errorf("invalid composer.lock: %w", err)
 	}
 
 	var pkgs []ScopedPackage
-	for _, pkg := range lock.Packages {
-		pkgs = append(pkgs, ScopedPackage{Name: pkg.Name, Version: cleanLocalVersion(pkg.Version), Ecosystem: "composer", Scope: ScopeProduction, SourceFile: filePath})
+	add := func(entries []composerLockEntry, scope string) {
+		for _, pkg := range entries {
+			sp := ScopedPackage{Name: pkg.Name, Version: cleanLocalVersion(pkg.Version), Ecosystem: "composer", Scope: scope, SourceFile: filePath}
+			if c := normalizeChecksum(pkg.Dist.Shasum); c.Alg != "" {
+				sp.Checksums = []PackageChecksum{c}
+			}
+			pkgs = append(pkgs, sp)
+		}
 	}
-	for _, pkg := range lock.PackagesDev {
-		pkgs = append(pkgs, ScopedPackage{Name: pkg.Name, Version: cleanLocalVersion(pkg.Version), Ecosystem: "composer", Scope: ScopeDevelopment, SourceFile: filePath})
-	}
+	add(lock.Packages, ScopeProduction)
+	add(lock.PackagesDev, ScopeDevelopment)
 	return pkgs, nil
 }
 
@@ -1577,11 +1610,21 @@ func parseGradleLockfileScoped(data []byte, filePath string) ([]ScopedPackage, e
 		if strings.HasPrefix(line, "#") || line == "" {
 			continue
 		}
-		if idx := strings.Index(line, "="); idx > 0 {
-			coord := line[:idx]
-			ver := strings.TrimSpace(line[idx+1:])
-			pkgs = append(pkgs, ScopedPackage{Name: coord, Version: ver, Ecosystem: "maven", Scope: ScopeProduction, SourceFile: filePath})
+		// Each line is "group:artifact:version=config1,config2,…". The part before
+		// "=" is the coordinate; the part after is the list of configurations the
+		// dependency appears in (discarded). Earlier code split on "=", which put the
+		// version into the name and the configuration into the version.
+		coord := line
+		if idx := strings.IndexByte(coord, '='); idx >= 0 {
+			coord = coord[:idx]
 		}
+		parts := strings.Split(coord, ":")
+		if len(parts) < 3 || parts[0] == "" || parts[1] == "" {
+			continue // e.g. the trailing "empty=" marker line
+		}
+		ver := parts[len(parts)-1]
+		name := strings.Join(parts[:len(parts)-1], ":") // group:artifact
+		pkgs = append(pkgs, ScopedPackage{Name: name, Version: cleanLocalVersion(ver), Ecosystem: "maven", Scope: ScopeProduction, SourceFile: filePath})
 	}
 	return pkgs, nil
 }
@@ -1618,18 +1661,49 @@ func parseComposerJSONScoped(data []byte, filePath string) ([]ScopedPackage, err
 // .NET / NuGet — packages.lock.json
 // ---------------------------------------------------------------------------
 
+// nugetLockFile models the real packages.lock.json schema: a per-target-framework
+// map of package id → {type, resolved, contentHash, dependencies}. (The earlier
+// parser read a "libraries" key that only exists in project.assets.json, so it
+// returned zero packages for every real lock file.)
+type nugetLockFile struct {
+	Dependencies map[string]map[string]nugetLockEntry `json:"dependencies"`
+}
+
+type nugetLockEntry struct {
+	Type         string            `json:"type"`     // "Direct" | "Transitive" | "Project" | "CentralTransitive"
+	Resolved     string            `json:"resolved"` // exact version
+	ContentHash  string            `json:"contentHash"`
+	Dependencies map[string]string `json:"dependencies"` // child id → version range
+}
+
 func parseNugetLockScoped(data []byte, filePath string) ([]ScopedPackage, error) {
-	var lock struct {
-		Libraries map[string]struct {
-			Resolved string `json:"resolved"`
-		} `json:"libraries"`
-	}
+	var lock nugetLockFile
 	if err := json.Unmarshal(data, &lock); err != nil {
 		return nil, fmt.Errorf("invalid packages.lock.json: %w", err)
 	}
 	var pkgs []ScopedPackage
-	for name, pkg := range lock.Libraries {
-		pkgs = append(pkgs, ScopedPackage{Name: name, Version: pkg.Resolved, Ecosystem: "nuget", Scope: ScopeProduction, SourceFile: filePath})
+	seen := map[string]bool{}
+	for _, byName := range lock.Dependencies {
+		for name, entry := range byName {
+			if entry.Resolved == "" {
+				continue
+			}
+			key := strings.ToLower(name) + "@" + entry.Resolved
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			sp := ScopedPackage{
+				Name: name, Version: entry.Resolved, Ecosystem: "nuget",
+				Scope: ScopeProduction, SourceFile: filePath,
+				IsDirect: strings.EqualFold(entry.Type, "Direct"),
+			}
+			if entry.ContentHash != "" {
+				// contentHash is a base64-encoded SHA-512; the CDX layer decodes it.
+				sp.Checksums = []PackageChecksum{{Alg: "SHA-512", Value: entry.ContentHash}}
+			}
+			pkgs = append(pkgs, sp)
+		}
 	}
 	return pkgs, nil
 }

@@ -1,0 +1,7 @@
+# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build and are not advised.
+# This file is expected to be part of source control.
+com.google.code.gson:gson:2.11.0=compileClasspath,runtimeClasspath
+com.google.guava:guava:33.3.1-jre=compileClasspath
+org.slf4j:slf4j-api:2.0.16=compileClasspath
+empty=

@@ -188,7 +188,7 @@ func PopulateBOMLicenses(bomPath string, packages []PackageLicense, groups []sca
 			licenseMap[pkg.PackageName+"@"+pkg.PackageVersion] = pkg.LicenseSpdxID
 		}
 	}
-	cdx.PopulateLicenses(&bom, licenseMap)
+	cdx.PopulateLicenses(&bom, licenseMap, CanonicalSPDXID)
 
 	// Build dependency tree.
 	compRefs := cdx.ExportCompRefs(&bom)

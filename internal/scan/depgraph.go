@@ -318,7 +318,7 @@ func (g *DepGraph) PopulatePypiLockEdges(dir string) {
 						}
 					}
 				}
-				g.addPypiEdges(normPypi(p.Name), normPypiList(children))
+				g.addEdges(normPypi(p.Name), normPypiList(children))
 			}
 		}
 	}
@@ -334,7 +334,7 @@ func (g *DepGraph) PopulatePypiLockEdges(dir string) {
 						children = append(children, d.Name)
 					}
 				}
-				g.addPypiEdges(normPypi(p.Name), normPypiList(children))
+				g.addEdges(normPypi(p.Name), normPypiList(children))
 			}
 		}
 	}
@@ -343,7 +343,7 @@ func (g *DepGraph) PopulatePypiLockEdges(dir string) {
 	// lock file exists alongside a compiled, hashed requirements.txt).
 	if data, err := os.ReadFile(filepath.Join(dir, "requirements.txt")); err == nil {
 		for parent, children := range parseRequirementsViaEdges(string(data)) {
-			g.addPypiEdges(normPypi(parent), normPypiList(children))
+			g.addEdges(normPypi(parent), normPypiList(children))
 		}
 	}
 }
@@ -359,8 +359,8 @@ func normPypiList(names []string) []string {
 	return out
 }
 
-// addPypiEdges appends children under parent, de-duplicating existing edges.
-func (g *DepGraph) addPypiEdges(parent string, children []string) {
+// addEdges appends children under parent, de-duplicating existing edges.
+func (g *DepGraph) addEdges(parent string, children []string) {
 	if parent == "" || len(children) == 0 {
 		return
 	}

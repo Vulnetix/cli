@@ -483,7 +483,17 @@ func localEcosystemToPurlType(ecosystem string) string {
 
 // PopulateLicenses sets the Licenses field on BOM components using a license map.
 // The map key is "name@version" → SPDX license ID or expression.
-func PopulateLicenses(bom *BOM, licenseMap map[string]string) {
+//
+// canonicalSPDXID reports whether a bare value is a recognised SPDX identifier,
+// returning its canonical spelling (or "" when unrecognised) — pass
+// license.CanonicalSPDXID. It is required because CycloneDX constrains
+// license.id to the SPDX enum while leaving license.expression and license.name
+// free text: an unrecognised value (a registry license string, a proprietary
+// name, a typo from the detector) emitted as license.id fails schema
+// validation, so it must be demoted to license.name instead. A nil predicate is
+// treated as "nothing is a recognised id", which is still schema-valid (every
+// value becomes a free-form name/expression) — just less precise.
+func PopulateLicenses(bom *BOM, licenseMap map[string]string, canonicalSPDXID func(string) string) {
 	if bom == nil || len(licenseMap) == 0 {
 		return
 	}
@@ -494,14 +504,28 @@ func PopulateLicenses(bom *BOM, licenseMap map[string]string) {
 		if !ok || spdxID == "" || spdxID == "UNKNOWN" {
 			continue
 		}
-		// If expression contains OR/AND, use expression field; else use license.id.
-		upper := strings.ToUpper(spdxID)
-		if strings.Contains(upper, " OR ") || strings.Contains(upper, " AND ") {
-			c.Licenses = []LicenseChoice{{Expression: spdxID}}
-		} else {
-			c.Licenses = []LicenseChoice{{License: &LicenseData{ID: spdxID}}}
+		c.Licenses = []LicenseChoice{licenseChoiceFor(spdxID, canonicalSPDXID)}
+	}
+}
+
+// licenseChoiceFor maps a detector-supplied license string to a CycloneDX
+// LicenseChoice that always validates against the schema:
+//   - a recognised single SPDX id      → {license:{id}} (canonical spelling)
+//   - a compound SPDX expression        → {expression}  (free text in the schema)
+//   - anything else (unrecognised value) → {license:{name}} (free text)
+//
+// Only license.id is enum-constrained, so an unrecognised value never lands there.
+func licenseChoiceFor(value string, canonicalSPDXID func(string) string) LicenseChoice {
+	if canonicalSPDXID != nil {
+		if canon := canonicalSPDXID(value); canon != "" {
+			return LicenseChoice{License: &LicenseData{ID: canon}}
 		}
 	}
+	upper := strings.ToUpper(value)
+	if strings.Contains(upper, " OR ") || strings.Contains(upper, " AND ") || strings.Contains(upper, " WITH ") {
+		return LicenseChoice{Expression: value}
+	}
+	return LicenseChoice{License: &LicenseData{Name: value}}
 }
 
 // BuildDependencies creates the CycloneDX dependencies array from ManifestGroup edges.

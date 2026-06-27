@@ -200,7 +200,7 @@ func parsePubspecLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 	var pkgs []ScopedPackage
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 
-	var currentName, currentDep, currentVer string
+	var currentName, currentDep, currentVer, currentSha string
 	inPackages := false
 	inEntry := false
 
@@ -213,11 +213,15 @@ func parsePubspecLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 			scope = ScopeDevelopment
 		}
 		isDirect := strings.HasPrefix(currentDep, "direct")
-		pkgs = append(pkgs, ScopedPackage{
+		sp := ScopedPackage{
 			Name: currentName, Version: currentVer,
 			Ecosystem: "pub", Scope: scope, IsDirect: isDirect,
-		})
-		currentName, currentDep, currentVer = "", "", ""
+		}
+		if c := normalizeChecksum(currentSha); c.Alg != "" {
+			sp.Checksums = []PackageChecksum{c}
+		}
+		pkgs = append(pkgs, sp)
+		currentName, currentDep, currentVer, currentSha = "", "", "", ""
 	}
 
 	for scanner.Scan() {
@@ -252,6 +256,9 @@ func parsePubspecLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
 		if strings.HasPrefix(trimmed, "dependency:") {
 			currentDep = strings.TrimSpace(strings.TrimPrefix(trimmed, "dependency:"))
 			currentDep = strings.Trim(currentDep, `"'`)
+		}
+		if strings.HasPrefix(trimmed, "sha256:") {
+			currentSha = strings.Trim(strings.TrimSpace(strings.TrimPrefix(trimmed, "sha256:")), `"'`)
 		}
 		if strings.HasPrefix(trimmed, "version:") {
 			currentVer = strings.TrimSpace(strings.TrimPrefix(trimmed, "version:"))
@@ -291,18 +298,32 @@ func parseMixScoped(data []byte, _ string) ([]ScopedPackage, error) {
 // Elixir — mix.lock
 // ---------------------------------------------------------------------------
 
+// mixLockHeadRe captures the package name + version from a mix.lock entry:
+//
+//	"phoenix": {:hex, :phoenix, "1.7.0", "<inner sha256>", [:mix], [deps…], "hexpm", "<outer sha256>"},
+var mixLockHeadRe = regexp.MustCompile(`^\s*"([^"]+)"\s*:\s*\{:hex\s*,\s*:[a-zA-Z0-9_]+\s*,\s*"([^"]+)"`)
+var mixLockHash64Re = regexp.MustCompile(`"([a-fA-F0-9]{64})"`)
+
 func parseMixLockScoped(data []byte, _ string) ([]ScopedPackage, error) {
-	lineRe := regexp.MustCompile(`^\s*"([^"]+)"\s*:\s*\{:hex\s*,\s*:[a-z_]+\s*,\s*"([^"]+)"\s*,\s*"([a-fA-F0-9]{64})"`)
 	var pkgs []ScopedPackage
 	for _, line := range strings.Split(string(data), "\n") {
-		m := lineRe.FindStringSubmatch(line)
-		if m != nil {
-			sp := ScopedPackage{Name: m[1], Version: m[2], Ecosystem: "hex", Scope: ScopeProduction}
-			if c := normalizeChecksum(m[3]); c.Alg != "" {
-				sp.Checksums = []PackageChecksum{c}
-			}
-			pkgs = append(pkgs, sp)
+		m := mixLockHeadRe.FindStringSubmatch(line)
+		if m == nil {
+			continue
 		}
+		sp := ScopedPackage{Name: m[1], Version: m[2], Ecosystem: "hex", Scope: ScopeProduction}
+		// Capture every 64-hex checksum on the line (inner + outer hexpm hash).
+		seen := map[string]bool{}
+		for _, h := range mixLockHash64Re.FindAllStringSubmatch(line, -1) {
+			if seen[h[1]] {
+				continue
+			}
+			seen[h[1]] = true
+			if c := normalizeChecksum(h[1]); c.Alg != "" {
+				sp.Checksums = append(sp.Checksums, c)
+			}
+		}
+		pkgs = append(pkgs, sp)
 	}
 	return pkgs, nil
 }
