@@ -148,9 +148,21 @@ func populatePnpmVirtualStore(g *DepGraph, pnpmDir string) {
 
 // ── Python ──────────────────────────────────────────────────────────────────
 
-// populatePypiInstalledEdges detects the active Python venv, walks
-// site-packages/*.dist-info/METADATA, and extracts Requires-Dist edges.
+// populatePypiInstalledEdges builds the pypi dependency tree. It first reads the
+// declared tree from lock files (uv.lock/pylock.toml/poetry.lock + requirements
+// `# via`), then enriches it from the active venv's installed
+// site-packages/*.dist-info/METADATA Requires-Dist edges. All edge keys are
+// normalised (normPypi) so the sources merge; BuildDependencies resolves SBOM
+// component names against the same normalisation.
 func populatePypiInstalledEdges(g *DepGraph, projectDir string) {
+	if g.Edges == nil {
+		g.Edges = make(map[string][]string)
+	}
+
+	// Declared tree from lock files (no venv required).
+	g.PopulatePypiLockEdges(projectDir)
+
+	// Enrich from the installed environment when a venv is present.
 	venvRoot := findPythonVenv(projectDir)
 	if venvRoot == "" {
 		return
@@ -159,11 +171,6 @@ func populatePypiInstalledEdges(g *DepGraph, projectDir string) {
 	if sitePackages == "" {
 		return
 	}
-
-	if g.Edges == nil {
-		g.Edges = make(map[string][]string)
-	}
-
 	entries, err := os.ReadDir(sitePackages)
 	if err != nil {
 		return
@@ -173,9 +180,9 @@ func populatePypiInstalledEdges(g *DepGraph, projectDir string) {
 			continue
 		}
 		metadataPath := filepath.Join(sitePackages, entry.Name(), "METADATA")
-		name, deps := parsePythonMetadata(metadataPath)
+		name, deps := parsePythonMetadata(metadataPath) // already normPypi-normalised
 		if name != "" {
-			g.Edges[name] = deps
+			g.addPypiEdges(name, deps)
 		}
 	}
 }

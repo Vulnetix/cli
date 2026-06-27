@@ -530,6 +530,8 @@ func buildCliPackages(pkgs []scan.ScopedPackage, manifestGroups []scan.ManifestG
 			Scope:         scope,
 			License:       licenseByKey[key],
 			IntroducedVia: [][]string{chain},
+			SourceType:    p.SourceType,
+			InstalledPath: p.InstalledPath,
 		}
 
 		if len(p.Checksums) > 0 {

@@ -2,6 +2,7 @@ package scan
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,6 +31,17 @@ func NpmLockfilePresent(packageJSONPath string) bool {
 	return false
 }
 
+// npmBuildOrLockHint is the remediation shown when an npm package.json has no
+// lockfile and its declared dependencies cannot be fully resolved from
+// node_modules. Either remediation restores a scannable state: building the app
+// (npm/yarn/pnpm install) populates node_modules and writes a lockfile, or
+// generating a lockfile alone pins exact versions for the scanner. Without one
+// of these, a package.json only carries version ranges, which cannot be scanned
+// for vulnerabilities at exact versions.
+func npmBuildOrLockHint(relPath string) string {
+	return fmt.Sprintf("%s has no lockfile: build the app (run npm/yarn/pnpm install) or generate a lock file (package-lock.json, yarn.lock, or pnpm-lock.yaml), then re-run the scan", relPath)
+}
+
 // ResolveNpmPackageJSONFromNodeModules replaces package.json version ranges with
 // installed versions when no lockfile exists, and adds installed transitives by
 // reading every package manifest found under node_modules.
@@ -37,12 +49,12 @@ func ResolveNpmPackageJSONFromNodeModules(packageJSONPath, relPath string, direc
 	projectDir := filepath.Dir(packageJSONPath)
 	nodeModDir := filepath.Join(projectDir, "node_modules")
 	if info, err := os.Stat(nodeModDir); err != nil || !info.IsDir() {
-		return nil, fmt.Errorf("%s has no lockfile; install dependencies so %s exists or add package-lock.json, yarn.lock, or pnpm-lock.yaml", relPath, filepath.Join(filepath.Dir(relPath), "node_modules"))
+		return nil, errors.New(npmBuildOrLockHint(relPath))
 	}
 
 	installed, err := readNpmInstalledPackages(nodeModDir)
 	if err != nil {
-		return nil, fmt.Errorf("%s has no lockfile; failed to inspect node_modules: %w", relPath, err)
+		return nil, fmt.Errorf("%s (could not read node_modules: %w)", npmBuildOrLockHint(relPath), err)
 	}
 
 	directByName := make(map[string]ScopedPackage, len(direct))
@@ -52,13 +64,22 @@ func ResolveNpmPackageJSONFromNodeModules(packageJSONPath, relPath string, direc
 			continue
 		}
 		directByName[p.Name] = p
-		if _, ok := installed[p.Name]; !ok {
-			missing = append(missing, p.Name)
+		if _, ok := installed[p.Name]; ok {
+			continue
 		}
+		// optionalDependencies are allowed by npm to be absent (e.g.
+		// platform-specific binaries that fail to install), so a missing one is
+		// not evidence of an incomplete install. Every other declared dependency
+		// must be present, or the node_modules tree cannot be trusted as a
+		// complete substitute for a lockfile.
+		if p.Scope == ScopeOptional {
+			continue
+		}
+		missing = append(missing, p.Name)
 	}
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		return nil, fmt.Errorf("%s has no lockfile and node_modules is incomplete; missing direct package(s): %s", relPath, strings.Join(missing, ", "))
+		return nil, fmt.Errorf("%s — node_modules is missing declared dependencies: %s", npmBuildOrLockHint(relPath), strings.Join(missing, ", "))
 	}
 
 	names := make([]string, 0, len(installed))
@@ -67,6 +88,7 @@ func ResolveNpmPackageJSONFromNodeModules(packageJSONPath, relPath string, direc
 	}
 	sort.Strings(names)
 
+	manifestDir := filepath.Dir(relPath)
 	out := make([]ScopedPackage, 0, len(names))
 	seen := make(map[string]bool, len(names))
 	for _, name := range names {
@@ -77,11 +99,20 @@ func ResolveNpmPackageJSONFromNodeModules(packageJSONPath, relPath string, direc
 			Ecosystem:  "npm",
 			SourceFile: relPath,
 			IsDirect:   false,
+			// Found by walking node_modules, not declared — flag it so remediation
+			// knows it can't be fixed by editing the manifest. Overridden to
+			// "manifest" below when the package is also a declared dependency.
+			SourceType:    SourceTypeInstalled,
+			InstalledPath: installedRelPath(manifestDir, projectDir, pkg.PackageDir),
 		}
 		if d, ok := directByName[name]; ok {
 			sp.Scope = d.Scope
 			sp.VersionSpec = d.VersionSpec
 			sp.IsDirect = true
+			// Declared in the manifest — that's the actionable source; the install
+			// location is irrelevant for remediation, so drop it.
+			sp.SourceType = SourceTypeManifest
+			sp.InstalledPath = ""
 		}
 		key := sp.Name + "@" + sp.Version
 		if seen[key] {
@@ -91,6 +122,23 @@ func ResolveNpmPackageJSONFromNodeModules(packageJSONPath, relPath string, direc
 		out = append(out, sp)
 	}
 	return out, nil
+}
+
+// installedRelPath renders a node_modules package directory as a path relative to
+// the scan root: the manifest's directory (already root-relative) joined with the
+// package dir's path relative to the project. Returns "" when unresolvable.
+func installedRelPath(manifestDir, projectDir, packageDir string) string {
+	if packageDir == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(projectDir, packageDir)
+	if err != nil {
+		return ""
+	}
+	if manifestDir == "" || manifestDir == "." {
+		return filepath.ToSlash(rel)
+	}
+	return filepath.ToSlash(filepath.Join(manifestDir, rel))
 }
 
 func readNpmInstalledPackages(nodeModDir string) (map[string]npmInstalledPackage, error) {

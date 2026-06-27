@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vulnetix/cli/v3/internal/ecosystems"
 )
 
 // WalkOptions configures the filesystem walk behavior.
@@ -19,6 +21,20 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 	rootPath, err := filepath.Abs(opts.RootPath)
 	if err != nil {
 		return nil, err
+	}
+
+	// Ecosystem-linked install/build dirs (node_modules, .venv, venv, target,
+	// build, packages, …) must not be walked for manifests: a dependency bundled
+	// inside one can ship a foreign manifest (e.g. a package.json inside a pypi
+	// package's site-packages), which would otherwise be mis-attributed to the
+	// wrong ecosystem. ecosystems.Resolve is the single source of truth and
+	// already manifest-gates the ambiguous shared dirs (vendor/target/build/
+	// packages), so a legitimately-named build/ in an unrelated project is not
+	// over-pruned. Installed-dir discovery reads these dirs directly, not via this
+	// walker, so pruning them here loses no real packages.
+	pruneDirs := make(map[string]bool)
+	for _, t := range ecosystems.Resolve(rootPath, false) {
+		pruneDirs[t.Path] = true
 	}
 
 	var detected []DetectedFile
@@ -50,6 +66,14 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 			if base == "node_modules" || base == ".git" || base == ".hg" ||
 				base == "__pycache__" || base == ".tox" || base == ".venv" ||
 				base == "vendor" || base == ".cargo" || base == ".vulnetix" {
+				return filepath.SkipDir
+			}
+
+			// Skip resolved ecosystem install/build dirs (venv, env, target,
+			// build, packages, .yarn/cache, …) so bundled foreign manifests are
+			// never picked up. Matched by absolute path so nested specs (e.g.
+			// .yarn/cache) and manifest-gated dirs resolve correctly.
+			if pruneDirs[path] {
 				return filepath.SkipDir
 			}
 

@@ -185,6 +185,11 @@ type CliPackageEntry struct {
 	License       string               `json:"license,omitempty"`
 	IntroducedVia [][]string           `json:"introducedVia,omitempty"`
 	Checksums     []CliPackageChecksum `json:"checksums,omitempty"`
+	// Discovery-source provenance: "manifest" (declared) | "installed" (found in
+	// an install dir, not declared). InstalledPath is the root-relative install
+	// location (e.g. "node_modules/lodash") for installed packages.
+	SourceType    string `json:"sourceType,omitempty"`
+	InstalledPath string `json:"installedPath,omitempty"`
 }
 
 type CliSCAResponse struct {
