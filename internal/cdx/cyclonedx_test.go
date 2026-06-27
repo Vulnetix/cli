@@ -89,3 +89,66 @@ func TestMarshalValidatedJSON_RejectsInvalidJustification(t *testing.T) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
+
+// stubCanonical is a tiny SPDX oracle for unit tests: it recognises a fixed set
+// of ids case-insensitively and canonicalises their spelling, mirroring
+// license.CanonicalSPDXID without the import cycle.
+func stubCanonical(id string) string {
+	switch strings.ToLower(id) {
+	case "mit":
+		return "MIT"
+	case "apache-2.0":
+		return "Apache-2.0"
+	}
+	return ""
+}
+
+// TestPopulateLicenses_DemotesUnrecognisedIDToName is the regression guard for
+// the canonical SBOM write: an unrecognised SPDX id from the license detector
+// must land in the free-text license.name, never the enum-constrained
+// license.id, so .vulnetix/sbom.cdx.json keeps passing schema validation.
+func TestPopulateLicenses_DemotesUnrecognisedIDToName(t *testing.T) {
+	bom := &BOM{
+		BOMFormat:   "CycloneDX",
+		SpecVersion: "1.7",
+		Version:     1,
+		Components: []Component{
+			{Type: "library", Name: "valid", Version: "1.0.0"},
+			{Type: "library", Name: "lowercase", Version: "1.0.0"},
+			{Type: "library", Name: "bogus", Version: "1.0.0"},
+			{Type: "library", Name: "dual", Version: "1.0.0"},
+			{Type: "library", Name: "exc", Version: "1.0.0"},
+		},
+	}
+	licenseMap := map[string]string{
+		"valid@1.0.0":     "MIT",
+		"lowercase@1.0.0": "apache-2.0", // recognised but non-canonical case
+		"bogus@1.0.0":     "Public Domain",
+		"dual@1.0.0":      "MIT OR Apache-2.0",
+		"exc@1.0.0":       "GPL-2.0-only WITH Classpath-exception-2.0",
+	}
+	PopulateLicenses(bom, licenseMap, stubCanonical)
+
+	byName := map[string]LicenseChoice{}
+	for _, c := range bom.Components {
+		if len(c.Licenses) == 1 {
+			byName[c.Name] = c.Licenses[0]
+		}
+	}
+
+	if lc := byName["valid"]; lc.License == nil || lc.License.ID != "MIT" {
+		t.Errorf("valid: want license.id=MIT, got %+v", lc)
+	}
+	if lc := byName["lowercase"]; lc.License == nil || lc.License.ID != "Apache-2.0" {
+		t.Errorf("lowercase: want canonical license.id=Apache-2.0, got %+v", lc)
+	}
+	if lc := byName["bogus"]; lc.License == nil || lc.License.ID != "" || lc.License.Name != "Public Domain" {
+		t.Errorf("bogus: unrecognised id must become license.name, got %+v", lc)
+	}
+	if lc := byName["dual"]; lc.Expression != "MIT OR Apache-2.0" {
+		t.Errorf("dual: want expression, got %+v", lc)
+	}
+	if lc := byName["exc"]; lc.Expression != "GPL-2.0-only WITH Classpath-exception-2.0" {
+		t.Errorf("exc: WITH-expression must use expression field, got %+v", lc)
+	}
+}

@@ -1,0 +1,5 @@
+%{
+  "phoenix": {:hex, :phoenix, "1.7.14", "a7d0b3f1c2e4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0", [:mix], [{:plug, "~> 1.14", [hex: :plug, repo: "hexpm", optional: false]}, {:telemetry, "~> 0.4", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9"},
+  "plug": {:hex, :plug, "1.16.1", "1111111111111111111111111111111111111111111111111111111111111111", [:mix], [{:telemetry, "~> 0.4", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "2222222222222222222222222222222222222222222222222222222222222222"},
+  "telemetry": {:hex, :telemetry, "1.2.1", "3333333333333333333333333333333333333333333333333333333333333333", [:rebar3], [], "hexpm", "4444444444444444444444444444444444444444444444444444444444444444"}
+}
