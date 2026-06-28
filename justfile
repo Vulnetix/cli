@@ -739,7 +739,7 @@ update-packages VERSION="":
     # CLI repo (flake.nix)
     git add flake.nix
     if ! git diff --cached --quiet; then
-        git commit -m "chore: update flake.nix to v${VER_NUM}"
+        git commit -m "chore: update flake.nix to v${VER_NUM} [skip ci]"
         git push
         echo "    cli: pushed"
     else
