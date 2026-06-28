@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -124,8 +125,15 @@ func injectMalscanRunProperties(doc map[string]any, res *malscanResult, root str
 // persist their data) and any error is non-fatal — the local SARIF is
 // authoritative.
 func uploadMalscan(res *malscanResult, gitCtx *gitctx.GitContext) {
+	uploadMalscanTo(res, gitCtx, os.Stderr)
+}
+
+func uploadMalscanTo(res *malscanResult, gitCtx *gitctx.GitContext, w io.Writer) {
 	if res == nil || len(res.Findings) == 0 {
 		return
+	}
+	if w == nil {
+		w = io.Discard
 	}
 	creds, err := auth.LoadCredentials()
 	if err != nil || creds == nil || auth.IsCommunity(creds) {
@@ -168,7 +176,7 @@ func uploadMalscan(res *malscanResult, gitCtx *gitctx.GitContext) {
 		resp, err := client.CliMalscan(env, req)
 		if err != nil {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "  /v2/cli.malscan chunk %d/%d submit failed: %v\n", i+1, len(chunks), err)
+				fmt.Fprintf(w, "  /v2/cli.malscan chunk %d/%d submit failed: %v\n", i+1, len(chunks), err)
 			}
 			if i == 0 {
 				return
@@ -178,7 +186,7 @@ func uploadMalscan(res *malscanResult, gitCtx *gitctx.GitContext) {
 		if i == 0 && resp != nil && resp.Data.IngestionSnapshot != nil {
 			snapshotUuid = resp.Data.IngestionSnapshot.Uuid
 			if !silent && resp.Data.IngestionSnapshot.URL != "" {
-				fmt.Fprintf(os.Stderr, "Malscan snapshot: %s\n", resp.Data.IngestionSnapshot.URL)
+				fmt.Fprintf(w, "Malscan snapshot: %s\n", resp.Data.IngestionSnapshot.URL)
 			}
 		}
 	}

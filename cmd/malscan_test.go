@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -85,6 +86,32 @@ func TestMalscanEngineDetectsManifestMalware(t *testing.T) {
 	}
 }
 
+func TestMalscanEngineReportsProgress(t *testing.T) {
+	var stages []string
+	res, err := runMalscanEngine(malscanOptions{
+		Root:     fixtureRoot(t),
+		IOCFeeds: false,
+		Progress: func(stage string) {
+			stages = append(stages, stage)
+		},
+	})
+	if err != nil {
+		t.Fatalf("runMalscanEngine: %v", err)
+	}
+	if res == nil || len(res.Targets) == 0 {
+		t.Fatalf("expected scan targets")
+	}
+	for _, want := range []string{
+		"Discovering dependency install targets",
+		"Scanning target 1/1:",
+		"Scanning manifests 1/1:",
+	} {
+		if !containsStage(stages, want) {
+			t.Fatalf("expected progress stage containing %q, got %#v", want, stages)
+		}
+	}
+}
+
 func TestBuildMalscanSARIFShape(t *testing.T) {
 	res, err := runMalscanEngine(malscanOptions{Root: fixtureRoot(t), IOCFeeds: false})
 	if err != nil {
@@ -124,4 +151,13 @@ func ruleIDs(fs []malscanFinding) []string {
 		out = append(out, f.RuleID)
 	}
 	return out
+}
+
+func containsStage(stages []string, want string) bool {
+	for _, stage := range stages {
+		if strings.Contains(stage, want) {
+			return true
+		}
+	}
+	return false
 }
