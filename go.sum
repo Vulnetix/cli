@@ -225,8 +225,8 @@ github.com/valyala/fastjson v1.6.10 h1:/yjJg8jaVQdYR3arGxPE2X5z89xrlhS0eGXdv+ADT
 github.com/valyala/fastjson v1.6.10/go.mod h1:e6FubmQouUNP73jtMLmcbxS6ydWIpOfhz34TSfO3JaE=
 github.com/vektah/gqlparser/v2 v2.5.34-0.20260525182906-49ea8048c933 h1:Q0FrIRqcBAg5er/ohwneJDk+WPeQCXWJJqI3HpSMSro=
 github.com/vektah/gqlparser/v2 v2.5.34-0.20260525182906-49ea8048c933/go.mod h1:c1I28gSOVNzlfc4WuDlqU7voQnsqI6OG2amkBAFmgts=
-github.com/vulnetix/malscan-engine v0.5.4 h1:7TR7c0PlnPrW9/YVYXSHYU6AL48GN5yE1CzGY2kKc4I=
-github.com/vulnetix/malscan-engine v0.5.4/go.mod h1:gqHbbwWvHHS2mRmhSlAEB0g/U8SIMy77zO3gOrF/vbw=
+github.com/vulnetix/malscan-engine v0.5.5 h1:N0yUko8IGjGe7z9m3YHWHCred5L6cLfR82Vt1N46AEU=
+github.com/vulnetix/malscan-engine v0.5.5/go.mod h1:gqHbbwWvHHS2mRmhSlAEB0g/U8SIMy77zO3gOrF/vbw=
 github.com/xanzy/ssh-agent v0.3.3 h1:+/15pJfg/RsTxqYcX6fHqOXZwwMP+2VyYWJeWM2qQFM=
 github.com/xanzy/ssh-agent v0.3.3/go.mod h1:6dzNDKs0J9rVPHPhaGCukekBHKqfl+L3KghI1Bc68Uw=
 github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb h1:zGWFAtiMcyryUHoUjUJX0/lt1H2+i2Ka2n+D3DImSNo=
