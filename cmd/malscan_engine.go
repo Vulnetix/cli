@@ -73,6 +73,12 @@ func scanTargetManifests(target ecosystems.Target, caps map[string]bool, root st
 	}
 	pkgs := discoverManifests(target.Path, spec, budget)
 	badSet := badhash.New()
+	// Fold in the TweetFeed base feed's file-hash IOCs (SHA-256/MD5). Cache-backed,
+	// so it adds no network cost on the hot path; `--fetch-definitions` keeps them
+	// fresh. Non-fatal: a fetch failure simply leaves the embedded set in place.
+	if hs, _, err := (&iocscan.FeedLoader{}).TweetFeedHashes(false); err == nil {
+		badSet.AddAll(hs)
+	}
 	for _, p := range pkgs {
 		if processPackageManifest(p, spec, caps, target, root, res, malicious, badSet) {
 			// processed

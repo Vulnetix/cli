@@ -76,7 +76,8 @@ Threat-intel definitions: the engine ships an embedded bad-IP/host/email
 blocklist aggregated from public feeds. Run "malscan --fetch-definitions" to
 refresh those definitions at runtime (downloaded to a local cache dir); every
 subsequent scan layers them over the embedded set, so you stay current between
-engine releases without recompiling.
+engine releases without recompiling. Pass --feeds with --fetch-definitions to
+use a custom feeds.json source/parser mapping for the badnet blocklist refresh.
 
 Examples:
   vulnetix malscan                       # pretty findings; writes .vulnetix/malscan.sarif
@@ -84,7 +85,8 @@ Examples:
   vulnetix malscan --include-home        # also scan ~/.npm, ~/go/pkg/mod, …
   vulnetix malscan -o sarif              # print SARIF to stdout (still saved + uploaded)
   vulnetix malscan --no-ioc-feeds        # skip the STIX network fetch (detect/badhash only)
-  vulnetix malscan --fetch-definitions   # refresh local threat-intel definitions, then exit`,
+  vulnetix malscan --fetch-definitions   # refresh local threat-intel definitions, then exit
+  vulnetix malscan --fetch-definitions --feeds ./feeds.json`,
 	Args: cobra.MaximumNArgs(1),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
@@ -106,8 +108,9 @@ func init() {
 	malscanCmd.Flags().Int64("max-file-size", iocscan.DefaultMaxFileSize, "Skip files larger than this many bytes")
 	malscanCmd.Flags().Bool("no-ioc-feeds", false, "Skip the STIX IOC filesystem scan (no network); run only detect + badhash")
 	malscanCmd.Flags().String("catalog", "", "Directory of malscan capability config overrides (sets MALSCAN_CONFIG_DIR)")
+	malscanCmd.Flags().String("feeds", "", "Path to a badnet feeds.json source/parser mapping for --fetch-definitions")
 	malscanCmd.Flags().Bool("no-upload", false, "Do not submit findings to Vulnetix (submitted automatically when authenticated)")
-	malscanCmd.Flags().Bool("fetch-definitions", false, "Fetch the latest threat-intel feeds and rebuild local malscan definitions (no scan); subsequent scans use them")
+	malscanCmd.Flags().Bool("fetch-definitions", false, "Fetch ALL threat-intel feeds fresh (badnet blocklists + vulnetix STIX index + TweetFeed) and rebuild local malscan definitions (no scan); subsequent scans use them")
 	rootCmd.AddCommand(malscanCmd)
 }
 
@@ -198,6 +201,7 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 	maxFileSize, _ := cmd.Flags().GetInt64("max-file-size")
 	noFeeds, _ := cmd.Flags().GetBool("no-ioc-feeds")
 	catalog, _ := cmd.Flags().GetString("catalog")
+	feedsFile, _ := cmd.Flags().GetString("feeds")
 	noUpload, _ := cmd.Flags().GetBool("no-upload")
 	fetchDefs, _ := cmd.Flags().GetBool("fetch-definitions")
 
@@ -206,7 +210,10 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 	// definitions at runtime, between engine releases, without recompiling.
 	defsDir := malscanDefinitionsDir()
 	if fetchDefs {
-		return runFetchDefinitions(defsDir)
+		return runFetchDefinitions(defsDir, feedsFile)
+	}
+	if strings.TrimSpace(feedsFile) != "" {
+		return fmt.Errorf("--feeds is only used with --fetch-definitions")
 	}
 
 	// Resolve the scan root: an explicit --path / positional arg is used as-is;
@@ -301,12 +308,25 @@ func malscanDefinitionsDir() string {
 // Subsequent `vulnetix malscan` runs load dir as an overlay on the engine's
 // embedded set — so customers stay current between engine releases without
 // recompiling malscan-engine.
-func runFetchDefinitions(dir string) error {
+func runFetchDefinitions(dir, feedsFile string) error {
 	fmt.Fprintf(os.Stdout, "Fetching malscan threat-intel definitions → %s\n", dir)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	set, results := badnet.Fetch(ctx, nil)
+	var (
+		set     *badnet.Set
+		results []badnet.FeedResult
+		err     error
+	)
+	if strings.TrimSpace(feedsFile) != "" {
+		fmt.Fprintf(os.Stdout, "Using feed source mapping → %s\n", feedsFile)
+		set, results, err = badnet.FetchWithFeedsFile(ctx, nil, feedsFile)
+		if err != nil {
+			return fmt.Errorf("load feeds file %s: %w", feedsFile, err)
+		}
+	} else {
+		set, results = badnet.Fetch(ctx, nil)
+	}
 	ok, failed := 0, 0
 	for _, r := range results {
 		if r.OK {
@@ -333,6 +353,20 @@ func runFetchDefinitions(dir string) error {
 	v4, v6, d, e := set.Counts()
 	fmt.Fprintf(os.Stdout, "Definitions updated: ipv4=%d ipv6=%d domains=%d emails=%d (%d files changed)\n", v4, v6, d, e, changed)
 	fmt.Fprintf(os.Stdout, "%d feeds ok, %d failed — future `vulnetix malscan` runs will use these definitions.\n", ok, failed)
+
+	// Also refresh the STIX side: force-refetch the vulnetix.com index/feeds AND
+	// the TweetFeed base from remote (bypassing the tmp cache) and rewrite the
+	// cache, so subsequent scans read fresh STIX definitions too. Offline/timeout
+	// keeps the cached copy with a warning — never fatal.
+	fmt.Fprintln(os.Stdout, "Refreshing STIX feeds (vulnetix index + TweetFeed)…")
+	if warns, err := (&iocscan.FeedLoader{}).Refresh(); err != nil {
+		fmt.Fprintf(os.Stderr, "  warn STIX refresh: %v (cached definitions retained)\n", err)
+	} else {
+		for _, w := range warns {
+			fmt.Fprintf(os.Stderr, "  warn %-22s %s\n", w.Feed, w.Message)
+		}
+		fmt.Fprintf(os.Stdout, "STIX feeds refreshed (%d warning(s)).\n", len(warns))
+	}
 	return nil
 }
 

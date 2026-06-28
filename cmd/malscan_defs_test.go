@@ -27,4 +27,14 @@ func TestMalscanFetchDefinitionsFlagRegistered(t *testing.T) {
 	if malscanCmd.Flags().Lookup("fetch-definitions") == nil {
 		t.Error("--fetch-definitions flag should be registered on malscan")
 	}
+	if malscanCmd.Flags().Lookup("feeds") == nil {
+		t.Error("--feeds flag should be registered on malscan")
+	}
+}
+
+func TestMalscanFetchDefinitionsFeedsFileLoadError(t *testing.T) {
+	err := runFetchDefinitions(t.TempDir(), filepath.Join(t.TempDir(), "missing-feeds.json"))
+	if err == nil || !strings.Contains(err.Error(), "load feeds file") {
+		t.Fatalf("expected feeds file load error, got %v", err)
+	}
 }
