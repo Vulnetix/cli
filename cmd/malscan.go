@@ -20,6 +20,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -124,6 +125,7 @@ type malscanOptions struct {
 	IOCFeeds       bool   // run the iocscan STIX network pass
 	ConfigDir      string // malscan capability override dir (MALSCAN_CONFIG_DIR)
 	BadnetDir      string // runtime badnet definitions overlay dir (from --fetch-definitions)
+	Progress       func(stage string)
 }
 
 // malscanSample is the offending-file content stored alongside an IOC.
@@ -182,6 +184,15 @@ type malscanResult struct {
 }
 
 func runMalscanCmd(cmd *cobra.Command, args []string) error {
+	dctx := display.FromCommand(cmd)
+	progress := dctx.Progress("Malware scan", 6)
+	progressComplete := false
+	defer func() {
+		if !progressComplete {
+			progress.Fail("failed")
+		}
+	}()
+
 	rootPath, _ := cmd.Flags().GetString("path")
 	pathExplicit := cmd.Flags().Changed("path")
 	if len(args) == 1 && args[0] != "" {
@@ -229,6 +240,7 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 	if abs, err := filepath.Abs(rootPath); err == nil {
 		rootPath = abs
 	}
+	progress.Update(1, fmt.Sprintf("Resolved scan root: %s", rootPath))
 
 	res, err := runMalscanEngine(malscanOptions{
 		Root:           rootPath,
@@ -239,30 +251,43 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 		IOCFeeds:       !noFeeds,
 		ConfigDir:      catalog,
 		BadnetDir:      defsDir, // runtime overlay; badnet.LoadDir is a no-op if absent
+		Progress:       progress.SetStage,
 	})
 	if err != nil {
 		return err
 	}
+	progress.Update(2, fmt.Sprintf("Scanned %d target(s), inspected %d file(s)", len(res.Targets), res.FilesScanned))
 
 	// Always persist the SARIF report. Default .vulnetix/malscan.sarif; --output-file overrides.
 	outFile := outputFile
 	if outFile == "" {
 		outFile = filepath.Join(rootPath, ".vulnetix", "malscan.sarif")
 	}
+	progress.SetStage("Building SARIF report")
 	sarifBytes, err := buildMalscanSARIFBytes(res, rootPath, gitCtx)
 	if err != nil {
 		return err
 	}
-	if err := writeMalscanFile(outFile, sarifBytes); err != nil {
+	progress.Update(3, "Built SARIF report")
+	progress.SetStage("Writing SARIF report")
+	progressWriter := progress.Writer(os.Stderr)
+	if err := writeMalscanFileTo(outFile, sarifBytes, progressWriter); err != nil {
 		return err
 	}
+	progress.Update(4, fmt.Sprintf("Wrote SARIF report to %s", outFile))
 
 	// Upload (best-effort; community/unauthenticated callers are skipped).
 	if !noUpload {
-		uploadMalscan(res, gitCtx)
+		progress.SetStage("Submitting findings to Vulnetix")
+		uploadMalscanTo(res, gitCtx, progressWriter)
+		progress.Update(5, "Submission step complete")
+	} else {
+		progress.Update(5, "Skipped upload by request")
 	}
 
 	// Terminal rendering (the SARIF file above is written regardless of format).
+	progress.Complete("malware scan complete")
+	progressComplete = true
 	switch outputFmt {
 	case "json":
 		data, err := json.MarshalIndent(malscanJSONView(res), "", "  ")
@@ -380,22 +405,29 @@ func runMalscanEngine(opts malscanOptions) (*malscanResult, error) {
 		_ = os.Setenv("MALSCAN_CONFIG_DIR", opts.ConfigDir)
 	}
 	res := &malscanResult{Host: malscanHost()}
+	reportMalscanProgress(opts, "Discovering dependency install targets")
 	res.Targets = ecosystems.Resolve(opts.Root, opts.IncludeHome)
+	if len(res.Targets) == 0 {
+		reportMalscanProgress(opts, "No dependency install targets found")
+	}
 
 	maliciousLabels := map[string]bool{}
 	manifestBudget := malscanMaxManifests
 
-	for _, target := range res.Targets {
+	for i, target := range res.Targets {
+		reportMalscanProgress(opts, fmt.Sprintf("Scanning target %d/%d: %s %s", i+1, len(res.Targets), target.Ecosystem, target.Label))
 		caps := capabilitiesFor(target.EngineSlug)
 
 		// 1) STIX IOC filesystem scan (network-backed feeds).
 		if opts.IOCFeeds {
+			reportMalscanProgress(opts, fmt.Sprintf("Scanning IOCs %d/%d: %s", i+1, len(res.Targets), target.Label))
 			scanTargetIOC(target, opts, res, maliciousLabels)
 		}
 
 		// 2/3/4) Per-package manifest detectors: detect.Detect + ioc.ExtractIOCs
 		// + badhash over declared/candidate hashes. Bounded by manifestBudget.
 		if manifestBudget > 0 {
+			reportMalscanProgress(opts, fmt.Sprintf("Scanning manifests %d/%d: %s", i+1, len(res.Targets), target.Label))
 			used := scanTargetManifests(target, caps, opts.Root, res, maliciousLabels, manifestBudget)
 			manifestBudget -= used
 			if manifestBudget <= 0 {
@@ -409,6 +441,12 @@ func runMalscanEngine(opts malscanOptions) (*malscanResult, error) {
 	res.Malicious = len(maliciousLabels) > 0
 	res.MaliciousNote = malscanLabelSummary(maliciousLabels)
 	return res, nil
+}
+
+func reportMalscanProgress(opts malscanOptions, stage string) {
+	if opts.Progress != nil {
+		opts.Progress(stage)
+	}
 }
 
 // scanTargetIOC runs iocscan.Scan over one target and folds its evidence into
@@ -704,6 +742,10 @@ func cweNums(cwes ...string) []int {
 }
 
 func writeMalscanFile(path string, data []byte) error {
+	return writeMalscanFileTo(path, data, os.Stderr)
+}
+
+func writeMalscanFileTo(path string, data []byte, w io.Writer) error {
 	if dir := filepath.Dir(path); dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("creating %s: %w", dir, err)
@@ -713,7 +755,10 @@ func writeMalscanFile(path string, data []byte) error {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 	if !silent {
-		fmt.Fprintf(os.Stderr, "Wrote malscan SARIF to %s\n", path)
+		if w == nil {
+			w = io.Discard
+		}
+		fmt.Fprintf(w, "Wrote malscan SARIF to %s\n", path)
 	}
 	return nil
 }
