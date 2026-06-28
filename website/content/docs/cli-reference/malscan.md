@@ -23,6 +23,40 @@ Four detectors run over every resolved scan target:
 - **ioc** — Indicators of compromise extracted from manifests and install scripts (exfil endpoints, wallet addresses, install commands), attached to malicious findings.
 - **badhash** — Known-bad artifact-hash blocklist, checked against the integrity checksums declared in package manifests.
 
+The `detect` family also runs a **registry-native behaviour detector** for the multi-line supply-chain TTPs a single-line pattern can't capture — global install-hook persistence (RubyGems), `.pth` auto-import persistence (PyPI), npm lifecycle decode+egress sequences, `setup.py` credential exfiltration, `build.rs` cargo-config persistence, and NuGet reflective-load egress.
+
+## Detection model & intent qualification
+
+malscan does not score packages on a fuzzy "trust" scale. A finding is one of three factual classes, and the **intent of the usage** — not the presence of a keyword — decides whether it is malicious:
+
+- **evidence** — a factual malicious indicator that marks the package malicious on its own (download-and-execute, reverse/bind shell, data exfiltration, a Tor `.onion` C2 source, an artifact hash matching the known-bad set, a known-bad STIX IOC).
+- **trigger** — a corroborating signal that **never mints alone**. A high-entropy payload, a new/changed maintainer, or an ownership transfer is a trigger; it only contributes to a verdict in combination (e.g. an encoded payload *plus* an ownership change).
+- **context** — reputation/risk metadata (missing checksum, plain-HTTP source, a typosquat-shaped name). Recorded for the reviewer; never mints.
+
+### Why intent matters (benign vs malicious)
+
+The same primitive can be benign or malicious — the engine records the **differentiator** with every finding so the verdict is explainable. malscan reasons over four intent axes and, decisively, the **taint edge** (does a decoded/fetched/decrypted blob *reach* an executor?):
+
+| Axis | What it captures |
+|------|------------------|
+| **Surface** | *Where* the code runs: an install hook (`postinstall`, `setup.py`) or `.pth` startup auto-executes with no user action; runtime/test/docs do not. A dual-use command is evidence only on an auto-execution surface. |
+| **Obfuscation** | base64/hex/marshal decode, string-assembly, dynamic `eval`, or packing — distinguished from benign minified bundles (which ship a source map and a license banner). |
+| **Exfil/fetch target** | A reputable vendor CDN is benign; a raw IP, dynamic-DNS/tunnel, paste site, Discord/Telegram webhook, `.onion`, or known-bad IOC is not. |
+| **Reputation** | New maintainer, ownership change, zero downloads, or a typosquat name — used only to **amplify** a behavioural signal, never to mint alone. |
+
+Worked examples of the differentiator malscan encodes:
+
+| Behaviour | Benign use | Qualified malicious |
+|-----------|-----------|---------------------|
+| `postinstall` script | `node-gyp rebuild` / `prebuild-install` building a native addon from the package's own releases | `curl … \| bash`, or a hook that decodes a blob **and** opens a network egress |
+| reads `process.env` / `os.environ` | one **named** variable (`process.env.PORT`) | dumps the **whole** environment, or reads `~/.aws`/`~/.ssh`/`~/.npmrc`, then egresses |
+| base64 decode | decoding an icon/cert **into data** | decoding **into `eval`/`exec`** (the taint edge) |
+| remote download | a pinned, checksum-verified binary from a vendor CDN | an unpinned blob from a raw IP / paste site piped straight into an interpreter |
+
+### False-positive controls
+
+To keep fidelity high, malscan suppresses benign look-alikes: a shared **allowlist** of reserved/placeholder IPs and well-known registry/CDN/standards/docs domains (so a README link or a `127.0.0.1` test fixture never mints), surface gating for dual-use commands, minified-bundle recognition (source map + banner) before flagging obfuscation, and a conservative typosquat gate that requires a compounding signal. Per-ecosystem detectors can also be turned off via capability config (`--catalog`).
+
 ## Flags
 
 | Flag | Type | Default | Description |
