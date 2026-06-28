@@ -96,3 +96,5 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+replace github.com/vulnetix/malscan-engine => ../malscan-engine
