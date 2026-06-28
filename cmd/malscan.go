@@ -15,6 +15,7 @@ package cmd
 // is in effect.
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -23,8 +24,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/malscan-engine/badnet"
 	mconfig "github.com/vulnetix/malscan-engine/config"
 	"github.com/vulnetix/malscan-engine/detect"
 	"github.com/vulnetix/malscan-engine/iocscan"
@@ -69,12 +72,19 @@ Evidence is SARIF, always written to .vulnetix/malscan.sarif (override with
 format is set by -o (pretty by default). Exit status is non-zero when malware is
 found.
 
+Threat-intel definitions: the engine ships an embedded bad-IP/host/email
+blocklist aggregated from public feeds. Run "malscan --fetch-definitions" to
+refresh those definitions at runtime (downloaded to a local cache dir); every
+subsequent scan layers them over the embedded set, so you stay current between
+engine releases without recompiling.
+
 Examples:
   vulnetix malscan                       # pretty findings; writes .vulnetix/malscan.sarif
   vulnetix malscan ./app -o json         # detections as JSON
   vulnetix malscan --include-home        # also scan ~/.npm, ~/go/pkg/mod, …
   vulnetix malscan -o sarif              # print SARIF to stdout (still saved + uploaded)
-  vulnetix malscan --no-ioc-feeds        # skip the STIX network fetch (detect/badhash only)`,
+  vulnetix malscan --no-ioc-feeds        # skip the STIX network fetch (detect/badhash only)
+  vulnetix malscan --fetch-definitions   # refresh local threat-intel definitions, then exit`,
 	Args: cobra.MaximumNArgs(1),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
@@ -97,6 +107,7 @@ func init() {
 	malscanCmd.Flags().Bool("no-ioc-feeds", false, "Skip the STIX IOC filesystem scan (no network); run only detect + badhash")
 	malscanCmd.Flags().String("catalog", "", "Directory of malscan capability config overrides (sets MALSCAN_CONFIG_DIR)")
 	malscanCmd.Flags().Bool("no-upload", false, "Do not submit findings to Vulnetix (submitted automatically when authenticated)")
+	malscanCmd.Flags().Bool("fetch-definitions", false, "Fetch the latest threat-intel feeds and rebuild local malscan definitions (no scan); subsequent scans use them")
 	rootCmd.AddCommand(malscanCmd)
 }
 
@@ -109,6 +120,7 @@ type malscanOptions struct {
 	MaxFileSize    int64
 	IOCFeeds       bool   // run the iocscan STIX network pass
 	ConfigDir      string // malscan capability override dir (MALSCAN_CONFIG_DIR)
+	BadnetDir      string // runtime badnet definitions overlay dir (from --fetch-definitions)
 }
 
 // malscanSample is the offending-file content stored alongside an IOC.
@@ -187,6 +199,15 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 	noFeeds, _ := cmd.Flags().GetBool("no-ioc-feeds")
 	catalog, _ := cmd.Flags().GetString("catalog")
 	noUpload, _ := cmd.Flags().GetBool("no-upload")
+	fetchDefs, _ := cmd.Flags().GetBool("fetch-definitions")
+
+	// --fetch-definitions: refresh the local threat-intel definitions from the
+	// upstream feeds and exit. This lets a customer update malscan's bad-IP/host
+	// definitions at runtime, between engine releases, without recompiling.
+	defsDir := malscanDefinitionsDir()
+	if fetchDefs {
+		return runFetchDefinitions(defsDir)
+	}
 
 	// Resolve the scan root: an explicit --path / positional arg is used as-is;
 	// otherwise default to CWD and prefer the enclosing git root. Always absolute.
@@ -210,6 +231,7 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 		MaxFileSize:    maxFileSize,
 		IOCFeeds:       !noFeeds,
 		ConfigDir:      catalog,
+		BadnetDir:      defsDir, // runtime overlay; badnet.LoadDir is a no-op if absent
 	})
 	if err != nil {
 		return err
@@ -256,6 +278,61 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 			Message: fmt.Sprintf("malscan: %s (%s)", pluralise("malware finding", count), res.MaliciousNote),
 		}}}
 	}
+	return nil
+}
+
+// malscanDefinitionsDir is the per-user, persistent directory holding the
+// runtime-refreshed badnet threat-intel definitions (bad-*.txt). It overrides via
+// VULNETIX_MALSCAN_DEFS_DIR, else lives under the OS user-cache dir.
+func malscanDefinitionsDir() string {
+	if d := strings.TrimSpace(os.Getenv("VULNETIX_MALSCAN_DEFS_DIR")); d != "" {
+		return d
+	}
+	base, err := os.UserCacheDir()
+	if err != nil || base == "" {
+		base = os.TempDir()
+	}
+	return filepath.Join(base, "vulnetix", "malscan", "definitions")
+}
+
+// runFetchDefinitions downloads the upstream threat-intel feeds, rebuilds the
+// local badnet definitions in dir, and reports a summary. It merges with any
+// existing definitions so a transiently-unreachable feed never drops indicators.
+// Subsequent `vulnetix malscan` runs load dir as an overlay on the engine's
+// embedded set — so customers stay current between engine releases without
+// recompiling malscan-engine.
+func runFetchDefinitions(dir string) error {
+	fmt.Fprintf(os.Stdout, "Fetching malscan threat-intel definitions → %s\n", dir)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	set, results := badnet.Fetch(ctx, nil)
+	ok, failed := 0, 0
+	for _, r := range results {
+		if r.OK {
+			ok++
+			fmt.Fprintf(os.Stdout, "  ok   %-30s ipv4=%-6d ipv6=%-4d domains=%-7d emails=%-6d\n",
+				r.Name, r.IPv4, r.IPv6, r.Domains, r.Emails)
+		} else {
+			failed++
+			fmt.Fprintf(os.Stderr, "  warn %-30s %s\n", r.Name, r.Err)
+		}
+	}
+	if ok == 0 {
+		return fmt.Errorf("no threat-intel feeds could be fetched (%d failed); definitions left unchanged", failed)
+	}
+
+	// Union with existing definitions (resilience against a partial fetch).
+	if existing, err := badnet.LoadDir(dir); err == nil {
+		set.Merge(existing)
+	}
+	changed, err := set.WriteFiles(dir)
+	if err != nil {
+		return fmt.Errorf("write definitions to %s: %w", dir, err)
+	}
+	v4, v6, d, e := set.Counts()
+	fmt.Fprintf(os.Stdout, "Definitions updated: ipv4=%d ipv6=%d domains=%d emails=%d (%d files changed)\n", v4, v6, d, e, changed)
+	fmt.Fprintf(os.Stdout, "%d feeds ok, %d failed — future `vulnetix malscan` runs will use these definitions.\n", ok, failed)
 	return nil
 }
 
@@ -311,6 +388,7 @@ func scanTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanRe
 		ContextLines:   iocscan.DefaultContextLines,
 		MaxFileSize:    opts.MaxFileSize,
 		SkipDirs:       ecosystems.ScanSkipDirs(),
+		BadnetDir:      opts.BadnetDir,
 	})
 	if report != nil {
 		res.FilesScanned += report.FilesScanned
