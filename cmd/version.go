@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"runtime"
+	"runtime/debug"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -31,6 +32,10 @@ var versionCmd = &cobra.Command{
 			{Key: "Built", Value: buildDate},
 			{Key: "Go version", Value: runtime.Version()},
 			{Key: "OS/Arch", Value: fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)},
+			{Key: "", Value: ""},
+			{Key: "github.com/vulnetix/malscan-engine", Value: moduleVersion("github.com/vulnetix/malscan-engine")},
+			{Key: "github.com/Vulnetix/vdb-cyclonedx", Value: moduleVersion("github.com/Vulnetix/vdb-cyclonedx")},
+			{Key: "github.com/open-policy-agent/opa", Value: moduleVersion("github.com/open-policy-agent/opa")},
 		}))
 
 		// Check for updates
@@ -50,6 +55,32 @@ var versionCmd = &cobra.Command{
 
 		ctx.Logger.Result(b.String())
 	},
+}
+
+func moduleVersion(path string) string {
+	buildInfo, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+
+	return moduleVersionFromDeps(path, buildInfo.Deps)
+}
+
+func moduleVersionFromDeps(path string, deps []*debug.Module) string {
+	for _, dep := range deps {
+		if dep.Path != path {
+			continue
+		}
+		if dep.Replace != nil && dep.Replace.Version != "" {
+			return dep.Replace.Version
+		}
+		if dep.Version != "" {
+			return dep.Version
+		}
+		return "unknown"
+	}
+
+	return "unknown"
 }
 
 func init() {
