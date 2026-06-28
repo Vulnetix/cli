@@ -69,8 +69,137 @@ To keep fidelity high, malscan suppresses benign look-alikes: a shared **allowli
 | `--scan-depth` | int | `0` | Max directory depth per target (`0` = unlimited). |
 | `--max-file-size` | int64 | `10485760` | Skip files larger than this many bytes (default 10 MiB). |
 | `--no-ioc-feeds` | bool | `false` | Skip the STIX IOC filesystem scan (no network); run only the `detect` + `badhash` detectors. |
+| `--fetch-definitions` | bool | `false` | Refresh runtime malscan threat-intel definitions, then exit without scanning. |
+| `--feeds` | string | - | Custom badnet `feeds.json` source/parser mapping for `--fetch-definitions`. |
 | `--catalog` | string | - | Directory of malscan capability-config overrides (sets `MALSCAN_CONFIG_DIR`). |
 | `--no-upload` | bool | `false` | Do not submit findings to Vulnetix (findings are submitted automatically when authenticated). |
+
+## Custom badnet feeds
+
+`vulnetix malscan --fetch-definitions` refreshes the runtime badnet blocklists that future scans layer over the engine's embedded defaults: `bad-ipv4.txt`, `bad-ipv6.txt`, `bad-domains.txt`, and `bad-emails.txt`. By default, the engine uses its built-in feed catalog. Pass `--feeds` to supply your own source/parser mapping:
+
+```bash
+vulnetix malscan --fetch-definitions --feeds ./feeds.json
+```
+
+The custom file controls the badnet blocklist refresh only. The STIX IOC refresh still uses the Vulnetix STIX feed loader and its own cache.
+
+### `feeds.json` shape
+
+```json
+{
+  "schema_version": "badnet-feeds/v1",
+  "feeds": [
+    {
+      "key": "my-high-confidence-hosts",
+      "name": "My high-confidence hosts",
+      "detail": "Hosts format: sinkhole IP plus malicious hostname.",
+      "url": "https://example.com/security/bad-hosts.txt",
+      "parser": "hosts",
+      "enabled": true
+    }
+  ]
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `schema_version` | recommended | Use `badnet-feeds/v1` for the current file shape. |
+| `feeds` | yes | Array of feed source objects. Disabled feeds are ignored. |
+| `feeds[].key` | yes | Stable short identifier used in fetch output and generated blocklist headers. |
+| `feeds[].url` | yes | HTTP or HTTPS URL to fetch. |
+| `feeds[].parser` | yes | One of `iplist`, `netset`, `hosts`, `rss`, `emails`, `mixed`, or `misp`. |
+| `feeds[].enabled` | no | Defaults to enabled when omitted. Set to `false` to keep a source documented but inactive. |
+| `feeds[].name` | no | Human-readable label for docs and config editors. |
+| `feeds[].detail` | no | Extra operator-facing detail; ignored by the fetcher. |
+
+Fetches are resilient: a failed URL is reported and skipped, while the refresh can still succeed if other enabled feeds load. The engine keeps only individual IPs, domains, URLs-derived hosts, and email indicators after applying the shared malscan allowlist. Reserved/documentation IPs, localhost, known-benign registry/CDN/docs domains, and CIDR ranges wider than one host are not minted into badnet blocklists.
+
+The samples below use documentation-reserved indicators to show parser shape; real feeds should contain observed malicious infrastructure.
+
+### Parser reference
+
+#### `iplist`
+
+Use for line-oriented IP feeds. Comments and surrounding text are tolerated; individual IPv4/IPv6 addresses are kept and broad CIDR ranges are skipped.
+
+```text
+# malicious scanners
+198.51.100.22
+203.0.113.0/24
+2001:db8::50
+```
+
+#### `netset`
+
+Use for FireHOL-style `.netset` feeds. It behaves like `iplist`, with comment handling tuned for netset files.
+
+```text
+# firehol-style source
+198.51.100.41
+203.0.113.77
+```
+
+#### `hosts`
+
+Use for hosts-file feeds. Sinkhole IPs such as `0.0.0.0` or `127.0.0.1` are ignored; the hostnames are kept.
+
+```text
+0.0.0.0 bad.example
+127.0.0.1 c2.example.net
+malware.example.org
+```
+
+#### `rss`
+
+Use for RSS/XML feeds where indicators appear in titles, descriptions, or CDATA bodies.
+
+```xml
+<rss>
+  <channel>
+    <item>
+      <title>198.51.100.55 scanning</title>
+      <description><![CDATA[c2.example.net observed]]></description>
+    </item>
+  </channel>
+</rss>
+```
+
+#### `emails`
+
+Use for threat-actor email lists. The parser extracts email addresses from each line.
+
+```text
+actor@example.net
+"Phish reply" <reply-to@example.org>
+```
+
+#### `mixed`
+
+Use for free-form plain text containing any mixture of IPs, URLs, domains, and emails.
+
+```text
+Campaign: http://payload.example.net/dropper.sh
+Operator: actor@example.net
+Scanner: 198.51.100.88
+```
+
+#### `misp`
+
+Use for MISP event JSON. The parser reads `Event.Attribute[]` objects, skips attributes with `to_ids: false`, skips benign reputation attributes, and extracts from common IOC types such as `ip-src`, `ip-dst`, `domain`, `hostname`, `url`, `domain|ip`, `email-src`, and `email-dst`.
+
+```json
+{
+  "Event": {
+    "Attribute": [
+      { "type": "ip-src", "value": "198.51.100.99", "to_ids": true },
+      { "type": "domain|ip", "value": "c2.example.net|198.51.100.100", "to_ids": true },
+      { "type": "url", "value": "https://payload.example.org/a.sh", "to_ids": true },
+      { "type": "domain", "value": "benign.example", "comment": "reputation: benign", "Tag": [{ "name": "reputation:benign" }] }
+    ]
+  }
+}
+```
 
 ## Scan targets
 
@@ -117,6 +246,9 @@ vulnetix malscan -o sarif
 
 # Offline / air-gapped: skip the STIX network fetch, run detect + badhash only
 vulnetix malscan --no-ioc-feeds
+
+# Refresh runtime badnet definitions from a custom source/parser mapping
+vulnetix malscan --fetch-definitions --feeds ./feeds.json
 
 # Write the SARIF somewhere else and don't upload
 vulnetix malscan --output-file build/malscan.sarif --no-upload
