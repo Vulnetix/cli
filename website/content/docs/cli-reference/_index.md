@@ -418,6 +418,33 @@ vulnetix aibom [path] [flags]
 
 ---
 
+### vulnetix cbom
+
+Discover cryptographic usage in code and config and emit a CycloneDX Cryptography Bill of Materials (CBOM) with post-quantum posture. See the full [CBOM Command Reference](cbom/) and the [CBOM](../cbom/) overview.
+
+```bash
+vulnetix cbom [path] [flags]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `.` | Directory to scan (positional `[path]` overrides) |
+| `--depth` | `25` | Max recursion depth |
+| `-o, --output` | `pretty` | Output format: `pretty`, `json`, `cyclonedx-json` |
+| `--output-file` | - | Path to write the CBOM (default `.vulnetix/cbom.cdx.json`) |
+| `--spec-version` | `1.7` | CycloneDX spec version: `1.6` or `1.7` |
+| `--catalog` | - | Catalog file to merge over (or replace) the builtin catalog |
+| `--no-builtin-catalog` | `false` | Use only `--catalog`, not the embedded catalog |
+| `--no-source` | `false` | Skip the source-code crypto API pass |
+| `--no-config` | `false` | Skip the config & protocol pass |
+| `--no-certs` | `false` | Skip the certificate / key pass |
+| `--no-deps` | `false` | Skip the crypto-library pass |
+| `--fail-on` | `none` | Exit non-zero when crypto of these PQC statuses is found (e.g. `quantum-vulnerable`, `deprecated`) |
+
+> Detection is catalog-driven across source, config, certificates and crypto libraries. Algorithm spellings are case/separator-insensitive (`SHA256`/`Sha256`/`SHA_256` → one SPDX algorithm); each is classified quantum-safe / quantum-vulnerable / deprecated / hybrid with a per-country approval matrix.
+
+---
+
 ### vulnetix scan
 
 Walk the local directory tree, parse package manifests, and query the VDB for vulnerabilities — no files are uploaded. See the full [Scan Command Reference](scan/) for details.

@@ -1,0 +1,325 @@
+{
+  "version": "2026.06.1",
+  "call_extractors": [
+    {"languages": ["javascript"], "pattern": "(?i)create(?:Hash|Hmac)\\(\\s*['\"]([\\w./-]+)['\"]", "role": "algorithm"},
+    {"languages": ["javascript"], "pattern": "(?i)createCipheriv\\(\\s*['\"]([\\w./-]+)['\"]", "role": "algorithm"},
+    {"languages": ["javascript"], "pattern": "(?i)createDecipheriv\\(\\s*['\"]([\\w./-]+)['\"]", "role": "algorithm"},
+    {"languages": ["python"], "pattern": "(?i)hashlib\\.new\\(\\s*['\"]([\\w./-]+)['\"]", "role": "algorithm"},
+    {"languages": ["java"], "pattern": "(?:MessageDigest|Mac|KeyGenerator|KeyPairGenerator|Signature|SecretKeyFactory)\\.getInstance\\(\\s*\"([\\w/+.-]+)\"", "role": "transform"},
+    {"languages": ["java"], "pattern": "Cipher\\.getInstance\\(\\s*\"([\\w/+.-]+)\"", "role": "transform"},
+    {"languages": [], "pattern": "(?i)\"alg\"\\s*:\\s*\"([\\w-]+)\"", "role": "jwt"}
+  ],
+  "algorithms": [
+    {
+      "id": "aes", "name": "AES", "spdx_class": "Symmetric-Key-Algorithm/Block-Cipher",
+      "oid": "2.16.840.1.101.3.4.1", "aliases": ["aes", "rijndael", "aes128", "aes192", "aes256", "aes-gcm", "aes-cbc", "aes-ctr"],
+      "primitive": "block-cipher", "crypto_functions": ["encrypt", "decrypt"],
+      "classical_security_level": 256, "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved"},
+      "source_patterns": {"go": ["crypto/aes"], "python": ["(?i)algorithms\\.AES", "(?i)Crypto\\.Cipher\\.AES"], "java": ["(?i)\"AES"], "javascript": ["(?i)['\"]aes-\\d"]},
+      "config_patterns": ["(?i)\\bAES[_-]?(?:128|192|256)?\\b"]
+    },
+    {
+      "id": "chacha20", "name": "ChaCha20", "spdx_class": "Symmetric-Key-Algorithm/Stream-Cipher",
+      "aliases": ["chacha20", "chacha", "chacha20-poly1305", "chacha20poly1305"],
+      "primitive": "stream-cipher", "crypto_functions": ["encrypt", "decrypt"],
+      "classical_security_level": 256, "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "source_patterns": {"go": ["golang.org/x/crypto/chacha20"], "python": ["(?i)ChaCha20"]},
+      "config_patterns": ["(?i)\\bCHACHA20(?:[_-]POLY1305)?\\b"]
+    },
+    {
+      "id": "3des", "name": "Triple DES", "spdx_class": "Symmetric-Key-Algorithm/Block-Cipher",
+      "oid": "1.2.840.113549.3.7", "aliases": ["3des", "tripledes", "des-ede3", "desede", "des3"],
+      "primitive": "block-cipher", "crypto_functions": ["encrypt", "decrypt"],
+      "classical_security_level": 112, "nist_quantum_security_level": 0, "pqc_status": "deprecated",
+      "standards": {"NIST": "deprecated"},
+      "source_patterns": {"go": ["crypto/des"], "python": ["(?i)TripleDES", "(?i)DES3"], "java": ["(?i)\"DESede"]},
+      "config_patterns": ["(?i)\\b3DES\\b", "(?i)\\bDES-EDE3\\b"]
+    },
+    {
+      "id": "des", "name": "DES", "spdx_class": "Symmetric-Key-Algorithm/Block-Cipher",
+      "aliases": ["des"], "primitive": "block-cipher", "crypto_functions": ["encrypt", "decrypt"],
+      "classical_security_level": 56, "nist_quantum_security_level": 0, "pqc_status": "deprecated",
+      "standards": {"NIST": "disallowed"},
+      "config_patterns": ["(?i)\\bDES-CBC\\b"]
+    },
+    {
+      "id": "rc4", "name": "RC4", "spdx_class": "Symmetric-Key-Algorithm/Stream-Cipher",
+      "aliases": ["rc4", "arc4", "arcfour"], "primitive": "stream-cipher", "crypto_functions": ["encrypt", "decrypt"],
+      "classical_security_level": 0, "nist_quantum_security_level": 0, "pqc_status": "deprecated",
+      "source_patterns": {"go": ["crypto/rc4"], "python": ["(?i)ARC4"]},
+      "config_patterns": ["(?i)\\bRC4\\b"]
+    },
+    {
+      "id": "rsa", "name": "RSA", "spdx_class": "Asymmetric-Key-Algorithm/Public-Key-Cipher",
+      "oid": "1.2.840.113549.1.1.1", "aliases": ["rsa", "rsaes", "rsassa", "rs256", "rs384", "rs512", "ps256", "ps384", "ps512", "rsa-pss"],
+      "primitive": "pke", "crypto_functions": ["encrypt", "decrypt", "sign", "verify"],
+      "classical_security_level": 112, "nist_quantum_security_level": 0, "pqc_status": "quantum-vulnerable",
+      "standards": {"NIST": "deprecated", "CNSA 2.0": "disallowed", "BSI": "transitional"},
+      "source_patterns": {"go": ["crypto/rsa"], "python": ["(?i)asymmetric\\.rsa", "(?i)Crypto\\.PublicKey\\.RSA"], "java": ["(?i)\"RSA"]},
+      "config_patterns": ["(?i)\\bRSA\\b"]
+    },
+    {
+      "id": "dsa", "name": "DSA", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "oid": "1.2.840.10040.4.1", "aliases": ["dsa"], "primitive": "signature", "crypto_functions": ["sign", "verify"],
+      "classical_security_level": 112, "nist_quantum_security_level": 0, "pqc_status": "quantum-vulnerable",
+      "standards": {"NIST": "deprecated"},
+      "source_patterns": {"go": ["crypto/dsa"]},
+      "config_patterns": ["(?i)\\bDSA\\b"]
+    },
+    {
+      "id": "ecdsa", "name": "ECDSA", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "oid": "1.2.840.10045.4.3", "aliases": ["ecdsa", "ec", "es256", "es384", "es512", "es256k"],
+      "primitive": "signature", "crypto_functions": ["sign", "verify"],
+      "classical_security_level": 128, "nist_quantum_security_level": 0, "pqc_status": "quantum-vulnerable",
+      "standards": {"NIST": "deprecated", "CNSA 2.0": "disallowed"},
+      "source_patterns": {"go": ["crypto/ecdsa"], "python": ["(?i)asymmetric\\.ec\\b", "(?i)ECDSA"], "java": ["(?i)\"(?:SHA\\d+with)?ECDSA"]},
+      "config_patterns": ["(?i)\\bECDSA\\b"]
+    },
+    {
+      "id": "ecdh", "name": "ECDH", "spdx_class": "Asymmetric-Key-Algorithm/Key-Exchange-Mechanism",
+      "oid": "1.3.132.1.12", "aliases": ["ecdh", "ecdhe"], "primitive": "key-agree", "crypto_functions": ["keyderive"],
+      "classical_security_level": 128, "nist_quantum_security_level": 0, "pqc_status": "quantum-vulnerable",
+      "source_patterns": {"go": ["crypto/ecdh"]},
+      "config_patterns": ["(?i)\\bECDHE?\\b"]
+    },
+    {
+      "id": "ed25519", "name": "Ed25519", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "oid": "1.3.101.112", "aliases": ["ed25519", "eddsa", "ed448"], "primitive": "signature", "crypto_functions": ["sign", "verify"],
+      "classical_security_level": 128, "nist_quantum_security_level": 0, "pqc_status": "quantum-vulnerable",
+      "source_patterns": {"go": ["crypto/ed25519"], "python": ["(?i)ed25519", "(?i)Ed25519"]},
+      "config_patterns": ["(?i)\\bED25519\\b"]
+    },
+    {
+      "id": "x25519", "name": "X25519", "spdx_class": "Asymmetric-Key-Algorithm/Key-Exchange-Mechanism",
+      "aliases": ["x25519", "curve25519", "x448"], "primitive": "key-agree", "crypto_functions": ["keyderive"],
+      "classical_security_level": 128, "nist_quantum_security_level": 0, "pqc_status": "quantum-vulnerable",
+      "source_patterns": {"go": ["golang.org/x/crypto/curve25519"]},
+      "config_patterns": ["(?i)\\bX25519\\b"]
+    },
+    {
+      "id": "diffie-hellman", "name": "Diffie-Hellman", "spdx_class": "Asymmetric-Key-Algorithm/Key-Exchange-Mechanism",
+      "aliases": ["diffiehellman", "dh", "dhe", "modp"], "primitive": "key-agree", "crypto_functions": ["keyderive"],
+      "classical_security_level": 112, "nist_quantum_security_level": 0, "pqc_status": "quantum-vulnerable",
+      "config_patterns": ["(?i)\\bDHE?\\b"]
+    },
+    {
+      "id": "md5", "name": "MD5", "spdx_class": "Cryptographic-Hash-Function/Hash-Function",
+      "oid": "1.2.840.113549.2.5", "aliases": ["md5"], "primitive": "hash", "crypto_functions": ["digest"],
+      "classical_security_level": 0, "nist_quantum_security_level": 0, "pqc_status": "deprecated",
+      "standards": {"NIST": "disallowed"},
+      "source_patterns": {"go": ["crypto/md5"], "python": ["(?i)hashlib\\.md5"]},
+      "config_patterns": ["(?i)\\bMD5\\b"]
+    },
+    {
+      "id": "sha-1", "name": "SHA-1", "spdx_class": "Cryptographic-Hash-Function/Hash-Function",
+      "oid": "1.3.14.3.2.26", "aliases": ["sha1", "sha-1"], "primitive": "hash", "crypto_functions": ["digest"],
+      "classical_security_level": 0, "nist_quantum_security_level": 0, "pqc_status": "deprecated",
+      "standards": {"NIST": "disallowed"},
+      "source_patterns": {"go": ["crypto/sha1"], "python": ["(?i)hashlib\\.sha1\\b"]},
+      "config_patterns": ["(?i)\\bSHA-?1\\b"]
+    },
+    {
+      "id": "sha-256", "name": "SHA-256", "spdx_class": "Cryptographic-Hash-Function/Hash-Function",
+      "oid": "2.16.840.1.101.3.4.2.1", "aliases": ["sha256", "sha-256", "sha2-256", "sha_256"],
+      "primitive": "hash", "crypto_functions": ["digest"],
+      "classical_security_level": 128, "nist_quantum_security_level": 2, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved"},
+      "source_patterns": {"go": ["crypto/sha256"], "python": ["(?i)hashlib\\.sha256"], "java": ["(?i)\"SHA-?256\""]},
+      "config_patterns": ["(?i)\\bSHA[_-]?256\\b"]
+    },
+    {
+      "id": "sha-384", "name": "SHA-384", "spdx_class": "Cryptographic-Hash-Function/Hash-Function",
+      "aliases": ["sha384", "sha-384", "sha2-384"], "primitive": "hash", "crypto_functions": ["digest"],
+      "classical_security_level": 192, "nist_quantum_security_level": 4, "pqc_status": "quantum-safe",
+      "source_patterns": {"go": ["crypto/sha512"]},
+      "config_patterns": ["(?i)\\bSHA[_-]?384\\b"]
+    },
+    {
+      "id": "sha-512", "name": "SHA-512", "spdx_class": "Cryptographic-Hash-Function/Hash-Function",
+      "aliases": ["sha512", "sha-512", "sha2-512"], "primitive": "hash", "crypto_functions": ["digest"],
+      "classical_security_level": 256, "nist_quantum_security_level": 5, "pqc_status": "quantum-safe",
+      "source_patterns": {"python": ["(?i)hashlib\\.sha512"]},
+      "config_patterns": ["(?i)\\bSHA[_-]?512\\b"]
+    },
+    {
+      "id": "sha3-256", "name": "SHA3-256", "spdx_class": "Cryptographic-Hash-Function/Hash-Function",
+      "aliases": ["sha3-256", "sha3256", "keccak256"], "primitive": "hash", "crypto_functions": ["digest"],
+      "classical_security_level": 128, "nist_quantum_security_level": 2, "pqc_status": "quantum-safe",
+      "source_patterns": {"go": ["golang.org/x/crypto/sha3"], "python": ["(?i)sha3_256"]},
+      "config_patterns": ["(?i)\\bSHA3[_-]?256\\b"]
+    },
+    {
+      "id": "hmac", "name": "HMAC", "spdx_class": "Message-Authentication-Code",
+      "aliases": ["hmac", "hs256", "hs384", "hs512", "hmac-sha256"], "primitive": "mac", "crypto_functions": ["tag"],
+      "classical_security_level": 128, "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "source_patterns": {"go": ["crypto/hmac"], "python": ["(?i)\\bhmac\\b"]},
+      "config_patterns": ["(?i)\\bHMAC(?:[_-]SHA\\d+)?\\b"]
+    },
+    {
+      "id": "pbkdf2", "name": "PBKDF2", "spdx_class": "Key-Derivation-Function",
+      "oid": "1.2.840.113549.1.5.12", "aliases": ["pbkdf2"], "primitive": "kdf", "crypto_functions": ["keyderive"],
+      "classical_security_level": 0, "nist_quantum_security_level": 0, "pqc_status": "quantum-safe",
+      "source_patterns": {"go": ["golang.org/x/crypto/pbkdf2"], "python": ["(?i)pbkdf2"]},
+      "config_patterns": ["(?i)\\bPBKDF2\\b"]
+    },
+    {
+      "id": "bcrypt", "name": "bcrypt", "spdx_class": "Key-Derivation-Function",
+      "aliases": ["bcrypt"], "primitive": "kdf", "crypto_functions": ["keyderive"],
+      "classical_security_level": 0, "nist_quantum_security_level": 0, "pqc_status": "quantum-safe",
+      "source_patterns": {"go": ["golang.org/x/crypto/bcrypt"], "python": ["(?i)\\bbcrypt\\b"]}
+    },
+    {
+      "id": "argon2", "name": "Argon2", "spdx_class": "Key-Derivation-Function",
+      "aliases": ["argon2", "argon2id", "argon2i"], "primitive": "kdf", "crypto_functions": ["keyderive"],
+      "classical_security_level": 0, "nist_quantum_security_level": 0, "pqc_status": "quantum-safe",
+      "source_patterns": {"go": ["golang.org/x/crypto/argon2"], "python": ["(?i)argon2"]}
+    },
+    {
+      "id": "ml-kem-512", "name": "ML-KEM-512", "spdx_class": "Asymmetric-Key-Algorithm/Key-Encapsulation-Mechanism",
+      "aliases": ["ml-kem-512", "mlkem512", "kyber512"], "primitive": "kem", "parameter_set": "ML-KEM-512",
+      "crypto_functions": ["encapsulate", "decapsulate", "keygen"],
+      "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved", "BSI": "recommended", "ACSC": "approved", "CCCS": "approved"},
+      "config_patterns": ["(?i)\\bML[_-]?KEM[_-]?512\\b", "(?i)\\bKYBER512\\b"]
+    },
+    {
+      "id": "ml-kem-768", "name": "ML-KEM-768", "spdx_class": "Asymmetric-Key-Algorithm/Key-Encapsulation-Mechanism",
+      "aliases": ["ml-kem-768", "mlkem768", "kyber768"], "primitive": "kem", "parameter_set": "ML-KEM-768",
+      "crypto_functions": ["encapsulate", "decapsulate", "keygen"],
+      "nist_quantum_security_level": 3, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved", "BSI": "recommended", "ACSC": "approved", "NCSC": "approved", "AIVD": "accepted"},
+      "source_patterns": {"go": ["crypto/mlkem"]},
+      "config_patterns": ["(?i)\\bML[_-]?KEM[_-]?768\\b", "(?i)\\bKYBER768\\b"]
+    },
+    {
+      "id": "ml-kem-1024", "name": "ML-KEM-1024", "spdx_class": "Asymmetric-Key-Algorithm/Key-Encapsulation-Mechanism",
+      "aliases": ["ml-kem-1024", "mlkem1024", "kyber1024"], "primitive": "kem", "parameter_set": "ML-KEM-1024",
+      "crypto_functions": ["encapsulate", "decapsulate", "keygen"],
+      "nist_quantum_security_level": 5, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved", "CNSA 2.0": "approved", "BSI": "recommended", "AIVD": "recommended", "NUKIB": "approved"},
+      "config_patterns": ["(?i)\\bML[_-]?KEM[_-]?1024\\b", "(?i)\\bKYBER1024\\b"]
+    },
+    {
+      "id": "ml-dsa-65", "name": "ML-DSA-65", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "aliases": ["ml-dsa-65", "mldsa65", "dilithium3"], "primitive": "signature", "parameter_set": "ML-DSA-65",
+      "crypto_functions": ["sign", "verify", "keygen"],
+      "nist_quantum_security_level": 3, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved", "ACSC": "approved", "BSI": "recommended", "NCSC": "approved"},
+      "config_patterns": ["(?i)\\bML[_-]?DSA[_-]?65\\b", "(?i)\\bDILITHIUM3\\b"]
+    },
+    {
+      "id": "ml-dsa-87", "name": "ML-DSA-87", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "aliases": ["ml-dsa-87", "mldsa87", "dilithium5"], "primitive": "signature", "parameter_set": "ML-DSA-87",
+      "crypto_functions": ["sign", "verify", "keygen"],
+      "nist_quantum_security_level": 5, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved", "CNSA 2.0": "approved", "ACSC": "approved", "BSI": "recommended", "AIVD": "recommended"},
+      "config_patterns": ["(?i)\\bML[_-]?DSA[_-]?87\\b", "(?i)\\bDILITHIUM5\\b"]
+    },
+    {
+      "id": "slh-dsa", "name": "SLH-DSA", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "aliases": ["slh-dsa", "slhdsa", "sphincs", "sphincs+"], "primitive": "signature",
+      "crypto_functions": ["sign", "verify", "keygen"],
+      "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved", "BSI": "recommended", "CCCS": "approved", "AIVD": "recommended"},
+      "config_patterns": ["(?i)\\bSLH[_-]?DSA\\b", "(?i)\\bSPHINCS\\+?\\b"]
+    },
+    {
+      "id": "fn-dsa", "name": "FN-DSA (Falcon)", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "aliases": ["fn-dsa", "fndsa", "falcon", "falcon512", "falcon1024"], "primitive": "signature",
+      "crypto_functions": ["sign", "verify", "keygen"],
+      "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "selected", "AIVD": "accepted"},
+      "config_patterns": ["(?i)\\bFN[_-]?DSA\\b", "(?i)\\bFALCON(?:512|1024)?\\b"]
+    },
+    {
+      "id": "hqc", "name": "HQC", "spdx_class": "Asymmetric-Key-Algorithm/Key-Encapsulation-Mechanism",
+      "aliases": ["hqc", "hqc-kem"], "primitive": "kem",
+      "crypto_functions": ["encapsulate", "decapsulate", "keygen"],
+      "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "selected"},
+      "config_patterns": ["(?i)\\bHQC\\b"]
+    },
+    {
+      "id": "frodokem", "name": "FrodoKEM", "spdx_class": "Asymmetric-Key-Algorithm/Key-Encapsulation-Mechanism",
+      "aliases": ["frodokem", "frodo", "frodokem-976", "frodokem-1344"], "primitive": "kem",
+      "crypto_functions": ["encapsulate", "decapsulate", "keygen"],
+      "nist_quantum_security_level": 3, "pqc_status": "quantum-safe",
+      "standards": {"BSI": "recommended", "NUKIB": "approved", "AIVD": "accepted"},
+      "config_patterns": ["(?i)\\bFRODO[_-]?KEM\\b"]
+    },
+    {
+      "id": "classic-mceliece", "name": "Classic McEliece", "spdx_class": "Asymmetric-Key-Algorithm/Key-Encapsulation-Mechanism",
+      "aliases": ["classic-mceliece", "mceliece", "classicmceliece"], "primitive": "kem",
+      "crypto_functions": ["encapsulate", "decapsulate", "keygen"],
+      "nist_quantum_security_level": 5, "pqc_status": "quantum-safe",
+      "standards": {"BSI": "recommended", "NUKIB": "approved", "AIVD": "accepted"},
+      "config_patterns": ["(?i)\\b(?:CLASSIC[_-]?)?MCELIECE\\b"]
+    },
+    {
+      "id": "lms-hss", "name": "LMS/HSS", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "aliases": ["lms", "hss", "lms-hss"], "primitive": "signature", "crypto_functions": ["sign", "verify"],
+      "nist_quantum_security_level": 5, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved", "CNSA 2.0": "approved", "BSI": "recommended"},
+      "config_patterns": ["(?i)\\bLMS\\b", "(?i)\\bHSS\\b"]
+    },
+    {
+      "id": "xmss", "name": "XMSS/XMSSMT", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "aliases": ["xmss", "xmssmt"], "primitive": "signature", "crypto_functions": ["sign", "verify"],
+      "nist_quantum_security_level": 5, "pqc_status": "quantum-safe",
+      "standards": {"NIST": "approved", "CNSA 2.0": "approved", "BSI": "recommended"},
+      "config_patterns": ["(?i)\\bXMSS(?:MT)?\\b"]
+    },
+    {
+      "id": "x25519-mlkem768", "name": "X25519MLKEM768", "spdx_class": "Hybrid-Key-Exchange",
+      "aliases": ["x25519mlkem768", "x25519-mlkem768", "x25519kyber768"], "primitive": "kem", "curve": "X25519",
+      "crypto_functions": ["encapsulate", "decapsulate"],
+      "nist_quantum_security_level": 3, "pqc_status": "hybrid",
+      "standards": {"NIST": "allowed", "BSI": "recommended"},
+      "source_patterns": {"go": ["(?i)X25519MLKEM768"]},
+      "config_patterns": ["(?i)\\bX25519MLKEM768\\b", "(?i)\\bX25519KYBER768\\b"]
+    },
+    {
+      "id": "secp256r1-mlkem768", "name": "SecP256r1MLKEM768", "spdx_class": "Hybrid-Key-Exchange",
+      "aliases": ["secp256r1mlkem768", "p256-mlkem768"], "primitive": "kem", "curve": "P-256",
+      "crypto_functions": ["encapsulate", "decapsulate"],
+      "nist_quantum_security_level": 3, "pqc_status": "hybrid",
+      "config_patterns": ["(?i)\\bSECP256R1MLKEM768\\b"]
+    },
+    {
+      "id": "secp384r1-mlkem1024", "name": "SecP384r1MLKEM1024", "spdx_class": "Hybrid-Key-Exchange",
+      "aliases": ["secp384r1mlkem1024", "p384-mlkem1024"], "primitive": "kem", "curve": "P-384",
+      "crypto_functions": ["encapsulate", "decapsulate"],
+      "nist_quantum_security_level": 5, "pqc_status": "hybrid",
+      "config_patterns": ["(?i)\\bSECP384R1MLKEM1024\\b"]
+    },
+    {
+      "id": "haetae", "name": "HAETAE", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "aliases": ["haetae"], "primitive": "signature", "crypto_functions": ["sign", "verify"],
+      "nist_quantum_security_level": 2, "pqc_status": "quantum-safe",
+      "standards": {"KpqC": "selected"},
+      "config_patterns": ["(?i)\\bHAETAE\\b"]
+    },
+    {
+      "id": "aimer", "name": "AIMer", "spdx_class": "Asymmetric-Key-Algorithm/Digital-Signature",
+      "aliases": ["aimer"], "primitive": "signature", "crypto_functions": ["sign", "verify"],
+      "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "standards": {"KpqC": "selected"},
+      "config_patterns": ["(?i)\\bAIMER\\b"]
+    },
+    {
+      "id": "smaug-t", "name": "SMAUG-T", "spdx_class": "Asymmetric-Key-Algorithm/Key-Encapsulation-Mechanism",
+      "aliases": ["smaug-t", "smaugt", "smaug"], "primitive": "kem", "crypto_functions": ["encapsulate", "decapsulate"],
+      "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "standards": {"KpqC": "selected"},
+      "config_patterns": ["(?i)\\bSMAUG[_-]?T?\\b"]
+    },
+    {
+      "id": "ntru-plus", "name": "NTRU+", "spdx_class": "Asymmetric-Key-Algorithm/Key-Encapsulation-Mechanism",
+      "aliases": ["ntru+", "ntruplus", "ntru-plus"], "primitive": "kem", "crypto_functions": ["encapsulate", "decapsulate"],
+      "nist_quantum_security_level": 1, "pqc_status": "quantum-safe",
+      "standards": {"KpqC": "selected"},
+      "config_patterns": ["(?i)\\bNTRU\\+", "(?i)\\bNTRUPLUS\\b"]
+    }
+  ]
+}
