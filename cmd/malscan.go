@@ -477,8 +477,17 @@ func scanTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanRe
 	for _, ev := range report.Evidence {
 		rel := relToRoot(opts.Root, ev.FilePath)
 		desc := evidenceDescription(ev)
-		sev := "critical"
-		if ev.Indicator != nil && ev.Indicator.Severity != "" {
+		cls := ev.Class
+		if cls == "" {
+			cls = detect.ClassEvidence
+		}
+		sev, level := classSeverity(cls)
+		// Evidence-tier hits may be refined by the indicator's own severity (a
+		// "high"-labelled IOC stays high rather than being forced to critical).
+		// Demoted context hits — references in a dependency's test fixtures or
+		// generated bundles — are pinned low regardless of indicator severity: the
+		// file context, not the indicator, governs whether this occurrence signals.
+		if cls == detect.ClassEvidence && ev.Indicator != nil && ev.Indicator.Severity != "" {
 			sev = strings.ToLower(ev.Indicator.Severity)
 		}
 		snippet := malscanSnippet(ev)
@@ -488,14 +497,14 @@ func scanTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanRe
 			Description: "A file references a known-bad indicator of compromise (domain, IP or URL) from the malscan STIX feeds.",
 			Message:     desc,
 			Severity:    sev,
-			Level:       "error",
+			Level:       level,
 			Ecosystem:   target.Ecosystem,
 			File:        rel,
 			StartLine:   ev.LineNumber,
 			EndLine:     ev.LineNumber,
 			Snippet:     snippet,
 			CWEs:        cweNums(detect.DefaultMalwareCWE),
-			Class:       string(detect.ClassEvidence),
+			Class:       string(cls),
 			Category:    "ioc",
 			Tags:        []string{"malware", "ioc", string(ev.IndicatorType)},
 			Fingerprint: fingerprint("IOC-STIX-MATCH", rel, ev.IndicatorValue, strconv.Itoa(ev.LineNumber)),
@@ -512,7 +521,12 @@ func scanTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanRe
 			References: indicatorRefs(ev),
 			Sample:     sampleForFile(ev.FilePath),
 		})
-		malicious[malwareLabel(target.Ecosystem, rel)] = true
+		// Only evidence-tier hits condemn the package/file for the malware gate;
+		// demoted context hits are recorded for audit but never mark a target
+		// malicious on their own.
+		if cls == detect.ClassEvidence {
+			malicious[malwareLabel(target.Ecosystem, rel)] = true
+		}
 	}
 }
 
