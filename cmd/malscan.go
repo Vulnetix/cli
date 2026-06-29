@@ -278,9 +278,9 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 
 	// Upload (best-effort; community/unauthenticated callers are skipped).
 	if !noUpload {
-		progress.SetStage("Submitting findings to Vulnetix")
+		progress.SetStage("Finalising results")
 		uploadMalscanTo(res, gitCtx, progressWriter)
-		progress.Update(5, "Submission step complete")
+		progress.Update(5, "Finalisation step complete")
 	} else {
 		progress.Update(5, "Skipped upload by request")
 	}
