@@ -129,6 +129,10 @@ gen-secrets:
 gen-aibom:
     go run ./internal/aibom/aibomgen
 
+# Regenerate CBOM detection docs from the catalog (single source of truth)
+gen-cbom:
+    go run ./internal/cbom/cbomgen
+
 # Run tests (updates statusline cache)
 test:
     #!/usr/bin/env bash

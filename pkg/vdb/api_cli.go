@@ -865,6 +865,26 @@ func (c *Client) CliAIBOM(env CliEnv, req CliAIBOMRequest) (*CliResponse[CliAIBO
 	return cliPostWithEnv[CliAIBOMResponse](c, "cli.ai-bom", env, req)
 }
 
+// CliCBOMRequest is the payload for POST /v2/cli.cbom: the validated CycloneDX
+// CBOM (BomJSON, stored verbatim) plus the structured crypto detections the
+// server decomposes into relational rows.
+type CliCBOMRequest struct {
+	SpecVersion    string          `json:"specVersion,omitempty"`
+	CatalogVersion string          `json:"catalogVersion,omitempty"`
+	BomJSON        string          `json:"bomJson,omitempty"`
+	Detections     json.RawMessage `json:"detections,omitempty"`
+}
+
+// CliCBOMResponse is returned by /v2/cli.cbom; Cbom carries the user-facing
+// Cryptography Inventory link (nil for community/unauthenticated callers).
+type CliCBOMResponse struct {
+	Cbom *CliIngestionSnapshot `json:"cbom,omitempty"`
+}
+
+func (c *Client) CliCBOM(env CliEnv, req CliCBOMRequest) (*CliResponse[CliCBOMResponse], error) {
+	return cliPostWithEnv[CliCBOMResponse](c, "cli.cbom", env, req)
+}
+
 // CliMalscanIOC is one indicator of compromise the local malscan extracted, plus
 // the offending-file sample so the server can persist a MalwareIoc row and store
 // the sample to S3 linked to it (attributed to the IOC's ecosystem processor).

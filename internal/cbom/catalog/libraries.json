@@ -1,0 +1,64 @@
+{
+  "libraries": [
+    {
+      "id": "openssl", "name": "OpenSSL", "provider": "OpenSSL", "languages": ["c", "cpp"],
+      "purl_names": {"generic": "openssl"},
+      "import_patterns": ["#include\\s*<openssl/", "(?i)\\bEVP_[A-Za-z0-9_]+\\("]
+    },
+    {
+      "id": "libsodium", "name": "libsodium", "provider": "libsodium", "languages": ["c", "cpp", "javascript", "python"],
+      "purl_names": {"generic": "libsodium"},
+      "import_patterns": ["#include\\s*<sodium", "(?i)\\bcrypto_(?:box|secretbox|sign|aead)_", "require\\(['\"]libsodium"]
+    },
+    {
+      "id": "liboqs", "name": "liboqs", "provider": "Open Quantum Safe", "languages": ["c", "cpp", "python", "go", "rust"],
+      "purl_names": {"generic": "liboqs"},
+      "import_patterns": ["#include\\s*<oqs/", "(?i)\\bOQS_(?:KEM|SIG)_", "(?i)\\boqs\\b"]
+    },
+    {
+      "id": "bouncycastle", "name": "Bouncy Castle", "provider": "Legion of the Bouncy Castle", "languages": ["java", "csharp"],
+      "purl_names": {"maven": "org.bouncycastle:bcprov-jdk18on"},
+      "import_patterns": ["org\\.bouncycastle\\.", "(?i)BouncyCastleProvider"]
+    },
+    {
+      "id": "pyca-cryptography", "name": "pyca/cryptography", "provider": "PyCA", "languages": ["python"],
+      "purl_names": {"pypi": "cryptography"},
+      "import_patterns": ["(?i)from\\s+cryptography(?:\\.|\\s+import)", "(?i)import\\s+cryptography\\b"]
+    },
+    {
+      "id": "pycryptodome", "name": "PyCryptodome", "provider": "Legrandin", "languages": ["python"],
+      "purl_names": {"pypi": "pycryptodome"},
+      "import_patterns": ["(?i)from\\s+Crypto(?:\\.|\\s+import)", "(?i)import\\s+Crypto\\b"]
+    },
+    {
+      "id": "ring", "name": "ring", "provider": "Brian Smith", "languages": ["rust"],
+      "purl_names": {"cargo": "ring"},
+      "import_patterns": ["use\\s+ring::", "(?i)\\bring\\s*=", "extern\\s+crate\\s+ring"]
+    },
+    {
+      "id": "rustcrypto", "name": "RustCrypto", "provider": "RustCrypto", "languages": ["rust"],
+      "purl_names": {"cargo": "aes-gcm"},
+      "import_patterns": ["use\\s+(?:aes_gcm|sha2|ed25519_dalek|rsa|chacha20poly1305)::"]
+    },
+    {
+      "id": "tink", "name": "Tink", "provider": "Google", "languages": ["java", "python", "go", "cpp"],
+      "purl_names": {"maven": "com.google.crypto.tink:tink"},
+      "import_patterns": ["com\\.google\\.crypto\\.tink", "(?i)github\\.com/google/tink", "(?i)import\\s+tink\\b"]
+    },
+    {
+      "id": "nacl", "name": "TweetNaCl/NaCl", "provider": "NaCl", "languages": ["javascript", "go"],
+      "purl_names": {"npm": "tweetnacl"},
+      "import_patterns": ["require\\(['\"]tweetnacl", "golang\\.org/x/crypto/nacl"]
+    },
+    {
+      "id": "node-crypto", "name": "Node crypto", "provider": "Node.js", "languages": ["javascript"],
+      "purl_names": {"npm": "node:crypto"},
+      "import_patterns": ["require\\(['\"](?:node:)?crypto['\"]\\)", "from\\s+['\"](?:node:)?crypto['\"]"]
+    },
+    {
+      "id": "jose", "name": "JOSE / JWT", "provider": "JOSE", "languages": ["javascript", "python", "go", "java"],
+      "purl_names": {"npm": "jose"},
+      "import_patterns": ["require\\(['\"](?:jose|jsonwebtoken)['\"]\\)", "from\\s+['\"]jose['\"]", "(?i)import\\s+jwt\\b", "github\\.com/golang-jwt/jwt"]
+    }
+  ]
+}
