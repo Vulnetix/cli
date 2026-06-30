@@ -329,6 +329,16 @@ Examples:
 			detectAndUploadAIBOM(scanPath, gitctx.Collect(scanPath))
 		}
 
+		// Capture cryptographic inventory (PQC posture) alongside the scan.
+		// Best-effort and authenticated-only; never changes the scan's exit code.
+		if noCbom, _ := cmd.Flags().GetBool("no-cbom"); !noCbom {
+			scanPath, _ := cmd.Flags().GetString("path")
+			if scanPath == "" {
+				scanPath = "."
+			}
+			detectAndUploadCBOM(scanPath, gitctx.Collect(scanPath))
+		}
+
 		return scanErr
 
 	},
@@ -4533,6 +4543,7 @@ func init() {
 	scanCmd.Flags().Bool("evaluate-sast", false, "Enable SAST analysis")
 	scanCmd.Flags().Bool("no-sast", false, "Skip SAST analysis")
 	scanCmd.Flags().Bool("no-aibom", false, "Skip AI Bill of Materials (AIBOM) detection + submission during scan")
+	scanCmd.Flags().Bool("no-cbom", false, "Skip Cryptography Bill of Materials (CBOM) detection + submission during scan")
 	scanCmd.Flags().Bool("evaluate-sca", false, "Enable SCA (Software Composition Analysis)")
 	scanCmd.Flags().Bool("no-sca", false, "Skip SCA (Software Composition Analysis)")
 	scanCmd.Flags().Bool("evaluate-licenses", false, "Enable license analysis")

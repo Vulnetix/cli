@@ -178,6 +178,46 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 	return evaluateFailOn(det.Summary, failOn)
 }
 
+// detectAndUploadCBOM runs the CBOM detection passes against rootPath and submits
+// the result to the backend. Best-effort: silent on any error and never affects
+// the caller's exit code. Used by `scan` to capture cryptographic inventory (PQC
+// posture) alongside the rest of the scan. Skips the submission entirely when no
+// cryptography is detected (no empty snapshots).
+func detectAndUploadCBOM(rootPath string, gitCtx *gitctx.GitContext) {
+	if rootPath == "" {
+		rootPath = "."
+	}
+	cat, err := cbom.LoadCatalog("", false)
+	if err != nil {
+		return
+	}
+	compiled, err := cat.Compile()
+	if err != nil {
+		return
+	}
+	det, err := cbom.Detect(cbom.Options{
+		Root:       rootPath,
+		ScanSource: true,
+		ScanConfig: true,
+		ScanCerts:  true,
+		ScanDeps:   true,
+		Catalog:    compiled,
+	})
+	if err != nil || len(det.Assets)+len(det.Certificates)+len(det.Libraries) == 0 {
+		return
+	}
+	data, err := cyclonedx.BuildCBOM(det, cyclonedx.CBOMOptions{
+		SpecVersion: "1.7",
+		ToolName:    "vulnetix-cbom",
+		ToolVersion: version,
+		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
+	})
+	if err != nil {
+		return
+	}
+	uploadCBOM("1.7", det, data, gitCtx)
+}
+
 // parseFailOn validates the --fail-on selection.
 func parseFailOn(raw string) (map[string]bool, error) {
 	out := map[string]bool{}
