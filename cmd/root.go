@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -34,8 +35,80 @@ var (
 	buildDate = "unknown" // -X github.com/vulnetix/cli/v3/cmd.buildDate=
 )
 
-// updateCheckResult receives the update advisory message from the background goroutine.
-var updateCheckResult chan string
+// updateCheckResult receives the update advisory message from the background
+// goroutine started by the most recent startupHooks invocation. It is guarded
+// by updateCheckMu because cobra.OnInitialize fires startupHooks once per
+// Execute — a process that runs multiple commands (notably the test binary)
+// reassigns this pointer while prior background goroutines and the PostRun
+// consumer may still touch it.
+var (
+	updateCheckMu     sync.Mutex
+	updateCheckResult chan string
+)
+
+// startUpdateAdvisory installs a fresh advisory channel for the current command
+// and runs check in the background, delivering a non-empty advisory message (if
+// any) exactly once. Each call owns its own channel: the goroutine sends to and
+// closes only that local channel, never the shared pointer, so overlapping
+// invocations can never send on or close another call's channel (the historical
+// "send on closed channel" panic). The channel is buffered (cap 1) so the send
+// never blocks even when no consumer is waiting.
+func startUpdateAdvisory(check func() (msg string, ok bool)) {
+	ch := make(chan string, 1)
+	updateCheckMu.Lock()
+	updateCheckResult = ch
+	updateCheckMu.Unlock()
+	go func() {
+		defer close(ch)
+		if msg, ok := check(); ok && msg != "" {
+			ch <- msg
+		}
+	}()
+}
+
+// consumeUpdateAdvisory non-blockingly reads the pending advisory message for
+// the current command, returning "" when none is ready. Safe to call from any
+// goroutine.
+func consumeUpdateAdvisory() string {
+	updateCheckMu.Lock()
+	ch := updateCheckResult
+	updateCheckMu.Unlock()
+	if ch == nil {
+		return ""
+	}
+	select {
+	case msg := <-ch:
+		return msg
+	default:
+		return ""
+	}
+}
+
+// checkForUpdateMessage performs the network update check and returns an
+// advisory string when a newer release is available. It records that a check
+// happened so ShouldCheckForUpdate throttles subsequent runs.
+func checkForUpdateMessage() (string, bool) {
+	release, err := update.CheckLatest()
+	if err != nil {
+		return "", false
+	}
+	update.RecordUpdateCheck()
+	latest, err := update.ParseVersion(release.TagName)
+	if err != nil {
+		return "", false
+	}
+	current, err := update.ParseVersion(version)
+	if err != nil {
+		return "", false
+	}
+	if !latest.IsNewerThan(current) {
+		return "", false
+	}
+	return fmt.Sprintf(
+		"\nUpdate available: v%s → v%s\nRun 'vulnetix update' to update.\n",
+		current, latest,
+	), true
+}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -53,15 +126,8 @@ vulnerabilities efficiently.`,
 		})
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		if updateCheckResult == nil {
-			return
-		}
-		select {
-		case msg := <-updateCheckResult:
-			if msg != "" {
-				fmt.Fprint(os.Stderr, msg)
-			}
-		default:
+		if msg := consumeUpdateAdvisory(); msg != "" {
+			fmt.Fprint(os.Stderr, msg)
 		}
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -327,29 +393,7 @@ func startupHooks() {
 		return
 	}
 
-	updateCheckResult = make(chan string, 1)
-	go func() {
-		defer close(updateCheckResult)
-		release, err := update.CheckLatest()
-		if err != nil {
-			return
-		}
-		update.RecordUpdateCheck()
-		latest, err := update.ParseVersion(release.TagName)
-		if err != nil {
-			return
-		}
-		current, err := update.ParseVersion(version)
-		if err != nil {
-			return
-		}
-		if latest.IsNewerThan(current) {
-			updateCheckResult <- fmt.Sprintf(
-				"\nUpdate available: v%s → v%s\nRun 'vulnetix update' to update.\n",
-				current, latest,
-			)
-		}
-	}()
+	startUpdateAdvisory(checkForUpdateMessage)
 }
 
 func init() {
