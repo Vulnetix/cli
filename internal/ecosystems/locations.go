@@ -102,6 +102,24 @@ var table = []ecosystem{
 		},
 	},
 	{
+		name:       "conda",
+		engineSlug: "pypi",
+		projectDirs: []dirSpec{
+			{glob: "envs", requireManifest: []string{"environment.yml", "environment.yaml"}},
+			{glob: ".conda", requireManifest: []string{"environment.yml", "environment.yaml"}},
+		},
+		userDirs: func(home string) []string {
+			var out []string
+			for _, d := range []string{"miniconda3", "anaconda3", ".conda"} {
+				p := filepath.Join(home, d, "pkgs")
+				if _, err := os.Stat(p); err == nil {
+					out = append(out, p)
+				}
+			}
+			return out
+		},
+	},
+	{
 		name:       "go",
 		engineSlug: "go",
 		projectDirs: []dirSpec{

@@ -75,6 +75,7 @@ func init() {
 	cbomCmd.Flags().Bool("no-deps", false, "Skip the crypto-library detection pass")
 	cbomCmd.Flags().String("fail-on", "none", "Exit non-zero when crypto of these PQC statuses is found: none, quantum-vulnerable, deprecated (comma-separated)")
 	cbomCmd.Flags().Bool("no-upload", false, "Do not submit the CBOM to Vulnetix (it is submitted automatically when authenticated)")
+	cbomCmd.Flags().Bool("cbom-include-ignored", false, "Include files matched by .gitignore (default: gitignored paths are skipped)")
 	rootCmd.AddCommand(cbomCmd)
 }
 
@@ -96,6 +97,7 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 	noDeps, _ := cmd.Flags().GetBool("no-deps")
 	failOnRaw, _ := cmd.Flags().GetString("fail-on")
 	noUpload, _ := cmd.Flags().GetBool("no-upload")
+	includeIgnored, _ := cmd.Flags().GetBool("cbom-include-ignored")
 
 	switch outputFmt {
 	case "pretty", "table", "json", "cyclonedx-json":
@@ -122,14 +124,15 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 	}
 
 	det, err := cbom.Detect(cbom.Options{
-		Root:       rootPath,
-		MaxDepth:   depth,
-		Ignore:     ignore,
-		ScanSource: !noSource,
-		ScanConfig: !noConfig,
-		ScanCerts:  !noCerts,
-		ScanDeps:   !noDeps,
-		Catalog:    compiled,
+		Root:             rootPath,
+		MaxDepth:         depth,
+		Ignore:           ignore,
+		ScanSource:       !noSource,
+		ScanConfig:       !noConfig,
+		ScanCerts:        !noCerts,
+		ScanDeps:         !noDeps,
+		Catalog:          compiled,
+		RespectGitignore: !includeIgnored,
 	})
 	if err != nil {
 		return err

@@ -32,6 +32,7 @@ vulnetix iac [flags]
 | `--severity` | string | - | Exit `1` if any finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--results-only` | bool | `false` | Only output when findings exist |
 | `--dry-run` | bool | `false` | Detect files and check memory — zero API calls |
+| `--iac-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 
 ## Detected File Types
 

@@ -32,17 +32,18 @@ vulnetix containers [flags]
 | `--severity` | string | - | Exit `1` if any finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--results-only` | bool | `false` | Only output when findings exist |
 | `--dry-run` | bool | `false` | Detect files and check memory — zero API calls |
+| `--containers-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 
 ## Detected File Types
 
-The `containers` command scans files identified as container manifests:
+The `containers` command scans files identified as container, Kubernetes and Helm manifests, extracting the referenced images as `pkg:oci/…` components (each annotated with its registry type and a private-registry flag):
 
-| Filename | Language |
-|----------|----------|
-| `Dockerfile` | docker |
-| `Containerfile` | docker |
-| `*.dockerfile` | docker |
-| `*.containerfile` | docker |
+| Filename | Language | What is extracted |
+|----------|----------|-------------------|
+| `Dockerfile` / `Containerfile` / `*.dockerfile` | docker | `FROM` base images + `RUN`-installed OS packages |
+| `compose.yaml` / `docker-compose.yml` | docker | service `image:` references |
+| `*.yaml` with `apiVersion` + `kind` | kubernetes | pod-template images (Pod / Deployment / StatefulSet / DaemonSet / Job / CronJob, incl. init & ephemeral containers) |
+| `Chart.yaml` | helm | chart `dependencies` (`pkg:helm/…`) + sibling `values.yaml` images |
 
 ## What Gets Detected
 

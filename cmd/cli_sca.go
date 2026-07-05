@@ -1394,6 +1394,12 @@ func registryForEcosystem(eco string) string {
 		return "https://packagist.org"
 	case "nuget", ".net":
 		return "https://www.nuget.org"
+	case "conda":
+		return "https://repo.anaconda.com/pkgs/main"
+	case "clojars", "clojure":
+		return "https://repo.clojars.org"
+	case "helm":
+		return "https://artifacthub.io"
 	}
 	return ""
 }
@@ -1417,6 +1423,12 @@ func providerForEcosystem(eco string) string {
 		return "Packagist"
 	case "nuget", ".net":
 		return "NuGet"
+	case "conda":
+		return "Anaconda"
+	case "clojars", "clojure":
+		return "Clojars"
+	case "helm":
+		return "Artifact Hub"
 	}
 	return ""
 }

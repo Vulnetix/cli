@@ -43,6 +43,9 @@ type Options struct {
 	Catalog   *CompiledCatalog
 	// Environ is injectable for tests; defaults to os.Environ() when nil.
 	Environ []string
+	// RespectGitignore prunes .gitignored paths (default off; the aibom command
+	// sets it true unless --aibom-include-ignored is passed).
+	RespectGitignore bool
 }
 
 // Detect runs the enabled passes and returns CycloneDX-ready detections.
@@ -72,9 +75,10 @@ func Detect(opts Options) (cdx.AIDetections, error) {
 		depth = defaultMaxDepth
 	}
 	input, err := sast.BuildScanInputWithOptions(abs, sast.BuildOptions{
-		MaxDepth:    depth,
-		IgnoreGlobs: opts.Ignore,
-		IgnoreGit:   true,
+		MaxDepth:         depth,
+		IgnoreGlobs:      opts.Ignore,
+		IgnoreGit:        true,
+		RespectGitignore: opts.RespectGitignore,
 	})
 	if err != nil {
 		return cdx.AIDetections{}, err

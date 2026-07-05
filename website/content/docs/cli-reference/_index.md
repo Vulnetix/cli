@@ -459,6 +459,7 @@ vulnetix scan status <scan-id> [flags]
 | `--path` | `.` | Directory to scan |
 | `--depth` | `3` | Max recursion depth |
 | `--exclude` | - | Exclude paths matching glob (repeatable) |
+| `--include-ignored` | `false` | Include `.gitignore`-matched files (SAST/secrets/containers/IaC; sca and malscan always scan them) |
 | `-o, --output` | - | Output target (repeatable): `json-cyclonedx`, `json-sarif` for stdout; `.cdx.json`, `.sarif` file paths to write to file |
 | `--concurrency` | `5` | Max concurrent VDB queries |
 | `--no-progress` | `false` | Suppress progress indicators |

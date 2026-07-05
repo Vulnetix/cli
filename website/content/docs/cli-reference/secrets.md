@@ -49,6 +49,7 @@ vulnetix secrets [flags]
 | `--severity` | string | - | Exit `1` if any finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--results-only` | bool | `false` | Only output when findings exist |
 | `--dry-run` | bool | `false` | Detect files and check memory — zero API calls |
+| `--secrets-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 | `--rule` | stringArray | - | External Rego rule pack in `org/repo` format (repeatable). Combine with `Vulnetix/community-rules` and the OPA packs (regula, kics, cds-aws-tf, cigna-tf, trivy, snyk-labs-iac) for comprehensive coverage. |
 
 ## What Gets Detected

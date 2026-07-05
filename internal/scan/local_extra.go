@@ -11,7 +11,12 @@ package scan
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
+	"encoding/xml"
+	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -472,10 +477,72 @@ func appendContainerImagePackage(pkgs *[]ScopedPackage, seen map[string]bool, re
 	if name == "" {
 		return
 	}
+	// Skip references still carrying a template placeholder (Helm/k8s values).
+	if strings.Contains(name, "{{") || strings.Contains(name, "}}") {
+		return
+	}
+	registry := registryHostOfImage(name)
 	appendScopedPackage(pkgs, seen, ScopedPackage{
 		Name: name, Version: ver,
 		Ecosystem: "oci", Scope: ScopeProduction, SourceFile: source, IsDirect: true,
+		RegistryType:      detectRegistryType(registry),
+		IsPrivateRegistry: isPrivateRegistry(registry),
 	})
+}
+
+// registryHostOfImage extracts the registry host from a normalized image name
+// (the repository portion, registry included). Images with no registry segment
+// default to Docker Hub.
+func registryHostOfImage(name string) string {
+	if i := strings.Index(name, "/"); i >= 0 {
+		first := name[:i]
+		// A registry segment carries a dot, a port colon, or is localhost.
+		if strings.ContainsAny(first, ".:") || first == "localhost" {
+			return first
+		}
+	}
+	return "docker.io"
+}
+
+// detectRegistryType classifies a registry host into a coarse provider bucket.
+func detectRegistryType(registry string) string {
+	host := strings.ToLower(registry)
+	switch {
+	case host == "" || host == "docker.io" || host == "registry.hub.docker.com":
+		return "dockerhub"
+	case strings.Contains(host, "gcr.io") || strings.Contains(host, "pkg.dev"):
+		return "gcr"
+	case strings.Contains(host, "amazonaws.com"):
+		return "ecr"
+	case strings.Contains(host, "azurecr.io"):
+		return "acr"
+	case strings.Contains(host, "ghcr.io"):
+		return "ghcr"
+	case strings.Contains(host, "gitlab"):
+		return "gitlab"
+	case strings.Contains(host, "quay.io"):
+		return "quay"
+	case host == "localhost" || strings.HasPrefix(host, "localhost:") ||
+		strings.HasPrefix(host, "127.0.0.1"):
+		return "local"
+	default:
+		return "private"
+	}
+}
+
+// isPrivateRegistry reports whether a registry host is not a well-known public
+// registry (a supply-chain signal worth surfacing).
+func isPrivateRegistry(registry string) bool {
+	host := strings.ToLower(registry)
+	if host == "" {
+		return false
+	}
+	for _, pub := range []string{"docker.io", "registry.hub.docker.com", "gcr.io", "pkg.dev", "quay.io", "mcr.microsoft.com", "public.ecr.aws", "registry.k8s.io", "gke.gcr.io"} {
+		if host == pub || strings.HasSuffix(host, "."+pub) || strings.Contains(host, pub) {
+			return false
+		}
+	}
+	return true
 }
 
 func appendScopedPackage(pkgs *[]ScopedPackage, seen map[string]bool, pkg ScopedPackage) {
@@ -488,6 +555,493 @@ func appendScopedPackage(pkgs *[]ScopedPackage, seen map[string]bool, pkg Scoped
 	}
 	seen[key] = true
 	*pkgs = append(*pkgs, pkg)
+}
+
+// ---------------------------------------------------------------------------
+// Registry config — .npmrc / .yarnrc / settings.gradle private-registry signal
+// ---------------------------------------------------------------------------
+
+// RegistryEndpoint is a package registry declared in a project config file.
+type RegistryEndpoint struct {
+	Ecosystem string // npm, maven
+	URL       string
+	Scope     string // npm @scope, if any
+	Private   bool   // not a well-known public registry
+	Source    string // config file path
+}
+
+var (
+	npmrcRegistry  = regexp.MustCompile(`(?m)^(?:(@[^:]+):)?registry\s*=\s*(\S+)`)
+	yarnrcRegistry = regexp.MustCompile(`(?m)^\s*(?:npmRegistryServer|registry)\s*[:=]?\s*["']?(https?://\S+?)["']?\s*$`)
+	gradleMavenURL = regexp.MustCompile(`url\s*=?\s*(?:uri\()?["']([^"']+)["']`)
+)
+
+// ParseRegistryConfig extracts declared registry endpoints from a registry
+// config file (.npmrc / .yarnrc[.yml] / settings.gradle[.kts]). It reads only
+// URLs — never auth tokens — and flags any non-default host as private.
+func ParseRegistryConfig(filePath, ecosystem string) []RegistryEndpoint {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil
+	}
+	content := string(data)
+	var out []RegistryEndpoint
+	add := func(scope, url string) {
+		url = strings.TrimSpace(strings.Trim(url, `"'`))
+		if url == "" || strings.HasPrefix(url, "${") {
+			return
+		}
+		out = append(out, RegistryEndpoint{
+			Ecosystem: ecosystem, URL: url, Scope: scope,
+			Private: isPrivateRegistryURL(url), Source: filePath,
+		})
+	}
+	base := strings.ToLower(filepath.Base(filePath))
+	switch {
+	case base == ".npmrc":
+		for _, m := range npmrcRegistry.FindAllStringSubmatch(content, -1) {
+			add(m[1], m[2])
+		}
+	case strings.HasPrefix(base, ".yarnrc"):
+		for _, m := range yarnrcRegistry.FindAllStringSubmatch(content, -1) {
+			add("", m[1])
+		}
+		// .yarnrc (classic) also uses the npm-style `registry "url"` form.
+		for _, m := range npmrcRegistry.FindAllStringSubmatch(content, -1) {
+			add(m[1], m[2])
+		}
+	case strings.HasPrefix(base, "settings.gradle"):
+		for _, m := range gradleMavenURL.FindAllStringSubmatch(content, -1) {
+			add("", m[1])
+		}
+	}
+	return out
+}
+
+// isPrivateRegistryURL reports whether a registry URL points somewhere other
+// than a well-known public package registry.
+func isPrivateRegistryURL(url string) bool {
+	lower := strings.ToLower(url)
+	for _, pub := range []string{
+		"registry.npmjs.org", "registry.yarnpkg.com",
+		"repo.maven.apache.org", "repo1.maven.org", "repo.maven.org",
+		"plugins.gradle.org", "jcenter.bintray.com", "dl.google.com",
+		"maven.google.com", "jitpack.io",
+	} {
+		if strings.Contains(lower, pub) {
+			return false
+		}
+	}
+	return true
+}
+
+// SummarizeRegistryConfigs parses every registry-config file among the detected
+// files and returns the endpoints found. Used to surface private/custom
+// registries as a supply-chain signal.
+func SummarizeRegistryConfigs(files []DetectedFile) []RegistryEndpoint {
+	var out []RegistryEndpoint
+	for _, f := range files {
+		if f.ManifestInfo == nil || f.ManifestInfo.Language != "registry-config" {
+			continue
+		}
+		out = append(out, ParseRegistryConfig(f.Path, f.ManifestInfo.Ecosystem)...)
+	}
+	return out
+}
+
+// ---------------------------------------------------------------------------
+// Kubernetes — image extraction from Pod / workload / CronJob manifests
+// ---------------------------------------------------------------------------
+
+type k8sContainer struct {
+	Image string `yaml:"image"`
+}
+
+type k8sPodSpec struct {
+	Containers          []k8sContainer `yaml:"containers"`
+	InitContainers      []k8sContainer `yaml:"initContainers"`
+	EphemeralContainers []k8sContainer `yaml:"ephemeralContainers"`
+}
+
+type k8sManifest struct {
+	Kind string `yaml:"kind"`
+	Spec struct {
+		// Pod
+		k8sPodSpec `yaml:",inline"`
+		// Deployment / ReplicaSet / StatefulSet / DaemonSet / Job
+		Template struct {
+			Spec k8sPodSpec `yaml:"spec"`
+		} `yaml:"template"`
+		// CronJob
+		JobTemplate struct {
+			Spec struct {
+				Template struct {
+					Spec k8sPodSpec `yaml:"spec"`
+				} `yaml:"template"`
+			} `yaml:"spec"`
+		} `yaml:"jobTemplate"`
+	} `yaml:"spec"`
+}
+
+func (s k8sPodSpec) images() []string {
+	var out []string
+	for _, group := range [][]k8sContainer{s.Containers, s.InitContainers, s.EphemeralContainers} {
+		for _, c := range group {
+			if c.Image != "" {
+				out = append(out, c.Image)
+			}
+		}
+	}
+	return out
+}
+
+func parseKubernetesScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	for {
+		var m k8sManifest
+		if err := dec.Decode(&m); err != nil {
+			if err == io.EOF {
+				break
+			}
+			// Skip a malformed document but keep scanning the rest of the stream.
+			continue
+		}
+		imgs := m.Spec.k8sPodSpec.images()
+		imgs = append(imgs, m.Spec.Template.Spec.images()...)
+		imgs = append(imgs, m.Spec.JobTemplate.Spec.Template.Spec.images()...)
+		for _, img := range imgs {
+			appendContainerImagePackage(&pkgs, seen, img, filePath)
+		}
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Helm — Chart.yaml dependencies + sibling values.yaml container images
+// ---------------------------------------------------------------------------
+
+func parseHelmChartScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var chart struct {
+		Dependencies []struct {
+			Name       string `yaml:"name"`
+			Version    string `yaml:"version"`
+			Repository string `yaml:"repository"`
+		} `yaml:"dependencies"`
+	}
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	if err := yaml.Unmarshal(data, &chart); err == nil {
+		for _, dep := range chart.Dependencies {
+			if dep.Name == "" {
+				continue
+			}
+			appendScopedPackage(&pkgs, seen, ScopedPackage{
+				Name: dep.Name, Version: strings.TrimSpace(dep.Version),
+				VersionSpec: strings.TrimSpace(dep.Version),
+				Ecosystem:   "helm", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true,
+			})
+		}
+	}
+	// Best-effort: extract container images declared in a sibling values.yaml.
+	valuesPath := filepath.Join(filepath.Dir(filePath), "values.yaml")
+	if vb, err := os.ReadFile(valuesPath); err == nil {
+		for _, img := range extractHelmValuesImages(vb) {
+			appendContainerImagePackage(&pkgs, seen, img, valuesPath)
+		}
+	}
+	return pkgs, nil
+}
+
+var (
+	// Horizontal-whitespace ([ \t]) only after the key, so a bare `image:`
+	// block header (value on the following line) is not misread as an image.
+	helmImageLine = regexp.MustCompile(`(?m)^[ \t]*image:[ \t]+["']?([^\s"'#]+)["']?`)
+	helmRepoLine  = regexp.MustCompile(`(?m)^[ \t]*repository:[ \t]+["']?([^\s"'#]+)["']?`)
+	helmTagLine   = regexp.MustCompile(`(?m)^[ \t]*tag:[ \t]+["']?([^\s"'#]+)["']?`)
+)
+
+// extractHelmValuesImages pulls container image references out of a Helm
+// values.yaml. It recognises both the `image: repo:tag` shorthand and the
+// common `image: { repository: repo, tag: tag }` block, and skips values that
+// are still Go-templated.
+func extractHelmValuesImages(data []byte) []string {
+	var out []string
+	for _, m := range helmImageLine.FindAllStringSubmatch(string(data), -1) {
+		if strings.Contains(m[1], "{{") {
+			continue
+		}
+		out = append(out, m[1])
+	}
+	repos := helmRepoLine.FindAllStringSubmatch(string(data), -1)
+	tags := helmTagLine.FindAllStringSubmatch(string(data), -1)
+	for i, r := range repos {
+		if strings.Contains(r[1], "{{") {
+			continue
+		}
+		ref := r[1]
+		if i < len(tags) && !strings.Contains(tags[i][1], "{{") {
+			ref = ref + ":" + tags[i][1]
+		}
+		out = append(out, ref)
+	}
+	return out
+}
+
+// ---------------------------------------------------------------------------
+// Conda — environment.yml (conda deps + nested pip deps)
+// ---------------------------------------------------------------------------
+
+func parseCondaEnvScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var env struct {
+		Dependencies []yaml.Node `yaml:"dependencies"`
+	}
+	if err := yaml.Unmarshal(data, &env); err != nil {
+		return nil, err
+	}
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	for _, node := range env.Dependencies {
+		if node.Kind == yaml.ScalarNode {
+			name, ver := splitCondaSpec(node.Value)
+			if name != "" {
+				appendScopedPackage(&pkgs, seen, ScopedPackage{
+					Name: name, Version: ver, VersionSpec: ver,
+					Ecosystem: "conda", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true,
+				})
+			}
+			continue
+		}
+		// A mapping node like `- pip: [requests==2.0]` nests PyPI deps.
+		if node.Kind == yaml.MappingNode {
+			for i := 0; i+1 < len(node.Content); i += 2 {
+				if node.Content[i].Value != "pip" {
+					continue
+				}
+				for _, item := range node.Content[i+1].Content {
+					name, ver := splitPipSpec(item.Value)
+					if name != "" {
+						appendScopedPackage(&pkgs, seen, ScopedPackage{
+							Name: name, Version: ver, VersionSpec: ver,
+							Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true,
+						})
+					}
+				}
+			}
+		}
+	}
+	return pkgs, nil
+}
+
+// splitCondaSpec splits a conda dependency spec ("numpy=1.24.0", "numpy>=1.20",
+// "python 3.11") into name and version. Channel prefixes ("conda-forge::pkg")
+// are stripped.
+func splitCondaSpec(spec string) (name, ver string) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return "", ""
+	}
+	if i := strings.LastIndex(spec, "::"); i >= 0 {
+		spec = spec[i+2:]
+	}
+	// Version separators: '=', ' ', or comparison operators.
+	for _, sep := range []string{"==", ">=", "<=", "!=", "~=", "=", " "} {
+		if i := strings.Index(spec, sep); i > 0 {
+			return strings.TrimSpace(spec[:i]), strings.TrimSpace(strings.TrimLeft(spec[i:], "=<>!~ "))
+		}
+	}
+	return spec, ""
+}
+
+// ---------------------------------------------------------------------------
+// Python setuptools — setup.py (install_requires) / setup.cfg
+// ---------------------------------------------------------------------------
+
+var (
+	setupInstallRequires = regexp.MustCompile(`(?s)install_requires\s*=\s*\[(.*?)\]`)
+	setupQuoted          = regexp.MustCompile(`["']([^"']+)["']`)
+)
+
+func parseSetupPyScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	for _, block := range setupInstallRequires.FindAllStringSubmatch(string(data), -1) {
+		for _, q := range setupQuoted.FindAllStringSubmatch(block[1], -1) {
+			name, ver := splitPipSpec(q[1])
+			if name != "" {
+				appendScopedPackage(&pkgs, seen, ScopedPackage{
+					Name: name, Version: ver, VersionSpec: ver,
+					Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true,
+				})
+			}
+		}
+	}
+	return pkgs, nil
+}
+
+func parseSetupCfgScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	inRequires := false
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		raw := scanner.Text()
+		line := strings.TrimSpace(raw)
+		if strings.HasPrefix(line, "install_requires") {
+			inRequires = true
+			// Handle "install_requires = pkgA, pkgB" on one line.
+			if i := strings.Index(line, "="); i >= 0 {
+				for _, part := range strings.Split(line[i+1:], ",") {
+					addPipReq(&pkgs, seen, part, filePath)
+				}
+			}
+			continue
+		}
+		if inRequires {
+			// A new unindented key ends the block.
+			if raw != "" && raw[0] != ' ' && raw[0] != '\t' {
+				inRequires = false
+				continue
+			}
+			addPipReq(&pkgs, seen, line, filePath)
+		}
+	}
+	return pkgs, nil
+}
+
+func addPipReq(pkgs *[]ScopedPackage, seen map[string]bool, spec, filePath string) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" || strings.HasPrefix(spec, "#") {
+		return
+	}
+	name, ver := splitPipSpec(spec)
+	if name != "" {
+		appendScopedPackage(pkgs, seen, ScopedPackage{
+			Name: name, Version: ver, VersionSpec: ver,
+			Ecosystem: "pypi", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true,
+		})
+	}
+}
+
+// splitPipSpec splits a PEP 508 requirement ("flask>=2.0", "requests==2.31.0",
+// "django[bcrypt]~=4.2") into name and version. Environment markers and extras
+// are dropped.
+func splitPipSpec(spec string) (name, ver string) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" || strings.HasPrefix(spec, "-") {
+		return "", ""
+	}
+	if i := strings.Index(spec, ";"); i >= 0 {
+		spec = strings.TrimSpace(spec[:i])
+	}
+	if i := strings.IndexAny(spec, "<>=!~"); i >= 0 {
+		name = spec[:i]
+		ver = strings.TrimLeft(spec[i:], "<>=!~ ")
+	} else {
+		name = spec
+	}
+	if i := strings.Index(name, "["); i >= 0 {
+		name = name[:i]
+	}
+	return strings.TrimSpace(name), strings.TrimSpace(ver)
+}
+
+// ---------------------------------------------------------------------------
+// NuGet — packages.config (legacy XML)
+// ---------------------------------------------------------------------------
+
+func parsePackagesConfigScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var doc struct {
+		Packages []struct {
+			ID      string `xml:"id,attr"`
+			Version string `xml:"version,attr"`
+		} `xml:"package"`
+	}
+	if err := xml.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	for _, p := range doc.Packages {
+		if p.ID == "" {
+			continue
+		}
+		appendScopedPackage(&pkgs, seen, ScopedPackage{
+			Name: p.ID, Version: p.Version, VersionSpec: p.Version,
+			Ecosystem: "nuget", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true,
+		})
+	}
+	return pkgs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Clojure — Leiningen project.clj, tools.deps deps.edn, mill build.sc
+// ---------------------------------------------------------------------------
+
+var (
+	leinDeps    = regexp.MustCompile(`\[\s*([A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)?)\s+"([^"]+)"`)
+	depsEdnDeps = regexp.MustCompile(`([A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)\s*\{[^}]*?:mvn/version\s+"([^"]+)"`)
+	millIvy     = regexp.MustCompile(`ivy"([^"]+)"`)
+)
+
+func parseLeiningenScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	// Restrict to the :dependencies vector to avoid matching unrelated vectors.
+	content := string(data)
+	if i := strings.Index(content, ":dependencies"); i >= 0 {
+		content = content[i:]
+	}
+	for _, m := range leinDeps.FindAllStringSubmatch(content, -1) {
+		appendScopedPackage(&pkgs, seen, ScopedPackage{
+			Name: clojureCoord(m[1]), Version: m[2], VersionSpec: m[2],
+			Ecosystem: "clojars", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true,
+		})
+	}
+	return pkgs, nil
+}
+
+func parseDepsEdnScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	for _, m := range depsEdnDeps.FindAllStringSubmatch(string(data), -1) {
+		appendScopedPackage(&pkgs, seen, ScopedPackage{
+			Name: clojureCoord(m[1]), Version: m[2], VersionSpec: m[2],
+			Ecosystem: "clojars", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true,
+		})
+	}
+	return pkgs, nil
+}
+
+func parseMillScoped(data []byte, filePath string) ([]ScopedPackage, error) {
+	var pkgs []ScopedPackage
+	seen := map[string]bool{}
+	for _, m := range millIvy.FindAllStringSubmatch(string(data), -1) {
+		// ivy"group::artifact:version" (scala cross) or "group:artifact:version".
+		coord := strings.ReplaceAll(m[1], "::", ":")
+		parts := strings.Split(coord, ":")
+		if len(parts) < 3 {
+			continue
+		}
+		name := parts[0] + ":" + parts[1]
+		ver := parts[2]
+		appendScopedPackage(&pkgs, seen, ScopedPackage{
+			Name: name, Version: ver, VersionSpec: ver,
+			Ecosystem: "maven", Scope: ScopeProduction, SourceFile: filePath, IsDirect: true,
+		})
+	}
+	return pkgs, nil
+}
+
+// clojureCoord normalises a Clojure/Clojars coordinate to a Maven group:artifact
+// form. "org.clojure/clojure" → "org.clojure:clojure"; a single-segment name
+// ("hiccup") is a Clojars group==artifact package, kept as-is.
+func clojureCoord(coord string) string {
+	if i := strings.Index(coord, "/"); i >= 0 {
+		return coord[:i] + ":" + coord[i+1:]
+	}
+	return coord
 }
 
 func splitDockerRef(ref string) (name, ver string) {

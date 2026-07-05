@@ -183,6 +183,7 @@ var ecosystemMap = map[string]string{
 	"alpm":             "Arch Linux",
 	"docker":           "Docker",
 	"oci":              "OCI",
+	"helm":             "Helm",
 	"github":           "GitHub",
 	"bitbucket":        "Bitbucket",
 	"generic":          "Generic",

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -154,6 +155,13 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 					Name:  "vulnetix:source-file",
 					Value: pkg.SourceFile,
 				})
+			}
+			// Container-image registry provenance (oci ecosystem only).
+			if compType == "container" && pkg.RegistryType != "" {
+				comp.Properties = append(comp.Properties,
+					Property{Name: "vulnetix:oci:registryType", Value: pkg.RegistryType},
+					Property{Name: "vulnetix:oci:private", Value: strconv.FormatBool(pkg.IsPrivateRegistry)},
+				)
 			}
 			for _, cs := range pkg.Checksums {
 				switch cs.Alg {
@@ -476,6 +484,13 @@ func localEcosystemToPurlType(ecosystem string) string {
 		return "hex"
 	case "swift":
 		return "swift"
+	case "helm":
+		return "helm"
+	case "conda":
+		return "conda"
+	case "clojars", "clojure":
+		// Clojure coordinates are Maven group:artifact pairs.
+		return "maven"
 	default:
 		return ecosystem
 	}

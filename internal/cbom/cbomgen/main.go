@@ -319,6 +319,7 @@ vulnetix cbom [path] [flags]
 | ` + "`--no-deps`" + ` | bool | ` + "`false`" + ` | Skip the crypto-library detection pass |
 | ` + "`--fail-on`" + ` | string | ` + "`none`" + ` | Exit non-zero when crypto of these PQC statuses is found (e.g. ` + "`quantum-vulnerable`, `deprecated`" + `) |
 | ` + "`--no-upload`" + ` | bool | ` + "`false`" + ` | Do not submit the CBOM to Vulnetix (submitted automatically when authenticated) |
+| ` + "`--cbom-include-ignored`" + ` | bool | ` + "`false`" + ` | Include files matched by ` + "`.gitignore`" + ` (default: gitignored paths are skipped) |
 
 ## Output
 

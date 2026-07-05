@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vulnetix/cli/v3/internal/ecosystems"
+	"github.com/vulnetix/cli/v3/internal/ignore"
 )
 
 // WalkOptions configures the filesystem walk behavior.
@@ -13,6 +14,10 @@ type WalkOptions struct {
 	RootPath string
 	MaxDepth int
 	Excludes []string // glob patterns to exclude
+	// RespectGitignore, when true, prunes files and directories matched by
+	// .gitignore files (accumulated top-down). The sca path leaves this false
+	// because dependency manifests routinely live in gitignored install dirs.
+	RespectGitignore bool
 }
 
 // WalkForScanFiles walks the filesystem from root, up to maxDepth, looking for
@@ -35,6 +40,12 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 	pruneDirs := make(map[string]bool)
 	for _, t := range ecosystems.Resolve(rootPath, false) {
 		pruneDirs[t.Path] = true
+	}
+
+	var gitignore *ignore.Matcher
+	if opts.RespectGitignore {
+		gitignore = ignore.New()
+		gitignore.LoadDir(rootPath, "")
 	}
 
 	var detected []DetectedFile
@@ -82,6 +93,15 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 				return filepath.SkipDir
 			}
 
+			// Honour .gitignore (accumulate this dir's rules first so its
+			// children are evaluated against them).
+			if gitignore != nil {
+				if relPath != "" && gitignore.Ignored(relPath, true) {
+					return filepath.SkipDir
+				}
+				gitignore.LoadDir(path, relPath)
+			}
+
 			return nil
 		}
 
@@ -92,6 +112,10 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 
 		// Check excludes
 		if shouldExclude(relPath, opts.Excludes) {
+			return nil
+		}
+
+		if gitignore != nil && gitignore.Ignored(relPath, false) {
 			return nil
 		}
 
