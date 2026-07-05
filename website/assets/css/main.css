@@ -367,6 +367,8 @@ img, svg { display: block; max-width: 100%; }
    HOME PAGE — dark hero, then cream feature slabs
    ========================================================= */
 .home-hero {
+  position: relative;
+  overflow: hidden;
   background:
     radial-gradient(ellipse at 20% 0%, rgba(102,220,200,0.28), transparent 50%),
     radial-gradient(ellipse at 80% 60%, rgba(102,220,200,0.12), transparent 55%),
@@ -374,6 +376,20 @@ img, svg { display: block; max-width: 100%; }
   padding: 120px 48px 96px;
   text-align: center;
   color: var(--vx-bone);
+}
+
+.home-hero__mascot {
+  position: absolute;
+  right: 6%;
+  bottom: 24px;
+  width: 132px;
+  height: auto;
+  opacity: 0.9;
+  filter: drop-shadow(0 12px 30px rgba(102,220,200,0.28));
+  pointer-events: none;
+}
+@media (max-width: 1024px) {
+  .home-hero__mascot { display: none; }
 }
 .home-hero__eyebrow {
   font-size: 12px;
