@@ -68,6 +68,7 @@ func init() {
 	aibomCmd.Flags().Bool("no-commits", false, "Skip the git commit-history detection pass")
 	aibomCmd.Flags().Int("commit-scan-max", 2000, "Maximum number of commits (from HEAD) the commit-history pass inspects")
 	aibomCmd.Flags().Bool("no-upload", false, "Do not submit the AIBOM to Vulnetix (it is submitted automatically when authenticated)")
+	aibomCmd.Flags().Bool("aibom-include-ignored", false, "Include files matched by .gitignore (default: gitignored paths are skipped)")
 	rootCmd.AddCommand(aibomCmd)
 }
 
@@ -89,6 +90,7 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	noCommits, _ := cmd.Flags().GetBool("no-commits")
 	commitMax, _ := cmd.Flags().GetInt("commit-scan-max")
 	noUpload, _ := cmd.Flags().GetBool("no-upload")
+	includeIgnored, _ := cmd.Flags().GetBool("aibom-include-ignored")
 
 	switch outputFmt {
 	case "pretty", "table", "json", "cyclonedx-json":
@@ -111,15 +113,16 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	}
 
 	det, err := aibom.Detect(aibom.Options{
-		Root:        rootPath,
-		MaxDepth:    depth,
-		Ignore:      ignore,
-		ScanEnv:     !noEnv,
-		IncludeHome: includeHome,
-		ScanSource:  !noSource,
-		ScanCommits: !noCommits,
-		CommitMax:   commitMax,
-		Catalog:     compiled,
+		Root:             rootPath,
+		MaxDepth:         depth,
+		Ignore:           ignore,
+		ScanEnv:          !noEnv,
+		IncludeHome:      includeHome,
+		ScanSource:       !noSource,
+		ScanCommits:      !noCommits,
+		CommitMax:        commitMax,
+		Catalog:          compiled,
+		RespectGitignore: !includeIgnored,
 	})
 	if err != nil {
 		return err

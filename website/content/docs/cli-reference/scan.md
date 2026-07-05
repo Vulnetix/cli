@@ -22,6 +22,7 @@ vulnetix scan status <scan-id> [flags]
 | `--path` | string | `.` | Directory to scan |
 | `--depth` | int | `3` | Maximum recursion depth for file discovery |
 | `--exclude` | stringArray | - | Exclude paths matching glob pattern (repeatable) |
+| `--include-ignored` | bool | `false` | Include files matched by `.gitignore`. By default the SAST, secrets, containers and IaC passes skip gitignored paths; **SCA and malscan always scan them** (dependency install dirs like `node_modules/` are commonly gitignored). |
 | `-o, --output` | stringArray | - | Output target (repeatable): `json-cyclonedx` or `json-sarif` for stdout; file path (`.cdx.json`, `.cdx`, `.bom.json`, `.sbom.json`) for CycloneDX to file; file path (`.sarif`, `.sarif.json`) for SARIF to file. Multiple flags combine file outputs with pretty display. |
 | `-f, --format` | string | - | **Deprecated** — maps to `--output json-cyclonedx`. Use `--output` instead. |
 | `--concurrency` | int | `5` | Max concurrent VDB queries |
@@ -124,6 +125,7 @@ The scanner recognizes these package manager manifest and lock files:
 |----------|-----------|------------|
 | `package.json` | npm | No |
 | `package-lock.json` | npm | Yes |
+| `npm-shrinkwrap.json` | npm | Yes |
 | `yarn.lock` | npm | Yes |
 | `pnpm-lock.yaml` | npm | Yes |
 
@@ -136,10 +138,21 @@ When `package.json` is present without `package-lock.json`, `yarn.lock`, or `pnp
 | `pyproject.toml` | PyPI | No |
 | `requirements.txt` | PyPI | No |
 | `requirements.in` | PyPI | No |
+| `setup.py` | PyPI | No |
+| `setup.cfg` | PyPI | No |
 | `Pipfile` | PyPI | No |
 | `Pipfile.lock` | PyPI | Yes |
 | `poetry.lock` | PyPI | Yes |
 | `uv.lock` | PyPI | Yes |
+
+### Conda
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `environment.yml` | Conda | No |
+| `environment.yaml` | Conda | No |
+
+Nested `pip:` dependencies inside a Conda `environment.yml` are attributed to PyPI.
 
 ### Go
 
@@ -179,12 +192,26 @@ When `package.json` is present without `package-lock.json`, `yarn.lock`, or `pnp
 | `gradle.lockfile` | Maven | Yes |
 | `build.sbt` | Maven | No |
 | `build.lock` | Maven | Yes |
+| `build.sc` | Maven | No |
+
+### Clojure
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `project.clj` | Clojars | No |
+| `deps.edn` | Clojars | No |
+| `bb.edn` | Clojars | No |
+
+Clojure coordinates resolve as Maven `group:artifact` PURLs.
 
 ### C# / .NET
 
 | Filename | Ecosystem | Lock file? |
 |----------|-----------|------------|
 | `*.csproj` | NuGet | No |
+| `*.fsproj` | NuGet | No |
+| `*.vbproj` | NuGet | No |
+| `packages.config` | NuGet | No |
 | `packages.lock.json` | NuGet | Yes |
 | `paket.dependencies` | NuGet | No |
 | `paket.lock` | NuGet | Yes |
@@ -309,6 +336,34 @@ When `package.json` is present without `package-lock.json`, `yarn.lock`, or `pnp
 | `Containerfile` | Docker | No |
 | `*.dockerfile` | Docker | No |
 | `*.containerfile` | Docker | No |
+| `compose.yaml` / `docker-compose.yml` | Docker | No |
+
+Container images from `FROM` lines, Compose `image:` fields, Kubernetes manifests, and Helm charts are emitted as `pkg:oci/…` components. Each carries a `vulnetix:oci:registryType` (`dockerhub`/`gcr`/`ecr`/`acr`/`ghcr`/`gitlab`/`quay`/`local`/`private`) and `vulnetix:oci:private` property so private-registry usage is visible in the BOM.
+
+### Kubernetes
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `*.yaml` / `*.yml` with `apiVersion` + `kind` | Kubernetes | No |
+
+Container images are extracted from every pod-template shape — `Pod`, `Deployment`, `ReplicaSet`, `StatefulSet`, `DaemonSet`, `Job` and `CronJob` — including `initContainers` and `ephemeralContainers`.
+
+### Helm
+
+| Filename | Ecosystem | Lock file? |
+|----------|-----------|------------|
+| `Chart.yaml` | Helm | No |
+
+Chart `dependencies` become `pkg:helm/…` components; container images declared in a sibling `values.yaml` (`image:` shorthand or `repository:`/`tag:` blocks) are emitted as `pkg:oci/…`.
+
+### Registry config
+
+| Filename | Ecosystem | Parsed for deps? |
+|----------|-----------|------------------|
+| `.npmrc` / `.yarnrc` / `.yarnrc.yml` | npm | No (registry endpoints only) |
+| `settings.gradle` / `settings.gradle.kts` | Maven | No (registry endpoints only) |
+
+These are not parsed for dependencies. The scanner extracts declared registry endpoints (never auth tokens) and prints an informational note when a private/custom registry is configured — a supply-chain visibility signal.
 
 ### Infrastructure as Code
 

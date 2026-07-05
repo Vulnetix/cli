@@ -59,19 +59,25 @@ type DetectedFile struct {
 // ManifestFiles maps known manifest filenames (exact basename) to their metadata.
 var ManifestFiles = map[string]ManifestInfo{
 	// ── JavaScript / Node.js ──────────────────────────────────────────────
-	"package-lock.json": {Type: "package-lock.json", Ecosystem: "npm", Language: "javascript", IsLock: true},
-	"package.json":      {Type: "package.json", Ecosystem: "npm", Language: "javascript", IsLock: false},
-	"yarn.lock":         {Type: "yarn.lock", Ecosystem: "npm", Language: "javascript", IsLock: true},
-	"pnpm-lock.yaml":    {Type: "pnpm-lock.yaml", Ecosystem: "npm", Language: "javascript", IsLock: true},
+	"package-lock.json":   {Type: "package-lock.json", Ecosystem: "npm", Language: "javascript", IsLock: true},
+	"npm-shrinkwrap.json": {Type: "package-lock.json", Ecosystem: "npm", Language: "javascript", IsLock: true},
+	"package.json":        {Type: "package.json", Ecosystem: "npm", Language: "javascript", IsLock: false},
+	"yarn.lock":           {Type: "yarn.lock", Ecosystem: "npm", Language: "javascript", IsLock: true},
+	"pnpm-lock.yaml":      {Type: "pnpm-lock.yaml", Ecosystem: "npm", Language: "javascript", IsLock: true},
 	// ── Python ────────────────────────────────────────────────────────────
 	"pyproject.toml":   {Type: "pyproject.toml", Ecosystem: "pypi", Language: "python", IsLock: false},
 	"requirements.txt": {Type: "requirements.txt", Ecosystem: "pypi", Language: "python", IsLock: false},
 	"requirements.in":  {Type: "requirements.in", Ecosystem: "pypi", Language: "python", IsLock: false},
+	"setup.py":         {Type: "setup.py", Ecosystem: "pypi", Language: "python", IsLock: false},
+	"setup.cfg":        {Type: "setup.cfg", Ecosystem: "pypi", Language: "python", IsLock: false},
 	"Pipfile":          {Type: "Pipfile", Ecosystem: "pypi", Language: "python", IsLock: false},
 	"Pipfile.lock":     {Type: "Pipfile.lock", Ecosystem: "pypi", Language: "python", IsLock: true},
 	"poetry.lock":      {Type: "poetry.lock", Ecosystem: "pypi", Language: "python", IsLock: true},
 	"uv.lock":          {Type: "uv.lock", Ecosystem: "pypi", Language: "python", IsLock: true},
 	"pylock.toml":      {Type: "pylock.toml", Ecosystem: "pypi", Language: "python", IsLock: true},
+	// ── Conda ─────────────────────────────────────────────────────────────
+	"environment.yml":  {Type: "environment.yml", Ecosystem: "conda", Language: "python", IsLock: false},
+	"environment.yaml": {Type: "environment.yml", Ecosystem: "conda", Language: "python", IsLock: false},
 	// ── Go ────────────────────────────────────────────────────────────────
 	"go.sum": {Type: "go.sum", Ecosystem: "golang", Language: "go", IsLock: true},
 	"go.mod": {Type: "go.mod", Ecosystem: "golang", Language: "go", IsLock: false},
@@ -92,6 +98,7 @@ var ManifestFiles = map[string]ManifestInfo{
 	"composer.lock": {Type: "composer.lock", Ecosystem: "composer", Language: "php", IsLock: true},
 	// ── .NET / NuGet ──────────────────────────────────────────────────────
 	"packages.lock.json": {Type: "packages.lock.json", Ecosystem: "nuget", Language: "c#", IsLock: true},
+	"packages.config":    {Type: "packages.config", Ecosystem: "nuget", Language: "c#", IsLock: false},
 	"paket.dependencies": {Type: "paket.dependencies", Ecosystem: "nuget", Language: "c#", IsLock: false},
 	"paket.lock":         {Type: "paket.lock", Ecosystem: "nuget", Language: "c#", IsLock: true},
 	// ── Swift ─────────────────────────────────────────────────────────────
@@ -103,9 +110,14 @@ var ManifestFiles = map[string]ManifestInfo{
 	// ── Elixir ────────────────────────────────────────────────────────────
 	"mix.exs":  {Type: "mix.exs", Ecosystem: "hex", Language: "elixir", IsLock: false},
 	"mix.lock": {Type: "mix.lock", Ecosystem: "hex", Language: "elixir", IsLock: true},
-	// ── Scala / sbt ───────────────────────────────────────────────────────
+	// ── Scala / sbt / mill ────────────────────────────────────────────────
 	"build.sbt":  {Type: "build.sbt", Ecosystem: "maven", Language: "scala", IsLock: false},
 	"build.lock": {Type: "build.lock", Ecosystem: "maven", Language: "scala", IsLock: true},
+	"build.sc":   {Type: "build.sc", Ecosystem: "maven", Language: "scala", IsLock: false},
+	// ── Clojure (Leiningen / tools.deps / Babashka) ───────────────────────
+	"project.clj": {Type: "project.clj", Ecosystem: "clojars", Language: "clojure", IsLock: false},
+	"deps.edn":    {Type: "deps.edn", Ecosystem: "clojars", Language: "clojure", IsLock: false},
+	"bb.edn":      {Type: "deps.edn", Ecosystem: "clojars", Language: "clojure", IsLock: false},
 	// ── Docker / OCI container files ─────────────────────────────────────
 	"Dockerfile":          {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
 	"Containerfile":       {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
@@ -117,6 +129,15 @@ var ManifestFiles = map[string]ManifestInfo{
 	"docker-compose.yml":  {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
 	"podman-compose.yaml": {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
 	"podman-compose.yml":  {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
+	// ── Helm ──────────────────────────────────────────────────────────────
+	"Chart.yaml": {Type: "Chart.yaml", Ecosystem: "helm", Language: "helm", IsLock: false},
+	"Chart.yml":  {Type: "Chart.yaml", Ecosystem: "helm", Language: "helm", IsLock: false},
+	// ── Registry config (private/custom registry supply-chain signal) ─────
+	".npmrc":              {Type: "registry-config", Ecosystem: "npm", Language: "registry-config", IsLock: false},
+	".yarnrc":             {Type: "registry-config", Ecosystem: "npm", Language: "registry-config", IsLock: false},
+	".yarnrc.yml":         {Type: "registry-config", Ecosystem: "npm", Language: "registry-config", IsLock: false},
+	"settings.gradle":     {Type: "registry-config", Ecosystem: "maven", Language: "registry-config", IsLock: false},
+	"settings.gradle.kts": {Type: "registry-config", Ecosystem: "maven", Language: "registry-config", IsLock: false},
 	// ── Bazel ─────────────────────────────────────────────────────────────
 	"WORKSPACE":       {Type: "WORKSPACE", Ecosystem: "bazel", Language: "starlark", IsLock: false},
 	"WORKSPACE.bazel": {Type: "WORKSPACE", Ecosystem: "bazel", Language: "starlark", IsLock: false},
@@ -171,6 +192,8 @@ var ManifestFiles = map[string]ManifestInfo{
 // Used for files whose names include a project-specific prefix (e.g. foo.csproj, main.tf).
 var ManifestExtensions = map[string]ManifestInfo{
 	".csproj":        {Type: "*.csproj", Ecosystem: "nuget", Language: "c#", IsLock: false},
+	".fsproj":        {Type: "*.csproj", Ecosystem: "nuget", Language: "f#", IsLock: false},
+	".vbproj":        {Type: "*.csproj", Ecosystem: "nuget", Language: "vb", IsLock: false},
 	".tf":            {Type: "*.tf", Ecosystem: "terraform", Language: "hcl", IsLock: false},
 	".opam":          {Type: "*.opam", Ecosystem: "opam", Language: "ocaml", IsLock: false},
 	".cabal":         {Type: "*.cabal", Ecosystem: "cabal", Language: "haskell", IsLock: false},
@@ -190,11 +213,15 @@ var SupportedManifestTypes = map[string]bool{
 	"pyproject.toml":   true,
 	"requirements.txt": true,
 	"requirements.in":  true,
+	"setup.py":         true,
+	"setup.cfg":        true,
 	"Pipfile":          true,
 	"Pipfile.lock":     true,
 	"poetry.lock":      true,
 	"uv.lock":          true,
 	"pylock.toml":      true,
+	// Conda
+	"environment.yml": true,
 	// Go
 	"go.sum": true,
 	"go.mod": true,
@@ -214,9 +241,13 @@ var SupportedManifestTypes = map[string]bool{
 	"composer.lock": true,
 	// .NET / NuGet
 	"packages.lock.json": true,
+	"packages.config":    true,
 	"paket.dependencies": true,
 	"paket.lock":         true,
 	"*.csproj":           true,
+	// Clojure (Leiningen / tools.deps / Babashka)
+	"project.clj": true,
+	"deps.edn":    true,
 	// Swift
 	"Package.swift":    true,
 	"Package.resolved": true,
@@ -226,12 +257,16 @@ var SupportedManifestTypes = map[string]bool{
 	// Elixir
 	"mix.exs":  true,
 	"mix.lock": true,
-	// Scala / sbt
+	// Scala / sbt / mill
 	"build.sbt":  true,
 	"build.lock": true,
+	"build.sc":   true,
 	// Docker / OCI container files
 	"Dockerfile":   true,
 	"compose.yaml": true,
+	// Kubernetes / Helm (container image extraction)
+	"kubernetes.yaml": true,
+	"Chart.yaml":      true,
 	// Terraform
 	"*.tf": true,
 	// GitHub Actions
@@ -357,6 +392,18 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 			return &info, true
 		}
 
+		// 5a. Content-checked: Kubernetes manifests (apiVersion + kind). Runs after
+		// the compose check so a docker-compose file is never misread as k8s.
+		if content, err := os.ReadFile(filename); err == nil && looksLikeKubernetesYAML(string(content)) {
+			info := ManifestInfo{
+				Type:      "kubernetes.yaml",
+				Ecosystem: "kubernetes",
+				Language:  "kubernetes",
+				IsLock:    false,
+			}
+			return &info, true
+		}
+
 		// 6. Path-pattern: GitHub Actions workflow files under .github/workflows/.
 		slash := filepath.ToSlash(filename)
 		if strings.Contains(slash, "/.github/workflows/") ||
@@ -378,6 +425,35 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 	}
 
 	return nil, false
+}
+
+// looksLikeKubernetesYAML reports whether a YAML document (or multi-document
+// stream) carries the top-level apiVersion + kind keys that mark a Kubernetes
+// manifest. It scans line-anchored, so `apiVersion:`/`kind:` nested inside a
+// compose or CRD-spec block do not false-positive. Helm Chart.yaml is excluded
+// (it is matched earlier by exact name) and Helm templates that are fully
+// Go-templated at the top level are skipped (no literal apiVersion line).
+func looksLikeKubernetesYAML(content string) bool {
+	hasAPIVersion := false
+	hasKind := false
+	for _, ln := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(ln)
+		// Only top-level keys (no indentation) count.
+		if trimmed != ln {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(trimmed, "apiVersion:"):
+			hasAPIVersion = true
+		case strings.HasPrefix(trimmed, "kind:"):
+			// Ignore docker-compose's own (rare) keys and Chart.yaml.
+			hasKind = true
+		}
+		if hasAPIVersion && hasKind {
+			return true
+		}
+	}
+	return false
 }
 
 func looksLikeComposeYAML(content string) bool {

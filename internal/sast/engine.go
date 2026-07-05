@@ -57,6 +57,11 @@ type EvalOptions struct {
 	GitHistoryMaxCommits int
 	GitHistoryMaxFiles   int
 	MinStringLength      int
+
+	// RespectGitignore prunes files/dirs matched by .gitignore. The
+	// sast/secrets/containers/iac commands set it true by default; the
+	// user opts out with --<mode>-include-ignored.
+	RespectGitignore bool
 }
 
 // NewEngine constructs an Engine with the given Rego modules.
@@ -134,6 +139,7 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 		GitHistory:           opts.GitHistory,
 		GitHistoryMaxCommits: opts.GitHistoryMaxCommits,
 		GitHistoryMaxFiles:   opts.GitHistoryMaxFiles,
+		RespectGitignore:     opts.RespectGitignore,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build scan input: %w", err)

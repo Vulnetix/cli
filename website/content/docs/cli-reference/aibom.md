@@ -29,6 +29,7 @@ vulnetix aibom [path] [flags]
 | `--no-source` | bool | `false` | Skip the source-code SDK / model detection pass |
 | `--no-commits` | bool | `false` | Skip the git commit-history detection pass |
 | `--commit-scan-max` | int | `2000` | Max commits (from HEAD) the commit-history pass inspects |
+| `--aibom-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 
 ## Output
 

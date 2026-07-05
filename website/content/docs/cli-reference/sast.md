@@ -38,6 +38,7 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `-R, --rule` | stringArray | - | External SAST rule repo in `org/repo` format (repeatable) — see [Custom Rule Repositories](../sast-rules/custom-rules/) |
 | `--rule-registry` | string | `https://github.com` | Override default registry URL for `--rule` repos |
 | `--dry-run` | bool | `false` | Detect files and check memory — zero API calls |
+| `--sast-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 
 ## Examples
 

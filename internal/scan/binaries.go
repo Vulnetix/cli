@@ -29,6 +29,13 @@ var manifestBinaries = map[string][]string{
 	"go.mod":           {"go"},
 	"Cargo.toml":       {"cargo"},
 	"composer.json":    {"composer"},
+	"setup.py":         {"pip"},
+	"environment.yml":  {"conda", "mamba"},
+	"environment.yaml": {"conda", "mamba"},
+	"project.clj":      {"lein"},
+	"deps.edn":         {"clojure", "clj"},
+	"bb.edn":           {"bb"},
+	"packages.config":  {"nuget", "dotnet"},
 }
 
 // lockfileBinary maps a lockfile basename to the single binary it pins.
@@ -57,6 +64,9 @@ var binaryEcosystem = map[string]string{
 	"go":       "golang",
 	"cargo":    "cargo",
 	"composer": "composer",
+	"conda":    "conda", "mamba": "conda",
+	"lein": "clojars", "clojure": "clojars", "clj": "clojars", "bb": "clojars",
+	"nuget": "nuget", "dotnet": "nuget",
 }
 
 // binaryVersionArgs maps a binary to the argv used to print its version. Most
@@ -70,6 +80,9 @@ var binaryVersionArgs = map[string][]string{
 	"go":       {"version"},
 	"cargo":    {"--version"},
 	"composer": {"--version"},
+	"conda":    {"--version"}, "mamba": {"--version"},
+	"lein": {"--version"}, "clojure": {"--version"}, "clj": {"--version"}, "bb": {"--version"},
+	"nuget": {"help"}, "dotnet": {"--version"},
 }
 
 // semverRe extracts the first version-looking token from a binary's output.

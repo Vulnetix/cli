@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vulnetix/cli/v3/internal/ignore"
 	"github.com/vulnetix/cli/v3/internal/secretscan"
 )
 
@@ -89,6 +90,12 @@ type BuildOptions struct {
 	GitHistoryMaxCommits int
 	// GitHistoryMaxFiles caps the number of file versions emitted.
 	GitHistoryMaxFiles int
+
+	// RespectGitignore, when true, prunes files and directories matched by
+	// .gitignore files. Defaults false for backwards compatibility; the
+	// sast/secrets/containers/iac/cbom/aibom commands set it true unless the
+	// user passes their --*-include-ignored override.
+	RespectGitignore bool
 }
 
 // BuildScanInputWithOptions is the full-control entry point. It replaces
@@ -114,6 +121,12 @@ func BuildScanInputWithOptions(rootPath string, opts BuildOptions) (*ScanInput, 
 	combinedExcludes := make([]string, 0, len(opts.Excludes)+len(opts.IgnoreGlobs))
 	combinedExcludes = append(combinedExcludes, opts.Excludes...)
 	combinedExcludes = append(combinedExcludes, opts.IgnoreGlobs...)
+
+	var gitignore *ignore.Matcher
+	if opts.RespectGitignore {
+		gitignore = ignore.New()
+		gitignore.LoadDir(absRoot, "")
+	}
 
 	err = filepath.WalkDir(absRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -156,6 +169,12 @@ func BuildScanInputWithOptions(rootPath string, opts BuildOptions) (*ScanInput, 
 			if shouldExclude(relPath, combinedExcludes) {
 				return filepath.SkipDir
 			}
+			if gitignore != nil {
+				if relPath != "" && gitignore.Ignored(relPath, true) {
+					return filepath.SkipDir
+				}
+				gitignore.LoadDir(path, relPath)
+			}
 			return nil
 		}
 
@@ -163,6 +182,9 @@ func BuildScanInputWithOptions(rootPath string, opts BuildOptions) (*ScanInput, 
 			return nil
 		}
 		if shouldExclude(relPath, combinedExcludes) {
+			return nil
+		}
+		if gitignore != nil && gitignore.Ignored(relPath, false) {
 			return nil
 		}
 

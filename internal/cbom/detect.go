@@ -34,6 +34,9 @@ type Options struct {
 	ScanDeps    bool
 	IncludeHome bool
 	Catalog     *CompiledCatalog
+	// RespectGitignore prunes .gitignored paths (default off; the cbom command
+	// sets it true unless --cbom-include-ignored is passed).
+	RespectGitignore bool
 }
 
 // Detect runs the enabled passes and returns CycloneDX-ready crypto detections.
@@ -55,9 +58,10 @@ func Detect(opts Options) (cdx.CryptoDetections, error) {
 		depth = defaultMaxDepth
 	}
 	input, err := sast.BuildScanInputWithOptions(abs, sast.BuildOptions{
-		MaxDepth:    depth,
-		IgnoreGlobs: opts.Ignore,
-		IgnoreGit:   true,
+		MaxDepth:         depth,
+		IgnoreGlobs:      opts.Ignore,
+		IgnoreGit:        true,
+		RespectGitignore: opts.RespectGitignore,
 	})
 	if err != nil {
 		return cdx.CryptoDetections{}, err

@@ -110,6 +110,12 @@ type ScopedPackage struct {
 	// (e.g. "node_modules/lodash") for installed packages; empty otherwise.
 	SourceType    string
 	InstalledPath string
+
+	// Container-image provenance (oci ecosystem only). RegistryType classifies the
+	// image registry (dockerhub/gcr/ecr/acr/ghcr/gitlab/local/private);
+	// IsPrivateRegistry is true when the host is not a well-known public registry.
+	RegistryType      string
+	IsPrivateRegistry bool
 }
 
 // ParseManifestWithScope parses a manifest file and returns packages with scope information.
@@ -139,6 +145,13 @@ func ParseManifestWithScope(filePath, manifestType string) ([]ScopedPackage, err
 		return parsePylockTOMLScoped(data, filePath)
 	case "pyproject.toml":
 		return parsePyprojectTOMLScoped(data, filePath)
+	case "setup.py":
+		return parseSetupPyScoped(data, filePath)
+	case "setup.cfg":
+		return parseSetupCfgScoped(data, filePath)
+	// ── Conda ─────────────────────────────────────────────────────────────
+	case "environment.yml":
+		return parseCondaEnvScoped(data, filePath)
 	case "go.sum":
 		return parseGoSumScoped(data, filePath)
 	case "go.mod":
@@ -183,6 +196,13 @@ func ParseManifestWithScope(filePath, manifestType string) ([]ScopedPackage, err
 		return parsePaketLockScoped(data, filePath)
 	case "*.csproj":
 		return parseCsprojScoped(data, filePath)
+	case "packages.config":
+		return parsePackagesConfigScoped(data, filePath)
+	// ── Clojure (Leiningen / tools.deps / Babashka) ───────────────────────
+	case "project.clj":
+		return parseLeiningenScoped(data, filePath)
+	case "deps.edn":
+		return parseDepsEdnScoped(data, filePath)
 	// ── Swift ─────────────────────────────────────────────────────────────
 	case "Package.swift":
 		return parsePackageSwiftScoped(data, filePath)
@@ -203,11 +223,18 @@ func ParseManifestWithScope(filePath, manifestType string) ([]ScopedPackage, err
 		return parseBuildSbtScoped(data, filePath)
 	case "build.lock":
 		return parseBuildLockScoped(data, filePath)
+	case "build.sc":
+		return parseMillScoped(data, filePath)
 	// ── Docker ────────────────────────────────────────────────────────────
 	case "Dockerfile":
 		return parseDockerfileScoped(data, filePath)
 	case "compose.yaml":
 		return parseComposeScoped(data, filePath)
+	// ── Kubernetes / Helm ─────────────────────────────────────────────────
+	case "kubernetes.yaml":
+		return parseKubernetesScoped(data, filePath)
+	case "Chart.yaml":
+		return parseHelmChartScoped(data, filePath)
 	// ── GitHub Actions ────────────────────────────────────────────────────
 	case "github-actions.yml":
 		return parseGithubActionsScoped(data, filePath)

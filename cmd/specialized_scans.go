@@ -182,6 +182,11 @@ func init() {
 	for _, cmd := range []*cobra.Command{secretsCmd, containersCmd, iacCmd, sastCmd} {
 		addScanFlags(cmd)
 		addSASTFlags(cmd)
+		// Per-mode .gitignore override alias. The generic --include-ignored
+		// registered by addScanFlags also works, but the named flag reads more
+		// naturally on a specialized command and is what the docs advertise.
+		cmd.Flags().Bool(cmd.Name()+"-include-ignored", false,
+			"Include files matched by .gitignore in this "+cmd.Name()+" scan (default: gitignored paths are skipped)")
 		rootCmd.AddCommand(cmd)
 	}
 }

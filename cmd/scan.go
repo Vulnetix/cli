@@ -414,6 +414,16 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	yes, _ := cmd.Flags().GetBool("yes")
 	pathExplicit := cmd.Flags().Changed("path")
 
+	// gitignore respect: the SAST-family walks (sast/secrets/containers/iac,
+	// and the generic scan's SAST engine) honour .gitignore by default. sca is
+	// exempt — dependency manifests routinely live in gitignored install dirs —
+	// and so the shared manifest walk only prunes .gitignore for the standalone
+	// containers/iac commands (where SCA is not consuming its output). Users opt
+	// back in with --include-ignored (generic) or --<mode>-include-ignored.
+	includeIgnored := includeIgnoredForScan(cmd)
+	respectGitignoreSAST := !includeIgnored
+	respectGitignoreManifest := !includeIgnored && (cmd.Name() == "containers" || cmd.Name() == "iac")
+
 	// Org quality-gate enforcement override. Applied after all nine control
 	// flags are read but BEFORE any is consumed (sca-autofix strategy parsing
 	// below, runLocalScan, and the gate options). For an authenticated org with
@@ -528,15 +538,37 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 
 	// ── 2. Discover files ──────────────────────────────────────────────
 	files, err := scan.WalkForScanFiles(scan.WalkOptions{
-		RootPath: scanPath,
-		MaxDepth: depth,
-		Excludes: excludes,
+		RootPath:         scanPath,
+		MaxDepth:         depth,
+		Excludes:         excludes,
+		RespectGitignore: respectGitignoreManifest,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to scan directory: %w", err)
 	}
 
 	analytics.TrackScan("sbom", len(files))
+
+	// Surface private/custom package registries declared in .npmrc / .yarnrc /
+	// settings.gradle as a supply-chain signal (informational; never gates).
+	if endpoints := scan.SummarizeRegistryConfigs(files); len(endpoints) > 0 {
+		var privates []scan.RegistryEndpoint
+		for _, e := range endpoints {
+			if e.Private {
+				privates = append(privates, e)
+			}
+		}
+		if len(privates) > 0 && !resultsOnly {
+			fmt.Fprintf(os.Stderr, "Registry config: %d private/custom registry endpoint(s) declared:\n", len(privates))
+			for _, e := range privates {
+				scopeNote := ""
+				if e.Scope != "" {
+					scopeNote = " (" + e.Scope + ")"
+				}
+				fmt.Fprintf(os.Stderr, "  %s%s → %s [%s]\n", e.Ecosystem, scopeNote, e.URL, e.Source)
+			}
+		}
+	}
 
 	// ── Local malware scan (malscan-engine, in-process) ─────────────────
 	// Runs as a pass on `scan`; on `sca` only when --block-malware / org
@@ -694,6 +726,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		gitHistory,
 		gitHistoryMaxCommits,
 		gitHistoryMaxFiles,
+		respectGitignoreSAST,
 	)
 
 	return mergeMalscanBreach(scanErr, malscanBreach)
@@ -798,6 +831,7 @@ func runLocalScan(
 	gitHistory bool,
 	gitHistoryMaxCommits int,
 	gitHistoryMaxFiles int,
+	respectGitignore bool,
 ) (retErr error) {
 	dctx := display.NewWithProgress(display.ModeText, silent, noProgress)
 	scanProgress := dctx.Progress("Scan", 7)
@@ -1215,6 +1249,7 @@ func runLocalScan(
 						gitHistory,
 						gitHistoryMaxCommits,
 						gitHistoryMaxFiles,
+						respectGitignore,
 					)
 				}
 			}
@@ -1423,6 +1458,7 @@ func runLocalScan(
 				GitHistory:           enableGitHistory && gitHistory,
 				GitHistoryMaxCommits: gitHistoryMaxCommits,
 				GitHistoryMaxFiles:   gitHistoryMaxFiles,
+				RespectGitignore:     respectGitignore,
 			})
 			// Hint the caller that the synthetic-content behaviour was engaged.
 			if enableBinaryInspection && !ignoreBinaries {
@@ -4326,6 +4362,8 @@ func addScanFlags(cmd *cobra.Command) {
 		"Cap the number of commits walked during the git-history secrets stage (0 = no cap)")
 	cmd.Flags().Int("git-history-max-files", 5000,
 		"Cap the number of file versions extracted from git history (0 = no cap)")
+	cmd.Flags().Bool("include-ignored", false,
+		"Include files matched by .gitignore. By default the SAST, secrets, containers and IaC passes skip gitignored paths; sca and malscan always scan them (dependency install dirs are commonly gitignored).")
 	_ = cmd.Flags().MarkDeprecated("format", "use --output instead")
 	_ = cmd.RegisterFlagCompletionFunc("sca-autofix-strategy", cobra.FixedCompletions(
 		[]string{"stable", "safest", "latest"}, cobra.ShellCompDirectiveNoFileComp))
@@ -4336,6 +4374,21 @@ func addScanFlags(cmd *cobra.Command) {
 	_ = cmd.RegisterFlagCompletionFunc("severity", cobra.FixedCompletions(
 		[]string{"low", "medium", "high", "critical"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = cmd.MarkFlagDirname("path")
+}
+
+// includeIgnoredForScan reports whether the user asked to include .gitignored
+// paths, honouring both the generic --include-ignored flag and the per-mode
+// alias (e.g. --sast-include-ignored) registered on specialized subcommands.
+func includeIgnoredForScan(cmd *cobra.Command) bool {
+	for _, name := range []string{"include-ignored", cmd.Name() + "-include-ignored"} {
+		if cmd.Flags().Lookup(name) == nil {
+			continue
+		}
+		if v, _ := cmd.Flags().GetBool(name); v {
+			return true
+		}
+	}
+	return false
 }
 
 // addSASTFlags registers SAST-specific flags on cmd.
@@ -4371,7 +4424,7 @@ func filterFilesByFeature(files []scan.DetectedFile, noSCA, noContainers, noIAC 
 			continue
 		}
 		lang := f.ManifestInfo.Language
-		isContainer := lang == "docker"
+		isContainer := lang == "docker" || lang == "kubernetes" || lang == "helm"
 		isIAC := lang == "hcl" || lang == "nix"
 		isSCA := !isContainer && !isIAC
 		if isContainer && noContainers {
