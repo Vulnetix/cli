@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="96 26 320 320" width="512" height="512" role="img" aria-label="Pix, the Vulnetix AI assistant owl">
+  <!-- Pix app-icon portrait: the exact avatar head/face, cropped to a bust. Palette per src/styles/_brand.scss -->
+  <defs>
+    <radialGradient id="body" cx="46%" cy="32%" r="78%">
+      <stop offset="0%"  stop-color="rgb(190,244,231)"/>
+      <stop offset="42%" stop-color="rgb(118,224,205)"/>
+      <stop offset="78%" stop-color="rgb(58,196,180)"/>
+      <stop offset="100%" stop-color="rgb(0,138,123)"/>
+    </radialGradient>
+    <radialGradient id="disc" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="rgb(198,246,236)"/>
+      <stop offset="70%" stop-color="rgb(150,233,218)" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="rgb(102,220,200)" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="belly" cx="50%" cy="34%" r="72%">
+      <stop offset="0%" stop-color="rgb(255,251,242)"/>
+      <stop offset="62%" stop-color="rgb(250,238,209)"/>
+      <stop offset="100%" stop-color="rgb(232,205,158)"/>
+    </radialGradient>
+    <radialGradient id="eyeW" cx="42%" cy="38%" r="68%">
+      <stop offset="0%" stop-color="rgb(255,253,247)"/>
+      <stop offset="70%" stop-color="rgb(246,238,214)"/>
+      <stop offset="100%" stop-color="rgb(226,210,176)"/>
+    </radialGradient>
+    <radialGradient id="pupil" cx="42%" cy="36%" r="70%">
+      <stop offset="0%" stop-color="rgb(28,52,49)"/>
+      <stop offset="60%" stop-color="rgb(6,26,23)"/>
+      <stop offset="100%" stop-color="rgb(0,16,14)"/>
+    </radialGradient>
+    <linearGradient id="beakG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgb(255,206,92)"/>
+      <stop offset="45%" stop-color="rgb(252,163,38)"/>
+      <stop offset="100%" stop-color="rgb(190,110,16)"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0%" stop-color="rgb(64,132,122)"/>
+      <stop offset="30%" stop-color="rgb(16,74,68)"/>
+      <stop offset="70%" stop-color="rgb(0,40,36)"/>
+      <stop offset="100%" stop-color="rgb(0,20,18)"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="rgb(255,214,120)"/>
+      <stop offset="50%" stop-color="rgb(240,150,30)"/>
+      <stop offset="100%" stop-color="rgb(150,84,14)"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgb(120,240,214)" stop-opacity="0.18"/>
+      <stop offset="45%" stop-color="rgb(2,26,24)" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="rgb(0,16,15)" stop-opacity="0.62"/>
+    </linearGradient>
+    <linearGradient id="refl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgb(255,255,255)" stop-opacity="0.22"/>
+      <stop offset="55%" stop-color="rgb(255,255,255)" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+
+  <style>
+    #lidL { transform: translateY(0); animation: blink 5.6s ease-in-out infinite; }
+    @keyframes blink { 0%,90%,100%{ transform: translateY(0) } 93%,94.5%{ transform: translateY(128px) } }
+    #reticle { transform-origin: 312px 186px; animation: spin 16s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    #vscan { animation: vscan 3s ease-in-out infinite; }
+    @keyframes vscan { 0%{ transform: translateY(-42px); opacity:.3 } 50%{ opacity:1 } 100%{ transform: translateY(42px); opacity:.3 } }
+    #brackets { transform-origin: 312px 186px; animation: lock 1.9s ease-in-out infinite; }
+    @keyframes lock { 0%,100%{ opacity:.45; transform: scale(1.06) } 50%{ opacity:1; transform: scale(0.96) } }
+    #led { animation: led 1.4s ease-in-out infinite; }
+    @keyframes led { 0%,100%{ opacity:.5 } 50%{ opacity:1 } }
+    @media (prefers-reduced-motion: reduce){ #lidL,#reticle,#vscan,#brackets,#led{ animation:none } }
+  </style>
+
+  <clipPath id="clipEyeL"><circle cx="200" cy="188" r="60"/></clipPath>
+  <clipPath id="lens"><ellipse cx="312" cy="186" rx="59" ry="55"/></clipPath>
+  <clipPath id="clipBody"><path d="M256 66 C 232 60 214 62 196 74 L 150 38 L 146 98 C 122 120 108 190 110 252 C 116 366 154 458 256 470 C 358 458 396 366 402 252 C 404 190 390 120 366 98 L 362 38 L 316 74 C 298 62 280 60 256 66 Z"/></clipPath>
+
+  <!-- body + head with integrated ear tufts (identical geometry to the avatar) -->
+  <path d="M256 66
+           C 232 60 214 62 196 74 L 150 38 L 146 98
+           C 122 120 108 190 110 252
+           C 116 366 154 458 256 470
+           C 358 458 396 366 402 252
+           C 404 190 390 120 366 98 L 362 38 L 316 74
+           C 298 62 280 60 256 66 Z"
+        fill="url(#body)" stroke="rgb(0,22,20)" stroke-width="8" stroke-linejoin="round"/>
+  <g clip-path="url(#clipBody)">
+    <ellipse cx="230" cy="140" rx="110" ry="56" fill="rgb(214,250,240)" opacity="0.3" filter="url(#soft)"/>
+  </g>
+  <ellipse cx="256" cy="182" rx="140" ry="112" fill="url(#disc)"/>
+  <path d="M196 74 L172 46 L164 94 Z" fill="rgb(0,148,132)" opacity="0.4"/>
+  <path d="M316 74 L340 46 L348 94 Z" fill="rgb(0,148,132)" opacity="0.4"/>
+
+  <!-- belly (chest, fills the lower bust) -->
+  <path d="M256 268 C 322 268 346 320 342 372 C 338 422 300 450 256 450 C 212 450 174 422 170 372 C 166 320 190 268 256 268 Z"
+        fill="url(#belly)" stroke="rgb(214,188,140)" stroke-width="3"/>
+  <path d="M182 300 C 214 274 298 274 330 300" fill="none" stroke="rgb(214,188,140)" stroke-width="10" opacity="0.35" filter="url(#glow)"/>
+  <g stroke="rgb(226,196,150)" stroke-width="2.4" fill="none" opacity="0.55" stroke-linecap="round">
+    <path d="M198 330 Q 256 348 314 330"/><path d="M204 360 Q 256 378 308 360"/>
+  </g>
+
+  <!-- left eye -->
+  <circle cx="200" cy="188" r="60" fill="url(#eyeW)" stroke="rgb(0,22,20)" stroke-width="7"/>
+  <circle cx="205" cy="192" r="35" fill="url(#pupil)"/>
+  <circle cx="205" cy="192" r="35" fill="none" stroke="rgb(102,220,200)" stroke-width="2.5" opacity="0.6"/>
+  <circle cx="192" cy="178" r="12" fill="rgb(255,255,255)" opacity="0.95"/>
+  <circle cx="216" cy="204" r="6" fill="rgb(150,240,224)" opacity="0.9"/>
+  <path d="M150 150 Q 200 128 250 150" fill="none" stroke="rgb(0,22,20)" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+  <g clip-path="url(#clipEyeL)">
+    <circle id="lidL" cx="200" cy="60" r="63" fill="rgb(120,224,204)" stroke="rgb(0,148,132)" stroke-width="6"/>
+  </g>
+
+  <!-- right eye + HUD visor (no scrolling text at icon scale) -->
+  <circle cx="312" cy="188" r="60" fill="url(#eyeW)" stroke="rgb(0,22,20)" stroke-width="7"/>
+  <circle cx="309" cy="192" r="32" fill="url(#pupil)"/>
+  <circle cx="300" cy="180" r="9" fill="rgb(255,255,255)" opacity="0.85"/>
+  <path d="M248 200 Q 322 180 410 178" fill="none" stroke="rgb(0,22,20)" stroke-width="24" stroke-linecap="round"/>
+  <path d="M248 200 Q 322 180 410 178" fill="none" stroke="url(#metal)" stroke-width="16" stroke-linecap="round"/>
+  <ellipse cx="312" cy="186" rx="62" ry="58" fill="none" stroke="url(#ring)" stroke-width="9"/>
+  <ellipse cx="312" cy="186" rx="62" ry="58" fill="none" stroke="rgb(0,22,20)" stroke-width="2.5"/>
+  <ellipse cx="312" cy="186" rx="57" ry="53" fill="url(#glass)"/>
+  <g clip-path="url(#lens)">
+    <g id="reticle" stroke="rgb(102,220,200)" fill="none" opacity="0.5">
+      <circle cx="312" cy="186" r="44" stroke-width="1.5"/>
+      <g stroke-width="2.2" stroke-linecap="round">
+        <path d="M312 142 v9"/><path d="M312 221 v9" transform="translate(0,-9)"/>
+        <path d="M268 186 h9"/><path d="M347 186 h9"/>
+      </g>
+    </g>
+    <line x1="258" y1="186" x2="366" y2="186" stroke="rgb(102,220,200)" stroke-width="1.2" opacity="0.3"/>
+    <line x1="312" y1="134" x2="312" y2="238" stroke="rgb(102,220,200)" stroke-width="1.2" opacity="0.3"/>
+    <g id="brackets" stroke="rgb(95,237,131)" stroke-width="2.8" fill="none" stroke-linecap="round">
+      <path d="M292 168 h-8 v8"/><path d="M332 168 h8 v8"/>
+      <path d="M292 204 h-8 v-8"/><path d="M332 204 h8 v-8"/>
+    </g>
+    <rect id="vscan" x="256" y="184" width="112" height="3" rx="1.5" fill="rgb(150,240,224)" filter="url(#glow)"/>
+    <path d="M270 148 Q 300 138 336 150 Q 306 168 288 186 Q 274 166 270 148 Z" fill="url(#refl)"/>
+  </g>
+  <circle id="led" cx="312" cy="130" r="4.5" fill="rgb(95,237,131)" filter="url(#glow)"/>
+  <circle cx="368" cy="196" r="3.5" fill="rgb(252,163,38)"/>
+  <circle cx="258" cy="200" r="3.5" fill="rgb(252,163,38)"/>
+
+  <!-- brow + beak -->
+  <path d="M256 138 L236 196 L256 210 L276 196 Z" fill="rgb(0,148,132)" opacity="0.5"/>
+  <ellipse cx="256" cy="238" rx="15" ry="13" fill="rgb(60,22,4)"/>
+  <path d="M234 210 L256 204 L278 210 L256 240 Z" fill="url(#beakG)" stroke="rgb(150,88,14)" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M244 212 L256 209 L260 220 Z" fill="rgb(255,232,180)" opacity="0.7"/>
+  <path d="M240 236 L272 236 L256 260 Z" fill="rgb(196,116,18)" stroke="rgb(150,88,14)" stroke-width="4" stroke-linejoin="round"/>
+</svg>

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="pix.svg" alt="Pix, the Vulnetix AI coding assistant" width="140">
+</p>
+
 # Vulnetix CLI & GitHub Action
 
 Automated vulnerability management for your CI/CD pipelines and development workflows.
