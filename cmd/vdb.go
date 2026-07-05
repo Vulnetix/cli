@@ -170,14 +170,8 @@ Examples:
 		}
 
 		// Replicate rootCmd's PersistentPostRun (update check notification)
-		if updateCheckResult != nil {
-			select {
-			case msg := <-updateCheckResult:
-				if msg != "" {
-					fmt.Fprint(os.Stderr, msg)
-				}
-			default:
-			}
+		if msg := consumeUpdateAdvisory(); msg != "" {
+			fmt.Fprint(os.Stderr, msg)
 		}
 
 		return nil
