@@ -124,6 +124,30 @@ This command writes a `machine packages.vulnetix.com` entry to `.netrc`, persist
 | `--proxy-url` | string | `https://packages.vulnetix.com` | Package Firewall Go proxy URL |
 | `--dry-run` | bool | `false` | Show planned changes without writing files |
 
+#### package-firewall uninstall
+
+Remove the configuration written for one, some, or every ecosystem. Needs no authentication — it operates on local files only. See [Uninstall](/docs/enterprise/package-firewall/uninstall/).
+
+```bash
+vulnetix package-firewall uninstall npm pypi        # named ecosystems
+vulnetix package-firewall uninstall --all            # every supported ecosystem
+vulnetix package-firewall uninstall --except aur     # all but the named ones
+vulnetix package-firewall uninstall --purge          # every ecosystem + the shared netrc credential
+```
+
+Exactly one selector is required: positional ecosystem(s), `--all`, or `--except`. The shared `~/.netrc` credential is kept unless `--remove-credentials` or `--purge` is given.
+
+**Flags:**
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--all` | bool | `false` | Unconfigure every supported ecosystem |
+| `--except` | strings | — | Unconfigure all supported ecosystems except these |
+| `--remove-credentials` | bool | `false` | Also remove the shared netrc credential (`machine packages.vulnetix.com`) |
+| `--purge` | bool | `false` | Remove the shared netrc credential and every supported ecosystem |
+| `--proxy-url` | string | `https://packages.vulnetix.com` | Package Firewall proxy URL (host to detect and strip) |
+| `--dry-run` | bool | `false` | Show planned changes without writing files |
+
 ---
 
 ### vulnetix config

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -359,6 +360,18 @@ func upsertNetrc(path, machine, orgID, apiKey string, dryRun bool) (string, erro
 }
 
 func upsertNetrcMachine(existing, machine, orgID, apiKey string) string {
+	base := removeNetrcMachine(existing, machine)
+	entry := fmt.Sprintf("machine %s\nlogin %s\npassword %s\n", machine, orgID, apiKey)
+	if strings.TrimSpace(base) == "" {
+		return entry
+	}
+	return base + "\n\n" + entry
+}
+
+// removeNetrcMachine returns existing with the `machine <machine>` block (its
+// login/password lines up to the next machine/default entry) removed. The
+// returned content is trimmed of any trailing newline.
+func removeNetrcMachine(existing, machine string) string {
 	lines := strings.Split(existing, "\n")
 	var kept []string
 	for i := 0; i < len(lines); i++ {
@@ -377,13 +390,7 @@ func upsertNetrcMachine(existing, machine, orgID, apiKey string) string {
 		}
 		kept = append(kept, lines[i])
 	}
-
-	base := strings.TrimRight(strings.Join(kept, "\n"), "\n")
-	entry := fmt.Sprintf("machine %s\nlogin %s\npassword %s\n", machine, orgID, apiKey)
-	if strings.TrimSpace(base) == "" {
-		return entry
-	}
-	return base + "\n\n" + entry
+	return strings.TrimRight(strings.Join(kept, "\n"), "\n")
 }
 
 func persistGoShellEnv(proxyURL string, dryRun bool) ([]packageFirewallAction, error) {
@@ -611,6 +618,35 @@ func upsertManagedBlock(existing, block string) string {
 	return strings.TrimRight(existing, "\n") + "\n\n" + block
 }
 
+// removeManagedBlock returns existing with the Vulnetix managed block (and its
+// surrounding blank lines) removed. The bool reports whether a block was found.
+func removeManagedBlock(existing string) (string, bool) {
+	start := strings.Index(existing, vulnetixBlockStart)
+	if start < 0 {
+		return existing, false
+	}
+	end := strings.Index(existing[start:], vulnetixBlockEnd)
+	if end < 0 {
+		return existing, false
+	}
+	end += start + len(vulnetixBlockEnd)
+	for end < len(existing) && (existing[end] == '\n' || existing[end] == '\r') {
+		end++
+	}
+	prefix := strings.TrimRight(existing[:start], "\n")
+	suffix := strings.TrimLeft(existing[end:], "\n")
+	switch {
+	case prefix == "" && suffix == "":
+		return "", true
+	case prefix == "":
+		return suffix, true
+	case suffix == "":
+		return prefix + "\n", true
+	default:
+		return prefix + "\n\n" + suffix, true
+	}
+}
+
 func upsertKeyValues(path, body string, dryRun bool) (string, error) {
 	existingBytes, err := os.ReadFile(path)
 	if err != nil {
@@ -650,6 +686,31 @@ func upsertGoEnvValues(existing, body string) string {
 	return base + "\n" + body
 }
 
+// removeGoEnvValues returns existing with any GOPROXY / GOAUTH assignment lines
+// removed (the reverse of upsertGoEnvValues). The bool reports whether anything
+// was removed. An empty result means the file held only those values.
+func removeGoEnvValues(existing string) (string, bool) {
+	lines := strings.Split(existing, "\n")
+	var kept []string
+	changed := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if isGoEnvLine(trimmed, "GOPROXY") || isGoEnvLine(trimmed, "GOAUTH") {
+			changed = true
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if !changed {
+		return existing, false
+	}
+	out := strings.TrimRight(strings.Join(kept, "\n"), "\n")
+	if out == "" {
+		return "", true
+	}
+	return out + "\n", true
+}
+
 func isGoEnvLine(line, key string) bool {
 	return strings.HasPrefix(line, key+"=") ||
 		strings.HasPrefix(line, "export "+key+"=") ||
@@ -662,6 +723,478 @@ func maskSecret(s string) string {
 		return "****"
 	}
 	return s[:4] + "..." + s[len(s)-4:]
+}
+
+var (
+	packageFirewallUninstallAll    bool
+	packageFirewallUninstallExcept []string
+	packageFirewallUninstallCreds  bool
+	packageFirewallUninstallPurge  bool
+)
+
+var packageFirewallUninstallCmd = &cobra.Command{
+	Use:   "uninstall [ecosystem...]",
+	Short: "Remove Vulnetix Package Firewall configuration",
+	Long: `Remove the configuration written by 'vulnetix package-firewall <ecosystem>'.
+
+Name one or more ecosystems to unconfigure exactly those, or use --all for every
+supported ecosystem, or --except to unconfigure all but the named ones. The shared
+netrc credential (machine packages.vulnetix.com) is left in place unless
+--remove-credentials (or --purge) is given, because every ecosystem authenticates
+with the same entry — removing it would break any ecosystem still configured.
+
+Requires no authentication: it operates on local files only.`,
+	RunE: runPackageFirewallUninstall,
+}
+
+func runPackageFirewallUninstall(cmd *cobra.Command, args []string) error {
+	ctx := display.FromCommand(cmd)
+	t := ctx.Term
+
+	proxyURL := strings.TrimSpace(packageFirewallProxyURL)
+	if proxyURL == "" {
+		proxyURL = packageFirewallDefaultProxy
+	}
+	proxyHost, err := parseProxyHost(proxyURL)
+	if err != nil {
+		return err
+	}
+
+	all := packageFirewallUninstallAll || packageFirewallUninstallPurge
+	removeCreds := packageFirewallUninstallCreds || packageFirewallUninstallPurge
+
+	targets, err := resolveUninstallTargets(args, packageFirewallUninstallExcept, all)
+	if err != nil {
+		return err
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	dryRun := packageFirewallDryRun
+	ctx.Logger.Info("Removing Vulnetix Package Firewall configuration...")
+
+	var actions []packageFirewallAction
+	for _, eco := range targets {
+		ecoActions, err := uninstallEcosystem(eco, home, proxyHost, dryRun)
+		if err != nil {
+			return err
+		}
+		actions = append(actions, ecoActions...)
+	}
+
+	netrcPath, err := auth.NetrcPath()
+	if err != nil {
+		return err
+	}
+	if removeCreds {
+		result, err := removeNetrcCredential(netrcPath, proxyHost, dryRun)
+		if err != nil {
+			return err
+		}
+		actions = append(actions, packageFirewallAction{Target: netrcPath, Result: result})
+	}
+
+	// The netrc entry is shared. If we removed it while other ecosystems still
+	// point at the firewall, those will now fail auth — warn explicitly.
+	var warning string
+	if removeCreds {
+		if remaining := configuredEcosystems(home, proxyHost, targets); len(remaining) > 0 {
+			warning = "credentials removed, but these ecosystems still point at the firewall and will now fail auth: " + strings.Join(remaining, ", ")
+		}
+	}
+
+	var b strings.Builder
+	if dryRun {
+		b.WriteString(display.Bold(t, "Vulnetix Package Firewall uninstall dry run") + "\n")
+	} else {
+		b.WriteString(display.Bold(t, "Vulnetix Package Firewall uninstall complete") + "\n")
+	}
+	b.WriteString(display.KeyValue(t, []display.KVPair{
+		{Key: "Ecosystems", Value: targetNames(targets)},
+		{Key: "Proxy host", Value: proxyHost},
+		{Key: "Credentials", Value: credsLabel(removeCreds)},
+	}) + "\n")
+	b.WriteString("\n" + display.Subheader(t, "Actions") + "\n")
+	for _, action := range actions {
+		b.WriteString(fmt.Sprintf("  %s: %s\n", action.Target, action.Result))
+	}
+	if warning != "" {
+		b.WriteString("\n" + display.Subheader(t, "Warning") + "\n  " + warning + "\n")
+	}
+	ctx.Logger.Result(strings.TrimRight(b.String(), "\n"))
+	return nil
+}
+
+// resolveEcosystem maps a command name to an ecosystem. go-dev is not in the
+// registry (it writes only netrc) but is accepted as a named target.
+func resolveEcosystem(name string) (pfw.Ecosystem, bool) {
+	if name == "go-dev" {
+		return pfw.Ecosystem{ID: "go-dev", Command: "go-dev", DisplayName: "Go pkg.go.dev API"}, true
+	}
+	return pfw.ByCommand(name)
+}
+
+// resolveUninstallTargets validates the selection flags (exactly one selector)
+// and returns the ecosystems to unconfigure.
+func resolveUninstallTargets(args, except []string, all bool) ([]pfw.Ecosystem, error) {
+	selectors := 0
+	if len(args) > 0 {
+		selectors++
+	}
+	if len(except) > 0 {
+		selectors++
+	}
+	if all {
+		selectors++
+	}
+	if selectors == 0 {
+		return nil, fmt.Errorf("select what to remove: name one or more ecosystems, or pass --all or --except")
+	}
+	if selectors > 1 {
+		return nil, fmt.Errorf("use only one selector: ecosystem arguments, --all, or --except")
+	}
+
+	if all {
+		return pfw.All(), nil
+	}
+	if len(except) > 0 {
+		skip := map[string]bool{}
+		for _, name := range except {
+			eco, ok := resolveEcosystem(strings.TrimSpace(name))
+			if !ok {
+				return nil, fmt.Errorf("unknown ecosystem %q", name)
+			}
+			skip[eco.ID] = true
+		}
+		var out []pfw.Ecosystem
+		for _, eco := range pfw.All() {
+			if !skip[eco.ID] {
+				out = append(out, eco)
+			}
+		}
+		return out, nil
+	}
+	var out []pfw.Ecosystem
+	for _, name := range args {
+		eco, ok := resolveEcosystem(strings.TrimSpace(name))
+		if !ok {
+			return nil, fmt.Errorf("unknown ecosystem %q", name)
+		}
+		out = append(out, eco)
+	}
+	return out, nil
+}
+
+// uninstallEcosystem reverses the writes for one ecosystem, based on how each
+// file was written (managed block / structured / merge). go and go-dev have
+// bespoke handling; ecosystems without an automatic writer wrote nothing.
+func uninstallEcosystem(eco pfw.Ecosystem, home, proxyHost string, dryRun bool) ([]packageFirewallAction, error) {
+	switch eco.ID {
+	case "go":
+		return uninstallGo(dryRun)
+	case "go-dev":
+		return []packageFirewallAction{{Target: eco.DisplayName, Result: "netrc-only; pass --remove-credentials to remove the shared credential"}}, nil
+	}
+	if !eco.LiveWriter {
+		return []packageFirewallAction{{Target: eco.DisplayName, Result: "no automatic configuration to remove"}}, nil
+	}
+	files, err := pfw.ConfigFiles(eco, pfw.ConfigOptions{HomeDir: home})
+	if err != nil {
+		return nil, err
+	}
+	var actions []packageFirewallAction
+	for _, file := range files {
+		result, err := removePackageFirewallConfigFile(file, proxyHost, dryRun)
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, packageFirewallAction{Target: file.Path, Result: result})
+	}
+	return actions, nil
+}
+
+// removePackageFirewallConfigFile reverses a single config file, keyed on the
+// mode configure used to write it.
+func removePackageFirewallConfigFile(file pfw.ConfigFile, proxyHost string, dryRun bool) (string, error) {
+	data, err := os.ReadFile(file.Path)
+	if os.IsNotExist(err) {
+		return "not configured", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	existing := string(data)
+
+	switch {
+	case file.Merge != nil:
+		// Prefer restoring the pre-configure backup; else strip the injected keys.
+		bak := file.Path + ".vulnetix.bak"
+		if bakData, berr := os.ReadFile(bak); berr == nil {
+			if dryRun {
+				return "would restore from backup", nil
+			}
+			if err := os.WriteFile(file.Path, bakData, 0600); err != nil {
+				return "", err
+			}
+			if err := os.Remove(bak); err != nil {
+				return "", err
+			}
+			return "restored from backup", nil
+		}
+		next, changed := stripMergeKeys(file.Path, existing)
+		if !changed {
+			return "not configured", nil
+		}
+		if dryRun {
+			return "would remove firewall keys", nil
+		}
+		if err := os.WriteFile(file.Path, []byte(next), 0600); err != nil {
+			return "", err
+		}
+		return "removed firewall keys", nil
+
+	case file.Structured:
+		// A structured file was written whole; if it still points at the firewall
+		// it is ours to delete. Otherwise leave it alone.
+		if !strings.Contains(existing, proxyHost) {
+			return "not firewall-configured, skipped", nil
+		}
+		if dryRun {
+			return "would delete file", nil
+		}
+		if err := os.Remove(file.Path); err != nil {
+			return "", err
+		}
+		return "deleted file", nil
+
+	default: // managed block
+		next, changed := removeManagedBlock(existing)
+		if !changed {
+			return "not configured", nil
+		}
+		if dryRun {
+			if strings.TrimSpace(next) == "" {
+				return "would delete file", nil
+			}
+			return "would remove managed block", nil
+		}
+		if strings.TrimSpace(next) == "" {
+			if err := os.Remove(file.Path); err != nil {
+				return "", err
+			}
+			return "deleted file", nil
+		}
+		if err := os.WriteFile(file.Path, []byte(next), 0600); err != nil {
+			return "", err
+		}
+		return "removed managed block", nil
+	}
+}
+
+// stripMergeKeys removes the firewall keys folded into a merged config (paru.conf
+// AurUrl/AurRpcUrl, yay config.json aururl/aurrpcurl), preserving everything else.
+func stripMergeKeys(path, existing string) (string, bool) {
+	if filepath.Base(path) == "config.json" { // yay
+		m := map[string]json.RawMessage{}
+		if err := json.Unmarshal([]byte(existing), &m); err != nil {
+			return existing, false
+		}
+		_, a := m["aururl"]
+		_, b := m["aurrpcurl"]
+		if !a && !b {
+			return existing, false
+		}
+		delete(m, "aururl")
+		delete(m, "aurrpcurl")
+		out, err := json.MarshalIndent(m, "", "\t")
+		if err != nil {
+			return existing, false
+		}
+		return string(out) + "\n", true
+	}
+	// paru.conf INI: drop AurUrl/AurRpcUrl within [options].
+	lines := strings.Split(existing, "\n")
+	var kept []string
+	changed := false
+	section := ""
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			section = trimmed
+			kept = append(kept, line)
+			continue
+		}
+		if section == "[options]" && (iniLineHasKey(trimmed, "AurUrl") || iniLineHasKey(trimmed, "AurRpcUrl")) {
+			changed = true
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if !changed {
+		return existing, false
+	}
+	return strings.TrimRight(strings.Join(kept, "\n"), "\n") + "\n", true
+}
+
+func iniLineHasKey(line, key string) bool {
+	line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "#"))
+	return line == key || strings.HasPrefix(line, key+" ") || strings.HasPrefix(line, key+"=")
+}
+
+// uninstallGo reverses the Go setup: shell-rc managed block, project env files,
+// and (on Windows) the persisted user environment variables.
+func uninstallGo(dryRun bool) ([]packageFirewallAction, error) {
+	if runtime.GOOS == "windows" {
+		if dryRun {
+			return []packageFirewallAction{
+				{Target: "Windows user environment GOPROXY", Result: "would clear"},
+				{Target: "Windows user environment GOAUTH", Result: "would clear"},
+			}, nil
+		}
+		_ = exec.Command("setx", "GOPROXY", "").Run()
+		_ = exec.Command("setx", "GOAUTH", "").Run()
+		return []packageFirewallAction{
+			{Target: "Windows user environment GOPROXY", Result: "cleared"},
+			{Target: "Windows user environment GOAUTH", Result: "cleared"},
+		}, nil
+	}
+
+	path, _, err := shellConfigPath()
+	if err != nil {
+		return nil, err
+	}
+	result, err := removeBlockFile(path, dryRun)
+	if err != nil {
+		return nil, err
+	}
+	actions := []packageFirewallAction{{Target: path, Result: result}}
+
+	projActions, err := removeGoProjectEnv(dryRun)
+	if err != nil {
+		return nil, err
+	}
+	return append(actions, projActions...), nil
+}
+
+// removeBlockFile strips the Vulnetix managed block from a shell rc file. Unlike
+// package-manager config files, a shell rc is never deleted even if left empty.
+func removeBlockFile(path string, dryRun bool) (string, error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return "not configured", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	next, changed := removeManagedBlock(string(data))
+	if !changed {
+		return "not configured", nil
+	}
+	if dryRun {
+		return "would remove managed block", nil
+	}
+	if err := os.WriteFile(path, []byte(next), 0600); err != nil {
+		return "", err
+	}
+	return "removed managed block", nil
+}
+
+func removeGoProjectEnv(dryRun bool) ([]packageFirewallAction, error) {
+	root, err := gitRoot()
+	if err != nil {
+		return nil, nil
+	}
+	var actions []packageFirewallAction
+	for _, name := range []string{".env", ".envrc", "Makefile"} {
+		path := filepath.Join(root, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		next, changed := removeGoEnvValues(string(data))
+		if !changed {
+			continue
+		}
+		if dryRun {
+			actions = append(actions, packageFirewallAction{Target: path, Result: "would remove GOPROXY/GOAUTH"})
+			continue
+		}
+		if err := os.WriteFile(path, []byte(next), 0600); err != nil {
+			return nil, err
+		}
+		actions = append(actions, packageFirewallAction{Target: path, Result: "removed GOPROXY/GOAUTH"})
+	}
+	return actions, nil
+}
+
+// removeNetrcCredential removes the shared firewall machine entry from netrc.
+func removeNetrcCredential(path, machine string, dryRun bool) (string, error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return "not configured", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	existing := string(data)
+	stripped := removeNetrcMachine(existing, machine)
+	next := stripped
+	if next != "" {
+		next += "\n"
+	}
+	if next == existing {
+		return "not configured", nil
+	}
+	if dryRun {
+		return "would remove netrc credential", nil
+	}
+	if strings.TrimSpace(next) == "" {
+		if err := os.Remove(path); err != nil {
+			return "", err
+		}
+		return "removed netrc credential (file deleted)", nil
+	}
+	if err := os.WriteFile(path, []byte(next), 0600); err != nil {
+		return "", err
+	}
+	return "removed netrc credential", nil
+}
+
+// configuredEcosystems lists ecosystems still pointing at the firewall that are
+// NOT in the removed set (used to warn when the shared credential is dropped).
+func configuredEcosystems(home, proxyHost string, removed []pfw.Ecosystem) []string {
+	removedSet := map[string]bool{}
+	for _, e := range removed {
+		removedSet[e.ID] = true
+	}
+	var names []string
+	for _, d := range pfw.Detect(home, proxyHost) {
+		if d.Configured && !removedSet[d.Ecosystem.ID] {
+			names = append(names, d.Ecosystem.Command)
+		}
+	}
+	return names
+}
+
+func targetNames(targets []pfw.Ecosystem) string {
+	if len(targets) == 0 {
+		return "(none)"
+	}
+	names := make([]string, len(targets))
+	for i, e := range targets {
+		names[i] = e.Command
+	}
+	return strings.Join(names, ", ")
+}
+
+func credsLabel(remove bool) string {
+	if remove {
+		return "removing shared netrc entry"
+	}
+	return "kept (shared)"
 }
 
 func init() {
@@ -684,6 +1217,15 @@ func init() {
 		addPackageFirewallFlags(c, eco.DisplayName)
 		packageFirewallCmd.AddCommand(c)
 	}
+
+	packageFirewallUninstallCmd.Flags().StringVar(&packageFirewallProxyURL, "proxy-url", packageFirewallDefaultProxy, "Package Firewall proxy URL (host to detect and strip)")
+	packageFirewallUninstallCmd.Flags().BoolVar(&packageFirewallDryRun, "dry-run", false, "Show planned changes without writing files")
+	packageFirewallUninstallCmd.Flags().BoolVar(&packageFirewallUninstallAll, "all", false, "Unconfigure every supported ecosystem")
+	packageFirewallUninstallCmd.Flags().StringSliceVar(&packageFirewallUninstallExcept, "except", nil, "Unconfigure all supported ecosystems except these")
+	packageFirewallUninstallCmd.Flags().BoolVar(&packageFirewallUninstallCreds, "remove-credentials", false, "Also remove the shared netrc credential (machine packages.vulnetix.com)")
+	packageFirewallUninstallCmd.Flags().BoolVar(&packageFirewallUninstallPurge, "purge", false, "Remove the shared netrc credential and every supported ecosystem")
+	packageFirewallCmd.AddCommand(packageFirewallUninstallCmd)
+
 	rootCmd.AddCommand(packageFirewallCmd)
 }
 
