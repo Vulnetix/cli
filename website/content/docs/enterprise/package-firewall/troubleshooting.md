@@ -52,3 +52,10 @@ Re-running `vulnetix package-firewall <ecosystem>` is idempotent — it updates 
 ```bash
 vulnetix package-firewall <ecosystem> --dry-run
 ```
+
+To back the configuration out entirely, use [`uninstall`](/docs/enterprise/package-firewall/uninstall/) — it removes the managed blocks, whole-file configs, and shell/env changes, and (with `--remove-credentials` / `--purge`) the shared `~/.netrc` entry:
+
+```bash
+vulnetix package-firewall uninstall npm --dry-run   # preview
+vulnetix package-firewall uninstall --purge          # remove everything, credential included
+```

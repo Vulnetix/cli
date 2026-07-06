@@ -1,12 +1,12 @@
 ---
 title: "Package Firewall"
 weight: 3
-description: "Proxy and policy-enforce dependencies across 21 package ecosystems — npm, PyPI, Cargo, Go, Maven, NuGet, Docker/OCI, Debian and more."
+description: "Proxy and policy-enforce dependencies across 23 package ecosystems — npm, PyPI, Cargo, Go, Maven, NuGet, Homebrew, Arch Linux, Docker/OCI and more."
 ---
 
 The Vulnetix Package Firewall sits between your package manager and its upstream registry. It authenticates your organization, evaluates each requested package against your policy, and proxies allowed packages from trusted mirrors at `https://packages.vulnetix.com`.
 
-One proxy fronts **21 ecosystems**. Point a package manager at the firewall (the [`vulnetix package-firewall`](/docs/cli-reference/) command writes the config for you) and every install is checked before it reaches your build.
+One proxy fronts **23 ecosystems**. Point a package manager at the firewall (the [`vulnetix package-firewall`](/docs/cli-reference/) command writes the config for you) and every install is checked before it reaches your build.
 
 ## How it works
 
@@ -20,18 +20,18 @@ One proxy fronts **21 ecosystems**. Point a package manager at the firewall (the
 | Mode | What a developer sees | Ecosystems |
 | --- | --- | --- |
 | **Filter** (unsigned metadata) | Blocked versions are removed from the index/metadata, so your resolver never selects them. A version you pin explicitly returns a policy status. | npm, PyPI, Cargo, Go, RubyGems, pub.dev, Maven, NuGet, Composer, Conda, CRAN, Helm, Chef, Terraform |
-| **Gate** (signed / digest-addressed metadata) | The index is served unchanged so signature verification still passes; a blocked version's **download** returns a policy status. | Hex, Conan, Julia, Docker/OCI, Debian, RPM, Alpine |
+| **Gate** (signed / digest-addressed metadata) | The index is served unchanged so signature verification still passes; a blocked version's **download** returns a policy status. | Hex, Conan, Julia, Docker/OCI, Debian, RPM, Alpine, Homebrew, Arch Linux |
 
 You don't configure the mode — it's chosen per ecosystem so the firewall never breaks a registry's signature checks.
 
 ## Plans
 
-Go is free for every community account. All other ecosystems require a paid plan; container and OS ecosystems require Enterprise. Requests for an ecosystem outside your plan return `402 Payment Required`.
+Go and Arch Linux are free for every community account. All other ecosystems require a paid plan; container and OS ecosystems require Enterprise. Requests for an ecosystem outside your plan return `402 Payment Required`.
 
 | Tier | Ecosystems |
 | --- | --- |
-| **Community** (free) | Go |
-| **Pro** (and Teams) | npm, PyPI, Cargo, RubyGems, Hex, pub.dev, Maven, NuGet, Composer, Conan, Conda, CRAN, Julia |
+| **Community** (free) | Go, Arch Linux |
+| **Pro** (and Teams) | npm, PyPI, Cargo, RubyGems, Hex, pub.dev, Maven, NuGet, Composer, Conan, Conda, CRAN, Julia, Homebrew |
 | **Enterprise** | Docker/OCI, Debian/Ubuntu, RPM, Alpine, Helm, Chef, Terraform |
 
 See [vulnetix.com/pricing](https://www.vulnetix.com/pricing) for details.
@@ -40,10 +40,13 @@ See [vulnetix.com/pricing](https://www.vulnetix.com/pricing) for details.
 
 {{< cards >}}
   {{< card link="go" title="Go" subtitle="GOPROXY module proxy. Free, community tier." >}}
+  {{< card link="go-dev" title="Go pkg.go.dev API" subtitle="pkgsite-cli API proxy. Free, community tier." >}}
+  {{< card link="aur" title="Arch Linux" subtitle="AUR helpers + pacman repos. Free, community tier." >}}
   {{< card link="npm" title="npm" subtitle="JavaScript / Node.js packuments." >}}
   {{< card link="pypi" title="PyPI" subtitle="Python — pip Simple index." >}}
   {{< card link="cargo" title="Cargo" subtitle="Rust — sparse registry." >}}
   {{< card link="gem" title="RubyGems" subtitle="Ruby — compact index / Bundler." >}}
+  {{< card link="homebrew" title="Homebrew" subtitle="macOS / Linux — formula API + bottles." >}}
   {{< card link="hex" title="Hex" subtitle="Elixir / Erlang — signed registry." >}}
   {{< card link="pub" title="pub.dev" subtitle="Dart / Flutter." >}}
   {{< card link="maven" title="Maven" subtitle="Java / Kotlin / Gradle." >}}
@@ -65,6 +68,7 @@ See [vulnetix.com/pricing](https://www.vulnetix.com/pricing) for details.
 ## Reference
 
 {{< cards >}}
+  {{< card link="uninstall" title="Uninstall" subtitle="Remove firewall config for one, some, or every ecosystem — and optionally the shared credential." >}}
   {{< card link="responses" title="Block responses & exit codes" subtitle="HTTP status codes, what each means, and CLI exit codes." >}}
   {{< card link="policies" title="Configuring policies" subtitle="Set thresholds, block toggles, cooldown, and mirrors — in the console or with the CLI." >}}
   {{< card link="troubleshooting" title="Troubleshooting" subtitle="Auth, shells, and package-manager issues." >}}
