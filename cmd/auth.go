@@ -64,10 +64,11 @@ var authLoginCmd = &cobra.Command{
 	Short: "Authenticate with Vulnetix",
 	Long: `Log in to the Vulnetix API. Browser Device Flow is used by default.
 
-Credential flags:
-  --api-key KEY        ApiKey credential (Bearer)
-  --secret KEY         SigV4 secret (requires --org-id)
-  --noninteractive     Require ApiKey from --api-key or environment
+Credential flags (org-scoped methods require --org-id):
+  --api-key KEY        ApiKey credential (requires --org-id); Identifier vdb_api_key
+  --secret KEY         SigV4 secret (requires --org-id); Identifier vdb_api_sigv4
+  --token KEY          Bearer token (org resolved server-side; no --org-id)
+  --noninteractive     Require ApiKey (--api-key + --org-id) from flags or environment
   --store home|project|keyring
   --store-dir DIR      Override the default home credential directory`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -94,10 +95,10 @@ var authStatusCmd = &cobra.Command{
 			var secretLabel, secretValue string
 			switch creds.Method {
 			case auth.Token:
-				secretLabel = "ApiKey"
+				secretLabel = "Bearer token"
 				secretValue = maskSecret(creds.Token)
 			case auth.DirectAPIKey:
-				secretLabel = "API Key"
+				secretLabel = "ApiKey"
 				secretValue = maskSecret(creds.APIKey)
 			default:
 				secretLabel = "Secret"
@@ -212,11 +213,16 @@ func runAuthLogin(cmd *cobra.Command) error {
 	var store auth.CredentialStore
 	var creds *auth.Credentials
 
-	if authAPIKey != "" && authToken != "" {
-		return fmt.Errorf("--api-key and --token are aliases; pass only one")
+	// Method flags are mutually exclusive: --api-key (org-scoped ApiKey),
+	// --secret (org-scoped SigV4), --token (org-less Bearer).
+	methodsSet := 0
+	for _, v := range []string{authAPIKey, authSecret, authToken} {
+		if v != "" {
+			methodsSet++
+		}
 	}
-	if authSecret != "" && (authAPIKey != "" || authToken != "") {
-		return fmt.Errorf("cannot combine --secret with --api-key")
+	if methodsSet > 1 {
+		return fmt.Errorf("choose only one of --api-key, --secret, or --token")
 	}
 
 	s, err := auth.ValidateStore(authStore)
@@ -225,31 +231,46 @@ func runAuthLogin(cmd *cobra.Command) error {
 	}
 	store = s
 
-	apiKeyValue := firstNonEmpty(authAPIKey, authToken)
-	if authNoninteractive {
-		if authSecret != "" {
-			return fmt.Errorf("--noninteractive uses ApiKey credentials only; remove --secret or run without --noninteractive")
+	switch {
+	case authNoninteractive:
+		// Force org-scoped ApiKey from flags/env; never browser, never prompt.
+		if authSecret != "" || authToken != "" {
+			return fmt.Errorf("--noninteractive uses ApiKey credentials only; use --api-key with --org-id")
 		}
-		if apiKeyValue == "" {
-			apiKeyValue = firstNonEmpty(os.Getenv("VULNETIX_API_TOKEN"), os.Getenv("VULNETIX_API_KEY"))
+		key := firstNonEmpty(authAPIKey, os.Getenv("VULNETIX_API_KEY"))
+		org := firstNonEmpty(authOrgID, os.Getenv("VULNETIX_ORG_ID"))
+		if key == "" || org == "" {
+			return fmt.Errorf("missing ApiKey or org for noninteractive login. Create an ApiKey at %s (in the New token form set Identifier to `vdb_api_key`), then pass --api-key and --org-id (or set VULNETIX_API_KEY and VULNETIX_ORG_ID)", credentialsPageURL)
 		}
-		if apiKeyValue == "" {
-			return fmt.Errorf("missing ApiKey for noninteractive login. Create one at %s. In the New token form set Identifier to `vdb_api_key`, then pass --api-key or set VULNETIX_API_KEY", credentialsPageURL)
+		if _, err := uuid.Parse(org); err != nil {
+			return fmt.Errorf("--org-id must be a valid UUID, got: %s", org)
 		}
-		creds = &auth.Credentials{OrgID: authOrgID, Token: apiKeyValue, Method: auth.Token}
-	} else if apiKeyValue != "" {
-		creds = &auth.Credentials{OrgID: authOrgID, Token: apiKeyValue, Method: auth.Token}
-	} else if authSecret != "" {
-		if authOrgID == "" {
-			return fmt.Errorf("--org-id is required with --secret")
+		creds = &auth.Credentials{OrgID: org, APIKey: key, Method: auth.DirectAPIKey}
+
+	case authAPIKey != "":
+		// Org-scoped ApiKey (sent as `Authorization: ApiKey <orgID>:<key>`).
+		org, err := resolveLoginOrgID("--api-key")
+		if err != nil {
+			return err
 		}
-		if _, err := uuid.Parse(authOrgID); err != nil {
-			return fmt.Errorf("--org-id must be a valid UUID, got: %s", authOrgID)
+		creds = &auth.Credentials{OrgID: org, APIKey: authAPIKey, Method: auth.DirectAPIKey}
+
+	case authSecret != "":
+		// Org-scoped SigV4.
+		org, err := resolveLoginOrgID("--secret")
+		if err != nil {
+			return err
 		}
-		creds = &auth.Credentials{OrgID: authOrgID, Secret: authSecret, Method: auth.SigV4}
-	} else if authMethod != "" {
-		return fmt.Errorf("--method is deprecated; use --api-key for ApiKey credentials or --secret with --org-id for SigV4")
-	} else {
+		creds = &auth.Credentials{OrgID: org, Secret: authSecret, Method: auth.SigV4}
+
+	case authToken != "":
+		// Bearer token: separate and org-less (org resolved server-side).
+		creds = &auth.Credentials{OrgID: authOrgID, Token: authToken, Method: auth.Token}
+
+	case authMethod != "":
+		return fmt.Errorf("--method is deprecated; use --api-key + --org-id (ApiKey), --secret + --org-id (SigV4), or --token (Bearer)")
+
+	default:
 		reader := bufio.NewReader(os.Stdin)
 		method, orgIDVal, secret, selectedStore, err := browserLogin(reader, isInteractive())
 		if err != nil {
@@ -324,6 +345,24 @@ func fetchLivePlan(creds *auth.Credentials, baseURL string) string {
 		return "unknown"
 	}
 	return strings.ToUpper(client.LastRateLimit.Plan)
+}
+
+// resolveLoginOrgID returns a validated org UUID for the org-scoped methods,
+// prompting on an interactive TTY when --org-id was not supplied.
+func resolveLoginOrgID(flag string) (string, error) {
+	org := authOrgID
+	if org == "" {
+		if !isInteractive() {
+			return "", fmt.Errorf("--org-id is required with %s", flag)
+		}
+		fmt.Print("Organization ID (UUID): ")
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		org = strings.TrimSpace(line)
+	}
+	if _, err := uuid.Parse(org); err != nil {
+		return "", fmt.Errorf("--org-id must be a valid UUID, got: %s", org)
+	}
+	return org, nil
 }
 
 func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
@@ -592,9 +631,9 @@ func firstNonEmpty(values ...string) string {
 
 func init() {
 	authLoginCmd.Flags().StringVar(&authMethod, "method", "", "Deprecated authentication method selector")
-	authLoginCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; required for --secret)")
-	authLoginCmd.Flags().StringVar(&authToken, "token", "", "Deprecated alias for --api-key")
-	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "ApiKey credential from the credentials page")
+	authLoginCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; required for --api-key and --secret)")
+	authLoginCmd.Flags().StringVar(&authToken, "token", "", "Bearer token (org resolved server-side; no --org-id needed)")
+	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "ApiKey credential (requires --org-id); Identifier vdb_api_key")
 	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret from a credential whose Identifier is vdb_api_sigv4")
 	authLoginCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
 	authLoginCmd.Flags().StringVar(&authStoreDir, "store-dir", "", "Directory for home/keyring credential metadata instead of $HOME/.vulnetix")
