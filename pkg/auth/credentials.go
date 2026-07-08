@@ -5,13 +5,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-
-	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
 )
 
 // credentialsFile is the JSON file name for stored credentials
 const credentialsFile = "credentials.json"
+
+// CredentialsDirEnv overrides the default home credential directory
+// (~/.vulnetix). Project credentials are unaffected.
+const CredentialsDirEnv = "VULNETIX_CREDENTIALS_DIR"
+
+// SourceStatus describes one credential source for status output.
+type SourceStatus struct {
+	Label  string
+	State  string
+	Detail string
+	Active bool
+}
 
 // SaveCredentials persists credentials to the specified store.
 //
@@ -20,7 +29,13 @@ const credentialsFile = "credentials.json"
 // token, apikey) is still written to the home/project file. A keychain failure
 // is returned so the caller can fall back to file storage.
 func SaveCredentials(creds *Credentials, store CredentialStore) error {
-	path, err := storePath(store)
+	return SaveCredentialsInDir(creds, store, "")
+}
+
+// SaveCredentialsInDir persists credentials using baseDir for home/keyring
+// metadata when provided.
+func SaveCredentialsInDir(creds *Credentials, store CredentialStore, baseDir string) error {
+	path, err := storePathInDir(store, baseDir)
 	if err != nil {
 		return err
 	}
@@ -33,13 +48,33 @@ func SaveCredentials(creds *Credentials, store CredentialStore) error {
 	// Copy so we never mutate the caller's struct while stripping the secret.
 	toWrite := *creds
 	if store == StoreKeyring {
-		toWrite.HMACInKeyring = true
+		if toWrite.Secret != "" {
+			toWrite.HMACInKeyring = true
+		}
+		if toWrite.Token != "" {
+			toWrite.TokenInKeyring = true
+		}
+		if toWrite.APIKey != "" {
+			toWrite.APIKeyInKeyring = true
+		}
 	}
 	if toWrite.HMACInKeyring && toWrite.Secret != "" {
 		if err := saveSecretToKeyring(hmacKeyringAccount(toWrite.OrgID), toWrite.Secret); err != nil {
 			return err
 		}
 		toWrite.Secret = "" // keep the secret out of the file
+	}
+	if toWrite.TokenInKeyring && toWrite.Token != "" {
+		if err := saveSecretToKeyring(tokenKeyringAccount(toWrite.OrgID), toWrite.Token); err != nil {
+			return err
+		}
+		toWrite.Token = ""
+	}
+	if toWrite.APIKeyInKeyring && toWrite.APIKey != "" {
+		if err := saveSecretToKeyring(apiKeyKeyringAccount(toWrite.OrgID), toWrite.APIKey); err != nil {
+			return err
+		}
+		toWrite.APIKey = ""
 	}
 
 	data, err := json.MarshalIndent(&toWrite, "", "  ")
@@ -123,8 +158,16 @@ func RemoveCredentials() error {
 			continue
 		}
 		// Clear the keychain secret referenced by this store's metadata first.
-		if creds, lerr := loadFromFile(store); lerr == nil && creds.HMACInKeyring {
-			_ = removeSecretFromKeyring(hmacKeyringAccount(creds.OrgID))
+		if creds, lerr := loadCredentialMetadata(store); lerr == nil {
+			if creds.HMACInKeyring {
+				_ = removeSecretFromKeyring(hmacKeyringAccount(creds.OrgID))
+			}
+			if creds.TokenInKeyring {
+				_ = removeSecretFromKeyring(tokenKeyringAccount(creds.OrgID))
+			}
+			if creds.APIKeyInKeyring {
+				_ = removeSecretFromKeyring(apiKeyKeyringAccount(creds.OrgID))
+			}
 		}
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			lastErr = fmt.Errorf("failed to remove %s: %w", path, err)
@@ -146,9 +189,15 @@ func CredentialSource() string {
 		return "environment (VVD_ORG + VVD_SECRET)"
 	}
 	if _, err := loadFromFile(StoreProject); err == nil {
+		if creds, _ := loadFromFile(StoreProject); creds != nil && creds.usesKeyring() {
+			return "keyring (project .vulnetix/credentials.json)"
+		}
 		return "project (.vulnetix/credentials.json)"
 	}
 	if _, err := loadFromFile(StoreHome); err == nil {
+		if creds, _ := loadFromFile(StoreHome); creds != nil && creds.usesKeyring() {
+			return "keyring (home ~/.vulnetix/credentials.json)"
+		}
 		return "home (~/.vulnetix/credentials.json)"
 	}
 	if _, err := LoadNetrcCredentials(); err == nil {
@@ -171,139 +220,214 @@ func CredentialStatus() (string, *Credentials) {
 // AllSourceStatus returns a compact summary of every credential source and
 // whether it is set / found. Useful for diagnostics.
 func AllSourceStatus() []string {
-	var lines []string
-
-	if os.Getenv("VULNETIX_API_TOKEN") != "" {
-		lines = append(lines, "env VULNETIX_API_TOKEN: set")
-	} else {
-		lines = append(lines, "env VULNETIX_API_TOKEN: not set")
+	statuses := AllSourceStatusDetailed()
+	lines := make([]string, 0, len(statuses)+1)
+	for _, status := range statuses {
+		line := status.Label + ": " + status.State
+		if status.Detail != "" {
+			line += " (" + status.Detail + ")"
+		}
+		lines = append(lines, line)
 	}
-
-	if os.Getenv("VULNETIX_API_KEY") != "" && os.Getenv("VULNETIX_ORG_ID") != "" {
-		lines = append(lines, "env VULNETIX_API_KEY + VULNETIX_ORG_ID: set")
-	} else {
-		lines = append(lines, "env VULNETIX_API_KEY + VULNETIX_ORG_ID: not set")
-	}
-
-	if os.Getenv("VVD_ORG") != "" && os.Getenv("VVD_SECRET") != "" {
-		lines = append(lines, "env VVD_ORG + VVD_SECRET: set")
-	} else {
-		lines = append(lines, "env VVD_ORG + VVD_SECRET: not set")
-	}
-
-	if _, err := loadFromFile(StoreProject); err == nil {
-		lines = append(lines, "project .vulnetix/credentials.json: found")
-	} else {
-		lines = append(lines, "project .vulnetix/credentials.json: not found")
-	}
-
-	if _, err := loadFromFile(StoreHome); err == nil {
-		lines = append(lines, "home ~/.vulnetix/credentials.json: found")
-	} else {
-		lines = append(lines, "home ~/.vulnetix/credentials.json: not found")
-	}
-
-	netrc := NetrcStatus()
-	switch {
-	case !netrc.Found:
-		lines = append(lines, fmt.Sprintf("netrc %s: not found", netrc.Path))
-	case netrc.Err != nil:
-		lines = append(lines, fmt.Sprintf("netrc %s: unusable (%s)", netrc.Path, netrc.Err))
-	case netrc.MachineFound:
-		lines = append(lines, fmt.Sprintf("netrc %s machine %s: found", netrc.Path, PackageFirewallHost))
-	default:
-		lines = append(lines, fmt.Sprintf("netrc %s machine %s: not found", netrc.Path, PackageFirewallHost))
-	}
-
-	lines = append(lines, packageFirewallConfigStatus())
 	lines = append(lines, "Unauthenticated Community (VDB only): available")
-
 	return lines
 }
 
-func packageFirewallConfigStatus() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "package firewall package-manager configs: unknown (" + err.Error() + ")"
+// AllSourceStatusDetailed returns structured credential-source status.
+func AllSourceStatusDetailed() []SourceStatus {
+	active := CredentialSource()
+	statuses := []SourceStatus{
+		{
+			Label:  "env VULNETIX_API_TOKEN",
+			State:  stateFromBool(os.Getenv("VULNETIX_API_TOKEN") != ""),
+			Active: active == "environment (VULNETIX_API_TOKEN)",
+		},
+		{
+			Label:  "env VULNETIX_API_KEY + VULNETIX_ORG_ID",
+			State:  stateFromBool(os.Getenv("VULNETIX_API_KEY") != "" && os.Getenv("VULNETIX_ORG_ID") != ""),
+			Active: active == "environment (VULNETIX_API_KEY + VULNETIX_ORG_ID)",
+		},
+		{
+			Label:  "env VVD_ORG + VVD_SECRET",
+			State:  stateFromBool(os.Getenv("VVD_ORG") != "" && os.Getenv("VVD_SECRET") != ""),
+			Active: active == "environment (VVD_ORG + VVD_SECRET)",
+		},
 	}
-	var found []string
-	for _, eco := range pfw.All() {
-		if !eco.LiveWriter {
+
+	project, projectErr := fileSourceStatus(StoreProject, "project .vulnetix/credentials.json", "project (.vulnetix/credentials.json)", active)
+	statuses = append(statuses, project)
+
+	homeLabel := "home ~/.vulnetix/credentials.json"
+	if dir := credentialsBaseDir(""); dir != "" {
+		homeLabel = "home " + filepath.Join(dir, credentialsFile)
+	}
+	home, homeErr := fileSourceStatus(StoreHome, homeLabel, "home (~/.vulnetix/credentials.json)", active)
+	statuses = append(statuses, home)
+
+	keyring := SourceStatus{Label: "keyring", State: "not set"}
+	for _, item := range []struct {
+		store CredentialStore
+		err   error
+	}{
+		{StoreProject, projectErr},
+		{StoreHome, homeErr},
+	} {
+		meta, err := loadCredentialMetadata(item.store)
+		if err != nil || !meta.usesKeyring() {
 			continue
 		}
-		files, err := pfw.ConfigFiles(eco, pfw.ConfigOptions{
-			HomeDir:  home,
-			ProxyURL: "https://" + PackageFirewallHost,
-			OrgID:    "org",
-			APIKey:   "key",
-		})
-		if err != nil {
-			continue
+		keyring.State = "set"
+		keyring.Detail = "referenced by " + string(item.store) + " credentials"
+		keyring.Active = activeHasPrefix(active, "keyring")
+		if item.err != nil {
+			keyring.State = "unusable"
+			keyring.Detail = item.err.Error()
 		}
-		needle := pfw.ProxyURL("https://"+PackageFirewallHost, eco)
-		for _, file := range files {
-			data, err := os.ReadFile(file.Path)
-			if err == nil && strings.Contains(string(data), needle) {
-				found = append(found, eco.Command)
-				break
-			}
-		}
+		break
 	}
-	if len(found) == 0 {
-		return "package firewall package-manager configs: none found"
+	statuses = append(statuses, keyring)
+
+	netrc := NetrcStatus()
+	netrcStatus := SourceStatus{Label: "netrc " + netrc.Path + " machine " + PackageFirewallHost, Active: active == "netrc ("+PackageFirewallHost+")"}
+	switch {
+	case !netrc.Found:
+		netrcStatus.State = "not set"
+	case netrc.Err != nil:
+		netrcStatus.State = "unusable"
+		netrcStatus.Detail = netrc.Err.Error()
+	case netrc.MachineFound:
+		netrcStatus.State = "set"
+	default:
+		netrcStatus.State = "not set"
 	}
-	return "package firewall package-manager configs: " + strings.Join(found, ", ")
+	statuses = append(statuses, netrcStatus)
+
+	return statuses
+}
+
+func stateFromBool(ok bool) string {
+	if ok {
+		return "set"
+	}
+	return "not set"
+}
+
+func activeHasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+func fileSourceStatus(store CredentialStore, label, activeSource string, active string) (SourceStatus, error) {
+	status := SourceStatus{Label: label, State: "not set", Active: active == activeSource}
+	if _, err := storePath(store); err != nil {
+		status.State = "unusable"
+		status.Detail = err.Error()
+		return status, err
+	}
+	_, err := loadFromFile(store)
+	if err == nil {
+		status.State = "set"
+		return status, nil
+	}
+	if os.IsNotExist(err) {
+		return status, err
+	}
+	status.State = "unusable"
+	status.Detail = err.Error()
+	return status, err
 }
 
 func loadFromFile(store CredentialStore) (*Credentials, error) {
-	path, err := storePath(store)
+	creds, path, err := readCredentialsFile(store)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
+	// Hydrate secrets from the OS keychain when metadata says they live there.
+	if creds.HMACInKeyring && creds.Secret == "" {
+		secret, kerr := loadRequiredSecretFromKeyring(hmacKeyringAccount(creds.OrgID))
+		if kerr != nil {
+			return nil, fmt.Errorf("credentials file %s references an unusable keyring secret: %w", path, kerr)
+		}
+		creds.Secret = secret
+	}
+	if creds.TokenInKeyring && creds.Token == "" {
+		token, kerr := loadRequiredSecretFromKeyring(tokenKeyringAccount(creds.OrgID))
+		if kerr != nil {
+			return nil, fmt.Errorf("credentials file %s references an unusable keyring token: %w", path, kerr)
+		}
+		creds.Token = token
+	}
+	if creds.APIKeyInKeyring && creds.APIKey == "" {
+		apiKey, kerr := loadRequiredSecretFromKeyring(apiKeyKeyringAccount(creds.OrgID))
+		if kerr != nil {
+			return nil, fmt.Errorf("credentials file %s references an unusable keyring API key: %w", path, kerr)
+		}
+		creds.APIKey = apiKey
 	}
 
-	var creds Credentials
-	if err := json.Unmarshal(data, &creds); err != nil {
-		return nil, fmt.Errorf("failed to parse credentials from %s: %w", path, err)
-	}
-
-	if creds.OrgID == "" {
+	if creds.OrgID == "" && creds.Token == "" {
 		return nil, fmt.Errorf("credentials file %s is missing org_id", path)
 	}
 
-	// Hydrate the HMAC secret from the OS keychain when it lives there.
-	if creds.HMACInKeyring && creds.Secret == "" {
-		if secret, kerr := loadSecretFromKeyring(hmacKeyringAccount(creds.OrgID)); kerr == nil {
-			creds.Secret = secret
-		}
-	}
-
-	return &creds, nil
+	return creds, nil
 }
 
 func storePath(store CredentialStore) (string, error) {
+	return storePathInDir(store, "")
+}
+
+func storePathInDir(store CredentialStore, baseDir string) (string, error) {
 	switch store {
 	case StoreHome:
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("failed to determine home directory: %w", err)
-		}
-		return filepath.Join(homeDir, ".vulnetix", credentialsFile), nil
+		return filepath.Join(credentialsBaseDir(baseDir), credentialsFile), nil
 	case StoreProject:
 		return filepath.Join(".vulnetix", credentialsFile), nil
 	case StoreKeyring:
 		// Keyring stores the secret in the OS keychain but keeps credential
 		// metadata (org, method, token) in the home-directory file.
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("failed to determine home directory: %w", err)
-		}
-		return filepath.Join(homeDir, ".vulnetix", credentialsFile), nil
+		return filepath.Join(credentialsBaseDir(baseDir), credentialsFile), nil
 	default:
 		return "", fmt.Errorf("unknown store: %s", store)
 	}
+}
+
+func credentialsBaseDir(baseDir string) string {
+	if baseDir != "" {
+		return baseDir
+	}
+	if envDir := os.Getenv(CredentialsDirEnv); envDir != "" {
+		return envDir
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ".vulnetix"
+	}
+	return filepath.Join(homeDir, ".vulnetix")
+}
+
+func loadCredentialMetadata(store CredentialStore) (*Credentials, error) {
+	creds, _, err := readCredentialsFile(store)
+	return creds, err
+}
+
+func readCredentialsFile(store CredentialStore) (*Credentials, string, error) {
+	path, err := storePath(store)
+	if err != nil {
+		return nil, "", err
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, path, err
+	}
+
+	var creds Credentials
+	if err := json.Unmarshal(data, &creds); err != nil {
+		return nil, path, fmt.Errorf("failed to parse credentials from %s: %w", path, err)
+	}
+	return &creds, path, nil
+}
+
+func (c *Credentials) usesKeyring() bool {
+	return c != nil && (c.HMACInKeyring || c.TokenInKeyring || c.APIKeyInKeyring)
 }

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/zalando/go-keyring"
 )
 
 func TestSaveAndLoadCredentials(t *testing.T) {
@@ -128,20 +130,6 @@ func TestAllSourceStatus(t *testing.T) {
 	}
 }
 
-func TestPackageFirewallConfigStatus(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	npmrc := filepath.Join(home, ".npmrc")
-	if err := os.WriteFile(npmrc, []byte("registry=https://packages.vulnetix.com/npm/\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-
-	status := packageFirewallConfigStatus()
-	if !strings.Contains(status, "npm") {
-		t.Fatalf("expected npm config status, got %q", status)
-	}
-}
-
 func TestStorePath(t *testing.T) {
 	p, err := storePath(StoreProject)
 	if err != nil {
@@ -165,6 +153,104 @@ func TestStorePath(t *testing.T) {
 	}
 	if filepath.Base(k) != "credentials.json" {
 		t.Errorf("expected 'credentials.json', got %q", filepath.Base(k))
+	}
+}
+
+func TestSaveCredentialsInDirUsesCustomHomeDirectory(t *testing.T) {
+	dir := t.TempDir()
+	creds := &Credentials{Token: "token-value", Method: Token}
+	if err := SaveCredentialsInDir(creds, StoreHome, dir); err != nil {
+		t.Fatalf("SaveCredentialsInDir: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, credentialsFile)); err != nil {
+		t.Fatalf("expected credentials under custom dir: %v", err)
+	}
+}
+
+func TestLoadFromFileAllowsTokenWithoutOrgID(t *testing.T) {
+	oldDir, _ := os.Getwd()
+	defer os.Chdir(oldDir)
+
+	tmpDir := t.TempDir()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	creds := &Credentials{Token: "token-value", Method: Token}
+	if err := SaveCredentials(creds, StoreProject); err != nil {
+		t.Fatalf("SaveCredentials: %v", err)
+	}
+
+	loaded, err := loadFromFile(StoreProject)
+	if err != nil {
+		t.Fatalf("loadFromFile: %v", err)
+	}
+	if loaded.OrgID != "" || loaded.Token != "token-value" || loaded.Method != Token {
+		t.Fatalf("unexpected credentials: %+v", loaded)
+	}
+}
+
+func TestKeyringRoundTripStripsAndHydratesSecrets(t *testing.T) {
+	keyring.MockInit()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	creds := &Credentials{
+		OrgID:  "org-id",
+		Token:  "token-value",
+		APIKey: "api-key-value",
+		Secret: "secret-value",
+		Method: Token,
+	}
+	if err := SaveCredentials(creds, StoreKeyring); err != nil {
+		t.Fatalf("SaveCredentials: %v", err)
+	}
+
+	path := filepath.Join(home, ".vulnetix", credentialsFile)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read credentials: %v", err)
+	}
+	for _, secret := range []string{"token-value", "api-key-value", "secret-value"} {
+		if strings.Contains(string(data), secret) {
+			t.Fatalf("credential file leaked %q:\n%s", secret, string(data))
+		}
+	}
+
+	loaded, err := loadFromFile(StoreHome)
+	if err != nil {
+		t.Fatalf("loadFromFile: %v", err)
+	}
+	if loaded.Token != "token-value" || loaded.APIKey != "api-key-value" || loaded.Secret != "secret-value" {
+		t.Fatalf("credentials were not hydrated: %+v", loaded)
+	}
+}
+
+func TestAllSourceStatusDetailedMarksKeyringActive(t *testing.T) {
+	keyring.MockInit()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("VULNETIX_API_TOKEN", "")
+	t.Setenv("VULNETIX_API_KEY", "")
+	t.Setenv("VULNETIX_ORG_ID", "")
+	t.Setenv("VVD_ORG", "")
+	t.Setenv("VVD_SECRET", "")
+
+	if err := SaveCredentials(&Credentials{Token: "token-value", Method: Token}, StoreKeyring); err != nil {
+		t.Fatalf("SaveCredentials: %v", err)
+	}
+
+	var found bool
+	for _, status := range AllSourceStatusDetailed() {
+		if status.Label == "keyring" {
+			found = true
+			if status.State != "set" || !status.Active {
+				t.Fatalf("unexpected keyring status: %+v", status)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("missing keyring source status")
 	}
 }
 
