@@ -58,6 +58,7 @@ type Client struct {
 	SecretKey       string
 	AuthMethod      auth.AuthMethod
 	APIKey          string // hex digest for Direct API Key auth
+	Token           string // Authentik API token for Bearer auth
 	HTTPClient      *http.Client
 	LastRateLimit   *RateLimitInfo
 	LastCacheStatus string // "HIT", "MISS", "LOCAL", "REVALIDATED", or "" if no X-Cache header
@@ -157,6 +158,7 @@ func NewClientFromCredentials(creds *auth.Credentials) *Client {
 		SecretKey:  creds.Secret,
 		AuthMethod: creds.Method,
 		APIKey:     creds.APIKey,
+		Token:      creds.Token,
 		HTTPClient: &http.Client{
 			Timeout:   30 * time.Second,
 			Transport: sharedTransport,
@@ -344,6 +346,8 @@ func (c *Client) signRequest(req *http.Request, path, body string) error {
 // addAuthHeader resolves the authorization header and sets it on the request.
 func (c *Client) addAuthHeader(req *http.Request) error {
 	switch c.AuthMethod {
+	case auth.Token:
+		req.Header.Set("Authorization", "Bearer "+c.Token)
 	case auth.DirectAPIKey:
 		req.Header.Set("Authorization", fmt.Sprintf("ApiKey %s:%s", c.OrgID, c.APIKey))
 	default:

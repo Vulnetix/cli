@@ -27,6 +27,7 @@ var (
 	authOrgID  string
 	authSecret string
 	authAPIKey string
+	authToken  string
 	authStore  string
 )
 
@@ -157,7 +158,7 @@ var authLogoutCmd = &cobra.Command{
 }
 
 func runAuthLogin(cmd *cobra.Command) error {
-	interactive := isInteractive() && authMethod == "" && authOrgID == "" && authSecret == "" && authAPIKey == ""
+	interactive := isInteractive() && authMethod == "" && authOrgID == "" && authSecret == "" && authAPIKey == "" && authToken == ""
 
 	var method auth.AuthMethod
 	var orgIDVal string
@@ -176,11 +177,28 @@ func runAuthLogin(cmd *cobra.Command) error {
 			Method: method,
 		}
 		switch method {
+		case auth.Token:
+			creds.Token = secret
 		case auth.DirectAPIKey:
 			creds.APIKey = secret
 		case auth.SigV4:
 			creds.Secret = secret
 		}
+	} else if authToken != "" {
+		// Token auth (Authentik "Tokens and App passwords"). The org is resolved
+		// server-side from the token, so --org-id is optional.
+		if authAPIKey != "" || authSecret != "" {
+			return fmt.Errorf("--token cannot be combined with --api-key or --secret")
+		}
+		if authStore == "" {
+			authStore = "home"
+		}
+		s, err := auth.ValidateStore(authStore)
+		if err != nil {
+			return err
+		}
+		store = s
+		creds = &auth.Credentials{OrgID: authOrgID, Token: authToken, Method: auth.Token}
 	} else {
 		// Non-interactive: use flags
 		if authSecret != "" && authAPIKey != "" {
@@ -268,26 +286,29 @@ func interactiveLogin() (auth.AuthMethod, string, string, auth.CredentialStore, 
 
 	// 1. Select auth method
 	fmt.Println("Select authentication method:")
-	fmt.Println("  [1] Direct API Key (recommended)")
-	fmt.Println("  [2] SigV4")
-	fmt.Println("  [3] Browser Login")
+	fmt.Println("  [1] Authentik API Token (recommended)")
+	fmt.Println("  [2] Direct API Key (legacy)")
+	fmt.Println("  [3] SigV4 (legacy)")
+	fmt.Println("  [4] Browser Login")
 	fmt.Print("Choice [1]: ")
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
 
 	switch choice {
 	case "", "1":
-		// Direct API Key flow
+		return tokenLogin(reader)
 	case "2":
-		// SigV4 flow
+		// Direct API Key flow
 	case "3":
+		// SigV4 flow
+	case "4":
 		return browserLogin(reader)
 	default:
 		return "", "", "", "", fmt.Errorf("invalid choice: %s", choice)
 	}
 
 	var method auth.AuthMethod
-	if choice == "2" {
+	if choice == "3" {
 		method = auth.SigV4
 	} else {
 		method = auth.DirectAPIKey
@@ -322,6 +343,23 @@ func interactiveLogin() (auth.AuthMethod, string, string, auth.CredentialStore, 
 	}
 
 	return method, orgIDVal, secret, store, nil
+}
+
+// tokenLogin prompts for an Authentik API token ("Tokens and App passwords").
+// The org is resolved server-side, so no Organization ID is required.
+func tokenLogin(reader *bufio.Reader) (auth.AuthMethod, string, string, auth.CredentialStore, error) {
+	fmt.Println("Create a token at https://auth.vulnetix.com/if/user/#/settings;page=page-tokens")
+	fmt.Print("Authentik API Token: ")
+	tok, _ := reader.ReadString('\n')
+	tok = strings.TrimSpace(tok)
+	if tok == "" {
+		return "", "", "", "", fmt.Errorf("token cannot be empty")
+	}
+	store, err := promptStore(reader)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	return auth.Token, "", tok, store, nil
 }
 
 func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
@@ -475,6 +513,18 @@ func pollForAuth(code string) (orgID string, apiKey string, err error) {
 
 func testAuth(ctx *display.Context, creds *auth.Credentials) error {
 	switch creds.Method {
+	case auth.Token:
+		if creds.Token == "" {
+			return fmt.Errorf("token is empty")
+		}
+		now := time.Now()
+		vdbClient := vdb.NewClientFromCredentials(creds)
+		if _, err := vdbClient.GetGCVEIssuances(now.Year(), int(now.Month()), 1, 0); err != nil {
+			return err
+		}
+		ctx.Logger.Info(display.CheckMark(ctx.Term) + " VDB API: OK")
+		return nil
+
 	case auth.DirectAPIKey:
 		// Validate the API key format (must be non-empty hex string)
 		if len(creds.APIKey) == 0 {
@@ -542,19 +592,21 @@ func isInteractive() bool {
 }
 
 func init() {
-	authLoginCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: apikey, sigv4 (auto-detected if omitted)")
-	authLoginCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID)")
-	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex)")
-	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key")
+	authLoginCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: token, apikey, sigv4 (auto-detected if omitted)")
+	authLoginCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; not required for --token)")
+	authLoginCmd.Flags().StringVar(&authToken, "token", "", "Authentik API token (recommended; from auth.vulnetix.com Tokens and App passwords)")
+	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex; legacy)")
+	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key (legacy)")
 	authLoginCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
 	_ = authLoginCmd.RegisterFlagCompletionFunc("method", cobra.FixedCompletions([]string{"apikey", "sigv4"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = authLoginCmd.RegisterFlagCompletionFunc("store", cobra.FixedCompletions([]string{"home", "project", "keyring"}, cobra.ShellCompDirectiveNoFileComp))
 
 	// Also add flags to the parent auth command for `vulnetix auth --method ...`
-	authCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: apikey, sigv4 (auto-detected if omitted)")
-	authCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID)")
-	authCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex)")
-	authCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key")
+	authCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: token, apikey, sigv4 (auto-detected if omitted)")
+	authCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; not required for --token)")
+	authCmd.Flags().StringVar(&authToken, "token", "", "Authentik API token (recommended; from auth.vulnetix.com Tokens and App passwords)")
+	authCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex; legacy)")
+	authCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key (legacy)")
 	authCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
 	_ = authCmd.RegisterFlagCompletionFunc("method", cobra.FixedCompletions([]string{"apikey", "sigv4"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = authCmd.RegisterFlagCompletionFunc("store", cobra.FixedCompletions([]string{"home", "project", "keyring"}, cobra.ShellCompDirectiveNoFileComp))

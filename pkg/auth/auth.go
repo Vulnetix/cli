@@ -10,6 +10,10 @@ const (
 	DirectAPIKey AuthMethod = "apikey"
 	// SigV4 uses AWS Signature Version 4 for token exchange
 	SigV4 AuthMethod = "sigv4"
+	// Token uses an Authentik API token ("Tokens and App passwords") sent as a
+	// Bearer header. This is the current, self-service credential; apikey/sigv4
+	// are legacy.
+	Token AuthMethod = "token"
 )
 
 // ValidateMethod checks if the given string is a valid AuthMethod
@@ -19,8 +23,10 @@ func ValidateMethod(method string) (AuthMethod, error) {
 		return DirectAPIKey, nil
 	case SigV4:
 		return SigV4, nil
+	case Token:
+		return Token, nil
 	default:
-		return "", fmt.Errorf("invalid auth method %q: must be 'apikey' or 'sigv4'", method)
+		return "", fmt.Errorf("invalid auth method %q: must be 'token', 'apikey', or 'sigv4'", method)
 	}
 }
 
@@ -52,12 +58,15 @@ type Credentials struct {
 	OrgID  string     `json:"org_id"`
 	APIKey string     `json:"api_key,omitempty"` // hex digest for Direct API Key
 	Secret string     `json:"secret,omitempty"`  // secret key for SigV4
+	Token  string     `json:"token,omitempty"`   // Authentik API token (Bearer)
 	Method AuthMethod `json:"method"`
 }
 
 // GetAuthHeader returns the Authorization header value for the given credentials
 func GetAuthHeader(creds *Credentials) string {
 	switch creds.Method {
+	case Token:
+		return "Bearer " + creds.Token
 	case DirectAPIKey:
 		return fmt.Sprintf("ApiKey %s:%s", creds.OrgID, creds.APIKey)
 	case SigV4:
