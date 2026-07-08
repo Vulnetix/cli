@@ -268,13 +268,35 @@ func runAuthLogin(cmd *cobra.Command) error {
 	ctx.Logger.Info(display.CheckMark(ctx.Term) + " Authentication successful")
 	analytics.TrackAuth(string(creds.Method), "login", true)
 
-	// Save credentials
-	if err := auth.SaveCredentials(creds, store); err != nil {
+	// Save credentials (keychain-aware, with file fallback).
+	savedStore, err := saveCredentialsWithFallback(ctx, creds, store)
+	if err != nil {
 		return fmt.Errorf("failed to save credentials: %w", err)
 	}
-	ctx.Logger.Infof("%s Credentials saved to %s store", display.CheckMark(ctx.Term), store)
+	ctx.Logger.Infof("%s Credentials saved to %s store", display.CheckMark(ctx.Term), savedStore)
 
 	return nil
+}
+
+// saveCredentialsWithFallback persists credentials, preferring the OS keychain
+// for the HMAC secret when the keyring store is chosen. If no keychain backend
+// is present it surfaces clear guidance (with a setup URL) and falls back to the
+// standard home-directory config file.
+func saveCredentialsWithFallback(ctx *display.Context, creds *auth.Credentials, store auth.CredentialStore) (auth.CredentialStore, error) {
+	err := auth.SaveCredentials(creds, store)
+	if err != nil && store == auth.StoreKeyring {
+		ctx.Logger.Warn(err.Error())
+		ctx.Logger.Info("No usable OS keychain — falling back to file storage (~/.vulnetix/credentials.json).")
+		creds.HMACInKeyring = false
+		if ferr := auth.SaveCredentials(creds, auth.StoreHome); ferr != nil {
+			return "", ferr
+		}
+		return auth.StoreHome, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return store, nil
 }
 
 func interactiveLogin() (auth.AuthMethod, string, string, auth.CredentialStore, error) {
@@ -359,10 +381,14 @@ func tokenLogin(reader *bufio.Reader) (auth.AuthMethod, string, string, auth.Cre
 }
 
 func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
+	keyringNote := "System keyring (OS keychain)"
+	if err := auth.KeyringAvailable(); err != nil {
+		keyringNote = "System keyring (no backend detected — will fall back to file)"
+	}
 	fmt.Println("Where to store credentials?")
 	fmt.Println("  [1] Home directory ~/.vulnetix/ (default)")
 	fmt.Println("  [2] Project .vulnetix/")
-	fmt.Println("  [3] System keyring (not yet implemented)")
+	fmt.Println("  [3] " + keyringNote)
 	fmt.Print("Choice [1]: ")
 	storeChoice, _ := reader.ReadString('\n')
 	storeChoice = strings.TrimSpace(storeChoice)
@@ -373,7 +399,7 @@ func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
 	case "2":
 		return auth.StoreProject, nil
 	case "3":
-		return "", fmt.Errorf("keyring storage is not yet implemented")
+		return auth.StoreKeyring, nil
 	default:
 		return "", fmt.Errorf("invalid choice: %s", storeChoice)
 	}

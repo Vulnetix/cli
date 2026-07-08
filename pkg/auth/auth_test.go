@@ -52,9 +52,12 @@ func TestValidateStore_Valid(t *testing.T) {
 }
 
 func TestValidateStore_Keyring(t *testing.T) {
-	_, err := ValidateStore("keyring")
-	if err == nil {
-		t.Fatal("expected error for keyring (not implemented)")
+	store, err := ValidateStore("keyring")
+	if err != nil {
+		t.Fatalf("unexpected error for keyring: %v", err)
+	}
+	if store != StoreKeyring {
+		t.Fatalf("expected StoreKeyring, got %q", store)
 	}
 }
 

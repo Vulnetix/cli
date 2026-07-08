@@ -159,9 +159,12 @@ func TestStorePath(t *testing.T) {
 		t.Errorf("expected 'credentials.json', got %q", filepath.Base(h))
 	}
 
-	_, err = storePath(StoreKeyring)
-	if err == nil {
-		t.Fatal("expected error for keyring store path")
+	k, err := storePath(StoreKeyring)
+	if err != nil {
+		t.Fatalf("unexpected error for keyring store path: %v", err)
+	}
+	if filepath.Base(k) != "credentials.json" {
+		t.Errorf("expected 'credentials.json', got %q", filepath.Base(k))
 	}
 }
 
