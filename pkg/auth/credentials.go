@@ -43,6 +43,15 @@ func SaveCredentials(creds *Credentials, store CredentialStore) error {
 //  3. Home directory (~/.vulnetix/credentials.json)
 //  4. Package Firewall netrc entry (packages.vulnetix.com)
 func LoadCredentials() (*Credentials, error) {
+	// 0. Authentik API token (current credential; org resolved server-side).
+	if tok := os.Getenv("VULNETIX_API_TOKEN"); tok != "" {
+		return &Credentials{
+			OrgID:  os.Getenv("VULNETIX_ORG_ID"), // optional
+			Token:  tok,
+			Method: Token,
+		}, nil
+	}
+
 	// 1. Try Direct API Key env vars
 	apiKey := os.Getenv("VULNETIX_API_KEY")
 	orgID := os.Getenv("VULNETIX_ORG_ID")
@@ -103,6 +112,9 @@ func RemoveCredentials() error {
 // CredentialSource returns the name of the credential source that would win
 // in the LoadCredentials precedence chain, or "none" if nothing is configured.
 func CredentialSource() string {
+	if os.Getenv("VULNETIX_API_TOKEN") != "" {
+		return "environment (VULNETIX_API_TOKEN)"
+	}
 	if os.Getenv("VULNETIX_API_KEY") != "" && os.Getenv("VULNETIX_ORG_ID") != "" {
 		return "environment (VULNETIX_API_KEY + VULNETIX_ORG_ID)"
 	}
@@ -136,6 +148,12 @@ func CredentialStatus() (string, *Credentials) {
 // whether it is set / found. Useful for diagnostics.
 func AllSourceStatus() []string {
 	var lines []string
+
+	if os.Getenv("VULNETIX_API_TOKEN") != "" {
+		lines = append(lines, "env VULNETIX_API_TOKEN: set")
+	} else {
+		lines = append(lines, "env VULNETIX_API_TOKEN: not set")
+	}
 
 	if os.Getenv("VULNETIX_API_KEY") != "" && os.Getenv("VULNETIX_ORG_ID") != "" {
 		lines = append(lines, "env VULNETIX_API_KEY + VULNETIX_ORG_ID: set")
