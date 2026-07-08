@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 )
 
@@ -223,90 +222,6 @@ func (c *Client) V2RemediationPlan(id string, p V2RemediationParams) (map[string
 		path += "?" + encoded
 	}
 
-	return doV2Get(c, path)
-}
-
-// V2ScanManifest uploads a manifest file for scanning.
-// An optional metadata parameter (JSON bytes) is sent as the "metadata" form field.
-func (c *Client) V2ScanManifest(filePath, manifestType, ecosystem string, metadata ...[]byte) (map[string]interface{}, error) {
-	fields := map[string]string{
-		"type": manifestType,
-	}
-	if ecosystem != "" {
-		fields["ecosystem"] = ecosystem
-	}
-	if len(metadata) > 0 && len(metadata[0]) > 0 {
-		fields["metadata"] = string(metadata[0])
-	}
-
-	respBody, err := c.DoRequestMultipart("/scan/manifest", filePath, "file", fields)
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return result, nil
-}
-
-// V2ScanSPDX uploads an SPDX document for scanning.
-// An optional metadata parameter (JSON bytes) is sent as a query parameter.
-func (c *Client) V2ScanSPDX(filePath string, metadata ...[]byte) (map[string]interface{}, error) {
-	data, err := readFileBytes(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	path := "/scan/spdx"
-	if len(metadata) > 0 && len(metadata[0]) > 0 {
-		path += "?metadata=" + url.QueryEscape(string(metadata[0]))
-	}
-
-	respBody, err := c.DoRequestRawBody("POST", path, data, "application/json")
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return result, nil
-}
-
-// V2ScanCycloneDX uploads a CycloneDX document for scanning.
-// An optional metadata parameter (JSON bytes) is sent as a query parameter.
-func (c *Client) V2ScanCycloneDX(filePath string, metadata ...[]byte) (map[string]interface{}, error) {
-	data, err := readFileBytes(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	path := "/scan/cyclonedx"
-	if len(metadata) > 0 && len(metadata[0]) > 0 {
-		path += "?metadata=" + url.QueryEscape(string(metadata[0]))
-	}
-
-	respBody, err := c.DoRequestRawBody("POST", path, data, "application/json")
-	if err != nil {
-		return nil, err
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return result, nil
-}
-
-// V2ScanStatus retrieves the status of a scan.
-func (c *Client) V2ScanStatus(scanID string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("/scan/%s", url.PathEscape(scanID))
 	return doV2Get(c, path)
 }
 
@@ -955,12 +870,4 @@ func (c *Client) V2TreeSitterQueries(id string, p V2TreeSitterParams) (*TreeSitt
 		return nil, fmt.Errorf("failed to parse tree-sitter response: %w", err)
 	}
 	return &out, nil
-}
-
-func readFileBytes(filePath string) ([]byte, error) {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
-	}
-	return data, nil
 }

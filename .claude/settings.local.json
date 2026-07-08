@@ -1,6 +1,9 @@
 {
   "permissions": {
-    "allow": [],
+    "allow": [
+      "Bash(gh run *)",
+      "Bash(git rev-list *)"
+    ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [

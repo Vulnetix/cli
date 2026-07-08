@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/Vulnetix/vdb-sca-match/parse"
 )
 
 // This file adds dependency-tree edge builders for lock files whose parsers
@@ -148,7 +150,7 @@ func (g *DepGraph) PopulateNugetLockEdges(dir string) {
 	if err != nil {
 		return
 	}
-	var lock nugetLockFile
+	var lock parse.NugetLockFile
 	if json.Unmarshal(data, &lock) != nil {
 		return
 	}
@@ -183,7 +185,7 @@ func (g *DepGraph) PopulateMixLockEdges(dir string) {
 		g.Edges = make(map[string][]string)
 	}
 	for _, line := range strings.Split(string(data), "\n") {
-		head := mixLockHeadRe.FindStringSubmatch(line)
+		head := parse.MixLockHeadRe.FindStringSubmatch(line)
 		if head == nil {
 			continue
 		}

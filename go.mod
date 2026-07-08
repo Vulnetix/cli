@@ -22,14 +22,21 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	github.com/vulnetix/malscan-engine v0.5.9
+	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/term v0.44.0
 	gopkg.in/yaml.v3 v3.0.1
+)
+
+require (
+	github.com/danieljoos/wincred v1.2.3 // indirect
+	github.com/godbus/dbus/v5 v5.2.2 // indirect
 )
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
+	github.com/Vulnetix/vdb-sca-match v0.1.0
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect

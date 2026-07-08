@@ -13,7 +13,12 @@ import (
 // credentialsFile is the JSON file name for stored credentials
 const credentialsFile = "credentials.json"
 
-// SaveCredentials persists credentials to the specified store
+// SaveCredentials persists credentials to the specified store.
+//
+// When creds.HMACInKeyring is set, the HMAC Secret is written to the OS keychain
+// (not the file) and stripped from the on-disk JSON; metadata (org, method,
+// token, apikey) is still written to the home/project file. A keychain failure
+// is returned so the caller can fall back to file storage.
 func SaveCredentials(creds *Credentials, store CredentialStore) error {
 	path, err := storePath(store)
 	if err != nil {
@@ -25,7 +30,16 @@ func SaveCredentials(creds *Credentials, store CredentialStore) error {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
 
-	data, err := json.MarshalIndent(creds, "", "  ")
+	// Copy so we never mutate the caller's struct while stripping the secret.
+	toWrite := *creds
+	if toWrite.HMACInKeyring && toWrite.Secret != "" {
+		if err := saveSecretToKeyring(hmacKeyringAccount(toWrite.OrgID), toWrite.Secret); err != nil {
+			return err
+		}
+		toWrite.Secret = "" // keep the secret out of the file
+	}
+
+	data, err := json.MarshalIndent(&toWrite, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
 	}
@@ -38,10 +52,12 @@ func SaveCredentials(creds *Credentials, store CredentialStore) error {
 }
 
 // LoadCredentials loads credentials using the following precedence:
-//  1. Environment variables (VULNETIX_API_KEY + VULNETIX_ORG_ID for Direct, VVD_ORG + VVD_SECRET for SigV4)
-//  2. Project dotfile (.vulnetix/credentials.json)
-//  3. Home directory (~/.vulnetix/credentials.json)
-//  4. Package Firewall netrc entry (packages.vulnetix.com)
+//  0. Authentik API token (VULNETIX_API_TOKEN env; org resolved server-side)
+//  1. Direct API Key env vars (VULNETIX_API_KEY + VULNETIX_ORG_ID)
+//  2. SigV4 env vars (VVD_ORG + VVD_SECRET)
+//  3. Project dotfile (.vulnetix/credentials.json)
+//  4. Home directory (~/.vulnetix/credentials.json)
+//  5. Package Firewall netrc entry (packages.vulnetix.com)
 func LoadCredentials() (*Credentials, error) {
 	// 0. Authentik API token (current credential; org resolved server-side).
 	if tok := os.Getenv("VULNETIX_API_TOKEN"); tok != "" {
@@ -94,13 +110,18 @@ func LoadCredentials() (*Credentials, error) {
 	return nil, fmt.Errorf("no credentials found. Run 'vulnetix auth login' or set VULNETIX_API_KEY + VULNETIX_ORG_ID environment variables")
 }
 
-// RemoveCredentials removes stored credentials from all file-based stores
+// RemoveCredentials removes stored credentials from all file-based stores and
+// clears any HMAC secret held in the OS keychain.
 func RemoveCredentials() error {
 	var lastErr error
 	for _, store := range []CredentialStore{StoreHome, StoreProject} {
 		path, err := storePath(store)
 		if err != nil {
 			continue
+		}
+		// Clear the keychain secret referenced by this store's metadata first.
+		if creds, lerr := loadFromFile(store); lerr == nil && creds.HMACInKeyring {
+			_ = removeSecretFromKeyring(hmacKeyringAccount(creds.OrgID))
 		}
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			lastErr = fmt.Errorf("failed to remove %s: %w", path, err)
@@ -249,6 +270,13 @@ func loadFromFile(store CredentialStore) (*Credentials, error) {
 
 	if creds.OrgID == "" {
 		return nil, fmt.Errorf("credentials file %s is missing org_id", path)
+	}
+
+	// Hydrate the HMAC secret from the OS keychain when it lives there.
+	if creds.HMACInKeyring && creds.Secret == "" {
+		if secret, kerr := loadSecretFromKeyring(hmacKeyringAccount(creds.OrgID)); kerr == nil {
+			creds.Secret = secret
+		}
 	}
 
 	return &creds, nil

@@ -1,6 +1,8 @@
 package scan
 
 import (
+	"github.com/Vulnetix/vdb-sca-match/parse"
+
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,7 +22,7 @@ func loadPyFixture(t *testing.T, name string) []byte {
 // transitive from the `# via` block, on real `uv pip compile --generate-hashes`
 // output shape.
 func TestParseRequirementsTxtScoped_HashesAndVia(t *testing.T) {
-	pkgs, err := parseRequirementsTxtScoped(loadPyFixture(t, "requirements.txt"), "requirements.txt")
+	pkgs, err := parse.ParseManifest(loadPyFixture(t, "requirements.txt"), "requirements.txt", "requirements.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +64,7 @@ func TestParseRequirementsTxtScoped_HashesAndVia(t *testing.T) {
 }
 
 func TestParsePylockTOMLScoped(t *testing.T) {
-	pkgs, err := parsePylockTOMLScoped(loadPyFixture(t, "pylock.toml"), "pylock.toml")
+	pkgs, err := parse.ParseManifest(loadPyFixture(t, "pylock.toml"), "pylock.toml", "pylock.toml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +85,7 @@ func TestParsePylockTOMLScoped(t *testing.T) {
 }
 
 func TestParseUVLockScoped_HashesAndEdges(t *testing.T) {
-	pkgs, err := parseUVLockScoped(loadPyFixture(t, "uv.lock"), "uv.lock")
+	pkgs, err := parse.ParseManifest(loadPyFixture(t, "uv.lock"), "uv.lock", "uv.lock")
 	if err != nil {
 		t.Fatal(err)
 	}
