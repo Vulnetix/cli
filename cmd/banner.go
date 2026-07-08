@@ -3,13 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/pkg/auth"
-	"github.com/vulnetix/cli/v3/pkg/packagefirewall"
 )
 
 var noBanner bool
@@ -63,34 +61,24 @@ func printBanner(cmd *cobra.Command) {
 	if authSrc != "none" {
 		apiText = fmt.Sprintf("%s %s", display.CheckMark(t), display.Success(t, "Ready"))
 	} else {
-		apiText = fmt.Sprintf("%s %s", display.Muted(t, "ℹ"), display.Muted(t, "Community fallback available"))
+		apiText = fmt.Sprintf("%s %s", display.Muted(t, "i"), display.Muted(t, "Community fallback available"))
 	}
 	fmt.Fprintf(os.Stderr, "  %s %s\n", display.Muted(t, "API:    "), apiText)
 
-	home, _ := os.UserHomeDir()
-	var activeEcos []string
-	for _, eco := range packagefirewall.All() {
-		paths := packagefirewall.ConfigPaths(eco, home)
-		for _, p := range paths {
-			if strings.HasPrefix(p, "~") {
-				p = filepath.Join(home, p[1:])
-			}
-			if _, err := os.Stat(p); err == nil {
-				activeEcos = append(activeEcos, eco.DisplayName)
-				break
-			}
-		}
-	}
-
 	var fwText string
-	if len(activeEcos) > 0 {
-		formattedEcos := make([]string, len(activeEcos))
-		for i, e := range activeEcos {
-			formattedEcos[i] = display.Teal(t, e)
+	if home, err := os.UserHomeDir(); err == nil {
+		groups := groupEcosystems(home, auth.PackageFirewallHost)
+		if len(groups.Configured) > 0 {
+			formattedEcos := make([]string, len(groups.Configured))
+			for i, e := range groups.Configured {
+				formattedEcos[i] = display.Teal(t, e.Ecosystem.DisplayName)
+			}
+			fwText = fmt.Sprintf("%s %s", display.CheckMark(t), display.Success(t, strings.Join(formattedEcos, display.Muted(t, ", "))))
+		} else {
+			fwText = fmt.Sprintf("%s %s", display.Muted(t, "i"), display.Muted(t, "No ecosystems configured"))
 		}
-		fwText = fmt.Sprintf("%s %s", display.CheckMark(t), display.Success(t, strings.Join(formattedEcos, display.Muted(t, ", "))))
 	} else {
-		fwText = fmt.Sprintf("%s %s", display.Muted(t, "ℹ"), display.Muted(t, "No ecosystems configured"))
+		fwText = fmt.Sprintf("%s %s", display.Muted(t, "i"), display.Muted(t, "Ecosystem status unavailable"))
 	}
 	fmt.Fprintf(os.Stderr, "  %s %s\n", display.Muted(t, "Firewall:"), fwText)
 

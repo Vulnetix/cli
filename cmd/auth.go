@@ -18,17 +18,19 @@ import (
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/upload"
 	"github.com/vulnetix/cli/v3/pkg/auth"
-	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 var (
-	authMethod string
-	authOrgID  string
-	authSecret string
-	authAPIKey string
-	authToken  string
-	authStore  string
+	authMethod         string
+	authOrgID          string
+	authSecret         string
+	authAPIKey         string
+	authToken          string
+	authStore          string
+	authStoreDir       string
+	authNoninteractive bool
+	authStatusBaseURL  string
 )
 
 // authCmd represents the auth command
@@ -38,11 +40,11 @@ var authCmd = &cobra.Command{
 	Long: `Manage authentication credentials for the Vulnetix API.
 
 Examples:
-  # Interactive login
+  # Browser Device Flow login
   vulnetix auth
 
-  # Non-interactive login with Direct API Key
-  vulnetix auth login --org-id UUID --api-key KEY --store home
+  # Non-interactive login with ApiKey
+  vulnetix auth login --noninteractive --api-key KEY --store keyring
 
   # Non-interactive login with SigV4
   vulnetix auth login --org-id UUID --secret KEY --store home
@@ -60,14 +62,14 @@ Examples:
 var authLoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Authenticate with Vulnetix",
-	Long: `Log in to the Vulnetix API. Interactive by default when run in a terminal.
+	Long: `Log in to the Vulnetix API. Browser Device Flow is used by default.
 
-Non-interactive flags:
-  --method token|apikey|sigv4  Authentication method (auto-detected if omitted)
-  --org-id UUID            Organization ID
-  --api-key KEY            API key for Direct API Key auth
-  --secret KEY             Secret key for SigV4 auth
-  --store home|project     Where to save credentials`,
+Credential flags:
+  --api-key KEY        ApiKey credential (Bearer)
+  --secret KEY         SigV4 secret (requires --org-id)
+  --noninteractive     Require ApiKey from --api-key or environment
+  --store home|project|keyring
+  --store-dir DIR      Override the default home credential directory`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAuthLogin(cmd)
 	},
@@ -80,13 +82,19 @@ var authStatusCmd = &cobra.Command{
 		ctx := display.FromCommand(cmd)
 		t := ctx.Term
 
-		status, creds := auth.CredentialStatus()
-		ctx.Logger.Result(display.Bold(t, status))
+		source := auth.CredentialSource()
+		_, creds := auth.CredentialStatus()
+		plan := "COMMUNITY"
+		if creds != nil {
+			plan = fetchLivePlan(creds, authStatusBaseURL)
+		}
+
+		ctx.Logger.Result(display.Header(t, "Auth state"))
 		if creds != nil {
 			var secretLabel, secretValue string
 			switch creds.Method {
 			case auth.Token:
-				secretLabel = "Token"
+				secretLabel = "ApiKey"
 				secretValue = maskSecret(creds.Token)
 			case auth.DirectAPIKey:
 				secretLabel = "API Key"
@@ -95,27 +103,74 @@ var authStatusCmd = &cobra.Command{
 				secretLabel = "Secret"
 				secretValue = maskSecret(creds.Secret)
 			}
+			ctx.Logger.Result(display.CheckMark(t) + " " + display.Success(t, "Authenticated"))
 			ctx.Logger.Result(display.KeyValue(t, []display.KVPair{
 				{Key: "Organization", Value: creds.OrgID},
 				{Key: "Method", Value: string(creds.Method)},
+				{Key: "Source", Value: authSourceLabel(source)},
+				{Key: "Plan", Value: plan, ValueStyle: func(_ string) string { return planBadge(t, plan) }},
 				{Key: secretLabel, Value: secretValue},
 			}))
-		}
-		ctx.Logger.Result(display.Subheader(t, "\nAll credential sources:"))
-		for _, line := range auth.AllSourceStatus() {
-			ctx.Logger.Result("  " + line)
+		} else {
+			ctx.Logger.Result(display.WarningMark(t) + " " + display.Accent(t, "Community - unauthenticated (VDB only)"))
+			ctx.Logger.Result(display.KeyValue(t, []display.KVPair{
+				{Key: "Plan", Value: plan, ValueStyle: func(_ string) string { return planBadge(t, plan) }},
+			}))
 		}
 
-		// Package Firewall: which package managers are pointed at the firewall.
-		if home, err := os.UserHomeDir(); err == nil {
-			ctx.Logger.Result(display.Subheader(t, "\nPackage Firewall ecosystems:"))
-			for _, d := range pfw.Detect(home, auth.PackageFirewallHost) {
-				state := "not configured"
-				if d.Configured {
-					state = "configured (" + d.Path + ")"
-				}
-				ctx.Logger.Result("  " + d.Ecosystem.DisplayName + ": " + state)
+		ctx.Logger.Result(display.Header(t, "Credential sources"))
+		for _, s := range auth.AllSourceStatusDetailed() {
+			mark := display.Muted(t, display.CrossMark(t))
+			state := display.Muted(t, s.State)
+			switch s.State {
+			case "set":
+				mark = display.CheckMark(t)
+				state = display.Success(t, s.State)
+			case "unusable":
+				mark = display.WarningMark(t)
+				state = display.Muted(t, s.State)
 			}
+			if s.Active {
+				state = display.Success(t, "active")
+			}
+			line := fmt.Sprintf("  %s %s %s", mark, display.Bold(t, s.Label), state)
+			if s.Detail != "" {
+				line += " " + display.Muted(t, s.Detail)
+			}
+			ctx.Logger.Result(line)
+		}
+
+		ctx.Logger.Result(display.Header(t, "Package Firewall"))
+		if home, err := os.UserHomeDir(); err == nil {
+			groups := groupEcosystems(home, auth.PackageFirewallHost)
+			if len(groups.Configured) > 0 {
+				ctx.Logger.Result(display.Subheader(t, "Configured"))
+				for _, eco := range groups.Configured {
+					ctx.Logger.Result(fmt.Sprintf("  %s %s %s %s",
+						display.CheckMark(t),
+						display.Success(t, eco.Ecosystem.DisplayName),
+						tierBadge(t, eco.Ecosystem.Tier),
+						display.Teal(t, eco.Path),
+					))
+				}
+			}
+			if len(groups.Available) > 0 {
+				ctx.Logger.Result(display.Subheader(t, "Available to configure"))
+				for _, eco := range groups.Available {
+					hint := tierRequiresPlan(eco.Ecosystem.Tier, plan)
+					line := fmt.Sprintf("  %s %s %s",
+						display.Muted(t, "o"),
+						eco.Ecosystem.DisplayName,
+						tierBadge(t, eco.Ecosystem.Tier),
+					)
+					if hint != "" {
+						line += " " + display.Muted(t, hint)
+					}
+					ctx.Logger.Result(line)
+				}
+			}
+		} else {
+			ctx.Logger.Result("  " + display.WarningMark(t) + " " + display.Muted(t, err.Error()))
 		}
 		return nil
 	},
@@ -154,24 +209,54 @@ var authLogoutCmd = &cobra.Command{
 }
 
 func runAuthLogin(cmd *cobra.Command) error {
-	interactive := isInteractive() && authMethod == "" && authOrgID == "" && authSecret == "" && authAPIKey == "" && authToken == ""
-
-	var method auth.AuthMethod
-	var orgIDVal string
 	var store auth.CredentialStore
 	var creds *auth.Credentials
 
-	if interactive {
-		var secret string
-		var err error
-		method, orgIDVal, secret, store, err = interactiveLogin()
+	if authAPIKey != "" && authToken != "" {
+		return fmt.Errorf("--api-key and --token are aliases; pass only one")
+	}
+	if authSecret != "" && (authAPIKey != "" || authToken != "") {
+		return fmt.Errorf("cannot combine --secret with --api-key")
+	}
+
+	s, err := auth.ValidateStore(authStore)
+	if err != nil {
+		return err
+	}
+	store = s
+
+	apiKeyValue := firstNonEmpty(authAPIKey, authToken)
+	if authNoninteractive {
+		if authSecret != "" {
+			return fmt.Errorf("--noninteractive uses ApiKey credentials only; remove --secret or run without --noninteractive")
+		}
+		if apiKeyValue == "" {
+			apiKeyValue = firstNonEmpty(os.Getenv("VULNETIX_API_TOKEN"), os.Getenv("VULNETIX_API_KEY"))
+		}
+		if apiKeyValue == "" {
+			return fmt.Errorf("missing ApiKey for noninteractive login. Create one at %s. In the New token form set Identifier to `vdb_api_key`, then pass --api-key or set VULNETIX_API_KEY", credentialsPageURL)
+		}
+		creds = &auth.Credentials{OrgID: authOrgID, Token: apiKeyValue, Method: auth.Token}
+	} else if apiKeyValue != "" {
+		creds = &auth.Credentials{OrgID: authOrgID, Token: apiKeyValue, Method: auth.Token}
+	} else if authSecret != "" {
+		if authOrgID == "" {
+			return fmt.Errorf("--org-id is required with --secret")
+		}
+		if _, err := uuid.Parse(authOrgID); err != nil {
+			return fmt.Errorf("--org-id must be a valid UUID, got: %s", authOrgID)
+		}
+		creds = &auth.Credentials{OrgID: authOrgID, Secret: authSecret, Method: auth.SigV4}
+	} else if authMethod != "" {
+		return fmt.Errorf("--method is deprecated; use --api-key for ApiKey credentials or --secret with --org-id for SigV4")
+	} else {
+		reader := bufio.NewReader(os.Stdin)
+		method, orgIDVal, secret, selectedStore, err := browserLogin(reader, isInteractive())
 		if err != nil {
 			return err
 		}
-		creds = &auth.Credentials{
-			OrgID:  orgIDVal,
-			Method: method,
-		}
+		store = selectedStore
+		creds = &auth.Credentials{OrgID: orgIDVal, Method: method}
 		switch method {
 		case auth.Token:
 			creds.Token = secret
@@ -179,83 +264,6 @@ func runAuthLogin(cmd *cobra.Command) error {
 			creds.APIKey = secret
 		case auth.SigV4:
 			creds.Secret = secret
-		}
-	} else if authToken != "" {
-		// Token auth (Authentik "Tokens and App passwords"). The org is resolved
-		// server-side from the token, so --org-id is optional.
-		if authAPIKey != "" || authSecret != "" {
-			return fmt.Errorf("--token cannot be combined with --api-key or --secret")
-		}
-		if authStore == "" {
-			authStore = "home"
-		}
-		s, err := auth.ValidateStore(authStore)
-		if err != nil {
-			return err
-		}
-		store = s
-		creds = &auth.Credentials{OrgID: authOrgID, Token: authToken, Method: auth.Token}
-	} else {
-		// Non-interactive: use flags
-		if authSecret != "" && authAPIKey != "" {
-			return fmt.Errorf("cannot use both --secret and --api-key; choose one authentication method")
-		}
-
-		if authOrgID == "" {
-			return fmt.Errorf("--org-id is required in non-interactive mode")
-		}
-		if _, err := uuid.Parse(authOrgID); err != nil {
-			return fmt.Errorf("--org-id must be a valid UUID, got: %s", authOrgID)
-		}
-		orgIDVal = authOrgID
-
-		// Determine method
-		if authMethod != "" {
-			m, err := auth.ValidateMethod(authMethod)
-			if err != nil {
-				return err
-			}
-			method = m
-			switch m {
-			case auth.DirectAPIKey:
-				if authAPIKey == "" {
-					return fmt.Errorf("--method apikey requires --api-key")
-				}
-			case auth.SigV4:
-				if authSecret == "" {
-					return fmt.Errorf("--method sigv4 requires --secret")
-				}
-			}
-		} else {
-			// Auto-detect from which flag was provided
-			switch {
-			case authAPIKey != "":
-				method = auth.DirectAPIKey
-			case authSecret != "":
-				method = auth.SigV4
-			default:
-				return fmt.Errorf("--api-key or --secret is required in non-interactive mode")
-			}
-		}
-
-		if authStore == "" {
-			authStore = "home"
-		}
-		s, err := auth.ValidateStore(authStore)
-		if err != nil {
-			return err
-		}
-		store = s
-
-		creds = &auth.Credentials{
-			OrgID:  orgIDVal,
-			Method: method,
-		}
-		switch method {
-		case auth.DirectAPIKey:
-			creds.APIKey = authAPIKey
-		case auth.SigV4:
-			creds.Secret = authSecret
 		}
 	}
 
@@ -265,7 +273,7 @@ func runAuthLogin(cmd *cobra.Command) error {
 	if err := testAuth(ctx, creds); err != nil {
 		return fmt.Errorf("authentication test failed: %w", err)
 	}
-	ctx.Logger.Info(display.CheckMark(ctx.Term) + " Authentication successful")
+	ctx.Logger.Info(display.CheckMark(ctx.Term) + " Authentication verified")
 	analytics.TrackAuth(string(creds.Method), "login", true)
 
 	// Save credentials (keychain-aware, with file fallback).
@@ -283,12 +291,14 @@ func runAuthLogin(cmd *cobra.Command) error {
 // is present it surfaces clear guidance (with a setup URL) and falls back to the
 // standard home-directory config file.
 func saveCredentialsWithFallback(ctx *display.Context, creds *auth.Credentials, store auth.CredentialStore) (auth.CredentialStore, error) {
-	err := auth.SaveCredentials(creds, store)
+	err := auth.SaveCredentialsInDir(creds, store, authStoreDir)
 	if err != nil && store == auth.StoreKeyring {
 		ctx.Logger.Warn(err.Error())
-		ctx.Logger.Info("No usable OS keychain — falling back to file storage (~/.vulnetix/credentials.json).")
+		ctx.Logger.Info("No usable OS keychain - falling back to file storage.")
 		creds.HMACInKeyring = false
-		if ferr := auth.SaveCredentials(creds, auth.StoreHome); ferr != nil {
+		creds.TokenInKeyring = false
+		creds.APIKeyInKeyring = false
+		if ferr := auth.SaveCredentialsInDir(creds, auth.StoreHome, authStoreDir); ferr != nil {
 			return "", ferr
 		}
 		return auth.StoreHome, nil
@@ -299,91 +309,27 @@ func saveCredentialsWithFallback(ctx *display.Context, creds *auth.Credentials, 
 	return store, nil
 }
 
-func interactiveLogin() (auth.AuthMethod, string, string, auth.CredentialStore, error) {
-	reader := bufio.NewReader(os.Stdin)
-
-	// 1. Select auth method
-	fmt.Println("Select authentication method:")
-	fmt.Println("  [1] Authentik API Token (recommended)")
-	fmt.Println("  [2] Direct API Key (legacy)")
-	fmt.Println("  [3] SigV4 (legacy)")
-	fmt.Println("  [4] Browser Login")
-	fmt.Print("Choice [1]: ")
-	choice, _ := reader.ReadString('\n')
-	choice = strings.TrimSpace(choice)
-
-	switch choice {
-	case "", "1":
-		return tokenLogin(reader)
-	case "2":
-		// Direct API Key flow
-	case "3":
-		// SigV4 flow
-	case "4":
-		return browserLogin(reader)
-	default:
-		return "", "", "", "", fmt.Errorf("invalid choice: %s", choice)
+func fetchLivePlan(creds *auth.Credentials, baseURL string) string {
+	client := vdb.NewClientFromCredentials(creds)
+	if baseURL != "" {
+		base := strings.TrimRight(baseURL, "/")
+		base = strings.TrimSuffix(base, "/v1")
+		base = strings.TrimSuffix(base, "/v2")
+		client.BaseURL = base
 	}
-
-	var method auth.AuthMethod
-	if choice == "3" {
-		method = auth.SigV4
-	} else {
-		method = auth.DirectAPIKey
+	client.HTTPClient = &http.Client{Timeout: 3 * time.Second}
+	now := time.Now()
+	_, err := client.GetGCVEIssuances(now.Year(), int(now.Month()), 1, 0)
+	if err != nil || client.LastRateLimit == nil || strings.TrimSpace(client.LastRateLimit.Plan) == "" {
+		return "unknown"
 	}
-
-	// 2. Organization ID
-	fmt.Print("Organization ID (UUID): ")
-	orgIDVal, _ := reader.ReadString('\n')
-	orgIDVal = strings.TrimSpace(orgIDVal)
-	if _, err := uuid.Parse(orgIDVal); err != nil {
-		return "", "", "", "", fmt.Errorf("invalid UUID: %s", orgIDVal)
-	}
-
-	// 3. Secret/API Key
-	var prompt string
-	if method == auth.DirectAPIKey {
-		prompt = "API Key (hex): "
-	} else {
-		prompt = "Secret Key: "
-	}
-	fmt.Print(prompt)
-	secret, _ := reader.ReadString('\n')
-	secret = strings.TrimSpace(secret)
-	if secret == "" {
-		return "", "", "", "", fmt.Errorf("secret cannot be empty")
-	}
-
-	// 4. Storage location
-	store, err := promptStore(reader)
-	if err != nil {
-		return "", "", "", "", err
-	}
-
-	return method, orgIDVal, secret, store, nil
-}
-
-// tokenLogin prompts for an Authentik API token ("Tokens and App passwords").
-// The org is resolved server-side, so no Organization ID is required.
-func tokenLogin(reader *bufio.Reader) (auth.AuthMethod, string, string, auth.CredentialStore, error) {
-	fmt.Println("Create a token at https://auth.vulnetix.com/if/user/#/settings;page=page-tokens")
-	fmt.Print("Authentik API Token: ")
-	tok, _ := reader.ReadString('\n')
-	tok = strings.TrimSpace(tok)
-	if tok == "" {
-		return "", "", "", "", fmt.Errorf("token cannot be empty")
-	}
-	store, err := promptStore(reader)
-	if err != nil {
-		return "", "", "", "", err
-	}
-	return auth.Token, "", tok, store, nil
+	return strings.ToUpper(client.LastRateLimit.Plan)
 }
 
 func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
 	keyringNote := "System keyring (OS keychain)"
 	if err := auth.KeyringAvailable(); err != nil {
-		keyringNote = "System keyring (no backend detected — will fall back to file)"
+		keyringNote = "System keyring (no backend detected - will fall back to file)"
 	}
 	fmt.Println("Where to store credentials?")
 	fmt.Println("  [1] Home directory ~/.vulnetix/ (default)")
@@ -406,6 +352,7 @@ func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
 }
 
 const (
+	credentialsPageURL  = `https://auth.vulnetix.com/if/user/#/settings;%7B%22page%22%3A%22page-credentials%22%2C%22ak-user-settings-mfa-page%22%3A0%7D`
 	browserLoginURL     = "https://app.vulnetix.com/cli-login-code"
 	browserPollURL      = "https://app.vulnetix.com/api/cli/auth-code/poll/"
 	browserCodeCharset  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -425,7 +372,7 @@ func generateCode() (string, error) {
 	return string(b[:3]) + "-" + string(b[3:]), nil
 }
 
-func browserLogin(reader *bufio.Reader) (auth.AuthMethod, string, string, auth.CredentialStore, error) {
+func browserLogin(reader *bufio.Reader, interactive bool) (auth.AuthMethod, string, string, auth.CredentialStore, error) {
 	for {
 		code, err := generateCode()
 		if err != nil {
@@ -433,19 +380,32 @@ func browserLogin(reader *bufio.Reader) (auth.AuthMethod, string, string, auth.C
 		}
 
 		fmt.Println()
-		fmt.Println("Open this URL in your browser:")
+		fmt.Println("Device Flow login")
+		fmt.Println()
+		if interactive {
+			if err := openBrowser(browserLoginURL); err == nil {
+				fmt.Println("Opened your browser. If it did not appear, open this URL:")
+			} else {
+				fmt.Println("Open this URL in your browser:")
+			}
+		} else {
+			fmt.Println("Open this URL in a browser:")
+		}
 		fmt.Println()
 		fmt.Printf("  %s\n", browserLoginURL)
 		fmt.Println()
-		fmt.Println("Then enter this code when prompted:")
+		fmt.Println("Enter this code when prompted:")
 		fmt.Println()
-		fmt.Printf("  \033[1m%s\033[0m\n", code) // bold
+		fmt.Printf("  %s\n", code)
 		fmt.Println()
 		fmt.Println("Waiting for browser authorization...")
 
 		orgID, apiKey, err := pollForAuth(code)
 		if err != nil {
-			// Timeout — prompt retry
+			if !interactive {
+				return "", "", "", "", fmt.Errorf("device flow timed out")
+			}
+			// Timeout; prompt retry.
 			fmt.Println()
 			fmt.Print("Code expired. Try again? [Y/n]: ")
 			retry, _ := reader.ReadString('\n')
@@ -456,7 +416,7 @@ func browserLogin(reader *bufio.Reader) (auth.AuthMethod, string, string, auth.C
 			return "", "", "", "", fmt.Errorf("browser login cancelled")
 		}
 
-		// Parse apiKey "orgId:hex" — the full value is the api key
+		// Parse apiKey "orgId:hex"; the full value is the api key.
 		// The orgId is returned separately
 		parts := strings.SplitN(apiKey, ":", 2)
 		if len(parts) != 2 {
@@ -464,12 +424,20 @@ func browserLogin(reader *bufio.Reader) (auth.AuthMethod, string, string, auth.C
 		}
 		apiKeyHex := parts[1]
 
-		fmt.Printf("\n\033[32mAuthentication successful!\033[0m\n") // green
+		fmt.Printf("\nAuthentication accepted.\n")
 		fmt.Println()
 
-		store, err := promptStore(reader)
-		if err != nil {
-			return "", "", "", "", err
+		store := auth.StoreHome
+		if interactive {
+			store, err = promptStore(reader)
+			if err != nil {
+				return "", "", "", "", err
+			}
+		} else {
+			store, err = auth.ValidateStore(authStore)
+			if err != nil {
+				return "", "", "", "", err
+			}
 		}
 
 		return auth.DirectAPIKey, orgID, apiKeyHex, store, nil
@@ -613,26 +581,42 @@ func isInteractive() bool {
 	return (fi.Mode() & os.ModeCharDevice) != 0
 }
 
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func init() {
-	authLoginCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: token, apikey, sigv4 (auto-detected if omitted)")
-	authLoginCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; not required for --token)")
-	authLoginCmd.Flags().StringVar(&authToken, "token", "", "Authentik API token (recommended; from auth.vulnetix.com Tokens and App passwords)")
-	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex; legacy)")
-	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key (legacy)")
+	authLoginCmd.Flags().StringVar(&authMethod, "method", "", "Deprecated authentication method selector")
+	authLoginCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; required for --secret)")
+	authLoginCmd.Flags().StringVar(&authToken, "token", "", "Deprecated alias for --api-key")
+	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "ApiKey credential from the credentials page")
+	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret from a credential whose Identifier is vdb_api_sigv4")
 	authLoginCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
+	authLoginCmd.Flags().StringVar(&authStoreDir, "store-dir", "", "Directory for home/keyring credential metadata instead of $HOME/.vulnetix")
+	authLoginCmd.Flags().BoolVar(&authNoninteractive, "noninteractive", false, "Require ApiKey from --api-key or environment; never launch a browser")
+	_ = authLoginCmd.Flags().MarkHidden("token")
 	_ = authLoginCmd.RegisterFlagCompletionFunc("method", cobra.FixedCompletions([]string{"apikey", "sigv4"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = authLoginCmd.RegisterFlagCompletionFunc("store", cobra.FixedCompletions([]string{"home", "project", "keyring"}, cobra.ShellCompDirectiveNoFileComp))
 
 	// Also add flags to the parent auth command for `vulnetix auth --method ...`
-	authCmd.Flags().StringVar(&authMethod, "method", "", "Authentication method: token, apikey, sigv4 (auto-detected if omitted)")
-	authCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; not required for --token)")
-	authCmd.Flags().StringVar(&authToken, "token", "", "Authentik API token (recommended; from auth.vulnetix.com Tokens and App passwords)")
-	authCmd.Flags().StringVar(&authAPIKey, "api-key", "", "Direct API key (hex; legacy)")
-	authCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret key (legacy)")
+	authCmd.Flags().StringVar(&authMethod, "method", "", "Deprecated authentication method selector")
+	authCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; required for --secret)")
+	authCmd.Flags().StringVar(&authToken, "token", "", "Deprecated alias for --api-key")
+	authCmd.Flags().StringVar(&authAPIKey, "api-key", "", "ApiKey credential from the credentials page")
+	authCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret from a credential whose Identifier is vdb_api_sigv4")
 	authCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
+	authCmd.Flags().StringVar(&authStoreDir, "store-dir", "", "Directory for home/keyring credential metadata instead of $HOME/.vulnetix")
+	authCmd.Flags().BoolVar(&authNoninteractive, "noninteractive", false, "Require ApiKey from --api-key or environment; never launch a browser")
+	_ = authCmd.Flags().MarkHidden("token")
 	_ = authCmd.RegisterFlagCompletionFunc("method", cobra.FixedCompletions([]string{"apikey", "sigv4"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = authCmd.RegisterFlagCompletionFunc("store", cobra.FixedCompletions([]string{"home", "project", "keyring"}, cobra.ShellCompDirectiveNoFileComp))
 
+	authStatusCmd.Flags().StringVar(&authStatusBaseURL, "base-url", upload.DefaultBaseURL, "Base URL for Vulnetix API")
 	authVerifyCmd.Flags().StringVar(&verifyBaseURL, "base-url", upload.DefaultBaseURL, "Base URL for Vulnetix API")
 
 	authCmd.AddCommand(authLoginCmd, authStatusCmd, authLogoutCmd, authVerifyCmd)

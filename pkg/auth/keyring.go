@@ -71,6 +71,16 @@ func loadSecretFromKeyring(account string) (string, error) {
 	return secret, err
 }
 
+// loadRequiredSecretFromKeyring retrieves a secret that metadata says must
+// exist in the keychain.
+func loadRequiredSecretFromKeyring(account string) (string, error) {
+	secret, err := keyring.Get(keyringService, account)
+	if errors.Is(err, keyring.ErrNotFound) {
+		return "", fmt.Errorf("keyring entry %q not found", account)
+	}
+	return secret, err
+}
+
 // removeSecretFromKeyring deletes a stored secret. A missing entry is not an error.
 func removeSecretFromKeyring(account string) error {
 	err := keyring.Delete(keyringService, account)
@@ -86,4 +96,20 @@ func hmacKeyringAccount(orgID string) string {
 		return "hmac-secret"
 	}
 	return "hmac-secret:" + orgID
+}
+
+// tokenKeyringAccount is the keychain account name for a Bearer token.
+func tokenKeyringAccount(orgID string) string {
+	if orgID == "" {
+		return "token"
+	}
+	return "token:" + orgID
+}
+
+// apiKeyKeyringAccount is the keychain account name for a legacy API key.
+func apiKeyKeyringAccount(orgID string) string {
+	if orgID == "" {
+		return "apikey"
+	}
+	return "apikey:" + orgID
 }

@@ -65,6 +65,11 @@ type Credentials struct {
 	// keychain rather than inline in this credentials file. When set, Secret is
 	// empty on disk and hydrated from the keychain at load time.
 	HMACInKeyring bool `json:"hmac_in_keyring,omitempty"`
+
+	// TokenInKeyring and APIKeyInKeyring mirror HMACInKeyring for Bearer and
+	// legacy ApiKey credentials. The credential file keeps only metadata.
+	TokenInKeyring  bool `json:"token_in_keyring,omitempty"`
+	APIKeyInKeyring bool `json:"api_key_in_keyring,omitempty"`
 }
 
 // GetAuthHeader returns the Authorization header value for the given credentials
