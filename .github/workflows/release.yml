@@ -48,6 +48,11 @@ jobs:
         with:
           go-version: '1.25'
 
+      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+        run: |
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+
       - name: Install zig
         run: |
           ZIG_VER="0.13.0"
@@ -101,6 +106,11 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
+
+      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+        run: |
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
 
       - name: Build darwin binaries
         run: |
@@ -175,6 +185,11 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '1.25'
+
+      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+        run: |
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
 
       - name: Test go install
         run: |
