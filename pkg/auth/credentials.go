@@ -32,6 +32,9 @@ func SaveCredentials(creds *Credentials, store CredentialStore) error {
 
 	// Copy so we never mutate the caller's struct while stripping the secret.
 	toWrite := *creds
+	if store == StoreKeyring {
+		toWrite.HMACInKeyring = true
+	}
 	if toWrite.HMACInKeyring && toWrite.Secret != "" {
 		if err := saveSecretToKeyring(hmacKeyringAccount(toWrite.OrgID), toWrite.Secret); err != nil {
 			return err
@@ -293,7 +296,13 @@ func storePath(store CredentialStore) (string, error) {
 	case StoreProject:
 		return filepath.Join(".vulnetix", credentialsFile), nil
 	case StoreKeyring:
-		return "", fmt.Errorf("keyring storage is not yet implemented")
+		// Keyring stores the secret in the OS keychain but keeps credential
+		// metadata (org, method, token) in the home-directory file.
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to determine home directory: %w", err)
+		}
+		return filepath.Join(homeDir, ".vulnetix", credentialsFile), nil
 	default:
 		return "", fmt.Errorf("unknown store: %s", store)
 	}
