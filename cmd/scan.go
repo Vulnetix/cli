@@ -732,39 +732,6 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	return mergeMalscanBreach(scanErr, malscanBreach)
 }
 
-// scanStatusCmd is kept for backward compatibility — checks status of a previously
-// submitted (legacy) remote scan.
-var scanStatusCmd = &cobra.Command{
-	Use:   "status <scan-id>",
-	Short: "Check the status of a previously submitted remote scan",
-	Long: `Check the status of a scan submitted to the VDB API (legacy remote scan mode).
-
-Examples:
-  vulnetix scan status abc123
-  vulnetix scan status abc123 --poll`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		scanID := args[0]
-		poll, _ := cmd.Flags().GetBool("poll")
-		pollInterval, _ := cmd.Flags().GetInt("poll-interval")
-		output, _ := cmd.Flags().GetString("output")
-
-		vdbAPIVersion = "v2"
-		client := newVDBClient()
-
-		if poll {
-			return pollScanResultsLegacy(client, []string{scanID}, pollInterval, output)
-		}
-
-		result, err := client.V2ScanStatus(scanID)
-		if err != nil {
-			return fmt.Errorf("failed to get scan status: %w", err)
-		}
-		printRateLimit(client)
-		return printOutput(result, output)
-	},
-}
-
 // ---------------------------------------------------------------------------
 // Local scan engine
 // ---------------------------------------------------------------------------
@@ -4207,50 +4174,6 @@ func writeRawLocalJSON(results []cdx.LocalScanResult) error {
 	return enc.Encode(out)
 }
 
-// pollScanResultsLegacy is the original sequential polling used by scan status subcommand.
-func pollScanResultsLegacy(client *vdb.Client, scanIDs []string, intervalSec int, output string) error {
-	pending := make(map[string]bool)
-	for _, id := range scanIDs {
-		pending[id] = true
-	}
-
-	allResults := make(map[string]interface{})
-	interval := time.Duration(intervalSec) * time.Second
-
-	for len(pending) > 0 {
-		for id := range pending {
-			result, err := client.V2ScanStatus(id)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "  [%s] error: %v\n", id, err)
-				delete(pending, id)
-				allResults[id] = map[string]interface{}{"error": err.Error()}
-				continue
-			}
-
-			status, _ := result["status"].(string)
-			switch status {
-			case "complete", "completed", "error", "failed":
-				fmt.Fprintf(os.Stderr, "  [%s] %s\n", id, status)
-				delete(pending, id)
-				allResults[id] = result
-			default:
-				fmt.Fprintf(os.Stderr, "  [%s] %s...\n", id, status)
-			}
-		}
-
-		if len(pending) > 0 {
-			time.Sleep(interval)
-		}
-	}
-
-	if len(allResults) == 1 {
-		for _, v := range allResults {
-			return printOutput(v, output)
-		}
-	}
-	return printOutput(allResults, output)
-}
-
 // ---------------------------------------------------------------------------
 // display.NewTerminal shim — Terminal is constructed without cmd context here.
 // ---------------------------------------------------------------------------
@@ -4587,7 +4510,6 @@ func extractRegoKind(src string) string {
 
 func init() {
 	rootCmd.AddCommand(scanCmd)
-	scanCmd.AddCommand(scanStatusCmd)
 
 	addScanFlags(scanCmd)
 	addSASTFlags(scanCmd)
@@ -4614,13 +4536,6 @@ func init() {
 	scanCmd.Flags().Bool("fresh-exploits", false, "With --from-memory: fetch latest exploit intel from API")
 	scanCmd.Flags().Bool("fresh-advisories", false, "With --from-memory: fetch latest remediation plans from API")
 	scanCmd.Flags().Bool("fresh-vulns", false, "With --from-memory: re-fetch affected version checks and latest scoring from API")
-
-	// scan status flags
-	scanStatusCmd.Flags().Bool("poll", false, "Poll until complete")
-	scanStatusCmd.Flags().Int("poll-interval", 5, "Polling interval in seconds")
-	scanStatusCmd.Flags().StringP("output", "o", "pretty", "Output format (json, pretty)")
-	_ = scanStatusCmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions(
-		[]string{"json", "pretty"}, cobra.ShellCompDirectiveNoFileComp))
 }
 
 // Ensure tui package is imported (used indirectly for color constants via display).

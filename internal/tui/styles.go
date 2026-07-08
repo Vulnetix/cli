@@ -25,17 +25,13 @@ var (
 	colorMedium   = ColorMedium
 	colorLow      = ColorLow
 	colorInfo     = ColorInfo
-	colorSuccess  = ColorSuccess
 	colorError    = ColorError
-	colorMalware  = ColorMalware
 	colorMuted    = ColorMuted
 	colorAccent   = ColorAccent
 	colorWhite    = ColorWhite
 
-	// Status indicators
-	styleCheck   = lipgloss.NewStyle().Foreground(colorSuccess).SetString("\u2714")
-	styleCross   = lipgloss.NewStyle().Foreground(colorError).SetString("\u2718")
-	styleMalware = lipgloss.NewStyle().Foreground(colorMalware).Bold(true)
+	// Selected-row highlight (used by triage + resolve views)
+	lipglossSelectedStyle = lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#333333"))
 
 	// Severity badge styles
 	styleCritical = lipgloss.NewStyle().Foreground(colorWhite).Background(colorCritical).Bold(true).Padding(0, 1)
@@ -54,10 +50,6 @@ var (
 			Foreground(colorMuted).
 			Padding(0, 1)
 
-	styleTitle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(colorAccent)
-
 	styleDetailHeader = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(colorAccent).
@@ -74,24 +66,9 @@ var (
 	styleDetailContent = lipgloss.NewStyle().
 				Padding(0, 1)
 
-	styleOutputMenu = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(colorAccent).
-			Padding(1, 2)
-
 	styleHelp = lipgloss.NewStyle().
 			Foreground(colorMuted).
 			Padding(0, 1)
-
-	// Task progress styles
-	styleFileName = lipgloss.NewStyle().
-			Width(40)
-
-	styleElapsed = lipgloss.NewStyle().
-			Foreground(colorMuted)
-
-	styleScanID = lipgloss.NewStyle().
-			Foreground(colorMuted)
 )
 
 // SeverityStyle returns the lipgloss style for a severity level.

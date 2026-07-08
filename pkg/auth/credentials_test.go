@@ -123,8 +123,8 @@ func TestAllSourceStatus(t *testing.T) {
 	t.Setenv("VULNETIX_API_KEY", "k")
 	t.Setenv("VULNETIX_ORG_ID", "o")
 	lines := AllSourceStatus()
-	if len(lines) != 7 {
-		t.Errorf("expected 7 lines, got %d", len(lines))
+	if len(lines) != 8 {
+		t.Errorf("expected 8 lines, got %d", len(lines))
 	}
 }
 

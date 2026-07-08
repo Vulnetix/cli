@@ -1,6 +1,8 @@
 package scan
 
 import (
+	"github.com/Vulnetix/vdb-sca-match/parse"
+
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,7 +26,7 @@ func hashCount(pkgs []ScopedPackage, name string) int {
 
 // cargo: checksums already captured; this guards the new dependency-tree edges.
 func TestParseCargoLock_Edges(t *testing.T) {
-	pkgs, err := parseCargoLockScoped(loadEcoFixture(t, "cargo", "Cargo.lock"), "Cargo.lock")
+	pkgs, err := parse.ParseManifest(loadEcoFixture(t, "cargo", "Cargo.lock"), "Cargo.lock", "Cargo.lock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +41,7 @@ func TestParseCargoLock_Edges(t *testing.T) {
 
 // gradle: guards the name/version split bug fix.
 func TestParseGradleLockfile_NameVersionSplit(t *testing.T) {
-	pkgs, err := parseGradleLockfileScoped(loadEcoFixture(t, "gradle", "gradle.lockfile"), "gradle.lockfile")
+	pkgs, err := parse.ParseManifest(loadEcoFixture(t, "gradle", "gradle.lockfile"), "gradle.lockfile", "gradle.lockfile")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +60,7 @@ func TestParseGradleLockfile_NameVersionSplit(t *testing.T) {
 
 // gemfile: guards the dep-line-leak bug fix + CHECKSUMS + edges.
 func TestParseGemfileLock_NoDepLineLeak(t *testing.T) {
-	pkgs, err := parseGemfileLockScoped(loadEcoFixture(t, "ruby", "Gemfile.lock"), "Gemfile.lock")
+	pkgs, err := parse.ParseManifest(loadEcoFixture(t, "ruby", "Gemfile.lock"), "Gemfile.lock", "Gemfile.lock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +90,7 @@ func TestParseGemfileLock_NoDepLineLeak(t *testing.T) {
 
 // composer: guards dist.shasum capture + require edges.
 func TestParseComposerLock_HashAndEdges(t *testing.T) {
-	pkgs, err := parseComposerLockScoped(loadEcoFixture(t, "composer", "composer.lock"), "composer.lock")
+	pkgs, err := parse.ParseManifest(loadEcoFixture(t, "composer", "composer.lock"), "composer.lock", "composer.lock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +110,7 @@ func TestParseComposerLock_HashAndEdges(t *testing.T) {
 
 // nuget: guards the schema rewrite (was returning zero packages) + contentHash + edges.
 func TestParseNugetLock_SchemaAndHash(t *testing.T) {
-	pkgs, err := parseNugetLockScoped(loadEcoFixture(t, "nuget", "packages.lock.json"), "packages.lock.json")
+	pkgs, err := parse.ParseManifest(loadEcoFixture(t, "nuget", "packages.lock.json"), "packages.lock.json", "packages.lock.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +135,7 @@ func TestParseNugetLock_SchemaAndHash(t *testing.T) {
 
 // hex: guards the realistic-format rewrite (inner + outer 64-hex) + deps edges.
 func TestParseMixLock_HashesAndEdges(t *testing.T) {
-	pkgs, err := parseMixLockScoped(loadEcoFixture(t, "hex", "mix.lock"), "mix.lock")
+	pkgs, err := parse.ParseManifest(loadEcoFixture(t, "hex", "mix.lock"), "mix.lock", "mix.lock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +154,7 @@ func TestParseMixLock_HashesAndEdges(t *testing.T) {
 
 // pub: guards description.sha256 capture.
 func TestParsePubspecLock_Sha256(t *testing.T) {
-	pkgs, err := parsePubspecLockScoped(loadEcoFixture(t, "pub", "pubspec.lock"), "pubspec.lock")
+	pkgs, err := parse.ParseManifest(loadEcoFixture(t, "pub", "pubspec.lock"), "pubspec.lock", "pubspec.lock")
 	if err != nil {
 		t.Fatal(err)
 	}

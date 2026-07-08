@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
-	"github.com/google/uuid"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
@@ -225,26 +223,6 @@ var scoreTypeToMethod = map[string]string{
 	"cvssv2.0":      "CVSSv2",
 }
 
-// vulnSourceForScores determines the vulnerability source name for CycloneDX output
-// when scores are available (VulnSummary path from BuildFromScanTasks).
-// When the scores contain a "vulnetix" source, the name is "Vulnetix VDB".
-// Otherwise, the first non-empty score source is used as the attribution name.
-// The URL is always https://www.vulnetix.com/vdb.
-func vulnSourceForScores(scores []scan.ScoreEntry) *Source {
-	for _, s := range scores {
-		if s.Source == "vulnetix" {
-			return &Source{Name: "Vulnetix VDB", URL: "https://www.vulnetix.com/vdb"}
-		}
-	}
-	for _, s := range scores {
-		if s.Source != "" {
-			return &Source{Name: s.Source, URL: "https://www.vulnetix.com/vdb"}
-		}
-	}
-	// Default: no score sources known, attribute to Vulnetix VDB.
-	return &Source{Name: "Vulnetix VDB", URL: "https://www.vulnetix.com/vdb"}
-}
-
 // vulnSourceForFind determines the vulnerability source name for the local scan path
 // (VulnFinding). When the finding's Source field is set, it is used as the name.
 // The URL is always https://www.vulnetix.com/vdb.
@@ -256,112 +234,6 @@ func vulnSourceForFind(f scan.VulnFinding) *Source {
 		return &Source{Name: f.Source, URL: "https://www.vulnetix.com/vdb"}
 	}
 	return &Source{Name: "Vulnetix VDB", URL: "https://www.vulnetix.com/vdb"}
-}
-
-// BuildFromScanTasks creates a CycloneDX BOM from completed scan tasks.
-func BuildFromScanTasks(tasks []*scan.ScanTask, specVersion string, scanCtx *ScanContext) *BOM {
-	if specVersion == "" {
-		specVersion = "1.7"
-	}
-
-	toolVersion := "cli"
-	if scanCtx != nil && scanCtx.ToolVersion != "" {
-		toolVersion = scanCtx.ToolVersion
-	}
-
-	bom := &BOM{
-		BOMFormat:    "CycloneDX",
-		SpecVersion:  specVersion,
-		SerialNumber: "urn:uuid:" + uuid.New().String(),
-		Version:      1,
-		Metadata: &Metadata{
-			Timestamp:  time.Now().UTC().Format(time.RFC3339),
-			Lifecycles: []Lifecycle{{Phase: "build"}},
-			Tools: &Tools{
-				Components: []Component{
-					{Type: "application", Name: "vulnetix-sca", Version: toolVersion},
-				},
-			},
-		},
-	}
-
-	if scanCtx != nil {
-		populateMetadataFromContext(bom.Metadata, scanCtx)
-	}
-
-	// Track components by package name+version to deduplicate
-	componentRefs := map[string]string{} // "name@version" -> bom-ref
-
-	allVulns := scan.AllVulns(tasks)
-
-	for _, v := range allVulns {
-		// Ensure the affected component exists
-		compKey := v.PackageName + "@" + v.PackageVer
-		bomRef, exists := componentRefs[compKey]
-		if !exists && v.PackageName != "" {
-			bomRef = fmt.Sprintf("pkg:%s@%s", v.PackageName, v.PackageVer)
-			componentRefs[compKey] = bomRef
-			bom.Components = append(bom.Components, Component{
-				Type:    "library",
-				BOMRef:  bomRef,
-				Name:    v.PackageName,
-				Version: v.PackageVer,
-			})
-		}
-
-		// Build vulnerability entry
-		vuln := Vulnerability{
-			BOMRef: v.VulnID,
-			ID:     v.VulnID,
-			Source: vulnSourceForScores(v.Scores),
-		}
-
-		// Add ratings from scores
-		for _, s := range v.Scores {
-			method := scoreTypeToMethod[s.Type]
-			if method == "" {
-				method = "other"
-			}
-			r := Rating{
-				Score:    s.Score,
-				Severity: v.Severity,
-				Method:   method,
-			}
-			if s.Source != "" {
-				r.Source = &Source{Name: s.Source}
-			}
-			if s.Type == "epss" || s.Type == "coalition_ess" {
-				r.Source = &Source{Name: s.Type}
-			}
-			vuln.Ratings = append(vuln.Ratings, r)
-		}
-
-		// Add affects reference
-		if bomRef != "" {
-			vuln.Affects = append(vuln.Affects, Affect{Ref: bomRef})
-		}
-
-		// Handle malicious packages
-		if v.IsMalicious {
-			vuln.Analysis = &Analysis{State: "exploitable"}
-			vuln.Properties = append(vuln.Properties, Property{
-				Name:  "vulnetix:malware",
-				Value: "true",
-			})
-		}
-
-		// Add source file property
-		if v.SourceFile != "" {
-			vuln.Properties = append(vuln.Properties, Property{
-				Name:  "vulnetix:source-file",
-				Value: v.SourceFile,
-			})
-		}
-
-		bom.Vulnerabilities = append(bom.Vulnerabilities, vuln)
-	}
-
-	return bom
 }
 
 // MarshalValidatedJSON serializes the BOM to indented JSON and validates the

@@ -1,6 +1,8 @@
 package scan
 
 import (
+	"github.com/Vulnetix/vdb-sca-match/parse"
+
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,7 +47,7 @@ spec:
             - name: job
               image: docker.io/library/busybox:1.36
 `
-	pkgs, err := parseKubernetesScoped([]byte(yaml), "deployment.yaml")
+	pkgs, err := parse.ParseManifest([]byte(yaml), "kubernetes.yaml", "deployment.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +86,7 @@ image:
 sidecar:
   image: docker.io/library/redis:7
 `), 0o644)
-	pkgs, err := parseHelmChartScoped([]byte(readFile(t, chart)), chart)
+	pkgs, err := parse.ParseManifest([]byte(readFile(t, chart)), "Chart.yaml", chart)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +112,7 @@ dependencies:
       - requests==2.31.0
       - flask
 `
-	pkgs, _ := parseCondaEnvScoped([]byte(env), "environment.yml")
+	pkgs, _ := parse.ParseManifest([]byte(env), "environment.yml", "environment.yml")
 	if p, ok := pkgByName(pkgs, "numpy"); !ok || p.Ecosystem != "conda" || p.Version != "1.24" {
 		t.Errorf("conda numpy: %+v", p)
 	}
@@ -130,7 +132,7 @@ func TestParseSetupPyAndCfg(t *testing.T) {
         "boto3==1.34.0",
     ],
 )`
-	pkgs, _ := parseSetupPyScoped([]byte(py), "setup.py")
+	pkgs, _ := parse.ParseManifest([]byte(py), "setup.py", "setup.py")
 	if p, ok := pkgByName(pkgs, "flask"); !ok || p.Ecosystem != "pypi" || p.Version != "2.0" {
 		t.Errorf("setup.py flask: %+v", p)
 	}
@@ -139,7 +141,7 @@ install_requires =
     django>=4.2
     requests
 `
-	cpkgs, _ := parseSetupCfgScoped([]byte(cfg), "setup.cfg")
+	cpkgs, _ := parse.ParseManifest([]byte(cfg), "setup.cfg", "setup.cfg")
 	if p, ok := pkgByName(cpkgs, "django"); !ok || p.Version != "4.2" {
 		t.Errorf("setup.cfg django: %+v", p)
 	}
@@ -154,7 +156,7 @@ func TestParsePackagesConfig(t *testing.T) {
   <package id="Newtonsoft.Json" version="13.0.3" targetFramework="net48" />
   <package id="Serilog" version="3.1.1" />
 </packages>`
-	pkgs, err := parsePackagesConfigScoped([]byte(xml), "packages.config")
+	pkgs, err := parse.ParseManifest([]byte(xml), "packages.config", "packages.config")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,18 +169,18 @@ func TestParseClojureAndMill(t *testing.T) {
 	lein := `(defproject my-app "0.1.0"
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [ring/ring-core "1.9.6"]])`
-	lpkgs, _ := parseLeiningenScoped([]byte(lein), "project.clj")
+	lpkgs, _ := parse.ParseManifest([]byte(lein), "project.clj", "project.clj")
 	if p, ok := pkgByName(lpkgs, "org.clojure:clojure"); !ok || p.Ecosystem != "clojars" || p.Version != "1.11.1" {
 		t.Errorf("leiningen dep: %+v", p)
 	}
 	deps := `{:deps {org.clojure/clojure {:mvn/version "1.11.1"}
         cheshire/cheshire {:mvn/version "5.12.0"}}}`
-	dpkgs, _ := parseDepsEdnScoped([]byte(deps), "deps.edn")
+	dpkgs, _ := parse.ParseManifest([]byte(deps), "deps.edn", "deps.edn")
 	if p, ok := pkgByName(dpkgs, "cheshire:cheshire"); !ok || p.Version != "5.12.0" {
 		t.Errorf("deps.edn dep: %+v", p)
 	}
 	mill := `def ivyDeps = Agg(ivy"com.lihaoyi::os-lib:0.9.1", ivy"org.slf4j:slf4j-api:2.0.7")`
-	mpkgs, _ := parseMillScoped([]byte(mill), "build.sc")
+	mpkgs, _ := parse.ParseManifest([]byte(mill), "build.sc", "build.sc")
 	if p, ok := pkgByName(mpkgs, "com.lihaoyi:os-lib"); !ok || p.Ecosystem != "maven" || p.Version != "0.9.1" {
 		t.Errorf("mill scala dep: %+v", p)
 	}

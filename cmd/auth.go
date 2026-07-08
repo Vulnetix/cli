@@ -63,7 +63,7 @@ var authLoginCmd = &cobra.Command{
 	Long: `Log in to the Vulnetix API. Interactive by default when run in a terminal.
 
 Non-interactive flags:
-  --method apikey|sigv4    Authentication method (auto-detected if omitted)
+  --method token|apikey|sigv4  Authentication method (auto-detected if omitted)
   --org-id UUID            Organization ID
   --api-key KEY            API key for Direct API Key auth
   --secret KEY             Secret key for SigV4 auth
@@ -84,20 +84,16 @@ var authStatusCmd = &cobra.Command{
 		ctx.Logger.Result(display.Bold(t, status))
 		if creds != nil {
 			var secretLabel, secretValue string
-			if creds.Method == auth.DirectAPIKey {
-				masked := creds.APIKey
-				if len(masked) > 8 {
-					masked = masked[:4] + "..." + masked[len(masked)-4:]
-				}
+			switch creds.Method {
+			case auth.Token:
+				secretLabel = "Token"
+				secretValue = maskSecret(creds.Token)
+			case auth.DirectAPIKey:
 				secretLabel = "API Key"
-				secretValue = masked
-			} else {
-				masked := creds.Secret
-				if len(masked) > 8 {
-					masked = masked[:4] + "..." + masked[len(masked)-4:]
-				}
+				secretValue = maskSecret(creds.APIKey)
+			default:
 				secretLabel = "Secret"
-				secretValue = masked
+				secretValue = maskSecret(creds.Secret)
 			}
 			ctx.Logger.Result(display.KeyValue(t, []display.KVPair{
 				{Key: "Organization", Value: creds.OrgID},

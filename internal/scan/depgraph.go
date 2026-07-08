@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/Vulnetix/vdb-sca-match/parse"
 )
 
 // DepGraph tracks direct vs transitive dependency relationships for a manifest group.
@@ -302,7 +304,7 @@ func (g *DepGraph) PopulatePypiLockEdges(dir string) {
 
 	// uv.lock — richest tree (explicit dependencies + optional-dependencies).
 	if data, err := os.ReadFile(filepath.Join(dir, "uv.lock")); err == nil {
-		var lock uvLockFile
+		var lock parse.UVLockFile
 		if _, derr := toml.Decode(string(data), &lock); derr == nil {
 			for _, p := range lock.Package {
 				var children []string
@@ -325,7 +327,7 @@ func (g *DepGraph) PopulatePypiLockEdges(dir string) {
 
 	// pylock.toml — PEP 751 per-package dependencies, when the generator emits them.
 	if data, err := os.ReadFile(filepath.Join(dir, "pylock.toml")); err == nil {
-		var lock pylockFile
+		var lock parse.PylockFile
 		if _, derr := toml.Decode(string(data), &lock); derr == nil {
 			for _, p := range lock.Packages {
 				var children []string
@@ -383,7 +385,7 @@ func parseRequirementsViaEdges(content string) map[string][]string {
 	edges := map[string][]string{}
 	curName := ""
 	curVia := false
-	for _, ll := range joinReqContinuations(content) {
+	for _, ll := range parse.JoinReqContinuations(content) {
 		line := strings.TrimSpace(ll)
 		if line == "" {
 			continue
@@ -397,10 +399,10 @@ func parseRequirementsViaEdges(content string) map[string][]string {
 				curVia = true
 				body = strings.TrimSpace(rest)
 			}
-			if !curVia || body == "" || isRequirementsInclude(body) {
+			if !curVia || body == "" || parse.IsRequirementsInclude(body) {
 				continue
 			}
-			if parent, _, _, ok := parsePEP508(body); ok && parent != "" {
+			if parent, _, _, ok := parse.ParsePEP508(body); ok && parent != "" {
 				edges[parent] = append(edges[parent], curName)
 			}
 			continue
@@ -420,7 +422,7 @@ func parseRequirementsViaEdges(content string) map[string][]string {
 			}
 			specParts = append(specParts, tok)
 		}
-		if name, _, _, ok := parsePEP508(strings.Join(specParts, " ")); ok {
+		if name, _, _, ok := parse.ParsePEP508(strings.Join(specParts, " ")); ok {
 			curName = name
 		} else {
 			curName = ""

@@ -28,7 +28,7 @@ func TestResolveNpmPackageJSONFromNodeModules(t *testing.T) {
 		"version": "3.1.4"
 	}`)
 
-	directPkgs, err := parsePackageJSONScoped(mustRead(t, filepath.Join(project, "package.json")), filepath.Join(project, "package.json"))
+	directPkgs, err := ParseManifestWithScope(filepath.Join(project, "package.json"), "package.json")
 	if err != nil {
 		t.Fatalf("parse package.json: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestResolveNpmPackageJSONFromNodeModules(t *testing.T) {
 func TestResolveNpmPackageJSONFromNodeModulesRequiresNodeModules(t *testing.T) {
 	root := t.TempDir()
 	writeNpmPackage(t, filepath.Join(root, "package.json"), `{"dependencies": {"direct": "^1.0.0"}}`)
-	directPkgs, err := parsePackageJSONScoped(mustRead(t, filepath.Join(root, "package.json")), filepath.Join(root, "package.json"))
+	directPkgs, err := ParseManifestWithScope(filepath.Join(root, "package.json"), "package.json")
 	if err != nil {
 		t.Fatalf("parse package.json: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestResolveNpmPackageJSONFromNodeModulesRequiresDirectPackages(t *testing.T
 	if err := os.MkdirAll(filepath.Join(root, "node_modules"), 0o755); err != nil {
 		t.Fatalf("mkdir node_modules: %v", err)
 	}
-	directPkgs, err := parsePackageJSONScoped(mustRead(t, filepath.Join(root, "package.json")), filepath.Join(root, "package.json"))
+	directPkgs, err := ParseManifestWithScope(filepath.Join(root, "package.json"), "package.json")
 	if err != nil {
 		t.Fatalf("parse package.json: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestNpmLockfilePresent(t *testing.T) {
 func TestResolveNpmPackageJSONFromNodeModules_NoLockfileNoNodeModules(t *testing.T) {
 	root := t.TempDir()
 	writeNpmPackage(t, filepath.Join(root, "package.json"), `{"dependencies": {"direct": "^1.0.0"}}`)
-	directPkgs, err := parsePackageJSONScoped(mustRead(t, filepath.Join(root, "package.json")), filepath.Join(root, "package.json"))
+	directPkgs, err := ParseManifestWithScope(filepath.Join(root, "package.json"), "package.json")
 	if err != nil {
 		t.Fatalf("parse package.json: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestResolveNpmPackageJSONFromNodeModules_IncompleteNodeModules(t *testing.T
 	// Only one of the two declared deps is actually installed.
 	writeNpmPackage(t, filepath.Join(root, "node_modules", "present", "package.json"), `{"name": "present", "version": "1.2.3"}`)
 
-	directPkgs, err := parsePackageJSONScoped(mustRead(t, filepath.Join(root, "package.json")), filepath.Join(root, "package.json"))
+	directPkgs, err := ParseManifestWithScope(filepath.Join(root, "package.json"), "package.json")
 	if err != nil {
 		t.Fatalf("parse package.json: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestResolveNpmPackageJSONFromNodeModules_OptionalDepAbsentOK(t *testing.T) 
 	}`)
 	writeNpmPackage(t, filepath.Join(root, "node_modules", "present", "package.json"), `{"name": "present", "version": "1.2.3"}`)
 
-	directPkgs, err := parsePackageJSONScoped(mustRead(t, filepath.Join(root, "package.json")), filepath.Join(root, "package.json"))
+	directPkgs, err := ParseManifestWithScope(filepath.Join(root, "package.json"), "package.json")
 	if err != nil {
 		t.Fatalf("parse package.json: %v", err)
 	}

@@ -8,10 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -686,82 +684,6 @@ func isEmptyResponse(body []byte) bool {
 		return false
 	}
 	return envelope.Total != nil && *envelope.Total == 0
-}
-
-// DoRequestRawBody performs an authenticated API request with a raw body (not JSON-marshaled).
-func (c *Client) DoRequestRawBody(method, path string, body []byte, contentType string) ([]byte, error) {
-	url := c.BaseURL + c.APIVersion + path
-
-	req, err := http.NewRequest(method, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	if err := c.addAuthHeader(req); err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", contentType)
-
-	// Enable body reset for retries
-	req.GetBody = func() (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader(body)), nil
-	}
-
-	return c.doRequestWithRetry(req)
-}
-
-// DoRequestMultipart performs an authenticated multipart/form-data API request.
-func (c *Client) DoRequestMultipart(path, filePath, fileField string, fields map[string]string) ([]byte, error) {
-	// Read the file
-	fileData, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
-	}
-
-	// Build multipart body
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	// Add form fields
-	for k, v := range fields {
-		if err := writer.WriteField(k, v); err != nil {
-			return nil, fmt.Errorf("failed to write field %s: %w", k, err)
-		}
-	}
-
-	// Add file field
-	fileName := filepath.Base(filePath)
-	part, err := writer.CreateFormFile(fileField, fileName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create form file: %w", err)
-	}
-	if _, err := part.Write(fileData); err != nil {
-		return nil, fmt.Errorf("failed to write file data: %w", err)
-	}
-
-	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close multipart writer: %w", err)
-	}
-
-	bodyBytes := buf.Bytes()
-	contentType := writer.FormDataContentType()
-
-	url := c.BaseURL + c.APIVersion + path
-
-	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	if err := c.addAuthHeader(req); err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", contentType)
-
-	// Enable body reset for retries
-	req.GetBody = func() (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader(bodyBytes)), nil
-	}
-
-	return c.doRequestWithRetry(req)
 }
 
 // retryCurlHint returns a dim curl equivalent of req (no auth headers) for retry log lines.

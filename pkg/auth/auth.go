@@ -47,7 +47,7 @@ func ValidateStore(store string) (CredentialStore, error) {
 	case StoreProject:
 		return StoreProject, nil
 	case StoreKeyring:
-		return StoreKeyring, fmt.Errorf("keyring storage is not yet implemented")
+		return StoreKeyring, nil
 	default:
 		return "", fmt.Errorf("invalid store %q: must be 'home', 'project', or 'keyring'", store)
 	}
@@ -57,9 +57,14 @@ func ValidateStore(store string) (CredentialStore, error) {
 type Credentials struct {
 	OrgID  string     `json:"org_id"`
 	APIKey string     `json:"api_key,omitempty"` // hex digest for Direct API Key
-	Secret string     `json:"secret,omitempty"`  // secret key for SigV4
+	Secret string     `json:"secret,omitempty"`  // secret key for SigV4 (Authentik-sourced HMAC secret)
 	Token  string     `json:"token,omitempty"`   // Authentik API token (Bearer)
 	Method AuthMethod `json:"method"`
+
+	// HMACInKeyring is true when the SigV4/HMAC Secret is stored in the OS
+	// keychain rather than inline in this credentials file. When set, Secret is
+	// empty on disk and hydrated from the keychain at load time.
+	HMACInKeyring bool `json:"hmac_in_keyring,omitempty"`
 }
 
 // GetAuthHeader returns the Authorization header value for the given credentials

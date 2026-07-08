@@ -1,6 +1,8 @@
 package scan
 
 import (
+	"github.com/Vulnetix/vdb-sca-match/parse"
+
 	"os"
 	"path/filepath"
 	"testing"
@@ -63,7 +65,7 @@ RUN apk add --no-cache git openssl=3.3.2-r0 \
     && go install golang.org/x/tools/cmd/stringer@v0.24.0
 FROM gcr.io/distroless/static-debian12@sha256:abcdef
 `)
-	pkgs, err := parseDockerfileScoped(data, "Dockerfile")
+	pkgs, err := parse.ParseManifest(data, "Dockerfile", "Dockerfile")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -102,7 +104,7 @@ services:
   db:
     image: postgres@sha256:feedface
 `)
-	pkgs, err := parseComposeScoped(data, "compose.yaml")
+	pkgs, err := parse.ParseManifest(data, "compose.yaml", "compose.yaml")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -137,7 +139,7 @@ func TestParsePackageJSONScoped_VersionSpec(t *testing.T) {
 			"dev-range": "^4.0.0"
 		}
 	}`)
-	pkgs, err := parsePackageJSONScoped(data, "package.json")
+	pkgs, err := parse.ParseManifest(data, "package.json", "package.json")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -184,7 +186,7 @@ django~=4.2
 urllib3!=1.26.0
 bare-package
 `)
-	pkgs, err := parseRequirementsTxtScoped(data, "requirements.txt")
+	pkgs, err := parse.ParseManifest(data, "requirements.txt", "requirements.txt")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -237,7 +239,7 @@ dev = [
     "pytest>=7.0",
 ]
 `)
-	pkgs, err := parsePyprojectTOMLScoped(data, "pyproject.toml")
+	pkgs, err := parse.ParseManifest(data, "pyproject.toml", "pyproject.toml")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -285,7 +287,7 @@ withextras = {version = ">=1.0", extras = ["security"]}
 [dev-packages]
 pytest = ">=7.0"
 `)
-	pkgs, err := parsePipfileScoped(data, "Pipfile")
+	pkgs, err := parse.ParseManifest(data, "Pipfile", "Pipfile")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -297,7 +299,7 @@ pytest = ">=7.0"
 		wantDirect  bool
 	}{
 		{"requests", "2.28.0", ">=2.28.0", true},
-		// cleanLocalVersion("*") returns "*" (not stripped); spec preserved as-is
+		// parse.CleanLocalVersion("*") returns "*" (not stripped); spec preserved as-is
 		{"flask", "*", "*", true},
 		{"exact", "2.3.0", "2.3.0", true},
 		{"withextras", "1.0", ">=1.0", true},
@@ -333,7 +335,7 @@ exact-dep = "1.5.0"
 [dev-dependencies]
 pretty_assertions = "^1.3"
 `)
-	pkgs, err := parseCargoTomlScoped(data, "Cargo.toml")
+	pkgs, err := parse.ParseManifest(data, "Cargo.toml", "Cargo.toml")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -382,7 +384,7 @@ group :development, :test do
   gem 'rspec-rails', '~> 6.0'
 end
 `)
-	pkgs, err := parseGemfileScoped(data, "Gemfile")
+	pkgs, err := parse.ParseManifest(data, "Gemfile", "Gemfile")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -429,7 +431,7 @@ func TestParseComposerJSONScoped_VersionSpec(t *testing.T) {
 			"exact/pkg": "1.2.3"
 		}
 	}`)
-	pkgs, err := parseComposerJSONScoped(data, "composer.json")
+	pkgs, err := parse.ParseManifest(data, "composer.json", "composer.json")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
