@@ -602,9 +602,9 @@ func runAuthVerify(cmd *cobra.Command) error {
 	progress.Update(1, fmt.Sprintf("Loaded credentials for org %s", creds.OrgID))
 
 	progress.SetStage("Verifying credentials with Vulnetix API")
-	client := upload.NewClient(verifyBaseURL, creds)
-	result, err := client.VerifyAuth()
-	if err != nil {
+	// Validate against an authenticated VDB endpoint (same path as login), not
+	// the /uploads/* service.
+	if err := testAuth(ctx, creds); err != nil {
 		progress.Fail("verification failed")
 		return fmt.Errorf("verification failed: %w", err)
 	}
@@ -613,7 +613,7 @@ func runAuthVerify(cmd *cobra.Command) error {
 
 	ctx.Logger.Info(display.CheckMark(t) + " Authentication verified successfully")
 	ctx.Logger.Result(display.KeyValue(t, []display.KVPair{
-		{Key: "Organization", Value: result.OrgID},
+		{Key: "Organization", Value: creds.OrgID},
 	}))
 	return nil
 }
