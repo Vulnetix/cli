@@ -51,6 +51,10 @@ type Client struct {
 	HTTPClient    *http.Client
 	GitHubContext *GitHubActionsContext
 	CliEnv        *vdb.CliEnv
+
+	// sigv4Client is a lazily-created vdb client used only to perform the
+	// SigV4 -> Bearer token exchange (GetAuthHeader returns "" for SigV4).
+	sigv4Client *vdb.Client
 }
 
 // ProgressFunc reports upload stage progress against a fixed per-file goal.
@@ -423,11 +427,22 @@ func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error
 
 func (c *Client) addAuth(req *http.Request) {
 	req.Header.Set("User-Agent", "Vulnetix-CLI/1.0")
-	if c.Creds != nil {
-		header := auth.GetAuthHeader(c.Creds)
-		if header != "" {
-			req.Header.Set("Authorization", header)
+	if c.Creds == nil {
+		return
+	}
+	// SigV4 needs a token exchange (auth.GetAuthHeader returns "" for it). The
+	// vdb client performs the SigV4 -> Bearer exchange and caches the token.
+	if c.Creds.Method == auth.SigV4 {
+		if c.sigv4Client == nil {
+			c.sigv4Client = vdb.NewClientFromCredentials(c.Creds)
 		}
+		if tok, err := c.sigv4Client.GetToken(); err == nil && tok != "" {
+			req.Header.Set("Authorization", "Bearer "+tok)
+		}
+		return
+	}
+	if header := auth.GetAuthHeader(c.Creds); header != "" {
+		req.Header.Set("Authorization", header)
 	}
 }
 

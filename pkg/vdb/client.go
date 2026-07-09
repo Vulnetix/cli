@@ -233,10 +233,16 @@ func (c *Client) requestNewTokenLocked() (string, error) {
 		return "", fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	// Cache the token
+	// Cache the token. Some exchange responses (the Authentik-issued Bearer)
+	// omit exp; default to TokenExpiry so the token is cached instead of being
+	// treated as already-expired (epoch 0) and re-exchanged on every request.
+	expiresAt := time.Now().Add(TokenExpiry)
+	if tokenResp.Exp > 0 {
+		expiresAt = time.Unix(tokenResp.Exp, 0)
+	}
 	c.token = &TokenCache{
 		Token:     tokenResp.Token,
-		ExpiresAt: time.Unix(tokenResp.Exp, 0),
+		ExpiresAt: expiresAt,
 	}
 
 	return tokenResp.Token, nil

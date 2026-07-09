@@ -236,7 +236,13 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	// failure means the API is genuinely unusable (auth/config/network), which
 	// the caller surfaces as an actionable error.
 	if !anyOK {
-		if !silent {
+		var apiErr *vdb.CliAPIError
+		if errors.As(firstErr, &apiErr) && (apiErr.StatusCode == http.StatusUnauthorized || apiErr.StatusCode == http.StatusForbidden) {
+			// Explicit auth rejection — always surface it (even in quiet mode) so
+			// it is never mistaken for a network/config problem.
+			fmt.Fprintf(w, "ERROR: VDB API rejected your credentials (HTTP %d): %s\n", apiErr.StatusCode, apiErr.Message)
+			fmt.Fprintln(w, "       Run 'vulnetix auth verify', or regenerate your credentials in your VDB account.")
+		} else if !silent {
 			fmt.Fprintf(w, "  /v2/cli.sca all request(s) failed (%v)\n", firstErr)
 		}
 		return false, nil, nil, nil, "", "", nil
@@ -293,6 +299,12 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		if !silent {
 			fmt.Fprintf(w, "Snapshot: %s\n", snapshot.URL)
 		}
+	} else if !isUnauthenticatedScan() {
+		// Explicit (non-community) credentials were configured, but the server
+		// persisted no snapshot — it served this scan at community tier, i.e. the
+		// credentials were not accepted. Surface that instead of degrading silently.
+		fmt.Fprintln(w, "WARNING: credentials were not accepted — this scan ran at community tier and no snapshot was persisted.")
+		fmt.Fprintln(w, "         Run 'vulnetix auth verify' to check your credentials, or regenerate them in your VDB account.")
 	}
 
 	finalSnapshotUuid := ""
