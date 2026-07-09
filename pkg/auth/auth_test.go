@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 )
 
@@ -88,9 +91,13 @@ func TestGetAuthHeader_SigV4(t *testing.T) {
 		Secret: "secret",
 		Method: SigV4,
 	}
-	header := GetAuthHeader(creds)
-	if header != "" {
-		t.Errorf("expected empty header for SigV4, got %q", header)
+	// SigV4 sends the derived ApiKey for endpoints that accept ApiKey (uploads):
+	// ApiKey <org>:<HMAC-SHA256(secret, org)>.
+	mac := hmac.New(sha256.New, []byte("secret"))
+	mac.Write([]byte("test-org"))
+	want := "ApiKey test-org:" + hex.EncodeToString(mac.Sum(nil))
+	if header := GetAuthHeader(creds); header != want {
+		t.Errorf("expected %q for SigV4, got %q", want, header)
 	}
 }
 

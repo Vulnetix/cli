@@ -1,6 +1,11 @@
 package auth
 
-import "fmt"
+import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+)
 
 // AuthMethod represents the authentication method to use
 type AuthMethod string
@@ -80,9 +85,11 @@ func GetAuthHeader(creds *Credentials) string {
 	case DirectAPIKey:
 		return fmt.Sprintf("ApiKey %s:%s", creds.OrgID, creds.APIKey)
 	case SigV4:
-		// SigV4 uses Bearer tokens obtained from the token exchange flow.
-		// The caller must obtain the token separately and use it as Bearer.
-		return ""
+		// The upload endpoints (vdb-site) accept the derived ApiKey; send that
+		// instead of exchanging a cross-service JWT. ApiKey = HMAC-SHA256(secret, org).
+		mac := hmac.New(sha256.New, []byte(creds.Secret))
+		mac.Write([]byte(creds.OrgID))
+		return fmt.Sprintf("ApiKey %s:%s", creds.OrgID, hex.EncodeToString(mac.Sum(nil)))
 	default:
 		return ""
 	}
