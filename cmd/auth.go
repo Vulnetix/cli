@@ -65,8 +65,8 @@ var authLoginCmd = &cobra.Command{
 	Long: `Log in to the Vulnetix API. Browser Device Flow is used by default.
 
 Credential flags (org-scoped methods require --org-id):
-  --api-key KEY        ApiKey credential (requires --org-id); Identifier vdb_api_key
-  --secret KEY         SigV4 secret (requires --org-id); Identifier vdb_api_sigv4
+  --api-key KEY        ApiKey credential from your VDB account (requires --org-id)
+  --secret KEY         SigV4 secret from your VDB account (requires --org-id)
   --token KEY          Bearer token (org resolved server-side; no --org-id)
   --noninteractive     Require ApiKey (--api-key + --org-id) from flags or environment
   --store home|project|keyring
@@ -240,12 +240,12 @@ func runAuthLogin(cmd *cobra.Command) error {
 		key := firstNonEmpty(authAPIKey, os.Getenv("VULNETIX_API_KEY"))
 		org := firstNonEmpty(authOrgID, os.Getenv("VULNETIX_ORG_ID"))
 		if key == "" || org == "" {
-			return fmt.Errorf("missing ApiKey or org for noninteractive login. Create an ApiKey at %s (in the New token form set Identifier to `vdb_api_key`), then pass --api-key and --org-id (or set VULNETIX_API_KEY and VULNETIX_ORG_ID)", credentialsPageURL)
+			return fmt.Errorf("missing ApiKey or org for noninteractive login. Get your ApiKey and Org ID from your Vulnetix VDB account, then pass --api-key and --org-id (or set VULNETIX_API_KEY and VULNETIX_ORG_ID)")
 		}
 		if _, err := uuid.Parse(org); err != nil {
 			return fmt.Errorf("--org-id must be a valid UUID, got: %s", org)
 		}
-		creds = &auth.Credentials{OrgID: org, APIKey: key, Method: auth.DirectAPIKey}
+		creds = &auth.Credentials{OrgID: org, APIKey: stripOrgPrefix(org, key), Method: auth.DirectAPIKey}
 
 	case authAPIKey != "":
 		// Org-scoped ApiKey (sent as `Authorization: ApiKey <orgID>:<key>`).
@@ -253,7 +253,7 @@ func runAuthLogin(cmd *cobra.Command) error {
 		if err != nil {
 			return err
 		}
-		creds = &auth.Credentials{OrgID: org, APIKey: authAPIKey, Method: auth.DirectAPIKey}
+		creds = &auth.Credentials{OrgID: org, APIKey: stripOrgPrefix(org, authAPIKey), Method: auth.DirectAPIKey}
 
 	case authSecret != "":
 		// Org-scoped SigV4.
@@ -365,6 +365,13 @@ func resolveLoginOrgID(flag string) (string, error) {
 	return org, nil
 }
 
+// stripOrgPrefix removes a leading "<org>:" from an ApiKey value. The account
+// GUI presents the ApiKey as "<orgId>:<hex>", but the CLI prepends the org
+// itself when building the header, so accept either form.
+func stripOrgPrefix(org, value string) string {
+	return strings.TrimPrefix(value, org+":")
+}
+
 func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
 	keyringNote := "System keyring (OS keychain)"
 	if err := auth.KeyringAvailable(); err != nil {
@@ -391,7 +398,6 @@ func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
 }
 
 const (
-	credentialsPageURL  = `https://auth.vulnetix.com/if/user/#/settings;%7B%22page%22%3A%22page-credentials%22%2C%22ak-user-settings-mfa-page%22%3A0%7D`
 	browserLoginURL     = "https://app.vulnetix.com/cli-login-code"
 	browserPollURL      = "https://app.vulnetix.com/api/cli/auth-code/poll/"
 	browserCodeCharset  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -633,8 +639,8 @@ func init() {
 	authLoginCmd.Flags().StringVar(&authMethod, "method", "", "Deprecated authentication method selector")
 	authLoginCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; required for --api-key and --secret)")
 	authLoginCmd.Flags().StringVar(&authToken, "token", "", "Bearer token (org resolved server-side; no --org-id needed)")
-	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "ApiKey credential (requires --org-id); Identifier vdb_api_key")
-	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret from a credential whose Identifier is vdb_api_sigv4")
+	authLoginCmd.Flags().StringVar(&authAPIKey, "api-key", "", "ApiKey credential from your VDB account (requires --org-id)")
+	authLoginCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret from your VDB account (requires --org-id)")
 	authLoginCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
 	authLoginCmd.Flags().StringVar(&authStoreDir, "store-dir", "", "Directory for home/keyring credential metadata instead of $HOME/.vulnetix")
 	authLoginCmd.Flags().BoolVar(&authNoninteractive, "noninteractive", false, "Require ApiKey from --api-key or environment; never launch a browser")
@@ -646,8 +652,8 @@ func init() {
 	authCmd.Flags().StringVar(&authMethod, "method", "", "Deprecated authentication method selector")
 	authCmd.Flags().StringVar(&authOrgID, "org-id", "", "Organization ID (UUID; required for --secret)")
 	authCmd.Flags().StringVar(&authToken, "token", "", "Deprecated alias for --api-key")
-	authCmd.Flags().StringVar(&authAPIKey, "api-key", "", "ApiKey credential from the credentials page")
-	authCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret from a credential whose Identifier is vdb_api_sigv4")
+	authCmd.Flags().StringVar(&authAPIKey, "api-key", "", "ApiKey credential from your VDB account (requires --org-id)")
+	authCmd.Flags().StringVar(&authSecret, "secret", "", "SigV4 secret from your VDB account (requires --org-id)")
 	authCmd.Flags().StringVar(&authStore, "store", "home", "Credential storage: home, project, keyring")
 	authCmd.Flags().StringVar(&authStoreDir, "store-dir", "", "Directory for home/keyring credential metadata instead of $HOME/.vulnetix")
 	authCmd.Flags().BoolVar(&authNoninteractive, "noninteractive", false, "Require ApiKey from --api-key or environment; never launch a browser")
