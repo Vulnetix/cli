@@ -188,25 +188,30 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 			return metaEnv, req, false
 		}
 		reqEnv := lightEnv
-		if snapshot != nil {
-			// Append under the primary's run. Carry packages for finding context on
-			// jobs that have purls, plus this job's slice of manifest bodies.
-			req.IngestionSnapshotUuid = snapshot.Uuid
-			if len(job.purls) > 0 {
-				req.Packages = allCliPackages
+		if snapshot == nil {
+			// The primary job persisted nothing. A manifest-only job has no work
+			// left; a discovery job still fetches CDX/vuln data, but must not carry
+			// packages or manifests — either would satisfy the server's persistence
+			// gate and make it open a *new* run, one orphan snapshot per batch.
+			if len(job.purls) == 0 {
+				return reqEnv, req, true
 			}
-			if job.manifestSlot >= 0 && job.manifestSlot < len(bodySlots) {
-				reqEnv.Manifests = bodySlots[job.manifestSlot]
-			}
-		} else if len(job.purls) == 0 {
-			// No snapshot to anchor a manifest-only request; skip it. (Discovery
-			// jobs with purls still run for CDX/vuln data.)
-			return reqEnv, req, true
+			reqEnv.Manifests = nil
+			return reqEnv, req, false
+		}
+		// Append under the primary's run. Carry packages for finding context on
+		// jobs that have purls, plus this job's slice of manifest bodies.
+		req.IngestionSnapshotUuid = snapshot.Uuid
+		if len(job.purls) > 0 {
+			req.Packages = allCliPackages
+		}
+		if job.manifestSlot >= 0 && job.manifestSlot < len(bodySlots) {
+			reqEnv.Manifests = bodySlots[job.manifestSlot]
 		}
 		return reqEnv, req, false
 	}
 
-	onResult := func(_ scaJob, resp *vdb.CliResponse[vdb.CliSCAResponse]) {
+	onResult := func(job scaJob, resp *vdb.CliResponse[vdb.CliSCAResponse]) {
 		if resp.Meta.Tier == "pro" {
 			tierObserved = "pro"
 		}
@@ -221,10 +226,13 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 		mergedReach = append(mergedReach, resp.Data.Reachability...)
 		mergedInsights = append(mergedInsights, resp.Data.PackageInsights...)
-		// Capture the snapshot once (the primary job creates it). Findings come
-		// back from every job; accumulate them so reachability can correlate
-		// findings across the whole scan.
-		if snapshot == nil && resp.Data.IngestionSnapshot != nil {
+		// Only the primary job's snapshot counts. Adopting one from any job made a
+		// server-side chunk-0 persistence failure look like success: every other
+		// batch then opened its own orphan run, and the first to answer supplied a
+		// snapshot URL pointing at a run with no dependencies. Restricting the
+		// write to the primary also confines it to Phase A, which runs on the
+		// caller's goroutine — so the Phase B reads in buildReq stay race-free.
+		if job.primary && snapshot == nil && resp.Data.IngestionSnapshot != nil {
 			snapshot = resp.Data.IngestionSnapshot
 		}
 		persistedFindings = append(persistedFindings, resp.Data.Findings...)
@@ -301,10 +309,16 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		}
 	} else if !isUnauthenticatedScan() {
 		// Explicit (non-community) credentials were configured, but the server
-		// persisted no snapshot — it served this scan at community tier, i.e. the
-		// credentials were not accepted. Surface that instead of degrading silently.
-		fmt.Fprintln(w, "WARNING: credentials were not accepted — this scan ran at community tier and no snapshot was persisted.")
-		fmt.Fprintln(w, "         Run 'vulnetix auth verify' to check your credentials, or regenerate them in your VDB account.")
+		// persisted no snapshot. Surface it instead of degrading silently. A Pro
+		// response means the credentials were fine and persistence itself broke;
+		// otherwise the scan was served at community tier, i.e. they were rejected.
+		if tierObserved == "pro" {
+			fmt.Fprintln(w, "WARNING: the server accepted this scan but persisted no snapshot — no findings or dependencies were saved.")
+			fmt.Fprintln(w, "         This is a server-side failure. Retry, and report it if it repeats.")
+		} else {
+			fmt.Fprintln(w, "WARNING: credentials were not accepted — this scan ran at community tier and no snapshot was persisted.")
+			fmt.Fprintln(w, "         Run 'vulnetix auth verify' to check your credentials, or regenerate them in your VDB account.")
+		}
 	}
 
 	finalSnapshotUuid := ""
@@ -392,21 +406,27 @@ func postCliSCABOM(allPackages []scan.ScopedPackage, manifestGroups []scan.Manif
 			return metaEnv, req, false
 		}
 		reqEnv := lightEnv
-		if snapshot != nil {
-			req.IngestionSnapshotUuid = snapshot.Uuid
-			if len(job.purls) > 0 {
-				req.Packages = allCliPackages
+		if snapshot == nil {
+			// No run to anchor to: keep packages and manifests off these requests so
+			// the server cannot open an orphan run per batch (see tryCliSCA).
+			if len(job.purls) == 0 {
+				return reqEnv, req, true
 			}
-			if job.manifestSlot >= 0 && job.manifestSlot < len(bodySlots) {
-				reqEnv.Manifests = bodySlots[job.manifestSlot]
-			}
-		} else if len(job.purls) == 0 {
-			return reqEnv, req, true
+			reqEnv.Manifests = nil
+			return reqEnv, req, false
+		}
+		req.IngestionSnapshotUuid = snapshot.Uuid
+		if len(job.purls) > 0 {
+			req.Packages = allCliPackages
+		}
+		if job.manifestSlot >= 0 && job.manifestSlot < len(bodySlots) {
+			reqEnv.Manifests = bodySlots[job.manifestSlot]
 		}
 		return reqEnv, req, false
 	}
-	onResult := func(_ scaJob, resp *vdb.CliResponse[vdb.CliSCAResponse]) {
-		if snapshot == nil && resp.Data.IngestionSnapshot != nil {
+	onResult := func(job scaJob, resp *vdb.CliResponse[vdb.CliSCAResponse]) {
+		// Primary job only — see tryCliSCA's onResult.
+		if job.primary && snapshot == nil && resp.Data.IngestionSnapshot != nil {
 			snapshot = resp.Data.IngestionSnapshot
 		}
 		mergedInsights = append(mergedInsights, resp.Data.PackageInsights...)
