@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 )
 
 // AuthMethod represents the authentication method to use
@@ -77,13 +78,29 @@ type Credentials struct {
 	APIKeyInKeyring bool `json:"api_key_in_keyring,omitempty"`
 }
 
+// StripOrgPrefix removes a leading "<org>:" from an ApiKey value.
+//
+// The account GUI presents the ApiKey as "<orgId>:<hex>", and users paste that
+// whole string. GetAuthHeader prepends the org itself, so an unstripped value
+// would be sent as "ApiKey <org>:<org>:<hex>" and rejected with HTTP 401.
+// `auth login` has always stripped it; the environment-variable and netrc paths
+// did not, so a pasted GUI key worked interactively and failed in CI.
+func StripOrgPrefix(org, value string) string {
+	if org == "" {
+		return value
+	}
+	return strings.TrimPrefix(value, org+":")
+}
+
 // GetAuthHeader returns the Authorization header value for the given credentials
 func GetAuthHeader(creds *Credentials) string {
 	switch creds.Method {
 	case Token:
 		return "Bearer " + creds.Token
 	case DirectAPIKey:
-		return fmt.Sprintf("ApiKey %s:%s", creds.OrgID, creds.APIKey)
+		// Normalise here so every credential source benefits, whether it came
+		// from a flag, an env var, a credentials file, or netrc.
+		return fmt.Sprintf("ApiKey %s:%s", creds.OrgID, StripOrgPrefix(creds.OrgID, creds.APIKey))
 	case SigV4:
 		// The upload endpoints (vdb-site) accept the derived ApiKey; send that
 		// instead of exchanging a cross-service JWT. ApiKey = HMAC-SHA256(secret, org).

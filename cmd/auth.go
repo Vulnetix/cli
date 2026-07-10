@@ -364,11 +364,10 @@ func resolveLoginOrgID(flag string) (string, error) {
 	return org, nil
 }
 
-// stripOrgPrefix removes a leading "<org>:" from an ApiKey value. The account
-// GUI presents the ApiKey as "<orgId>:<hex>", but the CLI prepends the org
-// itself when building the header, so accept either form.
+// stripOrgPrefix delegates to the shared helper so the login path and every
+// other credential source normalise the ApiKey identically.
 func stripOrgPrefix(org, value string) string {
-	return strings.TrimPrefix(value, org+":")
+	return auth.StripOrgPrefix(org, value)
 }
 
 func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
