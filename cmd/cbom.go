@@ -155,6 +155,7 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 		uploadCBOM(specVersion, det, bomData, gitCtx)
 	}
 
+	warnOutputExtension(outputFile, ".cdx.json")
 	outFile := outputFile
 	if outFile == "" {
 		outFile = filepath.Join(rootPath, ".vulnetix", "cbom.cdx.json")

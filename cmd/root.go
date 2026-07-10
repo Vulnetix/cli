@@ -112,8 +112,12 @@ func checkForUpdateMessage() (string, bool) {
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "vulnetix",
-	Short: "Vulnetix CLI - Automate vulnerability remediation",
+	Use: "vulnetix",
+	// Setting Version makes Cobra register `--version`, which the install docs
+	// have always told users to run. `vulnetix version` remains the richer
+	// report (commit, build date, module versions).
+	Version: version,
+	Short:   "Vulnetix CLI - Automate vulnerability remediation",
 	Long: `Vulnetix CLI is a command-line tool for vulnerability management that focuses on
 automated remediation over discovery. It helps organizations prioritize and resolve
 vulnerabilities efficiently.`,
@@ -341,6 +345,9 @@ func Execute() error {
 	// Suppress cobra's default error printing — we handle it in main.
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true
+	// Match `vulnetix version --short`, which prints the bare version.
+	// Cobra's default template prefixes "vulnetix version ".
+	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	err := rootCmd.Execute()
 	if err == nil {
 		return nil

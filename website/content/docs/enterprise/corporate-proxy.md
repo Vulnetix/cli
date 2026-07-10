@@ -146,11 +146,10 @@ export CURL_CA_BUNDLE=""
 
 ```bash
 # Skip certificate verification (development only)
-export VULNETIX_SKIP_TLS_VERIFY=true
 export CURL_INSECURE=true
 
 # Add self-signed certificate to trust store
-openssl s_client -connect app.vulnetix.com:443 -showcerts < /dev/null 2>/dev/null | \
+openssl s_client -connect api.vdb.vulnetix.com:443 -showcerts < /dev/null 2>/dev/null | \
   openssl x509 -outform PEM > vulnetix-cert.pem
 sudo cp vulnetix-cert.pem /usr/local/share/ca-certificates/vulnetix.crt
 sudo update-ca-certificates
@@ -196,78 +195,65 @@ sudo ufw status verbose
 ### Network Testing
 
 ```bash
-# Test connectivity to Vulnetix API
-curl -I https://app.vulnetix.com/api/
+# Test connectivity to the VDB API
+curl -I https://api.vdb.vulnetix.com/health
 
 # Test with proxy
-curl -x http://proxy.company.com:8080 -I https://app.vulnetix.com/api/
+curl -x http://proxy.company.com:8080 -I https://api.vdb.vulnetix.com/health
 
 # Test DNS resolution
-nslookup app.vulnetix.com
-dig app.vulnetix.com
+nslookup api.vdb.vulnetix.com
+dig api.vdb.vulnetix.com
 
 # Test specific ports
-nc -zv app.vulnetix.com 443
-telnet app.vulnetix.com 443
+nc -zv api.vdb.vulnetix.com 443
+telnet api.vdb.vulnetix.com 443
 ```
 
-## Vulnetix-Specific Configuration
+{{< callout type="info" >}}
+The CLI reaches three Vulnetix hosts. A proxy allowlist that omits any of them
+will break the corresponding feature:
 
-### Proxy Configuration File
+| Host | Used by |
+|------|---------|
+| `api.vdb.vulnetix.com` | `scan`, `vdb`, `upload`, `gha`, `auth verify` |
+| `www.vulnetix.com` | `auth login` (browser device flow) |
+| `packages.vulnetix.com` | Package Firewall proxy |
+{{< /callout >}}
 
-```yaml
-# ~/.vulnetix/config.yaml
-proxy:
-  http: "http://proxy.company.com:8080"
-  https: "http://proxy.company.com:8080"
-  no_proxy: "localhost,127.0.0.1,*.internal,.company.com"
+## What the CLI Actually Reads
 
-network:
-  timeout: 60
-  retries: 3
-  skip_tls_verify: false
+{{< callout type="warning" >}}
+The CLI has **no proxy configuration of its own**. There is no `~/.vulnetix/config.yaml`, no `VULNETIX_HTTP_PROXY`, and no `--proxy`, `--timeout`, `--retries`, or `--skip-tls-verify` flag. Proxy and TLS behaviour comes entirely from Go's standard environment variables, which the sections above cover.
+{{< /callout >}}
 
-api:
-  endpoint: "https://app.vulnetix.com/api/"
-  timeout: 300
-```
+These are the only environment variables the CLI reads that matter in a restricted network:
 
-### Environment Variable Configuration
+| Variable | Read by | Purpose |
+|----------|---------|---------|
+| `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` | Go's HTTP transport | Route API calls through the proxy |
+| `SSL_CERT_FILE`, `SSL_CERT_DIR` | Go's TLS stack (Linux, BSD) | Trust a corporate root CA |
+| `VULNETIX_API_URL` | `vulnetix scan` | Override the VDB API base URL |
+| `VULNETIX_ORG_ID`, `VULNETIX_API_KEY` | all commands | Credentials |
+| `GOPROXY`, `GOPRIVATE`, `GONOSUMDB` | `go install` | Only when installing via Go |
+
+Everything else is standard: `curl` honours `HTTP_PROXY` when downloading the install script, and `git` needs its own `http.proxy` setting.
+
+### Verbosity, Not a Log Level
+
+There is no `VULNETIX_LOG_LEVEL` or `VULNETIX_DEBUG`. Use the flag:
 
 ```bash
-# Vulnetix-specific proxy settings
-export VULNETIX_HTTP_PROXY="http://proxy.company.com:8080"
-export VULNETIX_HTTPS_PROXY="http://proxy.company.com:8080"
-export VULNETIX_NO_PROXY="localhost,127.0.0.1,.company.com"
-
-# API configuration
-export VULNETIX_API_URL="https://app.vulnetix.com/api/"
-export VULNETIX_TIMEOUT="300"
-export VULNETIX_RETRIES="5"
-
-# TLS configuration
-export VULNETIX_TLS_CERT="/etc/ssl/certs/vulnetix.crt"
-export VULNETIX_TLS_KEY="/etc/ssl/private/vulnetix.key"
-export VULNETIX_TLS_CA="/etc/ssl/certs/ca-certificates.crt"
+vulnetix --verbose scan
 ```
 
-### Command Line Options
+### Timeouts Are Fixed
 
-```bash
-# Use proxy with command line options
-vulnetix --org-id "your-org-id-here" \
-  --proxy "http://proxy.company.com:8080" \
-  --no-proxy "localhost,127.0.0.1,.company.com"
+The VDB client uses a 30-second per-request timeout and pooled connections. It is not configurable from the command line. If a proxy is slow enough to trip that, fix the proxy.
 
-# Configure timeouts
-vulnetix --org-id "your-org-id-here" \
-  --timeout 300 \
-  --retries 5
+### TLS Verification Cannot Be Disabled
 
-# Skip TLS verification (not recommended)
-vulnetix --org-id "your-org-id-here" \
-  --skip-tls-verify
-```
+There is deliberately no `--skip-tls-verify`. To trust an internal CA, add it to the system trust store (or `SSL_CERT_FILE`), as shown in [Custom CA Certificates](#custom-ca-certificates). Disabling verification would make the credential you are sending interceptable.
 
 ## CI/CD Integration with Proxy
 
@@ -367,8 +353,8 @@ curl -x http://proxy.company.com:8080 \
   -o proxy.pac
 
 # Extract proxy for specific URL (requires pac parser)
-export HTTP_PROXY=$(pac-resolver proxy.pac https://app.vulnetix.com/api/)
-export HTTPS_PROXY=$(pac-resolver proxy.pac https://app.vulnetix.com/api/)
+export HTTP_PROXY=$(pac-resolver proxy.pac https://api.vdb.vulnetix.com/)
+export HTTPS_PROXY=$(pac-resolver proxy.pac https://api.vdb.vulnetix.com/)
 
 vulnetix --org-id "your-org-id-here"
 ```
@@ -377,8 +363,6 @@ vulnetix --org-id "your-org-id-here"
 
 ```bash
 # Configure for transparent proxy environment
-export VULNETIX_PROXY_AUTO_DETECT=true
-export VULNETIX_PROXY_TRANSPARENT=true
 
 # Use automatic proxy detection
 vulnetix --org-id "your-org-id-here" \
@@ -459,7 +443,7 @@ export HTTP_PROXY="http://$(echo -n 'username:password' | base64)@proxy.company.
 # Solution: Configure certificate trust
 
 # Debug certificate chain
-openssl s_client -connect app.vulnetix.com:443 -proxy proxy.company.com:8080
+openssl s_client -connect api.vdb.vulnetix.com:443 -proxy proxy.company.com:8080
 
 # Add proxy's certificate to trust store
 echo -n | openssl s_client -connect proxy.company.com:8080 | \
@@ -475,13 +459,12 @@ sudo update-ca-certificates
 # Solution: Configure DNS properly
 
 # Test DNS resolution
-nslookup app.vulnetix.com 8.8.8.8
+nslookup api.vdb.vulnetix.com 8.8.8.8
 
 # Use alternative DNS
-export VULNETIX_DNS_SERVERS="8.8.8.8,8.8.4.4"
 
 # Bypass DNS for specific hosts
-echo '203.0.113.100 app.vulnetix.com' | sudo tee -a /etc/hosts
+echo '203.0.113.100 api.vdb.vulnetix.com' | sudo tee -a /etc/hosts
 ```
 
 ### Performance Issues
@@ -490,19 +473,13 @@ echo '203.0.113.100 app.vulnetix.com' | sudo tee -a /etc/hosts
 
 ```bash
 # Issue: Slow proxy connections
-# Solution: Optimize proxy settings
+# The 30s per-request timeout is not configurable. Confirm the proxy itself
+# is the bottleneck before blaming the CLI:
+time curl -x "$HTTPS_PROXY" -o /dev/null -s -w '%{time_total}s\n' \
+  https://api.vdb.vulnetix.com/
 
-# Use connection pooling
-export VULNETIX_CONNECTION_POOL_SIZE=10
-export VULNETIX_KEEP_ALIVE=true
-
-# Increase timeouts
-export VULNETIX_TIMEOUT=600
-export VULNETIX_CONNECT_TIMEOUT=60
-
-vulnetix --org-id "your-org-id-here" \
-  --timeout 600 \
-  --retries 3
+# Then run with --verbose to see which request stalls
+vulnetix --verbose scan
 ```
 
 #### Bandwidth Limitations
@@ -511,11 +488,8 @@ vulnetix --org-id "your-org-id-here" \
 # Issue: Limited bandwidth through proxy
 # Solution: Enable compression and optimize transfers
 
-export VULNETIX_COMPRESSION=true
-export VULNETIX_TRANSFER_ENCODING="gzip"
 
 # Use differential sync for large files
-export VULNETIX_INCREMENTAL_SYNC=true
 
 vulnetix --org-id "your-org-id-here" \
   --compression \
@@ -524,20 +498,27 @@ vulnetix --org-id "your-org-id-here" \
 
 ### Environment Debugging
 
+There is no `--debug`, `--list-proxy-config`, `--test-connectivity`, or
+`--generate-connectivity-report`. `--verbose` is the one diagnostic control:
+it prints rate limits, retry/backoff timings, cache status, and auth notes to
+stderr. It is not a log level.
+
 ```bash
-# Debug proxy configuration
-vulnetix --debug --list-proxy-config
+# Which credential is active, and from where
+vulnetix auth status
 
-# Test network connectivity
-vulnetix --test-connectivity --verbose
+# Prove the credential reaches the API through the proxy
+vulnetix --verbose auth verify
 
-# Trace network requests
-export VULNETIX_DEBUG_NETWORK=true
-vulnetix --org-id "your-org-id-here" --verbose
+# Extra diagnostics on a real scan
+vulnetix --verbose scan --severity high
 
-# Generate connectivity report
-vulnetix --generate-connectivity-report > connectivity-report.json
+# Confirm the proxy itself is reachable, independently of the CLI
+curl -x "$HTTPS_PROXY" -sI https://api.vdb.vulnetix.com/ | head -1
 ```
+
+Because Go reads the proxy environment once per process, exporting `HTTPS_PROXY`
+after the CLI has started has no effect — set it before invoking `vulnetix`.
 
 ## Security Considerations
 
@@ -549,11 +530,8 @@ export HTTP_PROXY="https://proxy.company.com:8443"
 export HTTPS_PROXY="https://proxy.company.com:8443"
 
 # Verify proxy certificates
-export VULNETIX_VERIFY_PROXY_CERT=true
 
 # Use mutual TLS authentication
-export VULNETIX_CLIENT_CERT="/etc/ssl/certs/client.crt"
-export VULNETIX_CLIENT_KEY="/etc/ssl/private/client.key"
 ```
 
 ### Credential Protection
@@ -577,15 +555,12 @@ export HTTP_PROXY="http://$(proxy-credential-helper)@proxy.company.com:8080"
 
 ```bash
 # Enable proxy audit logging
-export VULNETIX_AUDIT_PROXY=true
-export VULNETIX_LOG_PROXY_REQUESTS=true
 
 # Log proxy usage
 vulnetix --org-id "your-org-id-here" \
   --audit-log /var/log/vulnetix-proxy.log
 
 # Monitor proxy performance
-export VULNETIX_PROXY_METRICS=true
 vulnetix --org-id "your-org-id-here" \
   --metrics-output proxy-metrics.json
 ```

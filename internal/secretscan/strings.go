@@ -8,10 +8,6 @@
 // supporting primitives for those scans.
 package secretscan
 
-import (
-	"unicode"
-)
-
 // StringMin is the minimum length of a printable run we consider a "string"
 // in the unix `strings` sense. 4 is the default of GNU `strings`.
 const StringMin = 4
@@ -52,11 +48,8 @@ func ExtractStrings(data []byte, min int) string {
 			flush()
 			continue
 		}
-		// Use rune validation so we don't break on multi-byte UTF-8.
-		if !unicode.IsPrint(rune(b)) && b >= 0x80 {
-			// High bytes that aren't valid UTF-8 lead start: keep them as
-			// a run for safety (binaries often have latin-1 strings).
-		}
+		// High bytes that aren't a valid UTF-8 lead are kept in the run for
+		// safety — binaries often carry latin-1 strings.
 		run = append(run, b)
 	}
 	flush()

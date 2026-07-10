@@ -86,12 +86,6 @@ func buildTinyTIFF(t *testing.T, tags map[uint16]string) []byte {
 	entrySize := 12
 	poolOffset := 8 + 2 + entrySize*len(tags) + 4 // +4 for next-IFD ptr
 
-	type pending struct {
-		tag    uint16
-		val    string
-		offset int
-	}
-	pendings := make([]pending, 0, len(tags))
 	stringPool := []byte{}
 
 	for tag, val := range tags {
@@ -108,7 +102,6 @@ func buildTinyTIFF(t *testing.T, tags map[uint16]string) []byte {
 		} else {
 			off := poolOffset + len(stringPool)
 			b = binary.BigEndian.AppendUint32(b, uint32(off))
-			pendings = append(pendings, pending{tag, val, len(stringPool)})
 			stringPool = append(stringPool, val...)
 			stringPool = append(stringPool, 0)
 		}

@@ -19,10 +19,14 @@ func TestShouldCheckForUpdate_StaleTimestamp(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	dir := filepath.Join(home, ".vulnetix", "state")
-	os.MkdirAll(dir, 0700)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	stale := time.Now().Add(-25 * time.Hour).Unix()
-	os.WriteFile(filepath.Join(dir, "last-update-check"), []byte(strconv.FormatInt(stale, 10)), 0600)
+	if err := os.WriteFile(filepath.Join(dir, "last-update-check"), []byte(strconv.FormatInt(stale, 10)), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	if !ShouldCheckForUpdate() {
 		t.Fatal("expected true when timestamp is >24h old")
@@ -33,10 +37,14 @@ func TestShouldCheckForUpdate_FreshTimestamp(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	dir := filepath.Join(home, ".vulnetix", "state")
-	os.MkdirAll(dir, 0700)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	fresh := time.Now().Add(-1 * time.Hour).Unix()
-	os.WriteFile(filepath.Join(dir, "last-update-check"), []byte(strconv.FormatInt(fresh, 10)), 0600)
+	if err := os.WriteFile(filepath.Join(dir, "last-update-check"), []byte(strconv.FormatInt(fresh, 10)), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	if ShouldCheckForUpdate() {
 		t.Fatal("expected false when timestamp is <24h old")

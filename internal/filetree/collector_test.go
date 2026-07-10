@@ -9,10 +9,18 @@ import (
 func TestCollect_NpmEcosystem(t *testing.T) {
 	tmpDir := t.TempDir()
 	manifestPath := filepath.Join(tmpDir, "package.json")
-	os.WriteFile(manifestPath, []byte(`{"name":"test"}`), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "package-lock.json"), []byte(`{}`), 0644)
-	os.MkdirAll(filepath.Join(tmpDir, "node_modules", "express"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("node_modules"), 0644)
+	if err := os.WriteFile(manifestPath, []byte(`{"name":"test"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "package-lock.json"), []byte(`{}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmpDir, "node_modules", "express"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("node_modules"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := Collect(manifestPath, tmpDir, "npm")
 
@@ -36,7 +44,9 @@ func TestCollect_NpmEcosystem(t *testing.T) {
 func TestCollect_NoLockfile(t *testing.T) {
 	tmpDir := t.TempDir()
 	manifestPath := filepath.Join(tmpDir, "Cargo.toml")
-	os.WriteFile(manifestPath, []byte(`[package]\nname="test"\nversion="0.1.0"`), 0644)
+	if err := os.WriteFile(manifestPath, []byte(`[package]\nname="test"\nversion="0.1.0"`), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := Collect(manifestPath, tmpDir, "rust")
 
@@ -48,8 +58,12 @@ func TestCollect_NoLockfile(t *testing.T) {
 func TestCollect_NoRepoRoot(t *testing.T) {
 	tmpDir := t.TempDir()
 	manifestPath := filepath.Join(tmpDir, "Gemfile")
-	os.WriteFile(manifestPath, []byte("gem 'rails'"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "Gemfile.lock"), []byte("{}"), 0644)
+	if err := os.WriteFile(manifestPath, []byte("gem 'rails'"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "Gemfile.lock"), []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := Collect(manifestPath, "", "ruby")
 
@@ -61,7 +75,9 @@ func TestCollect_NoRepoRoot(t *testing.T) {
 func TestDetectMonorepo_NpmWorkspaces(t *testing.T) {
 	tmpDir := t.TempDir()
 	pkgJSON := filepath.Join(tmpDir, "package.json")
-	os.WriteFile(pkgJSON, []byte(`{"workspaces": ["packages/*"]}`), 0644)
+	if err := os.WriteFile(pkgJSON, []byte(`{"workspaces": ["packages/*"]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	info := detectMonorepo(tmpDir)
 	if info == nil {
@@ -81,7 +97,9 @@ func TestDetectMonorepo_NpmWorkspaces(t *testing.T) {
 func TestDetectMonorepo_NpmWorkspacesMap(t *testing.T) {
 	tmpDir := t.TempDir()
 	pkgJSON := filepath.Join(tmpDir, "package.json")
-	os.WriteFile(pkgJSON, []byte(`{"workspaces": {"packages": ["apps/*", "libs/*"]}}`), 0644)
+	if err := os.WriteFile(pkgJSON, []byte(`{"workspaces": {"packages": ["apps/*", "libs/*"]}}`), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	info := detectMonorepo(tmpDir)
 	if info == nil || !info.IsMonorepo || info.WorkspaceType != "npm-workspaces" {
@@ -91,7 +109,9 @@ func TestDetectMonorepo_NpmWorkspacesMap(t *testing.T) {
 
 func TestDetectMonorepo_PnpmWorkspaces(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "pnpm-workspace.yaml"), []byte("packages:"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "pnpm-workspace.yaml"), []byte("packages:"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	info := detectMonorepo(tmpDir)
 	if info == nil || !info.IsMonorepo || info.WorkspaceType != "pnpm-workspaces" {
@@ -101,7 +121,9 @@ func TestDetectMonorepo_PnpmWorkspaces(t *testing.T) {
 
 func TestDetectMonorepo_Lerna(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "lerna.json"), []byte(`{"packages":["packages/*"]}`), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "lerna.json"), []byte(`{"packages":["packages/*"]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	info := detectMonorepo(tmpDir)
 	if info == nil || !info.IsMonorepo || info.WorkspaceType != "lerna" {
@@ -111,7 +133,9 @@ func TestDetectMonorepo_Lerna(t *testing.T) {
 
 func TestDetectMonorepo_GoWork(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "go.work"), []byte("go 1.21"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.work"), []byte("go 1.21"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	info := detectMonorepo(tmpDir)
 	if info == nil || !info.IsMonorepo || info.WorkspaceType != "go-work" {
@@ -121,7 +145,9 @@ func TestDetectMonorepo_GoWork(t *testing.T) {
 
 func TestDetectMonorepo_CargoWorkspace(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "Cargo.toml"), []byte("[workspace]\nmembers=[\"crate-a\"]"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "Cargo.toml"), []byte("[workspace]\nmembers=[\"crate-a\"]"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	info := detectMonorepo(tmpDir)
 	if info == nil || !info.IsMonorepo || info.WorkspaceType != "cargo-workspace" {
@@ -131,7 +157,9 @@ func TestDetectMonorepo_CargoWorkspace(t *testing.T) {
 
 func TestDetectMonorepo_None(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# readme"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# readme"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	info := detectMonorepo(tmpDir)
 	if info != nil {
@@ -146,7 +174,9 @@ func TestReadFileString_Capped(t *testing.T) {
 	for i := range large {
 		large[i] = 'x'
 	}
-	os.WriteFile(path, large, 0644)
+	if err := os.WriteFile(path, large, 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	result := readFileString(path)
 	if len(result) > 8192 {

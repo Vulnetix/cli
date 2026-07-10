@@ -1,0 +1,35 @@
+# Shared base for the `include: project:` pattern.
+#
+# Use this when CI/CD Components are not an option: a self-managed instance
+# below GitLab 17.0, or a team that does not publish to the CI/CD Catalog.
+#
+# Consumers include it by tag, never by branch:
+#
+#   include:
+#     - project: myorg/ci-templates
+#       ref: v1.0.0
+#       file:
+#         - /vulnetix/base.yml
+#         - /vulnetix/scan.yml
+
+variables:
+  VULNETIX_VERSION: v3.55.2
+  VULNETIX_IMAGE: alpine:3.20
+
+.vulnetix-install:
+  - apk add --no-cache bash ca-certificates curl tar
+  - curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir /usr/local/bin --version "$VULNETIX_VERSION"
+  - vulnetix auth verify
+
+.vulnetix-base:
+  image: $VULNETIX_IMAGE
+  before_script:
+    # !reference splices the list above in, so the install steps live in
+    # exactly one place even when a job overrides before_script.
+    - !reference [.vulnetix-install]
+    - mkdir -p dist
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - dist/

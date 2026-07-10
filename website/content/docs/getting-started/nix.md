@@ -36,10 +36,10 @@ vulnetix --version
 
 ```bash
 # Run a specific release tag
-nix run github:Vulnetix/cli/v1.1.1
+nix run github:Vulnetix/cli/v3.55.2
 
 # Install a specific release
-nix profile install github:Vulnetix/cli/v1.1.1
+nix profile install github:Vulnetix/cli/v3.55.2
 ```
 
 ## Upgrade

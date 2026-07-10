@@ -7,6 +7,7 @@ Welcome to the Vulnetix CLI documentation. Choose a section to get started.
 
 {{< cards >}}
   {{< card link="getting-started" title="Getting Started" subtitle="Install Vulnetix CLI on your platform." icon="download" >}}
+  {{< card link="authentication" title="Authentication" subtitle="Credential methods, storage, precedence, permissions, and rotation." icon="key" >}}
   {{< card link="cli-reference" title="CLI Reference" subtitle="Commands, flags, and usage patterns." icon="terminal" >}}
   {{< card link="cli-reference/reachability" title="Reachability Analysis" subtitle="Tree-sitter source-level reachability for every CVE." icon="search-circle" >}}
   {{< card link="cli-reference/malscan" title="Malscan" subtitle="In-process malware scanning of your installed dependencies." icon="shield-check" >}}

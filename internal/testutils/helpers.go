@@ -30,9 +30,7 @@ func CaptureStdout(t *testing.T) (string, func()) {
 		os.Stdout = oldStdout
 		captured := <-outC
 		// Trim trailing newline if present, as Println adds one
-		if strings.HasSuffix(captured, "\n") {
-			captured = captured[:len(captured)-1]
-		}
+		captured = strings.TrimSuffix(captured, "\n")
 		t.Logf("Captured stdout: %s", captured)
 	}
 }

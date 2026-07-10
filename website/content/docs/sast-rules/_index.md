@@ -1,6 +1,6 @@
 ---
 title: SAST Rules
-weight: 5
+weight: 6
 ---
 
 Vulnetix ships built-in SAST rules written in [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) and evaluated by the Open Policy Agent engine. Rules are organised by language and security category. Each rule page explains what the rule detects, why it matters, and how to remediate the finding.

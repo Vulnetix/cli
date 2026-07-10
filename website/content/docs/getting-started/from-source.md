@@ -11,11 +11,11 @@ Building from source provides the most flexible installation method and allows f
 ### Prerequisites
 
 ```bash
-# Install Go 1.21 or later
+# Install Go 1.25 or later (go.mod declares go 1.25.0)
 # Visit https://golang.org/dl/ for installation instructions
 
 # Verify Go installation
-go version  # Should show 1.21 or later
+go version  # Should show 1.25 or later
 
 # Install Git
 sudo apt-get install git     # Ubuntu/Debian
@@ -117,14 +117,14 @@ go build \
 ### Debug Build
 
 ```bash
-# Build with debug symbols and race detection
-go build -race -ldflags="-X main.Debug=true" -o vulnetix-debug .
+# Build with the race detector
+go build -race -o vulnetix-debug .
 
-# Build with extra debug information
+# Build with optimisations and inlining disabled, for a usable debugger
 go build -gcflags="all=-N -l" -o vulnetix-debug .
 
-# Run with debug output
-./vulnetix-debug --debug
+# Run with verbose diagnostics (there is no --debug flag)
+./vulnetix-debug --verbose scan
 ```
 
 ### Static Binary
@@ -272,7 +272,7 @@ testdata_dir = "testdata"
 tmp_dir = "tmp"
 
 [build]
-  args_bin = ["--debug"]
+  args_bin = ["--verbose"]
   bin = "./tmp/vulnetix"
   cmd = "go build -o ./tmp/vulnetix ."
   delay = 1000
@@ -563,9 +563,9 @@ echo "User installation completed!"
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}",
-            "args": ["--debug"],
+            "args": ["--verbose", "scan"],
             "env": {
-                "VULNETIX_DEBUG": "true"
+                "VULNETIX_ORG_ID": "your-org-uuid"
             }
         },
         {
@@ -692,7 +692,7 @@ go version
 
 # Update Go if needed
 sudo rm -rf /usr/local/go
-curl -L https://go.dev/dl/go1.21.0.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
+curl -L https://go.dev/dl/go1.25.0.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
 
 # Update PATH
 export PATH=/usr/local/go/bin:$PATH

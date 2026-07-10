@@ -133,6 +133,19 @@ gen-aibom:
 gen-cbom:
     go run ./internal/cbom/cbomgen
 
+# Regenerate the command manifest. Documentation sites validate their snippets
+# against this file, so a renamed flag breaks a test rather than a user's pipeline.
+gen-command-manifest:
+    go run . __manifest > docs/command-manifest.json
+
+# Unit-test the RFC 8628 device flow client against an httptest server (no network)
+test-device-flow:
+    go test ./cmd -run TestDeviceFlow -v
+
+# End-to-end verify the device flow against a local website + vdb-site + Postgres
+verify-device-flow:
+    ./scripts/verify-device-flow.sh
+
 # Run tests (updates statusline cache)
 test:
     #!/usr/bin/env bash
@@ -823,3 +836,8 @@ docs-clean:
 # Create a new content page (usage: just docs-new docs/getting-started/new-page.md)
 docs-new page:
     cd website && hugo new content {{page}}
+
+# Install the repo's git hooks (pre-commit lint gate). Idempotent.
+hooks:
+    git config core.hooksPath .githooks
+    @echo "core.hooksPath -> .githooks (bypass a hook with: git commit --no-verify)"

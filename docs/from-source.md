@@ -11,4 +11,4 @@ go build -o vulnetix .
 ./vulnetix auth login
 ```
 
-Requires Go 1.21+.
+Requires Go 1.25+ (see the `go` directive in `go.mod`).

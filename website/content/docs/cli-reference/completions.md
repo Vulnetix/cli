@@ -168,9 +168,9 @@ The following flags provide tab-completable values:
 |---------|------|--------|
 | `auth login` | `--method` | `apikey`, `sigv4` |
 | `auth login` | `--store` | `home`, `project`, `keyring` |
-| `scan` | `--type` | `manifest`, `spdx`, `cyclonedx` |
-| `scan` | `--output` | `json`, `pretty` |
-| `scan` | `--format` | `cdx17`, `cdx16`, `json` |
+| `scan` | `-o, --output` | `json-cyclonedx`, `json-sarif` (or a `.cdx.json` / `.sarif` path) |
+| `scan` | `--severity` | `low`, `medium`, `high`, `critical` |
+| `scan` | `--exploits` | `poc`, `active`, `weaponized` |
 | `upload` | `--format` | `cyclonedx`, `spdx`, `sarif`, `openvex`, `csaf_vex` |
 | `vdb` | `--method` | `apikey`, `sigv4` |
 | `vdb` | `--output` | `json`, `yaml`, `pretty` |

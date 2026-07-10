@@ -168,7 +168,7 @@ Every setup command supports:
 ```bash
 vulnetix package-firewall npm --dry-run
 vulnetix package-firewall npm --proxy-url https://packages.vulnetix.com
-vulnetix package-firewall npm --base-url https://app.vulnetix.com/api
+vulnetix package-firewall npm --base-url https://api.vdb.vulnetix.com
 ```
 
 Run `vulnetix auth status` to see which package-manager configs already point at Package Firewall.

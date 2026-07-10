@@ -20,7 +20,7 @@ pipelines:
         name: Vulnetix
         script:
           - apk add --no-cache curl
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - export PATH=$PATH:$HOME/.local/bin
           - vulnetix upload --file <artifact-path>
         artifacts:
@@ -32,7 +32,7 @@ pipelines:
           name: Security Assessment
           script:
             - apk add --no-cache curl
-            - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+            - curl -fsSL https://cli.vulnetix.com/install.sh | sh
             - export PATH=$PATH:$HOME/.local/bin
             - vulnetix upload --file <artifact-path>
           artifacts:
@@ -53,7 +53,7 @@ definitions:
         name: Install Vulnetix
         script:
           - apk add --no-cache curl bash
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - export PATH=$PATH:$HOME/.local/bin
           - vulnetix --version
         caches:
@@ -213,7 +213,7 @@ pipelines:
         name: Setup
         script:
           - apk add --no-cache curl
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
         caches:
           - vulnetix-cache
 
@@ -262,7 +262,7 @@ pipelines:
         name: Vulnetix
         script:
           - export PATH=$PATH:$HOME/.local/bin
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - vulnetix upload --file <artifact-path>
         condition:
           changesets:
@@ -283,7 +283,7 @@ pipelines:
           name: Production Security Assessment
           script:
             - export PATH=$PATH:$HOME/.local/bin
-            - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+            - curl -fsSL https://cli.vulnetix.com/install.sh | sh
             - vulnetix upload --file <artifact-path>
 ```
 
@@ -298,7 +298,7 @@ pipelines:
           name: Security Gate
           script:
             - export PATH=$PATH:$HOME/.local/bin
-            - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+            - curl -fsSL https://cli.vulnetix.com/install.sh | sh
             - vulnetix upload --file <artifact-path>
 
       - step:
@@ -337,7 +337,7 @@ pipelines:
         name: Security Assessment with Retention
         script:
           - export PATH=$PATH:$HOME/.local/bin
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - vulnetix upload --file <artifact-path>
         # Build retained for 365 days
 ```
@@ -357,7 +357,7 @@ pipelines:
           - export HTTPS_PROXY=http://proxy.company.com:8080
           - export NO_PROXY=localhost,127.0.0.1,.company.com
           - apk add --no-cache curl
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - export PATH=$PATH:$HOME/.local/bin
           - vulnetix upload --file <artifact-path>
 ```
@@ -373,7 +373,7 @@ pipelines:
         size: 2x  # Use larger build container
         script:
           - export PATH=$PATH:$HOME/.local/bin
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - vulnetix upload --file <artifact-path>
         max-time: 30  # Extended timeout for large repos
 ```
@@ -390,7 +390,7 @@ pipelines:
           - apk add --no-cache ca-certificates curl
           - cp company-ca.crt /usr/local/share/ca-certificates/
           - update-ca-certificates
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - export PATH=$PATH:$HOME/.local/bin
           - vulnetix upload --file <artifact-path>
 ```
@@ -406,7 +406,7 @@ pipelines:
         memory: 1024  # Allocate more memory
         script:
           - export PATH=$PATH:$HOME/.local/bin
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - vulnetix upload --file <artifact-path>
 ```
 
@@ -423,7 +423,7 @@ pipelines:
           name: Security Review
           script:
             - export PATH=$PATH:$HOME/.local/bin
-            - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+            - curl -fsSL https://cli.vulnetix.com/install.sh | sh
             - |
               if [ -f "security-results.sarif" ]; then
                 vulnetix upload --file security-results.sarif --org-id "$VULNETIX_ORG_ID"
@@ -450,7 +450,7 @@ pipelines:
           - export PATH=$PATH:$HOME/.local/bin
           - |
             if [ ! -f ~/.local/bin/vulnetix ]; then
-              curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+              curl -fsSL https://cli.vulnetix.com/install.sh | sh
             fi
           - vulnetix upload --file <artifact-path>
         caches:
@@ -471,7 +471,7 @@ pipelines:
             image: golang:1.21-alpine
             script:
               - apk add --no-cache curl
-              - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+              - curl -fsSL https://cli.vulnetix.com/install.sh | sh
               - export PATH=$PATH:$HOME/.local/bin
               - vulnetix upload --file <artifact-path>
 
@@ -480,7 +480,7 @@ pipelines:
             image: node:18-alpine
             script:
               - apk add --no-cache curl
-              - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+              - curl -fsSL https://cli.vulnetix.com/install.sh | sh
               - export PATH=$PATH:$HOME/.local/bin
               - vulnetix upload --file <artifact-path>
 
@@ -489,7 +489,7 @@ pipelines:
             image: python:3.11-alpine
             script:
               - apk add --no-cache curl
-              - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+              - curl -fsSL https://cli.vulnetix.com/install.sh | sh
               - export PATH=$PATH:$HOME/.local/bin
               - vulnetix upload --file <artifact-path>
 
@@ -497,7 +497,7 @@ pipelines:
         name: Aggregate Multi-Language Results
         script:
           - export PATH=$PATH:$HOME/.local/bin
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - vulnetix upload --file <artifact-path>
 ```
 
@@ -508,24 +508,21 @@ pipelines:
 #### Installation Problems
 ```bash
 # Debug installation
-apk add --no-cache curl bash
-curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | bash -x
+apk add --no-cache bash ca-certificates curl tar
+curl -fsSL https://cli.vulnetix.com/install.sh | sh -x
 
-# Manual installation
-wget https://github.com/vulnetix/cli/v3/releases/latest/download/vulnetix-linux-amd64.tar.gz
-tar -xzf vulnetix-linux-amd64.tar.gz
-mv vulnetix /usr/local/bin/
-chmod +x /usr/local/bin/vulnetix
+# Manual installation — release assets are raw binaries, not tarballs
+wget https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+install -m 0755 vulnetix-linux-amd64 /usr/local/bin/vulnetix
 ```
 
 #### Network Connectivity
 ```bash
 # Test connectivity
-curl -I https://app.vulnetix.com/api/check
+curl -I https://api.vdb.vulnetix.com/health
 curl -I https://github.com/vulnetix/cli/v3/releases/latest
 
 # Debug with Vulnetix
-export VULNETIX_DEBUG=true
 vulnetix upload --file <artifact-path>
 ```
 
@@ -545,8 +542,7 @@ pipelines:
     - step:
         name: Debug Security Assessment
         script:
-          - export VULNETIX_DEBUG=true
-          - export PATH=$PATH:$HOME/.local/bin
-          - curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          -           - export PATH=$PATH:$HOME/.local/bin
+          - curl -fsSL https://cli.vulnetix.com/install.sh | sh
           - vulnetix upload --file <artifact-path>
 ```

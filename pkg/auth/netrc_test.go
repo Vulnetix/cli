@@ -37,7 +37,7 @@ func TestLoadCredentials_FromNetrc(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
+	defer func() { _ = os.Chdir(oldDir) }()
 	if err := os.Chdir(home); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}

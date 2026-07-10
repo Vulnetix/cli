@@ -1,0 +1,88 @@
+# Level 2 — One job per scan subcommand
+#
+# Each subcommand runs standalone and uploads its findings to Vulnetix
+# automatically when VULNETIX_ORG_ID + VULNETIX_API_KEY are present.
+#
+# Results always land under .vulnetix/ in the scanned directory:
+#
+#   sca         .vulnetix/sbom.cdx.json     CycloneDX
+#   sast        .vulnetix/sast.sarif        SARIF
+#   secrets     .vulnetix/sast.sarif        SARIF
+#   containers  .vulnetix/containers.sarif  SARIF
+#   iac         .vulnetix/sast.sarif        SARIF
+#   license     .vulnetix/sbom.cdx.json     CycloneDX
+#   cbom        .vulnetix/cbom.cdx.json     CycloneDX (CBOM)
+#   aibom       .vulnetix/ai-bom.cdx.json   CycloneDX (AIBOM)
+#   malscan     .vulnetix/malscan.sarif     SARIF
+#
+# The SARIF-producing scans write their file only when there are findings.
+
+stages:
+  - security
+
+.vulnetix:
+  stage: security
+  image: alpine:3.20
+  variables:
+    VULNETIX_VERSION: v3.55.2
+  before_script:
+    - apk add --no-cache bash ca-certificates curl tar
+    - curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir /usr/local/bin --version "$VULNETIX_VERSION"
+    - vulnetix auth verify
+
+# Dependency vulnerabilities.
+sca:
+  extends: .vulnetix
+  script:
+    - vulnetix sca --severity high
+
+# Source code analysis.
+sast:
+  extends: .vulnetix
+  script:
+    - vulnetix sast --severity high
+
+# Hardcoded credentials.
+secrets:
+  extends: .vulnetix
+  script:
+    - vulnetix secrets
+
+# Dockerfile and image layers.
+containers:
+  extends: .vulnetix
+  script:
+    - vulnetix containers
+
+# Terraform, OpenTofu, Nix, Kubernetes manifests.
+iac:
+  extends: .vulnetix
+  script:
+    - vulnetix iac
+
+# SPDX policy compliance.
+license:
+  extends: .vulnetix
+  script:
+    - vulnetix license --allow MIT,Apache-2.0,BSD-3-Clause --severity high
+
+# Cryptographic inventory and post-quantum posture.
+cbom:
+  extends: .vulnetix
+  script:
+    - vulnetix cbom --fail-on quantum-vulnerable
+
+# AI coding agents, SDKs, and model usage.
+aibom:
+  extends: .vulnetix
+  script:
+    - vulnetix aibom
+
+# Malware in installed dependencies. Reads the bytes on disk, so the
+# dependencies must actually be installed first.
+malscan:
+  extends: .vulnetix
+  image: node:20-alpine
+  script:
+    - npm ci
+    - vulnetix malscan

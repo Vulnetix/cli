@@ -782,9 +782,7 @@ func detectCapabilities(path string) []string {
 	for _, line := range lines {
 		if idx := strings.LastIndexByte(line, ' '); idx > 0 {
 			capStr := strings.TrimSpace(line[idx:])
-			for _, c := range strings.Fields(capStr) {
-				caps = append(caps, c)
-			}
+			caps = append(caps, strings.Fields(capStr)...)
 		}
 	}
 	return caps

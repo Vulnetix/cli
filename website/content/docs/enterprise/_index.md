@@ -1,6 +1,6 @@
 ---
 title: Enterprise
-weight: 4
+weight: 5
 ---
 
 Enterprise features for corporate environments, distribution, and advanced deployment.

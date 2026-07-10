@@ -14,6 +14,12 @@ on:
 permissions:
   contents: write
 
+# Never run two releases for the same version at once: the create-or-update
+# step is idempotent but not concurrency-safe against itself.
+concurrency:
+  group: release-${{ inputs.version || github.ref }}
+  cancel-in-progress: false
+
 env:
   # Force JS actions to Node 24 so deprecated Node 20 runs stop firing while
   # action versions catch up (silences upload-artifact@v5 et al.).
@@ -22,6 +28,7 @@ env:
 jobs:
   version:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
     steps:
@@ -40,13 +47,14 @@ jobs:
     # Linux + Windows targets are cross-compiled from ubuntu using zig cc.
     needs: version
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
 
       - name: Configure vdb-sca-match private fetch (not yet in module proxy)
         run: |
@@ -99,13 +107,14 @@ jobs:
     # CGO (zig cc can't target macOS without the SDK).
     needs: version
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
 
       - name: Configure vdb-sca-match private fetch (not yet in module proxy)
         run: |
@@ -137,6 +146,7 @@ jobs:
   release:
     needs: [version, build-cross, build-darwin]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       version: ${{ needs.version.outputs.version }}
     steps:
@@ -180,7 +190,11 @@ jobs:
   test-go-install:
     needs: release
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
+      # This job deliberately does not check out the repo — it proves the
+      # published module installs from the proxy. go.mod is therefore not on
+      # disk and go-version-file cannot be used; keep this pin in step with go.mod.
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
@@ -206,6 +220,7 @@ jobs:
   update-packages:
     needs: release
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout cli repo
         uses: actions/checkout@v5

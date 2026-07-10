@@ -1,6 +1,6 @@
 ---
 title: "CLI Reference"
-weight: 2
+weight: 3
 description: "Complete reference for all Vulnetix CLI commands, flags, and usage patterns."
 ---
 
@@ -45,27 +45,35 @@ vulnetix auth [login|status|verify|logout] [flags]
 Authenticate with Vulnetix. Interactive by default when run in a terminal.
 
 ```bash
-# Interactive login (prompts for method, org ID, key, storage)
-vulnetix auth login
+# Interactive browser device flow (prompts for storage)
+vulnetix auth login --store keyring
 
-# Non-interactive login with Direct API Key
-vulnetix auth login --org-id <UUID> --api-key <KEY> --store home
+# Non-interactive login with an ApiKey
+vulnetix auth login --api-key <KEY> --org-id <UUID> --store keyring
 
-# Non-interactive login with SigV4
-vulnetix auth login --org-id <UUID> --secret <KEY> --store project
+# Non-interactive login with a SigV4 secret
+vulnetix auth login --secret <SECRET> --org-id <UUID> --store keyring
+
+# Non-interactive login with a Bearer token (org resolved server-side)
+vulnetix auth login --token <TOKEN> --store keyring
 ```
 
 **Flags:**
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--method` | string | auto | Authentication method: `apikey` or `sigv4` (auto-detected from flags if omitted) |
-| `--org-id` | string | - | Organization ID (UUID) |
-| `--api-key` | string | - | Direct API key (hex) |
-| `--secret` | string | - | SigV4 secret key |
+| `--org-id` | string | - | Organization ID (UUID). Required by `--api-key` and `--secret`; ignored by `--token` |
+| `--api-key` | string | - | ApiKey hex digest |
+| `--secret` | string | - | SigV4 HMAC secret — **not** an alias for `--api-key` |
+| `--token` | string | - | Bearer token |
 | `--store` | string | `home` | Credential storage location: `home`, `project`, `keyring` |
+| `--store-dir` | string | - | Directory for home/keyring metadata instead of `$HOME/.vulnetix` |
+| `--noninteractive` | bool | `false` | Require an ApiKey from flags or environment; never launch a browser |
+| `--method` | string | - | **Deprecated.** The credential flag now selects the method |
 
-Running `vulnetix auth` without a subcommand also triggers login.
+`--api-key`, `--secret`, and `--token` are mutually exclusive. Running `vulnetix auth` without a subcommand also triggers login.
+
+See [Authentication](/docs/authentication/) for storage backends, precedence, file permissions, and rotation.
 
 #### auth status
 
@@ -84,7 +92,7 @@ Verify that stored credentials can authenticate with the Vulnetix API. Does not 
 vulnetix auth verify
 
 # Verify with explicit API endpoint
-vulnetix auth verify --base-url https://app.vulnetix.com/api
+vulnetix auth verify --base-url https://api.vdb.vulnetix.com/v1
 ```
 
 #### auth logout
@@ -321,7 +329,7 @@ The file format is auto-detected from content and extension but can be overridde
 |------|------|---------|-------------|
 | `--file` | string | - | Path to artifact file to upload (**required**) |
 | `--org-id` | string | stored | Organization ID (UUID, uses stored credentials if not set) |
-| `--base-url` | string | `https://app.vulnetix.com/api` | Base URL for Vulnetix API |
+| `--base-url` | string | `https://api.vdb.vulnetix.com/v1` | Base URL for the Vulnetix VDB API |
 | `--format` | string | auto | Override auto-detected format: `cyclonedx`, `spdx`, `sarif`, `openvex`, `csaf_vex` |
 | `--json` | bool | `false` | Output result as JSON |
 
@@ -367,7 +375,7 @@ This command:
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--org-id` | string | stored | Organization ID (UUID); uses stored credentials if not set |
-| `--base-url` | string | `https://app.vulnetix.com/api` | Base URL for Vulnetix API |
+| `--base-url` | string | `https://api.vdb.vulnetix.com/v1` | Base URL for the Vulnetix VDB API |
 | `--json` | bool | `false` | Output results as JSON |
 
 #### gha status
@@ -386,7 +394,7 @@ vulnetix gha status --uuid <UUID>
 | `--txnid` | string | - | Transaction ID to check status |
 | `--uuid` | string | - | Artifact UUID to check status |
 | `--org-id` | string | stored | Organization ID (UUID); uses stored credentials if not set |
-| `--base-url` | string | `https://app.vulnetix.com/api` | Base URL for Vulnetix API |
+| `--base-url` | string | `https://api.vdb.vulnetix.com/v1` | Base URL for the Vulnetix VDB API |
 | `--json` | bool | `false` | Output results as JSON |
 
 ---
@@ -850,37 +858,42 @@ vulnetix completion [bash|zsh|fish|powershell]
 
 ## Authentication
 
-Vulnetix CLI supports two authentication methods:
+Full coverage lives in [Authentication](/docs/authentication/). Summary:
 
-### Direct API Key
+### Methods
 
-Uses `VULNETIX_API_KEY` and `VULNETIX_ORG_ID` environment variables, or stored credentials with `--method apikey`.
+| Method | Flag | Environment | `--org-id` |
+|--------|------|-------------|------------|
+| Bearer token | `--token` | `VULNETIX_API_TOKEN` | Not needed — org resolved server-side |
+| ApiKey | `--api-key` | `VULNETIX_API_KEY` + `VULNETIX_ORG_ID` | Required |
+| SigV4 | `--secret` | `VVD_ORG` + `VVD_SECRET` | Required |
 
-### SigV4
-
-Uses `VVD_ORG` and `VVD_SECRET` environment variables, or stored credentials with `--method sigv4`. SigV4 authenticates via a JWT token exchange with the VDB API.
+SigV4 validates via a JWT token exchange with the VDB API, then derives the request credential as `HMAC-SHA256(secret, orgID)`.
 
 ### Credential Storage
 
-Credentials are stored as JSON in one of two locations. The CLI can also use Package Firewall `.netrc` credentials as a Direct API Key fallback.
-
-| Store | Path | Use Case |
+| Store | Path | Use case |
 |-------|------|----------|
-| `home` (default) | `~/.vulnetix/credentials.json` | User-wide credentials |
-| `project` | `.vulnetix/credentials.json` | Project-specific credentials |
-| `keyring` | System keyring | Secure OS-level secret storage (not yet implemented) |
-| `.netrc` | `~/.netrc` or `%USERPROFILE%\_netrc` | Package Firewall credentials; fallback Direct API Key auth |
+| `keyring` (recommended) | OS keychain, metadata in `~/.vulnetix/credentials.json` | Secrets never touch disk in plaintext |
+| `home` (default) | `~/.vulnetix/credentials.json` | User-wide credentials, mode `0600` |
+| `project` | `.vulnetix/credentials.json` | Project-scoped credentials, mode `0600` |
+| `.netrc` | `~/.netrc` or `%USERPROFILE%\_netrc` | Package Firewall credentials; also a fallback ApiKey source |
+
+Override the home directory with `--store-dir DIR` or `VULNETIX_CREDENTIALS_DIR`. If no OS keychain backend is found, `--store keyring` warns and falls back to `home`.
 
 ### Credential Precedence
 
-The CLI loads credentials in this order (first match wins):
+The CLI loads credentials in this order (first complete match wins):
 
-1. CLI flags: `--org-id` + `--api-key` or `--secret`
-2. Environment variables: `VULNETIX_API_KEY` + `VULNETIX_ORG_ID` (Direct API Key)
-3. Environment variables: `VVD_ORG` + `VVD_SECRET` (SigV4)
+1. `VULNETIX_API_TOKEN` (Bearer)
+2. `VULNETIX_API_KEY` + `VULNETIX_ORG_ID` (ApiKey)
+3. `VVD_ORG` + `VVD_SECRET` (SigV4)
 4. Project dotfile: `.vulnetix/credentials.json`
 5. Home directory: `~/.vulnetix/credentials.json`
 6. `.netrc` / `_netrc` machine `packages.vulnetix.com`
+7. Embedded community credential (VDB read-only, community rate limits)
+
+Flags apply to the `auth login` command that *writes* a credential; they are not part of this load chain. Inspect the winner with `vulnetix auth status`.
 
 ## Global Flags
 

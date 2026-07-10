@@ -80,9 +80,7 @@ func scanTargetManifests(target ecosystems.Target, caps map[string]bool, root st
 		badSet.AddAll(hs)
 	}
 	for _, p := range pkgs {
-		if processPackageManifest(p, spec, caps, target, root, res, malicious, badSet) {
-			// processed
-		}
+		_ = processPackageManifest(p, spec, caps, target, root, res, malicious, badSet)
 	}
 	return len(pkgs)
 }

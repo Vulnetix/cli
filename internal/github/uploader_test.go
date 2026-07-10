@@ -157,7 +157,7 @@ func TestInitiateTransaction(t *testing.T) {
 			Success: true,
 			Message: "Transaction initiated",
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -205,7 +205,7 @@ func TestInitiateTransaction_WithAuth(t *testing.T) {
 			TxnID:   "test-txn-123",
 			Success: true,
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -260,7 +260,7 @@ func TestUploadArtifact(t *testing.T) {
 			QueuePath: "/queue/path",
 			Success:   true,
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -324,7 +324,7 @@ func TestGetTransactionStatus(t *testing.T) {
 			Status: "completed",
 			TxnID:  "test-txn-123",
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -369,7 +369,7 @@ func TestGetArtifactStatus(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 

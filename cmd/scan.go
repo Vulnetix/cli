@@ -1548,12 +1548,13 @@ func runLocalScan(
 			// /v2/cli.containers so SARIF findings attach to the same run snapshot.
 			if containerOnly && len(allPackages) > 0 && scaSnapshotUuid == "" && !isUnauthenticatedScan() {
 				scanProgress.SetStage("Persisting container BOM")
-				apiServed, apiInsights, apiSnapshotUuid, apiSnapshotURL, apiPersistedFindings := postCliSCABOM(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, "vulnetix-containers", io.Discard)
+				// The persisted findings are not consumed on the container path:
+				// the VEX/autofix passes that read them have already run above.
+				apiServed, apiInsights, apiSnapshotUuid, apiSnapshotURL, _ := postCliSCABOM(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, "vulnetix-containers", io.Discard)
 				if apiServed {
 					scaInsights = apiInsights
 					scaSnapshotUuid = apiSnapshotUuid
 					scaSnapshotURL = apiSnapshotURL
-					scaPersistedFindings = apiPersistedFindings
 				} else if verbose {
 					fmt.Fprintln(progressStderr, "  /v2/cli.sca container BOM persistence skipped")
 				}
@@ -3983,15 +3984,6 @@ func countUniqueMap(packages []scan.ScopedPackage) map[string]scan.ScopedPackage
 	return m
 }
 
-// countSeverities tallies vulns by severity bucket.
-func countSeverities(vulns []scan.VulnFinding) map[string]int {
-	counts := map[string]int{}
-	for _, v := range vulns {
-		counts[strings.ToLower(v.Severity)]++
-	}
-	return counts
-}
-
 // pluralise returns the correctly pluralised count+word string.
 // It handles irregular plurals explicitly rather than blindly appending "s".
 // appendUnique appends s to slice only if not already present.
@@ -4131,47 +4123,6 @@ func writeBOMToFile(bom *cdx.BOM, path string) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0o644)
-}
-
-// writeRawLocalJSON writes scan findings as a raw JSON document to stdout.
-func writeRawLocalJSON(results []cdx.LocalScanResult) error {
-	type vulnOut struct {
-		CveID       string  `json:"cveId"`
-		PackageName string  `json:"packageName"`
-		PackageVer  string  `json:"packageVersion"`
-		Ecosystem   string  `json:"ecosystem"`
-		Scope       string  `json:"scope"`
-		Severity    string  `json:"severity"`
-		Score       float64 `json:"score"`
-		SourceFile  string  `json:"sourceFile"`
-	}
-	type fileOut struct {
-		File  string    `json:"file"`
-		Vulns []vulnOut `json:"vulnerabilities"`
-	}
-
-	out := make([]fileOut, 0, len(results))
-	for _, r := range results {
-		fo := fileOut{File: r.File.RelPath}
-		for _, v := range r.Vulns {
-			fo.Vulns = append(fo.Vulns, vulnOut{
-				CveID:       v.CveID,
-				PackageName: v.PackageName,
-				PackageVer:  v.PackageVer,
-				Ecosystem:   v.Ecosystem,
-				Scope:       v.Scope,
-				Severity:    v.Severity,
-				Score:       v.Score,
-				SourceFile:  v.SourceFile,
-			})
-		}
-		out = append(out, fo)
-	}
-
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	return enc.Encode(out)
 }
 
 // ---------------------------------------------------------------------------

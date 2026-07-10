@@ -141,8 +141,8 @@ func TestProductVersionsResponse(t *testing.T) {
 func TestVulnerabilitiesResponse(t *testing.T) {
 	r := VulnerabilitiesResponse{
 		PackageName: "express",
-		TotalCVEs:    5,
-		Total:        5,
+		TotalCVEs:   5,
+		Total:       5,
 	}
 	if r.PackageName != "express" || r.TotalCVEs != 5 {
 		t.Errorf("unexpected values: %+v", r)

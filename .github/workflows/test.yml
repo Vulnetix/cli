@@ -14,7 +14,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  test:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +25,49 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.21'
+          go-version-file: go.mod
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l ./cmd ./pkg ./internal)
+          if [ -n "$unformatted" ]; then
+            echo "::error::these files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi
+        shell: bash
+
+      - name: go vet
+        run: go vet ./...
+        env:
+          # The bundled tree-sitter grammars need cgo; -w suppresses their
+          # vendored parser.c warnings (mirrors the justfile).
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-w"
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          # Pinned: a linter upgrade must be a deliberate commit, not a
+          # surprise red pipeline on an unrelated PR.
+          version: v1.64.8
+          args: --timeout=10m
+        env:
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-w"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
 
       - name: Build binaries
         run: |

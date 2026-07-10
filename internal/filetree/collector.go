@@ -110,7 +110,9 @@ func collectNodeModulesTree(manifestDir string) []string {
 	}
 
 	var entries []string
-	filepath.WalkDir(nmPath, func(path string, d os.DirEntry, err error) error {
+	// Per-entry errors are swallowed in the callback, and SkipAll ends the walk
+	// once the cap is hit, so WalkDir's own error carries no extra signal.
+	_ = filepath.WalkDir(nmPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}

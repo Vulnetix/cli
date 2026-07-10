@@ -8,8 +8,12 @@ import (
 
 func TestBuildScanInput_Basic(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Readme\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte("# Readme\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	input, err := BuildScanInput(tmpDir, 10, nil)
 	if err != nil {
@@ -29,9 +33,15 @@ func TestBuildScanInput_Basic(t *testing.T) {
 
 func TestBuildScanInput_SkipsSkipDirs(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.MkdirAll(filepath.Join(tmpDir, "node_modules", "express"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, "node_modules", "express", "index.js"), []byte("// js"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0644)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "node_modules", "express"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "node_modules", "express", "index.js"), []byte("// js"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	input, err := BuildScanInput(tmpDir, 10, nil)
 	if err != nil {
@@ -48,9 +58,15 @@ func TestBuildScanInput_SkipsSkipDirs(t *testing.T) {
 
 func TestBuildScanInput_MaxDepth(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.MkdirAll(filepath.Join(tmpDir, "a", "b", "c", "d"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, "a", "b", "c", "d", "deep.go"), []byte("package deep\n"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "a", "shallow.go"), []byte("package shallow\n"), 0644)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "a", "b", "c", "d"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "a", "b", "c", "d", "deep.go"), []byte("package deep\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "a", "shallow.go"), []byte("package shallow\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	input, err := BuildScanInput(tmpDir, 2, nil)
 	if err != nil {
@@ -67,8 +83,12 @@ func TestBuildScanInput_MaxDepth(t *testing.T) {
 
 func TestBuildScanInput_Excludes(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "test_main.go"), []byte("package main\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "test_main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	input, err := BuildScanInput(tmpDir, 10, []string{"test_*.go"})
 	if err != nil {
@@ -85,8 +105,12 @@ func TestBuildScanInput_Excludes(t *testing.T) {
 
 func TestBuildScanInput_LanguageIndicators(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test\n"), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	input, err := BuildScanInput(tmpDir, 10, nil)
 	if err != nil {
@@ -146,7 +170,9 @@ func TestMatchesIndicator_Glob(t *testing.T) {
 
 func TestLoadFileContents(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\nfunc main() {}"), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\nfunc main() {}"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	input := &ScanInput{
 		FileSet:  map[string]bool{"main.go": true},
@@ -165,7 +191,9 @@ func TestLoadFileContents(t *testing.T) {
 func TestLoadFileContents_SkipsBinary(t *testing.T) {
 	tmpDir := t.TempDir()
 	data := []byte("some text\x00with null")
-	os.WriteFile(filepath.Join(tmpDir, "binary.txt"), data, 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "binary.txt"), data, 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	input := &ScanInput{
 		FileSet:  map[string]bool{"binary.txt": true},

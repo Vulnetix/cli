@@ -23,13 +23,13 @@ var nonArtifactNames = map[string]bool{
 }
 
 // DiscoverVulnetixFiles returns all uploadable artifact files in dir.
-// Files are matched by extension (*.json, *.xml, *.sarif), filtered by
+// Files are matched by extension (*.json, *.xml, *.sarif, *.cdx), filtered by
 // non-artifact names, and accepted only when DetectFormat returns a
 // recognised format (not "auto"). CycloneDX files are also validated
 // against the embedded JSON schema; schema failures produce a warning
 // and skip the file rather than aborting the whole discovery.
 func DiscoverVulnetixFiles(dir string) ([]DiscoveredFile, []string, error) {
-	globs := []string{"*.json", "*.xml", "*.sarif"}
+	globs := []string{"*.json", "*.xml", "*.sarif", "*.cdx"}
 
 	var found []DiscoveredFile
 	var warnings []string

@@ -113,7 +113,9 @@ func Collect(scanPath string) *GitContext {
 	if err == nil {
 		counts := map[string]*CommitterInfo{}
 		n := 0
-		logIter.ForEach(func(c *object.Commit) error {
+		// ForEach returns errStopIter once maxLogCommits is reached. Any other
+		// error leaves the committers gathered so far, which is enough context.
+		_ = logIter.ForEach(func(c *object.Commit) error {
 			if n >= maxLogCommits {
 				return errStopIter
 			}

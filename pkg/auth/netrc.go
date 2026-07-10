@@ -117,7 +117,6 @@ func parseNetrcMachine(data, machine string) (login, password string, ok bool) {
 		if tokens[i] != "machine" || i+1 >= len(tokens) || tokens[i+1] != machine {
 			continue
 		}
-		ok = true
 		for j := i + 2; j < len(tokens); j++ {
 			switch tokens[j] {
 			case "machine", "default":

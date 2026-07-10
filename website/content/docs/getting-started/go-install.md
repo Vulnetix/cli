@@ -21,7 +21,7 @@ vulnetix
 ### Go Version Requirements
 
 ```bash
-# Check Go version (requires 1.21+)
+# Check Go version (go.mod declares go 1.25.0)
 go version
 
 # If Go is not installed or too old:
@@ -58,12 +58,16 @@ which vulnetix
 
 ### Specific Version
 
+{{< callout type="warning" >}}
+The module path carries a `/v3` major-version suffix, so only `v3.x.x` versions resolve. `go install github.com/vulnetix/cli/v3@v1.2.3` fails with `invalid version: ... should be v3.x.x`, and `go install github.com/vulnetix/cli@latest` (no suffix) fails outright.
+{{< /callout >}}
+
 ```bash
 # Install specific version
-go install github.com/vulnetix/cli/v3@v1.2.3
+go install github.com/vulnetix/cli/v3@v3.55.2
 
 # Install pre-release
-go install github.com/vulnetix/cli/v3@v1.3.0-beta.1
+go install github.com/vulnetix/cli/v3@v3.56.0-beta.1
 
 # Install from specific commit
 go install github.com/vulnetix/cli/v3@abc1234
@@ -117,11 +121,10 @@ For permanent installation and other shells, see the [Shell Completions guide](.
 # Set organization ID
 export VULNETIX_ORG_ID="123e4567-e89b-12d3-a456-426614174000"
 
-# Optional: Set API endpoint
-export VULNETIX_API_URL="https://app.vulnetix.com/api/"
+# Optional: Override the VDB API endpoint (defaults to the value below)
+export VULNETIX_API_URL="https://api.vdb.vulnetix.com"
 
-# Optional: Set log level
-export VULNETIX_LOG_LEVEL="info"  # debug, info, warn, error
+# Verbosity is a flag, not an env var: vulnetix --verbose <command>
 
 # Add to shell profile for persistence
 echo 'export VULNETIX_ORG_ID="your-org-id-here"' >> ~/.bashrc
@@ -163,7 +166,7 @@ mkdir -p reports
 
 # Example with common Go security tools
 if command -v govulncheck >/dev/null 2>&1; then
-  govulncheck -json ./... > reports/govulncheck.json
+  govulncheck -format sarif ./... > reports/govulncheck.sarif
 fi
 
 if command -v gosec >/dev/null 2>&1; then
@@ -175,8 +178,8 @@ if command -v nancy >/dev/null 2>&1; then
 fi
 
 # Upload artifacts
-vulnetix upload --file ./reports/govulncheck.json
-vulnetix upload --file ./reports/gosec.sarif
+vulnetix upload --file ./reports/govulncheck.sarif --format sarif
+vulnetix upload --file ./reports/gosec.sarif --format sarif
 ```
 
 ### Upload Artifacts
@@ -278,7 +281,7 @@ go install github.com/vulnetix/cli/v3@latest
 
 ```bash
 # Install with custom build flags
-go install -ldflags="-X main.version=custom" github.com/vulnetix/cli/v3@latest
+go install -ldflags="-X github.com/vulnetix/cli/v3/cmd.version=custom" github.com/vulnetix/cli/v3@latest
 
 # Install with debug information
 go install -gcflags="all=-N -l" github.com/vulnetix/cli/v3@latest
@@ -291,11 +294,11 @@ go install -gcflags="all=-N" github.com/vulnetix/cli/v3@latest
 
 ```bash
 # Install multiple versions
-go install github.com/vulnetix/cli/v3@v1.0.0
-mv $(go env GOPATH)/bin/vulnetix $(go env GOPATH)/bin/vulnetix-v1.0.0
+go install github.com/vulnetix/cli/v3@v3.55.1
+mv $(go env GOPATH)/bin/vulnetix $(go env GOPATH)/bin/vulnetix-v3.55.1
 
-go install github.com/vulnetix/cli/v3@v1.1.0
-mv $(go env GOPATH)/bin/vulnetix $(go env GOPATH)/bin/vulnetix-v1.1.0
+go install github.com/vulnetix/cli/v3@v3.55.2
+mv $(go env GOPATH)/bin/vulnetix $(go env GOPATH)/bin/vulnetix-v3.55.2
 
 go install github.com/vulnetix/cli/v3@latest
 # Latest version available as 'vulnetix'
@@ -371,7 +374,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.25'
 
       - name: Install Vulnetix
         run: go install github.com/vulnetix/cli/v3@latest

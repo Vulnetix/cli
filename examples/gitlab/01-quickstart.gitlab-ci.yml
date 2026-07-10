@@ -1,0 +1,26 @@
+# Level 1 — Quick Start
+#
+# The smallest useful Vulnetix pipeline. Install the CLI, prove the credential
+# works, run a scan.
+#
+# Required CI/CD variables (Settings > CI/CD > Variables), both Masked + Protected:
+#   VULNETIX_ORG_ID   organization UUID
+#   VULNETIX_API_KEY  ApiKey hex digest
+#
+# Do NOT name the key VULNETIX_API_TOKEN unless it really is a Bearer token —
+# that variable outranks everything else in the credential precedence chain.
+
+stages:
+  - security
+
+vulnetix:
+  stage: security
+  image: alpine:3.20
+  variables:
+    VULNETIX_VERSION: v3.55.2
+  before_script:
+    - apk add --no-cache bash ca-certificates curl tar
+    - curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir /usr/local/bin --version "$VULNETIX_VERSION"
+  script:
+    - vulnetix auth verify
+    - vulnetix scan --severity high

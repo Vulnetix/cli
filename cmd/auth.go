@@ -2,11 +2,10 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"net/http"
 	"os"
 	"strings"
@@ -190,7 +189,7 @@ Examples:
   vulnetix auth verify
 
   # Verify with explicit base URL
-  vulnetix auth verify --base-url https://app.vulnetix.com/api`,
+  vulnetix auth verify --base-url https://api.vdb.vulnetix.com/v1`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAuthVerify(cmd)
 	},
@@ -397,29 +396,123 @@ func promptStore(reader *bufio.Reader) (auth.CredentialStore, error) {
 	}
 }
 
+// RFC 8628 device authorization grant, served by www.vulnetix.com.
+//
+// The CLI obtains a secret device_code from /authorize before opening a
+// browser, and redeems it at /token. The short user_code the user types is only
+// ever an approval handle — possessing it grants nothing.
 const (
-	browserLoginURL     = "https://app.vulnetix.com/cli-login-code"
-	browserPollURL      = "https://app.vulnetix.com/api/cli/auth-code/poll/"
-	browserCodeCharset  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	browserCodeTimeout  = 5 * time.Minute
-	browserPollInterval = 5 * time.Second
+	defaultWebURL       = "https://www.vulnetix.com"
+	devicePollTimeout   = 5 * time.Minute
+	devicePollInterval  = 5 * time.Second
+	deviceRequestExpiry = 10 * time.Second
 )
 
-func generateCode() (string, error) {
-	b := make([]byte, 6)
-	for i := range b {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(browserCodeCharset))))
-		if err != nil {
-			return "", fmt.Errorf("failed to generate random code: %w", err)
-		}
-		b[i] = browserCodeCharset[n.Int64()]
+// Added to the poll interval when the server answers slow_down. Var so tests
+// can shrink it.
+var deviceSlowDownBump = 5 * time.Second
+
+// webBaseURL returns the Vulnetix console base. VULNETIX_WEB_URL overrides it
+// for local verification, mirroring VULNETIX_API_URL for the VDB client.
+func webBaseURL() string {
+	if u := strings.TrimSpace(os.Getenv("VULNETIX_WEB_URL")); u != "" {
+		return strings.TrimRight(u, "/")
 	}
-	return string(b[:3]) + "-" + string(b[3:]), nil
+	return defaultWebURL
 }
+
+func deviceAPIBase() string { return webBaseURL() + "/api/site/v1/cli/device" }
+
+// deviceAuth is the /authorize response (RFC 8628 §3.2).
+type deviceAuth struct {
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete"`
+	ExpiresIn               int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+}
+
+func (d *deviceAuth) interval() time.Duration {
+	if d.Interval > 0 {
+		return time.Duration(d.Interval) * time.Second
+	}
+	return devicePollInterval
+}
+
+func (d *deviceAuth) expiry() time.Duration {
+	if d.ExpiresIn > 0 {
+		return time.Duration(d.ExpiresIn) * time.Second
+	}
+	return devicePollTimeout
+}
+
+// browseURL prefers the code-carrying URL so the user does not have to type.
+func (d *deviceAuth) browseURL() string {
+	if d.VerificationURIComplete != "" {
+		return d.VerificationURIComplete
+	}
+	return d.VerificationURI
+}
+
+// postDevice sends a JSON body and decodes a JSON response. It returns the
+// status code so callers can distinguish RFC 8628 error states from transport
+// failures.
+func postDevice(ctx context.Context, path string, body, out any) (int, error) {
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return 0, err
+	}
+
+	url := deviceAPIBase() + path
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := (&http.Client{Timeout: deviceRequestExpiry}).Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if out != nil {
+		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+			return resp.StatusCode, fmt.Errorf("malformed response from %s: %w", url, err)
+		}
+	}
+	return resp.StatusCode, nil
+}
+
+// deviceAuthorize starts a grant. Called before any browser is opened.
+func deviceAuthorize(ctx context.Context) (*deviceAuth, error) {
+	var da deviceAuth
+	status, err := postDevice(ctx, "/authorize", struct{}{}, &da)
+	if err != nil {
+		return nil, fmt.Errorf("could not start device authorization: %w", err)
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("device authorization refused (HTTP %d)", status)
+	}
+	if da.DeviceCode == "" || da.UserCode == "" || da.VerificationURI == "" {
+		return nil, fmt.Errorf("incomplete device authorization response")
+	}
+	return &da, nil
+}
+
+// errDeviceExpired means the grant timed out before the user approved it. It is
+// the one failure worth offering a retry for.
+var errDeviceExpired = fmt.Errorf("device code expired")
 
 func browserLogin(reader *bufio.Reader, interactive bool) (auth.AuthMethod, string, string, auth.CredentialStore, error) {
 	for {
-		code, err := generateCode()
+		if verbose {
+			fmt.Printf("  authorize: %s/authorize\n", deviceAPIBase())
+			fmt.Printf("  token:     %s/token\n", deviceAPIBase())
+		}
+
+		da, err := deviceAuthorize(context.Background())
 		if err != nil {
 			return "", "", "", "", err
 		}
@@ -428,7 +521,7 @@ func browserLogin(reader *bufio.Reader, interactive bool) (auth.AuthMethod, stri
 		fmt.Println("Device Flow login")
 		fmt.Println()
 		if interactive {
-			if err := openBrowser(browserLoginURL); err == nil {
+			if err := openBrowser(da.browseURL()); err == nil {
 				fmt.Println("Opened your browser. If it did not appear, open this URL:")
 			} else {
 				fmt.Println("Open this URL in your browser:")
@@ -437,32 +530,30 @@ func browserLogin(reader *bufio.Reader, interactive bool) (auth.AuthMethod, stri
 			fmt.Println("Open this URL in a browser:")
 		}
 		fmt.Println()
-		fmt.Printf("  %s\n", browserLoginURL)
+		fmt.Printf("  %s\n", da.VerificationURI)
 		fmt.Println()
-		fmt.Println("Enter this code when prompted:")
+		fmt.Println("Verify this code matches the one shown in your browser:")
 		fmt.Println()
-		fmt.Printf("  %s\n", code)
+		fmt.Printf("  %s\n", da.UserCode)
 		fmt.Println()
 		fmt.Println("Waiting for browser authorization...")
 
-		orgID, apiKey, err := pollForAuth(code)
+		orgID, apiKey, err := pollForToken(da)
 		if err != nil {
-			if !interactive {
-				return "", "", "", "", fmt.Errorf("device flow timed out")
+			if interactive && err == errDeviceExpired {
+				fmt.Println()
+				fmt.Print("Code expired. Try again? [Y/n]: ")
+				retry, _ := reader.ReadString('\n')
+				retry = strings.TrimSpace(strings.ToLower(retry))
+				if retry == "" || retry == "y" || retry == "yes" {
+					continue
+				}
+				return "", "", "", "", fmt.Errorf("browser login cancelled")
 			}
-			// Timeout; prompt retry.
-			fmt.Println()
-			fmt.Print("Code expired. Try again? [Y/n]: ")
-			retry, _ := reader.ReadString('\n')
-			retry = strings.TrimSpace(strings.ToLower(retry))
-			if retry == "" || retry == "y" || retry == "yes" {
-				continue
-			}
-			return "", "", "", "", fmt.Errorf("browser login cancelled")
+			return "", "", "", "", err
 		}
 
-		// Parse apiKey "orgId:hex"; the full value is the api key.
-		// The orgId is returned separately
+		// The server returns "orgId:hex"; the hex half is the stored ApiKey.
 		parts := strings.SplitN(apiKey, ":", 2)
 		if len(parts) != 2 {
 			return "", "", "", "", fmt.Errorf("unexpected API key format from server")
@@ -472,7 +563,7 @@ func browserLogin(reader *bufio.Reader, interactive bool) (auth.AuthMethod, stri
 		fmt.Printf("\nAuthentication accepted.\n")
 		fmt.Println()
 
-		store := auth.StoreHome
+		var store auth.CredentialStore
 		if interactive {
 			store, err = promptStore(reader)
 			if err != nil {
@@ -489,25 +580,27 @@ func browserLogin(reader *bufio.Reader, interactive bool) (auth.AuthMethod, stri
 	}
 }
 
-func pollForAuth(code string) (orgID string, apiKey string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), browserCodeTimeout)
+// pollForToken redeems the device_code once the user approves. It honours the
+// server's interval and backs off on slow_down, per RFC 8628 §3.5.
+func pollForToken(da *deviceAuth) (orgID string, apiKey string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), da.expiry())
 	defer cancel()
 
-	ticker := time.NewTicker(browserPollInterval)
+	interval := da.interval()
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	countdownTicker := time.NewTicker(1 * time.Second)
 	defer countdownTicker.Stop()
 
 	deadline, _ := ctx.Deadline()
-	httpClient := &http.Client{Timeout: 10 * time.Second}
-	pollURL := browserPollURL + code
+	clearCountdown := func() { fmt.Print("\r                              \r") }
 
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Print("\r                              \r") // clear countdown line
-			return "", "", fmt.Errorf("timeout")
+			clearCountdown()
+			return "", "", errDeviceExpired
 
 		case <-countdownTicker.C:
 			remaining := time.Until(deadline).Round(time.Second)
@@ -516,31 +609,38 @@ func pollForAuth(code string) (orgID string, apiKey string, err error) {
 			fmt.Printf("\r  Time remaining: %d:%02d  ", mins, secs)
 
 		case <-ticker.C:
-			resp, reqErr := httpClient.Get(pollURL)
+			var result struct {
+				OrgID string `json:"orgId"`
+				Key   string `json:"apiKey"`
+				Error string `json:"error"`
+			}
+			status, reqErr := postDevice(ctx, "/token", map[string]string{"device_code": da.DeviceCode}, &result)
 			if reqErr != nil {
-				continue // network error, keep trying
+				continue // transport hiccup or malformed body; keep trying until expiry
 			}
 
-			if resp.StatusCode == http.StatusNotFound {
-				resp.Body.Close()
-				continue // not yet claimed
+			if status == http.StatusOK && result.OrgID != "" && result.Key != "" {
+				clearCountdown()
+				return result.OrgID, result.Key, nil
 			}
 
-			if resp.StatusCode == http.StatusOK {
-				var result struct {
-					OK    bool   `json:"ok"`
-					OrgID string `json:"orgId"`
-					Key   string `json:"apiKey"`
+			switch result.Error {
+			case "authorization_pending":
+				// Not approved yet.
+			case "slow_down":
+				interval += deviceSlowDownBump
+				ticker.Reset(interval)
+			case "expired_token":
+				clearCountdown()
+				return "", "", errDeviceExpired
+			case "access_denied":
+				clearCountdown()
+				return "", "", fmt.Errorf("authorization was denied")
+			default:
+				if status == http.StatusTooManyRequests {
+					interval += deviceSlowDownBump
+					ticker.Reset(interval)
 				}
-				json.NewDecoder(resp.Body).Decode(&result)
-				resp.Body.Close()
-
-				if result.OK && result.OrgID != "" && result.Key != "" {
-					fmt.Print("\r                              \r") // clear countdown line
-					return result.OrgID, result.Key, nil
-				}
-			} else {
-				resp.Body.Close()
 			}
 		}
 	}
