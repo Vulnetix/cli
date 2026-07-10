@@ -15,6 +15,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/cbom"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -47,6 +48,10 @@ The catalog is embedded and can be extended or replaced at runtime with
 The CycloneDX CBOM is always written to .vulnetix/cbom.cdx.json (override the
 path with --output-file). The terminal output format is set by -o. Use --fail-on
 to make CI exit non-zero when quantum-vulnerable or deprecated crypto is found.
+
+Detected assets are tracked in .vulnetix/memory.yaml. An asset that disappears
+from a later scan is marked resolved and attested in
+.vulnetix/vex-cbom.openvex.json. Pass --disable-memory to turn this off.
 
 Examples:
   vulnetix cbom                                   # pretty summary; writes .vulnetix/cbom.cdx.json
@@ -151,6 +156,11 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Memory always lives under the resolved scan root, never the process CWD.
+	reconcileCBOMMemory(rootPath, gitCtx, det, cbomPasses{
+		Source: !noSource, Config: !noConfig, Certs: !noCerts, Deps: !noDeps,
+	})
+
 	if !noUpload {
 		uploadCBOM(specVersion, det, bomData, gitCtx)
 	}
@@ -182,11 +192,143 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 	return evaluateFailOn(det.Summary, failOn)
 }
 
-// detectAndUploadCBOM runs the CBOM detection passes against rootPath and submits
-// the result to the backend. Best-effort: silent on any error and never affects
-// the caller's exit code. Used by `scan` to capture cryptographic inventory (PQC
-// posture) alongside the rest of the scan. Skips the submission entirely when no
-// cryptography is detected (no empty snapshots).
+// cbomFindingRecords converts a CBOM detection result into memory records.
+//
+// The identifiers are synthetic but deterministic. Algorithm names are already
+// canonicalised project-wide by internal/cbom/normalize.go (SHA256, Sha256 and
+// SHA_256 collapse to one asset), so the key needs no file or line component —
+// occurrences and evidence carry the locations.
+//
+// Most of a CBOM is inventory, not a defect list: recording every detected
+// SHA-256 as `under_investigation` would drown the triage queue. Only
+// quantum-vulnerable and deprecated algorithms are recorded as `affected`; the
+// rest carry memory.StatusInventory, which is invisible to the open-findings
+// queries but still auto-resolves (with VEX) when the algorithm leaves the code.
+func cbomFindingRecords(det cyclonedx.CryptoDetections) map[string]memory.FindingRecord {
+	out := make(map[string]memory.FindingRecord,
+		len(det.Assets)+len(det.Certificates)+len(det.Libraries))
+
+	firstEvidenceLocation := func(ev []cyclonedx.CryptoEvidence) []memory.Location {
+		for _, e := range ev {
+			if e.Locator != "" {
+				return []memory.Location{{File: e.Locator, Snippet: e.Snippet}}
+			}
+		}
+		return nil
+	}
+
+	for _, a := range det.Assets {
+		name := a.SPDXID
+		if name == "" {
+			name = a.Name
+		}
+		// No Aliases: the synthetic key is the identifier that reaches the
+		// OpenVEX statement, and the bare algorithm name would be ambiguous
+		// across primitives.
+		severity, status := severityForPQC(a.PQCStatus)
+		out[fmt.Sprintf("CBOM:asset:%s:%s", name, a.Primitive)] = memory.FindingRecord{
+			Severity:  severity,
+			Status:    status,
+			Source:    "vulnetix-cbom",
+			Locations: firstEvidenceLocation(a.Evidence),
+		}
+	}
+
+	for _, c := range det.Certificates {
+		key := fmt.Sprintf("CBOM:cert:%s:%s:%s", c.Subject, c.Issuer, c.NotAfter)
+		if c.Subject == "" && c.Issuer == "" {
+			key = "CBOM:cert:" + c.Name
+		}
+		severity, status := severityForPQC(c.PQCStatus)
+		out[key] = memory.FindingRecord{
+			Severity:  severity,
+			Status:    status,
+			Source:    "vulnetix-cbom",
+			Locations: firstEvidenceLocation(c.Evidence),
+		}
+	}
+
+	for _, l := range det.Libraries {
+		id := l.ID
+		if id == "" {
+			id = l.Name
+		}
+		out[fmt.Sprintf("CBOM:lib:%s:%s", id, l.Provider)] = memory.FindingRecord{
+			Package:   l.Name,
+			Severity:  "info",
+			Status:    memory.StatusInventory,
+			Source:    "vulnetix-cbom",
+			Locations: firstEvidenceLocation(l.Evidence),
+		}
+	}
+
+	return out
+}
+
+// cbomPasses records which of the four CBOM detection passes ran, so that a
+// pass the user disabled cannot resolve the findings it would have produced.
+type cbomPasses struct {
+	Source bool
+	Config bool
+	Certs  bool
+	Deps   bool
+}
+
+// cbomReconcileScope maps the passes that ran onto the finding-ID prefixes that
+// may participate in reconciliation. Algorithms surface from the source and
+// config passes together, so both must have run before an asset may be resolved.
+func cbomReconcileScope(p cbomPasses) []string {
+	var prefixes []string
+	if p.Source && p.Config {
+		prefixes = append(prefixes, "CBOM:asset:")
+	}
+	if p.Certs {
+		prefixes = append(prefixes, "CBOM:cert:")
+	}
+	if p.Deps {
+		prefixes = append(prefixes, "CBOM:lib:")
+	}
+	// An empty prefix list would mean "reconcile everything". When no pass is
+	// eligible we must reconcile nothing, so return a prefix that matches no
+	// record rather than none at all.
+	if len(prefixes) == 0 {
+		return []string{"\x00none"}
+	}
+	return prefixes
+}
+
+// reconcileCBOMMemory records the detected cryptographic inventory and resolves
+// anything that has left the codebase since the last run, attesting resolutions
+// in .vulnetix/vex-cbom.openvex.json.
+//
+// It must run even when the current detection is empty — that is precisely the
+// case where every prior asset should be resolved.
+func reconcileCBOMMemory(rootPath string, gitCtx *gitctx.GitContext, det cyclonedx.CryptoDetections, passes cbomPasses) {
+	if disableMemory {
+		return
+	}
+	changes := reconcileStandalone(rootPath, gitCtx, memory.ToolCBOM,
+		cbomFindingRecords(det), reconcileOptions{
+			Mode: memory.ResolveOnAbsence,
+			// A re-detected algorithm returns to inventory, not to the triage
+			// queue — its reappearance is not a finding to investigate.
+			RegressionStatus: memory.StatusInventory,
+			IDPrefixes:       cbomReconcileScope(passes),
+		})
+	if vexPath, err := writeToolOpenVEX(rootPath, memory.ToolCBOM, changes); err != nil {
+		fmt.Fprintf(os.Stderr, "  warning: could not write CBOM OpenVEX: %v\n", err)
+	} else if vexPath != "" && !silent {
+		fmt.Fprintf(os.Stderr, "  VEX: %s\n", vexPath)
+	}
+}
+
+// detectAndUploadCBOM runs the CBOM detection passes against rootPath, reconciles
+// the result against local memory, and submits it to the backend. Best-effort:
+// silent on any error and never affects the caller's exit code. Used by `scan` to
+// capture cryptographic inventory (PQC posture) alongside the rest of the scan.
+// The submission is skipped when no cryptography is detected (no empty
+// snapshots), but reconciliation still runs — an empty detection is exactly when
+// prior assets must be resolved.
 func detectAndUploadCBOM(rootPath string, gitCtx *gitctx.GitContext) {
 	if rootPath == "" {
 		rootPath = "."
@@ -207,7 +349,13 @@ func detectAndUploadCBOM(rootPath string, gitCtx *gitctx.GitContext) {
 		ScanDeps:   true,
 		Catalog:    compiled,
 	})
-	if err != nil || len(det.Assets)+len(det.Certificates)+len(det.Libraries) == 0 {
+	if err != nil {
+		return
+	}
+	reconcileCBOMMemory(rootPath, gitCtx, det, cbomPasses{
+		Source: true, Config: true, Certs: true, Deps: true,
+	})
+	if len(det.Assets)+len(det.Certificates)+len(det.Libraries) == 0 {
 		return
 	}
 	data, err := cyclonedx.BuildCBOM(det, cyclonedx.CBOMOptions{

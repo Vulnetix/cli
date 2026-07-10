@@ -214,6 +214,115 @@ Findings are appended to `.vulnetix/sbom.cdx.json` (CycloneDX format) alongside 
 
 Results are saved to `.vulnetix/sbom.cdx.json`.
 
+### Memory reconciliation and auto-VEX
+
+Every scan-family subcommand (`scan`, `sca`, `sast`, `secrets`, `containers`, `iac`, `license`, `cbom`, `aibom`, `malscan`) reconciles what it just found against what `.vulnetix/memory.yaml` remembers, and attests anything that has since been remediated as a VEX statement. The user never has to tell Vulnetix a finding is fixed — disappearing from a clean scan is the signal.
+
+**The memory file always lives under the scan root.** `.vulnetix/` is `filepath.Join(rootPath, ".vulnetix")` where `rootPath` is whatever the command resolved from `--path` (or its positional argument), never the process working directory. Helpers go through `vulnetixDirFor(rootPath)` in `cmd/reconcile.go` so there is exactly one place this join happens.
+
+#### The three inputs
+
+1. **Prior findings** — the records in `memory.yaml` tagged with this command's `Tool`.
+2. **Current findings** — the set of finding identifiers this run produced.
+3. **Current git branch** — from `gitctx.Collect(rootPath)`, stamped onto every record as `last_seen_branch`.
+
+#### Resolution modes
+
+What "absent from the current run" *means* depends on the scanner, not on the finding:
+
+| Mode | Rule | Tools |
+|---|---|---|
+| `ResolveOnAbsence` | The scanner recomputes its whole surface every run, so absence is itself the proof. | `sca`, `license`, `cbom`, `aibom`, `malscan`, `quality` |
+| `ResolveOnVerify` | The finding is anchored to a file + line + snippet. Absence may only mean the rule did not run, so `scan.VerifyLocationGone` must confirm the evidence left disk. A record with no snippet is never auto-resolved — we do not guess. | `sast`, `secrets`, `iac`, `container` |
+
+Two further guards:
+
+- **Branch gating.** A record whose `last_seen_branch` is set and differs from the current branch is skipped entirely — neither resolved nor flagged as a regression. When the tree has no git context the current branch is empty and the gate is open.
+- **Pass scoping (`IDPrefixes`).** `cbom` and `aibom` have individually disableable detection passes. `cbom --no-certs` finds no certificates, which is not the same as the certificates having been deleted, so only the ID prefixes belonging to passes that actually ran take part. The same principle restricts the SAST-family loop in `runLocalScan` to the rule kinds that were evaluated.
+
+#### Decision tree
+
+```mermaid
+flowchart TD
+  Start([Run scan subcommand]) --> Load["Load rootPath/.vulnetix/memory.yaml"]
+  Load --> Record[Record current findings under Tool tag]
+  Record --> Loop[For each prior finding of this tool]
+  Loop --> Scope{"ID in an enabled pass?<br/>(IDPrefixes)"}
+  Scope -- No --> Skip[Leave untouched]
+  Scope -- Yes --> Branch{"Same branch,<br/>or no branch stored?"}
+  Branch -- No --> Skip
+  Branch -- Yes --> InCurrent{In current finding set?}
+
+  InCurrent -- Yes --> WasFixed{Prior status was fixed?}
+  WasFixed -- No --> NoChange[No state change]
+  WasFixed -- Yes --> Regression["Status → RegressionStatus<br/>(under_investigation, or<br/>inventory for cbom/aibom)"]
+
+  InCurrent -- No --> Terminal{"Status already<br/>fixed or not_affected?"}
+  Terminal -- Yes --> Skip
+  Terminal -- No --> Mode{Resolution mode}
+  Mode -- ResolveOnAbsence --> Resolve["Status → fixed"]
+  Mode -- ResolveOnVerify --> HasLoc{"Verifier set and<br/>location recorded?"}
+  HasLoc -- No --> Skip
+  HasLoc -- Yes --> Gone{"Evidence gone from disk?<br/>(VerifyLocationGone)"}
+  Gone -- No --> Skip
+  Gone -- Yes --> Resolve
+
+  Regression --> Emit
+  Resolve --> Emit
+  Emit["Emit VEX statement<br/>into this tool's channel"]
+```
+
+#### VEX channels
+
+Each scanner attests in the channel it owns. Mixing them produces an SBOM full of rule fingerprints masquerading as CVEs.
+
+```mermaid
+flowchart LR
+  SCA[sca / scan] --> CDX["`.vulnetix/sbom.cdx.json`<br/>CDX-VEX, source vulnetix-sca"]
+  LIC[license] --> CDXL["`.vulnetix/sbom.cdx.json`<br/>CDX-VEX, source vulnetix-license-analyzer"]
+  SAST[sast] --> OV["`.vulnetix/vex.openvex.json`"]
+  SEC[secrets] --> OV
+  IAC[iac] --> OV
+  CON[containers] --> OV
+  MAL[malscan] --> OVM["`.vulnetix/vex-malscan.openvex.json`"]
+  CBOM[cbom] --> OVC["`.vulnetix/vex-cbom.openvex.json`"]
+  AIBOM[aibom] --> OVA["`.vulnetix/vex-aibom.openvex.json`"]
+```
+
+The two vocabularies differ: CDX-VEX records a resolution as `analysis.state = resolved` with `response = ["update"]`; OpenVEX records it as `status = fixed`. Both mean the same thing.
+
+License VEX entries are appended to the same `newVulns` slice handed to `license.MergeBOM`, because `MergeBOM` first strips every vulnerability carrying the license source. Written separately, they would be erased on the next run.
+
+#### Deterministic finding identifiers
+
+Reconciliation resolves a finding by noticing its identifier has left the current result set, so identifiers must be reproducible across runs and independent of iteration order.
+
+| Tool | Identifier |
+|---|---|
+| `sca` | CVE / GHSA / … |
+| `sast`, `secrets`, `iac`, `container` | rule fingerprint |
+| `malscan` | engine fingerprint (rule + path + value + line); the rule ID rides in `aliases` |
+| `license` | `LICENSE:<category>:<ecosystem>:<package>@<version>` |
+| `license` (conflict) | `LICENSE:license-conflict:<licenseA>\|<licenseB>:<packageA>\|<packageB>`, each pair sorted |
+| `cbom` | `CBOM:asset:<canonicalName>:<primitive>` · `CBOM:cert:<subject>:<issuer>:<notAfter>` · `CBOM:lib:<id>:<provider>` |
+| `aibom` | `AIBOM:tool:<id>` · `AIBOM:library:<id>` · `AIBOM:model:<name>:<viaSdk>` |
+
+The CBOM and AIBOM identifiers are synthetic — they are not CVEs — but they are used as the OpenVEX `vulnerability.name` so the state of a crypto asset or an AI SDK is machine-readable in the same shape as everything else. CBOM algorithm names are already canonicalised project-wide by `internal/cbom/normalize.go`, so no file or line component is needed.
+
+#### The `inventory` status
+
+A CBOM or AIBOM is an inventory, not a defect list. Recording every detected `SHA-256` as `under_investigation` would drown the triage queue, but a component still has to be tracked so its removal can be attested. Records therefore carry `status: inventory`:
+
+- Excluded from `GetOpenFindings` / `GetOpenFindingsByTools`, so `vulnetix triage` and the dashboard never see them.
+- Not terminal, so absence still flips them to `fixed` and emits VEX.
+- Re-detection returns them to `inventory`, not to the triage queue (`RegressionStatus`).
+
+CBOM escalates to `status: affected` for `quantum-vulnerable` (severity `high`) and `deprecated` (severity `medium`) algorithms. `inventory` is not a triage decision, so a producer is allowed to escalate out of it; a real decision (`not_affected`, a justification) always survives a rescan.
+
+#### `--disable-memory`
+
+Reads and writes are skipped entirely, and no VEX artefact is produced.
+
 ---
 
 ## CLI Persistence Pipeline
@@ -272,11 +381,24 @@ On success the final stderr line is `{Kind} snapshot: https://www.vulnetix.com/v
 
 ### `.vulnetix/` directory layout
 
+Everything below is resolved relative to the scan root (`--path`), not the process working directory.
+
 ```
 .vulnetix/
-├── memory.yaml          # local triage + VEX decisions (source of truth)
-├── sbom.cdx.json        # SCA CycloneDX BOM (used by `sca` and `license`)
-├── sast.sarif           # SAST/secrets/iac/oci consolidated SARIF
+├── memory.yaml                 # local triage + VEX decisions (source of truth)
+├── sbom.cdx.json               # SCA CycloneDX BOM + CDX-VEX (used by `sca` and `license`)
+├── sast.sarif                  # SAST/secrets/iac/oci consolidated SARIF
+├── containers.sarif            # container-only scans
+├── malscan.sarif               # malscan findings
+├── cbom.cdx.json               # cryptographic bill of materials
+├── ai-bom.cdx.json             # AI bill of materials
+├── vex.openvex.json            # auto-resolutions: sast / secrets / iac / container
+├── vex-malscan.openvex.json    # auto-resolutions: malscan
+├── vex-cbom.openvex.json       # auto-resolutions: cbom
+├── vex-aibom.openvex.json      # auto-resolutions: aibom
+├── vex-autofix.json            # findings resolved by `--sca-autofix`
+├── vex-risk-accepted.json      # packages with no vulnerability-free version
+└── detection-rules.rules       # IDS rules, when any were generated
 ```
 
 The server-side OpenVEX + CDX-VEX documents for any snapshot can be retrieved from S3 using the `r2Key` recorded against the relevant `Artifact` row.

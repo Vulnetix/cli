@@ -15,6 +15,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -41,6 +42,10 @@ The catalog is embedded and can be extended or replaced at runtime with
 
 The CycloneDX AIBOM is always written to .vulnetix/ai-bom.cdx.json (override the
 path with --output-file). The terminal output format is set by -o.
+
+Detected components are tracked in .vulnetix/memory.yaml. A component that
+disappears from a later scan is marked resolved and attested in
+.vulnetix/vex-aibom.openvex.json. Pass --disable-memory to turn this off.
 
 Examples:
   vulnetix aibom                                  # pretty summary; writes .vulnetix/ai-bom.cdx.json
@@ -142,6 +147,11 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Memory always lives under the resolved scan root, never the process CWD.
+	reconcileAIBOMMemory(rootPath, gitCtx, det, aibomPasses{
+		Env: !noEnv, Source: !noSource, Commits: !noCommits,
+	})
+
 	// Auto-submit to the Vulnetix backend when authenticated. Best-effort: never
 	// fails the command, and community/unauthenticated callers are skipped (the
 	// server would not persist their data anyway).
@@ -177,11 +187,129 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	}
 }
 
-// detectAndUploadAIBOM runs the AIBOM detection passes against rootPath and
-// submits the result to the backend. Best-effort: silent on any error and never
-// affects the caller's exit code. Used by `scan` to capture AI coding-agent /
-// SDK / model inventory alongside the rest of the scan. Skips the submission
-// entirely when nothing AI-related is detected (no empty snapshots).
+// aibomFindingRecords converts an AIBOM detection result into memory records.
+//
+// An AI bill of materials is pure inventory — nothing here is a defect — so
+// every record carries memory.StatusInventory. That keeps them out of the
+// open-findings queries that drive `vulnetix triage` and the dashboard, while
+// still letting a component that leaves the codebase be auto-resolved and
+// attested with VEX.
+func aibomFindingRecords(det cyclonedx.AIDetections) map[string]memory.FindingRecord {
+	out := make(map[string]memory.FindingRecord,
+		len(det.Tools)+len(det.Libraries)+len(det.Models))
+
+	firstEvidenceLocation := func(ev []cyclonedx.AIEvidence) []memory.Location {
+		for _, e := range ev {
+			if e.Locator != "" {
+				return []memory.Location{{File: e.Locator, Snippet: e.Snippet}}
+			}
+		}
+		return nil
+	}
+
+	// No Aliases anywhere below: the synthetic key is what reaches the OpenVEX
+	// statement, and it is the only unambiguous name (two SDKs can expose the
+	// same model). The human-readable name still rides in Package.
+	for _, t := range det.Tools {
+		id := t.ID
+		if id == "" {
+			id = t.Name
+		}
+		out["AIBOM:tool:"+id] = memory.FindingRecord{
+			Package:   t.Name,
+			Severity:  "info",
+			Status:    memory.StatusInventory,
+			Source:    "vulnetix-aibom",
+			Locations: firstEvidenceLocation(t.Evidence),
+		}
+	}
+
+	for _, l := range det.Libraries {
+		id := l.ID
+		if id == "" {
+			id = l.Name
+		}
+		out["AIBOM:library:"+id] = memory.FindingRecord{
+			Package:   l.Name,
+			Severity:  "info",
+			Status:    memory.StatusInventory,
+			Source:    "vulnetix-aibom",
+			Locations: firstEvidenceLocation(l.Evidence),
+		}
+	}
+
+	for _, m := range det.Models {
+		out[fmt.Sprintf("AIBOM:model:%s:%s", m.Name, m.ViaSDK)] = memory.FindingRecord{
+			Package:   m.Name,
+			Severity:  "info",
+			Status:    memory.StatusInventory,
+			Source:    "vulnetix-aibom",
+			Locations: firstEvidenceLocation(m.Evidence),
+		}
+	}
+
+	return out
+}
+
+// aibomPasses records which AIBOM detection passes ran. The filesystem pass
+// always runs; env, source and commit-history are individually disableable.
+type aibomPasses struct {
+	Env     bool
+	Source  bool
+	Commits bool
+}
+
+// aibomReconcileScope maps the passes that ran onto the finding-ID prefixes that
+// may participate in reconciliation. Tools are surfaced by the env, filesystem
+// and commit-history passes together — disabling either optional one could hide
+// a tool that is still very much in use — so both must have run before a tool
+// record may be resolved. Libraries and models come solely from the source pass.
+func aibomReconcileScope(p aibomPasses) []string {
+	var prefixes []string
+	if p.Env && p.Commits {
+		prefixes = append(prefixes, "AIBOM:tool:")
+	}
+	if p.Source {
+		prefixes = append(prefixes, "AIBOM:library:", "AIBOM:model:")
+	}
+	// An empty prefix list means "reconcile everything"; when no pass qualifies
+	// we must reconcile nothing, so return a prefix that matches no record.
+	if len(prefixes) == 0 {
+		return []string{"\x00none"}
+	}
+	return prefixes
+}
+
+// reconcileAIBOMMemory records the detected AI inventory and resolves anything
+// that has left the codebase since the last run, attesting resolutions in
+// .vulnetix/vex-aibom.openvex.json.
+//
+// It must run even when the current detection is empty — that is precisely the
+// case where every prior component should be resolved.
+func reconcileAIBOMMemory(rootPath string, gitCtx *gitctx.GitContext, det cyclonedx.AIDetections, passes aibomPasses) {
+	if disableMemory {
+		return
+	}
+	changes := reconcileStandalone(rootPath, gitCtx, memory.ToolAIBOM,
+		aibomFindingRecords(det), reconcileOptions{
+			Mode:             memory.ResolveOnAbsence,
+			RegressionStatus: memory.StatusInventory,
+			IDPrefixes:       aibomReconcileScope(passes),
+		})
+	if vexPath, err := writeToolOpenVEX(rootPath, memory.ToolAIBOM, changes); err != nil {
+		fmt.Fprintf(os.Stderr, "  warning: could not write AIBOM OpenVEX: %v\n", err)
+	} else if vexPath != "" && !silent {
+		fmt.Fprintf(os.Stderr, "  VEX: %s\n", vexPath)
+	}
+}
+
+// detectAndUploadAIBOM runs the AIBOM detection passes against rootPath,
+// reconciles the result against local memory, and submits it to the backend.
+// Best-effort: silent on any error and never affects the caller's exit code.
+// Used by `scan` to capture AI coding-agent / SDK / model inventory alongside
+// the rest of the scan. The submission is skipped when nothing AI-related is
+// detected (no empty snapshots), but reconciliation still runs — an empty
+// detection is exactly when prior components must be resolved.
 func detectAndUploadAIBOM(rootPath string, gitCtx *gitctx.GitContext) {
 	if rootPath == "" {
 		rootPath = "."
@@ -201,7 +329,11 @@ func detectAndUploadAIBOM(rootPath string, gitCtx *gitctx.GitContext) {
 		ScanCommits: true,
 		Catalog:     compiled,
 	})
-	if err != nil || len(det.Tools)+len(det.Libraries)+len(det.Models) == 0 {
+	if err != nil {
+		return
+	}
+	reconcileAIBOMMemory(rootPath, gitCtx, det, aibomPasses{Env: true, Source: true, Commits: true})
+	if len(det.Tools)+len(det.Libraries)+len(det.Models) == 0 {
 		return
 	}
 	data, err := cyclonedx.BuildAIBOM(det, cyclonedx.AIBOMOptions{

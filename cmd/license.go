@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/scan"
@@ -27,6 +29,11 @@ SPDX license database. No data is uploaded to any server.
 
 License findings are stored in the CycloneDX SBOM at .vulnetix/sbom.cdx.json
 alongside vulnerability findings (neither overwrites the other).
+
+Findings are tracked in .vulnetix/memory.yaml. A finding that disappears from a
+later run — the package was removed, or its license changed — is marked resolved
+and attested as a CycloneDX VEX entry in the same SBOM. Pass --disable-memory to
+turn this off.
 
 Examples:
   vulnetix license                                # scan current directory
@@ -252,9 +259,32 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 		SeverityThreshold: severityThreshold,
 	})
 
+	// ── Reconcile memory ────────────────────────────────────────────────
+	// This runs before MergeBOM, not after. A resolved finding is by definition
+	// absent from result.Findings, and MergeBOM drops every vulnerability
+	// carrying this source before appending the new ones — so the auto-VEX
+	// entries must ride along in the same cdxVulns slice or the next run erases
+	// them.
+	progress.SetStage("Persisting license results")
+	var licenseVEX []cdx.Vulnerability
+	if !disableMemory {
+		gitCtx := gitctx.Collect(rootPath)
+		mem, merr := memory.Load(vulnetixDir)
+		if merr != nil || mem == nil {
+			mem = &memory.Memory{Version: "1"}
+		}
+		mem.SetScanContext(scanContextFor(rootPath, gitCtx))
+		recordAndReconcileLicense(mem, rootPath, gitCtx, result)
+		licenseVEX = licenseVEXFromMemory(mem)
+		if err := memory.Save(vulnetixDir, mem); err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
+		}
+	}
+
 	// ── Write to CDX BOM (merge, don't overwrite) ───────────────────────
 	sbomPath := filepath.Join(vulnetixDir, "sbom.cdx.json")
 	cdxVulns := license.FindingsToCDXVulnerabilities(result.Findings, result.Packages)
+	cdxVulns = append(cdxVulns, licenseVEX...)
 	if err := license.MergeBOM(sbomPath, cdxVulns, license.CDXSourceName); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not merge license findings into BOM: %v\n", err)
 	}
@@ -262,12 +292,6 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 	// Populate license data on BOM components and dependency tree.
 	license.PopulateBOMLicenses(sbomPath, result.Packages, manifestGroups)
 	progress.Update(5, "Updated CycloneDX license data")
-
-	// ── Write to memory ─────────────────────────────────────────────────
-	progress.SetStage("Persisting license results")
-	if !disableMemory {
-		writeLicenseMemory(vulnetixDir, result)
-	}
 
 	// ── Phase-2: persist license SARIF to /v2/cli.license ──────────────
 	// License findings are package-level (no source line), so snippet capture
@@ -590,34 +614,165 @@ func severityOrd(s string) int {
 	}
 }
 
-// writeLicenseMemory persists license findings to .vulnetix/memory.yaml.
-func writeLicenseMemory(vulnetixDir string, result *license.AnalysisResult) {
-	mem, _ := memory.Load(vulnetixDir)
+// legacyLicenseIDPattern matches the run-local counter IDs that license
+// findings carried before deterministic keys landed, e.g. "LICENSE-NOT-OSI-004".
+var legacyLicenseIDPattern = regexp.MustCompile(`^LICENSE-([A-Z-]+)-\d{3}$`)
+
+// legacyLicensePrefixToCategory maps the old ID prefix onto the rule category
+// that FindingID now encodes. LICENSE-CONFLICT is absent: a conflict record
+// stores neither license of the pair, so its deterministic key cannot be
+// reconstructed and the record is dropped instead.
+var legacyLicensePrefixToCategory = map[string]string{
+	"UNKNOWN":       "unknown-license",
+	"NONSTANDARD":   "non-standard-license",
+	"DEPRECATED":    "deprecated-license",
+	"NOT-OSI":       "not-osi-approved",
+	"COPYLEFT-PROD": "copyleft-in-production",
+	"NOT-ALLOWED":   "not-in-allowlist",
+}
+
+// migrateLegacyLicenseIDs re-keys license findings that were stored under the
+// old counter-based identifiers, preserving each record's triage decision and
+// history. Conflict findings cannot be re-keyed and are removed. Returns the
+// number of records migrated and dropped.
+//
+// Without this, the first run after the ID change would see every legacy record
+// as "absent from the current scan" and auto-resolve it, emitting a wave of
+// false VEX statements.
+func migrateLegacyLicenseIDs(mem *memory.Memory) (migrated, dropped int) {
+	if mem == nil || mem.Findings == nil {
+		return 0, 0
+	}
+	for id, rec := range mem.Findings {
+		if rec.Tool != memory.ToolLicense && rec.Source != license.CDXSourceName {
+			continue
+		}
+		m := legacyLicenseIDPattern.FindStringSubmatch(id)
+		if m == nil {
+			continue
+		}
+		category, ok := legacyLicensePrefixToCategory[m[1]]
+		if !ok || rec.Package == "" {
+			delete(mem.Findings, id)
+			dropped++
+			continue
+		}
+		version := ""
+		if rec.Versions != nil {
+			version = rec.Versions.Current
+		}
+		newID := license.FindingID(category, license.PackageLicense{
+			PackageName:    rec.Package,
+			PackageVersion: version,
+			Ecosystem:      rec.Ecosystem,
+		})
+		delete(mem.Findings, id)
+		rec.Tool = memory.ToolLicense
+		// A record already present under the new key wins — it was written by
+		// the current run and carries fresher evidence.
+		if _, exists := mem.Findings[newID]; !exists {
+			mem.Findings[newID] = rec
+		}
+		migrated++
+	}
+	return migrated, dropped
+}
+
+// licenseVEXFromMemory renders every resolved license finding in memory as a
+// CDX-VEX entry.
+//
+// It reads memory rather than this run's state changes because
+// license.MergeBOM strips all vulnerabilities carrying the license source before
+// appending the new ones: an entry emitted only on the run that resolved it
+// would be erased by the very next run. Memory is the source of truth, the BOM
+// is a projection of it.
+//
+// Regressed findings are excluded — they are back in result.Findings, so
+// FindingsToCDXVulnerabilities already emits an entry under the same bom-ref.
+func licenseVEXFromMemory(mem *memory.Memory) []cdx.Vulnerability {
 	if mem == nil {
-		mem = &memory.Memory{Version: "1"}
+		return nil
 	}
-
-	if mem.Findings == nil {
-		mem.Findings = map[string]memory.FindingRecord{}
+	var resolved []memory.StateChange
+	for id, rec := range mem.Findings {
+		if rec.Tool != memory.ToolLicense || rec.Status != "fixed" {
+			continue
+		}
+		resolved = append(resolved, memory.StateChange{
+			CveID:     id,
+			Tool:      memory.ToolLicense,
+			Package:   rec.Package,
+			Ecosystem: rec.Ecosystem,
+			NewStatus: "fixed",
+			Comment:   autoResolvedDetail(rec),
+			Finding:   rec,
+		})
 	}
+	return cdxVEXForChanges(resolved, license.CDXSourceName)
+}
 
+// autoResolvedDetail recovers the reason a record was auto-resolved from its
+// history, so the VEX detail survives across runs even though StateChange does
+// not. Falls back to a generic explanation for records resolved by hand.
+func autoResolvedDetail(rec memory.FindingRecord) string {
+	for i := len(rec.History) - 1; i >= 0; i-- {
+		if rec.History[i].Event == "auto-resolved" && rec.History[i].Detail != "" {
+			return rec.History[i].Detail
+		}
+	}
+	return "Package or license condition no longer detected"
+}
+
+// licenseFindingRecords converts an evaluation result into the memory records
+// for this run, keyed by the deterministic finding ID.
+func licenseFindingRecords(result *license.AnalysisResult) map[string]memory.FindingRecord {
+	out := make(map[string]memory.FindingRecord, len(result.Findings))
 	for _, f := range result.Findings {
-		mem.Findings[f.ID] = memory.FindingRecord{
+		rec := memory.FindingRecord{
 			Package:         f.Package.PackageName,
 			Ecosystem:       f.Package.Ecosystem,
 			Severity:        f.Severity,
 			Status:          "affected",
 			Source:          license.CDXSourceName,
 			Versions:        &memory.VersionInfo{Current: f.Package.PackageVersion},
-			SourceFiles:     []string{f.Package.SourceFile},
 			IntroducedPaths: f.IntroducedPaths,
 			PathCount:       f.PathCount,
 		}
+		if f.Package.SourceFile != "" {
+			rec.SourceFiles = []string{f.Package.SourceFile}
+			// Locations keeps license records readable by the tool-agnostic
+			// consumers (triage --tool license, dashboards). No line number
+			// exists: a license applies to the package, not to a source line.
+			rec.Locations = []memory.Location{{File: f.Package.SourceFile}}
+		}
+		out[f.ID] = rec
 	}
+	return out
+}
 
-	if err := memory.Save(vulnetixDir, mem); err != nil {
-		fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
+// recordAndReconcileLicense records this run's license findings into mem and
+// resolves any prior finding that no longer appears. License evaluation
+// recomputes the whole dependency set every run, so absence from the current
+// result set is proof the package or its offending license condition is gone —
+// no on-disk verification is possible or needed.
+//
+// The caller owns saving mem.
+func recordAndReconcileLicense(
+	mem *memory.Memory,
+	rootPath string,
+	gitCtx *gitctx.GitContext,
+	result *license.AnalysisResult,
+) []memory.StateChange {
+	if mem == nil || result == nil {
+		return nil
 	}
+	if migrated, dropped := migrateLegacyLicenseIDs(mem); migrated > 0 || dropped > 0 {
+		fmt.Fprintf(os.Stderr,
+			"  note: migrated %d license finding(s) to stable identifiers (%d unmigratable conflict record(s) dropped)\n",
+			migrated, dropped)
+	}
+	return reconcileInto(mem, rootPath, gitCtx, memory.ToolLicense,
+		licenseFindingRecords(result), reconcileOptions{Mode: memory.ResolveOnAbsence})
 }
 
 // loadLicenseFromMemory reconstructs license output from memory.

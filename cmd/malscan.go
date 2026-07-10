@@ -36,6 +36,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/ecosystems"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/memory"
 )
 
 const (
@@ -72,6 +73,10 @@ Evidence is SARIF, always written to .vulnetix/malscan.sarif (override with
 --output-file) and uploaded to Vulnetix when authenticated. The terminal output
 format is set by -o (pretty by default). Exit status is non-zero when malware is
 found.
+
+Findings are tracked in .vulnetix/memory.yaml. A finding the engine no longer
+reports is marked resolved and attested in .vulnetix/vex-malscan.openvex.json.
+Pass --disable-memory to turn this off.
 
 Threat-intel definitions: the engine ships an embedded bad-IP/host/email
 blocklist aggregated from public feeds. Run "malscan --fetch-definitions" to
@@ -276,6 +281,10 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	progress.Update(4, fmt.Sprintf("Wrote SARIF report to %s", outFile))
+
+	// Record findings and auto-resolve anything the engine no longer reports.
+	// Memory always lives under the resolved scan root, never the process CWD.
+	reconcileMalscanMemory(rootPath, gitCtx, res)
 
 	// Upload (best-effort; community/unauthenticated callers are skipped).
 	if !noUpload {
@@ -531,6 +540,58 @@ func scanTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanRe
 	}
 }
 
+// malscanFindingRecords converts this run's malware findings into memory
+// records keyed by the engine's fingerprint, which is already stable across
+// runs (it hashes the rule, the relative path, the matched value and the line).
+// The human-readable rule ID rides in Aliases so the VEX statement names the
+// rule rather than a hex digest.
+func malscanFindingRecords(res *malscanResult) map[string]memory.FindingRecord {
+	if res == nil {
+		return nil
+	}
+	out := make(map[string]memory.FindingRecord, len(res.Findings))
+	for _, f := range res.Findings {
+		rec := memory.FindingRecord{
+			Aliases:   []string{f.RuleID},
+			Severity:  f.Severity,
+			Status:    "affected",
+			Source:    "vulnetix-malscan",
+			Ecosystem: f.Ecosystem,
+		}
+		if f.File != "" {
+			rec.Locations = []memory.Location{{
+				File:      f.File,
+				StartLine: f.StartLine,
+				EndLine:   f.EndLine,
+				Snippet:   f.Snippet,
+			}}
+		}
+		out[f.Fingerprint] = rec
+	}
+	return out
+}
+
+// reconcileMalscanMemory records this run's malware findings and resolves any
+// prior finding the engine no longer reports, attesting the resolutions in
+// .vulnetix/vex-malscan.openvex.json.
+//
+// Absence is proof enough: malscan re-walks every resolved dependency install
+// directory on every run, so a finding that vanished means the artefact is gone
+// or no longer matches the definitions. Location verification is not usable —
+// package-level findings carry no file at all.
+func reconcileMalscanMemory(rootPath string, gitCtx *gitctx.GitContext, res *malscanResult) {
+	if disableMemory || res == nil {
+		return
+	}
+	changes := reconcileStandalone(rootPath, gitCtx, memory.ToolMalscan,
+		malscanFindingRecords(res), reconcileOptions{Mode: memory.ResolveOnAbsence})
+	if vexPath, err := writeToolOpenVEX(rootPath, memory.ToolMalscan, changes); err != nil {
+		fmt.Fprintf(os.Stderr, "  warning: could not write malscan OpenVEX: %v\n", err)
+	} else if vexPath != "" && !silent {
+		fmt.Fprintf(os.Stderr, "  VEX: %s\n", vexPath)
+	}
+}
+
 // runMalscanForGate is the entry point the scan/sca hooks use: it runs the engine
 // and uploads, returning the malicious package/file labels so the caller can fold
 // them into the malware quality gate. Best-effort: a nil result on error.
@@ -548,6 +609,7 @@ func runMalscanForGate(rootPath string, includeHome bool, gitCtx *gitctx.GitCont
 	if sarifBytes, berr := buildMalscanSARIFBytes(res, rootPath, gitCtx); berr == nil {
 		_ = writeMalscanFile(filepath.Join(rootPath, ".vulnetix", "malscan.sarif"), sarifBytes)
 	}
+	reconcileMalscanMemory(rootPath, gitCtx, res)
 	uploadMalscan(res, gitCtx)
 
 	var labels []string
