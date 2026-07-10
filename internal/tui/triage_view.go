@@ -326,10 +326,6 @@ func (m *TriageModel) View() string {
 	return b.String()
 }
 
-func (m *TriageModel) renderDetail() string {
-	return m.renderFilteredDetail(m.alerts)
-}
-
 func (m *TriageModel) renderFilteredDetail(alerts []triage.EnrichedAlert) string {
 	var b strings.Builder
 	a := alerts[m.selectedIdx]

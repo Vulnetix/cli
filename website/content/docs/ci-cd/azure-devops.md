@@ -30,7 +30,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+      curl -fsSL https://cli.vulnetix.com/install.sh | sh
       export PATH=$PATH:$HOME/.local/bin
       vulnetix --version
 
@@ -119,7 +119,7 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
-          curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          curl -fsSL https://cli.vulnetix.com/install.sh | sh
           export PATH=$PATH:$HOME/.local/bin
           vulnetix --version
 
@@ -182,7 +182,7 @@ steps:
     targetType: 'inline'
     script: |
       # Install Vulnetix
-      curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+      curl -fsSL https://cli.vulnetix.com/install.sh | sh
       export PATH=$PATH:$HOME/.local/bin
 
       # Install Semgrep
@@ -251,7 +251,7 @@ steps:
     targetType: 'inline'
     script: |
       export PATH=$PATH:$HOME/.local/bin
-      curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+      curl -fsSL https://cli.vulnetix.com/install.sh | sh
       vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
   env:
     VULNETIX_ORG_ID: $(vulnetix-org-id)
@@ -399,7 +399,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+      curl -fsSL https://cli.vulnetix.com/install.sh | sh
       export PATH=$PATH:$HOME/.local/bin
       vulnetix --version
   condition: ne(variables['platform'], 'windows')
@@ -529,7 +529,7 @@ jobs:
       script: |
         if [ "$(System.JobPositionInPhase)" = "4" ]; then
           export PATH=$PATH:$HOME/.local/bin
-          curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          curl -fsSL https://cli.vulnetix.com/install.sh | sh
           vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
         fi
     condition: eq(variables['System.JobPositionInPhase'], '4')
@@ -581,8 +581,8 @@ steps:
       # Test GitHub connectivity
       curl -I https://github.com/vulnetix/cli/v3/releases/latest
 
-      # Test Vulnetix API connectivity
-      curl -I https://app.vulnetix.com/api/check
+      # Test Vulnetix VDB API connectivity
+      curl -I https://api.vdb.vulnetix.com/health
 
       # Check proxy settings
       echo "HTTP_PROXY: $HTTP_PROXY"
@@ -594,7 +594,6 @@ steps:
 ```yaml
 # Enable debug logging
 variables:
-  VULNETIX_DEBUG: 'true'
   SYSTEM_DEBUG: 'true'
 
 steps:
@@ -606,5 +605,4 @@ steps:
       export PATH=$PATH:$HOME/.local/bin
       vulnetix upload --org-id "$VULNETIX_ORG_ID" --file <artifact-path>
   env:
-    VULNETIX_DEBUG: $(VULNETIX_DEBUG)
 ```

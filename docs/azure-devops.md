@@ -14,10 +14,10 @@ pool:
 steps:
   - task: GoTool@0
     inputs:
-      version: '1.21'
+      version: '1.25'
   - script: |
       go install github.com/vulnetix/cli/v3@latest
-      vulnetix auth login --method apikey --org-id "$(VULNETIX_ORG_ID)" --secret "$(VULNETIX_API_KEY)" --store project
+      vulnetix auth login --api-key "$(VULNETIX_API_KEY)" --org-id "$(VULNETIX_ORG_ID)" --store project
       vulnetix
     env:
       VULNETIX_ORG_ID: $(VULNETIX_ORG_ID)

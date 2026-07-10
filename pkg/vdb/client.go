@@ -126,7 +126,12 @@ func (e *CliAPIError) Error() string {
 }
 
 // sharedTransport is reused across clients for connection pooling.
+//
+// Proxy must be set explicitly: a zero-value http.Transport has a nil Proxy and
+// silently ignores HTTP_PROXY/HTTPS_PROXY/NO_PROXY, unlike http.DefaultTransport.
+// Corporate-proxy users would otherwise see VDB calls bypass the proxy entirely.
 var sharedTransport = &http.Transport{
+	Proxy:               http.ProxyFromEnvironment,
 	MaxIdleConns:        20,
 	MaxIdleConnsPerHost: 10,
 	IdleConnTimeout:     90 * time.Second,

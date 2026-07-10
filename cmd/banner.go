@@ -57,7 +57,7 @@ func printBanner(cmd *cobra.Command) {
 	}
 	fmt.Fprintf(os.Stderr, "  %s %s\n", display.Muted(t, "Auth:   "), authText)
 
-	apiText := display.Muted(t, "Ready (use 'vulnetix info' for full healthcheck)")
+	var apiText string
 	if authSrc != "none" {
 		apiText = fmt.Sprintf("%s %s", display.CheckMark(t), display.Success(t, "Ready"))
 	} else {

@@ -9,7 +9,9 @@ import (
 func tmpVulnetixDir(t *testing.T) string {
 	t.Helper()
 	d := filepath.Join(t.TempDir(), ".vulnetix")
-	os.MkdirAll(d, 0755)
+	if err := os.MkdirAll(d, 0755); err != nil {
+		t.Fatal(err)
+	}
 	return d
 }
 

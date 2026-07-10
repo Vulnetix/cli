@@ -10,6 +10,7 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -433,13 +434,30 @@ func (c *Client) addAuth(req *http.Request) {
 	}
 }
 
+// SupportedFormats are the artifact formats the upload API accepts. A value
+// outside this set is rejected before any bytes leave the machine.
+var SupportedFormats = []string{"cyclonedx", "spdx", "sarif", "openvex", "csaf_vex"}
+
+// ValidateFormat checks an explicit --format override. An empty value means
+// "auto-detect" and is always allowed.
+func ValidateFormat(format string) error {
+	if format == "" {
+		return nil
+	}
+	if slices.Contains(SupportedFormats, format) {
+		return nil
+	}
+	return fmt.Errorf("unsupported format %q: must be one of %s",
+		format, strings.Join(SupportedFormats, ", "))
+}
+
 // DetectFormat inspects file extension and content to determine the artifact format
 func DetectFormat(filePath string, data []byte) string {
 	ext := strings.ToLower(filepath.Ext(filePath))
 	name := strings.ToLower(filepath.Base(filePath))
 
 	// Check file name patterns
-	if strings.Contains(name, ".cdx.") || strings.Contains(name, "cyclonedx") {
+	if strings.Contains(name, ".cdx.") || strings.HasSuffix(name, ".cdx") || strings.Contains(name, "cyclonedx") {
 		return "cyclonedx"
 	}
 	if strings.Contains(name, ".spdx.") || strings.Contains(name, "spdx") {
@@ -470,6 +488,11 @@ func DetectFormat(filePath string, data []byte) string {
 		}
 		if strings.Contains(content, "\"@context\"") && strings.Contains(content, "openvex") {
 			return "openvex"
+		}
+		// CSAF was previously filename-only, so a valid advisory named
+		// advisory.json went undetected and was dropped by discovery.
+		if strings.Contains(content, "\"csaf_version\"") {
+			return "csaf_vex"
 		}
 	}
 

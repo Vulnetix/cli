@@ -174,7 +174,7 @@ func TestListArtifacts(t *testing.T) {
 		// Return mock artifact list
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"total_count": 2,
 			"artifacts": [
 				{
@@ -332,7 +332,7 @@ func TestDownloadArtifact_SizeLimit(t *testing.T) {
 		w.Header().Set("Content-Type", "application/zip")
 		w.WriteHeader(http.StatusOK)
 		// Write some data
-		w.Write(make([]byte, 1024))
+		_, _ = w.Write(make([]byte, 1024))
 	}))
 	defer server.Close()
 
@@ -377,7 +377,7 @@ func TestDownloadArtifact_Success(t *testing.T) {
 		zipFile.Close()
 		t.Fatalf("Failed to create zip entry: %v", err)
 	}
-	fileWriter.Write([]byte("test content"))
+	_, _ = fileWriter.Write([]byte("test content"))
 	w.Close()
 	zipFile.Close()
 
@@ -395,7 +395,7 @@ func TestDownloadArtifact_Success(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/zip")
 		w.WriteHeader(http.StatusOK)
-		w.Write(zipData)
+		_, _ = w.Write(zipData)
 	}))
 	defer server.Close()
 

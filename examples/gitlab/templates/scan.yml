@@ -1,0 +1,41 @@
+# Scan jobs for the `include: project:` pattern. Requires base.yml.
+#
+# A consuming project overrides behaviour by redeclaring the variable:
+#
+#   include:
+#     - project: myorg/ci-templates
+#       ref: v1.0.0
+#       file:
+#         - /vulnetix/base.yml
+#         - /vulnetix/scan.yml
+#
+#   variables:
+#     VULNETIX_SEVERITY: critical   # tighten the gate for this project only
+#
+#   vulnetix-sca:
+#     stage: verify                 # or move the job to another stage
+
+stages:
+  - security
+
+variables:
+  VULNETIX_SEVERITY: high
+
+vulnetix-sca:
+  extends: .vulnetix-base
+  stage: security
+  script:
+    - vulnetix sca --severity "$VULNETIX_SEVERITY" -o dist/sbom.cdx.json
+
+vulnetix-secrets:
+  extends: .vulnetix-base
+  stage: security
+  script:
+    - vulnetix secrets -o dist/secrets.sarif
+
+vulnetix-license:
+  extends: .vulnetix-base
+  stage: security
+  script:
+    - vulnetix license
+    - cp .vulnetix/sbom.cdx.json dist/licenses.cdx.json

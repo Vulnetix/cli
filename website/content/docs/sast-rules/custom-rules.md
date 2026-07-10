@@ -401,7 +401,7 @@ jobs:
 
       - name: Install Vulnetix
         run: |
-          curl -sSfL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+          curl -sSfL https://cli.vulnetix.com/install.sh | sh
 
       - name: Scan with custom rules
         run: |
@@ -435,7 +435,7 @@ jobs:
 sast-scan:
   image: ubuntu:24.04
   script:
-    - curl -sSfL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+    - curl -sSfL https://cli.vulnetix.com/install.sh | sh
     - vulnetix scan
         --rule myorg/sast-rules
         --rule-registry https://gitlab.com

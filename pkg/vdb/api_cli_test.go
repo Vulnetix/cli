@@ -32,7 +32,9 @@ func TestCliEnv_EmptyJSON(t *testing.T) {
 	var env CliEnv
 	data, _ := json.Marshal(env)
 	var decoded CliEnv
-	json.Unmarshal(data, &decoded)
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestCliGitContext(t *testing.T) {

@@ -70,9 +70,8 @@ runs:
       shell: bash
       run: |
         vulnetix auth login \
-          --method apikey \
+          --api-key '${{ inputs.api-key }}' \
           --org-id '${{ inputs.org-id }}' \
-          --secret '${{ inputs.api-key }}' \
           --store project
 
     - name: Verify Vulnetix Authentication

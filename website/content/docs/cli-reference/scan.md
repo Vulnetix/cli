@@ -711,8 +711,8 @@ vulnetix scan --no-progress
 # Exit 1 if any high or critical vulnerability is found
 vulnetix scan --severity high
 
-# Exit 1 on any scored severity and emit a CycloneDX BOM
-vulnetix scan --severity low -f cdx17
+# Exit 1 on any scored severity and write a CycloneDX BOM
+vulnetix scan --severity low -o dist/sbom.cdx.json
 ```
 
 ### Gate on EOL runtimes and packages

@@ -12,32 +12,36 @@ Direct binary downloads provide the fastest way to install Vulnetix without pack
 
 ```bash
 # Download and install latest version (auto-detects platform/architecture)
-curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+curl -fsSL https://cli.vulnetix.com/install.sh | sh
 
 # Install to custom directory
-curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh -s -- --install-dir=~/.local/bin
+curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir ~/.local/bin
 
 # Install specific version
-curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh -s -- --version=v1.2.3
+curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v3.55.2
 ```
 
 ### Manual Binary Download
 
 ```bash
 # Linux AMD64
-curl -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz | tar -xz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+chmod +x vulnetix
 sudo mv vulnetix /usr/local/bin/
 
 # Linux ARM64
-curl -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-arm64.tar.gz | tar -xz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-arm64
+chmod +x vulnetix
 sudo mv vulnetix /usr/local/bin/
 
 # macOS AMD64
-curl -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-amd64.tar.gz | tar -xz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-amd64
+chmod +x vulnetix
 sudo mv vulnetix /usr/local/bin/
 
 # macOS ARM64 (Apple Silicon)
-curl -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-arm64.tar.gz | tar -xz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-arm64
+chmod +x vulnetix
 sudo mv vulnetix /usr/local/bin/
 
 # Windows AMD64 (PowerShell)
@@ -57,7 +61,7 @@ vulnetix update
 Or re-run the auto-detection script to download the latest version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vulnetix/cli/main/install.sh | sh
+curl -fsSL https://cli.vulnetix.com/install.sh | sh
 ```
 
 ## Shell Completions
@@ -84,10 +88,9 @@ For full setup instructions, see the [Shell Completions guide](../../cli-referen
 #### AMD64 (x86_64)
 ```bash
 # Download and install
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+chmod +x vulnetix
 sudo install vulnetix /usr/local/bin/
-rm vulnetix vulnetix.tar.gz
 
 # Verify installation
 vulnetix --version
@@ -96,10 +99,9 @@ vulnetix --version
 #### ARM64 (aarch64)
 ```bash
 # Download and install
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-arm64.tar.gz
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-arm64
+chmod +x vulnetix
 sudo install vulnetix /usr/local/bin/
-rm vulnetix vulnetix.tar.gz
 
 # Verify installation
 vulnetix --version
@@ -108,10 +110,9 @@ vulnetix --version
 #### ARM (armv7)
 ```bash
 # Download and install
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-arm.tar.gz
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-arm
+chmod +x vulnetix
 sudo install vulnetix /usr/local/bin/
-rm vulnetix vulnetix.tar.gz
 
 # Verify installation
 vulnetix --version
@@ -120,10 +121,9 @@ vulnetix --version
 #### 386 (i386)
 ```bash
 # Download and install
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-386.tar.gz
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-386
+chmod +x vulnetix
 sudo install vulnetix /usr/local/bin/
-rm vulnetix vulnetix.tar.gz
 
 # Verify installation
 vulnetix --version
@@ -134,10 +134,9 @@ vulnetix --version
 #### Intel Macs (AMD64)
 ```bash
 # Download and install
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-amd64.tar.gz
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-amd64
+chmod +x vulnetix
 sudo mv vulnetix /usr/local/bin/
-rm vulnetix.tar.gz
 
 # Add to PATH if needed
 echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.zshrc
@@ -150,10 +149,9 @@ vulnetix --version
 #### Apple Silicon Macs (ARM64)
 ```bash
 # Download and install
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-arm64.tar.gz
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-darwin-arm64
+chmod +x vulnetix
 sudo mv vulnetix /usr/local/bin/
-rm vulnetix.tar.gz
 
 # Add to PATH if needed
 echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.zshrc
@@ -215,16 +213,16 @@ LATEST_VERSION=$(curl -s https://api.github.com/repos/vulnetix/cli/releases/late
 echo "Latest version: $LATEST_VERSION"
 
 # Download latest for current platform
-curl -L -o vulnetix.tar.gz "https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/').tar.gz"
+curl -L -o vulnetix "https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/')"
 ```
 
 ### Specific Version
 ```bash
 # Download specific version
-VERSION="v1.2.3"
+VERSION="v3.55.2"
 PLATFORM="linux-amd64"
-curl -L -o vulnetix.tar.gz "https://github.com/Vulnetix/cli/releases/download/${VERSION}/vulnetix-${PLATFORM}.tar.gz"
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix "https://github.com/Vulnetix/cli/releases/download/${VERSION}/vulnetix-${PLATFORM}"
+chmod +x vulnetix
 sudo install vulnetix /usr/local/bin/
 ```
 
@@ -234,9 +232,9 @@ sudo install vulnetix /usr/local/bin/
 curl -s https://api.github.com/repos/vulnetix/cli/releases | jq -r '.[].tag_name'
 
 # Download pre-release
-VERSION="v1.3.0-beta.1"
+VERSION="v3.56.0-beta.1"
 PLATFORM="linux-amd64"
-curl -L -o vulnetix.tar.gz "https://github.com/Vulnetix/cli/releases/download/${VERSION}/vulnetix-${PLATFORM}.tar.gz"
+curl -L -o vulnetix "https://github.com/Vulnetix/cli/releases/download/${VERSION}/vulnetix-${PLATFORM}"
 ```
 
 ## Advanced Installation Scripts
@@ -315,7 +313,7 @@ install_vulnetix() {
         version="$VERSION"
     fi
 
-    download_url="https://github.com/Vulnetix/cli/releases/download/${version}/vulnetix-${platform}.tar.gz"
+    download_url="https://github.com/Vulnetix/cli/releases/download/${version}/vulnetix-${platform}"
     temp_dir=$(mktemp -d)
 
     log "Downloading from: $download_url"
@@ -325,7 +323,7 @@ install_vulnetix() {
     local max_retries=3
 
     while [ $retry_count -lt $max_retries ]; do
-        if curl -L --fail -o "${temp_dir}/vulnetix.tar.gz" "$download_url"; then
+        if curl -L --fail -o "${temp_dir}/vulnetix" "$download_url"; then
             break
         else
             retry_count=$((retry_count + 1))
@@ -340,7 +338,7 @@ install_vulnetix() {
 
     # Extract and install
     log "Extracting to $temp_dir"
-    tar -xzf "${temp_dir}/vulnetix.tar.gz" -C "$temp_dir"
+    chmod +x "${temp_dir}/vulnetix"
 
     # Check if binary exists and is executable
     if [ ! -f "${temp_dir}/vulnetix" ]; then
@@ -433,31 +431,31 @@ sudo mkdir -p "$INSTALL_DIR" "$CONFIG_DIR"
 # Download with enterprise authentication
 if [ -n "$ENTERPRISE_TOKEN" ]; then
     curl -H "Authorization: Bearer $ENTERPRISE_TOKEN" \
-         -L -o vulnetix.tar.gz \
-         "$ENTERPRISE_REGISTRY/vulnetix/releases/latest/vulnetix-linux-amd64.tar.gz"
+         -L -o vulnetix \
+         "$ENTERPRISE_REGISTRY/vulnetix/releases/latest/vulnetix-linux-amd64"
 
     if [ "$VALIDATE_CHECKSUM" = "true" ]; then
         curl -H "Authorization: Bearer $ENTERPRISE_TOKEN" \
-             -L -o vulnetix.tar.gz.sha256 \
-             "$ENTERPRISE_REGISTRY/vulnetix/releases/latest/vulnetix-linux-amd64.tar.gz.sha256"
+             -L -o checksums.txt \
+             "$ENTERPRISE_REGISTRY/vulnetix/releases/latest/checksums.txt"
 
-        sha256sum -c vulnetix.tar.gz.sha256
+        sha256sum --ignore-missing -c checksums.txt
     fi
 else
     # Fallback to public GitHub
-    curl -L -o vulnetix.tar.gz \
-         "https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz"
+    curl -L -o vulnetix \
+         "https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64"
 fi
 
 # Extract and install
-tar -xzf vulnetix.tar.gz
+chmod +x vulnetix
 sudo install vulnetix "$INSTALL_DIR/"
 sudo ln -sf "$INSTALL_DIR/vulnetix" /usr/local/bin/vulnetix
 
 # Create enterprise configuration
 sudo tee "$CONFIG_DIR/config.yaml" > /dev/null <<EOF
 org_id: ${VULNETIX_ORG_ID}
-api_endpoint: ${VULNETIX_API_ENDPOINT:-https://app.vulnetix.com/api}
+api_endpoint: ${VULNETIX_API_URL:-https://api.vdb.vulnetix.com}
 default_team: ${VULNETIX_DEFAULT_TEAM:-security}
 proxy:
   http_proxy: ${HTTP_PROXY:-}
@@ -471,7 +469,7 @@ sudo chmod 755 "$INSTALL_DIR/vulnetix"
 sudo chmod 644 "$CONFIG_DIR/config.yaml"
 
 # Cleanup
-rm -f vulnetix vulnetix.tar.gz vulnetix.tar.gz.sha256
+rm -f vulnetix checksums.txt
 
 echo "Enterprise installation completed successfully"
 vulnetix --version
@@ -495,8 +493,9 @@ jobs:
 
     - name: Download Vulnetix
       run: |
-        curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
-        tar -xzf vulnetix.tar.gz
+        curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+chmod +x vulnetix
+        chmod +x vulnetix
         sudo mv vulnetix /usr/local/bin/
         vulnetix --version
 
@@ -525,8 +524,9 @@ security_check:
   stage: security
   before_script:
     - apk add --no-cache curl tar
-    - curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
-    - tar -xzf vulnetix.tar.gz
+    - curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+chmod +x vulnetix
+    - chmod +x vulnetix
     - mv vulnetix /usr/local/bin/
     - vulnetix --version
   script:
@@ -547,8 +547,9 @@ pipeline {
         stage('Install Vulnetix') {
             steps {
                 sh '''
-                    curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
-                    tar -xzf vulnetix.tar.gz
+                    curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+chmod +x vulnetix
+                    chmod +x vulnetix
                     sudo mv vulnetix /usr/local/bin/
                     vulnetix --version
                 '''
@@ -583,7 +584,7 @@ export HTTPS_PROXY=http://proxy.company.com:8080
 export NO_PROXY=localhost,127.0.0.1,.company.com
 
 # Download through proxy
-curl --proxy $HTTP_PROXY -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
+curl --proxy $HTTP_PROXY -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
 ```
 
 #### Custom CA Certificates
@@ -593,14 +594,14 @@ sudo cp company-ca.crt /usr/local/share/ca-certificates/
 sudo update-ca-certificates
 
 # Download with custom CA
-curl --cacert /usr/local/share/ca-certificates/company-ca.crt -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
+curl --cacert /usr/local/share/ca-certificates/company-ca.crt -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
 ```
 
 #### Internal Mirror
 ```bash
 # Download from internal mirror
 INTERNAL_MIRROR="https://artifacts.vulnetix.com"
-curl -L -o vulnetix.tar.gz "$INTERNAL_MIRROR/releases/latest/vulnetix-linux-amd64.tar.gz"
+curl -L -o vulnetix "$INTERNAL_MIRROR/releases/latest/vulnetix-linux-amd64"
 ```
 
 ### Air-Gapped Environments
@@ -628,8 +629,8 @@ platforms=(
 
 for platform in "${platforms[@]}"; do
     echo "Downloading $platform..."
-    curl -L -o "$PACKAGE_DIR/vulnetix-$platform.tar.gz" \
-        "https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-$platform.tar.gz"
+    curl -L -o "$PACKAGE_DIR/vulnetix-$platform" \
+        "https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-$platform"
 done
 
 # Create installation script
@@ -662,7 +663,7 @@ detect_platform() {
 
 # Install
 platform=$(detect_platform)
-archive="vulnetix-${platform}.tar.gz"
+binary="vulnetix-${platform}"
 
 if [ ! -f "$archive" ]; then
     echo "Error: $archive not found" >&2
@@ -670,7 +671,7 @@ if [ ! -f "$archive" ]; then
 fi
 
 echo "Installing vulnetix for $platform..."
-tar -xzf "$archive"
+chmod +x "$binary"
 sudo install vulnetix /usr/local/bin/
 rm vulnetix
 
@@ -693,8 +694,8 @@ echo "Offline package created: ${PACKAGE_DIR}.tar.gz"
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
 
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+chmod +x vulnetix
 mv vulnetix "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/vulnetix"
 
@@ -707,16 +708,16 @@ source ~/.bashrc
 ```bash
 # Install to /opt (requires sudo)
 sudo mkdir -p /opt/vulnetix
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+chmod +x vulnetix
 sudo mv vulnetix /opt/vulnetix/
 sudo ln -sf /opt/vulnetix/cli /usr/local/bin/vulnetix
 
 # Install to custom location
 CUSTOM_DIR="/usr/local/security-tools"
 sudo mkdir -p "$CUSTOM_DIR"
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
-tar -xzf vulnetix.tar.gz
+curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+chmod +x vulnetix
 sudo mv vulnetix "$CUSTOM_DIR/"
 sudo chmod +x "$CUSTOM_DIR/vulnetix"
 echo "export PATH=\"$CUSTOM_DIR:\$PATH\"" | sudo tee /etc/profile.d/vulnetix.sh
@@ -726,16 +727,16 @@ echo "export PATH=\"$CUSTOM_DIR:\$PATH\"" | sudo tee /etc/profile.d/vulnetix.sh
 
 #### Manual Verification
 ```bash
-# Download binary and checksum
-curl -L -o vulnetix.tar.gz https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
-curl -L -o vulnetix.tar.gz.sha256 https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz.sha256
+# Download the binary under its asset name, plus the shared checksums file
+curl -L -O https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
+curl -L -O https://github.com/Vulnetix/cli/releases/latest/download/checksums.txt
 
-# Verify checksum
-sha256sum -c vulnetix.tar.gz.sha256
+# checksums.txt covers every platform; verify only the one you downloaded
+sha256sum --ignore-missing -c checksums.txt
 
 # If verification passes, install
-tar -xzf vulnetix.tar.gz
-sudo install vulnetix /usr/local/bin/
+chmod +x vulnetix-linux-amd64
+sudo install vulnetix-linux-amd64 /usr/local/bin/vulnetix
 ```
 
 #### Automated Verification Script
@@ -748,21 +749,21 @@ set -e
 PLATFORM="linux-amd64"
 BASE_URL="https://github.com/Vulnetix/cli/releases/latest/download"
 
-# Download binary and checksum
-curl -L -o vulnetix.tar.gz "$BASE_URL/vulnetix-$PLATFORM.tar.gz"
-curl -L -o vulnetix.tar.gz.sha256 "$BASE_URL/vulnetix-$PLATFORM.tar.gz.sha256"
+# Download the binary under its asset name, plus the shared checksums file
+curl -L -O "$BASE_URL/vulnetix-$PLATFORM"
+curl -L -O "$BASE_URL/checksums.txt"
 
-# Verify checksum
-if sha256sum -c vulnetix.tar.gz.sha256; then
+# Verify only the asset we fetched; checksums.txt lists all platforms
+if sha256sum --ignore-missing -c checksums.txt; then
     echo "Checksum verification passed"
-    tar -xzf vulnetix.tar.gz
-    sudo install vulnetix /usr/local/bin/
-    rm vulnetix vulnetix.tar.gz vulnetix.tar.gz.sha256
+    chmod +x "vulnetix-$PLATFORM"
+    sudo install "vulnetix-$PLATFORM" /usr/local/bin/vulnetix
+    rm -f "vulnetix-$PLATFORM" checksums.txt
     echo "Installation completed successfully"
     vulnetix --version
 else
     echo "Checksum verification failed!" >&2
-    rm vulnetix.tar.gz vulnetix.tar.gz.sha256
+    rm -f "vulnetix-$PLATFORM" checksums.txt
     exit 1
 fi
 ```
@@ -778,10 +779,10 @@ curl -I https://github.com/Vulnetix/cli/releases/latest
 nslookup github.com
 
 # Test with verbose output
-curl -v -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
+curl -v -L https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
 
 # Alternative download methods
-wget https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64.tar.gz
+wget https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
 ```
 
 ### Architecture Detection Issues

@@ -246,3 +246,26 @@ func derefFloat(p *float64) float64 {
 	}
 	return *p
 }
+
+// warnOutputExtension warns when --output-file names an extension that
+// contradicts the content the command always writes. cbom/aibom emit
+// CycloneDX and malscan emits SARIF regardless of the filename, so a
+// mismatch silently feeds the wrong parser downstream.
+//
+// This warns rather than errors: the path is the user's to choose, and a
+// pipeline that already depends on an odd name must keep working.
+func warnOutputExtension(path, wantSuffix string) {
+	if path == "" {
+		return
+	}
+	lower := strings.ToLower(path)
+	if strings.HasSuffix(lower, wantSuffix) {
+		return
+	}
+	// A bare `.cdx` is an accepted CycloneDX spelling.
+	if wantSuffix == ".cdx.json" && strings.HasSuffix(lower, ".cdx") {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "warning: %s does not end in %s, but this command always writes %s content\n",
+		path, wantSuffix, strings.TrimPrefix(wantSuffix, "."))
+}

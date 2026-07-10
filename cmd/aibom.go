@@ -151,6 +151,7 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 
 	// Always persist the CycloneDX AIBOM to a file. Default location is
 	// <path>/.vulnetix/ai-bom.cdx.json; --output-file overrides the path.
+	warnOutputExtension(outputFile, ".cdx.json")
 	outFile := outputFile
 	if outFile == "" {
 		outFile = filepath.Join(rootPath, ".vulnetix", "ai-bom.cdx.json")

@@ -387,7 +387,7 @@ graph TB
 
     subgraph External["External Services"]
         VDBApi["VDB API<br/>api.vdb.vulnetix.com/v1"]
-        AppApi["Vulnetix SaaS<br/>app.vulnetix.com/api"]
+        Console["Vulnetix Console<br/>www.vulnetix.com (device flow)"]
         GHAPI["GitHub API<br/>api.github.com"]
         Registries["Ecosystem Registries<br/>rubygems.org, hex.pm, hackage,<br/>cran, packagist, pub.dev,<br/>cocoapods, juliahub, deps.dev"]
         GHReleases["GitHub Releases<br/>Vulnetix/cli"]
@@ -407,7 +407,8 @@ graph TB
     Version --> UpdatePkg
 
     VDBPkg --> VDBApi
-    UploadPkg --> AppApi
+    UploadPkg --> VDBApi
+    AuthPkg --> Console
     GHPkg --> GHAPI
     LicensePkg --> GHAPI & Registries
     UpdatePkg --> GHReleases
@@ -584,14 +585,12 @@ Two methods, resolved by `vdb.Client.DoRequest()`:
 | `vdb fix-distributions` | GET | `/fix-distributions` | — | `api.go:327` |
 | `vdb purl` | — | Dispatches to one of the above | varies | `vdb.go:749` |
 
-### Upload API (app.vulnetix.com)
+### Upload API (api.vdb.vulnetix.com/v1)
 
 | Operation | Method | Path |
 |-----------|--------|------|
-| Initiate | POST | `/artifact-upload/initiate` |
-| Chunk | POST | `/artifact-upload/chunk/{sessionId}/{chunkNumber}` |
-| Finalize | POST | `/artifact-upload/finalize/{sessionId}` |
-| Verify auth | GET | `/cli/verify` |
+| Upload artifact | POST | `/v2/cli.upload` |
+| Verify auth | GET | `/uploads/verify` |
 
 ### Rate Limit Headers
 

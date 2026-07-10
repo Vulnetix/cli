@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# Fast local feedback before a commit. GitHub Actions is the authority; this
+# hook exists so you find out in two seconds rather than two minutes.
+#
+# Enable once per clone:  just hooks
+# Bypass in an emergency: git commit --no-verify
+#
+# Only staged Go files are considered, so the cost scales with the diff.
+
+set -uo pipefail
+
+staged_go() { git diff --cached --name-only --diff-filter=ACMR -- '*.go'; }
+
+mapfile -t GO_FILES < <(staged_go)
+[[ ${#GO_FILES[@]} -eq 0 ]] && exit 0
+
+fail=0
+
+# --- gofmt -----------------------------------------------------------------
+unformatted=$(gofmt -l "${GO_FILES[@]}" 2>/dev/null)
+if [[ -n "${unformatted}" ]]; then
+    echo "pre-commit: these files are not gofmt'd:" >&2
+    printf '  %s\n' ${unformatted} >&2
+    echo "  fix: gofmt -w ${unformatted}" >&2
+    fail=1
+fi
+
+# --- go vet, scoped to the packages that changed ----------------------------
+mapfile -t PKGS < <(printf '%s\n' "${GO_FILES[@]}" | xargs -r -n1 dirname | sort -u | sed 's#^#./#')
+if [[ ${#PKGS[@]} -gt 0 ]]; then
+    if ! go vet "${PKGS[@]}" 2>&1; then
+        echo "pre-commit: go vet failed" >&2
+        fail=1
+    fi
+fi
+
+# --- golangci-lint, when available -----------------------------------------
+# A missing linter must not block a commit; CI still enforces it.
+if command -v golangci-lint >/dev/null 2>&1; then
+    if ! golangci-lint run "${PKGS[@]}" 2>&1; then
+        echo "pre-commit: golangci-lint found issues" >&2
+        fail=1
+    fi
+else
+    echo "pre-commit: golangci-lint not installed, skipping (CI will run it)" >&2
+fi
+
+if [[ ${fail} -ne 0 ]]; then
+    echo >&2
+    echo "pre-commit failed. Fix the above, or commit with --no-verify to bypass." >&2
+    exit 1
+fi

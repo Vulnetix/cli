@@ -46,7 +46,7 @@ This command:
 
 Example:
   vulnetix gha upload --org-id <uuid>
-  vulnetix gha upload --org-id <uuid> --base-url https://app.vulnetix.com/api`,
+  vulnetix gha upload --org-id <uuid> --base-url https://api.vdb.vulnetix.com/v1`,
 	RunE: runGHAUpload,
 }
 

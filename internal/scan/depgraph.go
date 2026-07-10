@@ -215,10 +215,7 @@ func (g *DepGraph) PopulateNpmLockEdges(lockFilePath string) error {
 		if path == "" {
 			return ""
 		}
-		cleaned := path
-		if strings.HasPrefix(cleaned, "node_modules/") {
-			cleaned = strings.TrimPrefix(cleaned, "node_modules/")
-		}
+		cleaned := strings.TrimPrefix(path, "node_modules/")
 		if idx := strings.LastIndex(cleaned, "/node_modules/"); idx >= 0 {
 			return cleaned[idx+len("/node_modules/"):]
 		}
@@ -268,10 +265,7 @@ func (g *DepGraph) PopulateNpmLockEdges(lockFilePath string) error {
 			continue // root package
 		}
 		// Strip leading "node_modules/"
-		cleaned := path
-		if strings.HasPrefix(cleaned, "node_modules/") {
-			cleaned = strings.TrimPrefix(cleaned, "node_modules/")
-		}
+		cleaned := strings.TrimPrefix(path, "node_modules/")
 
 		// Find the last "node_modules/" separator to determine parent → child.
 		if idx := strings.LastIndex(cleaned, "/node_modules/"); idx >= 0 {

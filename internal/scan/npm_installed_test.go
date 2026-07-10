@@ -237,12 +237,3 @@ func writeNpmPackage(t *testing.T, path, body string) {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }
-
-func mustRead(t *testing.T, path string) []byte {
-	t.Helper()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
-	}
-	return data
-}

@@ -49,6 +49,11 @@ Examples:
 
   # JSON output
   vulnetix upload --json`,
+	// Reject an unknown --format before reading the file or contacting the API.
+	// Previously the value was forwarded verbatim and only the server objected.
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return upload.ValidateFormat(uploadFormat)
+	},
 	RunE: runUpload,
 }
 

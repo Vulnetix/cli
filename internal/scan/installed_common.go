@@ -61,12 +61,6 @@ func readNameDashVersionDirs(dirs []string, splitFn func(string) (string, string
 	return out
 }
 
-// lowerName lower-cases a package name (case-insensitive ecosystems: nuget, pub).
-func lowerName(n string) string { return strings.ToLower(n) }
-
-// identName is the identity key function (case-sensitive ecosystems: rubygems, maven, go).
-func identName(n string) string { return n }
-
 // resolveFromProjectInstall builds a full project-scoped resolution: every
 // installed package becomes a transitive (SourceType=installed, InstalledPath
 // set), with declared packages overlaid as direct manifest deps. It mirrors
@@ -262,17 +256,4 @@ func homeDir() string {
 		return ""
 	}
 	return h
-}
-
-// firstExistingDir returns the first directory in candidates that exists, or "".
-func firstExistingDir(candidates ...string) string {
-	for _, c := range candidates {
-		if c == "" {
-			continue
-		}
-		if info, err := os.Stat(c); err == nil && info.IsDir() {
-			return c
-		}
-	}
-	return ""
 }

@@ -259,6 +259,7 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 	progress.Update(2, fmt.Sprintf("Scanned %d target(s), inspected %d file(s)", len(res.Targets), res.FilesScanned))
 
 	// Always persist the SARIF report. Default .vulnetix/malscan.sarif; --output-file overrides.
+	warnOutputExtension(outputFile, ".sarif")
 	outFile := outputFile
 	if outFile == "" {
 		outFile = filepath.Join(rootPath, ".vulnetix", "malscan.sarif")

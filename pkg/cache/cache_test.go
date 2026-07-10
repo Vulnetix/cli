@@ -140,8 +140,12 @@ func TestOverwrite(t *testing.T) {
 	e1 := &Entry{Body: []byte("first"), CachedAt: time.Now(), TTL: time.Hour}
 	e2 := &Entry{Body: []byte("second"), CachedAt: time.Now(), TTL: time.Hour}
 
-	c.Put(key, e1)
-	c.Put(key, e2)
+	if err := c.Put(key, e1); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Put(key, e2); err != nil {
+		t.Fatal(err)
+	}
 
 	got, ok := c.Get(key)
 	if !ok {
@@ -172,13 +176,23 @@ func TestCleanOldCaches(t *testing.T) {
 	baseDir := t.TempDir()
 
 	// Create versioned dirs
-	os.MkdirAll(filepath.Join(baseDir, "v1.7"), 0700)
-	os.MkdirAll(filepath.Join(baseDir, "v1.8"), 0700)
-	os.MkdirAll(filepath.Join(baseDir, "v1.9"), 0700)
+	if err := os.MkdirAll(filepath.Join(baseDir, "v1.7"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(baseDir, "v1.8"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(baseDir, "v1.9"), 0700); err != nil {
+		t.Fatal(err)
+	}
 	// Create a legacy bare JSON file
-	os.WriteFile(filepath.Join(baseDir, "abc123.json"), []byte("{}"), 0600)
+	if err := os.WriteFile(filepath.Join(baseDir, "abc123.json"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	// Create a non-version dir that should be left alone
-	os.MkdirAll(filepath.Join(baseDir, "other"), 0700)
+	if err := os.MkdirAll(filepath.Join(baseDir, "other"), 0700); err != nil {
+		t.Fatal(err)
+	}
 
 	// Simulate cleanup for version 1.8.x — only v1.8 should survive
 	current := cacheVersionDir("1.8.5")

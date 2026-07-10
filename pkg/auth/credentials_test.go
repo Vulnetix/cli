@@ -11,10 +11,12 @@ import (
 
 func TestSaveAndLoadCredentials(t *testing.T) {
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
+	defer func() { _ = os.Chdir(oldDir) }()
 
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
 
 	creds := &Credentials{
 		OrgID:  "test-org",
@@ -169,7 +171,7 @@ func TestSaveCredentialsInDirUsesCustomHomeDirectory(t *testing.T) {
 
 func TestLoadFromFileAllowsTokenWithoutOrgID(t *testing.T) {
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
+	defer func() { _ = os.Chdir(oldDir) }()
 
 	tmpDir := t.TempDir()
 	if err := os.Chdir(tmpDir); err != nil {

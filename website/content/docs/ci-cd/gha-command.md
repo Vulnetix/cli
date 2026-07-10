@@ -1,6 +1,6 @@
 ---
 title: "GHA Command"
-weight: 5
+weight: 32
 description: "GitHub Actions artifact upload command reference for Vulnetix CLI."
 ---
 
@@ -29,7 +29,7 @@ vulnetix gha upload [flags]
 #### Flags
 
 - `--org-id`: Organization UUID (optional — uses stored credentials if not set)
-- `--base-url`: Base URL for Vulnetix API (default: `https://app.vulnetix.com/api`)
+- `--base-url`: Base URL for the Vulnetix VDB API (default: `https://api.vdb.vulnetix.com/v1`)
 - `--json`: Output results as JSON
 
 #### Environment Variables Required
@@ -139,7 +139,7 @@ vulnetix gha status --uuid <artifact-uuid>
 - `--org-id`: Organization UUID (optional — uses stored credentials if not set)
 - `--txnid`: Transaction ID to check status (mutually exclusive with `--uuid`)
 - `--uuid`: Artifact UUID to check status (mutually exclusive with `--txnid`)
-- `--base-url`: Base URL for Vulnetix API (default: `https://app.vulnetix.com/api`)
+- `--base-url`: Base URL for the Vulnetix VDB API (default: `https://api.vdb.vulnetix.com/v1`)
 - `--json`: Output results as JSON
 
 #### Examples
