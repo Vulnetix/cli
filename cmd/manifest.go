@@ -49,6 +49,11 @@ var manifestCmd = &cobra.Command{
 // path with its flags. Persistent flags are attributed to the command that
 // declares them and to every descendant, because that is how a user sees them.
 func BuildCommandManifest() CommandManifest {
+	// Cobra registers --help and --version lazily during Execute, so a walk
+	// done before then would omit them from the manifest.
+	rootCmd.InitDefaultHelpFlag()
+	rootCmd.InitDefaultVersionFlag()
+
 	m := CommandManifest{Commands: map[string]ManifestCommand{}}
 	walkCommand(rootCmd, nil, &m)
 	return m

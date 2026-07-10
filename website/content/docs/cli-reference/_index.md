@@ -899,10 +899,23 @@ Flags apply to the `auth login` command that *writes* a credential; they are not
 
 These flags are available on the root command and inherited by subcommands:
 
-| Flag | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| `--org-id` | string | No | stored | Organization ID (UUID); uses stored credentials if not set |
-| `--help` | - | No | - | Help for any command |
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--org-id` | string | stored | Organization ID (UUID); uses stored credentials if not set |
+| `-v, --verbose` | bool | `false` | Show verbose diagnostic output (rate limits, retries, cache status, auth notes) |
+| `--silent` | bool | `false` | Suppress all log output; print only the final result |
+| `--no-progress` | bool | `false` | Suppress progress indicators |
+| `--no-banner` | bool | `false` | Suppress the startup banner |
+| `--no-analytics` | bool | `false` | Disable anonymous usage analytics |
+| `--disable-memory` | bool | `false` | Disable `.vulnetix/memory.yaml` reads and writes |
+| `--version` | - | - | Print the version and exit |
+| `--help` | - | - | Help for any command |
+
+{{< callout type="info" >}}
+`--verbose` is **not** a log level — the CLI has no `--debug` flag and reads no `DEBUG` environment variable. It un-suppresses extra diagnostics on stderr. `--silent` suppresses info, status and warning output; errors and results are always printed.
+{{< /callout >}}
+
+`vulnetix --version` prints the bare version. `vulnetix version` prints the full report (commit, build date, and the versions of the bundled `malscan-engine`, `vdb-cyclonedx` and OPA modules).
 
 ## Environment Variables
 
