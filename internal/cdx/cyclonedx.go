@@ -201,6 +201,49 @@ func AnalysisForStateChange(status, detail string) *Analysis {
 	return nil
 }
 
+// ApplyVEXAnalysis folds auto-generated VEX entries into a BOM.
+//
+// When the BOM already carries a vulnerability with the same id — the usual case
+// for a finding that a previous run recorded and this run resolved — the entry's
+// analysis and properties are attached to it. Appending a second entry under the
+// same id would leave the BOM asserting both that the vulnerability is open and
+// that it is resolved.
+//
+// Call this after MergeBOMs, so that vulnerabilities carried over from the
+// previous BOM on disk are visible to the id lookup.
+func ApplyVEXAnalysis(bom *BOM, vexEntries []Vulnerability) {
+	if bom == nil || len(vexEntries) == 0 {
+		return
+	}
+	index := make(map[string]int, len(bom.Vulnerabilities))
+	for i, v := range bom.Vulnerabilities {
+		if _, seen := index[v.ID]; !seen {
+			index[v.ID] = i
+		}
+	}
+	for _, entry := range vexEntries {
+		i, found := index[entry.ID]
+		if !found {
+			index[entry.ID] = len(bom.Vulnerabilities)
+			bom.Vulnerabilities = append(bom.Vulnerabilities, entry)
+			continue
+		}
+		target := &bom.Vulnerabilities[i]
+		if entry.Analysis != nil {
+			target.Analysis = entry.Analysis
+		}
+		existing := make(map[string]bool, len(target.Properties))
+		for _, p := range target.Properties {
+			existing[p.Name] = true
+		}
+		for _, p := range entry.Properties {
+			if !existing[p.Name] {
+				target.Properties = append(target.Properties, p)
+			}
+		}
+	}
+}
+
 // Advisory is an external advisory reference.
 type Advisory struct {
 	URL string `json:"url,omitempty"`

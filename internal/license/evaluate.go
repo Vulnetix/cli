@@ -2,20 +2,44 @@ package license
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
-var findingCounter int
+// FindingID builds the stable identifier for a per-package license finding.
+//
+// Identifiers must survive across runs: memory reconciliation resolves a
+// finding by noticing its ID has disappeared from the current result set, and
+// the SARIF partialFingerprint is derived from it. A run-local counter would
+// make both meaningless, since the ordinal depends on package iteration order.
+//
+// The SPDX id is deliberately absent: a package resolves to exactly one license
+// per run, so <category>:<ecosystem>:<package>@<version> is already unique, and
+// omitting it lets legacy counter-keyed memory records be migrated (a
+// FindingRecord stores no license field).
+func FindingID(category string, pkg PackageLicense) string {
+	return fmt.Sprintf("LICENSE:%s:%s:%s@%s",
+		category,
+		strings.ToLower(pkg.Ecosystem),
+		strings.ToLower(pkg.PackageName),
+		pkg.PackageVersion,
+	)
+}
 
-func nextFindingID(prefix string) string {
-	findingCounter++
-	return fmt.Sprintf("%s-%03d", prefix, findingCounter)
+// ConflictFindingID builds the stable identifier for a license-conflict
+// finding. The license and package pairs are each sorted so that the same
+// conflict discovered from either direction yields one identifier.
+func ConflictFindingID(c LicenseConflict) string {
+	licenses := []string{c.License1, c.License2}
+	packages := []string{c.Package1, c.Package2}
+	sort.Strings(licenses)
+	sort.Strings(packages)
+	return fmt.Sprintf("LICENSE:license-conflict:%s|%s:%s|%s",
+		licenses[0], licenses[1], packages[0], packages[1])
 }
 
 // Evaluate runs all license evaluation rules against the detected packages.
 func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
-	findingCounter = 0
-
 	result := &AnalysisResult{
 		Mode:     cfg.Mode,
 		Packages: packages,
@@ -63,7 +87,7 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 		// Rule: unknown-license
 		if pkg.LicenseSpdxID == "UNKNOWN" {
 			result.Findings = append(result.Findings, findingWithProvenance(
-				nextFindingID("LICENSE-UNKNOWN"),
+				FindingID("unknown-license", *pkg),
 				fmt.Sprintf("Unknown license for %s", pkg.PackageName),
 				fmt.Sprintf("No license could be detected for %s@%s from %s", pkg.PackageName, pkg.PackageVersion, pkg.Ecosystem),
 				"medium", "unknown-license", 1.0, *pkg,
@@ -74,7 +98,7 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 		// Rule: non-standard license (deps.dev reports a license exists but it's not SPDX-recognized)
 		if strings.EqualFold(pkg.LicenseSpdxID, "non-standard") {
 			result.Findings = append(result.Findings, findingWithProvenance(
-				nextFindingID("LICENSE-NONSTANDARD"),
+				FindingID("non-standard-license", *pkg),
 				fmt.Sprintf("Non-standard license for %s", pkg.PackageName),
 				fmt.Sprintf("%s@%s uses a non-standard license that is not an SPDX-recognized identifier", pkg.PackageName, pkg.PackageVersion),
 				"low", "non-standard-license", 0.8, *pkg,
@@ -89,7 +113,7 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 		// Rule: deprecated-license
 		if pkg.Record.IsDeprecated {
 			result.Findings = append(result.Findings, findingWithProvenance(
-				nextFindingID("LICENSE-DEPRECATED"),
+				FindingID("deprecated-license", *pkg),
 				fmt.Sprintf("Deprecated license %s", pkg.LicenseSpdxID),
 				fmt.Sprintf("%s@%s uses deprecated SPDX license %s (%s)", pkg.PackageName, pkg.PackageVersion, pkg.LicenseSpdxID, pkg.Record.Name),
 				"low", "deprecated-license", 1.0, *pkg,
@@ -100,7 +124,7 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 		// Rule: not-osi-approved
 		if !pkg.Record.IsOsiApproved && pkg.Record.Category != CategoryPublicDomain {
 			result.Findings = append(result.Findings, findingWithProvenance(
-				nextFindingID("LICENSE-NOT-OSI"),
+				FindingID("not-osi-approved", *pkg),
 				fmt.Sprintf("Non-OSI-approved license %s", pkg.LicenseSpdxID),
 				fmt.Sprintf("%s@%s uses %s which is not OSI-approved", pkg.PackageName, pkg.PackageVersion, pkg.LicenseSpdxID),
 				"low", "not-osi-approved", 1.0, *pkg,
@@ -111,7 +135,7 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 		// Rule: copyleft-in-production
 		if pkg.Record.Category == CategoryStrongCopyleft && isProductionScope(pkg.Scope) {
 			result.Findings = append(result.Findings, findingWithProvenance(
-				nextFindingID("LICENSE-COPYLEFT-PROD"),
+				FindingID("copyleft-in-production", *pkg),
 				fmt.Sprintf("Strong copyleft license %s in production", pkg.LicenseSpdxID),
 				fmt.Sprintf("%s@%s uses strong copyleft license %s in production scope", pkg.PackageName, pkg.PackageVersion, pkg.LicenseSpdxID),
 				"high", "copyleft-in-production", 0.9, *pkg,
@@ -125,7 +149,7 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 		// Rule: not-in-allowlist
 		if allowList != nil && allowList.IsActive() && !allowList.Contains(pkg.LicenseSpdxID) {
 			result.Findings = append(result.Findings, findingWithProvenance(
-				nextFindingID("LICENSE-NOT-ALLOWED"),
+				FindingID("not-in-allowlist", *pkg),
 				fmt.Sprintf("License %s not in allow list", pkg.LicenseSpdxID),
 				fmt.Sprintf("%s@%s uses %s which is not in the approved license list", pkg.PackageName, pkg.PackageVersion, pkg.LicenseSpdxID),
 				"high", "not-in-allowlist", 1.0, *pkg,
@@ -156,7 +180,7 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 		allPaths = append(allPaths, c.Package1Paths...)
 		allPaths = append(allPaths, c.Package2Paths...)
 		result.Findings = append(result.Findings, Finding{
-			ID:              nextFindingID("LICENSE-CONFLICT"),
+			ID:              ConflictFindingID(c),
 			Title:           fmt.Sprintf("License conflict: %s vs %s", c.License1, c.License2),
 			Description:     c.Description,
 			Severity:        c.Severity,

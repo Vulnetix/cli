@@ -110,7 +110,7 @@ func LoadFromMemory(rootPath string, freshExploits, freshAdvisories, freshVulns 
 		false, // resultsOnly
 	)
 	// Artefact links at the bottom (no snapshots in the offline render).
-	printScanArtifacts(sbomPath, sarifPath, filepath.Join(rootPath, ".vulnetix"), "", "", nil)
+	printScanArtifacts(sbomPath, sarifPath, filepath.Join(rootPath, ".vulnetix"), "", "", nil, nil)
 
 	return nil
 }

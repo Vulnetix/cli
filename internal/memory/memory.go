@@ -20,7 +20,22 @@ const (
 	maxHistory = 20
 	// maxVDBQueries is the maximum number of VDB query log entries to retain.
 	maxVDBQueries = 50
+	// maxFindingHistory caps the per-finding history log. Every scan appends an
+	// entry, so without a cap a long-lived repo grows memory.yaml without bound.
+	// The oldest entries are dropped; the first-discovery event is preserved
+	// separately on DiscoveryInfo.
+	maxFindingHistory = 50
 )
+
+// appendHistory appends e to h, trimming the oldest entries beyond
+// maxFindingHistory.
+func appendHistory(h []HistoryEntry, e HistoryEntry) []HistoryEntry {
+	h = append(h, e)
+	if len(h) > maxFindingHistory {
+		h = h[len(h)-maxFindingHistory:]
+	}
+	return h
+}
 
 // ScopeStats records package and vulnerability counts for a single scope bucket.
 type ScopeStats struct {
@@ -130,11 +145,49 @@ const (
 	ToolContainer = "container"
 	ToolQuality   = "quality"
 	ToolLicense   = "license"
+	ToolCBOM      = "cbom"
+	ToolAIBOM     = "aibom"
+	ToolMalscan   = "malscan"
 )
 
 // AllTools is the canonical list of tool tags persisted in memory.
 var AllTools = []string{
 	ToolSCA, ToolSAST, ToolIaC, ToolSecrets, ToolContainer, ToolQuality, ToolLicense,
+	ToolCBOM, ToolAIBOM, ToolMalscan,
+}
+
+// StatusInventory marks a record that describes something the project contains
+// rather than something wrong with it — a detected crypto algorithm, an AI SDK.
+// It is deliberately absent from the "open" set (see GetOpenFindings) so
+// inventory never floods triage, but it is not terminal either, so a component
+// that disappears is still auto-resolved and attested with VEX.
+const StatusInventory = "inventory"
+
+// ResolutionMode selects how a prior finding's absence from the current scan is
+// interpreted. It is a property of the producing scanner, not of the finding.
+type ResolutionMode string
+
+const (
+	// ResolveOnAbsence suits scanners that recompute their entire surface on
+	// every run — the whole dependency set, the whole license set, every
+	// crypto asset. Absence from the current result set is itself the proof
+	// that the finding is gone.
+	ResolveOnAbsence ResolutionMode = "absence"
+	// ResolveOnVerify suits scanners whose findings are anchored to a
+	// file+line+snippet. Absence may only mean the rule did not run this
+	// time, so the on-disk evidence must be confirmed gone by the Verifier.
+	ResolveOnVerify ResolutionMode = "verify"
+)
+
+// DefaultResolutionMode maps a tool tag to the mode it must be reconciled under
+// when ReconcileContext.Mode is left at its zero value.
+func DefaultResolutionMode(tool string) ResolutionMode {
+	switch tool {
+	case ToolSAST, ToolSecrets, ToolIaC, ToolContainer:
+		return ResolveOnVerify
+	default:
+		return ResolveOnAbsence
+	}
 }
 
 // ScanContext is the per-scan metadata threaded into record writers so each
@@ -343,6 +396,11 @@ func normalizeTools(m *Memory) {
 				continue
 			}
 			switch {
+			// License must be tested before the generic ToolSAST/ToolSCA
+			// substring checks: "vulnetix-license-analyzer" contains neither,
+			// but ordering keeps the intent obvious as sources are added.
+			case strings.Contains(f.Source, ToolLicense):
+				f.Tool = ToolLicense
 			case strings.Contains(f.Source, ToolSAST):
 				f.Tool = ToolSAST
 			case strings.Contains(f.Source, ToolSCA) || strings.Contains(f.Source, "vulnetix-sca") || strings.Contains(f.Source, "github") || strings.Contains(f.Source, "dependabot"):
@@ -437,8 +495,12 @@ func (m *Memory) RecordCategorizedFindings(tool string, findings map[string]Find
 		f.LastSeenAt = ts
 		existing, hasExisting := m.Findings[id]
 		if hasExisting {
-			// Preserve prior triage decision and merge locations.
-			f.Status = existing.Status
+			// Preserve prior triage decision and merge locations. StatusInventory
+			// is not a decision — it is the absence of one — so a producer that
+			// now classifies the record as a real problem is allowed to escalate.
+			if existing.Status != StatusInventory || f.Status == "" {
+				f.Status = existing.Status
+			}
 			f.Justification = existing.Justification
 			f.ActionResponse = existing.ActionResponse
 			f.Decision = existing.Decision
@@ -469,7 +531,7 @@ func (m *Memory) RecordCategorizedFindings(tool string, findings map[string]Find
 				f.Discovery.File = f.Locations[0].File
 			}
 		}
-		f.History = append(f.History, HistoryEntry{
+		f.History = appendHistory(f.History, HistoryEntry{
 			Date:   now,
 			Event:  "scan",
 			Detail: fmt.Sprintf("Recorded by %s scan", tool),
@@ -764,7 +826,7 @@ func (m *Memory) RecordEnrichedFindings(findings []EnrichedFinding) {
 		}
 
 		// Append scan event to history.
-		existing.History = append(existing.History, HistoryEntry{
+		existing.History = appendHistory(existing.History, HistoryEntry{
 			Date:   now,
 			Event:  "scan",
 			Detail: "Updated by vulnetix scan",
@@ -786,26 +848,87 @@ type StateChange struct {
 	Finding   FindingRecord
 }
 
-// ReconcileContext drives ReconcileTool. Behaviour varies by Tool:
+// ReconcileContext drives ReconcileTool.
 //
-//   - sca / container: CurrentIDs is the set of CVE IDs in the current scan.
-//     InstalledPkgs is "<ecosystem>:<name>"; used to distinguish
-//     "dependency removed" from "patched upstream".
-//   - sast / secrets / iac: CurrentIDs is the set of fingerprints emitted by
-//     the current scan. Verifier is consulted before flipping a record to
-//     `fixed` — if the on-disk evidence is still present (Verifier returns
-//     gone=false) the record is left untouched.
+// CurrentIDs is always the set of finding identifiers the current run produced
+// for this tool — CVE IDs for sca, rule fingerprints for the SAST family and
+// malscan, deterministic synthetic keys for license / cbom / aibom.
 //
-// Records whose LastSeenBranch is non-empty and differs from ctx.Branch are
-// skipped entirely — we never auto-resolve findings recorded on another
-// branch during a scan of this one.
+// Mode decides what absence from CurrentIDs means. Leave it zero to take
+// DefaultResolutionMode(Tool):
+//
+//   - ResolveOnAbsence: the record is resolved outright. InstalledPkgs
+//     ("<ecosystem>:<name>") is optional and, for sca / container package
+//     findings, distinguishes "dependency removed" from "patched upstream".
+//   - ResolveOnVerify: Verifier is consulted first. If the on-disk evidence is
+//     still present (gone=false), or the record carries no location, the record
+//     is left untouched. A nil Verifier under this mode resolves nothing.
+//
+// RegressionStatus is the status a previously-`fixed` record returns to when it
+// reappears. Defaults to "under_investigation"; inventory-style tools pass
+// StatusInventory so a re-detected crypto asset does not land in the triage
+// queue.
+//
+// Records whose LastSeenBranch is non-empty and differs from a non-empty
+// ctx.Branch are skipped entirely — we never auto-resolve, nor flag a
+// regression against, findings recorded on another branch. When the repo has no
+// git context (ctx.Branch == "") the gate is open.
+// IDPrefixes, when non-empty, restricts reconciliation to records whose
+// identifier starts with one of the listed prefixes. Tools whose detection is
+// split into independently disableable passes use this so that a pass which did
+// not run cannot resolve the findings it would have produced — `vulnetix cbom
+// --no-certs` must not conclude that every certificate has left the repo.
 type ReconcileContext struct {
-	Tool          string
-	CurrentIDs    map[string]bool
-	InstalledPkgs map[string]bool
-	Branch        string
-	RootPath      string
-	Verifier      func(loc Location) (gone bool, reason string)
+	Tool             string
+	Mode             ResolutionMode
+	CurrentIDs       map[string]bool
+	InstalledPkgs    map[string]bool
+	Branch           string
+	RootPath         string
+	RegressionStatus string
+	IDPrefixes       []string
+	Verifier         func(loc Location) (gone bool, reason string)
+}
+
+// inScope reports whether a record identifier participates in this
+// reconciliation. An empty prefix list means "every record of this tool".
+func (ctx ReconcileContext) inScope(id string) bool {
+	if len(ctx.IDPrefixes) == 0 {
+		return true
+	}
+	for _, p := range ctx.IDPrefixes {
+		if strings.HasPrefix(id, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// absenceComment explains, per tool, why a finding that vanished from the
+// current result set is considered resolved.
+func absenceComment(ctx ReconcileContext, rec FindingRecord) string {
+	switch ctx.Tool {
+	case ToolSCA, ToolContainer:
+		pkgKey := strings.ToLower(rec.Ecosystem) + ":" + strings.ToLower(rec.Package)
+		switch {
+		case ctx.InstalledPkgs == nil:
+			return "No longer reported by upstream source"
+		case !ctx.InstalledPkgs[pkgKey]:
+			return "Dependency removed from manifest"
+		default:
+			return "Package still present but no longer flagged — patched upstream"
+		}
+	case ToolLicense:
+		return "Package or license condition no longer detected"
+	case ToolCBOM:
+		return "Cryptographic asset no longer detected in the codebase"
+	case ToolAIBOM:
+		return "AI component no longer detected in the codebase"
+	case ToolMalscan:
+		return "No longer flagged by the malware engine"
+	default:
+		return "No longer reported by " + ctx.Tool
+	}
 }
 
 // ReconcileTool walks Findings (and SASTFindings when Tool==sast) and flips
@@ -814,6 +937,15 @@ type ReconcileContext struct {
 func (m *Memory) ReconcileTool(ctx ReconcileContext) []StateChange {
 	now := time.Now().UTC().Format(time.RFC3339)
 	var changes []StateChange
+
+	mode := ctx.Mode
+	if mode == "" {
+		mode = DefaultResolutionMode(ctx.Tool)
+	}
+	regressionStatus := ctx.RegressionStatus
+	if regressionStatus == "" {
+		regressionStatus = "under_investigation"
+	}
 
 	apply := func(id string, rec FindingRecord, inCurrent bool) (FindingRecord, *StateChange) {
 		if rec.LastSeenBranch != "" && ctx.Branch != "" && rec.LastSeenBranch != ctx.Branch {
@@ -824,17 +956,10 @@ func (m *Memory) ReconcileTool(ctx ReconcileContext) []StateChange {
 				return rec, nil
 			}
 			var comment string
-			switch ctx.Tool {
-			case ToolSCA, ToolContainer:
-				pkgKey := strings.ToLower(rec.Ecosystem) + ":" + strings.ToLower(rec.Package)
-				if ctx.InstalledPkgs != nil && !ctx.InstalledPkgs[pkgKey] {
-					comment = "Dependency removed from manifest"
-				} else if ctx.InstalledPkgs == nil {
-					comment = "No longer reported by upstream source"
-				} else {
-					comment = "Package still present but no longer flagged — patched upstream"
-				}
-			case ToolSAST, ToolSecrets, ToolIaC:
+			switch mode {
+			case ResolveOnVerify:
+				// Absence alone proves nothing: the rule may simply not have
+				// run. Require the evidence to have left disk.
 				if ctx.Verifier == nil || len(rec.Locations) == 0 {
 					return rec, nil
 				}
@@ -843,12 +968,14 @@ func (m *Memory) ReconcileTool(ctx ReconcileContext) []StateChange {
 					return rec, nil
 				}
 				comment = "Verified gone: " + reason
+			case ResolveOnAbsence:
+				comment = absenceComment(ctx, rec)
 			default:
 				return rec, nil
 			}
 			old := rec.Status
 			rec.Status = "fixed"
-			rec.History = append(rec.History, HistoryEntry{
+			rec.History = appendHistory(rec.History, HistoryEntry{
 				Date:   now,
 				Event:  "auto-resolved",
 				Detail: comment,
@@ -866,8 +993,8 @@ func (m *Memory) ReconcileTool(ctx ReconcileContext) []StateChange {
 		}
 		// Present in current scan — flip back from fixed if needed.
 		if rec.Status == "fixed" {
-			rec.Status = "under_investigation"
-			rec.History = append(rec.History, HistoryEntry{
+			rec.Status = regressionStatus
+			rec.History = appendHistory(rec.History, HistoryEntry{
 				Date:   now,
 				Event:  "regression",
 				Detail: "Reappeared in scan results after previously being fixed",
@@ -878,7 +1005,7 @@ func (m *Memory) ReconcileTool(ctx ReconcileContext) []StateChange {
 				Package:   rec.Package,
 				Ecosystem: rec.Ecosystem,
 				OldStatus: "fixed",
-				NewStatus: "under_investigation",
+				NewStatus: regressionStatus,
 				Comment:   "Regression — reappeared in scan results after previously being fixed",
 				Finding:   rec,
 			}
@@ -911,7 +1038,7 @@ func (m *Memory) ReconcileTool(ctx ReconcileContext) []StateChange {
 			if updated.Status == "fixed" {
 				sf.Status = "resolved"
 				sf.ResolvedAt = now
-			} else if updated.Status == "under_investigation" {
+			} else {
 				sf.Status = "open"
 				sf.ResolvedAt = ""
 			}
@@ -922,7 +1049,7 @@ func (m *Memory) ReconcileTool(ctx ReconcileContext) []StateChange {
 	}
 
 	for id, rec := range m.Findings {
-		if rec.Tool != ctx.Tool {
+		if rec.Tool != ctx.Tool || !ctx.inScope(id) {
 			continue
 		}
 		updated, change := apply(id, rec, ctx.CurrentIDs[id])

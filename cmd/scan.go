@@ -1230,8 +1230,13 @@ func runLocalScan(
 	// Memory is loaded and reconciled BEFORE building the BOM so that VEX
 	// entries for remediated / regressed findings can be included in the SBOM.
 	vulnetixDir := filepath.Join(rootPath, ".vulnetix")
-	mem, _ := memory.Load(vulnetixDir)
+	var mem *memory.Memory
+	if !disableMemory {
+		mem, _ = memory.Load(vulnetixDir)
+	}
 	if mem == nil {
+		// Also the --disable-memory case: downstream writers stay non-nil and
+		// simply operate on a scratch value that is never persisted.
 		mem = &memory.Memory{Version: "1"}
 	}
 
@@ -1511,15 +1516,31 @@ func runLocalScan(
 					mem.RecordCategorizedFindings(tool, bucket)
 				}
 
-				// Verify-then-resolve via on-disk inspection for sast/secrets/iac.
+				// Verify-then-resolve via on-disk inspection. Only the kinds whose
+				// rules actually ran in this invocation may be reconciled: a
+				// `vulnetix secrets` run evaluates no Dockerfile rules, so every
+				// container finding would look "absent" and be resolved.
 				verifier := func(loc memory.Location) (bool, string) {
 					return scan.VerifyLocationGone(rootPath, loc, 5)
 				}
-				for _, tool := range []string{memory.ToolSAST, memory.ToolSecrets, memory.ToolIaC, memory.ToolContainer} {
-					ids := currentByTool[tool]
+				ranTools := make([]string, 0, 4)
+				if !noSASTRules {
+					ranTools = append(ranTools, memory.ToolSAST)
+				}
+				if !noSecrets {
+					ranTools = append(ranTools, memory.ToolSecrets)
+				}
+				if !noIAC {
+					ranTools = append(ranTools, memory.ToolIaC)
+				}
+				if !noContainers {
+					ranTools = append(ranTools, memory.ToolContainer)
+				}
+				for _, tool := range ranTools {
 					changes := mem.ReconcileTool(memory.ReconcileContext{
 						Tool:       tool,
-						CurrentIDs: ids,
+						Mode:       memory.ResolveOnVerify,
+						CurrentIDs: currentByTool[tool],
 						Branch:     currentBranch,
 						RootPath:   rootPath,
 						Verifier:   verifier,
@@ -1594,35 +1615,6 @@ func runLocalScan(
 	}
 	bom := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, effectiveSeed)
 
-	// Inject VEX entries for remediated and regressed findings. This is the
-	// CycloneDX VEX channel, used only by SCA / container scans that emit a
-	// BOM. Static-analysis scans (suppressBOM) emit no BOM, so their finding
-	// transitions are attested as a standalone OpenVEX document instead (see
-	// writeStaticAnalysisVEX, called below).
-	if !suppressBOM {
-		for _, sc := range stateChanges {
-			vexVuln := cdx.Vulnerability{
-				BOMRef: sc.CveID,
-				ID:     sc.CveID,
-				Source: &cdx.Source{
-					Name: "vulnetix-sca",
-				},
-			}
-			vexVuln.Analysis = cdx.AnalysisForStateChange(sc.NewStatus, sc.Comment)
-			vexVuln.Properties = append(vexVuln.Properties, cdx.Property{
-				Name:  "vulnetix:vex-auto",
-				Value: "true",
-			})
-			if sc.Package != "" {
-				vexVuln.Properties = append(vexVuln.Properties, cdx.Property{
-					Name:  "vulnetix:package",
-					Value: sc.Package,
-				})
-			}
-			bom.Vulnerabilities = append(bom.Vulnerabilities, vexVuln)
-		}
-	}
-
 	// ── License analysis (unless --no-licenses) ────────────────────────────
 	var licenseResult *license.AnalysisResult
 	if !noLicenses {
@@ -1647,22 +1639,30 @@ func runLocalScan(
 		}
 		cdx.PopulateLicenses(bom, licenseMap, license.CanonicalSPDXID)
 
-		// Write license findings to memory (persisted by the single
-		// memory.Save below, alongside the scan record).
-		if !disableMemory && mem != nil && len(licenseResult.Findings) > 0 {
-			for _, f := range licenseResult.Findings {
-				mem.Findings[f.ID] = memory.FindingRecord{
-					Package:         f.Package.PackageName,
-					Ecosystem:       f.Package.Ecosystem,
-					Severity:        f.Severity,
-					Status:          "affected",
-					Source:          license.CDXSourceName,
-					Versions:        &memory.VersionInfo{Current: f.Package.PackageVersion},
-					SourceFiles:     []string{f.Package.SourceFile},
-					IntroducedPaths: f.IntroducedPaths,
-					PathCount:       f.PathCount,
-				}
-			}
+		// Record license findings and resolve any that disappeared since the
+		// last run. Persisted by the single memory.Save below, alongside the
+		// scan record.
+		if !disableMemory && mem != nil {
+			stateChanges = append(stateChanges,
+				recordAndReconcileLicense(mem, rootPath, gitCtx, licenseResult)...)
+		}
+	}
+
+	// ── VEX fan-out ───────────────────────────────────────────────────────
+	// Each scanner attests its state changes in the channel it owns. SCA and
+	// license write CycloneDX VEX into the BOM; the static-analysis family
+	// writes OpenVEX. Mixing them — as this once did, stamping SAST
+	// fingerprints into the BOM under source "vulnetix-sca" — produces an SBOM
+	// full of vulnerabilities that are not vulnerabilities and no OpenVEX at all.
+	changesByTool := partitionChangesByTool(stateChanges)
+	var cdxVEX []cdx.Vulnerability
+	if !suppressBOM {
+		cdxVEX = cdxVEXForChanges(changesByTool[memory.ToolSCA], "vulnetix-sca")
+		// License VEX is read from memory rather than from this run's changes:
+		// the entries must reappear on every run, not only on the one that
+		// resolved them (see licenseVEXFromMemory).
+		if !disableMemory && !noLicenses {
+			cdxVEX = append(cdxVEX, licenseVEXFromMemory(mem)...)
 		}
 	}
 
@@ -1674,10 +1674,13 @@ func runLocalScan(
 	// BOM would have no components or vulnerabilities — the SARIF is the
 	// relevant artefact in that case. Don't claim a BOM artefact we didn't write.
 	bomWritten := false
-	if !suppressBOM && (len(bom.Components) > 0 || len(bom.Vulnerabilities) > 0) {
+	if !suppressBOM && (len(bom.Components) > 0 || len(bom.Vulnerabilities) > 0 || len(cdxVEX) > 0) {
 		if existingBOM, err := parseCDXForScan(sbomPath); err == nil && existingBOM != nil {
 			bom = cdx.MergeBOMs(existingBOM, bom)
 		}
+		// After the merge, so a resolution annotates the vulnerability entry the
+		// previous run left on disk instead of appending a twin under the same id.
+		cdx.ApplyVEXAnalysis(bom, cdxVEX)
 		if err := writeBOMToFile(bom, sbomPath); err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
 		} else {
@@ -1688,24 +1691,26 @@ func runLocalScan(
 		rec.SBOMPath = "" // omitempty → not serialised into memory.yaml
 	}
 
-	// Static-analysis scans (secrets / sast / iac) emit SARIF + OpenVEX, never a
-	// CycloneDX BOM. Attest any finding transitions as an OpenVEX document.
-	if suppressBOM {
-		if vexPath, vexErr := writeStaticAnalysisVEX(rootPath, stateChanges); vexErr != nil {
-			fmt.Fprintf(os.Stderr, "  warning: could not write OpenVEX: %v\n", vexErr)
-		} else if vexPath != "" {
-			fmt.Fprintf(os.Stdout, "  %s VEX:      %s\n", display.CheckMark(display.NewTerminal()), vexPath)
-		}
-	}
+	// Static-analysis findings (sast / secrets / iac / container) are attested as
+	// OpenVEX regardless of whether this scan also produced a BOM — their
+	// identifiers are rule fingerprints, which have no meaning in a CycloneDX
+	// `vulnerabilities` array. The paths are surfaced with the other artefacts
+	// at the end of the run, not here, where the findings tables would bury them.
+	vexPaths := writeOpenVEXForPartition(rootPath, changesByTool)
 
+	// --disable-memory means exactly that: nothing is read from or written to
+	// memory.yaml. The scan record is not persisted either — a memory file that
+	// exists only to hold scan history is still a memory file.
 	if !disableMemory {
 		recordAutofixMemoryEvents(mem, autofixResolved)
+		mem.RecordScan(rec)
+		if err := memory.Save(vulnetixDir, mem); err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
+		}
+		scanProgress.Update(6, "Wrote local scan state")
+	} else {
+		scanProgress.Update(6, "Skipped local scan state (--disable-memory)")
 	}
-	mem.RecordScan(rec)
-	if err := memory.Save(vulnetixDir, mem); err != nil {
-		fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
-	}
-	scanProgress.Update(6, "Wrote local scan state")
 
 	// ── Quality gate evaluation ───────────────────────────────────────────
 	// Evaluated after writing artefacts so that the SBOM and memory.yaml are
@@ -2138,7 +2143,7 @@ func runLocalScan(
 	sast.PrintPrettySummaryWithTitle(sastReport, resultsOnly, analysisTitle)
 
 	// Artefact links print last, after all analysis output.
-	printScanArtifacts(displaySBOM, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL, sarifSnapshots)
+	printScanArtifacts(displaySBOM, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL, vexPaths, sarifSnapshots)
 	if isUnauthenticatedScan() {
 		printCommunitySignupReminder()
 	}
@@ -3391,48 +3396,6 @@ func skippedPlansWithNoSafeVersion(plans []autofix.FixCandidate) []autofix.FixCa
 	return out
 }
 
-// writeStaticAnalysisVEX writes an OpenVEX document recording triage state
-// changes for static-analysis findings (sast / secrets / iac / container).
-// Static-analysis scans emit SARIF + OpenVEX only — never a CycloneDX BOM — so
-// finding transitions (fixed, regressed/under-investigation) are attested here
-// rather than in a CDX VEX section. Returns "" when there is nothing to attest.
-func writeStaticAnalysisVEX(root string, changes []memory.StateChange) (string, error) {
-	if len(changes) == 0 {
-		return "", nil
-	}
-	findings := make([]*triage.TriageFinding, 0, len(changes))
-	for i := range changes {
-		sc := changes[i]
-		// Prefer the human-readable rule ID (carried as the first alias) over
-		// the internal fingerprint for the OpenVEX vulnerability identifier.
-		name := sc.CveID
-		if len(sc.Finding.Aliases) > 0 && sc.Finding.Aliases[0] != "" {
-			name = sc.Finding.Aliases[0]
-		}
-		tf := &triage.TriageFinding{
-			CVEID:    name,
-			Status:   sc.NewStatus,
-			Severity: sc.Finding.Severity,
-		}
-		if sc.NewStatus == "fixed" && sc.Comment != "" {
-			tf.ActionResponse = sc.Comment
-		}
-		findings = append(findings, tf)
-	}
-	data, err := triage.GenerateOpenVEX(findings, triage.OpenVEXOptions{Tooling: "vulnetix-cli static-analysis"})
-	if err != nil {
-		return "", err
-	}
-	path := filepath.Join(root, ".vulnetix", "vex.openvex.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return "", err
-	}
-	return path, nil
-}
-
 // writeRiskAcceptedVEX generates an OpenVEX document for packages that could
 // not be fixed because every available version has vulnerabilities. The
 // document records a risk-accepted decision and is written to
@@ -3649,14 +3612,19 @@ func hasAutofixHistory(rec memory.FindingRecord, detail string) bool {
 // analysis tables. Each line is gated on a non-empty value. scaSnapshotURL is
 // the /v2/cli.sca snapshot; snapshots carries one link per SARIF kind
 // (SAST/Secrets/IaC/Containers) submitted this scan.
-func printScanArtifacts(sbomPath, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL string, snapshots []snapshotLink) {
+func printScanArtifacts(sbomPath, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL string, vexPaths []string, snapshots []snapshotLink) {
 	t := display.NewTerminal()
 	if sbomPath != "" {
 		fmt.Fprintf(os.Stdout, "  %s BOM:      %s\n", display.CheckMark(t), sbomPath)
 	}
-	fmt.Fprintf(os.Stdout, "  %s Memory:   %s\n", display.CheckMark(t), filepath.Join(vulnetixDir, memory.FileName))
+	if !disableMemory {
+		fmt.Fprintf(os.Stdout, "  %s Memory:   %s\n", display.CheckMark(t), filepath.Join(vulnetixDir, memory.FileName))
+	}
 	if sarifPath != "" {
 		fmt.Fprintf(os.Stdout, "  %s SARIF:    %s\n", display.CheckMark(t), sarifPath)
+	}
+	for _, vexPath := range vexPaths {
+		fmt.Fprintf(os.Stdout, "  %s VEX:      %s\n", display.CheckMark(t), vexPath)
 	}
 	if rulesPath != "" {
 		fmt.Fprintf(os.Stdout, "  %s Rules:    %s\n", display.CheckMark(t), rulesPath)

@@ -508,8 +508,24 @@ func TestExtractStringSlice(t *testing.T) {
 }
 
 func TestAllTools(t *testing.T) {
-	if len(AllTools) != 7 {
-		t.Errorf("expected 7 tools, got %d", len(AllTools))
+	want := []string{
+		ToolSCA, ToolSAST, ToolIaC, ToolSecrets, ToolContainer,
+		ToolQuality, ToolLicense, ToolCBOM, ToolAIBOM, ToolMalscan,
+	}
+	seen := map[string]bool{}
+	for _, tool := range AllTools {
+		if seen[tool] {
+			t.Errorf("duplicate tool tag %q in AllTools", tool)
+		}
+		seen[tool] = true
+	}
+	for _, tool := range want {
+		if !seen[tool] {
+			t.Errorf("tool tag %q missing from AllTools", tool)
+		}
+	}
+	if len(AllTools) != len(want) {
+		t.Errorf("AllTools has %d entries, want %d", len(AllTools), len(want))
 	}
 }
 

@@ -51,10 +51,24 @@ func TestPrintCommunitySignupReminder(t *testing.T) {
 // returned (the unauthenticated case, where the server persists nothing).
 func TestPrintScanArtifacts_NoSnapshotWhenEmpty(t *testing.T) {
 	out := captureStdout(t, func() {
-		printScanArtifacts("sbom.json", "sast.sarif", ".vulnetix", "", "", nil)
+		printScanArtifacts("sbom.json", "sast.sarif", ".vulnetix", "", "", nil, nil)
 	})
 	if strings.Contains(out, "Snapshot:") {
 		t.Errorf("expected no Snapshot line for empty URLs; got:\n%s", out)
+	}
+	if strings.Contains(out, "VEX:") {
+		t.Errorf("expected no VEX line when no VEX was written; got:\n%s", out)
+	}
+
+	// Every VEX artefact the run produced is surfaced with the other artefacts.
+	withVEX := captureStdout(t, func() {
+		printScanArtifacts("sbom.json", "sast.sarif", ".vulnetix", "", "",
+			[]string{".vulnetix/vex.openvex.json", ".vulnetix/vex-cbom.openvex.json"}, nil)
+	})
+	for _, want := range []string{".vulnetix/vex.openvex.json", ".vulnetix/vex-cbom.openvex.json"} {
+		if !strings.Contains(withVEX, want) {
+			t.Errorf("expected %q in the artefact list; got:\n%s", want, withVEX)
+		}
 	}
 }
 
