@@ -150,3 +150,45 @@ func TestIsCommunity(t *testing.T) {
 		t.Fatal("different API key should not match")
 	}
 }
+
+// The GUI presents an ApiKey as "<orgId>:<hex>". `auth login` stripped that
+// prefix but the environment-variable path did not, so CI sent
+// "ApiKey <org>:<org>:<hex>" and got HTTP 401 while a local login worked.
+func TestGetAuthHeader_StripsPastedOrgPrefix(t *testing.T) {
+	const org = "8ff8f1e4-0000-4000-8000-000000000000"
+	const hexKey = "6e40f1c324576b65f85dc3c9ff93d31e"
+	want := "ApiKey " + org + ":" + hexKey
+
+	for name, key := range map[string]string{
+		"bare hex digest": hexKey,
+		"GUI <org>:<hex>": org + ":" + hexKey,
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := GetAuthHeader(&Credentials{OrgID: org, APIKey: key, Method: DirectAPIKey})
+			if got != want {
+				t.Errorf("GetAuthHeader() = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestStripOrgPrefix(t *testing.T) {
+	const org = "org-uuid"
+	cases := map[string]struct{ in, want string }{
+		"strips exact prefix":     {org + ":abc", "abc"},
+		"leaves bare key":         {"abc", "abc"},
+		"leaves other org prefix": {"other:abc", "other:abc"},
+		"empty org is a no-op":    {"abc", "abc"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			o := org
+			if name == "empty org is a no-op" {
+				o = ""
+			}
+			if got := StripOrgPrefix(o, tc.in); got != tc.want {
+				t.Errorf("StripOrgPrefix(%q, %q) = %q, want %q", o, tc.in, got, tc.want)
+			}
+		})
+	}
+}
