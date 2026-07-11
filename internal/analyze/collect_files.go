@@ -218,7 +218,7 @@ func emitFileMetrics(b *Builder, st *fileStats, git *gitStats, opts Options, now
 	refs := make(map[string]EvidenceRef, len(st.files))
 	all := make([]EvidenceRef, 0, len(st.files))
 	for _, f := range st.files {
-		r := b.AddRecord(f.ID, f)
+		r := b.AddFile(f)
 		refs[f.Path] = r
 		all = append(all, r)
 	}

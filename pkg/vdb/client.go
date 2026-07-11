@@ -2,6 +2,7 @@ package vdb
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/hex"
@@ -514,6 +515,46 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 		req.GetBody = func() (io.ReadCloser, error) {
 			return io.NopCloser(bytes.NewReader(bodyBytes)), nil
 		}
+	}
+
+	return c.doRequestWithRetry(req)
+}
+
+// DoRequestGzip is DoRequest with the body compressed.
+//
+// For an ordinary request this would be pointless ceremony. For one that carries the whole shape
+// of a repository — every node, every metric, one evidence record per thing any metric counted —
+// it is the difference between a request that fits and a request that does not: an analyze report
+// of 12 MB goes over the wire in well under one.
+func (c *Client) DoRequestGzip(method, path string, body interface{}) ([]byte, error) {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	if _, err := zw.Write(raw); err != nil {
+		return nil, fmt.Errorf("failed to compress request body: %w", err)
+	}
+	if err := zw.Close(); err != nil {
+		return nil, fmt.Errorf("failed to compress request body: %w", err)
+	}
+	compressed := buf.Bytes()
+
+	req, err := http.NewRequest(method, c.BaseURL+c.APIVersion+path, bytes.NewReader(compressed))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	if err := c.addAuthHeader(req); err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	// A retry re-reads the body, so it has to be re-readable.
+	req.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(compressed)), nil
 	}
 
 	return c.doRequestWithRetry(req)

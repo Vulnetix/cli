@@ -142,11 +142,14 @@ func collectTrust(b *Builder, root string) *trustResult {
 		failedRefs = append(failedRefs, SARIFRef(i))
 	}
 
+	// The file that satisfied a check is very often one the file walker already described — a
+	// README, a CI config. AddFile folds this into that record and hands back a ref to it, so the
+	// policy metric and the file metrics cite the same file rather than two half-descriptions of
+	// it under different ids.
 	passedRefs := make([]EvidenceRef, 0, len(passed))
 	for _, p := range passed {
-		id := "policy-" + p.rule.ID
-		passedRefs = append(passedRefs, b.AddRecord(id, FileRecord{
-			ID:   id,
+		passedRefs = append(passedRefs, b.AddFile(&FileRecord{
+			ID:   "policy-" + p.rule.ID,
 			Type: "file",
 			Path: p.matched,
 			Tags: []string{"policy", p.rule.ID},
