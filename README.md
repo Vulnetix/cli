@@ -28,9 +28,10 @@ This GitHub Action provides the Vulnetix CLI for your workflows, enabling automa
 
 ```yaml
 - name: Vulnetix Scan
-  uses: Vulnetix/cli@main
+  uses: Vulnetix/cli@v3.59.2
   with:
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
+    api-key: ${{ secrets.VULNETIX_API_KEY }}
 ```
 
 ### Workflow Examples
@@ -40,23 +41,30 @@ This GitHub Action provides the Vulnetix CLI for your workflows, enabling automa
 ```yaml
 name: Security Scan
 on: [pull_request]
+permissions:
+  contents: read
 
 jobs:
   vulnetix:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: Vulnetix/cli@main
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - uses: Vulnetix/cli@v3.59.2
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
+          api-key: ${{ secrets.VULNETIX_API_KEY }}
 ```
 
 #### Upload Artifacts
 
 ```yaml
-- uses: Vulnetix/cli@main
+- uses: Vulnetix/cli@v3.59.2
   with:
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
+    api-key: ${{ secrets.VULNETIX_API_KEY }}
     task: upload
     artifact-path: ./reports/
 ```

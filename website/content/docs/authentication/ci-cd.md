@@ -43,6 +43,9 @@ Issue a **distinct** token per pipeline. A token shared across repositories cann
 ## GitHub Actions
 
 ```yaml
+permissions:
+  contents: read
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -60,6 +63,28 @@ jobs:
 
       - name: Scan
         run: vulnetix scan --severity high
+```
+
+If the job runs `vulnetix analyze`, grant the repository-scoped `GITHUB_TOKEN` the forge reads
+that analysis needs and pass it explicitly:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    env:
+      VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+      VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Analyze
+        run: vulnetix analyze
 ```
 
 Values from `secrets.*` are masked in logs automatically. Values you compute are not — register them:

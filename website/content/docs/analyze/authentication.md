@@ -45,14 +45,26 @@ Resolved in this order. The first one found wins, and `analyze` tells you which 
 
 ### 1. `GITHUB_TOKEN`
 
-**Already set for you inside GitHub Actions.** If you run `analyze` in CI, this works with no
-configuration:
+**Already set for you inside GitHub Actions.** If you run `analyze` in CI, give the job read
+access to repository contents, pull requests, and issues, then pass the built-in token:
 
 ```yaml
-- name: Analyze
-  run: vulnetix analyze
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+      VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Analyze
+        run: vulnetix analyze
 ```
 
 ### 2. `GH_TOKEN`
@@ -77,8 +89,18 @@ waiting for the day that tool changes it.
 
 ## Token permissions
 
-Read access to the repository's **pull requests**, **issues** and **contents**. The default
-`GITHUB_TOKEN` in GitHub Actions already has this for the repository it is running in.
+Read access to the repository's **pull requests**, **issues** and **contents**. In GitHub
+Actions, set those explicitly on the job or workflow:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+```
+
+The built-in `GITHUB_TOKEN` is repository-scoped, which is enough for `analyze` when those
+permissions are granted.
 
 ## "404 Not Found" on a repository that plainly exists
 

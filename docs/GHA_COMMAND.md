@@ -22,13 +22,22 @@ vulnetix gha status --uuid <artifact-uuid>
 ### Workflow example
 
 ```yaml
-- name: Upload artifacts to Vulnetix
-  uses: Vulnetix/cli@v1
-  with:
-    task: gha
-    org-id: ${{ secrets.VULNETIX_ORG_ID }}
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload artifacts to Vulnetix
+        uses: Vulnetix/cli@v3.59.2
+        with:
+          task: gha
+          org-id: ${{ secrets.VULNETIX_ORG_ID }}
+          api-key: ${{ secrets.VULNETIX_API_KEY }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 ```
 
 See the [full documentation](https://docs.cli.vulnetix.com/docs/ci-cd/gha-command/) for detailed usage and examples.

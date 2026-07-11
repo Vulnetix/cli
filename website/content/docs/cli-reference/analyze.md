@@ -61,11 +61,22 @@ vulnetix analyze
 In GitHub Actions, where `GITHUB_TOKEN` is already available:
 
 ```yaml
-- name: Analyze
-  run: vulnetix analyze
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+      VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Analyze
+        run: vulnetix analyze
 ```
 
 A faster pass over recent history only:

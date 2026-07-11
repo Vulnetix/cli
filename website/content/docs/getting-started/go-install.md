@@ -365,6 +365,9 @@ name: Vulnetix
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   security:
     runs-on: ubuntu-latest
@@ -382,6 +385,7 @@ jobs:
       - name: Run Vulnetix
         env:
           VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+          VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
         run: vulnetix upload --file <artifact-path>
 ```
 
