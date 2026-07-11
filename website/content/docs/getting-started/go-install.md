@@ -64,7 +64,7 @@ The module path carries a `/v3` major-version suffix, so only `v3.x.x` versions 
 
 ```bash
 # Install specific version
-go install github.com/vulnetix/cli/v3@v3.55.2
+go install github.com/vulnetix/cli/v3@v3.59.3
 
 # Install pre-release
 go install github.com/vulnetix/cli/v3@v3.56.0-beta.1
@@ -297,8 +297,8 @@ go install -gcflags="all=-N" github.com/vulnetix/cli/v3@latest
 go install github.com/vulnetix/cli/v3@v3.55.1
 mv $(go env GOPATH)/bin/vulnetix $(go env GOPATH)/bin/vulnetix-v3.55.1
 
-go install github.com/vulnetix/cli/v3@v3.55.2
-mv $(go env GOPATH)/bin/vulnetix $(go env GOPATH)/bin/vulnetix-v3.55.2
+go install github.com/vulnetix/cli/v3@v3.59.3
+mv $(go env GOPATH)/bin/vulnetix $(go env GOPATH)/bin/vulnetix-v3.59.3
 
 go install github.com/vulnetix/cli/v3@latest
 # Latest version available as 'vulnetix'

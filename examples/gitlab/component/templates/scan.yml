@@ -9,7 +9,7 @@ spec:
         Fail the job when a finding meets or exceeds this severity
         (low, medium, high, critical). Empty disables the gate.
     version:
-      default: v3.55.2
+      default: v3.59.3
       description: Vulnetix CLI release to install. Pin an exact tag.
     path:
       default: .

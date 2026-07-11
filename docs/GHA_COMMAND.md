@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Upload artifacts to Vulnetix
-        uses: Vulnetix/cli@v3.59.2
+        uses: Vulnetix/cli@v3.59.3
         with:
           task: gha
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
