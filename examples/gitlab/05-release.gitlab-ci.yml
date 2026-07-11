@@ -18,7 +18,7 @@ stages:
   - release
 
 variables:
-  VULNETIX_VERSION: v3.59.3
+  VULNETIX_VERSION: v3.59.4
   PACKAGE_NAME: vulnetix-artifacts
 
 .vulnetix:

@@ -13,7 +13,7 @@ vulnetix:
   stage: security
   image: alpine:3.20
   variables:
-    VULNETIX_VERSION: v3.59.3
+    VULNETIX_VERSION: v3.59.4
   parallel:
     matrix:
       - SCAN: sca

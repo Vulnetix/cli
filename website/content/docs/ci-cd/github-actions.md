@@ -7,7 +7,7 @@ description: "Integrate Vulnetix CLI into GitHub Actions workflows, from a one-s
 This page builds up from the smallest working workflow to a full release pipeline that attaches every scan artifact to a GitHub Release. Each level adds one idea to the previous one.
 
 {{< callout type="warning" >}}
-**Versions in this page are current as of writing** (`Vulnetix/cli@v3.59.3`).
+**Versions in this page are current as of writing** (`Vulnetix/cli@v3.59.4`).
 
 There is **no moving `v1`/`v2`/`v3` major tag** — the action must be pinned to an exact release tag. The action also builds the CLI from the ref you pin, so `actions/setup-go` must run before it.
 
@@ -40,7 +40,7 @@ Two ways to run the CLI in a workflow:
 
 | Approach | When to use |
 |----------|-------------|
-| **Native action** — `uses: Vulnetix/cli@v3.59.3` | Quickstart, `upload`, and `gha` artifact collection. Requires `actions/setup-go`. |
+| **Native action** — `uses: Vulnetix/cli@v3.59.4` | Quickstart, `upload`, and `gha` artifact collection. Requires `actions/setup-go`. |
 | **Install script** — `curl -fsSL https://cli.vulnetix.com/install.sh \| sh` | Any subcommand (`scan`, `cbom`, `aibom`, `license`, `secrets`, …). No Go toolchain needed. |
 
 The action exposes only `info`, `upload`, and `gha` tasks. Every other subcommand is run with the install script.
@@ -72,7 +72,7 @@ jobs:
         with:
           go-version: stable
 
-      - uses: Vulnetix/cli@v3.59.3
+      - uses: Vulnetix/cli@v3.59.4
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -119,7 +119,7 @@ Every example below assumes those two variables are set and the CLI is installed
 
 ```yaml
       - name: Install Vulnetix CLI
-        run: curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v3.59.3
+        run: curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v3.59.4
 ```
 
 ### What Each Subcommand Writes
@@ -375,7 +375,7 @@ name: Vulnetix Analysis
 on: [push, pull_request]
 
 env:
-  VULNETIX_VERSION: v3.59.3
+  VULNETIX_VERSION: v3.59.4
 
 jobs:
   analyze:
@@ -462,7 +462,7 @@ jobs:
           go-version: stable
 
       - name: Upload all run artifacts to Vulnetix
-        uses: Vulnetix/cli@v3.59.3
+        uses: Vulnetix/cli@v3.59.4
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -474,7 +474,7 @@ jobs:
 To upload one specific file instead, use `task: upload`:
 
 ```yaml
-      - uses: Vulnetix/cli@v3.59.3
+      - uses: Vulnetix/cli@v3.59.4
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -499,7 +499,7 @@ on:
   workflow_dispatch:
 
 env:
-  VULNETIX_VERSION: v3.59.3
+  VULNETIX_VERSION: v3.59.4
 
 jobs:
   analyze:
@@ -580,7 +580,7 @@ jobs:
           go-version: stable
 
       - name: Upload all run artifacts to Vulnetix
-        uses: Vulnetix/cli@v3.59.3
+        uses: Vulnetix/cli@v3.59.4
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -656,7 +656,7 @@ Grant only what the job uses. Split release publishing into its own job so `cont
 
 **`Please add actions/setup-go to your workflow before this action`** — the action compiles the CLI from source. Add `actions/setup-go@v6` before it, or drop the action and use the install script.
 
-**Action reference not found** — there is no moving `v1`/`v2`/`v3` tag. Pin an exact release (`Vulnetix/cli@v3.59.3`) or, for unreleased changes, `Vulnetix/cli@main`.
+**Action reference not found** — there is no moving `v1`/`v2`/`v3` tag. Pin an exact release (`Vulnetix/cli@v3.59.4`) or, for unreleased changes, `Vulnetix/cli@main`.
 
 **`GITHUB_TOKEN environment variable is required`** — `task: gha` reads `GITHUB_TOKEN` from the environment. Pass `env: { GITHUB_TOKEN: ${{ github.token }} }` on the step.
 
@@ -668,4 +668,4 @@ Grant only what the job uses. Split release publishing into its own job so `cont
 
 ## Keeping This Page Honest
 
-Everything above was verified against `Vulnetix/cli` `v3.59.3`. Flags, default output paths, and action inputs change between releases. If a snippet no longer works, [open an issue](https://github.com/Vulnetix/cli/issues/new) with the release you are on and we will correct the documentation.
+Everything above was verified against `Vulnetix/cli` `v3.59.4`. Flags, default output paths, and action inputs change between releases. If a snippet no longer works, [open an issue](https://github.com/Vulnetix/cli/issues/new) with the release you are on and we will correct the documentation.

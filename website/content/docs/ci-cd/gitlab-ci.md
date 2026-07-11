@@ -7,7 +7,7 @@ description: "Integrate Vulnetix CLI into GitLab CI/CD, from a single-file quick
 This page builds up from the smallest working `.gitlab-ci.yml` to an organization-wide CI/CD Component that every project includes in four lines. Each level adds one idea to the previous one.
 
 {{< callout type="warning" >}}
-**Versions in this page are current as of writing** (Vulnetix CLI `v3.59.3`, GitLab 18.x).
+**Versions in this page are current as of writing** (Vulnetix CLI `v3.59.4`, GitLab 18.x).
 
 Every YAML example is validated against GitLab's published CI schema before release — the sources live in [`examples/gitlab/`](https://github.com/Vulnetix/cli/tree/main/examples/gitlab) and are checked by `examples/gitlab/validate.sh`. Schema validation cannot catch semantic errors; see [Verifying These Examples](#verifying-these-examples) to lint against your own project.
 
@@ -49,7 +49,7 @@ vulnetix:
   stage: security
   image: alpine:3.20
   variables:
-    VULNETIX_VERSION: v3.59.3
+    VULNETIX_VERSION: v3.59.4
   before_script:
     - apk add --no-cache bash ca-certificates curl tar
     - curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir /usr/local/bin --version "$VULNETIX_VERSION"
@@ -113,7 +113,7 @@ stages:
   stage: security
   image: alpine:3.20
   variables:
-    VULNETIX_VERSION: v3.59.3
+    VULNETIX_VERSION: v3.59.4
   before_script:
     - apk add --no-cache bash ca-certificates curl tar
     - curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir /usr/local/bin --version "$VULNETIX_VERSION"
@@ -208,7 +208,7 @@ Every job below writes into `dist/`, so the shared base from Level 2 gains one l
   stage: security
   image: alpine:3.20
   variables:
-    VULNETIX_VERSION: v3.59.3
+    VULNETIX_VERSION: v3.59.4
   before_script:
     - apk add --no-cache bash ca-certificates curl tar
     - curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir /usr/local/bin --version "$VULNETIX_VERSION"
@@ -334,7 +334,7 @@ vulnetix:
   stage: security
   image: alpine:3.20
   variables:
-    VULNETIX_VERSION: v3.59.3
+    VULNETIX_VERSION: v3.59.4
   parallel:
     matrix:
       - SCAN: sca
@@ -415,7 +415,7 @@ stages:
   - release
 
 variables:
-  VULNETIX_VERSION: v3.59.3
+  VULNETIX_VERSION: v3.59.4
   PACKAGE_NAME: vulnetix-artifacts
 ```
 
@@ -578,7 +578,7 @@ spec:
         Fail the job when a finding meets or exceeds this severity
         (low, medium, high, critical). Empty disables the gate.
     version:
-      default: v3.59.3
+      default: v3.59.4
       description: Vulnetix CLI release to install. Pin an exact tag.
     path:
       default: .
@@ -628,7 +628,7 @@ The template project holds a base:
 
 ```yaml
 variables:
-  VULNETIX_VERSION: v3.59.3
+  VULNETIX_VERSION: v3.59.4
   VULNETIX_IMAGE: alpine:3.20
 
 .vulnetix-install:

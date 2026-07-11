@@ -18,7 +18,7 @@ curl -fsSL https://cli.vulnetix.com/install.sh | sh
 curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir ~/.local/bin
 
 # Install specific version
-curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v3.59.3
+curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v3.59.4
 ```
 
 ### Manual Binary Download
@@ -219,7 +219,7 @@ curl -L -o vulnetix "https://github.com/Vulnetix/cli/releases/latest/download/vu
 ### Specific Version
 ```bash
 # Download specific version
-VERSION="v3.59.3"
+VERSION="v3.59.4"
 PLATFORM="linux-amd64"
 curl -L -o vulnetix "https://github.com/Vulnetix/cli/releases/download/${VERSION}/vulnetix-${PLATFORM}"
 chmod +x vulnetix
