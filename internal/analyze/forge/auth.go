@@ -75,6 +75,44 @@ var ErrNoCredentials = fmt.Errorf(`no GitHub credentials found.
   Or run with --no-forge to skip these metrics entirely. They will be reported as
   "not measured" rather than zero — the report never claims we looked when we did not`)
 
+// repoAccessError explains a token that works but cannot see this repository.
+//
+// The raw error is "404 Not Found", which is a lie of omission: the repository exists, and
+// GitHub says 404 rather than 403 precisely so that it does not confirm the existence of a
+// private repo to somebody who cannot read it. Passing that 404 through untranslated sends the
+// reader off to check whether they typed the repo name wrong, which they did not.
+func repoAccessError(creds *Credentials, login string, repo Repo, resp *github.Response, err error) error {
+	status := 0
+	if resp != nil {
+		status = resp.StatusCode
+	}
+
+	if status != http.StatusNotFound && status != http.StatusForbidden {
+		return fmt.Errorf("GitHub could not read %s/%s: %w", repo.Owner, repo.Name, err)
+	}
+
+	return fmt.Errorf(`the GitHub token from %s is valid (authenticated as %s) but cannot read %s/%s.
+
+  GitHub answers with "404 Not Found" rather than "403 Forbidden" for a private repository the
+  token cannot see — it will not confirm that the repository exists. So this is almost certainly
+  an access problem, not a typo.
+
+  If it is a fine-grained personal access token, it must list this repository (or its
+  organisation) under "Repository access", with read access to Contents, Pull requests, Issues
+  and Metadata.
+
+  Fixes, in order of least effort:
+
+    gh auth refresh -s repo        # if you are using the gh CLI's token
+    export GITHUB_TOKEN=<token>    # a classic token with the `+"`repo`"+` scope
+                                   # in GitHub Actions this is already set, and already
+                                   # scoped to the repository it runs in
+
+  Or run with --no-forge to skip GitHub entirely. The pull-request, review and issue metrics
+  are then reported as "not measured" rather than zero — the report never claims we looked when
+  we did not`, creds.Source, login, repo.Owner, repo.Name)
+}
+
 func ghCLIToken(ctx context.Context) (string, error) {
 	if _, err := exec.LookPath("gh"); err != nil {
 		return "", err
@@ -109,10 +147,17 @@ func (c CheckResult) String() string {
 
 // Check verifies the credentials actually work, before any scanning begins.
 //
-// It is one API call. A token that is expired, revoked, or scoped to the wrong org fails
-// here — in the first second, with an error naming the problem — rather than producing a
-// report where every forge metric is mysteriously null.
-func Check(ctx context.Context, creds *Credentials, host string) (*CheckResult, error) {
+// Two API calls, not one. The first proves the token is valid; the second proves it can see
+// *this repository*, which is a different question and the one that actually matters.
+//
+// A fine-grained PAT is valid for the user and still cannot read a private repo it was not
+// granted — and GitHub answers that with **404, not 403**, because telling you a private repo
+// exists would leak its existence. So a perfectly good token produces "404 Not Found" on a repo
+// that is right there in front of you. Discovering that four minutes into a scan, from a raw
+// API error, is not a diagnosis anybody can act on.
+//
+// repo may be zero-valued (owner and name empty), in which case only the token is checked.
+func Check(ctx context.Context, creds *Credentials, host string, repo Repo) (*CheckResult, error) {
 	client, err := NewClient(creds, host)
 	if err != nil {
 		return nil, err
@@ -121,6 +166,12 @@ func Check(ctx context.Context, creds *Credentials, host string) (*CheckResult, 
 	user, _, err := client.gh.Users.Get(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("GitHub rejected the token from %s: %w", creds.Source, err)
+	}
+
+	if repo.Owner != "" && repo.Name != "" {
+		if _, resp, rerr := client.gh.Repositories.Get(ctx, repo.Owner, repo.Name); rerr != nil {
+			return nil, repoAccessError(creds, user.GetLogin(), repo, resp, rerr)
+		}
 	}
 
 	limits, _, err := client.gh.RateLimit.Get(ctx)

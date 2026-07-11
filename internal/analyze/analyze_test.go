@@ -57,6 +57,23 @@ func TestBuilder_UnmeasuredIsNullNotZero(t *testing.T) {
 	require.Len(t, r.Diagnostics, 1, "and the reason it could not be measured is recorded")
 }
 
+// When a collector fails, the metrics it would have produced must still appear — as null. They
+// used to be dropped from the report entirely, which is worse than a wrong number: a reader
+// notices a number that looks off, and never notices one that is not there.
+//
+// The forge collector is the one that fails in practice (a token that cannot see a private repo),
+// so runForge fills in whatever it did not manage to emit. Has() is what stops it emitting a
+// metric the collector already measured a second time.
+func TestBuilder_HasReportsWhatWasAlreadyEmitted(t *testing.T) {
+	b := newTestBuilder()
+	b.Count(Metric{ID: "activity.pull_requests.total", Family: "activity", Name: "Pull requests",
+		Definition: "Pull requests in the window."}, []EvidenceRef{})
+
+	require.True(t, b.Has("activity.pull_requests.total"))
+	require.False(t, b.Has("activity.issues.total"),
+		"a metric the collector never reached is the one the failure path must fill in")
+}
+
 // Finish validates against the schema. A report we would reject on the way in must be one we
 // cannot produce on the way out.
 func TestBuilder_FinishValidatesAgainstTheSchema(t *testing.T) {

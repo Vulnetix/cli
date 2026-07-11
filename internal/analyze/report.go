@@ -548,6 +548,18 @@ func (b *Builder) add(m Metric) {
 	b.report.Metrics = append(b.report.Metrics, m)
 }
 
+// Has reports whether a metric has already been emitted. Used by a collector that partially
+// succeeded, so the failure path can fill in what is missing without emitting anything twice.
+func (b *Builder) Has(id string) bool {
+	for _, m := range b.report.Metrics {
+		if m.ID == id {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (b *Builder) Diagnose(d Diagnostic) {
 	b.report.Diagnostics = append(b.report.Diagnostics, d)
 }

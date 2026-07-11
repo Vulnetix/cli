@@ -123,7 +123,13 @@ func Check(ctx context.Context, opts Options) (*Preflight, error) {
 		return nil, err
 	}
 
-	result, err := forge.Check(ctx, creds, host)
+	forgeRepo := forge.Repo{Owner: owner, Name: name, DefaultBranch: p.Target.DefaultBranch}
+
+	// The check proves the token is valid AND that it can see this repository. Those are
+	// different questions: a fine-grained token can be perfectly valid for the user and still be
+	// unable to read a private repo it was never granted — and GitHub reports that as a 404, so
+	// the failure looks like a typo rather than a permission.
+	result, err := forge.Check(ctx, creds, host, forgeRepo)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +140,7 @@ func Check(ctx context.Context, opts Options) (*Preflight, error) {
 	}
 
 	p.Forge = client
-	p.Repo = forge.Repo{Owner: owner, Name: name, DefaultBranch: p.Target.DefaultBranch}
+	p.Repo = forgeRepo
 	p.ForgeStatus = result.String()
 
 	return p, nil
@@ -389,6 +395,20 @@ func runForge(b *Builder, pre *Preflight, git *gitStats, opts Options, now time.
 		b.Collected(Collector{Name: "forge", Status: "failed", Reason: err.Error(),
 			DurationSeconds: time.Since(t).Seconds()})
 		b.Diagnose(Diagnostic{Level: "error", Collector: "forge", Message: err.Error()})
+
+		// The metrics it would have produced are still declared, as null. Dropping them entirely —
+		// which is what this did — makes a failed collector look like a repository with nothing to
+		// report: the numbers are not wrong, they are simply absent, and absent is the one state a
+		// reader never notices.
+		//
+		// A collector that partially succeeded may already have emitted some of them, so only the
+		// ones still missing are filled in. Emitting a metric twice would be its own kind of lie.
+		for _, m := range forgeMetricsWhenUnavailable() {
+			if b.Has(m.ID) {
+				continue
+			}
+			b.Unmeasured(m, "The GitHub collector failed: "+err.Error())
+		}
 		pr.Step(stepForge, "GitHub failed")
 
 		return
