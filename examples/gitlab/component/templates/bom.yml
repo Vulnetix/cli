@@ -4,7 +4,7 @@ spec:
       default: test
       description: Pipeline stage the BOM jobs run in.
     version:
-      default: v3.59.3
+      default: v3.59.4
       description: Vulnetix CLI release to install. Pin an exact tag.
     path:
       default: .

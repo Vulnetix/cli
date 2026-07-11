@@ -7,7 +7,7 @@ description: "What each scan subcommand writes, which output flag it takes, and 
 Every platform page links here rather than restating this. Read it once.
 
 {{< callout type="warning" >}}
-**Current as of writing** (Vulnetix CLI `v3.59.3`). Flags and default output paths change between releases. Check `vulnetix <command> --help`, and [open an issue](https://github.com/Vulnetix/cli/issues/new) if a page here is stale.
+**Current as of writing** (Vulnetix CLI `v3.59.4`). Flags and default output paths change between releases. Check `vulnetix <command> --help`, and [open an issue](https://github.com/Vulnetix/cli/issues/new) if a page here is stale.
 {{< /callout >}}
 
 ## Installing in CI
@@ -21,7 +21,7 @@ curl -fsSL https://cli.vulnetix.com/install.sh | sh
 It installs to `/usr/local/bin`, falling back to `$HOME/.local/bin` when that is not writable. Pin a release in CI:
 
 ```sh
-curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v3.59.3
+curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v3.59.4
 ```
 
 On minimal images, install the script's dependencies first — `alpine` ships without `curl`, `bash`, `tar`, or CA certificates:

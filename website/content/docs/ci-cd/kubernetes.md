@@ -7,7 +7,7 @@ description: "Run Vulnetix CLI as Kubernetes Jobs with secret management, persis
 Deploy security scanning as Kubernetes Jobs.
 
 {{< callout type="warning" >}}
-**Current as of writing** (Vulnetix CLI `v3.59.3`). If a snippet no longer works, [open an issue](https://github.com/Vulnetix/cli/issues/new) with the CLI version you are on.
+**Current as of writing** (Vulnetix CLI `v3.59.4`). If a snippet no longer works, [open an issue](https://github.com/Vulnetix/cli/issues/new) with the CLI version you are on.
 {{< /callout >}}
 
 ## Before You Start

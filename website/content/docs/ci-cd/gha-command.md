@@ -197,7 +197,7 @@ jobs:
           go-version: stable
 
       - name: Upload Artifacts to Vulnetix
-        uses: Vulnetix/cli@v3.59.3
+        uses: Vulnetix/cli@v3.59.4
         with:
           task: gha
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
@@ -259,7 +259,7 @@ jobs:
           go-version: stable
 
       - name: Upload All Artifacts
-        uses: Vulnetix/cli@v3.59.3
+        uses: Vulnetix/cli@v3.59.4
         with:
           task: gha
           org-id: ${{ secrets.VULNETIX_ORG_ID }}

@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: stable
-      - uses: Vulnetix/cli@v3.59.3
+      - uses: Vulnetix/cli@v3.59.4
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}

@@ -54,7 +54,7 @@ One job, `vulnetix-scan`, running `vulnetix scan` (SCA + SAST + secrets + licens
 |-------|---------|-------------|
 | `stage` | `test` | Stage the job runs in |
 | `severity` | `''` | Fail on findings at or above this severity. Empty disables the gate |
-| `version` | `v3.59.3` | CLI release to install |
+| `version` | `v3.59.4` | CLI release to install |
 | `path` | `.` | Directory to scan |
 | `image` | `alpine:3.20` | Base image |
 
