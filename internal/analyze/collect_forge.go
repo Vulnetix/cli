@@ -36,7 +36,7 @@ import (
 // and repos have thousands; the cap is declared in the metric when it bites.
 const maxCommitReviewChecks = 300
 
-func collectForge(b *Builder, client *forge.Client, repo forge.Repo, git *gitStats, opts Options, now time.Time) error {
+func collectForge(b *Builder, client *forge.Client, repo forge.Repo, git *gitStats, opts Options, now time.Time, pr reporter) error {
 	ctx := context.Background()
 	since := now.AddDate(0, 0, -opts.WindowDays)
 	window := &MetricWindow{
@@ -45,10 +45,19 @@ func collectForge(b *Builder, client *forge.Client, repo forge.Repo, git *gitSta
 		Label: fmt.Sprintf("last_%d_days", opts.WindowDays),
 	}
 
+	// This is the slowest collector by a distance: every pull request costs several API calls
+	// (its reviews, its comments, its draft timeline) and every commit costs one more. The
+	// request count is reported alongside, because on a busy repository the honest answer to
+	// "why is this taking so long" is "it has made 1,400 GitHub calls".
+	pr.Stage("Fetching pull requests from GitHub")
 	prs, err := client.FetchPullRequests(ctx, repo, since)
 	if err != nil {
 		return fmt.Errorf("fetch pull requests: %w", err)
 	}
+
+	pr.Stage(fmt.Sprintf("Fetching issues from GitHub (%s, %s so far)",
+		plural(len(prs), "pull request", "pull requests"),
+		plural(client.Budget().Spent(), "API call", "API calls")))
 	issues, err := client.FetchIssues(ctx, repo, since)
 	if err != nil {
 		return fmt.Errorf("fetch issues: %w", err)
@@ -56,6 +65,8 @@ func collectForge(b *Builder, client *forge.Client, repo forge.Repo, git *gitSta
 
 	prRefs := emitPullRequests(b, prs, window)
 	emitIssues(b, issues, window)
+
+	pr.Stage("Resolving which commits were reviewed")
 	emitCommitReview(b, client, repo, git, prRefs, window)
 
 	// If the budget ran out, every count above is short by an unknown amount — and an unknown
