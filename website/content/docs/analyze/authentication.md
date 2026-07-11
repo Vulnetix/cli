@@ -80,6 +80,27 @@ waiting for the day that tool changes it.
 Read access to the repository's **pull requests**, **issues** and **contents**. The default
 `GITHUB_TOKEN` in GitHub Actions already has this for the repository it is running in.
 
+## "404 Not Found" on a repository that plainly exists
+
+A valid token is not the same thing as a token that can read *this* repository, and GitHub does
+not let you tell the two apart. For a private repository your token was never granted, it answers
+**404 Not Found**, not 403 Forbidden — confirming that a private repository exists would itself
+leak something. So a perfectly good token produces a "not found" on a repository you are looking
+straight at.
+
+This bites fine-grained personal access tokens in particular: they only reach the repositories
+listed under **Repository access**, and one created for a different repository will authenticate
+happily and then see nothing here.
+
+`analyze` checks for this before it scans anything, so you find out in the first second rather
+than several minutes in. To fix it, either grant the token access to this repository (with read
+access to Contents, Pull requests, Issues and Metadata), or use one that already has it:
+
+```bash
+gh auth refresh -s repo        # if you are using the gh CLI's token
+export GITHUB_TOKEN=<token>    # a classic token with the `repo` scope
+```
+
 ## Running without GitHub
 
 ### `--no-forge`
