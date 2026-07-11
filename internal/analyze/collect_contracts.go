@@ -1,0 +1,609 @@
+package analyze
+
+// Cross-repo contract edges: the routes, topics, images and workflows that link one
+// repository to another.
+//
+// Packages alone make a dependency graph. What makes an *org* graph is that the web app
+// calls a route the API serves, the worker consumes a topic the API publishes, and both
+// deploy from an image the platform repo builds — none of which is a package dependency and
+// none of which appears anywhere in a lockfile.
+//
+// The scanner still never reads another repository. It writes down what this one provides
+// and what it consumes, as a normalised key, and the server forms the edge where a consumer
+// meets a provider. The normalisation is the entire game: two repos that spell the same
+// route differently will never meet, so `/users/:id` and `/users/{userId}` both have to come
+// out as `GET /users/{param}` or the edge does not exist.
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+// Health and observability endpoints are excluded. Every service has `/health`; if we
+// published it, every repo would appear to consume every other repo's health check, and the
+// org graph would be an N×M mesh of edges that mean nothing. GitNexus hit exactly this and
+// had to filter it out after the fact.
+var noiseRoutes = map[string]bool{
+	"/health": true, "/healthz": true, "/healthcheck": true, "/health-check": true,
+	"/ready": true, "/readyz": true, "/live": true, "/livez": true,
+	"/metrics": true, "/ping": true, "/status": true, "/": true, "": true,
+}
+
+var (
+	// Go: chi/gin/echo/mux all spell it `r.Get("/path", ...)` or `r.HandleFunc("/path", ...)`.
+	goRoute = regexp.MustCompile(`(?m)\.(Get|Post|Put|Patch|Delete|Head|Options|Handle|HandleFunc)\(\s*"([^"]+)"`)
+
+	// Express / Fastify / Koa.
+	jsRoute = regexp.MustCompile(`(?m)\.(get|post|put|patch|delete|all)\(\s*['"` + "`" + `]([^'"` + "`" + `]+)`)
+
+	// FastAPI / Flask decorators.
+	pyRoute = regexp.MustCompile(`(?m)@\w+\.(get|post|put|patch|delete|route)\(\s*['"]([^'"]+)`)
+
+	// Spring.
+	javaRoute = regexp.MustCompile(`(?m)@(Get|Post|Put|Patch|Delete|Request)Mapping\(\s*(?:value\s*=\s*)?"([^"]+)"`)
+
+	// Path parameters, in every dialect anyone uses.
+	pathParam = regexp.MustCompile(`(:[A-Za-z_][\w]*)|(\{[^}]*\})|(<[^>]*>)|(\*)`)
+
+	// Publish/subscribe, across the common client libraries.
+	publishCall   = regexp.MustCompile(`(?i)\b(?:publish|produce|send_message|sendmessage|emit)\s*\(\s*['"]([\w.\-/]+)['"]`)
+	subscribeCall = regexp.MustCompile(`(?i)\b(?:subscribe|consume|receive_message|receivemessage|on)\s*\(\s*['"]([\w.\-/]+)['"]`)
+
+	// Dockerfile FROM, ignoring build stages (a stage is internal to the file, not a
+	// dependency on anybody else's image).
+	dockerFrom = regexp.MustCompile(`(?im)^\s*FROM\s+(\S+)`)
+)
+
+type contractStats struct {
+	edges []CrossRepoEdge
+	nodes []Node
+}
+
+func collectContracts(b *Builder, root string, files *fileStats, deps *depStats, target Target) *contractStats {
+	st := &contractStats{}
+	seen := map[string]bool{}
+
+	add := func(e CrossRepoEdge, node Node) {
+		if seen[e.ID] {
+			return
+		}
+		seen[e.ID] = true
+		st.edges = append(st.edges, e)
+		st.nodes = append(st.nodes, node)
+	}
+
+	// The package keys belong here too. They were being built in the graph assembler, which
+	// meant the "cross-repo join keys" metric counted the routes and the images and quietly
+	// omitted the 95 packages — a number that was wrong in the reassuring direction.
+	if deps != nil {
+		for _, d := range deps.deps {
+			id := "dependency:" + d.Purl
+			add(CrossRepoEdge{
+				ID:          "xr-consumes-" + safeID(d.Purl),
+				LocalNodeID: id,
+				JoinKind:    "package",
+				JoinKey:     purlWithoutVersion(d.Purl),
+				Role:        "consumes",
+				Confidence:  1,
+			}, Node{
+				ID: id, Kind: "dependency", Name: purlName(d.Purl), Purl: d.Purl,
+				Properties: map[string]any{"ecosystem": d.Ecosystem, "scope": d.Scope},
+			})
+		}
+		for _, p := range deps.provides {
+			add(p, Node{
+				ID: p.LocalNodeID, Kind: "package",
+				Name: strings.TrimPrefix(p.LocalNodeID, "package:"), Exported: true,
+			})
+		}
+	}
+
+	if files != nil {
+		for _, f := range files.files {
+			// A mock server in a test does not serve an org route, and a topic name in a fixture
+			// is not a topic anybody publishes. Test files stand up HTTP handlers constantly; if
+			// we read them, every repository with an httptest server would appear to provide
+			// whatever paths its tests happen to use.
+			if isTestPath(f.Path) {
+				continue
+			}
+
+			body, err := os.ReadFile(filepath.Join(root, f.Path))
+			if err != nil {
+				continue
+			}
+
+			// Comments are stripped before anything is matched. A doc comment that says
+			// `r.Get("/v1/users", ...)` to explain how a router works is not a route anybody
+			// serves — and this file, which documents exactly that, was publishing itself as an
+			// HTTP provider until the comments came out.
+			src := stripComments(string(body), f.Language)
+
+			// Only a file that actually stands up a server can *provide* a route. Without this
+			// gate, a client that calls `.Get("/v1/users")` and a server that serves it look
+			// identical to a regex, and we publish the caller as the provider — which is not a
+			// low-confidence edge, it is a backwards one. A wrong direction is worse than a
+			// missing edge, because the org graph would show the dependency inverted.
+			if !servesHTTP(src, f.Language) {
+				continue
+			}
+
+			for _, r := range extractRoutes(src, f.Language) {
+				key := normaliseRoute(r.method, r.path)
+				if key == "" {
+					continue
+				}
+				id := "route:" + key
+				add(CrossRepoEdge{
+					ID:          "xr-provides-" + safeID(key),
+					LocalNodeID: id,
+					JoinKind:    "http_route",
+					JoinKey:     key,
+					Role:        "provides",
+					Confidence:  0.8, // a route matched by pattern, not by understanding the framework
+					Properties:  map[string]any{"path": f.Path},
+				}, Node{ID: id, Kind: "route", Name: key, Path: f.Path, Exported: true})
+			}
+
+			for _, topic := range publishCall.FindAllStringSubmatch(src, -1) {
+				t := strings.TrimSpace(topic[1])
+				if t == "" || len(t) < 3 {
+					continue
+				}
+				id := "topic:" + t
+				add(CrossRepoEdge{
+					ID:          "xr-provides-topic-" + safeID(t),
+					LocalNodeID: id,
+					JoinKind:    "topic",
+					JoinKey:     t,
+					Role:        "provides",
+					Confidence:  0.7,
+					Properties:  map[string]any{"path": f.Path},
+				}, Node{ID: id, Kind: "topic", Name: t, Path: f.Path})
+			}
+
+			for _, topic := range subscribeCall.FindAllStringSubmatch(src, -1) {
+				t := strings.TrimSpace(topic[1])
+				if t == "" || len(t) < 3 {
+					continue
+				}
+				id := "topic:" + t
+				add(CrossRepoEdge{
+					ID:          "xr-consumes-topic-" + safeID(t),
+					LocalNodeID: id,
+					JoinKind:    "topic",
+					JoinKey:     t,
+					Role:        "consumes",
+					Confidence:  0.7,
+					Properties:  map[string]any{"path": f.Path},
+				}, Node{ID: id, Kind: "topic", Name: t, Path: f.Path})
+			}
+		}
+	}
+
+	collectImages(root, add)
+	collectWorkflows(root, target, add)
+
+	emitContractMetrics(b, st)
+
+	return st
+}
+
+type route struct {
+	method string
+	path   string
+}
+
+// serverSignals are the constructions that mean "this file serves HTTP". A file that has one
+// of these and declares a route is a provider. A file that has none is, at best, a client —
+// and a client's `.Get("/v1/users")` is a *consumes*, not a *provides*.
+//
+// We do not publish the consumes side for routes. Inferring "this string is a URL path being
+// called" from a regex is guesswork, and a wrong consumes edge invents a dependency that does
+// not exist. Providers we can identify; callers we cannot, yet. The metric says so rather
+// than filling the gap with confident nonsense.
+var serverSignals = map[string][]string{
+	"go": {
+		"chi.NewRouter", "chi.NewMux", "gin.Default", "gin.New", "echo.New",
+		"mux.NewRouter", "http.HandleFunc", "http.ListenAndServe", "fiber.New",
+	},
+	"javascript": {"express(", "fastify(", "new Koa(", "Router("},
+	"typescript": {"express(", "fastify(", "new Koa(", "Router("},
+	"python":     {"FastAPI(", "Flask(", "APIRouter(", "Blueprint("},
+	"java":       {"@RestController", "@Controller", "@RequestMapping"},
+	"kotlin":     {"@RestController", "@Controller", "@RequestMapping"},
+	"ruby":       {"Rails.application.routes", "Sinatra::Base"},
+}
+
+var (
+	lineComment  = regexp.MustCompile(`(?m)//.*$`)
+	hashComment  = regexp.MustCompile(`(?m)#.*$`)
+	blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
+)
+
+// stripComments removes comments so that an example in a doc comment is not mistaken for a
+// route somebody serves.
+//
+// This is a lexical approximation, not a parser: a `//` inside a string literal (a URL, say)
+// will take the rest of that line with it. That trade is deliberate. Losing a route because
+// its line contained a URL is a missing edge; publishing every framework example in every
+// doc comment is a graph full of endpoints nobody serves. Of the two, the false positive is
+// the one that makes the org graph useless.
+func stripComments(src, language string) string {
+	switch language {
+	case "python", "ruby", "bash", "yaml":
+		return hashComment.ReplaceAllString(src, "")
+	default:
+		src = blockComment.ReplaceAllString(src, "")
+
+		return lineComment.ReplaceAllString(src, "")
+	}
+}
+
+// isTestPath reports whether a file is test code, in any of the conventions people actually
+// use. Test code is excluded from contract extraction — not from the rest of the report,
+// where it is perfectly real code worth counting.
+func isTestPath(p string) bool {
+	base := strings.ToLower(filepath.Base(p))
+
+	switch {
+	case strings.HasSuffix(base, "_test.go"),
+		strings.HasSuffix(base, ".test.ts"), strings.HasSuffix(base, ".test.js"),
+		strings.HasSuffix(base, ".spec.ts"), strings.HasSuffix(base, ".spec.js"),
+		strings.HasPrefix(base, "test_"), strings.HasSuffix(base, "_test.py"),
+		strings.HasSuffix(base, "_spec.rb"), strings.HasSuffix(base, "test.java"):
+
+		return true
+	}
+
+	for _, seg := range strings.Split(strings.ToLower(filepath.ToSlash(p)), "/") {
+		switch seg {
+		case "test", "tests", "__tests__", "spec", "specs", "testdata", "fixtures", "e2e":
+			return true
+		}
+	}
+
+	return false
+}
+
+func servesHTTP(src, language string) bool {
+	for _, sig := range serverSignals[language] {
+		if strings.Contains(src, sig) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func extractRoutes(src, language string) []route {
+	var re *regexp.Regexp
+	switch language {
+	case "go":
+		re = goRoute
+	case "javascript", "typescript", "tsx":
+		re = jsRoute
+	case "python":
+		re = pyRoute
+	case "java", "kotlin":
+		re = javaRoute
+	default:
+		return nil
+	}
+
+	var out []route
+	for _, m := range re.FindAllStringSubmatch(src, -1) {
+		p := m[2]
+		if !strings.HasPrefix(p, "/") {
+			continue
+		}
+		out = append(out, route{method: strings.ToUpper(m[1]), path: p})
+	}
+
+	return out
+}
+
+// normaliseRoute is what makes a cross-repo route edge possible at all.
+//
+// The server that declares `/users/:id` and the client that calls `/users/{userId}` are
+// talking about the same endpoint, and they will only ever meet in the org graph if both
+// sides collapse to the same string. Path parameters carry no meaning for matching — only
+// their position does — so every dialect of them becomes `{param}`.
+//
+// Returns "" for routes that are pure noise.
+func normaliseRoute(method, p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" || !strings.HasPrefix(p, "/") {
+		return ""
+	}
+	if i := strings.IndexAny(p, "?#"); i >= 0 {
+		p = p[:i]
+	}
+	if len(p) > 1 {
+		p = strings.TrimSuffix(p, "/")
+	}
+
+	if noiseRoutes[strings.ToLower(p)] {
+		return ""
+	}
+
+	norm := pathParam.ReplaceAllString(p, "{param}")
+
+	// A route that is nothing but parameters (`/{param}`, `/{param}/{param}`) matches
+	// everything and therefore identifies nothing. Publishing it would link every repo that
+	// has a catch-all to every other one.
+	stripped := strings.ReplaceAll(norm, "{param}", "")
+	stripped = strings.ReplaceAll(stripped, "/", "")
+	if stripped == "" {
+		return ""
+	}
+
+	if method == "HANDLE" || method == "HANDLEFUNC" || method == "ALL" || method == "ROUTE" || method == "REQUEST" {
+		method = "ANY"
+	}
+
+	return method + " " + norm
+}
+
+// collectImages reads Dockerfiles and compose files. A repo that runs `FROM ghcr.io/acme/base`
+// consumes an image; if another repo in the org builds it, that is an edge — and it is one of
+// the most load-bearing edges in an org graph, because a base-image change reaches everything.
+func collectImages(root string, add func(CrossRepoEdge, Node)) {
+	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if skipDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+
+			return nil
+		}
+
+		name := strings.ToLower(d.Name())
+		rel, _ := filepath.Rel(root, p)
+		rel = filepath.ToSlash(rel)
+
+		switch {
+		case name == "dockerfile" || strings.HasPrefix(name, "dockerfile.") ||
+			name == "containerfile" || strings.HasPrefix(name, "containerfile."):
+
+			body, rerr := os.ReadFile(p)
+			if rerr != nil {
+				return nil
+			}
+
+			// Build stages are internal to the file. `FROM builder` is not a dependency on
+			// anybody's image, and publishing it would create an edge to a repo called "builder".
+			stages := map[string]bool{}
+			for _, line := range strings.Split(string(body), "\n") {
+				if m := regexp.MustCompile(`(?i)^\s*FROM\s+\S+\s+AS\s+(\S+)`).FindStringSubmatch(line); m != nil {
+					stages[strings.ToLower(m[1])] = true
+				}
+			}
+
+			for _, m := range dockerFrom.FindAllStringSubmatch(string(body), -1) {
+				img := normaliseImage(m[1])
+				if img == "" || stages[strings.ToLower(m[1])] {
+					continue
+				}
+				id := "container_image:" + img
+				add(CrossRepoEdge{
+					ID:          "xr-consumes-image-" + safeID(img),
+					LocalNodeID: id,
+					JoinKind:    "container_image",
+					JoinKey:     img,
+					Role:        "consumes",
+					Confidence:  1,
+					Properties:  map[string]any{"path": rel},
+				}, Node{ID: id, Kind: "container_image", Name: img, Path: rel})
+			}
+
+		case name == "docker-compose.yml" || name == "docker-compose.yaml" ||
+			name == "compose.yml" || name == "compose.yaml":
+
+			body, rerr := os.ReadFile(p)
+			if rerr != nil {
+				return nil
+			}
+			var doc struct {
+				Services map[string]struct {
+					Image string `yaml:"image"`
+				} `yaml:"services"`
+			}
+			if yaml.Unmarshal(body, &doc) != nil {
+				return nil
+			}
+			for _, svc := range doc.Services {
+				img := normaliseImage(svc.Image)
+				if img == "" {
+					continue
+				}
+				id := "container_image:" + img
+				add(CrossRepoEdge{
+					ID:          "xr-consumes-image-" + safeID(img),
+					LocalNodeID: id,
+					JoinKind:    "container_image",
+					JoinKey:     img,
+					Role:        "consumes",
+					Confidence:  1,
+					Properties:  map[string]any{"path": rel},
+				}, Node{ID: id, Kind: "container_image", Name: img, Path: rel})
+			}
+		}
+
+		return nil
+	})
+}
+
+// normaliseImage strips the tag and digest. `acme/api:1.2.3` and `acme/api:1.3.0` are the
+// same image from the same repository; an org graph that only linked exact tags would show
+// almost no edges, and the ones it showed would be an accident of who deployed last.
+func normaliseImage(ref string) string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" || strings.HasPrefix(ref, "$") || strings.Contains(ref, "${") {
+		// A templated image reference names nothing until it is expanded, and we cannot expand it.
+		return ""
+	}
+	if i := strings.Index(ref, "@"); i > 0 {
+		ref = ref[:i]
+	}
+	// A colon after the last slash is a tag. A colon before it is a registry port.
+	if i := strings.LastIndex(ref, ":"); i > strings.LastIndex(ref, "/") {
+		ref = ref[:i]
+	}
+	if ref == "scratch" {
+		return ""
+	}
+
+	return strings.ToLower(ref)
+}
+
+// collectWorkflows reads .github/workflows. A reusable workflow this repo *defines* is
+// provided; one it `uses:` is consumed. Platform teams live in these edges — a change to a
+// shared release workflow reaches every repo that calls it, and nothing else in the graph
+// would show that.
+func collectWorkflows(root string, target Target, add func(CrossRepoEdge, Node)) {
+	dir := filepath.Join(root, ".github", "workflows")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasSuffix(name, ".yml") && !strings.HasSuffix(name, ".yaml") {
+			continue
+		}
+		p := filepath.Join(dir, name)
+		body, rerr := os.ReadFile(p)
+		if rerr != nil {
+			continue
+		}
+		rel := ".github/workflows/" + name
+
+		var doc struct {
+			On map[string]any `yaml:"on"`
+		}
+		_ = yaml.Unmarshal(body, &doc)
+
+		if _, reusable := doc.On["workflow_call"]; reusable {
+			key := workflowKey(target, rel)
+			if key != "" {
+				id := "workflow:" + key
+				add(CrossRepoEdge{
+					ID:          "xr-provides-workflow-" + safeID(key),
+					LocalNodeID: id,
+					JoinKind:    "workflow",
+					JoinKey:     key,
+					Role:        "provides",
+					Confidence:  1,
+					Properties:  map[string]any{"path": rel},
+				}, Node{ID: id, Kind: "workflow", Name: name, Path: rel, Exported: true})
+			}
+		}
+
+		// `uses:` to another repository's reusable workflow.
+		sc := bufio.NewScanner(strings.NewReader(string(body)))
+		for sc.Scan() {
+			line := strings.TrimSpace(sc.Text())
+			if !strings.HasPrefix(line, "uses:") {
+				continue
+			}
+			ref := strings.TrimSpace(strings.TrimPrefix(line, "uses:"))
+			if !strings.Contains(ref, "/.github/workflows/") {
+				continue
+			}
+			key := strings.SplitN(ref, "@", 2)[0]
+			key = strings.Trim(key, `"'`)
+			if key == "" {
+				continue
+			}
+			id := "workflow:" + key
+			add(CrossRepoEdge{
+				ID:          "xr-consumes-workflow-" + safeID(key),
+				LocalNodeID: id,
+				JoinKind:    "workflow",
+				JoinKey:     key,
+				Role:        "consumes",
+				Confidence:  1,
+				Properties:  map[string]any{"path": rel},
+			}, Node{ID: id, Kind: "workflow", Name: key, Path: rel})
+		}
+	}
+}
+
+// workflowKey is `owner/repo/.github/workflows/x.yml` — the exact string another repository
+// writes in its `uses:`. Both sides have to produce the identical string or the edge does not
+// form, so this is built from the repoId rather than guessed.
+func workflowKey(target Target, rel string) string {
+	parts := strings.Split(target.RepoID, "~")
+	if len(parts) != 3 || parts[1] == "" || parts[2] == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s/%s/%s", parts[1], parts[2], rel)
+}
+
+func emitContractMetrics(b *Builder, st *contractStats) {
+	byKind := map[string]map[string][]EvidenceRef{}
+
+	for _, e := range st.edges {
+		id := "xr-" + safeID(e.ID)
+		ref := b.AddRecord(id, &GraphElementRecord{
+			ID:        id,
+			Type:      "graph_element",
+			ElementID: e.ID,
+			Element:   "cross_repo_edge",
+		})
+		if byKind[e.JoinKind] == nil {
+			byKind[e.JoinKind] = map[string][]EvidenceRef{}
+		}
+		byKind[e.JoinKind][e.Role] = append(byKind[e.JoinKind][e.Role], ref)
+	}
+
+	all := []EvidenceRef{}
+	for _, kind := range sortedKeys(byKind) {
+		for _, role := range sortedKeys(byKind[kind]) {
+			refs := byKind[kind][role]
+			all = append(all, refs...)
+
+			b.Count(Metric{
+				ID:     fmt.Sprintf("graph.cross_repo.%s.%s", kind, role),
+				Family: "graph",
+				Name:   fmt.Sprintf("%s keys %s", strings.ReplaceAll(kind, "_", " "), role),
+				Definition: fmt.Sprintf(
+					"Normalised %s keys this repository %s. The scan never reads another repository — it publishes these keys, and an org edge forms where one repository's consumes meets another's provides.",
+					strings.ReplaceAll(kind, "_", " "), role),
+			}, refs)
+		}
+	}
+
+	b.Count(Metric{
+		ID: "graph.cross_repo.total", Family: "graph", Name: "Cross-repo join keys",
+		Definition: "Every key this repository publishes for the org graph: packages, HTTP routes, topics, container images and reusable workflows, each as a provides or a consumes. Health-check endpoints are excluded — every service has one, and publishing them would link every repository to every other.",
+	}, all)
+
+	// The honest limitation. An HTTP route we serve, we can identify: the file stands up a
+	// router. An HTTP route we *call*, we cannot — a string that looks like a path in a client
+	// is a guess, and a wrong consumes edge invents a dependency that does not exist. So the
+	// route half of the org graph is currently one-directional, and the report says so rather
+	// than letting a reader assume the absence of an edge means the absence of a call.
+	b.Diagnose(Diagnostic{
+		Level: "note", Collector: "contracts", Caveat: true,
+		Message: "HTTP routes are published as `provides` only. Routes this repository *calls* are not detected — identifying a client call by pattern would invent dependencies that do not exist — so a missing route edge does not mean nothing calls it.",
+	})
+}
+
+var _ = sort.Strings

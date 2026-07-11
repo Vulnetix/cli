@@ -13,6 +13,7 @@ require (
 	github.com/glaslos/ssdeep v1.0.0
 	github.com/glaslos/tlsh v0.4.0
 	github.com/go-git/go-git/v5 v5.19.2-0.20260526111251-2a76234afbd5
+	github.com/google/go-github/v66 v66.0.0
 	github.com/google/uuid v1.6.0
 	github.com/muesli/termenv v0.16.0
 	github.com/open-policy-agent/opa v1.17.0
@@ -30,6 +31,7 @@ require (
 require (
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 )
 
 require (

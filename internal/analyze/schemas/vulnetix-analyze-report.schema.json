@@ -1,0 +1,827 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vulnetix.com/schemas/vulnetix-analyze-report.schema.json",
+  "title": "Vulnetix Analyze Report",
+  "description": "Output of `vulnetix analyze`. Two things live here: (1) the tech-stack graph for one repository, including the cross-repo edges other repositories' graphs join against, and (2) the business-intelligence, security, quality, maintainability, trustworthiness and activity metrics for that repository.\n\nThe defining rule of this format: no metric is ever a bare number. Every metric declares how its value relates to its evidence, and carries a reference to each evidence item that produced it. A metric whose value is 23 either references 23 evidence items, or declares itself truncated and says how many it omitted and why. Silent truncation is not representable.\n\nEvidence is not reinvented where an open format already exists. File-and-line evidence is SARIF 2.1.0; security assertions are OpenVEX; the component inventory is CycloneDX; license evidence is SPDX; repository-practice checks are OpenSSF Scorecard. Only evidence with no established open format (commits, contributors, issues, pull requests, graph elements) is carried as an inline record.",
+  "type": "object",
+  "required": ["schemaVersion", "tool", "target", "run", "metrics"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0",
+      "description": "Version of this schema the document conforms to."
+    },
+    "tool": { "$ref": "#/$defs/tool" },
+    "target": { "$ref": "#/$defs/target" },
+    "run": { "$ref": "#/$defs/run" },
+    "graph": { "$ref": "#/$defs/graph" },
+    "metrics": {
+      "type": "array",
+      "description": "Every metric computed for the target repository. This array is the spine of the report.",
+      "items": { "$ref": "#/$defs/metric" }
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Inline evidence records, addressed by id from a metric's evidenceRefs. Only for evidence kinds with no established open format; anything anchored to a file and line belongs in the SARIF attachment instead.",
+      "additionalProperties": false,
+      "properties": {
+        "records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidenceRecord" }
+        }
+      }
+    },
+    "attachments": { "$ref": "#/$defs/attachments" },
+    "diagnostics": {
+      "type": "array",
+      "description": "Anything that degraded the run: a collector that could not execute, a language with no grammar, an API that rate-limited, a cap that was hit. A consumer must be able to tell 'this metric is zero' apart from 'this metric could not be measured'.",
+      "items": { "$ref": "#/$defs/diagnostic" }
+    }
+  },
+
+  "$defs": {
+
+    "tool": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "const": "vulnetix-analyze" },
+        "version": { "type": "string", "description": "CLI version that produced the report." },
+        "commit": { "type": "string", "description": "Build commit of the CLI." },
+        "catalogVersion": {
+          "type": "string",
+          "description": "Version of the metric/detection catalog in force. The catalog is the single source of truth for metric definitions; two reports are only comparable if this matches."
+        }
+      }
+    },
+
+    "target": {
+      "type": "object",
+      "description": "The single repository this report describes. `analyze` never reads another repository; cross-repo relationships are expressed as join keys under graph.crossRepoEdges.",
+      "required": ["repoId"],
+      "additionalProperties": false,
+      "properties": {
+        "repoId": {
+          "type": "string",
+          "description": "Stable identity of the repository, and the join grain for the org-wide graph. Format `host~owner~name`, e.g. `github.com~vulnetix~cli`. Derived from the origin remote; falls back to `local~~<dirname>` when no remote exists, in which case cross-repo joins are best-effort.",
+          "pattern": "^[^~]+~[^~]*~[^~]+$"
+        },
+        "orgKey": {
+          "type": "string",
+          "description": "Owner scope, `host~owner`. The aggregation grain above repoId."
+        },
+        "remoteUrl": { "type": "string" },
+        "defaultBranch": { "type": "string" },
+        "headCommit": { "type": "string", "description": "SHA the analysis was performed against." },
+        "headCommittedAt": { "type": "string", "format": "date-time" },
+        "rootPath": { "type": "string", "description": "Filesystem path scanned. Local-only; not meaningful to a remote consumer." }
+      }
+    },
+
+    "run": {
+      "type": "object",
+      "required": ["startedAt", "completedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "durationSeconds": { "type": "number", "minimum": 0 },
+        "historyWindow": {
+          "type": "object",
+          "description": "The slice of history the activity and quality metrics were computed over. Without this, a commit count is meaningless.",
+          "additionalProperties": false,
+          "properties": {
+            "since": { "type": "string", "format": "date-time" },
+            "until": { "type": "string", "format": "date-time" },
+            "commitsWalked": { "type": "integer", "minimum": 0 },
+            "commitLimit": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Cap applied to the walk, if any. If commitsWalked equals this, history was truncated and every history-derived metric must say so."
+            }
+          }
+        },
+        "collectors": {
+          "type": "array",
+          "description": "Which collectors ran, and whether each completed. A collector that was skipped must appear here rather than being absent.",
+          "items": {
+            "type": "object",
+            "required": ["name", "status"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "status": { "enum": ["completed", "skipped", "failed", "partial"] },
+              "reason": { "type": "string" },
+              "durationSeconds": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+
+    "metric": {
+      "type": "object",
+      "description": "One measured fact about the repository, and the complete trail back to what produced it.",
+      "required": ["id", "family", "name", "definition", "value", "evidenceSemantics", "evidenceCompleteness", "evidenceRefs"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable machine identifier, e.g. `activity.bus_factor.commits`. Never renamed; a changed definition gets a new id.",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"
+        },
+        "family": {
+          "enum": ["graph", "business", "security", "quality", "maintainability", "trust", "activity"],
+          "description": "Which report family this metric belongs to."
+        },
+        "name": { "type": "string", "description": "Human-readable name." },
+        "definition": {
+          "type": "string",
+          "description": "The metric's meaning, formula and every cutoff, verbatim, in the output. A consumer must never have to read our source to know what a number means. Example: 'Number of contributors whose cumulative share of commits, ranked descending, first exceeds 50% of all commits in the window.'"
+        },
+        "unit": {
+          "enum": ["count", "ratio", "percent", "seconds", "days", "bytes", "score", "boolean", "categorical"],
+          "description": "Unit of `value`. Durations are always seconds as an integer or number — never a formatted duration string."
+        },
+        "value": {
+          "type": ["number", "string", "boolean", "null"],
+          "description": "The measured value. null means the metric could not be computed; the reason belongs in a diagnostic, and it must not be conflated with zero."
+        },
+        "statistic": {
+          "enum": ["value", "sum", "mean", "median", "p85", "p90", "p95", "min", "max", "stddev", "slope"],
+          "description": "Which statistic `value` is, when the metric summarises a population. Absent means the value stands alone.",
+          "default": "value"
+        },
+        "window": {
+          "type": "object",
+          "description": "Time window this metric was computed over, when narrower than run.historyWindow.",
+          "additionalProperties": false,
+          "properties": {
+            "since": { "type": "string", "format": "date-time" },
+            "until": { "type": "string", "format": "date-time" },
+            "label": { "type": "string", "description": "e.g. `last_90_days`." }
+          }
+        },
+        "classification": {
+          "type": "object",
+          "description": "The bucket this value falls into, and the thresholds that decided it. Both are recorded so a consumer can see the verdict and check the arithmetic.",
+          "required": ["label"],
+          "additionalProperties": false,
+          "properties": {
+            "label": { "type": "string", "description": "e.g. `Aging`, `high`, `quantum-vulnerable`." },
+            "thresholds": {
+              "type": "string",
+              "description": "The full ladder that produced the label, e.g. '<=90d Active, <=180d Aging, <=365d Stale, else Unmaintained'."
+            }
+          }
+        },
+        "evidenceSemantics": {
+          "enum": ["instances", "population", "assertion"],
+          "description": "How evidenceRefs relates to value, and therefore what completeness means.\n\n`instances`: value counts the evidence. A value of 23 means 23 evidence items. This is the default for every count metric.\n\n`population`: value is a statistic over a population (a median, a mean, a slope, a ratio). evidenceRefs enumerates the whole population the statistic was computed from, and populationSize states how big that population was.\n\n`assertion`: value is a single judgement (a boolean, a category) supported by evidence that does not have a countable relationship to it — e.g. `security_policy_present: true` supported by the one file that satisfied it."
+        },
+        "populationSize": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Required when evidenceSemantics is `population`: the number of items the statistic was computed over. This, not `value`, is what evidenceRefs must account for."
+        },
+        "evidenceCompleteness": {
+          "enum": ["exhaustive", "truncated"],
+          "description": "`exhaustive` means every evidence item is present and the count invariant holds exactly. `truncated` means a cap was hit; omittedCount and truncationReason are then required, and the invariant becomes len(evidenceRefs) + omittedCount == expected. There is no third option: a report may not quietly under-report its evidence."
+        },
+        "omittedCount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many evidence items were dropped. Required when evidenceCompleteness is `truncated`."
+        },
+        "truncationReason": {
+          "type": "string",
+          "description": "Why they were dropped, e.g. 'coupling pair budget of 100000 exhausted'. Required when evidenceCompleteness is `truncated`."
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "description": "Pointer to each evidence item behind this metric. May be empty only when the metric's expected evidence count is genuinely zero (a count of 0, an empty population).",
+          "items": { "$ref": "#/$defs/evidenceRef" }
+        },
+        "references": {
+          "type": "array",
+          "description": "Where the definition comes from — a CHAOSS metric, an OpenSSF check, a prior-art implementation.",
+          "items": {
+            "type": "object",
+            "required": ["url"],
+            "additionalProperties": false,
+            "properties": {
+              "title": { "type": "string" },
+              "url": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "evidenceSemantics": { "const": "population" } }, "required": ["evidenceSemantics"] },
+          "then": { "required": ["populationSize"] }
+        },
+        {
+          "if": { "properties": { "evidenceCompleteness": { "const": "truncated" } }, "required": ["evidenceCompleteness"] },
+          "then": { "required": ["omittedCount", "truncationReason"] }
+        }
+      ]
+    },
+
+    "evidenceRef": {
+      "type": "object",
+      "description": "A pointer into one of the attachments, or into the inline record store. Discriminated on `kind`.",
+      "required": ["kind"],
+      "oneOf": [
+        {
+          "title": "SARIF result",
+          "description": "Any evidence anchored to a file and line: a complexity hotspot, a secret in history, a missing license header, an unpinned action reference, a policy-rule breach, commented-out code.",
+          "type": "object",
+          "required": ["kind", "runIndex", "resultIndex"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "sarif" },
+            "runIndex": { "type": "integer", "minimum": 0, "description": "Index into attachments.sarif.runs." },
+            "resultIndex": { "type": "integer", "minimum": 0, "description": "Index into that run's results." }
+          }
+        },
+        {
+          "title": "OpenVEX statement",
+          "type": "object",
+          "required": ["kind", "statementIndex"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "vex" },
+            "statementIndex": { "type": "integer", "minimum": 0, "description": "Index into attachments.openvex.statements." }
+          }
+        },
+        {
+          "title": "CycloneDX component or dependency",
+          "type": "object",
+          "required": ["kind", "bomRef"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "cyclonedx" },
+            "bomRef": { "type": "string", "description": "The `bom-ref` of the component or dependency node in attachments.cyclonedx." }
+          }
+        },
+        {
+          "title": "SPDX package or file",
+          "type": "object",
+          "required": ["kind", "spdxId"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "spdx" },
+            "spdxId": { "type": "string", "description": "The SPDXID of the package or file in attachments.spdx." }
+          }
+        },
+        {
+          "title": "OpenSSF Scorecard check",
+          "type": "object",
+          "required": ["kind", "check"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "scorecard" },
+            "check": { "type": "string", "description": "The `name` of the check in attachments.scorecard.checks." },
+            "detailIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Index into that check's `details`, when the evidence is one finding rather than the whole check."
+            }
+          }
+        },
+        {
+          "title": "Inline record",
+          "type": "object",
+          "required": ["kind", "recordId"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "record" },
+            "recordId": { "type": "string", "description": "The `id` of a record in evidence.records." }
+          }
+        }
+      ]
+    },
+
+    "evidenceRecord": {
+      "type": "object",
+      "description": "Evidence with no established open format. Discriminated on `type`.",
+      "required": ["id", "type"],
+      "oneOf": [
+        { "$ref": "#/$defs/commitRecord" },
+        { "$ref": "#/$defs/contributorRecord" },
+        { "$ref": "#/$defs/issueRecord" },
+        { "$ref": "#/$defs/pullRequestRecord" },
+        { "$ref": "#/$defs/reviewRecord" },
+        { "$ref": "#/$defs/fileRecord" },
+        { "$ref": "#/$defs/dependencyRecord" },
+        { "$ref": "#/$defs/branchRecord" },
+        { "$ref": "#/$defs/graphElementRecord" }
+      ]
+    },
+
+    "commitRecord": {
+      "type": "object",
+      "required": ["id", "type", "sha", "committedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "commit" },
+        "sha": { "type": "string" },
+        "url": { "type": "string" },
+        "message": { "type": "string", "description": "Subject line. The body is not carried; it is not evidence for any metric we compute and it inflates the report." },
+        "authoredAt": { "type": "string", "format": "date-time" },
+        "committedAt": { "type": "string", "format": "date-time" },
+        "author": { "$ref": "#/$defs/identity" },
+        "committer": { "$ref": "#/$defs/identity" },
+        "coAuthors": {
+          "type": "array",
+          "description": "Parsed from Co-authored-by trailers. A commit with co-authors is evidence for each of them, not only for the author.",
+          "items": { "$ref": "#/$defs/identity" }
+        },
+        "parentCount": { "type": "integer", "minimum": 0, "description": "2 or more means a merge commit." },
+        "signature": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "signed": { "type": "boolean" },
+            "verification": { "enum": ["valid", "valid-untrusted", "invalid", "unknown", "none"] }
+          }
+        },
+        "filesChanged": { "type": "integer", "minimum": 0 },
+        "insertions": { "type": "integer", "minimum": 0 },
+        "deletions": { "type": "integer", "minimum": 0 },
+        "paths": {
+          "type": "array",
+          "description": "Paths touched. Present when the metric is about which files a commit touched (coupling, hotspots, ownership); omitted when it is not, to keep the report bounded.",
+          "items": { "type": "string" }
+        },
+        "cycleTimeSeconds": {
+          "type": "integer",
+          "description": "committedAt - authoredAt, in seconds. May be negative on rebased history; that is a fact about the repository, not an error to be clamped away."
+        }
+      }
+    },
+
+    "contributorRecord": {
+      "type": "object",
+      "required": ["id", "type", "identity"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "contributor" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "aliases": {
+          "type": "array",
+          "description": "Every identity merged into this contributor, and why. Identity merging is a judgement; it must be auditable.",
+          "items": {
+            "type": "object",
+            "required": ["identity", "mergedBy"],
+            "additionalProperties": false,
+            "properties": {
+              "identity": { "$ref": "#/$defs/identity" },
+              "mergedBy": {
+                "enum": ["exact-email", "mailmap", "normalized-email", "name-similarity", "github-handle", "manual"],
+                "description": "The rule that merged this alias in."
+              },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "firstSeenAt": { "type": "string", "format": "date-time" },
+        "lastSeenAt": { "type": "string", "format": "date-time" },
+        "commits": { "type": "integer", "minimum": 0 },
+        "commitsInWindow": { "type": "integer", "minimum": 0 },
+        "insertions": { "type": "integer", "minimum": 0 },
+        "deletions": { "type": "integer", "minimum": 0 },
+        "filesTouched": { "type": "integer", "minimum": 0 },
+        "tenureSeconds": { "type": "integer", "minimum": 0, "description": "lastSeenAt - firstSeenAt." },
+        "status": {
+          "enum": ["active", "aging", "stale", "dormant", "departed", "new", "episodic"],
+          "description": "Lifecycle bucket. The thresholds that produced it belong on the metric's classification, not here."
+        }
+      }
+    },
+
+    "issueRecord": {
+      "type": "object",
+      "required": ["id", "type", "url", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "issue" },
+        "url": { "type": "string", "format": "uri" },
+        "number": { "type": "integer" },
+        "title": { "type": "string" },
+        "author": { "$ref": "#/$defs/identity" },
+        "state": { "enum": ["open", "closed"] },
+        "stateReason": { "type": "string", "description": "e.g. completed, not_planned." },
+        "labels": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "closedAt": { "type": "string", "format": "date-time" },
+        "firstResponseAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "First comment by someone other than the author, excluding bots and ignored users. Absent means no such response exists — which is not the same as a response time of zero."
+        },
+        "answeredAt": { "type": "string", "format": "date-time" },
+        "durations": { "$ref": "#/$defs/durations" }
+      }
+    },
+
+    "pullRequestRecord": {
+      "type": "object",
+      "required": ["id", "type", "url", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "pull_request" },
+        "url": { "type": "string", "format": "uri" },
+        "number": { "type": "integer" },
+        "title": { "type": "string" },
+        "author": { "$ref": "#/$defs/identity" },
+        "state": { "enum": ["open", "closed", "merged"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "readyForReviewAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the PR left draft. Response and merge times anchor here, not at createdAt, so that time spent in draft is not counted against a reviewer."
+        },
+        "firstResponseAt": { "type": "string", "format": "date-time" },
+        "firstReviewAt": { "type": "string", "format": "date-time" },
+        "closedAt": { "type": "string", "format": "date-time" },
+        "mergedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Set only if actually merged. A PR closed without merging has closedAt and no mergedAt; the two must never be conflated."
+        },
+        "mergedBy": { "$ref": "#/$defs/identity" },
+        "additions": { "type": "integer", "minimum": 0 },
+        "deletions": { "type": "integer", "minimum": 0 },
+        "changedFiles": { "type": "integer", "minimum": 0 },
+        "commentCount": { "type": "integer", "minimum": 0 },
+        "reviewerCount": { "type": "integer", "minimum": 0, "description": "Distinct reviewers other than the author. Self-review does not count." },
+        "approvalStatus": {
+          "enum": ["approved", "changes_requested", "review_required", "unknown"],
+          "description": "`unknown` means no associated review could be resolved — distinct from `review_required`, which means one was required and not given."
+        },
+        "timeInDraftSeconds": { "type": "integer", "minimum": 0, "description": "Summed across every draft interval, not just the first." },
+        "durations": { "$ref": "#/$defs/durations" }
+      }
+    },
+
+    "reviewRecord": {
+      "type": "object",
+      "required": ["id", "type", "pullRequestUrl", "state", "submittedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "review" },
+        "pullRequestUrl": { "type": "string", "format": "uri" },
+        "reviewer": { "$ref": "#/$defs/identity" },
+        "state": { "enum": ["approved", "changes_requested", "commented", "dismissed"] },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "fileRecord": {
+      "type": "object",
+      "description": "A file as evidence in its own right — for language inventory, ownership, churn, size. File-and-line findings are SARIF, not this.",
+      "required": ["id", "type", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "file" },
+        "path": { "type": "string" },
+        "language": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "description": "Technology tags from the detection catalog, e.g. [\"pipeline\",\"GitHub\"], [\"dependencies\",\"npm\"].",
+          "items": { "type": "string" }
+        },
+        "sizeBytes": { "type": "integer", "minimum": 0 },
+        "lines": { "type": "integer", "minimum": 0 },
+        "code": { "type": "integer", "minimum": 0 },
+        "comments": { "type": "integer", "minimum": 0 },
+        "blanks": { "type": "integer", "minimum": 0 },
+        "complexity": { "type": "integer", "minimum": 0, "description": "Cyclomatic complexity of the file at HEAD." },
+        "binary": { "type": "boolean" },
+        "commits": { "type": "integer", "minimum": 0 },
+        "authors": { "type": "integer", "minimum": 0 },
+        "firstSeenAt": { "type": "string", "format": "date-time" },
+        "lastChangedAt": { "type": "string", "format": "date-time" },
+        "ownership": {
+          "type": "object",
+          "description": "Concentration of authorship over this file.",
+          "additionalProperties": false,
+          "properties": {
+            "topAuthor": { "$ref": "#/$defs/identity" },
+            "topAuthorShare": { "type": "number", "minimum": 0, "maximum": 1 },
+            "distinctAuthors": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+
+    "dependencyRecord": {
+      "type": "object",
+      "description": "Used when a dependency is evidence for a metric that CycloneDX cannot express — staleness, versions behind, discovery provenance. The component itself still belongs in the CycloneDX attachment; bomRef links the two.",
+      "required": ["id", "type", "purl"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "dependency" },
+        "purl": { "type": "string", "description": "Package URL. Also the join key for cross-repo package edges." },
+        "bomRef": { "type": "string", "description": "The matching component in attachments.cyclonedx." },
+        "ecosystem": { "type": "string" },
+        "manifestPath": { "type": "string" },
+        "scope": { "enum": ["direct", "dev", "peer", "optional", "transitive"] },
+        "discoveredVia": {
+          "enum": ["manifest", "lockfile", "install-dir"],
+          "description": "`install-dir` with no manifest entry means installed but not declared."
+        },
+        "declaredVersion": { "type": "string" },
+        "resolvedVersion": { "type": "string" },
+        "latestVersion": { "type": "string" },
+        "versionsBehind": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Releases published between the resolved version and the ecosystem's recommended version."
+        },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "ageSeconds": { "type": "integer", "minimum": 0 },
+        "eol": { "type": "boolean" },
+        "advisoryCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "branchRecord": {
+      "type": "object",
+      "required": ["id", "type", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "branch" },
+        "name": { "type": "string" },
+        "isDefault": { "type": "boolean" },
+        "merged": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastCommitAt": { "type": "string", "format": "date-time" },
+        "ageSeconds": { "type": "integer", "minimum": 0 },
+        "aheadBy": { "type": "integer", "minimum": 0 },
+        "behindBy": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "graphElementRecord": {
+      "type": "object",
+      "description": "A node or edge from the graph, cited as evidence for a graph metric.",
+      "required": ["id", "type", "elementId"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "graph_element" },
+        "elementId": { "type": "string", "description": "The id of the node, or the id of the edge, in the graph section." },
+        "element": { "enum": ["node", "edge", "cross_repo_edge"] }
+      }
+    },
+
+    "identity": {
+      "type": "object",
+      "description": "A person or machine that acted on the repository. Bot classification is recorded on the identity itself so that any metric can exclude bots consistently, and so a consumer can see which rule made the call.",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "login": { "type": "string", "description": "Forge handle, where resolvable." },
+        "canonicalId": {
+          "type": "string",
+          "description": "The contributorRecord id this identity resolves to after alias merging. Two identities sharing a canonicalId are the same person."
+        },
+        "isBot": { "type": "boolean" },
+        "botKind": {
+          "enum": ["ci", "dependency-bot", "ai-agent", "forge", "numeric-account", "generic", "none"],
+          "description": "`ai-agent` covers commits authored by a coding agent. These are neither human contributors nor ordinary CI bots, and collapsing them into either distorts contributor and bus-factor metrics."
+        },
+        "botRule": { "type": "string", "description": "The catalog rule that classified this identity as a bot." },
+        "emailKind": {
+          "enum": ["corporate", "personal", "academic", "government", "organization", "noreply", "forge", "unknown"]
+        },
+        "affiliation": {
+          "type": "object",
+          "description": "Employer at the time of the action, not the current employer. An affiliation without a validity interval is a bug, not a shortcut.",
+          "additionalProperties": false,
+          "properties": {
+            "company": { "type": "string" },
+            "validFrom": { "type": "string", "format": "date-time" },
+            "validUntil": { "type": "string", "format": "date-time" },
+            "source": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "durations": {
+      "type": "object",
+      "description": "Computed durations, always integer seconds. A duration is never a formatted string; a consumer must not have to parse '6 days, 7:08:52'.",
+      "additionalProperties": false,
+      "properties": {
+        "timeToFirstResponseSeconds": { "type": "integer", "minimum": 0 },
+        "timeToFirstReviewSeconds": { "type": "integer", "minimum": 0 },
+        "timeToCloseSeconds": { "type": "integer", "minimum": 0 },
+        "timeToMergeSeconds": { "type": "integer", "minimum": 0 },
+        "timeToAnswerSeconds": { "type": "integer", "minimum": 0 },
+        "timeInLabelSeconds": {
+          "type": "object",
+          "description": "Label name to cumulative seconds spent carrying it, summed across every apply/remove cycle.",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "openEnded": {
+          "type": "boolean",
+          "description": "True when a duration was measured against 'now' because the item is still open. Such a value grows between runs and must not be compared across reports as if it were settled."
+        }
+      }
+    },
+
+    "graph": {
+      "type": "object",
+      "description": "The tech-stack graph for this repository. Nodes and edges are local. Cross-repo relationships are not edges to foreign nodes — they are join keys, published so that another repository's report can match against them. The org graph is assembled by joining N of these reports; no single run ever reads a second repository.",
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/graphNode" }
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/graphEdge" }
+        },
+        "crossRepoEdges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/crossRepoEdge" }
+        },
+        "truncation": {
+          "type": "object",
+          "description": "What the graph left out. A graph that hit a cap says so here.",
+          "additionalProperties": false,
+          "properties": {
+            "nodesOmitted": { "type": "integer", "minimum": 0 },
+            "edgesOmitted": { "type": "integer", "minimum": 0 },
+            "filesSkipped": { "type": "integer", "minimum": 0 },
+            "reason": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "graphNode": {
+      "type": "object",
+      "required": ["id", "kind", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique within this report. Format `<kind>:<qualifiedName>`. For code symbols the qualified name carries a disambiguation suffix when overloads collide (`#<arity>`, `~<paramTypes>`), which means a symbol id can change when an overload is added elsewhere — do not persist these as long-lived foreign keys."
+        },
+        "kind": {
+          "enum": [
+            "repo", "folder", "file", "module", "package",
+            "function", "method", "class", "interface", "struct", "enum", "trait", "type_alias", "constant", "variable",
+            "service", "route", "topic", "job", "database", "table",
+            "dependency", "manifest", "container_image", "workflow", "action", "iac_resource",
+            "language", "framework", "tool", "runtime",
+            "contributor", "team",
+            "community"
+          ],
+          "description": "Node type. Code symbols, infrastructure, the technology inventory and people all live in one graph; that is what makes it a tech-stack graph rather than a call graph."
+        },
+        "name": { "type": "string" },
+        "qualifiedName": { "type": "string" },
+        "path": { "type": "string", "description": "File the node was declared in." },
+        "startLine": { "type": "integer", "minimum": 1 },
+        "endLine": { "type": "integer", "minimum": 1 },
+        "language": { "type": "string" },
+        "purl": { "type": "string", "description": "Set on dependency and package nodes. Also the cross-repo join key for those nodes." },
+        "exported": { "type": "boolean", "description": "Whether the symbol is visible outside its module. An exported symbol is a candidate cross-repo join key; an unexported one is not." },
+        "properties": {
+          "type": "object",
+          "description": "Kind-specific attributes. Kept open so the catalog can add node kinds without a schema change.",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "graphEdge": {
+      "type": "object",
+      "required": ["id", "kind", "from", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "kind": {
+          "enum": [
+            "contains", "defines", "imports", "calls", "accesses", "extends", "implements", "overrides",
+            "instantiates", "returns", "parameter_of",
+            "depends_on", "declared_in", "installed_from",
+            "handles_route", "publishes_to", "subscribes_to", "queries", "injects", "fetches",
+            "built_by", "deployed_by", "runs_on", "uses_action", "member_of",
+            "authored", "reviewed", "owns",
+            "couples_with"
+          ],
+          "description": "`couples_with` is derived from history, not from the code: two files that keep changing in the same commit are coupled even when nothing in the source says so. It is the only edge kind here that a reader of the source could not have drawn themselves, and its confidence is the co-change strength."
+        },
+        "from": { "type": "string", "description": "Source node id." },
+        "to": { "type": "string", "description": "Target node id." },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "How sure the resolver is. Resolution is inference, not fact: an unresolved import or a dynamic call still produces an edge, at low confidence, rather than vanishing. A consumer filters on this; the analyzer does not decide for them."
+        },
+        "resolution": {
+          "enum": ["exact", "lexical", "type-binding", "import", "wildcard", "global", "heuristic", "unresolved"],
+          "description": "Which resolution path produced the edge. This is what makes a confidence number auditable."
+        },
+        "evidenceRef": {
+          "$ref": "#/$defs/evidenceRef",
+          "description": "Where the edge came from — the call site, the manifest line."
+        },
+        "properties": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "crossRepoEdge": {
+      "type": "object",
+      "description": "A declared intent to join. The analyzer never resolves the far side; it publishes a key, and whoever assembles the org graph matches this repository's `provides` against another's `consumes`. This is why a single-repo scan can build an org-wide graph.",
+      "required": ["id", "localNodeId", "joinKind", "joinKey", "role"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "localNodeId": { "type": "string", "description": "The node in this repository's graph that sits on the boundary." },
+        "joinKind": {
+          "enum": ["package", "http_route", "grpc_method", "topic", "database", "container_image", "workflow", "symbol", "service"],
+          "description": "What kind of thing is being joined on. Determines how joinKey is normalized."
+        },
+        "joinKey": {
+          "type": "string",
+          "description": "The normalized identifier both sides will match on: a PURL for packages, `METHOD /normalized/path/{param}` for HTTP routes, `package.Service/Method` for gRPC, the topic name, the image reference, the fully-qualified symbol. Normalization is what makes the join work across repositories that spell the same thing differently."
+        },
+        "role": {
+          "enum": ["provides", "consumes"],
+          "description": "Which side of the join this repository is on. A repository that serves an HTTP route `provides` it; one that calls it `consumes` it. An edge forms between a provider and a consumer of the same joinKey."
+        },
+        "targetRepoHint": {
+          "type": "string",
+          "description": "Where we believe the other side lives, when the repository told us — a lockfile resolving to an internal Git host, a workspace manifest, a configured base URL. A hint only; the assembler is not obliged to trust it."
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidenceRef": { "$ref": "#/$defs/evidenceRef" },
+        "properties": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "attachments": {
+      "type": "object",
+      "description": "Evidence in its native open format. Each attachment is a complete, standalone document of that format — a consumer can lift attachments.sarif out and feed it to any SARIF tool untouched.",
+      "additionalProperties": false,
+      "properties": {
+        "sarif": {
+          "$ref": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+          "description": "SARIF 2.1.0 log holding every file-and-line finding in the report."
+        },
+        "openvex": {
+          "$ref": "https://github.com/openvex/spec/openvex_json_schema_0.2.0.json",
+          "description": "OpenVEX document holding security and trust assertions with their justifications."
+        },
+        "cyclonedx": {
+          "$ref": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+          "description": "CycloneDX 1.7 BOM. The component inventory and the in-repo dependency graph; cross-repo package edges appear here as PURLs and external references."
+        },
+        "spdx": {
+          "$ref": "http://spdx.org/rdf/terms/2.3",
+          "description": "SPDX 2.3 document holding license evidence."
+        },
+        "scorecard": {
+          "$ref": "https://vulnetix.com/schemas/third_party/ossf-scorecard-result.schema.json",
+          "description": "OpenSSF Scorecard result, when Scorecard checks were run."
+        }
+      }
+    },
+
+    "diagnostic": {
+      "type": "object",
+      "required": ["level", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "level": { "enum": ["error", "warning", "note"] },
+        "collector": { "type": "string" },
+        "metricId": { "type": "string", "description": "The metric this degraded, when it degraded one." },
+        "message": { "type": "string" },
+        "caveat": {
+          "type": "boolean",
+          "description": "True when this is a standing limitation of the measurement rather than a failure — squash-merge workflows flattening authorship, commit-message-dependent signals, a language with no grammar. These belong in the report, not in a README nobody reads."
+        }
+      }
+    }
+  }
+}

@@ -27,6 +27,30 @@
         "verbose"
       ]
     },
+    "analyze": {
+      "short": "Build the repository's tech-stack graph and its evidence-backed metrics",
+      "flags": [
+        "complexity-threshold",
+        "disable-memory",
+        "max-commits",
+        "no-analytics",
+        "no-banner",
+        "no-deps",
+        "no-files",
+        "no-forge",
+        "no-git",
+        "no-progress",
+        "no-trust",
+        "no-upload",
+        "org-id",
+        "output",
+        "output-file",
+        "path",
+        "silent",
+        "verbose",
+        "window-days"
+      ]
+    },
     "auth": {
       "short": "Manage Vulnetix authentication",
       "flags": [
@@ -4825,6 +4849,7 @@
       ],
       "subcommands": [
         "aibom",
+        "analyze",
         "auth",
         "cbom",
         "completion",
