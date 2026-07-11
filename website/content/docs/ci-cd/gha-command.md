@@ -188,29 +188,22 @@ jobs:
     needs: security-scan
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       actions: read  # Required to read artifacts
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: stable
 
-      - name: Checkout Vulnetix CLI
-        uses: actions/checkout@v4
-        with:
-          repository: vulnetix/cli
-          path: vulnetix-cli
-
-      - name: Install Vulnetix CLI
-        run: |
-          cd vulnetix-cli
-          go build -o /usr/local/bin/vulnetix .
-
       - name: Upload Artifacts to Vulnetix
+        uses: Vulnetix/cli@v3.59.2
+        with:
+          task: gha
+          org-id: ${{ secrets.VULNETIX_ORG_ID }}
+          api-key: ${{ secrets.VULNETIX_API_KEY }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          vulnetix gha upload --org-id ${{ secrets.VULNETIX_ORG_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
 ```
 
 ### Advanced Workflow with Multiple Scanners
@@ -257,31 +250,22 @@ jobs:
     needs: [sast-scan, dependency-scan, container-scan]
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       actions: read
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: stable
 
-      - uses: actions/checkout@v4
-        with:
-          repository: vulnetix/cli
-          path: vulnetix-cli
-
-      - name: Install Vulnetix CLI
-        run: cd vulnetix-cli && go build -o /usr/local/bin/vulnetix .
-
       - name: Upload All Artifacts
+        uses: Vulnetix/cli@v3.59.2
+        with:
+          task: gha
+          org-id: ${{ secrets.VULNETIX_ORG_ID }}
+          api-key: ${{ secrets.VULNETIX_API_KEY }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          vulnetix gha upload \
-            --org-id ${{ secrets.VULNETIX_ORG_ID }} \
-            --json > upload-result.json
-
-          # Show summary
-          cat upload-result.json | jq '.success'
+          GITHUB_TOKEN: ${{ github.token }}
 ```
 
 ## Troubleshooting
@@ -291,7 +275,7 @@ jobs:
 **Solution:** Ensure the `GITHUB_TOKEN` is set in your workflow:
 ```yaml
 env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ github.token }}
 ```
 
 ### Warning: "Not running in GitHub Actions environment"

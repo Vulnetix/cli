@@ -7,17 +7,20 @@ This documentation has moved to **[docs.cli.vulnetix.com/docs/ci-cd/github-actio
 ```yaml
 name: Vulnetix
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   vulnetix:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: stable
-      - uses: Vulnetix/cli@v1
+      - uses: Vulnetix/cli@v3.59.2
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
+          api-key: ${{ secrets.VULNETIX_API_KEY }}
 ```
 
 ## Action Inputs
