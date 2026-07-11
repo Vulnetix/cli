@@ -29,24 +29,41 @@ func ToWire(r *Report) (vdb.CliInsightsRequest, error) {
 			CatalogVersion: r.Tool.CatalogVersion,
 		},
 		Target: &vdb.CliInsightsTarget{
-			RepoID:        r.Target.RepoID,
-			OrgKey:        r.Target.OrgKey,
-			RemoteURL:     r.Target.RemoteURL,
-			DefaultBranch: r.Target.DefaultBranch,
-			HeadCommit:    r.Target.HeadCommit,
+			RepoID:          r.Target.RepoID,
+			OrgKey:          r.Target.OrgKey,
+			RemoteURL:       r.Target.RemoteURL,
+			DefaultBranch:   r.Target.DefaultBranch,
+			HeadCommit:      r.Target.HeadCommit,
+			HeadCommittedAt: epochMillis(r.Target.HeadCommittedAt),
 		},
 	}
 
+	// Run provenance goes whether or not there was a history window: when the scan ran, how
+	// long it took, and which collectors did and did not run. The collectors are the story
+	// behind every null metric — a report that ships the nulls without the story is only
+	// half honest.
+	run := &vdb.CliInsightsRunMeta{
+		StartedAt:       epochMillis(r.Run.StartedAt),
+		CompletedAt:     epochMillis(r.Run.CompletedAt),
+		DurationSeconds: r.Run.DurationSeconds,
+	}
 	if w := r.Run.HistoryWindow; w != nil {
-		req.Run = &vdb.CliInsightsRunMeta{
-			HistoryWindow: &vdb.CliInsightsWindow{
-				Since:         epochMillis(w.Since),
-				Until:         epochMillis(w.Until),
-				CommitsWalked: w.CommitsWalked,
-				CommitLimit:   w.CommitLimit,
-			},
+		run.HistoryWindow = &vdb.CliInsightsWindow{
+			Since:         epochMillis(w.Since),
+			Until:         epochMillis(w.Until),
+			CommitsWalked: w.CommitsWalked,
+			CommitLimit:   w.CommitLimit,
 		}
 	}
+	for _, c := range r.Run.Collectors {
+		run.Collectors = append(run.Collectors, vdb.CliInsightsCollector{
+			Name:            c.Name,
+			Status:          c.Status,
+			Reason:          c.Reason,
+			DurationSeconds: c.DurationSeconds,
+		})
+	}
+	req.Run = run
 
 	for _, d := range r.Diagnostics {
 		req.Diagnostics = append(req.Diagnostics, vdb.CliInsightsDiag{
@@ -130,6 +147,16 @@ func graphToWire(g *Graph) *vdb.CliInsightsGraph {
 		})
 	}
 
+	// nil stays nil: absent truncation is the claim that this is the whole graph.
+	if g.Truncation != nil {
+		out.Truncation = &vdb.CliInsightsGraphTruncation{
+			NodesOmitted: g.Truncation.NodesOmitted,
+			EdgesOmitted: g.Truncation.EdgesOmitted,
+			FilesSkipped: g.Truncation.FilesSkipped,
+			Reason:       g.Truncation.Reason,
+		}
+	}
+
 	return out
 }
 
@@ -171,6 +198,9 @@ func metricsToWire(metrics []Metric) []vdb.CliInsightsMetric {
 
 		for j := range m.EvidenceRefs {
 			w.EvidenceRefs = append(w.EvidenceRefs, evidenceRefToWire(&m.EvidenceRefs[j]))
+		}
+		for _, ref := range m.References {
+			w.References = append(w.References, vdb.CliInsightsReference{Title: ref.Title, URL: ref.URL})
 		}
 
 		out = append(out, w)

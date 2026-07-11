@@ -71,6 +71,57 @@ func TestToWire_UnmeasuredStaysNull(t *testing.T) {
 	require.Len(t, req.Diagnostics, 1, "and the reason travels with it")
 }
 
+// Run provenance, collectors, references and graph truncation must all reach the wire — every
+// one of these was silently dropped once, and each is a datum the GUI is required to show.
+func TestToWire_CarriesProvenance(t *testing.T) {
+	b := newTestBuilder()
+	b.Count(Metric{ID: "activity.commits.total", Family: "activity", Name: "Commits",
+		Definition: "Commits in the window.",
+		References: []Reference{{Title: "kospex", URL: "https://github.com/kospex/kospex"}},
+	}, []EvidenceRef{})
+
+	r, _, err := b.Finish(time.Date(2026, 7, 12, 1, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+
+	r.Target.HeadCommittedAt = "2026-07-11T13:21:42Z"
+	r.Run.StartedAt = "2026-07-12T00:59:00Z"
+	r.Run.Collectors = []Collector{
+		{Name: "git", Status: "completed", DurationSeconds: 0.5},
+		{Name: "forge", Status: "skipped", Reason: "--no-forge"},
+	}
+	r.Graph = &Graph{Truncation: &GraphTruncation{NodesOmitted: 5, Reason: "cap"}}
+
+	req, err := ToWire(r)
+	require.NoError(t, err)
+
+	require.NotZero(t, req.Target.HeadCommittedAt)
+	require.NotZero(t, req.Run.StartedAt)
+	require.NotZero(t, req.Run.CompletedAt, "Finish stamped completedAt; it must survive")
+	require.Len(t, req.Run.Collectors, 2)
+	require.Equal(t, "--no-forge", req.Run.Collectors[1].Reason,
+		"the reason a collector did not run is the story behind its null metrics")
+	require.NotNil(t, req.Graph.Truncation)
+	require.Equal(t, 5, req.Graph.Truncation.NodesOmitted)
+	require.Len(t, req.Metrics[0].References, 1)
+	require.Equal(t, "https://github.com/kospex/kospex", req.Metrics[0].References[0].URL)
+}
+
+// A report with no truncation must not sprout one on the wire: absence is the claim that this
+// is the whole graph.
+func TestToWire_AbsentTruncationStaysAbsent(t *testing.T) {
+	b := newTestBuilder()
+	b.Count(Metric{ID: "activity.commits.total", Family: "activity", Name: "Commits",
+		Definition: "Commits in the window."}, []EvidenceRef{})
+
+	r, _, err := b.Finish(time.Now())
+	require.NoError(t, err)
+	r.Graph = &Graph{Nodes: []Node{{ID: "repo", Kind: "repo", Name: "x"}}}
+
+	req, err := ToWire(r)
+	require.NoError(t, err)
+	require.Nil(t, req.Graph.Truncation)
+}
+
 // An unresolved edge has no confidence, not a confidence of zero. Zero would read as "resolved,
 // and we trust it not at all" — a different and worse claim.
 func TestToWire_ZeroConfidenceIsAbsentNotZero(t *testing.T) {

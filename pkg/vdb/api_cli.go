@@ -1059,6 +1059,10 @@ type CliInsightsTarget struct {
 	RemoteURL     string `json:"remoteUrl,omitempty"`
 	DefaultBranch string `json:"defaultBranch,omitempty"`
 	HeadCommit    string `json:"headCommit,omitempty"`
+
+	// The head commit's own timestamp, epoch ms — "analysed as of when the code last
+	// changed", which is the date a reader wants, not the upload date.
+	HeadCommittedAt int64 `json:"headCommittedAt,omitempty"`
 }
 
 type CliInsightsWindow struct {
@@ -1069,7 +1073,24 @@ type CliInsightsWindow struct {
 }
 
 type CliInsightsRunMeta struct {
+	// When the scan ran, by its own clock — the server's createdAt is when it was
+	// stored, which on a slow upload or a retry is a different and later time. Epoch ms.
+	StartedAt       int64   `json:"startedAt,omitempty"`
+	CompletedAt     int64   `json:"completedAt,omitempty"`
+	DurationSeconds float64 `json:"durationSeconds,omitempty"`
+
 	HistoryWindow *CliInsightsWindow `json:"historyWindow,omitempty"`
+
+	// The report's own account of what ran and what did not. A skipped forge collector
+	// is why four metrics are null; without this the nulls have no story.
+	Collectors []CliInsightsCollector `json:"collectors,omitempty"`
+}
+
+type CliInsightsCollector struct {
+	Name            string  `json:"name"`
+	Status          string  `json:"status"` // completed | skipped | failed
+	Reason          string  `json:"reason,omitempty"`
+	DurationSeconds float64 `json:"durationSeconds,omitempty"`
 }
 
 type CliInsightsRequest struct {
@@ -1105,6 +1126,17 @@ type CliInsightsGraph struct {
 	Nodes          []CliInsightsNode          `json:"nodes,omitempty"`
 	Edges          []CliInsightsEdge          `json:"edges,omitempty"`
 	CrossRepoEdges []CliInsightsCrossRepoEdge `json:"crossRepoEdges,omitempty"`
+
+	// Set only when the CLI capped the graph it built. Its absence is a claim — "this is
+	// the whole graph" — so it must survive the wire rather than being quietly dropped.
+	Truncation *CliInsightsGraphTruncation `json:"truncation,omitempty"`
+}
+
+type CliInsightsGraphTruncation struct {
+	NodesOmitted int    `json:"nodesOmitted,omitempty"`
+	EdgesOmitted int    `json:"edgesOmitted,omitempty"`
+	FilesSkipped int    `json:"filesSkipped,omitempty"`
+	Reason       string `json:"reason,omitempty"`
 }
 
 type CliInsightsNode struct {
@@ -1172,6 +1204,15 @@ type CliInsightsMetric struct {
 	TruncationReason     string `json:"truncationReason,omitempty"`
 
 	EvidenceRefs []CliInsightsEvidenceRef `json:"evidenceRefs"`
+
+	// The sources the metric's definition cites — the survey papers and reference
+	// implementations its formula came from.
+	References []CliInsightsReference `json:"references,omitempty"`
+}
+
+type CliInsightsReference struct {
+	Title string `json:"title,omitempty"`
+	URL   string `json:"url"`
 }
 
 type CliInsightsMetricWindow struct {
