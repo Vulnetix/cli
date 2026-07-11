@@ -121,15 +121,27 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 	// The GitHub check runs before any scanning. Finding out after five minutes of work that a
 	// third of the report is null because a token was missing wastes the user's time twice:
 	// once now, and once when they have to run it again.
+	//
+	// It runs before the progress bar starts, because it prints its own line and a live
+	// progress line would fight it for the last row of the terminal.
 	pre, err := analyze.Check(cmd.Context(), opts)
 	if err != nil {
 		return err
 	}
 
+	// analyze walks history, parses every file, samples complexity across commits and makes a
+	// few hundred GitHub calls. On a large repository that is minutes, and minutes of silence is
+	// indistinguishable from a hang.
+	progress := dctx.Progress("Analyzing "+pre.Target.RepoID, analyze.TotalSteps)
+	opts.Progress = &progressReporter{p: progress}
+
 	report, body, err := analyze.Run(tool, opts, pre)
 	if err != nil {
+		progress.Fail("Analysis failed")
+
 		return err
 	}
+	progress.Complete("Analyzed " + pre.Target.RepoID)
 
 	root, _ := filepath.Abs(opts.Path)
 	outFile := outputFile
@@ -151,6 +163,14 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 		return renderAnalyze(ctx, report)
 	})
 }
+
+// progressReporter adapts display.Progress to the interface the collectors call. The analyze
+// package deliberately knows nothing about terminals, so the coupling lives here.
+type progressReporter struct{ p *display.Progress }
+
+func (r *progressReporter) Stage(msg string) { r.p.SetStage(msg) }
+
+func (r *progressReporter) Step(done int, msg string) { r.p.Update(done, msg) }
 
 // packageEnricher returns a function that asks the API for registry metadata about a batch of
 // PURLs, or nil when the user is not authenticated.

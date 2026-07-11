@@ -45,6 +45,10 @@ type Options struct {
 	// computed. Nil when the user is not authenticated to the Vulnetix API — in which case the
 	// staleness metrics are Unmeasured, not zero.
 	Enrich EnrichFunc
+
+	// Progress receives stage and step updates. Nil is valid and reports nothing — a long walk
+	// with no output is indistinguishable from a hang, but only a terminal needs telling.
+	Progress Reporter
 }
 
 func DefaultOptions() Options {
@@ -160,6 +164,10 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 
 	b := NewBuilder(tool, target, started)
 
+	// Every collector reports through this. A nil Reporter makes each call a no-op, so nothing
+	// below needs to know whether a terminal is attached.
+	pr := reporter{opts.Progress}
+
 	var err error
 
 	var gstats *gitStats
@@ -171,47 +179,60 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 		b.Collected(Collector{Name: "git", Status: "skipped", Reason: reason})
 		b.Diagnose(Diagnostic{Level: "warning", Collector: "git",
 			Message: "History was not read, so every activity, contributor and ownership metric is absent from this report rather than zero."})
+		pr.Step(stepGit, "Skipped history")
 	} else {
 		t := time.Now()
-		gstats, err = collectGit(b, repo, opts, now)
+		pr.Stage("Walking history")
+		gstats, err = collectGit(b, repo, opts, now, pr)
 		if err != nil {
 			b.Collected(Collector{Name: "git", Status: "failed", Reason: err.Error(),
 				DurationSeconds: time.Since(t).Seconds()})
 			b.Diagnose(Diagnostic{Level: "error", Collector: "git", Message: err.Error()})
+			pr.Step(stepGit, "History failed")
 		} else {
 			b.SetWindow(&gstats.window)
 			b.Collected(Collector{Name: "git", Status: "completed",
 				DurationSeconds: time.Since(t).Seconds()})
+			pr.Step(stepGit, "Read "+plural(gstats.walked, "commit", "commits")+
+				" from "+plural(len(gstats.contributors), "contributor", "contributors"))
 		}
 	}
 
 	var fstats *fileStats
 	if opts.NoFiles {
 		b.Collected(Collector{Name: "files", Status: "skipped", Reason: "disabled with --no-files"})
+		pr.Step(stepFiles, "Skipped files")
 	} else {
 		t := time.Now()
-		fstats, err = collectFiles(b, root, gstats, opts, now)
+		pr.Stage("Reading files")
+		fstats, err = collectFiles(b, root, gstats, opts, now, pr)
 		if err != nil {
 			b.Collected(Collector{Name: "files", Status: "failed", Reason: err.Error(),
 				DurationSeconds: time.Since(t).Seconds()})
+			pr.Step(stepFiles, "Files failed")
 		} else {
 			b.Collected(Collector{Name: "files", Status: "completed",
 				DurationSeconds: time.Since(t).Seconds()})
+			pr.Step(stepFiles, "Measured "+plural(len(fstats.files), "source file", "source files"))
 		}
 	}
 
 	var dstats *depStats
 	if opts.NoDeps {
 		b.Collected(Collector{Name: "dependencies", Status: "skipped", Reason: "disabled with --no-deps"})
+		pr.Step(stepDeps, "Skipped dependencies")
 	} else {
 		t := time.Now()
+		pr.Stage("Reading manifests")
 		dstats, err = collectDeps(b, root, opts)
 		if err != nil {
 			b.Collected(Collector{Name: "dependencies", Status: "failed", Reason: err.Error(),
 				DurationSeconds: time.Since(t).Seconds()})
+			pr.Step(stepDeps, "Dependencies failed")
 		} else {
 			b.Collected(Collector{Name: "dependencies", Status: "completed",
 				DurationSeconds: time.Since(t).Seconds()})
+			pr.Step(stepDeps, "Found "+plural(len(dstats.deps), "dependency", "dependencies"))
 		}
 	}
 
@@ -219,33 +240,46 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 	// stale" is a claim, and an unauthenticated run has not earned it.
 	if dstats != nil {
 		t := time.Now()
+		if opts.Enrich != nil {
+			pr.Stage("Checking " + plural(len(dstats.deps), "dependency", "dependencies") +
+				" against the registry")
+		}
 		enrichDependencies(b, dstats, opts.Enrich, now)
 		status := "completed"
 		reason := ""
+		msg := "Checked dependency staleness"
 		if opts.Enrich == nil {
 			status = "skipped"
 			reason = "not authenticated; registry metadata was not fetched"
+			msg = "Skipped staleness (not authenticated)"
 		}
 		b.Collected(Collector{Name: "dependency-enrichment", Status: status, Reason: reason,
 			DurationSeconds: time.Since(t).Seconds()})
+		pr.Step(stepEnrich, msg)
+	} else {
+		pr.Step(stepEnrich, "Skipped staleness")
 	}
 
 	// The policy checks and the history-secret passes share one SARIF log. Two logs would be two
 	// findings surfaces for one scan.
 	if opts.NoTrust {
 		b.Collected(Collector{Name: "trust", Status: "skipped", Reason: "disabled with --no-trust"})
+		pr.Step(stepTrust, "Skipped policy checks")
 	} else {
 		t := time.Now()
+		pr.Stage("Checking open-source policy")
 		tr := collectTrust(b, root)
 
 		findings, rules := tr.findings, tr.rules
 		if repoErr == nil && !opts.NoGit {
-			findings, rules = collectSecrets(b, repo, gstats, findings, rules)
+			pr.Stage("Searching history for secrets")
+			findings, rules = collectSecrets(b, repo, gstats, findings, rules, pr)
 		}
 		b.SetSARIF(sast.BuildSARIF(findings, rules, "analyze"))
 
 		b.Collected(Collector{Name: "trust", Status: "completed",
 			DurationSeconds: time.Since(t).Seconds()})
+		pr.Step(stepTrust, "Checked policy and history for secrets")
 	}
 
 	// Change coupling and the complexity trend both read history, and both declare what they
@@ -254,14 +288,19 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 	var tstats *trendStats
 	if !opts.NoGit && repoErr == nil {
 		t := time.Now()
+		pr.Stage("Correlating co-changing files")
 		cpstats = collectCoupling(b, gstats, fstats)
 		b.Collected(Collector{Name: "coupling", Status: "completed",
 			DurationSeconds: time.Since(t).Seconds()})
+		pr.Step(stepCoupling, "Found "+plural(len(cpstats.edges), "coupled pair", "coupled pairs"))
 
 		t = time.Now()
-		tstats = collectTrend(b, repo, fstats, gstats, opts)
+		pr.Stage("Tracking complexity over time")
+		tstats = collectTrend(b, repo, fstats, gstats, opts, pr)
 		b.Collected(Collector{Name: "trend", Status: "completed",
 			DurationSeconds: time.Since(t).Seconds()})
+		pr.Step(stepTrend, "Tracked complexity across "+
+			plural(len(tstats.byPath), "file", "files"))
 	}
 
 	// The structural code graph and the cross-repo contract edges. Both read the files the
@@ -275,24 +314,50 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 		modulePath := goModulePath(filepath.Join(root, "go.mod"))
 
 		t := time.Now()
-		sstats = collectSymbols(b, root, fstats, modulePath, opts)
+		pr.Stage("Extracting symbols")
+		sstats = collectSymbols(b, root, fstats, modulePath, opts, pr)
 		b.Collected(Collector{Name: "symbols", Status: "completed",
 			DurationSeconds: time.Since(t).Seconds()})
+		pr.Step(stepSymbols, "Extracted "+plural(len(sstats.nodes), "symbol", "symbols"))
 
 		t = time.Now()
+		pr.Stage("Finding cross-repo join keys")
 		cstats = collectContracts(b, root, fstats, dstats, target)
 		b.Collected(Collector{Name: "contracts", Status: "completed",
 			DurationSeconds: time.Since(t).Seconds()})
+		pr.Step(stepContracts, "Published "+plural(len(cstats.edges), "join key", "join keys"))
 	} else {
 		b.Collected(Collector{Name: "symbols", Status: "skipped", Reason: "the file pass did not run"})
 		b.Collected(Collector{Name: "contracts", Status: "skipped", Reason: "the file pass did not run"})
+		pr.Step(stepSymbols, "Skipped symbols")
+		pr.Step(stepContracts, "Skipped join keys")
 	}
 
-	runForge(b, pre, gstats, opts, now)
+	runForge(b, pre, gstats, opts, now, pr)
 
+	pr.Stage("Assembling the graph")
 	b.SetGraph(buildGraph(target, fstats, dstats, gstats, sstats, cstats, cpstats, tstats))
 
-	return b.Finish(time.Now())
+	report, body, err := b.Finish(time.Now())
+	if err != nil {
+		return nil, nil, err
+	}
+	pr.Step(stepReport, "Validated "+plural(len(report.Metrics), "metric", "metrics")+
+		" against "+plural(evidenceCount(report), "evidence record", "evidence records"))
+
+	return report, body, nil
+}
+
+// evidenceCount is what the final progress line reports. It is the number that matters: every
+// metric in the report is backed by these, and if the two ever disagreed the report would not
+// have validated.
+func evidenceCount(r *Report) int {
+	n := 0
+	for _, m := range r.Metrics {
+		n += len(m.EvidenceRefs)
+	}
+
+	return n
 }
 
 // runForge runs the forge collector, or explains — in the report, not only on the terminal —
@@ -302,7 +367,7 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 // unreviewed commits" and "we could not check whether commits were reviewed" are different
 // claims, and a report that cannot tell them apart is a report that will eventually be used
 // to say something untrue.
-func runForge(b *Builder, pre *Preflight, git *gitStats, opts Options, now time.Time) {
+func runForge(b *Builder, pre *Preflight, git *gitStats, opts Options, now time.Time, pr reporter) {
 	if pre.Forge == nil {
 		reason := pre.ForgeStatus
 		if reason == "" {
@@ -314,21 +379,25 @@ func runForge(b *Builder, pre *Preflight, git *gitStats, opts Options, now time.
 		for _, m := range forgeMetricsWhenUnavailable() {
 			b.Unmeasured(m, reason)
 		}
+		pr.Step(stepForge, "Skipped GitHub")
 
 		return
 	}
 
 	t := time.Now()
-	if err := collectForge(b, pre.Forge, pre.Repo, git, opts, now); err != nil {
+	if err := collectForge(b, pre.Forge, pre.Repo, git, opts, now, pr); err != nil {
 		b.Collected(Collector{Name: "forge", Status: "failed", Reason: err.Error(),
 			DurationSeconds: time.Since(t).Seconds()})
 		b.Diagnose(Diagnostic{Level: "error", Collector: "forge", Message: err.Error()})
+		pr.Step(stepForge, "GitHub failed")
 
 		return
 	}
 
 	b.Collected(Collector{Name: "forge", Status: "completed",
 		DurationSeconds: time.Since(t).Seconds()})
+	pr.Step(stepForge, "Read GitHub in "+
+		plural(pre.Forge.Budget().Spent(), "API call", "API calls"))
 }
 
 // forgeMetricsWhenUnavailable is the set of metrics that would have been measured. They are

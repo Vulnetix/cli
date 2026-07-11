@@ -72,7 +72,7 @@ type secretFinding struct {
 
 // collectSecrets scans commit messages and the names of every file ever committed, and
 // appends its findings to the SARIF the trust collector started.
-func collectSecrets(b *Builder, repo *git.Repository, git2 *gitStats, existing []sast.Finding, rules []sast.RuleMetadata) ([]sast.Finding, []sast.RuleMetadata) {
+func collectSecrets(b *Builder, repo *git.Repository, git2 *gitStats, existing []sast.Finding, rules []sast.RuleMetadata, pr reporter) ([]sast.Finding, []sast.RuleMetadata) {
 	if repo == nil {
 		b.Unmeasured(Metric{
 			ID: "security.secrets.history", Family: "security", Name: "Secrets in git history",
@@ -105,6 +105,9 @@ func collectSecrets(b *Builder, repo *git.Repository, git2 *gitStats, existing [
 			return errStopWalk
 		}
 		walked++
+		if walked%100 == 0 {
+			pr.Stage("Searching history for secrets (" + plural(walked, "commit", "commits") + ")")
+		}
 
 		// Pass 1 — the commit message. Nothing else looks here.
 		for _, re := range messageSecrets {

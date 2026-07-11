@@ -70,7 +70,7 @@ type gitStats struct {
 // collectGit walks history once and derives everything that comes from it. One walk, because
 // the reference tools that re-walk per metric (gitvoyant re-walks per file, git-intelligence
 // re-parses per cache miss) are the ones that fall over on large repositories.
-func collectGit(b *Builder, repo *git.Repository, opts Options, now time.Time) (*gitStats, error) {
+func collectGit(b *Builder, repo *git.Repository, opts Options, now time.Time, pr reporter) (*gitStats, error) {
 	head, err := repo.Head()
 	if err != nil {
 		return nil, fmt.Errorf("resolve HEAD: %w", err)
@@ -101,6 +101,12 @@ func collectGit(b *Builder, repo *git.Repository, opts Options, now time.Time) (
 			return errStopWalk
 		}
 		st.walked++
+
+		// The diff of every commit is the slowest thing this collector does. Reporting the count
+		// as it climbs is what tells a reader the tool is working rather than wedged.
+		if st.walked%50 == 0 {
+			pr.Stage("Walking history (" + plural(st.walked, "commit", "commits") + ")")
+		}
 
 		author := ClassifyIdentity(c.Author.Name, c.Author.Email)
 		committer := ClassifyIdentity(c.Committer.Name, c.Committer.Email)

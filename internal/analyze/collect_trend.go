@@ -69,7 +69,7 @@ type trendStats struct {
 	byPath map[string]trendInfo
 }
 
-func collectTrend(b *Builder, repo *git.Repository, files *fileStats, git2 *gitStats, opts Options) *trendStats {
+func collectTrend(b *Builder, repo *git.Repository, files *fileStats, git2 *gitStats, opts Options, pr reporter) *trendStats {
 	st := &trendStats{byPath: map[string]trendInfo{}}
 
 	if repo == nil || git2 == nil || files == nil {
@@ -115,12 +115,17 @@ func collectTrend(b *Builder, repo *git.Repository, files *fileStats, git2 *gitS
 		population []EvidenceRef
 	)
 
-	for _, c := range candidates {
+	for i, c := range candidates {
 		lang := treesitter.LanguageID(c.rec.Language)
 		query, ok := decisionQueries[lang]
 		if !ok {
 			continue
 		}
+
+		// Each file here means re-reading it at up to 30 commits and re-parsing every one, so this
+		// is the slowest pass per unit of output. Name the file: it is the only stage where a user
+		// can tell whether the tool is stuck on something pathological.
+		pr.Stage(fmt.Sprintf("Tracking complexity (%d/%d) %s", i+1, len(candidates), c.rec.Path))
 
 		series := sampleComplexity(ctx, engine, repo, c.rec.Path, lang, query, opts)
 		if len(series) < minTrendSamples {

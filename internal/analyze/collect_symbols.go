@@ -110,7 +110,7 @@ type symbolStats struct {
 	truncated    bool
 }
 
-func collectSymbols(b *Builder, root string, files *fileStats, modulePath string, opts Options) *symbolStats {
+func collectSymbols(b *Builder, root string, files *fileStats, modulePath string, opts Options, pr reporter) *symbolStats {
 	engine := reachability.NewEngine()
 	ctx := context.Background()
 
@@ -158,6 +158,9 @@ func collectSymbols(b *Builder, root string, files *fileStats, modulePath string
 			continue
 		}
 		st.filesParsed++
+		if st.filesParsed%100 == 0 {
+			pr.Stage("Extracting symbols (" + plural(len(st.nodes), "symbol", "symbols") + ")")
+		}
 
 		fileNode := "file:" + f.Path
 

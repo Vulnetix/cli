@@ -91,7 +91,7 @@ type fileStats struct {
 	files []*FileRecord
 }
 
-func collectFiles(b *Builder, root string, git *gitStats, opts Options, now time.Time) (*fileStats, error) {
+func collectFiles(b *Builder, root string, git *gitStats, opts Options, now time.Time, pr reporter) (*fileStats, error) {
 	engine := reachability.NewEngine()
 	ctx := context.Background()
 
@@ -192,6 +192,12 @@ func collectFiles(b *Builder, root string, git *gitStats, opts Options, now time
 		}
 
 		st.files = append(st.files, rec)
+
+		// Parsing every file with tree-sitter is the second-slowest pass. Same reason as the
+		// history walk: a count that climbs is a tool that is working.
+		if len(st.files)%100 == 0 {
+			pr.Stage("Reading files (" + plural(len(st.files), "file", "files") + ")")
+		}
 
 		return nil
 	})
