@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vulnetix.com/schemas/third_party/ossf-scorecard-result.schema.json",
+  "title": "OpenSSF Scorecard result",
+  "description": "JSON result document produced by `scorecard --format json`. The OpenSSF project does not publish a JSON Schema for this format; this schema is transcribed from the Go types in ossf/scorecard (pkg/scorecard, jsonScorecardResultV2) so that Scorecard output can be embedded as evidence and validated. Keep in step with upstream when Scorecard adds fields.",
+  "type": "object",
+  "required": ["date", "repo", "scorecard", "checks"],
+  "additionalProperties": true,
+  "properties": {
+    "date": {
+      "type": "string",
+      "description": "Date the scan ran. Scorecard emits YYYY-MM-DD, not RFC 3339."
+    },
+    "repo": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Repository URI without scheme, e.g. github.com/vulnetix/cli."
+        },
+        "commit": {
+          "type": "string",
+          "description": "Commit SHA the scan was performed against."
+        }
+      }
+    },
+    "scorecard": {
+      "type": "object",
+      "description": "Version of the Scorecard tool that produced the result.",
+      "additionalProperties": true,
+      "properties": {
+        "version": { "type": "string" },
+        "commit": { "type": "string" }
+      }
+    },
+    "score": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 10,
+      "description": "Aggregate score across all checks, 0-10. -1 means the aggregate could not be computed."
+    },
+    "metadata": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "checks": {
+      "type": "array",
+      "description": "One entry per Scorecard check that ran.",
+      "items": { "$ref": "#/$defs/check" }
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": ["name", "score"],
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Check name, e.g. Branch-Protection, Code-Review, Signed-Releases, Pinned-Dependencies, Dangerous-Workflow, Token-Permissions, Maintained, SAST, Vulnerabilities, License, Security-Policy, CI-Tests, Fuzzing, Binary-Artifacts, Dependency-Update-Tool, Packaging, Contributors, CII-Best-Practices, Webhooks."
+        },
+        "score": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 10,
+          "description": "Check score 0-10. -1 (Inconclusive) means the check could not run or could not reach a verdict; it must never be silently treated as 0."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Human-readable justification for the score."
+        },
+        "details": {
+          "type": "array",
+          "description": "Per-finding detail lines. Each is a level-prefixed string, e.g. \"Warn: no topLevel permission defined: .github/workflows/release.yml:1\". These are the enumerable evidence items behind the check's score.",
+          "items": { "type": "string" }
+        },
+        "documentation": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "short": { "type": "string" },
+            "url": { "type": "string", "format": "uri" }
+          }
+        }
+      }
+    }
+  }
+}

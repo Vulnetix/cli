@@ -1021,3 +1021,140 @@ func (c *Client) CliBinaryAnalyze(env CliEnv, req CliBinaryAnalyzeRequest) (*Cli
 
 // Suppress unused import errors if generic helper inlining hides usage.
 var _ = cliPost[any]
+
+// ─── /v2/cli.insights ────────────────────────────────────────────────────────
+// Repository insights from the `analyze` command: the tech-stack graph, the
+// cross-repo join keys other repositories' graphs match against, the metrics, and
+// the evidence behind every one of them.
+//
+// The route is cli.insights and not cli.analyze because /v2/cli.analyze already
+// belongs to ELF binary analysis (CliBinaryAnalyze, above).
+//
+// The graph, metrics and evidence records are decomposed server-side from
+// ReportJSON — the verbatim report, which is also what gets stored to S3. Sending
+// the report whole rather than re-serialising its parts means the thing we validated
+// is the thing that gets persisted, with no opportunity for the two to disagree.
+
+type CliInsightsTool struct {
+	Name           string `json:"name,omitempty"`
+	Version        string `json:"version,omitempty"`
+	CatalogVersion string `json:"catalogVersion,omitempty"`
+}
+
+type CliInsightsTarget struct {
+	RepoID        string `json:"repoId,omitempty"`
+	OrgKey        string `json:"orgKey,omitempty"`
+	RemoteURL     string `json:"remoteUrl,omitempty"`
+	DefaultBranch string `json:"defaultBranch,omitempty"`
+	HeadCommit    string `json:"headCommit,omitempty"`
+}
+
+type CliInsightsWindow struct {
+	Since         int64 `json:"since,omitempty"`
+	Until         int64 `json:"until,omitempty"`
+	CommitsWalked int   `json:"commitsWalked,omitempty"`
+	CommitLimit   int   `json:"commitLimit,omitempty"`
+}
+
+type CliInsightsRunMeta struct {
+	HistoryWindow *CliInsightsWindow `json:"historyWindow,omitempty"`
+}
+
+type CliInsightsRequest struct {
+	// Set on chunks 1..N to append to a run created by chunk 0.
+	InsightsRunUuid string `json:"insightsRunUuid,omitempty"`
+
+	SchemaVersion string              `json:"schemaVersion,omitempty"`
+	Tool          *CliInsightsTool    `json:"tool,omitempty"`
+	Target        *CliInsightsTarget  `json:"target,omitempty"`
+	Run           *CliInsightsRunMeta `json:"run,omitempty"`
+
+	// The verbatim report, schema-valid, including its SARIF / OpenVEX / CycloneDX
+	// attachments. The server decomposes it into rows and stores this untouched.
+	ReportJSON string `json:"reportJson,omitempty"`
+}
+
+// CliInsightsSnapshot is the persisted run, plus what actually landed. The counts are
+// the server's, not ours — if they disagree with what we sent, that is worth seeing.
+type CliInsightsSnapshot struct {
+	Uuid      string `json:"uuid"`
+	URL       string `json:"url,omitempty"`
+	CreatedAt int64  `json:"createdAt"`
+
+	MetricsStored        int `json:"metricsStored"`
+	EvidenceStored       int `json:"evidenceStored"`
+	NodesStored          int `json:"nodesStored"`
+	EdgesStored          int `json:"edgesStored"`
+	CrossRepoEdgesStored int `json:"crossRepoEdgesStored"`
+}
+
+type CliInsightsResponse struct {
+	Insights *CliInsightsSnapshot `json:"insights,omitempty"`
+}
+
+func (c *Client) CliInsights(env CliEnv, req CliInsightsRequest) (*CliResponse[CliInsightsResponse], error) {
+	return cliPostWithEnv[CliInsightsResponse](c, "cli.insights", env, req)
+}
+
+// ─── /v2/cli.package-insights ────────────────────────────────────────────────
+// Registry metadata for a batch of PURLs: publish dates, the ecosystem's release
+// list, the recommended version, EOL. `analyze` uses it to compute dependency
+// staleness.
+//
+// It is not cli.sca. Both endpoints know these answers, but cli.sca persists a
+// ScannerRun and an IngestionSnapshot — and asking what a package's publish date
+// is must not fabricate a security scan nobody performed.
+
+// CliSCAOptionsLite is the subset of the SCA option block that makes sense outside
+// a scan. Reachability and VEX are scan-time concerns and have no meaning here.
+type CliSCAOptionsLite struct {
+	IncludeCooldown   bool `json:"includeCooldown,omitempty"`
+	IncludeVersionLag bool `json:"includeVersionLag,omitempty"`
+	IncludeEOL        bool `json:"includeEol,omitempty"`
+	IncludeMalware    bool `json:"includeMalware,omitempty"`
+}
+
+type CliPackageInsightsRequest struct {
+	Purls   []string          `json:"purls"`
+	Options CliSCAOptionsLite `json:"options,omitempty"`
+}
+
+// CliVersionStampLite is one release and when it was published.
+type CliVersionStampLite struct {
+	Version     string `json:"version"`
+	PublishedAt *int64 `json:"publishedAt,omitempty"`
+}
+
+// CliSafeHarbourLite reuses the existing CliSafeHarbourRecommendation rather than declaring a
+// second shape for the same fact.
+type CliSafeHarbourLite struct {
+	Recommendation *CliSafeHarbourRecommendation `json:"recommendation,omitempty"`
+}
+
+// CliPackageInsightLite mirrors the server's CliPackageInsight, narrowed to the
+// fields analyze reads. Unknown fields are ignored rather than failing the decode,
+// so a server that learns to say more does not break a client that does not care.
+type CliPackageInsightLite struct {
+	Purl           string                `json:"purl"`
+	Name           string                `json:"name,omitempty"`
+	Version        string                `json:"version,omitempty"`
+	Ecosystem      string                `json:"ecosystem,omitempty"`
+	PublishedAt    *int64                `json:"publishedAt,omitempty"`
+	LatestVersions []CliVersionStampLite `json:"latestVersions,omitempty"`
+	SafeHarbour    *CliSafeHarbourLite   `json:"safeHarbour,omitempty"`
+	IsEOL          bool                  `json:"isEOL,omitempty"`
+	IsMalicious    bool                  `json:"isMalicious,omitempty"`
+}
+
+type CliPackageInsightsResponse struct {
+	InsightsByPurl map[string]CliPackageInsightLite `json:"insightsByPurl"`
+
+	// Unparseable PURLs, returned rather than silently dropped: a caller that sent 200
+	// and got 194 answers deserves to know which six, rather than concluding those six
+	// are fine.
+	Unparseable []string `json:"unparseable,omitempty"`
+}
+
+func (c *Client) CliPackageInsights(env CliEnv, req CliPackageInsightsRequest) (*CliResponse[CliPackageInsightsResponse], error) {
+	return cliPostWithEnv[CliPackageInsightsResponse](c, "cli.package-insights", env, req)
+}

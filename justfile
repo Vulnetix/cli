@@ -133,6 +133,16 @@ gen-aibom:
 gen-cbom:
     go run ./internal/cbom/cbomgen
 
+# Copy the authored schemas into internal/analyze so go:embed can reach them.
+# schemas/ is the source of truth and the URL we publish; the copies exist only
+# because go:embed cannot escape its package directory. TestEmbeddedSchemasMatchSource
+# fails if you edit the copies instead.
+sync-schemas:
+    rm -rf internal/analyze/schemas
+    mkdir -p internal/analyze/schemas/third_party
+    cp schemas/vulnetix-analyze-report.schema.json internal/analyze/schemas/
+    cp schemas/third_party/*.json internal/analyze/schemas/third_party/
+
 # Regenerate the command manifest. Documentation sites validate their snippets
 # against this file, so a renamed flag breaks a test rather than a user's pipeline.
 gen-command-manifest:
