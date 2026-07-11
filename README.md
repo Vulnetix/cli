@@ -28,7 +28,7 @@ This GitHub Action provides the Vulnetix CLI for your workflows, enabling automa
 
 ```yaml
 - name: Vulnetix Scan
-  uses: Vulnetix/cli@v3.59.2
+  uses: Vulnetix/cli@v3.59.3
   with:
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
     api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: stable
-      - uses: Vulnetix/cli@v3.59.2
+      - uses: Vulnetix/cli@v3.59.3
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
@@ -61,7 +61,7 @@ jobs:
 #### Upload Artifacts
 
 ```yaml
-- uses: Vulnetix/cli@v3.59.2
+- uses: Vulnetix/cli@v3.59.3
   with:
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
     api-key: ${{ secrets.VULNETIX_API_KEY }}

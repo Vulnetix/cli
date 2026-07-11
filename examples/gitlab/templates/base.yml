@@ -13,7 +13,7 @@
 #         - /vulnetix/scan.yml
 
 variables:
-  VULNETIX_VERSION: v3.55.2
+  VULNETIX_VERSION: v3.59.3
   VULNETIX_IMAGE: alpine:3.20
 
 .vulnetix-install:

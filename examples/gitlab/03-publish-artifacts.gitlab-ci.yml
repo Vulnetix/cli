@@ -23,7 +23,7 @@ stages:
   stage: security
   image: alpine:3.20
   variables:
-    VULNETIX_VERSION: v3.55.2
+    VULNETIX_VERSION: v3.59.3
   before_script:
     - apk add --no-cache bash ca-certificates curl tar
     - curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir /usr/local/bin --version "$VULNETIX_VERSION"
