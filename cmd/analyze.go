@@ -19,6 +19,7 @@ package cmd
 // ELF binary analysis.
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -82,6 +83,7 @@ func init() {
 	analyzeCmd.Flags().Bool("no-trust", false, "Skip the open-source policy checks")
 	analyzeCmd.Flags().Bool("no-forge", false, "Skip GitHub entirely. Pull-request, review and issue metrics are then reported as not measured, never as zero")
 	analyzeCmd.Flags().Bool("no-upload", false, "Do not submit the report (it is submitted automatically when authenticated)")
+	analyzeCmd.Flags().Bool("fail-on-upload-error", false, "Exit non-zero if the report could not be stored (it is always reported either way)")
 
 	rootCmd.AddCommand(analyzeCmd)
 }
@@ -156,7 +158,9 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 	}
 
 	if !noUpload {
-		uploadInsights(cmd, report, body, silent)
+		if err := uploadInsights(cmd, report, body, silent); err != nil {
+			return err
+		}
 	}
 
 	return dctx.Render(report, func(_ interface{}, ctx *display.Context) string {
@@ -235,16 +239,40 @@ func writeAnalyzeReport(path string, body []byte) error {
 	return os.WriteFile(path, body, 0o644)
 }
 
-// uploadInsights submits the report. Best-effort, exactly like aibom, cbom and malscan: an
-// upload failure never fails the command, because the report on disk is the authoritative
-// artefact and a CI job should not go red because the network did.
-func uploadInsights(cmd *cobra.Command, report *analyze.Report, body []byte, silent bool) {
-	creds, err := auth.LoadCredentials()
-	if err != nil || creds == nil || auth.IsCommunity(creds) {
-		return
+// uploadInsights submits the report: the graph, every metric, and one evidence record for every
+// thing any metric counted.
+//
+// Best-effort by default, like aibom, cbom and malscan — the report on disk is the authoritative
+// artefact and a CI job should not go red because the network did — but never silent. It used to
+// print the failure only under --verbose, which is how it went unnoticed that this endpoint had
+// stored nothing, ever. `--fail-on-upload-error` makes a failure exit non-zero for the jobs that
+// want that.
+func uploadInsights(cmd *cobra.Command, report *analyze.Report, body []byte, silent bool) error {
+	failOnError, _ := cmd.Flags().GetBool("fail-on-upload-error")
+
+	fail := func(format string, args ...any) error {
+		msg := fmt.Sprintf(format, args...)
+		fmt.Fprintf(os.Stderr, "Analysis was not stored: %s\n", msg)
+		if failOnError {
+			return errors.New(msg)
+		}
+
+		return nil
 	}
 
-	verbose, _ := cmd.Flags().GetBool("verbose")
+	creds, err := auth.LoadCredentials()
+	if err != nil || creds == nil {
+		return fail("not authenticated. Run `vulnetix auth` to store the analysis and see it in the graph")
+	}
+	if auth.IsCommunity(creds) {
+		return fail("the community plan does not store analysis runs")
+	}
+
+	req, err := analyze.ToWire(report)
+	if err != nil {
+		return fail("%v", err)
+	}
+	req.ReportJSON = string(body)
 
 	client := vdb.NewClientFromCredentials(creds)
 	client.APIVersion = "/v2"
@@ -259,54 +287,40 @@ func uploadInsights(cmd *cobra.Command, report *analyze.Report, body []byte, sil
 		ToolHash:    commit,
 	}
 
-	req := vdb.CliInsightsRequest{
-		SchemaVersion: report.SchemaVersion,
-		Tool: &vdb.CliInsightsTool{
-			Name:           report.Tool.Name,
-			Version:        report.Tool.Version,
-			CatalogVersion: report.Tool.CatalogVersion,
-		},
-		Target: &vdb.CliInsightsTarget{
-			RepoID:        report.Target.RepoID,
-			OrgKey:        report.Target.OrgKey,
-			RemoteURL:     report.Target.RemoteURL,
-			DefaultBranch: report.Target.DefaultBranch,
-			HeadCommit:    report.Target.HeadCommit,
-		},
-		ReportJSON: string(body),
-	}
-	if w := report.Run.HistoryWindow; w != nil {
-		req.Run = &vdb.CliInsightsRunMeta{HistoryWindow: &vdb.CliInsightsWindow{
-			Since:         epochMillis(w.Since),
-			Until:         epochMillis(w.Until),
-			CommitsWalked: w.CommitsWalked,
-			CommitLimit:   w.CommitLimit,
-		}}
-	}
-
 	resp, err := client.CliInsights(env, req)
 	if err != nil {
-		if verbose {
-			fmt.Fprintf(os.Stderr, "insights upload failed: %v\n", err)
+		return fail("%v", err)
+	}
+
+	// A skip is not a failure, and neither is it a success. It is the third thing, and it has to
+	// be able to say so.
+	if resp != nil && resp.Data.Skipped != "" {
+		if !silent {
+			fmt.Fprintf(os.Stderr, "Analysis was not stored (%s)\n", resp.Data.Skipped)
 		}
 
-		return
-	}
-	if resp != nil && resp.Data.Insights != nil && resp.Data.Insights.URL != "" && !silent {
-		fmt.Fprintf(os.Stderr, "Analysis: %s\n", resp.Data.Insights.URL)
-	}
-}
-
-func epochMillis(rfc3339 string) int64 {
-	if rfc3339 == "" {
-		return 0
-	}
-	t, err := time.Parse(time.RFC3339, rfc3339)
-	if err != nil {
-		return 0
+		return nil
 	}
 
-	return t.UnixMilli()
+	// A 200 that stored nothing is a failure wearing a success's clothes. This is exactly the
+	// shape the bug took, so it is exactly the shape that must not pass silently again.
+	if resp == nil || resp.Data.Insights == nil {
+		return fail("the API accepted the report but stored nothing")
+	}
+
+	s := resp.Data.Insights
+	if !silent {
+		fmt.Fprintf(os.Stderr, "Stored %s, %s, %s and %s\n",
+			pluralise("metric", s.MetricsStored),
+			pluralise("node", s.NodesStored),
+			pluralise("edge", s.EdgesStored),
+			pluralise("evidence item", s.EvidenceStored))
+		if s.URL != "" {
+			fmt.Fprintf(os.Stderr, "Analysis: %s\n", s.URL)
+		}
+	}
+
+	return nil
 }
 
 // renderAnalyze prints the report. Metrics are grouped by family, and a metric that could not

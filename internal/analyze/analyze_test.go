@@ -74,6 +74,49 @@ func TestBuilder_HasReportsWhatWasAlreadyEmitted(t *testing.T) {
 		"a metric the collector never reached is the one the failure path must fill in")
 }
 
+// The file walker and the policy checks both describe LICENSE. They must end up describing the
+// same record: the evidence store is unique on (run, path), and a second record for a path it
+// already holds rejects the entire submission — all 8,000 records, not just the colliding one.
+func TestBuilder_AddFileFoldsRecordsForTheSamePath(t *testing.T) {
+	b := newTestBuilder()
+
+	first := b.AddFile(&FileRecord{ID: "file-LICENSE", Type: "file", Path: "LICENSE", Language: "text"})
+	second := b.AddFile(&FileRecord{ID: "policy-license-file-exists", Type: "file", Path: "LICENSE",
+		Tags: []string{"policy", "license-file-exists"}})
+
+	require.Equal(t, first.RecordID, second.RecordID,
+		"the policy check must cite the file record that already exists, not mint a rival one")
+	require.Len(t, b.records, 1)
+
+	held, ok := b.records[0].(*FileRecord)
+	require.True(t, ok)
+	require.Equal(t, "text", held.Language, "what the walker knew survives the fold")
+	require.Equal(t, []string{"policy", "license-file-exists"}, held.Tags, "and so does what the policy check knew")
+}
+
+// The guard is the point: a report that collides on a stored identity is a report that stores
+// nothing, so we must not be able to build one.
+func TestCheckRecordIdentity_RejectsCollisions(t *testing.T) {
+	err := checkRecordIdentity([]any{
+		&FileRecord{ID: "file-a", Type: "file", Path: "cmd/a.go"},
+		&FileRecord{ID: "policy-x", Type: "file", Path: "cmd/a.go"},
+	})
+	require.ErrorContains(t, err, "cmd/a.go")
+	require.ErrorContains(t, err, "AddFile")
+
+	require.NoError(t, checkRecordIdentity([]any{
+		&FileRecord{ID: "file-a", Type: "file", Path: "cmd/a.go"},
+		&FileRecord{ID: "file-b", Type: "file", Path: "cmd/b.go"},
+		&CommitRecord{ID: "c-1", Type: "commit", SHA: "abc"},
+		&CommitRecord{ID: "c-2", Type: "commit", SHA: "def"},
+	}))
+
+	require.ErrorContains(t, checkRecordIdentity([]any{
+		&CommitRecord{ID: "c-1", Type: "commit", SHA: "abc"},
+		&CommitRecord{ID: "c-2", Type: "commit", SHA: "abc"},
+	}), "abc")
+}
+
 // Finish validates against the schema. A report we would reject on the way in must be one we
 // cannot produce on the way out.
 func TestBuilder_FinishValidatesAgainstTheSchema(t *testing.T) {

@@ -617,6 +617,17 @@ func cliPostWithEnv[T any](c *Client, route string, env CliEnv, payload any) (*C
 	return decodeCliResponse[T](raw)
 }
 
+// cliPostWithEnvGzip is cliPostWithEnv with the body compressed — for the routes whose payload is
+// large enough that sending it uncompressed is not an option.
+func cliPostWithEnvGzip[T any](c *Client, route string, env CliEnv, payload any) (*CliResponse[T], error) {
+	body := cliRequestEnvelope{Env: env, Payload: payload}
+	raw, err := c.DoRequestGzip("POST", "/"+route, body)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", route, err)
+	}
+	return decodeCliResponse[T](raw)
+}
+
 func cliPostWithEnvContext[T any](ctx context.Context, c *Client, route string, env CliEnv, payload any) (*CliResponse[T], error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -1030,10 +1041,11 @@ var _ = cliPost[any]
 // The route is cli.insights and not cli.analyze because /v2/cli.analyze already
 // belongs to ELF binary analysis (CliBinaryAnalyze, above).
 //
-// The graph, metrics and evidence records are decomposed server-side from
-// ReportJSON — the verbatim report, which is also what gets stored to S3. Sending
-// the report whole rather than re-serialising its parts means the thing we validated
-// is the thing that gets persisted, with no opportunity for the two to disagree.
+// The graph, the metrics and the evidence records are all sent explicitly, as rows. The server
+// persists from those fields and from nothing else — it does not, and never did, decompose
+// ReportJSON, which it stores to S3 untouched. This file used to claim otherwise, and because it
+// claimed otherwise the request type had nowhere to put a graph: every `analyze` upload
+// "succeeded" and stored an empty run for months.
 
 type CliInsightsTool struct {
 	Name           string `json:"name,omitempty"`
@@ -1061,7 +1073,9 @@ type CliInsightsRunMeta struct {
 }
 
 type CliInsightsRequest struct {
-	// Set on chunks 1..N to append to a run created by chunk 0.
+	// Set on chunks 1..N to append to a run created by chunk 0. Unused: a gzipped submission
+	// fits one request, and one request is one transaction — a failure then stores nothing,
+	// rather than leaving a half-run that reads as a whole one.
 	InsightsRunUuid string `json:"insightsRunUuid,omitempty"`
 
 	SchemaVersion string              `json:"schemaVersion,omitempty"`
@@ -1069,9 +1083,133 @@ type CliInsightsRequest struct {
 	Target        *CliInsightsTarget  `json:"target,omitempty"`
 	Run           *CliInsightsRunMeta `json:"run,omitempty"`
 
+	Graph    *CliInsightsGraph      `json:"graph,omitempty"`
+	Metrics  []CliInsightsMetric    `json:"metrics,omitempty"`
+	Evidence *CliInsightsEvidenceIn `json:"evidence,omitempty"`
+
 	// The verbatim report, schema-valid, including its SARIF / OpenVEX / CycloneDX
-	// attachments. The server decomposes it into rows and stores this untouched.
-	ReportJSON string `json:"reportJson,omitempty"`
+	// attachments. Stored to S3 untouched; it is not the source of any row.
+	ReportJSON  string            `json:"reportJson,omitempty"`
+	Diagnostics []CliInsightsDiag `json:"diagnostics,omitempty"`
+}
+
+type CliInsightsDiag struct {
+	Level     string `json:"level,omitempty"`
+	Collector string `json:"collector,omitempty"`
+	MetricID  string `json:"metricId,omitempty"`
+	Message   string `json:"message,omitempty"`
+	Caveat    bool   `json:"caveat,omitempty"`
+}
+
+type CliInsightsGraph struct {
+	Nodes          []CliInsightsNode          `json:"nodes,omitempty"`
+	Edges          []CliInsightsEdge          `json:"edges,omitempty"`
+	CrossRepoEdges []CliInsightsCrossRepoEdge `json:"crossRepoEdges,omitempty"`
+}
+
+type CliInsightsNode struct {
+	ID            string          `json:"id"`
+	Kind          string          `json:"kind"`
+	Name          string          `json:"name"`
+	QualifiedName string          `json:"qualifiedName,omitempty"`
+	Path          string          `json:"path,omitempty"`
+	StartLine     int             `json:"startLine,omitempty"`
+	EndLine       int             `json:"endLine,omitempty"`
+	Language      string          `json:"language,omitempty"`
+	Purl          string          `json:"purl,omitempty"`
+	Exported      bool            `json:"exported,omitempty"`
+	Properties    json.RawMessage `json:"properties,omitempty"`
+}
+
+type CliInsightsEdge struct {
+	ID         string          `json:"id"`
+	Kind       string          `json:"kind"`
+	From       string          `json:"from"`
+	To         string          `json:"to"`
+	Confidence *float64        `json:"confidence,omitempty"`
+	Resolution string          `json:"resolution,omitempty"`
+	Properties json.RawMessage `json:"properties,omitempty"`
+}
+
+// CliInsightsCrossRepoEdge is half an edge: the join key this repository publishes, and whether it
+// provides or consumes it. The other half lives in another repository's scan, and the server forms
+// the edge where the two meet. No scan ever reads a second repository.
+type CliInsightsCrossRepoEdge struct {
+	ID             string          `json:"id"`
+	LocalNodeID    string          `json:"localNodeId"`
+	JoinKind       string          `json:"joinKind"`
+	JoinKey        string          `json:"joinKey"`
+	Role           string          `json:"role"`
+	TargetRepoHint string          `json:"targetRepoHint,omitempty"`
+	Confidence     *float64        `json:"confidence,omitempty"`
+	Properties     json.RawMessage `json:"properties,omitempty"`
+}
+
+// CliInsightsMetric carries its own evidence. The server re-checks, before it writes anything,
+// that the evidence accounts for the value — so the refs cannot be sent apart from the metric,
+// and there is no state in which a stored metric cites evidence that is not there.
+//
+// EvidenceSemantics and EvidenceCompleteness go over the wire lower-case, as the report writes
+// them. The server compares them lower-case and upper-cases only on the way into the enum column.
+type CliInsightsMetric struct {
+	ID         string `json:"id"`
+	Family     string `json:"family"`
+	Name       string `json:"name"`
+	Definition string `json:"definition"`
+	Unit       string `json:"unit,omitempty"`
+	Statistic  string `json:"statistic,omitempty"`
+
+	// nil means "not measured". Never 0 — that would claim we looked.
+	Value any `json:"value"`
+
+	Window         *CliInsightsMetricWindow `json:"window,omitempty"`
+	Classification *CliInsightsClassif      `json:"classification,omitempty"`
+
+	EvidenceSemantics    string `json:"evidenceSemantics"`
+	EvidenceCompleteness string `json:"evidenceCompleteness"`
+	PopulationSize       *int   `json:"populationSize,omitempty"`
+	OmittedCount         int    `json:"omittedCount,omitempty"`
+	TruncationReason     string `json:"truncationReason,omitempty"`
+
+	EvidenceRefs []CliInsightsEvidenceRef `json:"evidenceRefs"`
+}
+
+type CliInsightsMetricWindow struct {
+	Since int64  `json:"since,omitempty"`
+	Until int64  `json:"until,omitempty"`
+	Label string `json:"label,omitempty"`
+}
+
+type CliInsightsClassif struct {
+	Label      string `json:"label,omitempty"`
+	Thresholds string `json:"thresholds,omitempty"`
+}
+
+// CliInsightsEvidenceRef points at one piece of evidence: a SARIF result, a VEX statement, a BOM
+// component, a Scorecard check, or a record in the store below.
+type CliInsightsEvidenceRef struct {
+	Kind string `json:"kind"`
+
+	RunIndex    *int `json:"runIndex,omitempty"`
+	ResultIndex *int `json:"resultIndex,omitempty"`
+
+	StatementIndex *int `json:"statementIndex,omitempty"`
+
+	BomRef string `json:"bomRef,omitempty"`
+	SpdxID string `json:"spdxId,omitempty"`
+
+	Check       string `json:"check,omitempty"`
+	DetailIndex *int   `json:"detailIndex,omitempty"`
+
+	RecordID string `json:"recordId,omitempty"`
+}
+
+// CliInsightsEvidenceIn is the record store — the evidence that has no open format: commits,
+// contributors, issues, pull requests, reviews, branches, files, dependencies, graph elements.
+// Records are keyed by `id`, which is what a metric's `record` ref points at, and every ref must
+// resolve to a record in this store or the server refuses the whole submission.
+type CliInsightsEvidenceIn struct {
+	Records []json.RawMessage `json:"records,omitempty"`
 }
 
 // CliInsightsSnapshot is the persisted run, plus what actually landed. The counts are
@@ -1090,10 +1228,16 @@ type CliInsightsSnapshot struct {
 
 type CliInsightsResponse struct {
 	Insights *CliInsightsSnapshot `json:"insights,omitempty"`
+
+	// Skipped names a reason nothing was stored that is not a failure — "community". Absent
+	// Insights with no Skipped is a failure, whatever the status code says.
+	Skipped string `json:"skipped,omitempty"`
 }
 
+// CliInsights submits one analyze run. The body is gzipped: a report is the whole shape of a
+// repository and does not fit an uncompressed envelope.
 func (c *Client) CliInsights(env CliEnv, req CliInsightsRequest) (*CliResponse[CliInsightsResponse], error) {
-	return cliPostWithEnv[CliInsightsResponse](c, "cli.insights", env, req)
+	return cliPostWithEnvGzip[CliInsightsResponse](c, "cli.insights", env, req)
 }
 
 // ─── /v2/cli.package-insights ────────────────────────────────────────────────

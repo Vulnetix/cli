@@ -447,6 +447,14 @@ type Builder struct {
 	report  Report
 	records []any
 	seen    map[string]bool
+
+	// fileByPath indexes each file record by its path.
+	//
+	// A path is a file record's identity, not merely one of its fields. Two records for one path
+	// are not two pieces of evidence; they are one piece of evidence counted twice, and two
+	// metrics citing "the same file" through different record ids would each be pointing at half
+	// of what is known about it. The store they land in agrees, and is unique on (run, path).
+	fileByPath map[string]int
 }
 
 func NewBuilder(tool Tool, target Target, startedAt time.Time) *Builder {
@@ -458,8 +466,42 @@ func NewBuilder(tool Tool, target Target, startedAt time.Time) *Builder {
 			Run:           RunMeta{StartedAt: startedAt.UTC().Format(time.RFC3339)},
 			Metrics:       []Metric{},
 		},
-		seen: map[string]bool{},
+		seen:       map[string]bool{},
+		fileByPath: map[string]int{},
 	}
+}
+
+// AddFile stores a file record — or folds it into the record already held for that path — and
+// returns a ref to whichever it is. Collectors use this rather than AddRecord for files: the file
+// walker and the policy checks both have something to say about `LICENSE`, and they have to end up
+// saying it about the same record.
+func (b *Builder) AddFile(rec *FileRecord) EvidenceRef {
+	if i, ok := b.fileByPath[rec.Path]; ok {
+		held, _ := b.records[i].(*FileRecord)
+		held.Tags = mergeTags(held.Tags, rec.Tags)
+
+		return EvidenceRef{Kind: "record", RecordID: held.ID}
+	}
+
+	ref := b.AddRecord(rec.ID, rec)
+	b.fileByPath[rec.Path] = len(b.records) - 1
+
+	return ref
+}
+
+func mergeTags(into, from []string) []string {
+	has := make(map[string]bool, len(into))
+	for _, t := range into {
+		has[t] = true
+	}
+	for _, t := range from {
+		if !has[t] {
+			has[t] = true
+			into = append(into, t)
+		}
+	}
+
+	return into
 }
 
 // AddRecord stores an evidence record and returns a ref to it. The record's id must be
@@ -598,6 +640,10 @@ func (b *Builder) Finish(completedAt time.Time) (*Report, []byte, error) {
 		b.report.Evidence = &Evidence{Records: b.records}
 	}
 
+	if err := checkRecordIdentity(b.records); err != nil {
+		return nil, nil, err
+	}
+
 	body, err := json.MarshalIndent(b.report, "", "  ")
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal report: %w", err)
@@ -607,6 +653,39 @@ func (b *Builder) Finish(completedAt time.Time) (*Report, []byte, error) {
 	}
 
 	return &b.report, body, nil
+}
+
+// checkRecordIdentity refuses to emit a report whose records collide on an identity the store
+// treats as unique — a file's path, a commit's sha.
+//
+// The evidence store rejects the whole submission for one such collision, so a report that
+// contains one is a report that stores nothing: not the colliding record, not the other 8,000.
+// A collector that mints a second record for a path another collector already described is
+// making a modelling error, and it is one we can catch here rather than in a rolled-back
+// transaction with the error swallowed on the far side of the network.
+func checkRecordIdentity(records []any) error {
+	paths := map[string]string{}
+	shas := map[string]string{}
+
+	for _, r := range records {
+		switch rec := r.(type) {
+		case *FileRecord:
+			if first, dup := paths[rec.Path]; dup {
+				return fmt.Errorf(
+					"two file records describe %s (records %q and %q): a path identifies a file record, "+
+						"so a collector that has more to say about a file must add to the existing record "+
+						"(Builder.AddFile) rather than mint a second one", rec.Path, first, rec.ID)
+			}
+			paths[rec.Path] = rec.ID
+		case *CommitRecord:
+			if first, dup := shas[rec.SHA]; dup {
+				return fmt.Errorf("two commit records describe %s (records %q and %q)", rec.SHA, first, rec.ID)
+			}
+			shas[rec.SHA] = rec.ID
+		}
+	}
+
+	return nil
 }
 
 func orDefault(s, d string) string {
