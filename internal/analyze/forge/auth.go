@@ -141,14 +141,21 @@ type CheckResult struct {
 }
 
 func (c CheckResult) String() string {
+	login := c.Login
+	if login == "" {
+		login = "repository-scoped token"
+	}
+
 	return fmt.Sprintf("GitHub authentication: ok (%s via %s, %s/%s requests remaining)",
-		c.Login, c.Source, comma(c.RateLimitRemaining), comma(c.RateLimitLimit))
+		login, c.Source, comma(c.RateLimitRemaining), comma(c.RateLimitLimit))
 }
 
 // Check verifies the credentials actually work, before any scanning begins.
 //
-// Two API calls, not one. The first proves the token is valid; the second proves it can see
-// *this repository*, which is a different question and the one that actually matters.
+// Two checks, not one. For user tokens, /user proves the token is valid; for GitHub Actions'
+// repository-scoped GITHUB_TOKEN, /user is deliberately forbidden, so repository access is the
+// validity check. In both cases the important proof is that the token can see *this
+// repository*, because that is where pull requests, reviews and issues are read from.
 //
 // A fine-grained PAT is valid for the user and still cannot read a private repo it was not
 // granted — and GitHub answers that with **404, not 403**, because telling you a private repo
@@ -165,7 +172,27 @@ func Check(ctx context.Context, creds *Credentials, host string, repo Repo) (*Ch
 
 	user, _, err := client.gh.Users.Get(ctx, "")
 	if err != nil {
-		return nil, fmt.Errorf("GitHub rejected the token from %s: %w", creds.Source, err)
+		if repo.Owner == "" || repo.Name == "" {
+			return nil, fmt.Errorf("GitHub rejected the token from %s: %w", creds.Source, err)
+		}
+
+		if _, resp, rerr := client.gh.Repositories.Get(ctx, repo.Owner, repo.Name); rerr != nil {
+			return nil, repoAccessError(creds, "repository-scoped token", repo, resp, rerr)
+		}
+
+		limits, _, lerr := client.gh.RateLimit.Get(ctx)
+		if lerr != nil {
+			return &CheckResult{Source: creds.Source}, nil
+		}
+
+		core := limits.GetCore()
+
+		return &CheckResult{
+			Source:             creds.Source,
+			RateLimitRemaining: core.Remaining,
+			RateLimitLimit:     core.Limit,
+			RateLimitResetsAt:  core.Reset.Time,
+		}, nil
 	}
 
 	if repo.Owner != "" && repo.Name != "" {
