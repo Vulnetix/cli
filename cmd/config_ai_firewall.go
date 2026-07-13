@@ -10,11 +10,12 @@ import (
 )
 
 // AI Firewall (guardrails.vulnetix.com) configuration commands. The gateway
-// proxies OpenAI-compatible chat completions per provider path prefix
-// (https://guardrails.vulnetix.com/{providerSlug}/v1/chat/completions) with
-// the caller's own provider API key; these commands manage the org policy it
-// enforces: provider allow/deny, model allow/deny lists, and content
-// guardrails. Completely separate from the Package Firewall feature.
+// proxies OpenAI-compatible chat completions with provider and org as URL
+// components (https://guardrails.vulnetix.com/{providerSlug}/{orgUuid}/v1)
+// and the caller's own provider API key — base_url + api_key only, no custom
+// headers. These commands manage the org policy it enforces: provider
+// allow/deny, model allow/deny lists, and content guardrails. Completely
+// separate from the Package Firewall feature.
 
 func newConfigGetAiFirewallCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -58,9 +59,10 @@ func newConfigSetAiFirewallCommand() *cobra.Command {
 		Use:   "ai-firewall",
 		Short: "Configure AI Firewall providers, model lists, and guardrails",
 		Long: `Configure the org-wide Vulnetix AI Firewall (https://guardrails.vulnetix.com)
-policy. Point OpenAI SDKs at https://guardrails.vulnetix.com/{providerSlug}
-with your own provider API key as the bearer token and your org UUID in the
-X-Organisation-UUID header; the gateway enforces this policy inline.`,
+policy. Point OpenAI SDKs at
+https://guardrails.vulnetix.com/{providerSlug}/{orgUuid}/v1 as the base URL
+with your own provider API key — no custom headers needed; the gateway
+enforces this policy inline.`,
 	}
 	cmd.AddCommand(newConfigSetAiFirewallProviderCommand())
 	cmd.AddCommand(newConfigSetAiFirewallModelCommand())
