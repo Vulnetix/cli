@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(gh run *)",
-      "Bash(git rev-list *)"
+      "Bash(git rev-list *)",
+      "Bash(rmdir /home/chris/GitHub/Vulnetix/cmd)",
+      "Read(//home/chris/GitHub/Vulnetix/**)"
     ],
     "deny": [],
     "ask": [],
