@@ -512,6 +512,29 @@ type CliPackageFirewallMirrorRequest struct {
 	IsActive  *bool  `json:"isActive,omitempty"`
 }
 
+type CliAiFirewallProviderRequest struct {
+	Slug   string `json:"slug"`
+	Action string `json:"action"` // "allow" | "deny" | "clear"
+}
+
+type CliAiFirewallModelRequest struct {
+	Slug        string `json:"slug"`
+	Provider    string `json:"provider,omitempty"` // provider slug; empty with AnyProvider targets all providers
+	AnyProvider bool   `json:"anyProvider,omitempty"`
+	Action      string `json:"action"` // "allow" | "deny" | "remove"
+}
+
+type CliAiFirewallGuardrailRequest struct {
+	UUID     string  `json:"uuid,omitempty"` // empty = create
+	Name     *string `json:"name,omitempty"`
+	RuleType *string `json:"ruleType,omitempty"` // "blocked_pattern" | "max_messages" | "pii_redact"
+	Action   *string `json:"action,omitempty"`   // "block" | "redact" | "flag"
+	Pattern  *string `json:"pattern,omitempty"`
+	Priority *int    `json:"priority,omitempty"`
+	Enabled  *bool   `json:"enabled,omitempty"`
+	Delete   bool    `json:"delete,omitempty"`
+}
+
 type CliQualityGateConfigRequest struct {
 	EolNextQuarterSeverity  *string `json:"eolNextQuarterSeverity,omitempty"`
 	EolThisQuarterSeverity  *string `json:"eolThisQuarterSeverity,omitempty"`
@@ -844,6 +867,35 @@ func (c *Client) CliQualityGateConfig(env CliEnv, req CliQualityGateConfigReques
 // authenticated request, so the payload is empty.
 func (c *Client) CliQualityGateGet(env CliEnv) (*CliResponse[map[string]any], error) {
 	return cliPostWithEnv[map[string]any](c, "cli.quality-gate-get", env, struct{}{})
+}
+
+// CliAiFirewallGet — POST /v2/cli.ai-firewall-get. Read-only aggregate of the
+// AI Firewall (guardrails.vulnetix.com) policy: the provider catalog with the
+// org's allow/deny association, the org's model allow/deny entries, and the
+// org's content guardrails. Org is resolved from the authenticated request,
+// so the payload is empty.
+func (c *Client) CliAiFirewallGet(env CliEnv) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.ai-firewall-get", env, struct{}{})
+}
+
+// CliAiFirewallProvider — POST /v2/cli.ai-firewall-provider. Sets ("allow" |
+// "deny") or clears ("clear") the org's association for a provider slug.
+func (c *Client) CliAiFirewallProvider(env CliEnv, req CliAiFirewallProviderRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.ai-firewall-provider", env, req)
+}
+
+// CliAiFirewallModel — POST /v2/cli.ai-firewall-model. Adds ("allow" |
+// "deny") or removes ("remove") model policy entries; AnyProvider expands
+// server-side to every provider whose catalog lists the model slug.
+func (c *Client) CliAiFirewallModel(env CliEnv, req CliAiFirewallModelRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.ai-firewall-model", env, req)
+}
+
+// CliAiFirewallGuardrail — POST /v2/cli.ai-firewall-guardrail. Creates (empty
+// UUID), partially updates (pointer fields), or deletes (Delete=true) a
+// content guardrail.
+func (c *Client) CliAiFirewallGuardrail(env CliEnv, req CliAiFirewallGuardrailRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.ai-firewall-guardrail", env, req)
 }
 
 // SARIF-shaped scan endpoints. Each returns the same persistence response
