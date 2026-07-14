@@ -1,0 +1,17 @@
+import { createOpenAI } from '@ai-sdk/openai'
+import { generateText } from 'ai'
+
+// The Vercel AI SDK does NOT read OPENAI_BASE_URL — the environment variables
+// written by `vulnetix ai-firewall install` have no effect here. Without this
+// createOpenAI({ baseURL }) the SDK would call the provider directly and the
+// firewall would never see the request.
+const vulnetix = createOpenAI({
+  baseURL: '{{.GatewayURL}}',
+  apiKey: process.env.{{.KeyEnv}}!,
+})
+
+const { text } = await generateText({
+  model: vulnetix('{{.Model}}'),
+  prompt: 'Hello',
+})
+console.log(text)

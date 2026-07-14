@@ -1,5 +1,312 @@
 {
   "commands": {
+    "ai-firewall": {
+      "short": "Wire AI clients to the Vulnetix AI Firewall and manage its policy",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "apply",
+        "baseline",
+        "export",
+        "get",
+        "install",
+        "key",
+        "policy",
+        "settings",
+        "snippet",
+        "status",
+        "uninstall"
+      ]
+    },
+    "ai-firewall apply": {
+      "short": "Reconcile the org's policy from .vulnetix/ai-firewall.yaml",
+      "flags": [
+        "base-url",
+        "baseline-required",
+        "catalog",
+        "disable-memory",
+        "dry-run",
+        "file",
+        "force",
+        "no-analytics",
+        "no-banner",
+        "no-baseline",
+        "no-progress",
+        "org-id",
+        "output",
+        "prune",
+        "ref",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall baseline": {
+      "short": "Show the guardrails the server recommends",
+      "flags": [
+        "base-url",
+        "catalog",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "ref",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall export": {
+      "short": "Write the org's current policy to a policy file",
+      "flags": [
+        "base-url",
+        "disable-memory",
+        "file",
+        "force",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "stdout",
+        "verbose"
+      ]
+    },
+    "ai-firewall get": {
+      "short": "Show the org's providers, model lists, and guardrails",
+      "flags": [
+        "base-url",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall install": {
+      "short": "Wire the AI clients on this machine to the gateway",
+      "flags": [
+        "base-url",
+        "create-env",
+        "disable-memory",
+        "dry-run",
+        "embed-key",
+        "gateway-url",
+        "model",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "provider",
+        "scope",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall key": {
+      "short": "Store this org's provider API keys (BYOK)",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "remove",
+        "set"
+      ]
+    },
+    "ai-firewall key remove": {
+      "short": "Remove this org's stored key for a provider",
+      "flags": [
+        "base-url",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall key set": {
+      "short": "Store or replace the provider API key for this org",
+      "flags": [
+        "base-url",
+        "disable-memory",
+        "from-env",
+        "key",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "stdin",
+        "verbose"
+      ]
+    },
+    "ai-firewall policy": {
+      "short": "Provider, model, and guardrail rules the gateway enforces",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "guardrail",
+        "model",
+        "provider"
+      ]
+    },
+    "ai-firewall policy guardrail": {
+      "short": "Create, update, or delete a content guardrail",
+      "flags": [
+        "action",
+        "base-url",
+        "delete",
+        "disable",
+        "disable-memory",
+        "enable",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "pattern",
+        "priority",
+        "rule-type",
+        "silent",
+        "uuid",
+        "verbose"
+      ]
+    },
+    "ai-firewall policy model": {
+      "short": "Add or remove a model allow/deny entry",
+      "flags": [
+        "allow",
+        "any-provider",
+        "base-url",
+        "deny",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "provider",
+        "remove",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall policy provider": {
+      "short": "Allow, deny, or clear a provider for this org",
+      "flags": [
+        "allow",
+        "base-url",
+        "clear",
+        "deny",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall settings": {
+      "short": "Org-wide AI Firewall settings",
+      "flags": [
+        "base-url",
+        "disable-memory",
+        "logs",
+        "no-analytics",
+        "no-banner",
+        "no-logs",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall snippet": {
+      "short": "Print ready-to-run code wired to the gateway",
+      "flags": [
+        "base-url",
+        "disable-memory",
+        "force",
+        "gateway-url",
+        "lang",
+        "model",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "output-file",
+        "provider",
+        "sdk",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall status": {
+      "short": "Show what is wired to the gateway, and where it conflicts with policy",
+      "flags": [
+        "base-url",
+        "disable-memory",
+        "gateway-url",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "strict",
+        "verbose"
+      ]
+    },
+    "ai-firewall uninstall": {
+      "short": "Remove the AI Firewall configuration from local clients",
+      "flags": [
+        "all",
+        "disable-memory",
+        "dry-run",
+        "except",
+        "gateway-url",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose"
+      ]
+    },
     "aibom": {
       "short": "Discover AI coding agents and AI usage, and emit a CycloneDX AIBOM",
       "flags": [
@@ -32,6 +339,7 @@
       "flags": [
         "complexity-threshold",
         "disable-memory",
+        "fail-on-upload-error",
         "max-commits",
         "no-analytics",
         "no-banner",
@@ -188,9 +496,24 @@
         "verbose"
       ],
       "subcommands": [
+        "ai-firewall",
         "eol-policy",
         "package-firewall",
         "quality-gate"
+      ]
+    },
+    "config get ai-firewall": {
+      "short": "Show AI Firewall providers, model lists, and guardrails",
+      "flags": [
+        "base-url",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose"
       ]
     },
     "config get eol-policy": {
@@ -247,9 +570,85 @@
         "verbose"
       ],
       "subcommands": [
+        "ai-firewall",
         "eol-policy",
         "package-firewall",
         "quality-gate"
+      ]
+    },
+    "config set ai-firewall": {
+      "short": "Configure AI Firewall providers, model lists, and guardrails",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "guardrail",
+        "model",
+        "provider"
+      ]
+    },
+    "config set ai-firewall guardrail": {
+      "short": "Create, update, or delete a content guardrail",
+      "flags": [
+        "action",
+        "base-url",
+        "delete",
+        "disable",
+        "disable-memory",
+        "enable",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "pattern",
+        "priority",
+        "rule-type",
+        "silent",
+        "uuid",
+        "verbose"
+      ]
+    },
+    "config set ai-firewall model": {
+      "short": "Add or remove a model allow/deny entry",
+      "flags": [
+        "allow",
+        "any-provider",
+        "base-url",
+        "deny",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "provider",
+        "remove",
+        "silent",
+        "verbose"
+      ]
+    },
+    "config set ai-firewall provider": {
+      "short": "Allow, deny, or clear a provider for this org",
+      "flags": [
+        "allow",
+        "base-url",
+        "clear",
+        "deny",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose"
       ]
     },
     "config set eol-policy": {
@@ -4848,6 +5247,7 @@
         "version"
       ],
       "subcommands": [
+        "ai-firewall",
         "aibom",
         "analyze",
         "auth",

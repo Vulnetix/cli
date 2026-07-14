@@ -1,0 +1,13 @@
+import os
+
+from llama_index.llms.openai import OpenAI
+
+# LlamaIndex reads OPENAI_API_BASE, which the shell install sets. Passing
+# api_base explicitly keeps the gateway in the code path regardless.
+llm = OpenAI(
+    api_base="{{.GatewayURL}}",
+    api_key=os.environ["{{.KeyEnv}}"],
+    model="{{.Model}}",
+)
+
+print(llm.complete("Hello"))
