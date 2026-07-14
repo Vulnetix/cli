@@ -13,7 +13,7 @@ env:
 
 jobs:
   auto-version:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
       - name: Checkout code
         uses: actions/checkout@v5

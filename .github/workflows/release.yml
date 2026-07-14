@@ -27,7 +27,7 @@ env:
 
 jobs:
   version:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 5
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
@@ -46,7 +46,7 @@ jobs:
   build-cross:
     # Linux + Windows targets are cross-compiled from ubuntu using zig cc.
     needs: version
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
@@ -145,7 +145,7 @@ jobs:
 
   release:
     needs: [version, build-cross, build-darwin]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     outputs:
       version: ${{ needs.version.outputs.version }}
@@ -189,7 +189,7 @@ jobs:
 
   test-go-install:
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     steps:
       # This job deliberately does not check out the repo — it proves the
@@ -219,7 +219,7 @@ jobs:
 
   update-packages:
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     steps:
       - name: Checkout cli repo
