@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/managedfile"
 	"github.com/vulnetix/cli/v3/pkg/auth"
 	pfw "github.com/vulnetix/cli/v3/pkg/packagefirewall"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
@@ -23,6 +23,25 @@ const (
 	vulnetixBlockStart          = "# Vulnetix Package Firewall"
 	vulnetixBlockEnd            = "# End Vulnetix Package Firewall"
 )
+
+// pfwMarkers fence the Package Firewall's managed block. The AI Firewall uses
+// its own markers, so the two can coexist in one shell rc and each uninstall
+// only strips its own block.
+var pfwMarkers = managedfile.Markers{Start: vulnetixBlockStart, End: vulnetixBlockEnd}
+
+// pfwEnvKeys are the environment variables the Go setup owns in project env files.
+var pfwEnvKeys = []string{"GOPROXY", "GOAUTH"}
+
+// managedFile adapts a pfw.ConfigFile to the shared writer.
+func managedFile(file pfw.ConfigFile) managedfile.File {
+	return managedfile.File{
+		Path:       file.Path,
+		Content:    file.Content,
+		Structured: file.Structured,
+		Merge:      file.Merge,
+		Strip:      stripMergeKeys,
+	}
+}
 
 var (
 	packageFirewallBaseURL  string
@@ -401,11 +420,11 @@ func persistGoShellEnv(proxyURL string, dryRun bool) ([]packageFirewallAction, e
 				{Target: "Windows user environment GOAUTH", Result: "would set netrc"},
 			}, nil
 		}
-		if err := exec.Command("setx", "GOPROXY", proxyURL).Run(); err != nil {
-			return nil, fmt.Errorf("failed to persist GOPROXY with setx: %w", err)
-		}
-		if err := exec.Command("setx", "GOAUTH", "netrc").Run(); err != nil {
-			return nil, fmt.Errorf("failed to persist GOAUTH with setx: %w", err)
+		if err := managedfile.PersistUserEnv([]managedfile.KV{
+			{Key: "GOPROXY", Value: proxyURL},
+			{Key: "GOAUTH", Value: "netrc"},
+		}); err != nil {
+			return nil, fmt.Errorf("failed to persist Go proxy environment with setx: %w", err)
 		}
 		return []packageFirewallAction{
 			{Target: "Windows user environment GOPROXY", Result: "set " + proxyURL},
@@ -426,53 +445,14 @@ func persistGoShellEnv(proxyURL string, dryRun bool) ([]packageFirewallAction, e
 }
 
 func shellConfigPath() (path, kind string, err error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", "", err
-	}
-	switch filepath.Base(os.Getenv("SHELL")) {
-	case "fish":
-		return filepath.Join(home, ".config", "fish", "config.fish"), "fish", nil
-	case "zsh":
-		return filepath.Join(home, ".zshrc"), "sh", nil
-	case "tcsh":
-		return filepath.Join(home, ".tcshrc"), "csh", nil
-	case "csh":
-		return filepath.Join(home, ".cshrc"), "csh", nil
-	case "bash":
-		return filepath.Join(home, ".bashrc"), "sh", nil
-	default:
-		return filepath.Join(home, ".profile"), "sh", nil
-	}
+	return managedfile.ShellConfigPath()
 }
 
 func shellEnvBlock(kind, proxyURL string) string {
-	switch kind {
-	case "fish":
-		return strings.Join([]string{
-			vulnetixBlockStart,
-			"set -gx GOPROXY " + proxyURL,
-			"set -gx GOAUTH netrc",
-			vulnetixBlockEnd,
-			"",
-		}, "\n")
-	case "csh":
-		return strings.Join([]string{
-			vulnetixBlockStart,
-			"setenv GOPROXY " + proxyURL,
-			"setenv GOAUTH netrc",
-			vulnetixBlockEnd,
-			"",
-		}, "\n")
-	default:
-		return strings.Join([]string{
-			vulnetixBlockStart,
-			"export GOPROXY=\"" + proxyURL + "\"",
-			"export GOAUTH=\"netrc\"",
-			vulnetixBlockEnd,
-			"",
-		}, "\n")
-	}
+	return managedfile.EnvBlock(kind, pfwMarkers, []managedfile.KV{
+		{Key: "GOPROXY", Value: proxyURL},
+		{Key: "GOAUTH", Value: "netrc"},
+	})
 }
 
 func persistGoProjectEnv(proxyURL string, dryRun bool) ([]packageFirewallAction, error) {
@@ -504,147 +484,49 @@ func persistGoProjectEnv(proxyURL string, dryRun bool) ([]packageFirewallAction,
 }
 
 func gitRoot() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
+	return managedfile.GitRoot()
 }
 
 func upsertBlockFile(path, block string, dryRun bool) (string, error) {
-	var existing string
-	if data, err := os.ReadFile(path); err == nil {
-		existing = string(data)
-	} else if !os.IsNotExist(err) {
+	changed, err := managedfile.UpsertBlockFile(path, block, pfwMarkers, dryRun)
+	if err != nil {
 		return "", err
 	}
-	next := upsertManagedBlock(existing, block)
-	if dryRun {
-		if existing == next {
-			return "already configured", nil
-		}
-		return "would update persistent shell config", nil
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(path, []byte(next), 0600); err != nil {
-		return "", err
-	}
-	if existing == next {
+	switch {
+	case !changed:
 		return "already configured", nil
+	case dryRun:
+		return "would update persistent shell config", nil
+	default:
+		return "updated persistent shell config", nil
 	}
-	return "updated persistent shell config", nil
 }
 
 func upsertPackageFirewallConfigFile(file pfw.ConfigFile, dryRun bool) (string, error) {
-	var existing string
-	existed := false
-	if data, err := os.ReadFile(file.Path); err == nil {
-		existing = string(data)
-		existed = true
-	} else if !os.IsNotExist(err) {
+	out, err := managedfile.UpsertFile(managedFile(file), pfwMarkers, dryRun)
+	if err != nil {
 		return "", err
 	}
-
-	var next string
 	switch {
-	case file.Merge != nil:
-		merged, err := file.Merge(existing)
-		if err != nil {
-			return "", err
-		}
-		next = merged
-	case file.Structured:
-		next = file.Content
-	default:
-		block := strings.Join([]string{
-			vulnetixBlockStart,
-			strings.TrimRight(file.Content, "\n"),
-			vulnetixBlockEnd,
-			"",
-		}, "\n")
-		next = upsertManagedBlock(existing, block)
-	}
-
-	if dryRun {
-		if existing == next {
-			return "already configured", nil
-		}
-		return "would update package manager config", nil
-	}
-	if existing == next {
+	case !out.Changed:
 		return "already configured", nil
-	}
-	if err := os.MkdirAll(filepath.Dir(file.Path), 0700); err != nil {
-		return "", err
-	}
-	// Back up a real config we are merging into, so the user can restore it.
-	if file.Merge != nil && existed {
-		if err := os.WriteFile(file.Path+".vulnetix.bak", []byte(existing), 0600); err != nil {
-			return "", fmt.Errorf("failed to back up %s: %w", file.Path, err)
-		}
-	}
-	if err := os.WriteFile(file.Path, []byte(next), 0600); err != nil {
-		return "", err
-	}
-	if file.Merge != nil && existed {
+	case dryRun:
+		return "would update package manager config", nil
+	case out.BackedUp:
 		return "merged firewall settings (backup written)", nil
+	default:
+		return "updated package manager config", nil
 	}
-	return "updated package manager config", nil
 }
 
 func upsertManagedBlock(existing, block string) string {
-	start := strings.Index(existing, vulnetixBlockStart)
-	if start >= 0 {
-		end := strings.Index(existing[start:], vulnetixBlockEnd)
-		if end >= 0 {
-			end += start + len(vulnetixBlockEnd)
-			for end < len(existing) && (existing[end] == '\n' || existing[end] == '\r') {
-				end++
-			}
-			prefix := strings.TrimRight(existing[:start], "\n")
-			suffix := strings.TrimLeft(existing[end:], "\n")
-			if prefix == "" {
-				return block + suffix
-			}
-			return prefix + "\n\n" + block + suffix
-		}
-	}
-	if strings.TrimSpace(existing) == "" {
-		return block
-	}
-	return strings.TrimRight(existing, "\n") + "\n\n" + block
+	return managedfile.Upsert(existing, block, pfwMarkers)
 }
 
 // removeManagedBlock returns existing with the Vulnetix managed block (and its
 // surrounding blank lines) removed. The bool reports whether a block was found.
 func removeManagedBlock(existing string) (string, bool) {
-	start := strings.Index(existing, vulnetixBlockStart)
-	if start < 0 {
-		return existing, false
-	}
-	end := strings.Index(existing[start:], vulnetixBlockEnd)
-	if end < 0 {
-		return existing, false
-	}
-	end += start + len(vulnetixBlockEnd)
-	for end < len(existing) && (existing[end] == '\n' || existing[end] == '\r') {
-		end++
-	}
-	prefix := strings.TrimRight(existing[:start], "\n")
-	suffix := strings.TrimLeft(existing[end:], "\n")
-	switch {
-	case prefix == "" && suffix == "":
-		return "", true
-	case prefix == "":
-		return suffix, true
-	case suffix == "":
-		return prefix + "\n", true
-	default:
-		return prefix + "\n\n" + suffix, true
-	}
+	return managedfile.Remove(existing, pfwMarkers)
 }
 
 func upsertKeyValues(path, body string, dryRun bool) (string, error) {
@@ -670,59 +552,18 @@ func upsertKeyValues(path, body string, dryRun bool) (string, error) {
 }
 
 func upsertGoEnvValues(existing, body string) string {
-	lines := strings.Split(existing, "\n")
-	var kept []string
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if isGoEnvLine(trimmed, "GOPROXY") || isGoEnvLine(trimmed, "GOAUTH") {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	base := strings.TrimRight(strings.Join(kept, "\n"), "\n")
-	if strings.TrimSpace(base) == "" {
-		return body
-	}
-	return base + "\n" + body
+	return managedfile.UpsertEnvValues(existing, body, pfwEnvKeys)
 }
 
 // removeGoEnvValues returns existing with any GOPROXY / GOAUTH assignment lines
 // removed (the reverse of upsertGoEnvValues). The bool reports whether anything
 // was removed. An empty result means the file held only those values.
 func removeGoEnvValues(existing string) (string, bool) {
-	lines := strings.Split(existing, "\n")
-	var kept []string
-	changed := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if isGoEnvLine(trimmed, "GOPROXY") || isGoEnvLine(trimmed, "GOAUTH") {
-			changed = true
-			continue
-		}
-		kept = append(kept, line)
-	}
-	if !changed {
-		return existing, false
-	}
-	out := strings.TrimRight(strings.Join(kept, "\n"), "\n")
-	if out == "" {
-		return "", true
-	}
-	return out + "\n", true
-}
-
-func isGoEnvLine(line, key string) bool {
-	return strings.HasPrefix(line, key+"=") ||
-		strings.HasPrefix(line, "export "+key+"=") ||
-		strings.HasPrefix(line, "setenv "+key+" ") ||
-		strings.HasPrefix(line, "set -gx "+key+" ")
+	return managedfile.RemoveEnvValues(existing, pfwEnvKeys)
 }
 
 func maskSecret(s string) string {
-	if len(s) <= 8 {
-		return "****"
-	}
-	return s[:4] + "..." + s[len(s)-4:]
+	return managedfile.MaskSecret(s)
 }
 
 var (
@@ -919,77 +760,34 @@ func uninstallEcosystem(eco pfw.Ecosystem, home, proxyHost string, dryRun bool) 
 // removePackageFirewallConfigFile reverses a single config file, keyed on the
 // mode configure used to write it.
 func removePackageFirewallConfigFile(file pfw.ConfigFile, proxyHost string, dryRun bool) (string, error) {
-	data, err := os.ReadFile(file.Path)
-	if os.IsNotExist(err) {
-		return "not configured", nil
-	}
+	out, err := managedfile.RemoveFile(managedFile(file), pfwMarkers, proxyHost, dryRun)
 	if err != nil {
 		return "", err
 	}
-	existing := string(data)
-
-	switch {
-	case file.Merge != nil:
-		// Prefer restoring the pre-configure backup; else strip the injected keys.
-		bak := file.Path + ".vulnetix.bak"
-		if bakData, berr := os.ReadFile(bak); berr == nil {
-			if dryRun {
-				return "would restore from backup", nil
-			}
-			if err := os.WriteFile(file.Path, bakData, 0600); err != nil {
-				return "", err
-			}
-			if err := os.Remove(bak); err != nil {
-				return "", err
-			}
-			return "restored from backup", nil
-		}
-		next, changed := stripMergeKeys(file.Path, existing)
-		if !changed {
-			return "not configured", nil
-		}
-		if dryRun {
-			return "would remove firewall keys", nil
-		}
-		if err := os.WriteFile(file.Path, []byte(next), 0600); err != nil {
-			return "", err
-		}
-		return "removed firewall keys", nil
-
-	case file.Structured:
-		// A structured file was written whole; if it still points at the firewall
-		// it is ours to delete. Otherwise leave it alone.
-		if !strings.Contains(existing, proxyHost) {
+	if !out.Configured {
+		// A structured file that exists but no longer points at the firewall was
+		// replaced by the user; say so rather than claiming it was never set up.
+		if out.Mode == managedfile.ModeStructured && out.Existed {
 			return "not firewall-configured, skipped", nil
 		}
-		if dryRun {
-			return "would delete file", nil
-		}
-		if err := os.Remove(file.Path); err != nil {
-			return "", err
-		}
+		return "not configured", nil
+	}
+	switch {
+	case out.Restored && dryRun:
+		return "would restore from backup", nil
+	case out.Restored:
+		return "restored from backup", nil
+	case out.Deleted && dryRun:
+		return "would delete file", nil
+	case out.Deleted:
 		return "deleted file", nil
-
-	default: // managed block
-		next, changed := removeManagedBlock(existing)
-		if !changed {
-			return "not configured", nil
-		}
-		if dryRun {
-			if strings.TrimSpace(next) == "" {
-				return "would delete file", nil
-			}
-			return "would remove managed block", nil
-		}
-		if strings.TrimSpace(next) == "" {
-			if err := os.Remove(file.Path); err != nil {
-				return "", err
-			}
-			return "deleted file", nil
-		}
-		if err := os.WriteFile(file.Path, []byte(next), 0600); err != nil {
-			return "", err
-		}
+	case out.Mode == managedfile.ModeMerge && dryRun:
+		return "would remove firewall keys", nil
+	case out.Mode == managedfile.ModeMerge:
+		return "removed firewall keys", nil
+	case dryRun:
+		return "would remove managed block", nil
+	default:
 		return "removed managed block", nil
 	}
 }
@@ -1054,8 +852,7 @@ func uninstallGo(dryRun bool) ([]packageFirewallAction, error) {
 				{Target: "Windows user environment GOAUTH", Result: "would clear"},
 			}, nil
 		}
-		_ = exec.Command("setx", "GOPROXY", "").Run()
-		_ = exec.Command("setx", "GOAUTH", "").Run()
+		managedfile.ClearUserEnv(pfwEnvKeys)
 		return []packageFirewallAction{
 			{Target: "Windows user environment GOPROXY", Result: "cleared"},
 			{Target: "Windows user environment GOAUTH", Result: "cleared"},
@@ -1082,24 +879,18 @@ func uninstallGo(dryRun bool) ([]packageFirewallAction, error) {
 // removeBlockFile strips the Vulnetix managed block from a shell rc file. Unlike
 // package-manager config files, a shell rc is never deleted even if left empty.
 func removeBlockFile(path string, dryRun bool) (string, error) {
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return "not configured", nil
-	}
+	found, err := managedfile.RemoveBlockFile(path, pfwMarkers, dryRun)
 	if err != nil {
 		return "", err
 	}
-	next, changed := removeManagedBlock(string(data))
-	if !changed {
+	switch {
+	case !found:
 		return "not configured", nil
-	}
-	if dryRun {
+	case dryRun:
 		return "would remove managed block", nil
+	default:
+		return "removed managed block", nil
 	}
-	if err := os.WriteFile(path, []byte(next), 0600); err != nil {
-		return "", err
-	}
-	return "removed managed block", nil
 }
 
 func removeGoProjectEnv(dryRun bool) ([]packageFirewallAction, error) {
