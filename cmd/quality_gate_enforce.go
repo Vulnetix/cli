@@ -15,6 +15,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/pkg/auth"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -33,6 +34,12 @@ type qualityGateOverridePointers struct {
 	exploits               *string
 	severity               *string
 	scaAutofixStrategy     *string
+
+	// eolBuckets is the org's EOL-horizon-to-severity mapping. Unlike the nine
+	// fields above it is NOT nullable enforcement — the columns are NOT NULL and
+	// carry defaults — so it is not an override but a setting, and it is only read
+	// when --block-eol is in effect.
+	eolBuckets *scan.EOLSeverityBuckets
 }
 
 // applyOrgQualityGate fetches the authenticated org's quality-gate policy and
@@ -106,6 +113,26 @@ func applyOrgQualityGate(cmd *cobra.Command, p qualityGateOverridePointers) {
 		*target = orgVal
 		applied++
 		noteOverride(cmd, flag, callerVal, orgVal)
+	}
+
+	// The EOL severity buckets. These four columns have existed, with sensible
+	// defaults, since the quality-gate table was created — and nothing has ever
+	// read them, because until organisations were seeded a config row, this handler
+	// returned {"config": null} for every org on the platform and we never got this
+	// far. They grade an EOL horizon instead of treating every EOL alike.
+	if p.eolBuckets != nil {
+		if v, ok := qgConfigString(config, "eolRetiredSeverity"); ok {
+			p.eolBuckets.Retired = v
+		}
+		if v, ok := qgConfigString(config, "eolWithin30DaysSeverity"); ok {
+			p.eolBuckets.Within30Days = v
+		}
+		if v, ok := qgConfigString(config, "eolThisQuarterSeverity"); ok {
+			p.eolBuckets.ThisQuarter = v
+		}
+		if v, ok := qgConfigString(config, "eolNextQuarterSeverity"); ok {
+			p.eolBuckets.NextQuarter = v
+		}
 	}
 
 	applyBool("block-eol", "blockEol", p.blockEol)
