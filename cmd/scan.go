@@ -64,6 +64,29 @@ type GateBreach struct {
 	Message string // pre-formatted, ready to print
 }
 
+// orgEOLBuckets maps an end-of-life horizon to a severity. It starts at the same
+// defaults the CliQualityGateConfig columns declare, and applyOrgQualityGate
+// overwrites it with the org's own mapping when the scan is authenticated.
+//
+// Package-level for the same reason `verbose` is: the gate that consumes it sits
+// behind a thirty-argument positional signature, and threading a thirty-first
+// through it would obscure the change rather than clarify it.
+var orgEOLBuckets = scan.DefaultEOLSeverityBuckets()
+
+// eolBlockSeverity is the floor at which a graded EOL finding actually FAILS the
+// build, as opposed to merely being reported.
+//
+// It defaults to `critical`, which is the default severity of the `retired`
+// bucket — so by default exactly what failed a build before grading existed fails
+// it now: components already past their end-of-life date. Everything closer to the
+// horizon is reported and does not break anyone's pipeline.
+//
+// This default is deliberately conservative. Grading arrived with the CLI release,
+// not with an org's decision to adopt it, and a release that turns "your runtime
+// dies next quarter" into a red build would break CI for every customer who has
+// ever passed --block-eol.
+var eolBlockSeverity = "critical"
+
 // MultiPolicyBreachError is returned when one or more quality gates are breached.
 type MultiPolicyBreachError struct {
 	Breaches []GateBreach
@@ -401,6 +424,9 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 
 	blockMalware, _ := cmd.Flags().GetBool("block-malware")
 	blockEOL, _ := cmd.Flags().GetBool("block-eol")
+	if v, _ := cmd.Flags().GetString("block-eol-severity"); v != "" {
+		eolBlockSeverity = strings.ToLower(strings.TrimSpace(v))
+	}
 	blockUnpinned, _ := cmd.Flags().GetBool("block-unpinned")
 	exploitThreshold, _ := cmd.Flags().GetString("exploits")
 	resultsOnly, _ := cmd.Flags().GetBool("results-only")
@@ -432,6 +458,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	// / community scans and orgs without a policy leave these values untouched.
 	applyOrgQualityGate(cmd, qualityGateOverridePointers{
 		blockEol:               &blockEOL,
+		eolBuckets:             &orgEOLBuckets,
 		blockMalware:           &blockMalware,
 		blockUnpinned:          &blockUnpinned,
 		cooldown:               &cooldownDays,
@@ -1795,34 +1822,71 @@ func runLocalScan(
 	}
 
 	// Gate 4: EOL — best-effort runtime version pin detection + VDB EOL API.
+	//
+	// GRADED for reporting, but the BLOCKING behaviour is unchanged. Each
+	// end-of-life date is mapped to a synthetic severity by how close it is
+	// (retired / within 30 days / this quarter / next quarter) using the org's own
+	// mapping, so a runtime that died two years ago and one that dies next quarter
+	// stop looking like the same problem. A bucket the org set to "skip" produces
+	// nothing at all.
+	//
+	// Only components AT OR ABOVE the block floor actually fail the build, and the
+	// floor defaults to `critical`, which is the `retired` bucket's default
+	// severity. So out of the box exactly what failed a build yesterday fails it
+	// today, and everything else is reported rather than enforced. Grading a
+	// next-quarter EOL into a red build would turn an upgrade of the CLI into a
+	// fleet-wide CI outage, and a gate that does that gets switched off — which
+	// protects nobody.
+	//
+	// An org opts into stricter blocking with --block-eol-severity (high, medium,
+	// low). Doing it through the org's quality-gate policy needs a column that does
+	// not exist yet; that is a follow-up, not a reason to ship a breaking default.
+	//
+	// This is what the four eol*Severity columns were always for. Nothing read them
+	// until organisations started being seeded a policy row — before that,
+	// cli.quality-gate-get answered {"config": null} for every org alive and the
+	// CLI never got as far as looking.
 	if blockEOL {
 		eolClient := newSearchClient()
 		pins := scan.DetectRuntimeVersionPins(rootPath)
-		var eolViolations []string
+		now := time.Now()
+
+		type eolItem struct {
+			label    string
+			severity string
+			horizon  scan.EOLHorizon
+		}
+		var graded []eolItem
+
+		grade := func(eolFrom, label string) {
+			horizon := scan.EOLHorizonOf(eolFrom, now)
+			severity, ok := orgEOLBuckets.SeverityFor(horizon)
+			if !ok {
+				return
+			}
+			graded = append(graded, eolItem{label: label, severity: severity, horizon: horizon})
+		}
+
 		for _, pin := range pins {
 			resp, err := eolClient.EOLRelease(pin.Product, pin.Release)
 			if err != nil {
 				continue // silently skip: unknown product / network error
 			}
-			if resp.Release.IsEol {
-				eolViolations = append(eolViolations, fmt.Sprintf("%s %s (%s)", pin.Product, pin.RawVersion, pin.SourceFile))
+			eolFrom := ""
+			if resp.Release.EolFrom != nil {
+				eolFrom = *resp.Release.EolFrom
 			}
-		}
-		if len(eolViolations) > 0 {
-			breaches = append(breaches, GateBreach{
-				Gate:  "eol",
-				Count: len(eolViolations),
-				Message: fmt.Sprintf("--block-eol: %s end-of-life: %s",
-					pluralise("runtime", len(eolViolations)),
-					strings.Join(eolViolations, ", ")),
-			})
+			// An EOL feed that says "this is EOL" but gives no date still means EOL.
+			if eolFrom == "" && resp.Release.IsEol {
+				eolFrom = now.Format("2006-01-02")
+			}
+			grade(eolFrom, fmt.Sprintf("%s %s (%s)", pin.Product, pin.RawVersion, pin.SourceFile))
 		}
 
 		// Package-level EOL — from /v2/cli.sca PackageInsights (the server maps
 		// each package to its EolProduct/EolRelease and matches the installed
 		// version's release line). Packages with no EOL row are skipped.
 		seenPkgEol := map[string]bool{}
-		var eolPkgList []string
 		for _, p := range allPackages {
 			if p.Version == "" {
 				continue
@@ -1833,23 +1897,51 @@ func runLocalScan(
 			}
 			seenPkgEol[purl] = true
 			ins, ok := insightByPurl[purl]
-			if !ok || !ins.IsEOL {
+			if !ok {
 				continue
 			}
-			label := fmt.Sprintf("%s@%s (%s)", p.Name, p.Version, p.Ecosystem)
-			if ins.EOLFrom != "" {
-				label = fmt.Sprintf("%s@%s (%s, EOL since %s)", p.Name, p.Version, p.Ecosystem, ins.EOLFrom)
+			eolFrom := ins.EOLFrom
+			if eolFrom == "" && ins.IsEOL {
+				eolFrom = now.Format("2006-01-02")
 			}
-			eolPkgList = append(eolPkgList, label)
+			grade(eolFrom, fmt.Sprintf("%s@%s (%s)", p.Name, p.Version, p.Ecosystem))
 		}
-		if len(eolPkgList) > 0 {
+
+		// One breach per severity, so the report reads as a priority list rather
+		// than one undifferentiated pile. Only severities at or above the floor
+		// breach; the rest are reported and do not fail the build.
+		var approaching []eolItem
+		for _, severity := range []string{"critical", "high", "medium", "low"} {
+			var labels []string
+			for _, item := range graded {
+				if item.severity != severity {
+					continue
+				}
+				if !scan.SeverityMeetsThreshold(severity, eolBlockSeverity) {
+					approaching = append(approaching, item)
+
+					continue
+				}
+				labels = append(labels, item.label)
+			}
+			if len(labels) == 0 {
+				continue
+			}
 			breaches = append(breaches, GateBreach{
 				Gate:  "eol",
-				Count: len(eolPkgList),
-				Message: fmt.Sprintf("--block-eol: %s end-of-life: %s",
-					pluralise("package", len(eolPkgList)),
-					strings.Join(eolPkgList, ", ")),
+				Count: len(labels),
+				Message: fmt.Sprintf("--block-eol (%s): %s end-of-life: %s",
+					severity, pluralise("component", len(labels)), strings.Join(labels, ", ")),
 			})
+		}
+
+		// Approaching end-of-life. Not a breach — said plainly so it can be planned
+		// for, rather than discovered on the day it starts failing the build.
+		if len(approaching) > 0 && !resultsOnly {
+			fmt.Fprintf(os.Stderr, "\nApproaching end-of-life (not blocking; raise with --block-eol-severity):\n")
+			for _, item := range approaching {
+				fmt.Fprintf(os.Stderr, "  %-14s %s (%s)\n", item.horizon, item.label, item.severity)
+			}
 		}
 	}
 
@@ -4175,6 +4267,7 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("block-malware", false, "Exit with code 1 when any dependency is a known malicious package.")
 	cmd.Flags().Bool("no-malscan", false, "Skip the in-process malscan-engine pass over local dependency install dirs.")
 	cmd.Flags().Bool("block-eol", false, "Exit with code 1 when a runtime or package dependency is end-of-life. Runtimes: Go, Node.js, Python, Ruby. Package-level checks activate when VDB has EOL data (404s are silently skipped).")
+	cmd.Flags().String("block-eol-severity", "critical", "With --block-eol, the graded severity at which an end-of-life component fails the build (critical, high, medium, low). Components graded below it are reported, not blocked. The default blocks only what is already past its end-of-life date.")
 	cmd.Flags().Bool("block-unpinned", false, "Exit with code 1 when any direct dependency uses a version range (^, ~, >=) instead of an exact pin.")
 	cmd.Flags().String("exploits", "", "Exit with code 1 when exploit maturity reaches the threshold: poc (any public exploit), active (CISA/EU KEV / actively exploited), weaponized (in-the-wild only).")
 	cmd.Flags().Bool("results-only", false, "Only output when findings exist; completely silent when the scan is clean.")
