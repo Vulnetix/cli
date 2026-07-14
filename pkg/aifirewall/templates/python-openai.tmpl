@@ -1,0 +1,23 @@
+import os
+
+from openai import OpenAI
+
+# Every request goes through the Vulnetix AI Firewall, which applies this org's
+# provider, model, and guardrail policy before forwarding it to {{.Provider}}.
+# The {{.Provider}} key is held server-side: the only credential here is the
+# Vulnetix API key.
+client = OpenAI(
+    base_url="{{.GatewayURL}}",
+    api_key=os.environ["{{.KeyEnv}}"],
+)
+
+response = client.chat.completions.create(
+    model="{{.Model}}",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+print(response.choices[0].message.content)
+
+# A request the policy refuses comes back as an OpenAI-shaped 403, which the SDK
+# raises as openai.PermissionDeniedError. The `code` says which rule stopped it:
+# request_blocked, provider_denied, model_denied, model_not_allowed, or
+# provider_key_missing.

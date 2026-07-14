@@ -1,0 +1,15 @@
+import os
+
+from langchain_openai import ChatOpenAI
+
+# langchain-openai reads OPENAI_API_BASE from the environment, so `vulnetix
+# ai-firewall install shell` alone is enough to route this through the gateway.
+# Setting base_url here as well makes the routing explicit and survives a shell
+# that was never re-sourced.
+llm = ChatOpenAI(
+    base_url="{{.GatewayURL}}",
+    api_key=os.environ["{{.KeyEnv}}"],
+    model="{{.Model}}",
+)
+
+print(llm.invoke("Hello").content)

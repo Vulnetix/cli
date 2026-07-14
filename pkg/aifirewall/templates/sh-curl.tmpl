@@ -1,0 +1,23 @@
+#!/bin/sh
+# Smoke-test the AI Firewall: a request that policy allows should return 200.
+set -eu
+
+curl -s {{.GatewayURL}}/chat/completions \
+  -H "Authorization: Bearer ${{.KeyEnv}}" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"{{.Model}}","messages":[{"role":"user","content":"hello"}]}'
+
+# To see a guardrail fire, send something one of them blocks. A refused request
+# returns HTTP 403 with an OpenAI-shaped body:
+#
+#   {
+#     "error": {
+#       "message": "request blocked by AI firewall policy: content matched pattern for policy \"No connection strings\"",
+#       "type": "policy_violation",
+#       "code": "request_blocked",
+#       "blocked_by": "No connection strings"
+#     }
+#   }
+#
+# Other codes: provider_denied, model_denied, model_not_allowed,
+# provider_key_missing. See: vulnetix ai-firewall status

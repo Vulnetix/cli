@@ -1,0 +1,17 @@
+import OpenAI from 'openai'
+
+// The gateway applies this org's policy, then swaps in the {{.Provider}} key it
+// holds server-side. The only credential this process needs is the Vulnetix key.
+const client = new OpenAI({
+  baseURL: '{{.GatewayURL}}',
+  apiKey: process.env.{{.KeyEnv}},
+})
+
+const response = await client.chat.completions.create({
+  model: '{{.Model}}',
+  messages: [{ role: 'user', content: 'Hello' }],
+})
+console.log(response.choices[0].message.content)
+
+// A blocked request throws OpenAI.PermissionDeniedError with a 403 whose body
+// carries the reason: { error: { code: 'request_blocked', blocked_by: [...] } }

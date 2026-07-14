@@ -1,0 +1,15 @@
+import Anthropic from '@anthropic-ai/sdk'
+
+// authToken, not apiKey: apiKey is sent as `x-api-key`, and the gateway
+// authenticates with `Authorization: Bearer`.
+const client = new Anthropic({
+  baseURL: '{{.GatewayURL}}',
+  authToken: process.env.{{.KeyEnv}},
+})
+
+const message = await client.messages.create({
+  model: '{{.Model}}',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: 'Hello' }],
+})
+console.log(message.content)

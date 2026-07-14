@@ -1,0 +1,17 @@
+import os
+
+from anthropic import Anthropic
+
+# auth_token, not api_key: api_key is sent as the `x-api-key` header, and the
+# gateway authenticates with `Authorization: Bearer`.
+client = Anthropic(
+    base_url="{{.GatewayURL}}",
+    auth_token=os.environ["{{.KeyEnv}}"],
+)
+
+message = client.messages.create(
+    model="{{.Model}}",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Hello"}],
+)
+print(message.content[0].text)

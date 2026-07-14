@@ -1,0 +1,33 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
+)
+
+func main() {
+	// The gateway applies this org's policy, then swaps in the {{.Provider}} key
+	// it holds server-side.
+	client := openai.NewClient(
+		option.WithBaseURL("{{.GatewayURL}}"),
+		option.WithAPIKey(os.Getenv("{{.KeyEnv}}")),
+	)
+
+	resp, err := client.Chat.Completions.New(context.Background(), openai.ChatCompletionNewParams{
+		Model: "{{.Model}}",
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.UserMessage("Hello"),
+		},
+	})
+	if err != nil {
+		// A policy refusal arrives as a 403 whose body names the rule that stopped
+		// it: request_blocked, provider_denied, model_denied, model_not_allowed,
+		// or provider_key_missing.
+		panic(err)
+	}
+	fmt.Println(resp.Choices[0].Message.Content)
+}

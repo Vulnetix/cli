@@ -535,6 +535,106 @@ type CliAiFirewallGuardrailRequest struct {
 	Delete   bool    `json:"delete,omitempty"`
 }
 
+// CliAiFirewallKeyRequest sets or removes the org's BYOK provider key. The key
+// is write-only: no endpoint ever returns it, and the response carries only
+// HasKey/KeyUpdatedAt.
+type CliAiFirewallKeyRequest struct {
+	Provider string `json:"provider"`         // provider slug
+	APIKey   string `json:"apiKey,omitempty"` // write-only
+	Delete   bool   `json:"delete,omitempty"`
+}
+
+// CliAiFirewallSettingsRequest toggles org-wide AI Firewall settings. Nil means
+// "leave as-is".
+type CliAiFirewallSettingsRequest struct {
+	LogsEnabled *bool `json:"logsEnabled,omitempty"`
+}
+
+// CliAiFirewallBaselineRequest asks the server for its recommended guardrail
+// set (PII masking, prompt injection, and so on). Ref selects a named set.
+type CliAiFirewallBaselineRequest struct {
+	Ref string `json:"ref,omitempty"`
+}
+
+// AiFirewallProviderState is one provider in the catalog, with this org's
+// association and BYOK status. HasKey/KeyUpdatedAt are absent on older servers,
+// in which case HasKey is false — treat that as "unknown", not as "no key".
+type AiFirewallProviderState struct {
+	UUID          string `json:"uuid"`
+	Slug          string `json:"slug"`
+	Name          string `json:"name"`
+	BaseURL       string `json:"baseUrl"`
+	GlobalEnabled bool   `json:"globalEnabled"`
+	ModelCount    int    `json:"modelCount"`
+	OrgAction     string `json:"orgAction"` // "allow" | "deny" | "" (default-allow)
+	HasKey        bool   `json:"hasKey"`
+	KeyUpdatedAt  int64  `json:"keyUpdatedAt"`
+}
+
+// AiFirewallModelPolicy is one model allow/deny entry.
+type AiFirewallModelPolicy struct {
+	ModelUUID    string `json:"modelUuid"`
+	Slug         string `json:"slug"`
+	Name         string `json:"name"`
+	ProviderUUID string `json:"providerUuid"`
+	ProviderSlug string `json:"providerSlug"`
+	Action       string `json:"action"` // "allow" | "deny"
+	IsActive     bool   `json:"isActive"`
+}
+
+// AiFirewallGuardrail is one content guardrail enforced inline by the gateway.
+type AiFirewallGuardrail struct {
+	UUID     string `json:"uuid"`
+	Name     string `json:"name"`
+	RuleType string `json:"ruleType"` // "blocked_pattern" | "max_messages" | "pii_redact"
+	Action   string `json:"action"`   // "block" | "redact" | "flag"
+	Pattern  string `json:"pattern"`
+	Enabled  bool   `json:"enabled"`
+	Priority int    `json:"priority"`
+}
+
+// AiFirewallGateway advertises what the gateway can actually serve. WireAPIs
+// maps a provider slug to the request formats it proxies ("chat", "responses",
+// "messages"). Without it the CLI cannot know whether a client that speaks a
+// non-chat wire (Codex, Claude Code) can be pointed at the gateway at all, so
+// an absent Gateway means "assume chat only" rather than "assume it works".
+type AiFirewallGateway struct {
+	BaseURL  string              `json:"baseUrl"`
+	WireAPIs map[string][]string `json:"wireApis"`
+}
+
+// CliAiFirewallState is the typed form of the cli.ai-firewall-get response.
+type CliAiFirewallState struct {
+	Providers     []AiFirewallProviderState `json:"providers"`
+	ModelPolicies []AiFirewallModelPolicy   `json:"modelPolicies"`
+	Guardrails    []AiFirewallGuardrail     `json:"guardrails"`
+	LogsEnabled   bool                      `json:"logsEnabled"`
+	Gateway       *AiFirewallGateway        `json:"gateway"`
+}
+
+// AiFirewallBaselineGuardrail is one entry in the server's recommended set. The
+// enums match AiFirewallGuardrail exactly, so a baseline entry is applied
+// through the ordinary guardrail write path.
+type AiFirewallBaselineGuardrail struct {
+	ID          string   `json:"id"` // stable; the key for excludes
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	RuleType    string   `json:"ruleType"`
+	Action      string   `json:"action"`
+	Pattern     string   `json:"pattern"`
+	Priority    int      `json:"priority"`
+	Enabled     bool     `json:"enabled"`
+	Tags        []string `json:"tags"`
+	Severity    string   `json:"severity"`
+}
+
+// CliAiFirewallBaseline is the server's recommended guardrail set.
+type CliAiFirewallBaseline struct {
+	Version    string                        `json:"version"`
+	Ref        string                        `json:"ref"`
+	Guardrails []AiFirewallBaselineGuardrail `json:"guardrails"`
+}
+
 type CliQualityGateConfigRequest struct {
 	EolNextQuarterSeverity  *string `json:"eolNextQuarterSeverity,omitempty"`
 	EolThisQuarterSeverity  *string `json:"eolThisQuarterSeverity,omitempty"`
@@ -896,6 +996,32 @@ func (c *Client) CliAiFirewallModel(env CliEnv, req CliAiFirewallModelRequest) (
 // content guardrail.
 func (c *Client) CliAiFirewallGuardrail(env CliEnv, req CliAiFirewallGuardrailRequest) (*CliResponse[map[string]any], error) {
 	return cliPostWithEnv[map[string]any](c, "cli.ai-firewall-guardrail", env, req)
+}
+
+// CliAiFirewallState is CliAiFirewallGet decoded into typed structs. Same route:
+// an older server simply leaves the newer fields (hasKey, logsEnabled, gateway)
+// at their zero values.
+func (c *Client) CliAiFirewallState(env CliEnv) (*CliResponse[CliAiFirewallState], error) {
+	return cliPostWithEnv[CliAiFirewallState](c, "cli.ai-firewall-get", env, struct{}{})
+}
+
+// CliAiFirewallKey — POST /v2/cli.ai-firewall-key. Stores (or removes) the org's
+// provider API key. The key is encrypted server-side under a context bound to
+// the org and provider, and is never returned.
+func (c *Client) CliAiFirewallKey(env CliEnv, req CliAiFirewallKeyRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.ai-firewall-key", env, req)
+}
+
+// CliAiFirewallSettings — POST /v2/cli.ai-firewall-settings. Org-wide toggles.
+func (c *Client) CliAiFirewallSettings(env CliEnv, req CliAiFirewallSettingsRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.ai-firewall-settings", env, req)
+}
+
+// CliAiFirewallBaseline — POST /v2/cli.ai-firewall-baseline. The server's
+// recommended guardrail set. Callers must treat a failure as non-fatal: the
+// endpoint may not exist on the server they are talking to.
+func (c *Client) CliAiFirewallBaseline(env CliEnv, req CliAiFirewallBaselineRequest) (*CliResponse[CliAiFirewallBaseline], error) {
+	return cliPostWithEnv[CliAiFirewallBaseline](c, "cli.ai-firewall-baseline", env, req)
 }
 
 // SARIF-shaped scan endpoints. Each returns the same persistence response
