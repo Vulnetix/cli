@@ -129,7 +129,10 @@ func uploadMalscan(res *malscanResult, gitCtx *gitctx.GitContext) {
 }
 
 func uploadMalscanTo(res *malscanResult, gitCtx *gitctx.GitContext, w io.Writer) {
-	if res == nil || len(res.Findings) == 0 {
+	// Submit whenever malscan actually scanned something — a clean pass (targets
+	// scanned, 0 findings) still submits so the backend records a ScannerRun +
+	// snapshot (coverage). Nothing scanned (no targets) stays a no-op.
+	if res == nil || len(res.Targets) == 0 {
 		return
 	}
 	if w == nil {

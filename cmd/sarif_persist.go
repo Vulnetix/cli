@@ -52,8 +52,8 @@ var sarifKinds = []sarifScanKind{
 // to its matching /v2/cli.<kind> endpoint. When baseSnapshotUuid is set, the
 // first SARIF request attaches to that existing SCA snapshot; otherwise the
 // SARIF endpoint creates its own snapshot as before.
-func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, baseSnapshotUuid string, w io.Writer) ([]snapshotLink, map[string]string) {
-	if report == nil || len(report.Findings) == 0 {
+func postScanSARIF(report *sast.SASTReport, enabledKinds map[string]bool, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, baseSnapshotUuid string, w io.Writer) ([]snapshotLink, map[string]string) {
+	if report == nil {
 		return nil, nil
 	}
 	if w == nil {
@@ -71,11 +71,12 @@ func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath 
 	var snapshots []snapshotLink
 	uuidByCategory := make(map[string]string)
 	byKind := partitionFindingsByKind(report.Findings, report.Rules)
-	for _, sk := range sarifKinds {
-		bucket, ok := byKind[sk.kind]
-		if !ok || len(bucket.findings) == 0 {
-			continue
-		}
+	for _, sk := range sarifSubmitKinds(enabledKinds) {
+		// An enabled scanner that ran clean still submits — the empty bucket
+		// builds a valid empty SARIF doc, and the server records a ScannerRun +
+		// IngestionSnapshot on any SARIF body (v2_cli_scan_handlers.go), so the
+		// GUI reflects "assessed, 0 findings" instead of no coverage at all.
+		bucket := byKind[sk.kind]
 		if link, snapshotUuid, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, baseSnapshotUuid, w); ok {
 			snapshots = append(snapshots, link)
 			if snapshotUuid != "" {
@@ -84,6 +85,21 @@ func postScanSARIF(report *sast.SASTReport, gitCtx *gitctx.GitContext, rootPath 
 		}
 	}
 	return snapshots, uuidByCategory
+}
+
+// sarifSubmitKinds returns the SARIF-family kinds to submit for this scan: every
+// ENABLED kind, whether or not it produced findings. An enabled-but-clean
+// scanner still submits (empty SARIF) so the backend records coverage; a
+// disabled scanner (its --no-<kind> flag set, so `enabled[kind]` is false)
+// submits nothing. Order follows sarifKinds for stable snapshot links.
+func sarifSubmitKinds(enabled map[string]bool) []sarifScanKind {
+	out := make([]sarifScanKind, 0, len(sarifKinds))
+	for _, sk := range sarifKinds {
+		if enabled[sk.kind] {
+			out = append(out, sk)
+		}
+	}
+	return out
 }
 
 // sarifChunkByteBudget bounds the per-request typed-findings JSON size. The
@@ -375,9 +391,8 @@ func postLicenseSARIF(result *license.AnalysisResult, rootPath string, snippetCo
 		return
 	}
 	findings, rules := license.BuildSARIFFromAnalysis(result)
-	if len(findings) == 0 {
-		return
-	}
+	// No early-return on an empty finding set: a clean license scan still submits
+	// an empty SARIF so the backend records a ScannerRun + snapshot (coverage).
 
 	// Reuse the sast SARIF builder by adapting our license SARIF structs into
 	// sast.Finding + sast.RuleMetadata.
