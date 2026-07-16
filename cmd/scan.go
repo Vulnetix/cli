@@ -1616,7 +1616,15 @@ func runLocalScan(
 			// Skipped for unauthenticated scans — the server persists nothing for
 			// the shared community credential, so the calls only burn shared quota.
 			if !isUnauthenticatedScan() {
-				sarifSnapshots, sarifSnapshotUuids = postScanSARIF(sastReport, gitCtx, rootPath, snippetContext, scaSnapshotUuid, progressStderr)
+				// Which SARIF-family scanners actually ran — an enabled one that
+				// found nothing still submits so the backend records coverage.
+				enabledKinds := map[string]bool{
+					"sast":    !noSASTRules,
+					"secrets": !noSecrets,
+					"iac":     !noIAC,
+					"oci":     !noContainers,
+				}
+				sarifSnapshots, sarifSnapshotUuids = postScanSARIF(sastReport, enabledKinds, gitCtx, rootPath, snippetContext, scaSnapshotUuid, progressStderr)
 			}
 		}
 	}
