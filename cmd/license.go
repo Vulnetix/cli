@@ -25,7 +25,8 @@ var licenseCmd = &cobra.Command{
 
 Manifests are discovered by walking the directory tree, parsed locally,
 and each package's license is resolved from manifest fields or an embedded
-SPDX license database. No data is uploaded to any server.
+SPDX license database. When authenticated, license findings are submitted to
+Vulnetix so the scan is recorded; unauthenticated scans stay entirely local.
 
 License findings are stored in the CycloneDX SBOM at .vulnetix/sbom.cdx.json
 alongside vulnerability findings (neither overwrites the other).
@@ -46,6 +47,16 @@ Examples:
   vulnetix license --mode individual              # per-manifest conflict detection
   vulnetix license --from-memory                  # reconstruct from saved state
   vulnetix license --dry-run                      # detect files only, no evaluation`,
+	// Resolve credentials like the other specialized scans; without this vdbCreds
+	// stays nil, so isUnauthenticatedScan() is always true — the SARIF submit is
+	// skipped and the "Snapshots are skipped for unauthenticated scans" reminder
+	// prints even when the user is authenticated.
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		printBanner(cmd)
+		initDisplayContext(cmd, display.ModeText)
+		applyScanDisplayFlags(cmd)
+		return resolveVDBCredentials(false)
+	},
 	RunE: runLicense,
 }
 
