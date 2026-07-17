@@ -1757,6 +1757,19 @@ func runLocalScan(
 		scanProgress.Update(6, "Skipped local scan state (--disable-memory)")
 	}
 
+	graphToolName := "vulnetix-scan-graph"
+	switch {
+	case containerOnly:
+		graphToolName = "vulnetix-containers-graph"
+	case iacOnly:
+		graphToolName = "vulnetix-iac-graph"
+	case secretsOnly:
+		graphToolName = "vulnetix-secrets-graph"
+	case noSCA && !disableAllSAST:
+		graphToolName = "vulnetix-static-graph"
+	}
+	postScannerGraphInsights(rootPath, graphToolName, gitCtx, progressStderr)
+
 	// ── Quality gate evaluation ───────────────────────────────────────────
 	// Evaluated after writing artefacts so that the SBOM and memory.yaml are
 	// always written regardless of exit code, giving CI pipelines access to

@@ -354,6 +354,86 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 	return report, body, nil
 }
 
+// RunGraphOnly produces a schema-valid insights report whose purpose is the tech-stack graph.
+// It is used by scanner subcommands after they persist SCA/SARIF results, so the org graph can
+// stay fresh even when teams never run `vulnetix analyze`. It deliberately skips history,
+// forge and trust collectors; scanner-driven graph runs must not pretend to have measured the
+// full business/security metric set.
+func RunGraphOnly(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
+	started := time.Now()
+	if pre == nil {
+		opts.NoForge = true
+		var err error
+		pre, err = Check(context.Background(), opts)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	root := pre.Target.RootPath
+	target := pre.Target
+	b := NewBuilder(tool, target, started)
+	pr := reporter{opts.Progress}
+
+	var fstats *fileStats
+	if opts.NoFiles {
+		b.Collected(Collector{Name: "files", Status: "skipped", Reason: "disabled with --no-files"})
+	} else {
+		t := time.Now()
+		pr.Stage("Reading files for graph")
+		var err error
+		fstats, err = collectFiles(b, root, nil, opts, started, pr)
+		if err != nil {
+			b.Collected(Collector{Name: "files", Status: "failed", Reason: err.Error(), DurationSeconds: time.Since(t).Seconds()})
+			b.Diagnose(Diagnostic{Level: "warning", Collector: "files", Message: err.Error()})
+		} else {
+			b.Collected(Collector{Name: "files", Status: "completed", DurationSeconds: time.Since(t).Seconds()})
+		}
+	}
+
+	var dstats *depStats
+	if opts.NoDeps {
+		b.Collected(Collector{Name: "dependencies", Status: "skipped", Reason: "disabled with --no-deps"})
+	} else {
+		t := time.Now()
+		pr.Stage("Reading manifests for graph")
+		var err error
+		dstats, err = collectDeps(b, root, opts)
+		if err != nil {
+			b.Collected(Collector{Name: "dependencies", Status: "failed", Reason: err.Error(), DurationSeconds: time.Since(t).Seconds()})
+			b.Diagnose(Diagnostic{Level: "warning", Collector: "dependencies", Message: err.Error()})
+		} else {
+			b.Collected(Collector{Name: "dependencies", Status: "completed", DurationSeconds: time.Since(t).Seconds()})
+		}
+	}
+
+	var sstats *symbolStats
+	var cstats *contractStats
+	if !opts.NoFiles && fstats != nil {
+		modulePath := goModulePath(filepath.Join(root, "go.mod"))
+
+		t := time.Now()
+		pr.Stage("Extracting symbols for graph")
+		sstats = collectSymbols(b, root, fstats, modulePath, opts, pr)
+		b.Collected(Collector{Name: "symbols", Status: "completed", DurationSeconds: time.Since(t).Seconds()})
+
+		t = time.Now()
+		pr.Stage("Finding graph join keys")
+		cstats = collectContracts(b, root, fstats, dstats, target)
+		b.Collected(Collector{Name: "contracts", Status: "completed", DurationSeconds: time.Since(t).Seconds()})
+	} else {
+		b.Collected(Collector{Name: "symbols", Status: "skipped", Reason: "the file pass did not run"})
+		b.Collected(Collector{Name: "contracts", Status: "skipped", Reason: "the file pass did not run"})
+	}
+
+	b.Collected(Collector{Name: "git", Status: "skipped", Reason: "graph-only scanner run"})
+	b.Collected(Collector{Name: "trust", Status: "skipped", Reason: "graph-only scanner run"})
+	b.Collected(Collector{Name: "forge", Status: "skipped", Reason: "graph-only scanner run"})
+
+	b.SetGraph(buildGraph(target, fstats, dstats, nil, sstats, cstats, nil, nil))
+	return b.Finish(time.Now())
+}
+
 // evidenceCount is what the final progress line reports. It is the number that matters: every
 // metric in the report is backed by these, and if the two ever disagreed the report would not
 // have validated.

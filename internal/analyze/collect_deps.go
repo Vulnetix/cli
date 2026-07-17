@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
@@ -36,40 +37,56 @@ func collectDeps(b *Builder, root string, opts Options) (*depStats, error) {
 	st := &depStats{}
 	seen := map[string]bool{}
 
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
+	files, err := scan.WalkForScanFiles(scan.WalkOptions{RootPath: root, MaxDepth: 20})
+	if err != nil {
+		return nil, fmt.Errorf("walk manifests: %w", err)
+	}
+
+	for _, f := range files {
+		if f.ManifestInfo == nil {
+			continue
 		}
-		if d.IsDir() {
-			if skipDirs[d.Name()] {
-				return filepath.SkipDir
+		rel := strings.TrimPrefix(f.RelPath, "./")
+		if rel == "" {
+			if r, rerr := filepath.Rel(root, f.Path); rerr == nil {
+				rel = filepath.ToSlash(r)
 			}
-
-			return nil
+		}
+		if rel == "" {
+			rel = filepath.ToSlash(filepath.Base(f.Path))
 		}
 
-		info, ok := scan.DetectManifest(d.Name())
-		if !ok || info == nil {
-			return nil
-		}
-
-		rel, rerr := filepath.Rel(root, path)
-		if rerr != nil {
-			return nil
-		}
-		rel = filepath.ToSlash(rel)
-
-		for _, dep := range parseManifest(path, rel, info) {
-			if seen[dep.Purl] {
-				continue
+		if scan.SupportedManifestTypes[f.ManifestInfo.Type] {
+			pkgs, perr := scan.ParseManifestWithScope(f.Path, f.ManifestInfo.Type)
+			if perr == nil {
+				for _, pkg := range pkgs {
+					purl := cdx.BuildLocalPurl(pkg.Name, pkg.Version, pkg.Ecosystem)
+					if purl == "" || seen[purl] {
+						continue
+					}
+					seen[purl] = true
+					scope := dependencyScope(pkg)
+					sourceType := pkg.SourceType
+					discoveredVia := dependencyDiscoveredVia(sourceType, f.ManifestInfo.IsLock)
+					st.deps = append(st.deps, &DependencyRecord{
+						ID:              "dep-" + safeID(purl),
+						Type:            "dependency",
+						Purl:            purl,
+						Ecosystem:       pkg.Ecosystem,
+						ManifestPath:    rel,
+						Scope:           scope,
+						DiscoveredVia:   discoveredVia,
+						DeclaredVersion: firstNonEmpty(pkg.VersionSpec, pkg.Version),
+						ResolvedVersion: pkg.Version,
+					})
+				}
 			}
-			seen[dep.Purl] = true
-			st.deps = append(st.deps, dep)
 		}
 
+		path := f.Path
 		// A go.mod's module line is this repository declaring what it is. That declaration is what
 		// another repo's `require` will join against.
-		if d.Name() == "go.mod" {
+		if filepath.Base(path) == "go.mod" {
 			if mod := goModulePath(path); mod != "" {
 				st.provides = append(st.provides, CrossRepoEdge{
 					ID:          "xr-provides-" + safeID(mod),
@@ -81,7 +98,7 @@ func collectDeps(b *Builder, root string, opts Options) (*depStats, error) {
 				})
 			}
 		}
-		if d.Name() == "package.json" {
+		if filepath.Base(path) == "package.json" {
 			if name, private := npmPackageIdentity(path); name != "" && !private {
 				st.provides = append(st.provides, CrossRepoEdge{
 					ID:          "xr-provides-" + safeID(name),
@@ -93,11 +110,6 @@ func collectDeps(b *Builder, root string, opts Options) (*depStats, error) {
 				})
 			}
 		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("walk manifests: %w", err)
 	}
 
 	sort.Slice(st.deps, func(i, j int) bool { return st.deps[i].Purl < st.deps[j].Purl })
@@ -105,6 +117,39 @@ func collectDeps(b *Builder, root string, opts Options) (*depStats, error) {
 	emitDepMetrics(b, st, opts)
 
 	return st, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func dependencyScope(pkg scan.ScopedPackage) string {
+	if pkg.IsDirect {
+		return "direct"
+	}
+	switch strings.ToLower(pkg.Scope) {
+	case "peer":
+		return "peer"
+	case "optional":
+		return "optional"
+	default:
+		return "transitive"
+	}
+}
+
+func dependencyDiscoveredVia(sourceType string, isLock bool) string {
+	if sourceType == scan.SourceTypeInstalled {
+		return "install-dir"
+	}
+	if isLock {
+		return "lockfile"
+	}
+	return "manifest"
 }
 
 func emitDepMetrics(b *Builder, st *depStats, _ Options) {

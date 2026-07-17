@@ -278,8 +278,8 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 	// them.
 	progress.SetStage("Persisting license results")
 	var licenseVEX []cdx.Vulnerability
+	gitCtx := gitctx.Collect(rootPath)
 	if !disableMemory {
-		gitCtx := gitctx.Collect(rootPath)
 		mem, merr := memory.Load(vulnetixDir)
 		if merr != nil || mem == nil {
 			mem = &memory.Memory{Version: "1"}
@@ -310,6 +310,7 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 	// persists nothing for the shared community credential.
 	if !isUnauthenticatedScan() {
 		postLicenseSARIF(result, rootPath, 0)
+		postScannerGraphInsights(rootPath, "vulnetix-license-graph", gitCtx, os.Stderr)
 		progress.Update(6, "Submitted license findings")
 	}
 	progress.Complete("license analysis complete")
