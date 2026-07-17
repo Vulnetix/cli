@@ -1579,6 +1579,7 @@ func runLocalScan(
 			// not leave a misleading empty SARIF artifact behind.
 			if len(sastReport.Findings) > 0 {
 				sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
+				sarifLog.AddExecutionNotifications(sastReport.Degradations)
 				if werr := sast.WriteSARIF(sarifLog, sarifPath); werr != nil {
 					fmt.Fprintf(progressStderr, "  warning: could not write %s: %v\n", sarifFileName, werr)
 				} else {
@@ -2166,6 +2167,7 @@ func runLocalScan(
 	}
 	if outCfg.sarifFile != "" && sastReport != nil {
 		sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
+		sarifLog.AddExecutionNotifications(sastReport.Degradations)
 		if err := sast.WriteSARIF(sarifLog, outCfg.sarifFile); err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not write SARIF to %s: %v\n", outCfg.sarifFile, err)
 		}
@@ -2193,6 +2195,7 @@ func runLocalScan(
 		sarifLog := sast.BuildSARIF(nil, nil, version)
 		if sastReport != nil {
 			sarifLog = sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
+			sarifLog.AddExecutionNotifications(sastReport.Degradations)
 		}
 		data, merr := json.MarshalIndent(sarifLog, "", "  ")
 		if merr != nil {

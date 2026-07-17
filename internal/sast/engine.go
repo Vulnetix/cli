@@ -155,19 +155,36 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	}
 
 	// Check if any surviving rule references input.file_contents; if so, load them.
+	var degradations []string
 	if needsFileContents(modules) {
 		LoadFileContentsWithOptions(scanInput, LoadOptions{
 			MaxFileSize:     1 << 20, // 1 MiB cap on raw text
 			IgnoreBinaries:  opts.IgnoreBinaries,
 			MinStringLength: opts.MinStringLength,
 		})
+		// Files present in the walk but absent from the content map were not
+		// content-scanned (oversized, unreadable, or binary with the strings
+		// pass disabled). Say so instead of letting "no findings" read as
+		// "fully scanned".
+		skipped := 0
+		for p := range scanInput.FileSet {
+			if _, ok := scanInput.FileContents[p]; !ok {
+				skipped++
+			}
+		}
+		if skipped > 0 {
+			degradations = append(degradations, fmt.Sprintf(
+				"%d file(s) were not content-scanned (over the 1 MiB text cap, unreadable, or binary)", skipped))
+		}
 		if opts.GitHistory && !opts.IgnoreGit {
 			entries, herr := secretscan.ScanGitHistory(e.scanRoot, secretscan.GitHistoryOptions{
 				MaxCommits:   opts.GitHistoryMaxCommits,
 				MaxFiles:     opts.GitHistoryMaxFiles,
 				MaxFileBytes: 4 << 20,
 			})
-			if herr == nil && len(entries) > 0 {
+			if herr != nil {
+				degradations = append(degradations, "git history was not scanned: "+herr.Error())
+			} else if len(entries) > 0 {
 				MergeGitHistoryEntries(scanInput, entries)
 			}
 		}
@@ -180,7 +197,11 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	shared, rules := partitionModules(modules)
 	n := shardCount(len(rules))
 	if n <= 1 {
-		return evalModules(modules, scanInput)
+		rep, err := evalModules(modules, scanInput)
+		if rep != nil {
+			rep.Degradations = degradations
+		}
+		return rep, err
 	}
 
 	shards := shardModules(rules, n)
@@ -221,9 +242,10 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	sortFindings(allFindings)
 
 	return &SASTReport{
-		Findings:    allFindings,
-		Rules:       allRules,
-		RulesLoaded: len(allRules),
+		Findings:     allFindings,
+		Rules:        allRules,
+		RulesLoaded:  len(allRules),
+		Degradations: degradations,
 	}, nil
 }
 
