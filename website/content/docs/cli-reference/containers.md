@@ -98,6 +98,17 @@ vulnetix containers --results-only
 | `0` | Scan completed successfully (no threshold breach) |
 | `1` | A gate was breached (`--severity`), or a fatal error occurred |
 
+## Known false negatives
+
+Detection is deliberately conservative — a missed detection is preferred over a wrong one. Not detected, by design:
+
+- Images mirrored to private or organisation-local registries when matching official-image heuristics (base-image analysis follows the reference as written).
+- Build-arg (`$VAR`) and Helm-templated (`{{ ... }}`) image references — placeholders are dropped, never guessed.
+- Packages installed by scripts fetched at build time (`curl | sh`) rather than by a recognised package manager invocation.
+- A malformed image digest is dropped rather than reported as a version — it never becomes a fabricated value.
+
+Absence of a finding is not verified absence of container risk.
+
 ## Related Commands
 
 - [`vulnetix scan`](scan/) — Full scan with all features enabled

@@ -63,7 +63,7 @@ RUN apk add --no-cache git openssl=3.3.2-r0 \
     && npm install -g yarn@1.22.22 pnpm \
     && pip install requests==2.32.3 \
     && go install golang.org/x/tools/cmd/stringer@v0.24.0
-FROM gcr.io/distroless/static-debian12@sha256:abcdef
+FROM gcr.io/distroless/static-debian12@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 `)
 	pkgs, err := parse.ParseManifest(data, "Dockerfile", "Dockerfile")
 	if err != nil {
@@ -76,7 +76,9 @@ FROM gcr.io/distroless/static-debian12@sha256:abcdef
 		version   string
 	}{
 		{"oci", "golang", "1.24-alpine"},
-		{"oci", "gcr.io/distroless/static-debian12", "sha256:abcdef"},
+		// Digest-pinned, no tag: a well-formed digest is kept as the version
+		// (and recorded as a checksum); a malformed one would be dropped.
+		{"oci", "gcr.io/distroless/static-debian12", "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
 		{"apk", "openssl", "3.3.2-r0"},
 		{"deb", "curl", "8.0.1"},
 		{"npm", "yarn", "1.22.22"},
@@ -102,7 +104,9 @@ services:
   worker:
     build: .
   db:
-    image: postgres@sha256:feedface
+    image: postgres@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+  cache:
+    image: redis@sha256:short
 `)
 	pkgs, err := parse.ParseManifest(data, "compose.yaml", "compose.yaml")
 	if err != nil {
@@ -119,8 +123,19 @@ services:
 	if !ok {
 		t.Fatalf("digest image not found in %+v", pkgs)
 	}
-	if db.Version != "sha256:feedface" {
-		t.Fatalf("db Version = %q, want sha256:feedface", db.Version)
+	if db.Version != "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" {
+		t.Fatalf("db Version = %q, want the valid pinned digest", db.Version)
+	}
+	if len(db.Checksums) != 1 || db.Checksums[0].Alg != "SHA-256" {
+		t.Fatalf("valid digest must be recorded as a checksum: %+v", db.Checksums)
+	}
+	// A malformed digest is never fabricated into a version or checksum.
+	cache, ok := findPkgEco(pkgs, "oci", "redis")
+	if !ok {
+		t.Fatalf("malformed-digest image should still be reported by name: %+v", pkgs)
+	}
+	if cache.Version != "" || len(cache.Checksums) != 0 {
+		t.Fatalf("malformed digest leaked into version/checksums: %+v", cache)
 	}
 }
 
