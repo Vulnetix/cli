@@ -51,6 +51,12 @@ func PrintPrettySummaryWithTitle(report *SASTReport, resultsOnly bool, title str
 		return sorted[i].ArtifactURI < sorted[j].ArtifactURI
 	})
 
+	// The cell carries the canonical severity (critical/high/medium/low/info)
+	// so the column agrees with the "N medium, N low" summary line, and the
+	// color function receives a value SeverityText can actually style. The
+	// semantic labels (Dangerous/Quality/Style) live in SeverityLabel for
+	// docs; showing them here while counting canonically read as two
+	// different vocabularies for the same finding.
 	sevColor := func(s string) string { return display.SeverityText(t, strings.ToLower(s)) }
 
 	cols := []display.Column{
@@ -62,7 +68,13 @@ func PrintPrettySummaryWithTitle(report *SASTReport, resultsOnly bool, title str
 		{Header: "Message", MinWidth: 20, MaxWidth: 50},
 	}
 
+	// Collapse visually identical rows (same rule, severity, location and
+	// message — typically a rule that reports several resources at the same
+	// line) into one row with a ×N marker. Every finding is still counted,
+	// persisted and present in the SARIF; only the table view collapses.
 	rows := make([][]string, 0, len(sorted))
+	rowIndex := map[string]int{}
+	dupCount := map[int]int{}
 	for _, f := range sorted {
 		location := f.ArtifactURI
 		if f.StartLine > 0 {
@@ -72,11 +84,17 @@ func PrintPrettySummaryWithTitle(report *SASTReport, resultsOnly bool, title str
 				location = fmt.Sprintf("%s:%d", f.ArtifactURI, f.StartLine)
 			}
 		}
-		label := f.Severity
-		if l, ok := SeverityLabel[f.Severity]; ok {
-			label = l
+		sev := strings.ToLower(f.Severity)
+		key := f.RuleID + "\x00" + sev + "\x00" + location + "\x00" + f.Message
+		if i, ok := rowIndex[key]; ok {
+			dupCount[i]++
+			continue
 		}
-		rows = append(rows, []string{f.RuleID, label, location, f.Message})
+		rowIndex[key] = len(rows)
+		rows = append(rows, []string{f.RuleID, sev, location, f.Message})
+	}
+	for i, extra := range dupCount {
+		rows[i][3] = fmt.Sprintf("(×%d) %s", extra+1, rows[i][3])
 	}
 
 	fmt.Fprint(os.Stdout, display.Table(t, cols, rows))

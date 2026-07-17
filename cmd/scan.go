@@ -879,11 +879,20 @@ func runLocalScan(
 	analysisTitle := "SAST Analysis"
 	sarifFileName := "sast.sarif"
 	bomToolName := "vulnetix-sca"
-	if containerOnly {
+	iacOnly := noSASTRules && noSCA && noSecrets && noContainers && !noIAC
+	secretsOnly := noSASTRules && noSCA && !noSecrets && noContainers && noIAC
+	switch {
+	case containerOnly:
 		analysisLabel = "Container"
 		analysisTitle = "Container Analysis"
 		sarifFileName = "containers.sarif"
 		bomToolName = "vulnetix-containers"
+	case iacOnly:
+		analysisLabel = "IaC"
+		analysisTitle = "IaC Analysis"
+	case secretsOnly:
+		analysisLabel = "Secrets"
+		analysisTitle = "Secrets Analysis"
 	}
 	showManifestDetails := !resultsOnly && (showDetectedFiles || (showAllManifests && containerOnly))
 
