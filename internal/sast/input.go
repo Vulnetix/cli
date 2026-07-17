@@ -321,6 +321,17 @@ func LoadFileContentsWithOptions(input *ScanInput, opts LoadOptions) {
 			continue
 		}
 		input.FileContents[relPath] = string(data)
+
+		// Kubernetes Secret manifests: base64-decode data values into
+		// synthetic __k8s_secret__/ paths so secret rules can scan them —
+		// base64 encoding otherwise evades every line-regex rule.
+		if strings.HasSuffix(relPath, ".yaml") || strings.HasSuffix(relPath, ".yml") {
+			for k, v := range secretscan.ExpandKubernetesSecrets(relPath, input.FileContents[relPath]) {
+				if _, exists := input.FileContents[k]; !exists {
+					input.FileContents[k] = v
+				}
+			}
+		}
 	}
 }
 

@@ -131,6 +131,17 @@ The SARIF output is the only output produced. No SBOM/BOM is emitted.
 | `0` | Scan completed successfully (no threshold breach) |
 | `1` | A gate was breached (`--severity`), or a fatal error occurred |
 
+## Known false negatives
+
+Detection is deliberately conservative — a missed detection is preferred over a wrong one. Not detected, by design:
+
+- Secrets encrypted at rest (SOPS, sealed-secrets, ansible-vault) — encrypted blobs are opaque.
+- Double-encoded values (base64 inside base64); Kubernetes `Secret.data:` values are decoded one level and scanned.
+- Values referenced but not present (`valueFrom.secretKeyRef`, `env_file:` entries) — references are never resolved, and reference *names* are never flagged as secrets.
+- Credentials split across lines or assembled at runtime.
+
+Absence of a finding is not verified absence of a secret.
+
 ## Related Commands
 
 - [`vulnetix scan`](scan/) — Full scan with all features enabled
