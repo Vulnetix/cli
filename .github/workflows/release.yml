@@ -63,11 +63,18 @@ jobs:
 
       - name: Install zig
         run: |
+          if command -v zig >/dev/null 2>&1; then
+            zig version
+            exit 0
+          fi
           ZIG_VER="0.13.0"
+          rm -rf "/tmp/zig-linux-x86_64-${ZIG_VER}"
           curl -sSL "https://ziglang.org/download/${ZIG_VER}/zig-linux-x86_64-${ZIG_VER}.tar.xz" -o /tmp/zig.tar.xz
           tar -xJf /tmp/zig.tar.xz -C /tmp
+          sudo rm -rf "/opt/zig/zig-linux-x86_64-${ZIG_VER}"
+          sudo mkdir -p /opt/zig
           sudo mv /tmp/zig-linux-x86_64-${ZIG_VER} /opt/zig
-          sudo ln -sf /opt/zig/zig /usr/local/bin/zig
+          sudo ln -sf "/opt/zig/zig-linux-x86_64-${ZIG_VER}/zig" /usr/local/bin/zig
           zig version
 
       - name: Build linux + windows binaries
@@ -185,7 +192,7 @@ jobs:
               --generate-notes
           fi
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
   test-go-install:
     needs: release
@@ -244,7 +251,7 @@ jobs:
       - name: Download checksums
         run: gh release download "${{ needs.release.outputs.version }}" --pattern checksums.txt
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
       - name: Update flake.nix
         run: |
