@@ -16,6 +16,7 @@ Three passes, all driven by a maintainable catalog:
 - **Filesystem** — tool config directories, instruction files, ignore files, skills, hooks, plugins, steering, memory, prompts, agents, commands and marketplace manifests.
 - **Source code** — AI SDK/framework usage per language, and the model-name literals passed to them. Model names are extracted by anchoring on the SDK parameter (`model=`, `modelId=`, `deployment_name=`), so **future / unknown model names are still captured**.
 - **Commit history** — commits authored by an AI agent, identified by `Co-Authored-By` trailers, session markers (e.g. `Claude-Session:`), agent bot authors, or "Generated with <tool>" lines. Catches agent use that left no file/env/source trace.
+- **IaC** — Kubernetes manifests (incl. KServe / Kubeflow / KubeRay CRDs), docker-compose files and Dockerfiles: AI serving runtimes, agent platforms, vector databases, training/eval frameworks, declared model identities, model-artifact volumes and GPU requests. Anything that cannot be verified from the file carries an explicit confidence gap.
 
 The builtin catalog (version `2026.06.4`) covers **84 AI coding agents**, **73 AI provider services**, **2 conventions**, and **102 AI SDKs** across many languages.
 

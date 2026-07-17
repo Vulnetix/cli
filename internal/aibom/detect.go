@@ -37,6 +37,9 @@ type Options struct {
 	IncludeHome bool
 	ScanSource  bool
 	ScanCommits bool
+	// ScanIaC scans Kubernetes manifests, docker-compose files and
+	// Dockerfiles for the AI infrastructure they would produce.
+	ScanIaC bool
 	// CommitMax bounds how many commits the commit-history pass inspects (<=0
 	// uses defaultCommitScanMax).
 	CommitMax int
@@ -63,11 +66,13 @@ func Detect(opts Options) (cdx.AIDetections, error) {
 	}
 
 	c := &collector{
-		cat:    opts.Catalog,
-		root:   abs,
-		tools:  map[string]*toolHit{},
-		libs:   map[string]*libHit{},
-		models: map[string]*modelHit{},
+		cat:       opts.Catalog,
+		root:      abs,
+		tools:     map[string]*toolHit{},
+		libs:      map[string]*libHit{},
+		models:    map[string]*modelHit{},
+		infraHits: map[string]*infraHit{},
+		dataHits:  map[string]*dataHit{},
 	}
 
 	depth := opts.MaxDepth
@@ -98,6 +103,9 @@ func Detect(opts Options) (cdx.AIDetections, error) {
 	if opts.ScanSource {
 		c.detectSource(input)
 	}
+	if opts.ScanIaC {
+		c.detectIaC(input)
+	}
 	if opts.ScanCommits {
 		c.detectCommits(abs, opts.CommitMax)
 	}
@@ -108,11 +116,13 @@ func Detect(opts Options) (cdx.AIDetections, error) {
 // ---- collector -----------------------------------------------------------
 
 type collector struct {
-	cat    *CompiledCatalog
-	root   string
-	tools  map[string]*toolHit
-	libs   map[string]*libHit
-	models map[string]*modelHit
+	cat       *CompiledCatalog
+	root      string
+	tools     map[string]*toolHit
+	libs      map[string]*libHit
+	models    map[string]*modelHit
+	infraHits map[string]*infraHit
+	dataHits  map[string]*dataHit
 }
 
 type toolHit struct {
@@ -248,6 +258,34 @@ func (c *collector) result() cdx.AIDetections {
 			ID: h.def.ID, Name: h.def.Name, Provider: h.def.Provider,
 			Languages: h.def.Languages, Purl: purlFor(h.def),
 			Confidence: "high", Evidence: h.evidence,
+		})
+	}
+
+	infraIDs := make([]string, 0, len(c.infraHits))
+	for id := range c.infraHits {
+		infraIDs = append(infraIDs, id)
+	}
+	sort.Strings(infraIDs)
+	for _, id := range infraIDs {
+		h := c.infraHits[id]
+		out.Infrastructure = append(out.Infrastructure, cdx.AIInfra{
+			ID: h.def.ID, Name: h.def.Name, Category: h.def.Category,
+			Homepage: h.def.Homepage, Version: h.version, RawTag: h.rawTag,
+			Image: h.image, ConfidenceGap: h.gap, GapReason: h.gapReason,
+			Evidence: h.evidence,
+		})
+	}
+
+	dataKeys := make([]string, 0, len(c.dataHits))
+	for k := range c.dataHits {
+		dataKeys = append(dataKeys, k)
+	}
+	sort.Strings(dataKeys)
+	for _, k := range dataKeys {
+		h := c.dataHits[k]
+		out.Data = append(out.Data, cdx.AIData{
+			Name: h.name, Kind: h.kind, Source: h.source, MountPath: h.mountPath,
+			ConfidenceGap: h.gap, GapReason: h.gapReason, Evidence: h.evidence,
 		})
 	}
 

@@ -41,6 +41,7 @@ func main() {
 		filepath.Join(docs, "aibom", "_index.md"):          indexMD(cat),
 		filepath.Join(docs, "aibom", "supported-tools.md"): toolsMD(cat),
 		filepath.Join(docs, "aibom", "libraries.md"):       librariesMD(cat),
+		filepath.Join(docs, "aibom", "infrastructure.md"):  infrastructureMD(cat),
 		filepath.Join(docs, "aibom", "catalog-format.md"):  formatMD(),
 		filepath.Join(docs, "cli-reference", "aibom.md"):   commandMD(),
 	}
@@ -64,8 +65,13 @@ func main() {
 			tools++
 		}
 	}
-	fmt.Printf("aibomgen: catalog %s — %d agents, %d services, %d conventions, %d libraries, %d model families\n",
-		cat.Version, tools, services, conventions, len(cat.Libraries), len(cat.Families))
+	infraRuntimes, infraCRDs := 0, 0
+	if cat.Infrastructure != nil {
+		infraRuntimes = len(cat.Infrastructure.Runtimes)
+		infraCRDs = len(cat.Infrastructure.CRDs)
+	}
+	fmt.Printf("aibomgen: catalog %s — %d agents, %d services, %d conventions, %d libraries, %d model families, %d infra runtimes, %d CRDs\n",
+		cat.Version, tools, services, conventions, len(cat.Libraries), len(cat.Families), infraRuntimes, infraCRDs)
 	fmt.Printf("aibomgen: wrote %d docs under %s\n", len(writes), docs)
 }
 
@@ -120,7 +126,8 @@ description: "Discover AI coding agents and AI usage, and emit a CycloneDX AI Bi
 	b.WriteString("- **Environment** — known AI tool / provider environment-variable *names*. Values are never read or emitted, so secrets never leak into the AIBOM.\n")
 	b.WriteString("- **Filesystem** — tool config directories, instruction files, ignore files, skills, hooks, plugins, steering, memory, prompts, agents, commands and marketplace manifests.\n")
 	b.WriteString("- **Source code** — AI SDK/framework usage per language, and the model-name literals passed to them. Model names are extracted by anchoring on the SDK parameter (`model=`, `modelId=`, `deployment_name=`), so **future / unknown model names are still captured**.\n")
-	b.WriteString("- **Commit history** — commits authored by an AI agent, identified by `Co-Authored-By` trailers, session markers (e.g. `Claude-Session:`), agent bot authors, or \"Generated with <tool>\" lines. Catches agent use that left no file/env/source trace.\n\n")
+	b.WriteString("- **Commit history** — commits authored by an AI agent, identified by `Co-Authored-By` trailers, session markers (e.g. `Claude-Session:`), agent bot authors, or \"Generated with <tool>\" lines. Catches agent use that left no file/env/source trace.\n")
+	b.WriteString("- **IaC** — Kubernetes manifests (incl. KServe / Kubeflow / KubeRay CRDs), docker-compose files and Dockerfiles: AI serving runtimes, agent platforms, vector databases, training/eval frameworks, declared model identities, model-artifact volumes and GPU requests. Anything that cannot be verified from the file carries an explicit confidence gap.\n\n")
 	fmt.Fprintf(&b, "The builtin catalog (version `%s`) covers **%d AI coding agents**, **%d AI provider services**, **%d conventions**, and **%d AI SDKs** across many languages.\n\n",
 		cat.Version, agents, services, conventions, len(cat.Libraries))
 	b.WriteString("{{< cards >}}\n")
@@ -224,10 +231,112 @@ description: "AI SDKs detected by the source-code pass and the model-name parame
 	return b.String()
 }
 
+func infrastructureMD(cat *aibom.Catalog) string {
+	var b strings.Builder
+	b.WriteString(`---
+title: "AI Infrastructure (IaC)"
+weight: 3
+description: "AI serving runtimes, agent platforms, vector databases and training frameworks detected from Kubernetes manifests, compose files and Dockerfiles."
+---
+
+`)
+	b.WriteString("The IaC pass analyzes **repository files** — Kubernetes manifests (including CRDs), docker-compose files and Dockerfiles — for the AI infrastructure they would produce. Every detection is validated; a value that cannot be verified from the file is either dropped (likely false positive) or reported with `vulnetix:ai/confidence-gap` = `true` and a `vulnetix:ai/gap-reason` stating exactly what could not be verified and why. **Nothing is ever guessed.**\n\n")
+	b.WriteString("> Generated from the catalog. To add or refine a rule, edit `internal/aibom/catalog/infrastructure.json` and run `just gen-aibom`.\n\n")
+
+	in := cat.Infrastructure
+	if in == nil {
+		b.WriteString("_The catalog carries no infrastructure section._\n")
+		return b.String()
+	}
+
+	b.WriteString("## Runtimes detected by container image\n\n")
+	b.WriteString("Image patterns are matched against the image **name** (registry + repository, tag/digest split off). The version is reported only when the tag is semver-shaped; otherwise the raw tag is preserved and the component carries a confidence gap.\n\n")
+	b.WriteString("| Runtime | Category | Image patterns |\n")
+	b.WriteString("|---------|----------|----------------|\n")
+	runtimes := append([]aibom.InfraRuntimeDef(nil), in.Runtimes...)
+	sort.Slice(runtimes, func(i, j int) bool {
+		if runtimes[i].Category != runtimes[j].Category {
+			return runtimes[i].Category < runtimes[j].Category
+		}
+		return runtimes[i].Name < runtimes[j].Name
+	})
+	for _, r := range runtimes {
+		fmt.Fprintf(&b, "| %s | `%s` | %s |\n", r.Name, r.Category, code(r.ImagePatterns))
+	}
+
+	b.WriteString("\n## Custom resources (CRDs)\n\n")
+	b.WriteString("| Kind | API group prefix | Category | Declared fields extracted |\n")
+	b.WriteString("|------|------------------|----------|---------------------------|\n")
+	for _, c := range in.CRDs {
+		var fields []string
+		for _, f := range c.Fields {
+			fields = append(fields, f.Path)
+		}
+		cell := "pod templates (embedded)"
+		if len(fields) > 0 {
+			cell = code(fields)
+		}
+		fmt.Fprintf(&b, "| %s | `%s` | `%s` | %s |\n", c.Kind, c.APIVersionPrefix, c.Category, cell)
+	}
+
+	b.WriteString("\n## Model identity signals\n\n")
+	fmt.Fprintf(&b, "- **Environment values**: %s (a `valueFrom` secret/configMap reference is never resolved — it produces a confidence gap instead)\n", code(in.ModelEnvVars))
+	fmt.Fprintf(&b, "- **Container args/command flags**: %s (both `--flag value` and `--flag=value`)\n", code(in.ModelArgFlags))
+	fmt.Fprintf(&b, "- **Declared annotations**: prefixes %s\n", code(in.AnnotationPrefixes))
+	fmt.Fprintf(&b, "- **Volume mounts** (model artifacts): path-boundary prefixes %s — `/models` matches `/models/x` but never `/models-shared`\n", code(in.ModelMountPrefixes))
+	fmt.Fprintf(&b, "- **Dataset volumes** (training workloads only): names %s, mount prefixes %s\n", code(in.DatasetVolumeNames), code(in.DatasetMountPrefixes))
+
+	b.WriteString("\n## Workload environment-name signals\n\n")
+	b.WriteString("Only the variable **name** is matched — values are never read.\n\n")
+	b.WriteString("| Env var | Framework | Category |\n")
+	b.WriteString("|---------|-----------|----------|\n")
+	sigs := append([]aibom.WorkloadEnvSignal(nil), in.WorkloadEnvSignals...)
+	sort.Slice(sigs, func(i, j int) bool { return sigs[i].Env < sigs[j].Env })
+	for _, s := range sigs {
+		fmt.Fprintf(&b, "| `%s` | %s | `%s` |\n", s.Env, s.Name, s.Category)
+	}
+	fmt.Fprintf(&b, "\nRemote AI API dependencies (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) declared on workload containers are surfaced through the same provider-service catalog as the local environment pass.\n")
+
+	fmt.Fprintf(&b, "\n## GPU / accelerator signals\n\nResource keys: %s, plus node selectors mentioning `accelerator`.\n", code(in.GPUResourceKeys))
+
+	if len(in.TerraformSignals) > 0 {
+		b.WriteString("\n## Terraform / OpenTofu signals\n\n")
+		b.WriteString("Matched by resource type (regex over `.tf`/`.tofu` content — resource names and variables are never interpreted). An **attribute gate** additionally requires a pattern inside the resource block, so e.g. a `ComputerVision` cognitive account never matches the Azure OpenAI signal.\n\n")
+		b.WriteString("| Signal | Provider | Category | Resource pattern | Attribute gate |\n")
+		b.WriteString("|--------|----------|----------|------------------|----------------|\n")
+		for _, ts := range in.TerraformSignals {
+			gate := "—"
+			if ts.AttrPattern != "" {
+				gate = "`" + ts.AttrPattern + "`"
+			}
+			fmt.Fprintf(&b, "| %s | %s | `%s` | `%s` | %s |\n", ts.Name, ts.Provider, ts.Category, ts.ResourcePattern, gate)
+		}
+	}
+
+	if len(in.ModelFileExtensions) > 0 {
+		fmt.Fprintf(&b, "\n## Model files on disk\n\nWeight files present in the repository (%s) are reported as verified `data` components — the artifact literally exists. `.pt` is deliberately excluded (too many non-model uses).\n", code(in.ModelFileExtensions))
+	}
+
+	b.WriteString(`
+## Known false negatives
+
+Detection is deliberately allowlist-driven — a missed detection is preferred over a wrong one. The following are **not** detected, by design:
+
+- Images mirrored to private or organisation-local registries (the official-registry patterns will not match a mirror).
+- Helm values that are still templated (` + "`{{ .Values.image }}`" + `) — structural parsing skips them; the narrow regex fallback reports what it finds with an explicit confidence gap.
+- Models fetched at runtime (entrypoint scripts, init downloads) that leave no declared trace in the manifest.
+- Model identities passed through ConfigMaps or Secrets — references are never resolved.
+- Bare ` + "`/data`" + ` mounts on workloads with no training signal (not assumed to be datasets).
+
+Absence of a finding is therefore **not** verified absence of AI infrastructure.
+`)
+	return b.String()
+}
+
 func formatMD() string {
 	return `---
 title: "Catalog Format"
-weight: 3
+weight: 4
 description: "The detection catalog schema, and how to extend or override it with --catalog."
 ---
 
@@ -238,7 +347,7 @@ vulnetix aibom --catalog ./my-rules.json          # merge over the builtin (over
 vulnetix aibom --catalog ./only.json --no-builtin-catalog   # replace entirely
 ` + "```" + `
 
-A catalog file is JSON with any of three top-level arrays: ` + "`tools`, `libraries`, `model_families`" + `.
+A catalog file is JSON with any of the top-level sections: ` + "`tools`, `libraries`, `model_families`, `infrastructure`" + `. The ` + "`infrastructure`" + ` section drives the IaC pass — see [AI Infrastructure (IaC)](../infrastructure/) for its rule tables; its ` + "`runtimes`/`crds`/`terraform_signals`" + ` entries override by ` + "`id`" + `, ` + "`workload_env_signals`" + ` by ` + "`env`" + `, and a non-empty scalar list (e.g. ` + "`model_env_vars`" + `) **replaces** the builtin list.
 
 ## Tool entry
 

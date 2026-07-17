@@ -494,15 +494,22 @@ func TestAIBOMFindingRecords(t *testing.T) {
 }
 
 func TestAIBOMReconcileScope(t *testing.T) {
-	all := aibomReconcileScope(aibomPasses{Env: true, Source: true, Commits: true})
-	if len(all) != 3 {
-		t.Errorf("all passes should reconcile all three prefixes, got %v", all)
+	all := aibomReconcileScope(aibomPasses{Env: true, Source: true, Commits: true, Iac: true})
+	if len(all) != 5 {
+		t.Errorf("all passes should reconcile all five prefixes, got %v", all)
 	}
 	// --no-source must not resolve libraries or models.
-	noSource := aibomReconcileScope(aibomPasses{Env: true, Commits: true})
+	noSource := aibomReconcileScope(aibomPasses{Env: true, Commits: true, Iac: true})
 	for _, p := range noSource {
 		if p == "AIBOM:library:" || p == "AIBOM:model:" {
 			t.Errorf("--no-source must not put %q in reconciliation scope", p)
+		}
+	}
+	// --no-iac must not resolve models (IaC also produces them) nor infra/data.
+	noIac := aibomReconcileScope(aibomPasses{Env: true, Source: true, Commits: true})
+	for _, p := range noIac {
+		if p == "AIBOM:model:" || p == "AIBOM:infra:" || p == "AIBOM:data:" {
+			t.Errorf("--no-iac must not put %q in reconciliation scope", p)
 		}
 	}
 	// --no-env must not resolve tools: a tool detected only via env vars is
