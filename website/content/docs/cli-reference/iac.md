@@ -1,10 +1,10 @@
 ---
 title: "IaC Command Reference"
 weight: 9
-description: "Run only Infrastructure as Code analysis — checks Terraform HCL and Nix files for security misconfigurations."
+description: "Run only Infrastructure as Code analysis — checks Terraform HCL files for security misconfigurations."
 ---
 
-The `iac` command runs a focused scan that evaluates only IaC Rego rules (rules with `kind: iac`) against Terraform HCL and Nix manifest files. It is equivalent to running:
+The `iac` command runs a focused scan that evaluates only IaC Rego rules (rules with `kind: iac`) against Terraform HCL files. Nix files contribute component extraction (flake inputs) via the sca path — there are currently no Nix misconfiguration rules. It is equivalent to running:
 
 ```bash
 vulnetix scan --evaluate-iac --no-sast --no-sca --no-secrets --no-containers --no-licenses
@@ -99,6 +99,16 @@ vulnetix iac --exclude ".terraform/**"
 |------|---------|
 | `0` | Scan completed successfully (no threshold breach) |
 | `1` | A gate was breached (`--severity`), or a fatal error occurred |
+
+## Known false negatives
+
+Detection is deliberately conservative — a missed detection is preferred over a wrong one. Not detected, by design:
+
+- Kubernetes manifest misconfigurations (privileged pods, hostPath mounts, missing limits) — the built-in rules cover Terraform only today.
+- Resources created through modules whose source is not vendored (only the calling block's literals are visible).
+- Values resolved from variables, remote state, or workspaces — rules match literals, never evaluate HCL.
+
+Absence of a finding is not verified absence of a misconfiguration.
 
 ## Related Commands
 

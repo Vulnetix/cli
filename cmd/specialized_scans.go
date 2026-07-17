@@ -147,8 +147,10 @@ var iacCmd = &cobra.Command{
 	Long: `Run a scan with only IaC analysis enabled. Equivalent to:
   vulnetix scan --evaluate-iac --no-licenses --no-sast --no-sca --no-containers --no-secrets
 
-Analyzes Infrastructure as Code files (Terraform HCL, Nix) only, without
-analyzing package dependencies, licenses, or other security issues.`,
+Analyzes Infrastructure as Code files (Terraform HCL) for misconfigurations,
+without analyzing package dependencies, licenses, or other security issues.
+Nix files contribute component/dependency extraction (flake inputs) via the
+sca path, not misconfiguration rules.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
