@@ -136,8 +136,8 @@ jobs:
           LDFLAGS="-s -w -X github.com/vulnetix/cli/v3/cmd.version=${VERSION} -X github.com/vulnetix/cli/v3/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/v3/cmd.buildDate=${BUILD_DATE}"
           mkdir -p bin
 
-          # macos-latest is arm64; build amd64 with -arch x86_64 via the
-          # native cc which has access to the SDK.
+          # The self-hosted macOS runner is ARM64; build amd64 with -arch x86_64
+          # via the native cc, which has access to the Apple SDK.
           CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
             CGO_CFLAGS="-w" \
             go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-arm64 .
