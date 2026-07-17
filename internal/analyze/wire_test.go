@@ -80,7 +80,10 @@ func TestToWire_CarriesProvenance(t *testing.T) {
 		References: []Reference{{Title: "kospex", URL: "https://github.com/kospex/kospex"}},
 	}, []EvidenceRef{})
 
-	r, _, err := b.Finish(time.Date(2026, 7, 12, 1, 0, 0, 0, time.UTC))
+	// Finish with the real clock — a fixed past date makes the computed
+	// duration negative once that date lapses (this test rotted exactly that
+	// way). The provenance fields under test are overridden below anyway.
+	r, _, err := b.Finish(time.Now())
 	require.NoError(t, err)
 
 	r.Target.HeadCommittedAt = "2026-07-11T13:21:42Z"
