@@ -756,7 +756,8 @@ update-packages VERSION="":
             .architecture."64bit".hash = $h64 |
             .architecture.arm64.url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-arm64.exe#/vulnetix.exe" |
             .architecture.arm64.hash = $harm |
-            del(.architecture."32bit")' "$SCOOP" > "$TMPDIR/vulnetix.json"
+            del(.architecture."32bit") |
+            del(.autoupdate.architecture."32bit")' "$SCOOP" > "$TMPDIR/vulnetix.json"
         mv "$TMPDIR/vulnetix.json" "$SCOOP"
         echo "    vulnetix.json → ${VER_NUM}"
     else
