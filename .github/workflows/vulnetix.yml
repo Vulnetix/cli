@@ -1,0 +1,110 @@
+name: Vulnetix Security
+
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  VULNETIX_VERSION: v3.64.0
+
+jobs:
+  analyze:
+    name: ${{ matrix.name }}
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    env:
+      VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+      VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+      GITHUB_TOKEN: ${{ github.token }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: sca
+            name: SCA
+            run: vulnetix sca --no-banner --no-progress --verbose
+            artifact: .vulnetix/sbom.cdx.json
+          - id: secrets
+            name: Secrets
+            run: vulnetix secrets --rule Vulnetix/community-rules --rule Vulnetix/opa-fugue-regula --rule Vulnetix/opa-checkmarx-kics --rule Vulnetix/opa-cds-aws-tf --rule Vulnetix/opa-cigna-tf --rule Vulnetix/opa-aquasecurity-trivy --ignore-binaries --ignore-git --no-banner --no-progress --verbose
+            artifact: .vulnetix/sast.sarif
+          - id: sast
+            name: SAST
+            run: vulnetix sast --rule Vulnetix/community-rules --rule Vulnetix/opa-fugue-regula --rule Vulnetix/opa-checkmarx-kics --rule Vulnetix/opa-cds-aws-tf --rule Vulnetix/opa-cigna-tf --rule Vulnetix/opa-aquasecurity-trivy --no-banner --no-progress --verbose
+            artifact: .vulnetix/sast.sarif
+          - id: iac
+            name: IaC
+            run: vulnetix iac --rule Vulnetix/community-rules --rule Vulnetix/opa-fugue-regula --rule Vulnetix/opa-checkmarx-kics --rule Vulnetix/opa-cds-aws-tf --rule Vulnetix/opa-cigna-tf --rule Vulnetix/opa-aquasecurity-trivy --no-banner --no-progress --verbose
+            artifact: .vulnetix/sast.sarif
+          - id: containers
+            name: Containers
+            run: vulnetix containers --rule Vulnetix/community-rules --rule Vulnetix/opa-fugue-regula --rule Vulnetix/opa-checkmarx-kics --rule Vulnetix/opa-cds-aws-tf --rule Vulnetix/opa-cigna-tf --rule Vulnetix/opa-aquasecurity-trivy --no-banner --no-progress --verbose
+            artifact: .vulnetix/containers.sarif
+          - id: licenses
+            name: Licenses
+            run: vulnetix license --no-banner --no-progress --verbose
+            artifact: .vulnetix/sbom.cdx.json
+          - id: cbom
+            name: CBOM
+            run: vulnetix cbom --no-banner --no-progress --verbose
+            artifact: .vulnetix/cbom.cdx.json
+          - id: aibom
+            name: AIBOM
+            run: vulnetix aibom --commit-scan-max 1 --no-banner --no-progress --verbose
+            artifact: .vulnetix/ai-bom.cdx.json
+          - id: analyze
+            name: Analyze
+            run: vulnetix analyze --no-banner --no-progress --verbose
+            artifact: .vulnetix/analyze.report.json
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Vulnetix CLI
+        run: |
+          curl -fsSL https://cli.vulnetix.com/install.sh             | sh -s -- --install-dir "$HOME/.local/bin" --version "$VULNETIX_VERSION"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Vulnetix authentication
+        run: vulnetix auth verify --no-banner --no-progress --verbose
+
+      - name: Run ${{ matrix.name }}
+        continue-on-error: true
+        run: |
+          ${{ matrix.run }}
+
+      - name: Upload ${{ matrix.name }} artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.id }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+  publish:
+    name: Publish
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    needs: analyze
+    permissions:
+      contents: read
+      actions: read
+    env:
+      VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+      VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Vulnetix CLI
+        run: |
+          curl -fsSL https://cli.vulnetix.com/install.sh             | sh -s -- --install-dir "$HOME/.local/bin" --version "$VULNETIX_VERSION"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Upload all artifacts to Vulnetix
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: vulnetix gha upload --org-id "$VULNETIX_ORG_ID" --json --no-banner --no-progress --verbose
