@@ -77,6 +77,7 @@ func postScanSARIF(report *sast.SASTReport, enabledKinds map[string]bool, gitCtx
 		// IngestionSnapshot on any SARIF body (v2_cli_scan_handlers.go), so the
 		// GUI reflects "assessed, 0 findings" instead of no coverage at all.
 		bucket := byKind[sk.kind]
+		bucket.degradations = report.Degradations
 		if link, snapshotUuid, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, baseSnapshotUuid, w); ok {
 			snapshots = append(snapshots, link)
 			if snapshotUuid != "" {
@@ -142,6 +143,7 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 	anyOK := false
 	for i, ch := range chunks {
 		sarifLog := sast.BuildSARIF(ch.sast, bucket.rules, version)
+		sarifLog.AddExecutionNotifications(bucket.degradations)
 		req := vdb.CliSARIFRequest{
 			SARIF:    sarifLogToMap(sarifLog),
 			Findings: ch.api,
@@ -289,6 +291,11 @@ func dispatchSARIFRequest(client *vdb.Client, env vdb.CliEnv, category string, r
 type kindBucket struct {
 	findings []sast.Finding
 	rules    []sast.RuleMetadata
+	// degradations are run-wide capability notes ("git history was not
+	// scanned: ...") attached to every kind's SARIF as
+	// toolExecutionNotifications, so the backend can tell "assessed clean"
+	// from "assessed with reduced coverage".
+	degradations []string
 }
 
 // partitionFindingsByKind splits a mixed SAST-engine report into per-kind

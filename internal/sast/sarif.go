@@ -19,9 +19,24 @@ type SARIFLog struct {
 
 // SARIFRun represents a single analysis run.
 type SARIFRun struct {
-	Tool      SARIFTool       `json:"tool"`
-	Results   []SARIFResult   `json:"results"`
-	Artifacts []SARIFArtifact `json:"artifacts,omitempty"`
+	Tool        SARIFTool         `json:"tool"`
+	Results     []SARIFResult     `json:"results"`
+	Artifacts   []SARIFArtifact   `json:"artifacts,omitempty"`
+	Invocations []SARIFInvocation `json:"invocations,omitempty"`
+}
+
+// SARIFInvocation records how the run executed, including any capability
+// degradations surfaced as tool execution notifications.
+type SARIFInvocation struct {
+	ExecutionSuccessful        bool                `json:"executionSuccessful"`
+	ToolExecutionNotifications []SARIFNotification `json:"toolExecutionNotifications,omitempty"`
+}
+
+// SARIFNotification is a run-level notification ("couldn't verify X because
+// Y") — the honest complement to an empty results array.
+type SARIFNotification struct {
+	Level   string       `json:"level,omitempty"` // note | warning | error
+	Message SARIFMessage `json:"message"`
 }
 
 // SARIFTool describes the analysis tool.
@@ -97,6 +112,37 @@ type SARIFArtifact struct {
 
 // SARIFPropertyBag is a property bag for extensible metadata.
 type SARIFPropertyBag map[string]any
+
+// AddExecutionNotifications attaches capability-degradation notes to every
+// run in the log as toolExecutionNotifications (level "warning"). A no-op on
+// an empty list — a fully-executed run keeps no invocations block.
+func (l *SARIFLog) AddExecutionNotifications(notes []string) {
+	if l == nil || len(notes) == 0 {
+		return
+	}
+	for i := range l.Runs {
+		inv := SARIFInvocation{ExecutionSuccessful: true}
+		for _, n := range notes {
+			inv.ToolExecutionNotifications = append(inv.ToolExecutionNotifications, SARIFNotification{
+				Level: "warning", Message: SARIFMessage{Text: n},
+			})
+		}
+		l.Runs[i].Invocations = append(l.Runs[i].Invocations, inv)
+	}
+}
+
+// MarkConfidenceGap flags a result whose evidence could not be fully
+// verified, with a reason stating exactly what was unverifiable and why.
+func MarkConfidenceGap(res *SARIFResult, reason string) {
+	if res == nil {
+		return
+	}
+	if res.Properties == nil {
+		res.Properties = SARIFPropertyBag{}
+	}
+	res.Properties["vulnetix/confidence-gap"] = true
+	res.Properties["vulnetix/gap-reason"] = reason
+}
 
 // BuildSARIF converts findings and rules into a SARIF 2.1.0 log.
 func BuildSARIF(findings []Finding, rules []RuleMetadata, toolVersion string) *SARIFLog {
