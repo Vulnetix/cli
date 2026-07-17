@@ -249,9 +249,10 @@ jobs:
           path: scoop-bucket
 
       - name: Download checksums
-        run: gh release download "${{ needs.release.outputs.version }}" --pattern checksums.txt
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+        run: |
+          curl -fsSL \
+            "https://github.com/Vulnetix/cli/releases/download/${{ needs.release.outputs.version }}/checksums.txt" \
+            -o checksums.txt
 
       - name: Update flake.nix
         run: |

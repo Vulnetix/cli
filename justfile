@@ -690,7 +690,9 @@ update-packages VERSION="":
     if [ -n "{{VERSION}}" ]; then
         VER="{{VERSION}}"
     else
-        VER=$(gh release view --json tagName -q '.tagName' 2>/dev/null)
+        VER=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+            https://github.com/Vulnetix/cli/releases/latest \
+            | awk -F/ '{print $NF}')
         if [ -z "$VER" ]; then
             echo "Error: could not determine latest release version"
             exit 1
@@ -702,7 +704,9 @@ update-packages VERSION="":
     # Download checksums
     TMPDIR=$(mktemp -d)
     trap 'rm -rf "$TMPDIR"' EXIT
-    gh release download "v${VER_NUM}" --pattern checksums.txt --dir "$TMPDIR"
+    curl -fsSL \
+        "https://github.com/Vulnetix/cli/releases/download/v${VER_NUM}/checksums.txt" \
+        -o "$TMPDIR/checksums.txt"
     CHECKSUMS="$TMPDIR/checksums.txt"
 
     # Extract hashes
