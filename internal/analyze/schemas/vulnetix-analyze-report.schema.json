@@ -46,7 +46,17 @@
       "required": ["name", "version"],
       "additionalProperties": false,
       "properties": {
-        "name": { "const": "vulnetix-analyze" },
+        "name": {
+          "enum": [
+            "vulnetix-analyze",
+            "vulnetix-scan-graph",
+            "vulnetix-containers-graph",
+            "vulnetix-iac-graph",
+            "vulnetix-secrets-graph",
+            "vulnetix-static-graph",
+            "vulnetix-license-graph"
+          ]
+        },
         "version": { "type": "string", "description": "CLI version that produced the report." },
         "commit": { "type": "string", "description": "Build commit of the CLI." },
         "catalogVersion": {
@@ -689,7 +699,9 @@
             "repo", "folder", "file", "module", "package",
             "function", "method", "class", "interface", "struct", "enum", "trait", "type_alias", "constant", "variable",
             "service", "route", "topic", "job", "database", "table",
-            "dependency", "manifest", "container_image", "workflow", "action", "iac_resource",
+            "dependency", "manifest", "container_image", "container_registry", "workflow", "action", "iac_resource",
+            "helm_chart", "terraform_module", "terraform_provider", "terraform_registry", "helm_registry",
+            "npm_registry", "maven_registry", "package_registry", "iac_provider",
             "language", "framework", "tool", "runtime",
             "contributor", "team",
             "community"
@@ -759,7 +771,12 @@
         "id": { "type": "string" },
         "localNodeId": { "type": "string", "description": "The node in this repository's graph that sits on the boundary." },
         "joinKind": {
-          "enum": ["package", "http_route", "grpc_method", "topic", "database", "container_image", "workflow", "symbol", "service"],
+          "enum": [
+            "package", "http_route", "grpc_method", "topic", "database", "container_image", "container_registry",
+            "workflow", "symbol", "service", "iac_resource", "iac_provider",
+            "helm_chart", "helm_registry", "terraform_module", "terraform_provider", "terraform_registry",
+            "npm_registry", "maven_registry", "package_registry"
+          ],
           "description": "What kind of thing is being joined on. Determines how joinKey is normalized."
         },
         "joinKey": {

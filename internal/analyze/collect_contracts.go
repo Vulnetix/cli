@@ -17,12 +17,14 @@ package analyze
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/vulnetix/cli/v3/internal/scan"
 	"gopkg.in/yaml.v3"
 )
 
@@ -59,6 +61,10 @@ var (
 	// Dockerfile FROM, ignoring build stages (a stage is internal to the file, not a
 	// dependency on anybody else's image).
 	dockerFrom = regexp.MustCompile(`(?im)^\s*FROM\s+(\S+)`)
+
+	terraformResource       = regexp.MustCompile(`(?m)\bresource\s+"([^"]+)"\s+"([^"]+)"`)
+	terraformProviderSource = regexp.MustCompile(`(?m)\bsource\s*=\s*"([^"]+/[^"]+)"`)
+	terraformModuleSource   = regexp.MustCompile(`(?m)\bmodule\s+"([^"]+)"\s*\{[^}]*?\bsource\s*=\s*"([^"]+)"`)
 )
 
 type contractStats struct {
@@ -189,6 +195,8 @@ func collectContracts(b *Builder, root string, files *fileStats, deps *depStats,
 	}
 
 	collectImages(root, add)
+	collectInfrastructure(root, add)
+	collectRegistries(root, add)
 	collectWorkflows(root, target, add)
 
 	emitContractMetrics(b, st)
@@ -405,6 +413,7 @@ func collectImages(root string, add func(CrossRepoEdge, Node)) {
 					Confidence:  1,
 					Properties:  map[string]any{"path": rel},
 				}, Node{ID: id, Kind: "container_image", Name: img, Path: rel})
+				addContainerRegistry(img, rel, add)
 			}
 
 		case name == "docker-compose.yml" || name == "docker-compose.yaml" ||
@@ -437,11 +446,37 @@ func collectImages(root string, add func(CrossRepoEdge, Node)) {
 					Confidence:  1,
 					Properties:  map[string]any{"path": rel},
 				}, Node{ID: id, Kind: "container_image", Name: img, Path: rel})
+				addContainerRegistry(img, rel, add)
 			}
 		}
 
 		return nil
 	})
+}
+
+func addContainerRegistry(image, rel string, add func(CrossRepoEdge, Node)) {
+	registry := imageRegistry(image)
+	if registry == "" {
+		return
+	}
+	id := "container_registry:" + registry
+	add(CrossRepoEdge{
+		ID:          "xr-consumes-container-registry-" + safeID(registry),
+		LocalNodeID: id,
+		JoinKind:    "container_registry",
+		JoinKey:     registry,
+		Role:        "consumes",
+		Confidence:  1,
+		Properties:  map[string]any{"path": rel},
+	}, Node{ID: id, Kind: "container_registry", Name: registry, Path: rel})
+}
+
+func imageRegistry(image string) string {
+	first := strings.Split(image, "/")[0]
+	if first == "" || !strings.ContainsAny(first, ".:") {
+		return "docker.io"
+	}
+	return strings.ToLower(first)
 }
 
 // normaliseImage strips the tag and digest. `acme/api:1.2.3` and `acme/api:1.3.0` are the
@@ -465,6 +500,307 @@ func normaliseImage(ref string) string {
 	}
 
 	return strings.ToLower(ref)
+}
+
+func collectInfrastructure(root string, add func(CrossRepoEdge, Node)) {
+	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if skipDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		rel, _ := filepath.Rel(root, p)
+		rel = filepath.ToSlash(rel)
+		base := strings.ToLower(filepath.Base(p))
+		ext := strings.ToLower(filepath.Ext(p))
+
+		switch {
+		case ext == ".tf":
+			collectTerraform(p, rel, add)
+		case base == "chart.yaml" || base == "chart.yml":
+			collectHelmChart(p, rel, add)
+		case ext == ".yaml" || ext == ".yml" || ext == ".json":
+			collectYAMLInfrastructure(p, rel, add)
+		}
+		return nil
+	})
+}
+
+func collectTerraform(abs, rel string, add func(CrossRepoEdge, Node)) {
+	body, err := os.ReadFile(abs)
+	if err != nil {
+		return
+	}
+	src := string(body)
+	for _, m := range terraformResource.FindAllStringSubmatch(src, -1) {
+		typ, name := m[1], m[2]
+		provider := strings.SplitN(typ, "_", 2)[0]
+		key := "terraform:" + typ + ":" + name
+		id := "iac_resource:" + key
+		props := map[string]any{"path": rel, "platform": "terraform", "resourceType": typ, "provider": provider}
+		add(CrossRepoEdge{
+			ID:          "xr-provides-iac-" + safeID(key),
+			LocalNodeID: id,
+			JoinKind:    "iac_resource",
+			JoinKey:     key,
+			Role:        "provides",
+			Confidence:  1,
+			Properties:  props,
+		}, Node{ID: id, Kind: "iac_resource", Name: typ + "." + name, Path: rel, Properties: props})
+		if provider != "" {
+			providerKey := "terraform:" + provider
+			addRegistryLike("iac_provider", providerKey, rel, "consumes", 0.9, add)
+		}
+	}
+	for _, m := range terraformProviderSource.FindAllStringSubmatch(src, -1) {
+		source := strings.TrimSpace(m[1])
+		if source == "" {
+			continue
+		}
+		host := terraformRegistryHost(source)
+		if host != "" {
+			addRegistryLike("terraform_registry", host, rel, "consumes", 1, add)
+		}
+		addRegistryLike("terraform_provider", normaliseTerraformSource(source), rel, "consumes", 1, add)
+	}
+	for _, m := range terraformModuleSource.FindAllStringSubmatch(src, -1) {
+		modName, source := strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+		if source == "" || strings.HasPrefix(source, "./") || strings.HasPrefix(source, "../") {
+			continue
+		}
+		key := normaliseTerraformSource(source)
+		id := "terraform_module:" + key
+		add(CrossRepoEdge{
+			ID:          "xr-consumes-terraform-module-" + safeID(key+"-"+modName),
+			LocalNodeID: id,
+			JoinKind:    "terraform_module",
+			JoinKey:     key,
+			Role:        "consumes",
+			Confidence:  0.9,
+			Properties:  map[string]any{"path": rel, "module": modName},
+		}, Node{ID: id, Kind: "terraform_module", Name: key, Path: rel})
+		if host := terraformRegistryHost(source); host != "" {
+			addRegistryLike("terraform_registry", host, rel, "consumes", 1, add)
+		}
+	}
+}
+
+func collectHelmChart(abs, rel string, add func(CrossRepoEdge, Node)) {
+	body, err := os.ReadFile(abs)
+	if err != nil {
+		return
+	}
+	var chart struct {
+		Name         string `yaml:"name"`
+		APIVersion   string `yaml:"apiVersion"`
+		Dependencies []struct {
+			Name       string `yaml:"name"`
+			Version    string `yaml:"version"`
+			Repository string `yaml:"repository"`
+		} `yaml:"dependencies"`
+	}
+	if yaml.Unmarshal(body, &chart) != nil {
+		return
+	}
+	if chart.Name != "" {
+		key := "helm:" + chart.Name
+		id := "helm_chart:" + key
+		add(CrossRepoEdge{
+			ID:          "xr-provides-helm-chart-" + safeID(key),
+			LocalNodeID: id,
+			JoinKind:    "helm_chart",
+			JoinKey:     key,
+			Role:        "provides",
+			Confidence:  1,
+			Properties:  map[string]any{"path": rel, "apiVersion": chart.APIVersion},
+		}, Node{ID: id, Kind: "helm_chart", Name: chart.Name, Path: rel, Exported: true})
+	}
+	for _, dep := range chart.Dependencies {
+		if dep.Name == "" {
+			continue
+		}
+		key := "helm:" + dep.Name
+		id := "helm_chart:" + key
+		add(CrossRepoEdge{
+			ID:          "xr-consumes-helm-chart-" + safeID(key),
+			LocalNodeID: id,
+			JoinKind:    "helm_chart",
+			JoinKey:     key,
+			Role:        "consumes",
+			Confidence:  1,
+			Properties:  map[string]any{"path": rel, "repository": dep.Repository, "version": dep.Version},
+		}, Node{ID: id, Kind: "helm_chart", Name: dep.Name, Path: rel})
+		if dep.Repository != "" {
+			addRegistryLike("helm_registry", dep.Repository, rel, "consumes", 1, add)
+		}
+	}
+}
+
+func collectYAMLInfrastructure(abs, rel string, add func(CrossRepoEdge, Node)) {
+	body, err := os.ReadFile(abs)
+	if err != nil {
+		return
+	}
+
+	dec := yaml.NewDecoder(strings.NewReader(string(body)))
+	for {
+		var doc map[string]any
+		err := dec.Decode(&doc)
+		if err == io.EOF {
+			break
+		}
+		if err != nil || len(doc) == 0 {
+			break
+		}
+
+		if resources, ok := mapAny(doc["Resources"]); ok {
+			platform := "cloudformation"
+			if transform := fmt.Sprint(doc["Transform"]); strings.Contains(transform, "AWS::Serverless") {
+				platform = "aws-sam"
+			}
+			for logicalID, raw := range resources {
+				res, ok := mapAny(raw)
+				if !ok {
+					continue
+				}
+				typ, _ := res["Type"].(string)
+				if typ == "" {
+					continue
+				}
+				key := platform + ":" + typ + ":" + logicalID
+				id := "iac_resource:" + key
+				props := map[string]any{"path": rel, "platform": platform, "resourceType": typ}
+				add(CrossRepoEdge{
+					ID:          "xr-provides-iac-" + safeID(key),
+					LocalNodeID: id,
+					JoinKind:    "iac_resource",
+					JoinKey:     key,
+					Role:        "provides",
+					Confidence:  1,
+					Properties:  props,
+				}, Node{ID: id, Kind: "iac_resource", Name: logicalID, Path: rel, Properties: props})
+			}
+			continue
+		}
+
+		apiVersion, _ := doc["apiVersion"].(string)
+		kind, _ := doc["kind"].(string)
+		meta, _ := mapAny(doc["metadata"])
+		name, _ := meta["name"].(string)
+		if apiVersion != "" && kind != "" && name != "" {
+			key := "kubernetes:" + kind + ":" + name
+			id := "iac_resource:" + key
+			props := map[string]any{"path": rel, "platform": "kubernetes", "resourceType": kind, "apiVersion": apiVersion}
+			add(CrossRepoEdge{
+				ID:          "xr-provides-iac-" + safeID(key),
+				LocalNodeID: id,
+				JoinKind:    "iac_resource",
+				JoinKey:     key,
+				Role:        "provides",
+				Confidence:  1,
+				Properties:  props,
+			}, Node{ID: id, Kind: "iac_resource", Name: kind + "/" + name, Path: rel, Properties: props})
+			collectKubernetesImages(doc, rel, add)
+		}
+	}
+}
+
+func collectKubernetesImages(doc map[string]any, rel string, add func(CrossRepoEdge, Node)) {
+	var walk func(any)
+	walk = func(v any) {
+		switch x := v.(type) {
+		case map[string]any:
+			if image, ok := x["image"].(string); ok {
+				img := normaliseImage(image)
+				if img != "" {
+					id := "container_image:" + img
+					add(CrossRepoEdge{
+						ID:          "xr-consumes-image-" + safeID(img),
+						LocalNodeID: id,
+						JoinKind:    "container_image",
+						JoinKey:     img,
+						Role:        "consumes",
+						Confidence:  1,
+						Properties:  map[string]any{"path": rel},
+					}, Node{ID: id, Kind: "container_image", Name: img, Path: rel})
+					addContainerRegistry(img, rel, add)
+				}
+			}
+			for _, child := range x {
+				walk(child)
+			}
+		case []any:
+			for _, child := range x {
+				walk(child)
+			}
+		}
+	}
+	walk(doc)
+}
+
+func collectRegistries(root string, add func(CrossRepoEdge, Node)) {
+	files, err := scan.WalkForScanFiles(scan.WalkOptions{RootPath: root, MaxDepth: 20})
+	if err != nil {
+		return
+	}
+	for _, ep := range scan.SummarizeRegistryConfigs(files) {
+		if ep.URL == "" {
+			continue
+		}
+		kind := ep.Ecosystem + "_registry"
+		if ep.Ecosystem == "" {
+			kind = "package_registry"
+		}
+		addRegistryLike(kind, ep.URL, strings.TrimPrefix(ep.Source, "./"), "consumes", 1, add)
+	}
+}
+
+func addRegistryLike(kind, key, rel, role string, confidence float64, add func(CrossRepoEdge, Node)) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return
+	}
+	id := kind + ":" + key
+	add(CrossRepoEdge{
+		ID:          "xr-" + role + "-" + kind + "-" + safeID(key),
+		LocalNodeID: id,
+		JoinKind:    kind,
+		JoinKey:     key,
+		Role:        role,
+		Confidence:  confidence,
+		Properties:  map[string]any{"path": rel},
+	}, Node{ID: id, Kind: kind, Name: key, Path: rel})
+}
+
+func terraformRegistryHost(source string) string {
+	source = strings.TrimSpace(source)
+	if source == "" || strings.Contains(source, "://") {
+		return ""
+	}
+	parts := strings.Split(source, "/")
+	if len(parts) >= 3 && strings.Contains(parts[0], ".") {
+		return strings.ToLower(parts[0])
+	}
+	return "registry.terraform.io"
+}
+
+func normaliseTerraformSource(source string) string {
+	source = strings.TrimSpace(strings.SplitN(source, "?", 2)[0])
+	source = strings.TrimSuffix(source, ".git")
+	if strings.Contains(source, "://") {
+		source = strings.TrimPrefix(source, "git::")
+	}
+	return strings.ToLower(source)
+}
+
+func mapAny(v any) (map[string]any, bool) {
+	m, ok := v.(map[string]any)
+	return m, ok
 }
 
 // collectWorkflows reads .github/workflows. A reusable workflow this repo *defines* is
