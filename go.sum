@@ -9,10 +9,10 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/ProtonMail/go-crypto v1.4.1 h1:9RfcZHqEQUvP8RzecWEUafnZVtEvrBVL9BiF67IQOfM=
 github.com/ProtonMail/go-crypto v1.4.1/go.mod h1:e1OaTyu5SYVrO9gKOEhTc+5UcXtTUa+P3uLudwcgPqo=
-github.com/Vulnetix/vdb-cyclonedx v0.3.0 h1:SngSjHsozKM9qTpCc7uJJcexkmo61mdX/6o2nwp8pEQ=
-github.com/Vulnetix/vdb-cyclonedx v0.3.0/go.mod h1:OdwvoW17lbz3CFqBp/csiwZJx7xat1u4zoG6GUEM8U4=
-github.com/Vulnetix/vdb-sca-match v0.1.0 h1:HKJ+K9P+XKhfZZi3op4nbWFXOOxo/TshENAgbtGxbUQ=
-github.com/Vulnetix/vdb-sca-match v0.1.0/go.mod h1:kDnY6aj0AHT6O5X4iwWTGrdYXSSXVPtHoHYtLchKrkI=
+github.com/Vulnetix/vdb-cyclonedx v0.4.0 h1:QzrubxleQ/IzER84PHBtKubeb3gsrwLewNkNFRzepWU=
+github.com/Vulnetix/vdb-cyclonedx v0.4.0/go.mod h1:OdwvoW17lbz3CFqBp/csiwZJx7xat1u4zoG6GUEM8U4=
+github.com/Vulnetix/vdb-sca-match v0.2.0 h1:2Zwqv9ATJ9+/iIFg0/6SPQqQA0WDpxv7sVkDwfxmMkE=
+github.com/Vulnetix/vdb-sca-match v0.2.0/go.mod h1:kDnY6aj0AHT6O5X4iwWTGrdYXSSXVPtHoHYtLchKrkI=
 github.com/agnivade/levenshtein v1.2.1 h1:EHBY3UOn1gwdy/VbFwgo4cxecRznFk7fKWN1KOX7eoM=
 github.com/agnivade/levenshtein v1.2.1/go.mod h1:QVVI16kDrtSuwcpd0p1+xMC6Z/VfhtCyDIjcwga4/DU=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=

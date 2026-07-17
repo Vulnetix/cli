@@ -85,12 +85,88 @@ type FamilyDef struct {
 	Family      string `json:"family"`
 }
 
+// InfraRuntimeDef describes one AI infrastructure runtime (model server,
+// agent platform, vector database, training/eval framework) identified by
+// container image reference patterns in IaC files.
+type InfraRuntimeDef struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Vendor   string `json:"vendor,omitempty"`
+	Category string `json:"category"` // inference | agent | training | evaluation | vector-database | managed-ai | accelerator
+	Homepage string `json:"homepage,omitempty"`
+	// ImagePatterns are anchored RE2 regexes matched against the image NAME
+	// (repository incl. registry, tag/digest already split off). Patterns are
+	// deliberately narrow (official orgs/registries only): mirrored or private
+	// copies are a documented false negative, not a guess.
+	ImagePatterns []string `json:"image_patterns"`
+}
+
+// WorkloadEnvSignal maps an environment variable NAME observed on a workload
+// container to an AI framework. Only the name is ever matched — values are
+// never read.
+type WorkloadEnvSignal struct {
+	Env       string `json:"env"`
+	Framework string `json:"framework"` // infra id reported when this signal fires
+	Name      string `json:"name"`      // display name
+	Category  string `json:"category"`
+}
+
+// CRDFieldDef pulls one string field out of a matched CRD document.
+type CRDFieldDef struct {
+	Path string `json:"path"` // dot-path, e.g. spec.predictor.model.storageUri
+	As   string `json:"as"`   // model | runtime | runtime_version | runtime_ref | service_account
+}
+
+// CRDDef matches a Kubernetes custom resource kind that declares AI workloads.
+type CRDDef struct {
+	ID               string        `json:"id"`
+	Name             string        `json:"name"`
+	APIVersionPrefix string        `json:"api_version_prefix"` // e.g. "serving.kserve.io/"
+	Kind             string        `json:"kind"`
+	Category         string        `json:"category"`
+	Homepage         string        `json:"homepage,omitempty"`
+	Fields           []CRDFieldDef `json:"fields,omitempty"`
+}
+
+// TerraformSignalDef matches a managed-AI or accelerator resource in
+// Terraform/OpenTofu files (regex over content — consistent with the rest of
+// the IaC scanning, which does not structurally parse HCL).
+type TerraformSignalDef struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Category string `json:"category"` // managed-ai | accelerator
+	Provider string `json:"provider,omitempty"`
+	// ResourcePattern matches the resource TYPE (first label of a resource
+	// block), e.g. ^google_vertex_ai_.
+	ResourcePattern string `json:"resource_pattern"`
+	// AttrPattern optionally further gates on block content (e.g. kind = "OpenAI").
+	AttrPattern string `json:"attr_pattern,omitempty"`
+}
+
+// InfrastructureDef is the IaC detection section of the catalog.
+type InfrastructureDef struct {
+	Runtimes             []InfraRuntimeDef    `json:"runtimes,omitempty"`
+	ModelEnvVars         []string             `json:"model_env_vars,omitempty"`
+	ModelArgFlags        []string             `json:"model_arg_flags,omitempty"`
+	ModelMountPrefixes   []string             `json:"model_mount_prefixes,omitempty"`
+	DatasetVolumeNames   []string             `json:"dataset_volume_names,omitempty"`
+	DatasetMountPrefixes []string             `json:"dataset_mount_prefixes,omitempty"`
+	WorkloadEnvSignals   []WorkloadEnvSignal  `json:"workload_env_signals,omitempty"`
+	AnnotationPrefixes   []string             `json:"annotation_prefixes,omitempty"`
+	CRDs                 []CRDDef             `json:"crds,omitempty"`
+	CategoryPriority     []string             `json:"category_priority,omitempty"`
+	GPUResourceKeys      []string             `json:"gpu_resource_keys,omitempty"`
+	TerraformSignals     []TerraformSignalDef `json:"terraform_signals,omitempty"`
+	ModelFileExtensions  []string             `json:"model_file_extensions,omitempty"`
+}
+
 // Catalog is the raw (uncompiled) detection catalog.
 type Catalog struct {
-	Version   string       `json:"version"`
-	Tools     []ToolDef    `json:"tools"`
-	Libraries []LibraryDef `json:"libraries"`
-	Families  []FamilyDef  `json:"model_families"`
+	Version        string             `json:"version"`
+	Tools          []ToolDef          `json:"tools"`
+	Libraries      []LibraryDef       `json:"libraries"`
+	Families       []FamilyDef        `json:"model_families"`
+	Infrastructure *InfrastructureDef `json:"infrastructure,omitempty"`
 }
 
 // ---- compiled forms ------------------------------------------------------
@@ -101,6 +177,35 @@ type CompiledCatalog struct {
 	Tools     []CompiledTool
 	Libraries []CompiledLibrary
 	Families  []CompiledFamily
+	Infra     *CompiledInfrastructure // nil when the catalog has no infrastructure section
+}
+
+type CompiledInfraRuntime struct {
+	Def    InfraRuntimeDef
+	Images []*regexp.Regexp
+}
+
+type CompiledTerraformSignal struct {
+	Def        TerraformSignalDef
+	ResourceRe *regexp.Regexp
+	AttrRe     *regexp.Regexp // nil when no attr gate
+}
+
+// CompiledInfrastructure holds the validated IaC detection rules.
+type CompiledInfrastructure struct {
+	Runtimes             []CompiledInfraRuntime
+	ModelEnvVars         map[string]bool
+	ModelArgFlags        map[string]bool
+	ModelMountPrefixes   []string
+	DatasetVolumeNames   map[string]bool
+	DatasetMountPrefixes []string
+	EnvSignals           map[string]WorkloadEnvSignal // env var name -> signal
+	AnnotationPrefixes   []string
+	CRDs                 []CRDDef
+	CategoryRank         map[string]int // lower = higher priority
+	GPUResourceKeys      map[string]bool
+	Terraform            []CompiledTerraformSignal
+	ModelFileExts        map[string]bool
 }
 
 type CompiledTool struct {
@@ -209,7 +314,100 @@ func mergeInto(cat *Catalog, data []byte, src string) error {
 		cat.Libraries = upsertLibrary(cat.Libraries, l)
 	}
 	cat.Families = append(cat.Families, f.Families...)
+	if f.Infrastructure != nil {
+		mergeInfrastructure(cat, f.Infrastructure)
+	}
 	return nil
+}
+
+// mergeInfrastructure merges an infrastructure section: runtimes/CRDs/
+// terraform signals upsert by id, env signals upsert by env name, and a
+// non-empty scalar list from a later file REPLACES the earlier list (so an
+// override catalog narrowing an allowlist is honored).
+func mergeInfrastructure(cat *Catalog, in *InfrastructureDef) {
+	if cat.Infrastructure == nil {
+		cat.Infrastructure = &InfrastructureDef{}
+	}
+	dst := cat.Infrastructure
+	for _, r := range in.Runtimes {
+		replaced := false
+		for i := range dst.Runtimes {
+			if dst.Runtimes[i].ID == r.ID {
+				dst.Runtimes[i] = r
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			dst.Runtimes = append(dst.Runtimes, r)
+		}
+	}
+	for _, c := range in.CRDs {
+		replaced := false
+		for i := range dst.CRDs {
+			if dst.CRDs[i].ID == c.ID {
+				dst.CRDs[i] = c
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			dst.CRDs = append(dst.CRDs, c)
+		}
+	}
+	for _, ts := range in.TerraformSignals {
+		replaced := false
+		for i := range dst.TerraformSignals {
+			if dst.TerraformSignals[i].ID == ts.ID {
+				dst.TerraformSignals[i] = ts
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			dst.TerraformSignals = append(dst.TerraformSignals, ts)
+		}
+	}
+	for _, s := range in.WorkloadEnvSignals {
+		replaced := false
+		for i := range dst.WorkloadEnvSignals {
+			if dst.WorkloadEnvSignals[i].Env == s.Env {
+				dst.WorkloadEnvSignals[i] = s
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			dst.WorkloadEnvSignals = append(dst.WorkloadEnvSignals, s)
+		}
+	}
+	if len(in.ModelEnvVars) > 0 {
+		dst.ModelEnvVars = in.ModelEnvVars
+	}
+	if len(in.ModelArgFlags) > 0 {
+		dst.ModelArgFlags = in.ModelArgFlags
+	}
+	if len(in.ModelMountPrefixes) > 0 {
+		dst.ModelMountPrefixes = in.ModelMountPrefixes
+	}
+	if len(in.DatasetVolumeNames) > 0 {
+		dst.DatasetVolumeNames = in.DatasetVolumeNames
+	}
+	if len(in.DatasetMountPrefixes) > 0 {
+		dst.DatasetMountPrefixes = in.DatasetMountPrefixes
+	}
+	if len(in.AnnotationPrefixes) > 0 {
+		dst.AnnotationPrefixes = in.AnnotationPrefixes
+	}
+	if len(in.CategoryPriority) > 0 {
+		dst.CategoryPriority = in.CategoryPriority
+	}
+	if len(in.GPUResourceKeys) > 0 {
+		dst.GPUResourceKeys = in.GPUResourceKeys
+	}
+	if len(in.ModelFileExtensions) > 0 {
+		dst.ModelFileExtensions = in.ModelFileExtensions
+	}
 }
 
 func upsertTool(list []ToolDef, t ToolDef) []ToolDef {
@@ -330,7 +528,151 @@ func (c *Catalog) Compile() (*CompiledCatalog, error) {
 		cc.Families = append(cc.Families, CompiledFamily{Def: f, Re: re})
 	}
 
+	if c.Infrastructure != nil {
+		ci, err := compileInfrastructure(c.Infrastructure)
+		if err != nil {
+			return nil, err
+		}
+		cc.Infra = ci
+	}
+
 	return cc, nil
+}
+
+// compileInfrastructure validates and compiles the IaC detection rules.
+// Every failure is fail-fast at load time so a malformed pattern can never
+// surface mid-scan.
+func compileInfrastructure(in *InfrastructureDef) (*CompiledInfrastructure, error) {
+	ci := &CompiledInfrastructure{
+		ModelEnvVars:         map[string]bool{},
+		ModelArgFlags:        map[string]bool{},
+		DatasetVolumeNames:   map[string]bool{},
+		EnvSignals:           map[string]WorkloadEnvSignal{},
+		CategoryRank:         map[string]int{},
+		GPUResourceKeys:      map[string]bool{},
+		ModelFileExts:        map[string]bool{},
+		ModelMountPrefixes:   in.ModelMountPrefixes,
+		DatasetMountPrefixes: in.DatasetMountPrefixes,
+		AnnotationPrefixes:   in.AnnotationPrefixes,
+		CRDs:                 in.CRDs,
+	}
+
+	for i, cat := range in.CategoryPriority {
+		ci.CategoryRank[cat] = i
+	}
+	validCategory := func(kind, id, cat string) error {
+		if cat == "" {
+			return fmt.Errorf("infrastructure %s %s: category is required", kind, id)
+		}
+		if len(ci.CategoryRank) > 0 {
+			if _, ok := ci.CategoryRank[cat]; !ok {
+				return fmt.Errorf("infrastructure %s %s: category %q not in category_priority", kind, id, cat)
+			}
+		}
+		return nil
+	}
+
+	seenRuntime := map[string]bool{}
+	for _, r := range in.Runtimes {
+		if r.ID == "" {
+			return nil, fmt.Errorf("infrastructure runtime with empty id")
+		}
+		if seenRuntime[r.ID] {
+			return nil, fmt.Errorf("infrastructure runtime %s: duplicate id", r.ID)
+		}
+		seenRuntime[r.ID] = true
+		if err := validCategory("runtime", r.ID, r.Category); err != nil {
+			return nil, err
+		}
+		if len(r.ImagePatterns) == 0 {
+			return nil, fmt.Errorf("infrastructure runtime %s: image_patterns is required", r.ID)
+		}
+		cr := CompiledInfraRuntime{Def: r}
+		for _, p := range r.ImagePatterns {
+			re, err := regexp.Compile(p)
+			if err != nil {
+				return nil, fmt.Errorf("infrastructure runtime %s: image pattern %q: %w", r.ID, p, err)
+			}
+			cr.Images = append(cr.Images, re)
+		}
+		ci.Runtimes = append(ci.Runtimes, cr)
+	}
+
+	for _, v := range in.ModelEnvVars {
+		if v == "" {
+			return nil, fmt.Errorf("infrastructure model_env_vars: empty entry")
+		}
+		ci.ModelEnvVars[v] = true
+	}
+	for _, f := range in.ModelArgFlags {
+		if !strings.HasPrefix(f, "-") {
+			return nil, fmt.Errorf("infrastructure model_arg_flags: %q must start with '-'", f)
+		}
+		ci.ModelArgFlags[f] = true
+	}
+	for _, p := range append(append([]string{}, in.ModelMountPrefixes...), in.DatasetMountPrefixes...) {
+		if !strings.HasPrefix(p, "/") {
+			return nil, fmt.Errorf("infrastructure mount prefix %q must be absolute", p)
+		}
+	}
+	for _, n := range in.DatasetVolumeNames {
+		ci.DatasetVolumeNames[n] = true
+	}
+	for _, s := range in.WorkloadEnvSignals {
+		if s.Env == "" || s.Framework == "" {
+			return nil, fmt.Errorf("infrastructure workload_env_signal needs env and framework: %+v", s)
+		}
+		if err := validCategory("env signal", s.Env, s.Category); err != nil {
+			return nil, err
+		}
+		ci.EnvSignals[s.Env] = s
+	}
+	for _, crd := range in.CRDs {
+		if crd.ID == "" || crd.Kind == "" || crd.APIVersionPrefix == "" {
+			return nil, fmt.Errorf("infrastructure crd %q needs id, kind and api_version_prefix", crd.ID)
+		}
+		if err := validCategory("crd", crd.ID, crd.Category); err != nil {
+			return nil, err
+		}
+		for _, f := range crd.Fields {
+			if f.Path == "" || strings.HasPrefix(f.Path, ".") || strings.HasSuffix(f.Path, ".") {
+				return nil, fmt.Errorf("infrastructure crd %s: invalid field path %q", crd.ID, f.Path)
+			}
+		}
+	}
+	for _, k := range in.GPUResourceKeys {
+		ci.GPUResourceKeys[k] = true
+	}
+	for _, ts := range in.TerraformSignals {
+		if ts.ID == "" || ts.ResourcePattern == "" {
+			return nil, fmt.Errorf("infrastructure terraform signal %q needs id and resource_pattern", ts.ID)
+		}
+		if err := validCategory("terraform signal", ts.ID, ts.Category); err != nil {
+			return nil, err
+		}
+		cts := CompiledTerraformSignal{Def: ts}
+		re, err := regexp.Compile(ts.ResourcePattern)
+		if err != nil {
+			return nil, fmt.Errorf("infrastructure terraform signal %s: resource_pattern %q: %w", ts.ID, ts.ResourcePattern, err)
+		}
+		cts.ResourceRe = re
+		if ts.AttrPattern != "" {
+			are, err := regexp.Compile(ts.AttrPattern)
+			if err != nil {
+				return nil, fmt.Errorf("infrastructure terraform signal %s: attr_pattern %q: %w", ts.ID, ts.AttrPattern, err)
+			}
+			cts.AttrRe = are
+		}
+		ci.Terraform = append(ci.Terraform, cts)
+	}
+	for _, ext := range in.ModelFileExtensions {
+		if !strings.HasPrefix(ext, ".") {
+			return nil, fmt.Errorf("infrastructure model_file_extensions: %q must start with '.'", ext)
+		}
+		ci.ModelFileExts[strings.ToLower(ext)] = true
+	}
+
+	return ci, nil
 }
 
 // classifyModel returns the provider/family for a model literal, and whether it

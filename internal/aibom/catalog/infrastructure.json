@@ -1,0 +1,384 @@
+{
+  "infrastructure": {
+    "category_priority": [
+      "agent",
+      "training",
+      "evaluation",
+      "vector-database",
+      "inference",
+      "managed-ai",
+      "accelerator"
+    ],
+    "runtimes": [
+      {
+        "id": "vllm",
+        "name": "vLLM",
+        "category": "inference",
+        "homepage": "https://docs.vllm.ai",
+        "image_patterns": ["^vllm/[\\w.-]+$", "^ghcr\\.io/vllm-project/[\\w.-]+$"]
+      },
+      {
+        "id": "tgi",
+        "name": "Text Generation Inference",
+        "vendor": "Hugging Face",
+        "category": "inference",
+        "homepage": "https://huggingface.co/docs/text-generation-inference",
+        "image_patterns": ["^huggingface/text-generation-inference$", "^ghcr\\.io/huggingface/text-generation-inference$"]
+      },
+      {
+        "id": "tei",
+        "name": "Text Embeddings Inference",
+        "vendor": "Hugging Face",
+        "category": "inference",
+        "homepage": "https://huggingface.co/docs/text-embeddings-inference",
+        "image_patterns": ["^ghcr\\.io/huggingface/text-embeddings-inference$"]
+      },
+      {
+        "id": "triton",
+        "name": "Triton Inference Server",
+        "vendor": "NVIDIA",
+        "category": "inference",
+        "homepage": "https://developer.nvidia.com/triton-inference-server",
+        "image_patterns": ["^nvcr\\.io/nvidia/tritonserver$"]
+      },
+      {
+        "id": "nim",
+        "name": "NVIDIA NIM",
+        "vendor": "NVIDIA",
+        "category": "inference",
+        "homepage": "https://developer.nvidia.com/nim",
+        "image_patterns": ["^nvcr\\.io/nim/[\\w.-]+/[\\w.-]+$"]
+      },
+      {
+        "id": "ollama",
+        "name": "Ollama",
+        "category": "inference",
+        "homepage": "https://ollama.com",
+        "image_patterns": ["^ollama/ollama$"]
+      },
+      {
+        "id": "ray",
+        "name": "Ray",
+        "vendor": "Anyscale",
+        "category": "inference",
+        "homepage": "https://www.ray.io",
+        "image_patterns": ["^rayproject/ray(-ml)?$"]
+      },
+      {
+        "id": "llm-d",
+        "name": "llm-d",
+        "category": "inference",
+        "homepage": "https://llm-d.ai",
+        "image_patterns": ["^ghcr\\.io/llm-d/[\\w.-]+$"]
+      },
+      {
+        "id": "sglang",
+        "name": "SGLang",
+        "category": "inference",
+        "homepage": "https://docs.sglang.ai",
+        "image_patterns": ["^lmsysorg/sglang$"]
+      },
+      {
+        "id": "lmdeploy",
+        "name": "LMDeploy",
+        "vendor": "OpenMMLab",
+        "category": "inference",
+        "homepage": "https://lmdeploy.readthedocs.io",
+        "image_patterns": ["^openmmlab/lmdeploy$"]
+      },
+      {
+        "id": "localai",
+        "name": "LocalAI",
+        "category": "inference",
+        "homepage": "https://localai.io",
+        "image_patterns": ["^localai/localai$", "^quay\\.io/go-skynet/local-ai$"]
+      },
+      {
+        "id": "llamacpp",
+        "name": "llama.cpp server",
+        "category": "inference",
+        "homepage": "https://github.com/ggml-org/llama.cpp",
+        "image_patterns": ["^ghcr\\.io/ggml-org/llama\\.cpp$", "^ghcr\\.io/ggerganov/llama\\.cpp$"]
+      },
+      {
+        "id": "litellm",
+        "name": "LiteLLM Proxy",
+        "vendor": "BerriAI",
+        "category": "inference",
+        "homepage": "https://docs.litellm.ai",
+        "image_patterns": ["^ghcr\\.io/berriai/litellm$"]
+      },
+      {
+        "id": "langflow",
+        "name": "Langflow",
+        "category": "agent",
+        "homepage": "https://www.langflow.org",
+        "image_patterns": ["^langflowai/langflow$"]
+      },
+      {
+        "id": "flowise",
+        "name": "Flowise",
+        "category": "agent",
+        "homepage": "https://flowiseai.com",
+        "image_patterns": ["^flowiseai/flowise$"]
+      },
+      {
+        "id": "chainlit",
+        "name": "Chainlit",
+        "category": "agent",
+        "homepage": "https://chainlit.io",
+        "image_patterns": ["^chainlit/chainlit$"]
+      },
+      {
+        "id": "haystack",
+        "name": "Haystack",
+        "vendor": "deepset",
+        "category": "agent",
+        "homepage": "https://haystack.deepset.ai",
+        "image_patterns": ["^deepset/haystack$", "^deepset/hayhooks$"]
+      },
+      {
+        "id": "llama-index",
+        "name": "LlamaIndex",
+        "category": "agent",
+        "homepage": "https://www.llamaindex.ai",
+        "image_patterns": ["^llamaindex/[\\w.-]+$"]
+      },
+      {
+        "id": "open-webui",
+        "name": "Open WebUI",
+        "category": "agent",
+        "homepage": "https://openwebui.com",
+        "image_patterns": ["^ghcr\\.io/open-webui/open-webui$"]
+      },
+      {
+        "id": "milvus",
+        "name": "Milvus",
+        "vendor": "Zilliz",
+        "category": "vector-database",
+        "homepage": "https://milvus.io",
+        "image_patterns": ["^milvusdb/milvus$"]
+      },
+      {
+        "id": "qdrant",
+        "name": "Qdrant",
+        "category": "vector-database",
+        "homepage": "https://qdrant.tech",
+        "image_patterns": ["^qdrant/qdrant$"]
+      },
+      {
+        "id": "weaviate",
+        "name": "Weaviate",
+        "category": "vector-database",
+        "homepage": "https://weaviate.io",
+        "image_patterns": ["^semitechnologies/weaviate$", "^cr\\.weaviate\\.io/semitechnologies/weaviate$"]
+      },
+      {
+        "id": "chroma",
+        "name": "Chroma",
+        "category": "vector-database",
+        "homepage": "https://www.trychroma.com",
+        "image_patterns": ["^chromadb/chroma$", "^ghcr\\.io/chroma-core/chroma$"]
+      },
+      {
+        "id": "pgvector",
+        "name": "pgvector",
+        "category": "vector-database",
+        "homepage": "https://github.com/pgvector/pgvector",
+        "image_patterns": ["^pgvector/pgvector$", "^ankane/pgvector$"]
+      },
+      {
+        "id": "pytorch",
+        "name": "PyTorch",
+        "category": "training",
+        "homepage": "https://pytorch.org",
+        "image_patterns": ["^pytorch/pytorch$", "^nvcr\\.io/nvidia/pytorch$"]
+      },
+      {
+        "id": "jax",
+        "name": "JAX",
+        "vendor": "Google",
+        "category": "training",
+        "homepage": "https://jax.readthedocs.io",
+        "image_patterns": ["^ghcr\\.io/google/jax$", "^ghcr\\.io/nvidia/jax$"]
+      },
+      {
+        "id": "hf-accelerate",
+        "name": "Hugging Face Accelerate",
+        "vendor": "Hugging Face",
+        "category": "training",
+        "homepage": "https://huggingface.co/docs/accelerate",
+        "image_patterns": ["^huggingface/accelerate(-[\\w.-]+)?$"]
+      },
+      {
+        "id": "axolotl",
+        "name": "Axolotl",
+        "category": "training",
+        "homepage": "https://axolotl.ai",
+        "image_patterns": ["^axolotlai/axolotl$", "^winglian/axolotl$"]
+      },
+      {
+        "id": "lm-eval",
+        "name": "LM Evaluation Harness",
+        "vendor": "EleutherAI",
+        "category": "evaluation",
+        "homepage": "https://github.com/EleutherAI/lm-evaluation-harness",
+        "image_patterns": ["^eleutherai/lm-eval(uation-harness)?$"]
+      },
+      {
+        "id": "ragas",
+        "name": "Ragas",
+        "category": "evaluation",
+        "homepage": "https://docs.ragas.io",
+        "image_patterns": ["^ragas/[\\w.-]+$"]
+      },
+      {
+        "id": "trulens",
+        "name": "TruLens",
+        "category": "evaluation",
+        "homepage": "https://www.trulens.org",
+        "image_patterns": ["^trulens/[\\w.-]+$"]
+      }
+    ],
+    "model_env_vars": ["HF_MODEL_ID", "MODEL_NAME", "MODEL_ID", "OLLAMA_MODEL"],
+    "model_arg_flags": ["--model", "--model-id", "--model_id", "--model-path", "--model-repository", "--model-name", "--served-model-name"],
+    "model_mount_prefixes": ["/models", "/model", "/weights", "/checkpoints", "/hf_cache"],
+    "dataset_volume_names": ["dataset", "datasets", "training-data"],
+    "dataset_mount_prefixes": ["/data"],
+    "workload_env_signals": [
+      {"env": "LANGCHAIN_TRACING_V2", "framework": "langchain", "name": "LangChain", "category": "agent"},
+      {"env": "LANGCHAIN_API_KEY", "framework": "langchain", "name": "LangChain", "category": "agent"},
+      {"env": "LANGSMITH_API_KEY", "framework": "langchain", "name": "LangChain", "category": "agent"},
+      {"env": "AUTOGEN_USE_DOCKER", "framework": "autogen", "name": "AutoGen", "category": "agent"},
+      {"env": "CREWAI_TELEMETRY_OPT_OUT", "framework": "crewai", "name": "CrewAI", "category": "agent"},
+      {"env": "HAYSTACK_TELEMETRY_ENABLED", "framework": "haystack", "name": "Haystack", "category": "agent"},
+      {"env": "DSPY_CACHEDIR", "framework": "dspy", "name": "DSPy", "category": "agent"},
+      {"env": "LLAMA_CLOUD_API_KEY", "framework": "llama-index", "name": "LlamaIndex", "category": "agent"},
+      {"env": "WANDB_API_KEY", "framework": "wandb", "name": "Weights & Biases", "category": "training"},
+      {"env": "WANDB_PROJECT", "framework": "wandb", "name": "Weights & Biases", "category": "training"},
+      {"env": "MLFLOW_TRACKING_URI", "framework": "mlflow", "name": "MLflow", "category": "training"}
+    ],
+    "annotation_prefixes": ["vulnetix.com/model.", "model.k8saibom.dev/"],
+    "crds": [
+      {
+        "id": "kserve-inferenceservice",
+        "name": "KServe InferenceService",
+        "api_version_prefix": "serving.kserve.io/",
+        "kind": "InferenceService",
+        "category": "inference",
+        "homepage": "https://kserve.github.io/website/",
+        "fields": [
+          {"path": "spec.predictor.model.storageUri", "as": "model"},
+          {"path": "spec.predictor.model.modelFormat.name", "as": "runtime"},
+          {"path": "spec.predictor.model.modelFormat.version", "as": "runtime_version"},
+          {"path": "spec.predictor.model.runtime", "as": "runtime_ref"},
+          {"path": "spec.predictor.serviceAccountName", "as": "service_account"}
+        ]
+      },
+      {
+        "id": "kubeflow-pytorchjob",
+        "name": "Kubeflow PyTorchJob",
+        "api_version_prefix": "kubeflow.org/",
+        "kind": "PyTorchJob",
+        "category": "training",
+        "homepage": "https://www.kubeflow.org/docs/components/trainer/"
+      },
+      {
+        "id": "kubeflow-tfjob",
+        "name": "Kubeflow TFJob",
+        "api_version_prefix": "kubeflow.org/",
+        "kind": "TFJob",
+        "category": "training",
+        "homepage": "https://www.kubeflow.org/docs/components/trainer/"
+      },
+      {
+        "id": "ray-rayjob",
+        "name": "KubeRay RayJob",
+        "api_version_prefix": "ray.io/",
+        "kind": "RayJob",
+        "category": "training",
+        "homepage": "https://docs.ray.io/en/latest/cluster/kubernetes/"
+      },
+      {
+        "id": "ray-rayservice",
+        "name": "KubeRay RayService",
+        "api_version_prefix": "ray.io/",
+        "kind": "RayService",
+        "category": "inference",
+        "homepage": "https://docs.ray.io/en/latest/cluster/kubernetes/"
+      },
+      {
+        "id": "ray-raycluster",
+        "name": "KubeRay RayCluster",
+        "api_version_prefix": "ray.io/",
+        "kind": "RayCluster",
+        "category": "training",
+        "homepage": "https://docs.ray.io/en/latest/cluster/kubernetes/"
+      }
+    ],
+    "gpu_resource_keys": ["nvidia.com/gpu", "amd.com/gpu", "google.com/tpu", "habana.ai/gaudi", "intel.com/gpu"],
+    "terraform_signals": [
+      {
+        "id": "google-vertex-ai",
+        "name": "Google Vertex AI",
+        "provider": "Google Cloud",
+        "category": "managed-ai",
+        "resource_pattern": "^google_vertex_ai_"
+      },
+      {
+        "id": "aws-bedrock",
+        "name": "Amazon Bedrock",
+        "provider": "AWS",
+        "category": "managed-ai",
+        "resource_pattern": "^aws_bedrock"
+      },
+      {
+        "id": "aws-sagemaker",
+        "name": "Amazon SageMaker",
+        "provider": "AWS",
+        "category": "managed-ai",
+        "resource_pattern": "^aws_sagemaker_"
+      },
+      {
+        "id": "azure-openai",
+        "name": "Azure OpenAI Service",
+        "provider": "Microsoft Azure",
+        "category": "managed-ai",
+        "resource_pattern": "^azurerm_cognitive_account$",
+        "attr_pattern": "kind\\s*=\\s*\"OpenAI\""
+      },
+      {
+        "id": "azure-ai-services",
+        "name": "Azure AI Services",
+        "provider": "Microsoft Azure",
+        "category": "managed-ai",
+        "resource_pattern": "^azurerm_ai_services$"
+      },
+      {
+        "id": "gcp-gpu-nodepool",
+        "name": "GKE GPU node pool",
+        "provider": "Google Cloud",
+        "category": "accelerator",
+        "resource_pattern": "^google_container_node_pool$",
+        "attr_pattern": "guest_accelerator"
+      },
+      {
+        "id": "aws-gpu-instance",
+        "name": "AWS GPU instance",
+        "provider": "AWS",
+        "category": "accelerator",
+        "resource_pattern": "^aws_(instance|launch_template)$",
+        "attr_pattern": "instance_type\\s*=\\s*\"(p[2-5]|g[4-6]|trn[12]|inf[12])[a-z0-9]*\\."
+      },
+      {
+        "id": "azure-gpu-vm",
+        "name": "Azure GPU VM",
+        "provider": "Microsoft Azure",
+        "category": "accelerator",
+        "resource_pattern": "^azurerm_(linux|windows)_virtual_machine(_scale_set)?$",
+        "attr_pattern": "size\\s*=\\s*\"Standard_N"
+      }
+    ],
+    "model_file_extensions": [".gguf", ".safetensors", ".onnx"]
+  }
+}

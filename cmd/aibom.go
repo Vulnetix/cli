@@ -26,7 +26,7 @@ var aibomCmd = &cobra.Command{
 	Long: `Discover evidence of AI coding agents/assistants and AI usage in a project
 and produce an AI Bill of Materials (AIBOM) in CycloneDX format.
 
-Three detection passes, all driven by a maintainable catalog:
+Detection passes, all driven by a maintainable catalog:
   • environment — known AI tool / provider env-var NAMES (values are never read)
   • filesystem  — tool config dirs, instructions, ignore files, skills, hooks,
                   plugins, steering, memory, prompts, agents, commands and
@@ -36,6 +36,15 @@ Three detection passes, all driven by a maintainable catalog:
                   passed to them. Model names are extracted by anchoring on the
                   SDK parameter (model=, modelId=, deployment_name=), so future
                   / unknown model names are still captured.
+  • IaC         — Kubernetes manifests (incl. KServe / Kubeflow / KubeRay CRDs),
+                  docker-compose files and Dockerfiles: AI serving runtimes
+                  (vLLM, TGI, Triton, Ollama, …), agent platforms, vector
+                  databases, training/eval frameworks, declared model
+                  identities, model-artifact volumes and GPU requests. Values
+                  that cannot be verified from the file (templated Helm values,
+                  secret-referenced envs, non-semver image tags) are either
+                  dropped or reported with an explicit confidence gap — never
+                  guessed.
 
 The catalog is embedded and can be extended or replaced at runtime with
 --catalog. No source content is ever uploaded.
@@ -71,6 +80,7 @@ func init() {
 	aibomCmd.Flags().Bool("include-home", false, "Also probe the user's home directory for tool config dirs")
 	aibomCmd.Flags().Bool("no-source", false, "Skip the source-code SDK / model detection pass")
 	aibomCmd.Flags().Bool("no-commits", false, "Skip the git commit-history detection pass")
+	aibomCmd.Flags().Bool("no-iac", false, "Skip the IaC (Kubernetes/compose/Dockerfile) infrastructure detection pass")
 	aibomCmd.Flags().Int("commit-scan-max", 2000, "Maximum number of commits (from HEAD) the commit-history pass inspects")
 	aibomCmd.Flags().Bool("no-upload", false, "Do not submit the AIBOM to Vulnetix (it is submitted automatically when authenticated)")
 	aibomCmd.Flags().Bool("aibom-include-ignored", false, "Include files matched by .gitignore (default: gitignored paths are skipped)")
@@ -93,6 +103,7 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	includeHome, _ := cmd.Flags().GetBool("include-home")
 	noSource, _ := cmd.Flags().GetBool("no-source")
 	noCommits, _ := cmd.Flags().GetBool("no-commits")
+	noIaC, _ := cmd.Flags().GetBool("no-iac")
 	commitMax, _ := cmd.Flags().GetInt("commit-scan-max")
 	noUpload, _ := cmd.Flags().GetBool("no-upload")
 	includeIgnored, _ := cmd.Flags().GetBool("aibom-include-ignored")
@@ -125,6 +136,7 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 		IncludeHome:      includeHome,
 		ScanSource:       !noSource,
 		ScanCommits:      !noCommits,
+		ScanIaC:          !noIaC,
 		CommitMax:        commitMax,
 		Catalog:          compiled,
 		RespectGitignore: !includeIgnored,
@@ -149,7 +161,7 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 
 	// Memory always lives under the resolved scan root, never the process CWD.
 	reconcileAIBOMMemory(rootPath, gitCtx, det, aibomPasses{
-		Env: !noEnv, Source: !noSource, Commits: !noCommits,
+		Env: !noEnv, Source: !noSource, Commits: !noCommits, Iac: !noIaC,
 	})
 
 	// Auto-submit to the Vulnetix backend when authenticated. Best-effort: never
@@ -248,6 +260,26 @@ func aibomFindingRecords(det cyclonedx.AIDetections) map[string]memory.FindingRe
 		}
 	}
 
+	for _, inf := range det.Infrastructure {
+		out["AIBOM:infra:"+inf.ID] = memory.FindingRecord{
+			Package:   inf.Name,
+			Severity:  "info",
+			Status:    memory.StatusInventory,
+			Source:    "vulnetix-aibom",
+			Locations: firstEvidenceLocation(inf.Evidence),
+		}
+	}
+
+	for _, d := range det.Data {
+		out[fmt.Sprintf("AIBOM:data:%s:%s", d.Kind, d.Name)] = memory.FindingRecord{
+			Package:   d.Name,
+			Severity:  "info",
+			Status:    memory.StatusInventory,
+			Source:    "vulnetix-aibom",
+			Locations: firstEvidenceLocation(d.Evidence),
+		}
+	}
+
 	return out
 }
 
@@ -257,6 +289,7 @@ type aibomPasses struct {
 	Env     bool
 	Source  bool
 	Commits bool
+	Iac     bool
 }
 
 // aibomReconcileScope maps the passes that ran onto the finding-ID prefixes that
@@ -270,7 +303,15 @@ func aibomReconcileScope(p aibomPasses) []string {
 		prefixes = append(prefixes, "AIBOM:tool:")
 	}
 	if p.Source {
-		prefixes = append(prefixes, "AIBOM:library:", "AIBOM:model:")
+		prefixes = append(prefixes, "AIBOM:library:")
+	}
+	// Models are produced by both the source and IaC passes, so resolving a
+	// model record requires both to have run.
+	if p.Source && p.Iac {
+		prefixes = append(prefixes, "AIBOM:model:")
+	}
+	if p.Iac {
+		prefixes = append(prefixes, "AIBOM:infra:", "AIBOM:data:")
 	}
 	// An empty prefix list means "reconcile everything"; when no pass qualifies
 	// we must reconcile nothing, so return a prefix that matches no record.
@@ -327,13 +368,14 @@ func detectAndUploadAIBOM(rootPath string, gitCtx *gitctx.GitContext) {
 		ScanEnv:     true,
 		ScanSource:  true,
 		ScanCommits: true,
+		ScanIaC:     true,
 		Catalog:     compiled,
 	})
 	if err != nil {
 		return
 	}
-	reconcileAIBOMMemory(rootPath, gitCtx, det, aibomPasses{Env: true, Source: true, Commits: true})
-	if len(det.Tools)+len(det.Libraries)+len(det.Models) == 0 {
+	reconcileAIBOMMemory(rootPath, gitCtx, det, aibomPasses{Env: true, Source: true, Commits: true, Iac: true})
+	if len(det.Tools)+len(det.Libraries)+len(det.Models)+len(det.Infrastructure)+len(det.Data) == 0 {
 		return
 	}
 	data, err := cyclonedx.BuildAIBOM(det, cyclonedx.AIBOMOptions{
@@ -455,8 +497,9 @@ func renderAIBOMTable(cmd *cobra.Command, det cyclonedx.AIDetections) error {
 	var b strings.Builder
 	b.WriteString(display.Header(t, "AI Bill of Materials"))
 	b.WriteByte('\n')
-	fmt.Fprintf(&b, "  Catalog %s — %d tool(s), %d SDK(s), %d model(s)\n\n",
-		det.CatalogVersion, len(det.Tools), len(det.Libraries), len(det.Models))
+	fmt.Fprintf(&b, "  Catalog %s — %d tool(s), %d SDK(s), %d model(s), %d infrastructure, %d data\n\n",
+		det.CatalogVersion, len(det.Tools), len(det.Libraries), len(det.Models),
+		len(det.Infrastructure), len(det.Data))
 
 	if len(det.Tools) > 0 {
 		b.WriteString(display.Header(t, "AI Coding Agents & Services"))
@@ -499,7 +542,46 @@ func renderAIBOMTable(cmd *cobra.Command, det cyclonedx.AIDetections) error {
 		b.WriteString("\n")
 	}
 
-	if len(det.Tools) == 0 && len(det.Libraries) == 0 && len(det.Models) == 0 {
+	if len(det.Infrastructure) > 0 {
+		b.WriteString(display.Header(t, "AI Infrastructure"))
+		b.WriteByte('\n')
+		rows := make([][]string, 0, len(det.Infrastructure))
+		for _, x := range det.Infrastructure {
+			verified := "verified"
+			if x.ConfidenceGap {
+				verified = "⚠ " + x.GapReason
+			}
+			version := x.Version
+			if version == "" && x.RawTag != "" {
+				version = "(" + x.RawTag + ")"
+			}
+			rows = append(rows, []string{x.Name, x.Category, version, verified})
+		}
+		b.WriteString(display.Table(t, []display.Column{
+			{Header: "Component"}, {Header: "Category"}, {Header: "Version"}, {Header: "Verification"},
+		}, rows))
+		b.WriteString("\n\n")
+	}
+
+	if len(det.Data) > 0 {
+		b.WriteString(display.Header(t, "AI Data / Model Artifacts"))
+		b.WriteByte('\n')
+		rows := make([][]string, 0, len(det.Data))
+		for _, x := range det.Data {
+			verified := "verified"
+			if x.ConfidenceGap {
+				verified = "⚠ " + x.GapReason
+			}
+			rows = append(rows, []string{x.Name, x.Kind, x.Source, x.MountPath, verified})
+		}
+		b.WriteString(display.Table(t, []display.Column{
+			{Header: "Artifact"}, {Header: "Kind"}, {Header: "Source"}, {Header: "Mount"}, {Header: "Verification"},
+		}, rows))
+		b.WriteString("\n")
+	}
+
+	if len(det.Tools) == 0 && len(det.Libraries) == 0 && len(det.Models) == 0 &&
+		len(det.Infrastructure) == 0 && len(det.Data) == 0 {
 		b.WriteString("  No AI coding agents or AI usage detected.\n")
 	}
 

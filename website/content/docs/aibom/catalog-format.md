@@ -1,6 +1,6 @@
 ---
 title: "Catalog Format"
-weight: 3
+weight: 4
 description: "The detection catalog schema, and how to extend or override it with --catalog."
 ---
 
@@ -11,7 +11,7 @@ vulnetix aibom --catalog ./my-rules.json          # merge over the builtin (over
 vulnetix aibom --catalog ./only.json --no-builtin-catalog   # replace entirely
 ```
 
-A catalog file is JSON with any of three top-level arrays: `tools`, `libraries`, `model_families`.
+A catalog file is JSON with any of the top-level sections: `tools`, `libraries`, `model_families`, `infrastructure`. The `infrastructure` section drives the IaC pass — see [AI Infrastructure (IaC)](../infrastructure/) for its rule tables; its `runtimes`/`crds`/`terraform_signals` entries override by `id`, `workload_env_signals` by `env`, and a non-empty scalar list (e.g. `model_env_vars`) **replaces** the builtin list.
 
 ## Tool entry
 
