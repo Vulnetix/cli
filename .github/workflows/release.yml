@@ -103,20 +103,52 @@ jobs:
           build_target linux   386   x86-linux-musl        ""
           build_target windows amd64 x86_64-windows-gnu    ".exe"
           build_target windows arm64 aarch64-windows-gnu   ".exe"
-          # Darwin via zig too — no macOS runner needed. zig ships the macOS
-          # libc/SDK stubs, so CGO (tree-sitter) links for both arches. This
-          # replaced a self-hosted macOS ARM64 job that had no runner online,
-          # which left every Release queued on build-darwin forever.
-          build_target darwin  arm64 aarch64-macos         ""
-          build_target darwin  amd64 x86_64-macos          ""
 
       - uses: actions/upload-artifact@v6
         with:
           name: cross-binaries
           path: bin/*
 
+  build-darwin:
+    # Darwin builds run natively on macOS so Apple's SDK is available for CGO.
+    needs: version
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+        run: |
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+
+      - name: Build darwin binaries
+        run: |
+          VERSION=${{ needs.version.outputs.version }}
+          COMMIT=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          LDFLAGS="-s -w -X github.com/vulnetix/cli/v3/cmd.version=${VERSION} -X github.com/vulnetix/cli/v3/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/v3/cmd.buildDate=${BUILD_DATE}"
+          mkdir -p bin
+
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
+            CGO_CFLAGS="-w" \
+            go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-arm64 .
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
+            CGO_CFLAGS="-arch x86_64 -w" CGO_LDFLAGS="-arch x86_64" \
+            go build -ldflags "$LDFLAGS" -o bin/vulnetix-darwin-amd64 .
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: darwin-binaries
+          path: bin/*
+
   release:
-    needs: [version, build-cross]
+    needs: [version, build-cross, build-darwin]
     runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     outputs:
@@ -129,6 +161,10 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: cross-binaries
+          path: bin
+      - uses: actions/download-artifact@v7
+        with:
+          name: darwin-binaries
           path: bin
 
       - name: Copy install script
@@ -199,6 +235,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: Vulnetix/homebrew-tap
+          ref: main
           token: ${{ secrets.PACKAGES_TOKEN }}
           path: homebrew-tap
 
@@ -206,6 +243,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: Vulnetix/scoop-bucket
+          ref: main
           token: ${{ secrets.PACKAGES_TOKEN }}
           path: scoop-bucket
 
