@@ -110,10 +110,10 @@ jobs:
           path: bin/*
 
   build-darwin:
-    # Darwin builds run natively on macos so Apple's SDK is available for
-    # CGO (zig cc can't target macOS without the SDK).
+    # Darwin builds run on a self-hosted macOS ARM64 runner so Apple's SDK is
+    # available for CGO without using GitHub-hosted macOS minutes.
     needs: version
-    runs-on: macos-latest
+    runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
