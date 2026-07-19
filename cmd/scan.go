@@ -1083,6 +1083,17 @@ func runLocalScan(
 		scanProgress.Update(4, fmt.Sprintf("Received %d enriched finding(s)", len(enrichedVulns)))
 	}
 
+	// Drop SCA vulns covered by an active suppression ("ignore") rule before any
+	// downstream use (autofix, VEX, BOM ratings, summary, persistence).
+	if !noSCA {
+		if set := scanSuppressionSetLoad(rootPath, gitCtx); set != nil && !set.Empty() {
+			if kept, n := filterSuppressedVulns(enrichedVulns, set); n > 0 {
+				enrichedVulns = kept
+				fmt.Fprintf(progressStderr, "  %d SCA finding(s) suppressed by ignore rules\n", n)
+			}
+		}
+	}
+
 	// Attach enriched vulns back to their file results so the BOM gets full ratings.
 	enrichedByKey := make(map[string]scan.EnrichedVuln, len(enrichedVulns))
 	for _, ev := range enrichedVulns {
@@ -1480,6 +1491,21 @@ func runLocalScan(
 			}
 		}
 		if sastReport != nil {
+			// nosec source pass + org/local suppression filter — run before any
+			// report output (SARIF, memory records, summary) consumes findings.
+			// Both cover every rego-engine kind (sast/secrets/iac/container).
+			if kept, n := sast.ApplyNosec(sastReport.Findings, rootPath); n > 0 {
+				sastReport.Findings = kept
+				sastReport.Degradations = append(sastReport.Degradations,
+					fmt.Sprintf("%d finding(s) suppressed by nosec comments", n))
+			}
+			if suppSet := buildScanSuppressionSet(mem, gitCtx); suppSet != nil && !suppSet.Empty() {
+				if kept, n := filterSuppressedFindings(sastReport.Findings, suppSet); n > 0 {
+					sastReport.Findings = kept
+					sastReport.Degradations = append(sastReport.Degradations,
+						fmt.Sprintf("%d finding(s) suppressed by ignore rules", n))
+				}
+			}
 			rec.SASTRulesLoaded = sastReport.RulesLoaded
 			rec.SASTFindingCount = len(sastReport.Findings)
 

@@ -969,6 +969,67 @@ func (c *Client) CliQualityGateGet(env CliEnv) (*CliResponse[map[string]any], er
 	return cliPostWithEnv[map[string]any](c, "cli.quality-gate-get", env, struct{}{})
 }
 
+// ─── Suppressions ("ignore" rules) ────────────────────────────────────────
+
+// CliSuppression mirrors the backend Suppression row (subset). Timestamps are
+// unix seconds.
+type CliSuppression struct {
+	UUID               string `json:"uuid"`
+	RuleID             string `json:"ruleId"`
+	Category           string `json:"category"`
+	FindingUUID        string `json:"findingUuid"`
+	SuppressionType    string `json:"suppressionType"`
+	Reason             string `json:"reason"`
+	FilePath           string `json:"filePath"`
+	LineRange          string `json:"lineRange"`
+	RepositoryFullName string `json:"repositoryFullName"`
+	BranchName         string `json:"branchName"`
+	IgnoreDays         int    `json:"ignoreDays"`
+	CreatedAt          int64  `json:"createdAt"`
+	ExpiresAt          int64  `json:"expiresAt"`
+	IsActive           bool   `json:"isActive"`
+}
+
+// CliSuppressionsGetRequest scopes the read to a repo/branch/category.
+type CliSuppressionsGetRequest struct {
+	RepositoryFullName string `json:"repositoryFullName,omitempty"`
+	BranchName         string `json:"branchName,omitempty"`
+	Category           string `json:"category,omitempty"`
+	ActiveOnly         bool   `json:"activeOnly,omitempty"`
+}
+
+// CliSuppressionsListData is the data payload of cli.suppressions-get.
+type CliSuppressionsListData struct {
+	Suppressions []CliSuppression `json:"suppressions"`
+}
+
+// CliSuppressionsGet — POST /v2/cli.suppressions-get. Read-only: repo-scoped
+// active suppressions for the authenticated org.
+func (c *Client) CliSuppressionsGet(env CliEnv, req CliSuppressionsGetRequest) (*CliResponse[CliSuppressionsListData], error) {
+	return cliPostWithEnv[CliSuppressionsListData](c, "cli.suppressions-get", env, req)
+}
+
+// CliSuppressionSetRequest creates or deactivates a suppression.
+type CliSuppressionSetRequest struct {
+	Action             string `json:"action,omitempty"` // "create" | "deactivate"
+	UUID               string `json:"uuid,omitempty"`
+	RuleID             string `json:"ruleId,omitempty"`
+	Category           string `json:"category,omitempty"`
+	SuppressionType    string `json:"suppressionType,omitempty"`
+	Reason             string `json:"reason,omitempty"`
+	FilePath           string `json:"filePath,omitempty"`
+	LineRange          string `json:"lineRange,omitempty"`
+	RepositoryFullName string `json:"repositoryFullName,omitempty"`
+	BranchName         string `json:"branchName,omitempty"`
+	IgnoreDays         int    `json:"ignoreDays,omitempty"`
+	DeactivatedReason  string `json:"deactivatedReason,omitempty"`
+}
+
+// CliSuppressionsSet — POST /v2/cli.suppressions. Create or deactivate a rule.
+func (c *Client) CliSuppressionsSet(env CliEnv, req CliSuppressionSetRequest) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.suppressions", env, req)
+}
+
 // CliAiFirewallGet — POST /v2/cli.ai-firewall-get. Read-only aggregate of the
 // AI Firewall (guardrails.vulnetix.com) policy: the provider catalog with the
 // org's allow/deny association, the org's model allow/deny entries, and the

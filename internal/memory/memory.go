@@ -324,6 +324,27 @@ type SASTFindingRecord struct {
 	LastSeenAt     string                 `yaml:"last_seen_at,omitempty"`
 }
 
+// SuppressionRecord is a locally-tracked "ignore" rule, mirroring the subset of
+// the backend Suppression row that a scanner needs to filter findings before
+// report output. Rules are matched against findings by RuleID (the rego file id)
+// plus optional file/repo/branch anchors; an expired or inactive rule never
+// filters. Written by `vulnetix ignore` and synced with the backend.
+type SuppressionRecord struct {
+	UUID               string `yaml:"uuid,omitempty"`
+	RuleID             string `yaml:"rule_id,omitempty"`
+	Category           string `yaml:"category,omitempty"`
+	Type               string `yaml:"type,omitempty"` // suppressionType: false_positive | wont_fix | risk_accepted | ...
+	Reason             string `yaml:"reason,omitempty"`
+	FindingID          string `yaml:"finding_id,omitempty"` // CVE/vuln id anchor (SCA/malscan/license)
+	FilePath           string `yaml:"file_path,omitempty"`
+	LineRange          string `yaml:"line_range,omitempty"`
+	RepositoryFullName string `yaml:"repository_full_name,omitempty"`
+	Branch             string `yaml:"branch,omitempty"`
+	CreatedAt          int64  `yaml:"created_at,omitempty"` // unix seconds
+	ExpiresAt          int64  `yaml:"expires_at,omitempty"` // unix seconds; 0 = never
+	IsActive           bool   `yaml:"is_active"`
+}
+
 // Memory is the top-level .vulnetix/memory.yaml structure.
 type Memory struct {
 	Version      string                       `yaml:"version"`
@@ -331,6 +352,7 @@ type Memory struct {
 	History      []ScanRecord                 `yaml:"history,omitempty"`
 	Findings     map[string]FindingRecord     `yaml:"findings,omitempty"`      // triage findings keyed by CVE ID
 	SASTFindings map[string]SASTFindingRecord `yaml:"sast_findings,omitempty"` // SAST findings keyed by fingerprint
+	Suppressions []SuppressionRecord          `yaml:"suppressions,omitempty"`  // "ignore" rules (rego rule id / path / finding anchored)
 	Environment  *EnvironmentContext          `yaml:"environment,omitempty"`   // last-gathered env context
 	VDBQueries   []VDBQuery                   `yaml:"vdb_queries,omitempty"`   // recent VDB query log
 

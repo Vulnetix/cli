@@ -270,6 +270,15 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 		SeverityThreshold: severityThreshold,
 	})
 
+	// Drop license findings covered by an active suppression ("ignore") rule
+	// before memory reconcile, BOM merge, persistence and output.
+	if set := scanSuppressionSetLoad(rootPath, gitctx.Collect(rootPath)); set != nil && !set.Empty() {
+		if kept, n := filterSuppressedLicenseFindings(result.Findings, set); n > 0 {
+			result.Findings = kept
+			fmt.Fprintf(os.Stderr, "  %d license finding(s) suppressed by ignore rules\n", n)
+		}
+	}
+
 	// ── Reconcile memory ────────────────────────────────────────────────
 	// This runs before MergeBOM, not after. A resolved finding is by definition
 	// absent from result.Findings, and MergeBOM drops every vulnerability
