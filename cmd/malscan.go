@@ -263,6 +263,15 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 	}
 	progress.Update(2, fmt.Sprintf("Scanned %d target(s), inspected %d file(s)", len(res.Targets), res.FilesScanned))
 
+	// Drop malware findings covered by an active suppression ("ignore") rule
+	// before SARIF build, summary, persistence and the malware gate.
+	if set := scanSuppressionSetLoad(rootPath, gitCtx); set != nil && !set.Empty() {
+		if kept, n := filterSuppressedMalscanFindings(res.Findings, set); n > 0 {
+			res.Findings = kept
+			fmt.Fprintf(os.Stderr, "  %d malware finding(s) suppressed by ignore rules\n", n)
+		}
+	}
+
 	// Always persist the SARIF report. Default .vulnetix/malscan.sarif; --output-file overrides.
 	warnOutputExtension(outputFile, ".sarif")
 	outFile := outputFile
