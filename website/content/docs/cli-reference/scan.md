@@ -75,7 +75,9 @@ After every scan the following files are written under your project root:
 |------|-------------|
 | `.vulnetix/sbom.cdx.json` | CycloneDX 1.7 SBOM for all scanned packages |
 | `.vulnetix/sast.sarif` | SARIF 2.1.0 report from SAST analysis (written when any SAST sub-category runs) |
-| `.vulnetix/memory.yaml` | Scan state record (timestamp, counts, git context) |
+| `.vulnetix/memory.yaml` | Scan state record (timestamp, counts, git context) — also stores your [ignore rules](../ignore/) under a `suppressions:` block |
+
+> **Suppressing findings.** To drop findings you have triaged (false positives, accepted risks, mitigated issues) use `nosec` comments in code or the [`vulnetix ignore`](../ignore/) command. Scans report how many findings each pass suppressed, so nothing disappears silently.
 
 ## Scan Status
 
