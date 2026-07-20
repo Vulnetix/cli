@@ -42,6 +42,23 @@ type CliEnv struct {
 	Manifests       []CliManifestMetadata `json:"manifests,omitempty"`
 	ToolMetadata    *CliSBOMToolMetadata  `json:"toolMetadata,omitempty"`
 	Capabilities    []CliPMCapability     `json:"capabilities,omitempty"`
+	// TestConfigs are test-runner configuration files detected in the repo
+	// (metadata only, no raw body) — corroborating evidence for the SAST
+	// test-suite attribution. Carried on the SAST submission's env.
+	TestConfigs []CliTestConfigMetadata `json:"testConfigs,omitempty"`
+}
+
+// CliTestConfigMetadata describes one test-runner configuration file detected in
+// the repository (jest.config.js, pytest.ini, phpunit.xml, …). Metadata only —
+// unlike CliManifestMetadata it never carries the raw body. Mirrors
+// vdb-api/internal/handler/v2_cli_common.go.
+type CliTestConfigMetadata struct {
+	Path        string `json:"path"`
+	Framework   string `json:"framework,omitempty"`
+	Language    string `json:"language,omitempty"`
+	ContentType string `json:"contentType,omitempty"`
+	SHA256      string `json:"sha256,omitempty"`
+	Size        int64  `json:"size,omitempty"`
 }
 
 // CliLicenseHit mirrors vdb-api/internal/handler/v2_cli_common.go.
@@ -438,14 +455,23 @@ type CliSARIFFinding struct {
 	MemoryVexStatus        string `json:"memoryVexStatus,omitempty"`
 	MemoryVexJustification string `json:"memoryVexJustification,omitempty"`
 	MemoryVexAction        string `json:"memoryVexAction,omitempty"`
+
+	// Test-suite attribution (set by internal/testsuite). IsTestSuite drives the
+	// backend's Finding.isTestSuite column and SSVC LOW-priority deprioritization.
+	IsTestSuite        bool     `json:"isTestSuite,omitempty"`
+	TestFramework      string   `json:"testFramework,omitempty"`
+	TestLanguage       string   `json:"testLanguage,omitempty"`
+	TestConfidence     string   `json:"testConfidence,omitempty"`
+	TestMatchedPattern string   `json:"testMatchedPattern,omitempty"`
+	TestEvidence       []string `json:"testEvidence,omitempty"`
 }
 
 // CliSARIFResponse is the typed response from every SARIF endpoint.
 type CliSARIFResponse struct {
-	IngestionSnapshot *CliIngestionSnapshot   `json:"ingestionSnapshot,omitempty"`
-	Findings          []CliFindingResult      `json:"findings,omitempty"`
-	Stats             CliSARIFStats           `json:"stats"`
-	Suppressions      []CliSuppressionResult  `json:"suppressions,omitempty"`
+	IngestionSnapshot *CliIngestionSnapshot  `json:"ingestionSnapshot,omitempty"`
+	Findings          []CliFindingResult     `json:"findings,omitempty"`
+	Stats             CliSARIFStats          `json:"stats"`
+	Suppressions      []CliSuppressionResult `json:"suppressions,omitempty"`
 }
 
 // CliSARIFStats summarises the run for end-of-scan CLI output.

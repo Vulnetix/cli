@@ -224,6 +224,24 @@ func BuildSARIF(findings []Finding, rules []RuleMetadata, toolVersion string) *S
 		result.Properties = SARIFPropertyBag{
 			"severity": f.Severity,
 		}
+		if f.IsTestSuite {
+			result.Properties["vulnetix/test-suite"] = true
+			if f.TestFramework != "" {
+				result.Properties["vulnetix/test-framework"] = f.TestFramework
+			}
+			if f.TestLanguage != "" {
+				result.Properties["vulnetix/test-language"] = f.TestLanguage
+			}
+			if f.TestConfidence != "" {
+				result.Properties["vulnetix/test-confidence"] = f.TestConfidence
+			}
+			if f.TestMatchedPattern != "" {
+				result.Properties["vulnetix/test-matched-pattern"] = f.TestMatchedPattern
+			}
+			if len(f.TestEvidence) > 0 {
+				result.Properties["vulnetix/test-evidence"] = f.TestEvidence
+			}
+		}
 
 		results = append(results, result)
 	}

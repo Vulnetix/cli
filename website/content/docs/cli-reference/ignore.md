@@ -49,6 +49,22 @@ Five types record a human triage outcome. Two are machine sources that Vulnetix 
 | `deferred` | Not now; revisit later (pair with `--expires-in`). |
 | `rego_rule` | Machine source — the rule suppresses a rego rule id. |
 | `nosec` | Machine source — the rule came from an inline `nosec` comment. |
+| `test-code` | Machine source — the finding lives in the project's test suite and was suppressed with `sast --suppress-test-code`. |
+
+## Suppressing test-code findings
+
+A SAST-family scan detects when a finding lives in your **test suite** — a test file
+corroborated by a test-runner config file and/or a declared test dependency (see
+[Test-suite detection](../sast/#test-suite-detection)). Such findings are always
+deprioritized to LOW. Passing `--suppress-test-code` goes further and records an auditable
+`test-code` suppression for each one, so they drop out of the active findings list entirely:
+
+```bash
+vulnetix sast --suppress-test-code
+```
+
+Like `nosec`, these suppressions are written to `.vulnetix/memory.yaml` and synced org-wide
+when you are authenticated — no manual `ignore add` needed.
 
 ## `nosec` in code
 

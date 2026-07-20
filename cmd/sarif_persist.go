@@ -52,7 +52,7 @@ var sarifKinds = []sarifScanKind{
 // to its matching /v2/cli.<kind> endpoint. When baseSnapshotUuid is set, the
 // first SARIF request attaches to that existing SCA snapshot; otherwise the
 // SARIF endpoint creates its own snapshot as before.
-func postScanSARIF(report *sast.SASTReport, enabledKinds map[string]bool, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, baseSnapshotUuid string, suppressions []vdb.CliSuppressionMint, w io.Writer) ([]snapshotLink, map[string]string, []vdb.CliSuppressionResult) {
+func postScanSARIF(report *sast.SASTReport, enabledKinds map[string]bool, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, baseSnapshotUuid string, suppressions []vdb.CliSuppressionMint, testConfigs []vdb.CliTestConfigMetadata, w io.Writer) ([]snapshotLink, map[string]string, []vdb.CliSuppressionResult) {
 	if report == nil {
 		return nil, nil, nil
 	}
@@ -88,7 +88,14 @@ func postScanSARIF(report *sast.SASTReport, enabledKinds map[string]bool, gitCtx
 			thisSupp = pendingSupp
 			sentSupp = true // attempted on this kind; never resend (avoid dup upsert)
 		}
-		link, snapshotUuid, results, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, baseSnapshotUuid, thisSupp, w)
+		// Detected test-runner config files describe the SAST test surface, so
+		// they ride the SAST submission's env only (each kind gets its own
+		// snapshot; attaching everywhere would duplicate the rows).
+		kindEnv := env
+		if sk.kind == "sast" {
+			kindEnv.TestConfigs = testConfigs
+		}
+		link, snapshotUuid, results, ok := submitSARIFKind(client, kindEnv, sk, bucket, memRecords, rootPath, snippetContext, baseSnapshotUuid, thisSupp, w)
 		if len(thisSupp) > 0 && len(results) > 0 {
 			suppResults = results
 		}
@@ -243,6 +250,12 @@ func buildAPISARIFFinding(f sast.Finding, memRecords map[string]memory.FindingRe
 		MemoryVexStatus:        mem.Status,
 		MemoryVexJustification: mem.Justification,
 		MemoryVexAction:        mem.ActionResponse,
+		IsTestSuite:            f.IsTestSuite,
+		TestFramework:          f.TestFramework,
+		TestLanguage:           f.TestLanguage,
+		TestConfidence:         f.TestConfidence,
+		TestMatchedPattern:     f.TestMatchedPattern,
+		TestEvidence:           f.TestEvidence,
 	}
 }
 

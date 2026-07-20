@@ -33,6 +33,16 @@ type Finding struct {
 	Snippet     string        `json:"snippet"`
 	Fingerprint string        `json:"-"`
 	Metadata    *RuleMetadata `json:"-"`
+
+	// Test-suite attribution, set post-evaluation by internal/testsuite when the
+	// finding's file belongs to the project's test suite. IsTestSuite drives the
+	// SARIF `vulnetix/test-*` result properties and the typed wire fields.
+	IsTestSuite        bool     `json:"-"`
+	TestFramework      string   `json:"-"`
+	TestLanguage       string   `json:"-"`
+	TestConfidence     string   `json:"-"`
+	TestMatchedPattern string   `json:"-"`
+	TestEvidence       []string `json:"-"`
 }
 
 // SeverityToLevel maps severity to the default SARIF level when a rule
