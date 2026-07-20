@@ -39,6 +39,7 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--rule-registry` | string | `https://github.com` | Override default registry URL for `--rule` repos |
 | `--dry-run` | bool | `false` | Detect files and check memory — zero API calls |
 | `--sast-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
+| `--suppress-test-code` | bool | `false` | Suppress findings located in the project's test suite (see [Test-suite detection](#test-suite-detection)) |
 
 ## Examples
 
@@ -72,7 +73,44 @@ vulnetix sast --output results.sarif
 
 # Silent when clean
 vulnetix sast --results-only
+
+# Suppress findings that live in the test suite
+vulnetix sast --suppress-test-code
 ```
+
+## Test-suite detection
+
+Because the CLI runs inside your repository, it can tell whether a finding lives in
+**test code** rather than production code — and does so with far more confidence than a
+filename guess. Each finding's file is classified against an exhaustive table of test
+naming conventions across every supported language (`*.test.ts`, `*_test.py`, `*_test.go`,
+`*Test.java`, `*_spec.rb`, `*Tests.cs`, `*_test.rs`, `*_test.exs`, `*Spec.scala`, …), and
+the guess is **corroborated** with two repo-local signals:
+
+- **Test-runner configuration files** present on disk — `jest.config.js`, `pytest.ini`,
+  `pyproject.toml [tool.pytest]`, `phpunit.xml`, `.rspec`, `Cargo.toml [dev-dependencies]`,
+  `build.gradle` (junit/testng), and many more.
+- **Test frameworks declared as dev-dependencies** in your package-manager manifests
+  (`jest` in `devDependencies`, `pytest` in `requirements-dev.txt`, `rspec` in the
+  `Gemfile`, …).
+
+A path match **plus** a present config or a declared dependency is recorded as a
+**confirmed** attribution. Test-suite findings are:
+
+- tagged in the SARIF result properties (`vulnetix/test-suite`, `vulnetix/test-framework`,
+  `vulnetix/test-confidence`, `vulnetix/test-matched-pattern`, `vulnetix/test-evidence`);
+- **deprioritized to LOW** in the backend's SSVC prioritization (test code is rarely a
+  production attack surface); and
+- shown in the Vulnetix app with a **TEST** badge, an "In test code" metric filter, and a
+  test-suite evidence panel on the finding detail page.
+
+The detected config files are also uploaded as scan environment metadata (path, framework,
+language, size, SHA-256 — **not** their contents) and surfaced on the scan's **Test runners
+detected** card.
+
+Pass `--suppress-test-code` to actively suppress test-suite findings instead of just
+tagging them — this records an auditable suppression (see
+[Ignore / Suppress](../ignore/)) rather than a silent mute.
 
 ## Output Files
 

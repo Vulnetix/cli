@@ -21,6 +21,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/sast"
 	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/testsuite"
 	"github.com/vulnetix/cli/v3/internal/triage"
 	"github.com/vulnetix/cli/v3/internal/tui"
 	"github.com/vulnetix/cli/v3/internal/update"
@@ -379,6 +380,7 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	if cmd.Flags().Changed("snippet-context") {
 		snippetContext, _ = cmd.Flags().GetInt("snippet-context")
 	}
+	suppressTestCode, _ = cmd.Flags().GetBool("suppress-test-code")
 	excludes, _ := cmd.Flags().GetStringArray("exclude")
 	ignoreGlobs, _ := cmd.Flags().GetStringArray("ignore")
 	ignoreGit, _ := cmd.Flags().GetBool("ignore-git")
@@ -1508,6 +1510,31 @@ func runLocalScan(
 						fmt.Sprintf("%d finding(s) suppressed by ignore rules", n))
 				}
 			}
+
+			// Test-suite attribution: mark findings that live in the project's
+			// test code, corroborated by test-runner config files and declared
+			// test-framework dependencies found in the repo. The resulting
+			// metadata rides the SARIF (result properties) + typed wire findings,
+			// and the detected config files ride the SAST env. Run before SARIF
+			// build so both on-disk and uploaded artefacts carry it.
+			var testSuppressionMints []vdb.CliSuppressionMint
+			testActive := testsuite.Scan(rootPath)
+			testMarked := testsuite.Annotate(sastReport.Findings, testActive)
+			testConfigMeta := testConfigsToWire(testActive.Configs)
+			if testMarked > 0 {
+				sastReport.Degradations = append(sastReport.Degradations,
+					fmt.Sprintf("%d finding(s) attributed to test suites", testMarked))
+			}
+			// Optionally suppress test-code SAST findings when the user opts in.
+			if suppressTestCode && testMarked > 0 {
+				if kept, mints := suppressTestFindings(sastReport.Findings, gitCtx); len(mints) > 0 {
+					sastReport.Findings = kept
+					testSuppressionMints = mints
+					sastReport.Degradations = append(sastReport.Degradations,
+						fmt.Sprintf("%d test-code finding(s) suppressed (--suppress-test-code)", len(mints)))
+				}
+			}
+
 			rec.SASTRulesLoaded = sastReport.RulesLoaded
 			rec.SASTFindingCount = len(sastReport.Findings)
 
@@ -1662,6 +1689,8 @@ func runLocalScan(
 			if !disableMemory {
 				suppressionMints = reconcileScanSuppressions(mem, gitCtx, nosecHits, rootPath, time.Now().Unix())
 			}
+			// Test-code suppressions (--suppress-test-code) ride the same mint list.
+			suppressionMints = append(suppressionMints, testSuppressionMints...)
 			if !isUnauthenticatedScan() {
 				// Which SARIF-family scanners actually ran — an enabled one that
 				// found nothing still submits so the backend records coverage.
@@ -1672,7 +1701,7 @@ func runLocalScan(
 					"oci":     !noContainers,
 				}
 				var suppResults []vdb.CliSuppressionResult
-				sarifSnapshots, sarifSnapshotUuids, suppResults = postScanSARIF(sastReport, enabledKinds, gitCtx, rootPath, snippetContext, scaSnapshotUuid, suppressionMints, progressStderr)
+				sarifSnapshots, sarifSnapshotUuids, suppResults = postScanSARIF(sastReport, enabledKinds, gitCtx, rootPath, snippetContext, scaSnapshotUuid, suppressionMints, testConfigMeta, progressStderr)
 				applyMintedSuppressionUUIDs(mem, suppResults)
 			}
 		}
@@ -4408,7 +4437,13 @@ func addSASTFlags(cmd *cobra.Command) {
 		"Override default registry (https://github.com) for all --rule repos")
 	cmd.Flags().String("rule-id", "",
 		"Run only the single SAST rule with this ID (e.g. VNX-GQL-004); skips SCA and license checks")
+	cmd.Flags().Bool("suppress-test-code", false,
+		"Suppress SAST findings located in the project's test suite (test files corroborated by test-runner config/dependencies)")
 }
+
+// suppressTestCode is set from the --suppress-test-code flag in
+// runScanWithFeatures and read by runLocalScan.
+var suppressTestCode bool
 
 // filterFilesByFeature removes detected files excluded by the active feature flags.
 // noSCA removes ordinary package manifests; noContainers removes docker/OCI
