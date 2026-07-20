@@ -56,6 +56,14 @@ func suppressionSameIdentity(a, b SuppressionRecord) bool {
 	if a.UUID != "" && b.UUID != "" {
 		return a.UUID == b.UUID
 	}
+	// nosec (and other snippet-anchored) rules move as code drifts, so identity
+	// must NOT depend on file/line. Match on the pinned snippet + rule + repo,
+	// which survive a rename or line shift.
+	if a.Snippet != "" && b.Snippet != "" && strings.EqualFold(a.Origin, b.Origin) {
+		return strings.EqualFold(a.RuleID, b.RuleID) &&
+			a.RepositoryFullName == b.RepositoryFullName &&
+			strings.TrimSpace(a.Snippet) == strings.TrimSpace(b.Snippet)
+	}
 	if a.RuleID == "" || b.RuleID == "" {
 		return false
 	}
