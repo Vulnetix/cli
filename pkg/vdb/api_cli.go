@@ -1067,6 +1067,15 @@ func (c *Client) CliSuppressionsSet(env CliEnv, req CliSuppressionSetRequest) (*
 	return cliPostWithEnv[map[string]any](c, "cli.suppressions", env, req)
 }
 
+// CliMalwareCurationGet — POST /v2/cli.malware-curation-get. Read-only: the
+// global malware-curation consensus (fp-cleared packages/IOCs, downgraded/
+// allowed threat actors), handed to the malscan-engine curation set so a local
+// scan honours community false-positive feedback before reporting. Org resolved
+// from auth, so the payload is empty.
+func (c *Client) CliMalwareCurationGet(env CliEnv) (*CliResponse[map[string]any], error) {
+	return cliPostWithEnv[map[string]any](c, "cli.malware-curation-get", env, struct{}{})
+}
+
 // CliAiFirewallGet — POST /v2/cli.ai-firewall-get. Read-only aggregate of the
 // AI Firewall (guardrails.vulnetix.com) policy: the provider catalog with the
 // org's allow/deny association, the org's model allow/deny entries, and the
