@@ -272,6 +272,14 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Drop IOCs/findings the community has marked false-positive (global
+	// malware-curation consensus) before report output.
+	if cur := fetchMalwareCuration(gitCtx); cur != nil && !cur.Empty() {
+		if n := filterMalscanByCuration(res, cur); n > 0 {
+			fmt.Fprintf(os.Stderr, "  %d malware indicator(s) cleared by false-positive curation\n", n)
+		}
+	}
+
 	// Always persist the SARIF report. Default .vulnetix/malscan.sarif; --output-file overrides.
 	warnOutputExtension(outputFile, ".sarif")
 	outFile := outputFile
