@@ -597,6 +597,21 @@ Equivalent to `vulnetix scan --evaluate-iac --no-sast --no-sca --no-secrets --no
 
 ---
 
+### vulnetix ignore
+
+Manage suppression ("ignore") rules for scanner findings. Aliased `suppress`. See the full [Ignore / Suppress Command Reference](ignore/).
+
+```bash
+vulnetix ignore add [flags]     # create a rule
+vulnetix ignore list [flags]    # list active rules
+vulnetix ignore remove [flags]  # deactivate a rule
+vulnetix ignore sync            # sync rules with the org backend
+```
+
+A rule is anchored by at least one of `--rule` (rego rule id), `--finding` (CVE / vuln id), or `--file`, and can be scoped by `--category` and typed with `--type` (`false_positive`, `wont_fix`, `risk_accepted`, `mitigated`, `deferred`, `rego_rule`, `nosec`). Use `--reason` to record why and `--expires-in` to auto-expire it. A finding is suppressed only when **every** anchor matches. Rules live in `.vulnetix/memory.yaml` and work offline; authenticated, they sync org-wide. Inline `nosec` comments in code are also honoured — see the [reference](ignore/).
+
+---
+
 ### vulnetix triage
 
 Fetch vulnerability alerts from external providers (e.g. GitHub Dependabot) and enrich them with remediation intelligence from the Vulnetix VDB.
