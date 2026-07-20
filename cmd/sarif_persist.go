@@ -52,16 +52,16 @@ var sarifKinds = []sarifScanKind{
 // to its matching /v2/cli.<kind> endpoint. When baseSnapshotUuid is set, the
 // first SARIF request attaches to that existing SCA snapshot; otherwise the
 // SARIF endpoint creates its own snapshot as before.
-func postScanSARIF(report *sast.SASTReport, enabledKinds map[string]bool, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, baseSnapshotUuid string, w io.Writer) ([]snapshotLink, map[string]string) {
+func postScanSARIF(report *sast.SASTReport, enabledKinds map[string]bool, gitCtx *gitctx.GitContext, rootPath string, snippetContext int, baseSnapshotUuid string, suppressions []vdb.CliSuppressionMint, w io.Writer) ([]snapshotLink, map[string]string, []vdb.CliSuppressionResult) {
 	if report == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if w == nil {
 		w = os.Stderr
 	}
 	client := newCliClient()
 	if client == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	// Use the scan target's git context (not the CWD's) so the snapshot's repo
 	// identity matches --path.
@@ -69,8 +69,13 @@ func postScanSARIF(report *sast.SASTReport, enabledKinds map[string]bool, gitCtx
 	memRecords := loadMemoryRecordsForSARIF(gitCtx)
 
 	var snapshots []snapshotLink
+	var suppResults []vdb.CliSuppressionResult
 	uuidByCategory := make(map[string]string)
 	byKind := partitionFindingsByKind(report.Findings, report.Rules)
+	// The reconciled suppression set is repo-scoped, not kind-scoped, so it ships
+	// once on the first submitted kind to avoid duplicate upserts.
+	pendingSupp := suppressions
+	sentSupp := false
 	for _, sk := range sarifSubmitKinds(enabledKinds) {
 		// An enabled scanner that ran clean still submits — the empty bucket
 		// builds a valid empty SARIF doc, and the server records a ScannerRun +
@@ -78,14 +83,23 @@ func postScanSARIF(report *sast.SASTReport, enabledKinds map[string]bool, gitCtx
 		// GUI reflects "assessed, 0 findings" instead of no coverage at all.
 		bucket := byKind[sk.kind]
 		bucket.degradations = report.Degradations
-		if link, snapshotUuid, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, baseSnapshotUuid, w); ok {
+		var thisSupp []vdb.CliSuppressionMint
+		if !sentSupp {
+			thisSupp = pendingSupp
+			sentSupp = true // attempted on this kind; never resend (avoid dup upsert)
+		}
+		link, snapshotUuid, results, ok := submitSARIFKind(client, env, sk, bucket, memRecords, rootPath, snippetContext, baseSnapshotUuid, thisSupp, w)
+		if len(thisSupp) > 0 && len(results) > 0 {
+			suppResults = results
+		}
+		if ok {
 			snapshots = append(snapshots, link)
 			if snapshotUuid != "" {
 				uuidByCategory[sk.category] = snapshotUuid
 			}
 		}
 	}
-	return snapshots, uuidByCategory
+	return snapshots, uuidByCategory, suppResults
 }
 
 // sarifSubmitKinds returns the SARIF-family kinds to submit for this scan: every
@@ -118,7 +132,7 @@ const sarifChunkMaxFindings = 2000
 // large submissions into sub-8-MiB chunks. Chunk 0 creates the snapshot/run;
 // chunks 1..N carry its uuid so the server appends under one snapshot. Returns
 // the (single) ingestion snapshot link, the snapshot UUID, and an ok flag.
-func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int, baseSnapshotUuid string, w io.Writer) (snapshotLink, string, bool) {
+func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucket kindBucket, memRecords map[string]memory.FindingRecord, rootPath string, snippetContext int, baseSnapshotUuid string, suppressions []vdb.CliSuppressionMint, w io.Writer) (snapshotLink, string, []vdb.CliSuppressionResult, bool) {
 	// Make the per-kind tool intent explicit (server is authoritative, but this
 	// keeps the env block self-describing): "Vulnetix SAST", "Vulnetix IaC", etc.
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
@@ -139,6 +153,7 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 	chunks := chunkSARIFFindings(bucket.findings, apiFindings)
 
 	var link snapshotLink
+	var suppResults []vdb.CliSuppressionResult
 	snapshotUuid := baseSnapshotUuid
 	anyOK := false
 	for i, ch := range chunks {
@@ -147,6 +162,10 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 		req := vdb.CliSARIFRequest{
 			SARIF:    sarifLogToMap(sarifLog),
 			Findings: ch.api,
+		}
+		// Reconciled suppressions ride the first chunk only (repo-scoped upsert).
+		if i == 0 {
+			req.Suppressions = suppressions
 		}
 		if snapshotUuid != "" {
 			req.IngestionSnapshotUuid = snapshotUuid
@@ -165,20 +184,23 @@ func submitSARIFKind(client *vdb.Client, env vdb.CliEnv, sk sarifScanKind, bucke
 				fmt.Fprintf(w, "  /v2/cli.%s chunk %d/%d submit failed: %v\n", sk.category, i+1, len(chunks), err)
 			}
 			if i == 0 {
-				return snapshotLink{}, "", false
+				return snapshotLink{}, "", nil, false
 			}
 			continue
 		}
 		anyOK = true
-		if i == 0 && resp != nil && resp.Data.IngestionSnapshot != nil {
-			snapshotUuid = resp.Data.IngestionSnapshot.Uuid
-			link = snapshotLink{Label: sk.label, URL: resp.Data.IngestionSnapshot.URL}
+		if i == 0 && resp != nil {
+			suppResults = resp.Data.Suppressions
+			if resp.Data.IngestionSnapshot != nil {
+				snapshotUuid = resp.Data.IngestionSnapshot.Uuid
+				link = snapshotLink{Label: sk.label, URL: resp.Data.IngestionSnapshot.URL}
+			}
 		}
 	}
 	if !anyOK || link.URL == "" {
-		return snapshotLink{}, "", false
+		return snapshotLink{}, "", suppResults, false
 	}
-	return link, snapshotUuid, true
+	return link, snapshotUuid, suppResults, true
 }
 
 // buildAPISARIFFinding converts one local SAST finding into the typed API shape,

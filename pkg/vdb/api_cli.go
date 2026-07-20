@@ -375,6 +375,42 @@ type CliSARIFRequest struct {
 	// each chunk's findings under one snapshot/run instead of creating new ones.
 	// Lets the CLI split a large SARIF submission into sub-8-MiB requests.
 	IngestionSnapshotUuid string `json:"ingestionSnapshotUuid,omitempty"`
+	// Suppressions carries the scan's reconciled ignore rules (nosec directives
+	// discovered this run, plus drift-relocated / auto-deactivated existing
+	// rules) so the server upserts org Suppression rows keyed by uuid (when
+	// known) or the repo/file/ruleId business key. Sent on the first chunk only.
+	Suppressions []CliSuppressionMint `json:"suppressions,omitempty"`
+}
+
+// CliSuppressionMint is one suppression the CLI wants the server to upsert.
+// Active=true creates-or-updates the row (relocating file/line on drift);
+// Active=false auto-deactivates it (the anchor is gone from the code). The
+// Fingerprint is the CLI's stable local key so it can map the returned uuid
+// back onto its memory.yaml record.
+type CliSuppressionMint struct {
+	UUID              string `json:"uuid,omitempty"`
+	RuleID            string `json:"ruleId,omitempty"`
+	Category          string `json:"category,omitempty"`
+	SuppressionType   string `json:"suppressionType,omitempty"`
+	Reason            string `json:"reason,omitempty"`
+	FilePath          string `json:"filePath,omitempty"`
+	LineNumber        int    `json:"lineNumber,omitempty"`
+	LineRange         string `json:"lineRange,omitempty"`
+	CodeSnippet       string `json:"codeSnippet,omitempty"`
+	BranchName        string `json:"branchName,omitempty"`
+	Origin            string `json:"origin,omitempty"`
+	Active            bool   `json:"active"`
+	DeactivatedReason string `json:"deactivatedReason,omitempty"`
+	Fingerprint       string `json:"fingerprint,omitempty"`
+}
+
+// CliSuppressionResult maps a request Fingerprint to the uuid the server
+// minted/updated, so the CLI can persist the uuid locally for future drift
+// updates.
+type CliSuppressionResult struct {
+	Fingerprint string `json:"fingerprint"`
+	UUID        string `json:"uuid"`
+	Action      string `json:"action,omitempty"` // created | updated | deactivated
 }
 
 // CliSARIFFinding mirrors vdb-api/internal/handler/cli_persist_sarif.go.
@@ -406,9 +442,10 @@ type CliSARIFFinding struct {
 
 // CliSARIFResponse is the typed response from every SARIF endpoint.
 type CliSARIFResponse struct {
-	IngestionSnapshot *CliIngestionSnapshot `json:"ingestionSnapshot,omitempty"`
-	Findings          []CliFindingResult    `json:"findings,omitempty"`
-	Stats             CliSARIFStats         `json:"stats"`
+	IngestionSnapshot *CliIngestionSnapshot   `json:"ingestionSnapshot,omitempty"`
+	Findings          []CliFindingResult      `json:"findings,omitempty"`
+	Stats             CliSARIFStats           `json:"stats"`
+	Suppressions      []CliSuppressionResult  `json:"suppressions,omitempty"`
 }
 
 // CliSARIFStats summarises the run for end-of-scan CLI output.

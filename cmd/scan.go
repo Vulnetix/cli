@@ -1490,14 +1490,16 @@ func runLocalScan(
 				sastReport.RulesTotal = totalLoaded
 			}
 		}
+		var nosecHits []sast.NosecHit
 		if sastReport != nil {
 			// nosec source pass + org/local suppression filter — run before any
 			// report output (SARIF, memory records, summary) consumes findings.
 			// Both cover every rego-engine kind (sast/secrets/iac/container).
-			if kept, n := sast.ApplyNosec(sastReport.Findings, rootPath); n > 0 {
+			if kept, hits := sast.ApplyNosec(sastReport.Findings, rootPath); len(hits) > 0 {
 				sastReport.Findings = kept
+				nosecHits = hits
 				sastReport.Degradations = append(sastReport.Degradations,
-					fmt.Sprintf("%d finding(s) suppressed by nosec comments", n))
+					fmt.Sprintf("%d finding(s) suppressed by nosec comments", len(hits)))
 			}
 			if suppSet := buildScanSuppressionSet(mem, gitCtx); suppSet != nil && !suppSet.Empty() {
 				if kept, n := filterSuppressedFindings(sastReport.Findings, suppSet); n > 0 {
@@ -1651,6 +1653,15 @@ func runLocalScan(
 			// its own. Non-fatal: local SARIF remains authoritative on disk.
 			// Skipped for unauthenticated scans — the server persists nothing for
 			// the shared community credential, so the calls only burn shared quota.
+			// Reconcile code-anchored suppressions: fold this scan's nosec
+			// directives into memory and drift-track existing snippet-anchored
+			// rules (relocating file/line, auto-deactivating gone anchors). Runs
+			// regardless of auth so nosec persists offline; the mint list is only
+			// sent when authenticated.
+			var suppressionMints []vdb.CliSuppressionMint
+			if !disableMemory {
+				suppressionMints = reconcileScanSuppressions(mem, gitCtx, nosecHits, rootPath, time.Now().Unix())
+			}
 			if !isUnauthenticatedScan() {
 				// Which SARIF-family scanners actually ran — an enabled one that
 				// found nothing still submits so the backend records coverage.
@@ -1660,7 +1671,9 @@ func runLocalScan(
 					"iac":     !noIAC,
 					"oci":     !noContainers,
 				}
-				sarifSnapshots, sarifSnapshotUuids = postScanSARIF(sastReport, enabledKinds, gitCtx, rootPath, snippetContext, scaSnapshotUuid, progressStderr)
+				var suppResults []vdb.CliSuppressionResult
+				sarifSnapshots, sarifSnapshotUuids, suppResults = postScanSARIF(sastReport, enabledKinds, gitCtx, rootPath, snippetContext, scaSnapshotUuid, suppressionMints, progressStderr)
+				applyMintedSuppressionUUIDs(mem, suppResults)
 			}
 		}
 	}

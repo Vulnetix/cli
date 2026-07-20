@@ -343,6 +343,17 @@ type SuppressionRecord struct {
 	CreatedAt          int64  `yaml:"created_at,omitempty"` // unix seconds
 	ExpiresAt          int64  `yaml:"expires_at,omitempty"` // unix seconds; 0 = never
 	IsActive           bool   `yaml:"is_active"`
+
+	// Drift-tracking fields (nosec + git-blame following). LineNumber is the
+	// current 1-based line of the anchored code; Snippet is the code the rule is
+	// pinned to (used to relocate it across renames/line shifts); LastSeenCommit
+	// / LastSeenAt stamp the last scan that verified the location; Origin is how
+	// the rule was created (nosec | cli | console).
+	LineNumber     int    `yaml:"line_number,omitempty"`
+	Snippet        string `yaml:"snippet,omitempty"`
+	LastSeenCommit string `yaml:"last_seen_commit,omitempty"`
+	LastSeenAt     int64  `yaml:"last_seen_at,omitempty"`
+	Origin         string `yaml:"origin,omitempty"`
 }
 
 // Memory is the top-level .vulnetix/memory.yaml structure.

@@ -32,12 +32,28 @@ type nosecDirective struct {
 	ruleIDs map[string]bool
 }
 
+// NosecHit records one finding that a nosec directive suppressed. It carries
+// enough to mint/track an org suppression rule: the file + line span of the
+// suppressed code, the rule id that was silenced, the rule Kind (so the caller
+// can map it to a scanner category), whether a whole-file (line-1) directive
+// did the suppressing, and the code snippet for drift tracking.
+type NosecHit struct {
+	File      string
+	StartLine int
+	EndLine   int
+	RuleID    string
+	Kind      string
+	WholeFile bool
+	Snippet   string
+}
+
 // ApplyNosec filters findings against nosec source comments and returns the
-// kept findings plus the number dropped. rootPath anchors the (possibly
-// relative) ArtifactURI values to disk.
-func ApplyNosec(findings []Finding, rootPath string) ([]Finding, int) {
+// kept findings plus one NosecHit per dropped finding. rootPath anchors the
+// (possibly relative) ArtifactURI values to disk. len(hits) is the number
+// dropped.
+func ApplyNosec(findings []Finding, rootPath string) ([]Finding, []NosecHit) {
 	if len(findings) == 0 {
-		return findings, 0
+		return findings, nil
 	}
 
 	// Cache per-file line directives so each file is read at most once.
@@ -57,24 +73,28 @@ func ApplyNosec(findings []Finding, rootPath string) ([]Finding, int) {
 	}
 
 	kept := findings[:0]
-	dropped := 0
+	var hits []NosecHit
 	for _, f := range findings {
 		if f.ArtifactURI == "" {
 			kept = append(kept, f)
 			continue
 		}
 		byLine, whole := load(f.ArtifactURI)
+		kind := ""
+		if f.Metadata != nil {
+			kind = f.Metadata.Kind
+		}
 		if nosecCovers(whole, f.RuleID) {
-			dropped++
+			hits = append(hits, NosecHit{File: f.ArtifactURI, StartLine: f.StartLine, EndLine: f.EndLine, RuleID: f.RuleID, Kind: kind, WholeFile: true, Snippet: f.Snippet})
 			continue
 		}
 		if directiveOnLines(byLine, f, f.RuleID) {
-			dropped++
+			hits = append(hits, NosecHit{File: f.ArtifactURI, StartLine: f.StartLine, EndLine: f.EndLine, RuleID: f.RuleID, Kind: kind, Snippet: f.Snippet})
 			continue
 		}
 		kept = append(kept, f)
 	}
-	return kept, dropped
+	return kept, hits
 }
 
 func directiveOnLines(byLine map[int]nosecDirective, f Finding, ruleID string) bool {

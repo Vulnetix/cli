@@ -27,9 +27,19 @@ func TestApplyNosec(t *testing.T) {
 		{RuleID: "vnx-777", ArtifactURI: "b.py", StartLine: 2, EndLine: 2}, // dropped (whole-file)
 	}
 
-	kept, dropped := ApplyNosec(findings, dir)
-	if dropped != 3 {
-		t.Fatalf("dropped = %d, want 3", dropped)
+	kept, hits := ApplyNosec(findings, dir)
+	if len(hits) != 3 {
+		t.Fatalf("hits = %d, want 3", len(hits))
+	}
+	hitRules := map[string]bool{}
+	for _, h := range hits {
+		hitRules[h.RuleID] = true
+		if h.File == "" || h.StartLine == 0 {
+			t.Errorf("hit missing location: %+v", h)
+		}
+	}
+	if !hitRules["vnx-100"] || !hitRules["vnx-320"] || !hitRules["vnx-777"] {
+		t.Errorf("expected vnx-100, vnx-320, vnx-777 in hits, got %v", hitRules)
 	}
 	keptRules := map[string]bool{}
 	for _, f := range kept {
