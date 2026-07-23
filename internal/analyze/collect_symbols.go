@@ -1,17 +1,11 @@
 package analyze
 
-// The structural code graph: symbols and imports.
+// The structural code graph: symbols, imports and calls.
 //
-// Structural, and deliberately only structural. Functions, classes, methods, interfaces, the
-// file that contains each, and the imports between files in this repository. Every one of
-// those resolves exactly — a definition is where the parser says it is, and an import either
-// names a file in this repo or it does not.
-//
-// What is NOT here is the call graph. GitNexus needed a seven-step lookup, an evidence-weight
-// table and a deterministic tie-break cascade to resolve calls, and even then its own docs
-// admit the ID instability that follows. A call edge that is wrong is worse than a call edge
-// that is missing, because a graph you cannot trust is a graph nobody uses. Calls come later,
-// with the resolver they need.
+// Functions, classes, methods, interfaces, the file that contains each, imports between files
+// in this repository, and call edges that can be resolved to those local symbols. Definitions
+// and imports are facts. Calls are static inferences, so unresolved or ambiguous call sites do
+// not produce graph edges.
 //
 // The one idea worth taking from GitNexus wholesale is the unified capture tag: every
 // language's query emits the same capture names, so nothing downstream ever branches on
@@ -93,10 +87,56 @@ var symbolQueries = map[treesitter.LanguageID]string{
 	`,
 }
 
+// callQueries extract local call sites. They deliberately use the same capture vocabulary
+// across languages: `@call.name` and, when the grammar exposes it cleanly, `@call.receiver`.
+// Resolution is done below against symbols already found in the repository.
+var callQueries = map[treesitter.LanguageID]string{
+	treesitter.LangGo: `
+		(call_expression function: (identifier) @call.name)
+		(call_expression function: (selector_expression operand: (identifier) @call.receiver field: (field_identifier) @call.name))
+	`,
+	treesitter.LangPython: `
+		(call function: (identifier) @call.name)
+		(call function: (attribute object: (identifier) @call.receiver attribute: (identifier) @call.name))
+	`,
+	treesitter.LangJavaScript: `
+		(call_expression function: (identifier) @call.name)
+		(call_expression function: (member_expression object: (identifier) @call.receiver property: (property_identifier) @call.name))
+		(new_expression constructor: (identifier) @call.name)
+	`,
+	treesitter.LangTypeScript: `
+		(call_expression function: (identifier) @call.name)
+		(call_expression function: (member_expression object: (identifier) @call.receiver property: (property_identifier) @call.name))
+		(new_expression constructor: (identifier) @call.name)
+	`,
+	treesitter.LangJava: `
+		(method_invocation name: (identifier) @call.name)
+		(method_invocation object: (identifier) @call.receiver name: (identifier) @call.name)
+	`,
+	treesitter.LangRust: `
+		(call_expression function: (identifier) @call.name)
+		(call_expression function: (field_expression field: (field_identifier) @call.name))
+	`,
+	treesitter.LangCSharp: `
+		(invocation_expression function: (identifier) @call.name)
+		(invocation_expression function: (member_access_expression expression: (identifier) @call.receiver name: (identifier) @call.name))
+	`,
+	treesitter.LangPHP: `
+		(function_call_expression function: (name) @call.name)
+	`,
+}
+
 // maxSymbolsPerRepo bounds the graph. A monorepo has hundreds of thousands of symbols and
 // nobody is going to look at them all; when the cap bites, the graph says so rather than
 // presenting a partial picture as a whole one.
 const maxSymbolsPerRepo = 20000
+
+// maxCallEdgesPerRepo bounds static call relationships. Calls can be much denser than
+// symbols; a capped graph is useful and honest, while a payload too large to persist helps no
+// one. Multiple call sites between the same two symbols are collapsed into one edge.
+const maxCallEdgesPerRepo = 20000
+
+const maxCallSitesPerEdge = 5
 
 type symbolStats struct {
 	nodes []Node
@@ -105,16 +145,28 @@ type symbolStats struct {
 	// filesParsed and langsSkipped exist so the report can say what it could not read. A
 	// language with no query produces no symbols — which must not look like a language with
 	// no code in it.
-	filesParsed  int
-	langsSkipped map[string]int
-	truncated    bool
+	filesParsed      int
+	langsSkipped     map[string]int
+	callLangsSkipped map[string]int
+	truncated        bool
+	callTruncated    bool
+}
+
+type callSite struct {
+	file     string
+	line     int
+	name     string
+	receiver string
 }
 
 func collectSymbols(b *Builder, root string, files *fileStats, modulePath string, opts Options, pr reporter) *symbolStats {
 	engine := reachability.NewEngine()
 	ctx := context.Background()
 
-	st := &symbolStats{langsSkipped: map[string]int{}}
+	st := &symbolStats{
+		langsSkipped:     map[string]int{},
+		callLangsSkipped: map[string]int{},
+	}
 	if files == nil {
 		return st
 	}
@@ -128,6 +180,7 @@ func collectSymbols(b *Builder, root string, files *fileStats, modulePath string
 
 	symbolIDs := map[string]bool{}
 	edgeIDs := map[string]bool{}
+	callSites := []callSite{}
 
 	for _, f := range files.files {
 		if len(st.nodes) >= maxSymbolsPerRepo {
@@ -229,8 +282,34 @@ func collectSymbols(b *Builder, root string, files *fileStats, modulePath string
 				Resolution: "exact",
 			})
 		}
+
+		callQuery, ok := callQueries[lang]
+		if !ok {
+			st.callLangsSkipped[f.Language]++
+
+			continue
+		}
+		callMatches, err := engine.Run(ctx, lang, src, callQuery)
+		if err != nil {
+			st.callLangsSkipped[f.Language]++
+
+			continue
+		}
+		for _, m := range callMatches {
+			name := strings.TrimSpace(m.Captures["call.name"])
+			if name == "" {
+				continue
+			}
+			callSites = append(callSites, callSite{
+				file:     f.Path,
+				line:     m.StartLine,
+				name:     name,
+				receiver: strings.TrimSpace(m.Captures["call.receiver"]),
+			})
+		}
 	}
 
+	st.edges = append(st.edges, resolveCallEdges(st, callSites, edgeIDs)...)
 	emitSymbolMetrics(b, st, opts)
 
 	return st
@@ -339,6 +418,224 @@ func isExportedGo(name string) bool {
 	return r >= 'A' && r <= 'Z'
 }
 
+func resolveCallEdges(st *symbolStats, calls []callSite, edgeIDs map[string]bool) []Edge {
+	if st == nil || len(st.nodes) == 0 || len(calls) == 0 {
+		return nil
+	}
+
+	symbolsByFile := map[string][]Node{}
+	targetsByFileAndName := map[string]map[string][]Node{}
+	for _, n := range st.nodes {
+		if n.Path == "" {
+			continue
+		}
+		symbolsByFile[n.Path] = append(symbolsByFile[n.Path], n)
+		if !isCallableTarget(n.Kind) {
+			continue
+		}
+		byName := targetsByFileAndName[n.Path]
+		if byName == nil {
+			byName = map[string][]Node{}
+			targetsByFileAndName[n.Path] = byName
+		}
+		byName[n.Name] = append(byName[n.Name], n)
+	}
+	for p := range symbolsByFile {
+		sort.SliceStable(symbolsByFile[p], func(i, j int) bool {
+			a, b := symbolsByFile[p][i], symbolsByFile[p][j]
+			if a.StartLine == b.StartLine {
+				return symbolRange(a) < symbolRange(b)
+			}
+
+			return a.StartLine < b.StartLine
+		})
+	}
+
+	importsByFile := map[string][]string{}
+	for _, e := range st.edges {
+		if e.Kind != "imports" {
+			continue
+		}
+		from, okFrom := strings.CutPrefix(e.From, "file:")
+		to, okTo := strings.CutPrefix(e.To, "file:")
+		if !okFrom || !okTo || from == "" || to == "" {
+			continue
+		}
+		importsByFile[from] = append(importsByFile[from], to)
+	}
+	for p := range importsByFile {
+		sort.Strings(importsByFile[p])
+	}
+
+	out := []Edge{}
+	edgeIndex := map[string]int{}
+	for _, site := range calls {
+		if len(out) >= maxCallEdgesPerRepo {
+			st.callTruncated = true
+
+			break
+		}
+		caller := containingCallable(symbolsByFile[site.file], site.line)
+		if caller == nil {
+			continue
+		}
+		target, resolution, confidence := resolveCallTarget(site, targetsByFileAndName, importsByFile)
+		if target == nil || target.ID == caller.ID {
+			continue
+		}
+
+		id := fmt.Sprintf("e:calls:%s->%s", caller.ID, target.ID)
+		if edgeIDs[id] {
+			continue
+		}
+		if idx, ok := edgeIndex[id]; ok {
+			mergeCallEdge(&out[idx], site, confidence)
+
+			continue
+		}
+
+		edge := Edge{
+			ID:         id,
+			Kind:       "calls",
+			From:       caller.ID,
+			To:         target.ID,
+			Confidence: confidence,
+			Resolution: resolution,
+			Properties: map[string]any{
+				"callName": site.name,
+				"count":    1,
+				"sites":    []map[string]any{callSiteProperty(site)},
+			},
+		}
+		edgeIndex[id] = len(out)
+		edgeIDs[id] = true
+		out = append(out, edge)
+	}
+
+	return out
+}
+
+func resolveCallTarget(site callSite, targets map[string]map[string][]Node, imports map[string][]string) (*Node, string, float64) {
+	if site.name == "" {
+		return nil, "", 0
+	}
+
+	if site.receiver == "" {
+		if target := uniqueTarget(targets[site.file][site.name]); target != nil {
+			return target, "lexical", 0.9
+		}
+		if target := uniqueImportedTarget(site, targets, imports, false); target != nil {
+			return target, "import", 0.78
+		}
+
+		return nil, "", 0
+	}
+
+	if target := uniqueImportedTarget(site, targets, imports, true); target != nil {
+		return target, "import", 0.72
+	}
+	if target := uniqueTarget(targets[site.file][site.name]); target != nil {
+		return target, "heuristic", 0.55
+	}
+
+	return nil, "", 0
+}
+
+func uniqueImportedTarget(site callSite, targets map[string]map[string][]Node, imports map[string][]string, receiverMustMatch bool) *Node {
+	candidates := []Node{}
+	for _, imported := range imports[site.file] {
+		if receiverMustMatch && !receiverMatchesImport(site.receiver, imported) {
+			continue
+		}
+		candidates = append(candidates, targets[imported][site.name]...)
+	}
+
+	return uniqueTarget(candidates)
+}
+
+func receiverMatchesImport(receiver, imported string) bool {
+	receiver = strings.TrimSpace(receiver)
+	if receiver == "" || imported == "" {
+		return false
+	}
+	dir := path.Base(path.Dir(imported))
+	base := strings.TrimSuffix(path.Base(imported), path.Ext(imported))
+
+	return receiver == dir || receiver == base
+}
+
+func uniqueTarget(candidates []Node) *Node {
+	if len(candidates) != 1 {
+		return nil
+	}
+
+	return &candidates[0]
+}
+
+func containingCallable(symbols []Node, line int) *Node {
+	var best *Node
+	for i := range symbols {
+		n := &symbols[i]
+		if !isCallableCaller(n.Kind) || n.StartLine == 0 || line < n.StartLine {
+			continue
+		}
+		if n.EndLine != 0 && line > n.EndLine {
+			continue
+		}
+		if best == nil || symbolRange(*n) < symbolRange(*best) {
+			best = n
+		}
+	}
+
+	return best
+}
+
+func isCallableCaller(kind string) bool {
+	return kind == "function" || kind == "method"
+}
+
+func isCallableTarget(kind string) bool {
+	return kind == "function" || kind == "method" || kind == "class"
+}
+
+func symbolRange(n Node) int {
+	if n.StartLine == 0 || n.EndLine == 0 || n.EndLine < n.StartLine {
+		return 1 << 30
+	}
+
+	return n.EndLine - n.StartLine
+}
+
+func mergeCallEdge(edge *Edge, site callSite, confidence float64) {
+	if confidence > edge.Confidence {
+		edge.Confidence = confidence
+	}
+	if edge.Properties == nil {
+		edge.Properties = map[string]any{}
+	}
+	count, _ := edge.Properties["count"].(int)
+	edge.Properties["count"] = count + 1
+
+	sites, _ := edge.Properties["sites"].([]map[string]any)
+	if len(sites) < maxCallSitesPerEdge {
+		sites = append(sites, callSiteProperty(site))
+		edge.Properties["sites"] = sites
+	}
+}
+
+func callSiteProperty(site callSite) map[string]any {
+	out := map[string]any{
+		"path": site.file,
+		"line": site.line,
+		"name": site.name,
+	}
+	if site.receiver != "" {
+		out["receiver"] = site.receiver
+	}
+
+	return out
+}
+
 func emitSymbolMetrics(b *Builder, st *symbolStats, opts Options) {
 	byKind := map[string][]EvidenceRef{}
 	for _, n := range st.nodes {
@@ -399,12 +696,45 @@ func emitSymbolMetrics(b *Builder, st *symbolStats, opts Options) {
 		Definition: "Import statements that resolve to a file within this repository. Imports of external packages are dependency edges, not import edges — and an import that resolves to nothing produces no edge at all, rather than a guess with a confidence attached to it.",
 	}, importRefs)
 
+	callRefs := []EvidenceRef{}
+	for _, e := range st.edges {
+		if e.Kind != "calls" {
+			continue
+		}
+		id := "call-" + safeID(e.ID)
+		callRefs = append(callRefs, b.AddRecord(id, &GraphElementRecord{
+			ID:        id,
+			Type:      "graph_element",
+			ElementID: e.ID,
+			Element:   "edge",
+		}))
+	}
+
+	callMetric := Metric{
+		ID: "graph.calls.resolved", Family: "graph", Name: "Resolved local calls",
+		Definition: "Static call sites resolved to functions, methods or classes defined in this repository. Ambiguous and external calls are omitted rather than guessed; repeated call sites between the same two symbols are collapsed into one edge with a count.",
+	}
+	if st.callTruncated || st.truncated {
+		b.CountTruncated(callMetric, callRefs, 1, fmt.Sprintf(
+			"call extraction stopped at the cap of %d call edges, or because symbol extraction was capped", maxCallEdgesPerRepo))
+	} else {
+		b.Count(callMetric, callRefs)
+	}
+
 	if len(st.langsSkipped) > 0 {
 		names := sortedKeys(st.langsSkipped)
 		b.Diagnose(Diagnostic{
 			Level: "note", Collector: "symbols",
 			Message: "No symbol-extraction query for: " + strings.Join(names, ", ") +
 				". Files in these languages contribute no symbols to the graph — which is not the same as having none.",
+		})
+	}
+	if len(st.callLangsSkipped) > 0 {
+		names := sortedKeys(st.callLangsSkipped)
+		b.Diagnose(Diagnostic{
+			Level: "note", Collector: "symbols",
+			Message: "No call-extraction query for: " + strings.Join(names, ", ") +
+				". Files in these languages contribute symbols but no call edges.",
 		})
 	}
 }
