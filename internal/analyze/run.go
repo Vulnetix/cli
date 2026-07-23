@@ -625,10 +625,19 @@ func buildGraph(target Target, f *fileStats, d *depStats, g *gitStats, s *symbol
 			addNode(n)
 		}
 		graph.Edges = append(graph.Edges, s.edges...)
-		if s.truncated {
-			graph.Truncation = &GraphTruncation{
-				Reason: fmt.Sprintf("symbol extraction stopped at the cap of %d symbols", maxSymbolsPerRepo),
+		if s.truncated || s.callTruncated {
+			truncation := &GraphTruncation{}
+			reasons := []string{}
+			if s.truncated {
+				truncation.NodesOmitted = 1
+				reasons = append(reasons, fmt.Sprintf("symbol extraction stopped at the cap of %d symbols", maxSymbolsPerRepo))
 			}
+			if s.callTruncated {
+				truncation.EdgesOmitted = 1
+				reasons = append(reasons, fmt.Sprintf("call extraction stopped at the cap of %d call edges", maxCallEdgesPerRepo))
+			}
+			truncation.Reason = strings.Join(reasons, "; ")
+			graph.Truncation = truncation
 		}
 	}
 
