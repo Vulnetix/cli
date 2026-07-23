@@ -639,6 +639,10 @@ func normaliseImage(ref string) string {
 }
 
 func collectInfrastructure(root string, add func(CrossRepoEdge, Node)) {
+	tfIdentities := collectTerraformIdentities(root)
+	declaredTerraform := map[string]bool{}
+	knownTerraformPrimary := map[string]bool{}
+
 	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -657,7 +661,7 @@ func collectInfrastructure(root string, add func(CrossRepoEdge, Node)) {
 
 		switch {
 		case ext == ".tf":
-			collectTerraform(p, rel, add)
+			collectTerraform(p, rel, tfIdentities, declaredTerraform, knownTerraformPrimary, add)
 		case base == "chart.yaml" || base == "chart.yml":
 			collectHelmChart(p, rel, add)
 		case ext == ".yaml" || ext == ".yml" || ext == ".json":
@@ -665,9 +669,16 @@ func collectInfrastructure(root string, add func(CrossRepoEdge, Node)) {
 		}
 		return nil
 	})
+
+	for _, identity := range tfIdentities.stateOnlyResources(declaredTerraform) {
+		addTerraformStateResource(identity, knownTerraformPrimary, add)
+	}
+	for _, output := range tfIdentities.outputOnlyIdentifiers(knownTerraformPrimary) {
+		addTerraformOutputResource(output, knownTerraformPrimary, add)
+	}
 }
 
-func collectTerraform(abs, rel string, add func(CrossRepoEdge, Node)) {
+func collectTerraform(abs, rel string, identities *terraformIdentityIndex, declared, knownPrimary map[string]bool, add func(CrossRepoEdge, Node)) {
 	body, err := os.ReadFile(abs)
 	if err != nil {
 		return
@@ -679,15 +690,27 @@ func collectTerraform(abs, rel string, add func(CrossRepoEdge, Node)) {
 		key := "terraform:" + typ + ":" + name
 		id := "iac_resource:" + key
 		props := map[string]any{"path": rel, "platform": "terraform", "resourceType": typ, "provider": provider}
+		joinKey := key
+		qualifiedName := ""
+		address := typ + "." + name
+		declared[address] = true
+		if identity, ok := identities.lookup(address); ok {
+			joinKey = terraformIdentityJoinKey(key, identity.Primary)
+			qualifiedName = identity.Primary
+			mergeTerraformIdentityProperties(props, identity.SourcePath, identity.Identifiers, identity.Metadata)
+			if identity.Primary != "" {
+				knownPrimary[identity.Primary] = true
+			}
+		}
 		add(CrossRepoEdge{
 			ID:          "xr-provides-iac-" + safeID(key),
 			LocalNodeID: id,
 			JoinKind:    "iac_resource",
-			JoinKey:     key,
+			JoinKey:     joinKey,
 			Role:        "provides",
 			Confidence:  1,
 			Properties:  props,
-		}, Node{ID: id, Kind: "iac_resource", Name: typ + "." + name, Path: rel, Properties: props})
+		}, Node{ID: id, Kind: "iac_resource", Name: typ + "." + name, QualifiedName: qualifiedName, Path: rel, Properties: props})
 		if provider != "" {
 			providerKey := "terraform:" + provider
 			addRegistryLike("iac_provider", providerKey, rel, "consumes", 0.9, add)
@@ -724,6 +747,113 @@ func collectTerraform(abs, rel string, add func(CrossRepoEdge, Node)) {
 			addRegistryLike("terraform_registry", host, rel, "consumes", 1, add)
 		}
 	}
+}
+
+func addTerraformStateResource(identity terraformResourceIdentity, knownPrimary map[string]bool, add func(CrossRepoEdge, Node)) {
+	if identity.Address == "" {
+		return
+	}
+	if identity.Primary != "" && knownPrimary[identity.Primary] {
+		return
+	}
+	key := "terraform:" + identity.Address
+	id := "iac_resource:" + key
+	props := map[string]any{
+		"path":         identity.SourcePath,
+		"platform":     "terraform",
+		"resourceType": identity.Type,
+		"stateAddress": identity.Address,
+		"stateOnly":    true,
+	}
+	if provider := terraformProviderShortName(identity.Type, identity.Provider); provider != "" {
+		props["provider"] = provider
+	}
+	mergeTerraformIdentityProperties(props, identity.SourcePath, identity.Identifiers, identity.Metadata)
+	if identity.Primary != "" {
+		knownPrimary[identity.Primary] = true
+	}
+	joinKey := terraformIdentityJoinKey(key, identity.Primary)
+	add(CrossRepoEdge{
+		ID:          "xr-provides-iac-state-" + safeID(key),
+		LocalNodeID: id,
+		JoinKind:    "iac_resource",
+		JoinKey:     joinKey,
+		Role:        "provides",
+		Confidence:  0.95,
+		Properties:  props,
+	}, Node{ID: id, Kind: "iac_resource", Name: identity.Address, QualifiedName: identity.Primary, Path: identity.SourcePath, Properties: props})
+}
+
+func addTerraformOutputResource(output terraformOutputIdentity, knownPrimary map[string]bool, add func(CrossRepoEdge, Node)) {
+	if output.Primary == "" || knownPrimary[output.Primary] {
+		return
+	}
+	knownPrimary[output.Primary] = true
+	key := terraformOutputNodeKey(output)
+	id := "iac_resource:" + key
+	props := map[string]any{
+		"path":         output.SourcePath,
+		"platform":     "terraform",
+		"resourceType": "terraform_output",
+		"outputName":   output.Name,
+		"outputOnly":   true,
+	}
+	mergeTerraformIdentityProperties(props, output.SourcePath, output.Identifiers, output.Metadata)
+	add(CrossRepoEdge{
+		ID:          "xr-provides-iac-output-" + safeID(output.Name+"-"+output.Primary),
+		LocalNodeID: id,
+		JoinKind:    "iac_resource",
+		JoinKey:     output.Primary,
+		Role:        "provides",
+		Confidence:  0.8,
+		Properties:  props,
+	}, Node{ID: id, Kind: "iac_resource", Name: output.Name, QualifiedName: output.Primary, Path: output.SourcePath, Properties: props})
+}
+
+func terraformOutputNodeKey(output terraformOutputIdentity) string {
+	if output.Primary == "" {
+		return "terraform_output:" + output.Name
+	}
+
+	return "terraform_output:" + output.Name + ":" + safeID(output.Primary)
+}
+
+func terraformIdentityJoinKey(fallback, primary string) string {
+	if primary == "" {
+		return fallback
+	}
+
+	return primary
+}
+
+func mergeTerraformIdentityProperties(props map[string]any, sourcePath string, identifiers map[string]string, metadata map[string]string) {
+	if len(identifiers) > 0 {
+		props["cloudIdentifiers"] = identifiers
+		if primary := primaryCloudIdentifier(identifiers); primary != "" {
+			props["cloudIdentifier"] = primary
+		}
+	}
+	if sourcePath != "" {
+		props["identifierSource"] = sourcePath
+	}
+	for key, value := range metadata {
+		if value == "" {
+			continue
+		}
+		props[key] = value
+	}
+}
+
+func terraformProviderShortName(resourceType, provider string) string {
+	if resourceType != "" {
+		return strings.SplitN(resourceType, "_", 2)[0]
+	}
+	provider = strings.TrimSuffix(provider, `"]`)
+	if i := strings.LastIndex(provider, "/"); i >= 0 {
+		return provider[i+1:]
+	}
+
+	return provider
 }
 
 func collectHelmChart(abs, rel string, add func(CrossRepoEdge, Node)) {

@@ -215,3 +215,219 @@ func TestWorkflowKey(t *testing.T) {
 	// than publishing something wrong.
 	require.Empty(t, workflowKey(Target{RepoID: "local~~cli"}, ".github/workflows/release.yml"))
 }
+
+func TestCollectInfrastructure_EnrichesTerraformResourceFromState(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "main.tf", `
+resource "aws_s3_bucket" "logs" {}
+resource "aws_iam_access_key" "ci" {}
+`)
+	writeFixture(t, root, "terraform.tfstate", `{
+  "version": 4,
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "logs",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [{
+        "attributes": {
+          "id": "vulnetix-logs",
+          "arn": "arn:aws:s3:::vulnetix-logs",
+          "bucket": "vulnetix-logs",
+          "password": "not-stored"
+        }
+      }]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_iam_access_key",
+      "name": "ci",
+      "instances": [{
+        "attributes": {
+          "id": "AKIAIOSFODNN7EXAMPLE",
+          "secret": "not-stored"
+        }
+      }]
+    }
+  ]
+}`)
+
+	var edges []CrossRepoEdge
+	nodes := map[string]Node{}
+	collectInfrastructure(root, func(e CrossRepoEdge, n Node) {
+		edges = append(edges, e)
+		nodes[n.ID] = n
+	})
+
+	bucket := nodes["iac_resource:terraform:aws_s3_bucket:logs"]
+	require.Equal(t, "arn:aws:s3:::vulnetix-logs", bucket.QualifiedName)
+	require.Equal(t, "arn:aws:s3:::vulnetix-logs", bucket.Properties["cloudIdentifier"])
+	require.Equal(t, "aws", bucket.Properties["cloudProvider"])
+	require.NotContains(t, bucket.Properties, "password")
+
+	ids, ok := bucket.Properties["cloudIdentifiers"].(map[string]string)
+	require.True(t, ok)
+	require.Equal(t, "arn:aws:s3:::vulnetix-logs", ids["awsArn"])
+	require.Equal(t, "vulnetix-logs", ids["id"])
+
+	byLocalNode := map[string]CrossRepoEdge{}
+	for _, edge := range edges {
+		byLocalNode[edge.LocalNodeID] = edge
+	}
+	require.Equal(t, "arn:aws:s3:::vulnetix-logs", byLocalNode[bucket.ID].JoinKey)
+
+	accessKey := nodes["iac_resource:terraform:aws_iam_access_key:ci"]
+	require.Empty(t, accessKey.QualifiedName)
+	require.NotContains(t, accessKey.Properties, "cloudIdentifiers")
+}
+
+func TestCollectInfrastructure_AddsTerraformStateOnlyModuleResources(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "main.tf", `
+module "network" {
+  source = "app.terraform.io/acme/network/aws"
+}
+`)
+	writeFixture(t, root, "terraform.tfstate", `{
+  "values": {
+    "root_module": {
+      "child_modules": [{
+        "address": "module.network",
+        "resources": [{
+          "address": "module.network.aws_sqs_queue.events",
+          "mode": "managed",
+          "type": "aws_sqs_queue",
+          "name": "events",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "values": {
+            "id": "https://sqs.ap-southeast-2.amazonaws.com/123456789012/events",
+            "arn": "arn:aws:sqs:ap-southeast-2:123456789012:events",
+            "name": "events"
+          }
+        }]
+      }]
+    }
+  }
+}`)
+
+	nodes := map[string]Node{}
+	edges := map[string]CrossRepoEdge{}
+	collectInfrastructure(root, func(e CrossRepoEdge, n Node) {
+		nodes[n.ID] = n
+		edges[n.ID] = e
+	})
+
+	id := "iac_resource:terraform:module.network.aws_sqs_queue.events"
+	node := nodes[id]
+	require.Equal(t, "arn:aws:sqs:ap-southeast-2:123456789012:events", node.QualifiedName)
+	require.Equal(t, true, node.Properties["stateOnly"])
+	require.Equal(t, "sqs", node.Properties["awsService"])
+	require.Equal(t, "arn:aws:sqs:ap-southeast-2:123456789012:events", edges[id].JoinKey)
+}
+
+func TestCollectInfrastructure_AddsTerraformOutputIdentifiersAndSkipsSensitiveOutputs(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "terraform-outputs.json", `{
+  "queue_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:sqs:ap-southeast-2:123456789012:events"
+  },
+  "queue_alias": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:sqs:ap-southeast-2:123456789012:events"
+  },
+  "vpc_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vpc-0123abcdef"
+  },
+  "db_password": {
+    "sensitive": true,
+    "type": "string",
+    "value": "not-stored"
+  }
+}`)
+
+	nodes := map[string]Node{}
+	edges := map[string]CrossRepoEdge{}
+	queueARNNodes := 0
+	collectInfrastructure(root, func(e CrossRepoEdge, n Node) {
+		nodes[n.ID] = n
+		edges[n.ID] = e
+		if n.QualifiedName == "arn:aws:sqs:ap-southeast-2:123456789012:events" {
+			queueARNNodes++
+		}
+	})
+
+	id := "iac_resource:" + terraformOutputNodeKey(terraformOutputIdentity{
+		Name:    "queue_arn",
+		Primary: "arn:aws:sqs:ap-southeast-2:123456789012:events",
+	})
+	node := nodes[id]
+	require.Equal(t, "queue_arn", node.Name)
+	require.Equal(t, "arn:aws:sqs:ap-southeast-2:123456789012:events", node.QualifiedName)
+	require.Equal(t, true, node.Properties["outputOnly"])
+	require.Equal(t, "arn:aws:sqs:ap-southeast-2:123456789012:events", edges[id].JoinKey)
+	require.Equal(t, 1, queueARNNodes)
+
+	vpc := nodes["iac_resource:"+terraformOutputNodeKey(terraformOutputIdentity{Name: "vpc_id", Primary: "vpc-0123abcdef"})]
+	require.Equal(t, "vpc-0123abcdef", vpc.QualifiedName)
+	require.Equal(t, "aws", vpc.Properties["cloudProvider"])
+
+	require.NotContains(t, nodes, "iac_resource:"+terraformOutputNodeKey(terraformOutputIdentity{Name: "db_password", Primary: "not-stored"}))
+}
+
+func TestCollectInfrastructure_EnrichesTerraformAzureAndGCPIdentifiers(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "main.tf", `
+resource "azurerm_storage_account" "logs" {}
+resource "google_compute_network" "net" {}
+`)
+	writeFixture(t, root, "terraform.tfstate", `{
+  "values": {
+    "root_module": {
+      "resources": [{
+        "address": "azurerm_storage_account.logs",
+        "mode": "managed",
+        "type": "azurerm_storage_account",
+        "name": "logs",
+        "provider_name": "registry.terraform.io/hashicorp/azurerm",
+        "values": {
+          "id": "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/logsacct",
+          "primary_access_key": "not-stored"
+        }
+      }, {
+        "address": "google_compute_network.net",
+        "mode": "managed",
+        "type": "google_compute_network",
+        "name": "net",
+        "provider_name": "registry.terraform.io/hashicorp/google",
+        "values": {
+          "self_link": "https://www.googleapis.com/compute/v1/projects/vdb-prod/global/networks/net",
+          "project": "vdb-prod"
+        }
+      }]
+    }
+  }
+}`)
+
+	nodes := map[string]Node{}
+	collectInfrastructure(root, func(_ CrossRepoEdge, n Node) {
+		nodes[n.ID] = n
+	})
+
+	azure := nodes["iac_resource:terraform:azurerm_storage_account:logs"]
+	require.Equal(t, "/subscriptions/sub-123/resourceGroups/rg-prod/providers/Microsoft.Storage/storageAccounts/logsacct", azure.QualifiedName)
+	require.Equal(t, "azure", azure.Properties["cloudProvider"])
+	require.Equal(t, "sub-123", azure.Properties["azureSubscriptionId"])
+	require.Equal(t, "rg-prod", azure.Properties["azureResourceGroup"])
+	require.NotContains(t, azure.Properties, "primary_access_key")
+
+	gcp := nodes["iac_resource:terraform:google_compute_network:net"]
+	require.Equal(t, "https://www.googleapis.com/compute/v1/projects/vdb-prod/global/networks/net", gcp.QualifiedName)
+	require.Equal(t, "gcp", gcp.Properties["cloudProvider"])
+	require.Equal(t, "vdb-prod", gcp.Properties["gcpProject"])
+}
