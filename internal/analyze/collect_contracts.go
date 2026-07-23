@@ -58,9 +58,8 @@ var (
 	publishCall   = regexp.MustCompile(`(?i)\b(?:publish|produce|send_message|sendmessage|emit)\s*\(\s*['"]([\w.\-/]+)['"]`)
 	subscribeCall = regexp.MustCompile(`(?i)\b(?:subscribe|consume|receive_message|receivemessage|on)\s*\(\s*['"]([\w.\-/]+)['"]`)
 
-	// Dockerfile FROM, ignoring build stages (a stage is internal to the file, not a
-	// dependency on anybody else's image).
-	dockerFrom = regexp.MustCompile(`(?im)^\s*FROM\s+(\S+)`)
+	// Dockerfile variable expansion for the subset that can affect FROM image references.
+	dockerVariable = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)(?:(:?[-+])([^}]*))?\}|\$([A-Za-z_][A-Za-z0-9_]*)`)
 
 	terraformResource       = regexp.MustCompile(`(?m)\bresource\s+"([^"]+)"\s+"([^"]+)"`)
 	terraformProviderSource = regexp.MustCompile(`(?m)\bsource\s*=\s*"([^"]+/[^"]+)"`)
@@ -389,18 +388,16 @@ func collectImages(root string, add func(CrossRepoEdge, Node)) {
 				return nil
 			}
 
-			// Build stages are internal to the file. `FROM builder` is not a dependency on
-			// anybody's image, and publishing it would create an edge to a repo called "builder".
 			stages := map[string]bool{}
-			for _, line := range strings.Split(string(body), "\n") {
-				if m := regexp.MustCompile(`(?i)^\s*FROM\s+\S+\s+AS\s+(\S+)`).FindStringSubmatch(line); m != nil {
-					stages[strings.ToLower(m[1])] = true
-				}
-			}
-
-			for _, m := range dockerFrom.FindAllStringSubmatch(string(body), -1) {
-				img := normaliseImage(m[1])
-				if img == "" || stages[strings.ToLower(m[1])] {
+			refs := dockerfileFromRefs(string(body))
+			for _, ref := range refs {
+				img := normaliseImage(ref.Image)
+				// Build stages are internal to the file. `FROM builder` is not a dependency on
+				// anybody's image, and publishing it would create an edge to a repo called "builder".
+				if img == "" || stages[strings.ToLower(ref.Image)] {
+					if ref.Stage != "" {
+						stages[strings.ToLower(ref.Stage)] = true
+					}
 					continue
 				}
 				id := "container_image:" + img
@@ -414,6 +411,9 @@ func collectImages(root string, add func(CrossRepoEdge, Node)) {
 					Properties:  map[string]any{"path": rel},
 				}, Node{ID: id, Kind: "container_image", Name: img, Path: rel})
 				addContainerRegistry(img, rel, add)
+				if ref.Stage != "" {
+					stages[strings.ToLower(ref.Stage)] = true
+				}
 			}
 
 		case name == "docker-compose.yml" || name == "docker-compose.yaml" ||
@@ -454,6 +454,142 @@ func collectImages(root string, add func(CrossRepoEdge, Node)) {
 	})
 }
 
+type dockerFromRef struct {
+	Image string
+	Stage string
+}
+
+func dockerfileFromRefs(src string) []dockerFromRef {
+	args := map[string]string{}
+	out := []dockerFromRef{}
+
+	for _, line := range dockerLogicalLines(src) {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		keyword := fields[0]
+		rest := strings.TrimSpace(strings.TrimPrefix(line, keyword))
+		switch strings.ToUpper(keyword) {
+		case "ARG":
+			parseDockerArg(rest, args)
+		case "FROM":
+			ref := parseDockerFrom(rest, args)
+			if ref.Image != "" {
+				out = append(out, ref)
+			}
+		}
+	}
+
+	return out
+}
+
+func dockerLogicalLines(src string) []string {
+	var lines []string
+	var current strings.Builder
+
+	for _, raw := range strings.Split(src, "\n") {
+		line := strings.TrimRight(raw, "\r\t ")
+		continued := strings.HasSuffix(line, "\\")
+		if continued {
+			line = strings.TrimRight(strings.TrimSuffix(line, "\\"), "\t ")
+		}
+		if current.Len() > 0 {
+			current.WriteByte(' ')
+		}
+		current.WriteString(line)
+		if continued {
+			continue
+		}
+		lines = append(lines, current.String())
+		current.Reset()
+	}
+	if current.Len() > 0 {
+		lines = append(lines, current.String())
+	}
+
+	return lines
+}
+
+func parseDockerArg(rest string, args map[string]string) {
+	fields := strings.Fields(rest)
+	if len(fields) == 0 {
+		return
+	}
+	name, value, hasValue := strings.Cut(fields[0], "=")
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return
+	}
+	if !hasValue {
+		if _, ok := args[name]; !ok {
+			args[name] = ""
+		}
+		return
+	}
+	args[name] = interpolateDockerValue(strings.Trim(value, `"'`), args)
+}
+
+func parseDockerFrom(rest string, args map[string]string) dockerFromRef {
+	fields := strings.Fields(rest)
+	i := 0
+	for i < len(fields) && strings.HasPrefix(fields[i], "--") {
+		if !strings.Contains(fields[i], "=") {
+			i++
+		}
+		i++
+	}
+	if i >= len(fields) {
+		return dockerFromRef{}
+	}
+
+	ref := dockerFromRef{Image: interpolateDockerValue(strings.Trim(fields[i], `"'`), args)}
+	for j := i + 1; j+1 < len(fields); j++ {
+		if strings.EqualFold(fields[j], "AS") {
+			ref.Stage = strings.Trim(fields[j+1], `"'`)
+			break
+		}
+	}
+
+	return ref
+}
+
+func interpolateDockerValue(value string, args map[string]string) string {
+	return dockerVariable.ReplaceAllStringFunc(value, func(match string) string {
+		parts := dockerVariable.FindStringSubmatch(match)
+		if len(parts) == 0 {
+			return match
+		}
+
+		name := parts[1]
+		if name == "" {
+			name = parts[4]
+		}
+		value, ok := args[name]
+		if parts[2] == ":-" || parts[2] == "-" {
+			if !ok || value == "" {
+				return parts[3]
+			}
+		}
+		if parts[2] == ":+" || parts[2] == "+" {
+			if ok && value != "" {
+				return parts[3]
+			}
+			return ""
+		}
+		if !ok {
+			return match
+		}
+
+		return value
+	})
+}
+
 func addContainerRegistry(image, rel string, add func(CrossRepoEdge, Node)) {
 	registry := imageRegistry(image)
 	if registry == "" {
@@ -484,7 +620,7 @@ func imageRegistry(image string) string {
 // almost no edges, and the ones it showed would be an accident of who deployed last.
 func normaliseImage(ref string) string {
 	ref = strings.TrimSpace(ref)
-	if ref == "" || strings.HasPrefix(ref, "$") || strings.Contains(ref, "${") {
+	if ref == "" || strings.HasPrefix(ref, "-") || strings.Contains(ref, "$") || strings.Contains(ref, "${") {
 		// A templated image reference names nothing until it is expanded, and we cannot expand it.
 		return ""
 	}
