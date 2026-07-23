@@ -1,6 +1,8 @@
 package analyze
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -69,9 +71,79 @@ func TestNormaliseImage(t *testing.T) {
 	// A templated reference names nothing until it is expanded, and we cannot expand it.
 	require.Empty(t, normaliseImage("${BASE_IMAGE}"))
 	require.Empty(t, normaliseImage("$BASE"))
+	require.Empty(t, normaliseImage("--platform=$BUILDPLATFORM"))
 
 	// `FROM scratch` is not a dependency on anybody's image.
 	require.Empty(t, normaliseImage("scratch"))
+}
+
+func TestDockerfileFromRefs_SkipsPlatformFlagAndInterpolatesArgs(t *testing.T) {
+	src := `
+ARG BASE_IMAGE=public.ecr.aws/docker/library/alpine:3.20
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
+FROM --platform=${TARGETPLATFORM} $BASE_IMAGE AS runtime
+FROM ${UNSET_IMAGE}
+FROM builder
+`
+	refs := dockerfileFromRefs(src)
+	require.Equal(t, []dockerFromRef{
+		{Image: "golang:1.24-alpine", Stage: "builder"},
+		{Image: "public.ecr.aws/docker/library/alpine:3.20", Stage: "runtime"},
+		{Image: "${UNSET_IMAGE}"},
+		{Image: "builder"},
+	}, refs)
+}
+
+func TestCollectImages_DockerfilePlatformFlagIsNotAnImage(t *testing.T) {
+	root := t.TempDir()
+	body := `
+ARG BASE_IMAGE=public.ecr.aws/docker/library/alpine:3.20
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
+FROM --platform=${TARGETPLATFORM} $BASE_IMAGE
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "Dockerfile"), []byte(body), 0o644))
+
+	edges := []CrossRepoEdge{}
+	nodes := []Node{}
+	collectImages(root, func(e CrossRepoEdge, n Node) {
+		edges = append(edges, e)
+		nodes = append(nodes, n)
+	})
+
+	nodeIDs := map[string]bool{}
+	joinKeys := map[string]bool{}
+	for _, n := range nodes {
+		nodeIDs[n.ID] = true
+	}
+	for _, e := range edges {
+		joinKeys[e.JoinKey] = true
+	}
+
+	require.True(t, nodeIDs["container_image:golang"])
+	require.True(t, nodeIDs["container_image:public.ecr.aws/docker/library/alpine"])
+	require.False(t, nodeIDs["container_image:--platform=$buildplatform"])
+	require.False(t, joinKeys["--platform=$buildplatform"])
+}
+
+func TestCollectImages_DockerfileStageAliasDoesNotHideInitialImage(t *testing.T) {
+	root := t.TempDir()
+	body := `
+FROM golang:1.24-alpine AS golang
+FROM golang AS build
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "Dockerfile"), []byte(body), 0o644))
+
+	nodes := []Node{}
+	collectImages(root, func(_ CrossRepoEdge, n Node) {
+		nodes = append(nodes, n)
+	})
+
+	nodeIDs := map[string]bool{}
+	for _, n := range nodes {
+		nodeIDs[n.ID] = true
+	}
+
+	require.True(t, nodeIDs["container_image:golang"])
 }
 
 // A file that merely *mentions* a framework is not a server. This test exists because the
