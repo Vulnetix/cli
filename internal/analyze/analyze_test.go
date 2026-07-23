@@ -94,6 +94,36 @@ func TestBuilder_AddFileFoldsRecordsForTheSamePath(t *testing.T) {
 	require.Equal(t, []string{"policy", "license-file-exists"}, held.Tags, "and so does what the policy check knew")
 }
 
+func TestBuildGraphAddsHistoricalFileNodesForCouplingEdges(t *testing.T) {
+	graph := buildGraph(
+		Target{RepoID: "repo"},
+		&fileStats{files: []*FileRecord{{ID: "file-cmd/live.go", Type: "file", Path: "cmd/live.go", Language: "go"}}},
+		nil,
+		nil,
+		nil,
+		nil,
+		&couplingStats{edges: []Edge{{
+			ID: "e:couples:README.md--cmd/live.go", Kind: "couples_with",
+			From: "file:README.md", To: "file:cmd/live.go", Confidence: 0.75, Resolution: "heuristic",
+		}}},
+		nil,
+	)
+
+	nodes := map[string]Node{}
+	for _, node := range graph.Nodes {
+		nodes[node.ID] = node
+	}
+	require.Contains(t, nodes, "file:cmd/live.go")
+	require.Contains(t, nodes, "file:README.md")
+	require.Equal(t, true, nodes["file:README.md"].Properties["historical"])
+	require.Equal(t, "coupling", nodes["file:README.md"].Properties["source"])
+
+	for _, edge := range graph.Edges {
+		require.Contains(t, nodes, edge.From, "%s from-node must exist", edge.ID)
+		require.Contains(t, nodes, edge.To, "%s to-node must exist", edge.ID)
+	}
+}
+
 // The guard is the point: a report that collides on a stored identity is a report that stores
 // nothing, so we must not be able to build one.
 func TestCheckRecordIdentity_RejectsCollisions(t *testing.T) {

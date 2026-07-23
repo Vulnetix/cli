@@ -537,6 +537,27 @@ func buildGraph(target Target, f *fileStats, d *depStats, g *gitStats, s *symbol
 
 	repoNode := "repo:" + target.RepoID
 	addNode(Node{ID: repoNode, Kind: "repo", Name: target.RepoID})
+	ensureCouplingFileNode := func(nodeID string) {
+		const prefix = "file:"
+		if !strings.HasPrefix(nodeID, prefix) || seen[nodeID] {
+			return
+		}
+		path := strings.TrimPrefix(nodeID, prefix)
+		addNode(Node{
+			ID:   nodeID,
+			Kind: "file",
+			Name: filepath.Base(path),
+			Path: path,
+			Properties: map[string]any{
+				"historical": true,
+				"source":     "coupling",
+			},
+		})
+		graph.Edges = append(graph.Edges, Edge{
+			ID: "e:contains:" + path, Kind: "contains",
+			From: repoNode, To: nodeID, Confidence: 1, Resolution: "heuristic",
+		})
+	}
 
 	if f != nil {
 		for _, file := range f.files {
@@ -614,7 +635,11 @@ func buildGraph(target Target, f *fileStats, d *depStats, g *gitStats, s *symbol
 	// Coupling edges. Two files that keep changing together, with nothing in the code to say
 	// so, is a dependency the source does not record — and the canvas can draw it.
 	if cp != nil {
-		graph.Edges = append(graph.Edges, cp.edges...)
+		for _, e := range cp.edges {
+			ensureCouplingFileNode(e.From)
+			ensureCouplingFileNode(e.To)
+			graph.Edges = append(graph.Edges, e)
+		}
 	}
 
 	// The contract nodes and the join keys that reach out of this repository. These are what

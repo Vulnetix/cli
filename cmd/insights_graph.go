@@ -61,7 +61,6 @@ func postScannerGraphInsights(rootPath, toolName string, gitCtx *gitctx.GitConte
 		}
 		return
 	}
-	req.ReportJSON = string(body)
 
 	env := envForCliWithGit(gitCtx)
 	env.ToolMetadata = &vdb.CliSBOMToolMetadata{
@@ -69,6 +68,17 @@ func postScannerGraphInsights(rootPath, toolName string, gitCtx *gitctx.GitConte
 		ToolVersion: version,
 		ToolVendor:  "Vulnetix",
 		ToolHash:    commit,
+	}
+
+	budget, err := prepareCliInsightsUpload(&req, env, body)
+	if err != nil {
+		if verbose {
+			fmt.Fprintf(w, "  graph insights upload skipped: %v\n", err)
+		}
+		return
+	}
+	if verbose && budget.ReportJSONOmitted {
+		fmt.Fprintf(w, "  graph insights report artifact omitted from upload (%s request limit)\n", formatByteSize(budget.LimitBytes))
 	}
 
 	resp, err := client.CliInsights(env, req)
