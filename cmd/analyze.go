@@ -272,11 +272,6 @@ func uploadInsights(cmd *cobra.Command, report *analyze.Report, body []byte, sil
 	if err != nil {
 		return fail("%v", err)
 	}
-	req.ReportJSON = string(body)
-
-	client := vdb.NewClientFromCredentials(creds)
-	client.APIVersion = "/v2"
-	client.HTTPClient.Timeout = 180 * time.Second
 
 	git := gitctx.Collect(report.Target.RootPath)
 	env := envForCliWithGit(git)
@@ -286,6 +281,20 @@ func uploadInsights(cmd *cobra.Command, report *analyze.Report, body []byte, sil
 		ToolVendor:  "Vulnetix",
 		ToolHash:    commit,
 	}
+
+	budget, err := prepareCliInsightsUpload(&req, env, body)
+	if err != nil {
+		return fail("%v", err)
+	}
+	if budget.ReportJSONOmitted && !silent {
+		fmt.Fprintf(os.Stderr,
+			"Analysis report artifact omitted from upload (%s request limit); structured insights will still be stored. The local report file was written.\n",
+			formatByteSize(budget.LimitBytes))
+	}
+
+	client := vdb.NewClientFromCredentials(creds)
+	client.APIVersion = "/v2"
+	client.HTTPClient.Timeout = 180 * time.Second
 
 	resp, err := client.CliInsights(env, req)
 	if err != nil {
