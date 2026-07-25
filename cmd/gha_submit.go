@@ -226,9 +226,21 @@ func (s *ghaSubmitter) postSARIFChunks(log *sarif.Log, category sarif.Category, 
 			}
 			return "", "", fmt.Errorf("chunk %d/%d: %w", i+1, len(chunks), err)
 		}
-		if i == 0 && resp != nil && resp.Data.IngestionSnapshot != nil {
-			snapshotUuid = resp.Data.IngestionSnapshot.Uuid
-			snapshotURL = resp.Data.IngestionSnapshot.URL
+		if i == 0 && resp != nil {
+			if resp.Data.IngestionSnapshot != nil {
+				snapshotUuid = resp.Data.IngestionSnapshot.Uuid
+				snapshotURL = resp.Data.IngestionSnapshot.URL
+			}
+			// This report was already published under the same analysisKey — a
+			// re-run of the publish job. The existing run is complete, so sending
+			// the remaining chunks would append a second copy of their findings
+			// to it.
+			if resp.Data.AlreadyIngested {
+				if len(chunks) > 1 {
+					s.logf("    already published under this run attempt; skipping %d remaining chunk(s)", len(chunks)-1)
+				}
+				return snapshotUuid, snapshotURL, nil
+			}
 		}
 	}
 	return snapshotUuid, snapshotURL, nil
