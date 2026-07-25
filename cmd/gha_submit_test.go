@@ -57,6 +57,64 @@ func TestPublishRejectsBrokenRedirectOutput(t *testing.T) {
 	})
 }
 
+// vulnetix.yml uploads .vulnetix/*.sarif and *.cdx.json as workflow artifacts,
+// and this command collects every artifact in the run. Those reports were
+// already persisted by the subcommand that produced them, so republishing them
+// would mint a second ScannerRun for every first-party scan and double every
+// finding count — silently, across every repo running the workflow.
+func TestPublishSkipsVulnetixOwnReports(t *testing.T) {
+	s := newTestSubmitter(nil)
+
+	t.Run("own SARIF", func(t *testing.T) {
+		// The driver name sast.BuildSARIF writes.
+		doc := `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"vulnetix","version":"v3.73.0",
+		  "rules":[{"id":"VULNETIX-SQL-001","properties":{"severity":"high"}}]}},
+		  "results":[{"ruleId":"VULNETIX-SQL-001","level":"error","message":{"text":"x"},
+		  "locations":[{"physicalLocation":{"artifactLocation":{"uri":"a.go"},"region":{"startLine":1}}}]}]}]}`
+		res := s.publishFile("sast", writeTemp(t, "sast.sarif", doc))
+
+		if res.Status != "skipped" {
+			t.Fatalf("status = %q, want skipped (would double-count the scan)", res.Status)
+		}
+		if !strings.Contains(res.Reason, "already published") {
+			t.Errorf("reason should explain the duplicate: %q", res.Reason)
+		}
+	})
+
+	t.Run("own SBOM", func(t *testing.T) {
+		doc := `{"bomFormat":"CycloneDX","specVersion":"1.5","version":1,
+		  "metadata":{"tools":{"components":[{"name":"Vulnetix SCA","version":"v3.73.0","type":"application"}]}},
+		  "components":[{"type":"library","name":"lodash","version":"4.17.21","purl":"pkg:npm/lodash@4.17.21"}]}`
+		res := s.publishFile("sca", writeTemp(t, "sbom.cdx.json", doc))
+
+		if res.Status != "skipped" {
+			t.Fatalf("status = %q, want skipped", res.Status)
+		}
+	})
+
+	// A genuine third-party report must still publish.
+	t.Run("third-party still publishes", func(t *testing.T) {
+		res := s.publishFile("gosec", writeTemp(t, "gosec.sarif", gosecSARIFDoc))
+		if res.Status != "uploaded" {
+			t.Fatalf("status = %q, want uploaded (%s)", res.Status, res.Reason)
+		}
+	})
+}
+
+func TestIsVulnetixOwnTool(t *testing.T) {
+	for _, name := range []string{"vulnetix", "Vulnetix SCA", "Vulnetix Malscan", "vulnetix-containers", "VULNETIX SAST"} {
+		if !isVulnetixOwnTool(name) {
+			t.Errorf("%q should be recognised as our own tool", name)
+		}
+	}
+	// Names that merely start with the same letters are not ours.
+	for _, name := range []string{"gosec", "grype", "Trivy", "vulnerability-scanner", "", "vulnetixual"} {
+		if isVulnetixOwnTool(name) {
+			t.Errorf("%q should not be treated as our own tool", name)
+		}
+	}
+}
+
 // A log or junit file inside an artifact is not a failure — a publish job must
 // not break because a scanner also uploaded its stdout.
 func TestPublishSkipsNonReportFiles(t *testing.T) {

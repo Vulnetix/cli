@@ -137,6 +137,18 @@ func (s *ghaSubmitter) publishSARIF(res ghaFileResult, artifactName string, data
 
 	s.logf("  %s/%s -> %s", artifactName, res.File, sum.String())
 
+	// A report this CLI produced was already persisted by the scan that produced
+	// it — `vulnetix sast` posts to /v2/cli.sast before its SARIF is ever
+	// uploaded as an artifact. vulnetix.yml's publish job collects those same
+	// artifacts, so republishing here would create a second ScannerRun for every
+	// first-party scan and double every finding count.
+	if isVulnetixOwnTool(sum.Tool.Name) {
+		res.Status = "skipped"
+		res.Reason = "produced by Vulnetix's own scanner; already published by the scan itself"
+		s.logf("  %s/%s skipped: %s", artifactName, res.File, res.Reason)
+		return res
+	}
+
 	if sum.Category == "" {
 		res.Status = "skipped"
 		res.Reason = fmt.Sprintf("could not classify %q into a scan category", sum.Tool.Name)
@@ -295,6 +307,15 @@ func (s *ghaSubmitter) publishCycloneDX(res ghaFileResult, artifactName string, 
 	res.ToolVersion = meta.ToolVersion
 	res.Category = string(sarif.CategorySCA)
 	res.CategoryWhy = "format:cyclonedx"
+
+	// Same reasoning as the SARIF path: `vulnetix sca` already posted this
+	// inventory to /v2/cli.sca before writing .vulnetix/sbom.cdx.json.
+	if isVulnetixOwnTool(meta.ToolName) {
+		res.Status = "skipped"
+		res.Reason = "produced by Vulnetix's own scanner; already published by the scan itself"
+		s.logf("  %s/%s skipped: %s", artifactName, res.File, res.Reason)
+		return res
+	}
 
 	packages, skipped := cdxPackages(bom)
 	res.Findings = len(packages)
@@ -572,6 +593,24 @@ func firstErrorLine(report sarif.Report) string {
 		return d.Message
 	}
 	return "validation failed"
+}
+
+// isVulnetixOwnTool reports whether a report was produced by Vulnetix's own
+// scanners rather than by a third-party tool.
+//
+// Those reports arrive here because vulnetix.yml uploads .vulnetix/*.sarif and
+// *.cdx.json as workflow artifacts, and this command collects every artifact in
+// the run. They must not be republished: each was already persisted by the
+// subcommand that produced it, and a second submission would mint a duplicate
+// ScannerRun and double the finding counts.
+//
+// Matching is on the producer name the writers actually emit —
+// sast.BuildSARIF sets the driver to "vulnetix", and the SCA/containers paths
+// set tool metadata to "Vulnetix SCA", "Vulnetix Malscan", "vulnetix-containers"
+// and so on.
+func isVulnetixOwnTool(toolName string) bool {
+	n := strings.ToLower(strings.TrimSpace(toolName))
+	return n == "vulnetix" || strings.HasPrefix(n, "vulnetix ") || strings.HasPrefix(n, "vulnetix-")
 }
 
 func firstNonBlank(vals ...string) string {
