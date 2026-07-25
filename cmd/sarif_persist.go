@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/memory"
@@ -231,22 +232,24 @@ func buildAPISARIFFinding(f sast.Finding, memRecords map[string]memory.FindingRe
 		snipEnd = f.EndLine
 	}
 	return vdb.CliSARIFFinding{
-		RuleID:                 f.RuleID,
-		RuleName:               ruleName,
-		Description:            description,
-		Message:                f.Message,
-		Severity:               f.Severity,
-		Level:                  f.Level,
-		File:                   f.ArtifactURI,
-		StartLine:              f.StartLine,
-		EndLine:                f.EndLine,
-		Fingerprint:            f.Fingerprint,
-		CWEs:                   cwes,
-		Tags:                   tags,
-		SARIFGuid:              f.Fingerprint,
-		CodeSnippet:            snippet,
-		SnippetStartLine:       snipStart,
-		SnippetEndLine:         snipEnd,
+		Finding: sarif.Finding{
+			RuleID:           f.RuleID,
+			RuleName:         ruleName,
+			Description:      description,
+			Message:          f.Message,
+			Severity:         f.Severity,
+			Level:            f.Level,
+			File:             f.ArtifactURI,
+			StartLine:        f.StartLine,
+			EndLine:          f.EndLine,
+			Fingerprint:      f.Fingerprint,
+			CWEs:             cwes,
+			Tags:             tags,
+			SARIFGuid:        f.Fingerprint,
+			CodeSnippet:      snippet,
+			SnippetStartLine: snipStart,
+			SnippetEndLine:   snipEnd,
+		},
 		MemoryVexStatus:        mem.Status,
 		MemoryVexJustification: mem.Justification,
 		MemoryVexAction:        mem.ActionResponse,
@@ -482,16 +485,18 @@ func postLicenseSARIF(result *license.AnalysisResult, rootPath string, snippetCo
 	for _, f := range findings {
 		mem := memHitForRule(memRecords, f.RuleID)
 		apiFindings = append(apiFindings, vdb.CliSARIFFinding{
-			RuleID:                 f.RuleID,
-			RuleName:               ruleByID[f.RuleID],
-			Message:                f.Message,
-			Severity:               f.Severity,
-			Level:                  f.Level,
-			PackagePurl:            f.PackagePurl,
-			File:                   f.ArtifactURI,
-			Fingerprint:            f.Fingerprint,
-			Tags:                   f.Tags,
-			SARIFGuid:              f.Fingerprint,
+			Finding: sarif.Finding{
+				RuleID:      f.RuleID,
+				RuleName:    ruleByID[f.RuleID],
+				Message:     f.Message,
+				Severity:    f.Severity,
+				Level:       f.Level,
+				PackagePurl: f.PackagePurl,
+				File:        f.ArtifactURI,
+				Fingerprint: f.Fingerprint,
+				Tags:        f.Tags,
+				SARIFGuid:   f.Fingerprint,
+			},
 			MemoryVexStatus:        mem.Status,
 			MemoryVexJustification: mem.Justification,
 			MemoryVexAction:        mem.ActionResponse,

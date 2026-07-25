@@ -1,25 +1,38 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/ghactx"
 	"github.com/vulnetix/cli/v3/internal/github"
-	"github.com/vulnetix/cli/v3/internal/upload"
 	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
 var (
-	// GHA command flags
-	ghaBaseURL    string
-	ghaTxnID      string
-	ghaUUID       string
-	ghaOutputJSON bool
+	// GHA command flags.
+	//
+	// There is no --base-url here: both subcommands go through the shared
+	// /v2/cli.* client, whose endpoint is set by VULNETIX_API_URL. A flag that
+	// silently changed nothing was worse than no flag.
+	ghaRunID         string
+	ghaStatusAttempt int
+	ghaUUID          string
+	ghaOutputJSON    bool
+	ghaFromDir       string
+	ghaDryRun        bool
+	ghaStrict        bool
+	ghaNoGitHubAPI   bool
+	ghaFailOnEmpty   bool
 )
 
 // ghaCmd represents the gha command for GitHub Actions artifact management
@@ -35,35 +48,60 @@ It is designed to work within GitHub Actions workflows.`,
 // ghaUploadCmd handles uploading artifacts from GitHub Actions
 var ghaUploadCmd = &cobra.Command{
 	Use:   "upload",
-	Short: "Upload GitHub Actions artifacts to Vulnetix",
-	Long: `Upload all artifacts from the current GitHub Actions workflow run to Vulnetix.
+	Short: "Publish third-party scanner reports from a workflow run to Vulnetix",
+	Long: `Publish every scanner report produced by the current GitHub Actions workflow run.
 
 This command:
 1. Collects all artifacts from the current workflow run
 2. Downloads and extracts each artifact
-3. Uploads each file using the standard Vulnetix upload API
-4. Reports the pipeline UUIDs for each uploaded file
+3. Classifies each file as SARIF, CycloneDX or SPDX, validates it, and reports
+   what it found — including exactly why a broken report was rejected
+4. Publishes each one to the Vulnetix endpoint for its scan category, attributed
+   to the tool that actually produced it (gosec, grype, checkov, …)
+5. Reports the ingestion snapshot for each published file
+
+Exits non-zero if any file fails to publish.
 
 Example:
   vulnetix gha upload --org-id <uuid>
-  vulnetix gha upload --org-id <uuid> --base-url https://api.vdb.vulnetix.com/v1`,
+  vulnetix gha upload --org-id <uuid> --json
+  vulnetix gha upload --from-dir ./artifacts --dry-run --no-github-api`,
+	// Credentials must resolve before anything is published. Without this the
+	// package-level credentials stay nil, the client falls back to the shared
+	// community credential, and the server refuses to persist anything under it —
+	// a silent no-op that looks exactly like success.
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		printBanner(cmd)
+		initDisplayContext(cmd, display.ModeText)
+		return resolveVDBCredentials(true)
+	},
 	RunE: runGHAUpload,
 }
 
 // ghaStatusCmd handles checking status of uploads
 var ghaStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Check status of artifact uploads",
-	Long: `Check the status of artifact uploads using transaction ID or artifact UUID.
+	Short: "Report what a workflow run published to Vulnetix",
+	Long: `Report the scan results a ` + "`vulnetix gha upload`" + ` recorded.
 
-You can check status using either:
-- Transaction ID (--txnid): Shows status of all artifacts in the transaction
-- Artifact UUID (--uuid): Shows status of a specific artifact
+One publish job fans out into a separate scanner run per third-party tool, so
+this reports every tool from the workflow run, what category it was filed under,
+and how many findings it contributed. Run it after ` + "`gha upload`" + ` to confirm what
+actually landed rather than trusting a green check.
+
+Inside a workflow it defaults to the current run, so no arguments are needed.
 
 Examples:
-  vulnetix gha status --org-id <uuid> --txnid <transaction-id>
-  vulnetix gha status --org-id <uuid> --uuid <artifact-uuid>
-  vulnetix gha status --org-id <uuid> --txnid <txn-id> --json`,
+  vulnetix gha status
+  vulnetix gha status --run-id 30155614396
+  vulnetix gha status --run-id 30155614396 --attempt 2 --json
+  vulnetix gha status --uuid <ingestion-snapshot-uuid>`,
+	// The report is org-scoped, so credentials must resolve first.
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		printBanner(cmd)
+		initDisplayContext(cmd, display.ModeText)
+		return resolveVDBCredentials(true)
+	},
 	RunE: runGHAStatus,
 }
 
@@ -89,6 +127,7 @@ func resolveOrgID() (string, error) {
 func runGHAUpload(cmd *cobra.Command, args []string) error {
 	dctx := display.FromCommand(cmd)
 	t := dctx.Term
+	ctx := cmd.Context()
 
 	resolvedOrgID, err := resolveOrgID()
 	if err != nil {
@@ -96,184 +135,290 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 	}
 	orgID = resolvedOrgID
 
-	// Check if we're in a GitHub Actions environment
-	if os.Getenv("GITHUB_ACTIONS") != "true" {
-		dctx.Logger.Warn("Not running in GitHub Actions environment")
+	client := newCliClient()
+	if client == nil {
+		return fmt.Errorf("authentication required: run 'vulnetix auth login' first")
 	}
 
-	// Get GitHub context
-	token := os.Getenv("GITHUB_TOKEN")
-	if token == "" {
-		return fmt.Errorf("GITHUB_TOKEN environment variable is required")
+	// Build the environment block once. The CI context is what gives a relayed
+	// report its repo, branch, commit and workflow identity — a GitHub Actions
+	// checkout is a detached HEAD, so the local git context alone would record
+	// findings against "HEAD (detached)".
+	env := envForCliWithGit(nil)
+
+	var collector *github.ArtifactCollector
+	var artifacts []github.Artifact
+
+	if ghaFromDir == "" {
+		if os.Getenv("GITHUB_ACTIONS") != "true" {
+			dctx.Logger.Warn("Not running in GitHub Actions environment")
+		}
+		token := os.Getenv("GITHUB_TOKEN")
+		if token == "" {
+			return fmt.Errorf("GITHUB_TOKEN environment variable is required")
+		}
+		repository := os.Getenv("GITHUB_REPOSITORY")
+		if repository == "" {
+			return fmt.Errorf("GITHUB_REPOSITORY environment variable is required")
+		}
+		runID := os.Getenv("GITHUB_RUN_ID")
+		if runID == "" {
+			return fmt.Errorf("GITHUB_RUN_ID environment variable is required")
+		}
+		apiURL := os.Getenv("GITHUB_API_URL")
+		if apiURL == "" {
+			apiURL = "https://api.github.com"
+		}
+		collector = github.NewArtifactCollector(token, apiURL, repository, runID)
 	}
 
-	apiURL := os.Getenv("GITHUB_API_URL")
-	if apiURL == "" {
-		apiURL = "https://api.github.com"
+	ciOpts := ghactx.Options{
+		NoAPI: ghaNoGitHubAPI || collector == nil,
+		Warn:  func(format string, args ...any) { dctx.Logger.Warnf(format, args...) },
 	}
-
-	repository := os.Getenv("GITHUB_REPOSITORY")
-	if repository == "" {
-		return fmt.Errorf("GITHUB_REPOSITORY environment variable is required")
+	if collector != nil {
+		ciOpts.Lookup = ghactx.CollectorLookup{Collector: collector}
 	}
+	env.CI = ghactx.Collect(ctx, ciOpts)
 
-	runID := os.Getenv("GITHUB_RUN_ID")
-	if runID == "" {
-		return fmt.Errorf("GITHUB_RUN_ID environment variable is required")
+	dctx.Logger.Info(display.Bold(t, "Publishing GitHub Actions scanner artifacts to Vulnetix"))
+	kv := []display.KVPair{{Key: "Organization", Value: orgID}}
+	if env.CI != nil {
+		kv = append(kv,
+			display.KVPair{Key: "Repository", Value: env.CI.Repository},
+			display.KVPair{Key: "Run", Value: fmt.Sprintf("%d (attempt %d)", env.CI.RunID, env.CI.RunAttempt)},
+			display.KVPair{Key: "Event", Value: env.CI.EventName},
+		)
 	}
-
-	dctx.Logger.Info(display.Bold(t, "Starting GitHub Actions artifact upload"))
-	dctx.Logger.Info(display.KeyValue(t, []display.KVPair{
-		{Key: "Organization", Value: orgID},
-		{Key: "Repository", Value: repository},
-		{Key: "Run ID", Value: runID},
-	}))
+	dctx.Logger.Info(display.KeyValue(t, kv))
 	dctx.Logger.Info("")
 
-	// Create artifact collector
-	collector := github.NewArtifactCollector(token, apiURL, repository, runID)
+	progress := dctx.Progress("GitHub Actions artifact publish", 3)
 
-	// List all artifacts
-	progress := dctx.Progress("GitHub Actions artifact upload", 4)
-	progress.SetStage("Fetching workflow artifacts")
-	ctx := cmd.Context()
-	artifacts, err := collector.ListArtifacts(ctx)
-	if err != nil {
-		progress.Fail("failed to fetch workflow artifacts")
-		return fmt.Errorf("failed to list artifacts: %w", err)
+	// Gather the files to publish, either from the workflow run's artifacts or
+	// from a local directory (--from-dir, which makes this whole path runnable
+	// without a workflow).
+	var sources []ghaArtifactFiles
+	if collector != nil {
+		progress.SetStage("Fetching workflow artifacts")
+		artifacts, err = collector.ListArtifacts(ctx)
+		if err != nil {
+			progress.Fail("failed to fetch workflow artifacts")
+			return fmt.Errorf("failed to list artifacts: %w", err)
+		}
+		if len(artifacts) == 0 {
+			progress.Complete("no artifacts found")
+			dctx.Logger.Warn("No artifacts found in this workflow run")
+			if ghaFailOnEmpty {
+				return fmt.Errorf("no artifacts found in workflow run (--fail-on-empty)")
+			}
+			return emitGHAJSON(nil, env)
+		}
+		dctx.Logger.Infof("Found %d artifact(s)", len(artifacts))
+		for i, artifact := range artifacts {
+			dctx.Logger.Infof("   %d. %s (%d bytes)", i+1, artifact.Name, artifact.SizeInBytes)
+		}
+		dctx.Logger.Info("")
+		progress.Update(1, fmt.Sprintf("Found %d artifact(s)", len(artifacts)))
+
+		sources, err = downloadArtifacts(ctx, collector, artifacts, progress)
+		defer cleanupArtifacts(sources)
+		if err != nil {
+			progress.Fail("failed to download workflow artifacts")
+			return err
+		}
+	} else {
+		progress.SetStage("Reading local artifact directory")
+		sources, err = localArtifactFiles(ghaFromDir)
+		if err != nil {
+			progress.Fail("failed to read artifact directory")
+			return err
+		}
+		progress.Update(1, fmt.Sprintf("Found %d artifact(s) under %s", len(sources), ghaFromDir))
 	}
 
-	if len(artifacts) == 0 {
-		progress.Complete("no artifacts found")
-		dctx.Logger.Warn("No artifacts found in this workflow run")
+	submitter := &ghaSubmitter{
+		client: client,
+		env:    env,
+		ctx:    ctx,
+		dryRun: ghaDryRun,
+		strict: ghaStrict,
+		logf:   func(format string, args ...any) { dctx.Logger.Infof(format, args...) },
+		warnf:  func(format string, args ...any) { dctx.Logger.Warnf(format, args...) },
+	}
+
+	progress.Update(2, "Publishing")
+	var results []ghaFileResult
+	for _, src := range sources {
+		for j, path := range src.files {
+			progress.SetStage(fmt.Sprintf("%s: file %d/%d", src.name, j+1, len(src.files)))
+			results = append(results, submitter.publishFile(src.name, path))
+		}
+	}
+
+	var uploaded, failed, skipped int
+	for _, r := range results {
+		switch r.Status {
+		case "error":
+			failed++
+		case "skipped":
+			skipped++
+		default:
+			uploaded++
+		}
+	}
+	if ghaStrict {
+		failed += skipped
+		skipped = 0
+	}
+
+	progress.Update(3, fmt.Sprintf("Published %d/%d file(s)", uploaded, len(results)))
+	if failed > 0 {
+		progress.Fail(fmt.Sprintf("%d file(s) failed to publish", failed))
+	} else {
+		progress.Complete("GitHub Actions publish complete")
+	}
+
+	for _, r := range results {
+		if r.Status == "error" {
+			dctx.Logger.Errorf("  %s/%s failed: %s", r.Name, r.File, r.Error)
+		}
+	}
+
+	if err := emitGHAJSON(results, env); err != nil {
+		return err
+	}
+
+	// A publish job whose every upload failed used to exit 0 and show a green
+	// check. It now fails the build, which is the only way a broken pipeline
+	// gets noticed.
+	if failed > 0 {
+		return fmt.Errorf("%d of %d artifact file(s) failed to publish to Vulnetix", failed, len(results))
+	}
+	if uploaded == 0 && ghaFailOnEmpty {
+		return fmt.Errorf("no artifact file was published (--fail-on-empty)")
+	}
+	return nil
+}
+
+// ghaArtifactFiles is one artifact's extracted files, plus the temp directory to
+// clean up afterwards.
+type ghaArtifactFiles struct {
+	name  string
+	dir   string
+	files []string
+	// owned is false for --from-dir sources, which the caller must not delete.
+	owned bool
+}
+
+// downloadArtifacts fetches and extracts every artifact. A download or read
+// failure is fatal: publishing a partial subset while reporting success is how
+// the previous implementation hid a fully broken pipeline.
+func downloadArtifacts(ctx context.Context, collector *github.ArtifactCollector, artifacts []github.Artifact, progress *display.Progress) ([]ghaArtifactFiles, error) {
+	out := make([]ghaArtifactFiles, 0, len(artifacts))
+	for i, artifact := range artifacts {
+		progress.SetStage(fmt.Sprintf("Downloading artifact %d/%d: %s", i+1, len(artifacts), artifact.Name))
+		dir, err := collector.DownloadArtifact(ctx, artifact)
+		if err != nil {
+			return out, fmt.Errorf("download artifact %q: %w", artifact.Name, err)
+		}
+		files, err := findFiles(dir)
+		if err != nil {
+			return append(out, ghaArtifactFiles{name: artifact.Name, dir: dir, owned: true}),
+				fmt.Errorf("read artifact %q: %w", artifact.Name, err)
+		}
+		out = append(out, ghaArtifactFiles{name: artifact.Name, dir: dir, files: files, owned: true})
+	}
+	return out, nil
+}
+
+func cleanupArtifacts(sources []ghaArtifactFiles) {
+	for _, s := range sources {
+		if s.owned && s.dir != "" {
+			os.RemoveAll(s.dir)
+		}
+	}
+}
+
+// localArtifactFiles walks a directory laid out like downloaded artifacts: one
+// subdirectory per artifact name. A flat directory is treated as a single
+// artifact named after it.
+func localArtifactFiles(root string) ([]ghaArtifactFiles, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", root, err)
+	}
+
+	var out []ghaArtifactFiles
+	var loose []string
+	for _, e := range entries {
+		full := filepath.Join(root, e.Name())
+		if !e.IsDir() {
+			loose = append(loose, full)
+			continue
+		}
+		files, err := findFiles(full)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", full, err)
+		}
+		if len(files) > 0 {
+			out = append(out, ghaArtifactFiles{name: e.Name(), dir: full, files: files})
+		}
+	}
+	if len(loose) > 0 {
+		out = append(out, ghaArtifactFiles{name: filepath.Base(root), dir: root, files: loose})
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no files found under %s", root)
+	}
+	return out, nil
+}
+
+// emitGHAJSON prints the machine-readable summary when --json is set. The
+// original keys (artifacts, total, success) are preserved so existing consumers
+// keep parsing; everything else is additive.
+func emitGHAJSON(results []ghaFileResult, env vdb.CliEnv) error {
+	if !ghaOutputJSON {
 		return nil
 	}
-
-	progress.Update(1, fmt.Sprintf("Found %d artifact(s)", len(artifacts)))
-	dctx.Logger.Infof("Found %d artifact(s)", len(artifacts))
-	for i, artifact := range artifacts {
-		dctx.Logger.Infof("   %d. %s (%d bytes)", i+1, artifact.Name, artifact.SizeInBytes)
-	}
-	dctx.Logger.Info("")
-
-	// Load credentials for upload client
-	creds, err := auth.LoadCredentials()
-	if err != nil {
-		progress.Fail("authentication failed")
-		return fmt.Errorf("authentication required: %w\nRun 'vulnetix auth login' first", err)
-	}
-	if creds != nil {
-		creds.OrgID = orgID
-	}
-
-	// Create upload client (same API as 'vulnetix upload')
-	uploadClient := upload.NewClient(ghaBaseURL, creds)
-
-	// Collect GitHub Actions environment metadata and attach to upload client
-	uploadClient.GitHubContext = collectGitHubActionsContext()
-
-	// Download and upload each artifact
-	progress.Update(2, "Prepared upload client")
-	type uploadResult struct {
-		Name       string `json:"name"`
-		File       string `json:"file"`
-		PipelineID string `json:"pipelineId,omitempty"`
-		Status     string `json:"status"`
-		Error      string `json:"error,omitempty"`
-	}
-	var results []uploadResult
-
-	for i, artifact := range artifacts {
-		progress.Update(2, fmt.Sprintf("Processing artifact %d/%d: %s", i+1, len(artifacts), artifact.Name))
-
-		// Download and extract artifact from GitHub
-		artifactDir, err := collector.DownloadArtifact(ctx, artifact)
-		if err != nil {
-			progress.SetStage(fmt.Sprintf("Failed to download %s: %v", artifact.Name, err))
-			results = append(results, uploadResult{
-				Name:   artifact.Name,
-				Status: "error",
-				Error:  err.Error(),
-			})
-			continue
-		}
-
-		// Find all files in the extracted artifact directory
-		files, err := findFiles(artifactDir)
-		if err != nil {
-			os.RemoveAll(artifactDir)
-			progress.SetStage(fmt.Sprintf("Failed to read %s: %v", artifact.Name, err))
-			results = append(results, uploadResult{
-				Name:   artifact.Name,
-				Status: "error",
-				Error:  err.Error(),
-			})
-			continue
-		}
-
-		// Upload each file using the standard upload API
-		for j, filePath := range files {
-			fileName := filepath.Base(filePath)
-			progress.SetStage(fmt.Sprintf("Uploading %s file %d/%d: %s", artifact.Name, j+1, len(files), fileName))
-
-			resp, err := uploadClient.UploadFileWithProgress(filePath, "", func(done, total int, stage string) {
-				progress.SetStage(fmt.Sprintf("%s/%s: %s %d/%d", artifact.Name, fileName, stage, done, total))
-			})
-			if err != nil {
-				progress.SetStage(fmt.Sprintf("Failed to upload %s: %v", fileName, err))
-				results = append(results, uploadResult{
-					Name:   artifact.Name,
-					File:   fileName,
-					Status: "error",
-					Error:  err.Error(),
-				})
-				continue
-			}
-
-			pipelineID := ""
-			if resp.PipelineRecord != nil {
-				pipelineID = resp.PipelineRecord.UUID
-			}
-
-			status := "uploaded"
-			if resp.IsDuplicate {
-				status = "duplicate"
-			}
-
-			results = append(results, uploadResult{
-				Name:       artifact.Name,
-				File:       fileName,
-				PipelineID: pipelineID,
-				Status:     status,
-			})
-		}
-
-		os.RemoveAll(artifactDir)
-	}
-
-	successCount := 0
+	uploaded, failed, skipped := 0, 0, 0
 	for _, r := range results {
-		if r.Status != "error" {
-			successCount++
+		switch r.Status {
+		case "error":
+			failed++
+		case "skipped":
+			skipped++
+		default:
+			uploaded++
 		}
 	}
-	progress.Update(3, fmt.Sprintf("Uploaded %d/%d file(s)", successCount, len(results)))
-	progress.Complete("GitHub Actions upload complete")
-
-	// Output JSON if requested
-	if ghaOutputJSON {
-		output := map[string]interface{}{
-			"artifacts": results,
-			"total":     len(results),
-			"success":   successCount,
-		}
-		jsonData, err := json.MarshalIndent(output, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal JSON output: %w", err)
-		}
-		fmt.Println(string(jsonData))
+	if results == nil {
+		results = []ghaFileResult{}
 	}
 
+	output := map[string]any{
+		"artifacts": results,
+		"total":     len(results),
+		"success":   uploaded,
+		"failed":    failed,
+		"skipped":   skipped,
+	}
+	if env.CI != nil {
+		output["ci"] = map[string]any{
+			"repository": env.CI.Repository,
+			"runId":      env.CI.RunID,
+			"runAttempt": env.CI.RunAttempt,
+			"event":      env.CI.EventName,
+			"refName":    env.CI.RefName,
+			"sha":        env.CI.SHA,
+		}
+	}
+
+	jsonData, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON output: %w", err)
+	}
+	fmt.Println(string(jsonData))
 	return nil
 }
 
@@ -294,137 +439,134 @@ func findFiles(dir string) ([]string, error) {
 
 func runGHAStatus(cmd *cobra.Command, args []string) error {
 	dctx := display.FromCommand(cmd)
+	t := dctx.Term
+	ctx := cmd.Context()
+
 	resolvedOrgID, err := resolveOrgID()
 	if err != nil {
 		return err
 	}
 	orgID = resolvedOrgID
 
-	// Require either txnid or uuid
-	if ghaTxnID == "" && ghaUUID == "" {
-		return fmt.Errorf("either --txnid or --uuid is required")
+	req := vdb.CliGHAStatusRequest{RunAttempt: ghaStatusAttempt}
+	switch {
+	case ghaUUID != "":
+		req.SnapshotUuid = ghaUUID
+		req.RunAttempt = 0
+	case ghaRunID != "":
+		id, parseErr := strconv.ParseInt(ghaRunID, 10, 64)
+		if parseErr != nil {
+			return fmt.Errorf("--run-id must be a workflow run id, got %q", ghaRunID)
+		}
+		req.RunID = id
+	default:
+		// Inside the same workflow this defaults to the current run, so
+		// `gha status` immediately after `gha upload` needs no arguments.
+		id, parseErr := strconv.ParseInt(os.Getenv("GITHUB_RUN_ID"), 10, 64)
+		if parseErr != nil || id <= 0 {
+			return fmt.Errorf("--run-id is required outside a GitHub Actions run (or pass --uuid for one snapshot)")
+		}
+		req.RunID = id
+		if req.RunAttempt == 0 {
+			if attempt, aErr := strconv.Atoi(os.Getenv("GITHUB_RUN_ATTEMPT")); aErr == nil {
+				req.RunAttempt = attempt
+			}
+		}
 	}
 
-	if ghaTxnID != "" && ghaUUID != "" {
-		return fmt.Errorf("only one of --txnid or --uuid can be specified")
+	client := newCliClient()
+	if client == nil {
+		return fmt.Errorf("authentication required: run 'vulnetix auth login' first")
 	}
 
-	// Create uploader for status checks
-	uploader := github.NewArtifactUploader(ghaBaseURL, orgID)
-
-	var statusResp *github.StatusResponse
-	progress := dctx.Progress("GitHub Actions artifact status", 1)
-
-	if ghaTxnID != "" {
-		progress.SetStage(fmt.Sprintf("Checking transaction status: %s", ghaTxnID))
-		statusResp, err = uploader.GetTransactionStatus(ghaTxnID)
+	progress := dctx.Progress("GitHub Actions publish status", 1)
+	if req.SnapshotUuid != "" {
+		progress.SetStage("Looking up snapshot " + req.SnapshotUuid)
 	} else {
-		progress.SetStage(fmt.Sprintf("Checking artifact status: %s", ghaUUID))
-		statusResp, err = uploader.GetArtifactStatus(ghaUUID)
+		progress.SetStage(fmt.Sprintf("Looking up workflow run %d", req.RunID))
 	}
 
+	resp, err := client.CliGHAStatus(ctx, envForCliWithGit(nil), req)
 	if err != nil {
 		progress.Fail("status lookup failed")
+		if isCli404(err) {
+			return fmt.Errorf("this Vulnetix API does not support gha status (upgrade the backend): %w", err)
+		}
 		return fmt.Errorf("failed to get status: %w", err)
 	}
 	progress.Complete("status lookup complete")
 
-	// Output JSON if requested
+	status := resp.Data
 	if ghaOutputJSON {
-		jsonData, err := json.MarshalIndent(statusResp, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %w", err)
+		jsonData, mErr := json.MarshalIndent(status, "", "  ")
+		if mErr != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", mErr)
 		}
 		fmt.Println(string(jsonData))
 		return nil
 	}
 
-	// Pretty print status
-	fmt.Println()
-	fmt.Printf("Status: %s\n", statusResp.Status)
-	if statusResp.TxnID != "" {
-		fmt.Printf("   Transaction ID: %s\n", statusResp.TxnID)
-	}
-	if statusResp.Message != "" {
-		fmt.Printf("   Message: %s\n", statusResp.Message)
-	}
-
-	if len(statusResp.Artifacts) > 0 {
-		fmt.Println()
-		fmt.Printf("Artifacts (%d):\n", len(statusResp.Artifacts))
-		for i, artifact := range statusResp.Artifacts {
-			fmt.Printf("   %d. %s\n", i+1, artifact.Name)
-			fmt.Printf("      UUID: %s\n", artifact.UUID)
-			fmt.Printf("      Status: %s\n", artifact.Status)
-			if artifact.QueuePath != "" {
-				fmt.Printf("      Queue Path: %s\n", artifact.QueuePath)
-			}
-			if artifact.Error != "" {
-				fmt.Printf("      Error: %s\n", artifact.Error)
-			}
-		}
-	}
-
-	if len(statusResp.Details) > 0 {
-		fmt.Println()
-		fmt.Println("Details:")
-		for key, value := range statusResp.Details {
-			fmt.Printf("   %s: %v\n", key, value)
-		}
-	}
-
+	printGHAStatus(dctx, t, status)
 	return nil
 }
 
-// collectGitHubActionsContext gathers all available GitHub Actions environment variables
-// into a GitHubActionsContext struct for sending with upload requests.
-func collectGitHubActionsContext() *upload.GitHubActionsContext {
-	ctx := &upload.GitHubActionsContext{
-		Repository:      os.Getenv("GITHUB_REPOSITORY"),
-		RepositoryOwner: os.Getenv("GITHUB_REPOSITORY_OWNER"),
-		RunID:           os.Getenv("GITHUB_RUN_ID"),
-		RunNumber:       os.Getenv("GITHUB_RUN_NUMBER"),
-		WorkflowName:    os.Getenv("GITHUB_WORKFLOW"),
-		JobName:         os.Getenv("GITHUB_JOB"),
-		SHA:             os.Getenv("GITHUB_SHA"),
-		RefName:         os.Getenv("GITHUB_REF_NAME"),
-		RefType:         os.Getenv("GITHUB_REF_TYPE"),
-		EventName:       os.Getenv("GITHUB_EVENT_NAME"),
-		Actor:           os.Getenv("GITHUB_ACTOR"),
-		ServerURL:       os.Getenv("GITHUB_SERVER_URL"),
-		APIURL:          os.Getenv("GITHUB_API_URL"),
-	}
-
-	// Collect additional env vars that may be useful for context
-	extra := map[string]string{}
-	for _, key := range []string{
-		"GITHUB_HEAD_REF",
-		"GITHUB_BASE_REF",
-		"GITHUB_RUN_ATTEMPT",
-		"GITHUB_TRIGGERING_ACTOR",
-		"RUNNER_OS",
-		"RUNNER_ARCH",
-	} {
-		if v := os.Getenv(key); v != "" {
-			extra[key] = v
+// printGHAStatus renders the per-tool report a CI operator reads after a publish.
+func printGHAStatus(dctx *display.Context, t *display.Terminal, status vdb.CliGHAStatusResponse) {
+	dctx.Logger.Info("")
+	if len(status.Runs) == 0 {
+		if status.Message != "" {
+			dctx.Logger.Warn(status.Message)
+		} else {
+			dctx.Logger.Warn("No scan results recorded for this run")
 		}
-	}
-	if len(extra) > 0 {
-		ctx.ExtraEnvVars = extra
+		return
 	}
 
-	return ctx
+	header := fmt.Sprintf("%d scan result(s) from %d tool(s), %d finding(s) ingested",
+		len(status.Runs), status.Tools, status.Total)
+	dctx.Logger.Info(display.Bold(t, header))
+	dctx.Logger.Info("")
+
+	for _, run := range status.Runs {
+		title := run.ToolName
+		if run.ToolVersion != "" {
+			title += " " + run.ToolVersion
+		}
+		if run.Vendor != "" && !strings.EqualFold(run.Vendor, run.ToolName) {
+			title += " (" + run.Vendor + ")"
+		}
+		dctx.Logger.Infof("%s  [%s]", display.Bold(t, title), run.Category)
+		dctx.Logger.Infof("   findings: %d ingested (crit %d, high %d, med %d, low %d, info %d)",
+			run.IngestedTotal, run.Critical, run.High, run.Medium, run.Low, run.Informational)
+		if run.RepoName != "" {
+			dctx.Logger.Infof("   repo:     %s", run.RepoName)
+		}
+		if run.RunAttempt > 1 {
+			dctx.Logger.Infof("   attempt:  %d", run.RunAttempt)
+		}
+		if run.SnapshotURL != "" {
+			dctx.Logger.Infof("   snapshot: %s", run.SnapshotURL)
+		} else if run.SnapshotUuid != "" {
+			dctx.Logger.Infof("   snapshot: %s", run.SnapshotUuid)
+		}
+		dctx.Logger.Info("")
+	}
 }
 
 func init() {
 	// Add upload subcommand
-	ghaUploadCmd.Flags().StringVar(&ghaBaseURL, "base-url", upload.DefaultBaseURL, "Base URL for Vulnetix API")
 	ghaUploadCmd.Flags().BoolVar(&ghaOutputJSON, "json", false, "Output results as JSON")
+	ghaUploadCmd.Flags().StringVar(&ghaFromDir, "from-dir", "", "Publish files from a local directory instead of the workflow run's artifacts")
+	ghaUploadCmd.Flags().BoolVar(&ghaDryRun, "dry-run", false, "Classify and validate every file without publishing anything")
+	ghaUploadCmd.Flags().BoolVar(&ghaStrict, "strict", false, "Treat skipped files (unrecognised formats) as failures")
+	ghaUploadCmd.Flags().BoolVar(&ghaNoGitHubAPI, "no-github-api", false, "Do not call the GitHub REST API to enrich the CI context")
+	ghaUploadCmd.Flags().BoolVar(&ghaFailOnEmpty, "fail-on-empty", false, "Fail when the run produced no publishable artifact")
+	_ = ghaUploadCmd.Flags().MarkHidden("from-dir")
 
 	// Add status subcommand
-	ghaStatusCmd.Flags().StringVar(&ghaBaseURL, "base-url", upload.DefaultBaseURL, "Base URL for Vulnetix API")
-	ghaStatusCmd.Flags().StringVar(&ghaTxnID, "txnid", "", "Transaction ID to check status")
-	ghaStatusCmd.Flags().StringVar(&ghaUUID, "uuid", "", "Artifact UUID to check status")
+	ghaStatusCmd.Flags().StringVar(&ghaRunID, "run-id", "", "Workflow run id to report on (defaults to GITHUB_RUN_ID)")
+	ghaStatusCmd.Flags().IntVar(&ghaStatusAttempt, "attempt", 0, "Limit to one run attempt (defaults to GITHUB_RUN_ATTEMPT)")
+	ghaStatusCmd.Flags().StringVar(&ghaUUID, "uuid", "", "Report on a single ingestion snapshot instead of a whole run")
 	ghaStatusCmd.Flags().BoolVar(&ghaOutputJSON, "json", false, "Output results as JSON")
 
 	// Add subcommands to gha command
