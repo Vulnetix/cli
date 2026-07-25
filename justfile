@@ -133,6 +133,12 @@ gen-aibom:
 gen-cbom:
     go run ./internal/cbom/cbomgen
 
+# Regenerate the third-party scanner docs from the `gha setup` catalog. Every
+# workflow example on that page is rendered by the same code the command uses,
+# so a reader is looking at the exact job that will run.
+gen-gha-setup:
+    go run ./internal/ghasetup/ghasetupgen
+
 # Copy the authored schemas into internal/analyze so go:embed can reach them.
 # schemas/ is the source of truth and the URL we publish; the copies exist only
 # because go:embed cannot escape its package directory. TestEmbeddedSchemasMatchSource

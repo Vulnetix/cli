@@ -5,13 +5,14 @@ weight: 4
 
 Integrate Vulnetix into your CI/CD pipelines for automated security assessment.
 
-Start with the [Subcommand Reference]({{< relref "subcommands" >}}) — it covers installing, authenticating, choosing an output flag, and gating a build. Every platform page below assumes it.
+Start with the [Subcommand Reference]({{< relref "subcommands" >}}). It covers installing, authenticating, choosing an output flag, and gating a build. Every platform page below assumes it.
 
 ## Reference
 
 {{< cards >}}
   {{< card link="subcommands" title="Subcommand Reference for CI" subtitle="What each scan writes, which output flag it takes, how to gate a build." >}}
-  {{< card link="gha-command" title="GHA Command" subtitle="GitHub Actions artifact upload command." >}}
+  {{< card link="gha-command" title="GHA Command" subtitle="Publishing a workflow run's artifacts, and reporting what landed." >}}
+  {{< card link="third-party-scanners" title="Third-Party Scanners" subtitle="gosec, Semgrep, Trivy, Grype, Checkov, KICS and more, set up in one command." >}}
 {{< /cards >}}
 
 ## Primary platforms
