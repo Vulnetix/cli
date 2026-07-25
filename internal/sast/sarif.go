@@ -6,130 +6,38 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/Vulnetix/vdb-sca-match/sarif"
 )
 
-// SARIF 2.1.0 types — manual struct marshaling (same approach as internal/cdx/).
+// SARIF 2.1.0 types now live in the shared module
+// github.com/Vulnetix/vdb-sca-match/sarif, so the CLI and vdb-api parse, write
+// and decompose SARIF through one implementation. These aliases keep the ~40
+// existing `sast.SARIF*` call sites compiling unchanged.
+//
+// Note the shared model is a read-side superset of what this file used to
+// declare: it adds ruleIndex, suppressions, partialFingerprints, taxonomies,
+// tool extensions and result guids, none of which the writer emits but all of
+// which third-party documents rely on.
 
-// SARIFLog is the top-level SARIF document.
-type SARIFLog struct {
-	Schema  string     `json:"$schema"`
-	Version string     `json:"version"`
-	Runs    []SARIFRun `json:"runs"`
-}
-
-// SARIFRun represents a single analysis run.
-type SARIFRun struct {
-	Tool        SARIFTool         `json:"tool"`
-	Results     []SARIFResult     `json:"results"`
-	Artifacts   []SARIFArtifact   `json:"artifacts,omitempty"`
-	Invocations []SARIFInvocation `json:"invocations,omitempty"`
-}
-
-// SARIFInvocation records how the run executed, including any capability
-// degradations surfaced as tool execution notifications.
-type SARIFInvocation struct {
-	ExecutionSuccessful        bool                `json:"executionSuccessful"`
-	ToolExecutionNotifications []SARIFNotification `json:"toolExecutionNotifications,omitempty"`
-}
-
-// SARIFNotification is a run-level notification ("couldn't verify X because
-// Y") — the honest complement to an empty results array.
-type SARIFNotification struct {
-	Level   string       `json:"level,omitempty"` // note | warning | error
-	Message SARIFMessage `json:"message"`
-}
-
-// SARIFTool describes the analysis tool.
-type SARIFTool struct {
-	Driver SARIFToolDriver `json:"driver"`
-}
-
-// SARIFToolDriver describes the primary analysis tool component.
-type SARIFToolDriver struct {
-	Name           string                     `json:"name"`
-	Version        string                     `json:"version,omitempty"`
-	InformationURI string                     `json:"informationUri,omitempty"`
-	Rules          []SARIFReportingDescriptor `json:"rules,omitempty"`
-}
-
-// SARIFReportingDescriptor describes a rule.
-type SARIFReportingDescriptor struct {
-	ID               string           `json:"id"`
-	Name             string           `json:"name,omitempty"`
-	ShortDescription *SARIFMessage    `json:"shortDescription,omitempty"`
-	HelpURI          string           `json:"helpUri,omitempty"`
-	Properties       SARIFPropertyBag `json:"properties,omitempty"`
-}
-
-// SARIFMessage is a SARIF message object.
-type SARIFMessage struct {
-	Text string `json:"text"`
-}
-
-// SARIFResult represents a single finding.
-type SARIFResult struct {
-	RuleID       string            `json:"ruleId"`
-	Level        string            `json:"level,omitempty"`
-	Kind         string            `json:"kind,omitempty"`
-	Message      SARIFMessage      `json:"message"`
-	Locations    []SARIFLocation   `json:"locations,omitempty"`
-	Fingerprints map[string]string `json:"fingerprints,omitempty"`
-	Properties   SARIFPropertyBag  `json:"properties,omitempty"`
-}
-
-// SARIFLocation describes where a result was found.
-type SARIFLocation struct {
-	PhysicalLocation *SARIFPhysicalLocation `json:"physicalLocation,omitempty"`
-}
-
-// SARIFPhysicalLocation identifies a file and region.
-type SARIFPhysicalLocation struct {
-	ArtifactLocation *SARIFArtifactLocation `json:"artifactLocation,omitempty"`
-	Region           *SARIFRegion           `json:"region,omitempty"`
-}
-
-// SARIFArtifactLocation is a URI reference to an artifact.
-type SARIFArtifactLocation struct {
-	URI string `json:"uri"`
-}
-
-// SARIFRegion identifies a portion of an artifact.
-type SARIFRegion struct {
-	StartLine int           `json:"startLine,omitempty"`
-	EndLine   int           `json:"endLine,omitempty"`
-	Snippet   *SARIFSnippet `json:"snippet,omitempty"`
-}
-
-// SARIFSnippet holds a text snippet from the source.
-type SARIFSnippet struct {
-	Text string `json:"text"`
-}
-
-// SARIFArtifact describes an artifact referenced by results.
-type SARIFArtifact struct {
-	Location *SARIFArtifactLocation `json:"location,omitempty"`
-}
-
-// SARIFPropertyBag is a property bag for extensible metadata.
-type SARIFPropertyBag map[string]any
-
-// AddExecutionNotifications attaches capability-degradation notes to every
-// run in the log as toolExecutionNotifications (level "warning"). A no-op on
-// an empty list — a fully-executed run keeps no invocations block.
-func (l *SARIFLog) AddExecutionNotifications(notes []string) {
-	if l == nil || len(notes) == 0 {
-		return
-	}
-	for i := range l.Runs {
-		inv := SARIFInvocation{ExecutionSuccessful: true}
-		for _, n := range notes {
-			inv.ToolExecutionNotifications = append(inv.ToolExecutionNotifications, SARIFNotification{
-				Level: "warning", Message: SARIFMessage{Text: n},
-			})
-		}
-		l.Runs[i].Invocations = append(l.Runs[i].Invocations, inv)
-	}
-}
+type (
+	SARIFLog                 = sarif.Log
+	SARIFRun                 = sarif.Run
+	SARIFInvocation          = sarif.Invocation
+	SARIFNotification        = sarif.Notification
+	SARIFTool                = sarif.Tool
+	SARIFToolDriver          = sarif.ToolComponent
+	SARIFReportingDescriptor = sarif.ReportingDescriptor
+	SARIFMessage             = sarif.Message
+	SARIFResult              = sarif.Result
+	SARIFLocation            = sarif.Location
+	SARIFPhysicalLocation    = sarif.PhysicalLocation
+	SARIFArtifactLocation    = sarif.ArtifactLocation
+	SARIFRegion              = sarif.Region
+	SARIFSnippet             = sarif.Snippet
+	SARIFArtifact            = sarif.Artifact
+	SARIFPropertyBag         = sarif.PropertyBag
+)
 
 // MarkConfidenceGap flags a result whose evidence could not be fully
 // verified, with a reason stating exactly what was unverifiable and why.

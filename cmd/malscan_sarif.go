@@ -15,6 +15,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/sast"
 	"github.com/vulnetix/cli/v3/pkg/auth"
@@ -200,22 +201,24 @@ func malscanToAPIFindings(res *malscanResult) []vdb.CliSARIFFinding {
 	out := make([]vdb.CliSARIFFinding, 0, len(res.Findings))
 	for _, f := range res.Findings {
 		out = append(out, vdb.CliSARIFFinding{
-			RuleID:           f.RuleID,
-			RuleName:         f.Title,
-			Description:      f.Description,
-			Message:          malscanMessage(f),
-			Severity:         f.Severity,
-			Level:            f.Level,
-			File:             f.File,
-			StartLine:        f.StartLine,
-			EndLine:          f.EndLine,
-			Fingerprint:      f.Fingerprint,
-			CWEs:             f.CWEs,
-			Tags:             f.Tags,
-			SARIFGuid:        f.Fingerprint,
-			CodeSnippet:      f.Snippet,
-			SnippetStartLine: f.StartLine,
-			SnippetEndLine:   f.EndLine,
+			Finding: sarif.Finding{
+				RuleID:           f.RuleID,
+				RuleName:         f.Title,
+				Description:      f.Description,
+				Message:          malscanMessage(f),
+				Severity:         f.Severity,
+				Level:            f.Level,
+				File:             f.File,
+				StartLine:        f.StartLine,
+				EndLine:          f.EndLine,
+				Fingerprint:      f.Fingerprint,
+				CWEs:             f.CWEs,
+				Tags:             f.Tags,
+				SARIFGuid:        f.Fingerprint,
+				CodeSnippet:      f.Snippet,
+				SnippetStartLine: f.StartLine,
+				SnippetEndLine:   f.EndLine,
+			},
 		})
 	}
 	return out

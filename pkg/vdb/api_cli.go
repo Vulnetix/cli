@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/Vulnetix/vdb-sca-match/sarif"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 )
 
@@ -46,6 +47,78 @@ type CliEnv struct {
 	// (metadata only, no raw body) — corroborating evidence for the SAST
 	// test-suite attribution. Carried on the SAST submission's env.
 	TestConfigs []CliTestConfigMetadata `json:"testConfigs,omitempty"`
+	// CI is the pipeline identity when the scan ran in CI rather than on a
+	// workstation. In a GitHub Actions runner this is the only trustworthy repo
+	// and branch information: the checkout is a detached HEAD, so Git.Branch
+	// reads "HEAD (detached)".
+	CI *CliCIContext `json:"ci,omitempty"`
+}
+
+// CliCIContext is the CI pipeline the scan ran in. Mirrors
+// vdb-api/internal/handler/v2_cli_common.go. Populated by `vulnetix gha upload`
+// from the GitHub Actions environment, the webhook payload at
+// GITHUB_EVENT_PATH, and (only to fill remaining gaps) the GitHub REST API.
+type CliCIContext struct {
+	Provider        string `json:"provider,omitempty"` // "github-actions"
+	Repository      string `json:"repository,omitempty"`
+	RepositoryID    int64  `json:"repositoryId,omitempty"`
+	RepositoryOwner string `json:"repositoryOwner,omitempty"`
+	OwnerType       string `json:"ownerType,omitempty"`
+	Visibility      string `json:"visibility,omitempty"`
+	DefaultBranch   string `json:"defaultBranch,omitempty"`
+	LicenseSpdxID   string `json:"licenseSpdxId,omitempty"`
+
+	RunID        int64  `json:"runId,omitempty"`
+	RunNumber    int    `json:"runNumber,omitempty"`
+	RunAttempt   int    `json:"runAttempt,omitempty"`
+	RunURL       string `json:"runUrl,omitempty"`
+	WorkflowName string `json:"workflowName,omitempty"`
+	WorkflowRef  string `json:"workflowRef,omitempty"`
+	WorkflowSHA  string `json:"workflowSha,omitempty"`
+	JobName      string `json:"jobName,omitempty"`
+
+	EventName         string `json:"eventName,omitempty"`
+	Ref               string `json:"ref,omitempty"`
+	RefName           string `json:"refName,omitempty"`
+	RefType           string `json:"refType,omitempty"`
+	HeadRef           string `json:"headRef,omitempty"`
+	BaseRef           string `json:"baseRef,omitempty"`
+	SHA               string `json:"sha,omitempty"`
+	PullRequestNumber int    `json:"pullRequestNumber,omitempty"`
+	Actor             string `json:"actor,omitempty"`
+	TriggeringActor   string `json:"triggeringActor,omitempty"`
+
+	ServerURL string `json:"serverUrl,omitempty"`
+	APIURL    string `json:"apiUrl,omitempty"`
+	// Workspace is GITHUB_WORKSPACE — the root SARIF file paths are relative to.
+	// The server needs it to reproduce this CLI's path relativisation when it
+	// re-decomposes the document.
+	Workspace  string `json:"workspace,omitempty"`
+	RunnerOS   string `json:"runnerOs,omitempty"`
+	RunnerArch string `json:"runnerArch,omitempty"`
+	RunnerName string `json:"runnerName,omitempty"`
+}
+
+// CliToolAttribution names the tool that actually produced a report the CLI
+// relayed rather than generated.
+//
+// It fills gaps only: the server takes whatever the SARIF document declares in
+// runs[].tool.driver over anything asserted here, because the document is the
+// artefact of record. The category is never carried here at all — it is fixed
+// by the endpoint the report is posted to.
+type CliToolAttribution struct {
+	ToolName       string `json:"toolName,omitempty"`
+	ToolVersion    string `json:"toolVersion,omitempty"`
+	Vendor         string `json:"vendor,omitempty"`
+	Source         string `json:"source,omitempty"` // "github-actions"
+	ArtifactName   string `json:"artifactName,omitempty"`
+	FileName       string `json:"fileName,omitempty"`
+	Format         string `json:"format,omitempty"` // sarif | cyclonedx | spdx
+	InformationURI string `json:"informationUri,omitempty"`
+	// AnalysisKey identifies this tool's report within one workflow run
+	// ("gha:{runId}:{runAttempt}:{tool}"). Re-publishing the same key reuses the
+	// existing ScannerRun instead of minting a duplicate.
+	AnalysisKey string `json:"analysisKey,omitempty"`
 }
 
 // CliTestConfigMetadata describes one test-runner configuration file detected in
@@ -182,6 +255,9 @@ type CliSCARequest struct {
 	// chunk 0 returned, so the server appends each chunk's findings under one run
 	// instead of persisting only chunk 0's. Empty on chunk 0.
 	IngestionSnapshotUuid string `json:"ingestionSnapshotUuid,omitempty"`
+	// Attribution names the tool behind an SBOM the CLI relayed rather than
+	// generated — a syft or trivy CycloneDX document published from CI.
+	Attribution *CliToolAttribution `json:"attribution,omitempty"`
 }
 
 // CliPackageChecksum represents an integrity hash for a package.
@@ -397,6 +473,10 @@ type CliSARIFRequest struct {
 	// rules) so the server upserts org Suppression rows keyed by uuid (when
 	// known) or the repo/file/ruleId business key. Sent on the first chunk only.
 	Suppressions []CliSuppressionMint `json:"suppressions,omitempty"`
+	// Attribution names the tool behind a report the CLI relayed rather than
+	// produced. Set on the /v2/cli.<category>-sarif routes; absent on first-party
+	// scans, where the route's own tool name applies.
+	Attribution *CliToolAttribution `json:"attribution,omitempty"`
 }
 
 // CliSuppressionMint is one suppression the CLI wants the server to upsert.
@@ -431,26 +511,13 @@ type CliSuppressionResult struct {
 }
 
 // CliSARIFFinding mirrors vdb-api/internal/handler/cli_persist_sarif.go.
+//
+// The SARIF-derived half is the shared sarif.Finding, embedded so the CLI and
+// the server decompose SARIF through exactly the same code. The fields below it
+// are Vulnetix-product concepts a generic SARIF library has no business
+// modelling. Embedding keeps the JSON flat, so the wire shape is unchanged.
 type CliSARIFFinding struct {
-	RuleID           string   `json:"ruleId"`
-	RuleName         string   `json:"ruleName,omitempty"`
-	Message          string   `json:"message,omitempty"`
-	Severity         string   `json:"severity,omitempty"`
-	Level            string   `json:"level,omitempty"`
-	SecuritySeverity string   `json:"securitySeverity,omitempty"`
-	File             string   `json:"file,omitempty"`
-	PackagePurl      string   `json:"packagePurl,omitempty"`
-	StartLine        int      `json:"startLine,omitempty"`
-	EndLine          int      `json:"endLine,omitempty"`
-	Fingerprint      string   `json:"fingerprint,omitempty"`
-	CWEs             []int    `json:"cwes,omitempty"`
-	Tags             []string `json:"tags,omitempty"`
-	SARIFGuid        string   `json:"sarifGuid,omitempty"`
-
-	Description      string `json:"description,omitempty"`
-	CodeSnippet      string `json:"codeSnippet,omitempty"`
-	SnippetStartLine int    `json:"snippetStartLine,omitempty"`
-	SnippetEndLine   int    `json:"snippetEndLine,omitempty"`
+	sarif.Finding
 
 	MemoryVexStatus        string `json:"memoryVexStatus,omitempty"`
 	MemoryVexJustification string `json:"memoryVexJustification,omitempty"`
@@ -1258,6 +1325,70 @@ func (c *Client) CliContainers(env CliEnv, req CliSARIFRequest) (*CliResponse[Cl
 }
 func (c *Client) CliLicense(env CliEnv, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
 	return cliPostWithEnv[CliSARIFResponse](c, "cli.license", env, req)
+}
+
+// CliGHAStatusRequest asks what a workflow run published. RunID alone reports
+// every tool from that run; RunAttempt narrows to one attempt (a re-run mints
+// its own runs); SnapshotUuid asks about one submission.
+type CliGHAStatusRequest struct {
+	RunID        int64  `json:"runId,omitempty"`
+	RunAttempt   int    `json:"runAttempt,omitempty"`
+	SnapshotUuid string `json:"ingestionSnapshotUuid,omitempty"`
+}
+
+// CliGHAStatusRun is one tool's published result. Mirrors
+// vdb-api/internal/handler/v2_cli_gha_status.go.
+type CliGHAStatusRun struct {
+	ToolName       string `json:"toolName"`
+	ToolVersion    string `json:"toolVersion,omitempty"`
+	Vendor         string `json:"vendor,omitempty"`
+	Category       string `json:"category"`
+	ScannerRunUuid string `json:"scannerRunUuid"`
+	SnapshotUuid   string `json:"ingestionSnapshotUuid,omitempty"`
+	SnapshotURL    string `json:"snapshotUrl,omitempty"`
+	AnalysisKey    string `json:"analysisKey,omitempty"`
+	RepoName       string `json:"repoName,omitempty"`
+	CreatedAt      int64  `json:"createdAt"`
+
+	FindingsCreated int `json:"findingsCreated"`
+	IngestedTotal   int `json:"ingestedTotal"`
+	Critical        int `json:"critical"`
+	High            int `json:"high"`
+	Medium          int `json:"medium"`
+	Low             int `json:"low"`
+	Informational   int `json:"informational"`
+
+	RunAttempt int `json:"runAttempt,omitempty"`
+}
+
+// CliGHAStatusResponse is the report for one workflow run.
+type CliGHAStatusResponse struct {
+	RunID   int64             `json:"runId,omitempty"`
+	Runs    []CliGHAStatusRun `json:"runs"`
+	Total   int               `json:"total"`
+	Tools   int               `json:"tools"`
+	Message string            `json:"message,omitempty"`
+}
+
+// CliGHAStatus — POST /v2/cli.gha-status. Reports what `gha upload` recorded for
+// a workflow run.
+func (c *Client) CliGHAStatus(ctx context.Context, env CliEnv, req CliGHAStatusRequest) (*CliResponse[CliGHAStatusResponse], error) {
+	return cliPostWithEnvContext[CliGHAStatusResponse](ctx, c, "cli.gha-status", env, req)
+}
+
+// CliThirdPartySARIF posts a SARIF document produced by a tool other than
+// Vulnetix to POST /v2/cli.<category>-sarif.
+//
+// The category is part of the URL rather than the payload on purpose: it is the
+// one thing the server will not let a client assert, so IaC misconfigurations
+// cannot be filed as SAST findings. Route names come from the shared module, so
+// the CLI and the server cannot drift apart on them.
+func (c *Client) CliThirdPartySARIF(ctx context.Context, env CliEnv, category sarif.Category, req CliSARIFRequest) (*CliResponse[CliSARIFResponse], error) {
+	route := category.Route()
+	if route == "" {
+		return nil, fmt.Errorf("no third-party SARIF endpoint for category %q", category)
+	}
+	return cliPostWithEnvContext[CliSARIFResponse](ctx, c, "cli."+route, env, req)
 }
 
 // Remaining stub-class endpoints (ai/trends) — these still use the legacy
