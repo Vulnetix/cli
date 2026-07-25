@@ -191,6 +191,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
+      # Move the major tag so `uses: Vulnetix/cli@v3` tracks the newest v3
+      # release. Without it every workflow that consumes the action has to pin
+      # an exact version and be revisited to bump it, which is how a fleet ends
+      # up spread across three CLI versions with nobody noticing.
+      #
+      # Prereleases are excluded: `@v3` must never point at a -rc or -beta.
+      - name: Move the v3 major tag
+        run: |
+          VERSION=${{ needs.version.outputs.version }}
+          case "$VERSION" in
+            v3.*-*)
+              echo "$VERSION is a prerelease; leaving v3 where it is"
+              exit 0
+              ;;
+            v3.*) ;;
+            *)
+              echo "$VERSION is not a v3 release; nothing to move"
+              exit 0
+              ;;
+          esac
+          git tag -f v3 "$VERSION"
+          git push origin -f refs/tags/v3
+          echo "v3 -> $VERSION"
+
   test-go-install:
     needs: release
     runs-on: [self-hosted, Linux, X64, vulnetix-local]

@@ -23,7 +23,7 @@ Vulnetix CLI is distributed through the following channels:
 
 ### 1. GitHub Releases (Binary Distribution)
 
-**Trigger:** Git tags matching `v*` (e.g., `v3.59.4`)
+**Trigger:** Git tags matching `v*` (e.g., `v3.73.1`)
 
 **Artifacts:**
 - Multi-platform binaries (Linux, macOS, Windows)
@@ -41,7 +41,7 @@ chmod +x vulnetix
 
 # Go install (uses GitHub releases via Go module proxy)
 go install github.com/vulnetix/cli/v3@latest
-go install github.com/vulnetix/cli/v3@v3.59.4
+go install github.com/vulnetix/cli/v3@latest
 ```
 
 ### 2. Go Install (Module Distribution)
@@ -53,14 +53,14 @@ Go install works automatically once a tagged release exists on GitHub. The Go mo
 **Usage by end users:**
 ```bash
 go install github.com/vulnetix/cli/v3@latest
-go install github.com/vulnetix/cli/v3@v3.59.4
+go install github.com/vulnetix/cli/v3@latest
 ```
 
 ### 3. GitHub Actions (CI/CD Integration)
 
 **Marketplace:** GitHub Actions Marketplace
 
-**Action:** `vulnetix/cli@v1`
+**Action:** `Vulnetix/cli@v3`
 
 **Configuration:** `action.yml` in repository root
 
@@ -69,7 +69,7 @@ go install github.com/vulnetix/cli/v3@v3.59.4
 **Usage by end users:**
 ```yaml
 - name: Run Vulnetix
-  uses: vulnetix/cli@v1
+  uses: Vulnetix/cli@v3
   with:
     org-id: ${{ secrets.VULNETIX_ORG_ID }}
 ```
@@ -134,11 +134,11 @@ The same GitHub releases serve all distribution methods:
 
 When creating a new release:
 
-1. **Tag the release:** `git tag v3.59.4 && git push --tags`
+1. **Tag the release:** `git tag v3.73.1 && git push --tags`
 2. **Monitor automation:** Check GitHub Actions workflows
 3. **Verify distributions:**
    - [ ] GitHub releases created with binaries
-   - [ ] `go install github.com/vulnetix/cli/v3@v3.59.4` works
+   - [ ] `go install github.com/vulnetix/cli/v3@latest` works
    - [ ] Install script downloads correct version
    - [ ] Homebrew formula updated in `Vulnetix/homebrew-tap`
    - [ ] Scoop manifest updated in `Vulnetix/scoop-bucket` (hashes from checksums.txt)
@@ -147,7 +147,7 @@ When creating a new release:
    - [ ] `brew upgrade vulnetix`
    - [ ] `scoop update vulnetix`
    - [ ] `nix run github:Vulnetix/cli`
-   - [ ] `go install github.com/vulnetix/cli/v3@v3.59.4`
+   - [ ] `go install github.com/vulnetix/cli/v3@latest`
    - [ ] `curl -L https://github.com/vulnetix/cli/v3/releases/latest/download/vulnetix-linux-amd64 -o vulnetix`
 
 ## Troubleshooting

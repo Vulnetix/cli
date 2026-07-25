@@ -1,12 +1,12 @@
 package cmd
 
-// `vulnetix gha setup <tool>` — wire a third-party scanner into this repository.
+// `vulnetix gha setup <tool>`: wire a third-party scanner into this repository.
 //
 // The workflow it writes is the same shape that runs in production: each scanner
 // job uploads its report as a workflow artifact, and a single publish job hands
 // every artifact to Vulnetix attributed to the tool that produced it. The job
 // definitions come from internal/ghasetup's catalog, which is also what the
-// published documentation examples are generated from — so what you read and
+// published documentation examples are generated from, so what you read and
 // what this writes cannot drift apart.
 
 import (
@@ -41,7 +41,7 @@ than replacing them.
 
 Each scanner runs as its own job and uploads its report as a workflow artifact.
 One publish job then hands every artifact to Vulnetix in a single call,
-attributed to the tool that produced it — so a gosec report is recorded as
+attributed to the tool that produced it, so a gosec report is recorded as
 gosec, not as Vulnetix.
 
 The Vulnetix CLI is installed unpinned: install.sh resolves the latest release,

@@ -7,7 +7,7 @@ description: "Integrate Vulnetix CLI into Semaphore CI pipelines for automated v
 Security scanning in Semaphore CI.
 
 {{< callout type="warning" >}}
-**Current as of writing** (Vulnetix CLI `v3.59.4`). If a snippet no longer works, [open an issue](https://github.com/Vulnetix/cli/issues/new) with the CLI version you are on.
+Snippets on this page install the current CLI release rather than pinning one, so they do not go stale. If one no longer works, [open an issue](https://github.com/Vulnetix/cli/issues/new) with the output of `vulnetix --version`.
 {{< /callout >}}
 
 ## Before You Start

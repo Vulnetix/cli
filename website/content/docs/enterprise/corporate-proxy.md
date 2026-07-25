@@ -273,15 +273,20 @@ jobs:
       NO_PROXY: ${{ secrets.CORPORATE_NO_PROXY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configure proxy for git
         run: |
           git config --global http.proxy $HTTP_PROXY
           git config --global https.proxy $HTTPS_PROXY
 
+      # The action compiles the CLI from source, so Go must be set up first.
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
       - name: Run Vulnetix
-        uses: vulnetix/cli@v1
+        uses: Vulnetix/cli@v3
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
         env:

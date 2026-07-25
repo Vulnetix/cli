@@ -17,8 +17,8 @@ curl -fsSL https://cli.vulnetix.com/install.sh | sh
 # Install to custom directory
 curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir ~/.local/bin
 
-# Install specific version
-curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v3.59.4
+# Pin a specific version (omit --version to track the current release)
+curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --version v3.73.1
 ```
 
 ### Manual Binary Download
@@ -219,7 +219,7 @@ curl -L -o vulnetix "https://github.com/Vulnetix/cli/releases/latest/download/vu
 ### Specific Version
 ```bash
 # Download specific version
-VERSION="v3.59.4"
+VERSION="v3.73.1"
 PLATFORM="linux-amd64"
 curl -L -o vulnetix "https://github.com/Vulnetix/cli/releases/download/${VERSION}/vulnetix-${PLATFORM}"
 chmod +x vulnetix
@@ -485,30 +485,33 @@ name: Vulnetix
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-    - name: Download Vulnetix
-      run: |
-        curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
-chmod +x vulnetix
-        chmod +x vulnetix
-        sudo mv vulnetix /usr/local/bin/
-        vulnetix --version
+      - name: Install Vulnetix
+        run: |
+          curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-    - name: Run Vulnetix
-      env:
-        VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
-      run: |
-        vulnetix upload --file <artifact-path>
+      - name: Run Vulnetix
+        env:
+          VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+          VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+        run: vulnetix sast --org-id "$VULNETIX_ORG_ID"
 
-    - name: Upload SARIF results
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: security-results.sarif
+      # sast writes SARIF only when it has findings, so guard the upload.
+      - name: Upload SARIF to GitHub code scanning
+        if: hashFiles('.vulnetix/sast.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .vulnetix/sast.sarif
 ```
 
 ### GitLab CI
@@ -525,7 +528,6 @@ security_check:
   before_script:
     - apk add --no-cache curl tar
     - curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
-chmod +x vulnetix
     - chmod +x vulnetix
     - mv vulnetix /usr/local/bin/
     - vulnetix --version
@@ -548,7 +550,6 @@ pipeline {
             steps {
                 sh '''
                     curl -L -o vulnetix https://github.com/Vulnetix/cli/releases/latest/download/vulnetix-linux-amd64
-chmod +x vulnetix
                     chmod +x vulnetix
                     sudo mv vulnetix /usr/local/bin/
                     vulnetix --version
