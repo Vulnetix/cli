@@ -539,6 +539,11 @@ type CliSARIFResponse struct {
 	Findings          []CliFindingResult     `json:"findings,omitempty"`
 	Stats             CliSARIFStats          `json:"stats"`
 	Suppressions      []CliSuppressionResult `json:"suppressions,omitempty"`
+	// AlreadyIngested reports that this report was published under this
+	// analysisKey before and nothing was written. A chunked submission must stop:
+	// appending the remaining chunks would add a second copy of their findings to
+	// a run that is already complete.
+	AlreadyIngested bool `json:"alreadyIngested,omitempty"`
 }
 
 // CliSARIFStats summarises the run for end-of-scan CLI output.
