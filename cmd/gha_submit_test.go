@@ -250,45 +250,110 @@ func TestPublishSPDXExtractsPackages(t *testing.T) {
 	}
 }
 
-// Rule descriptors must ride the first chunk: the server's append path bumps the
-// result count but never recounts rules, so a later chunk carrying them would
-// leave the run reporting zero rules.
-func TestChunkingKeepsRulesOnFirstChunkOnly(t *testing.T) {
-	log := &sarif.Log{Version: "2.1.0", Runs: []sarif.Run{{
+// Each chunk must carry exactly the results it claims. The server re-decomposes
+// whatever document it receives, so a chunk carrying the whole document would
+// make the server persist every finding — and then persist them again as the
+// later chunks appended their share.
+func TestChunkingPartitionsResultsWithoutOverlap(t *testing.T) {
+	total := sarifChunkMaxFindings + 10
+	run := sarif.Run{
 		Tool: sarif.Tool{Driver: sarif.ToolComponent{
 			Name:  "gosec",
 			Rules: []sarif.ReportingDescriptor{{ID: "G404"}},
 		}},
-	}}}
-
-	// Enough findings to force more than one chunk.
-	findings := make([]sarif.Finding, sarifChunkMaxFindings+10)
-	for i := range findings {
-		findings[i] = sarif.Finding{RuleID: "G404", Severity: "high", File: "a.go", StartLine: i + 1}
 	}
+	for i := range total {
+		run.Results = append(run.Results, sarif.Result{
+			RuleID:  "G404",
+			Message: sarif.Message{Text: "finding"},
+			Locations: []sarif.Location{{PhysicalLocation: &sarif.PhysicalLocation{
+				ArtifactLocation: &sarif.ArtifactLocation{URI: "a.go"},
+				Region:           &sarif.Region{StartLine: i + 1},
+			}}},
+		})
+	}
+	log := &sarif.Log{Version: "2.1.0", Runs: []sarif.Run{run}}
 
-	chunks := chunkGHAFindings(log, findings)
+	chunks := chunkGHASARIF(log)
 	if len(chunks) < 2 {
 		t.Fatalf("chunks = %d, want at least 2", len(chunks))
 	}
 
-	firstRuns, _ := chunks[0].doc["runs"].([]any)
-	if len(firstRuns) == 0 {
-		t.Error("chunk 0 must carry the full document, including rule descriptors")
-	}
-	for i, ch := range chunks[1:] {
+	// Every result appears exactly once across the chunks.
+	seen := map[int]int{}
+	sum := 0
+	for _, ch := range chunks {
+		sum += ch.results
 		runs, _ := ch.doc["runs"].([]any)
-		if len(runs) != 0 {
-			t.Errorf("chunk %d should carry a stub document, got %d runs", i+1, len(runs))
+		for _, r := range runs {
+			results, _ := r.(map[string]any)["results"].([]any)
+			for _, res := range results {
+				locs := res.(map[string]any)["locations"].([]any)
+				region := locs[0].(map[string]any)["physicalLocation"].(map[string]any)["region"].(map[string]any)
+				line := int(region["startLine"].(float64))
+				seen[line]++
+			}
 		}
 	}
-
-	total := 0
-	for _, ch := range chunks {
-		total += len(ch.findings)
+	if sum != total {
+		t.Errorf("chunk result counts sum to %d, want %d", sum, total)
 	}
-	if total != len(findings) {
-		t.Errorf("chunking lost findings: %d of %d", total, len(findings))
+	if len(seen) != total {
+		t.Errorf("distinct results across chunks = %d, want %d", len(seen), total)
+	}
+	for line, n := range seen {
+		if n != 1 {
+			t.Errorf("result at line %d appears %d times; chunks must not overlap", line, n)
+		}
+	}
+}
+
+// Rule descriptors must ride the first chunk: the server's append path bumps the
+// result count but never recounts rules, so a later chunk carrying them would
+// leave the run reporting zero rules.
+func TestChunkingKeepsRulesOnFirstChunkOnly(t *testing.T) {
+	run := sarif.Run{
+		Tool: sarif.Tool{Driver: sarif.ToolComponent{
+			Name:  "gosec",
+			Rules: []sarif.ReportingDescriptor{{ID: "G404"}},
+		}},
+	}
+	for i := range sarifChunkMaxFindings + 10 {
+		run.Results = append(run.Results, sarif.Result{RuleID: "G404", Message: sarif.Message{Text: "x"},
+			Locations: []sarif.Location{{PhysicalLocation: &sarif.PhysicalLocation{
+				ArtifactLocation: &sarif.ArtifactLocation{URI: "a.go"},
+				Region:           &sarif.Region{StartLine: i + 1}}}}})
+	}
+	chunks := chunkGHASARIF(&sarif.Log{Version: "2.1.0", Runs: []sarif.Run{run}})
+	if len(chunks) < 2 {
+		t.Fatalf("chunks = %d, want at least 2", len(chunks))
+	}
+
+	rulesIn := func(ch ghaChunk) int {
+		runs, _ := ch.doc["runs"].([]any)
+		n := 0
+		for _, r := range runs {
+			tool, _ := r.(map[string]any)["tool"].(map[string]any)
+			driver, _ := tool["driver"].(map[string]any)
+			rules, _ := driver["rules"].([]any)
+			n += len(rules)
+		}
+		return n
+	}
+	if rulesIn(chunks[0]) == 0 {
+		t.Error("chunk 0 must carry the rule descriptors")
+	}
+	for i, ch := range chunks[1:] {
+		if got := rulesIn(ch); got != 0 {
+			t.Errorf("chunk %d carries %d rules; only chunk 0 should", i+1, got)
+		}
+		// but it must still name its tool, or the server rejects it
+		runs, _ := ch.doc["runs"].([]any)
+		tool, _ := runs[0].(map[string]any)["tool"].(map[string]any)
+		driver, _ := tool["driver"].(map[string]any)
+		if driver["name"] != "gosec" {
+			t.Errorf("chunk %d lost its tool name; the server would reject it", i+1)
+		}
 	}
 }
 
@@ -298,12 +363,12 @@ func TestChunkingEmptyDocumentStillSubmits(t *testing.T) {
 	log := &sarif.Log{Version: "2.1.0", Runs: []sarif.Run{{
 		Tool: sarif.Tool{Driver: sarif.ToolComponent{Name: "terrascan"}},
 	}}}
-	chunks := chunkGHAFindings(log, nil)
+	chunks := chunkGHASARIF(log)
 	if len(chunks) != 1 {
 		t.Fatalf("chunks = %d, want 1", len(chunks))
 	}
-	if len(chunks[0].findings) != 0 {
-		t.Errorf("empty submission should carry no findings, got %d", len(chunks[0].findings))
+	if chunks[0].results != 0 {
+		t.Errorf("empty submission should carry no results, got %d", chunks[0].results)
 	}
 }
 
