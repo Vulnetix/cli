@@ -54,9 +54,9 @@ func (s *deviceServer) start(t *testing.T) *httptest.Server {
 
 		var body any = map[string]any{
 			"device_code":               "secret-device-code",
-			"user_code":                 "ABC-123",
+			"user_code":                 "ABCD-1234",
 			"verification_uri":          "https://example.test/cli-login-code",
-			"verification_uri_complete": "https://example.test/cli-login-code?user_code=ABC-123",
+			"verification_uri_complete": "https://example.test/cli-login-code?user_code=ABCD-1234",
 			"expires_in":                expiresIn,
 			"interval":                  1,
 		}
@@ -149,7 +149,7 @@ func TestDeviceFlowAuthorize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deviceAuthorize() error: %v", err)
 	}
-	if da.DeviceCode != "secret-device-code" || da.UserCode != "ABC-123" {
+	if da.DeviceCode != "secret-device-code" || da.UserCode != "ABCD-1234" {
 		t.Fatalf("deviceAuthorize() = %+v", da)
 	}
 	if da.interval() != time.Second {
@@ -169,7 +169,7 @@ func TestDeviceFlowAuthorizeDefaultsWhenServerOmitsTimings(t *testing.T) {
 		tokenReplies: []tokenReply{okReply()},
 		authorizeBody: map[string]any{
 			"device_code":      "secret-device-code",
-			"user_code":        "ABC-123",
+			"user_code":        "ABCD-1234",
 			"verification_uri": "https://example.test/cli-login-code",
 		},
 	}
@@ -207,7 +207,7 @@ func TestDeviceFlowAuthorizeRejected(t *testing.T) {
 func TestDeviceFlowAuthorizeIncompleteResponse(t *testing.T) {
 	s := &deviceServer{
 		tokenReplies:  []tokenReply{okReply()},
-		authorizeBody: map[string]any{"user_code": "ABC-123"},
+		authorizeBody: map[string]any{"user_code": "ABCD-1234"},
 	}
 	s.start(t)
 
