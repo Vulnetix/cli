@@ -1,0 +1,309 @@
+{
+  "$comment": [
+    "Catalog of third-party scanners `vulnetix gha setup <tool>` can wire into a",
+    "repository, and the single source of truth for the published examples.",
+    "",
+    "Every entry is transcribed from a workflow that actually runs in production,",
+    "not from a tool's README. The shell steps carry the exit-code handling and",
+    "SARIF validation those tools genuinely need: `tool > out.sarif` leaves a",
+    "zero-byte file when the tool fails, `if-no-files-found` cannot detect that",
+    "because the file exists, and the result gets published as a scan report.",
+    "",
+    "Pinning: third-party actions and container images are pinned so a scan is",
+    "reproducible and cannot change output shape without a change here. The",
+    "Vulnetix CLI itself is deliberately NOT pinned — install.sh resolves the",
+    "latest release, so a workflow written today keeps working without edits.",
+    "",
+    "`category` must be one of the Vulnetix scan categories, and decides which",
+    "/v2/cli.<category>-sarif endpoint the report is filed under. It is advisory",
+    "here: the CLI infers the category from the report itself and the server",
+    "fixes it from the route, so a wrong value here cannot misfile a finding."
+  ],
+  "version": 1,
+  "tools": [
+    {
+      "id": "gosec",
+      "name": "gosec",
+      "jobName": "gosec (Go SAST)",
+      "category": "SAST",
+      "description": "Go static analysis for common security mistakes.",
+      "artifact": "gosec",
+      "paths": ["gosec.sarif"],
+      "steps": [
+        {
+          "name": "Run gosec",
+          "uses": "securego/gosec@v2.28.0",
+          "with": {
+            "args": "-no-fail -fmt sarif -out gosec.sarif ./..."
+          }
+        }
+      ]
+    },
+    {
+      "id": "osv-scanner",
+      "name": "OSV-Scanner",
+      "jobName": "OSV-Scanner (SCA)",
+      "category": "SCA",
+      "description": "Dependency vulnerabilities from the OSV database.",
+      "artifact": "osv-scanner",
+      "paths": ["osv.sarif"],
+      "steps": [
+        {
+          "name": "Run OSV-Scanner",
+          "uses": "google/osv-scanner-action/osv-scanner-action@v2.3.8",
+          "with": {
+            "scan-args": "--format=sarif\n--output=osv.sarif\n./"
+          }
+        }
+      ]
+    },
+    {
+      "id": "semgrep",
+      "name": "Semgrep",
+      "jobName": "Semgrep (SAST)",
+      "category": "SAST",
+      "description": "Multi-language static analysis with community rulesets.",
+      "artifact": "semgrep",
+      "paths": ["semgrep.sarif"],
+      "steps": [
+        {
+          "name": "Run Semgrep",
+          "run": "python3 -m pip install --quiet --break-system-packages semgrep\nsemgrep scan --config auto --sarif --output semgrep.sarif .\n"
+        }
+      ]
+    },
+    {
+      "id": "syft",
+      "name": "Syft",
+      "jobName": "Syft (CycloneDX SBOM)",
+      "category": "SCA",
+      "description": "CycloneDX software bill of materials.",
+      "artifact": "syft",
+      "paths": ["sbom.cdx.json"],
+      "steps": [
+        {
+          "name": "Generate CycloneDX SBOM",
+          "uses": "anchore/sbom-action@v0.24.0",
+          "with": {
+            "path": ".",
+            "format": "cyclonedx-json",
+            "output-file": "sbom.cdx.json",
+            "artifact-name": "sbom.cdx.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "grype",
+      "name": "Grype",
+      "jobName": "Grype (SCA)",
+      "category": "SCA",
+      "description": "Vulnerability matching against the installed dependency set.",
+      "artifact": "grype",
+      "paths": ["grype.sarif"],
+      "steps": [
+        {
+          "name": "Run Grype",
+          "id": "grype",
+          "uses": "anchore/scan-action@v7",
+          "with": {
+            "path": ".",
+            "output-format": "sarif",
+            "fail-build": false
+          }
+        },
+        {
+          "name": "Stage Grype SARIF",
+          "run": "cp \"${{ steps.grype.outputs.sarif }}\" grype.sarif\n"
+        }
+      ]
+    },
+    {
+      "id": "trivy-fs",
+      "name": "Trivy (filesystem)",
+      "jobName": "Trivy (filesystem CDX + SARIF)",
+      "category": "SCA",
+      "description": "Dependency scan of the checked-out tree, as both CycloneDX and SARIF.",
+      "artifact": "trivy-fs",
+      "paths": ["trivy-fs.cdx.json", "trivy-fs.sarif"],
+      "note": "Trivy reports the driver name \"Trivy\" for every scan mode, so the artifact name is the only thing that distinguishes a filesystem scan from a config scan. Keep it.",
+      "steps": [
+        {
+          "name": "Trivy filesystem (CycloneDX)",
+          "uses": "aquasecurity/trivy-action@v0.36.0",
+          "with": {
+            "scan-type": "fs",
+            "scan-ref": ".",
+            "format": "cyclonedx",
+            "output": "trivy-fs.cdx.json"
+          }
+        },
+        {
+          "name": "Trivy filesystem (SARIF)",
+          "uses": "aquasecurity/trivy-action@v0.36.0",
+          "with": {
+            "scan-type": "fs",
+            "scan-ref": ".",
+            "format": "sarif",
+            "output": "trivy-fs.sarif"
+          }
+        }
+      ]
+    },
+    {
+      "id": "trivy-config",
+      "name": "Trivy (config)",
+      "jobName": "Trivy config (IaC/Dockerfile)",
+      "category": "IAC",
+      "description": "Misconfiguration scan of IaC and Dockerfiles.",
+      "artifact": "trivy-config",
+      "paths": ["trivy-config.sarif"],
+      "note": "The artifact name must stay \"trivy-config\" so this is not filed as an SCA scan; see the trivy-fs note.",
+      "steps": [
+        {
+          "name": "Trivy config",
+          "uses": "aquasecurity/trivy-action@v0.36.0",
+          "with": {
+            "scan-type": "config",
+            "scan-ref": ".",
+            "format": "sarif",
+            "output": "trivy-config.sarif"
+          }
+        }
+      ]
+    },
+    {
+      "id": "checkov",
+      "name": "Checkov",
+      "jobName": "Checkov (IaC)",
+      "category": "IAC",
+      "description": "Policy-as-code checks for Terraform, CloudFormation, Kubernetes and more.",
+      "artifact": "checkov",
+      "paths": ["results.sarif"],
+      "note": "Checkov writes its SARIF as results.sarif, the same filename KICS uses. Tool identity comes from the SARIF driver and the artifact name, never the filename.",
+      "steps": [
+        {
+          "name": "Run Checkov",
+          "run": "python3 -m pip install --quiet --break-system-packages checkov\ncheckov -d . -o sarif --output-file-path . --soft-fail || true\n"
+        }
+      ]
+    },
+    {
+      "id": "kics",
+      "name": "KICS",
+      "jobName": "KICS (IaC)",
+      "category": "IAC",
+      "description": "Infrastructure-as-code misconfiguration scanning.",
+      "artifact": "kics",
+      "paths": ["kics-out/results.sarif"],
+      "steps": [
+        {
+          "name": "Run KICS",
+          "run": "mkdir -p kics-out\ndocker run --rm -v \"$PWD:/path\" checkmarx/kics:v2.1.20 \\\n  scan -p /path -o /path/kics-out --report-formats sarif --no-progress || true\n"
+        }
+      ]
+    },
+    {
+      "id": "terrascan",
+      "name": "Terrascan",
+      "jobName": "Terrascan (Terraform)",
+      "category": "IAC",
+      "description": "Terraform policy violations.",
+      "artifact": "terrascan",
+      "paths": ["terrascan.sarif"],
+      "steps": [
+        {
+          "name": "Run Terrascan",
+          "run": "set -uo pipefail\n# terrascan writes SARIF to stdout and logs to stderr, so the redirect must\n# separate them. Exit 3 means violations were found and 5 means no IaC was\n# present; neither is a failure of the scan itself.\ndocker run --rm -v \"$PWD:/iac\" tenable/terrascan:1.19.9 \\\n  scan -i terraform -d /iac -o sarif >terrascan.sarif 2>terrascan.stderr\nrc=$?\ncase \"$rc\" in\n  0|3) ;;\n  5)   echo \"::notice::terrascan found no IaC files\" ;;\n  *)   echo \"::warning::terrascan exited $rc\"; sed -n '1,20p' terrascan.stderr ;;\nesac\n# Without this guard a failed run leaves a zero-byte or half-written file that\n# `if-no-files-found` cannot detect, and it gets published as a \"SARIF report\".\nif ! jq -e '.version and (.runs | type == \"array\")' terrascan.sarif >/dev/null 2>&1; then\n  echo \"::warning::terrascan produced no valid SARIF; dropping the artifact\"\n  rm -f terrascan.sarif\nfi\n"
+        }
+      ]
+    },
+    {
+      "id": "tfsec",
+      "name": "tfsec",
+      "jobName": "tfsec (Terraform)",
+      "category": "IAC",
+      "description": "Terraform static analysis. Upstream now recommends Trivy config.",
+      "artifact": "tfsec",
+      "paths": ["tfsec.sarif"],
+      "steps": [
+        {
+          "name": "Run tfsec",
+          "uses": "aquasecurity/tfsec-sarif-action@v0.1.4",
+          "with": {
+            "sarif_file": "tfsec.sarif"
+          }
+        }
+      ]
+    },
+    {
+      "id": "zizmor",
+      "name": "zizmor",
+      "jobName": "zizmor (GitHub Actions SAST)",
+      "category": "SAST",
+      "description": "Finds security problems in the workflows themselves.",
+      "artifact": "zizmor",
+      "paths": ["zizmor.sarif"],
+      "steps": [
+        {
+          "name": "Run zizmor",
+          "env": {
+            "GH_TOKEN": "${{ github.token }}"
+          },
+          "run": "set -uo pipefail\npython3 -m pip install --quiet --break-system-packages zizmor\n# zizmor exits 14 when it has findings, which is a successful scan.\nzizmor --format sarif . >zizmor.sarif 2>zizmor.stderr\nrc=$?\nif [ \"$rc\" -ne 0 ] && [ \"$rc\" -ne 14 ]; then\n  echo \"::warning::zizmor exited $rc\"; sed -n '1,20p' zizmor.stderr\nfi\nif ! jq -e '.version and (.runs | type == \"array\")' zizmor.sarif >/dev/null 2>&1; then\n  echo \"::warning::zizmor produced no valid SARIF; dropping the artifact\"\n  rm -f zizmor.sarif\nfi\n"
+        }
+      ]
+    },
+    {
+      "id": "clippy",
+      "name": "Rust Clippy",
+      "jobName": "Rust Clippy (SAST)",
+      "category": "LINT",
+      "description": "Rust lints, converted to SARIF.",
+      "artifact": "clippy",
+      "paths": ["clippy.sarif"],
+      "steps": [
+        {
+          "name": "Run Clippy",
+          "run": "set -uo pipefail\nrustup component add clippy\ncargo install clippy-sarif sarif-fmt\n# cargo clippy exits non-zero when it emits warnings, which is a successful run.\ncargo clippy --all-targets --all-features --message-format=json \\\n  | clippy-sarif >clippy.sarif 2>clippy.stderr\nif ! jq -e '.version and (.runs | type == \"array\")' clippy.sarif >/dev/null 2>&1; then\n  echo \"::warning::clippy produced no valid SARIF; dropping the artifact\"\n  sed -n '1,20p' clippy.stderr\n  rm -f clippy.sarif\nfi\n"
+        }
+      ]
+    },
+    {
+      "id": "gitleaks",
+      "name": "Gitleaks",
+      "jobName": "Gitleaks (Secrets)",
+      "category": "SECRETS",
+      "description": "Hardcoded secret detection across the working tree and history.",
+      "artifact": "gitleaks",
+      "paths": ["gitleaks.sarif"],
+      "steps": [
+        {
+          "name": "Run Gitleaks",
+          "run": "set -uo pipefail\n# Gitleaks exits 1 when it finds leaks, which is a successful scan.\ndocker run --rm -v \"$PWD:/repo\" zricethezav/gitleaks:v8.24.0 \\\n  detect --source /repo --report-format sarif --report-path /repo/gitleaks.sarif --no-git || true\nif ! jq -e '.version and (.runs | type == \"array\")' gitleaks.sarif >/dev/null 2>&1; then\n  echo \"::warning::gitleaks produced no valid SARIF; dropping the artifact\"\n  rm -f gitleaks.sarif\nfi\n"
+        }
+      ]
+    },
+    {
+      "id": "hadolint",
+      "name": "Hadolint",
+      "jobName": "Hadolint (Dockerfile)",
+      "category": "OCI",
+      "description": "Dockerfile linting.",
+      "artifact": "hadolint",
+      "paths": ["hadolint.sarif"],
+      "steps": [
+        {
+          "name": "Run Hadolint",
+          "uses": "hadolint/hadolint-action@v3.1.0",
+          "with": {
+            "dockerfile": "Dockerfile",
+            "format": "sarif",
+            "output-file": "hadolint.sarif",
+            "no-fail": true
+          }
+        }
+      ]
+    }
+  ]
+}
