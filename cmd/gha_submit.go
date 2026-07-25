@@ -179,7 +179,7 @@ func (s *ghaSubmitter) publishSARIF(res ghaFileResult, artifactName string, data
 		return res
 	}
 
-	snapshotUuid, snapshotURL, err := s.postSARIFChunks(log, findings, sum.Category, attribution)
+	snapshotUuid, snapshotURL, err := s.postSARIFChunks(log, sum.Category, attribution)
 	if err != nil {
 		res.Status, res.Error = "error", err.Error()
 		return res
@@ -198,14 +198,16 @@ func (s *ghaSubmitter) publishSARIF(res ghaFileResult, artifactName string, data
 // Unlike the first-party scan path, a failure on any chunk fails the file.
 // Silently landing half a scanner's findings is exactly the class of quiet
 // data loss this rewrite exists to remove.
-func (s *ghaSubmitter) postSARIFChunks(log *sarif.Log, findings []sarif.Finding, category sarif.Category, attribution *vdb.CliToolAttribution) (string, string, error) {
-	chunks := chunkGHAFindings(log, findings)
+func (s *ghaSubmitter) postSARIFChunks(log *sarif.Log, category sarif.Category, attribution *vdb.CliToolAttribution) (string, string, error) {
+	chunks := chunkGHASARIF(log)
 	snapshotUuid, snapshotURL := "", ""
 
 	for i, ch := range chunks {
+		// No typed findings: the server derives them from the document, and for
+		// a relayed third-party report the client has nothing the document does
+		// not already say. Sending both invites the two to disagree.
 		req := vdb.CliSARIFRequest{
 			SARIF:       ch.doc,
-			Findings:    ch.findings,
 			Attribution: attribution,
 		}
 		if snapshotUuid != "" {
@@ -233,58 +235,95 @@ func (s *ghaSubmitter) postSARIFChunks(log *sarif.Log, findings []sarif.Finding,
 }
 
 // ghaChunk is one request's worth of a split SARIF submission.
+//
+// Only the document travels. The server re-decomposes whatever document it
+// receives and treats its own result as authoritative, so a chunk must carry
+// exactly the results it is claiming — no more. Sending the whole document with
+// a subset of typed findings would make the server persist every finding on
+// chunk 0 and then persist them again as each later chunk appended its share.
 type ghaChunk struct {
-	doc      map[string]any
-	findings []vdb.CliSARIFFinding
+	doc     map[string]any
+	results int
 }
 
-// chunkGHAFindings splits a decomposed document into requests that stay under
-// the server's body limit.
+// chunkGHASARIF splits a document into requests that stay under the server's
+// body limit, by partitioning its results.
 //
 // Rule descriptors ride chunk 0 only: the append path bumps the result count but
-// never recounts rules, so the create call has to see the full rule set.
-func chunkGHAFindings(log *sarif.Log, findings []sarif.Finding) []ghaChunk {
-	typed := make([]vdb.CliSARIFFinding, len(findings))
-	for i, f := range findings {
-		typed[i] = vdb.CliSARIFFinding{Finding: f}
+// never recounts rules, so the create call has to see the full rule set, and
+// resending megabytes of identical rules per chunk would consume the budget the
+// results need. Every chunk keeps its runs' tool driver, because attribution is
+// resolved per request and a chunk with no tool name is rejected.
+func chunkGHASARIF(log *sarif.Log) []ghaChunk {
+	if log == nil || len(log.Runs) == 0 {
+		empty, _ := sarif.ToMap(&sarif.Log{Version: "2.1.0"})
+		return []ghaChunk{{doc: empty}}
 	}
 
-	fullDoc, err := sarif.ToMap(log)
-	if err != nil {
-		fullDoc = map[string]any{"version": "2.1.0", "runs": []any{}}
+	// Flatten to (run index, result) so a chunk can span runs while still
+	// reconstructing each result under the run it came from.
+	type ref struct {
+		run int
+		res sarif.Result
 	}
-	if len(typed) == 0 {
-		return []ghaChunk{{doc: fullDoc}}
+	var refs []ref
+	for ri := range log.Runs {
+		for _, r := range log.Runs[ri].Results {
+			refs = append(refs, ref{run: ri, res: r})
+		}
+	}
+	if len(refs) == 0 {
+		doc, _ := sarif.ToMap(log)
+		return []ghaChunk{{doc: doc}}
+	}
+
+	// build renders one chunk: the original runs, carrying only this chunk's
+	// results, with rules kept only on the first.
+	build := func(group []ref, first bool) ghaChunk {
+		out := &sarif.Log{Schema: log.Schema, Version: log.Version, Runs: make([]sarif.Run, len(log.Runs))}
+		for ri := range log.Runs {
+			run := log.Runs[ri]
+			run.Results = nil
+			if !first {
+				run.Tool.Driver.Rules = nil
+				for ei := range run.Tool.Extensions {
+					run.Tool.Extensions[ei].Rules = nil
+				}
+				run.Taxonomies = nil
+				run.Artifacts = nil
+			}
+			out.Runs[ri] = run
+		}
+		for _, r := range group {
+			out.Runs[r.run].Results = append(out.Runs[r.run].Results, r.res)
+		}
+		doc, err := sarif.ToMap(out)
+		if err != nil {
+			doc = map[string]any{"version": "2.1.0", "runs": []any{}}
+		}
+		return ghaChunk{doc: doc, results: len(group)}
 	}
 
 	var chunks []ghaChunk
-	var cur []vdb.CliSARIFFinding
+	var cur []ref
 	curBytes := 0
 	flush := func() {
 		if len(cur) == 0 {
 			return
 		}
-		doc := fullDoc
-		if len(chunks) > 0 {
-			// Chunks after the first carry a stub document: the archived copy
-			// and the rule descriptors were stored with chunk 0, and resending
-			// megabytes of identical rules per chunk would burn the budget the
-			// findings need.
-			doc = map[string]any{"version": "2.1.0", "runs": []any{}}
-		}
-		chunks = append(chunks, ghaChunk{doc: doc, findings: cur})
+		chunks = append(chunks, build(cur, len(chunks) == 0))
 		cur, curBytes = nil, 0
 	}
 
-	for i := range typed {
-		size := 256 // base per-finding overhead
-		if b, err := json.Marshal(typed[i]); err == nil {
+	for _, r := range refs {
+		size := 512 // base per-result overhead
+		if b, err := json.Marshal(r.res); err == nil {
 			size = len(b)
 		}
 		if len(cur) > 0 && (curBytes+size > sarifChunkByteBudget || len(cur) >= sarifChunkMaxFindings) {
 			flush()
 		}
-		cur = append(cur, typed[i])
+		cur = append(cur, r)
 		curBytes += size
 	}
 	flush()
