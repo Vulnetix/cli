@@ -62,9 +62,9 @@ type ghaSubmitter struct {
 	ctx    context.Context
 
 	// dryRun classifies, validates and reports without sending anything.
+	// --strict is not held here: it only reclassifies a skip as a failure in the
+	// final tally, which is the caller's business, not the per-file publisher's.
 	dryRun bool
-	// strict promotes skipped files to failures.
-	strict bool
 
 	logf  func(format string, args ...any)
 	warnf func(format string, args ...any)
