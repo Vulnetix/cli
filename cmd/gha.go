@@ -242,7 +242,6 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		env:    env,
 		ctx:    ctx,
 		dryRun: ghaDryRun,
-		strict: ghaStrict,
 		logf:   func(format string, args ...any) { dctx.Logger.Infof(format, args...) },
 		warnf:  func(format string, args ...any) { dctx.Logger.Warnf(format, args...) },
 	}
