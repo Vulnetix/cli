@@ -255,21 +255,7 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	var uploaded, failed, skipped int
-	for _, r := range results {
-		switch r.Status {
-		case "error":
-			failed++
-		case "skipped":
-			skipped++
-		default:
-			uploaded++
-		}
-	}
-	if ghaStrict {
-		failed += skipped
-		skipped = 0
-	}
+	uploaded, failed, _ := tallyGHAResults(results)
 
 	progress.Update(3, fmt.Sprintf("Published %d/%d file(s)", uploaded, len(results)))
 	if failed > 0 {
@@ -380,17 +366,7 @@ func emitGHAJSON(results []ghaFileResult, env vdb.CliEnv) error {
 	if !ghaOutputJSON {
 		return nil
 	}
-	uploaded, failed, skipped := 0, 0, 0
-	for _, r := range results {
-		switch r.Status {
-		case "error":
-			failed++
-		case "skipped":
-			skipped++
-		default:
-			uploaded++
-		}
-	}
+	uploaded, failed, skipped := tallyGHAResults(results)
 	if results == nil {
 		results = []ghaFileResult{}
 	}
@@ -573,4 +549,27 @@ func init() {
 
 	// Add gha command to root
 	rootCmd.AddCommand(ghaCmd)
+}
+
+// tallyGHAResults counts a publish run's outcomes, applying --strict.
+//
+// The tally used to be computed twice, and only the copy that set the exit
+// code applied --strict. `gha upload --strict --json` therefore reported
+// "failed": 0 on a run it had just failed.
+func tallyGHAResults(results []ghaFileResult) (uploaded, failed, skipped int) {
+	for _, r := range results {
+		switch r.Status {
+		case "error":
+			failed++
+		case "skipped":
+			skipped++
+		default:
+			uploaded++
+		}
+	}
+	if ghaStrict {
+		failed += skipped
+		skipped = 0
+	}
+	return uploaded, failed, skipped
 }

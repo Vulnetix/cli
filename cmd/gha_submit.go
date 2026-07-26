@@ -637,13 +637,14 @@ func (s *ghaSubmitter) workspace() string {
 // firstErrorLine returns the first fatal diagnostic, for the compact --json
 // error field. The full report has already been logged.
 func firstErrorLine(report sarif.Report) string {
-	for _, d := range report.Errors() {
-		if d.Hint != "" {
-			return d.Message + " (" + d.Hint + ")"
-		}
-		return d.Message
+	errs := report.Errors()
+	if len(errs) == 0 {
+		return "validation failed"
 	}
-	return "validation failed"
+	if errs[0].Hint != "" {
+		return errs[0].Message + " (" + errs[0].Hint + ")"
+	}
+	return errs[0].Message
 }
 
 // isVulnetixOwnTool reports whether a report was produced by Vulnetix's own

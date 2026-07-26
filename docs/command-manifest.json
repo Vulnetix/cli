@@ -322,6 +322,7 @@
         "no-builtin-catalog",
         "no-commits",
         "no-env",
+        "no-iac",
         "no-progress",
         "no-source",
         "no-upload",
@@ -725,6 +726,7 @@
       "short": "Run only container file analysis",
       "flags": [
         "block-eol",
+        "block-eol-severity",
         "block-malware",
         "block-unpinned",
         "concurrency",
@@ -767,6 +769,7 @@
         "show-detected",
         "show-introduced-paths",
         "silent",
+        "suppress-test-code",
         "verbose",
         "version-lag",
         "yes"
@@ -800,37 +803,59 @@
         "verbose"
       ],
       "subcommands": [
+        "setup",
         "status",
         "upload"
       ]
     },
-    "gha status": {
-      "short": "Check status of artifact uploads",
+    "gha setup": {
+      "short": "Add a third-party scanner to this repository's workflows",
       "flags": [
-        "base-url",
+        "all",
+        "disable-memory",
+        "dry-run",
+        "force",
+        "list",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "runs-on",
+        "silent",
+        "verbose"
+      ]
+    },
+    "gha status": {
+      "short": "Report what a workflow run published to Vulnetix",
+      "flags": [
+        "attempt",
         "disable-memory",
         "json",
         "no-analytics",
         "no-banner",
         "no-progress",
         "org-id",
+        "run-id",
         "silent",
-        "txnid",
         "uuid",
         "verbose"
       ]
     },
     "gha upload": {
-      "short": "Upload GitHub Actions artifacts to Vulnetix",
+      "short": "Publish third-party scanner reports from a workflow run to Vulnetix",
       "flags": [
-        "base-url",
         "disable-memory",
+        "dry-run",
+        "fail-on-empty",
+        "from-dir",
         "json",
         "no-analytics",
         "no-banner",
+        "no-github-api",
         "no-progress",
         "org-id",
         "silent",
+        "strict",
         "verbose"
       ]
     },
@@ -838,6 +863,7 @@
       "short": "Run only Infrastructure as Code (IaC) analysis",
       "flags": [
         "block-eol",
+        "block-eol-severity",
         "block-malware",
         "block-unpinned",
         "concurrency",
@@ -880,12 +906,94 @@
         "show-detected",
         "show-introduced-paths",
         "silent",
+        "suppress-test-code",
         "verbose",
         "version-lag",
         "yes"
       ],
       "deprecatedFlags": [
         "format"
+      ]
+    },
+    "ignore": {
+      "short": "Manage suppression ('ignore') rules for scanner findings",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "add",
+        "list",
+        "remove",
+        "sync"
+      ]
+    },
+    "ignore add": {
+      "short": "Add a suppression rule",
+      "flags": [
+        "category",
+        "disable-memory",
+        "expires-in",
+        "file",
+        "finding",
+        "line-range",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "path",
+        "reason",
+        "rule",
+        "silent",
+        "type",
+        "verbose"
+      ]
+    },
+    "ignore list": {
+      "short": "List suppression rules (local + remote)",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "path",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ignore remove": {
+      "short": "Deactivate a suppression rule",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "path",
+        "reason",
+        "rule",
+        "silent",
+        "uuid",
+        "verbose"
+      ]
+    },
+    "ignore sync": {
+      "short": "Pull remote suppression rules into .vulnetix/memory.yaml",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "path",
+        "silent",
+        "verbose"
       ]
     },
     "license": {
@@ -1356,6 +1464,7 @@
       "short": "Run only Static Application Security Testing (SAST) scan",
       "flags": [
         "block-eol",
+        "block-eol-severity",
         "block-malware",
         "block-unpinned",
         "concurrency",
@@ -1398,6 +1507,7 @@
         "show-detected",
         "show-introduced-paths",
         "silent",
+        "suppress-test-code",
         "verbose",
         "version-lag",
         "yes"
@@ -1410,6 +1520,7 @@
       "short": "Run only Software Composition Analysis (SCA) scan",
       "flags": [
         "block-eol",
+        "block-eol-severity",
         "block-malware",
         "block-unpinned",
         "concurrency",
@@ -1458,6 +1569,7 @@
       "short": "Scan local manifests for vulnerabilities (local analysis, no upload)",
       "flags": [
         "block-eol",
+        "block-eol-severity",
         "block-malware",
         "block-unpinned",
         "concurrency",
@@ -1518,6 +1630,7 @@
         "show-introduced-paths",
         "silent",
         "snippet-context",
+        "suppress-test-code",
         "verbose",
         "version-lag",
         "yes"
@@ -1530,6 +1643,7 @@
       "short": "Run only secret detection scan",
       "flags": [
         "block-eol",
+        "block-eol-severity",
         "block-malware",
         "block-unpinned",
         "concurrency",
@@ -1572,6 +1686,7 @@
         "show-detected",
         "show-introduced-paths",
         "silent",
+        "suppress-test-code",
         "verbose",
         "version-lag",
         "yes"
@@ -1705,7 +1820,7 @@
       ]
     },
     "upload": {
-      "short": "Upload artifact files to Vulnetix",
+      "short": "Publish a scanner's report to Vulnetix",
       "flags": [
         "base-url",
         "dir",
@@ -5258,6 +5373,7 @@
         "env",
         "gha",
         "iac",
+        "ignore",
         "license",
         "malscan",
         "package-firewall",

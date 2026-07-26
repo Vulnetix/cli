@@ -25,27 +25,29 @@ var (
 
 var uploadCmd = &cobra.Command{
 	Use:   "upload",
-	Short: "Upload artifact files to Vulnetix",
-	Long: `Upload security artifact files (SBOMs, SARIF, VEX, etc.) to Vulnetix for processing.
+	Short: "Publish a scanner's report to Vulnetix",
+	Long: `Publish a SARIF, CycloneDX or SPDX report to Vulnetix.
 
-By default, upload discovers all artifacts in the .vulnetix/ directory (project-relative
-first, then ~/.vulnetix/) and uploads each one after local schema validation.
+The report is recorded under the name and version of the tool that produced it,
+in the scan category inferred from the report itself, with the same findings,
+triage and VEX records a first-party Vulnetix scan produces.
 
-The file format is auto-detected from content and extension. CycloneDX files are
-validated against the embedded JSON schema before upload.
+The format is detected from the file's content, not its name: checkov and kics
+both write "results.sarif". Reports Vulnetix's own scanners wrote are refused,
+because the subcommand that produced one published it when it ran.
+
+In GitHub Actions prefer 'vulnetix gha upload', which publishes every report a
+workflow run produced in a single call.
 
 Examples:
-  # Upload all artifacts from .vulnetix/ (default)
-  vulnetix upload
+  # Publish a third-party tool's report
+  vulnetix upload --file gosec.sarif
 
-  # Upload a specific file
-  vulnetix upload --file sbom.cdx.json
+  # Publish every report in a directory
+  vulnetix upload --dir ./reports
 
-  # Upload all artifacts from a custom directory
-  vulnetix upload --dir /path/to/artifacts
-
-  # Upload with explicit org ID
-  vulnetix upload --file sbom.cdx.json --org-id UUID
+  # Publish with an explicit org
+  vulnetix upload --file grype.cdx.json --org-id UUID
 
   # JSON output
   vulnetix upload --json`,
@@ -61,51 +63,42 @@ func runUpload(cmd *cobra.Command, args []string) error {
 	ctx := display.FromCommand(cmd)
 	t := ctx.Term
 
-	// Load credentials
-	creds, err := auth.LoadCredentials()
-	if err != nil {
+	if _, err := auth.LoadCredentials(); err != nil {
 		return fmt.Errorf("authentication required: %w\nRun 'vulnetix auth login' to authenticate", err)
 	}
-
-	// Override org ID if provided
 	if uploadOrgID != "" {
 		if _, err := uuid.Parse(uploadOrgID); err != nil {
 			return fmt.Errorf("--org-id must be a valid UUID, got: %s", uploadOrgID)
 		}
-		creds.OrgID = uploadOrgID
+		orgID = uploadOrgID
 	}
 
-	// Create upload client
-	client := upload.NewClient(uploadBaseURL, creds)
-	env := envForCli()
-	client.CliEnv = &env
+	if uploadBaseURL != "" {
+		if err := os.Setenv("VULNETIX_API_URL", uploadBaseURL); err != nil {
+			return fmt.Errorf("apply --base-url: %w", err)
+		}
+	}
+
+	submitter, err := newUploadSubmitter(cmd.Context(), ctx, false)
+	if err != nil {
+		return err
+	}
 
 	// Single-file mode
 	if uploadFile != "" {
-		info, err := os.Stat(uploadFile)
-		if err != nil {
+		if _, err := os.Stat(uploadFile); err != nil {
 			return fmt.Errorf("cannot access file %s: %w", uploadFile, err)
 		}
-		total := 3
-		if info.Size() >= upload.ChunkThreshold {
-			total = int((info.Size()+upload.DefaultChunkSize-1)/upload.DefaultChunkSize) + 2
-		}
-		progress := ctx.Progress("Upload artifact", total)
-		progress.SetStage(fmt.Sprintf("Preparing %s (%d bytes)", filepath.Base(uploadFile), info.Size()))
+		progress := ctx.Progress("Publish report", 2)
+		progress.SetStage(fmt.Sprintf("Publishing %s", filepath.Base(uploadFile)))
 
-		result, err := client.UploadFileWithProgress(uploadFile, uploadFormat, func(done, total int, stage string) {
-			progress.Update(done, fmt.Sprintf("%s: %s", filepath.Base(uploadFile), stage))
-		})
+		res, err := publishLocalFile(submitter, uploadFile)
 		if err != nil {
-			progress.Fail("upload failed")
-			if vErr, ok := err.(*upload.CycloneDXValidationError); ok {
-				printValidationFailure(t, uploadFile, vErr, uploadOutputJSON)
-				return err
-			}
-			return fmt.Errorf("upload failed: %w", err)
+			progress.Fail("publish failed")
+			return err
 		}
-		progress.Complete("upload complete")
-		printUploadResult(t, uploadFile, result, uploadOutputJSON)
+		progress.Complete("published")
+		printPublishResult(t, uploadFile, res, uploadOutputJSON)
 		return nil
 	}
 
@@ -140,93 +133,93 @@ func runUpload(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	progress := ctx.Progress("Upload artifacts", len(files))
+	progress := ctx.Progress("Publish reports", len(files))
 	progress.SetStage(fmt.Sprintf("Found %d artifact(s) in %s", len(files), discoverDir))
 
-	var anyError bool
+	var failed, published, skipped int
 	for i, f := range files {
-		info, err := os.Stat(f.Path)
-		if err != nil {
-			progress.SetStage(fmt.Sprintf("Skipping %s: %v", filepath.Base(f.Path), err))
-			anyError = true
-			continue
-		}
 		fileName := filepath.Base(f.Path)
-		progress.Update(i, fmt.Sprintf("Uploading %s (%d bytes, format: %s)", fileName, info.Size(), f.Format))
+		progress.Update(i, fmt.Sprintf("Publishing %s (%s)", fileName, f.Format))
 
-		result, err := client.UploadFileWithProgress(f.Path, f.Format, func(done, total int, stage string) {
-			progress.SetStage(fmt.Sprintf("%s: %s %d/%d", fileName, stage, done, total))
-		})
-		if err != nil {
-			progress.SetStage(fmt.Sprintf("%s failed: %v", fileName, err))
-			if vErr, ok := err.(*upload.CycloneDXValidationError); ok {
-				printValidationFailure(t, f.Path, vErr, uploadOutputJSON)
-			}
-			anyError = true
-			continue
+		res, err := publishLocalFile(submitter, f.Path)
+		switch {
+		case err != nil && isAlreadyPublished(err):
+			// Discovery mode walks .vulnetix/, which is where Vulnetix's own
+			// scanners write. Those were published when they ran, so this is
+			// the expected case, not a failure.
+			skipped++
+			ctx.Logger.Infof("  %s skipped: already published by the scan that produced it", fileName)
+		case err != nil:
+			failed++
+			ctx.Logger.Warnf("  %s failed: %v", fileName, err)
+		default:
+			published++
+			progress.Update(i+1, fmt.Sprintf("Published %s", fileName))
+			printPublishResult(t, f.Path, res, uploadOutputJSON)
 		}
-		progress.Update(i+1, fmt.Sprintf("Uploaded %s", fileName))
-		printUploadResult(t, f.Path, result, uploadOutputJSON)
 	}
 
-	if anyError {
-		progress.Fail("one or more uploads failed")
-		return fmt.Errorf("one or more uploads failed")
+	if failed > 0 {
+		progress.Fail(fmt.Sprintf("%d of %d report(s) failed to publish", failed, len(files)))
+		return fmt.Errorf("%d of %d report(s) failed to publish", failed, len(files))
 	}
-	progress.Complete("all artifacts uploaded")
+	if published == 0 && skipped > 0 {
+		progress.Complete("nothing to publish")
+		ctx.Logger.Result(display.WarningMark(t) + fmt.Sprintf(
+			" All %d report(s) in %s were already published by the scans that produced them.\n"+
+				"Use --file to publish a third-party tool's report.", skipped, discoverDir))
+		return nil
+	}
+	progress.Complete(fmt.Sprintf("published %d report(s)", published))
 	return nil
 }
 
-func printValidationFailure(t *display.Terminal, filePath string, result *upload.CycloneDXValidationError, asJSON bool) {
-	if asJSON {
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		_ = encoder.Encode(map[string]any{
-			"ok":          false,
-			"file":        filePath,
-			"specVersion": result.SpecVersion,
-			"violations":  result.Violations,
-		})
-		return
-	}
-
-	var b strings.Builder
-	b.WriteString(display.WarningMark(t) + " " + display.Bold(t, filepath.Base(filePath)) + " — CycloneDX schema validation failed\n")
-	for i, v := range result.Violations {
-		if i >= 5 {
-			b.WriteString(fmt.Sprintf("  ...%d more violation(s)\n", len(result.Violations)-i))
-			break
-		}
-		path := v.Path
-		if path == "" {
-			path = "/"
-		}
-		b.WriteString(fmt.Sprintf("  %s: %s\n", path, v.Message))
-	}
-	fmt.Print(b.String())
+// isAlreadyPublished distinguishes "this was Vulnetix's own report" from a real
+// failure, so discovery mode does not fail on the directory it defaults to.
+func isAlreadyPublished(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "published it when it ran")
 }
 
-func printUploadResult(t *display.Terminal, filePath string, result *upload.FinalizeResponse, asJSON bool) {
+// printPublishResult reports what a report became: the category it was filed
+// under, the tool it was attributed to, and the snapshot it can be read at.
+//
+// The old output named a pipeline id and a processing state, which described
+// the blob's journey through a queue rather than anything about the scan.
+func printPublishResult(t *display.Terminal, filePath string, res ghaFileResult, asJSON bool) {
 	if asJSON {
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
-		_ = encoder.Encode(result)
+		_ = encoder.Encode(res)
 		return
 	}
 
 	var b strings.Builder
-	if result.IsDuplicate {
-		b.WriteString(display.WarningMark(t) + " " + display.Bold(t, filepath.Base(filePath)) + " — duplicate (already uploaded)\n")
-	} else {
-		b.WriteString(display.CheckMark(t) + " " + display.Bold(t, filepath.Base(filePath)) + " — uploaded successfully\n")
+	mark := display.CheckMark(t)
+	suffix := " published"
+	if res.Status == "duplicate" {
+		mark, suffix = display.WarningMark(t), " already published (same scan)"
 	}
-	if result.PipelineRecord != nil {
-		b.WriteString(display.KeyValue(t, []display.KVPair{
-			{Key: "Pipeline ID", Value: result.PipelineRecord.UUID},
-			{Key: "Detected Type", Value: result.PipelineRecord.DetectedType},
-			{Key: "Status", Value: result.PipelineRecord.ProcessingState},
-		}))
+	b.WriteString(mark + " " + display.Bold(t, filepath.Base(filePath)) + suffix + "\n")
+
+	kv := []display.KVPair{{Key: "Category", Value: res.Category}}
+	if res.CategoryWhy != "" {
+		kv = append(kv, display.KVPair{Key: "Because", Value: res.CategoryWhy})
 	}
+	tool := res.Tool
+	if res.ToolVersion != "" {
+		tool += " " + res.ToolVersion
+	}
+	if tool != "" {
+		kv = append(kv, display.KVPair{Key: "Tool", Value: tool})
+	}
+	kv = append(kv, display.KVPair{Key: "Findings", Value: fmt.Sprintf("%d", res.Findings)})
+	if res.Suppressed > 0 {
+		kv = append(kv, display.KVPair{Key: "Suppressed", Value: fmt.Sprintf("%d", res.Suppressed)})
+	}
+	if res.SnapshotURL != "" {
+		kv = append(kv, display.KVPair{Key: "Snapshot", Value: res.SnapshotURL})
+	}
+	b.WriteString(display.KeyValue(t, kv))
 	fmt.Print(b.String())
 }
 
@@ -234,7 +227,10 @@ func init() {
 	uploadCmd.Flags().StringVar(&uploadFile, "file", "", "Path to a specific artifact file to upload")
 	uploadCmd.Flags().StringVar(&uploadDir, "dir", "", "Directory to scan for artifacts (overrides .vulnetix/ discovery)")
 	uploadCmd.Flags().StringVar(&uploadOrgID, "org-id", "", "Organization ID (UUID, uses stored credentials if not set)")
-	uploadCmd.Flags().StringVar(&uploadBaseURL, "base-url", upload.DefaultBaseURL, "Base URL for Vulnetix API")
+	// Kept for the scripts that pass it. It used to address the retired blob
+	// endpoint; it now overrides the API base the typed endpoints are called on,
+	// which is the same thing VULNETIX_API_URL does.
+	uploadCmd.Flags().StringVar(&uploadBaseURL, "base-url", "", "Override the Vulnetix API base URL")
 	uploadCmd.Flags().StringVar(&uploadFormat, "format", "", "Override auto-detected format (cyclonedx, spdx, sarif, openvex, csaf_vex)")
 	uploadCmd.Flags().BoolVar(&uploadOutputJSON, "json", false, "Output result as JSON")
 	_ = uploadCmd.RegisterFlagCompletionFunc("format", cobra.FixedCompletions([]string{"cyclonedx", "spdx", "sarif", "openvex", "csaf_vex"}, cobra.ShellCompDirectiveNoFileComp))

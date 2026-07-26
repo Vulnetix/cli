@@ -152,7 +152,10 @@ sync-schemas:
 # Regenerate the command manifest. Documentation sites validate their snippets
 # against this file, so a renamed flag breaks a test rather than a user's pipeline.
 gen-command-manifest:
-    go run . __manifest > docs/command-manifest.json
+    # --no-banner, or the ASCII art lands in the JSON and every consumer of the
+    # manifest silently keeps the last good copy.
+    go run . __manifest --no-banner > docs/command-manifest.json
+    @command -v jq >/dev/null && jq -e '.commands | length > 0' docs/command-manifest.json >/dev/null && echo "manifest ok" || echo "manifest is not valid JSON"
 
 # Unit-test the RFC 8628 device flow client against an httptest server (no network)
 test-device-flow:
