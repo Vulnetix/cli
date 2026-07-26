@@ -18,6 +18,9 @@ import (
 //go:embed catalog/tools.json
 var catalogJSON []byte
 
+//go:embed catalog/extra_tools.json
+var extraCatalogJSON []byte
+
 // Catalog is the parsed tool catalog.
 type Catalog struct {
 	Version int    `json:"version"`
@@ -53,6 +56,13 @@ func Load() (*Catalog, error) {
 	if err := json.Unmarshal(catalogJSON, &c); err != nil {
 		return nil, fmt.Errorf("parse tool catalog: %w", err)
 	}
+	var extra struct {
+		Tools []Tool `json:"tools"`
+	}
+	if err := json.Unmarshal(extraCatalogJSON, &extra); err != nil {
+		return nil, fmt.Errorf("parse extra tool catalog: %w", err)
+	}
+	c.Tools = append(c.Tools, extra.Tools...)
 	if len(c.Tools) == 0 {
 		return nil, fmt.Errorf("tool catalog is empty")
 	}

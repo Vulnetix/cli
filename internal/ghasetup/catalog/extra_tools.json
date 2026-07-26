@@ -1,0 +1,675 @@
+{
+  "$comment": [
+    "Additional GitHub Actions scanner recipes surfaced from the website tools catalog.",
+    "Keep this list to tools that can publish SARIF, CycloneDX JSON, or SPDX JSON for vulnetix gha upload."
+  ],
+  "tools": [
+    {
+      "id": "govulncheck",
+      "name": "govulncheck",
+      "jobName": "govulncheck (Go SCA)",
+      "category": "SCA",
+      "description": "Official Go vulnerability scanner with SARIF output for module and package reachability findings.",
+      "artifact": "govulncheck",
+      "paths": ["govulncheck.sarif"],
+      "steps": [
+        {
+          "name": "Set up Go",
+          "uses": "actions/setup-go@v6",
+          "with": {
+            "go-version": "stable"
+          }
+        },
+        {
+          "name": "Run govulncheck",
+          "run": "if [ ! -f go.mod ]; then\n  echo '::notice::no go.mod found; skipping govulncheck'\n  exit 0\nfi\ngo install golang.org/x/vuln/cmd/govulncheck@latest\ngovulncheck -format sarif ./... >govulncheck.sarif 2>govulncheck.stderr\nrc=$?\nif [ $rc -ne 0 ]; then\n  echo \"::warning::govulncheck exited $rc\"\n  sed -n '1,20p' govulncheck.stderr\nfi\nif ! jq -e '.version and (.runs | type == \"array\")' govulncheck.sarif >/dev/null 2>&1; then\n  echo '::warning::govulncheck produced no valid SARIF; dropping the artifact'\n  rm -f govulncheck.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "bandit",
+      "name": "Bandit",
+      "jobName": "Bandit (Python SAST)",
+      "category": "SAST",
+      "description": "Python security linter that reports common insecure coding patterns as SARIF.",
+      "artifact": "bandit",
+      "paths": ["bandit.sarif"],
+      "steps": [
+        {
+          "name": "Set up Python",
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.x"
+          }
+        },
+        {
+          "name": "Run Bandit",
+          "run": "if ! find . -path ./.git -prune -o -type f -name '*.py' -print | head -n 1 | grep -q .; then\n  echo '::notice::no Python files found; skipping Bandit'\n  exit 0\nfi\npython3 -m pip install --quiet --break-system-packages 'bandit[sarif]'\nbandit -r . -f sarif -o bandit.sarif || true\nif ! jq -e '.version and (.runs | type == \"array\")' bandit.sarif >/dev/null 2>&1; then\n  echo '::warning::bandit produced no valid SARIF; dropping the artifact'\n  rm -f bandit.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "flawfinder",
+      "name": "Flawfinder",
+      "jobName": "Flawfinder (C/C++ SAST)",
+      "category": "SAST",
+      "description": "C/C++ dangerous-function scanner that emits SARIF findings.",
+      "artifact": "flawfinder",
+      "paths": ["flawfinder.sarif"],
+      "steps": [
+        {
+          "name": "Set up Python",
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.x"
+          }
+        },
+        {
+          "name": "Run Flawfinder",
+          "run": "if ! find . -path ./.git -prune -o -type f -print | grep -E '\\.(c|cc|cpp|h|hpp)$' | head -n 1 | grep -q .; then\n  echo '::notice::no C/C++ files found; skipping Flawfinder'\n  exit 0\nfi\npython3 -m pip install --quiet --break-system-packages flawfinder\nflawfinder --sarif . >flawfinder.sarif 2>flawfinder.stderr\nrc=$?\nif [ $rc -ne 0 ] && [ $rc -ne 1 ]; then\n  echo \"::warning::flawfinder exited $rc\"\n  sed -n '1,20p' flawfinder.stderr\nfi\nif ! jq -e '.version and (.runs | type == \"array\")' flawfinder.sarif >/dev/null 2>&1; then\n  echo '::warning::flawfinder produced no valid SARIF; dropping the artifact'\n  rm -f flawfinder.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "ruff",
+      "name": "Ruff",
+      "jobName": "Ruff (Python lint)",
+      "category": "LINT",
+      "description": "Fast Python linter configured for security rules and SARIF output.",
+      "artifact": "ruff",
+      "paths": ["ruff.sarif"],
+      "steps": [
+        {
+          "name": "Set up Python",
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.x"
+          }
+        },
+        {
+          "name": "Run Ruff security rules",
+          "run": "if ! find . -path ./.git -prune -o -type f -name '*.py' -print | head -n 1 | grep -q .; then\n  echo '::notice::no Python files found; skipping Ruff'\n  exit 0\nfi\npython3 -m pip install --quiet --break-system-packages ruff\nruff check --select S --output-format sarif -o ruff.sarif . || true\nif ! jq -e '.version and (.runs | type == \"array\")' ruff.sarif >/dev/null 2>&1; then\n  echo '::warning::ruff produced no valid SARIF; dropping the artifact'\n  rm -f ruff.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "njsscan",
+      "name": "njsscan",
+      "jobName": "njsscan (Node SAST)",
+      "category": "SAST",
+      "description": "JavaScript and TypeScript security scanner with SARIF output.",
+      "artifact": "njsscan",
+      "paths": ["njsscan.sarif"],
+      "steps": [
+        {
+          "name": "Set up Python",
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.x"
+          }
+        },
+        {
+          "name": "Run njsscan",
+          "run": "if ! find . -path ./.git -prune -o -type f -print | grep -E '\\.(js|jsx|ts|tsx)$' | head -n 1 | grep -q .; then\n  echo '::notice::no JavaScript or TypeScript files found; skipping njsscan'\n  exit 0\nfi\npython3 -m pip install --quiet --break-system-packages njsscan\nnjsscan --sarif -o njsscan.sarif . || true\nif ! jq -e '.version and (.runs | type == \"array\")' njsscan.sarif >/dev/null 2>&1; then\n  echo '::warning::njsscan produced no valid SARIF; dropping the artifact'\n  rm -f njsscan.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cppcheck",
+      "name": "Cppcheck",
+      "jobName": "Cppcheck (C/C++ SAST)",
+      "category": "SAST",
+      "description": "Static analyzer for C and C++ that can emit SARIF.",
+      "artifact": "cppcheck",
+      "paths": ["cppcheck.sarif"],
+      "steps": [
+        {
+          "name": "Run Cppcheck",
+          "run": "if ! find . -path ./.git -prune -o -type f -print | grep -E '\\.(c|cc|cpp|h|hpp)$' | head -n 1 | grep -q .; then\n  echo '::notice::no C/C++ files found; skipping Cppcheck'\n  exit 0\nfi\nsudo apt-get update\nsudo apt-get install -y cppcheck\ncppcheck --enable=warning,style,performance,portability --output-format=sarif --output-file=cppcheck.sarif . || true\nif ! jq -e '.version and (.runs | type == \"array\")' cppcheck.sarif >/dev/null 2>&1; then\n  echo '::warning::cppcheck produced no valid SARIF; dropping the artifact'\n  rm -f cppcheck.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "brakeman",
+      "name": "Brakeman",
+      "jobName": "Brakeman (Ruby on Rails SAST)",
+      "category": "SAST",
+      "description": "Ruby on Rails static analyzer with SARIF output.",
+      "artifact": "brakeman",
+      "paths": ["brakeman.sarif"],
+      "steps": [
+        {
+          "name": "Set up Ruby",
+          "uses": "ruby/setup-ruby@v1",
+          "with": {
+            "ruby-version": "ruby"
+          }
+        },
+        {
+          "name": "Run Brakeman",
+          "run": "if [ ! -f Gemfile ] || ! grep -E 'rails|railties' Gemfile Gemfile.lock >/dev/null 2>&1; then\n  echo '::notice::no Rails app detected; skipping Brakeman'\n  exit 0\nfi\ngem install brakeman\nbrakeman -f sarif -o brakeman.sarif || true\nif ! jq -e '.version and (.runs | type == \"array\")' brakeman.sarif >/dev/null 2>&1; then\n  echo '::warning::brakeman produced no valid SARIF; dropping the artifact'\n  rm -f brakeman.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "pmd",
+      "name": "PMD",
+      "jobName": "PMD (Java SAST)",
+      "category": "SAST",
+      "description": "Java static analysis using the official PMD GitHub Action and SARIF report.",
+      "artifact": "pmd",
+      "paths": ["pmd-report.sarif"],
+      "steps": [
+        {
+          "name": "Run PMD",
+          "uses": "pmd/pmd-github-action@v2",
+          "with": {
+            "version": "latest",
+            "rulesets": "rulesets/java/quickstart.xml",
+            "analyzeModifiedFilesOnly": "false"
+          }
+        }
+      ]
+    },
+    {
+      "id": "golangci-lint",
+      "name": "golangci-lint",
+      "jobName": "golangci-lint (Go lint)",
+      "category": "LINT",
+      "description": "Aggregated Go linter suite with SARIF output.",
+      "artifact": "golangci-lint",
+      "paths": ["golangci-lint.sarif"],
+      "steps": [
+        {
+          "name": "Set up Go",
+          "uses": "actions/setup-go@v6",
+          "with": {
+            "go-version": "stable"
+          }
+        },
+        {
+          "name": "Run golangci-lint",
+          "run": "if [ ! -f go.mod ]; then\n  echo '::notice::no go.mod found; skipping golangci-lint'\n  exit 0\nfi\ngo install github.com/golangci/golangci-lint/cmd/golangci-lint@latest\ngolangci-lint run --output.sarif.path=golangci-lint.sarif || true\nif ! jq -e '.version and (.runs | type == \"array\")' golangci-lint.sarif >/dev/null 2>&1; then\n  echo '::warning::golangci-lint produced no valid SARIF; dropping the artifact'\n  rm -f golangci-lint.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "eslint",
+      "name": "ESLint",
+      "jobName": "ESLint (JavaScript lint)",
+      "category": "LINT",
+      "description": "JavaScript and TypeScript lint findings exported as SARIF.",
+      "artifact": "eslint",
+      "paths": ["eslint.sarif"],
+      "steps": [
+        {
+          "name": "Set up Node.js",
+          "uses": "actions/setup-node@v4",
+          "with": {
+            "node-version": "lts/*"
+          }
+        },
+        {
+          "name": "Run ESLint",
+          "run": "if [ ! -f package.json ]; then\n  echo '::notice::no package.json found; skipping ESLint'\n  exit 0\nfi\nif ! ls eslint.config.* .eslintrc .eslintrc.* >/dev/null 2>&1; then\n  echo '::notice::no ESLint config found; skipping ESLint'\n  exit 0\nfi\nif [ -f package-lock.json ]; then\n  npm ci\nelse\n  npm install --no-audit --no-fund\nfi\nnpm install --no-audit --no-fund --no-save @microsoft/eslint-formatter-sarif\nnpx eslint -f @microsoft/eslint-formatter-sarif -o eslint.sarif . || true\nif ! jq -e '.version and (.runs | type == \"array\")' eslint.sarif >/dev/null 2>&1; then\n  echo '::warning::eslint produced no valid SARIF; dropping the artifact'\n  rm -f eslint.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "stylelint",
+      "name": "Stylelint",
+      "jobName": "Stylelint (CSS lint)",
+      "category": "LINT",
+      "description": "CSS and preprocessor lint findings exported as SARIF.",
+      "artifact": "stylelint",
+      "paths": ["stylelint.sarif"],
+      "steps": [
+        {
+          "name": "Set up Node.js",
+          "uses": "actions/setup-node@v4",
+          "with": {
+            "node-version": "lts/*"
+          }
+        },
+        {
+          "name": "Run Stylelint",
+          "run": "if ! find . -path ./.git -prune -o -type f -print | grep -E '\\.(css|scss|less)$' | head -n 1 | grep -q .; then\n  echo '::notice::no CSS files found; skipping Stylelint'\n  exit 0\nfi\nif ! ls .stylelintrc* stylelint.config.* >/dev/null 2>&1; then\n  echo '::notice::no Stylelint config found; skipping Stylelint'\n  exit 0\nfi\nnpm install --no-audit --no-fund --no-save stylelint stylelint-sarif-formatter\nnpx stylelint '**/*.{css,scss,less}' --custom-formatter=node_modules/stylelint-sarif-formatter -o stylelint.sarif || true\nif ! jq -e '.version and (.runs | type == \"array\")' stylelint.sarif >/dev/null 2>&1; then\n  echo '::warning::stylelint produced no valid SARIF; dropping the artifact'\n  rm -f stylelint.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "npm-audit",
+      "name": "npm audit",
+      "jobName": "npm audit (Node SCA)",
+      "category": "SCA",
+      "description": "npm dependency audit converted to SARIF for Vulnetix ingestion.",
+      "artifact": "npm-audit",
+      "paths": ["npm-audit.sarif"],
+      "steps": [
+        {
+          "name": "Set up Node.js",
+          "uses": "actions/setup-node@v4",
+          "with": {
+            "node-version": "lts/*"
+          }
+        },
+        {
+          "name": "Run npm audit",
+          "run": "if [ ! -f package-lock.json ]; then\n  echo '::notice::no package-lock.json found; skipping npm audit'\n  exit 0\nfi\nnpm ci\nnpm audit --json >npm-audit.json || true\nnpx --yes npm-audit-sarif -i npm-audit.json -o npm-audit.sarif || true\nif ! jq -e '.version and (.runs | type == \"array\")' npm-audit.sarif >/dev/null 2>&1; then\n  echo '::warning::npm audit produced no valid SARIF; dropping the artifact'\n  rm -f npm-audit.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "retirejs",
+      "name": "Retire.js",
+      "jobName": "Retire.js (JavaScript SCA)",
+      "category": "SCA",
+      "description": "JavaScript dependency vulnerability scanner exporting CycloneDX JSON.",
+      "artifact": "retirejs",
+      "paths": ["retirejs.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up Node.js",
+          "uses": "actions/setup-node@v4",
+          "with": {
+            "node-version": "lts/*"
+          }
+        },
+        {
+          "name": "Run Retire.js",
+          "run": "if [ ! -f package.json ] && ! find . -path ./.git -prune -o -type f -name '*.js' -print | head -n 1 | grep -q .; then\n  echo '::notice::no JavaScript project detected; skipping Retire.js'\n  exit 0\nfi\nnpx --yes retire --outputformat cyclonedxJSON --outputpath retirejs.cdx.json --path . || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' retirejs.cdx.json >/dev/null 2>&1; then\n  echo '::warning::retirejs produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f retirejs.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cdxgen",
+      "name": "cdxgen",
+      "jobName": "cdxgen (multi-ecosystem SBOM)",
+      "category": "SCA",
+      "description": "Multi-language CycloneDX SBOM generator for dependency inventory.",
+      "artifact": "cdxgen",
+      "paths": ["cdxgen.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up Node.js",
+          "uses": "actions/setup-node@v4",
+          "with": {
+            "node-version": "lts/*"
+          }
+        },
+        {
+          "name": "Run cdxgen",
+          "run": "if ! find . -maxdepth 4 -type f \\( -name package-lock.json -o -name go.mod -o -name requirements.txt -o -name pyproject.toml -o -name pom.xml -o -name build.gradle -o -name Cargo.lock -o -name composer.lock -o -name Gemfile.lock -o -name '*.csproj' \\) -print | head -n 1 | grep -q .; then\n  echo '::notice::no supported package manifest found; skipping cdxgen'\n  exit 0\nfi\nnpx --yes @cyclonedx/cdxgen -o cdxgen.cdx.json . || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' cdxgen.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cdxgen produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cdxgen.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "scancode",
+      "name": "ScanCode Toolkit",
+      "jobName": "ScanCode Toolkit (license SBOM)",
+      "category": "LICENSE",
+      "description": "License, package, and copyright inventory exported as CycloneDX JSON.",
+      "artifact": "scancode",
+      "paths": ["scancode.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up Python",
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.x"
+          }
+        },
+        {
+          "name": "Run ScanCode Toolkit",
+          "run": "python3 -m pip install --quiet --break-system-packages scancode-toolkit\nscancode --license --copyright --package --cyclonedx scancode.cdx.json . || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' scancode.cdx.json >/dev/null 2>&1; then\n  echo '::warning::scancode produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f scancode.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "owasp-dependency-check",
+      "name": "OWASP Dependency-Check",
+      "jobName": "OWASP Dependency-Check (SCA)",
+      "category": "SCA",
+      "description": "OWASP Dependency-Check SCA scan with SARIF output. Set NVD_API_KEY as a secret for faster database updates.",
+      "artifact": "dependency-check",
+      "paths": ["dependency-check.sarif"],
+      "steps": [
+        {
+          "name": "Set up Java",
+          "uses": "actions/setup-java@v4",
+          "with": {
+            "distribution": "temurin",
+            "java-version": "21"
+          }
+        },
+        {
+          "name": "Run OWASP Dependency-Check",
+          "env": {
+            "NVD_API_KEY": "${{ secrets.NVD_API_KEY }}"
+          },
+          "run": "set -uo pipefail\nversion=$(curl -fsSL https://api.github.com/repos/jeremylong/DependencyCheck/releases/latest | jq -r '.tag_name | ltrimstr(\"v\")')\ncurl -fsSL \"https://github.com/jeremylong/DependencyCheck/releases/download/v${version}/dependency-check-${version}-release.zip\" -o dependency-check.zip\nunzip -q dependency-check.zip\nmkdir -p dependency-check-out\nargs=(--scan . --format SARIF --out dependency-check-out)\nif [ -n \"${NVD_API_KEY:-}\" ]; then\n  args+=(--nvdApiKey \"$NVD_API_KEY\")\nfi\ndependency-check/bin/dependency-check.sh \"${args[@]}\" || true\nfound=$(find dependency-check-out -name '*.sarif' -print -quit)\nif [ -n \"$found\" ]; then\n  cp \"$found\" dependency-check.sarif\nfi\nif ! jq -e '.version and (.runs | type == \"array\")' dependency-check.sarif >/dev/null 2>&1; then\n  echo '::warning::dependency-check produced no valid SARIF; dropping the artifact'\n  rm -f dependency-check.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cfn-lint",
+      "name": "cfn-lint",
+      "jobName": "cfn-lint (CloudFormation IaC)",
+      "category": "IAC",
+      "description": "AWS CloudFormation template linter with SARIF output.",
+      "artifact": "cfn-lint",
+      "paths": ["cfn-lint.sarif"],
+      "steps": [
+        {
+          "name": "Set up Python",
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.x"
+          }
+        },
+        {
+          "name": "Run cfn-lint",
+          "run": "templates=$(find . -path ./.git -prune -o -type f \\( -name '*.template' -o -name '*.yaml' -o -name '*.yml' -o -name '*.json' \\) -print)\nif [ -z \"$templates\" ]; then\n  echo '::notice::no candidate CloudFormation templates found; skipping cfn-lint'\n  exit 0\nfi\npython3 -m pip install --quiet --break-system-packages cfn-lint\ncfn-lint -f sarif -t $templates >cfn-lint.sarif 2>cfn-lint.stderr\nrc=$?\nif [ $rc -ne 0 ]; then\n  echo \"::warning::cfn-lint exited $rc\"\n  sed -n '1,20p' cfn-lint.stderr\nfi\nif ! jq -e '.version and (.runs | type == \"array\")' cfn-lint.sarif >/dev/null 2>&1; then\n  echo '::warning::cfn-lint produced no valid SARIF; dropping the artifact'\n  rm -f cfn-lint.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "dockle",
+      "name": "Dockle",
+      "jobName": "Dockle (container image)",
+      "category": "OCI",
+      "description": "Container image best-practice scanner with SARIF output.",
+      "artifact": "dockle",
+      "paths": ["dockle.sarif"],
+      "steps": [
+        {
+          "name": "Set up Go",
+          "uses": "actions/setup-go@v6",
+          "with": {
+            "go-version": "stable"
+          }
+        },
+        {
+          "name": "Run Dockle",
+          "run": "if [ ! -f Dockerfile ] && [ ! -f Containerfile ]; then\n  echo '::notice::no Dockerfile or Containerfile found; skipping Dockle'\n  exit 0\nfi\ndockerfile=Dockerfile\nif [ -f Containerfile ]; then\n  dockerfile=Containerfile\nfi\nimage=\"vulnetix-dockle:${GITHUB_SHA:-local}\"\ndocker build -f \"$dockerfile\" -t \"$image\" .\ngo install github.com/goodwithtech/dockle/cmd/dockle@latest\ndockle --format sarif --output dockle.sarif \"$image\" || true\nif ! jq -e '.version and (.runs | type == \"array\")' dockle.sarif >/dev/null 2>&1; then\n  echo '::warning::dockle produced no valid SARIF; dropping the artifact'\n  rm -f dockle.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "nuclei",
+      "name": "Nuclei",
+      "jobName": "Nuclei (DAST)",
+      "category": "PENTEST",
+      "description": "ProjectDiscovery Nuclei scan against a deployed URL. Set the NUCLEI_TARGET_URL repository variable before enabling.",
+      "artifact": "nuclei",
+      "paths": ["nuclei.sarif"],
+      "steps": [
+        {
+          "name": "Set up Go",
+          "uses": "actions/setup-go@v6",
+          "with": {
+            "go-version": "stable"
+          }
+        },
+        {
+          "name": "Run Nuclei",
+          "env": {
+            "NUCLEI_TARGET_URL": "${{ vars.NUCLEI_TARGET_URL }}"
+          },
+          "run": "if [ -z \"${NUCLEI_TARGET_URL:-}\" ]; then\n  echo '::notice::NUCLEI_TARGET_URL is not set; skipping Nuclei'\n  exit 0\nfi\ngo install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest\nnuclei -u \"$NUCLEI_TARGET_URL\" -severity critical,high -se nuclei.sarif || true\nif ! jq -e '.version and (.runs | type == \"array\")' nuclei.sarif >/dev/null 2>&1; then\n  echo '::warning::nuclei produced no valid SARIF; dropping the artifact'\n  rm -f nuclei.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cyclonedx-node",
+      "name": "CycloneDX npm",
+      "jobName": "CycloneDX npm SBOM",
+      "category": "SCA",
+      "description": "CycloneDX SBOM generation for npm projects.",
+      "artifact": "cyclonedx-node",
+      "paths": ["cyclonedx-node.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up Node.js",
+          "uses": "actions/setup-node@v4",
+          "with": {
+            "node-version": "lts/*"
+          }
+        },
+        {
+          "name": "Generate npm CycloneDX SBOM",
+          "run": "if [ ! -f package-lock.json ]; then\n  echo '::notice::no package-lock.json found; skipping CycloneDX npm'\n  exit 0\nfi\nnpm ci\nnpx --yes @cyclonedx/cyclonedx-npm --omit dev --flatten-components --output-format JSON --output-file cyclonedx-node.cdx.json || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' cyclonedx-node.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx npm produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cyclonedx-node.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "yarn-cyclonedx",
+      "name": "CycloneDX Yarn",
+      "jobName": "CycloneDX Yarn SBOM",
+      "category": "SCA",
+      "description": "CycloneDX SBOM generation for Yarn projects.",
+      "artifact": "yarn-cyclonedx",
+      "paths": ["yarn-cyclonedx.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up Node.js",
+          "uses": "actions/setup-node@v4",
+          "with": {
+            "node-version": "lts/*"
+          }
+        },
+        {
+          "name": "Generate Yarn CycloneDX SBOM",
+          "run": "if [ ! -f yarn.lock ]; then\n  echo '::notice::no yarn.lock found; skipping CycloneDX Yarn'\n  exit 0\nfi\ncorepack enable\nyarn install --immutable || yarn install --frozen-lockfile || true\nyarn dlx -q @cyclonedx/yarn-plugin-cyclonedx --omit dev --output-format JSON --output-file yarn-cyclonedx.cdx.json || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' yarn-cyclonedx.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx yarn produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f yarn-cyclonedx.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cyclonedx-python",
+      "name": "CycloneDX Python",
+      "jobName": "CycloneDX Python SBOM",
+      "category": "SCA",
+      "description": "CycloneDX SBOM generation for Python projects.",
+      "artifact": "cyclonedx-python",
+      "paths": ["cyclonedx-python.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up Python",
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.x"
+          }
+        },
+        {
+          "name": "Generate Python CycloneDX SBOM",
+          "run": "if [ ! -f requirements.txt ] && [ ! -f pyproject.toml ] && ! find . -path ./.git -prune -o -type f -name '*.py' -print | head -n 1 | grep -q .; then\n  echo '::notice::no Python project detected; skipping CycloneDX Python'\n  exit 0\nfi\nif [ -f requirements.txt ]; then\n  python3 -m pip install --quiet --break-system-packages -r requirements.txt || true\nfi\npython3 -m pip install --quiet --break-system-packages cyclonedx-bom\nif [ -f requirements.txt ]; then\n  cyclonedx-py requirements requirements.txt --output-format JSON --output-file cyclonedx-python.cdx.json || true\nelse\n  cyclonedx-py environment --output-format JSON --output-file cyclonedx-python.cdx.json || true\nfi\nif ! jq -e '.bomFormat == \"CycloneDX\"' cyclonedx-python.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx python produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cyclonedx-python.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cyclonedx-go",
+      "name": "CycloneDX Go",
+      "jobName": "CycloneDX Go SBOM",
+      "category": "SCA",
+      "description": "CycloneDX SBOM generation for Go modules.",
+      "artifact": "cyclonedx-go",
+      "paths": ["cyclonedx-go.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up Go",
+          "uses": "actions/setup-go@v6",
+          "with": {
+            "go-version": "stable"
+          }
+        },
+        {
+          "name": "Generate Go CycloneDX SBOM",
+          "run": "if [ ! -f go.mod ]; then\n  echo '::notice::no go.mod found; skipping CycloneDX Go'\n  exit 0\nfi\ngo install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest\ncyclonedx-gomod app -json -output cyclonedx-go.cdx.json . || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' cyclonedx-go.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx go produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cyclonedx-go.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cyclonedx-rust",
+      "name": "CycloneDX Rust",
+      "jobName": "CycloneDX Rust SBOM",
+      "category": "SCA",
+      "description": "CycloneDX SBOM generation for Rust crates.",
+      "artifact": "cyclonedx-rust",
+      "paths": ["cyclonedx-rust.cdx.json"],
+      "steps": [
+        {
+          "name": "Generate Rust CycloneDX SBOM",
+          "run": "if [ ! -f Cargo.lock ] && [ ! -f Cargo.toml ]; then\n  echo '::notice::no Cargo project found; skipping CycloneDX Rust'\n  exit 0\nfi\ncargo install cargo-cyclonedx\ncargo cyclonedx --format json --output-cdx cyclonedx-rust.cdx.json || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' cyclonedx-rust.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx rust produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cyclonedx-rust.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cyclonedx-dotnet",
+      "name": "CycloneDX .NET",
+      "jobName": "CycloneDX .NET SBOM",
+      "category": "SCA",
+      "description": "CycloneDX SBOM generation for .NET projects and solutions.",
+      "artifact": "cyclonedx-dotnet",
+      "paths": ["cyclonedx-dotnet.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up .NET",
+          "uses": "actions/setup-dotnet@v4",
+          "with": {
+            "dotnet-version": "8.x"
+          }
+        },
+        {
+          "name": "Generate .NET CycloneDX SBOM",
+          "run": "if ! find . -maxdepth 4 -type f \\( -name '*.csproj' -o -name '*.sln' \\) -print | head -n 1 | grep -q .; then\n  echo '::notice::no .NET project found; skipping CycloneDX .NET'\n  exit 0\nfi\ndotnet restore || true\ndotnet tool install --global CycloneDX\nexport PATH=\"$PATH:$HOME/.dotnet/tools\"\ndotnet-CycloneDX . -o . -json || true\nif [ -f bom.json ]; then\n  mv bom.json cyclonedx-dotnet.cdx.json\nfi\nif ! jq -e '.bomFormat == \"CycloneDX\"' cyclonedx-dotnet.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx dotnet produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cyclonedx-dotnet.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cyclonedx-ruby",
+      "name": "CycloneDX Ruby",
+      "jobName": "CycloneDX Ruby SBOM",
+      "category": "SCA",
+      "description": "CycloneDX SBOM generation for Ruby Bundler projects.",
+      "artifact": "cyclonedx-ruby",
+      "paths": ["cyclonedx-ruby.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up Ruby",
+          "uses": "ruby/setup-ruby@v1",
+          "with": {
+            "ruby-version": "ruby"
+          }
+        },
+        {
+          "name": "Generate Ruby CycloneDX SBOM",
+          "run": "if [ ! -f Gemfile.lock ]; then\n  echo '::notice::no Gemfile.lock found; skipping CycloneDX Ruby'\n  exit 0\nfi\ngem install cyclonedx-ruby\ncyclonedx-ruby --path . --output cyclonedx-ruby.cdx.json --format JSON || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' cyclonedx-ruby.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx ruby produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cyclonedx-ruby.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "cyclonedx-php",
+      "name": "CycloneDX PHP",
+      "jobName": "CycloneDX PHP SBOM",
+      "category": "SCA",
+      "description": "CycloneDX SBOM generation for PHP Composer projects.",
+      "artifact": "cyclonedx-php",
+      "paths": ["cyclonedx-php.cdx.json"],
+      "steps": [
+        {
+          "name": "Set up PHP",
+          "uses": "shivammathur/setup-php@v2",
+          "with": {
+            "php-version": "8.2",
+            "tools": "composer"
+          }
+        },
+        {
+          "name": "Generate PHP CycloneDX SBOM",
+          "run": "if [ ! -f composer.lock ]; then\n  echo '::notice::no composer.lock found; skipping CycloneDX PHP'\n  exit 0\nfi\ncomposer require --dev cyclonedx/cyclonedx-php-composer || true\ncomposer CycloneDX:make-sbom --output-format=JSON --output-file=cyclonedx-php.cdx.json || true\nif ! jq -e '.bomFormat == \"CycloneDX\"' cyclonedx-php.cdx.json >/dev/null 2>&1; then\n  echo '::warning::cyclonedx php produced no valid CycloneDX JSON; dropping the artifact'\n  rm -f cyclonedx-php.cdx.json\nfi"
+        }
+      ]
+    },
+    {
+      "id": "trufflehog",
+      "name": "TruffleHog",
+      "jobName": "TruffleHog (secrets)",
+      "category": "SECRETS",
+      "description": "Verified secret discovery from the working tree, converted from TruffleHog JSONL to SARIF.",
+      "artifact": "trufflehog",
+      "paths": ["trufflehog.sarif"],
+      "steps": [
+        {
+          "name": "Set up Python",
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.x"
+          }
+        },
+        {
+          "name": "Run TruffleHog",
+          "run": "curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin\ntrufflehog filesystem --json . >trufflehog.jsonl || true\npython3 <<'PY'\nimport json\nimport os\n\nsarif = {\n    \"$schema\": \"https://json.schemastore.org/sarif-2.1.0.json\",\n    \"version\": \"2.1.0\",\n    \"runs\": [{\n        \"tool\": {\n            \"driver\": {\n                \"name\": \"TruffleHog\",\n                \"informationUri\": \"https://github.com/trufflesecurity/trufflehog\",\n                \"rules\": [],\n            }\n        },\n        \"results\": [],\n    }],\n}\nrules_seen = set()\n\ndef to_int(value):\n    try:\n        return max(1, int(value))\n    except (TypeError, ValueError):\n        return 1\n\ndef add_rule(rule_id, detector):\n    if rule_id in rules_seen:\n        return\n    sarif[\"runs\"][0][\"tool\"][\"driver\"][\"rules\"].append({\n        \"id\": rule_id,\n        \"shortDescription\": {\"text\": f\"TruffleHog detector: {detector}\"},\n        \"defaultConfiguration\": {\"level\": \"error\"},\n    })\n    rules_seen.add(rule_id)\n\ndef source_location(item):\n    metadata = item.get(\"SourceMetadata\") or {}\n    data = metadata.get(\"Data\") or {}\n    if isinstance(data, dict):\n        for value in data.values():\n            if not isinstance(value, dict):\n                continue\n            path = value.get(\"file\") or value.get(\"File\") or value.get(\"path\") or value.get(\"Path\")\n            if path:\n                line = value.get(\"line\") or value.get(\"Line\") or value.get(\"line_number\") or value.get(\"LineNumber\")\n                return str(path), to_int(line)\n    return str(item.get(\"SourceName\") or \"unknown\"), 1\n\nif os.path.exists(\"trufflehog.jsonl\"):\n    with open(\"trufflehog.jsonl\", \"r\", encoding=\"utf-8\", errors=\"replace\") as fh:\n        for raw in fh:\n            raw = raw.strip()\n            if not raw:\n                continue\n            try:\n                item = json.loads(raw)\n            except json.JSONDecodeError:\n                continue\n            detector = str(item.get(\"DetectorName\") or item.get(\"DetectorType\") or \"TruffleHog\")\n            rule_id = detector.replace(\" \", \"-\") or \"TruffleHog\"\n            add_rule(rule_id, detector)\n            path, line = source_location(item)\n            verified = bool(item.get(\"Verified\"))\n            message = f\"TruffleHog detected a {'verified ' if verified else ''}secret with detector {detector}.\"\n            redacted = item.get(\"Redacted\")\n            if redacted:\n                message += f\" Redacted value: {redacted}\"\n            sarif[\"runs\"][0][\"results\"].append({\n                \"ruleId\": rule_id,\n                \"level\": \"error\" if verified else \"warning\",\n                \"message\": {\"text\": message},\n                \"locations\": [{\n                    \"physicalLocation\": {\n                        \"artifactLocation\": {\"uri\": path},\n                        \"region\": {\"startLine\": line},\n                    }\n                }],\n            })\n\nwith open(\"trufflehog.sarif\", \"w\", encoding=\"utf-8\") as fh:\n    json.dump(sarif, fh, indent=2)\nPY\nif ! jq -e '.version and (.runs | type == \"array\")' trufflehog.sarif >/dev/null 2>&1; then\n  echo '::warning::trufflehog produced no valid SARIF; dropping the artifact'\n  rm -f trufflehog.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "detect-secrets",
+      "name": "detect-secrets",
+      "jobName": "detect-secrets (secrets)",
+      "category": "SECRETS",
+      "description": "Yelp detect-secrets baseline scan converted to SARIF for exposed-secret findings.",
+      "artifact": "detect-secrets",
+      "paths": ["detect-secrets-results.sarif"],
+      "steps": [
+        {
+          "name": "Set up Python",
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.x"
+          }
+        },
+        {
+          "name": "Run detect-secrets",
+          "run": "python3 -m pip install --quiet --break-system-packages detect-secrets\nif [ -f .secrets.baseline ]; then\n  detect-secrets scan --baseline .secrets.baseline >detect-secrets-results.json || true\nelse\n  detect-secrets scan --all-files >detect-secrets-results.json || true\nfi\npython3 <<'PY'\nimport json\nimport os\n\nsarif = {\n    \"$schema\": \"https://json.schemastore.org/sarif-2.1.0.json\",\n    \"version\": \"2.1.0\",\n    \"runs\": [{\n        \"tool\": {\n            \"driver\": {\n                \"name\": \"detect-secrets\",\n                \"informationUri\": \"https://github.com/Yelp/detect-secrets\",\n                \"rules\": [],\n            }\n        },\n        \"results\": [],\n    }],\n}\nrules_seen = set()\n\ndef to_int(value):\n    try:\n        return max(1, int(value))\n    except (TypeError, ValueError):\n        return 1\n\ndef add_rule(rule_id, plugin_name):\n    if rule_id in rules_seen:\n        return\n    sarif[\"runs\"][0][\"tool\"][\"driver\"][\"rules\"].append({\n        \"id\": rule_id,\n        \"shortDescription\": {\"text\": f\"Potential leaked credential detected ({plugin_name})\"},\n        \"defaultConfiguration\": {\"level\": \"error\"},\n    })\n    rules_seen.add(rule_id)\n\nif os.path.exists(\"detect-secrets-results.json\") and os.path.getsize(\"detect-secrets-results.json\") > 0:\n    with open(\"detect-secrets-results.json\", \"r\", encoding=\"utf-8\") as fh:\n        data = json.load(fh)\n    results = data.get(\"results\") or {}\n    for file_path, findings in results.items():\n        for finding in findings:\n            plugin_name = str(finding.get(\"type\") or \"detect-secrets\")\n            rule_id = plugin_name.replace(\" \", \"-\") or \"detect-secrets\"\n            add_rule(rule_id, plugin_name)\n            hashed_secret = finding.get(\"hashed_secret\")\n            message = f\"Potential secret exposed. Type: {plugin_name}.\"\n            if hashed_secret:\n                message += f\" Hashed representation: {hashed_secret}\"\n            sarif[\"runs\"][0][\"results\"].append({\n                \"ruleId\": rule_id,\n                \"level\": \"error\",\n                \"message\": {\"text\": message},\n                \"locations\": [{\n                    \"physicalLocation\": {\n                        \"artifactLocation\": {\"uri\": file_path},\n                        \"region\": {\"startLine\": to_int(finding.get(\"line_number\"))},\n                    }\n                }],\n            })\n\nwith open(\"detect-secrets-results.sarif\", \"w\", encoding=\"utf-8\") as fh:\n    json.dump(sarif, fh, indent=2)\nPY\nif ! jq -e '.version and (.runs | type == \"array\")' detect-secrets-results.sarif >/dev/null 2>&1; then\n  echo '::warning::detect-secrets produced no valid SARIF; dropping the artifact'\n  rm -f detect-secrets-results.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "rubocop",
+      "name": "RuboCop",
+      "jobName": "RuboCop (Ruby lint)",
+      "category": "LINT",
+      "description": "Ruby lint and security cops converted from RuboCop JSON to SARIF.",
+      "artifact": "rubocop",
+      "paths": ["rubocop.sarif"],
+      "steps": [
+        {
+          "name": "Set up Ruby",
+          "uses": "ruby/setup-ruby@v1",
+          "with": {
+            "ruby-version": "ruby"
+          }
+        },
+        {
+          "name": "Run RuboCop",
+          "run": "if ! find . -path ./.git -prune -o -type f -name '*.rb' -print | head -n 1 | grep -q .; then\n  echo '::notice::no Ruby files found; skipping RuboCop'\n  exit 0\nfi\ngem install rubocop\nrubocop --format github --out rubocop.github-actions.txt || true\nrubocop --format json --out rubocop.json || true\npython3 <<'PY'\nimport json\nimport os\n\nsarif = {\n    \"$schema\": \"https://json.schemastore.org/sarif-2.1.0.json\",\n    \"version\": \"2.1.0\",\n    \"runs\": [{\n        \"tool\": {\n            \"driver\": {\n                \"name\": \"RuboCop\",\n                \"informationUri\": \"https://github.com/rubocop/rubocop\",\n                \"rules\": [],\n            }\n        },\n        \"results\": [],\n    }],\n}\nrules_seen = set()\nseverity_map = {\n    \"fatal\": \"error\",\n    \"error\": \"error\",\n    \"warning\": \"warning\",\n    \"refactor\": \"warning\",\n    \"convention\": \"note\",\n    \"info\": \"note\",\n}\n\ndef to_int(value):\n    try:\n        return max(1, int(value))\n    except (TypeError, ValueError):\n        return 1\n\ndef add_rule(rule_id):\n    if rule_id in rules_seen:\n        return\n    sarif[\"runs\"][0][\"tool\"][\"driver\"][\"rules\"].append({\n        \"id\": rule_id,\n        \"shortDescription\": {\"text\": rule_id},\n        \"defaultConfiguration\": {\"level\": \"warning\"},\n    })\n    rules_seen.add(rule_id)\n\nif os.path.exists(\"rubocop.json\") and os.path.getsize(\"rubocop.json\") > 0:\n    with open(\"rubocop.json\", \"r\", encoding=\"utf-8\") as fh:\n        data = json.load(fh)\n    version = str((data.get(\"metadata\") or {}).get(\"rubocop_version\") or \"\")\n    if version:\n        sarif[\"runs\"][0][\"tool\"][\"driver\"][\"version\"] = version\n    for file_info in data.get(\"files\") or []:\n        path = str(file_info.get(\"path\") or \"unknown\")\n        for offense in file_info.get(\"offenses\") or []:\n            rule_id = str(offense.get(\"cop_name\") or \"RuboCop\")\n            add_rule(rule_id)\n            location = offense.get(\"location\") or {}\n            level = severity_map.get(str(offense.get(\"severity\") or \"\").lower(), \"warning\")\n            result = {\n                \"ruleId\": rule_id,\n                \"level\": level,\n                \"message\": {\"text\": str(offense.get(\"message\") or rule_id)},\n                \"locations\": [{\n                    \"physicalLocation\": {\n                        \"artifactLocation\": {\"uri\": path},\n                        \"region\": {\n                            \"startLine\": to_int(location.get(\"start_line\")),\n                            \"startColumn\": to_int(location.get(\"start_column\")),\n                        },\n                    }\n                }],\n            }\n            end_line = location.get(\"last_line\")\n            end_column = location.get(\"last_column\")\n            if end_line:\n                result[\"locations\"][0][\"physicalLocation\"][\"region\"][\"endLine\"] = to_int(end_line)\n            if end_column:\n                result[\"locations\"][0][\"physicalLocation\"][\"region\"][\"endColumn\"] = to_int(end_column)\n            sarif[\"runs\"][0][\"results\"].append(result)\n\nwith open(\"rubocop.sarif\", \"w\", encoding=\"utf-8\") as fh:\n    json.dump(sarif, fh, indent=2)\nPY\nif ! jq -e '.version and (.runs | type == \"array\")' rubocop.sarif >/dev/null 2>&1; then\n  echo '::warning::rubocop produced no valid SARIF; dropping the artifact'\n  rm -f rubocop.sarif\nfi"
+        }
+      ]
+    },
+    {
+      "id": "swiftlint",
+      "name": "SwiftLint",
+      "jobName": "SwiftLint (Swift lint)",
+      "category": "LINT",
+      "description": "Swift code quality findings using SwiftLint native SARIF output.",
+      "artifact": "swiftlint",
+      "paths": ["swiftlint.sarif"],
+      "steps": [
+        {
+          "name": "Run SwiftLint",
+          "run": "if ! find . -path ./.git -prune -o -type f -name '*.swift' -print | head -n 1 | grep -q .; then\n  echo '::notice::no Swift files found; skipping SwiftLint'\n  exit 0\nfi\nversion=$(curl -fsSL https://api.github.com/repos/realm/SwiftLint/releases/latest | jq -r '.tag_name | ltrimstr(\"v\")')\nif [ -z \"$version\" ] || [ \"$version\" = \"null\" ]; then\n  echo '::warning::could not resolve latest SwiftLint container version; skipping SwiftLint'\n  exit 0\nfi\ndocker run --rm -v \"$PWD:/work\" -w /work \"ghcr.io/realm/swiftlint:${version}\" lint --reporter sarif >swiftlint.sarif || true\nif ! jq -e '.version and (.runs | type == \"array\")' swiftlint.sarif >/dev/null 2>&1; then\n  echo '::warning::swiftlint produced no valid SARIF; dropping the artifact'\n  rm -f swiftlint.sarif\nfi"
+        }
+      ]
+    }
+  ]
+}
