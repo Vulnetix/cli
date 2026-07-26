@@ -217,12 +217,16 @@ func printToolCatalog(dctx *display.Context, t *display.Terminal, c *ghasetup.Ca
 
 	dctx.Logger.Info(display.Bold(t, fmt.Sprintf("%d scanners available", len(c.Tools))))
 	dctx.Logger.Info("")
+	idWidth := 0
+	for _, tool := range c.Tools {
+		idWidth = max(idWidth, len(tool.ID))
+	}
 	for _, cat := range cats {
 		dctx.Logger.Info(display.Bold(t, cat))
 		tools := byCategory[cat]
 		sort.Slice(tools, func(i, j int) bool { return tools[i].ID < tools[j].ID })
 		for _, tool := range tools {
-			dctx.Logger.Infof("  %-14s %s", tool.ID, tool.Description)
+			dctx.Logger.Infof("  %-*s %s", idWidth, tool.ID, tool.Description)
 		}
 		dctx.Logger.Info("")
 	}
