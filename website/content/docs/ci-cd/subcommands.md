@@ -127,22 +127,43 @@ Most CI systems have a way to report a breach without blocking the merge — Git
 
 ## Uploading Third-Party Artifacts
 
-The scan subcommands upload themselves. `upload` exists for reports produced by *other* tools.
+The scan subcommands publish themselves. `upload` exists for reports produced by *other* tools.
 
 ```sh
-vulnetix upload --file reports/semgrep.sarif --format sarif
-vulnetix upload --file reports/syft.spdx.json --format spdx
+vulnetix upload --file reports/semgrep.sarif
+vulnetix upload --file reports/syft.spdx.json
 ```
+
+The report is recorded under the name and version of the tool that produced it,
+in the category inferred from the report, with the same findings, triage and VEX
+records a first-party Vulnetix scan produces. The format is read from the file's
+content rather than its name, because checkov and kics both write
+`results.sarif`.
 
 | Flag | Purpose |
 |------|---------|
-| `--file` | Path to one artifact. Optional — without it, `.vulnetix/` is auto-discovered |
-| `--dir` | Directory to scan for artifacts |
-| `--format` | Override auto-detection: `cyclonedx`, `spdx`, `sarif`, `openvex`, `csaf_vex` |
+| `--file` | Path to one report. Optional — without it, `.vulnetix/` is auto-discovered |
+| `--dir` | Directory to scan for reports |
+| `--format` | Override auto-detection |
 | `--org-id` | Organization UUID, when not using stored or environment credentials |
-| `--json` | Machine-readable result, for parsing a pipeline ID out of the output |
+| `--json` | Machine-readable result: category, tool, finding counts, snapshot URL |
 
-A format the CLI does not recognise cannot be uploaded. `govulncheck -json` output, for instance, is not one of the five — emit SARIF instead (`govulncheck -format sarif`).
+Vulnetix accepts **SARIF, CycloneDX and SPDX**. Anything else is refused, naming
+the tool's own SARIF flag where it has one:
+
+```text
+$ vulnetix upload --file sonarqube-issues.json
+Error: sonarqube-issues.json is not a format Vulnetix ingests (detected "json").
+Vulnetix accepts SARIF, CycloneDX and SPDX.
+SonarQube can emit SARIF: use its sonar.sarifReportPaths export.
+```
+
+Reports Vulnetix's own scanners wrote are refused too: the subcommand that
+produced one published it when it ran, so republishing would record the same
+scan twice.
+
+In GitHub Actions prefer [`vulnetix gha upload`]({{< relref "gha-command" >}}),
+which publishes every report a workflow run produced in one call.
 
 ## Pipeline Context Is Automatic
 
