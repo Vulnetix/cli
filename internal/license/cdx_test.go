@@ -1,9 +1,13 @@
 package license
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	vdbcdx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 )
 
@@ -46,5 +50,42 @@ func TestPopulateLicenses_InvalidSPDXIDStillValidates(t *testing.T) {
 	}
 	if strings.Contains(js, `"id": "Public Domain"`) {
 		t.Errorf("unrecognised license must not appear as enum-constrained license.id:\n%s", js)
+	}
+}
+
+func TestLicenseOnlyBOMHasValidIdentityAndOwnToolMetadata(t *testing.T) {
+	bomPath := filepath.Join(t.TempDir(), ".vulnetix", "sbom.cdx.json")
+	if err := MergeBOM(bomPath, nil, CDXSourceName); err != nil {
+		t.Fatalf("MergeBOM: %v", err)
+	}
+	PopulateBOMLicenses(bomPath, []PackageLicense{{
+		Ecosystem:      "npm",
+		PackageName:    "left-pad",
+		PackageVersion: "1.0.0",
+		Scope:          "production",
+		LicenseSpdxID:  "MIT",
+		LicenseSource:  "manifest",
+	}}, nil)
+
+	data, err := os.ReadFile(bomPath)
+	if err != nil {
+		t.Fatalf("read BOM: %v", err)
+	}
+	if version, violations, err := vdbcdx.ValidateCycloneDX(data); err != nil || len(violations) > 0 {
+		t.Fatalf("license-only BOM should validate, version=%q violations=%v err=%v\n%s", version, violations, err, data)
+	}
+
+	var bom cdx.BOM
+	if err := json.Unmarshal(data, &bom); err != nil {
+		t.Fatalf("unmarshal BOM: %v", err)
+	}
+	if !strings.HasPrefix(bom.SerialNumber, "urn:uuid:") {
+		t.Fatalf("serialNumber should be a CycloneDX UUID URN, got %q", bom.SerialNumber)
+	}
+	if bom.Metadata == nil || bom.Metadata.Tools == nil || len(bom.Metadata.Tools.Components) == 0 {
+		t.Fatalf("missing metadata.tools in license-only BOM: %+v", bom.Metadata)
+	}
+	if got := bom.Metadata.Tools.Components[0].Name; got != CDXSourceName {
+		t.Fatalf("tool metadata should mark first-party license output, got %q", got)
 	}
 }

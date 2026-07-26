@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
@@ -112,11 +114,13 @@ func MergeBOM(existingPath string, newVulns []cdx.Vulnerability, source string) 
 	} else {
 		// No existing BOM — create minimal structure.
 		bom = cdx.BOM{
-			BOMFormat:   "CycloneDX",
-			SpecVersion: "1.7",
-			Version:     1,
+			BOMFormat:    "CycloneDX",
+			SpecVersion:  "1.7",
+			SerialNumber: "urn:uuid:" + uuid.New().String(),
+			Version:      1,
 		}
 	}
+	ensureLicenseBOMMetadata(&bom)
 
 	// Remove all vulnerabilities from the given source.
 	filtered := make([]cdx.Vulnerability, 0, len(bom.Vulnerabilities))
@@ -130,7 +134,7 @@ func MergeBOM(existingPath string, newVulns []cdx.Vulnerability, source string) 
 	bom.Vulnerabilities = append(filtered, newVulns...)
 
 	// Write back.
-	out, err := json.MarshalIndent(bom, "", "  ")
+	out, err := bom.MarshalValidatedJSON()
 	if err != nil {
 		return fmt.Errorf("failed to marshal BOM: %w", err)
 	}
@@ -155,6 +159,7 @@ func PopulateBOMLicenses(bomPath string, packages []PackageLicense, groups []sca
 	if err := json.Unmarshal(data, &bom); err != nil {
 		return
 	}
+	ensureLicenseBOMMetadata(&bom)
 
 	// If the BOM has no components, create them from license packages.
 	if len(bom.Components) == 0 {
@@ -194,9 +199,38 @@ func PopulateBOMLicenses(bomPath string, packages []PackageLicense, groups []sca
 	compRefs := cdx.ExportCompRefs(&bom)
 	bom.Dependencies = cdx.BuildDependencies(groups, compRefs)
 
-	out, err := json.MarshalIndent(bom, "", "  ")
+	out, err := bom.MarshalValidatedJSON()
 	if err != nil {
 		return
 	}
 	_ = os.WriteFile(bomPath, out, 0o644)
+}
+
+func ensureLicenseBOMMetadata(bom *cdx.BOM) {
+	if bom.BOMFormat == "" {
+		bom.BOMFormat = "CycloneDX"
+	}
+	if bom.SpecVersion == "" {
+		bom.SpecVersion = "1.7"
+	}
+	if bom.SerialNumber == "" {
+		bom.SerialNumber = "urn:uuid:" + uuid.New().String()
+	}
+	if bom.Version == 0 {
+		bom.Version = 1
+	}
+	if bom.Metadata == nil {
+		bom.Metadata = &cdx.Metadata{}
+	}
+	if bom.Metadata.Timestamp == "" {
+		bom.Metadata.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	}
+	if bom.Metadata.Tools == nil || len(bom.Metadata.Tools.Components) == 0 {
+		bom.Metadata.Tools = &cdx.Tools{
+			Components: []cdx.Component{{
+				Type: "application",
+				Name: CDXSourceName,
+			}},
+		}
+	}
 }
