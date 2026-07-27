@@ -341,8 +341,19 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 
 	runForge(b, pre, gstats, opts, now, pr)
 
+	var egstats *egressStats
+	if opts.NoFiles {
+		b.Collected(Collector{Name: "egress", Status: "skipped", Reason: "disabled with --no-files"})
+	} else {
+		t := time.Now()
+		pr.Stage("Finding egress hosts")
+		egstats = collectEgress(root, dstats)
+		b.Collected(Collector{Name: "egress", Status: "completed",
+			DurationSeconds: time.Since(t).Seconds()})
+	}
+
 	pr.Stage("Assembling the graph")
-	b.SetGraph(buildGraph(target, fstats, dstats, gstats, sstats, cstats, cpstats, tstats))
+	b.SetGraph(buildGraph(target, fstats, dstats, gstats, sstats, cstats, cpstats, tstats, egstats))
 
 	report, body, err := b.Finish(time.Now())
 	if err != nil {
@@ -430,7 +441,20 @@ func RunGraphOnly(tool Tool, opts Options, pre *Preflight) (*Report, []byte, err
 	b.Collected(Collector{Name: "trust", Status: "skipped", Reason: "graph-only scanner run"})
 	b.Collected(Collector{Name: "forge", Status: "skipped", Reason: "graph-only scanner run"})
 
-	b.SetGraph(buildGraph(target, fstats, dstats, nil, sstats, cstats, nil, nil))
+	// The graph-only run exists to draw the estate, and egress hosts are part of
+	// the drawing — a graph that omitted them would be a different graph from the
+	// one a full run produces.
+	var egstats *egressStats
+	if opts.NoFiles {
+		b.Collected(Collector{Name: "egress", Status: "skipped", Reason: "disabled with --no-files"})
+	} else {
+		t := time.Now()
+		pr.Stage("Finding egress hosts for graph")
+		egstats = collectEgress(root, dstats)
+		b.Collected(Collector{Name: "egress", Status: "completed", DurationSeconds: time.Since(t).Seconds()})
+	}
+
+	b.SetGraph(buildGraph(target, fstats, dstats, nil, sstats, cstats, nil, nil, egstats))
 	return b.Finish(time.Now())
 }
 
@@ -523,7 +547,7 @@ func forgeMetricsWhenUnavailable() []Metric {
 // buildGraph assembles the graph from what the collectors already found. The nodes here are
 // the same files, dependencies and symbols the metrics counted — one source of truth, not two.
 func buildGraph(target Target, f *fileStats, d *depStats, g *gitStats, s *symbolStats,
-	c *contractStats, cp *couplingStats, tr *trendStats) *Graph {
+	c *contractStats, cp *couplingStats, tr *trendStats, eg *egressStats) *Graph {
 	graph := &Graph{}
 	seen := map[string]bool{}
 
@@ -591,14 +615,53 @@ func buildGraph(target Target, f *fileStats, d *depStats, g *gitStats, s *symbol
 		}
 	}
 
+	// The hosts this repository reaches out to. Added BEFORE the contract nodes on
+	// purpose: a non-registry dependency produces the same node id from both
+	// collectors, and this is the copy that knows where else the host appears.
+	if eg != nil {
+		// A host that is also a dependency is already attached to the repository
+		// by the dependency pass below and by its cross-repo join key. Attaching
+		// it again here would draw the same relationship twice.
+		fromDeps := map[string]bool{}
+		if d != nil {
+			for _, dep := range d.deps {
+				if id := egressDependencyNodeID(dep.Purl); id != "" {
+					fromDeps[id] = true
+				}
+			}
+		}
+
+		for _, n := range eg.graphNodes() {
+			addNode(n)
+			if fromDeps[n.ID] {
+				continue
+			}
+			graph.Edges = append(graph.Edges, Edge{
+				ID: "e:egress:" + n.Name, Kind: "contains",
+				From: repoNode, To: n.ID, Confidence: 1, Resolution: "exact",
+			})
+		}
+		if eg.truncated {
+			noteTruncation(graph, 1, 0,
+				fmt.Sprintf("egress host collection stopped at the cap of %d hosts", maxEgressHosts))
+		}
+	}
+
 	// The dependency edges from the repo. The dependency NODES and their cross-repo join keys
 	// are built by the contract collector, which is where every join key now lives — having two
 	// places that produce them is how the count came to omit the packages.
 	if d != nil {
 		for _, dep := range d.deps {
+			// Same id rule as the contract collector: a dependency reclassified as
+			// egress is depended on at its host node, not at a `dependency:` node
+			// that nothing put in the graph.
+			to := "dependency:" + dep.Purl
+			if egressID := egressDependencyNodeID(dep.Purl); egressID != "" {
+				to = egressID
+			}
 			graph.Edges = append(graph.Edges, Edge{
 				ID: "e:depends:" + dep.Purl, Kind: "depends_on",
-				From: repoNode, To: "dependency:" + dep.Purl, Confidence: 1, Resolution: "exact",
+				From: repoNode, To: to, Confidence: 1, Resolution: "exact",
 			})
 		}
 	}
@@ -625,19 +688,13 @@ func buildGraph(target Target, f *fileStats, d *depStats, g *gitStats, s *symbol
 			addNode(n)
 		}
 		graph.Edges = append(graph.Edges, s.edges...)
-		if s.truncated || s.callTruncated {
-			truncation := &GraphTruncation{}
-			reasons := []string{}
-			if s.truncated {
-				truncation.NodesOmitted = 1
-				reasons = append(reasons, fmt.Sprintf("symbol extraction stopped at the cap of %d symbols", maxSymbolsPerRepo))
-			}
-			if s.callTruncated {
-				truncation.EdgesOmitted = 1
-				reasons = append(reasons, fmt.Sprintf("call extraction stopped at the cap of %d call edges", maxCallEdgesPerRepo))
-			}
-			truncation.Reason = strings.Join(reasons, "; ")
-			graph.Truncation = truncation
+		if s.truncated {
+			noteTruncation(graph, 1, 0,
+				fmt.Sprintf("symbol extraction stopped at the cap of %d symbols", maxSymbolsPerRepo))
+		}
+		if s.callTruncated {
+			noteTruncation(graph, 0, 1,
+				fmt.Sprintf("call extraction stopped at the cap of %d call edges", maxCallEdgesPerRepo))
 		}
 	}
 
@@ -669,6 +726,22 @@ func buildGraph(target Target, f *fileStats, d *depStats, g *gitStats, s *symbol
 	}
 
 	return graph
+}
+
+// noteTruncation records that the graph is missing something, without any one
+// collector's cap erasing another's. The report's claim is "this is the whole
+// graph" unless this says otherwise, so every cap has to land here.
+func noteTruncation(graph *Graph, nodesOmitted, edgesOmitted int, reason string) {
+	if graph.Truncation == nil {
+		graph.Truncation = &GraphTruncation{}
+	}
+	graph.Truncation.NodesOmitted += nodesOmitted
+	graph.Truncation.EdgesOmitted += edgesOmitted
+	if graph.Truncation.Reason == "" {
+		graph.Truncation.Reason = reason
+	} else {
+		graph.Truncation.Reason += "; " + reason
+	}
 }
 
 func contributorName(c *ContributorRecord) string {
