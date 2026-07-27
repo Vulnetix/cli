@@ -1119,11 +1119,24 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Set up Go
+        continue-on-error: true
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
       - name: Run gosec
         continue-on-error: true
-        uses: securego/gosec@v2.28.0
-        with:
-          args: -no-fail -fmt sarif -out gosec.sarif ./...
+        run: |
+          if [ ! -f go.mod ]; then
+            echo '::notice::no go.mod found; skipping gosec'
+            exit 0
+          fi
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
+          gosec -no-fail -fmt sarif -out gosec.sarif ./... || true
+          if ! jq -e '.version and (.runs | type == "array")' gosec.sarif >/dev/null 2>&1; then
+            echo '::warning::gosec produced no valid SARIF; dropping the artifact'
+            rm -f gosec.sarif
+          fi
       - uses: actions/upload-artifact@v6
         with:
           name: gosec
@@ -2331,11 +2344,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Set up Go
+        continue-on-error: true
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
       - name: Run gosec
         continue-on-error: true
-        uses: securego/gosec@v2.28.0
-        with:
-          args: -no-fail -fmt sarif -out gosec.sarif ./...
+        run: |
+          if [ ! -f go.mod ]; then
+            echo '::notice::no go.mod found; skipping gosec'
+            exit 0
+          fi
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
+          gosec -no-fail -fmt sarif -out gosec.sarif ./... || true
+          if ! jq -e '.version and (.runs | type == "array")' gosec.sarif >/dev/null 2>&1; then
+            echo '::warning::gosec produced no valid SARIF; dropping the artifact'
+            rm -f gosec.sarif
+          fi
       - uses: actions/upload-artifact@v6
         with:
           name: gosec
