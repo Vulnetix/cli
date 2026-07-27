@@ -141,6 +141,18 @@ func renderStep(s Step) string {
 		}
 	}
 	if s.Run != "" {
+		// NOT the default shell. GitHub runs `bash -e`, which aborts the step at
+		// the first non-zero command — and a scanner that found something exits
+		// non-zero by design (govulncheck 3, terrascan 3, zizmor 14). Under `-e`
+		// the recipe dies on the scan line, so the lines that follow it — the
+		// ones that check the report is valid SARIF and delete it when it is not
+		// — never run. The empty file is then uploaded as an artifact and the
+		// publish job rejects it, which is how a green scan turns into a red
+		// workflow.
+		//
+		// The step already carries continue-on-error, so aborting early was never
+		// what was wanted. Each recipe decides for itself which exit codes matter.
+		b.WriteString("        shell: bash --noprofile --norc {0}\n")
 		b.WriteString("        run: |\n")
 		for _, line := range strings.Split(strings.TrimRight(s.Run, "\n"), "\n") {
 			if line == "" {

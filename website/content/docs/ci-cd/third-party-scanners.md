@@ -147,6 +147,7 @@ The job it adds:
           python-version: 3.x
       - name: Run cfn-lint
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           templates=$(find . -path ./.git -prune -o -type f \( -name '*.template' -o -name '*.yaml' -o -name '*.yml' -o -name '*.json' \) -print)
           if [ -z "$templates" ]; then
@@ -196,6 +197,7 @@ The job it adds:
       - uses: actions/checkout@v5
       - name: Run Checkov
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           python3 -m pip install --quiet --break-system-packages checkov
           checkov -d . -o sarif --output-file-path . --soft-fail || true
@@ -227,6 +229,7 @@ The job it adds:
       - uses: actions/checkout@v5
       - name: Run KICS
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           mkdir -p kics-out
           docker run --rm -v "$PWD:/path" checkmarx/kics:v2.1.20 \
@@ -259,6 +262,7 @@ The job it adds:
       - uses: actions/checkout@v5
       - name: Run Terrascan
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
           # terrascan writes SARIF to stdout and logs to stderr, so the redirect must
@@ -380,6 +384,7 @@ The job it adds:
           python-version: 3.x
       - name: Run ScanCode Toolkit
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           python3 -m pip install --quiet --break-system-packages scancode-toolkit
           scancode --license --copyright --package --cyclonedx scancode.cdx.json . || true
@@ -415,6 +420,7 @@ The job it adds:
       - uses: actions/checkout@v5
       - name: Run Clippy
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
           rustup component add clippy
@@ -460,6 +466,7 @@ The job it adds:
           node-version: 'lts/*'
       - name: Run ESLint
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f package.json ]; then
             echo '::notice::no package.json found; skipping ESLint'
@@ -513,6 +520,7 @@ The job it adds:
           go-version: stable
       - name: Run golangci-lint
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping golangci-lint'
@@ -557,6 +565,7 @@ The job it adds:
           ruby-version: ruby
       - name: Run RuboCop
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -path ./.git -prune -o -type f -name '*.rb' -print | head -n 1 | grep -q .; then
             echo '::notice::no Ruby files found; skipping RuboCop'
@@ -684,6 +693,7 @@ The job it adds:
           python-version: 3.x
       - name: Run Ruff security rules
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -path ./.git -prune -o -type f -name '*.py' -print | head -n 1 | grep -q .; then
             echo '::notice::no Python files found; skipping Ruff'
@@ -728,6 +738,7 @@ The job it adds:
           node-version: 'lts/*'
       - name: Run Stylelint
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -path ./.git -prune -o -type f -print | grep -E '\.(css|scss|less)$' | head -n 1 | grep -q .; then
             echo '::notice::no CSS files found; skipping Stylelint'
@@ -771,6 +782,7 @@ The job it adds:
       - uses: actions/checkout@v5
       - name: Run SwiftLint
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -path ./.git -prune -o -type f -name '*.swift' -print | head -n 1 | grep -q .; then
             echo '::notice::no Swift files found; skipping SwiftLint'
@@ -819,6 +831,7 @@ The job it adds:
           go-version: stable
       - name: Run Dockle
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f Dockerfile ] && [ ! -f Containerfile ]; then
             echo '::notice::no Dockerfile or Containerfile found; skipping Dockle'
@@ -905,6 +918,7 @@ The job it adds:
         continue-on-error: true
         env:
           NUCLEI_TARGET_URL: '${{ vars.NUCLEI_TARGET_URL }}'
+        shell: bash --noprofile --norc {0}
         run: |
           if [ -z "${NUCLEI_TARGET_URL:-}" ]; then
             echo '::notice::NUCLEI_TARGET_URL is not set; skipping Nuclei'
@@ -949,6 +963,7 @@ The job it adds:
           python-version: 3.x
       - name: Run Bandit
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -path ./.git -prune -o -type f -name '*.py' -print | head -n 1 | grep -q .; then
             echo '::notice::no Python files found; skipping Bandit'
@@ -993,6 +1008,7 @@ The job it adds:
           ruby-version: ruby
       - name: Run Brakeman
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f Gemfile ] || ! grep -E 'rails|railties' Gemfile Gemfile.lock >/dev/null 2>&1; then
             echo '::notice::no Rails app detected; skipping Brakeman'
@@ -1032,6 +1048,7 @@ The job it adds:
       - uses: actions/checkout@v5
       - name: Run Cppcheck
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -path ./.git -prune -o -type f -print | grep -E '\.(c|cc|cpp|h|hpp)$' | head -n 1 | grep -q .; then
             echo '::notice::no C/C++ files found; skipping Cppcheck'
@@ -1077,6 +1094,7 @@ The job it adds:
           python-version: 3.x
       - name: Run Flawfinder
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -path ./.git -prune -o -type f -print | grep -E '\.(c|cc|cpp|h|hpp)$' | head -n 1 | grep -q .; then
             echo '::notice::no C/C++ files found; skipping Flawfinder'
@@ -1126,6 +1144,7 @@ The job it adds:
           go-version: stable
       - name: Run gosec
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping gosec'
@@ -1170,6 +1189,7 @@ The job it adds:
           python-version: 3.x
       - name: Run njsscan
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -path ./.git -prune -o -type f -print | grep -E '\.(js|jsx|ts|tsx)$' | head -n 1 | grep -q .; then
             echo '::notice::no JavaScript or TypeScript files found; skipping njsscan'
@@ -1242,6 +1262,7 @@ The job it adds:
       - uses: actions/checkout@v5
       - name: Run Semgrep
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           python3 -m pip install --quiet --break-system-packages semgrep
           semgrep scan --config auto --sarif --output semgrep.sarif .
@@ -1275,6 +1296,7 @@ The job it adds:
         continue-on-error: true
         env:
           GH_TOKEN: '${{ github.token }}'
+        shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
           python3 -m pip install --quiet --break-system-packages zizmor
@@ -1321,6 +1343,7 @@ The job it adds:
           node-version: 'lts/*'
       - name: Run cdxgen
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -maxdepth 4 -type f \( -name package-lock.json -o -name go.mod -o -name requirements.txt -o -name pyproject.toml -o -name pom.xml -o -name build.gradle -o -name Cargo.lock -o -name composer.lock -o -name Gemfile.lock -o -name '*.csproj' \) -print | head -n 1 | grep -q .; then
             echo '::notice::no supported package manifest found; skipping cdxgen'
@@ -1364,6 +1387,7 @@ The job it adds:
           dotnet-version: 8.x
       - name: Generate .NET CycloneDX SBOM
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if ! find . -maxdepth 4 -type f \( -name '*.csproj' -o -name '*.sln' \) -print | head -n 1 | grep -q .; then
             echo '::notice::no .NET project found; skipping CycloneDX .NET'
@@ -1413,6 +1437,7 @@ The job it adds:
           go-version: stable
       - name: Generate Go CycloneDX SBOM
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping CycloneDX Go'
@@ -1457,6 +1482,7 @@ The job it adds:
           node-version: 'lts/*'
       - name: Generate npm CycloneDX SBOM
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f package-lock.json ]; then
             echo '::notice::no package-lock.json found; skipping CycloneDX npm'
@@ -1502,6 +1528,7 @@ The job it adds:
           tools: composer
       - name: Generate PHP CycloneDX SBOM
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f composer.lock ]; then
             echo '::notice::no composer.lock found; skipping CycloneDX PHP'
@@ -1546,6 +1573,7 @@ The job it adds:
           python-version: 3.x
       - name: Generate Python CycloneDX SBOM
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f requirements.txt ] && [ ! -f pyproject.toml ] && ! find . -path ./.git -prune -o -type f -name '*.py' -print | head -n 1 | grep -q .; then
             echo '::notice::no Python project detected; skipping CycloneDX Python'
@@ -1597,6 +1625,7 @@ The job it adds:
           ruby-version: ruby
       - name: Generate Ruby CycloneDX SBOM
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f Gemfile.lock ]; then
             echo '::notice::no Gemfile.lock found; skipping CycloneDX Ruby'
@@ -1636,6 +1665,7 @@ The job it adds:
       - uses: actions/checkout@v5
       - name: Generate Rust CycloneDX SBOM
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f Cargo.lock ] && [ ! -f Cargo.toml ]; then
             echo '::notice::no Cargo project found; skipping CycloneDX Rust'
@@ -1680,6 +1710,7 @@ The job it adds:
           go-version: stable
       - name: Run govulncheck
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping govulncheck'
@@ -1732,6 +1763,7 @@ The job it adds:
           path: .
       - name: Stage Grype SARIF
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           cp "${{ steps.grype.outputs.sarif }}" grype.sarif
       - uses: actions/upload-artifact@v6
@@ -1767,6 +1799,7 @@ The job it adds:
           node-version: 'lts/*'
       - name: Run npm audit
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f package-lock.json ]; then
             echo '::notice::no package-lock.json found; skipping npm audit'
@@ -1849,6 +1882,7 @@ The job it adds:
         continue-on-error: true
         env:
           NVD_API_KEY: '${{ secrets.NVD_API_KEY }}'
+        shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
           version=$(curl -fsSL https://api.github.com/repos/jeremylong/DependencyCheck/releases/latest | jq -r '.tag_name | ltrimstr("v")')
@@ -1901,6 +1935,7 @@ The job it adds:
           node-version: 'lts/*'
       - name: Run Retire.js
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f package.json ] && ! find . -path ./.git -prune -o -type f -name '*.js' -print | head -n 1 | grep -q .; then
             echo '::notice::no JavaScript project detected; skipping Retire.js'
@@ -2026,6 +2061,7 @@ The job it adds:
           node-version: 'lts/*'
       - name: Generate Yarn CycloneDX SBOM
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f yarn.lock ]; then
             echo '::notice::no yarn.lock found; skipping CycloneDX Yarn'
@@ -2071,6 +2107,7 @@ The job it adds:
           python-version: 3.x
       - name: Run detect-secrets
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           python3 -m pip install --quiet --break-system-packages detect-secrets
           if [ -f .secrets.baseline ]; then
@@ -2174,6 +2211,7 @@ The job it adds:
       - uses: actions/checkout@v5
       - name: Run Gitleaks
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
           # Gitleaks exits 1 when it finds leaks, which is a successful scan.
@@ -2216,6 +2254,7 @@ The job it adds:
           python-version: 3.x
       - name: Run TruffleHog
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
           trufflehog filesystem --json . >trufflehog.jsonl || true
@@ -2351,6 +2390,7 @@ jobs:
           go-version: stable
       - name: Run gosec
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping gosec'
@@ -2377,6 +2417,7 @@ jobs:
       - uses: actions/checkout@v5
       - name: Run Semgrep
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           python3 -m pip install --quiet --break-system-packages semgrep
           semgrep scan --config auto --sarif --output semgrep.sarif .
