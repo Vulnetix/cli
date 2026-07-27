@@ -107,6 +107,7 @@ func TestBuildGraphAddsHistoricalFileNodesForCouplingEdges(t *testing.T) {
 			From: "file:README.md", To: "file:cmd/live.go", Confidence: 0.75, Resolution: "heuristic",
 		}}},
 		nil,
+		nil,
 	)
 
 	nodes := map[string]Node{}

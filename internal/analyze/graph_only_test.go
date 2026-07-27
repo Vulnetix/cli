@@ -115,7 +115,7 @@ func Shared() {}
 	b := newTestBuilder()
 
 	st := collectSymbols(b, root, files, "example.com/app", Options{}, reporter{})
-	graph := buildGraph(Target{RepoID: "github.com~vulnetix~call-fixture"}, files, nil, nil, st, nil, nil, nil)
+	graph := buildGraph(Target{RepoID: "github.com~vulnetix~call-fixture"}, files, nil, nil, st, nil, nil, nil, nil)
 	b.SetGraph(graph)
 	report, body, err := b.Finish(time.Now())
 	require.NoError(t, err)

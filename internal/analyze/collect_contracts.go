@@ -89,7 +89,17 @@ func collectContracts(b *Builder, root string, files *fileStats, deps *depStats,
 	// omitted the 95 packages — a number that was wrong in the reassuring direction.
 	if deps != nil {
 		for _, d := range deps.deps {
-			id := "dependency:" + d.Purl
+			// A dependency that is not resolved from a registry names a host the
+			// resolver asks DNS for, so it belongs to the egress vocabulary rather
+			// than the package one. It keeps its PURL and its join key — it is
+			// still a dependency, it is just not a *package* — and the egress
+			// collector, which knows where else the host appears, supplies the
+			// richer copy of this node.
+			id, kind, name := "dependency:"+d.Purl, "dependency", purlName(d.Purl)
+			if egressID := egressDependencyNodeID(d.Purl); egressID != "" {
+				id, kind, name = egressID, "egress_domain", strings.TrimPrefix(egressID, "egress_domain:")
+			}
+
 			add(CrossRepoEdge{
 				ID:          "xr-consumes-" + safeID(d.Purl),
 				LocalNodeID: id,
@@ -98,7 +108,7 @@ func collectContracts(b *Builder, root string, files *fileStats, deps *depStats,
 				Role:        "consumes",
 				Confidence:  1,
 			}, Node{
-				ID: id, Kind: "dependency", Name: purlName(d.Purl), Purl: d.Purl,
+				ID: id, Kind: kind, Name: name, Purl: d.Purl,
 				Properties: map[string]any{"ecosystem": d.Ecosystem, "scope": d.Scope},
 			})
 		}
