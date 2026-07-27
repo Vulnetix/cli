@@ -135,6 +135,18 @@ jobs:
           if ! jq -e '.bomFormat == "CycloneDX"' scancode.cdx.json >/dev/null 2>&1; then
             echo '::warning::scancode produced no valid CycloneDX JSON; dropping the artifact'
             rm -f scancode.cdx.json
+          else
+            # ScanCode writes explicit nulls for the fields it found nothing for — author,
+            # description, version, copyright, externalReferences[].comment — and gives
+            # some metadata properties array or object values. CycloneDX 1.3 types all of
+            # those as strings, so the document fails schema validation on upload even
+            # though the inventory in it is fine. A null key carries no information, so
+            # dropping it loses nothing; a non-string property value becomes its JSON text.
+            jq 'walk(if type == "object" then with_entries(select(.value != null)) else . end)
+                | walk(if type == "object" and (.properties? | type) == "array"
+                       then .properties |= map(if has("value") then .value |= (if type == "string" then . else tojson end) else . end)
+                       else . end)' scancode.cdx.json > scancode.clean.json \
+              && mv scancode.clean.json scancode.cdx.json
           fi
       - uses: actions/upload-artifact@v6
         with:
