@@ -1,0 +1,260 @@
+# Managed by `vulnetix gha setup`.
+# Re-run `vulnetix gha setup <tool>` to add a scanner; edits here are overwritten.
+#
+# Each scanner runs independently and uploads its report as a workflow
+# artifact. The publish job then hands every artifact to Vulnetix in one go,
+# attributed to the tool that produced it.
+
+name: Third-Party Scanners
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  golangci-lint:
+    name: golangci-lint (Go lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Go
+        continue-on-error: true
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: Run golangci-lint
+        continue-on-error: true
+        run: |
+          if [ ! -f go.mod ]; then
+            echo '::notice::no go.mod found; skipping golangci-lint'
+            exit 0
+          fi
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          golangci-lint run --output.sarif.path=golangci-lint.sarif || true
+          if ! jq -e '.version and (.runs | type == "array")' golangci-lint.sarif >/dev/null 2>&1; then
+            echo '::warning::golangci-lint produced no valid SARIF; dropping the artifact'
+            rm -f golangci-lint.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: golangci-lint
+          path: golangci-lint.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+  gosec:
+    name: gosec (Go SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run gosec
+        continue-on-error: true
+        uses: securego/gosec@v2.28.0
+        with:
+          args: -no-fail -fmt sarif -out gosec.sarif ./...
+      - uses: actions/upload-artifact@v6
+        with:
+          name: gosec
+          path: gosec.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+  govulncheck:
+    name: govulncheck (Go SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Go
+        continue-on-error: true
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: Run govulncheck
+        continue-on-error: true
+        run: |
+          if [ ! -f go.mod ]; then
+            echo '::notice::no go.mod found; skipping govulncheck'
+            exit 0
+          fi
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck -format sarif ./... >govulncheck.sarif 2>govulncheck.stderr
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "::warning::govulncheck exited $rc"
+            sed -n '1,20p' govulncheck.stderr
+          fi
+          if ! jq -e '.version and (.runs | type == "array")' govulncheck.sarif >/dev/null 2>&1; then
+            echo '::warning::govulncheck produced no valid SARIF; dropping the artifact'
+            rm -f govulncheck.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: govulncheck
+          path: govulncheck.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+  scancode:
+    name: ScanCode Toolkit (license SBOM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        continue-on-error: true
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Run ScanCode Toolkit
+        continue-on-error: true
+        run: |
+          python3 -m pip install --quiet --break-system-packages scancode-toolkit
+          scancode --license --copyright --package --cyclonedx scancode.cdx.json . || true
+          if ! jq -e '.bomFormat == "CycloneDX"' scancode.cdx.json >/dev/null 2>&1; then
+            echo '::warning::scancode produced no valid CycloneDX JSON; dropping the artifact'
+            rm -f scancode.cdx.json
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: scancode
+          path: scancode.cdx.json
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+  trufflehog:
+    name: TruffleHog (secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        continue-on-error: true
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Run TruffleHog
+        continue-on-error: true
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
+          trufflehog filesystem --json . >trufflehog.jsonl || true
+          python3 <<'PY'
+          import json
+          import os
+
+          sarif = {
+              "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+              "version": "2.1.0",
+              "runs": [{
+                  "tool": {
+                      "driver": {
+                          "name": "TruffleHog",
+                          "informationUri": "https://github.com/trufflesecurity/trufflehog",
+                          "rules": [],
+                      }
+                  },
+                  "results": [],
+              }],
+          }
+          rules_seen = set()
+
+          def to_int(value):
+              try:
+                  return max(1, int(value))
+              except (TypeError, ValueError):
+                  return 1
+
+          def add_rule(rule_id, detector):
+              if rule_id in rules_seen:
+                  return
+              sarif["runs"][0]["tool"]["driver"]["rules"].append({
+                  "id": rule_id,
+                  "shortDescription": {"text": f"TruffleHog detector: {detector}"},
+                  "defaultConfiguration": {"level": "error"},
+              })
+              rules_seen.add(rule_id)
+
+          def source_location(item):
+              metadata = item.get("SourceMetadata") or {}
+              data = metadata.get("Data") or {}
+              if isinstance(data, dict):
+                  for value in data.values():
+                      if not isinstance(value, dict):
+                          continue
+                      path = value.get("file") or value.get("File") or value.get("path") or value.get("Path")
+                      if path:
+                          line = value.get("line") or value.get("Line") or value.get("line_number") or value.get("LineNumber")
+                          return str(path), to_int(line)
+              return str(item.get("SourceName") or "unknown"), 1
+
+          if os.path.exists("trufflehog.jsonl"):
+              with open("trufflehog.jsonl", "r", encoding="utf-8", errors="replace") as fh:
+                  for raw in fh:
+                      raw = raw.strip()
+                      if not raw:
+                          continue
+                      try:
+                          item = json.loads(raw)
+                      except json.JSONDecodeError:
+                          continue
+                      detector = str(item.get("DetectorName") or item.get("DetectorType") or "TruffleHog")
+                      rule_id = detector.replace(" ", "-") or "TruffleHog"
+                      add_rule(rule_id, detector)
+                      path, line = source_location(item)
+                      verified = bool(item.get("Verified"))
+                      message = f"TruffleHog detected a {'verified ' if verified else ''}secret with detector {detector}."
+                      redacted = item.get("Redacted")
+                      if redacted:
+                          message += f" Redacted value: {redacted}"
+                      sarif["runs"][0]["results"].append({
+                          "ruleId": rule_id,
+                          "level": "error" if verified else "warning",
+                          "message": {"text": message},
+                          "locations": [{
+                              "physicalLocation": {
+                                  "artifactLocation": {"uri": path},
+                                  "region": {"startLine": line},
+                              }
+                          }],
+                      })
+
+          with open("trufflehog.sarif", "w", encoding="utf-8") as fh:
+              json.dump(sarif, fh, indent=2)
+          PY
+          if ! jq -e '.version and (.runs | type == "array")' trufflehog.sarif >/dev/null 2>&1; then
+            echo '::warning::trufflehog produced no valid SARIF; dropping the artifact'
+            rm -f trufflehog.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: trufflehog
+          path: trufflehog.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+  publish:
+    name: Publish to Vulnetix
+    runs-on: ubuntu-latest
+    needs: [golangci-lint, gosec, govulncheck, scancode, trufflehog]
+    if: always()
+    permissions:
+      contents: read
+      actions: read
+    env:
+      VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+      VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Vulnetix CLI
+        run: |
+          curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- --install-dir "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Publish scanner reports
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: vulnetix gha upload --org-id "$VULNETIX_ORG_ID" --json --no-banner --no-progress
