@@ -31,11 +31,15 @@
       "paths": ["gosec.sarif"],
       "steps": [
         {
-          "name": "Run gosec",
-          "uses": "securego/gosec@v2.28.0",
+          "name": "Set up Go",
+          "uses": "actions/setup-go@v6",
           "with": {
-            "args": "-no-fail -fmt sarif -out gosec.sarif ./..."
+            "go-version": "stable"
           }
+        },
+        {
+          "name": "Run gosec",
+          "run": "if [ ! -f go.mod ]; then\n  echo '::notice::no go.mod found; skipping gosec'\n  exit 0\nfi\ngo install github.com/securego/gosec/v2/cmd/gosec@v2.28.0\ngosec -no-fail -fmt sarif -out gosec.sarif ./... || true\nif ! jq -e '.version and (.runs | type == \"array\")' gosec.sarif >/dev/null 2>&1; then\n  echo '::warning::gosec produced no valid SARIF; dropping the artifact'\n  rm -f gosec.sarif\nfi"
         }
       ]
     },
