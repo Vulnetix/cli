@@ -27,6 +27,7 @@ jobs:
           go-version: stable
       - name: Run golangci-lint
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping golangci-lint'
@@ -58,6 +59,7 @@ jobs:
           go-version: stable
       - name: Run gosec
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping gosec'
@@ -89,6 +91,7 @@ jobs:
           go-version: stable
       - name: Run govulncheck
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping govulncheck'
@@ -125,6 +128,7 @@ jobs:
           python-version: 3.x
       - name: Run ScanCode Toolkit
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           python3 -m pip install --quiet --break-system-packages scancode-toolkit
           scancode --license --copyright --package --cyclonedx scancode.cdx.json . || true
@@ -152,6 +156,7 @@ jobs:
           python-version: 3.x
       - name: Run TruffleHog
         continue-on-error: true
+        shell: bash --noprofile --norc {0}
         run: |
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
           trufflehog filesystem --json . >trufflehog.jsonl || true

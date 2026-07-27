@@ -121,6 +121,30 @@ func TestRenderInstallsTheCliUnpinned(t *testing.T) {
 	}
 }
 
+// A scanner that FOUND something exits non-zero — govulncheck 3, terrascan 3,
+// zizmor 14. Under GitHub's default `bash -e` the step dies on that line, the
+// recipe's "is this valid SARIF" guard never runs, and an empty report is
+// uploaded for the publish job to reject. A green scan then reads as a red
+// workflow, which is the most expensive kind of wrong.
+func TestRenderScannerStepsDoNotAbortOnFirstFailure(t *testing.T) {
+	c, _ := Load()
+	out, err := Render(c, []string{"govulncheck"}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, "shell: bash --noprofile --norc {0}") {
+		t.Error("a scanner run step must opt out of `bash -e`, or its report guard never runs")
+	}
+
+	// The publish step is the opposite case: if publishing fails, the workflow
+	// has to fail with it.
+	publish := out[strings.Index(out, "  publish:"):]
+	if strings.Contains(publish, "--noprofile") {
+		t.Error("the publish job must keep the failing default shell")
+	}
+}
+
 func TestRenderShape(t *testing.T) {
 	c, _ := Load()
 	out, err := Render(c, []string{"zizmor", "gosec"}, Options{})
