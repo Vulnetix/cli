@@ -149,6 +149,14 @@ sync-schemas:
     cp schemas/vulnetix-analyze-report.schema.json internal/analyze/schemas/
     cp schemas/third_party/*.json internal/analyze/schemas/third_party/
 
+# Refresh the IANA delegation list the egress classifier gates on. A stale list
+# only ever costs coverage — a TLD delegated since the last refresh reads as "not
+# a hostname" and its hosts are missed — so this is safe to run at any time.
+sync-tlds:
+    curl -fsSL https://data.iana.org/TLD/tlds-alpha-by-domain.txt \
+      | tr 'A-Z' 'a-z' > internal/analyze/data/tlds.txt
+    @wc -l internal/analyze/data/tlds.txt
+
 # Regenerate the command manifest. Documentation sites validate their snippets
 # against this file, so a renamed flag breaks a test rather than a user's pipeline.
 gen-command-manifest:

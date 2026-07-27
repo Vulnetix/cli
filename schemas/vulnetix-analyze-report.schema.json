@@ -700,6 +700,7 @@
             "function", "method", "class", "interface", "struct", "enum", "trait", "type_alias", "constant", "variable",
             "service", "route", "topic", "job", "database", "table",
             "dependency", "manifest", "container_image", "container_registry", "workflow", "action", "iac_resource",
+            "egress_domain",
             "helm_chart", "terraform_module", "terraform_provider", "terraform_registry", "helm_registry",
             "npm_registry", "maven_registry", "package_registry", "iac_provider",
             "language", "framework", "tool", "runtime",
