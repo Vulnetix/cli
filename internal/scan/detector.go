@@ -129,6 +129,34 @@ var ManifestFiles = map[string]ManifestInfo{
 	"docker-compose.yml":  {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
 	"podman-compose.yaml": {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
 	"podman-compose.yml":  {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
+	// ── CI/CD pipeline-as-code files ─────────────────────────────────────
+	".gitlab-ci.yml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".gitlab-ci.yaml":         {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".travis.yml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".cirrus.yml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".woodpecker.yml":         {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".woodpecker.yaml":        {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".drone.yml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".drone.yaml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".buddy.yml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".buddy.yaml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"azure-pipelines.yml":     {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"azure-pipelines.yaml":    {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"bitbucket-pipelines.yml": {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"buildspec.yml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"buildspec.yaml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"cloudbuild.yml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"cloudbuild.yaml":         {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"codefresh.yml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"codefresh.yaml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"appveyor.yml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"appveyor.yaml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"semaphore.yml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"semaphore.yaml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"wercker.yml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"wercker.yaml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"Jenkinsfile":             {Type: "Jenkinsfile", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"Jenkinsfile.groovy":      {Type: "Jenkinsfile", Ecosystem: "ci", Language: "ci", IsLock: false},
 	// ── Helm ──────────────────────────────────────────────────────────────
 	"Chart.yaml": {Type: "Chart.yaml", Ecosystem: "helm", Language: "helm", IsLock: false},
 	"Chart.yml":  {Type: "Chart.yaml", Ecosystem: "helm", Language: "helm", IsLock: false},
@@ -199,6 +227,11 @@ var ManifestExtensions = map[string]ManifestInfo{
 	".cabal":         {Type: "*.cabal", Ecosystem: "cabal", Language: "haskell", IsLock: false},
 	".dockerfile":    {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
 	".containerfile": {Type: "Dockerfile", Ecosystem: "docker", Language: "docker", IsLock: false},
+	".sh":            {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".bash":          {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".zsh":           {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".ksh":           {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".bats":          {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
 }
 
 // SupportedManifestTypes lists manifest types that have a local parser implemented.
@@ -271,6 +304,10 @@ var SupportedManifestTypes = map[string]bool{
 	"*.tf": true,
 	// GitHub Actions
 	"github-actions.yml": true,
+	// CI/CD pipeline-as-code and shell install commands
+	"ci-pipeline":  true,
+	"Jenkinsfile":  true,
+	"shell-script": true,
 	// C/C++ / Conan
 	"conanfile.txt": true,
 	"conan.lock":    true,
@@ -365,6 +402,16 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 		return &ManifestInfo{Type: "requirements.txt", Ecosystem: "pypi", Language: "python", IsLock: false, Confidence: ConfidenceConfident}, true
 	}
 
+	if looksLikeCIPipelinePath(filename) {
+		info := ManifestInfo{
+			Type:      "ci-pipeline",
+			Ecosystem: "ci",
+			Language:  "ci",
+			IsLock:    false,
+		}
+		return &info, true
+	}
+
 	// 4. Content-checked: CMakeLists.txt with CPMAddPackage calls.
 	if base == "CMakeLists.txt" {
 		content, err := os.ReadFile(filename)
@@ -416,6 +463,10 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 			}
 			return &info, true
 		}
+	}
+
+	if looksLikeShellScript(filename, lowerBase) {
+		return &ManifestInfo{Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false}, true
 	}
 
 	// 7. Content-checked: arbitrarily-named pip requirements files. Gated to small
@@ -486,6 +537,49 @@ func looksLikeRequirementsName(filename string) bool {
 		}
 	}
 	return false
+}
+
+func looksLikeCIPipelinePath(filename string) bool {
+	slash := strings.ToLower(filepath.ToSlash(filename))
+	ciFragments := []string{
+		"/.circleci/config.yml", "/.circleci/config.yaml",
+		"/.buildkite/", "/.semaphore/", "/.teamcity/",
+		"/.github/actions/",
+		"/.ci/", "/ci/",
+	}
+	for _, frag := range ciFragments {
+		if strings.Contains(slash, frag) {
+			return strings.HasSuffix(slash, ".yml") || strings.HasSuffix(slash, ".yaml") || strings.HasSuffix(slash, "/config")
+		}
+	}
+	return strings.HasSuffix(slash, "/pipeline.yml") ||
+		strings.HasSuffix(slash, "/pipeline.yaml") ||
+		strings.HasSuffix(slash, "/ci.yml") ||
+		strings.HasSuffix(slash, "/ci.yaml")
+}
+
+func looksLikeShellScript(filename, lowerBase string) bool {
+	if filepath.Ext(lowerBase) != "" {
+		return false
+	}
+	info, err := os.Stat(filename)
+	if err != nil || info.IsDir() || info.Size() > 256*1024 {
+		return false
+	}
+	f, err := os.Open(filename)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	buf := make([]byte, 256)
+	n, _ := f.Read(buf)
+	first := strings.TrimSpace(string(buf[:n]))
+	return strings.HasPrefix(first, "#!/bin/sh") ||
+		strings.HasPrefix(first, "#!/usr/bin/env sh") ||
+		strings.HasPrefix(first, "#!/bin/bash") ||
+		strings.HasPrefix(first, "#!/usr/bin/env bash") ||
+		strings.HasPrefix(first, "#!/bin/zsh") ||
+		strings.HasPrefix(first, "#!/usr/bin/env zsh")
 }
 
 // Per-line shape tests for pip requirements content.

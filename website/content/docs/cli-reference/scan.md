@@ -4,7 +4,7 @@ weight: 4
 description: "Discover manifest files locally, query the VDB for vulnerabilities, and write a CycloneDX SBOM — no file uploads."
 ---
 
-The `scan` command walks your project directory, parses package manifests locally, and queries the Vulnetix VDB API to identify vulnerable dependencies. **No file contents are ever uploaded to any server.** Results are saved to `.vulnetix/` and printed to your terminal.
+The `scan` command walks your project directory, parses package manifests locally, extracts package-manager install commands from CI/CD and shell files, and queries the Vulnetix VDB API to identify vulnerable dependencies. **No file contents are ever uploaded to any server.** Results are saved to `.vulnetix/` and printed to your terminal.
 
 > **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
 
@@ -37,6 +37,8 @@ vulnetix scan status <scan-id> [flags]
 | `--block-unpinned` | bool | `false` | Exit with code `1` when any direct dependency uses a version range (`^`, `~`, `>=`) instead of an exact pin. |
 | `--exploits` | string | - | Exit with code `1` when exploit maturity reaches the threshold: `poc` (any public exploit), `active` (CISA/EU KEV / actively exploited), `weaponized` (in-the-wild only). |
 | `--results-only` | bool | `false` | Only output when findings exist; completely silent when the scan is clean. Also suppresses exploit and remediation detail sections. |
+| `--no-ci-package-analysis` | bool | `false` | Skip dependency extraction from CI/CD pipeline files. |
+| `--no-shell-package-analysis` | bool | `false` | Skip dependency extraction from shell scripts. |
 | `--version-lag` | int | `0` | Exit with code `1` when any dependency is within the N most recently published versions of that package (0 = disabled). |
 | `--cooldown` | int | `0` | Exit with code `1` when any dependency version was published within the last N days (0 = disabled, best-effort). |
 | `--sca-autofix` | bool | `false` | Apply validated SCA fixes with the project package manager, then rescan to confirm. See [SCA Autofix](sca-autofix/). |

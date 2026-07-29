@@ -189,6 +189,11 @@ func init() {
 		// naturally on a specialized command and is what the docs advertise.
 		cmd.Flags().Bool(cmd.Name()+"-include-ignored", false,
 			"Include files matched by .gitignore in this "+cmd.Name()+" scan (default: gitignored paths are skipped)")
+		if cmd == containersCmd {
+			cmd.Flags().StringArray("container-rootfs", nil, "Container root filesystem directory to inspect for installed OS packages and ELF binaries (repeatable)")
+			cmd.Flags().StringArray("container-archive", nil, "Docker/OCI/rootfs tar archive to inspect for installed OS packages and ELF binaries (repeatable)")
+			cmd.Flags().Bool("no-binary-package-analysis", false, "Skip container ELF binary package analysis")
+		}
 		rootCmd.AddCommand(cmd)
 	}
 }
