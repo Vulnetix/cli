@@ -40,6 +40,9 @@ const (
 const (
 	SourceTypeManifest  = parse.SourceTypeManifest
 	SourceTypeInstalled = parse.SourceTypeInstalled
+	SourceTypeCommand   = parse.SourceTypeCommand
+	SourceTypeBinary    = parse.SourceTypeBinary
+	SourceTypeContainer = parse.SourceTypeContainer
 )
 
 // ── Function re-exports ────────────────────────────────────────────────────

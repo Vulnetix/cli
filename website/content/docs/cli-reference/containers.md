@@ -12,6 +12,8 @@ vulnetix scan --enable-containers --no-sast --no-sca --no-secrets --no-iac --no-
 
 Package vulnerability analysis, general SAST rules, license analysis, secret detection, and IaC analysis are all disabled. Only rules that analyse container build files run.
 
+The command also runs a local ELF binary analysis pass and can inspect unpacked container root filesystems or saved image/rootfs tar archives. Rootfs/archive inspection reads installed OS package databases such as `dpkg`, `apk`, and `pacman` and scans discovered ELF binaries without pulling images or requiring a Docker/Podman daemon.
+
 > **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
 
 ## Usage
@@ -33,6 +35,9 @@ vulnetix containers [flags]
 | `--results-only` | bool | `false` | Only output when findings exist |
 | `--dry-run` | bool | `false` | Detect files and check memory — zero API calls |
 | `--containers-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
+| `--container-rootfs` | stringArray | - | Inspect a container root filesystem directory for installed packages and ELF binaries |
+| `--container-archive` | stringArray | - | Inspect a Docker/OCI/rootfs tar archive for installed packages and ELF binaries |
+| `--no-binary-package-analysis` | bool | `false` | Skip the local ELF binary package analysis pass |
 
 ## Detected File Types
 
@@ -82,6 +87,12 @@ vulnetix containers --output containers.sarif
 
 # Silent when no issues found
 vulnetix containers --results-only
+
+# Inspect an unpacked container rootfs
+vulnetix containers --container-rootfs ./rootfs
+
+# Inspect a saved image tar without using Docker
+vulnetix containers --container-archive ./image.tar
 ```
 
 ## Output Files

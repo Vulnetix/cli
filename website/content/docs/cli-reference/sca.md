@@ -4,13 +4,15 @@ weight: 5
 description: "Run only Software Composition Analysis — vulnerability analysis on package manifests with no other scan categories enabled."
 ---
 
-The `sca` command runs a focused scan that analyses only package dependency manifests for known vulnerabilities. It is equivalent to running:
+The `sca` command runs a focused scan that analyses package dependencies for known vulnerabilities. It is equivalent to running:
 
 ```bash
 vulnetix scan --evaluate-sca --no-sast --no-secrets --no-containers --no-iac --no-licenses
 ```
 
 No SAST rules, license analysis, secret detection, container analysis, or IaC analysis runs. This makes it faster and less noisy when you only care about dependency vulnerabilities.
+
+Dependency discovery includes package manifests and lock files plus package-manager install commands found in CI/CD files and shell scripts. This catches packages installed directly by pipelines or scripts when no package manifest exists.
 
 > **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
 
@@ -43,6 +45,8 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--block-unpinned` | bool | `false` | Exit `1` when any direct dependency uses a version range instead of an exact pin |
 | `--exploits` | string | - | Exit `1` when exploit maturity reaches threshold: `poc`, `active`, `weaponized` |
 | `--results-only` | bool | `false` | Only output when findings exist |
+| `--no-ci-package-analysis` | bool | `false` | Skip dependency extraction from CI/CD pipeline files |
+| `--no-shell-package-analysis` | bool | `false` | Skip dependency extraction from shell scripts |
 | `--version-lag` | int | `0` | Exit `1` when any dep is within the N most recently published versions (0 = disabled) |
 | `--cooldown` | int | `0` | Exit `1` when any dep was published within the last N days (0 = disabled) |
 | `--sca-autofix` | bool | `false` | Apply validated SCA fixes with the project package manager, then rescan to confirm |
@@ -72,6 +76,9 @@ vulnetix sca --output json-cyclonedx
 
 # Write CycloneDX to a file
 vulnetix sca --output sbom.cdx.json
+
+# Skip packages installed only by pipelines or shell scripts
+vulnetix sca --no-ci-package-analysis --no-shell-package-analysis
 
 # Silent when clean
 vulnetix sca --results-only

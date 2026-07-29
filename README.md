@@ -145,6 +145,49 @@ See [CLI Documentation](https://docs.cli.vulnetix.com/) for complete usage and c
 
 ---
 
+## Using the CycloneDX Go Module
+
+Other Go projects can generate the same Vulnetix CycloneDX document shape by
+importing `github.com/Vulnetix/vdb-cyclonedx` directly:
+
+```go
+package main
+
+import (
+	"os"
+
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
+)
+
+func main() {
+	bom, err := cyclonedx.BuildSBOM(cyclonedx.SBOMInventory{
+		Packages: []cyclonedx.SBOMPackage{{
+			Name:       "example",
+			Version:    "1.2.3",
+			Ecosystem:  "golang",
+			Scope:      "production",
+			SourceFile: "go.mod",
+			SourceType: "manifest",
+			IsDirect:   true,
+		}},
+	}, cyclonedx.SBOMOptions{
+		SpecVersion: "1.7",
+		ToolName:    "my-builder",
+		ToolVersion: "1.0.0",
+	})
+	if err != nil {
+		panic(err)
+	}
+	_ = os.WriteFile("sbom.cdx.json", bom, 0o644)
+}
+```
+
+`BuildSBOM` can also merge `AIDetections` and `CryptoDetections` so a single
+CycloneDX file carries package SBOM, AIBOM and CBOM components. The builder
+validates the output against the bundled CycloneDX schema before returning JSON.
+
+---
+
 ## Documentation
 
 - [CLI Documentation](https://docs.cli.vulnetix.com/)

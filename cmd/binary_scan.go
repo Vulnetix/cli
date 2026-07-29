@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,8 +25,14 @@ import (
 // parent's PersistentPreRunE having already resolved vdbCreds.
 func runBinaryScan(cmd *cobra.Command) error {
 	scanPath, _ := cmd.Flags().GetString("path")
+	if skip, _ := cmd.Flags().GetBool("no-binary-package-analysis"); skip {
+		fmt.Fprintln(os.Stderr, "Skipping container binary package analysis (--no-binary-package-analysis).")
+		return nil
+	}
 	showPaths, _ := cmd.Flags().GetBool("show-introduced-paths")
 	showAll, _ := cmd.Flags().GetBool("show-all-manifests")
+	rootfsPaths, _ := cmd.Flags().GetStringArray("container-rootfs")
+	archivePaths, _ := cmd.Flags().GetStringArray("container-archive")
 	_ = showPaths
 	_ = showAll
 
@@ -33,6 +40,37 @@ func runBinaryScan(cmd *cobra.Command) error {
 		scanPath = "."
 	}
 
+	if err := runBinaryScanPath(cmd, scanPath); err != nil {
+		return err
+	}
+	for _, rootfs := range rootfsPaths {
+		if rootfs == "" {
+			continue
+		}
+		if pkgs := collectContainerDBPackages(rootfs, rootfs, filepath.Base(rootfs), true); len(pkgs) > 0 {
+			fmt.Fprintf(os.Stderr, "Container package DB: %s contains %d installed package(s).\n", rootfs, len(pkgs))
+		}
+		_ = runBinaryScanPath(cmd, rootfs)
+	}
+	for _, archive := range archivePaths {
+		if archive == "" {
+			continue
+		}
+		dir, cleanup, err := extractContainerArchive(archive)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  container archive %s: %v\n", archive, err)
+			continue
+		}
+		if pkgs := collectContainerDBPackages(dir, dir, filepath.Base(archive), true); len(pkgs) > 0 {
+			fmt.Fprintf(os.Stderr, "Container package DB: %s contains %d installed package(s).\n", archive, len(pkgs))
+		}
+		_ = runBinaryScanPath(cmd, dir)
+		cleanup()
+	}
+	return nil
+}
+
+func runBinaryScanPath(cmd *cobra.Command, scanPath string) error {
 	fmt.Fprintf(os.Stderr, "Scanning %s for ELF binaries...\n", scanPath)
 
 	// Phase 1: Walk and analyze locally.

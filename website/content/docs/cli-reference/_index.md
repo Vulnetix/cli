@@ -477,6 +477,27 @@ vulnetix cbom [path] [flags]
 
 ---
 
+### vulnetix cdx
+
+Generate one standalone CycloneDX document containing package SBOM inventory, AIBOM components and CBOM components. The command is offline: no VDB lookup, upload, memory update, quality gate, image pull or container daemon is used. See the full [CDX Command Reference](cdx/).
+
+```bash
+vulnetix cdx [path] [flags]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `.` | Directory to scan (positional `[path]` overrides) |
+| `--depth` | `25` | Maximum recursion depth |
+| `-o, --output` | `pretty` | Terminal output: `pretty`, `json`, `cyclonedx-json` |
+| `--output-file` | - | Path to write the CycloneDX file (default `.vulnetix/sbom.cdx.json`) |
+| `--spec-version` | `1.7` | CycloneDX spec version: `1.6` or `1.7` |
+| `--container-rootfs` | - | Inspect a container root filesystem directory (repeatable) |
+| `--container-archive` | - | Inspect a Docker/OCI/rootfs tar archive (repeatable) |
+| `--no-aibom` / `--no-cbom` | `false` | Omit AI or cryptographic components |
+
+---
+
 ### vulnetix scan
 
 Walk the local directory tree, parse package manifests, and query the VDB for vulnerabilities — no files are uploaded. See the full [Scan Command Reference](scan/) for details.
@@ -499,6 +520,8 @@ vulnetix scan status <scan-id> [flags]
 | `--block-malware` | `false` | Exit `1` when any dependency is a known malicious package |
 | `--block-eol` | `false` | Exit `1` when a runtime or package dependency is end-of-life |
 | `--results-only` | `false` | Only output when findings exist; completely silent when the scan is clean |
+| `--no-ci-package-analysis` | `false` | Skip dependency extraction from CI/CD pipeline files |
+| `--no-shell-package-analysis` | `false` | Skip dependency extraction from shell scripts |
 | `--evaluate-sast` / `--no-sast` | - | Enable/disable SAST (general static analysis rules) |
 | `--evaluate-sca` / `--no-sca` | - | Enable/disable SCA (package manifest vulnerability analysis) |
 | `--evaluate-licenses` / `--no-licenses` | - | Enable/disable license analysis |
@@ -515,7 +538,7 @@ vulnetix scan status <scan-id> [flags]
 
 ### vulnetix sca
 
-Run only Software Composition Analysis — vulnerability analysis on package manifests. All other features (SAST, licenses, secrets, containers, IaC) are disabled. See the [SCA Command Reference](sca/).
+Run only Software Composition Analysis — vulnerability analysis on package manifests plus CI/CD and shell install commands. All other features (SAST, licenses, secrets, containers, IaC) are disabled. See the [SCA Command Reference](sca/).
 
 ```bash
 vulnetix sca [flags]
@@ -575,7 +598,7 @@ Equivalent to `vulnetix scan --evaluate-secrets --no-sast --no-sca --no-containe
 
 ### vulnetix containers
 
-Run only container file analysis — checks Dockerfiles and Containerfiles. All other features are disabled. See the [Containers Command Reference](containers/).
+Run only container file analysis — checks Dockerfiles and Containerfiles, and can inspect supplied rootfs/archive inputs for installed package DBs and ELF binaries. All other features are disabled. See the [Containers Command Reference](containers/).
 
 ```bash
 vulnetix containers [flags]

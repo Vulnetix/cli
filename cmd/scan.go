@@ -432,6 +432,8 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	blockUnpinned, _ := cmd.Flags().GetBool("block-unpinned")
 	exploitThreshold, _ := cmd.Flags().GetString("exploits")
 	resultsOnly, _ := cmd.Flags().GetBool("results-only")
+	noCIPackageAnalysis, _ := cmd.Flags().GetBool("no-ci-package-analysis")
+	noShellPackageAnalysis, _ := cmd.Flags().GetBool("no-shell-package-analysis")
 	versionLag, _ := cmd.Flags().GetInt("version-lag")
 	cooldownDays, _ := cmd.Flags().GetInt("cooldown")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -698,6 +700,14 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 
 	// ── 4. Filter files by feature flags ──────────────────────────────
 	supportedFiles = filterFilesByFeature(supportedFiles, noSCA, noContainers, noIAC)
+	supportedFiles = filterCommandPackageFiles(supportedFiles, noCIPackageAnalysis, noShellPackageAnalysis)
+	if len(supportedFiles) == 0 {
+		sastFamilyEnabled := !noSAST || !noSecrets || !noContainers || !noIAC
+		if !sastFamilyEnabled {
+			fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
+			return mergeMalscanBreach(nil, malscanBreach)
+		}
+	}
 
 	// ── 5. Collect host environment ─────────────────────────────────────
 	sysInfo := gitctx.CollectSystemInfo()
@@ -4372,6 +4382,8 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("block-unpinned", false, "Exit with code 1 when any direct dependency uses a version range (^, ~, >=) instead of an exact pin.")
 	cmd.Flags().String("exploits", "", "Exit with code 1 when exploit maturity reaches the threshold: poc (any public exploit), active (CISA/EU KEV / actively exploited), weaponized (in-the-wild only).")
 	cmd.Flags().Bool("results-only", false, "Only output when findings exist; completely silent when the scan is clean.")
+	cmd.Flags().Bool("no-ci-package-analysis", false, "Skip dependency extraction from CI/CD pipeline files such as GitHub Actions, GitLab CI, CircleCI, Buildkite, Azure Pipelines and Jenkinsfiles.")
+	cmd.Flags().Bool("no-shell-package-analysis", false, "Skip dependency extraction from shell scripts that install packages without a manifest.")
 	cmd.Flags().Bool("show-detected", false, "Show the 'Detected files:' listing and 'Analysing N file(s)…' progress banner.")
 	cmd.Flags().Bool("show-all-manifests", false, "Include rows in the SCA table for manifests that have no vulnerabilities.")
 	cmd.Flags().Int("version-lag", 0, "Exit with code 1 when any dependency is within the N most recently published versions of that package (0 = disabled).")
@@ -4476,6 +4488,27 @@ func filterFilesByFeature(files []scan.DetectedFile, noSCA, noContainers, noIAC 
 			continue
 		}
 		if isSCA && noSCA {
+			continue
+		}
+		filtered = append(filtered, f)
+	}
+	return filtered
+}
+
+func filterCommandPackageFiles(files []scan.DetectedFile, noCI, noShell bool) []scan.DetectedFile {
+	if !noCI && !noShell {
+		return files
+	}
+	filtered := make([]scan.DetectedFile, 0, len(files))
+	for _, f := range files {
+		if f.ManifestInfo == nil {
+			filtered = append(filtered, f)
+			continue
+		}
+		if noCI && f.ManifestInfo.Language == "ci" {
+			continue
+		}
+		if noShell && f.ManifestInfo.Language == "shell" {
 			continue
 		}
 		filtered = append(filtered, f)
