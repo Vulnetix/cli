@@ -1057,7 +1057,13 @@ func runLocalScan(
 		// other scanners surface shows up here too. This reuses the SCA path but
 		// labels the snapshot as containers and treats an unavailable API as
 		// non-fatal (the rego container rules still run).
-		runSCAQuery := !noSCA || (containerOnly && len(allPackages) > 0)
+		//
+		// The package count gates both branches. A round-trip carrying an empty
+		// PURL list has nothing to ask about and can only fail, and its failure is
+		// reported as "check credentials, config, and network connectivity" — so a
+		// project whose manifests declare no dependencies used to exit 1 blaming
+		// the user's setup for a result that is simply clean.
+		runSCAQuery := len(allPackages) > 0 && (!noSCA || containerOnly)
 		if runSCAQuery {
 			// ── Query /v2/cli.sca (one self-healing round-trip for the PURL list) ─
 			// The endpoint returns CycloneDX + enriched findings + reachability in a
