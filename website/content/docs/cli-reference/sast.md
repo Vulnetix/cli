@@ -34,10 +34,11 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--severity` | string | - | Exit `1` if any SAST finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--results-only` | bool | `false` | Only output when findings exist |
 | `--disable-default-rules` | bool | `false` | Skip built-in default SAST rules (external `--rule` repos still loaded) |
-| `--list-default-rules` | bool | `false` | Print built-in SAST rules and exit |
+| `--list-default-rules` | bool | `false` | Print the built-in rule table and exit |
 | `-R, --rule` | stringArray | - | External SAST rule repo in `org/repo` format (repeatable) — see [Custom Rule Repositories](../sast-rules/custom-rules/) |
 | `--rule-registry` | string | `https://github.com` | Override default registry URL for `--rule` repos |
-| `--dry-run` | bool | `false` | Detect files and check memory — zero API calls |
+| `--dry-run` | bool | `false` | Report what this command would scan — rule kinds, external rule packs, discovered files — then replay stored results. Zero API calls. |
+| `--snippet-context` | int | `-1` | Source lines captured around each SARIF finding (`-1` = dynamic, `0` disables) |
 | `--sast-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 | `--suppress-test-code` | bool | `false` | Suppress findings located in the project's test suite (see [Test-suite detection](#test-suite-detection)) |
 

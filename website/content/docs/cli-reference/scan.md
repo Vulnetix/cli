@@ -8,11 +8,47 @@ The `scan` command walks your project directory, parses package manifests locall
 
 > **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
 
+## Scan Is An Orchestrator
+
+`scan` runs every analysis in one pass. It owns none of them: each is owned by its
+own subcommand, and `scan` composes those owners so a single invocation produces one
+coherent set of results, one SBOM and one quality-gate verdict.
+
+| Pass | Owner | Enable only this | Turn off inside `scan` |
+|------|-------|------------------|------------------------|
+| Dependency vulnerabilities | [`sca`](../sca/) | `--evaluate-sca` | `--no-sca` |
+| Static analysis | [`sast`](../sast/) | `--evaluate-sast` | `--no-sast` |
+| Secret detection | [`secrets`](../secrets/) | `--evaluate-secrets` | `--no-secrets` |
+| Container / OCI files | [`containers`](../containers/) | `--enable-containers` | `--no-containers` |
+| Infrastructure as Code | [`iac`](../iac/) | `--evaluate-iac` | `--no-iac` |
+| License policy | [`license`](../license/) | `--evaluate-licenses` | `--no-licenses` |
+| Local malware | [`malscan`](../malscan/) | — (always on) | `--no-malscan` |
+| AI inventory (AIBOM) | [`aibom`](../aibom/) | — (always on) | `--no-aibom` |
+| Cryptography inventory (CBOM) | [`cbom`](../cbom/) | — (always on) | `--no-cbom` |
+| Dependency fixes | [`fix`](../fix/) | — | `--sca-autofix` opts in |
+
+Passing any `--evaluate-*` / `--enable-containers` flag switches `scan` to
+opt-in mode: only the named passes run. `--no-*` always wins.
+
+Every pass behaves exactly as its own subcommand does — the same code runs either
+way, so `scan --evaluate-licenses --allow MIT` and `license --allow MIT` reach the
+same verdict. Two things are deliberately different when you go through `scan`:
+
+- **External rule packs are not kind-locked.** `--rule org/repo` on `scan` runs
+  every rule kind the pack ships; on a specialized command only that command's kind
+  runs.
+- **`.gitignore` handling for manifests.** The specialized `containers` and `iac`
+  commands prune gitignored manifests; `scan`, `sca`, `sast` and `secrets` do not,
+  because dependency manifests routinely live in gitignored install directories.
+  `--include-ignored` overrides the SAST-family behaviour.
+
+Replaying results is not a scan: use [`report`](../report/) (`scan --from-memory`
+is a deprecated alias for it).
+
 ## Usage
 
 ```bash
 vulnetix scan [flags]
-vulnetix scan status <scan-id> [flags]
 ```
 
 ## Flags
@@ -37,8 +73,8 @@ vulnetix scan status <scan-id> [flags]
 | `--block-unpinned` | bool | `false` | Exit with code `1` when any direct dependency uses a version range (`^`, `~`, `>=`) instead of an exact pin. |
 | `--exploits` | string | - | Exit with code `1` when exploit maturity reaches the threshold: `poc` (any public exploit), `active` (CISA/EU KEV / actively exploited), `weaponized` (in-the-wild only). |
 | `--results-only` | bool | `false` | Only output when findings exist; completely silent when the scan is clean. Also suppresses exploit and remediation detail sections. |
-| `--no-ci-package-analysis` | bool | `false` | Skip dependency extraction from CI/CD pipeline files. |
-| `--no-shell-package-analysis` | bool | `false` | Skip dependency extraction from shell scripts. |
+| `--no-ci-package-analysis` | bool | `false` | Skip dependency extraction from CI/CD pipeline files, including GitHub Actions workflows. |
+| `--no-shell-package-analysis` | bool | `false` | Skip dependency extraction from shell scripts, Makefiles and task recipes. |
 | `--version-lag` | int | `0` | Exit with code `1` when any dependency is within the N most recently published versions of that package (0 = disabled). |
 | `--cooldown` | int | `0` | Exit with code `1` when any dependency version was published within the last N days (0 = disabled, best-effort). |
 | `--sca-autofix` | bool | `false` | Apply validated SCA fixes with the project package manager, then rescan to confirm. See [SCA Autofix](sca-autofix/). |
@@ -58,15 +94,22 @@ vulnetix scan status <scan-id> [flags]
 | `--no-containers` | bool | `false` | Skip Dockerfile/OCI manifests and container SAST rules |
 | `--evaluate-iac` | bool | `false` | Enable IaC analysis (exclusive mode) |
 | `--no-iac` | bool | `false` | Skip HCL/Nix manifests and IaC SAST rules |
+| `--allow` | string | - | Comma-separated SPDX licenses allowed by policy; passed to the [license](../license/) pass |
+| `--allow-file` | string | - | YAML allow-list file for the license pass (overrides `--allow`) |
+| `--license-mode` | string | `inclusive` | License conflict detection mode: `inclusive` (whole project) or `individual` (per manifest) |
+| `--snippet-context` | int | `-1` | Surrounding non-empty source lines captured around each SARIF finding (`-1` = dynamic, `0` disables). Also available on `sast`, `secrets`, `containers` and `iac` |
+| `--no-malscan` | bool | `false` | Skip the in-process [malscan](../malscan/) pass over local dependency install dirs |
+| `--no-aibom` | bool | `false` | Skip the [AIBOM](../aibom/) inventory pass |
+| `--no-cbom` | bool | `false` | Skip the [CBOM](../cbom/) cryptography inventory pass |
 | `--disable-default-rules` | bool | `false` | Skip built-in default SAST rules (external `--rule` repos still loaded) |
-| `--list-default-rules` | bool | `false` | Print built-in SAST rules and exit |
+| `--list-default-rules` | bool | `false` | Print built-in SAST rules and exit. Also works on `sast`, `secrets`, `containers` and `iac` |
 | `-R, --rule` | stringArray | - | External SAST rule repo in `org/repo` format (repeatable); fetched from GitHub or `--rule-registry` — see [Custom Rule Repositories](../sast-rules/custom-rules/) |
 | `--rule-registry` | string | `https://github.com` | Override default registry URL for all `--rule` repos |
-| `--dry-run` | bool | `false` | Detect files and parse packages locally, check memory, then exit — zero API calls |
-| `--from-memory` | bool | `false` | Reconstruct scan pretty output from `.vulnetix/sbom.cdx.json` without API calls |
-| `--fresh-exploits` | bool | `false` | With `--from-memory`: fetch latest exploit intel from API |
-| `--fresh-advisories` | bool | `false` | With `--from-memory`: fetch latest remediation plans from API |
-| `--fresh-vulns` | bool | `false` | With `--from-memory`: re-fetch affected version checks and latest scoring from API |
+| `--dry-run` | bool | `false` | Detect files and parse packages locally, check memory, then exit — zero API calls. Honoured by every scan-family command, scoped to the passes that command runs. |
+| `--from-memory` | bool | `false` | **Deprecated** — use [`vulnetix report`](../report/). Reconstructs the pretty output from `.vulnetix/sbom.cdx.json` without API calls |
+| `--fresh-exploits` | bool | `false` | **Deprecated** — use `vulnetix report --fresh-exploits` |
+| `--fresh-advisories` | bool | `false` | **Deprecated** — use `vulnetix report --fresh-advisories` |
+| `--fresh-vulns` | bool | `false` | **Deprecated** — use `vulnetix report --fresh-vulns` |
 | `--reachability` | string | `both` | Tree-sitter reachability mode: `direct`, `transitive`, `both`, or `off`. Per-finding source-level reachability analysis runs against every produced CVE. Disable globally with `off` for large monorepos. See the [Reachability Analysis](reachability/) section. |
 
 ## Output Files
@@ -80,20 +123,6 @@ After every scan the following files are written under your project root:
 | `.vulnetix/memory.yaml` | Scan state record (timestamp, counts, git context) — also stores your [ignore rules](../ignore/) under a `suppressions:` block |
 
 > **Suppressing findings.** To drop findings you have triaged (false positives, accepted risks, mitigated issues) use `nosec` comments in code or the [`vulnetix ignore`](../ignore/) command. Scans report how many findings each pass suppressed, so nothing disappears silently.
-
-## Scan Status
-
-Check the status of a previously submitted (legacy) remote scan.
-
-```bash
-vulnetix scan status <scan-id> [flags]
-```
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--poll` | bool | `false` | Poll until scan completes |
-| `--poll-interval` | int | `5` | Polling interval in seconds |
-| `-o, --output` | string | `pretty` | Output format: `json`, `pretty` |
 
 ## Package Scope Support
 
@@ -806,21 +835,13 @@ vulnetix scan --dry-run
 # From memory — no API calls
 vulnetix scan --from-memory
 
-# From memory with fresh exploit intel
+# Replaying stored results — prefer `vulnetix report`
+vulnetix report --fresh-exploits
+vulnetix report --fresh-advisories
+
+# The deprecated equivalents (still accepted)
 vulnetix scan --from-memory --fresh-exploits
-
-# From memory with fresh remediation plans
 vulnetix scan --from-memory --fresh-advisories
-```
-
-### Check scan status (legacy remote scan)
-
-```bash
-# One-shot check
-vulnetix scan status abc123def
-
-# Poll until complete
-vulnetix scan status abc123def --poll --poll-interval 10
 ```
 
 ## Org Quality Gate Policy

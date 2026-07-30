@@ -183,8 +183,16 @@ func main() {
 ```
 
 `BuildSBOM` can also merge `AIDetections` and `CryptoDetections` so a single
-CycloneDX file carries package SBOM, AIBOM and CBOM components. The builder
-validates the output against the bundled CycloneDX schema before returning JSON.
+CycloneDX file carries package SBOM, AIBOM and CBOM components, accepts a resolved
+dependency graph via `SBOMInventory.Dependencies`, and takes an optional
+`SBOMOptions.CanonicalSPDXID` hook so recognised licenses are emitted as
+`license.id` instead of free text. The builder validates the output against the
+bundled CycloneDX schema before returning JSON.
+
+`vulnetix cdx` (alias `vulnetix sbom`) is the CLI front end for this: it discovers packages from
+manifests, installed package trees, container package databases, Dockerfiles,
+CI/CD pipeline files, shell scripts and the metadata compiled into Go, Rust and
+JVM artefacts, then writes one validated CycloneDX file offline.
 
 ---
 

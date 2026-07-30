@@ -12,7 +12,7 @@ vulnetix scan --evaluate-sca --no-sast --no-secrets --no-containers --no-iac --n
 
 No SAST rules, license analysis, secret detection, container analysis, or IaC analysis runs. This makes it faster and less noisy when you only care about dependency vulnerabilities.
 
-Dependency discovery includes package manifests and lock files plus package-manager install commands found in CI/CD files and shell scripts. This catches packages installed directly by pipelines or scripts when no package manifest exists.
+Dependency discovery includes package manifests and lock files plus package-manager install commands found in CI/CD pipeline files, shell scripts, Makefiles and task recipes. This catches packages installed directly by pipelines or scripts when no package manifest exists. The full file and vendor coverage is listed under [CI/CD coverage](../cdx/#cicd-coverage) and [Shell and recipe coverage](../cdx/#shell-and-recipe-coverage).
 
 > **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
 
@@ -45,8 +45,8 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--block-unpinned` | bool | `false` | Exit `1` when any direct dependency uses a version range instead of an exact pin |
 | `--exploits` | string | - | Exit `1` when exploit maturity reaches threshold: `poc`, `active`, `weaponized` |
 | `--results-only` | bool | `false` | Only output when findings exist |
-| `--no-ci-package-analysis` | bool | `false` | Skip dependency extraction from CI/CD pipeline files |
-| `--no-shell-package-analysis` | bool | `false` | Skip dependency extraction from shell scripts |
+| `--no-ci-package-analysis` | bool | `false` | Skip dependency extraction from CI/CD pipeline files, including GitHub Actions workflows |
+| `--no-shell-package-analysis` | bool | `false` | Skip dependency extraction from shell scripts, Makefiles and task recipes |
 | `--version-lag` | int | `0` | Exit `1` when any dep is within the N most recently published versions (0 = disabled) |
 | `--cooldown` | int | `0` | Exit `1` when any dep was published within the last N days (0 = disabled) |
 | `--sca-autofix` | bool | `false` | Apply validated SCA fixes with the project package manager, then rescan to confirm |
@@ -54,7 +54,7 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--sca-autofix-manifest` | string | - | Restrict autofix edits to one manifest file |
 | `--sca-autofix-max-major-bump` | int | `0` | Refuse targets crossing more than N major versions |
 | `--yes` | bool | `false` | Non-interactive autofix mode: auto-pick safe defaults and never prompt |
-| `--dry-run` | bool | `false` | Detect files and parse packages locally, check memory, then exit — zero API calls |
+| `--dry-run` | bool | `false` | Parse packages locally, replay stored results, then exit — zero API calls |
 
 ## Examples
 
@@ -112,3 +112,5 @@ vulnetix sca --sca-autofix --yes
 - [`vulnetix containers`](containers/) — Container file analysis only
 - [`vulnetix iac`](iac/) — IaC file analysis only
 - [`vulnetix license`](license/) — Standalone license analysis
+- [`vulnetix fix`](fix/) — Apply the dependency fixes this scan proposes
+- [`vulnetix report`](report/) — Replay the stored results without rescanning

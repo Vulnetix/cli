@@ -200,15 +200,45 @@ Generates a standalone SPDX 2.3 document with:
 
 ## Integration with `vulnetix scan`
 
-License analysis runs automatically during `vulnetix scan`. License findings are:
+License analysis runs automatically during `vulnetix scan`, and it runs **this**
+pipeline: `scan` delegates to the same detect → policy → suppression → memory
+reconcile path this command uses, so both reach the same verdict. License findings
+are:
 - Appended to the CycloneDX BOM in the `vulnerabilities` section
 - Written to `.vulnetix/memory.yaml`
 - Included in the pretty output after the vulnerability summary
+- Resolved and attested as CycloneDX VEX when they disappear
+
+Because it is the same pipeline, the policy flags work identically on the scan
+family:
+
+```bash
+# These two apply the same policy and produce the same findings
+vulnetix license --allow MIT,Apache-2.0 --mode individual
+vulnetix scan --allow MIT,Apache-2.0 --license-mode individual
+```
+
+| `license` flag | Scan-family flag |
+|----------------|------------------|
+| `--allow` | `--allow` |
+| `--allow-file` | `--allow-file` |
+| `--mode` | `--license-mode` |
+
+> Earlier releases ran a fixed permissive policy inside `scan` (no allow list,
+> always `inclusive`), so a scan could pass while `vulnetix license` failed. That
+> divergence is gone.
 
 To skip license analysis during a scan:
 
 ```bash
 vulnetix scan --no-licenses
+```
+
+Note that license evaluation needs the packages the SCA pass resolves, so
+`--evaluate-licenses` on its own resolves nothing — pair it with `--evaluate-sca`:
+
+```bash
+vulnetix scan --evaluate-sca --evaluate-licenses --allow MIT
 ```
 
 ## Examples

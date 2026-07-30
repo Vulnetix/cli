@@ -48,7 +48,9 @@ vulnetix secrets [flags]
 | `--no-progress` | bool | `false` | Suppress the progress bar |
 | `--severity` | string | - | Exit `1` if any finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--results-only` | bool | `false` | Only output when findings exist |
-| `--dry-run` | bool | `false` | Detect files and check memory — zero API calls |
+| `--dry-run` | bool | `false` | Report what this command would scan — rule kinds, external rule packs, discovered files — then replay stored results. Zero API calls. |
+| `--list-default-rules` | bool | `false` | Print the built-in rule table and exit |
+| `--snippet-context` | int | `-1` | Source lines captured around each SARIF finding (`-1` = dynamic, `0` disables) |
 | `--secrets-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 | `--rule` | stringArray | - | External Rego rule pack in `org/repo` format (repeatable). Combine with `Vulnetix/community-rules` and the OPA packs (regula, kics, cds-aws-tf, cigna-tf, trivy, snyk-labs-iac) for comprehensive coverage. |
 

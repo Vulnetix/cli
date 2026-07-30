@@ -47,6 +47,23 @@ vulnetix aibom --no-env --no-source             # filesystem evidence only
 vulnetix aibom --catalog ./extra-rules.json     # extend the builtin catalog
 ```
 
+## Inside a scan
+
+`vulnetix scan` captures the AI inventory as one of its passes, and it calls this
+command's pipeline — the same catalog, the same detection passes, the same memory
+reconcile. The in-scan pass differs only in what it does with the result:
+
+| | `vulnetix aibom` | pass inside `vulnetix scan` |
+|---|---|---|
+| Passes run | selected by `--no-env` / `--no-source` / `--no-commits` / `--no-iac` | all four |
+| CycloneDX file written | yes (`.vulnetix/ai-bom.cdx.json` or `--output-file`) | no |
+| Terminal output | yes (`-o pretty/json/cyclonedx-json`) | no |
+| Memory reconcile | yes | yes |
+| Submitted when authenticated | yes (unless `--no-upload`) | yes |
+
+Turn the pass off with `vulnetix scan --no-aibom`. Run this command directly when
+you want the file, the table, or control over which passes run.
+
 ## Privacy
 
 The environment pass records only variable **names** and their presence — never their values. No source content is uploaded.

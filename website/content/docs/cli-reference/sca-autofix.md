@@ -1,15 +1,22 @@
 ---
 title: "SCA Autofix"
-weight: 6
+weight: 7
 description: "Apply validated dependency fixes with your package manager, rescan to confirm, and emit VEX for resolved vulnerabilities."
 ---
 
-`--sca-autofix` turns SCA remediation into an applied workflow:
+Remediation is owned by [`vulnetix fix`](../fix/). `--sca-autofix` is the same
+workflow triggered inside a wider scan, and this page documents the mechanics both
+share.
 
 ```bash
-vulnetix sca --sca-autofix
+vulnetix fix                             # the command that owns remediation
+vulnetix sca --sca-autofix               # the same workflow, inside an SCA scan
 vulnetix scan --evaluate-sca --sca-autofix
 ```
+
+The `fix` command exposes the knobs under shorter names (`--strategy`,
+`--manifest`, `--max-major-bump`); the `--sca-autofix-*` spellings below keep
+working everywhere, including on `fix`.
 
 The CLI requests ranked Safe-Harbour versions from `/v2/cli.sca`, plans direct and transitive fixes, edits supported manifests, runs the project package manager, then runs SCA again to confirm the result. For resolved candidates it writes an OpenVEX document to:
 

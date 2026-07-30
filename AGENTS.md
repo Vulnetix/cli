@@ -24,6 +24,40 @@ The `vdb` command queries the Vulnetix Vulnerability Database API. Commands defa
 **V2-only commands** (require v2, which is now the default — do not pass `-V v1`): `scorecard` (+ `search` subcommand), `timeline`, `affected`, `kev`, `advisories`, `workarounds`, `cwe` (+ `guidance`), `remediation` (+ `plan`), `cloud-locators`, `fixes` (V2 fetches registry/distributions/source in parallel), tree-sitter reachability (`x_treeSitterQueries`)
 **Utility**: `status`, `cache` (+ `clear`)
 
+### `scan` Is An Orchestrator — Do Not Give It Private Logic
+
+`scan` composes the scanner subcommands; it owns no analysis of its own. All five specialized scanners (`sca`, `sast`, `secrets`, `containers`, `iac`) call the same `runScanWithFeatures`, and the engine branches on **feature booleans, not `cmd.Name()`**. Three name-keyed exceptions are deliberate and documented: rule-kind lock (`specializedRuleKinds`), manifest `.gitignore` policy (`respectGitignoreManifest`, only `containers`/`iac` prune), and the malscan trigger (`shouldRunMalscanPass`: always for `scan`, `--block-malware`-gated for `sca`).
+
+Every capability has exactly one owner, reached through one options-struct entry function that both the owner's subcommand and the scan engine call:
+
+| Capability | Owner entry point | File |
+|---|---|---|
+| License policy | `runLicensePipeline(LicenseRunOptions)` | `cmd/license.go` |
+| AI inventory | `runAIBOMPass(AIBOMPassOptions)` | `cmd/aibom.go` |
+| Crypto inventory | `runCBOMPass(CBOMPassOptions)` | `cmd/cbom.go` |
+| Built-in rule listing | `handleSASTRuleListing` / `listBuiltinSASTRules` | `cmd/sast_rules.go` |
+| Local malware | `runMalscanForGate` | `cmd/malscan.go` |
+| Remediation (autofix) | `fixCmd` + helpers | `cmd/fix.go`, `cmd/fix_autofix.go` |
+| Report replay | `renderStoredReport` → `LoadFromMemory` | `cmd/report.go`, `cmd/from_memory.go` |
+
+When adding a capability: put it behind such a function in its owner's file and have `scan` call it. Do not inline a second implementation into `cmd/scan.go` — that is how the license stage came to run a weaker fixed-policy fork of `vulnetix license`.
+
+Flags registered family-wide by `addScanFlags`/`addSASTFlags` must be **honoured** family-wide. `--dry-run` and `--list-default-rules` are handled inside `runScanWithFeatures` (before any network work) precisely so every subcommand honours them; `--snippet-context` lives in `addSASTFlags` because it shapes SARIF for every rego command. `cmd/scan_flag_ownership_test.go` locks this in.
+
+`--from-memory`/`--fresh-*` on `scan` are deprecated aliases delegating to `report`; `--sca-autofix` is the in-pipeline trigger for `fix`. Keep both working.
+
+### SBOM/CDX Subcommand
+
+The `cdx` command (alias `sbom`, implemented in `cmd/cdx.go`) writes one offline CycloneDX document — no VDB lookup, upload, memory write, quality gate or container daemon. Discovery passes: manifests/lockfiles, installed package trees (`internal/ecosystems`), container package DBs (dpkg/apk/pacman), Dockerfile/compose/k8s/Helm, CI/CD pipeline files, shell scripts + Makefile/justfile recipes, and **compiled artefacts** via `internal/binpkg`. AIBOM and CBOM components are merged into the same file.
+
+`internal/binpkg` is the binary→package reader: Go build info (`debug/buildinfo`, so ELF/PE/Mach-O/XCOFF — main module, every linked module with its H1 sum, and the toolchain as `stdlib` in ecosystem `golang`), Rust `cargo auditable` (zlib JSON in the ELF `.dep-v0` section, including crate edges), and JVM archives (`META-INF/maven/**/pom.properties` → `MANIFEST.MF` → filename, plus jars nested one level inside a fat jar). `ownership.go` reads dpkg/apk/pacman **file lists** so each artefact is attributed to its installing package (RPM is unreadable without a native lib — never report those images' binaries as `unpackaged`).
+
+Parity with `sca` is a requirement, not a nice-to-have: components carry purl/ecosystem/scope/environment/direct-ness/source-file/source-type/installed-path/checksums/signatures **plus** the `cdx.BuildDependencies` graph and `license.DetectLicenses` results (SPDX ids land in `license.id` via `SBOMOptions.CanonicalSPDXID`). Every component's `bom-ref` is assigned in `dedupeCDXPackages` (purl when there is one) because the graph references components by ref — `file` components are excluded from that name→ref index or a package edge resolves to a binary. Evidence confidence is graded by source: manifest/installed/container-db = high, pinned install command = medium, unpinned = low.
+
+The default output path is the same `.vulnetix/sbom.cdx.json` that `scan`/`sca` use as memory, so `preserveCDXVulnerabilities` carries existing `vulnerabilities` (and any component they reference, marked `vulnetix:sbom/carried-over`) into the new document. Do not "simplify" that away.
+
+CI/CD and shell coverage is driven by `internal/scan/detector.go` (`ciPipelineDirs`, `ciPipelineNameSuffixes`, `looksLikeGitHubActionsPath`, `IsCIPipelineFile`) plus the command-key list in `vdb-sca-match/parse` (`isCICommandKey`, multi-document YAML decode). `parseCIFileScoped` runs the YAML walk **and** the line-oriented shell pass on every CI file — Kotlin/Groovy/TOML pipelines parse as YAML scalars without error, so "did it parse as YAML" is not a usable fallback test. Note that a bare package name equal to a package-manager binary (`npm i -g pnpm`) is treated as a command boundary, not a package — pick fixtures accordingly. GitHub Actions files count as CI for `--no-ci`/`--no-ci-package-analysis`. After changing detection, update `website/content/docs/cli-reference/cdx.md` — its coverage tables are hand-maintained.
+
 ### AIBOM Subcommand
 
 The `aibom` command discovers AI coding agents/assistants and AI usage in a project and emits a CycloneDX AI Bill of Materials. It has four passes — environment (tool/provider env-var *names* only; values are never read), filesystem (tool config dirs, instructions, ignore files, skills, hooks, plugins, steering, memory, prompts, agents, commands, marketplace manifests), source code (AI SDK usage + model-name literals extracted by anchoring on the SDK parameter, so unknown/future models are captured), and commit history (commits authored by an AI agent, via `commit_patterns` matched against author/committer identity + message — Co-Authored-By trailers, session markers, agent bot authors; catches agents like Devin/Jules that leave no working-tree trace). Flags: `--no-env`, `--no-source`, `--no-commits` (default on), `--commit-scan-max`, `--include-home`, `--catalog`.

@@ -14,6 +14,15 @@ Package vulnerability analysis, general SAST rules, license analysis, secret det
 
 The command also runs a local ELF binary analysis pass and can inspect unpacked container root filesystems or saved image/rootfs tar archives. Rootfs/archive inspection reads installed OS package databases such as `dpkg`, `apk`, and `pacman` and scans discovered ELF binaries without pulling images or requiring a Docker/Podman daemon.
 
+Binaries are also read for the packages compiled into them — Go build info, Rust
+`cargo auditable` crate lists and JVM archive coordinates — and, where a package
+database is present, each binary is attributed to the package that installed it.
+Discovered packages are printed and merged into `.vulnetix/sbom.cdx.json`
+(existing components, findings and VEX statements are left in place). Disable this
+pass with `--no-binary-package-analysis`; the ELF weakness scan still runs. See
+[Binary package discovery](../cdx/#binary-package-discovery) for what each format
+yields.
+
 > **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
 
 ## Usage
@@ -33,11 +42,13 @@ vulnetix containers [flags]
 | `--no-progress` | bool | `false` | Suppress the progress bar |
 | `--severity` | string | - | Exit `1` if any finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--results-only` | bool | `false` | Only output when findings exist |
-| `--dry-run` | bool | `false` | Detect files and check memory — zero API calls |
+| `--dry-run` | bool | `false` | Report what this command would scan — rule kinds, external rule packs, discovered files — then replay stored results. Zero API calls. |
+| `--list-default-rules` | bool | `false` | Print the built-in rule table and exit |
+| `--snippet-context` | int | `-1` | Source lines captured around each SARIF finding (`-1` = dynamic, `0` disables) |
 | `--containers-include-ignored` | bool | `false` | Include files matched by `.gitignore` (default: gitignored paths are skipped) |
 | `--container-rootfs` | stringArray | - | Inspect a container root filesystem directory for installed packages and ELF binaries |
 | `--container-archive` | stringArray | - | Inspect a Docker/OCI/rootfs tar archive for installed packages and ELF binaries |
-| `--no-binary-package-analysis` | bool | `false` | Skip the local ELF binary package analysis pass |
+| `--no-binary-package-analysis` | bool | `false` | Skip package discovery from compiled binaries (Go build info, cargo-auditable, JVM archives); the ELF weakness scan still runs |
 
 ## Detected File Types
 
