@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"io"
+
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
@@ -17,6 +19,172 @@ import (
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
+
+// ---------------------------------------------------------------------------
+// License pipeline — the one owner of license analysis
+// ---------------------------------------------------------------------------
+
+// LicensePolicyFlags is the license policy as the scan-family flags express it
+// (`--license-mode`, `--allow`, `--allow-file`). It travels through the scan
+// pipeline to the license owner so a scan and a standalone `license` run apply
+// the same policy.
+type LicensePolicyFlags struct {
+	Mode      string
+	AllowCSV  string
+	AllowFile string
+}
+
+// LicenseRunOptions is everything the license pipeline needs from a caller. The
+// `license` command builds it from its own flags; `scan --evaluate-licenses`
+// builds it from the scan-family license flags and passes the packages it has
+// already parsed. Both go through runLicensePipeline so there is exactly one
+// implementation of "what does a license finding mean".
+type LicenseRunOptions struct {
+	RootPath string
+	// Mode is the license.EvalConfig mode ("inclusive" or "individual"). Empty
+	// defaults to inclusive.
+	Mode string
+	// AllowCSV / AllowFile are the two spellings of the allow list; AllowFile
+	// wins when both are set.
+	AllowCSV  string
+	AllowFile string
+	// SeverityThreshold filters findings below the given severity.
+	SeverityThreshold string
+	// Packages are the parsed manifest packages to analyse.
+	Packages []scan.ScopedPackage
+	// ManifestGroups carries the dependency graph used for introduced-via chains.
+	ManifestGroups []scan.ManifestGroup
+	// LicensedPackages lets a caller reuse an earlier license.DetectLicenses
+	// result (the scan pipeline resolves licenses before its SCA round-trip so
+	// the payload can carry them). Empty means "detect now".
+	LicensedPackages []license.PackageLicense
+	// Memory, when non-nil, receives this run's findings and the resolution of
+	// findings that have disappeared. The caller owns saving it.
+	Memory *memory.Memory
+	GitCtx *gitctx.GitContext
+	// Stderr receives warnings; nil means os.Stderr.
+	Stderr io.Writer
+}
+
+// LicenseRunResult is the pipeline's output. Callers decide what to do with it:
+// the `license` command merges the CycloneDX entries into the on-disk BOM, the
+// scan pipeline appends them to the BOM it is already building in memory.
+type LicenseRunResult struct {
+	Result           *license.AnalysisResult
+	LicensedPackages []license.PackageLicense
+	// FindingVulnerabilities are this run's open license findings as CycloneDX
+	// vulnerability entries.
+	FindingVulnerabilities []cdx.Vulnerability
+	// VEXVulnerabilities are the resolution attestations read back from memory.
+	// They are kept separate from the findings because the scan pipeline feeds
+	// them through cdx.ApplyVEXAnalysis (which annotates an existing entry rather
+	// than appending a twin), while the license command merges both into the BOM
+	// in one call.
+	VEXVulnerabilities []cdx.Vulnerability
+	// StateChanges are the memory transitions this run produced (new findings,
+	// resolutions). Empty when Options.Memory was nil.
+	StateChanges []memory.StateChange
+}
+
+// CDXVulnerabilities is the findings and their VEX attestations in one slice,
+// for callers that merge everything into the BOM at once.
+func (r *LicenseRunResult) CDXVulnerabilities() []cdx.Vulnerability {
+	out := make([]cdx.Vulnerability, 0, len(r.FindingVulnerabilities)+len(r.VEXVulnerabilities))
+	out = append(out, r.FindingVulnerabilities...)
+	return append(out, r.VEXVulnerabilities...)
+}
+
+// LicenseSpdxIDByPackage maps "name@version" → resolved SPDX id for every
+// package whose license was determined. It is what the CycloneDX component
+// population and the /v2/cli.sca payload both consume.
+func (r *LicenseRunResult) LicenseSpdxIDByPackage() map[string]string {
+	out := make(map[string]string, len(r.LicensedPackages))
+	for _, pkg := range r.LicensedPackages {
+		if pkg.LicenseSpdxID == "" || pkg.LicenseSpdxID == "UNKNOWN" {
+			continue
+		}
+		out[pkg.PackageName+"@"+pkg.PackageVersion] = pkg.LicenseSpdxID
+	}
+	return out
+}
+
+// runLicensePipeline resolves licenses, applies the org/local policy, filters
+// suppressed findings, and reconciles memory. It performs no I/O on the BOM and
+// makes no network calls, so both callers can decide those separately.
+func runLicensePipeline(opts LicenseRunOptions) (*LicenseRunResult, error) {
+	w := opts.Stderr
+	if w == nil {
+		w = os.Stderr
+	}
+	mode := opts.Mode
+	if mode == "" {
+		mode = "inclusive"
+	}
+	switch mode {
+	case "inclusive", "individual":
+	default:
+		return nil, fmt.Errorf("--license-mode must be one of: inclusive, individual")
+	}
+
+	licensed := opts.LicensedPackages
+	if len(licensed) == 0 {
+		licensed = license.DetectLicenses(opts.Packages, opts.ManifestGroups)
+	}
+
+	allowed, err := licenseAllowList(opts.AllowCSV, opts.AllowFile)
+	if err != nil {
+		return nil, err
+	}
+
+	result := license.Evaluate(licensed, license.EvalConfig{
+		Mode:              mode,
+		AllowedLicenses:   allowed,
+		SeverityThreshold: opts.SeverityThreshold,
+	})
+
+	// Drop findings covered by an active suppression ("ignore") rule before
+	// memory reconcile, BOM merge and output.
+	gitCtx := opts.GitCtx
+	if gitCtx == nil {
+		gitCtx = gitctx.Collect(opts.RootPath)
+	}
+	if set := scanSuppressionSetLoad(opts.RootPath, gitCtx); set != nil && !set.Empty() {
+		if kept, n := filterSuppressedLicenseFindings(result.Findings, set); n > 0 {
+			result.Findings = kept
+			fmt.Fprintf(w, "  %d license finding(s) suppressed by ignore rules\n", n)
+		}
+	}
+
+	out := &LicenseRunResult{Result: result, LicensedPackages: licensed}
+
+	// Reconcile memory before the caller merges the BOM: a resolved finding is by
+	// definition absent from result.Findings, and the BOM merge drops every
+	// vulnerability carrying this source before appending the new ones — so the
+	// auto-VEX entries must ride along in the same slice or the next run erases
+	// them.
+	if opts.Memory != nil {
+		out.StateChanges = recordAndReconcileLicense(opts.Memory, opts.RootPath, gitCtx, result)
+		out.VEXVulnerabilities = licenseVEXFromMemory(opts.Memory)
+	}
+	out.FindingVulnerabilities = license.FindingsToCDXVulnerabilities(result.Findings, result.Packages)
+	return out, nil
+}
+
+// licenseAllowList resolves the allow list from a file or a CSV value. A file
+// path wins over the inline list.
+func licenseAllowList(allowCSV, allowFile string) ([]string, error) {
+	if allowFile != "" {
+		al, err := license.LoadAllowListFromFile(allowFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load allow list: %w", err)
+		}
+		return al.Licenses, nil
+	}
+	if allowCSV != "" {
+		return license.ParseAllowListCSV(allowCSV).Licenses, nil
+	}
+	return nil, nil
+}
 
 var licenseCmd = &cobra.Command{
 	Use:   "license",
@@ -235,10 +403,36 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 		}
 	}
 
+	// ── Detect, evaluate, reconcile (the shared pipeline) ───────────────
 	progress.SetStage(fmt.Sprintf("Resolving licenses for %d package(s)", len(allPackages)))
-	licensedPackages := license.DetectLicenses(allPackages, manifestGroups)
+	gitCtx := gitctx.Collect(rootPath)
+	var mem *memory.Memory
+	if !disableMemory {
+		loaded, merr := memory.Load(vulnetixDir)
+		if merr != nil || loaded == nil {
+			loaded = &memory.Memory{Version: "1"}
+		}
+		loaded.SetScanContext(scanContextFor(rootPath, gitCtx))
+		mem = loaded
+	}
+	run, err := runLicensePipeline(LicenseRunOptions{
+		RootPath:          rootPath,
+		Mode:              mode,
+		AllowCSV:          allowCSV,
+		AllowFile:         allowFile,
+		SeverityThreshold: severityThreshold,
+		Packages:          allPackages,
+		ManifestGroups:    manifestGroups,
+		Memory:            mem,
+		GitCtx:            gitCtx,
+		Stderr:            os.Stderr,
+	})
+	if err != nil {
+		return err
+	}
+	result := run.Result
+	licensedPackages := run.LicensedPackages
 
-	// Count resolved.
 	resolved := 0
 	for _, pkg := range licensedPackages {
 		if pkg.LicenseSpdxID != "UNKNOWN" {
@@ -248,54 +442,8 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 	fmt.Fprintf(os.Stderr, "  %d/%d licenses resolved\n", resolved, len(licensedPackages))
 	progress.Update(4, fmt.Sprintf("Resolved %d/%d license(s)", resolved, len(licensedPackages)))
 
-	// ── Build allow list ────────────────────────────────────────────────
-	progress.SetStage("Loading license policy")
-	var allowedLicenses []string
-	if allowFile != "" {
-		al, err := license.LoadAllowListFromFile(allowFile)
-		if err != nil {
-			return fmt.Errorf("failed to load allow list: %w", err)
-		}
-		allowedLicenses = al.Licenses
-	} else if allowCSV != "" {
-		al := license.ParseAllowListCSV(allowCSV)
-		allowedLicenses = al.Licenses
-	}
-
-	// ── Evaluate ────────────────────────────────────────────────────────
-	progress.SetStage("Evaluating license policy")
-	result := license.Evaluate(licensedPackages, license.EvalConfig{
-		Mode:              mode,
-		AllowedLicenses:   allowedLicenses,
-		SeverityThreshold: severityThreshold,
-	})
-
-	// Drop license findings covered by an active suppression ("ignore") rule
-	// before memory reconcile, BOM merge, persistence and output.
-	if set := scanSuppressionSetLoad(rootPath, gitctx.Collect(rootPath)); set != nil && !set.Empty() {
-		if kept, n := filterSuppressedLicenseFindings(result.Findings, set); n > 0 {
-			result.Findings = kept
-			fmt.Fprintf(os.Stderr, "  %d license finding(s) suppressed by ignore rules\n", n)
-		}
-	}
-
-	// ── Reconcile memory ────────────────────────────────────────────────
-	// This runs before MergeBOM, not after. A resolved finding is by definition
-	// absent from result.Findings, and MergeBOM drops every vulnerability
-	// carrying this source before appending the new ones — so the auto-VEX
-	// entries must ride along in the same cdxVulns slice or the next run erases
-	// them.
 	progress.SetStage("Persisting license results")
-	var licenseVEX []cdx.Vulnerability
-	gitCtx := gitctx.Collect(rootPath)
-	if !disableMemory {
-		mem, merr := memory.Load(vulnetixDir)
-		if merr != nil || mem == nil {
-			mem = &memory.Memory{Version: "1"}
-		}
-		mem.SetScanContext(scanContextFor(rootPath, gitCtx))
-		recordAndReconcileLicense(mem, rootPath, gitCtx, result)
-		licenseVEX = licenseVEXFromMemory(mem)
+	if mem != nil {
 		if err := memory.Save(vulnetixDir, mem); err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
 		}
@@ -303,8 +451,7 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 
 	// ── Write to CDX BOM (merge, don't overwrite) ───────────────────────
 	sbomPath := filepath.Join(vulnetixDir, "sbom.cdx.json")
-	cdxVulns := license.FindingsToCDXVulnerabilities(result.Findings, result.Packages)
-	cdxVulns = append(cdxVulns, licenseVEX...)
+	cdxVulns := run.CDXVulnerabilities()
 	if err := license.MergeBOM(sbomPath, cdxVulns, license.CDXSourceName); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not merge license findings into BOM: %v\n", err)
 	}

@@ -119,51 +119,24 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	cat, err := cbom.LoadCatalog(catalogPath, noBuiltin)
-	if err != nil {
-		return err
-	}
-	compiled, err := cat.Compile()
-	if err != nil {
-		return fmt.Errorf("invalid CBOM catalog: %w", err)
-	}
-
-	det, err := cbom.Detect(cbom.Options{
-		Root:             rootPath,
-		MaxDepth:         depth,
+	// Detection, memory reconcile, CycloneDX build and the (authenticated,
+	// best-effort) submission all live in runCBOMPass — the same entry point
+	// `scan` uses, so the two never drift.
+	pass, err := runCBOMPass(CBOMPassOptions{
+		RootPath:         rootPath,
+		Depth:            depth,
 		Ignore:           ignore,
-		ScanSource:       !noSource,
-		ScanConfig:       !noConfig,
-		ScanCerts:        !noCerts,
-		ScanDeps:         !noDeps,
-		Catalog:          compiled,
+		CatalogPath:      catalogPath,
+		NoBuiltinCatalog: noBuiltin,
+		Passes:           cbomPasses{Source: !noSource, Config: !noConfig, Certs: !noCerts, Deps: !noDeps},
 		RespectGitignore: !includeIgnored,
+		SpecVersion:      specVersion,
+		Upload:           !noUpload,
 	})
 	if err != nil {
 		return err
 	}
-
-	// Build the CycloneDX CBOM once — used for both cyclonedx-json output and the
-	// backend submission. Build + validate live in the shared vdb-cyclonedx module.
-	gitCtx := gitctx.Collect(rootPath)
-	bomData, err := cyclonedx.BuildCBOM(det, cyclonedx.CBOMOptions{
-		SpecVersion: specVersion,
-		ToolName:    "vulnetix-cbom",
-		ToolVersion: version,
-		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
-	})
-	if err != nil {
-		return err
-	}
-
-	// Memory always lives under the resolved scan root, never the process CWD.
-	reconcileCBOMMemory(rootPath, gitCtx, det, cbomPasses{
-		Source: !noSource, Config: !noConfig, Certs: !noCerts, Deps: !noDeps,
-	})
-
-	if !noUpload {
-		uploadCBOM(specVersion, det, bomData, gitCtx)
-	}
+	det, bomData := pass.Detections, pass.BOM
 
 	warnOutputExtension(outputFile, ".cdx.json")
 	outFile := outputFile
@@ -330,44 +303,98 @@ func reconcileCBOMMemory(rootPath string, gitCtx *gitctx.GitContext, det cyclone
 // snapshots), but reconciliation still runs — an empty detection is exactly when
 // prior assets must be resolved.
 func detectAndUploadCBOM(rootPath string, gitCtx *gitctx.GitContext) {
+	_, _ = runCBOMPass(CBOMPassOptions{
+		RootPath: rootPath,
+		Passes:   cbomPasses{Source: true, Config: true, Certs: true, Deps: true},
+		Upload:   true,
+		GitCtx:   gitCtx,
+	})
+}
+
+// CBOMPassOptions is the CBOM owner's entry contract, mirroring
+// AIBOMPassOptions: the `cbom` command builds it from its flags, `scan` builds it
+// with the pass defaults, and runCBOMPass is the only implementation.
+type CBOMPassOptions struct {
+	RootPath         string
+	Depth            int
+	Ignore           []string
+	CatalogPath      string
+	NoBuiltinCatalog bool
+	// Passes selects which detection passes run; the zero value runs none.
+	Passes           cbomPasses
+	RespectGitignore bool
+	// SpecVersion defaults to 1.7.
+	SpecVersion string
+	// Upload submits the CBOM to the backend when authenticated.
+	Upload bool
+	GitCtx *gitctx.GitContext
+}
+
+// CBOMPassResult carries what the caller renders, writes or gates on.
+type CBOMPassResult struct {
+	Detections  cyclonedx.CryptoDetections
+	BOM         []byte
+	SpecVersion string
+}
+
+// runCBOMPass detects cryptographic usage, reconciles it against local memory,
+// builds the CycloneDX CBOM and (optionally) submits it. It writes no file,
+// prints nothing and applies no --fail-on gate: those belong to the caller.
+//
+// As with AIBOM, memory reconciliation runs even on an empty detection (that is
+// when prior assets must be resolved) but an empty CBOM is never uploaded.
+func runCBOMPass(opts CBOMPassOptions) (*CBOMPassResult, error) {
+	rootPath := opts.RootPath
 	if rootPath == "" {
 		rootPath = "."
 	}
-	cat, err := cbom.LoadCatalog("", false)
+	specVersion := opts.SpecVersion
+	if specVersion == "" {
+		specVersion = "1.7"
+	}
+	cat, err := cbom.LoadCatalog(opts.CatalogPath, opts.NoBuiltinCatalog)
 	if err != nil {
-		return
+		return nil, err
 	}
 	compiled, err := cat.Compile()
 	if err != nil {
-		return
+		return nil, fmt.Errorf("invalid CBOM catalog: %w", err)
 	}
 	det, err := cbom.Detect(cbom.Options{
-		Root:       rootPath,
-		ScanSource: true,
-		ScanConfig: true,
-		ScanCerts:  true,
-		ScanDeps:   true,
-		Catalog:    compiled,
+		Root:             rootPath,
+		MaxDepth:         opts.Depth,
+		Ignore:           opts.Ignore,
+		ScanSource:       opts.Passes.Source,
+		ScanConfig:       opts.Passes.Config,
+		ScanCerts:        opts.Passes.Certs,
+		ScanDeps:         opts.Passes.Deps,
+		Catalog:          compiled,
+		RespectGitignore: opts.RespectGitignore,
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
-	reconcileCBOMMemory(rootPath, gitCtx, det, cbomPasses{
-		Source: true, Config: true, Certs: true, Deps: true,
-	})
-	if len(det.Assets)+len(det.Certificates)+len(det.Libraries) == 0 {
-		return
+
+	gitCtx := opts.GitCtx
+	if gitCtx == nil {
+		gitCtx = gitctx.Collect(rootPath)
 	}
-	data, err := cyclonedx.BuildCBOM(det, cyclonedx.CBOMOptions{
-		SpecVersion: "1.7",
+	reconcileCBOMMemory(rootPath, gitCtx, det, opts.Passes)
+
+	bomData, err := cyclonedx.BuildCBOM(det, cyclonedx.CBOMOptions{
+		SpecVersion: specVersion,
 		ToolName:    "vulnetix-cbom",
 		ToolVersion: version,
 		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
-	uploadCBOM("1.7", det, data, gitCtx)
+
+	if opts.Upload && len(det.Assets)+len(det.Certificates)+len(det.Libraries) > 0 {
+		uploadCBOM(specVersion, det, bomData, gitCtx)
+	}
+	return &CBOMPassResult{Detections: det, BOM: bomData, SpecVersion: specVersion}, nil
 }
 
 // parseFailOn validates the --fail-on selection.
