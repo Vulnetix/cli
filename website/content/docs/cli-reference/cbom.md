@@ -48,6 +48,25 @@ vulnetix cbom --fail-on quantum-vulnerable      # gate CI on quantum-vulnerable 
 vulnetix cbom --catalog ./extra-algos.json      # extend the builtin catalog
 ```
 
+## Inside a scan
+
+`vulnetix scan` captures the cryptography inventory as one of its passes, and it
+calls this command's pipeline — the same catalog, the same four detection passes,
+the same memory reconcile. The in-scan pass differs only in what it does with the
+result:
+
+| | `vulnetix cbom` | pass inside `vulnetix scan` |
+|---|---|---|
+| Passes run | selected by `--no-source` / `--no-config` / `--no-certs` / `--no-deps` | all four |
+| CycloneDX file written | yes (`.vulnetix/cbom.cdx.json` or `--output-file`) | no |
+| Terminal output | yes (`-o pretty/json/cyclonedx-json`) | no |
+| `--fail-on` PQC gate | yes | no — the scan's own gates decide its exit code |
+| Memory reconcile | yes | yes |
+| Submitted when authenticated | yes (unless `--no-upload`) | yes |
+
+Turn the pass off with `vulnetix scan --no-cbom`. Run this command directly when you
+want the file, the table, or the post-quantum CI gate.
+
 ## Privacy
 
 The certificate pass reads only certificate/key **metadata** (algorithm, size, validity) — never key material. No source content is uploaded.

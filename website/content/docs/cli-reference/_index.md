@@ -479,10 +479,13 @@ vulnetix cbom [path] [flags]
 
 ### vulnetix cdx
 
-Generate one standalone CycloneDX document containing package SBOM inventory, AIBOM components and CBOM components. The command is offline: no VDB lookup, upload, memory update, quality gate, image pull or container daemon is used. See the full [CDX Command Reference](cdx/).
+Generate one standalone CycloneDX document containing package SBOM inventory, AIBOM components and CBOM components. The command is offline: no VDB lookup, upload, memory update, quality gate, image pull or container daemon is used. Discovery spans manifests and lockfiles, installed package trees, container package databases, Dockerfiles, CI/CD pipeline files, shell scripts and recipes, and the packages compiled into binaries (Go build info, Rust `cargo auditable`, JVM archives). Each component carries the same metadata `sca` records, including the dependency graph and licenses.
+
+`vulnetix sbom` is an alias for this command — CycloneDX is the preferred format, and a future SPDX generator will be its own command. See the full [CDX Command Reference](cdx/).
 
 ```bash
 vulnetix cdx [path] [flags]
+vulnetix sbom [path] [flags]   # alias
 ```
 
 | Flag | Default | Description |
@@ -494,17 +497,19 @@ vulnetix cdx [path] [flags]
 | `--spec-version` | `1.7` | CycloneDX spec version: `1.6` or `1.7` |
 | `--container-rootfs` | - | Inspect a container root filesystem directory (repeatable) |
 | `--container-archive` | - | Inspect a Docker/OCI/rootfs tar archive (repeatable) |
+| `--no-ci` / `--no-shell` | `false` | Skip CI/CD pipeline or shell/recipe package discovery |
+| `--no-binary-analysis` / `--no-binary-packages` | `false` | Skip binary analysis, or keep it but omit the packages embedded in binaries |
+| `--no-licenses` | `false` | Skip license detection |
 | `--no-aibom` / `--no-cbom` | `false` | Omit AI or cryptographic components |
 
 ---
 
 ### vulnetix scan
 
-Walk the local directory tree, parse package manifests, and query the VDB for vulnerabilities — no files are uploaded. See the full [Scan Command Reference](scan/) for details.
+Run every analysis in one pass. `scan` is an orchestrator: each pass is owned by its own subcommand (`sca`, `sast`, `secrets`, `containers`, `iac`, `license`, `malscan`, `aibom`, `cbom`) and `scan` composes them into one set of results, one SBOM and one quality-gate verdict. `--evaluate-*` selects a subset; `--no-*` switches a pass off. See the full [Scan Command Reference](scan/) for details.
 
 ```bash
 vulnetix scan [flags]
-vulnetix scan status <scan-id> [flags]
 ```
 
 | Flag | Default | Description |
@@ -520,8 +525,8 @@ vulnetix scan status <scan-id> [flags]
 | `--block-malware` | `false` | Exit `1` when any dependency is a known malicious package |
 | `--block-eol` | `false` | Exit `1` when a runtime or package dependency is end-of-life |
 | `--results-only` | `false` | Only output when findings exist; completely silent when the scan is clean |
-| `--no-ci-package-analysis` | `false` | Skip dependency extraction from CI/CD pipeline files |
-| `--no-shell-package-analysis` | `false` | Skip dependency extraction from shell scripts |
+| `--no-ci-package-analysis` | `false` | Skip dependency extraction from CI/CD pipeline files, including GitHub Actions workflows |
+| `--no-shell-package-analysis` | `false` | Skip dependency extraction from shell scripts, Makefiles and task recipes |
 | `--evaluate-sast` / `--no-sast` | - | Enable/disable SAST (general static analysis rules) |
 | `--evaluate-sca` / `--no-sca` | - | Enable/disable SCA (package manifest vulnerability analysis) |
 | `--evaluate-licenses` / `--no-licenses` | - | Enable/disable license analysis |
@@ -547,6 +552,41 @@ vulnetix sca [flags]
 Equivalent to `vulnetix scan --evaluate-sca --no-sast --no-secrets --no-containers --no-iac --no-licenses`.
 
 When `--block-malware` (or the org `blockMalware` policy) is in effect, `sca` also runs the in-process [malscan](malscan/) pass over the installed dependencies and gates on any locally-detected malware.
+
+---
+
+### vulnetix fix
+
+Resolve vulnerable dependencies to safe versions, apply the change with the project's own package manager, and rescan to confirm the finding is gone. This is the owner of remediation: `--sca-autofix` on the scan family triggers the same pipeline in-pass. `vulnetix autofix` is an alias. See the full [Fix Command Reference](fix/).
+
+```bash
+vulnetix fix [path] [flags]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--strategy` | `stable` | Fix target strategy: `stable`, `safest`, `latest` |
+| `--manifest` | - | Restrict edits to one manifest file |
+| `--max-major-bump` | `0` | Refuse targets crossing more than N major versions |
+| `--yes` | `false` | Non-interactive: safe defaults, never prompt |
+| `--dry-run` | `false` | Show the fix plan and change nothing |
+
+---
+
+### vulnetix report
+
+Render the results of the last scan from `.vulnetix/sbom.cdx.json` — no discovery, no parsing, and by default no network calls at all. `scan --from-memory` is a deprecated alias for it. See the full [Report Command Reference](report/).
+
+```bash
+vulnetix report [path] [flags]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `.` | Project directory whose `.vulnetix/` results are rendered |
+| `--fresh-exploits` | `false` | Re-fetch exploit intelligence for the stored findings |
+| `--fresh-advisories` | `false` | Re-fetch remediation plans |
+| `--fresh-vulns` | `false` | Re-check affected version ranges and scoring |
 
 ---
 
