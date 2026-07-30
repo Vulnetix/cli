@@ -16,7 +16,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/glaslos/ssdeep"
@@ -107,9 +109,45 @@ func isELF(path string, d fs.DirEntry) bool {
 
 // ── Filesystem walker ───────────────────────────────────────────────────
 
+// BinaryScanOptions tunes the analysis fan-out. The zero value is the default
+// policy, so callers that do not care can use ScanContainerFilesystem.
+type BinaryScanOptions struct {
+	// Concurrency caps how many binaries are analysed at once. Zero picks
+	// min(NumCPU, defaultBinaryScanWorkerCap).
+	Concurrency int
+	// ByteBudget caps the total size of the binaries held in memory at once.
+	// analyzeBinary reads each file whole (hashing needs every byte), so an
+	// unbounded pool over a directory of large release binaries would multiply
+	// peak RSS by the worker count. Zero picks defaultBinaryScanByteBudget. A
+	// file larger than the whole budget is still analysed, alone.
+	ByteBudget int64
+}
+
+const (
+	// defaultBinaryScanWorkerCap bounds the pool regardless of core count:
+	// analysis is I/O plus hashing, and beyond a handful of workers the disk,
+	// not the CPU, is the limit.
+	defaultBinaryScanWorkerCap = 8
+	// defaultBinaryScanByteBudget is the in-flight memory allowance (256 MiB).
+	defaultBinaryScanByteBudget = 256 << 20
+)
+
 // ScanContainerFilesystem recursively walks root looking for ELF binaries,
 // analyzes each one, and returns the full scan result.
 func ScanContainerFilesystem(root string) *ScanResult {
+	return ScanContainerFilesystemWithOptions(root, BinaryScanOptions{})
+}
+
+// ScanContainerFilesystemWithOptions is ScanContainerFilesystem with an explicit
+// fan-out policy.
+//
+// The walk is serial (cheap: four bytes read per candidate file) and the
+// analysis — whole-file read, five hash families, ELF parsing, string
+// extraction — is fanned out across workers. Results are written back by index,
+// so Binaries and Errors stay in walk order no matter which worker finishes
+// first: two runs over the same tree produce byte-identical SARIF and SBOM
+// output.
+func ScanContainerFilesystemWithOptions(root string, opts BinaryScanOptions) *ScanResult {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		abs = root
@@ -139,10 +177,11 @@ func ScanContainerFilesystem(root string) *ScanResult {
 	result.Total = len(elfPaths)
 	result.ELFCount = len(elfPaths)
 
-	for _, p := range elfPaths {
-		bin := analyzeBinary(p)
+	analyses := analyzeBinariesConcurrently(elfPaths, opts)
+
+	for i, bin := range analyses {
 		if bin.Error != "" {
-			result.Errors = append(result.Errors, fmt.Sprintf("%s: %s", p, bin.Error))
+			result.Errors = append(result.Errors, fmt.Sprintf("%s: %s", elfPaths[i], bin.Error))
 		}
 		result.Binaries = append(result.Binaries, BinaryResult{
 			Path:         bin.Path,
@@ -159,6 +198,110 @@ func ScanContainerFilesystem(root string) *ScanResult {
 	}
 
 	return result
+}
+
+// analyzeBinariesConcurrently analyses paths in parallel and returns one
+// BinaryAnalysis per input, in input order.
+func analyzeBinariesConcurrently(paths []string, opts BinaryScanOptions) []BinaryAnalysis {
+	out := make([]BinaryAnalysis, len(paths))
+	if len(paths) == 0 {
+		return out
+	}
+
+	workers := opts.Concurrency
+	if workers <= 0 {
+		workers = min(runtime.NumCPU(), defaultBinaryScanWorkerCap)
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	if workers > len(paths) {
+		workers = len(paths)
+	}
+	if workers == 1 {
+		for i, p := range paths {
+			out[i] = analyzeBinary(p)
+		}
+		return out
+	}
+
+	budget := opts.ByteBudget
+	if budget <= 0 {
+		budget = defaultBinaryScanByteBudget
+	}
+	mem := newByteBudget(budget)
+
+	var wg sync.WaitGroup
+	next := make(chan int)
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range next {
+				// Reserve the file's size before reading it, so the number of
+				// concurrent analyses adapts to how big the binaries are: many
+				// small ones run wide, a few huge ones serialise.
+				size := fileSizeOrZero(paths[i])
+				mem.acquire(size)
+				out[i] = analyzeBinary(paths[i])
+				mem.release(size)
+			}
+		}()
+	}
+	for i := range paths {
+		next <- i
+	}
+	close(next)
+	wg.Wait()
+	return out
+}
+
+func fileSizeOrZero(path string) int64 {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return fi.Size()
+}
+
+// byteBudget is a counting semaphore over bytes rather than slots. A request
+// larger than the whole budget is admitted on its own rather than deadlocking.
+type byteBudget struct {
+	mu    sync.Mutex
+	cond  *sync.Cond
+	limit int64
+	inUse int64
+}
+
+func newByteBudget(limit int64) *byteBudget {
+	b := &byteBudget{limit: limit}
+	b.cond = sync.NewCond(&b.mu)
+	return b
+}
+
+func (b *byteBudget) acquire(n int64) {
+	if n <= 0 {
+		return
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for b.inUse > 0 && b.inUse+n > b.limit {
+		b.cond.Wait()
+	}
+	b.inUse += n
+}
+
+func (b *byteBudget) release(n int64) {
+	if n <= 0 {
+		return
+	}
+	b.mu.Lock()
+	b.inUse -= n
+	if b.inUse < 0 {
+		b.inUse = 0
+	}
+	b.mu.Unlock()
+	b.cond.Broadcast()
 }
 
 // ── Single-binary analysis ──────────────────────────────────────────────
