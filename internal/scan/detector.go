@@ -130,33 +130,77 @@ var ManifestFiles = map[string]ManifestInfo{
 	"podman-compose.yaml": {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
 	"podman-compose.yml":  {Type: "compose.yaml", Ecosystem: "docker", Language: "docker", IsLock: false},
 	// ── CI/CD pipeline-as-code files ─────────────────────────────────────
-	".gitlab-ci.yml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	".gitlab-ci.yaml":         {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	".travis.yml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	".cirrus.yml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	".woodpecker.yml":         {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	".woodpecker.yaml":        {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	".drone.yml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	".drone.yaml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	".buddy.yml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	".buddy.yaml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"azure-pipelines.yml":     {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"azure-pipelines.yaml":    {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"bitbucket-pipelines.yml": {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"buildspec.yml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"buildspec.yaml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"cloudbuild.yml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"cloudbuild.yaml":         {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"codefresh.yml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"codefresh.yaml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"appveyor.yml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"appveyor.yaml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"semaphore.yml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"semaphore.yaml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"wercker.yml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"wercker.yaml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"Jenkinsfile":             {Type: "Jenkinsfile", Ecosystem: "ci", Language: "ci", IsLock: false},
-	"Jenkinsfile.groovy":      {Type: "Jenkinsfile", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".gitlab-ci.yml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".gitlab-ci.yaml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".travis.yml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".cirrus.yml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".woodpecker.yml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".woodpecker.yaml":         {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".drone.yml":               {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".drone.yaml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".buddy.yml":               {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".buddy.yaml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"azure-pipelines.yml":      {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"azure-pipelines.yaml":     {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"bitbucket-pipelines.yml":  {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"buildspec.yml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"buildspec.yaml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"cloudbuild.yml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"cloudbuild.yaml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"codefresh.yml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"codefresh.yaml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"appveyor.yml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"appveyor.yaml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"semaphore.yml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"semaphore.yaml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"wercker.yml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"wercker.yaml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"bitbucket-pipelines.yaml": {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".circleci.yml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".cirrus.yaml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".travis.yaml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".semaphore.yml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"bitrise.yml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"codemagic.yaml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"codeship-steps.yml":       {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"screwdriver.yaml":         {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"screwdriver.yml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"zuul.yaml":                {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".zuul.yaml":               {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"harness.yaml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"skaffold.yaml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"skaffold.yml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"garden.yml":               {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"render.yaml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"cloud-init.yaml":          {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"user-data.yaml":           {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".gitpod.yml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".gitpod.yaml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"devcontainer.json":        {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".devcontainer.json":       {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"shippable.yml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".prow.yaml":               {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"heroku.yml":               {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"vercel.json":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"netlify.toml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".space.kts":               {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".build.yml":               {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	".build.yaml":              {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"Taskfile.yml":             {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"Taskfile.yaml":            {Type: "ci-pipeline", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"Earthfile":                {Type: "Dockerfile", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"Jenkinsfile":              {Type: "Jenkinsfile", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"Jenkinsfile.groovy":       {Type: "Jenkinsfile", Ecosystem: "ci", Language: "ci", IsLock: false},
+	"Jenkinsfile.declarative":  {Type: "Jenkinsfile", Ecosystem: "ci", Language: "ci", IsLock: false},
+	// Makefile-family and task-runner recipes carry the same `apt-get install …`
+	// lines a CI job does, with no manifest anywhere near them.
+	"Makefile":    {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	"makefile":    {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	"GNUmakefile": {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	"justfile":    {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".justfile":   {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	"Justfile":    {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	"Vagrantfile": {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
 	// ── Helm ──────────────────────────────────────────────────────────────
 	"Chart.yaml": {Type: "Chart.yaml", Ecosystem: "helm", Language: "helm", IsLock: false},
 	"Chart.yml":  {Type: "Chart.yaml", Ecosystem: "helm", Language: "helm", IsLock: false},
@@ -232,6 +276,17 @@ var ManifestExtensions = map[string]ManifestInfo{
 	".zsh":           {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
 	".ksh":           {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
 	".bats":          {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".ash":           {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".dash":          {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".fish":          {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".command":       {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".mk":            {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	// Windows shells install packages in CI too (choco/scoop/winget), and the
+	// install-command parser understands those commands.
+	".ps1":  {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".psm1": {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".cmd":  {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
+	".bat":  {Type: "shell-script", Ecosystem: "shell", Language: "shell", IsLock: false},
 }
 
 // SupportedManifestTypes lists manifest types that have a local parser implemented.
@@ -402,16 +457,6 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 		return &ManifestInfo{Type: "requirements.txt", Ecosystem: "pypi", Language: "python", IsLock: false, Confidence: ConfidenceConfident}, true
 	}
 
-	if looksLikeCIPipelinePath(filename) {
-		info := ManifestInfo{
-			Type:      "ci-pipeline",
-			Ecosystem: "ci",
-			Language:  "ci",
-			IsLock:    false,
-		}
-		return &info, true
-	}
-
 	// 4. Content-checked: CMakeLists.txt with CPMAddPackage calls.
 	if base == "CMakeLists.txt" {
 		content, err := os.ReadFile(filename)
@@ -451,10 +496,12 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 			return &info, true
 		}
 
-		// 6. Path-pattern: GitHub Actions workflow files under .github/workflows/.
-		slash := filepath.ToSlash(filename)
-		if strings.Contains(slash, "/.github/workflows/") ||
-			strings.HasPrefix(slash, ".github/workflows/") {
+		// 6. Path-pattern: GitHub Actions and the forks that reuse its syntax
+		// (Gitea, Forgejo), plus composite/reusable action definitions. These are
+		// routed to the Actions parser rather than the generic CI parser so
+		// `uses:` pins are resolved as github-actions packages, not just the
+		// install commands inside `run:` steps.
+		if looksLikeGitHubActionsPath(filename) {
 			info := ManifestInfo{
 				Type:      "github-actions.yml",
 				Ecosystem: "github-actions",
@@ -463,6 +510,19 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 			}
 			return &info, true
 		}
+	}
+
+	// 6a. Path-pattern: pipeline-as-code files for every other CI system. Runs
+	// after the compose/Kubernetes/Actions checks so a compose file that happens
+	// to live in `ci/` keeps its more specific classification.
+	if looksLikeCIPipelinePath(filename) {
+		info := ManifestInfo{
+			Type:      "ci-pipeline",
+			Ecosystem: "ci",
+			Language:  "ci",
+			IsLock:    false,
+		}
+		return &info, true
 	}
 
 	if looksLikeShellScript(filename, lowerBase) {
@@ -539,23 +599,95 @@ func looksLikeRequirementsName(filename string) bool {
 	return false
 }
 
+// ciPipelineDirs are the directories CI systems keep pipeline-as-code in. A YAML
+// (or extensionless `config`) file inside one is treated as a pipeline, because
+// the install commands in it put packages on the build machine with no manifest
+// to declare them.
+var ciPipelineDirs = []string{
+	".circleci", ".buildkite", ".semaphore", ".teamcity", ".woodpecker", ".drone",
+	".azure", ".azure-pipelines", ".pipelines", ".ci", "ci", ".gitlab/ci", ".gitlab-ci",
+	".tekton", "tekton", ".argo", ".argo-workflows", ".concourse", "concourse",
+	".harness", "bamboo-specs", ".cirrus", ".codefresh", ".buddy", ".zuul.d",
+	".prow", "prow", ".builds", ".dagger", ".jenkins", ".spinnaker", ".screwdriver",
+	".bitbucket", ".codeship", ".devcontainer", ".earthly", ".garden", ".skaffold",
+	".gocd", ".appveyor", ".bitrise", ".codemagic", ".travis", ".nomad", ".gitpod",
+}
+
+// ciPipelineNameSuffixes catch pipeline files that live outside a CI directory,
+// including GitLab CI templates (`security.gitlab-ci.yml`) and the
+// `*-pipeline.yml` convention used by Concourse, Tekton and Argo.
+var ciPipelineNameSuffixes = []string{
+	"/pipeline.yml", "/pipeline.yaml", "/pipelines.yml", "/pipelines.yaml",
+	"/ci.yml", "/ci.yaml", "-pipeline.yml", "-pipeline.yaml",
+	"-pipelines.yml", "-pipelines.yaml",
+	".gitlab-ci.yml", ".gitlab-ci.yaml",
+	"/workflow.yml", "/workflow.yaml", "-workflow.yml", "-workflow.yaml",
+	"/.build.yml", "/.build.yaml",
+}
+
 func looksLikeCIPipelinePath(filename string) bool {
 	slash := strings.ToLower(filepath.ToSlash(filename))
-	ciFragments := []string{
-		"/.circleci/config.yml", "/.circleci/config.yaml",
-		"/.buildkite/", "/.semaphore/", "/.teamcity/",
-		"/.github/actions/",
-		"/.ci/", "/ci/",
+	// Inside a CI directory the DSL varies by vendor: YAML for most, JSON for
+	// devcontainers, Kotlin for TeamCity and JetBrains Space, Groovy for Jenkins,
+	// and an extensionless `config` for older CircleCI layouts. Non-YAML files fall
+	// back to line-oriented shell parsing, which is what those DSLs embed anyway.
+	ciExt := strings.HasSuffix(slash, ".yml") || strings.HasSuffix(slash, ".yaml") ||
+		strings.HasSuffix(slash, ".json") || strings.HasSuffix(slash, "/config") ||
+		strings.HasSuffix(slash, ".kts") || strings.HasSuffix(slash, ".groovy")
+	if !ciExt {
+		return false
 	}
-	for _, frag := range ciFragments {
-		if strings.Contains(slash, frag) {
-			return strings.HasSuffix(slash, ".yml") || strings.HasSuffix(slash, ".yaml") || strings.HasSuffix(slash, "/config")
+	for _, dir := range ciPipelineDirs {
+		if strings.Contains(slash, "/"+dir+"/") || strings.HasPrefix(slash, dir+"/") {
+			return true
 		}
 	}
-	return strings.HasSuffix(slash, "/pipeline.yml") ||
-		strings.HasSuffix(slash, "/pipeline.yaml") ||
-		strings.HasSuffix(slash, "/ci.yml") ||
-		strings.HasSuffix(slash, "/ci.yaml")
+	// A bare .json/.kts/.groovy outside a CI directory is almost never a pipeline;
+	// only the directory rule above (which covers .devcontainer/devcontainer.json)
+	// and the exact-name table apply.
+	if strings.HasSuffix(slash, ".json") || strings.HasSuffix(slash, ".kts") || strings.HasSuffix(slash, ".groovy") {
+		return false
+	}
+	for _, suffix := range ciPipelineNameSuffixes {
+		if strings.HasSuffix(slash, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsCIPipelineFile reports whether a detected manifest is pipeline-as-code.
+// GitHub Actions workflows are counted: they are CI files whose `run:` steps
+// install packages, so `--no-ci` style flags must reach them too, even though
+// their `uses:` pins are also resolved as github-actions packages.
+func IsCIPipelineFile(info *ManifestInfo) bool {
+	if info == nil {
+		return false
+	}
+	return info.Language == "ci" || info.Ecosystem == "ci" || info.Ecosystem == "github-actions"
+}
+
+// looksLikeGitHubActionsPath reports whether a YAML file is a GitHub Actions
+// workflow, a Gitea/Forgejo workflow (same schema, same `uses:` pins), or a
+// composite/reusable action definition.
+func looksLikeGitHubActionsPath(filename string) bool {
+	slash := strings.ToLower(filepath.ToSlash(filename))
+	base := slash
+	if i := strings.LastIndexByte(slash, '/'); i >= 0 {
+		base = slash[i+1:]
+	}
+	if base == "action.yml" || base == "action.yaml" {
+		return true
+	}
+	for _, dir := range []string{
+		".github/workflows/", ".github/actions/",
+		".gitea/workflows/", ".forgejo/workflows/",
+	} {
+		if strings.Contains(slash, "/"+dir) || strings.HasPrefix(slash, dir) {
+			return true
+		}
+	}
+	return false
 }
 
 func looksLikeShellScript(filename, lowerBase string) bool {

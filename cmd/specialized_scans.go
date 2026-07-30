@@ -192,7 +192,8 @@ func init() {
 		if cmd == containersCmd {
 			cmd.Flags().StringArray("container-rootfs", nil, "Container root filesystem directory to inspect for installed OS packages and ELF binaries (repeatable)")
 			cmd.Flags().StringArray("container-archive", nil, "Docker/OCI/rootfs tar archive to inspect for installed OS packages and ELF binaries (repeatable)")
-			cmd.Flags().Bool("no-binary-package-analysis", false, "Skip container ELF binary package analysis")
+			cmd.Flags().Bool("no-binary-package-analysis", false,
+				"Skip package discovery from compiled binaries (Go build info, cargo-auditable, JVM archives); the ELF weakness scan still runs")
 		}
 		rootCmd.AddCommand(cmd)
 	}
