@@ -119,57 +119,26 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--spec-version must be one of: 1.6, 1.7")
 	}
 
-	cat, err := aibom.LoadCatalog(catalogPath, noBuiltin)
-	if err != nil {
-		return err
-	}
-	compiled, err := cat.Compile()
-	if err != nil {
-		return fmt.Errorf("invalid AIBOM catalog: %w", err)
-	}
-
-	det, err := aibom.Detect(aibom.Options{
-		Root:             rootPath,
-		MaxDepth:         depth,
+	// Detection, memory reconcile, CycloneDX build and the (authenticated,
+	// best-effort) submission all live in runAIBOMPass — the same entry point
+	// `scan` uses, so the two never drift.
+	pass, err := runAIBOMPass(AIBOMPassOptions{
+		RootPath:         rootPath,
+		Depth:            depth,
 		Ignore:           ignore,
-		ScanEnv:          !noEnv,
+		CatalogPath:      catalogPath,
+		NoBuiltinCatalog: noBuiltin,
+		Passes:           aibomPasses{Env: !noEnv, Source: !noSource, Commits: !noCommits, Iac: !noIaC},
 		IncludeHome:      includeHome,
-		ScanSource:       !noSource,
-		ScanCommits:      !noCommits,
-		ScanIaC:          !noIaC,
 		CommitMax:        commitMax,
-		Catalog:          compiled,
 		RespectGitignore: !includeIgnored,
+		SpecVersion:      specVersion,
+		Upload:           !noUpload,
 	})
 	if err != nil {
 		return err
 	}
-
-	// Build the CycloneDX AIBOM once — used both for cyclonedx-json output and
-	// for the backend submission below. The format (build + validate) lives in
-	// the shared vdb-cyclonedx module so producers and consumers agree.
-	gitCtx := gitctx.Collect(rootPath)
-	bomData, err := cyclonedx.BuildAIBOM(det, cyclonedx.AIBOMOptions{
-		SpecVersion: specVersion,
-		ToolName:    "vulnetix-aibom",
-		ToolVersion: version,
-		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
-	})
-	if err != nil {
-		return err
-	}
-
-	// Memory always lives under the resolved scan root, never the process CWD.
-	reconcileAIBOMMemory(rootPath, gitCtx, det, aibomPasses{
-		Env: !noEnv, Source: !noSource, Commits: !noCommits, Iac: !noIaC,
-	})
-
-	// Auto-submit to the Vulnetix backend when authenticated. Best-effort: never
-	// fails the command, and community/unauthenticated callers are skipped (the
-	// server would not persist their data anyway).
-	if !noUpload {
-		uploadAIBOM(specVersion, det, bomData, gitCtx)
-	}
+	det, bomData := pass.Detections, pass.BOM
 
 	// Always persist the CycloneDX AIBOM to a file. Default location is
 	// <path>/.vulnetix/ai-bom.cdx.json; --output-file overrides the path.
@@ -344,50 +313,116 @@ func reconcileAIBOMMemory(rootPath string, gitCtx *gitctx.GitContext, det cyclon
 	}
 }
 
-// detectAndUploadAIBOM runs the AIBOM detection passes against rootPath,
-// reconciles the result against local memory, and submits it to the backend.
-// Best-effort: silent on any error and never affects the caller's exit code.
-// Used by `scan` to capture AI coding-agent / SDK / model inventory alongside
-// the rest of the scan. The submission is skipped when nothing AI-related is
-// detected (no empty snapshots), but reconciliation still runs — an empty
-// detection is exactly when prior components must be resolved.
-func detectAndUploadAIBOM(rootPath string, gitCtx *gitctx.GitContext) {
+// AIBOMPassOptions is the AIBOM owner's entry contract. The `aibom` command
+// builds it from its flags; `scan` builds it with the pass defaults. Both go
+// through runAIBOMPass, so there is one definition of "detect AI usage".
+type AIBOMPassOptions struct {
+	RootPath         string
+	Depth            int
+	Ignore           []string
+	CatalogPath      string
+	NoBuiltinCatalog bool
+	// Passes selects which detection passes run; the zero value runs none, so
+	// callers must be explicit.
+	Passes           aibomPasses
+	IncludeHome      bool
+	CommitMax        int
+	RespectGitignore bool
+	// SpecVersion defaults to 1.7.
+	SpecVersion string
+	// Upload submits the AIBOM to the backend when authenticated.
+	Upload bool
+	GitCtx *gitctx.GitContext
+}
+
+// AIBOMPassResult carries what the caller renders or writes.
+type AIBOMPassResult struct {
+	Detections  cyclonedx.AIDetections
+	BOM         []byte
+	SpecVersion string
+}
+
+// runAIBOMPass detects AI usage, reconciles it against local memory, builds the
+// CycloneDX AIBOM and (optionally) submits it. It writes no file and prints
+// nothing: the caller decides those.
+//
+// Memory reconciliation runs even when nothing is detected — an empty detection
+// is exactly when previously-recorded components must be resolved — but an empty
+// AIBOM is never uploaded.
+func runAIBOMPass(opts AIBOMPassOptions) (*AIBOMPassResult, error) {
+	rootPath := opts.RootPath
 	if rootPath == "" {
 		rootPath = "."
 	}
-	cat, err := aibom.LoadCatalog("", false)
+	specVersion := opts.SpecVersion
+	if specVersion == "" {
+		specVersion = "1.7"
+	}
+	cat, err := aibom.LoadCatalog(opts.CatalogPath, opts.NoBuiltinCatalog)
 	if err != nil {
-		return
+		return nil, err
 	}
 	compiled, err := cat.Compile()
 	if err != nil {
-		return
+		return nil, fmt.Errorf("invalid AIBOM catalog: %w", err)
 	}
 	det, err := aibom.Detect(aibom.Options{
-		Root:        rootPath,
-		ScanEnv:     true,
-		ScanSource:  true,
-		ScanCommits: true,
-		ScanIaC:     true,
-		Catalog:     compiled,
+		Root:             rootPath,
+		MaxDepth:         opts.Depth,
+		Ignore:           opts.Ignore,
+		ScanEnv:          opts.Passes.Env,
+		IncludeHome:      opts.IncludeHome,
+		ScanSource:       opts.Passes.Source,
+		ScanCommits:      opts.Passes.Commits,
+		ScanIaC:          opts.Passes.Iac,
+		CommitMax:        opts.CommitMax,
+		Catalog:          compiled,
+		RespectGitignore: opts.RespectGitignore,
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
-	reconcileAIBOMMemory(rootPath, gitCtx, det, aibomPasses{Env: true, Source: true, Commits: true, Iac: true})
-	if len(det.Tools)+len(det.Libraries)+len(det.Models)+len(det.Infrastructure)+len(det.Data) == 0 {
-		return
+
+	gitCtx := opts.GitCtx
+	if gitCtx == nil {
+		gitCtx = gitctx.Collect(rootPath)
 	}
-	data, err := cyclonedx.BuildAIBOM(det, cyclonedx.AIBOMOptions{
-		SpecVersion: "1.7",
+	// Memory always lives under the resolved scan root, never the process CWD.
+	reconcileAIBOMMemory(rootPath, gitCtx, det, opts.Passes)
+
+	bomData, err := cyclonedx.BuildAIBOM(det, cyclonedx.AIBOMOptions{
+		SpecVersion: specVersion,
 		ToolName:    "vulnetix-aibom",
 		ToolVersion: version,
 		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
-	uploadAIBOM("1.7", det, data, gitCtx)
+
+	if opts.Upload && aibomDetectionCount(det) > 0 {
+		uploadAIBOM(specVersion, det, bomData, gitCtx)
+	}
+	return &AIBOMPassResult{Detections: det, BOM: bomData, SpecVersion: specVersion}, nil
+}
+
+// aibomDetectionCount is the "did we find anything" test used to avoid uploading
+// empty snapshots.
+func aibomDetectionCount(det cyclonedx.AIDetections) int {
+	return len(det.Tools) + len(det.Libraries) + len(det.Models) +
+		len(det.Infrastructure) + len(det.Data)
+}
+
+// detectAndUploadAIBOM captures the AI inventory alongside a scan: every pass,
+// upload when authenticated, no file written and no output. Best-effort — any
+// error is swallowed so it can never affect the scan's exit code.
+func detectAndUploadAIBOM(rootPath string, gitCtx *gitctx.GitContext) {
+	_, _ = runAIBOMPass(AIBOMPassOptions{
+		RootPath: rootPath,
+		Passes:   aibomPasses{Env: true, Source: true, Commits: true, Iac: true},
+		Upload:   true,
+		GitCtx:   gitCtx,
+	})
 }
 
 // aibomProject maps the CLI's git/system context to the shared AIBOMProject the

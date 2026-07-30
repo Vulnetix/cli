@@ -259,48 +259,26 @@ Examples:
 		return resolveVDBCredentials(false)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// ── --dry-run path ──────────────────────────────────────────────────
-		dryRun, _ := cmd.Flags().GetBool("dry-run")
-		scaAutofix, _ := cmd.Flags().GetBool("sca-autofix")
-		if dryRun && !scaAutofix {
+		// --dry-run and --list-default-rules are handled inside
+		// runScanWithFeatures, so every scan-family command honours them.
+		if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
 			for _, freshFlag := range []string{"fresh-exploits", "fresh-advisories", "fresh-vulns"} {
 				if v, _ := cmd.Flags().GetBool(freshFlag); v {
 					return fmt.Errorf("--%s cannot be used with --dry-run (dry run makes no API calls)", freshFlag)
 				}
 			}
-			scanPath, _ := cmd.Flags().GetString("path")
-			depth, _ := cmd.Flags().GetInt("depth")
-			excludes, _ := cmd.Flags().GetStringArray("exclude")
-			showPaths, _ := cmd.Flags().GetBool("show-introduced-paths")
-			if !showPaths {
-				// Deprecated alias for backward compatibility.
-				showPaths, _ = cmd.Flags().GetBool("paths")
-			}
-			noExploits, _ := cmd.Flags().GetBool("no-exploits")
-			noRemediation, _ := cmd.Flags().GetBool("no-remediation")
-			severityThreshold, _ := cmd.Flags().GetString("severity")
-			if scanPath == "" {
-				scanPath = "."
-			}
-			if abs, err := filepath.Abs(scanPath); err == nil {
-				scanPath = abs
-			}
-			return runDryScan(scanPath, depth, excludes, showPaths, noExploits, noRemediation, severityThreshold)
 		}
 
-		// ── --list-default-rules: print built-in SAST rules and exit ──────
-		listDefaultRules, _ := cmd.Flags().GetBool("list-default-rules")
-		if listDefaultRules {
-			return listBuiltinSASTRules()
-		}
-
-		// ── --from-memory path ────────────────────────────────────────────
+		// ── --from-memory path (deprecated: use `vulnetix report`) ────────
+		// Replaying stored results is not a scan, so `report` owns it. The flags
+		// stay as aliases and delegate, with cobra printing the deprecation notice.
 		fromMemory, _ := cmd.Flags().GetBool("from-memory")
 		if fromMemory {
 			freshExploits, _ := cmd.Flags().GetBool("fresh-exploits")
 			freshAdvisories, _ := cmd.Flags().GetBool("fresh-advisories")
 			freshVulns, _ := cmd.Flags().GetBool("fresh-vulns")
-			return LoadFromMemory(".", freshExploits, freshAdvisories, freshVulns)
+			scanPath, _ := cmd.Flags().GetString("path")
+			return renderStoredReport(scanPath, freshExploits, freshAdvisories, freshVulns)
 		}
 
 		// Validate that --fresh-* flags require --from-memory.
@@ -374,6 +352,12 @@ Examples:
 // rules, noContainers skips Dockerfile/OCI manifests and rules, noIAC skips
 // HCL/Nix manifests and IaC rules.
 func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA, noLicenses, noSecrets, noContainers, noIAC bool) error {
+	// --list-default-rules is a listing, not a scan. Served here so every command
+	// that registers the flag honours it (see cmd/sast_rules.go).
+	if handled, err := handleSASTRuleListing(cmd); handled {
+		return err
+	}
+
 	scanPath, _ := cmd.Flags().GetString("path")
 	depth, _ := cmd.Flags().GetInt("depth")
 	snippetContext := -1
@@ -437,6 +421,9 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	versionLag, _ := cmd.Flags().GetInt("version-lag")
 	cooldownDays, _ := cmd.Flags().GetInt("cooldown")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
+	licenseAllowCSV, _ := cmd.Flags().GetString("allow")
+	licenseAllowFile, _ := cmd.Flags().GetString("allow-file")
+	licenseMode, _ := cmd.Flags().GetString("license-mode")
 	scaAutofix, _ := cmd.Flags().GetBool("sca-autofix")
 	scaAutofixStrategyRaw, _ := cmd.Flags().GetString("sca-autofix-strategy")
 	scaAutofixManifest, _ := cmd.Flags().GetString("sca-autofix-manifest")
@@ -548,6 +535,37 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	}
 	if abs, err := filepath.Abs(scanPath); err == nil {
 		scanPath = abs
+	}
+
+	// ── Dry run: local discovery only, zero API calls ──────────────────
+	// Handled here rather than in scanCmd.RunE so `sca --dry-run`,
+	// `secrets --dry-run` and the rest honour the flag they advertise instead of
+	// silently running a live scan. It must precede the malscan pass, which
+	// uploads its findings when authenticated.
+	//
+	// --sca-autofix --dry-run is different: it means "show me the fix plan", which
+	// needs the SCA round-trip, so that combination falls through to the autofix
+	// proposal path inside runLocalScan.
+	if dryRun && !scaAutofix {
+		return runDryScan(dryScanOptions{
+			RootPath:          scanPath,
+			Depth:             depth,
+			Excludes:          excludes,
+			SeverityThreshold: severityThreshold,
+			Scope: scanFeatureScope{
+				NoSAST:       noSAST,
+				NoSCA:        noSCA,
+				NoLicenses:   noLicenses,
+				NoSecrets:    noSecrets,
+				NoContainers: noContainers,
+				NoIAC:        noIAC,
+			},
+			RespectGitignoreManifest: respectGitignoreManifest,
+			RuleRefs:                 ruleRefs,
+			RuleRegistry:             ruleRegistry,
+			DisableDefaultRules:      disableDefaultRules,
+			LockedKinds:              lockedKinds,
+		})
 	}
 
 	// ── 1. Collect git context early for display ───────────────────────
@@ -766,6 +784,11 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		gitHistoryMaxCommits,
 		gitHistoryMaxFiles,
 		respectGitignoreSAST,
+		LicensePolicyFlags{
+			Mode:      licenseMode,
+			AllowCSV:  licenseAllowCSV,
+			AllowFile: licenseAllowFile,
+		},
 	)
 
 	return mergeMalscanBreach(scanErr, malscanBreach)
@@ -838,6 +861,9 @@ func runLocalScan(
 	gitHistoryMaxCommits int,
 	gitHistoryMaxFiles int,
 	respectGitignore bool,
+	// licensePolicy is handed to the license owner (runLicensePipeline) when the
+	// license stage runs.
+	licensePolicy LicensePolicyFlags,
 ) (retErr error) {
 	dctx := display.NewWithProgress(display.ModeText, silent, noProgress)
 	scanProgress := dctx.Progress("Scan", 7)
@@ -1276,6 +1302,7 @@ func runLocalScan(
 						gitHistoryMaxCommits,
 						gitHistoryMaxFiles,
 						respectGitignore,
+						licensePolicy,
 					)
 				}
 			}
@@ -1739,36 +1766,37 @@ func runLocalScan(
 	bom := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, effectiveSeed)
 
 	// ── License analysis (unless --no-licenses) ────────────────────────────
+	// The `license` command owns this: runLicensePipeline is the single
+	// implementation of detect → policy → suppression → memory reconcile, so
+	// `scan --evaluate-licenses --allow MIT` and `license --allow MIT` agree.
 	var licenseResult *license.AnalysisResult
+	var licenseVEX []cdx.Vulnerability
 	if !noLicenses {
-		// Reuse the license detection run before the SCA round-trip; only
-		// recompute if it was skipped (e.g. SCA disabled).
-		if licensedPackages == nil {
-			licensedPackages = license.DetectLicenses(allPackages, manifestGroups)
+		licenseMem := mem
+		if disableMemory {
+			licenseMem = nil
 		}
-		licenseResult = license.Evaluate(licensedPackages, license.EvalConfig{Mode: "inclusive"})
-
-		// Append license findings as CDX vulnerabilities.
-		licenseVulns := license.FindingsToCDXVulnerabilities(licenseResult.Findings, licenseResult.Packages)
-		bom.Vulnerabilities = append(bom.Vulnerabilities, licenseVulns...)
-
-		// Populate license data on BOM components.
-		licenseMap := make(map[string]string)
-		for _, pkg := range licensedPackages {
-			key := pkg.PackageName + "@" + pkg.PackageVersion
-			if pkg.LicenseSpdxID != "UNKNOWN" {
-				licenseMap[key] = pkg.LicenseSpdxID
-			}
+		run, lerr := runLicensePipeline(LicenseRunOptions{
+			RootPath:         rootPath,
+			Mode:             licensePolicy.Mode,
+			AllowCSV:         licensePolicy.AllowCSV,
+			AllowFile:        licensePolicy.AllowFile,
+			Packages:         allPackages,
+			ManifestGroups:   manifestGroups,
+			LicensedPackages: licensedPackages, // reuse the pre-SCA detection
+			Memory:           licenseMem,
+			GitCtx:           gitCtx,
+			Stderr:           progressStderr,
+		})
+		if lerr != nil {
+			return lerr
 		}
-		cdx.PopulateLicenses(bom, licenseMap, license.CanonicalSPDXID)
+		licenseResult = run.Result
+		licenseVEX = run.VEXVulnerabilities
 
-		// Record license findings and resolve any that disappeared since the
-		// last run. Persisted by the single memory.Save below, alongside the
-		// scan record.
-		if !disableMemory && mem != nil {
-			stateChanges = append(stateChanges,
-				recordAndReconcileLicense(mem, rootPath, gitCtx, licenseResult)...)
-		}
+		bom.Vulnerabilities = append(bom.Vulnerabilities, run.FindingVulnerabilities...)
+		cdx.PopulateLicenses(bom, run.LicenseSpdxIDByPackage(), license.CanonicalSPDXID)
+		stateChanges = append(stateChanges, run.StateChanges...)
 	}
 
 	// ── VEX fan-out ───────────────────────────────────────────────────────
@@ -1783,10 +1811,8 @@ func runLocalScan(
 		cdxVEX = cdxVEXForChanges(changesByTool[memory.ToolSCA], "vulnetix-sca")
 		// License VEX is read from memory rather than from this run's changes:
 		// the entries must reappear on every run, not only on the one that
-		// resolved them (see licenseVEXFromMemory).
-		if !disableMemory && !noLicenses {
-			cdxVEX = append(cdxVEX, licenseVEXFromMemory(mem)...)
-		}
+		// resolved them (see licenseVEXFromMemory, called inside the pipeline).
+		cdxVEX = append(cdxVEX, licenseVEX...)
 	}
 
 	// Populate dependency tree from manifest group edges.
@@ -2368,24 +2394,87 @@ func runLocalScan(
 // Dry-run
 // ---------------------------------------------------------------------------
 
-// runDryScan performs the full local detection and parsing pipeline without
-// making any network (API) calls. After detection it checks for existing scan
-// memory (.vulnetix/sbom.cdx.json) and renders it exactly as --from-memory
-// would, but still without any API calls.
-func runDryScan(
-	scanPath string,
-	depth int,
-	excludes []string,
-	_ bool, // showPaths — reserved; dep graph requires go mod graph (network)
-	_ bool, // noExploits
-	_ bool, // noRemediation
-	severityThreshold string,
-) error {
+// scanFeatureScope is the set of feature toggles the engine resolved for this
+// invocation. It travels to the dry run so the report describes what *this*
+// command would do rather than what the generic `scan` would.
+type scanFeatureScope struct {
+	NoSAST       bool
+	NoSCA        bool
+	NoLicenses   bool
+	NoSecrets    bool
+	NoContainers bool
+	NoIAC        bool
+}
+
+// packageScopeActive reports whether any pass consumes parsed dependency
+// manifests. `secrets`/`sast` do not, so their dry run skips manifest parsing.
+func (s scanFeatureScope) packageScopeActive() bool {
+	return !s.NoSCA || !s.NoContainers || !s.NoIAC || !s.NoLicenses
+}
+
+// sastScopeActive reports whether any rego-engine pass runs.
+func (s scanFeatureScope) sastScopeActive() bool {
+	return !s.NoSAST || !s.NoSecrets || !s.NoContainers || !s.NoIAC
+}
+
+// enabledLabels names the passes this scope runs, for the dry-run header.
+func (s scanFeatureScope) enabledLabels() []string {
+	var out []string
+	for _, p := range []struct {
+		off  bool
+		name string
+	}{
+		{s.NoSCA, "sca"},
+		{s.NoSAST, "sast"},
+		{s.NoSecrets, "secrets"},
+		{s.NoContainers, "containers"},
+		{s.NoIAC, "iac"},
+		{s.NoLicenses, "licenses"},
+	} {
+		if !p.off {
+			out = append(out, p.name)
+		}
+	}
+	return out
+}
+
+// dryScanOptions is the input to runDryScan.
+type dryScanOptions struct {
+	RootPath          string
+	Depth             int
+	Excludes          []string
+	SeverityThreshold string
+	Scope             scanFeatureScope
+	// RespectGitignoreManifest mirrors the live walk so the file list matches.
+	RespectGitignoreManifest bool
+	// Rule inputs describe the SAST-family side of the plan. External rule packs
+	// are NOT fetched during a dry run (that is a network call); they are reported
+	// as pending instead.
+	RuleRefs            []sast.RuleRef
+	RuleRegistry        string
+	DisableDefaultRules bool
+	LockedKinds         []string
+}
+
+// runDryScan performs the local detection and parsing pipeline without making any
+// network (API) calls, scoped to the passes the invoking command enables. After
+// detection it checks for existing scan memory (.vulnetix/sbom.cdx.json) and
+// renders it exactly as `vulnetix report` would, but still without API calls.
+func runDryScan(opts dryScanOptions) error {
+	scanPath := opts.RootPath
+	depth := opts.Depth
+	excludes := opts.Excludes
+	severityThreshold := opts.SeverityThreshold
+	scope := opts.Scope
+
 	t := display.NewTerminal()
 
 	// ── Header ────────────────────────────────────────────────────────────
 	fmt.Fprintln(os.Stderr, display.Bold(t, "[DRY RUN]"),
 		display.Muted(t, "— no API calls will be made"))
+	if labels := scope.enabledLabels(); len(labels) > 0 {
+		fmt.Fprintf(os.Stderr, "Passes: %s\n", strings.Join(labels, ", "))
+	}
 	fmt.Fprintln(os.Stderr)
 
 	// ── 1. Collect git context ────────────────────────────────────────────
@@ -2405,11 +2494,17 @@ func runDryScan(
 	}
 	fmt.Fprintln(os.Stderr)
 
-	// ── 2. Discover files ─────────────────────────────────────────────────
+	// ── 2. Report the rule plan for the rego-engine passes ────────────────
+	if scope.sastScopeActive() {
+		reportDryRunRulePlan(t, opts)
+	}
+
+	// ── 3. Discover files ─────────────────────────────────────────────────
 	files, err := scan.WalkForScanFiles(scan.WalkOptions{
-		RootPath: scanPath,
-		MaxDepth: depth,
-		Excludes: excludes,
+		RootPath:         scanPath,
+		MaxDepth:         depth,
+		Excludes:         excludes,
+		RespectGitignore: opts.RespectGitignoreManifest,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to scan directory: %w", err)
@@ -2418,8 +2513,16 @@ func runDryScan(
 		fmt.Fprintln(os.Stderr, "No scannable files detected.")
 		return nil
 	}
+	// A SARIF-family-only command (sast / secrets) parses no dependency
+	// manifests: its plan is the rule set plus the tree it will walk, which the
+	// rule plan above already reported.
+	if !scope.packageScopeActive() {
+		fmt.Fprintf(os.Stderr, "\n%s %d file(s) discovered; dependency parsing skipped for this scope.\n",
+			display.CheckMark(t), len(files))
+		return dryRunRenderMemory(t, scanPath)
+	}
 
-	// ── 3. Display detected files ─────────────────────────────────────────
+	// ── 4. Display detected files ─────────────────────────────────────────
 	if showDetectedFiles {
 		fmt.Fprintln(os.Stderr, "Detected files:")
 	}
@@ -2468,12 +2571,16 @@ func runDryScan(
 		}
 	}
 
+	// The live pipeline filters the file list by the active features; mirror that
+	// so a scoped dry run does not promise passes over files it would skip.
+	supportedFiles = filterFilesByFeature(supportedFiles, scope.NoSCA, scope.NoContainers, scope.NoIAC)
+
 	if len(supportedFiles) == 0 {
 		fmt.Fprintln(os.Stderr, "\nNo supported manifest files found for scanning.")
-		return nil
+		return dryRunRenderMemory(t, scanPath)
 	}
 
-	// ── 4. Parse manifests (local only, no network) ───────────────────────
+	// ── 5. Parse manifests (local only, no network) ───────────────────────
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Parsing manifests (local):")
 	totalPkgs := 0
@@ -2530,7 +2637,59 @@ func runDryScan(
 			display.Muted(t, "\u2139"), severityThreshold)
 	}
 
-	// ── 6. Check memory ───────────────────────────────────────────────────
+	// ── 7. Check memory ───────────────────────────────────────────────────
+	return dryRunRenderMemory(t, scanPath)
+}
+
+// reportDryRunRulePlan describes the rego-engine side of a dry run: which rule
+// kinds would evaluate, and which external packs would be fetched. The packs are
+// only named — fetching one is a network call, which a dry run must not make.
+func reportDryRunRulePlan(t *display.Terminal, opts dryScanOptions) {
+	kinds := opts.LockedKinds
+	if len(kinds) == 0 {
+		kinds = enabledRuleKinds(opts.Scope)
+	}
+	if len(kinds) > 0 {
+		fmt.Fprintf(os.Stderr, "Rule kinds: %s\n", strings.Join(kinds, ", "))
+	}
+	if opts.DisableDefaultRules {
+		fmt.Fprintf(os.Stderr, "%s built-in rules disabled (--disable-default-rules)\n",
+			display.Muted(t, "ℹ"))
+	}
+	for _, ref := range opts.RuleRefs {
+		registry := opts.RuleRegistry
+		if registry == "" {
+			registry = sast.DefaultRegistry
+		}
+		fmt.Fprintf(os.Stderr, "%s external rule pack %s/%s would be fetched from %s\n",
+			display.Muted(t, "ℹ"), ref.Org, ref.Repo, registry)
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+// enabledRuleKinds maps the feature scope onto the rego rule kinds it evaluates.
+func enabledRuleKinds(scope scanFeatureScope) []string {
+	var kinds []string
+	for _, k := range []struct {
+		off  bool
+		name string
+	}{
+		{scope.NoSAST, "sast"},
+		{scope.NoSecrets, "secrets"},
+		{scope.NoContainers, "oci"},
+		{scope.NoIAC, "iac"},
+	} {
+		if !k.off {
+			kinds = append(kinds, k.name)
+		}
+	}
+	return kinds
+}
+
+// dryRunRenderMemory renders previously-stored results with zero API calls. It is
+// the same replay `vulnetix report` performs, which is why both go through
+// LoadFromMemory.
+func dryRunRenderMemory(t *display.Terminal, scanPath string) error {
 	vulnetixDir := filepath.Join(scanPath, ".vulnetix")
 	sbomPath := filepath.Join(vulnetixDir, "sbom.cdx.json")
 
@@ -3037,779 +3196,6 @@ func printScanSummaryFooter(totalPkgs, totalVulns int, enrichedVulns []scan.Enri
 	fmt.Fprintln(os.Stdout)
 }
 
-func printAutofixProposal(plans []autofix.FixCandidate, counts autofix.ProofCounts) {
-	t := display.NewTerminal()
-	fmt.Fprintln(os.Stdout)
-	fmt.Fprintln(os.Stdout, display.Divider(t))
-	fmt.Fprintln(os.Stdout, display.Subheader(t, "SCA Autofix Dry Run"))
-	if len(plans) == 0 {
-		fmt.Fprintln(os.Stdout, "  No autofix candidates found.")
-		return
-	}
-	for _, p := range plans {
-		status := "will fix"
-		if p.Skipped {
-			status = "manual"
-		}
-		target := p.TargetVer
-		if target == "" {
-			target = "<no vetted target>"
-		}
-		fmt.Fprintf(os.Stdout, "  %s  %s %s -> %s  %s  %s\n",
-			display.Bold(t, status),
-			p.PackageName,
-			p.CurrentVer,
-			target,
-			p.Method,
-			display.Muted(t, p.SourceFile))
-		if p.Reason != "" {
-			fmt.Fprintf(os.Stdout, "    %s\n", p.Reason)
-		}
-		if p.SkipReason != "" {
-			fmt.Fprintf(os.Stdout, "    skipped: %s\n", p.SkipReason)
-		}
-		if p.Command != "" {
-			fmt.Fprintf(os.Stdout, "    $ %s\n", p.Command)
-		}
-	}
-	printAutofixCounts(counts)
-	fmt.Fprintln(os.Stdout, "  Dry run only: no manifests changed, no install ran, no rescan ran.")
-	fmt.Fprintln(os.Stdout, display.Divider(t))
-}
-
-func printAutofixReport(plans []autofix.FixCandidate, counts autofix.ProofCounts, applied int, err error) {
-	t := display.NewTerminal()
-	fmt.Fprintln(os.Stdout)
-	fmt.Fprintln(os.Stdout, display.Divider(t))
-	fmt.Fprintln(os.Stdout, display.Subheader(t, "SCA Autofix"))
-	if err != nil {
-		fmt.Fprintf(os.Stdout, "  %s %v\n", display.ErrorStyle(t, "failed:"), err)
-	}
-	if applied > 0 {
-		fmt.Fprintf(os.Stdout, "  Resolved findings confirmed: %d\n", applied)
-	}
-	for _, p := range plans {
-		if p.Skipped {
-			fmt.Fprintf(os.Stdout, "  Not fixed: %s %s (%s)\n", p.PackageName, p.CurrentVer, p.SkipReason)
-			if p.Command != "" {
-				fmt.Fprintf(os.Stdout, "    manual: %s\n", p.Command)
-			}
-			if len(p.RejectedVersions) > 0 {
-				fmt.Fprintf(os.Stdout, "    Rationale (safest strategy): no vulnerability-free version available\n")
-				for _, rv := range p.RejectedVersions {
-					marker := ""
-					if rv.Version == p.CurrentVer {
-						marker = "  ← installed"
-					}
-					switch {
-					case rv.IsMalware:
-						fmt.Fprintf(os.Stdout, "      • %s: malware%s\n", rv.Version, marker)
-					case rv.ExplCount > 0:
-						fmt.Fprintf(os.Stdout, "      • %s: %d vuln(s), %d exploit(s)%s\n", rv.Version, rv.VulnCount, rv.ExplCount, marker)
-					default:
-						fmt.Fprintf(os.Stdout, "      • %s: %d vuln(s)%s\n", rv.Version, rv.VulnCount, marker)
-					}
-				}
-				latest := p.LatestAvailable
-				if latest == "" {
-					latest = p.CurrentVer
-				}
-				fmt.Fprintf(os.Stdout, "    Upgrading to latest (%s) would not reduce risk; staying at current version is risk-accepted.\n", latest)
-			}
-			continue
-		}
-		status := "Fixed"
-		if err != nil {
-			status = "Planned"
-		}
-		fmt.Fprintf(os.Stdout, "  %s: %s %s -> %s  %s  %s\n",
-			status, p.PackageName, p.CurrentVer, p.TargetVer, p.Method, display.Muted(t, p.SourceFile))
-		if p.Command != "" {
-			fmt.Fprintf(os.Stdout, "    used: %s\n", p.Command)
-		}
-	}
-	printAutofixCounts(counts)
-	fmt.Fprintln(os.Stdout)
-	fmt.Fprintf(os.Stdout, "  %s Commit manifest and lockfile changes together.\n", display.Bold(t, "IMPORTANT:"))
-	fmt.Fprintln(os.Stdout, "  Include the edited manifest and regenerated lockfile in the same commit.")
-	fmt.Fprintln(os.Stdout, display.Divider(t))
-}
-
-func printAutofixCounts(counts autofix.ProofCounts) {
-	fmt.Fprintf(os.Stdout, "  Proof-of-work: %d direct, %d transitive via parent-update, %d transitive via parent-upgrade, %d transitive via override, %d unresolved deep chains\n",
-		counts.Direct, counts.TransitiveParentUpdate, counts.TransitiveParentUpgrade, counts.TransitiveOverride, counts.UnresolvedDeepChains)
-}
-
-func hasActionableAutofixPlan(plans []autofix.FixCandidate) bool {
-	for _, p := range plans {
-		if !p.Skipped {
-			return true
-		}
-	}
-	return false
-}
-
-func rewriteAutofixCommandsForPackageManagers(plans []autofix.FixCandidate, files []scan.DetectedFile) []autofix.FixCandidate {
-	if len(plans) == 0 {
-		return plans
-	}
-	presentFiles := make([]string, 0, len(files))
-	for _, f := range files {
-		if f.RelPath != "" {
-			presentFiles = append(presentFiles, filepath.Base(f.RelPath))
-		}
-	}
-	// Which resolver binaries are actually installed on this host, by ecosystem.
-	detected := map[string]bool{}
-	detectedByEcosystem := map[string][]string{}
-	for _, rb := range scan.ResolvePackageManagerBinaries(presentFiles) {
-		if rb.Detected {
-			detected[rb.Binary] = true
-			detectedByEcosystem[rb.Ecosystem] = append(detectedByEcosystem[rb.Ecosystem], rb.Binary)
-		}
-	}
-
-	pmByDir := packageManagersByDir(files)
-	yarnModernByDir := yarnModernByDir(files)
-	out := append([]autofix.FixCandidate(nil), plans...)
-	for i := range out {
-		eco := strings.ToLower(out[i].Ecosystem)
-		dir := filepath.Dir(filepath.Clean(out[i].SourceFile))
-		pm := pmByDir[dir]
-		if pm == "" {
-			pm = defaultPackageManagerForEcosystem(eco)
-		}
-		// Prefer the lockfile-implied PM; if it is not installed, fall back to any
-		// installed resolver for the same ecosystem. If none is installed we
-		// cannot install/re-resolve, so mark the fix manual rather than emit a
-		// command that will fail.
-		if pm != "" && !detected[pm] {
-			if alt := firstInstalledForEcosystem(eco, detectedByEcosystem); alt != "" {
-				pm = alt
-			} else if requiresInstalledManager(eco) && !out[i].Skipped {
-				out[i].Skipped = true
-				out[i].SkipReason = fmt.Sprintf("no %s package manager detected on PATH to apply and re-resolve the fix", eco)
-				continue
-			}
-		}
-		out[i].PackageManager = pm
-		switch eco {
-		case "npm":
-			out[i].Command = npmCommandForManager(out[i], pm, yarnModernByDir[dir])
-		case "pypi":
-			out[i].Command = pythonCommandForManager(out[i], pm)
-		}
-	}
-	return out
-}
-
-// defaultPackageManagerForEcosystem returns the conventional resolver when no
-// lockfile narrowed the choice.
-func defaultPackageManagerForEcosystem(ecosystem string) string {
-	switch ecosystem {
-	case "npm":
-		return "npm"
-	case "pypi":
-		return "pip"
-	case "golang":
-		return "go"
-	case "cargo":
-		return "cargo"
-	case "composer":
-		return "composer"
-	case "rubygems":
-		return "bundle"
-	case "maven":
-		return "mvn"
-	default:
-		return ""
-	}
-}
-
-func firstInstalledForEcosystem(ecosystem string, detectedByEcosystem map[string][]string) string {
-	bins := detectedByEcosystem[ecosystem]
-	if len(bins) == 0 {
-		return ""
-	}
-	return bins[0]
-}
-
-// requiresInstalledManager reports whether applying a fix for the ecosystem
-// requires an installed resolver to regenerate the lockfile.
-func requiresInstalledManager(ecosystem string) bool {
-	switch ecosystem {
-	case "npm", "pypi", "golang", "cargo", "composer", "rubygems", "maven":
-		return true
-	default:
-		return false
-	}
-}
-
-func packageManagersByDir(files []scan.DetectedFile) map[string]string {
-	out := map[string]string{}
-	for _, f := range files {
-		dir := filepath.Dir(filepath.Clean(f.RelPath))
-		base := filepath.Base(f.RelPath)
-		switch base {
-		case "package-lock.json":
-			out[dir] = "npm"
-		case "yarn.lock":
-			out[dir] = "yarn"
-		case "pnpm-lock.yaml":
-			out[dir] = "pnpm"
-		case "bun.lockb":
-			out[dir] = "bun"
-		case "uv.lock":
-			out[dir] = "uv"
-		case "poetry.lock":
-			out[dir] = "poetry"
-		case "pdm.lock":
-			out[dir] = "pdm"
-		case "Pipfile.lock":
-			out[dir] = "pipenv"
-		}
-	}
-	return out
-}
-
-func yarnModernByDir(files []scan.DetectedFile) map[string]bool {
-	out := map[string]bool{}
-	for _, f := range files {
-		dir := filepath.Dir(filepath.Clean(f.RelPath))
-		base := filepath.Base(f.RelPath)
-		if base == "package.json" && packageJSONDeclaresModernYarn(f.Path) {
-			out[dir] = true
-		}
-		if base == "yarn.lock" && yarnLockIsModern(f.Path) {
-			out[dir] = true
-		}
-		if base == "yarn.lock" && f.Path != "" {
-			if _, err := os.Stat(filepath.Join(filepath.Dir(f.Path), ".yarnrc.yml")); err == nil {
-				out[dir] = true
-			}
-		}
-	}
-	return out
-}
-
-func packageJSONDeclaresModernYarn(path string) bool {
-	if path == "" {
-		return false
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	var manifest struct {
-		PackageManager string `json:"packageManager"`
-	}
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return false
-	}
-	pm := strings.ToLower(strings.TrimSpace(manifest.PackageManager))
-	if !strings.HasPrefix(pm, "yarn@") {
-		return false
-	}
-	ver := strings.TrimPrefix(pm, "yarn@")
-	return ver != "" && !strings.HasPrefix(ver, "1.")
-}
-
-func yarnLockIsModern(path string) bool {
-	if path == "" {
-		return false
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	text := string(data)
-	if strings.Contains(text, "# yarn lockfile v1") {
-		return false
-	}
-	return strings.Contains(text, "\n__metadata:") || strings.HasPrefix(text, "__metadata:")
-}
-
-func npmCommandForManager(p autofix.FixCandidate, pm string, modernYarn bool) string {
-	name := p.PackageName
-	if p.Method == autofix.MethodParentUpgrade && p.ParentName != "" {
-		name = p.ParentName
-	}
-	switch p.Method {
-	case autofix.MethodDirectBump, autofix.MethodOverride:
-		switch pm {
-		case "yarn", "pnpm", "bun":
-			return pm + " install"
-		default:
-			return "npm install"
-		}
-	case autofix.MethodParentUpdate:
-		if p.ParentName != "" {
-			name = p.ParentName
-		}
-		switch pm {
-		case "yarn":
-			if modernYarn {
-				return "yarn up " + name
-			}
-			return "yarn upgrade " + name
-		case "pnpm", "bun":
-			return pm + " update " + name
-		default:
-			return "npm update " + name
-		}
-	case autofix.MethodParentUpgrade:
-		// Install the PARENT at its resolved version (ParentTarget), not the child's
-		// safe version (TargetVer) — upgrading the parent is what pulls the safe child.
-		target := p.ParentTarget
-		if target == "" {
-			target = "<safe-version>"
-		}
-		switch pm {
-		case "yarn":
-			if modernYarn {
-				return "yarn up " + name + "@" + target
-			}
-			return "yarn add " + name + "@" + target
-		case "pnpm", "bun":
-			return pm + " add " + name + "@" + target
-		default:
-			return "npm install " + name + "@" + target
-		}
-	default:
-		return p.Command
-	}
-}
-
-func pythonCommandForManager(p autofix.FixCandidate, pm string) string {
-	switch pm {
-	case "uv":
-		return "uv sync"
-	case "poetry":
-		return "poetry update " + p.PackageName
-	case "pdm":
-		return "pdm update " + p.PackageName
-	case "pipenv":
-		return "pipenv update " + p.PackageName
-	default:
-		return p.Command
-	}
-}
-
-// scanAfterAutofix re-parses the (post-fix) manifests and re-queries the VDB to
-// determine which vulnerabilities remain. It routes through the same self-healing
-// /v2/cli.sca path as the primary scan (confirmation mode: no reachability,
-// snapshot, or persistence) — there is no legacy per-PURL fallback.
-func scanAfterAutofix(files []scan.DetectedFile) ([]scan.EnrichedVuln, error) {
-	var allPackages []scan.ScopedPackage
-	for _, f := range files {
-		if f.FileType == scan.FileTypeCycloneDX {
-			cdxBom, err := parseCDXForScan(f.Path)
-			if err != nil {
-				continue
-			}
-			pkgs := buildPackagesFromCDX(cdxBom.Components, f.RelPath)
-			allPackages = append(allPackages, pkgs...)
-			continue
-		}
-		if f.ManifestInfo == nil || !f.Supported {
-			continue
-		}
-		pkgs, err := scan.ParseManifestWithScope(f.Path, f.ManifestInfo.Type)
-		if err != nil {
-			continue
-		}
-		for i := range pkgs {
-			pkgs[i].SourceFile = f.RelPath
-		}
-		allPackages = append(allPackages, pkgs...)
-	}
-	if len(allPackages) == 0 {
-		return nil, nil
-	}
-	return confirmVulnsViaCliSCA(allPackages)
-}
-
-func resolvedAutofixFindings(plans []autofix.FixCandidate, after []scan.EnrichedVuln) []*triage.TriageFinding {
-	remaining := map[string]bool{}
-	for _, ev := range after {
-		remaining[autofixFindingKey(ev.CveID, ev.PackageName, ev.Ecosystem)] = true
-	}
-	var findings []*triage.TriageFinding
-	for _, p := range plans {
-		if p.Skipped || p.TargetVer == "" {
-			continue
-		}
-		for _, id := range p.CveIDs {
-			if remaining[autofixFindingKey(id, p.PackageName, p.Ecosystem)] {
-				continue
-			}
-			findings = append(findings, &triage.TriageFinding{
-				CVEID:         id,
-				Package:       p.PackageName,
-				Ecosystem:     p.Ecosystem,
-				InstalledVer:  p.CurrentVer,
-				FixedVer:      p.TargetVer,
-				Status:        "not_affected",
-				Justification: "vulnerable_code_not_present",
-			})
-		}
-	}
-	return findings
-}
-
-func autofixFindingKey(cveID, packageName, ecosystem string) string {
-	return strings.ToLower(cveID) + "::" + strings.ToLower(packageName) + "::" + strings.ToLower(ecosystem)
-}
-
-func writeAutofixVEX(root string, findings []*triage.TriageFinding) (string, error) {
-	if len(findings) == 0 {
-		return "", nil
-	}
-	data, err := triage.GenerateOpenVEX(findings, triage.OpenVEXOptions{Tooling: "vulnetix-cli sca-autofix"})
-	if err != nil {
-		return "", err
-	}
-	path := filepath.Join(root, ".vulnetix", "vex-autofix.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return "", err
-	}
-	return path, nil
-}
-
-func postAutofixVEXToSnapshot(snapshotUuid string, persisted []vdb.CliFindingResult, findings []*triage.TriageFinding, plans []autofix.FixCandidate, counts autofix.ProofCounts, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, rootPath string, packages []scan.ScopedPackage, w io.Writer) {
-	if snapshotUuid == "" || len(findings) == 0 || isUnauthenticatedScan() {
-		return
-	}
-	if w == nil {
-		w = os.Stderr
-	}
-	client := newCliClient()
-	if client == nil {
-		return
-	}
-
-	byExact := map[string]vdb.CliFindingResult{}
-	byPackage := map[string]vdb.CliFindingResult{}
-	for _, f := range persisted {
-		if f.FindingID == "" || f.PackageName == "" {
-			continue
-		}
-		byPackage[autofixPersistedKey(f.FindingID, f.PackageName, "")] = f
-		if f.PackageVersion != "" {
-			byExact[autofixPersistedKey(f.FindingID, f.PackageName, f.PackageVersion)] = f
-		}
-	}
-
-	planByFinding := map[string]autofix.FixCandidate{}
-	for _, p := range plans {
-		for _, id := range p.CveIDs {
-			planByFinding[autofixFindingKey(id, p.PackageName, p.Ecosystem)] = p
-		}
-	}
-
-	rows := make([]vdb.CliReachabilityPayload, 0, len(findings))
-	for _, f := range findings {
-		if f == nil || f.CVEID == "" || f.Package == "" {
-			continue
-		}
-		persistedFinding := byExact[autofixPersistedKey(f.CVEID, f.Package, f.InstalledVer)]
-		if persistedFinding.FindingUuid == "" {
-			persistedFinding = byPackage[autofixPersistedKey(f.CVEID, f.Package, "")]
-		}
-		plan := planByFinding[autofixFindingKey(f.CVEID, f.Package, f.Ecosystem)]
-		evidence, _ := json.Marshal(autofixEvidencePayload(f, plan, counts))
-		rows = append(rows, vdb.CliReachabilityPayload{
-			CveID:                  f.CVEID,
-			FindingUuid:            persistedFinding.FindingUuid,
-			PackageName:            f.Package,
-			PackageVersion:         f.InstalledVer,
-			Ecosystem:              f.Ecosystem,
-			Source:                 "SYMBOL_FALLBACK",
-			Verdict:                "UNREACHABLE",
-			EvidenceJSON:           string(evidence),
-			MemoryVexStatus:        "not_affected",
-			MemoryVexJustification: "vulnerable_code_not_present",
-			MemoryVexAction:        "fixed by vulnetix sca --sca-autofix",
-			FixedVersion:           f.FixedVer,
-		})
-	}
-	if len(rows) == 0 {
-		return
-	}
-
-	env := buildCliEnv(gitCtx, sysInfo)
-	enrichCliEnvForSCA(&env, rootPath, packages, gitCtx)
-	resp, err := client.CliSCAReachability(env, vdb.CliSCAReachabilityRequest{
-		IngestionSnapshotUuid: snapshotUuid,
-		Results:               rows,
-	})
-	if err != nil {
-		fmt.Fprintf(w, "  warning: autofix VEX publish failed: %v\n", err)
-		return
-	}
-	if resp != nil && resp.Data.VEXUrl != "" {
-		fmt.Fprintf(w, "  autofix VEX published: %s\n", resp.Data.VEXUrl)
-	}
-}
-
-func autofixEvidencePayload(f *triage.TriageFinding, plan autofix.FixCandidate, counts autofix.ProofCounts) map[string]any {
-	payload := map[string]any{
-		"source":        "vulnetix-cli sca-autofix",
-		"installed":     "",
-		"fixed_version": "",
-		"proof_of_work": map[string]int{
-			"direct":                    counts.Direct,
-			"transitive_parent_update":  counts.TransitiveParentUpdate,
-			"transitive_parent_upgrade": counts.TransitiveParentUpgrade,
-			"transitive_override":       counts.TransitiveOverride,
-			"unresolved_deep_chains":    counts.UnresolvedDeepChains,
-		},
-	}
-	if f != nil {
-		payload["installed"] = f.InstalledVer
-		payload["fixed_version"] = f.FixedVer
-	}
-	if plan.PackageName != "" {
-		payload["package"] = plan.PackageName
-		payload["ecosystem"] = plan.Ecosystem
-		payload["method"] = string(plan.Method)
-		payload["command"] = plan.Command
-		payload["source_file"] = plan.SourceFile
-		payload["target_version"] = plan.TargetVer
-		payload["parent_name"] = plan.ParentName
-		payload["parent_range"] = plan.ParentRange
-		payload["parent_target"] = plan.ParentTarget
-		payload["reason"] = plan.Reason
-	}
-	return payload
-}
-
-// skippedPlansWithNoSafeVersion returns the subset of plans that were skipped
-// because no vulnerability-free Safe-Harbour version exists.
-func skippedPlansWithNoSafeVersion(plans []autofix.FixCandidate) []autofix.FixCandidate {
-	var out []autofix.FixCandidate
-	for _, p := range plans {
-		if p.Skipped && strings.Contains(p.SkipReason, "no Safe-Harbour") {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
-// writeRiskAcceptedVEX generates an OpenVEX document for packages that could
-// not be fixed because every available version has vulnerabilities. The
-// document records a risk-accepted decision and is written to
-// .vulnetix/vex-risk-accepted.json.
-func writeRiskAcceptedVEX(root string, skipped []autofix.FixCandidate, enrichedVulns []scan.EnrichedVuln) (string, error) {
-	if len(skipped) == 0 {
-		return "", nil
-	}
-
-	skipSet := map[string]bool{}
-	for _, p := range skipped {
-		skipSet[strings.ToLower(p.PackageName+"::"+p.Ecosystem)] = true
-	}
-
-	var findings []*triage.TriageFinding
-	seen := map[string]bool{}
-	for i := range enrichedVulns {
-		v := &enrichedVulns[i]
-		if !skipSet[strings.ToLower(v.PackageName+"::"+v.Ecosystem)] {
-			continue
-		}
-		key := strings.ToLower(v.CveID + "::" + v.PackageName)
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		findings = append(findings, &triage.TriageFinding{
-			CVEID:          v.CveID,
-			Package:        v.PackageName,
-			Ecosystem:      v.Ecosystem,
-			InstalledVer:   v.PackageVer,
-			Status:         "affected",
-			ActionResponse: "risk-accepted: no vulnerability-free version available under safest strategy",
-		})
-	}
-	if len(findings) == 0 {
-		return "", nil
-	}
-
-	data, err := triage.GenerateOpenVEX(findings, triage.OpenVEXOptions{Tooling: "vulnetix-cli sca-autofix safest"})
-	if err != nil {
-		return "", err
-	}
-	path := filepath.Join(root, ".vulnetix", "vex-risk-accepted.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return "", err
-	}
-	return path, nil
-}
-
-// postRiskAcceptedVEXToSnapshot posts risk-acceptance VEX entries for packages
-// that have no vulnerability-free Safe-Harbour version. Mirrors
-// postAutofixVEXToSnapshot but uses Verdict "AFFECTED" and VEX status
-// "affected" to record that the team is aware and has accepted the risk.
-func postRiskAcceptedVEXToSnapshot(snapshotUuid string, persisted []vdb.CliFindingResult, skipped []autofix.FixCandidate, enrichedVulns []scan.EnrichedVuln, counts autofix.ProofCounts, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, rootPath string, packages []scan.ScopedPackage, w io.Writer) {
-	if snapshotUuid == "" || len(skipped) == 0 || isUnauthenticatedScan() {
-		return
-	}
-	if w == nil {
-		w = os.Stderr
-	}
-	client := newCliClient()
-	if client == nil {
-		return
-	}
-
-	byExact := map[string]vdb.CliFindingResult{}
-	byPackage := map[string]vdb.CliFindingResult{}
-	for _, f := range persisted {
-		if f.FindingID == "" || f.PackageName == "" {
-			continue
-		}
-		byPackage[autofixPersistedKey(f.FindingID, f.PackageName, "")] = f
-		if f.PackageVersion != "" {
-			byExact[autofixPersistedKey(f.FindingID, f.PackageName, f.PackageVersion)] = f
-		}
-	}
-
-	skipSet := map[string]bool{}
-	planByFinding := map[string]autofix.FixCandidate{}
-	for _, p := range skipped {
-		skipSet[strings.ToLower(p.PackageName+"::"+p.Ecosystem)] = true
-		for _, id := range p.CveIDs {
-			planByFinding[autofixFindingKey(id, p.PackageName, p.Ecosystem)] = p
-		}
-	}
-
-	seen := map[string]bool{}
-	var rows []vdb.CliReachabilityPayload
-	for i := range enrichedVulns {
-		v := &enrichedVulns[i]
-		if !skipSet[strings.ToLower(v.PackageName+"::"+v.Ecosystem)] {
-			continue
-		}
-		key := strings.ToLower(v.CveID + "::" + v.PackageName)
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-
-		pf := byExact[autofixPersistedKey(v.CveID, v.PackageName, v.PackageVer)]
-		if pf.FindingUuid == "" {
-			pf = byPackage[autofixPersistedKey(v.CveID, v.PackageName, "")]
-		}
-		plan := planByFinding[autofixFindingKey(v.CveID, v.PackageName, v.Ecosystem)]
-		f := &triage.TriageFinding{
-			CVEID:        v.CveID,
-			Package:      v.PackageName,
-			Ecosystem:    v.Ecosystem,
-			InstalledVer: v.PackageVer,
-		}
-		evidence, _ := json.Marshal(autofixEvidencePayload(f, plan, counts))
-		rows = append(rows, vdb.CliReachabilityPayload{
-			CveID:                  v.CveID,
-			FindingUuid:            pf.FindingUuid,
-			PackageName:            v.PackageName,
-			PackageVersion:         v.PackageVer,
-			Ecosystem:              v.Ecosystem,
-			Source:                 "SAFE_HARBOUR_ANALYSIS",
-			Verdict:                "AFFECTED",
-			EvidenceJSON:           string(evidence),
-			MemoryVexStatus:        "affected",
-			MemoryVexJustification: "",
-			MemoryVexAction:        "risk-accepted: no vulnerability-free version available under safest strategy",
-		})
-	}
-	if len(rows) == 0 {
-		return
-	}
-
-	env := buildCliEnv(gitCtx, sysInfo)
-	enrichCliEnvForSCA(&env, rootPath, packages, gitCtx)
-	resp, err := client.CliSCAReachability(env, vdb.CliSCAReachabilityRequest{
-		IngestionSnapshotUuid: snapshotUuid,
-		Results:               rows,
-	})
-	if err != nil {
-		fmt.Fprintf(w, "  warning: risk-accepted VEX publish failed: %v\n", err)
-		return
-	}
-	if resp != nil && resp.Data.VEXUrl != "" {
-		fmt.Fprintf(w, "  risk-accepted VEX published: %s\n", resp.Data.VEXUrl)
-	}
-}
-
-func autofixPersistedKey(cveID, packageName, version string) string {
-	return strings.ToLower(cveID) + "::" + strings.ToLower(packageName) + "::" + version
-}
-
-func recordAutofixMemoryEvents(mem *memory.Memory, findings []*triage.TriageFinding) {
-	if mem == nil || len(findings) == 0 {
-		return
-	}
-	if mem.Findings == nil {
-		mem.Findings = map[string]memory.FindingRecord{}
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	for _, f := range findings {
-		if f == nil || f.CVEID == "" {
-			continue
-		}
-		rec := mem.Findings[f.CVEID]
-		if rec.Package == "" {
-			rec.Package = f.Package
-		}
-		if rec.Ecosystem == "" {
-			rec.Ecosystem = f.Ecosystem
-		}
-		rec.Status = "fixed"
-		rec.Source = "vulnetix-sca"
-		rec.Tool = memory.ToolSCA
-		rec.Justification = "vulnerable_code_not_present"
-		rec.ActionResponse = "fixed by vulnetix sca --sca-autofix"
-		if rec.Versions == nil {
-			rec.Versions = &memory.VersionInfo{}
-		}
-		if rec.Versions.Current == "" {
-			rec.Versions.Current = f.InstalledVer
-		}
-		rec.Versions.FixedIn = f.FixedVer
-		rec.Versions.FixSource = "sca-autofix"
-		if rec.Remediation == nil {
-			rec.Remediation = &memory.RemediationData{}
-		}
-		rec.Remediation.FixAvailability = "available"
-		rec.Remediation.FixVersion = f.FixedVer
-
-		detail := fmt.Sprintf("%s %s -> %s via vulnetix sca --sca-autofix", f.Package, f.InstalledVer, f.FixedVer)
-		if !hasAutofixHistory(rec, detail) {
-			rec.History = append(rec.History, memory.HistoryEntry{
-				Date:   now,
-				Event:  "autofix-applied",
-				Detail: detail,
-			})
-		}
-		mem.Findings[f.CVEID] = rec
-	}
-}
-
-func hasAutofixHistory(rec memory.FindingRecord, detail string) bool {
-	for _, h := range rec.History {
-		if h.Event == "autofix-applied" && h.Detail == detail {
-			return true
-		}
-	}
-	return false
-}
-
 // printScanArtifacts prints the artefact links (BOM / Memory / SARIF / Rules and
 // ingestion snapshot URLs) at the very bottom of the scan output, after all
 // analysis tables. Each line is gated on a non-empty value. scaSnapshotURL is
@@ -4036,52 +3422,6 @@ func newEnrichmentClient() *vdb.Client {
 		client.Cache = dc
 	}
 	return client
-}
-
-// listBuiltinSASTRules loads default embedded rules, extracts metadata, and prints
-// a table of built-in SAST rules. Used for --list-default-rules.
-func listBuiltinSASTRules() error {
-	modules, err := sast.LoadAllModules(sast.DefaultRulesFS, false, nil, "", os.Stderr)
-	if err != nil {
-		return fmt.Errorf("load default rules: %w", err)
-	}
-	if len(modules) == 0 {
-		fmt.Fprintln(os.Stdout, "No built-in SAST rules found.")
-		return nil
-	}
-
-	eng := sast.NewEngine(modules, ".")
-	rules, err := eng.ListRules()
-	if err != nil {
-		return fmt.Errorf("list rules: %w", err)
-	}
-	if len(rules) == 0 {
-		fmt.Fprintln(os.Stdout, "No built-in SAST rules found.")
-		return nil
-	}
-
-	t := display.NewTerminal()
-	cols := []display.Column{
-		{Header: "ID", MinWidth: 12, MaxWidth: 16},
-		{Header: "Severity", MinWidth: 8, MaxWidth: 10, Color: func(s string) string {
-			return display.SeverityText(t, strings.ToLower(s))
-		}},
-		{Header: "Languages", MinWidth: 10, MaxWidth: 20},
-		{Header: "Name", MinWidth: 20, MaxWidth: 50},
-	}
-	rows := make([][]string, 0, len(rules))
-	for _, r := range rules {
-		rows = append(rows, []string{
-			r.ID,
-			r.Severity,
-			strings.Join(r.Languages, ", "),
-			r.Name,
-		})
-	}
-	fmt.Fprintln(os.Stdout)
-	fmt.Fprint(os.Stdout, display.Table(t, cols, rows))
-	fmt.Fprintf(os.Stdout, "\n%d built-in rules\n", len(rules))
-	return nil
 }
 
 // writeIDSRulesFile writes collected IDS rules to a file with CVE comment headers.
@@ -4412,6 +3752,17 @@ func addScanFlags(cmd *cobra.Command) {
 		"Cap the number of file versions extracted from git history (0 = no cap)")
 	cmd.Flags().Bool("include-ignored", false,
 		"Include files matched by .gitignore. By default the SAST, secrets, containers and IaC passes skip gitignored paths; sca and malscan always scan them (dependency install dirs are commonly gitignored).")
+	// License policy. The `license` subcommand owns the analysis; these are the
+	// same knobs, registered here so a scan that evaluates licenses can carry the
+	// project's policy instead of silently falling back to a permissive default.
+	cmd.Flags().String("allow", "",
+		"Comma-separated SPDX licenses allowed by policy during license evaluation")
+	cmd.Flags().String("allow-file", "",
+		"YAML allow-list file for license evaluation (overrides --allow)")
+	cmd.Flags().String("license-mode", "inclusive",
+		"License conflict detection mode: inclusive (whole project) or individual (per manifest)")
+	_ = cmd.RegisterFlagCompletionFunc("license-mode", cobra.FixedCompletions(
+		[]string{"inclusive", "individual"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = cmd.Flags().MarkDeprecated("format", "use --output instead")
 	_ = cmd.RegisterFlagCompletionFunc("sca-autofix-strategy", cobra.FixedCompletions(
 		[]string{"stable", "safest", "latest"}, cobra.ShellCompDirectiveNoFileComp))
@@ -4451,6 +3802,11 @@ func addSASTFlags(cmd *cobra.Command) {
 		"Run only the single SAST rule with this ID (e.g. VNX-GQL-004); skips SCA and license checks")
 	cmd.Flags().Bool("suppress-test-code", false,
 		"Suppress SAST findings located in the project's test suite (test files corroborated by test-runner config/dependencies)")
+	// Registered here, not on `scan` alone: it shapes the SARIF every
+	// rego-engine command emits, so sast/secrets/iac/containers must be able to
+	// set it for their own output.
+	cmd.Flags().Int("snippet-context", -1,
+		"Surrounding non-empty source lines to capture around each SARIF finding (-1 = dynamic: 3 if span <10 lines else 5; 0 disables)")
 }
 
 // suppressTestCode is set from the --suppress-test-code flag in
@@ -4505,7 +3861,7 @@ func filterCommandPackageFiles(files []scan.DetectedFile, noCI, noShell bool) []
 			filtered = append(filtered, f)
 			continue
 		}
-		if noCI && f.ManifestInfo.Language == "ci" {
+		if noCI && scan.IsCIPipelineFile(f.ManifestInfo) {
 			continue
 		}
 		if noShell && f.ManifestInfo.Language == "shell" {
@@ -4681,13 +4037,21 @@ func init() {
 	scanCmd.Flags().Bool("no-containers", false, "Skip container file detection")
 	scanCmd.Flags().Bool("evaluate-iac", false, "Enable Infrastructure as Code detection")
 	scanCmd.Flags().Bool("no-iac", false, "Skip Infrastructure as Code detection")
-	scanCmd.Flags().Int("snippet-context", -1, "Surrounding non-empty source lines to capture around each SARIF finding (-1 = dynamic: 3 if span <10 lines else 5; 0 disables)")
 
-	// --from-memory and --fresh-* flags (scan command only)
+	// Report replay, kept as deprecated aliases for `vulnetix report` so existing
+	// pipelines keep working. `report` is the owner (cmd/report.go).
 	scanCmd.Flags().Bool("from-memory", false, "Reconstruct scan pretty output from .vulnetix/sbom.cdx.json without API calls")
 	scanCmd.Flags().Bool("fresh-exploits", false, "With --from-memory: fetch latest exploit intel from API")
 	scanCmd.Flags().Bool("fresh-advisories", false, "With --from-memory: fetch latest remediation plans from API")
 	scanCmd.Flags().Bool("fresh-vulns", false, "With --from-memory: re-fetch affected version checks and latest scoring from API")
+	for _, f := range []string{"from-memory", "fresh-exploits", "fresh-advisories", "fresh-vulns"} {
+		_ = scanCmd.Flags().MarkDeprecated(f, "use `vulnetix report`"+map[string]string{
+			"from-memory":      "",
+			"fresh-exploits":   " --fresh-exploits",
+			"fresh-advisories": " --fresh-advisories",
+			"fresh-vulns":      " --fresh-vulns",
+		}[f])
+	}
 }
 
 // Ensure tui package is imported (used indirectly for color constants via display).
