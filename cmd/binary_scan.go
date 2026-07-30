@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v3/internal/binpkg"
+	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -25,10 +27,22 @@ import (
 // parent's PersistentPreRunE having already resolved vdbCreds.
 func runBinaryScan(cmd *cobra.Command) error {
 	scanPath, _ := cmd.Flags().GetString("path")
-	if skip, _ := cmd.Flags().GetBool("no-binary-package-analysis"); skip {
-		fmt.Fprintln(os.Stderr, "Skipping container binary package analysis (--no-binary-package-analysis).")
+	// A dry run makes no API calls, and this pass submits to /v2/cli.analyze.
+	// Report the plan and stop.
+	if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
+		fmt.Fprintf(os.Stderr, "[DRY RUN] binary analysis of %s skipped (it submits to /v2/cli.analyze)\n",
+			nonEmptyString(scanPath, "."))
 		return nil
 	}
+	// --list-default-rules is a listing served by the scan pipeline; the binary
+	// pass has nothing to add to it.
+	if list, _ := cmd.Flags().GetBool("list-default-rules"); list {
+		return nil
+	}
+	// --no-binary-package-analysis turns off package discovery from binaries, not
+	// the binary scan itself: the weakness/hash analysis and its /v2/cli.analyze
+	// submission are the command's primary output and stay on.
+	noPackages, _ := cmd.Flags().GetBool("no-binary-package-analysis")
 	showPaths, _ := cmd.Flags().GetBool("show-introduced-paths")
 	showAll, _ := cmd.Flags().GetBool("show-all-manifests")
 	rootfsPaths, _ := cmd.Flags().GetStringArray("container-rootfs")
@@ -43,6 +57,9 @@ func runBinaryScan(cmd *cobra.Command) error {
 	if err := runBinaryScanPath(cmd, scanPath); err != nil {
 		return err
 	}
+	if !noPackages {
+		reportBinaryPackages(scanPath, scanPath, "", scanPath)
+	}
 	for _, rootfs := range rootfsPaths {
 		if rootfs == "" {
 			continue
@@ -51,6 +68,9 @@ func runBinaryScan(cmd *cobra.Command) error {
 			fmt.Fprintf(os.Stderr, "Container package DB: %s contains %d installed package(s).\n", rootfs, len(pkgs))
 		}
 		_ = runBinaryScanPath(cmd, rootfs)
+		if !noPackages {
+			reportBinaryPackages(rootfs, rootfs, filepath.Base(rootfs), scanPath)
+		}
 	}
 	for _, archive := range archivePaths {
 		if archive == "" {
@@ -65,9 +85,109 @@ func runBinaryScan(cmd *cobra.Command) error {
 			fmt.Fprintf(os.Stderr, "Container package DB: %s contains %d installed package(s).\n", archive, len(pkgs))
 		}
 		_ = runBinaryScanPath(cmd, dir)
+		if !noPackages {
+			reportBinaryPackages(dir, dir, filepath.Base(archive), scanPath)
+		}
 		cleanup()
 	}
 	return nil
+}
+
+// reportBinaryPackages discovers the packages compiled into the artefacts under
+// root — Go modules, Rust crates recorded by cargo-auditable, JVM archive
+// coordinates — prints them, and merges them into the repository's CycloneDX file
+// so a container inventory includes dependencies no manifest declares.
+//
+// sbomRoot is the directory whose .vulnetix/sbom.cdx.json is updated; it is the
+// scanned project, not the container root filesystem being inspected.
+func reportBinaryPackages(root, labelRoot, sourceLabel, sbomRoot string) {
+	owners := binpkg.OwnerIndex(nil)
+	if binpkg.HasFileOwnership(root) {
+		owners = binpkg.BuildOwnerIndex(root)
+	}
+	tree := binpkg.ScanTree(binpkg.TreeOptions{Root: root, Owners: owners})
+	if len(tree.Packages) == 0 {
+		if tree.Examined > 0 {
+			fmt.Fprintf(os.Stderr, "Binary package analysis: %d artefact(s) examined, no embedded package metadata.\n", tree.Examined)
+		}
+		return
+	}
+
+	fmt.Printf("\n%s\n", bold("Packages Discovered In Binaries"))
+	byEcosystem := map[string]int{}
+	for _, p := range tree.Packages {
+		byEcosystem[p.Ecosystem]++
+	}
+	for _, eco := range sortedStringKeys(byEcosystem) {
+		fmt.Printf("  %-10s %d package(s)\n", eco, byEcosystem[eco])
+	}
+	if len(owners) > 0 {
+		fmt.Printf("  %d artefact(s) not claimed by any OS package\n", len(tree.Unowned))
+	}
+	shown := 0
+	for _, p := range tree.Packages {
+		if shown >= 20 {
+			fmt.Printf("  %s\n", dim(fmt.Sprintf("… %d more", len(tree.Packages)-shown)))
+			break
+		}
+		fmt.Printf("  %-45s %-14s %s\n", truncate(p.Name, 45), truncate(p.Version, 14),
+			dim(p.Method+" · "+binpkg.RelativePath(labelRoot, p.BinaryPath)))
+		shown++
+	}
+
+	if err := mergeBinaryPackagesIntoBOM(tree, labelRoot, sourceLabel, sbomRoot); err != nil {
+		fmt.Fprintf(os.Stderr, "  warning: could not record binary packages in the SBOM: %v\n", err)
+	}
+}
+
+// mergeBinaryPackagesIntoBOM folds binary-discovered packages into
+// .vulnetix/sbom.cdx.json, leaving every existing component, vulnerability and
+// VEX statement in place. No file is created when there is nothing on disk yet:
+// `containers` is not the command that owns the SBOM.
+func mergeBinaryPackagesIntoBOM(tree binpkg.TreeResult, labelRoot, sourceLabel, sbomRoot string) error {
+	sbomPath := filepath.Join(sbomRoot, ".vulnetix", "sbom.cdx.json")
+	existing, err := parseCDXForScan(sbomPath)
+	if err != nil || existing == nil {
+		return nil
+	}
+	incoming := &cdx.BOM{
+		BOMFormat:   "CycloneDX",
+		SpecVersion: existing.SpecVersion,
+		Version:     existing.Version,
+	}
+	for _, p := range tree.Packages {
+		purl := cdx.BuildLocalPurl(p.Name, p.Version, p.Ecosystem)
+		ref := purl
+		if ref == "" {
+			ref = "urn:package:" + p.Ecosystem + ":" + p.Name + ":" + p.Version
+		}
+		artifact := binpkg.RelativePath(labelRoot, p.BinaryPath)
+		locator := artifact
+		if sourceLabel != "" {
+			locator = sourceLabel + ":" + artifact
+		}
+		comp := cdx.Component{
+			Type: "library", BOMRef: ref, Name: p.Name, Version: p.Version,
+			Scope: "required", Purl: purl,
+			Properties: []cdx.Property{
+				{Name: "vulnetix:ecosystem", Value: p.Ecosystem},
+				{Name: "vulnetix:scope", Value: p.Scope},
+				{Name: "vulnetix:source-type", Value: scan.SourceTypeBinary},
+				{Name: "vulnetix:source-file", Value: locator},
+				{Name: "vulnetix:binary/discovered-in", Value: artifact},
+				{Name: "vulnetix:binary/method", Value: p.Method},
+			},
+		}
+		if p.Checksum != "" {
+			comp.Properties = append(comp.Properties, cdx.Property{Name: "vulnetix:gosum-h1", Value: p.Checksum})
+		}
+		incoming.Components = append(incoming.Components, comp)
+	}
+	if len(incoming.Components) == 0 {
+		return nil
+	}
+	merged := cdx.MergeBOMs(existing, incoming)
+	return writeBOMToFile(merged, sbomPath)
 }
 
 func runBinaryScanPath(cmd *cobra.Command, scanPath string) error {

@@ -21,31 +21,62 @@ import (
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/aibom"
+	"github.com/vulnetix/cli/v3/internal/binpkg"
 	"github.com/vulnetix/cli/v3/internal/cbom"
+	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/ecosystems"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
+// cdxCmd is named for the format it emits. `sbom` is an alias rather than the
+// canonical name on purpose: an SPDX generator will land beside it as its own
+// command, and until then "sbom" resolves to CycloneDX — the format this tool
+// prefers and produces natively everywhere else (.vulnetix/*.cdx.json, VEX,
+// AIBOM, CBOM).
 var cdxCmd = &cobra.Command{
-	Use:   "cdx [path]",
-	Short: "Generate a standalone CycloneDX SBOM without VDB lookup or upload",
+	Use:     "cdx [path]",
+	Aliases: []string{"sbom"},
+	Short:   "Generate a standalone CycloneDX SBOM without VDB lookup or upload",
 	Long: `Generate one local CycloneDX document containing the package SBOM, AI Bill
 of Materials (AIBOM), and Cryptography Bill of Materials (CBOM).
 
 The command is offline: it reads local manifests, installed package directories,
-container root filesystems/archives, CI/CD files, shell scripts, binaries and
-signature sidecars, then writes a CycloneDX JSON file. It does not query the
-Vulnetix VDB, upload data, update memory.yaml, enforce quality gates or contact
-a container daemon.
+container root filesystems/archives, CI/CD pipeline files, shell scripts,
+compiled binaries and signature sidecars, then writes a CycloneDX JSON file. It
+does not query the Vulnetix VDB, upload data, update memory.yaml, enforce quality
+gates or contact a container daemon.
+
+Discovery sources:
+  • package manifests and lockfiles
+  • installed-package directories (node_modules, site-packages, vendor, gems, …)
+  • container root filesystem package databases (dpkg, apk, pacman)
+  • package installs in Dockerfiles, compose, Kubernetes and Helm files
+  • package installs in CI/CD pipeline files (GitHub Actions, GitLab CI,
+    CircleCI, Buildkite, Azure Pipelines, Tekton, Concourse, Jenkins, …)
+  • package installs in shell scripts, Makefiles and task recipes
+  • packages embedded in compiled binaries: Go build info, Rust
+    cargo-auditable data and JVM archive coordinates, attributed to the OS
+    package that installed them where a package database says so
+
+The metadata written for each component matches what "vulnetix sca" records:
+purl, ecosystem, scope/environment, direct-ness, source file and source type,
+installed path, checksums, licenses (SPDX ids where recognised), discovery
+evidence, signature/transparency-log provenance, and the resolved dependency
+graph.
+
+"vulnetix sbom" is an alias for this command: CycloneDX is the preferred output
+format, and a future SPDX generator will be its own command.
 
 Examples:
   vulnetix cdx
   vulnetix cdx ./service -o cyclonedx-json
   vulnetix cdx --container-rootfs ./rootfs
   vulnetix cdx --container-archive ./image.tar
-  vulnetix cdx --no-aibom --no-cbom --output-file build/sbom.cdx.json`,
+  vulnetix cdx --no-aibom --no-cbom --output-file build/sbom.cdx.json
+  vulnetix sbom                                  # alias for vulnetix cdx`,
 	Args:         cobra.MaximumNArgs(1),
 	RunE:         runCDX,
 	SilenceUsage: true,
@@ -65,6 +96,8 @@ type cdxRunOptions struct {
 	NoCI              bool
 	NoShell           bool
 	NoBinaryAnalysis  bool
+	NoBinaryPackages  bool
+	NoLicenses        bool
 	NoAIBOM           bool
 	NoCBOM            bool
 	NoSignatures      bool
@@ -84,6 +117,12 @@ type cdxSummary struct {
 	SourceCounts      map[string]int `json:"sourceCounts"`
 	ManifestFileCount int            `json:"manifestFileCount"`
 	BinaryCount       int            `json:"binaryCount"`
+	BinaryPackages    int            `json:"binaryPackages"`
+	ArtifactsExamined int            `json:"artifactsExamined"`
+	UnownedBinaries   int            `json:"unownedBinaries"`
+	DependencyEdges   int            `json:"dependencyEdges"`
+	LicensedPackages  int            `json:"licensedPackages"`
+	PreservedVulns    int            `json:"preservedVulnerabilities,omitempty"`
 	AITools           int            `json:"aiTools"`
 	AILibraries       int            `json:"aiLibraries"`
 	AIModels          int            `json:"aiModels"`
@@ -91,6 +130,24 @@ type cdxSummary struct {
 	CryptoLibraries   int            `json:"cryptoLibraries"`
 	CryptoCerts       int            `json:"cryptoCertificates"`
 	Warnings          []string       `json:"warnings,omitempty"`
+}
+
+// cdxInventory is everything the discovery passes produced, before it is handed
+// to the CycloneDX builder.
+type cdxInventory struct {
+	Packages     []cyclonedx.SBOMPackage
+	Dependencies []cyclonedx.SBOMDependency
+	// ScanPackages are the manifest-parsed packages in their native form, kept so
+	// license detection and dependency-graph construction see exactly what `sca`
+	// sees.
+	ScanPackages   []scan.ScopedPackage
+	ManifestGroups []scan.ManifestGroup
+	ManifestFiles  int
+	BinaryFiles    int
+	BinaryPackages int
+	Examined       int
+	Unowned        int
+	Warnings       []string
 }
 
 func init() {
@@ -106,12 +163,18 @@ func init() {
 	cdxCmd.Flags().Bool("no-containerfiles", false, "Skip Dockerfile, compose, Kubernetes and Helm package discovery")
 	cdxCmd.Flags().Bool("no-ci", false, "Skip CI/CD pipeline file package discovery")
 	cdxCmd.Flags().Bool("no-shell", false, "Skip shell-script package discovery")
-	cdxCmd.Flags().Bool("no-binary-analysis", false, "Skip local ELF binary analysis")
+	cdxCmd.Flags().Bool("no-binary-analysis", false, "Skip binary analysis (ELF file components and embedded package metadata)")
+	cdxCmd.Flags().Bool("no-binary-packages", false, "Analyse binaries but do not emit the packages embedded in them (Go build info, cargo-auditable, JVM archives)")
+	cdxCmd.Flags().Bool("no-licenses", false, "Skip license detection for discovered packages")
 	cdxCmd.Flags().Bool("no-aibom", false, "Skip AIBOM detection and omit AI components")
 	cdxCmd.Flags().Bool("no-cbom", false, "Skip CBOM detection and omit cryptographic components")
 	cdxCmd.Flags().Bool("no-signatures", false, "Skip local signature, attestation and transparency-log sidecar discovery")
 	cdxCmd.Flags().Bool("include-home", false, "Also inspect user-scoped package caches for installed packages")
 	cdxCmd.Flags().Bool("cdx-include-ignored", false, "Include files matched by .gitignore (default: gitignored paths are skipped)")
+	// Accepted for callers that reach the command through its `sbom` alias and
+	// spell the flag to match. Hidden so only one name is advertised.
+	cdxCmd.Flags().Bool("sbom-include-ignored", false, "Alias for --cdx-include-ignored")
+	_ = cdxCmd.Flags().MarkHidden("sbom-include-ignored")
 	cdxCmd.Flags().StringArray("container-rootfs", nil, "Container root filesystem directory to inspect for OS packages and binaries (repeatable)")
 	cdxCmd.Flags().StringArray("container-archive", nil, "Docker/OCI/rootfs tar archive to inspect for OS packages and binaries (repeatable)")
 	cdxCmd.Flags().String("aibom-catalog", "", "Path to an AIBOM catalog file to merge over (or replace) the builtin catalog")
@@ -130,7 +193,14 @@ func runCDX(cmd *cobra.Command, args []string) error {
 	gitCtx := gitctx.Collect(opts.RootPath)
 	sysInfo := gitctx.CollectSystemInfo()
 
-	packages, manifestCount, binaryCount, warnings := collectCDXPackages(opts)
+	inv := collectCDXPackages(opts)
+	warnings := inv.Warnings
+
+	licensed := 0
+	if !opts.NoLicenses {
+		licensed = applyCDXLicenses(&inv)
+	}
+
 	var aiDet *cyclonedx.AIDetections
 	var cryptoDet *cyclonedx.CryptoDetections
 	if !opts.NoAIBOM {
@@ -151,17 +221,27 @@ func runCDX(cmd *cobra.Command, args []string) error {
 	}
 
 	bomData, err := cyclonedx.BuildSBOM(cyclonedx.SBOMInventory{
-		Packages:         packages,
+		Packages:         inv.Packages,
+		Dependencies:     inv.Dependencies,
 		AIDetections:     aiDet,
 		CryptoDetections: cryptoDet,
 	}, cyclonedx.SBOMOptions{
-		SpecVersion: opts.SpecVersion,
-		ToolName:    "vulnetix-cdx",
-		ToolVersion: version,
-		Project:     aibomProject(gitCtx, sysInfo),
+		SpecVersion:     opts.SpecVersion,
+		ToolName:        "vulnetix-cdx",
+		ToolVersion:     version,
+		Project:         aibomProject(gitCtx, sysInfo),
+		CanonicalSPDXID: license.CanonicalSPDXID,
 	})
 	if err != nil {
 		return err
+	}
+
+	// The default output path is the same file `scan`/`sca` use as scan memory, so
+	// carry over any vulnerability and VEX analysis already recorded there. An
+	// offline inventory run must not silently erase findings.
+	bomData, preserved, err := preserveCDXVulnerabilities(opts.OutputFile, bomData)
+	if err != nil {
+		warnings = append(warnings, "preserving existing findings: "+err.Error())
 	}
 
 	if err := writeCDXFile(opts.OutputFile, bomData); err != nil {
@@ -169,10 +249,16 @@ func runCDX(cmd *cobra.Command, args []string) error {
 	}
 	summary := cdxSummary{
 		OutputFile:        opts.OutputFile,
-		PackageCount:      len(packages),
-		SourceCounts:      countCDXSources(packages),
-		ManifestFileCount: manifestCount,
-		BinaryCount:       binaryCount,
+		PackageCount:      len(inv.Packages),
+		SourceCounts:      countCDXSources(inv.Packages),
+		ManifestFileCount: inv.ManifestFiles,
+		BinaryCount:       inv.BinaryFiles,
+		BinaryPackages:    inv.BinaryPackages,
+		ArtifactsExamined: inv.Examined,
+		UnownedBinaries:   inv.Unowned,
+		DependencyEdges:   len(inv.Dependencies),
+		LicensedPackages:  licensed,
+		PreservedVulns:    preserved,
 		Warnings:          warnings,
 	}
 	if aiDet != nil {
@@ -239,11 +325,16 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 	noCI, _ := cmd.Flags().GetBool("no-ci")
 	noShell, _ := cmd.Flags().GetBool("no-shell")
 	noBinary, _ := cmd.Flags().GetBool("no-binary-analysis")
+	noBinaryPackages, _ := cmd.Flags().GetBool("no-binary-packages")
+	noLicenses, _ := cmd.Flags().GetBool("no-licenses")
 	noAIBOM, _ := cmd.Flags().GetBool("no-aibom")
 	noCBOM, _ := cmd.Flags().GetBool("no-cbom")
 	noSignatures, _ := cmd.Flags().GetBool("no-signatures")
 	includeHome, _ := cmd.Flags().GetBool("include-home")
 	includeIgnored, _ := cmd.Flags().GetBool("cdx-include-ignored")
+	if aliasSpelling, _ := cmd.Flags().GetBool("sbom-include-ignored"); aliasSpelling {
+		includeIgnored = true
+	}
 	rootfs, _ := cmd.Flags().GetStringArray("container-rootfs")
 	archives, _ := cmd.Flags().GetStringArray("container-archive")
 	aibomCatalog, _ := cmd.Flags().GetString("aibom-catalog")
@@ -253,16 +344,17 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 	return cdxRunOptions{
 		RootPath: abs, Depth: depth, Exclude: exclude, Ignore: ignore, Output: output, OutputFile: outputFile, SpecVersion: specVersion,
 		NoManifests: noManifests, NoFilesystem: noFilesystem, NoContainerfiles: noContainerfiles, NoCI: noCI, NoShell: noShell,
-		NoBinaryAnalysis: noBinary, NoAIBOM: noAIBOM, NoCBOM: noCBOM, NoSignatures: noSignatures, IncludeHome: includeHome,
+		NoBinaryAnalysis: noBinary, NoBinaryPackages: noBinaryPackages, NoLicenses: noLicenses,
+		NoAIBOM: noAIBOM, NoCBOM: noCBOM, NoSignatures: noSignatures, IncludeHome: includeHome,
 		IncludeIgnored: includeIgnored, ContainerRootfs: rootfs, ContainerArchives: archives,
 		AIBOMCatalog: aibomCatalog, CBOMCatalog: cbomCatalog, NoBuiltinAIBOM: noBuiltinAIBOM, NoBuiltinCBOM: noBuiltinCBOM,
 	}, nil
 }
 
-func collectCDXPackages(opts cdxRunOptions) ([]cyclonedx.SBOMPackage, int, int, []string) {
-	var packages []cyclonedx.SBOMPackage
-	var warnings []string
-	manifestCount := 0
+func collectCDXPackages(opts cdxRunOptions) cdxInventory {
+	inv := cdxInventory{}
+
+	// ── Manifests, containerfiles, CI/CD pipelines and shell scripts ─────────
 	if !opts.NoManifests || !opts.NoContainerfiles || !opts.NoCI || !opts.NoShell {
 		files, err := scan.WalkForScanFiles(scan.WalkOptions{
 			RootPath: opts.RootPath, MaxDepth: opts.Depth,
@@ -270,16 +362,20 @@ func collectCDXPackages(opts cdxRunOptions) ([]cyclonedx.SBOMPackage, int, int, 
 			RespectGitignore: !opts.IncludeIgnored,
 		})
 		if err != nil {
-			warnings = append(warnings, "manifest discovery: "+err.Error())
+			inv.Warnings = append(inv.Warnings, "manifest discovery: "+err.Error())
 		}
+		// filePackages/fileEcosystems feed BuildManifestGroups, which is what
+		// resolves the dependency graph `sca` publishes.
+		filePackages := map[string][]scan.ScopedPackage{}
+		fileEcosystems := map[string]string{}
 		for _, f := range files {
 			if !includeCDXDetectedFile(f, opts) {
 				continue
 			}
-			manifestCount++
+			inv.ManifestFiles++
 			pkgs, err := scan.ParseManifestWithScope(f.Path, f.ManifestInfo.Type)
 			if err != nil {
-				warnings = append(warnings, f.RelPath+": "+err.Error())
+				inv.Warnings = append(inv.Warnings, f.RelPath+": "+err.Error())
 				continue
 			}
 			if !opts.NoFilesystem {
@@ -290,6 +386,7 @@ func collectCDXPackages(opts cdxRunOptions) ([]cyclonedx.SBOMPackage, int, int, 
 					pkgs = resolved
 				}
 			}
+			normalized := make([]scan.ScopedPackage, 0, len(pkgs))
 			for _, p := range pkgs {
 				p.SourceFile = f.RelPath
 				if p.Scope == "" {
@@ -302,54 +399,108 @@ func collectCDXPackages(opts cdxRunOptions) ([]cyclonedx.SBOMPackage, int, int, 
 						p.SourceType = scan.SourceTypeManifest
 					}
 				}
-				packages = append(packages, cdxPackageFromScan(p, opts.RootPath, !opts.NoSignatures))
+				normalized = append(normalized, p)
+				inv.Packages = append(inv.Packages, cdxPackageFromScan(p, opts.RootPath, !opts.NoSignatures))
 			}
+			inv.ScanPackages = append(inv.ScanPackages, normalized...)
+			filePackages[f.RelPath] = normalized
+			fileEcosystems[f.RelPath] = f.ManifestInfo.Ecosystem
 		}
-	}
-	if !opts.NoFilesystem {
-		packages = append(packages, collectInstalledPackages(opts)...)
+		inv.ManifestGroups = scan.BuildManifestGroups(filePackages, fileEcosystems)
+		scan.PopulateInstalledEdges(inv.ManifestGroups, opts.RootPath)
 	}
 
-	binaryCount := 0
-	if !opts.NoBinaryAnalysis {
-		binPkgs, count := collectBinaryPackages(opts.RootPath, opts.RootPath, !opts.NoSignatures)
-		binaryCount += count
-		packages = append(packages, binPkgs...)
+	// ── Installed-package trees ──────────────────────────────────────────────
+	if !opts.NoFilesystem {
+		inv.Packages = append(inv.Packages, collectInstalledPackages(opts)...)
 	}
+
+	// ── Compiled artefacts in the project itself ─────────────────────────────
+	if !opts.NoBinaryAnalysis {
+		inv.merge(collectCDXBinaries(opts, opts.RootPath, opts.RootPath, ""))
+	}
+
+	// ── Container root filesystems and archives ──────────────────────────────
 	for _, rootfs := range opts.ContainerRootfs {
 		abs, err := filepath.Abs(rootfs)
 		if err != nil {
-			warnings = append(warnings, rootfs+": "+err.Error())
+			inv.Warnings = append(inv.Warnings, rootfs+": "+err.Error())
 			continue
 		}
-		packages = append(packages, collectContainerDBPackages(abs, abs, filepath.Base(abs), !opts.NoSignatures)...)
+		inv.Packages = append(inv.Packages, collectContainerDBPackages(abs, abs, filepath.Base(abs), !opts.NoSignatures)...)
 		if !opts.NoFilesystem {
-			packages = append(packages, collectInstalledPackages(cdxRunOptions{RootPath: abs, IncludeHome: false, NoSignatures: opts.NoSignatures})...)
+			inv.Packages = append(inv.Packages, collectInstalledPackages(cdxRunOptions{RootPath: abs, IncludeHome: false, NoSignatures: opts.NoSignatures})...)
 		}
 		if !opts.NoBinaryAnalysis {
-			binPkgs, count := collectBinaryPackages(abs, abs, !opts.NoSignatures)
-			binaryCount += count
-			packages = append(packages, binPkgs...)
+			inv.merge(collectCDXBinaries(opts, abs, abs, filepath.Base(abs)))
 		}
 	}
 	for _, archive := range opts.ContainerArchives {
 		dir, cleanup, err := extractContainerArchive(archive)
 		if err != nil {
-			warnings = append(warnings, archive+": "+err.Error())
+			inv.Warnings = append(inv.Warnings, archive+": "+err.Error())
 			continue
 		}
-		packages = append(packages, collectContainerDBPackages(dir, dir, filepath.Base(archive), !opts.NoSignatures)...)
+		inv.Packages = append(inv.Packages, collectContainerDBPackages(dir, dir, filepath.Base(archive), !opts.NoSignatures)...)
 		if !opts.NoFilesystem {
-			packages = append(packages, collectInstalledPackages(cdxRunOptions{RootPath: dir, IncludeHome: false, NoSignatures: opts.NoSignatures})...)
+			inv.Packages = append(inv.Packages, collectInstalledPackages(cdxRunOptions{RootPath: dir, IncludeHome: false, NoSignatures: opts.NoSignatures})...)
 		}
 		if !opts.NoBinaryAnalysis {
-			binPkgs, count := collectBinaryPackages(dir, dir, !opts.NoSignatures)
-			binaryCount += count
-			packages = append(packages, binPkgs...)
+			inv.merge(collectCDXBinaries(opts, dir, dir, filepath.Base(archive)))
 		}
 		cleanup()
 	}
-	return dedupeCDXPackages(packages), manifestCount, binaryCount, warnings
+
+	inv.Packages = dedupeCDXPackages(inv.Packages)
+	inv.Dependencies = buildCDXDependencies(inv)
+	// Report distinct components, not observations: the same Go module linked into
+	// ten release binaries is one package.
+	inv.BinaryPackages = 0
+	for _, p := range inv.Packages {
+		if p.SourceType == scan.SourceTypeBinary && p.Type != "file" {
+			inv.BinaryPackages++
+		}
+	}
+	return inv
+}
+
+// merge folds one discovery pass's output into the inventory.
+func (inv *cdxInventory) merge(other cdxInventory) {
+	inv.Packages = append(inv.Packages, other.Packages...)
+	inv.Dependencies = append(inv.Dependencies, other.Dependencies...)
+	inv.Warnings = append(inv.Warnings, other.Warnings...)
+	inv.ManifestFiles += other.ManifestFiles
+	inv.BinaryFiles += other.BinaryFiles
+	inv.BinaryPackages += other.BinaryPackages
+	inv.Examined += other.Examined
+	inv.Unowned += other.Unowned
+}
+
+// buildCDXDependencies resolves the dependency graph the same way `sca` does —
+// from manifest-group edges — and appends the edges recovered from compiled
+// artefacts. Refs are the bom-refs this command assigns, so the shared builder
+// keeps every edge whose endpoints became components and drops the rest.
+func buildCDXDependencies(inv cdxInventory) []cyclonedx.SBOMDependency {
+	refs := make(map[string]string, len(inv.Packages))
+	for _, p := range inv.Packages {
+		// `file` components are binaries on disk, not packages. They share a name
+		// with the package that installed them ("curl"), so letting them into this
+		// index would make a manifest edge for a package resolve to a file.
+		if p.Type == "file" {
+			continue
+		}
+		key := p.Name + "@" + p.Version
+		if _, exists := refs[key]; !exists {
+			refs[key] = p.BOMRef
+		}
+	}
+	var out []cyclonedx.SBOMDependency
+	for _, dep := range cdx.BuildDependencies(inv.ManifestGroups, refs) {
+		out = append(out, cyclonedx.SBOMDependency{Ref: dep.Ref, DependsOn: dep.DependsOn})
+	}
+	// Edges carried on the inventory already use bom-refs (see collectCDXBinaries).
+	out = append(out, inv.Dependencies...)
+	return out
 }
 
 func includeCDXDetectedFile(f scan.DetectedFile, opts cdxRunOptions) bool {
@@ -362,7 +513,7 @@ func includeCDXDetectedFile(f scan.DetectedFile, opts cdxRunOptions) bool {
 		return false
 	case lang == "docker" || lang == "kubernetes" || lang == "helm":
 		return !opts.NoContainerfiles
-	case lang == "ci":
+	case scan.IsCIPipelineFile(f.ManifestInfo):
 		return !opts.NoCI
 	case lang == "shell":
 		return !opts.NoShell
@@ -381,11 +532,33 @@ func cdxPackageFromScan(p scan.ScopedPackage, root string, includeSignatures boo
 	for _, h := range p.Checksums {
 		out.Hashes = append(out.Hashes, cyclonedx.SBOMHash{Alg: h.Alg, Content: h.Value})
 	}
-	out.Evidence = []cyclonedx.SBOMEvidence{{Method: nonEmptyString(p.SourceType, "manifest"), Locator: p.SourceFile, Confidence: "high"}}
+	method := nonEmptyString(p.SourceType, "manifest")
+	out.Evidence = []cyclonedx.SBOMEvidence{{
+		Method: method, Locator: p.SourceFile, Confidence: cdxEvidenceConfidence(p),
+	}}
 	if includeSignatures && p.SourceFile != "" {
 		out.Signatures = discoverSignaturesForFile(root, p.SourceFile)
 	}
 	return out
+}
+
+// cdxEvidenceConfidence grades the evidence behind a discovered package. A
+// declared dependency in a manifest is a fact; a package name lifted out of an
+// `apt-get install` line in a CI job or shell script is an inference — the
+// command may be conditional, commented out at runtime, or never executed — so it
+// must not claim the same confidence.
+func cdxEvidenceConfidence(p scan.ScopedPackage) string {
+	switch p.SourceType {
+	case scan.SourceTypeCommand:
+		if p.Version != "" {
+			return "medium" // a pinned install command names an exact artefact
+		}
+		return "low"
+	case scan.SourceTypeBinary:
+		return "high"
+	default:
+		return "high"
+	}
 }
 
 func collectInstalledPackages(opts cdxRunOptions) []cyclonedx.SBOMPackage {
@@ -690,9 +863,25 @@ func parsePacmanDesc(data []byte, rel, root string, includeSignatures bool) []cy
 	return []cyclonedx.SBOMPackage{pkg}
 }
 
-func collectBinaryPackages(root, labelRoot string, includeSignatures bool) ([]cyclonedx.SBOMPackage, int) {
+// collectCDXBinaries runs the two binary passes over one tree:
+//
+//   - scan.ScanContainerFilesystem hashes every ELF and emits it as a `file`
+//     component (what the container binary analysis has always reported), and
+//   - binpkg reads the package metadata compiled into those binaries plus any
+//     JVM archive or PE/Mach-O executable beside them, turning them into real
+//     package components with a dependency graph.
+//
+// When the tree carries a package database, each artefact is attributed to the OS
+// package that installed it, and artefacts no package claims are counted — a
+// binary that arrived outside the package manager is exactly what an image
+// inventory needs to surface.
+func collectCDXBinaries(opts cdxRunOptions, root, labelRoot, sourceLabel string) cdxInventory {
+	inv := cdxInventory{}
 	result := scan.ScanContainerFilesystem(root)
-	var out []cyclonedx.SBOMPackage
+	inv.BinaryFiles = result.ELFCount
+	includeSignatures := !opts.NoSignatures
+
+	binaryRefs := map[string]string{}
 	for _, b := range result.Binaries {
 		rel := relTo(labelRoot, b.Path)
 		pkg := cyclonedx.SBOMPackage{
@@ -710,13 +899,292 @@ func collectBinaryPackages(root, labelRoot string, includeSignatures bool) ([]cy
 				Detail:     strings.Join(append(append([]string{}, b.Weaknesses...), b.Capabilities...), ","),
 				Confidence: "high",
 			}},
+			Properties: map[string]string{},
+		}
+		if b.ELFType != "" {
+			pkg.Properties["vulnetix:binary/elf-type"] = b.ELFType
+		}
+		if b.ELFArch != "" {
+			pkg.Properties["vulnetix:binary/arch"] = b.ELFArch
 		}
 		if includeSignatures {
 			pkg.Signatures = discoverSignaturesForFile(labelRoot, rel)
 		}
-		out = append(out, pkg)
+		pkg.BOMRef = cdxBinaryRef(sourceLabel, rel, b.Hashes.SHA256)
+		binaryRefs[b.Path] = pkg.BOMRef
+		inv.Packages = append(inv.Packages, pkg)
 	}
-	return out, result.ELFCount
+
+	if opts.NoBinaryPackages {
+		return inv
+	}
+
+	owners := binpkg.OwnerIndex(nil)
+	if binpkg.HasFileOwnership(root) {
+		owners = binpkg.BuildOwnerIndex(root)
+	}
+	tree := binpkg.ScanTree(binpkg.TreeOptions{Root: root, Owners: owners})
+	inv.Examined = tree.Examined
+	inv.Unowned = len(tree.Unowned)
+	for _, warn := range tree.Errors {
+		inv.Warnings = append(inv.Warnings, "binary analysis: "+warn)
+	}
+
+	// Package components recovered from inside the artefacts.
+	refByKey := map[string]string{}
+	for _, p := range tree.Packages {
+		artifactRel := relTo(labelRoot, p.BinaryPath)
+		locator := artifactRel
+		if sourceLabel != "" {
+			locator = sourceLabel + ":" + artifactRel
+		}
+		out := cyclonedx.SBOMPackage{
+			Name: p.Name, Version: p.Version, Ecosystem: p.Ecosystem,
+			Scope:      nonEmptyString(p.Scope, scan.ScopeProduction),
+			Purl:       cyclonedx.SBOMPurl(p.Name, p.Version, p.Ecosystem),
+			SourceFile: locator, SourceType: scan.SourceTypeBinary,
+			InstalledPath: artifactRel, IsDirect: p.IsDirect,
+			Evidence: []cyclonedx.SBOMEvidence{{
+				Method: p.Method, Locator: locator, Detail: p.Detail,
+				Confidence: nonEmptyString(p.Confidence, "medium"),
+			}},
+			Properties: map[string]string{"vulnetix:binary/discovered-in": artifactRel},
+		}
+		if p.Checksum != "" {
+			out.Hashes = append(out.Hashes, cyclonedx.SBOMHash{Alg: "H1", Content: p.Checksum})
+		}
+		out.BOMRef = cdxPackageRef(out)
+		refByKey[p.Name+"@"+p.Version] = out.BOMRef
+		inv.Packages = append(inv.Packages, out)
+		inv.BinaryPackages++
+	}
+
+	// Module/crate graph recovered from the artefacts, translated into bom-refs.
+	for _, edge := range tree.Edges {
+		from, ok := refByKey[edge.From]
+		if !ok {
+			continue
+		}
+		var on []string
+		for _, target := range edge.DependsOn {
+			if ref, ok := refByKey[target]; ok {
+				on = append(on, ref)
+			}
+		}
+		if len(on) > 0 {
+			inv.Dependencies = append(inv.Dependencies, cyclonedx.SBOMDependency{Ref: from, DependsOn: on})
+		}
+	}
+
+	// Ownership: the OS package component (from the package database pass) becomes
+	// the parent of the files it installed, and every artefact records its owner.
+	// The ref→index map matters: an image can hold tens of thousands of binaries,
+	// and searching the component slice per property would be quadratic.
+	indexByRef := make(map[string]int, len(inv.Packages))
+	for i, p := range inv.Packages {
+		if p.Type == "file" {
+			indexByRef[p.BOMRef] = i
+		}
+	}
+	ownerEdges := map[string][]string{}
+	for _, art := range tree.Artifacts {
+		ref, hasComponent := binaryRefs[art.Path]
+		idx, indexed := -1, false
+		if hasComponent {
+			idx, indexed = indexByRef[ref]
+		}
+		setProp := func(name, value string) {
+			if !indexed || value == "" {
+				return
+			}
+			if inv.Packages[idx].Properties == nil {
+				inv.Packages[idx].Properties = map[string]string{}
+			}
+			inv.Packages[idx].Properties[name] = value
+		}
+		if art.Owner != nil {
+			ownerRef := cyclonedx.SBOMPurl(art.Owner.Name, art.Owner.Version, art.Owner.Ecosystem)
+			if indexed && ownerRef != "" {
+				ownerEdges[ownerRef] = append(ownerEdges[ownerRef], ref)
+			}
+			setProp("vulnetix:binary/owner-package", art.Owner.Key())
+			setProp("vulnetix:binary/owner-ecosystem", art.Owner.Ecosystem)
+		} else if len(owners) > 0 {
+			// Only meaningful when a readable package database exists; otherwise
+			// "no owner" says nothing about how the file got there.
+			setProp("vulnetix:binary/unpackaged", "true")
+		}
+		setProp("vulnetix:binary/format", art.Format)
+		for k, v := range art.Attributes {
+			setProp("vulnetix:binary/"+k, v)
+		}
+	}
+	for ownerRef, files := range ownerEdges {
+		inv.Dependencies = append(inv.Dependencies, cyclonedx.SBOMDependency{Ref: ownerRef, DependsOn: files})
+	}
+	return inv
+}
+
+// cdxBinaryRef builds a stable bom-ref for a binary file component. The content
+// hash is included so the same path in two images is two components.
+func cdxBinaryRef(sourceLabel, rel, sha256 string) string {
+	ref := "urn:file:"
+	if sourceLabel != "" {
+		ref += sanitizeCDXRef(sourceLabel) + ":"
+	}
+	ref += sanitizeCDXRef(rel)
+	if len(sha256) >= 12 {
+		ref += "@" + sha256[:12]
+	}
+	return ref
+}
+
+// cdxPackageRef assigns the bom-ref for a package component: its purl when it has
+// one, otherwise a synthetic urn. Assigning it here (rather than letting the
+// builder default it) is what lets the dependency graph reference components by
+// ref before the document is built.
+func cdxPackageRef(p cyclonedx.SBOMPackage) string {
+	if p.BOMRef != "" {
+		return p.BOMRef
+	}
+	if p.Purl != "" {
+		return p.Purl
+	}
+	return "urn:package:" + sanitizeCDXRef(p.Ecosystem) + ":" + sanitizeCDXRef(p.Name) + ":" + sanitizeCDXRef(p.Version)
+}
+
+// sanitizeCDXRef makes a value safe for a CycloneDX bom-ref, which may not
+// contain whitespace.
+func sanitizeCDXRef(v string) string {
+	return strings.Join(strings.Fields(v), "_")
+}
+
+// applyCDXLicenses resolves licenses for the manifest-parsed packages with the
+// same detector `sca` uses (manifest license fields, then the embedded SPDX
+// database) and attaches them to the matching components. Components that already
+// carry a license from their installed metadata keep it. Returns how many
+// components ended up with a license.
+func applyCDXLicenses(inv *cdxInventory) int {
+	if len(inv.ScanPackages) > 0 {
+		detected := license.DetectLicenses(inv.ScanPackages, inv.ManifestGroups)
+		byKey := make(map[string]string, len(detected))
+		for _, pl := range detected {
+			if pl.LicenseSpdxID == "" || pl.LicenseSpdxID == "UNKNOWN" {
+				continue
+			}
+			byKey[pl.PackageName+"@"+pl.PackageVersion] = pl.LicenseSpdxID
+		}
+		for i := range inv.Packages {
+			if len(inv.Packages[i].Licenses) > 0 {
+				continue
+			}
+			if lic, ok := byKey[inv.Packages[i].Name+"@"+inv.Packages[i].Version]; ok {
+				inv.Packages[i].Licenses = []string{lic}
+			}
+		}
+	}
+	licensed := 0
+	for i := range inv.Packages {
+		if len(inv.Packages[i].Licenses) > 0 {
+			licensed++
+		}
+	}
+	return licensed
+}
+
+// preserveCDXVulnerabilities carries the `vulnerabilities` array — and any
+// component a preserved entry points at — from an existing document at path into
+// the freshly built one. The default output path is the same file `scan` and
+// `sca` write, and those records (including VEX analysis) are the repository's
+// finding history: an inventory-only run must not delete them.
+//
+// Returns the rewritten document and how many vulnerability entries were carried
+// over. A missing or unparseable file is not an error for the caller: the new
+// document is returned unchanged.
+func preserveCDXVulnerabilities(path string, fresh []byte) ([]byte, int, error) {
+	existingRaw, err := os.ReadFile(path)
+	if err != nil {
+		return fresh, 0, nil // nothing on disk yet
+	}
+	var existing map[string]any
+	if err := json.Unmarshal(existingRaw, &existing); err != nil {
+		return fresh, 0, fmt.Errorf("%s is not valid JSON: %w", path, err)
+	}
+	vulns, _ := existing["vulnerabilities"].([]any)
+	if len(vulns) == 0 {
+		return fresh, 0, nil
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(fresh, &doc); err != nil {
+		return fresh, 0, err
+	}
+
+	// Components the preserved findings affect but this run did not rediscover
+	// (a dependency removed from the manifest, or a scan that ran with narrower
+	// flags) are carried over too, so no `affects` ref dangles.
+	present := map[string]bool{}
+	freshComponents, _ := doc["components"].([]any)
+	for _, c := range freshComponents {
+		if m, ok := c.(map[string]any); ok {
+			if ref, ok := m["bom-ref"].(string); ok {
+				present[ref] = true
+			}
+		}
+	}
+	needed := map[string]bool{}
+	for _, v := range vulns {
+		m, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		affects, _ := m["affects"].([]any)
+		for _, a := range affects {
+			am, ok := a.(map[string]any)
+			if !ok {
+				continue
+			}
+			if ref, ok := am["ref"].(string); ok && !present[ref] {
+				needed[ref] = true
+			}
+		}
+	}
+	if len(needed) > 0 {
+		existingComponents, _ := existing["components"].([]any)
+		for _, c := range existingComponents {
+			m, ok := c.(map[string]any)
+			if !ok {
+				continue
+			}
+			ref, _ := m["bom-ref"].(string)
+			if !needed[ref] {
+				continue
+			}
+			props, _ := m["properties"].([]any)
+			m["properties"] = append(props, map[string]any{
+				"name":  "vulnetix:sbom/carried-over",
+				"value": "true",
+			})
+			freshComponents = append(freshComponents, m)
+			present[ref] = true
+		}
+		doc["components"] = freshComponents
+	}
+	doc["vulnerabilities"] = vulns
+
+	merged, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return fresh, 0, err
+	}
+	// The carried-over material came from a document this tool wrote, but validate
+	// anyway: writing an invalid SBOM is worse than losing the history, and the
+	// caller surfaces the warning.
+	if _, violations, verr := cyclonedx.ValidateCycloneDX(merged); verr != nil {
+		return fresh, 0, verr
+	} else if len(violations) > 0 {
+		return fresh, 0, fmt.Errorf("merged document failed validation at %s: %s",
+			violations[0].Path, violations[0].Message)
+	}
+	return merged, len(vulns), nil
 }
 
 func detectCDXAIBOM(opts cdxRunOptions) (cyclonedx.AIDetections, error) {
@@ -980,15 +1448,36 @@ func dedupeCDXPackages(in []cyclonedx.SBOMPackage) []cyclonedx.SBOMPackage {
 		if p.Name == "" {
 			continue
 		}
+		// Resolve the purl and the bom-ref here rather than leaving them to the
+		// builder, so the dependency graph can reference components by ref — and so
+		// a component's ref is its purl whenever it has one.
+		if p.Purl == "" {
+			p.Purl = cyclonedx.SBOMPurl(p.Name, p.Version, p.Ecosystem)
+		}
+		p.BOMRef = cdxPackageRef(p)
 		key := p.Purl
 		if key == "" {
 			key = strings.ToLower(p.Ecosystem + ":" + p.Name + "@" + p.Version + ":" + p.SourceType + ":" + p.SourceFile)
 		}
 		if idx, ok := seen[key]; ok {
-			out[idx].Hashes = append(out[idx].Hashes, p.Hashes...)
-			out[idx].Licenses = append(out[idx].Licenses, p.Licenses...)
-			out[idx].Signatures = append(out[idx].Signatures, p.Signatures...)
+			// The same package found in several places contributes its evidence, but
+			// identical hashes/licenses must not pile up: nine release binaries
+			// linking one Go module carry one H1 sum, not nine copies of it.
+			out[idx].Hashes = mergeCDXHashes(out[idx].Hashes, p.Hashes)
+			out[idx].Licenses = mergeCDXStrings(out[idx].Licenses, p.Licenses)
+			out[idx].Signatures = mergeCDXSignatures(out[idx].Signatures, p.Signatures)
 			out[idx].Evidence = append(out[idx].Evidence, p.Evidence...)
+			if p.IsDirect {
+				out[idx].IsDirect = true
+			}
+			for k, v := range p.Properties {
+				if out[idx].Properties == nil {
+					out[idx].Properties = map[string]string{}
+				}
+				if _, exists := out[idx].Properties[k]; !exists {
+					out[idx].Properties[k] = v
+				}
+			}
 			continue
 		}
 		seen[key] = len(out)
@@ -1001,6 +1490,53 @@ func dedupeCDXPackages(in []cyclonedx.SBOMPackage) []cyclonedx.SBOMPackage {
 		return out[i].Ecosystem < out[j].Ecosystem
 	})
 	return out
+}
+
+func mergeCDXHashes(dst, src []cyclonedx.SBOMHash) []cyclonedx.SBOMHash {
+	seen := make(map[string]bool, len(dst)+len(src))
+	for _, h := range dst {
+		seen[h.Alg+"="+h.Content] = true
+	}
+	for _, h := range src {
+		key := h.Alg + "=" + h.Content
+		if h.Content == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		dst = append(dst, h)
+	}
+	return dst
+}
+
+func mergeCDXStrings(dst, src []string) []string {
+	seen := make(map[string]bool, len(dst)+len(src))
+	for _, v := range dst {
+		seen[v] = true
+	}
+	for _, v := range src {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		dst = append(dst, v)
+	}
+	return dst
+}
+
+func mergeCDXSignatures(dst, src []cyclonedx.SBOMSignature) []cyclonedx.SBOMSignature {
+	seen := make(map[string]bool, len(dst)+len(src))
+	for _, s := range dst {
+		seen[s.Algorithm+"="+s.Value+"="+s.SourceFile] = true
+	}
+	for _, s := range src {
+		key := s.Algorithm + "=" + s.Value + "=" + s.SourceFile
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		dst = append(dst, s)
+	}
+	return dst
 }
 
 func countCDXSources(pkgs []cyclonedx.SBOMPackage) map[string]int {
@@ -1027,6 +1563,15 @@ func renderCDXSummary(cmd *cobra.Command, s cdxSummary) {
 	}
 	b.WriteByte('\n')
 	fmt.Fprintf(&b, "  Files: %d manifest/CI/shell input(s), %d ELF binary component(s)\n", s.ManifestFileCount, s.BinaryCount)
+	fmt.Fprintf(&b, "  Binaries: %d artefact(s) examined, %d package(s) recovered from embedded metadata", s.ArtifactsExamined, s.BinaryPackages)
+	if s.UnownedBinaries > 0 {
+		fmt.Fprintf(&b, ", %d not claimed by any OS package", s.UnownedBinaries)
+	}
+	b.WriteByte('\n')
+	fmt.Fprintf(&b, "  Graph: %d dependency edge set(s); Licenses: %d component(s)\n", s.DependencyEdges, s.LicensedPackages)
+	if s.PreservedVulns > 0 {
+		fmt.Fprintf(&b, "  Carried over %d existing vulnerability record(s) from %s\n", s.PreservedVulns, s.OutputFile)
+	}
 	fmt.Fprintf(&b, "  AIBOM: %d tool(s), %d SDK(s), %d model(s)\n", s.AITools, s.AILibraries, s.AIModels)
 	fmt.Fprintf(&b, "  CBOM: %d crypto asset(s), %d library component(s), %d certificate(s)\n", s.CryptoAssets, s.CryptoLibraries, s.CryptoCerts)
 	if len(s.Warnings) > 0 {
