@@ -57,7 +57,7 @@ vulnetix analyze
   written. A report we would reject on the way in is one we cannot produce on the way out.
 - A summary in the terminal, grouped by metric family.
 - An upload to `/v2/cli.insights` when you are authenticated to Vulnetix, which is what feeds
-  the org graph at **/vdb-graph** in the console. Uploads are best-effort: if the network
+  the org graph at **/resolve/graph** in the console. Uploads are best-effort: if the network
   fails, the report on disk is still authoritative and the command still succeeds.
 
 ## The graph

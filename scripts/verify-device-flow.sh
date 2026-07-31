@@ -171,7 +171,7 @@ cat <<EOF
       ${WEB_URL}/cli-login-code?user_code=XXX-XXX
 
   1. If you are NOT signed in you will see the sign-in card
-     (VdbAuthGate). Sign in via /vdb-login.
+     (VdbAuthGate). Sign in via /resolve/login.
      EXPECT: you land back on the code page afterwards.
 
   2. The code field should be PRE-FILLED.

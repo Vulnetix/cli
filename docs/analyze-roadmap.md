@@ -988,7 +988,7 @@ analysis.)
 **CI gate.** `--fail-on` opting into a non-zero exit on a chosen breach, following `cbom`'s precedent — default is exit
 0, because a tool that fails a build by default gets removed from the build.
 
-**GUI.** The org graph at `/vdb-graph`, assembled server-side by matching one repo's `provides` join keys against
+**GUI.** The org graph at `/resolve/graph`, assembled server-side by matching one repo's `provides` join keys against
 another's `consumes`, within the org.
 
 **Catalog.** Metric definitions, technology detection rules and policy rules all live in

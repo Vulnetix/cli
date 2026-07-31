@@ -116,4 +116,4 @@ written — a report we would reject on the way in is one we cannot produce on t
 
 Uploads go to `/v2/cli.insights` when authenticated, and are **best-effort**: a network failure
 does not fail the command, and the report on disk remains authoritative. The org graph in the
-console at **/vdb-graph** is assembled from those uploads.
+console at **/resolve/graph** is assembled from those uploads.
