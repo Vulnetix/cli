@@ -142,10 +142,21 @@ jobs:
             # those as strings, so the document fails schema validation on upload even
             # though the inventory in it is fine. A null key carries no information, so
             # dropping it loses nothing; a non-string property value becomes its JSON text.
+            #
+            # `version` is the exception: CycloneDX 1.3 lists it as *required* on every
+            # component, so dropping a null one turns a type error into
+            # "at '/components/0': missing property 'version'" and still fails upload.
+            # ScanCode legitimately has no version for a bare license/copyright match, so
+            # backfill the empty string, which is a valid value, rather than inventing one.
             jq 'walk(if type == "object" then with_entries(select(.value != null)) else . end)
                 | walk(if type == "object" and (.properties? | type) == "array"
                        then .properties |= map(if has("value") then .value |= (if type == "string" then . else tojson end) else . end)
-                       else . end)' scancode.cdx.json > scancode.clean.json \
+                       else . end)
+                | walk(if type == "object" and (.components? | type) == "array"
+                       then .components |= map(.version //= "")
+                       else . end)
+                | if (.metadata?.component? | type) == "object" then .metadata.component.version //= "" else . end' \
+                scancode.cdx.json > scancode.clean.json \
               && mv scancode.clean.json scancode.cdx.json
           fi
       - uses: actions/upload-artifact@v6
