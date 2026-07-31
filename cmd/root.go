@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -325,10 +324,8 @@ func verifyCredentials(creds *auth.Credentials) error {
 
 // verifyDirectAPIKey tests Direct API Key connectivity
 func verifyDirectAPIKey(creds *auth.Credentials) error {
-	now := time.Now()
 	vdbClient := vdb.NewClientFromCredentials(creds)
-	_, err := vdbClient.GetGCVEIssuances(now.Year(), int(now.Month()), 1, 0)
-	return err
+	return vdbClient.VerifyAuth()
 }
 
 // verifySigV4 tests SigV4 authentication via token exchange
