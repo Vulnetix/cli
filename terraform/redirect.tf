@@ -57,7 +57,7 @@ resource "cloudflare_ruleset" "redirects" {
       # Enable only AFTER the website deploy that ships the /resolve/* routes.
       # Enabled against the old bundle, every /vdb-* link 301s to a route the
       # SPA does not know and renders the 404 page.
-      enabled = false
+      enabled = true
       action_parameters = {
         from_value = {
           status_code           = 301
