@@ -97,7 +97,7 @@ contributed:
 zizmor 1.28.0  [SAST]
    findings: 43 ingested (crit 0, high 26, med 17, low 0, info 0)
    repo:     Vulnetix/vdb-cyclonedx
-   snapshot: https://www.vulnetix.com/vdb-scanner-results/b52c9dc5-…
+   snapshot: https://www.vulnetix.com/resolve/scanner-results/b52c9dc5-…
 ```
 
 A tool you set up that is missing from that list did not publish. That is the

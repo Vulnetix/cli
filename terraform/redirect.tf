@@ -44,6 +44,28 @@ resource "cloudflare_ruleset" "redirects" {
       }
     },
 
+    # --- Legacy /vdb-* console paths → /resolve/* ---
+    # The console pages moved from the vdb- prefix to a /resolve/ namespace.
+    # Old URLs are still in the wild: snapshotUrl values persisted in the
+    # database, CLI output printed into CI logs, inbound links, search index.
+    # /vdb, /vdb/:id and /vdb-console did not move and must not match here.
+    {
+      ref         = "vdb_to_resolve_redirect"
+      description = "301 legacy /vdb-* console paths to /resolve/*"
+      expression  = "(http.request.uri.path wildcard r\"/vdb-*\" and not http.request.uri.path in {\"/vdb-console\" \"/vdb-console/\"})"
+      action      = "redirect"
+      enabled     = true
+      action_parameters = {
+        from_value = {
+          status_code           = 301
+          preserve_query_string = true
+          target_url = {
+            expression = "concat(\"https://www.vulnetix.com\", wildcard_replace(http.request.uri.path, r\"/vdb-*\", r\"/resolve/$${1}\"))"
+          }
+        }
+      }
+    },
+
     # --- vulnetix.app → www.vulnetix.com ---
     {
       ref         = "1931e4b8ebd1406fa8194b8fa29cc712"

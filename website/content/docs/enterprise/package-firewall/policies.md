@@ -4,7 +4,7 @@ weight: 31
 description: "Set Package Firewall thresholds, block toggles, cooldown, and upstream mirrors — from the Vulnetix console or the CLI."
 ---
 
-Policy is configured **per organization** — in the Vulnetix console or with the Vulnetix CLI. The same policy applies to every ecosystem your plan includes. Open the console at [www.vulnetix.com/vdb-package-firewall](https://www.vulnetix.com/vdb-package-firewall) (sign in with your VDB account), or use [`vulnetix config set package-firewall`](#configure-from-the-cli) and [`vulnetix config get package-firewall`](#read-the-current-configuration).
+Policy is configured **per organization** — in the Vulnetix console or with the Vulnetix CLI. The same policy applies to every ecosystem your plan includes. Open the console at [www.vulnetix.com/resolve/package-firewall](https://www.vulnetix.com/resolve/package-firewall) (sign in with your VDB account), or use [`vulnetix config set package-firewall`](#configure-from-the-cli) and [`vulnetix config get package-firewall`](#read-the-current-configuration).
 
 ## Score thresholds
 

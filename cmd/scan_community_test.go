@@ -38,7 +38,7 @@ func TestPrintCommunitySignupReminder(t *testing.T) {
 	for _, want := range []string{
 		"Snapshots are skipped",
 		"Community Plan",
-		"https://www.vulnetix.com/vdb-register",
+		"https://www.vulnetix.com/resolve/register",
 		"vulnetix auth login",
 	} {
 		if !strings.Contains(out, want) {
