@@ -54,7 +54,10 @@ resource "cloudflare_ruleset" "redirects" {
       description = "301 legacy /vdb-* console paths to /resolve/*"
       expression  = "(http.request.uri.path wildcard r\"/vdb-*\" and not http.request.uri.path in {\"/vdb-console\" \"/vdb-console/\"})"
       action      = "redirect"
-      enabled     = true
+      # Enable only AFTER the website deploy that ships the /resolve/* routes.
+      # Enabled against the old bundle, every /vdb-* link 301s to a route the
+      # SPA does not know and renders the 404 page.
+      enabled = false
       action_parameters = {
         from_value = {
           status_code           = 301
