@@ -924,13 +924,7 @@ func cliPostWithEnvContext[T any](ctx context.Context, c *Client, route string, 
 		return nil, fmt.Errorf("%s: failed to read response: %w", route, err)
 	}
 	if resp.StatusCode >= 400 {
-		var errResp ErrorResponse
-		var msg string
-		if err := json.Unmarshal(raw, &errResp); err == nil {
-			msg = fmt.Sprintf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
-		} else {
-			msg = fmt.Sprintf("API error (%d): %s", resp.StatusCode, string(raw))
-		}
+		msg := formatAPIError(resp.StatusCode, raw)
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, &NotFoundError{Message: msg}
 		}

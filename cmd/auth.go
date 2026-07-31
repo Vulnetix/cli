@@ -338,8 +338,7 @@ func fetchLivePlan(creds *auth.Credentials, baseURL string) string {
 		client.BaseURL = base
 	}
 	client.HTTPClient = &http.Client{Timeout: 3 * time.Second}
-	now := time.Now()
-	_, err := client.GetGCVEIssuances(now.Year(), int(now.Month()), 1, 0)
+	err := client.VerifyAuth()
 	if err != nil || client.LastRateLimit == nil || strings.TrimSpace(client.LastRateLimit.Plan) == "" {
 		return "unknown"
 	}
@@ -651,9 +650,8 @@ func testAuth(ctx *display.Context, creds *auth.Credentials) error {
 		if creds.Token == "" {
 			return fmt.Errorf("token is empty")
 		}
-		now := time.Now()
 		vdbClient := vdb.NewClientFromCredentials(creds)
-		if _, err := vdbClient.GetGCVEIssuances(now.Year(), int(now.Month()), 1, 0); err != nil {
+		if err := vdbClient.VerifyAuth(); err != nil {
 			return err
 		}
 		ctx.Logger.Info(display.CheckMark(ctx.Term) + " VDB API: OK")
@@ -665,10 +663,8 @@ func testAuth(ctx *display.Context, creds *auth.Credentials) error {
 			return fmt.Errorf("API key is empty")
 		}
 		// Test credentials against an authenticated GCVE endpoint
-		now := time.Now()
 		vdbClient := vdb.NewClientFromCredentials(creds)
-		_, err := vdbClient.GetGCVEIssuances(now.Year(), int(now.Month()), 1, 0)
-		if err != nil {
+		if err := vdbClient.VerifyAuth(); err != nil {
 			return err
 		}
 		ctx.Logger.Info(display.CheckMark(ctx.Term) + " VDB API: OK")

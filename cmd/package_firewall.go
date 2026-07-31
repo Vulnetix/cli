@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
@@ -332,9 +331,7 @@ func verifyPackageFirewallDirect(baseURL string, creds *auth.Credentials) error 
 	if baseURL != "" {
 		client.BaseURL = baseURL
 	}
-	now := time.Now()
-	_, err := client.GetGCVEIssuances(now.Year(), int(now.Month()), 1, 0)
-	return err
+	return client.VerifyAuth()
 }
 
 func parseProxyHost(rawURL string) (string, error) {

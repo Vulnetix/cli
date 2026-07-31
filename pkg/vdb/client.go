@@ -103,6 +103,21 @@ type ErrorResponse struct {
 	Details string `json:"details,omitempty"`
 }
 
+// formatAPIError renders an error response body for display. It falls back to
+// the raw body whenever the payload is not a populated ErrorResponse, because
+// any JSON object unmarshals into ErrorResponse without error and would
+// otherwise render as an empty message.
+func formatAPIError(statusCode int, body []byte) string {
+	var errResp ErrorResponse
+	if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error != "" {
+		if errResp.Details != "" {
+			return fmt.Sprintf("API error (%d): %s - %s", statusCode, errResp.Error, errResp.Details)
+		}
+		return fmt.Sprintf("API error (%d): %s", statusCode, errResp.Error)
+	}
+	return fmt.Sprintf("API error (%d): %s", statusCode, string(body))
+}
+
 // NotFoundError is returned when the API responds with 404.
 type NotFoundError struct {
 	Message string
@@ -226,11 +241,7 @@ func (c *Client) requestNewTokenLocked() (string, error) {
 
 	// Check for errors
 	if resp.StatusCode != http.StatusOK {
-		var errResp ErrorResponse
-		if err := json.Unmarshal(body, &errResp); err == nil {
-			return "", fmt.Errorf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
-		}
-		return "", fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("%s", formatAPIError(resp.StatusCode, body))
 	}
 
 	// Parse the response
@@ -282,7 +293,7 @@ func (c *Client) GetDerivedAPIKey() (*APIKeyResponse, error) {
 	if resp.StatusCode != http.StatusOK {
 		var errResp ErrorResponse
 		if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error != "" {
-			return nil, fmt.Errorf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
+			return nil, fmt.Errorf("%s", formatAPIError(resp.StatusCode, body))
 		}
 		var apiKeyResp APIKeyResponse
 		if err := json.Unmarshal(body, &apiKeyResp); err == nil && apiKeyResp.Error != "" {
@@ -454,15 +465,7 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 		}
 
 		if resp.StatusCode >= 400 {
-			var errResp ErrorResponse
-			if err := json.Unmarshal(responseBody, &errResp); err == nil {
-				msg := fmt.Sprintf("API error (%d): %s - %s", resp.StatusCode, errResp.Error, errResp.Details)
-				if resp.StatusCode == http.StatusNotFound {
-					return nil, &NotFoundError{Message: msg}
-				}
-				return nil, fmt.Errorf("%s", msg)
-			}
-			msg := fmt.Sprintf("API error (%d): %s", resp.StatusCode, string(responseBody))
+			msg := formatAPIError(resp.StatusCode, responseBody)
 			if resp.StatusCode == http.StatusNotFound {
 				return nil, &NotFoundError{Message: msg}
 			}
@@ -695,15 +698,7 @@ func (c *Client) DoRequestCached(method, path string, body interface{}, ttl time
 	}
 
 	if statusCode >= 400 {
-		var errResp ErrorResponse
-		if err := json.Unmarshal(respBody, &errResp); err == nil {
-			msg := fmt.Sprintf("API error (%d): %s - %s", statusCode, errResp.Error, errResp.Details)
-			if statusCode == http.StatusNotFound {
-				return nil, &NotFoundError{Message: msg}
-			}
-			return nil, fmt.Errorf("%s", msg)
-		}
-		msg := fmt.Sprintf("API error (%d): %s", statusCode, string(respBody))
+		msg := formatAPIError(statusCode, respBody)
 		if statusCode == http.StatusNotFound {
 			return nil, &NotFoundError{Message: msg}
 		}

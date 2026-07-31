@@ -129,6 +129,28 @@ func (c *Client) GetGCVEIssuances(year, month, limit, offset int) (*GCVEIssuance
 	return &resp, nil
 }
 
+// authProbeMonth returns the year and month used to probe an authenticated
+// endpoint. The GCVE endpoint rejects any month after the current one on the
+// server's UTC clock, so the previous UTC month is used: the current month is
+// unsafe for anyone whose local date has already rolled over ahead of UTC (a
+// user in AEST asking for August while the server is still in July got
+// "Cannot query future months"), and it is equally unsafe under clock skew.
+func authProbeMonth(now time.Time) (int, int) {
+	utc := now.UTC()
+	// Normalise to the first of the month before stepping back, otherwise
+	// AddDate overflows short months (31 Mar - 1 month = 31 Feb = 3 Mar).
+	prev := time.Date(utc.Year(), utc.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -1, 0)
+	return prev.Year(), int(prev.Month())
+}
+
+// VerifyAuth issues a cheap authenticated request to confirm the client's
+// credentials are accepted, populating LastRateLimit as a side effect.
+func (c *Client) VerifyAuth() error {
+	year, month := authProbeMonth(time.Now())
+	_, err := c.GetGCVEIssuances(year, month, 1, 0)
+	return err
+}
+
 // GetCVE retrieves full vulnerability data for a specific CVE
 func (c *Client) GetCVE(cveID string) (*CVEInfo, error) {
 	path := fmt.Sprintf("/vuln/%s", cveID)
