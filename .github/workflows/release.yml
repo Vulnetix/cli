@@ -437,8 +437,26 @@ jobs:
             "https://github.com/Vulnetix/cli/releases/download/${{ needs.release.outputs.version }}/checksums.txt" \
             -o checksums.txt
 
+      # The organisation's quality gate makes `sca` exit non-zero on a policy
+      # breach, and it writes the SBOM before returning that verdict. The
+      # verdict is a scan result, not a publication failure: the release
+      # already exists on GitHub by this point, so refusing to record it would
+      # leave the transparency log silent about the release most worth being
+      # transparent about. The gate is enforced where it belongs, in the
+      # scanner workflows.
       - name: Generate the release SBOM
+        continue-on-error: true
         run: vulnetix sca --no-banner --no-progress -o vulnetix.cdx.json
+
+      # `tea release` drops files it cannot read and says so, so a missing SBOM
+      # publishes the release and its download links rather than nothing.
+      - name: Report whether the SBOM was produced
+        run: |
+          if [ -s vulnetix.cdx.json ]; then
+            echo "SBOM: $(wc -c < vulnetix.cdx.json) bytes"
+          else
+            echo "::warning::no SBOM was produced; publishing the release without one"
+          fi
 
       - name: Publish product, release, artifacts and distributions
         run: |
