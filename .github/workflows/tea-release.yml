@@ -87,7 +87,15 @@ jobs:
             echo "::warning::no BOM artifacts were found; publishing the release without evidence"
           fi
 
+      # continue-on-error lives here, on the step, rather than on the calling
+      # job in each repository's vulnetix.yml. GitHub Actions rejects
+      # continue-on-error on a job that calls a reusable workflow with
+      # "uses:", so the caller cannot express this tolerance itself. A TEA
+      # publish failure must not fail the repository's own CI, so the
+      # tolerance is expressed here instead, with the failure still recorded
+      # as a warning annotation so it does not disappear into a green run.
       - name: Publish product, release, artifacts and distributions
+        continue-on-error: true
         run: |
           set -euo pipefail
 
@@ -105,4 +113,7 @@ jobs:
             [ -n "$channel" ] && args+=(--channel "$channel")
           done <<< "${{ inputs.channels }}"
 
-          vulnetix "${args[@]}"
+          if ! vulnetix "${args[@]}"; then
+            echo "::warning::vulnetix tea release failed; this run published no transparency evidence"
+            exit 1
+          fi
