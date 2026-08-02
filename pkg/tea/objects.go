@@ -202,6 +202,17 @@ func (c *Client) DeleteProduct(ctx context.Context, uuid string) error {
 	return c.Do(ctx, "DELETE", "/product/"+url.PathEscape(uuid), nil, nil, nil)
 }
 
+// DeleteObject removes any published object by its kind's path segment.
+//
+// Deleting a product does not reach the component published alongside it: they
+// are separate objects with separate lineages, which is what lets a component
+// outlive the product that first shipped it. Withdrawing everything therefore
+// means naming both, and a CLI that could create a component but never remove
+// one would leave that impossible from the terminal.
+func (c *Client) DeleteObject(ctx context.Context, segment, uuid string) error {
+	return c.Do(ctx, "DELETE", "/"+segment+"/"+url.PathEscape(uuid), nil, nil, nil)
+}
+
 // CreateProductRelease publishes a release of a product.
 func (c *Client) CreateProductRelease(ctx context.Context, productUUID, version, releaseDate string, preRelease bool, idempotencyKey string) (*Release, error) {
 	body := map[string]any{
