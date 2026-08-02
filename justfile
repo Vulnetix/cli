@@ -883,11 +883,11 @@ tea-release VERSION="":
         --checksums "$TMPDIR/checksums.txt" \
         --exclude checksums.txt \
         --base-url "https://github.com/Vulnetix/cli/releases/download/${VER}" \
-        --channel "name=Homebrew — brew install Vulnetix/tap/vulnetix,url=https://github.com/Vulnetix/homebrew-tap" \
-        --channel "name=Scoop — scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket,url=https://github.com/Vulnetix/scoop-bucket" \
-        --channel "name=Nix flake — nix run github:Vulnetix/cli,url=https://github.com/Vulnetix/cli/blob/main/flake.nix" \
+        --channel "name=Homebrew: brew install Vulnetix/tap/vulnetix,url=https://github.com/Vulnetix/homebrew-tap" \
+        --channel "name=Scoop: scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket,url=https://github.com/Vulnetix/scoop-bucket" \
+        --channel "name=Nix flake: nix run github:Vulnetix/cli,url=https://github.com/Vulnetix/cli/blob/main/flake.nix" \
         --channel "name=go install github.com/vulnetix/cli/v3@${VER},purl=pkg:golang/github.com/vulnetix/cli/v3@${VER}" \
-        --channel "name=Install script — curl -fsSL https://cli.vulnetix.com/install.sh | sh,url=https://cli.vulnetix.com/install.sh" \
+        --channel "name=Install script: curl -fsSL https://cli.vulnetix.com/install.sh | sh,url=https://cli.vulnetix.com/install.sh" \
         --visibility public
 
 # --- Local CI ---
