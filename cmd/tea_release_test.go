@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // initGitRepo makes a throwaway repository in a temp dir and leaves the test
@@ -82,6 +83,77 @@ func TestGitDescribeVersion_NoTags(t *testing.T) {
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{7,}$`).MatchString(got) {
 		t.Errorf("got %q, want a short SHA", got)
+	}
+}
+
+// The derived date is HEAD's committer date, not the moment the test runs.
+// git already reports a UTC-normalised instant here because the local clock
+// used to create the commit and the config below have no explicit offset, so
+// this pins the value against git's own answer rather than a hard-coded
+// string.
+func TestGitCommitDate_MatchesHeadCommitterDate(t *testing.T) {
+	initGitRepo(t, "", 0)
+
+	want, err := exec.Command("git", "log", "-1", "--format=%cI").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantTime, err := time.Parse(time.RFC3339, strings.TrimSpace(string(want)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := gitCommitDate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != wantTime.UTC().Format(time.RFC3339) {
+		t.Errorf("got %q, want %q", got, wantTime.UTC().Format(time.RFC3339))
+	}
+}
+
+// The actual regression guard: a stable idempotency key paired with an
+// unstable body is what broke production. Two calls against the same HEAD
+// must produce the exact same string, or CreateProductRelease's re-run would
+// fail with VERSION_CONFLICT all over again.
+func TestGitCommitDate_DeterministicAcrossCalls(t *testing.T) {
+	initGitRepo(t, "", 0)
+
+	first, err := gitCommitDate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := gitCommitDate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != second {
+		t.Errorf("first call %q, second call %q, want identical", first, second)
+	}
+}
+
+// A committer date with a positive, non-UTC offset must convert to the
+// correct UTC instant, not just have its offset stripped. Getting the sign or
+// the arithmetic wrong here reintroduces the original bug in a subtler form:
+// two clones in different timezones would again disagree on the release date
+// of the same commit.
+func TestGitCommitDate_NormalisesNonUTCOffset(t *testing.T) {
+	initGitRepo(t, "", 0)
+
+	commit := exec.Command("git", "commit", "--allow-empty", "-m", "second",
+		"--date", "2026-08-02T15:57:06+10:00")
+	commit.Env = append(os.Environ(), "GIT_COMMITTER_DATE=2026-08-02T15:57:06+10:00")
+	if out, err := commit.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, out)
+	}
+
+	got, err := gitCommitDate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 15:57:06+10:00 is 10 hours ahead of UTC, so the UTC instant is 05:57:06.
+	if want := "2026-08-02T05:57:06Z"; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
@@ -171,6 +243,62 @@ func TestResolveTeaReleaseInputs_WithoutAutoVersionBranchStillErrors(t *testing.
 	cmd := newTeaReleaseCommand()
 	if _, err := resolveTeaReleaseInputs(cmd, nil); err == nil {
 		t.Fatal("want an error when no version is available and --auto-version is off")
+	}
+}
+
+// An explicit --date is the caller overriding what git would derive. It must
+// win unconditionally, the same as --version does.
+func TestResolveTeaReleaseInputs_ExplicitDateWinsOverCommitDate(t *testing.T) {
+	initGitRepo(t, "v1.0.0", 0)
+	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_REF_TYPE", "tag")
+	t.Setenv("GITHUB_REF_NAME", "v1.0.0")
+
+	cmd := newTeaReleaseCommand()
+	if err := cmd.Flags().Set("date", "1999-01-01T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+
+	in, err := resolveTeaReleaseInputs(cmd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.Date != "1999-01-01T00:00:00Z" {
+		t.Errorf("date %q, want the explicit --date unchanged", in.Date)
+	}
+}
+
+// Without --date, the release date is HEAD's committer date, and it must not
+// move between calls against the same commit. This is the production bug:
+// CreateProductRelease and CreateComponentRelease send this value under a
+// stable idempotency key, so a re-run that derives a different date on every
+// call cannot ever republish, it can only conflict.
+func TestResolveTeaReleaseInputs_DateDefaultsToCommitDateAndIsStable(t *testing.T) {
+	initGitRepo(t, "v1.0.0", 0)
+	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_REF_TYPE", "tag")
+	t.Setenv("GITHUB_REF_NAME", "v1.0.0")
+
+	wantDate, err := gitCommitDate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newTeaReleaseCommand()
+	first, err := resolveTeaReleaseInputs(cmd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := resolveTeaReleaseInputs(cmd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if first.Date != wantDate {
+		t.Errorf("date %q, want the committer date %q", first.Date, wantDate)
+	}
+	if first.Date != second.Date {
+		t.Errorf("first call %q, second call %q, want identical across re-runs", first.Date, second.Date)
 	}
 }
 
