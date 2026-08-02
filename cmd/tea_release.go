@@ -302,11 +302,20 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 		for _, o := range orgs {
 			grants = append(grants, tea.ShareGrant{OrganizationUUID: strings.TrimSpace(o)})
 		}
-		if _, err := c.SetAccessPolicy(ctx, product.UUID, tea.AccessPolicy{
-			Visibility: visibility,
-			SharedWith: grants,
-		}); err != nil {
-			return teaFail(err)
+		// Both roots, not just the product.
+		//
+		// A release published here spans two lineages: the product holds the
+		// evidence, and the component holds the distributions. Policy inherits
+		// downwards from each root separately, so setting only the product left
+		// every download link private while the SBOM above it was public —
+		// publishing the description of a release and withholding the release.
+		for _, root := range []string{product.UUID, component.UUID} {
+			if _, err := c.SetAccessPolicy(ctx, root, tea.AccessPolicy{
+				Visibility: visibility,
+				SharedWith: grants,
+			}); err != nil {
+				return teaFail(err)
+			}
 		}
 	}
 
@@ -327,13 +336,19 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 	if len(distributions) > 0 {
 		fmt.Printf("published %d distribution(s)\n", len(distributions))
 	}
-	fmt.Printf("product   %s\n", product.UUID)
-	fmt.Printf("release   %s\n", release.UUID)
-	fmt.Printf("component %s\n", componentRelease.UUID)
+	fmt.Printf("product           %s\n", product.UUID)
+	fmt.Printf("release           %s\n", release.UUID)
+	fmt.Printf("component         %s\n", component.UUID)
+	fmt.Printf("component release %s\n", componentRelease.UUID)
 	if visibility == "" {
+		// Both roots, because the evidence and the download links inherit from
+		// different ones. Naming only the product here is how a publisher ends
+		// up with a public SBOM describing a release nobody can reach.
 		fmt.Fprintf(os.Stderr,
 			"\nNothing is readable by anyone else yet. To publish it:\n"+
-				"  vulnetix tea share %s --visibility public\n", product.UUID)
+				"  vulnetix tea share %s --visibility public   # evidence\n"+
+				"  vulnetix tea share %s --visibility public   # downloads\n",
+			product.UUID, component.UUID)
 	}
 	return nil
 }
