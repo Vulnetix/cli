@@ -53,6 +53,8 @@ repository declare install channels that have no single file to fetch.
 Two files per unit of work, one of them shared:
 
 ```
+Vulnetix/cli/cmd/tea_release.go                    (edited: +2 opt-in flags)
+Vulnetix/cli/internal/github/release.go            (new, release asset fetch)
 Vulnetix/cli/.github/workflows/tea-release.yml     (new, workflow_call)
 <each repo>/.github/workflows/vulnetix.yml         (edited: +1 job, +1 trigger)
 ```
@@ -105,9 +107,9 @@ on:
         type: string
         default: 'ubuntu-latest'
       cli-version:
-        description: 'Vulnetix CLI version to install; empty installs latest'
+        description: 'Vulnetix CLI version to install'
         type: string
-        default: ''
+        default: 'v3.NN.0'   # the release that introduced --auto-version
 ```
 
 Permissions: `contents: read` (checkout, and `gh release download` on tag runs),
@@ -121,7 +123,7 @@ Steps, in order:
 1. **Checkout at `fetch-depth: 0`.** `git describe` needs tags, and a shallow
    checkout has none.
 2. **Install the CLI** with the same `install.sh` invocation every repository's
-   `vulnetix.yml` already uses. Pin to `cli-version` when given.
+   `vulnetix.yml` already uses, at the pinned `cli-version`.
 3. **Download the BOM artifacts** from the calling run with
    `actions/download-artifact@v6`, `pattern: '{sca,cbom,aibom}'` and
    `merge-multiple: true`, producing a flat directory. Version 6 pairs with the
@@ -130,18 +132,41 @@ Steps, in order:
    v4 changed the artifact backend. This step is `continue-on-error: true`,
    because `pattern` with no match is an error and a repository whose scans
    produced nothing should still publish its release object.
-4. **Resolve the version.** If `GITHUB_REF_TYPE` is `tag`, use `GITHUB_REF_NAME`
-   verbatim, keeping any leading `v`, and do not pass `--pre-release`. Otherwise
-   use `git describe --tags --always` and pass `--pre-release`.
-5. **On tag runs only, fetch the checksums manifest**:
-   `gh release download "$GITHUB_REF_NAME" -p 'checksums*'`, allowed to fail.
-   If a readable `checksums.txt` results, add `--checksums checksums.txt
-   --exclude checksums.txt`. `tea release` derives the download base URL from
-   `GITHUB_SERVER_URL` and the repository, so no base URL is passed.
-6. **Publish**: `vulnetix tea release <downloaded *.cdx.json>` plus the resolved
-   version, the pre-release flag when applicable, the checksums arguments when
-   present, one `--channel` per non-empty line of the `channels` input, and
-   `--visibility` when the input is non-empty.
+4. **Publish**: `vulnetix tea release <downloaded *.cdx.json> --auto-version
+   --checksums-from-release`, plus one `--channel` per non-empty line of the
+   `channels` input, and `--visibility` when that input is non-empty.
+
+There is no branching shell in the workflow. Version resolution and checksum
+discovery are CLI behaviour, described next.
+
+### Two new CLI flags carry the conditional logic
+
+The branching this rollout needs (tag versus branch, a repository with no tags,
+a release with no checksums asset) is the part most likely to be wrong, and
+inline workflow shell cannot be tested without running it in CI across all
+twenty-five repositories at once. Both behaviours therefore go into
+`cmd/tea_release.go`, where they are covered by ordinary Go tests.
+
+Both flags are opt-in, so `cli/release.yml` and any existing caller keep their
+current behaviour exactly.
+
+**`--auto-version`** extends the resolution `resolveTeaReleaseInputs` already
+performs. That function reads the tag from `GITHUB_REF_NAME` when
+`GITHUB_REF_TYPE` is `tag`, and otherwise errors. With `--auto-version`, the
+non-tag case falls back to `git describe --tags --always` and forces
+`--pre-release`, because a commit that is not a tag is not a release. An
+explicit `--version` still wins over both.
+
+**`--checksums-from-release`** fills `--checksums` from the GitHub release being
+published. On a tag run it fetches the release for `GITHUB_REF_NAME`, picks the
+first asset whose name contains `checksums`, downloads it to a temporary file
+and uses that as the manifest. On a non-tag run, or when no such asset exists,
+it resolves to nothing and the release publishes evidence without distributions.
+An explicit `--checksums` still wins.
+
+`tea release` already derives the download base URL from `GITHUB_SERVER_URL` and
+the repository, so no base URL is passed. `distributionsFromChecksums` already
+drops the manifest's own entry, so no `--exclude` is needed either.
 
 ### Identity and credentials
 
@@ -239,12 +264,21 @@ kept as it is, for two reasons the shared workflow cannot reproduce:
 
 ## Testing
 
-The reusable workflow cannot be unit tested. Verification is staged:
+The two CLI flags are covered by Go tests in `cmd/tea_release_test.go` and
+`internal/github/release_test.go`: version resolution against a real temporary
+git repository (tagged, untagged, and not a repository at all), and asset
+discovery against an `httptest` server. That is where the conditional logic
+lives, so that is where it is tested.
+
+The workflow YAML itself is checked with `actionlint`, which is already
+installed.
+
+Beyond that, verification is staged, because a reusable workflow's real
+behaviour only appears when a real repository calls it:
 
 1. **Dry run locally.** `vulnetix tea release .vulnetix/*.cdx.json --dry-run
-   --version "$(git describe --tags --always)" --pre-release --product
-   Vulnetix/cli` confirms file expansion, media types and derived identity
-   without publishing.
+   --auto-version --product Vulnetix/cli` confirms the derived version, file
+   expansion, media types and identity without publishing.
 2. **One repository first.** Wire `vdb-cyclonedx`'s caller job. It is public,
    low blast radius, and produces real BOMs. Confirm with
    `vulnetix tea product <uuid>` that the release, component release and
@@ -252,6 +286,15 @@ The reusable workflow cannot be unit tested. Verification is staged:
 3. **One tag run.** Cut a tag on that repository and confirm the distributions
    land, and that the tag run is not marked pre-release.
 4. **Then the remaining twenty-three.**
+
+### Rollout ordering constraint
+
+The reusable workflow installs the CLI from `install.sh`, so `--auto-version`
+and `--checksums-from-release` must exist in a published release before any
+caller job is wired. A CLI release therefore precedes step 2 above, and the
+workflow's `cli-version` default is pinned to that version rather than left
+floating, so a later CLI regression cannot take out publishing in twenty-five
+repositories at once.
 
 Rollback is deleting the caller job. Nothing already published is removed by
 that, and nothing published privately was ever visible outside the organisation.
