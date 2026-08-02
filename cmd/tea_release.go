@@ -133,7 +133,20 @@ func resolveTeaReleaseInputs(cmd *cobra.Command, args []string) (teaReleaseInput
 
 	in.Date, _ = cmd.Flags().GetString("date")
 	if in.Date == "" {
-		in.Date = time.Now().UTC().Format(time.RFC3339)
+		// The tag's release date is the committer date of the commit it points
+		// at, per the file header above, not the wall clock. That is also what
+		// makes the two Create*Release calls below actually idempotent: their
+		// idempotency key is stable across re-runs, so the body they carry has
+		// to be too, and time.Now() changes on every invocation. time.Now() is
+		// kept only as a last resort for running outside a git checkout; taking
+		// it costs the very idempotency this default exists to provide, so a
+		// retry there can still make progress but a re-run is not safe to expect
+		// to republish cleanly.
+		d, err := gitCommitDate()
+		if err != nil {
+			d = time.Now().UTC().Format(time.RFC3339)
+		}
+		in.Date = d
 	}
 	// Already true when --auto-version derived the version, so this ORs rather
 	// than assigns: an explicit --pre-release adds to the decision, it does not
@@ -509,6 +522,29 @@ func gitDescribeVersion() (string, error) {
 		return "", fmt.Errorf("git describe produced no output")
 	}
 	return v, nil
+}
+
+// gitCommitDate returns HEAD's committer date, normalised to RFC3339 UTC.
+//
+// The committer date rather than the author date: a tag is cut on the
+// committer's clock, and %cI is what git log and GitHub both call "committed
+// on". %cI already comes out as strict ISO-8601 with an offset, which
+// time.RFC3339 can parse, but the offset itself is left in unless it is
+// re-formatted in UTC here: two clones of the same commit in different
+// timezones would otherwise stamp a release with two different strings for
+// the one instant, which is the same idempotency-breaking bug this function
+// exists to close, just one commit removed from the wall clock.
+func gitCommitDate() (string, error) {
+	out, err := exec.Command("git", "log", "-1", "--format=%cI").Output()
+	if err != nil {
+		return "", fmt.Errorf("git log: %w", err)
+	}
+	raw := strings.TrimSpace(string(out))
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return "", fmt.Errorf("git log: unparseable committer date %q: %w", raw, err)
+	}
+	return t.UTC().Format(time.RFC3339), nil
 }
 
 // resolveChecksumsManifest decides which checksums file, if any, to publish
