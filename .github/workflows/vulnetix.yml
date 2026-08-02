@@ -118,8 +118,9 @@ jobs:
     # Not on a tag. release.yml already publishes this repository's tagged
     # releases, and it waits for the Homebrew tap and Scoop bucket to carry the
     # version before advertising `brew install` for it. This job cannot
-    # reproduce that ordering, so it stays out of the way on tags.
-    if: github.ref_type != 'tag'
+    # reproduce that ordering, so it stays out of the way on tags. When a
+    # scanner leg is cancelled or fails, we still publish if the workflow ran.
+    if: ${{ !cancelled() && github.ref_type != 'tag' }}
     uses: Vulnetix/cli/.github/workflows/tea-release.yml@tea-release-v1
     with:
       visibility: public
