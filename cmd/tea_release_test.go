@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -168,5 +171,129 @@ func TestResolveTeaReleaseInputs_WithoutAutoVersionBranchStillErrors(t *testing.
 	cmd := newTeaReleaseCommand()
 	if _, err := resolveTeaReleaseInputs(cmd, nil); err == nil {
 		t.Fatal("want an error when no version is available and --auto-version is off")
+	}
+}
+
+// An explicit --checksums is the caller naming the file. Nothing derived may
+// override it.
+func TestResolveChecksumsManifest_ExplicitWins(t *testing.T) {
+	manifest := writeTeaTemp(t, "checksums.txt", "b9f62ff7  tool\n")
+
+	cmd := newTeaReleaseCommand()
+	if err := cmd.Flags().Set("checksums", manifest); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Flags().Set("checksums-from-release", "true"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := resolveChecksumsManifest(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != manifest {
+		t.Errorf("got %q, want the explicit path %q", got, manifest)
+	}
+}
+
+// A branch push has no GitHub release to read. That is the common case across
+// the fleet and must not be an error: the run publishes evidence with no
+// download links.
+func TestResolveChecksumsManifest_NonTagRunResolvesToNothing(t *testing.T) {
+	t.Setenv("GITHUB_REF_TYPE", "branch")
+
+	cmd := newTeaReleaseCommand()
+	if err := cmd.Flags().Set("checksums-from-release", "true"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := resolveChecksumsManifest(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "" {
+		t.Errorf("got %q, want no manifest on a branch run", got)
+	}
+}
+
+// A tag release that ships no checksums file is legitimate. Publish the
+// evidence, skip the distributions, do not fail the job.
+func TestResolveChecksumsManifest_NoMatchingAssetResolvesToNothing(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"tag_name":"v1.0.0","assets":[{"name":"tool-linux-amd64","browser_download_url":"http://x/y"}]}`))
+	}))
+	defer srv.Close()
+
+	t.Setenv("GITHUB_REF_TYPE", "tag")
+	t.Setenv("GITHUB_REF_NAME", "v1.0.0")
+	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_API_URL", srv.URL)
+	t.Setenv("GITHUB_TOKEN", "tok")
+
+	cmd := newTeaReleaseCommand()
+	if err := cmd.Flags().Set("checksums-from-release", "true"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := resolveChecksumsManifest(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "" {
+		t.Errorf("got %q, want nothing when the release has no checksums asset", got)
+	}
+}
+
+// The whole point: on a tag run the manifest is fetched and its path returned.
+func TestResolveChecksumsManifest_FetchesTheAsset(t *testing.T) {
+	const body = "b9f62ff7cb04a2ff7418f11d7777e060b09820ad3ee5b60ed45439d433d70a7e  tool-linux-amd64\n"
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/download/checksums.txt", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	mux.HandleFunc("/repos/Vulnetix/cli/releases/tags/v1.0.0", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"tag_name":"v1.0.0","assets":[{"name":"checksums.txt","browser_download_url":"` +
+			srv.URL + `/download/checksums.txt"}]}`))
+	})
+
+	t.Setenv("GITHUB_REF_TYPE", "tag")
+	t.Setenv("GITHUB_REF_NAME", "v1.0.0")
+	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+	t.Setenv("GITHUB_API_URL", srv.URL)
+	t.Setenv("GITHUB_TOKEN", "tok")
+
+	cmd := newTeaReleaseCommand()
+	if err := cmd.Flags().Set("checksums-from-release", "true"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := resolveChecksumsManifest(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != body {
+		t.Errorf("content %q", b)
+	}
+}
+
+// Off by default, so cli/release.yml keeps passing --checksums by hand.
+func TestResolveChecksumsManifest_OffByDefault(t *testing.T) {
+	t.Setenv("GITHUB_REF_TYPE", "tag")
+	t.Setenv("GITHUB_REF_NAME", "v1.0.0")
+
+	cmd := newTeaReleaseCommand()
+	got, err := resolveChecksumsManifest(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "" {
+		t.Errorf("got %q, want nothing without the flag", got)
 	}
 }
