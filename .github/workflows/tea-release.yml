@@ -83,13 +83,14 @@ jobs:
       # repository whose scans produced nothing should still publish its
       # release object rather than fail the job.
       #
-      # An earlier attempt at @v6 failed the whole workflow at startup, with
-      # no jobs created and nothing surfaced through the API, but that run
-      # also carried a separate `permissions:` defect and was not shown to be
-      # the sole cause.
+      # v7 because it is the first major that runs on node24. v4 and v6 both
+      # target node20 and only survive because runners currently force them
+      # onto node24; when that ends they break, and behind the
+      # `continue-on-error` above the breakage would be a silently
+      # evidence-free publish rather than a failed job.
       - name: Download the BOMs this run produced
         continue-on-error: true
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: '{sca,cbom,aibom}'
           merge-multiple: true
