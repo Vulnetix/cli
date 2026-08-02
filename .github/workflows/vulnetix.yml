@@ -120,7 +120,7 @@ jobs:
     # version before advertising `brew install` for it. This job cannot
     # reproduce that ordering, so it stays out of the way on tags.
     if: github.ref_type != 'tag'
-    uses: Vulnetix/cli/.github/workflows/tea-release.yml@main
+    uses: Vulnetix/cli/.github/workflows/tea-release.yml@tea-release-v1
     with:
       visibility: public
     secrets: inherit
