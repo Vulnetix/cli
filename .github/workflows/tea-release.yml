@@ -1,16 +1,5 @@
 name: TEA Release
 
-# Publishes a repository's transparency evidence to the Transparency Exchange
-# API. Called from each repository's vulnetix.yml, which is where the SBOM,
-# CBOM and AI-BOM are actually produced: a reusable workflow runs inside the
-# calling repository's run, so it can download that run's artifacts, and
-# GITHUB_REPOSITORY names the caller rather than this repository.
-#
-# There is deliberately no branching shell here. Tag versus branch, a
-# repository with no tags, a release with no checksums asset: all of that is
-# handled by --auto-version and --checksums-from-release, where it is covered
-# by Go tests instead of only being exercised in production.
-
 on:
   workflow_call:
     inputs:
@@ -22,21 +11,11 @@ on:
         description: 'newline-separated --channel specs, one per line'
         type: string
         default: ''
-      # Underscore, not hyphen. `${{ inputs.cli-version }}` is valid expression
-      # syntax meaning `inputs.cli` minus `version`, so a hyphenated input name
-      # is unreachable and actionlint does not flag it.
-      #
-      # Pinned, not floating: a CLI regression on latest would otherwise stop
-      # publishing in every repository at once.
       cli_version:
         description: 'Vulnetix CLI version to install'
         type: string
         default: 'v3.84.1'
 
-# tea release is idempotent on the identity it derives, but not safe against
-# itself: two runs for one ref could race each other's collection publish.
-# cancel-in-progress is false because a queued publish is still wanted, unlike
-# a superseded deploy.
 concurrency:
   group: tea-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
@@ -44,81 +23,11 @@ concurrency:
 jobs:
   publish:
     name: Publish to TEA
-    # Deliberately hardcoded rather than an input. The self-hosted pool queues
-    # silently when nothing is started, and a publish that never runs is worse
-    # than one that costs GitHub minutes.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
       actions: read
-    env:
-      VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
-      VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
-      GITHUB_TOKEN: ${{ github.token }}
     steps:
-      # fetch-depth 0 because --auto-version runs `git describe`, and a shallow
-      # checkout carries no tags to describe against.
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Install Vulnetix CLI
-        run: |
-          curl -fsSL https://cli.vulnetix.com/install.sh \
-            | sh -s -- --install-dir "$HOME/.local/bin" --version "${{ inputs.cli_version }}"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      # continue-on-error because `pattern` with no match is an error, and a
-      # repository whose scans produced nothing should still publish its
-      # release object rather than fail the job.
-      - name: Download the BOMs this run produced
-        continue-on-error: true
-        uses: actions/download-artifact@v6
-        with:
-          pattern: '{sca,cbom,aibom}'
-          merge-multiple: true
-          path: boms
-
-      - name: Report what was found
-        run: |
-          set -euo pipefail
-          if ls boms/*.cdx.json >/dev/null 2>&1; then
-            ls -l boms/*.cdx.json
-          else
-            echo "::warning::no BOM artifacts were found; publishing the release without evidence"
-          fi
-
-      # continue-on-error lives here, on the step, rather than on the calling
-      # job in each repository's vulnetix.yml. GitHub Actions rejects
-      # continue-on-error on a job that calls a reusable workflow with
-      # "uses:", so the caller cannot express this tolerance itself. A TEA
-      # publish failure must not fail the repository's own CI, so the
-      # tolerance is expressed here instead, with the failure still recorded
-      # as a warning annotation so it does not disappear into a green run.
-      - name: Publish product, release, artifacts and distributions
-        continue-on-error: true
-        env:
-          TEA_VISIBILITY: ${{ inputs.visibility }}
-          TEA_CHANNELS: ${{ inputs.channels }}
-        run: |
-          set -euo pipefail
-
-          args=(tea release)
-          for f in boms/*.cdx.json; do
-            [ -e "$f" ] && args+=("$f")
-          done
-          args+=(--auto-version --checksums-from-release)
-
-          if [ -n "$TEA_VISIBILITY" ]; then
-            args+=(--visibility "$TEA_VISIBILITY")
-          fi
-
-          while IFS= read -r channel; do
-            [ -n "$channel" ] && args+=(--channel "$channel")
-          done <<< "$TEA_CHANNELS"
-
-          if ! vulnetix "${args[@]}"; then
-            echo "::warning::vulnetix tea release failed; this run published no transparency evidence"
-            exit 1
-          fi
+      - name: Smoke
+        run: echo "visibility=${{ inputs.visibility }} cli=${{ inputs.cli_version }}"
