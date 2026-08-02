@@ -726,8 +726,21 @@ update-packages VERSION="":
         -o "$TMPDIR/checksums.txt"
     CHECKSUMS="$TMPDIR/checksums.txt"
 
-    # Extract hashes
-    hash_for() { grep "$1\$" "$CHECKSUMS" | awk '{print $1}'; }
+    # Extract hashes.
+    #
+    # An absent checksum used to come back as an empty string and be
+    # substituted straight into the manifest, producing `sha256 ""` — a formula
+    # that installs nothing, pushed to the tap and discovered by a user rather
+    # than here.
+    hash_for() {
+        local sum
+        sum=$(grep " \*\?$1\$" "$CHECKSUMS" | awk '{print $1}')
+        if [ ${#sum} -ne 64 ]; then
+            echo "Error: no SHA-256 for $1 in checksums.txt" >&2
+            exit 1
+        fi
+        printf '%s' "$sum"
+    }
     DARWIN_ARM64=$(hash_for vulnetix-darwin-arm64)
     DARWIN_AMD64=$(hash_for vulnetix-darwin-amd64)
     LINUX_ARM64=$(hash_for vulnetix-linux-arm64)
@@ -752,6 +765,16 @@ update-packages VERSION="":
         sed -i "/vulnetix-darwin-amd64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${DARWIN_AMD64}\"/}" "$BREW"
         sed -i "/vulnetix-linux-arm64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_ARM64}\"/}" "$BREW"
         sed -i "/vulnetix-linux-amd64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_AMD64}\"/}" "$BREW"
+        # Every sed above is positional — it edits the line AFTER a URL naming a
+        # platform. Reorder the formula, or rename an asset, and they match
+        # nothing and leave the previous release's checksums in place: the one
+        # failure mode that looks like success.
+        for want in "${VER_NUM}" "${DARWIN_ARM64}" "${DARWIN_AMD64}" "${LINUX_ARM64}" "${LINUX_AMD64}"; do
+            if ! grep -q "$want" "$BREW"; then
+                echo "Error: $BREW does not contain $want after the edit; the formula layout has moved" >&2
+                exit 1
+            fi
+        done
         echo "    vulnetix.rb → ${VER_NUM}"
     else
         echo "Warning: Homebrew formula not found at $BREW"
@@ -776,6 +799,12 @@ update-packages VERSION="":
             del(.architecture."32bit") |
             del(.autoupdate.architecture."32bit")' "$SCOOP" > "$TMPDIR/vulnetix.json"
         mv "$TMPDIR/vulnetix.json" "$SCOOP"
+        # jq fails on malformed input but not on a manifest whose shape has
+        # moved: setting .architecture.arm64 on an object that no longer has one
+        # simply creates it somewhere harmless.
+        test "$(jq -r .version "$SCOOP")" = "$VER_NUM"
+        test "$(jq -r '.architecture."64bit".hash' "$SCOOP")" = "$WIN_AMD64"
+        test "$(jq -r '.architecture.arm64.hash' "$SCOOP")" = "$WIN_ARM64"
         echo "    vulnetix.json → ${VER_NUM}"
     else
         echo "Warning: Scoop manifest not found at $SCOOP"
@@ -821,6 +850,45 @@ update-packages VERSION="":
 
     echo ""
     echo "Done. All package manifests updated to v${VER_NUM}."
+    echo "Publish the same release to the transparency log with: just tea-release v${VER_NUM}"
+
+# release.yml does this automatically in its publish-tea job. This is the manual
+# equivalent, for a release cut by hand or one whose publish step failed — and it
+# must run AFTER the tap and bucket carry this version, because it advertises
+# `brew install` and `scoop install` as ways to obtain it.
+# Publish a release to the Transparency Exchange API, with its distributions
+tea-release VERSION="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ -n "{{VERSION}}" ]; then
+        VER="{{VERSION}}"
+    else
+        VER=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+            https://github.com/Vulnetix/cli/releases/latest | awk -F/ '{print $NF}')
+    fi
+    case "$VER" in v*) ;; *) VER="v${VER}" ;; esac
+
+    TMPDIR=$(mktemp -d)
+    trap 'rm -rf "$TMPDIR"' EXIT
+    curl -fsSL \
+        "https://github.com/Vulnetix/cli/releases/download/${VER}/checksums.txt" \
+        -o "$TMPDIR/checksums.txt"
+
+    go run . sca --no-banner --no-progress -o "$TMPDIR/vulnetix.cdx.json"
+
+    go run . tea release "$TMPDIR/vulnetix.cdx.json" \
+        --product Vulnetix/cli \
+        --version "$VER" \
+        --checksums "$TMPDIR/checksums.txt" \
+        --exclude checksums.txt \
+        --base-url "https://github.com/Vulnetix/cli/releases/download/${VER}" \
+        --channel "name=Homebrew — brew install Vulnetix/tap/vulnetix,url=https://github.com/Vulnetix/homebrew-tap" \
+        --channel "name=Scoop — scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket,url=https://github.com/Vulnetix/scoop-bucket" \
+        --channel "name=Nix flake — nix run github:Vulnetix/cli,url=https://github.com/Vulnetix/cli/blob/main/flake.nix" \
+        --channel "name=go install github.com/vulnetix/cli/v3@${VER},purl=pkg:golang/github.com/vulnetix/cli/v3@${VER}" \
+        --channel "name=Install script — curl -fsSL https://cli.vulnetix.com/install.sh | sh,url=https://cli.vulnetix.com/install.sh" \
+        --visibility public
 
 # --- Local CI ---
 
