@@ -163,14 +163,44 @@ download() {
   local dest="$2"
   local downloader="$3"
   if [ "$downloader" = "curl" ]; then
-    curl -fsSL --retry 3 --retry-delay 2 "$url" -o "$dest"
+    # --retry-all-errors is what makes this retry a TRUNCATED transfer. curl
+    # reports an incomplete body as exit 18, which plain --retry treats as a
+    # hard failure rather than something to try again — so a connection that
+    # dropped part way through a 90 MB binary used to be handed straight to the
+    # checksum check, which then announced possible tampering.
+    curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors "$url" -o "$dest"
   else
-    wget -q "$url" -O "$dest"
+    # wget had no retry configuration at all.
+    wget -q --tries=5 --timeout=30 --waitretry=2 "$url" -O "$dest"
   fi
 }
 
+# expected_size reports the asset's size from the server, or nothing when the
+# server will not say. Used to tell an interrupted download apart from a
+# genuine integrity failure before the checksum is even computed.
+expected_size() {
+  local url="$1"
+  local downloader="$2"
+  if [ "$downloader" = "curl" ]; then
+    curl -fsSLI --retry 2 "$url" 2>/dev/null \
+      | tr -d '\r' | awk 'tolower($1) == "content-length:" { print $2 }' | tail -n1
+  else
+    wget -q --spider --server-response "$url" 2>&1 \
+      | tr -d '\r' | awk 'tolower($1) == "content-length:" { print $2 }' | tail -n1
+  fi
+}
+
+# verify_size checks the download arrived whole.
+#
+# The old floor of 1 KiB only caught an error page served instead of a binary.
+# A connection that dropped part way through a 90 MB release binary left tens of
+# megabytes on disk — far over the floor, so it passed here and failed at the
+# checksum instead, where the message blamed tampering. Comparing against the
+# size the server declared is what tells those two apart.
 verify_size() {
   local path="$1"
+  local want="${2:-}"
+
   if [ ! -f "$path" ]; then
     echo "error: downloaded file not found at $path" >&2
     exit 1
@@ -179,6 +209,12 @@ verify_size() {
   size=$(wc -c < "$path" 2>/dev/null || echo 0)
   if [ "$size" -lt 1024 ]; then
     echo "error: downloaded file is suspiciously small (${size} bytes) — download may have failed" >&2
+    rm -f "$path"
+    exit 1
+  fi
+  if [ -n "$want" ] && [ "$want" -gt 0 ] 2>/dev/null && [ "$size" -ne "$want" ]; then
+    echo "error: download is incomplete — got ${size} bytes, server declared ${want}" >&2
+    echo "error: this is a network problem, not a corrupt release. Please run the installer again." >&2
     rm -f "$path"
     exit 1
   fi
@@ -227,9 +263,18 @@ verify_checksum() {
   echo "info: actual   sha256=$actual"
 
   if [ "$actual" != "$expected" ]; then
-    echo "error: checksum mismatch — binary may be corrupt or tampered with" >&2
+    # Say what is actually known. An interrupted download is by far the most
+    # common cause and is now caught by verify_size, so reaching here with a
+    # complete file is the case worth alarming about — but claiming tampering
+    # outright, as this used to, sends people hunting a supply-chain
+    # compromise over a dropped connection.
+    echo "error: checksum mismatch — refusing to install" >&2
     echo "error:   expected: $expected" >&2
     echo "error:   actual:   $actual" >&2
+    echo "error:   size:     $(wc -c < "$tmp_binary" 2>/dev/null || echo unknown) bytes" >&2
+    echo "error: if the size above looks short, the download was interrupted — run the installer again." >&2
+    echo "error: if it is the full size, do not install this binary: report it at" >&2
+    echo "error:   https://github.com/Vulnetix/cli/issues" >&2
     rm -f "$tmp_binary"
     exit 1
   fi
@@ -282,8 +327,12 @@ main() {
   trap 'rm -f "$TMP_FILE"' EXIT
 
   echo "info: fetching $DOWNLOAD_URL"
+  # Asked before the transfer so an interrupted download is diagnosed as one.
+  # Best effort: a server that will not declare a length simply leaves this
+  # empty and verify_size falls back to its floor check.
+  EXPECT_BYTES=$(expected_size "$DOWNLOAD_URL" "$DOWNLOADER" || true)
   download "$DOWNLOAD_URL" "$TMP_FILE" "$DOWNLOADER"
-  verify_size "$TMP_FILE"
+  verify_size "$TMP_FILE" "$EXPECT_BYTES"
   verify_checksum "$ASSET" "$TMP_FILE" "$CHECKSUMS_URL" "$DOWNLOADER" "$SHA_TOOL"
 
   # Set executable permission then move into place atomically
