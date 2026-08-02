@@ -16,6 +16,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -51,6 +52,8 @@ that as part of the same run; public cannot be undone.`,
 	}
 	cmd.Flags().String("product", "", "product name; defaults to the GitHub repository")
 	cmd.Flags().String("version", "", "release version; defaults to the tag")
+	cmd.Flags().Bool("auto-version", false,
+		"outside a tag run, derive the version from `git describe` and mark it a pre-release")
 	cmd.Flags().String("date", "", "release date (RFC3339); defaults to now")
 	cmd.Flags().Bool("pre-release", false, "mark the release as a pre-release")
 	cmd.Flags().String("reason", "", "collection update reason; INITIAL_RELEASE for a new release, ARTIFACT_ADDED otherwise")
@@ -106,6 +109,20 @@ func resolveTeaReleaseInputs(cmd *cobra.Command, args []string) (teaReleaseInput
 			in.Version = strings.TrimSpace(os.Getenv("GITHUB_REF_NAME"))
 		}
 	}
+	// A branch push is not a release, but it still produced evidence worth
+	// publishing. Derive a version for it rather than refusing, and say in the
+	// object itself that it is not a release: `--pre-release` is forced here
+	// because a caller cannot know in advance which of the two cases it is in.
+	if in.Version == "" {
+		if auto, _ := cmd.Flags().GetBool("auto-version"); auto {
+			v, err := gitDescribeVersion()
+			if err != nil {
+				return in, fmt.Errorf("--auto-version: %w", err)
+			}
+			in.Version = v
+			in.PreRelease = true
+		}
+	}
 	if in.Version == "" {
 		return in, fmt.Errorf("--version is required: no release tag was found in the environment "+
 			"(GITHUB_REF_TYPE was %q)", os.Getenv("GITHUB_REF_TYPE"))
@@ -115,7 +132,11 @@ func resolveTeaReleaseInputs(cmd *cobra.Command, args []string) (teaReleaseInput
 	if in.Date == "" {
 		in.Date = time.Now().UTC().Format(time.RFC3339)
 	}
-	in.PreRelease, _ = cmd.Flags().GetBool("pre-release")
+	// Already true when --auto-version derived the version, so this ORs rather
+	// than assigns: an explicit --pre-release adds to the decision, it does not
+	// overwrite it.
+	pre, _ := cmd.Flags().GetBool("pre-release")
+	in.PreRelease = in.PreRelease || pre
 
 	expanded, err := expandTeaReleaseFiles(args)
 	if err != nil {
@@ -463,4 +484,22 @@ func teaReleasePURL(repository string) string {
 		return ""
 	}
 	return "pkg:github/" + owner + "/" + repo
+}
+
+// gitDescribeVersion names the current commit relative to the last tag.
+//
+// `v3.75.0-12-gabc1234` sorts after the release it descends from, says how far
+// past it the commit is, and resolves back to that commit. `--always` matters
+// more than it looks: most repositories in the fleet have never been tagged, and
+// without it they would fail to publish rather than publish a SHA.
+func gitDescribeVersion() (string, error) {
+	out, err := exec.Command("git", "describe", "--tags", "--always").Output()
+	if err != nil {
+		return "", fmt.Errorf("git describe: %w", err)
+	}
+	v := strings.TrimSpace(string(out))
+	if v == "" {
+		return "", fmt.Errorf("git describe produced no output")
+	}
+	return v, nil
 }
