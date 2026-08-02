@@ -42,9 +42,10 @@ and walk a standard object graph to the exact artifact they need.
     collection  read the artifacts published for a release
     resolve     resolve a TEI to the object it names
 
-    publish     create products, releases, collections and artifacts
-    share       control who may read a published object
-    release     publish everything about a release in one command
+    publish       create products, releases, collections and artifacts
+    distribution  declare where a release can actually be obtained
+    share         control who may read a published object
+    release       publish everything about a release in one command
 
 Reading a public catalogue needs no credentials. Publishing does, and always
 targets your own organisation's server.`,
@@ -61,6 +62,7 @@ targets your own organisation's server.`,
 		newTeaCollectionCommand(),
 		newTeaResolveCommand(),
 		newTeaPublishCommand(),
+		newTeaDistributionCommand(),
 		newTeaShareCommand(),
 		newTeaReleaseCommand(),
 	)

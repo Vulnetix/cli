@@ -295,9 +295,22 @@ jobs:
 
       - name: Update Homebrew formula
         run: |
+          set -euo pipefail
           VER_NUM="${{ needs.release.outputs.version }}"
           VER_NUM="${VER_NUM#v}"
-          hash_for() { grep "$1\$" checksums.txt | awk '{print $1}'; }
+
+          # An absent checksum used to be substituted in as an empty string,
+          # producing `sha256 ""` — a formula that installs nothing, pushed to
+          # the tap and discovered by a user rather than by this job.
+          hash_for() {
+            local sum
+            sum=$(grep " \*\?$1\$" checksums.txt | awk '{print $1}')
+            if [ ${#sum} -ne 64 ]; then
+              echo "::error::no SHA-256 for $1 in checksums.txt" >&2
+              exit 1
+            fi
+            printf '%s' "$sum"
+          }
           DARWIN_ARM64=$(hash_for vulnetix-darwin-arm64)
           DARWIN_AMD64=$(hash_for vulnetix-darwin-amd64)
           LINUX_ARM64=$(hash_for vulnetix-linux-arm64)
@@ -311,6 +324,17 @@ jobs:
           sed -i "/vulnetix-linux-arm64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_ARM64}\"/}" "$BREW"
           sed -i "/vulnetix-linux-amd64/{n;s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_AMD64}\"/}" "$BREW"
 
+          # Every sed above is positional — it edits the line AFTER a URL that
+          # mentions a platform. Reordering the formula, or renaming an asset,
+          # makes them match nothing and leave the previous release's checksums
+          # in place, which is the one failure mode that looks like success.
+          for want in "${VER_NUM}" "${DARWIN_ARM64}" "${DARWIN_AMD64}" "${LINUX_ARM64}" "${LINUX_AMD64}"; do
+            if ! grep -q "$want" "$BREW"; then
+              echo "::error::$BREW does not contain $want after the edit; the formula layout has moved" >&2
+              exit 1
+            fi
+          done
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "$BREW"
@@ -321,35 +345,118 @@ jobs:
 
       - name: Update Scoop manifest
         run: |
+          set -euo pipefail
           VER_NUM="${{ needs.release.outputs.version }}"
           VER_NUM="${VER_NUM#v}"
-          hash_for() { grep "$1\$" checksums.txt | awk '{print $1}'; }
+          hash_for() {
+            local sum
+            sum=$(grep " \*\?$1\$" checksums.txt | awk '{print $1}')
+            if [ ${#sum} -ne 64 ]; then
+              echo "::error::no SHA-256 for $1 in checksums.txt" >&2
+              exit 1
+            fi
+            printf '%s' "$sum"
+          }
           WIN_AMD64=$(hash_for vulnetix-windows-amd64.exe)
           WIN_ARM64=$(hash_for vulnetix-windows-arm64.exe)
 
           cd scoop-bucket
-          if [ -f bucket/vulnetix.json ]; then
-            # 32-bit Windows builds were dropped when CGO became a build
-            # requirement (zig cc + CGO is unstable for i386-windows).
-            # Remove the 32bit architecture entry from the manifest.
-            jq --indent 4 \
-              --arg v "$VER_NUM" \
-              --arg h64 "$WIN_AMD64" \
-              --arg harm "$WIN_ARM64" \
-              '.version = $v |
-               .architecture."64bit".url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-amd64.exe#/vulnetix.exe" |
-               .architecture."64bit".hash = $h64 |
-               .architecture.arm64.url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-arm64.exe#/vulnetix.exe" |
-               .architecture.arm64.hash = $harm |
-               del(.architecture."32bit") |
-               del(.autoupdate.architecture."32bit")' bucket/vulnetix.json > /tmp/vulnetix.json
-            mv /tmp/vulnetix.json bucket/vulnetix.json
-
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add bucket/vulnetix.json
-            if ! git diff --cached --quiet; then
-              git commit -m "vulnetix ${VER_NUM}"
-              git push
-            fi
+          # A missing manifest used to be a warning-free skip, leaving Scoop
+          # users on whatever version the bucket last knew about.
+          if [ ! -f bucket/vulnetix.json ]; then
+            echo "::error::scoop-bucket has no bucket/vulnetix.json" >&2
+            exit 1
           fi
+          # 32-bit Windows builds were dropped when CGO became a build
+          # requirement (zig cc + CGO is unstable for i386-windows).
+          # Remove the 32bit architecture entry from the manifest.
+          jq --indent 4 \
+            --arg v "$VER_NUM" \
+            --arg h64 "$WIN_AMD64" \
+            --arg harm "$WIN_ARM64" \
+            '.version = $v |
+             .architecture."64bit".url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-amd64.exe#/vulnetix.exe" |
+             .architecture."64bit".hash = $h64 |
+             .architecture.arm64.url = "https://github.com/Vulnetix/cli/releases/download/v\($v)/vulnetix-windows-arm64.exe#/vulnetix.exe" |
+             .architecture.arm64.hash = $harm |
+             del(.architecture."32bit") |
+             del(.autoupdate.architecture."32bit")' bucket/vulnetix.json > /tmp/vulnetix.json
+          mv /tmp/vulnetix.json bucket/vulnetix.json
+
+          # jq would have failed already on malformed input, but not on a
+          # manifest whose shape has moved — `.architecture.arm64` on an object
+          # that no longer has one simply creates it somewhere harmless.
+          test "$(jq -r .version bucket/vulnetix.json)" = "$VER_NUM"
+          test "$(jq -r '.architecture."64bit".hash' bucket/vulnetix.json)" = "$WIN_AMD64"
+          test "$(jq -r '.architecture.arm64.hash' bucket/vulnetix.json)" = "$WIN_ARM64"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bucket/vulnetix.json
+          if ! git diff --cached --quiet; then
+            git commit -m "vulnetix ${VER_NUM}"
+            git push
+          fi
+
+  # Publish the release to the Transparency Exchange API.
+  #
+  # Runs after update-packages, not beside it, because two of the things it
+  # publishes are the Homebrew and Scoop channels. Advertising `brew install`
+  # for a version the tap does not carry yet would be a download link that
+  # 404s for as long as the other job takes — TEA is consumed by machines, and
+  # a machine does not know to try again in a minute.
+  #
+  # The binary doing the publishing is the one this release just built, so a
+  # `tea` regression fails the release that introduced it rather than the next
+  # one.
+  publish-tea:
+    needs: [release, update-packages]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
+      VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: cross-binaries
+          path: bin
+
+      - name: Install the binary this release built
+        run: |
+          set -euo pipefail
+          chmod +x bin/vulnetix-linux-amd64
+          sudo mv bin/vulnetix-linux-amd64 /usr/local/bin/vulnetix
+          vulnetix version --short
+
+      - name: Download checksums
+        run: |
+          curl -fsSL \
+            "https://github.com/Vulnetix/cli/releases/download/${{ needs.release.outputs.version }}/checksums.txt" \
+            -o checksums.txt
+
+      - name: Generate the release SBOM
+        run: vulnetix sca --no-banner --no-progress -o vulnetix.cdx.json
+
+      - name: Publish product, release, artifacts and distributions
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.release.outputs.version }}"
+          VER_NUM="${VERSION#v}"
+
+          # --checksums turns every published asset into a distribution, taking
+          # the digests from the same file a user verifies a download against.
+          # The remaining channels have no single file to fetch, so they are
+          # named rather than linked.
+          vulnetix tea release vulnetix.cdx.json \
+            --version "$VERSION" \
+            --checksums checksums.txt \
+            --exclude checksums.txt \
+            --channel "name=Homebrew — brew install Vulnetix/tap/vulnetix,url=https://github.com/Vulnetix/homebrew-tap" \
+            --channel "name=Scoop — scoop bucket add vulnetix https://github.com/Vulnetix/scoop-bucket,url=https://github.com/Vulnetix/scoop-bucket" \
+            --channel "name=Nix flake — nix run github:Vulnetix/cli,url=https://github.com/Vulnetix/cli/blob/main/flake.nix" \
+            --channel "name=go install github.com/vulnetix/cli/v3@${VERSION},purl=pkg:golang/github.com/vulnetix/cli/v3@${VERSION}" \
+            --channel "name=Install script — curl -fsSL https://cli.vulnetix.com/install.sh | sh,url=https://cli.vulnetix.com/install.sh" \
+            --visibility public

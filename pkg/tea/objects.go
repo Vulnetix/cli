@@ -38,6 +38,33 @@ type Release struct {
 	Identifiers   []Identifier `json:"identifiers,omitempty"`
 }
 
+// Distribution is one delivered form of a component release —
+// `release-distribution` in the consumption schema.
+//
+// Not to be confused with an artifact. An artifact is evidence ABOUT a release:
+// an SBOM, a VEX document, an attestation. A distribution is the release as
+// somebody installs it: a binary on a releases page, a Homebrew formula, a
+// Scoop manifest. A consumer asking "how do I get 3.81.0 on macOS" wants the
+// second, and an SBOM is not an answer to it.
+type Distribution struct {
+	DistributionID string       `json:"distributionId,omitempty"`
+	Description    string       `json:"description,omitempty"`
+	Identifiers    []Identifier `json:"identifiers,omitempty"`
+	URL            string       `json:"url,omitempty"`
+	SignatureURL   string       `json:"signatureUrl,omitempty"`
+	Checksums      []Checksum   `json:"checksums,omitempty"`
+}
+
+// ComponentReleaseDetail is what GET /componentRelease/{uuid} returns: the
+// release and the collection currently published for it.
+type ComponentReleaseDetail struct {
+	Release struct {
+		Release
+		Distributions []Distribution `json:"distributions,omitempty"`
+	} `json:"release"`
+	LatestCollection Collection `json:"latestCollection"`
+}
+
 // Checksum is one digest over an artifact format's bytes.
 type Checksum struct {
 	AlgType  string `json:"algType"`
@@ -187,6 +214,64 @@ func (c *Client) CreateProductRelease(ctx context.Context, productUUID, version,
 	}
 	var out Release
 	err := c.Do(ctx, "POST", "/productRelease", body, &out, idempotencyHeader(idempotencyKey))
+	return &out, err
+}
+
+// CreateComponent registers a component.
+//
+// A product is what somebody buys; a component is a thing that ships. They are
+// separate objects in TEA because a release of one is not a release of the
+// other, and only a component release can carry distributions.
+func (c *Client) CreateComponent(ctx context.Context, name string, identifiers []Identifier, idempotencyKey string) (*Product, error) {
+	body := map[string]any{"name": name}
+	if len(identifiers) > 0 {
+		body["identifiers"] = identifiers
+	}
+	var out Product
+	err := c.Do(ctx, "POST", "/component", body, &out, idempotencyHeader(idempotencyKey))
+	return &out, err
+}
+
+// CreateComponentRelease publishes a release of a component.
+func (c *Client) CreateComponentRelease(ctx context.Context, componentUUID, version, releaseDate string, preRelease bool, idempotencyKey string) (*Release, error) {
+	body := map[string]any{
+		"component":  componentUUID,
+		"version":    version,
+		"preRelease": preRelease,
+	}
+	if releaseDate != "" {
+		body["releaseDate"] = releaseDate
+	}
+	var out Release
+	err := c.Do(ctx, "POST", "/componentRelease", body, &out, idempotencyHeader(idempotencyKey))
+	return &out, err
+}
+
+// CreateDistribution declares one delivered form of a component release.
+//
+// Idempotent on the download URL, or on the description where a channel has no
+// single file to fetch — so republishing a release updates its download links
+// rather than listing each of them twice.
+func (c *Client) CreateDistribution(ctx context.Context, componentReleaseUUID string, d Distribution, idempotencyKey string) (*Distribution, error) {
+	var out Distribution
+	err := c.Do(ctx, "POST",
+		"/componentRelease/"+url.PathEscape(componentReleaseUUID)+"/distribution",
+		d, &out, idempotencyHeader(idempotencyKey))
+	return &out, err
+}
+
+// DeleteDistribution withdraws a download link. It does not make anything
+// already downloaded go away.
+func (c *Client) DeleteDistribution(ctx context.Context, uuid string) error {
+	return c.Do(ctx, "DELETE", "/distribution/"+url.PathEscape(uuid), nil, nil, nil)
+}
+
+// ComponentRelease reads a component release with its distributions. The
+// consumption API only carries distributions on the object read, never on a
+// list page, so this is the one call that answers "where do I get it".
+func (c *Client) ComponentRelease(ctx context.Context, uuid string) (*ComponentReleaseDetail, error) {
+	var out ComponentReleaseDetail
+	err := c.Do(ctx, "GET", "/componentRelease/"+url.PathEscape(uuid), nil, &out, nil)
 	return &out, err
 }
 
