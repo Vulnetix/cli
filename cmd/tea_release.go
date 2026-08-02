@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v3/internal/github"
 	"github.com/vulnetix/cli/v3/pkg/tea"
 )
 
@@ -62,6 +63,8 @@ that as part of the same run; public cannot be undone.`,
 	cmd.Flags().Bool("dry-run", false, "print what would be published and exit")
 	cmd.Flags().String("checksums", "",
 		"sha256sum manifest whose files become the release's distributions")
+	cmd.Flags().Bool("checksums-from-release", false,
+		"on a tag run, take --checksums from the GitHub release's checksums asset")
 	cmd.Flags().String("base-url", "",
 		"URL each file in --checksums is served from; defaults to the GitHub release's download URL")
 	cmd.Flags().StringSlice("exclude", nil, "file name in --checksums to skip (repeatable)")
@@ -388,7 +391,11 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 func teaReleaseDistributions(cmd *cobra.Command, in teaReleaseInputs) ([]tea.Distribution, error) {
 	var out []tea.Distribution
 
-	if manifest, _ := cmd.Flags().GetString("checksums"); manifest != "" {
+	manifest, err := resolveChecksumsManifest(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if manifest != "" {
 		base, _ := cmd.Flags().GetString("base-url")
 		if base == "" {
 			// In a GitHub release job the answer is known, and making the
@@ -502,4 +509,58 @@ func gitDescribeVersion() (string, error) {
 		return "", fmt.Errorf("git describe produced no output")
 	}
 	return v, nil
+}
+
+// resolveChecksumsManifest decides which checksums file, if any, to publish
+// distributions from.
+//
+// Three ways it legitimately resolves to nothing, none of which is a failure:
+// the flag is off, the run is not a tag run, or the release ships no such
+// asset. A release with evidence and no download links is incomplete; a job
+// that died trying to find one publishes nothing at all, which is worse.
+func resolveChecksumsManifest(cmd *cobra.Command) (string, error) {
+	if explicit, _ := cmd.Flags().GetString("checksums"); explicit != "" {
+		return explicit, nil
+	}
+	if fromRelease, _ := cmd.Flags().GetBool("checksums-from-release"); !fromRelease {
+		return "", nil
+	}
+	if !strings.EqualFold(os.Getenv("GITHUB_REF_TYPE"), "tag") {
+		return "", nil
+	}
+
+	repository := strings.TrimSpace(os.Getenv("GITHUB_REPOSITORY"))
+	tag := strings.TrimSpace(os.Getenv("GITHUB_REF_NAME"))
+	if repository == "" || tag == "" {
+		return "", nil
+	}
+	apiURL := strings.TrimSpace(os.Getenv("GITHUB_API_URL"))
+	if apiURL == "" {
+		apiURL = "https://api.github.com"
+	}
+
+	ctx, cancel := teaContext(cmd)
+	defer cancel()
+
+	rel, err := github.FetchReleaseByTag(ctx, os.Getenv("GITHUB_TOKEN"), apiURL, repository, tag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not read the GitHub release for %s: %v\n", tag, err)
+		return "", nil
+	}
+	asset := rel.AssetMatching("checksums")
+	if asset == nil {
+		fmt.Fprintf(os.Stderr, "warning: release %s publishes no checksums asset; no distributions will be published\n", tag)
+		return "", nil
+	}
+
+	dir, err := os.MkdirTemp("", "vulnetix-tea-")
+	if err != nil {
+		return "", err
+	}
+	path, err := github.DownloadAsset(ctx, os.Getenv("GITHUB_TOKEN"), *asset, dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not download %s: %v\n", asset.Name, err)
+		return "", nil
+	}
+	return path, nil
 }
