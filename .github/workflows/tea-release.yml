@@ -1,7 +1,22 @@
+# This is a reusable workflow: it runs inside the CALLING repository's run,
+# not this one. That is why it can download that run's own artifacts with a
+# plain `download-artifact`, and why `${GITHUB_REPOSITORY}` / `GITHUB_REF`
+# below name the caller, not vulnetix/cli.
+#
+# There is deliberately no branching shell here for tag-versus-branch, a
+# repository with no tags, or a release with no checksums asset. Those cases
+# are handled by `--auto-version` and `--checksums-from-release` inside the
+# CLI itself, where they are covered by Go tests instead of only being
+# exercised in production by whichever repository happens to hit them first.
 name: TEA Release
 
 on:
   workflow_call:
+    # Input names use underscores, not hyphens. `${{ inputs.cli-version }}`
+    # is valid expression syntax meaning `inputs.cli` minus `version`, so a
+    # hyphenated input name would be silently unreachable (evaluates to an
+    # error/empty rather than a parse failure) and actionlint does not flag
+    # it.
     inputs:
       visibility:
         description: 'public, shared, or empty to leave the objects private'
@@ -16,14 +31,31 @@ on:
         type: string
         default: 'v3.84.1'
 
+# Serialises on the commit, not the ref. A tag push and the `release:
+# published` event it triggers share a SHA, so they still queue against each
+# other, which is the case this design actually needs serialised. Two
+# different commits are no longer serialised against each other and can race
+# on the shared product and collection objects; `tea release` handles that
+# idempotently, so the trade-off is accepted rather than keying on the ref
+# and risking GitHub cancelling a queued publish (see Finding 3: cancellation
+# isn't covered by continue-on-error and surfaces as the caller's run going
+# `cancelled`).
 concurrency:
-  group: tea-${{ github.repository }}-${{ github.ref }}
+  group: tea-${{ github.repository }}-${{ github.sha }}
   cancel-in-progress: false
 
+# No permissions: block, deliberately. A called workflow may not request a
+# scope its calling job does not hold, and the callers declare none, so
+# declaring one here would fail every caller at startup with no jobs created
+# and nothing retrievable through the API. The organisation default is
+# read-only for every scope, which is enough for checkout, reading the
+# release, and downloading the calling run's artifacts.
 jobs:
   publish:
     name: Publish to TEA
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Not an input: the self-hosted pool queues silently
+    # when nothing is started, and a publish that never runs is worse than
+    # one that costs GitHub-hosted minutes.
     timeout-minutes: 20
     env:
       VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
@@ -32,24 +64,32 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          # `--auto-version` shells out to `git describe`; a shallow checkout
+          # carries no tags and `git describe` fails.
           fetch-depth: 0
 
       - name: Install Vulnetix CLI
+        env:
+          # Pinned, not `latest`: a CLI regression on `latest` would stop
+          # publishing in every repository that calls this workflow, all at
+          # once, with no way to roll back short of a CLI release.
+          CLI_VERSION: ${{ inputs.cli_version }}
         run: |
           curl -fsSL https://cli.vulnetix.com/install.sh \
-            | sh -s -- --install-dir "$HOME/.local/bin" --version "${{ inputs.cli_version }}"
+            | sh -s -- --install-dir "$HOME/.local/bin" --version "$CLI_VERSION"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       # continue-on-error because `pattern` with no match is an error, and a
       # repository whose scans produced nothing should still publish its
       # release object rather than fail the job.
       #
-      # v4, not v6. `pattern` and `merge-multiple` landed in v4.1 and v4 is the
-      # newest major that resolves here; @v6 failed the whole workflow at
-      # startup, with no jobs created and nothing surfaced through the API.
+      # An earlier attempt at @v6 failed the whole workflow at startup, with
+      # no jobs created and nothing surfaced through the API, but that run
+      # also carried a separate `permissions:` defect and was not shown to be
+      # the sole cause.
       - name: Download the BOMs this run produced
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           pattern: '{sca,cbom,aibom}'
           merge-multiple: true
@@ -64,7 +104,14 @@ jobs:
             echo "::warning::no BOM artifacts were found; publishing the release without evidence"
           fi
 
+      # GitHub rejects `continue-on-error` on a job that calls a reusable
+      # workflow with `uses:`, so the caller has no way to express this
+      # tolerance itself. A TEA publish failure must not fail the calling
+      # repository's own CI, which is why the tolerance lives here instead,
+      # and why the summary step below exists, so that tolerance doesn't
+      # also make the failure invisible.
       - name: Publish product, release, artifacts and distributions
+        id: publish
         continue-on-error: true
         env:
           TEA_VISIBILITY: ${{ inputs.visibility }}
@@ -90,3 +137,19 @@ jobs:
             echo "::warning::vulnetix tea release failed; this run published no transparency evidence"
             exit 1
           fi
+
+      # continue-on-error on the publish step keeps the caller's run green,
+      # which also makes a real failure invisible: a warning annotation does
+      # not show up in the commit list, the checks list, or notifications.
+      # This step writes that failure somewhere a human will actually look.
+      - name: Surface a failed publish
+        if: steps.publish.outcome == 'failure'
+        run: |
+          {
+            echo '## TEA publish failed'
+            echo
+            echo "Repository: \`${GITHUB_REPOSITORY}\`"
+            echo "Ref: \`${GITHUB_REF}\`"
+            echo
+            echo 'This run stayed green because TEA publish failures are tolerated so they do not fail the repository CI, but no transparency evidence was published for this release. Check the "Publish product, release, artifacts and distributions" step above for the underlying error.'
+          } >> "$GITHUB_STEP_SUMMARY"
