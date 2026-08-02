@@ -175,6 +175,28 @@ download() {
   fi
 }
 
+# resolve_latest_tag turns the /releases/latest redirect into a concrete tag.
+#
+# Uses the redirect rather than the API so it needs no token and is not subject
+# to the API rate limit, which an unauthenticated CI runner will hit. Prints
+# nothing when it cannot resolve, and the caller falls back.
+resolve_latest_tag() {
+  local url=""
+  if command -v curl >/dev/null 2>&1; then
+    url=$(curl -fsSLI -o /dev/null -w '%{url_effective}' --retry 2 \
+      "https://github.com/Vulnetix/cli/releases/latest" 2>/dev/null)
+  elif command -v wget >/dev/null 2>&1; then
+    url=$(wget -q --spider --server-response --max-redirect=10 \
+      "https://github.com/Vulnetix/cli/releases/latest" 2>&1 \
+      | awk '/^  Location: /{print $2}' | tail -n1)
+  fi
+
+  case "$url" in
+    */tag/v*) printf '%s' "${url##*/tag/}" ;;
+    *) printf '' ;;
+  esac
+}
+
 # expected_size reports the asset's size from the server, or nothing when the
 # server will not say. Used to tell an interrupted download apart from a
 # genuine integrity failure before the checksum is even computed.
@@ -310,6 +332,26 @@ main() {
   EXT=""
   [ "$OS" = "windows" ] && EXT=".exe"
   ASSET="${BINARY_NAME}-${PLATFORM}${EXT}"
+  # `latest` is resolved to a concrete tag ONCE, and both downloads are then
+  # pinned to it.
+  #
+  # Fetching the binary and its checksums through the /latest/ alias is not
+  # atomic. A release published between the two moves the alias, so the bytes
+  # come from one release and the digest from the next, and the installer then
+  # reports a checksum mismatch on two files that are each perfectly intact.
+  # That is not hypothetical: a 90 MB binary takes long enough to download that
+  # a release landing mid-transfer is an ordinary event on an active project,
+  # and the failure it produces accuses us of shipping a tampered binary.
+  if [ "$VERSION" = "latest" ]; then
+    RESOLVED=$(resolve_latest_tag)
+    if [ -n "$RESOLVED" ]; then
+      VERSION="$RESOLVED"
+    else
+      echo "warn: could not resolve the latest tag; falling back to the /latest/ alias." >&2
+      echo "warn: if a release lands mid-download this can report a checksum mismatch — retry if it does." >&2
+    fi
+  fi
+
   if [ "$VERSION" = "latest" ]; then
     DOWNLOAD_URL="${GITHUB_BASE}/latest/download/${ASSET}"
     CHECKSUMS_URL="${GITHUB_BASE}/latest/download/checksums.txt"
