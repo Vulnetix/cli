@@ -22,11 +22,15 @@ on:
         description: 'newline-separated --channel specs, one per line'
         type: string
         default: ''
-      runs-on:
+      # Underscores, not hyphens. `${{ inputs.runs-on }}` is valid expression
+      # syntax that means `inputs.runs` minus `on`, so a hyphenated input name
+      # is silently unreachable and fails the whole workflow at startup rather
+      # than at lint time. actionlint accepts it; GitHub does not.
+      runner:
         description: 'runner label expression'
         type: string
         default: 'ubuntu-latest'
-      cli-version:
+      cli_version:
         description: 'Vulnetix CLI version to install'
         type: string
         default: 'v3.84.1'
@@ -45,7 +49,7 @@ concurrency:
 jobs:
   publish:
     name: Publish to TEA
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 20
     permissions:
       contents: read   # checkout, and reading the GitHub release on a tag run
@@ -64,7 +68,7 @@ jobs:
       - name: Install Vulnetix CLI
         run: |
           curl -fsSL https://cli.vulnetix.com/install.sh \
-            | sh -s -- --install-dir "$HOME/.local/bin" --version "${{ inputs.cli-version }}"
+            | sh -s -- --install-dir "$HOME/.local/bin" --version "${{ inputs.cli_version }}"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       # continue-on-error because `pattern` with no match is an error, and a
