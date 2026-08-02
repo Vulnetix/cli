@@ -4,7 +4,7 @@ weight: 11
 description: "How to consume the Vulnetix TEA server as another provider: DNS discovery, the OWASP OpenAPI specifications we target (0.4.0), and public unauthenticated example requests with their real responses."
 ---
 
-The Transparency Exchange API is an OWASP specification for resolving software transparency data — SBOMs, VEX documents, attestations, and where a release is actually obtained — starting from a single identifier and following DNS.
+The Transparency Exchange API is an OWASP specification for resolving software transparency data (SBOMs, VEX documents, attestations, and where a release is actually obtained) starting from a single identifier and following DNS.
 
 Vulnetix runs a conformant TEA server. This page is for the other side of the exchange: **you are a TEA provider, or building a TEA client, and you want to read what we publish.**
 
@@ -14,7 +14,7 @@ Every request on this page is public and unauthenticated. Nothing here needs an 
 
 ## The specifications we implement
 
-TEA is developed in the open by the OWASP TEA working group. We track the specification rather than extending it — an implementation that adds fields is not interoperable, it is a dialect.
+TEA is developed in the open by the OWASP TEA working group. We track the specification rather than extending it. An implementation that adds fields is not interoperable, it is a dialect.
 
 | Document | Where |
 |---|---|
@@ -25,7 +25,7 @@ TEA is developed in the open by the OWASP TEA working group. We track the specif
 
 ## 1. Start at DNS
 
-Resolution starts from a domain, never from a URL somebody handed you. Take the domain out of whatever identifier you hold — a TEI, a purl, a vendor contact — and fetch its discovery document.
+Resolution starts from a domain, never from a URL somebody handed you. Take the domain out of whatever identifier you hold (a TEI, a purl, a vendor contact) and fetch its discovery document.
 
 ```sh
 curl https://vulnetix.com/.well-known/tea
@@ -44,9 +44,9 @@ curl https://vulnetix.com/.well-known/tea
 }
 ```
 
-- `versions` — the specification versions this server implements.
-- `url` — the API root. Append the major version you selected: `https://www.vulnetix.com/tea/v1`.
-- `priority` — orders endpoints where a server advertises several.
+- `versions`: the specification versions this server implements.
+- `url`: the API root. Append the major version you selected: `https://www.vulnetix.com/tea/v1`.
+- `priority`: orders endpoints where a server advertises several.
 
 Every example below uses `https://www.vulnetix.com/tea/v1` as the base.
 
@@ -73,7 +73,7 @@ curl 'https://www.vulnetix.com/tea/v1/discovery\
 ]
 ```
 
-The TEI must be percent-encoded — it contains colons.
+The TEI must be percent-encoded, because it contains colons.
 
 ## 3. List what we publish
 
@@ -107,7 +107,7 @@ Page with `nextPageToken` while `hasNext` is true.
 
 ## 4. Walk to a release
 
-A product holds releases. A product release points at the component releases it is assembled from — follow `components[].release`, because that is where the downloads and the evidence live.
+A product holds releases. A product release points at the component releases it is assembled from, so follow `components[].release`, because that is where the downloads and the evidence live.
 
 ```sh
 curl 'https://www.vulnetix.com/tea/v1\
@@ -138,8 +138,8 @@ curl 'https://www.vulnetix.com/tea/v1\
 
 One read returns both halves, and they answer different questions:
 
-- **`distributions`** — how the release is obtained. Binaries with checksums, and install channels like Homebrew or Scoop that have no single file to fetch.
-- **`latestCollection`** — the evidence published *about* the release: SBOMs, VEX documents, attestations.
+- **`distributions`**: how the release is obtained. Binaries with checksums, and install channels like Homebrew or Scoop that have no single file to fetch.
+- **`latestCollection`**: the evidence published *about* the release: SBOMs, VEX documents, attestations.
 
 An SBOM is not an answer to "where do I download this", which is why TEA keeps them apart.
 
@@ -171,7 +171,7 @@ curl 'https://www.vulnetix.com/tea/v1\
       },
       {
         "distributionId": "…",
-        "description": "Homebrew — brew install Vulnetix/tap/vulnetix",
+        "description": "Homebrew: brew install Vulnetix/tap/vulnetix",
         "url": "https://github.com/Vulnetix/homebrew-tap"
       }
     ]
@@ -198,7 +198,7 @@ curl 'https://www.vulnetix.com/tea/v1\
 That release carries 14 distributions in total: one per published binary, plus the install channels. Artifact `url` values are direct downloads and need no credential either.
 
 {{< callout type="warning" >}}
-Distribution checksums are the **publisher's** assertion about bytes we do not host. Verify them against the file you fetch — do not treat their presence as proof we checked.
+Distribution checksums are the **publisher's** assertion about bytes we do not host. Verify them against the file you fetch, and do not treat their presence as proof we checked.
 {{< /callout >}}
 
 ## Doing it with the CLI
@@ -216,7 +216,7 @@ Reading a public catalogue needs no credentials. See [`tea` in the CLI reference
 
 ## Authentication
 
-Authentication is **optional**, and it only ever widens what you can see: a credential gets you objects shared with your organisation in addition to the public ones. It is never required to read a public catalogue — that is what makes this an exchange rather than a portal.
+Authentication is **optional**, and it only ever widens what you can see: a credential gets you objects shared with your organisation in addition to the public ones. It is never required to read a public catalogue. That is what makes this an exchange rather than a portal.
 
 If you do send a credential it must be valid. An unrecognised one is refused with `401` rather than quietly downgraded to anonymous, so a stale key fails loudly instead of silently hiding the releases you expected to see.
 
@@ -229,4 +229,4 @@ If you do send a credential it must be valid. An unrecognised one is refused wit
 ## What you will not find
 
 - **Objects nobody published.** We serve a projection of scan history to authenticated tenants for their own software. None of that appears in the public catalogue: an inference we drew about somebody else's code is not ours to publish.
-- **Anything marked private or shared.** These return `404`, not `403` — telling you an object exists but is not yours is itself a disclosure.
+- **Anything marked private or shared.** These return `404`, not `403`. Telling you an object exists but is not yours is itself a disclosure.

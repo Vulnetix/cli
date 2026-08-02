@@ -4,7 +4,7 @@ weight: 24
 description: "Publish to and read from the OWASP Transparency Exchange API: discovery, resolution, publication, distributions, sharing, and the one-shot `tea release` for pipelines."
 ---
 
-`vulnetix tea` speaks the [OWASP Transparency Exchange API](../../tea/). Two halves of one API: the consumption operations read any conformant server — ours or a supplier's — and the publication operations create the objects those consumers read.
+`vulnetix tea` speaks the [OWASP Transparency Exchange API](../../tea/). Two halves of one API: the consumption operations read any conformant server, ours or a supplier's, and the publication operations create the objects those consumers read.
 
 Reading a public catalogue needs no credentials. Publishing does, and always targets your own organisation.
 
@@ -68,7 +68,7 @@ vulnetix tea distribution add $REL \
 
 Taking digests from the checksums file rather than recomputing them means the checksum a consumer reads through TEA is the same string your users verify against.
 
-Each is idempotent on its URL — or on its description where there is no URL — so re-running a release job updates the links instead of listing each of them twice.
+Each is idempotent on its URL, or on its description where there is no URL, so re-running a release job updates the links instead of listing each of them twice.
 
 ## Sharing
 
@@ -81,13 +81,13 @@ vulnetix tea share <uuid> --visibility private              # your organisation 
 
 With no flags it reports what the object *declares* against what is *effectively* enforced, including what it inherits and from where. The gap between the two is where accidental disclosure hides.
 
-An object may only ever narrow what it inherits. Trying to widen it is refused with `ACCESS_WIDENS_PARENT` — otherwise marking a product private would guarantee nothing, because any artifact beneath it could be made public on its own.
+An object may only ever narrow what it inherits. Trying to widen it is refused with `ACCESS_WIDENS_PARENT`. Otherwise marking a product private would guarantee nothing, because any artifact beneath it could be made public on its own.
 
 {{< callout type="warning" >}}
 Public cannot be undone. Setting an object back to private later stops new readers; it does not recall anything already fetched.
 {{< /callout >}}
 
-## `tea release` — the one for pipelines
+## `tea release`, the one for pipelines
 
 After a release is cut, one command publishes everything about it: the product, the release, the component and its release, the collection, every artifact, and every download link.
 
@@ -97,8 +97,8 @@ After a release is cut, one command publishes everything about it: the product, 
     vulnetix tea release dist/*.cdx.json \
       --checksums checksums.txt \
       --exclude checksums.txt \
-      --channel "name=Homebrew — brew install owner/tap/tool,url=https://github.com/owner/homebrew-tap" \
-      --channel "name=Scoop — scoop bucket add tool https://github.com/owner/scoop-bucket,url=https://github.com/owner/scoop-bucket" \
+      --channel "name=Homebrew: brew install owner/tap/tool,url=https://github.com/owner/homebrew-tap" \
+      --channel "name=Scoop: scoop bucket add tool https://github.com/owner/scoop-bucket,url=https://github.com/owner/scoop-bucket" \
       --visibility public
   env:
     VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
@@ -107,7 +107,7 @@ After a release is cut, one command publishes everything about it: the product, 
 
 Inside GitHub Actions the product name, version and asset base URL are read from the environment (`GITHUB_REPOSITORY`, `GITHUB_REF_NAME`, `GITHUB_SERVER_URL`) unless given explicitly. Each file's name decides its media type and TEA artifact type.
 
-Every step is idempotent on the identity it derives, so re-running a failed job republishes rather than duplicating — which matters, because the alternative is a duplicate that a consumer finds rather than you.
+Every step is idempotent on the identity it derives, so re-running a failed job republishes rather than duplicating, which matters because the alternative is a duplicate that a consumer finds rather than you.
 
 `--dry-run` prints what would be published, download links included, and exits.
 
