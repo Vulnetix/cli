@@ -103,14 +103,34 @@ func TestDownloadAsset(t *testing.T) {
 // An asset name is attacker-influenced in the general case. It must not be able
 // to escape the destination directory.
 func TestDownloadAsset_RejectsPathTraversal(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("x"))
-	}))
-	defer srv.Close()
+	maliciousNames := []string{
+		"../escaped.txt",
+		"..",
+		".",
+		"",
+		"/etc/passwd",
+	}
 
-	_, err := DownloadAsset(context.Background(), "tok",
-		ReleaseAsset{Name: "../escaped.txt", BrowserDownloadURL: srv.URL}, t.TempDir())
-	if err == nil {
-		t.Fatal("want an error for an asset name containing a path separator")
+	for _, name := range maliciousNames {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte("x"))
+			}))
+			defer srv.Close()
+
+			dir := t.TempDir()
+			path, err := DownloadAsset(context.Background(), "tok",
+				ReleaseAsset{Name: name, BrowserDownloadURL: srv.URL}, dir)
+			if err == nil {
+				t.Fatal("want an error for asset name:", name)
+			}
+
+			// Verify no file was created outside the destination directory
+			if path != "" {
+				if !strings.HasPrefix(path, dir) {
+					t.Errorf("path %s escapes destination %s", path, dir)
+				}
+			}
+		})
 	}
 }
