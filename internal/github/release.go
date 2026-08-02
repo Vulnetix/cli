@@ -83,8 +83,24 @@ func (r *Release) AssetMatching(substr string) *ReleaseAsset {
 // DownloadAsset writes an asset into destDir and returns its path.
 func DownloadAsset(ctx context.Context, token string, a ReleaseAsset, destDir string) (string, error) {
 	// The name comes from the API, so it is not ours. A name carrying a
-	// separator would otherwise write outside destDir.
-	if a.Name == "" || a.Name != filepath.Base(a.Name) || strings.ContainsAny(a.Name, `/\`) {
+	// separator or relative path would otherwise write outside destDir.
+	if a.Name == "" {
+		return "", fmt.Errorf("refusing asset name %q: it is not a plain file name", a.Name)
+	}
+
+	absDestDir, err := filepath.Abs(destDir)
+	if err != nil {
+		return "", err
+	}
+
+	path := filepath.Join(absDestDir, a.Name)
+	relPath, err := filepath.Rel(absDestDir, path)
+	if err != nil {
+		return "", err
+	}
+
+	// Reject if the relative path tries to escape (starts with .. or is ..)
+	if relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("refusing asset name %q: it is not a plain file name", a.Name)
 	}
 
@@ -106,7 +122,6 @@ func DownloadAsset(ctx context.Context, token string, a ReleaseAsset, destDir st
 		return "", fmt.Errorf("GET %s: %d %s", a.BrowserDownloadURL, resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 
-	path := filepath.Join(destDir, a.Name)
 	f, err := os.Create(path)
 	if err != nil {
 		return "", err
