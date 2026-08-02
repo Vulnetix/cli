@@ -57,6 +57,16 @@ that as part of the same run; public cannot be undone.`,
 	cmd.Flags().String("visibility", "", "set the product's visibility once published: private, shared or public")
 	cmd.Flags().StringSlice("org", nil, "organisation UUID to share with, with --visibility shared")
 	cmd.Flags().Bool("dry-run", false, "print what would be published and exit")
+	cmd.Flags().String("checksums", "",
+		"sha256sum manifest whose files become the release's distributions")
+	cmd.Flags().String("base-url", "",
+		"URL each file in --checksums is served from; defaults to the GitHub release's download URL")
+	cmd.Flags().StringSlice("exclude", nil, "file name in --checksums to skip (repeatable)")
+	// StringArray, not StringSlice: a channel spec is itself comma-separated,
+	// and pflag's slice parsing would split `name=Homebrew,url=…` into two
+	// values, each of which then fails to parse as a whole channel.
+	cmd.Flags().StringArray("channel", nil,
+		"install channel with no single file to fetch, as `name=…[,url=…][,purl=…]` (repeatable)")
 	return cmd
 }
 
@@ -164,11 +174,22 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stderr, "warning: no artifact files matched; publishing the release with an empty collection")
 	}
 
+	// Resolved before the dry-run exit, so `--dry-run` reports the download
+	// links too and a malformed --channel is caught without a release having
+	// been half-published to find out.
+	distributions, err := teaReleaseDistributions(cmd, in)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("product   %s\n", in.Product)
 	fmt.Printf("version   %s\n", in.Version)
 	fmt.Printf("released  %s\n", in.Date)
 	for _, f := range in.Files {
 		fmt.Printf("artifact  %-40s %s\n", filepath.Base(f), tea.MediaTypeForFile(f))
+	}
+	for _, d := range distributions {
+		fmt.Printf("download  %-40s %s\n", d.Description, d.URL)
 	}
 	if dryRun {
 		fmt.Fprintln(os.Stderr, "\ndry run — nothing was published")
@@ -191,6 +212,33 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 	// 2. Release.
 	release, err := c.CreateProductRelease(ctx, product.UUID, in.Version, in.Date, in.PreRelease,
 		"cli-release-"+product.UUID+"-"+in.Version)
+	if err != nil {
+		return teaFail(err)
+	}
+
+	// 2b. The component and its release.
+	//
+	// A product is what somebody buys; a component is a thing that ships, and
+	// the two are separate objects because a release of one is not a release of
+	// the other. Publishing both is not optional bookkeeping:
+	//
+	//   - `productRelease.components` is REQUIRED by the consumption schema, so
+	//     a product release with no component release to point at serialises a
+	//     field a conformant consumer will reject.
+	//   - Only `release.distributions` exists. A product release cannot carry a
+	//     download link at all, so without this step there is nowhere to say
+	//     where the release is obtained.
+	//
+	// Same name, same version — derived identically on the server, so this is
+	// idempotent alongside everything else here.
+	component, err := c.CreateComponent(ctx, in.Product,
+		[]tea.Identifier{{IDType: "PURL", IDValue: teaReleasePURL(in.Product)}},
+		"cli-component-"+in.Product)
+	if err != nil {
+		return teaFail(err)
+	}
+	componentRelease, err := c.CreateComponentRelease(ctx, component.UUID, in.Version, in.Date, in.PreRelease,
+		"cli-component-release-"+component.UUID+"-"+in.Version)
 	if err != nil {
 		return teaFail(err)
 	}
@@ -230,7 +278,20 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 		published++
 	}
 
-	// 5. Visibility, if the caller asked for it in the same run.
+	// 5. Distributions — where the release is actually obtained.
+	//
+	// Published after the artifacts because a failure here should not lose the
+	// evidence that already uploaded: a release with SBOMs and no download links
+	// is incomplete, whereas one with links and no SBOMs is a release that
+	// silently claims to have published nothing about itself.
+	for _, d := range distributions {
+		if _, err := c.CreateDistribution(ctx, componentRelease.UUID, d,
+			teaDistributionKey(componentRelease.UUID, d)); err != nil {
+			return teaFail(fmt.Errorf("publish distribution %s: %w", distributionLabel(d), err))
+		}
+	}
+
+	// 6. Visibility, if the caller asked for it in the same run.
 	visibility, _ := cmd.Flags().GetString("visibility")
 	if visibility != "" {
 		orgs, _ := cmd.Flags().GetStringSlice("org")
@@ -251,23 +312,129 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 
 	if teaJSONFlag(cmd) {
 		return teaPrintJSON(map[string]any{
-			"product":    product.UUID,
-			"release":    release.UUID,
-			"collection": collection.Version,
-			"artifacts":  published,
-			"visibility": visibility,
+			"product":          product.UUID,
+			"release":          release.UUID,
+			"component":        component.UUID,
+			"componentRelease": componentRelease.UUID,
+			"collection":       collection.Version,
+			"artifacts":        published,
+			"distributions":    len(distributions),
+			"visibility":       visibility,
 		})
 	}
 
 	fmt.Printf("\npublished %d artifact(s) in collection v%d\n", published, collection.Version)
+	if len(distributions) > 0 {
+		fmt.Printf("published %d distribution(s)\n", len(distributions))
+	}
 	fmt.Printf("product   %s\n", product.UUID)
 	fmt.Printf("release   %s\n", release.UUID)
+	fmt.Printf("component %s\n", componentRelease.UUID)
 	if visibility == "" {
 		fmt.Fprintf(os.Stderr,
 			"\nNothing is readable by anyone else yet. To publish it:\n"+
 				"  vulnetix tea share %s --visibility public\n", product.UUID)
 	}
 	return nil
+}
+
+// teaReleaseDistributions builds the release's download links.
+//
+// Two sources, because a release is obtained two different ways:
+//
+//   - The files it publishes, read from the checksums manifest the release
+//     already ships. Taking the digests from that file rather than recomputing
+//     them means the checksum a consumer reads through TEA is the same string
+//     the project published, not a second one that could disagree with it.
+//   - The install channels that carry no single file — Homebrew, Scoop, Nix.
+//     A user runs `brew install`; there is nothing to fetch and nothing to
+//     checksum, so these are named rather than linked.
+func teaReleaseDistributions(cmd *cobra.Command, in teaReleaseInputs) ([]tea.Distribution, error) {
+	var out []tea.Distribution
+
+	if manifest, _ := cmd.Flags().GetString("checksums"); manifest != "" {
+		base, _ := cmd.Flags().GetString("base-url")
+		if base == "" {
+			// In a GitHub release job the answer is known, and making the
+			// caller repeat it is how the two drift apart.
+			base = teaGitHubDownloadBase(in.Product, in.Version)
+		}
+		if base == "" {
+			return nil, fmt.Errorf("--checksums needs --base-url outside GitHub Actions: " +
+				"a file name is not a download link")
+		}
+		exclude, _ := cmd.Flags().GetStringSlice("exclude")
+		parsed, err := distributionsFromChecksums(manifest, base, exclude)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, parsed...)
+	}
+
+	channels, _ := cmd.Flags().GetStringArray("channel")
+	for _, spec := range channels {
+		d, err := parseChannelSpec(spec)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, nil
+}
+
+// parseChannelSpec reads `name=Homebrew tap,url=…,purl=…`.
+//
+// `name` is required: a channel a user cannot recognise by name is a row in a
+// list nobody can act on. Unknown keys are refused rather than ignored, because
+// a typo that silently drops a URL publishes a channel with no way to reach it.
+func parseChannelSpec(spec string) (tea.Distribution, error) {
+	var d tea.Distribution
+	for _, part := range strings.Split(spec, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		key, value, ok := strings.Cut(part, "=")
+		if !ok {
+			return d, fmt.Errorf("--channel %q: expected key=value pairs separated by commas", spec)
+		}
+		value = strings.TrimSpace(value)
+		switch strings.ToLower(strings.TrimSpace(key)) {
+		case "name", "description":
+			d.Description = value
+		case "url":
+			d.URL = value
+		case "purl":
+			if value != "" {
+				d.Identifiers = append(d.Identifiers, tea.Identifier{IDType: "PURL", IDValue: value})
+			}
+		default:
+			return d, fmt.Errorf("--channel %q: unknown key %q (use name, url or purl)", spec, key)
+		}
+	}
+	if d.Description == "" {
+		return d, fmt.Errorf("--channel %q: name is required", spec)
+	}
+	return d, nil
+}
+
+// teaGitHubDownloadBase is where a GitHub release serves its assets.
+//
+// Only derivable inside a GitHub Actions run of the repository being released:
+// GITHUB_SERVER_URL names the host, which matters for GitHub Enterprise, and
+// guessing github.com there would publish links into the wrong instance.
+func teaGitHubDownloadBase(repository, version string) string {
+	if repository == "" || version == "" {
+		return ""
+	}
+	if _, _, ok := strings.Cut(repository, "/"); !ok {
+		return ""
+	}
+	server := strings.TrimRight(strings.TrimSpace(os.Getenv("GITHUB_SERVER_URL")), "/")
+	if server == "" {
+		return ""
+	}
+	return server + "/" + repository + "/releases/download/" + version
 }
 
 // teaReleasePURL names a GitHub repository as a Package URL.
