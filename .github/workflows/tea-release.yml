@@ -40,6 +40,21 @@ jobs:
             | sh -s -- --install-dir "$HOME/.local/bin" --version "${{ inputs.cli_version }}"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      # continue-on-error because `pattern` with no match is an error, and a
+      # repository whose scans produced nothing should still publish its
+      # release object rather than fail the job.
+      #
+      # v4, not v6. `pattern` and `merge-multiple` landed in v4.1 and v4 is the
+      # newest major that resolves here; @v6 failed the whole workflow at
+      # startup, with no jobs created and nothing surfaced through the API.
+      - name: Download the BOMs this run produced
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '{sca,cbom,aibom}'
+          merge-multiple: true
+          path: boms
+
       - name: Report what was found
         run: |
           set -euo pipefail
