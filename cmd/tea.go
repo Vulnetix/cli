@@ -138,7 +138,7 @@ func asTeaError(err error, out **tea.Error) bool {
 }
 
 func teaContext(cmd *cobra.Command) (context.Context, context.CancelFunc) {
-	// cmd.Context() is only non-nil once cobra's Execute() has run — it backfills
+	// cmd.Context() is only non-nil once cobra's Execute() has run; it backfills
 	// context.Background() itself. Called directly, as tests that build a command
 	// with newTeaReleaseCommand() and never execute it do, it is nil, and
 	// context.WithTimeout on a nil parent panics rather than erroring.
