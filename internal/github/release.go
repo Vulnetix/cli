@@ -82,9 +82,10 @@ func (r *Release) AssetMatching(substr string) *ReleaseAsset {
 
 // DownloadAsset writes an asset into destDir and returns its path.
 func DownloadAsset(ctx context.Context, token string, a ReleaseAsset, destDir string) (string, error) {
-	// The name comes from the API, so it is not ours. A name carrying a
-	// separator or relative path would otherwise write outside destDir.
-	if a.Name == "" {
+	// The name comes from the API, so it is not ours. A plain file name is the
+	// only thing we accept; anything else would escape destDir. All these checks
+	// must happen before any HTTP request is made.
+	if a.Name == "" || a.Name == "." || a.Name == ".." || a.Name != filepath.Base(a.Name) || strings.ContainsAny(a.Name, `/\`) {
 		return "", fmt.Errorf("refusing asset name %q: it is not a plain file name", a.Name)
 	}
 
@@ -99,7 +100,8 @@ func DownloadAsset(ctx context.Context, token string, a ReleaseAsset, destDir st
 		return "", err
 	}
 
-	// Reject if the relative path tries to escape (starts with .. or is ..)
+	// Belt-and-braces: verify the resolved path does not escape. This guards
+	// against filepath.Join doing something unexpected.
 	if relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("refusing asset name %q: it is not a plain file name", a.Name)
 	}
