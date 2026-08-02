@@ -30,5 +30,48 @@ jobs:
       VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
       GITHUB_TOKEN: ${{ github.token }}
     steps:
-      - name: Smoke
-        run: echo "org set=${VULNETIX_ORG_ID:+yes}"
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install Vulnetix CLI
+        run: |
+          curl -fsSL https://cli.vulnetix.com/install.sh \
+            | sh -s -- --install-dir "$HOME/.local/bin" --version "${{ inputs.cli_version }}"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Report what was found
+        run: |
+          set -euo pipefail
+          if ls boms/*.cdx.json >/dev/null 2>&1; then
+            ls -l boms/*.cdx.json
+          else
+            echo "::warning::no BOM artifacts were found; publishing the release without evidence"
+          fi
+
+      - name: Publish product, release, artifacts and distributions
+        continue-on-error: true
+        env:
+          TEA_VISIBILITY: ${{ inputs.visibility }}
+          TEA_CHANNELS: ${{ inputs.channels }}
+        run: |
+          set -euo pipefail
+
+          args=(tea release)
+          for f in boms/*.cdx.json; do
+            [ -e "$f" ] && args+=("$f")
+          done
+          args+=(--auto-version --checksums-from-release)
+
+          if [ -n "$TEA_VISIBILITY" ]; then
+            args+=(--visibility "$TEA_VISIBILITY")
+          fi
+
+          while IFS= read -r channel; do
+            [ -n "$channel" ] && args+=(--channel "$channel")
+          done <<< "$TEA_CHANNELS"
+
+          if ! vulnetix "${args[@]}"; then
+            echo "::warning::vulnetix tea release failed; this run published no transparency evidence"
+            exit 1
+          fi
