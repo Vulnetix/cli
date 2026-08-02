@@ -2,6 +2,10 @@ name: Vulnetix Security
 
 on:
   push:
+  # A release cut from a tag that already existed produces no push event, so
+  # the tag-push trigger above does not cover it.
+  release:
+    types: [published]
   workflow_dispatch:
 
 env:
@@ -107,3 +111,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: vulnetix gha upload --org-id "$VULNETIX_ORG_ID" --json --no-banner --no-progress --verbose
+
+  publish-tea:
+    name: TEA
+    needs: analyze
+    # Not on a tag. release.yml already publishes this repository's tagged
+    # releases, and it waits for the Homebrew tap and Scoop bucket to carry the
+    # version before advertising `brew install` for it. This job cannot
+    # reproduce that ordering, so it stays out of the way on tags.
+    if: github.ref_type != 'tag'
+    uses: Vulnetix/cli/.github/workflows/tea-release.yml@main
+    with:
+      visibility: public
+    secrets: inherit
