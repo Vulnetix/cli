@@ -7,14 +7,6 @@ on:
         description: 'public, shared, or empty to leave the objects private'
         type: string
         default: ''
-      channels:
-        description: 'newline-separated --channel specs, one per line'
-        type: string
-        default: ''
-      cli_version:
-        description: 'Vulnetix CLI version to install'
-        type: string
-        default: 'v3.84.1'
 
 concurrency:
   group: tea-${{ github.repository }}-${{ github.ref }}
@@ -24,10 +16,6 @@ jobs:
   publish:
     name: Publish to TEA
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      actions: read
     steps:
       - name: Smoke
-        run: echo "visibility=${{ inputs.visibility }} cli=${{ inputs.cli_version }}"
+        run: echo "visibility=${{ inputs.visibility }}"
