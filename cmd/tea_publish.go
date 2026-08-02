@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -31,8 +32,59 @@ command instead.`,
 		newTeaPublishCollectionCommand(),
 		newTeaPublishArtifactCommand(),
 		newTeaPublicationsCommand(),
+		newTeaUnpublishCommand(),
 	)
 	return cmd
+}
+
+// teaObjectSegments maps the kinds a publisher can withdraw to their API path.
+var teaObjectSegments = map[string]string{
+	"product":           "product",
+	"component":         "component",
+	"product-release":   "productRelease",
+	"component-release": "componentRelease",
+	"artifact":          "artifact",
+	"distribution":      "distribution",
+}
+
+func newTeaUnpublishCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <kind> <uuid>",
+		Short: "Withdraw a published object",
+		Long: `Delete a published object and everything beneath it.
+
+Kinds: product, component, product-release, component-release, artifact,
+distribution.
+
+Deleting a product does not reach the component published alongside it —
+they are separate lineages, which is what lets a component outlive the
+product that first shipped it — so withdrawing a release published by
+` + "`tea release`" + ` means deleting both.
+
+This stops the object being served. It does not reach anyone who already
+fetched it, and it does not unpublish the files a distribution pointed at.`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			segment, ok := teaObjectSegments[strings.ToLower(args[0])]
+			if !ok {
+				kinds := make([]string, 0, len(teaObjectSegments))
+				for k := range teaObjectSegments {
+					kinds = append(kinds, k)
+				}
+				sort.Strings(kinds)
+				return fmt.Errorf("unknown kind %q; expected one of %s", args[0], strings.Join(kinds, ", "))
+			}
+
+			ctx, cancel := teaContext(cmd)
+			defer cancel()
+
+			if err := teaClient(cmd).DeleteObject(ctx, segment, args[1]); err != nil {
+				return teaFail(err)
+			}
+			fmt.Fprintf(os.Stderr, "Deleted. Anyone who already fetched it still holds what they fetched.\n")
+			return nil
+		},
+	}
 }
 
 func newTeaPublishProductCommand() *cobra.Command {
