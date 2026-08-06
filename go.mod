@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/Vulnetix/vdb-cyclonedx v0.14.0
+	github.com/Vulnetix/vdb-cyclonedx v0.15.0
 	github.com/alecthomas/chroma/v2 v2.26.1
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
@@ -32,6 +32,7 @@ require (
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
+	github.com/gowebpki/jcs v1.0.1 // indirect
 )
 
 require (
