@@ -24,6 +24,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/binpkg"
 	"github.com/vulnetix/cli/v3/internal/cbom"
 	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v3/internal/cdxsign"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/ecosystems"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
@@ -70,12 +71,28 @@ graph.
 "vulnetix sbom" is an alias for this command: CycloneDX is the preferred output
 format, and a future SPDX generator will be its own command.
 
+--sign signs the SBOM with THIS machine's OIDC identity, not a Vulnetix one. In
+GitHub Actions (with "permissions: id-token: write") or anywhere exporting
+SIGSTORE_ID_TOKEN, public Fulcio issues a short-lived certificate for that
+identity and the signature is recorded in the public Rekor transparency log, so
+the document is attested by whoever ran the scan and verifies with stock cosign:
+
+  cosign verify-blob --signature sbom.cdx.json.sig \
+    --certificate sbom.cdx.json.pem \
+    --certificate-identity-regexp '^https://github.com/YOUR-ORG/' \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    sbom.cdx.json
+
+Outside such an environment there is no identity to sign as, so the SBOM is
+written unsigned with a warning. A scan is never failed for being unsigned.
+
 Examples:
   vulnetix cdx
   vulnetix cdx ./service -o cyclonedx-json
   vulnetix cdx --container-rootfs ./rootfs
   vulnetix cdx --container-archive ./image.tar
   vulnetix cdx --no-aibom --no-cbom --output-file build/sbom.cdx.json
+  vulnetix cdx --sign                            # in CI, signs as the runner
   vulnetix sbom                                  # alias for vulnetix cdx`,
 	Args:         cobra.MaximumNArgs(1),
 	RunE:         runCDX,
@@ -109,6 +126,7 @@ type cdxRunOptions struct {
 	CBOMCatalog       string
 	NoBuiltinAIBOM    bool
 	NoBuiltinCBOM     bool
+	Sign              bool
 }
 
 type cdxSummary struct {
@@ -129,7 +147,15 @@ type cdxSummary struct {
 	CryptoAssets      int            `json:"cryptoAssets"`
 	CryptoLibraries   int            `json:"cryptoLibraries"`
 	CryptoCerts       int            `json:"cryptoCertificates"`
-	Warnings          []string       `json:"warnings,omitempty"`
+	// SignedBy is what the signing certificate says the signer is: the workflow
+	// reference in CI, not a Vulnetix identity. Empty when the document was not
+	// signed, which is the normal case outside a pipeline.
+	SignedBy string `json:"signedBy,omitempty"`
+	// TransparencyLog is the Rekor entry, so a consumer can confirm the
+	// signature was witnessed rather than merely presented.
+	TransparencyLog string   `json:"transparencyLog,omitempty"`
+	SignatureFiles  []string `json:"signatureFiles,omitempty"`
+	Warnings        []string `json:"warnings,omitempty"`
 }
 
 // cdxInventory is everything the discovery passes produced, before it is handed
@@ -181,6 +207,7 @@ func init() {
 	cdxCmd.Flags().String("cbom-catalog", "", "Path to a CBOM catalog file to merge over (or replace) the builtin catalog")
 	cdxCmd.Flags().Bool("no-builtin-aibom-catalog", false, "Do not load the embedded AIBOM catalog (use only --aibom-catalog)")
 	cdxCmd.Flags().Bool("no-builtin-cbom-catalog", false, "Do not load the embedded CBOM catalog (use only --cbom-catalog)")
+	cdxCmd.Flags().Bool("sign", false, "Sign the SBOM with this machine's own OIDC identity (CI runners); writes .sig, .pem and .intoto.jsonl beside it")
 	_ = cdxCmd.MarkFlagDirname("path")
 	rootCmd.AddCommand(cdxCmd)
 }
@@ -244,11 +271,33 @@ func runCDX(cmd *cobra.Command, args []string) error {
 		warnings = append(warnings, "preserving existing findings: "+err.Error())
 	}
 
+	// Signing happens here, immediately before the write, because the JSF
+	// signature is embedded in the document and the detached ones cover the
+	// result. Anything that changes the bytes after this point invalidates all
+	// three.
+	var signature cdxsign.Result
+	if opts.Sign {
+		res, serr := cdxsign.SignDocument(cmd.Context(), opts.OutputFile, bomData)
+		if serr != nil {
+			// A scan that found packages is worth publishing unsigned. Report
+			// the failure and carry on rather than discarding the inventory.
+			warnings = append(warnings, "signing: "+serr.Error())
+		}
+		signature = res
+		bomData = res.Document
+		if !res.Signed() && res.Skipped != "" {
+			warnings = append(warnings, "not signed: "+res.Skipped)
+		}
+	}
+
 	if err := writeCDXFile(opts.OutputFile, bomData); err != nil {
 		return err
 	}
 	summary := cdxSummary{
 		OutputFile:        opts.OutputFile,
+		SignedBy:          signature.Identity,
+		TransparencyLog:   signature.TlogEntryID,
+		SignatureFiles:    signature.Files,
 		PackageCount:      len(inv.Packages),
 		SourceCounts:      countCDXSources(inv.Packages),
 		ManifestFileCount: inv.ManifestFiles,
@@ -341,6 +390,7 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 	cbomCatalog, _ := cmd.Flags().GetString("cbom-catalog")
 	noBuiltinAIBOM, _ := cmd.Flags().GetBool("no-builtin-aibom-catalog")
 	noBuiltinCBOM, _ := cmd.Flags().GetBool("no-builtin-cbom-catalog")
+	sign, _ := cmd.Flags().GetBool("sign")
 	return cdxRunOptions{
 		RootPath: abs, Depth: depth, Exclude: exclude, Ignore: ignore, Output: output, OutputFile: outputFile, SpecVersion: specVersion,
 		NoManifests: noManifests, NoFilesystem: noFilesystem, NoContainerfiles: noContainerfiles, NoCI: noCI, NoShell: noShell,
@@ -348,6 +398,7 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 		NoAIBOM: noAIBOM, NoCBOM: noCBOM, NoSignatures: noSignatures, IncludeHome: includeHome,
 		IncludeIgnored: includeIgnored, ContainerRootfs: rootfs, ContainerArchives: archives,
 		AIBOMCatalog: aibomCatalog, CBOMCatalog: cbomCatalog, NoBuiltinAIBOM: noBuiltinAIBOM, NoBuiltinCBOM: noBuiltinCBOM,
+		Sign: sign,
 	}, nil
 }
 
@@ -1574,6 +1625,18 @@ func renderCDXSummary(cmd *cobra.Command, s cdxSummary) {
 	}
 	fmt.Fprintf(&b, "  AIBOM: %d tool(s), %d SDK(s), %d model(s)\n", s.AITools, s.AILibraries, s.AIModels)
 	fmt.Fprintf(&b, "  CBOM: %d crypto asset(s), %d library component(s), %d certificate(s)\n", s.CryptoAssets, s.CryptoLibraries, s.CryptoCerts)
+	if s.SignedBy != "" {
+		// Naming the identity matters: the signature is made by whoever ran the
+		// scan, not by Vulnetix, and a reader who assumes otherwise would draw
+		// the wrong conclusion from it.
+		fmt.Fprintf(&b, "  Signed as %s\n", s.SignedBy)
+		if s.TransparencyLog != "" {
+			fmt.Fprintf(&b, "  Transparency log entry %s\n", s.TransparencyLog)
+		}
+		for _, f := range s.SignatureFiles {
+			fmt.Fprintf(&b, "    %s\n", f)
+		}
+	}
 	if len(s.Warnings) > 0 {
 		b.WriteString("\n")
 		b.WriteString(display.Header(t, "Warnings"))
