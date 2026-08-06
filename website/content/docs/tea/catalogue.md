@@ -13,7 +13,7 @@ The products this provider publishes, as its own API serves them.
 | Releases sampled | 24 |
 | Artifacts published across the sample | 112 |
 | API root | `https://www.vulnetix.com/tea/v0.4.0` |
-| Generated | 2026-08-06T13:36:00Z |
+| Generated | 2026-08-06T13:49:38Z |
 
 Built by paging `/products` and asking each product for its newest release. Nothing
 here is read from anywhere but the API, so the list is exactly what a consumer sees.

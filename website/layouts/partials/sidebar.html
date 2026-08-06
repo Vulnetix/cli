@@ -50,14 +50,41 @@
     </div>
   {{ end }}
 
+  {{/* SAST Rules lists categories, not rules. There are 889 rule pages, and one
+       menu entry each pushed every other section off the screen. The categories
+       come from a data file rather than from the content tree because they are
+       headings on the overview page, which is where the rules are indexed. */}}
   {{ with .Site.GetPage "/docs/sast-rules" }}
+    {{ $overview := .RelPermalink }}
     <div class="sidebar__section">
       <div class="sidebar__heading">SAST Rules</div>
+      <a class="sidebar__link{{ if eq $currentPage.RelPermalink $overview }} active{{ end }}" href="{{ $overview }}">Overview</a>
+      <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink (printf "%scustom-rules/" $overview) }} active{{ end }}" href="{{ "docs/sast-rules/custom-rules/" | relURL }}">Custom rules</a>
+      {{ range $.Site.Data.sast_categories }}
+        <a class="sidebar__sublink" href="{{ $overview }}#{{ .anchor }}">{{ .title }}</a>
+      {{ end }}
+      {{ with $.Site.GetPage "/docs/sast-rules/secrets" }}
+        <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">Secrets</a>
+        {{ range .Pages.ByTitle }}
+          {{/* The pages title themselves "Secrets — Cloud Providers" so they
+               read on their own; under a Secrets entry the prefix is noise. */}}
+          <a class="sidebar__subsublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">{{ strings.TrimPrefix "Secrets — " .Title }}</a>
+        {{ end }}
+      {{ end }}
+    </div>
+  {{ end }}
+
+  {{/* The conformance report is a section whose pages are one area each, so it
+       nests: the areas are the pages a reader actually wants and reaching them
+       through the summary every time is a click nobody needs. */}}
+  {{ with .Site.GetPage "/docs/tea" }}
+    <div class="sidebar__section">
+      <div class="sidebar__heading">OWASP TEA</div>
       <a class="sidebar__link{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">Overview</a>
-      <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink (printf "%scustom-rules/" .RelPermalink) }} active{{ end }}" href="{{ "docs/sast-rules/custom-rules/" | relURL }}">Custom rules</a>
-      {{ range .Pages.ByTitle }}
-        {{ if ne .File.BaseFileName "custom-rules" }}
-          <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a>
+      {{ range .Pages.ByWeight }}
+        <a class="sidebar__sublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a>
+        {{ range .Pages.ByWeight }}
+          <a class="sidebar__subsublink{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">{{ .Title }}</a>
         {{ end }}
       {{ end }}
     </div>

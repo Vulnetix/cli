@@ -1,0 +1,57 @@
+# Rule categories shown in the SAST Rules sidebar group.
+#
+# Every entry links to a heading on the SAST Rules overview page, which is where
+# the individual rule pages are indexed. The sidebar used to list all 889 rule
+# pages, one entry each, which made every other section unreachable without
+# scrolling past them.
+#
+# This mirrors the cards on content/docs/sast-rules/_index.md. The cards carry
+# the rule counts and the one-line summaries; this carries only what a menu
+# needs. Adding a category means adding it in both places, and the anchor here
+# has to match the heading Hugo generates on the overview.
+#
+# Secrets is deliberately absent: it is a real section with its own pages, so
+# the sidebar renders it from the content tree rather than from this list.
+
+- anchor: android
+  title: Android
+- anchor: bash
+  title: Bash / Shell
+- anchor: c
+  title: C / C++
+- anchor: csharp
+  title: C# / .NET
+- anchor: crypto
+  title: Cryptography
+- anchor: docker
+  title: Docker
+- anchor: go
+  title: Go
+- anchor: graphql
+  title: GraphQL
+- anchor: html
+  title: HTML / Templates
+- anchor: java
+  title: Java
+- anchor: jwt
+  title: JWT
+- anchor: kotlin
+  title: Kotlin
+- anchor: llm
+  title: LLM / AI
+- anchor: nodejs
+  title: Node.js
+- anchor: php
+  title: PHP
+- anchor: python
+  title: Python
+- anchor: ruby
+  title: Ruby
+- anchor: rust
+  title: Rust
+- anchor: swift
+  title: Swift / iOS
+- anchor: terraform
+  title: Terraform / IaC
+- anchor: cwe
+  title: CWE Auto-Rules
