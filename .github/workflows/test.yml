@@ -93,3 +93,66 @@ jobs:
         uses: ./
         with:
           org-id: '123e4567-e89b-12d3-a456-426614174000'
+
+  # Proves the customer-facing signing path end to end, against public Fulcio
+  # and public Rekor, using the identity this workflow already has.
+  #
+  # It is a real check rather than a unit test because the parts that break are
+  # the ones no unit test reaches: whether the runner can actually mint an OIDC
+  # token, whether Fulcio accepts it, and whether the signature cosign produces
+  # a verification for is over the bytes that were written. The last one is the
+  # subtle one, since the JSF signature is embedded in the document and changes
+  # it after the SBOM is built.
+  sign:
+    name: Sign an SBOM as this runner
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    needs: [lint]
+    permissions:
+      # Without this the runner has no identity, --sign correctly declines to
+      # sign, and the verification below would have nothing to check.
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Build and sign an SBOM of this repository
+        run: |
+          set -euo pipefail
+          go run . cdx --path . \
+            --no-binary-analysis --no-aibom --no-cbom \
+            --output-file signed.cdx.json \
+            --sign
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-w"
+
+      - name: Verify with stock cosign
+        run: |
+          set -euo pipefail
+
+          # If --sign fell back to unsigned, these are missing and the job fails
+          # here rather than passing on a document nobody signed.
+          test -s signed.cdx.json.sig
+          test -s signed.cdx.json.pem
+          test -s signed.cdx.json.intoto.jsonl
+
+          # No Vulnetix trust root anywhere in this command. A consumer runs
+          # exactly this.
+          cosign verify-blob \
+            --signature signed.cdx.json.sig \
+            --certificate signed.cdx.json.pem \
+            --certificate-identity-regexp '^https://github.com/${{ github.repository }}/' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            signed.cdx.json
+        shell: bash
