@@ -16,18 +16,18 @@ description: "Independent conformance and performance results for the Vulnetix T
 | Areas | discovery, consumer, purl, cyclonedx, spdx, insights, cel, provenance, performance, provider |
 | Mode | replay |
 | Request concurrency | 32 |
-| Generated | 2026-08-06T13:23:50Z |
+| Generated | 2026-08-06T13:36:00Z |
 
 ## Result
 
 | Metric | Value |
 |---|---:|
 | Cases | 280 |
-| Passed | 271 |
-| Failed | 8 |
+| Passed | 275 |
+| Failed | 4 |
 | Advisory (reported, not counted against conformance) | 1 |
-| Responses schema-validated | 148 |
-| Responses conforming to schema | 142 |
+| Responses schema-validated | 150 |
+| Responses conforming to schema | 146 |
 
 ### By area
 
@@ -36,13 +36,13 @@ description: "Independent conformance and performance results for the Vulnetix T
 | discovery | 2 | 2 | 0 | 0 |
 | consumer | 158 | 157 | 0 | 1 |
 | purl | 7 | 7 | 0 | 0 |
-| cyclonedx | 26 | 20 | 6 | 0 |
+| cyclonedx | 26 | 22 | 4 | 0 |
 | spdx | 12 | 12 | 0 | 0 |
 | insights | 21 | 21 | 0 | 0 |
 | cel | 16 | 16 | 0 | 0 |
 | provenance | 3 | 3 | 0 | 0 |
 | performance | 10 | 10 | 0 | 0 |
-| provider | 25 | 23 | 2 | 0 |
+| provider | 25 | 25 | 0 | 0 |
 
 ### Coverage
 
@@ -96,8 +96,8 @@ steps between that domain and an API it can call.
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| discovery document conforms to tea-well-known.schema.json | `wellKnownDiscoveryDocument` | 200 | yes | 236.52 ms | pass |
-| discovery document is not served over plaintext HTTP | `wellKnownDiscoveryDocument` | 200 | - | 46.16 ms | pass |
+| discovery document conforms to tea-well-known.schema.json | `wellKnownDiscoveryDocument` | 200 | yes | 194.35 ms | pass |
+| discovery document is not served over plaintext HTTP | `wellKnownDiscoveryDocument` | 200 | - | 58.94 ms | pass |
 
 ## Fixtures
 
@@ -126,11 +126,11 @@ even where Base TEA artifact retrieval succeeds.
 
 | Requirement or profile | Evidence from this run | Assessment |
 |---|---|---|
-| Base TEA: artifact retrieval (MUST) | Artifact metadata: 7 requests were exercised, 2 returned content successfully, and 7 passed their applicable checks. Artifact content: 25 requests were exercised, 25 returned content successfully, and 19 passed their applicable checks. The sampled catalogue exposed a download URL for 119 of 119 artifacts. Content URLs were learned through collections; retrieval by artifact identity without first reading a collection was not probed. | partially demonstrated |
+| Base TEA: artifact retrieval (MUST) | Artifact metadata: 7 requests were exercised, 2 returned content successfully, and 7 passed their applicable checks. Artifact content: 25 requests were exercised, 25 returned content successfully, and 21 passed their applicable checks. The sampled catalogue exposed a download URL for 112 of 112 artifacts. Content URLs were learned through collections; retrieval by artifact identity without first reading a collection was not probed. | partially demonstrated |
 | Detached-signature retrieval (MAY) | The sampled catalogue exposed 0 detached-signature URLs; no matching request was exercised. Fetched signatures are not cryptographically verified and do not establish timestamp, transparency or long-term validity. | not observed (optional) |
 | Trust Architecture: independent evidence-bundle retrieval (MUST) | No conformance case in this run retrieved an evidence bundle independently of a collection or tied a bundle to the returned artifact. Attestation artifacts and detached signatures are not treated as substitutes for an evidence bundle. | not demonstrated |
 | Artifact plus evidence-bundle multipart retrieval (SHOULD) | This run did not negotiate `multipart/mixed; profile="artifact+evidence"`, identify its two parts, or test artifact and bundle mismatch handling. | not assessed |
-| Validation behavior and transport-versus-trust semantics | 25 artifact-content responses were retrieved and 19 passed their applicable document and digest checks. 119 of 119 sampled artifact records carried a checksum. Certificate chains, timestamp evidence, transparency inclusion and local trust policy were not validated. | content integrity partially demonstrated |
+| Validation behavior and transport-versus-trust semantics | 25 artifact-content responses were retrieved and 21 passed their applicable document and digest checks. 112 of 112 sampled artifact records carried a checksum. Certificate chains, timestamp evidence, transparency inclusion and local trust policy were not validated. | content integrity partially demonstrated |
 | Collection inclusion versus independent authenticity | Collection UUID and `belongsTo` rules are checked by the consumption cases. Artifact/evidence reuse across collections, and authenticity validation without a collection, are not exercised. | partially assessed |
 | Error handling | 5 artifact metadata error-path cases were exercised; 5 conformed. The trust-profile errors for missing evidence, unsupported multipart profiles and artifact/evidence or artifact/signature mismatch were not exercised. | base errors partially demonstrated |
 | High-assurance profile | Bundle caching and reuse, offline validation, and operation without live timestamp or transparency services are outside this black-box run. | not assessed |
@@ -147,15 +147,15 @@ just as cleanly. This is what the published graph actually contains.
 | Releases sampled | 24 |
 | Collections read | 24 |
 | Collections with no artifacts | 0 |
-| Artifacts published | 119 |
-| Artifacts per collection (mean) | 5.0 |
-| Artifacts carrying a checksum | 119 |
-| Artifacts carrying a media type | 119 |
-| Artifacts carrying a download URL | 119 |
+| Artifacts published | 112 |
+| Artifacts per collection (mean) | 4.7 |
+| Artifacts carrying a checksum | 112 |
+| Artifacts carrying a media type | 112 |
+| Artifacts carrying a download URL | 112 |
 | Artifacts carrying a signature | 0 |
 | Artifacts with more than one revision | 0 |
 | Deepest artifact revision | 1 |
-| Deepest collection version | 16 |
+| Deepest collection version | 18 |
 | Releases flagged pre-release | 2 |
 | Releases flagged final | 98 |
 
@@ -163,33 +163,24 @@ just as cleanly. This is what the published graph actually contains.
 
 | `artifact-type` | Count |
 |---|---:|
-| BOM | 47 |
-| BUILD_META | 44 |
-| OTHER | 2 |
-| VULNERABILITIES | 26 |
+| BOM | 45 |
+| BUILD_META | 31 |
+| OTHER | 6 |
+| VULNERABILITIES | 30 |
 
 ### Published documents
 
 | Document | Count |
 |---|---:|
 | AI Bill of Materials | 7 |
-| Build manifest .github/workflows/api-deploy.yml | 1 |
-| Build manifest .github/workflows/auto-version.yml | 1 |
 | Build manifest .github/workflows/ci.yml | 2 |
-| Build manifest .github/workflows/docs.yml | 1 |
 | Build manifest .github/workflows/ecr-deploy.yml | 1 |
 | Build manifest .github/workflows/http-tests.yml | 1 |
-| Build manifest .github/workflows/lint.yml | 1 |
-| Build manifest .github/workflows/pages.yml | 1 |
-| Build manifest .github/workflows/release.yml | 1 |
 | Build manifest .github/workflows/sca.yml | 1 |
-| Build manifest .github/workflows/test.yml | 1 |
-| Build manifest .github/workflows/vulnetix.yml | 15 |
-| Build manifest Dockerfile | 1 |
-| Build manifest api/go.mod | 1 |
-| Build manifest api/go.sum | 1 |
-| Build manifest go.mod | 4 |
-| Build manifest go.sum | 4 |
+| Build manifest .github/workflows/vulnetix.yml | 13 |
+| Build manifest api/Containerfile | 1 |
+| Build manifest go.mod | 3 |
+| Build manifest go.sum | 3 |
 | Build manifest pyproject.toml | 1 |
 | Build manifest tests/package-lock.json | 1 |
 | Build manifest tests/package.json | 1 |
@@ -197,14 +188,18 @@ just as cleanly. This is what the published graph actually contains.
 | Build manifest web/package.json | 1 |
 | Build manifest web/yarn.lock | 1 |
 | Cryptography Bill of Materials | 9 |
-| Repository Analysis Report | 2 |
-| Vulnetix SAST Findings Report | 1 |
-| Vulnetix SAST Vulnerability Exploitability eXchange | 1 |
-| Vulnetix SCA Monitor Software Bill of Materials | 9 |
+| Repository Analysis Report | 6 |
+| Vulnetix IaC Findings Report | 1 |
+| Vulnetix IaC Vulnerability Exploitability eXchange | 1 |
+| Vulnetix License Findings Report | 2 |
+| Vulnetix License Vulnerability Exploitability eXchange | 2 |
+| Vulnetix SAST Findings Report | 2 |
+| Vulnetix SAST Vulnerability Exploitability eXchange | 2 |
+| Vulnetix SCA Monitor Software Bill of Materials | 7 |
 | Vulnetix SCA Software Bill of Materials | 10 |
-| Vulnetix SCA Vulnerability Exploitability eXchange | 7 |
-| Vulnetix Secrets Findings Report | 8 |
-| Vulnetix Secrets Vulnerability Exploitability eXchange | 8 |
+| Vulnetix SCA Vulnerability Exploitability eXchange | 5 |
+| Vulnetix Secrets Findings Report | 7 |
+| Vulnetix Secrets Vulnerability Exploitability eXchange | 7 |
 | ai-bom.cdx.json | 4 |
 | cbom.cdx.json | 4 |
 | sbom.cdx.json | 3 |
@@ -218,170 +213,170 @@ How many immutable revisions each published artifact has. Depth beyond 1 is TEA'
 
 | Revisions | Artifacts |
 |---:|---:|
-| 1 | 119 |
+| 1 | 112 |
 
 ### consumer cases
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| default page | `queryTeaProducts` | 200 | yes | 26.44 ms | pass |
-| explicit page size | `queryTeaProducts` | 200 | yes | 37.20 ms | pass |
-| maximum page size | `queryTeaProducts` | 200 | yes | 37.15 ms | pass |
-| follow nextPageToken | `queryTeaProducts` | 200 | yes | 37.04 ms | pass |
-| reject pageSize below minimum | `queryTeaProducts` | 400 | - | 45.99 ms | pass |
-| reject pageSize above maximum | `queryTeaProducts` | 400 | - | 46.24 ms | pass |
-| reject non-numeric pageSize | `queryTeaProducts` | 400 | - | 192.93 ms | pass |
-| reject foreign pageToken | `queryTeaProducts` | 400 | - | 37.17 ms | pass |
-| reject unknown sortField | `queryTeaProducts` | 400 | - | 37.14 ms | pass |
-| reject unknown sortOrder | `queryTeaProducts` | 400 | - | 81.39 ms | pass |
-| descending order | `queryTeaProducts` | 200 | yes | 37.08 ms | pass |
-| filter by PURL identifier | `queryTeaProducts` | 200 | yes | 46.41 ms | pass |
-| reject unknown idType | `queryTeaProducts` | 400 | - | 37.03 ms | pass |
-| existing object | `getTeaProductByUuid` | 200 | yes | 37.55 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getTeaProductByUuid` | 404 | yes | 82.52 ms | pass |
-| malformed uuid is rejected | `getTeaProductByUuid` | 400 | - | 26.12 ms | pass |
-| default page | `getReleasesByProductId` | 200 | yes | 46.06 ms | pass |
-| explicit page size | `getReleasesByProductId` | 200 | yes | 55.76 ms | pass |
-| maximum page size | `getReleasesByProductId` | 200 | yes | 46.30 ms | pass |
-| follow nextPageToken | `getReleasesByProductId` | 200 | yes | 81.33 ms | pass |
-| reject pageSize below minimum | `getReleasesByProductId` | 400 | - | 45.88 ms | pass |
-| reject pageSize above maximum | `getReleasesByProductId` | 400 | - | 55.19 ms | pass |
-| reject non-numeric pageSize | `getReleasesByProductId` | 400 | - | 37.21 ms | pass |
-| reject foreign pageToken | `getReleasesByProductId` | 400 | - | 26.00 ms | pass |
-| reject unknown sortField | `getReleasesByProductId` | 400 | - | 25.99 ms | pass |
-| reject unknown sortOrder | `getReleasesByProductId` | 400 | - | 36.93 ms | pass |
-| descending order | `getReleasesByProductId` | 200 | yes | 55.76 ms | pass |
-| absent parent reports OBJECT_UNKNOWN | `getReleasesByProductId` | 404 | yes | 81.23 ms | pass |
-| malformed parent uuid is rejected | `getReleasesByProductId` | 400 | - | 55.20 ms | pass |
-| sort by createdDate asc | `getReleasesByProductId` | 200 | yes | 81.38 ms | pass |
-| sort by createdDate desc | `getReleasesByProductId` | 200 | yes | 68.58 ms | pass |
-| sort by releaseDate asc | `getReleasesByProductId` | 200 | yes | 81.63 ms | pass |
-| sort by releaseDate desc | `getReleasesByProductId` | 200 | yes | 114.27 ms | pass |
-| sort by version asc | `getReleasesByProductId` | 200 | yes | 126.22 ms | pass |
-| sort by version desc | `getReleasesByProductId` | 200 | yes | 138.35 ms | pass |
-| existing object | `getCleByProductId` | 200 | yes | 187.85 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getCleByProductId` | 404 | yes | 156.60 ms | pass |
-| malformed uuid is rejected | `getCleByProductId` | 400 | - | 102.44 ms | pass |
-| default page | `queryTeaProductReleases` | 200 | yes | 114.73 ms | pass |
-| explicit page size | `queryTeaProductReleases` | 200 | yes | 155.77 ms | pass |
-| maximum page size | `queryTeaProductReleases` | 200 | yes | 156.13 ms | pass |
-| follow nextPageToken | `queryTeaProductReleases` | 200 | yes | 103.74 ms | pass |
-| reject pageSize below minimum | `queryTeaProductReleases` | 400 | - | 102.43 ms | pass |
-| reject pageSize above maximum | `queryTeaProductReleases` | 400 | - | 260.56 ms | pass |
-| reject non-numeric pageSize | `queryTeaProductReleases` | 400 | - | 115.91 ms | pass |
-| reject foreign pageToken | `queryTeaProductReleases` | 400 | - | 102.50 ms | pass |
-| reject unknown sortField | `queryTeaProductReleases` | 400 | - | 94.55 ms | pass |
-| reject unknown sortOrder | `queryTeaProductReleases` | 400 | - | 107.50 ms | pass |
-| descending order | `queryTeaProductReleases` | 200 | yes | 146.91 ms | pass |
-| filter by TEI identifier | `queryTeaProductReleases` | 200 | yes | 306.94 ms | pass |
-| existing object | `getTeaProductReleaseByUuid` | 200 | yes | 146.63 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getTeaProductReleaseByUuid` | 404 | yes | 318.42 ms | pass |
-| malformed uuid is rejected | `getTeaProductReleaseByUuid` | 400 | - | 286.84 ms | pass |
-| existing object | `getCleByProductReleaseId` | 200 | yes | 284.94 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getCleByProductReleaseId` | 404 | yes | 231.15 ms | pass |
-| malformed uuid is rejected | `getCleByProductReleaseId` | 400 | - | 254.93 ms | pass |
-| existing object | `getLatestCollectionForProductRelease` | 200 | yes | 240.65 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getLatestCollectionForProductRelease` | 404 | yes | 111.37 ms | pass |
-| malformed uuid is rejected | `getLatestCollectionForProductRelease` | 400 | - | 229.21 ms | pass |
-| default page | `getCollectionsByProductReleaseId` | 200 | yes | 205.38 ms | pass |
-| explicit page size | `getCollectionsByProductReleaseId` | 200 | yes | 236.51 ms | pass |
-| maximum page size | `getCollectionsByProductReleaseId` | 200 | yes | 229.12 ms | pass |
-| follow nextPageToken | `getCollectionsByProductReleaseId` | 200 | yes | 315.51 ms | pass |
-| reject pageSize below minimum | `getCollectionsByProductReleaseId` | 400 | - | 53.82 ms | pass |
-| reject pageSize above maximum | `getCollectionsByProductReleaseId` | 400 | - | 214.36 ms | pass |
-| reject non-numeric pageSize | `getCollectionsByProductReleaseId` | 400 | - | 214.37 ms | pass |
-| reject foreign pageToken | `getCollectionsByProductReleaseId` | 400 | - | 213.31 ms | pass |
-| reject unknown sortField | `getCollectionsByProductReleaseId` | 400 | - | 224.11 ms | pass |
-| reject unknown sortOrder | `getCollectionsByProductReleaseId` | 400 | - | 211.82 ms | pass |
-| descending order | `getCollectionsByProductReleaseId` | 200 | yes | 245.43 ms | pass |
-| absent parent reports OBJECT_UNKNOWN | `getCollectionsByProductReleaseId` | 404 | yes | 212.26 ms | pass |
-| malformed parent uuid is rejected | `getCollectionsByProductReleaseId` | 400 | - | 39.34 ms | pass |
-| first version | `getCollectionForProductRelease` | 200 | yes | 133.13 ms | pass |
-| version beyond history is unknown | `getCollectionForProductRelease` | 404 | yes | 28.43 ms | pass |
-| reject non-integer collectionVersion | `getCollectionForProductRelease` | 400 | - | 171.56 ms | pass |
-| reject zero collectionVersion | `getCollectionForProductRelease` | 400 | - | 159.75 ms | pass |
-| default page | `queryTeaComponents` | 200 | yes | 160.44 ms | pass |
-| explicit page size | `queryTeaComponents` | 200 | yes | 54.59 ms | pass |
-| maximum page size | `queryTeaComponents` | 200 | yes | 159.39 ms | pass |
-| follow nextPageToken | `queryTeaComponents` | 200 | yes | 171.15 ms | pass |
-| reject pageSize below minimum | `queryTeaComponents` | 400 | - | 93.07 ms | pass |
-| reject pageSize above maximum | `queryTeaComponents` | 400 | - | 21.65 ms | pass |
-| reject non-numeric pageSize | `queryTeaComponents` | 400 | - | 116.22 ms | pass |
-| reject foreign pageToken | `queryTeaComponents` | 400 | - | 146.80 ms | pass |
-| reject unknown sortField | `queryTeaComponents` | 400 | - | 149.99 ms | pass |
-| reject unknown sortOrder | `queryTeaComponents` | 400 | - | 102.61 ms | pass |
-| descending order | `queryTeaComponents` | 200 | yes | 116.41 ms | pass |
-| reject unknown idType | `queryTeaComponents` | 400 | - | 23.60 ms | pass |
-| existing object | `getTeaComponentById` | 200 | yes | 23.58 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getTeaComponentById` | 404 | yes | 31.03 ms | pass |
-| malformed uuid is rejected | `getTeaComponentById` | 400 | - | 26.20 ms | pass |
-| default page | `getReleasesByComponentId` | 200 | yes | 56.08 ms | pass |
-| explicit page size | `getReleasesByComponentId` | 200 | yes | 19.80 ms | pass |
-| maximum page size | `getReleasesByComponentId` | 200 | yes | 19.18 ms | pass |
-| follow nextPageToken | `getReleasesByComponentId` | 200 | yes | 20.55 ms | pass |
-| reject pageSize below minimum | `getReleasesByComponentId` | 400 | - | 20.74 ms | pass |
-| reject pageSize above maximum | `getReleasesByComponentId` | 400 | - | 53.66 ms | pass |
-| reject non-numeric pageSize | `getReleasesByComponentId` | 400 | - | 53.45 ms | pass |
-| reject foreign pageToken | `getReleasesByComponentId` | 400 | - | 20.12 ms | pass |
-| reject unknown sortField | `getReleasesByComponentId` | 400 | - | 46.33 ms | pass |
-| reject unknown sortOrder | `getReleasesByComponentId` | 400 | - | 35.49 ms | pass |
-| descending order | `getReleasesByComponentId` | 200 | yes | 35.94 ms | pass |
-| absent parent reports OBJECT_UNKNOWN | `getReleasesByComponentId` | 404 | yes | 46.26 ms | pass |
-| malformed parent uuid is rejected | `getReleasesByComponentId` | 400 | - | 33.71 ms | pass |
-| existing object | `getCleByComponentId` | 200 | yes | 33.52 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getCleByComponentId` | 404 | yes | 33.06 ms | pass |
-| malformed uuid is rejected | `getCleByComponentId` | 400 | - | 32.91 ms | pass |
-| default page | `queryTeaComponentReleases` | 200 | yes | 62.96 ms | pass |
-| explicit page size | `queryTeaComponentReleases` | 200 | yes | 56.80 ms | pass |
-| maximum page size | `queryTeaComponentReleases` | 200 | yes | 55.46 ms | pass |
-| follow nextPageToken | `queryTeaComponentReleases` | 200 | yes | 54.86 ms | pass |
-| reject pageSize below minimum | `queryTeaComponentReleases` | 400 | - | 44.27 ms | pass |
-| reject pageSize above maximum | `queryTeaComponentReleases` | 400 | - | 44.23 ms | pass |
-| reject non-numeric pageSize | `queryTeaComponentReleases` | 400 | - | 44.20 ms | pass |
-| reject foreign pageToken | `queryTeaComponentReleases` | 400 | - | 43.91 ms | pass |
-| reject unknown sortField | `queryTeaComponentReleases` | 400 | - | 43.46 ms | pass |
-| reject unknown sortOrder | `queryTeaComponentReleases` | 400 | - | 43.34 ms | pass |
-| descending order | `queryTeaComponentReleases` | 200 | yes | 73.58 ms | pass |
-| existing object | `getComponentReleaseById` | 200 | yes | 73.07 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getComponentReleaseById` | 404 | yes | 73.15 ms | pass |
-| malformed uuid is rejected | `getComponentReleaseById` | 400 | - | 42.66 ms | pass |
-| existing object | `getCleByComponentReleaseId` | 200 | yes | 72.44 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getCleByComponentReleaseId` | 404 | yes | 62.64 ms | pass |
-| malformed uuid is rejected | `getCleByComponentReleaseId` | 400 | - | 62.34 ms | pass |
-| existing object | `getLatestCollection` | 200 | yes | 62.44 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getLatestCollection` | 404 | yes | 63.84 ms | pass |
-| malformed uuid is rejected | `getLatestCollection` | 400 | - | 62.44 ms | pass |
-| default page | `getCollectionsByReleaseId` | 200 | yes | 64.23 ms | pass |
-| explicit page size | `getCollectionsByReleaseId` | 200 | yes | 62.28 ms | pass |
-| maximum page size | `getCollectionsByReleaseId` | 200 | yes | 64.17 ms | pass |
-| follow nextPageToken | `getCollectionsByReleaseId` | 200 | yes | 62.32 ms | pass |
-| reject pageSize below minimum | `getCollectionsByReleaseId` | 400 | - | 62.47 ms | pass |
-| reject pageSize above maximum | `getCollectionsByReleaseId` | 400 | - | 62.32 ms | pass |
-| reject non-numeric pageSize | `getCollectionsByReleaseId` | 400 | - | 62.44 ms | pass |
-| reject foreign pageToken | `getCollectionsByReleaseId` | 400 | - | 62.25 ms | pass |
-| reject unknown sortField | `getCollectionsByReleaseId` | 400 | - | 63.26 ms | pass |
-| reject unknown sortOrder | `getCollectionsByReleaseId` | 400 | - | 62.17 ms | pass |
-| descending order | `getCollectionsByReleaseId` | 200 | yes | 35.77 ms | pass |
-| absent parent reports OBJECT_UNKNOWN | `getCollectionsByReleaseId` | 404 | yes | 31.12 ms | pass |
-| malformed parent uuid is rejected | `getCollectionsByReleaseId` | 400 | - | 30.83 ms | pass |
-| first version | `getCollection` | 200 | yes | 31.51 ms | pass |
-| version beyond history is unknown | `getCollection` | 404 | yes | 29.68 ms | pass |
-| reject non-integer collectionVersion | `getCollection` | 400 | - | 29.89 ms | pass |
-| reject zero collectionVersion | `getCollection` | 400 | - | 29.93 ms | pass |
-| existing object | `getLatestArtifact` | 200 | yes | 89.86 ms | pass |
-| absent object reports OBJECT_UNKNOWN | `getLatestArtifact` | 404 | yes | 97.54 ms | pass |
-| malformed uuid is rejected | `getLatestArtifact` | 400 | - | 30.30 ms | pass |
-| first revision | `getArtifactByVersion` | 200 | yes | 88.98 ms | pass |
-| revision beyond history is unknown | `getArtifactByVersion` | 404 | yes | 90.94 ms | pass |
-| reject non-integer version | `getArtifactByVersion` | 400 | - | 27.40 ms | pass |
-| reject malformed uuid | `getArtifactByVersion` | 400 | - | 18.96 ms | pass |
-| resolve uuid TEI | `discoveryByTei` | 200 | yes | 20.27 ms | pass |
-| reject TEI from another authority | `discoveryByTei` | 404 | yes | 20.45 ms | pass |
-| unknown identifier in this authority | `discoveryByTei` | 404 | yes | 39.71 ms | pass |
-| reject missing tei parameter | `discoveryByTei` | 400 | - | 20.90 ms | pass |
-| reject malformed urn | `discoveryByTei` | 400 | - | 18.83 ms | pass |
-| anonymous listing is refused | `queryTeaProducts` | 200 | - | 87.15 ms | advisory |
-| anonymous object read is refused | `getTeaProductByUuid` | 404 | - | 67.10 ms | pass |
+| default page | `queryTeaProducts` | 200 | yes | 24.78 ms | pass |
+| explicit page size | `queryTeaProducts` | 200 | yes | 34.74 ms | pass |
+| maximum page size | `queryTeaProducts` | 200 | yes | 50.07 ms | pass |
+| follow nextPageToken | `queryTeaProducts` | 200 | yes | 45.97 ms | pass |
+| reject pageSize below minimum | `queryTeaProducts` | 400 | - | 34.75 ms | pass |
+| reject pageSize above maximum | `queryTeaProducts` | 400 | - | 42.13 ms | pass |
+| reject non-numeric pageSize | `queryTeaProducts` | 400 | - | 37.54 ms | pass |
+| reject foreign pageToken | `queryTeaProducts` | 400 | - | 46.01 ms | pass |
+| reject unknown sortField | `queryTeaProducts` | 400 | - | 34.81 ms | pass |
+| reject unknown sortOrder | `queryTeaProducts` | 400 | - | 46.63 ms | pass |
+| descending order | `queryTeaProducts` | 200 | yes | 46.47 ms | pass |
+| filter by PURL identifier | `queryTeaProducts` | 200 | yes | 45.99 ms | pass |
+| reject unknown idType | `queryTeaProducts` | 400 | - | 46.41 ms | pass |
+| existing object | `getTeaProductByUuid` | 200 | yes | 46.91 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getTeaProductByUuid` | 404 | yes | 89.91 ms | pass |
+| malformed uuid is rejected | `getTeaProductByUuid` | 400 | - | 34.74 ms | pass |
+| default page | `getReleasesByProductId` | 200 | yes | 40.61 ms | pass |
+| explicit page size | `getReleasesByProductId` | 200 | yes | 42.23 ms | pass |
+| maximum page size | `getReleasesByProductId` | 200 | yes | 42.16 ms | pass |
+| follow nextPageToken | `getReleasesByProductId` | 200 | yes | 34.81 ms | pass |
+| reject pageSize below minimum | `getReleasesByProductId` | 400 | - | 46.51 ms | pass |
+| reject pageSize above maximum | `getReleasesByProductId` | 400 | - | 46.55 ms | pass |
+| reject non-numeric pageSize | `getReleasesByProductId` | 400 | - | 46.61 ms | pass |
+| reject foreign pageToken | `getReleasesByProductId` | 400 | - | 37.56 ms | pass |
+| reject unknown sortField | `getReleasesByProductId` | 400 | - | 46.58 ms | pass |
+| reject unknown sortOrder | `getReleasesByProductId` | 400 | - | 46.49 ms | pass |
+| descending order | `getReleasesByProductId` | 200 | yes | 46.68 ms | pass |
+| absent parent reports OBJECT_UNKNOWN | `getReleasesByProductId` | 404 | yes | 90.12 ms | pass |
+| malformed parent uuid is rejected | `getReleasesByProductId` | 400 | - | 34.72 ms | pass |
+| sort by createdDate asc | `getReleasesByProductId` | 200 | yes | 37.62 ms | pass |
+| sort by createdDate desc | `getReleasesByProductId` | 200 | yes | 46.14 ms | pass |
+| sort by releaseDate asc | `getReleasesByProductId` | 200 | yes | 38.38 ms | pass |
+| sort by releaseDate desc | `getReleasesByProductId` | 200 | yes | 20.88 ms | pass |
+| sort by version asc | `getReleasesByProductId` | 200 | yes | 35.60 ms | pass |
+| sort by version desc | `getReleasesByProductId` | 200 | yes | 21.56 ms | pass |
+| existing object | `getCleByProductId` | 200 | yes | 224.06 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getCleByProductId` | 404 | yes | 213.77 ms | pass |
+| malformed uuid is rejected | `getCleByProductId` | 400 | - | 20.67 ms | pass |
+| default page | `queryTeaProductReleases` | 200 | yes | 36.13 ms | pass |
+| explicit page size | `queryTeaProductReleases` | 200 | yes | 23.83 ms | pass |
+| maximum page size | `queryTeaProductReleases` | 200 | yes | 52.79 ms | pass |
+| follow nextPageToken | `queryTeaProductReleases` | 200 | yes | 23.48 ms | pass |
+| reject pageSize below minimum | `queryTeaProductReleases` | 400 | - | 32.72 ms | pass |
+| reject pageSize above maximum | `queryTeaProductReleases` | 400 | - | 32.18 ms | pass |
+| reject non-numeric pageSize | `queryTeaProductReleases` | 400 | - | 31.15 ms | pass |
+| reject foreign pageToken | `queryTeaProductReleases` | 400 | - | 30.94 ms | pass |
+| reject unknown sortField | `queryTeaProductReleases` | 400 | - | 47.19 ms | pass |
+| reject unknown sortOrder | `queryTeaProductReleases` | 400 | - | 43.25 ms | pass |
+| descending order | `queryTeaProductReleases` | 200 | yes | 43.56 ms | pass |
+| filter by TEI identifier | `queryTeaProductReleases` | 200 | yes | 43.12 ms | pass |
+| existing object | `getTeaProductReleaseByUuid` | 200 | yes | 43.02 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getTeaProductReleaseByUuid` | 404 | yes | 42.77 ms | pass |
+| malformed uuid is rejected | `getTeaProductReleaseByUuid` | 400 | - | 42.54 ms | pass |
+| existing object | `getCleByProductReleaseId` | 200 | yes | 236.09 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getCleByProductReleaseId` | 404 | yes | 42.68 ms | pass |
+| malformed uuid is rejected | `getCleByProductReleaseId` | 400 | - | 42.60 ms | pass |
+| existing object | `getLatestCollectionForProductRelease` | 200 | yes | 342.19 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getLatestCollectionForProductRelease` | 404 | yes | 54.73 ms | pass |
+| malformed uuid is rejected | `getLatestCollectionForProductRelease` | 400 | - | 42.31 ms | pass |
+| default page | `getCollectionsByProductReleaseId` | 200 | yes | 259.73 ms | pass |
+| explicit page size | `getCollectionsByProductReleaseId` | 200 | yes | 41.50 ms | pass |
+| maximum page size | `getCollectionsByProductReleaseId` | 200 | yes | 242.67 ms | pass |
+| follow nextPageToken | `getCollectionsByProductReleaseId` | 200 | yes | 33.41 ms | pass |
+| reject pageSize below minimum | `getCollectionsByProductReleaseId` | 400 | - | 33.11 ms | pass |
+| reject pageSize above maximum | `getCollectionsByProductReleaseId` | 400 | - | 32.54 ms | pass |
+| reject non-numeric pageSize | `getCollectionsByProductReleaseId` | 400 | - | 28.64 ms | pass |
+| reject foreign pageToken | `getCollectionsByProductReleaseId` | 400 | - | 28.64 ms | pass |
+| reject unknown sortField | `getCollectionsByProductReleaseId` | 400 | - | 19.72 ms | pass |
+| reject unknown sortOrder | `getCollectionsByProductReleaseId` | 400 | - | 30.13 ms | pass |
+| descending order | `getCollectionsByProductReleaseId` | 200 | yes | 38.12 ms | pass |
+| absent parent reports OBJECT_UNKNOWN | `getCollectionsByProductReleaseId` | 404 | yes | 123.03 ms | pass |
+| malformed parent uuid is rejected | `getCollectionsByProductReleaseId` | 400 | - | 28.63 ms | pass |
+| first version | `getCollectionForProductRelease` | 200 | yes | 315.99 ms | pass |
+| version beyond history is unknown | `getCollectionForProductRelease` | 404 | yes | 21.41 ms | pass |
+| reject non-integer collectionVersion | `getCollectionForProductRelease` | 400 | - | 27.30 ms | pass |
+| reject zero collectionVersion | `getCollectionForProductRelease` | 400 | - | 21.97 ms | pass |
+| default page | `queryTeaComponents` | 200 | yes | 40.90 ms | pass |
+| explicit page size | `queryTeaComponents` | 200 | yes | 27.26 ms | pass |
+| maximum page size | `queryTeaComponents` | 200 | yes | 27.51 ms | pass |
+| follow nextPageToken | `queryTeaComponents` | 200 | yes | 27.68 ms | pass |
+| reject pageSize below minimum | `queryTeaComponents` | 400 | - | 247.75 ms | pass |
+| reject pageSize above maximum | `queryTeaComponents` | 400 | - | 217.75 ms | pass |
+| reject non-numeric pageSize | `queryTeaComponents` | 400 | - | 27.35 ms | pass |
+| reject foreign pageToken | `queryTeaComponents` | 400 | - | 27.60 ms | pass |
+| reject unknown sortField | `queryTeaComponents` | 400 | - | 27.55 ms | pass |
+| reject unknown sortOrder | `queryTeaComponents` | 400 | - | 27.61 ms | pass |
+| descending order | `queryTeaComponents` | 200 | yes | 247.72 ms | pass |
+| reject unknown idType | `queryTeaComponents` | 400 | - | 42.15 ms | pass |
+| existing object | `getTeaComponentById` | 200 | yes | 41.94 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getTeaComponentById` | 404 | yes | 217.12 ms | pass |
+| malformed uuid is rejected | `getTeaComponentById` | 400 | - | 41.30 ms | pass |
+| default page | `getReleasesByComponentId` | 200 | yes | 41.11 ms | pass |
+| explicit page size | `getReleasesByComponentId` | 200 | yes | 39.73 ms | pass |
+| maximum page size | `getReleasesByComponentId` | 200 | yes | 109.75 ms | pass |
+| follow nextPageToken | `getReleasesByComponentId` | 200 | yes | 94.19 ms | pass |
+| reject pageSize below minimum | `getReleasesByComponentId` | 400 | - | 30.35 ms | pass |
+| reject pageSize above maximum | `getReleasesByComponentId` | 400 | - | 21.10 ms | pass |
+| reject non-numeric pageSize | `getReleasesByComponentId` | 400 | - | 84.19 ms | pass |
+| reject foreign pageToken | `getReleasesByComponentId` | 400 | - | 222.03 ms | pass |
+| reject unknown sortField | `getReleasesByComponentId` | 400 | - | 18.72 ms | pass |
+| reject unknown sortOrder | `getReleasesByComponentId` | 400 | - | 220.40 ms | pass |
+| descending order | `getReleasesByComponentId` | 200 | yes | 220.28 ms | pass |
+| absent parent reports OBJECT_UNKNOWN | `getReleasesByComponentId` | 404 | yes | 272.51 ms | pass |
+| malformed parent uuid is rejected | `getReleasesByComponentId` | 400 | - | 19.21 ms | pass |
+| existing object | `getCleByComponentId` | 200 | yes | 282.05 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getCleByComponentId` | 404 | yes | 282.63 ms | pass |
+| malformed uuid is rejected | `getCleByComponentId` | 400 | - | 22.44 ms | pass |
+| default page | `queryTeaComponentReleases` | 200 | yes | 22.42 ms | pass |
+| explicit page size | `queryTeaComponentReleases` | 200 | yes | 205.28 ms | pass |
+| maximum page size | `queryTeaComponentReleases` | 200 | yes | 63.83 ms | pass |
+| follow nextPageToken | `queryTeaComponentReleases` | 200 | yes | 20.53 ms | pass |
+| reject pageSize below minimum | `queryTeaComponentReleases` | 400 | - | 35.95 ms | pass |
+| reject pageSize above maximum | `queryTeaComponentReleases` | 400 | - | 22.36 ms | pass |
+| reject non-numeric pageSize | `queryTeaComponentReleases` | 400 | - | 204.88 ms | pass |
+| reject foreign pageToken | `queryTeaComponentReleases` | 400 | - | 204.60 ms | pass |
+| reject unknown sortField | `queryTeaComponentReleases` | 400 | - | 32.46 ms | pass |
+| reject unknown sortOrder | `queryTeaComponentReleases` | 400 | - | 200.59 ms | pass |
+| descending order | `queryTeaComponentReleases` | 200 | yes | 198.02 ms | pass |
+| existing object | `getComponentReleaseById` | 200 | yes | 336.08 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getComponentReleaseById` | 404 | yes | 243.43 ms | pass |
+| malformed uuid is rejected | `getComponentReleaseById` | 400 | - | 41.00 ms | pass |
+| existing object | `getCleByComponentReleaseId` | 200 | yes | 113.95 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getCleByComponentReleaseId` | 404 | yes | 42.45 ms | pass |
+| malformed uuid is rejected | `getCleByComponentReleaseId` | 400 | - | 141.51 ms | pass |
+| existing object | `getLatestCollection` | 200 | yes | 20.87 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getLatestCollection` | 404 | yes | 203.51 ms | pass |
+| malformed uuid is rejected | `getLatestCollection` | 400 | - | 20.94 ms | pass |
+| default page | `getCollectionsByReleaseId` | 200 | yes | 398.04 ms | pass |
+| explicit page size | `getCollectionsByReleaseId` | 200 | yes | 384.54 ms | pass |
+| maximum page size | `getCollectionsByReleaseId` | 200 | yes | 36.70 ms | pass |
+| follow nextPageToken | `getCollectionsByReleaseId` | 200 | yes | 31.53 ms | pass |
+| reject pageSize below minimum | `getCollectionsByReleaseId` | 400 | - | 74.34 ms | pass |
+| reject pageSize above maximum | `getCollectionsByReleaseId` | 400 | - | 20.04 ms | pass |
+| reject non-numeric pageSize | `getCollectionsByReleaseId` | 400 | - | 140.67 ms | pass |
+| reject foreign pageToken | `getCollectionsByReleaseId` | 400 | - | 137.39 ms | pass |
+| reject unknown sortField | `getCollectionsByReleaseId` | 400 | - | 32.42 ms | pass |
+| reject unknown sortOrder | `getCollectionsByReleaseId` | 400 | - | 129.99 ms | pass |
+| descending order | `getCollectionsByReleaseId` | 200 | yes | 411.34 ms | pass |
+| absent parent reports OBJECT_UNKNOWN | `getCollectionsByReleaseId` | 404 | yes | 54.55 ms | pass |
+| malformed parent uuid is rejected | `getCollectionsByReleaseId` | 400 | - | 105.66 ms | pass |
+| first version | `getCollection` | 200 | yes | 45.40 ms | pass |
+| version beyond history is unknown | `getCollection` | 404 | yes | 41.12 ms | pass |
+| reject non-integer collectionVersion | `getCollection` | 400 | - | 30.02 ms | pass |
+| reject zero collectionVersion | `getCollection` | 400 | - | 30.01 ms | pass |
+| existing object | `getLatestArtifact` | 200 | yes | 667.32 ms | pass |
+| absent object reports OBJECT_UNKNOWN | `getLatestArtifact` | 404 | yes | 150.36 ms | pass |
+| malformed uuid is rejected | `getLatestArtifact` | 400 | - | 60.43 ms | pass |
+| first revision | `getArtifactByVersion` | 200 | yes | 356.33 ms | pass |
+| revision beyond history is unknown | `getArtifactByVersion` | 404 | yes | 447.81 ms | pass |
+| reject non-integer version | `getArtifactByVersion` | 400 | - | 20.98 ms | pass |
+| reject malformed uuid | `getArtifactByVersion` | 400 | - | 22.34 ms | pass |
+| resolve uuid TEI | `discoveryByTei` | 200 | yes | 61.55 ms | pass |
+| reject TEI from another authority | `discoveryByTei` | 404 | yes | 21.57 ms | pass |
+| unknown identifier in this authority | `discoveryByTei` | 404 | yes | 339.24 ms | pass |
+| reject missing tei parameter | `discoveryByTei` | 400 | - | 22.97 ms | pass |
+| reject malformed urn | `discoveryByTei` | 400 | - | 55.47 ms | pass |
+| anonymous listing is refused | `queryTeaProducts` | 200 | - | 53.38 ms | advisory |
+| anonymous object read is refused | `getTeaProductByUuid` | 404 | - | 71.19 ms | pass |
 
 #### Detail
 
@@ -413,11 +408,11 @@ catalogue covers, which is the number that makes two providers comparable.
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
 | every published PURL identifier is well formed | `queryTeaProducts` | - | - | - | pass |
-| a published purl finds its own product | `queryTeaProducts` | 200 | yes | 18.98 ms | pass |
-| a purl for a package this provider does not hold matches nothing | `queryTeaProducts` | 200 | yes | 24.38 ms | pass |
-| reject a purl that is not a purl | `queryTeaProducts` | 200 | - | 21.44 ms | pass |
-| resolve a purl-typed TEI | `discoveryByTei` | 200 | yes | 24.07 ms | pass |
-| a purl-typed TEI from another authority is not resolved | `discoveryByTei` | 404 | yes | 18.31 ms | pass |
+| a published purl finds its own product | `queryTeaProducts` | 200 | yes | 19.62 ms | pass |
+| a purl for a package this provider does not hold matches nothing | `queryTeaProducts` | 200 | yes | 19.89 ms | pass |
+| reject a purl that is not a purl | `queryTeaProducts` | 200 | - | 19.32 ms | pass |
+| resolve a purl-typed TEI | `discoveryByTei` | 200 | yes | 20.91 ms | pass |
+| a purl-typed TEI from another authority is not resolved | `discoveryByTei` | 404 | yes | 20.70 ms | pass |
 | open-source sample: 0 of 5 packages resolved | `queryTeaProducts` | - | - | - | pass |
 
 ## CycloneDX documents
@@ -427,9 +422,9 @@ version each one declares.
 
 | Measure | Value |
 |---|---:|
-| BOM artifacts found | 54 |
+| BOM artifacts found | 50 |
 | Downloaded and validated | 25 |
-| Not downloaded (per-run limit) | 29 |
+| Not downloaded (per-run limit) | 25 |
 
 | CycloneDX version | Documents |
 |---|---:|
@@ -440,60 +435,60 @@ version each one declares.
 |---|---|---|---:|---|
 | Cryptography Bill of Materials | Vulnetix/osm-submitter | 1.7 | 10 | yes |
 | Vulnetix SCA Monitor Software Bill of Materials | Vulnetix/vdb-sca-match | 1.6 | 24 | **no** |
-| Vulnetix SCA Vulnerability Exploitability eXchange | Vulnetix/cli | 1.7 | 5 | **no** |
 | AI Bill of Materials | Vulnetix/headshot | 1.7 | 1 | yes |
 | Vulnetix SCA Vulnerability Exploitability eXchange | Vulnetix/vdb-sca-match | 1.7 | 2 | **no** |
 | Cryptography Bill of Materials | Vulnetix/sca-manifest-fixtures | 1.7 | 3 | yes |
 | AI Bill of Materials | Vulnetix/vdb-api | 1.7 | 5 | yes |
 | Vulnetix SCA Software Bill of Materials | Vulnetix/opa-cds-aws-tf | 1.6 | 3 | yes |
 | Vulnetix SCA Software Bill of Materials | Vulnetix/opa-cigna-tf | 1.6 | 3 | yes |
-| AI Bill of Materials | Vulnetix/cli | 1.7 | 2 | yes |
 | Vulnetix SCA Software Bill of Materials | Vulnetix/community-rules | 1.6 | 3 | yes |
-| vulnetix-containers Software Bill of Materials | Vulnetix/cli | 1.6 | 3 | yes |
 | sbom.cdx.json | Vulnetix/vdb-cyclonedx | 1.7 | 43 | yes |
-| Vulnetix SCA Monitor Software Bill of Materials | Vulnetix/vdb-site | 1.6 | 25 | **no** |
 | Vulnetix SCA Vulnerability Exploitability eXchange | Vulnetix/vdb-api | 1.7 | 6 | **no** |
+| AI Bill of Materials | Vulnetix/cli | 1.7 | 2 | yes |
 | Cryptography Bill of Materials | Vulnetix/headshot | 1.7 | 3 | yes |
 | Vulnetix SCA Vulnerability Exploitability eXchange | Vulnetix/python-ssvc | 1.7 | 2 | yes |
 | Vulnetix SCA Monitor Software Bill of Materials | Vulnetix/python-ssvc | 1.6 | 25 | yes |
 | Cryptography Bill of Materials | Vulnetix/s3-queue-gui | 1.7 | 1 | yes |
+| vulnetix-containers Software Bill of Materials | Vulnetix/vdb-site | 1.6 | 4 | yes |
 | Cryptography Bill of Materials | Vulnetix/vdb-api | 1.7 | 8 | yes |
 | AI Bill of Materials | Vulnetix/sca-manifest-fixtures | 1.7 | 1 | yes |
 | cbom.cdx.json | Vulnetix/ai-firewall | 1.7 | 3 | yes |
-| Cryptography Bill of Materials | Vulnetix/cli | 1.7 | 40 | yes |
 | Vulnetix SCA Monitor Software Bill of Materials | Vulnetix/vdb-api | 1.6 | 25 | **no** |
 | sbom.cdx.json | Vulnetix/github-runner-aws | 1.7 | 29 | yes |
+| Vulnetix SCA Monitor Software Bill of Materials | Vulnetix/osm-submitter | 1.6 | 25 | yes |
+| ai-bom.cdx.json | Vulnetix/pix-ai-coding-assistant | 1.7 | 2 | yes |
+| cbom.cdx.json | Vulnetix/vdb-cyclonedx | 1.7 | 20 | yes |
 
 ### cyclonedx cases
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| 29 further BOM document(s) were not downloaded (limit 25) | `-` | - | - | - | pass |
-| download and validate Cryptography Bill of Materials of Vulnetix/osm-submitter | `artifactDownload` | 200 | yes | 210.64 ms | pass |
-| download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/vdb-sca-match | `artifactDownload` | 200 | **no** | 773.72 ms | **FAIL** |
-| download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/cli | `artifactDownload` | 200 | **no** | 441.27 ms | **FAIL** |
-| download and validate AI Bill of Materials of Vulnetix/headshot | `artifactDownload` | 200 | yes | 196.06 ms | pass |
-| download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/vdb-sca-match | `artifactDownload` | 200 | **no** | 375.85 ms | **FAIL** |
-| download and validate Cryptography Bill of Materials of Vulnetix/sca-manifest-fixtures | `artifactDownload` | 200 | yes | 281.73 ms | pass |
-| download and validate AI Bill of Materials of Vulnetix/vdb-api | `artifactDownload` | 200 | yes | 132.80 ms | pass |
-| download and validate Vulnetix SCA Software Bill of Materials of Vulnetix/opa-cds-aws-tf | `artifactDownload` | 200 | yes | 362.00 ms | pass |
-| download and validate Vulnetix SCA Software Bill of Materials of Vulnetix/opa-cigna-tf | `artifactDownload` | 200 | yes | 339.76 ms | pass |
-| download and validate AI Bill of Materials of Vulnetix/cli | `artifactDownload` | 200 | yes | 210.63 ms | pass |
-| download and validate Vulnetix SCA Software Bill of Materials of Vulnetix/community-rules | `artifactDownload` | 200 | yes | 443.62 ms | pass |
-| download and validate vulnetix-containers Software Bill of Materials of Vulnetix/cli | `artifactDownload` | 200 | yes | 282.88 ms | pass |
-| download and validate sbom.cdx.json of Vulnetix/vdb-cyclonedx | `artifactDownload` | 200 | yes | 522.24 ms | pass |
-| download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/vdb-site | `artifactDownload` | 200 | **no** | 391.10 ms | **FAIL** |
-| download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/vdb-api | `artifactDownload` | 200 | **no** | 453.29 ms | **FAIL** |
-| download and validate Cryptography Bill of Materials of Vulnetix/headshot | `artifactDownload` | 200 | yes | 234.61 ms | pass |
-| download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/python-ssvc | `artifactDownload` | 200 | yes | 353.35 ms | pass |
-| download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/python-ssvc | `artifactDownload` | 200 | yes | 693.99 ms | pass |
-| download and validate Cryptography Bill of Materials of Vulnetix/s3-queue-gui | `artifactDownload` | 200 | yes | 288.83 ms | pass |
-| download and validate Cryptography Bill of Materials of Vulnetix/vdb-api | `artifactDownload` | 200 | yes | 274.14 ms | pass |
-| download and validate AI Bill of Materials of Vulnetix/sca-manifest-fixtures | `artifactDownload` | 200 | yes | 210.68 ms | pass |
-| download and validate cbom.cdx.json of Vulnetix/ai-firewall | `artifactDownload` | 200 | yes | 853.41 ms | pass |
-| download and validate Cryptography Bill of Materials of Vulnetix/cli | `artifactDownload` | 200 | yes | 189.59 ms | pass |
-| download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/vdb-api | `artifactDownload` | 200 | **no** | 888.35 ms | **FAIL** |
-| download and validate sbom.cdx.json of Vulnetix/github-runner-aws | `artifactDownload` | 200 | yes | 717.32 ms | pass |
+| 25 further BOM document(s) were not downloaded (limit 25) | `-` | - | - | - | pass |
+| download and validate Cryptography Bill of Materials of Vulnetix/osm-submitter | `artifactDownload` | 200 | yes | 128.88 ms | pass |
+| download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/vdb-sca-match | `artifactDownload` | 200 | **no** | 602.30 ms | **FAIL** |
+| download and validate AI Bill of Materials of Vulnetix/headshot | `artifactDownload` | 200 | yes | 130.92 ms | pass |
+| download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/vdb-sca-match | `artifactDownload` | 200 | **no** | 514.83 ms | **FAIL** |
+| download and validate Cryptography Bill of Materials of Vulnetix/sca-manifest-fixtures | `artifactDownload` | 200 | yes | 170.97 ms | pass |
+| download and validate AI Bill of Materials of Vulnetix/vdb-api | `artifactDownload` | 200 | yes | 181.89 ms | pass |
+| download and validate Vulnetix SCA Software Bill of Materials of Vulnetix/opa-cds-aws-tf | `artifactDownload` | 200 | yes | 245.01 ms | pass |
+| download and validate Vulnetix SCA Software Bill of Materials of Vulnetix/opa-cigna-tf | `artifactDownload` | 200 | yes | 341.11 ms | pass |
+| download and validate Vulnetix SCA Software Bill of Materials of Vulnetix/community-rules | `artifactDownload` | 200 | yes | 522.79 ms | pass |
+| download and validate sbom.cdx.json of Vulnetix/vdb-cyclonedx | `artifactDownload` | 200 | yes | 497.26 ms | pass |
+| download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/vdb-api | `artifactDownload` | 200 | **no** | 470.24 ms | **FAIL** |
+| download and validate AI Bill of Materials of Vulnetix/cli | `artifactDownload` | 200 | yes | 128.77 ms | pass |
+| download and validate Cryptography Bill of Materials of Vulnetix/headshot | `artifactDownload` | 200 | yes | 128.89 ms | pass |
+| download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/python-ssvc | `artifactDownload` | 200 | yes | 513.58 ms | pass |
+| download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/python-ssvc | `artifactDownload` | 200 | yes | 886.82 ms | pass |
+| download and validate Cryptography Bill of Materials of Vulnetix/s3-queue-gui | `artifactDownload` | 200 | yes | 171.41 ms | pass |
+| download and validate vulnetix-containers Software Bill of Materials of Vulnetix/vdb-site | `artifactDownload` | 200 | yes | 678.11 ms | pass |
+| download and validate Cryptography Bill of Materials of Vulnetix/vdb-api | `artifactDownload` | 200 | yes | 830.86 ms | pass |
+| download and validate AI Bill of Materials of Vulnetix/sca-manifest-fixtures | `artifactDownload` | 200 | yes | 128.95 ms | pass |
+| download and validate cbom.cdx.json of Vulnetix/ai-firewall | `artifactDownload` | 200 | yes | 516.40 ms | pass |
+| download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/vdb-api | `artifactDownload` | 200 | **no** | 346.21 ms | **FAIL** |
+| download and validate sbom.cdx.json of Vulnetix/github-runner-aws | `artifactDownload` | 200 | yes | 604.20 ms | pass |
+| download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/osm-submitter | `artifactDownload` | 200 | yes | 596.81 ms | pass |
+| download and validate ai-bom.cdx.json of Vulnetix/pix-ai-coding-assistant | `artifactDownload` | 200 | yes | 757.86 ms | pass |
+| download and validate cbom.cdx.json of Vulnetix/vdb-cyclonedx | `artifactDownload` | 200 | yes | 985.53 ms | pass |
 
 #### Detail
 
@@ -503,46 +498,28 @@ version each one declares.
 - CycloneDX 1.6: /vulnerabilities/1/analysis/response: at '/vulnerabilities/1/analysis/response': got string, want array
 - evidence: `responses/cyclonedx/0002-get-download-and-validate-vulnetix-sca-monitor-software-bill-of-materials-of.meta.json`
 
-**download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/cli**: `GET https://www.vulnetix.com/tea/v1/artifact/16808039-7210-4668-bdce-9fa0457164a2/1/download`
-
-- CycloneDX 1.7: /vulnerabilities/0/analysis/response: at '/vulnerabilities/0/analysis/response': got string, want array
-- CycloneDX 1.7: /vulnerabilities/1/analysis/response: at '/vulnerabilities/1/analysis/response': got string, want array
-- CycloneDX 1.7: /vulnerabilities/2/analysis/response: at '/vulnerabilities/2/analysis/response': got string, want array
-- CycloneDX 1.7: /vulnerabilities/3/analysis/response: at '/vulnerabilities/3/analysis/response': got string, want array
-- CycloneDX 1.7: /vulnerabilities/4/analysis/response: at '/vulnerabilities/4/analysis/response': got string, want array
-- evidence: `responses/cyclonedx/0003-get-download-and-validate-vulnetix-sca-vulnerability-exploitability-exchange.meta.json`
-
 **download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/vdb-sca-match**: `GET https://www.vulnetix.com/tea/v1/artifact/1bc0bfc1-cb2f-4f12-9301-0a657c3e7161/1/download`
 
 - CycloneDX 1.7: /components: at '/components': items at 0 and 1 are equal
 - CycloneDX 1.7: /vulnerabilities/0/analysis/response: at '/vulnerabilities/0/analysis/response': got string, want array
 - CycloneDX 1.7: /vulnerabilities/1/analysis/response: at '/vulnerabilities/1/analysis/response': got string, want array
-- evidence: `responses/cyclonedx/0005-get-download-and-validate-vulnetix-sca-vulnerability-exploitability-exchange.meta.json`
-
-**download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/vdb-site**: `GET https://www.vulnetix.com/tea/v1/artifact/59a571a4-c896-4ec2-a725-5a7eb9652c2f/1/download`
-
-- CycloneDX 1.6: /vulnerabilities/0/analysis/response: at '/vulnerabilities/0/analysis/response': got string, want array
-- CycloneDX 1.6: /vulnerabilities/1/analysis/response: at '/vulnerabilities/1/analysis/response': got string, want array
-- CycloneDX 1.6: /vulnerabilities/2/analysis/response: at '/vulnerabilities/2/analysis/response': got string, want array
-- CycloneDX 1.6: /vulnerabilities/3/analysis/response: at '/vulnerabilities/3/analysis/response': got string, want array
-- CycloneDX 1.6: /vulnerabilities/4/analysis/response: at '/vulnerabilities/4/analysis/response': got string, want array
-- evidence: `responses/cyclonedx/0014-get-download-and-validate-vulnetix-sca-monitor-software-bill-of-materials-of.meta.json`
+- evidence: `responses/cyclonedx/0004-get-download-and-validate-vulnetix-sca-vulnerability-exploitability-exchange.meta.json`
 
 **download and validate Vulnetix SCA Vulnerability Exploitability eXchange of Vulnetix/vdb-api**: `GET https://www.vulnetix.com/tea/v1/artifact/64329f9e-8918-4a63-aecd-e26f716d20d9/1/download`
 
+- CycloneDX 1.7: /components: at '/components': items at 3 and 4 are equal
 - CycloneDX 1.7: /vulnerabilities/0/analysis/response: at '/vulnerabilities/0/analysis/response': got string, want array
 - CycloneDX 1.7: /vulnerabilities/1/analysis/response: at '/vulnerabilities/1/analysis/response': got string, want array
 - CycloneDX 1.7: /vulnerabilities/2/analysis/response: at '/vulnerabilities/2/analysis/response': got string, want array
 - CycloneDX 1.7: /vulnerabilities/4/analysis/state: at '/vulnerabilities/4/analysis/state': value must be one of 'resolved', 'resolved_with_pedigree', 'exploitable', 'in_triage', 'false_positive', 'not_affected'
-- CycloneDX 1.7: /components: at '/components': items at 3 and 4 are equal
-- evidence: `responses/cyclonedx/0015-get-download-and-validate-vulnetix-sca-vulnerability-exploitability-exchange.meta.json`
+- evidence: `responses/cyclonedx/0011-get-download-and-validate-vulnetix-sca-vulnerability-exploitability-exchange.meta.json`
 
 **download and validate Vulnetix SCA Monitor Software Bill of Materials of Vulnetix/vdb-api**: `GET https://www.vulnetix.com/tea/v1/artifact/8ed20417-3277-43d5-b7f6-d53e11d117a9/1/download`
 
 - CycloneDX 1.6: /vulnerabilities/1/analysis/response: at '/vulnerabilities/1/analysis/response': got string, want array
 - CycloneDX 1.6: /vulnerabilities/2/analysis/response: at '/vulnerabilities/2/analysis/response': got string, want array
 - CycloneDX 1.6: /vulnerabilities/4/analysis/state: at '/vulnerabilities/4/analysis/state': value must be one of 'resolved', 'resolved_with_pedigree', 'exploitable', 'in_triage', 'false_positive', 'not_affected'
-- evidence: `responses/cyclonedx/0024-get-download-and-validate-vulnetix-sca-monitor-software-bill-of-materials-of.meta.json`
+- evidence: `responses/cyclonedx/0021-get-download-and-validate-vulnetix-sca-monitor-software-bill-of-materials-of.meta.json`
 
 ## Licence identifiers
 
@@ -567,16 +544,16 @@ identifier that is nearly right classifies as unknown without anybody noticing.
 |---|---|---:|---|---:|---|
 | no licence identifiers were published in anything this run could read | `licenceIdentifiers` | - | - | - | pass |
 | 14 further lifecycle document(s) were not read (limit 10) | `-` | - | - | - | pass |
-| lifecycle events of 17fd3520-c306-561c-8801-ee1ec9717998 | `getCleByProductReleaseId` | 200 | yes | 20.71 ms | pass |
-| lifecycle events of 20ea2cd0-9c63-53e9-82a2-a7efe2fbf4d4 | `getCleByProductReleaseId` | 200 | yes | 46.77 ms | pass |
-| lifecycle events of 2264012d-8d14-5672-9498-aa2b709acfde | `getCleByProductReleaseId` | 200 | yes | 69.25 ms | pass |
-| lifecycle events of 42cf9b15-4cb8-587c-8ad4-ab1f84cf57da | `getCleByProductReleaseId` | 200 | yes | 69.05 ms | pass |
-| lifecycle events of 4897b2d2-f138-5767-a04a-77dd149c501a | `getCleByProductReleaseId` | 200 | yes | 20.67 ms | pass |
-| lifecycle events of 5b6b3565-7894-5bb6-b196-1ac5aa68adf4 | `getCleByProductReleaseId` | 200 | yes | 80.44 ms | pass |
-| lifecycle events of 5c6ffeca-3743-521b-bf2d-2a53ffc70fa7 | `getCleByProductReleaseId` | 200 | yes | 20.34 ms | pass |
-| lifecycle events of 6939328a-7d9c-5ad9-8d9a-a5f5cad6a3a8 | `getCleByProductReleaseId` | 200 | yes | 69.29 ms | pass |
-| lifecycle events of 69bfd12d-f07d-50ef-9d8d-e1a12c4ce36c | `getCleByProductReleaseId` | 200 | yes | 87.89 ms | pass |
-| lifecycle events of 6ba408f0-610b-5d47-b34b-890420ebf2df | `getCleByProductReleaseId` | 200 | yes | 59.79 ms | pass |
+| lifecycle events of 17fd3520-c306-561c-8801-ee1ec9717998 | `getCleByProductReleaseId` | 200 | yes | 74.74 ms | pass |
+| lifecycle events of 20ea2cd0-9c63-53e9-82a2-a7efe2fbf4d4 | `getCleByProductReleaseId` | 200 | yes | 88.35 ms | pass |
+| lifecycle events of 2264012d-8d14-5672-9498-aa2b709acfde | `getCleByProductReleaseId` | 200 | yes | 68.04 ms | pass |
+| lifecycle events of 4897b2d2-f138-5767-a04a-77dd149c501a | `getCleByProductReleaseId` | 200 | yes | 149.91 ms | pass |
+| lifecycle events of 5b6b3565-7894-5bb6-b196-1ac5aa68adf4 | `getCleByProductReleaseId` | 200 | yes | 48.64 ms | pass |
+| lifecycle events of 5c6ffeca-3743-521b-bf2d-2a53ffc70fa7 | `getCleByProductReleaseId` | 200 | yes | 48.66 ms | pass |
+| lifecycle events of 69bfd12d-f07d-50ef-9d8d-e1a12c4ce36c | `getCleByProductReleaseId` | 200 | yes | 95.46 ms | pass |
+| lifecycle events of 6ba408f0-610b-5d47-b34b-890420ebf2df | `getCleByProductReleaseId` | 200 | yes | 77.98 ms | pass |
+| lifecycle events of 7a8953dd-93f9-5d4d-a151-89fcc7f0c626 | `getCleByProductReleaseId` | 200 | yes | 149.25 ms | pass |
+| lifecycle events of 7cfa64a2-59b7-55e2-9431-f1d10ecf4b33 | `getCleByProductReleaseId` | 200 | yes | 52.11 ms | pass |
 
 ## Insights API
 
@@ -596,27 +573,27 @@ actually lives.
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| the Insights API is reachable and answers a static query | `postStaticInsights` | 200 | - | 5882.06 ms | pass |
-| select every component | `postStaticInsights` | 200 | - | 1097.43 ms | pass |
-| third-party components of a product | `postStaticInsights` | 200 | - | 223.79 ms | pass |
-| open-source components of a product | `postStaticInsights` | 200 | - | 1327.73 ms | pass |
-| components with any vulnerability | `postStaticInsights` | 200 | - | 1331.37 ms | pass |
-| cryptographic assets | `postStaticInsights` | 200 | - | 142.55 ms | pass |
-| AI components | `postStaticInsights` | 200 | - | 46.62 ms | pass |
-| components with an OpenSSF Scorecard | `postStaticInsights` | 200 | - | 23.33 ms | pass |
-| components with build provenance | `postStaticInsights` | 200 | - | 1327.92 ms | pass |
-| reject an invalid CEL expression | `postStaticInsights` | 400 | - | 21.29 ms | pass |
-| reject a non-boolean expression | `postStaticInsights` | 400 | - | 1241.20 ms | pass |
-| reject a missing expression | `postStaticInsights` | 400 | - | 21.34 ms | pass |
-| reject a malformed body | `postStaticInsights` | 400 | - | 22.52 ms | pass |
-| unauthenticated request is rejected | `postStaticInsights` | 401 | - | 20.84 ms | pass |
-| defaults to the specification's CycloneDX 1.6 | `postStaticInsights` | 200 | - | 1134.83 ms | pass |
-| negotiates CycloneDX 1.7 on request | `postStaticInsights` | 200 | - | 1882.72 ms | pass |
-| natural-language query | `postDynamicInsights` | 503 | - | 127.39 ms | pass |
-| reject a missing prompt | `postDynamicInsights` | 400 | - | 321.62 ms | pass |
-| find a component by name | `postStaticInsights` | 200 | - | 127.02 ms | pass |
-| find a component by vulnerability identifier | `postStaticInsights` | 200 | - | 142.55 ms | pass |
-| find a component by vulnerability identifier using in | `postStaticInsights` | 200 | - | 1333.45 ms | pass |
+| the Insights API is reachable and answers a static query | `postStaticInsights` | 200 | - | 4335.59 ms | pass |
+| select every component | `postStaticInsights` | 200 | - | 724.35 ms | pass |
+| third-party components of a product | `postStaticInsights` | 200 | - | 108.68 ms | pass |
+| open-source components of a product | `postStaticInsights` | 200 | - | 1030.36 ms | pass |
+| components with any vulnerability | `postStaticInsights` | 200 | - | 41.39 ms | pass |
+| cryptographic assets | `postStaticInsights` | 200 | - | 936.59 ms | pass |
+| AI components | `postStaticInsights` | 200 | - | 142.15 ms | pass |
+| components with an OpenSSF Scorecard | `postStaticInsights` | 200 | - | 911.91 ms | pass |
+| components with build provenance | `postStaticInsights` | 200 | - | 142.01 ms | pass |
+| reject an invalid CEL expression | `postStaticInsights` | 400 | - | 118.17 ms | pass |
+| reject a non-boolean expression | `postStaticInsights` | 400 | - | 810.48 ms | pass |
+| reject a missing expression | `postStaticInsights` | 400 | - | 41.27 ms | pass |
+| reject a malformed body | `postStaticInsights` | 400 | - | 41.31 ms | pass |
+| unauthenticated request is rejected | `postStaticInsights` | 401 | - | 41.25 ms | pass |
+| defaults to the specification's CycloneDX 1.6 | `postStaticInsights` | 200 | - | 1719.17 ms | pass |
+| negotiates CycloneDX 1.7 on request | `postStaticInsights` | 200 | - | 2695.82 ms | pass |
+| natural-language query | `postDynamicInsights` | 503 | - | 131.62 ms | pass |
+| reject a missing prompt | `postDynamicInsights` | 400 | - | 108.46 ms | pass |
+| find a component by name | `postStaticInsights` | 200 | - | 114.35 ms | pass |
+| find a component by vulnerability identifier | `postStaticInsights` | 200 | - | 831.59 ms | pass |
+| find a component by vulnerability identifier using in | `postStaticInsights` | 200 | - | 41.34 ms | pass |
 
 ## Query language
 
@@ -636,22 +613,22 @@ that quietly do not mean what its author thought.
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| the always-true selector | `postStaticInsights` | 200 | - | 1430.22 ms | pass |
-| equality on a scalar field | `postStaticInsights` | 200 | - | 84.04 ms | pass |
-| conjunction of two predicates | `postStaticInsights` | 200 | - | 84.16 ms | pass |
-| a macro over a list field | `postStaticInsights` | 200 | - | 682.21 ms | pass |
-| membership with the in operator | `postStaticInsights` | 200 | - | 181.34 ms | pass |
-| membership with contains() | `postStaticInsights` | 200 | - | 81.80 ms | pass |
-| null comparison | `postStaticInsights` | 200 | - | 29.62 ms | pass |
-| disjunction with grouping | `postStaticInsights` | 200 | - | 1009.70 ms | pass |
-| negation | `postStaticInsights` | 200 | - | 1374.39 ms | pass |
-| a ternary | `postStaticInsights` | 200 | - | 1431.13 ms | pass |
-| an unterminated comparison | `postStaticInsights` | 400 | - | 34.55 ms | pass |
-| an expression that is not a predicate | `postStaticInsights` | 400 | - | 19.69 ms | pass |
-| an unbalanced parenthesis | `postStaticInsights` | 400 | - | 20.62 ms | pass |
-| an assignment | `postStaticInsights` | 400 | - | 35.09 ms | pass |
-| a SQL fragment | `postStaticInsights` | 400 | - | 84.08 ms | pass |
-| an empty expression | `postStaticInsights` | 400 | - | 20.79 ms | pass |
+| the always-true selector | `postStaticInsights` | 200 | - | 1692.56 ms | pass |
+| equality on a scalar field | `postStaticInsights` | 200 | - | 47.54 ms | pass |
+| conjunction of two predicates | `postStaticInsights` | 200 | - | 30.40 ms | pass |
+| a macro over a list field | `postStaticInsights` | 200 | - | 650.63 ms | pass |
+| membership with the in operator | `postStaticInsights` | 200 | - | 26.85 ms | pass |
+| membership with contains() | `postStaticInsights` | 200 | - | 28.59 ms | pass |
+| null comparison | `postStaticInsights` | 200 | - | 146.18 ms | pass |
+| disjunction with grouping | `postStaticInsights` | 200 | - | 1579.16 ms | pass |
+| negation | `postStaticInsights` | 200 | - | 1692.57 ms | pass |
+| a ternary | `postStaticInsights` | 200 | - | 1828.84 ms | pass |
+| an unterminated comparison | `postStaticInsights` | 400 | - | 137.76 ms | pass |
+| an expression that is not a predicate | `postStaticInsights` | 400 | - | 47.49 ms | pass |
+| an unbalanced parenthesis | `postStaticInsights` | 400 | - | 47.49 ms | pass |
+| an assignment | `postStaticInsights` | 400 | - | 47.45 ms | pass |
+| a SQL fragment | `postStaticInsights` | 400 | - | 47.47 ms | pass |
+| an empty expression | `postStaticInsights` | 400 | - | 18.75 ms | pass |
 
 ## Provenance
 
@@ -662,16 +639,16 @@ publisher can conform to the object specification while supplying none of the th
 
 | Measure | Value |
 |---|---:|
-| Artifacts inspected | 119 |
-| Carrying a checksum | 119 |
+| Artifacts inspected | 112 |
+| Carrying a checksum | 112 |
 | Carrying a signature | 0 |
-| Carrying a media type | 119 |
+| Carrying a media type | 112 |
 | With more than one immutable revision | 0 |
 | Signatures fetched | 0 |
 
 | Checksum algorithm | Count |
 |---|---:|
-| SHA-256 | 119 |
+| SHA-256 | 112 |
 
 Signatures are fetched, not verified: verification needs a trust root this suite has
 no way to establish, and inventing one would be worse than saying so.
@@ -680,13 +657,13 @@ no way to establish, and inventing one would be worse than saying so.
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| 119 of 119 artifacts carry a checksum | `provenanceCoverage` | - | - | - | pass |
-| 0 of 119 artifacts carry a signature | `provenanceCoverage` | - | - | - | pass |
-| 119 of 119 artifacts carry a media type | `provenanceCoverage` | - | - | - | pass |
+| 112 of 112 artifacts carry a checksum | `provenanceCoverage` | - | - | - | pass |
+| 0 of 112 artifacts carry a signature | `provenanceCoverage` | - | - | - | pass |
+| 112 of 112 artifacts carry a media type | `provenanceCoverage` | - | - | - | pass |
 
 #### Detail
 
-**0 of 119 artifacts carry a signature**
+**0 of 112 artifacts carry a signature**
 
 - *none do, so a consumer cannot verify who published the record*
 
@@ -698,16 +675,16 @@ Not measured: this run replayed a recorded directory, so no timings were taken; 
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| list products | `queryTeaProducts` | 200 | yes | 20.39 ms | pass |
-| list product releases (full page) | `queryTeaProductReleases` | 200 | yes | 34.38 ms | pass |
-| list component releases (full page, descending) | `queryTeaComponentReleases` | 200 | yes | 40.60 ms | pass |
-| read one product | `getTeaProductByUuid` | 200 | yes | 18.84 ms | pass |
-| read one product release | `getTeaProductReleaseByUuid` | 200 | yes | 19.86 ms | pass |
-| releases of one product | `getReleasesByProductId` | 200 | yes | 19.96 ms | pass |
-| component release with latest collection | `getComponentReleaseById` | 200 | yes | 33.67 ms | pass |
-| latest collection | `getLatestCollection` | 200 | yes | 37.42 ms | pass |
-| resolve a TEI | `discoveryByTei` | 200 | yes | 19.79 ms | pass |
-| artifact metadata | `getLatestArtifact` | 200 | yes | 22.99 ms | pass |
+| list products | `queryTeaProducts` | 200 | yes | 20.05 ms | pass |
+| list product releases (full page) | `queryTeaProductReleases` | 200 | yes | 50.36 ms | pass |
+| list component releases (full page, descending) | `queryTeaComponentReleases` | 200 | yes | 39.11 ms | pass |
+| read one product | `getTeaProductByUuid` | 200 | yes | 20.66 ms | pass |
+| read one product release | `getTeaProductReleaseByUuid` | 200 | yes | 20.91 ms | pass |
+| releases of one product | `getReleasesByProductId` | 200 | yes | 22.70 ms | pass |
+| component release with latest collection | `getComponentReleaseById` | 200 | yes | 23.38 ms | pass |
+| latest collection | `getLatestCollection` | 200 | yes | 23.62 ms | pass |
+| resolve a TEI | `discoveryByTei` | 200 | yes | 23.14 ms | pass |
+| artifact metadata | `getLatestArtifact` | 200 | yes | 30.65 ms | pass |
 
 ## Publication
 
@@ -737,11 +714,11 @@ change the conformance verdict.
 | Design concern | Evidence from this run | Assessment |
 |---|---|---|
 | Stable release identity | 4 of 4 relevant operations completed successfully. Successful collection responses are checked against the stable release UUID and `belongsTo` value; publishing a later version against that same release is not exercised. | partially demonstrated |
-| Artifact preparation, signing and validation | 2 of 2 relevant operations completed successfully. The sampled catalogue contained 119 artifacts: 119 carried a checksum and 0 exposed a signature URL. Signature integrity, certificate validity, timestamps, transparency inclusion and collection signatures are not cryptographically verified. | partially demonstrated |
-| Collection assembly and signing | 2 of 2 relevant operations completed successfully. The sampled graph contained 24 collections, 0 empty, and 119 referenced artifacts. The round-trip does not prove that a collection was assembled from validated artifact digests or that the collection itself was signed. | partially demonstrated |
+| Artifact preparation, signing and validation | 2 of 2 relevant operations completed successfully. The sampled catalogue contained 112 artifacts: 112 carried a checksum and 0 exposed a signature URL. Signature integrity, certificate validity, timestamps, transparency inclusion and collection signatures are not cryptographically verified. | partially demonstrated |
+| Collection assembly and signing | 2 of 2 relevant operations completed successfully. The sampled graph contained 24 collections, 0 empty, and 112 referenced artifacts. The round-trip does not prove that a collection was assembled from validated artifact digests or that the collection itself was signed. | partially demonstrated |
 | Preparation, separation of duties and approval | CI/CD preparation, publisher-side validation, human approval and separation of roles are internal controls that a black-box HTTP client cannot observe. | not assessed |
-| Commit and publication | 1 of 2 relevant operations completed successfully; 1 had a conformance failure. These read-backs test that accepted writes become visible through the consumption API. Atomic staging, a distinct commit boundary and DNS trust-anchor updates are not exercised. | not demonstrated |
-| Independent version streams, immutability and history | 1 of 2 relevant operations completed successfully; 1 had a conformance failure. In the sampled catalogue, 0 artifacts had more than one revision (deepest revision 1), and the deepest collection version was 16. The round-trip reads only `latest`; it does not re-fetch an older artifact, collection or CLE version to prove immutability and continued availability. | not demonstrated |
+| Commit and publication | 2 of 2 relevant operations completed successfully. These read-backs test that accepted writes become visible through the consumption API. Atomic staging, a distinct commit boundary and DNS trust-anchor updates are not exercised. | consumer visibility demonstrated |
+| Independent version streams, immutability and history | 2 of 2 relevant operations completed successfully. In the sampled catalogue, 0 artifacts had more than one revision (deepest revision 1), and the deepest collection version was 18. The round-trip reads only `latest`; it does not re-fetch an older artifact, collection or CLE version to prove immutability and continued availability. | partially observed |
 | CLE and compliance-document lifecycle | The publication round-trip has no CLE or compliance-document publication case. The read-side SPDX area inspected 10 lifecycle documents, but did not create a new CLE version. | not assessed |
 
 ### Records created by this run
@@ -758,43 +735,31 @@ change the conformance verdict.
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| an unauthenticated write is refused | `createTeaProduct` | 401 | - | 19.63 ms | pass |
-| look for records left by a previous run | `queryTeaProducts` | 200 | - | 18.70 ms | pass |
-| create a product | `createTeaProduct` | 201 | yes | 31.46 ms | pass |
-| update the product | `updateTeaProduct` | 200 | yes | 27.35 ms | pass |
-| the written product is visible through the consumption API | `getTeaProductByUuid` | 200 | yes | 106.29 ms | pass |
-| create a component | `createTeaComponent` | 201 | yes | 25.73 ms | pass |
-| create a component release | `createTeaComponentRelease` | 201 | yes | 45.78 ms | pass |
-| create a product release pinning the component release | `createTeaProductRelease` | 201 | yes | 32.30 ms | pass |
-| publish a collection for the component release | `publishTeaComponentReleaseCollection` | 200 | yes | 28.79 ms | pass |
-| publish a collection for the product release | `publishTeaProductReleaseCollection` | 200 | yes | 26.23 ms | pass |
-| create a distribution | `createTeaDistribution` | 201 | yes | 28.31 ms | pass |
-| create an artifact | `createTeaArtifact` | 201 | yes | 37.43 ms | pass |
-| upload the artifact bytes | `uploadTeaArtifactContent` | 200 | yes | 104.33 ms | pass |
-| upload a detached signature for the artifact | `uploadTeaArtifactSignature` | 400 | - | 19.57 ms | pass |
-| update the artifact's metadata | `updateTeaArtifact` | 200 | yes | 29.64 ms | pass |
-| the artifact revision is visible through the consumption API | `getLatestArtifact` | 404 | - | 524.27 ms | **FAIL** |
-| the artifact is in the collection it was published against | `getLatestCollection` | 404 | - | 203.41 ms | **FAIL** |
-| read the product's access policy | `getTeaAccessPolicy` | 200 | yes | 33.40 ms | pass |
-| set the product's access policy to private | `setTeaAccessPolicy` | 200 | yes | 84.17 ms | pass |
-| delete the artifact | `deleteTeaArtifact` | 204 | - | 23.44 ms | pass |
-| delete the productRelease | `deleteTeaProductRelease` | 204 | - | 25.81 ms | pass |
-| delete the componentRelease | `deleteTeaComponentRelease` | 204 | - | 23.27 ms | pass |
-| delete the component | `deleteTeaComponent` | 204 | - | 23.53 ms | pass |
-| delete the product | `deleteTeaProduct` | 204 | - | 22.50 ms | pass |
-| the deleted product is gone from the consumption API | `getTeaProductByUuid` | 404 | yes | 174.68 ms | pass |
-
-#### Detail
-
-**the artifact revision is visible through the consumption API**: `GET https://www.vulnetix.com/tea/v0.4.0/artifact/4a91d0b5-3fcb-50e6-99ec-811161392f6a/latest`
-
-- expected HTTP 200, got 404: {"error":"OBJECT_UNKNOWN"}
-- evidence: `responses/provider/0016-get-the-artifact-revision-is-visible-through-the-consumption-api.meta.json`
-
-**the artifact is in the collection it was published against**: `GET https://www.vulnetix.com/tea/v0.4.0/componentRelease/6b6c0e88-dbc3-573d-88d9-a7f1fca1c6c9/collection/latest`
-
-- expected HTTP 200, got 404: {"error":"OBJECT_UNKNOWN"}
-- evidence: `responses/provider/0017-get-the-artifact-is-in-the-collection-it-was-published-against.meta.json`
+| an unauthenticated write is refused | `createTeaProduct` | 401 | - | 19.08 ms | pass |
+| look for records left by a previous run | `queryTeaProducts` | 200 | - | 19.84 ms | pass |
+| create a product | `createTeaProduct` | 201 | yes | 32.06 ms | pass |
+| update the product | `updateTeaProduct` | 200 | yes | 25.47 ms | pass |
+| the written product is visible through the consumption API | `getTeaProductByUuid` | 200 | yes | 174.73 ms | pass |
+| create a component | `createTeaComponent` | 201 | yes | 32.31 ms | pass |
+| create a component release | `createTeaComponentRelease` | 201 | yes | 56.41 ms | pass |
+| create a product release pinning the component release | `createTeaProductRelease` | 201 | yes | 43.02 ms | pass |
+| publish a collection for the component release | `publishTeaComponentReleaseCollection` | 200 | yes | 45.26 ms | pass |
+| publish a collection for the product release | `publishTeaProductReleaseCollection` | 200 | yes | 30.39 ms | pass |
+| create a distribution | `createTeaDistribution` | 201 | yes | 68.39 ms | pass |
+| create an artifact | `createTeaArtifact` | 201 | yes | 41.64 ms | pass |
+| upload the artifact bytes | `uploadTeaArtifactContent` | 200 | yes | 89.15 ms | pass |
+| upload a detached signature for the artifact | `uploadTeaArtifactSignature` | 400 | - | 19.13 ms | pass |
+| update the artifact's metadata | `updateTeaArtifact` | 200 | yes | 44.83 ms | pass |
+| the artifact revision is visible through the consumption API | `getLatestArtifact` | 200 | yes | 311.57 ms | pass |
+| the artifact is in the collection it was published against | `getLatestCollection` | 200 | yes | 181.56 ms | pass |
+| read the product's access policy | `getTeaAccessPolicy` | 200 | yes | 43.84 ms | pass |
+| set the product's access policy to private | `setTeaAccessPolicy` | 200 | yes | 61.47 ms | pass |
+| delete the artifact | `deleteTeaArtifact` | 204 | - | 22.88 ms | pass |
+| delete the productRelease | `deleteTeaProductRelease` | 204 | - | 23.75 ms | pass |
+| delete the componentRelease | `deleteTeaComponentRelease` | 204 | - | 28.85 ms | pass |
+| delete the component | `deleteTeaComponent` | 204 | - | 24.88 ms | pass |
+| delete the product | `deleteTeaProduct` | 204 | - | 21.85 ms | pass |
+| the deleted product is gone from the consumption API | `getTeaProductByUuid` | 404 | yes | 139.84 ms | pass |
 
 ## Method
 
