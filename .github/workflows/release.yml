@@ -413,6 +413,13 @@ jobs:
     needs: [release, update-packages]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # id-token lets this job get an OIDC token from GitHub, which is the
+    # identity public Fulcio issues a short-lived certificate against. That is
+    # what makes the signing below keyless: there is no key to hold or rotate.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     env:
       VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
       VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
@@ -457,6 +464,38 @@ jobs:
           else
             echo "::warning::no SBOM was produced; publishing the release without one"
           fi
+
+      # Signed before publication, so the transparency log records a document
+      # whose signature a consumer can already verify. Skipped when no SBOM was
+      # produced, since the step above is allowed to fail.
+      - name: Install cosign
+        if: hashFiles('vulnetix.cdx.json') != ''
+        uses: sigstore/cosign-installer@v3
+
+      - name: Attest the SBOM (in-toto/DSSE, keyless)
+        if: hashFiles('vulnetix.cdx.json') != ''
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: vulnetix.cdx.json
+
+      - name: Sign the SBOM (detached, keyless)
+        if: hashFiles('vulnetix.cdx.json') != ''
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes \
+            --output-signature vulnetix.cdx.json.sig \
+            --output-certificate vulnetix.cdx.json.pem \
+            vulnetix.cdx.json
+          cosign verify-blob \
+            --signature vulnetix.cdx.json.sig \
+            --certificate vulnetix.cdx.json.pem \
+            --certificate-identity-regexp '^https://github.com/${{ github.repository }}/' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            vulnetix.cdx.json
+          gh release upload "${{ needs.release.outputs.version }}" \
+            vulnetix.cdx.json.sig vulnetix.cdx.json.pem --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish product, release, artifacts and distributions
         run: |
