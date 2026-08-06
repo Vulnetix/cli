@@ -231,6 +231,26 @@ img, svg { display: block; max-width: 100%; }
   border-left-color: var(--vx-mint);
   background: rgba(102,220,200,0.06);
 }
+/* Third level, for a group whose entries are themselves pages: the conformance
+   report's areas, and the secrets rule categories. Indent alone carries the
+   nesting, so a deep tree still reads as one list rather than as a widget. */
+.sidebar__subsublink {
+  display: block;
+  font-size: 12.5px;
+  color: var(--vx-bone);
+  opacity: 0.45;
+  padding: 4px 22px 4px 52px;
+  border-left: 2px solid transparent;
+  transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+  line-height: 1.35;
+}
+.sidebar__subsublink:hover { opacity: 0.85; background: rgba(102,220,200,0.04); }
+.sidebar__subsublink.active {
+  opacity: 1;
+  color: var(--vx-mint);
+  border-left-color: var(--vx-mint);
+  background: rgba(102,220,200,0.06);
+}
 
 /* =========================================================
    CONTENT AREA
