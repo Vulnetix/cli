@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 )
 
 // ---------------------------------------------------------------------------
@@ -104,100 +106,74 @@ func GenerateOpenVEX(findings []*TriageFinding, opts OpenVEXOptions) ([]byte, er
 // CycloneDX VEX (CycloneDX 1.5+ with VEX profile)
 // ---------------------------------------------------------------------------
 
-// GenerateCDXVEX produces a minimal CycloneDX document with VEX data for the
-// given findings. The output is CycloneDX 1.5 JSON with vulnerabilities declared.
+// GenerateCDXVEX produces a CycloneDX document with VEX data for the given
+// findings. specVersion defaults to "1.5" if blank.
+//
+// The document is assembled and validated by the shared writer in
+// github.com/Vulnetix/vdb-cyclonedx, which vdb-api and vdb-site also use. This
+// function is the adapter from the CLI's finding shape onto it.
+//
+// It used to be a third independent implementation. The three had drifted far
+// enough apart that vdb-api was shipping documents that failed schema
+// validation against the version they declared, and this copy was emitting an
+// analysis.state of "under_investigation", which has never been a member of the
+// CycloneDX enum.
 func GenerateCDXVEX(findings []*TriageFinding, specVersion string) ([]byte, error) {
 	if specVersion == "" {
 		specVersion = "1.5"
 	}
 
-	vulns := make([]map[string]any, 0, len(findings))
+	out := make([]cyclonedx.VEXFinding, 0, len(findings))
 	for _, f := range findings {
-		vuln := map[string]any{
-			"id":       f.CVEID,
-			"analysis": cdxAnalysis(f.Status),
-		}
-
-		if f.Severity != "" && f.Severity != "unknown" {
-			vuln["ratings"] = []map[string]any{
-				{
-					"source":   map[string]string{"name": "vulnetix"},
-					"severity": f.Severity,
-				},
-			}
-		}
-
-		if f.ThreatModel != nil {
-			props := []map[string]any{}
-			if f.ThreatModel.AttackVector != "" {
-				props = append(props, map[string]any{"name": "threat:attack_vector", "value": f.ThreatModel.AttackVector})
-			}
-			if f.ThreatModel.AttackComplexity != "" {
-				props = append(props, map[string]any{"name": "threat:attack_complexity", "value": f.ThreatModel.AttackComplexity})
-			}
-			if f.ThreatModel.PrivilegesRequired != "" {
-				props = append(props, map[string]any{"name": "threat:privileges_required", "value": f.ThreatModel.PrivilegesRequired})
-			}
-			if f.ThreatModel.UserInteraction != "" {
-				props = append(props, map[string]any{"name": "threat:user_interaction", "value": f.ThreatModel.UserInteraction})
-			}
-			if f.ThreatModel.Reachability != "" {
-				props = append(props, map[string]any{"name": "threat:reachability", "value": f.ThreatModel.Reachability})
-			}
-			if f.ThreatModel.Exposure != "" {
-				props = append(props, map[string]any{"name": "threat:exposure", "value": f.ThreatModel.Exposure})
-			}
-			if len(props) > 0 {
-				vuln["properties"] = props
-			}
-		}
-
-		vulns = append(vulns, vuln)
-	}
-
-	components := make([]map[string]any, 0, len(findings))
-	for _, f := range findings {
-		if f.Package == "" {
+		if f == nil {
 			continue
 		}
-		components = append(components, map[string]any{
-			"type":    "library",
-			"name":    f.Package,
-			"version": f.InstalledVer,
-			"purl":    fmt.Sprintf("pkg:%s/%s@%s", f.Ecosystem, f.Package, f.InstalledVer),
-		})
+		v := cyclonedx.VEXFinding{
+			CVEID:         f.CVEID,
+			Package:       f.Package,
+			Ecosystem:     f.Ecosystem,
+			InstalledVer:  f.InstalledVer,
+			FixedVer:      f.FixedVer,
+			Status:        f.Status,
+			Justification: f.Justification,
+			Severity:      f.Severity,
+			Properties:    threatModelProperties(f.ThreatModel),
+		}
+		if f.ActionResponse != "" {
+			v.Responses = []string{f.ActionResponse}
+		}
+		out = append(out, v)
 	}
 
-	doc := map[string]any{
-		"bomFormat":   "CycloneDX",
-		"specVersion": specVersion,
-		"version":     1,
-	}
-	if len(components) > 0 {
-		doc["components"] = components
-	}
-	if len(vulns) > 0 {
-		doc["vulnerabilities"] = vulns
-	}
-
-	return json.MarshalIndent(doc, "", "  ")
+	return cyclonedx.BuildCDXVEX(out, cyclonedx.VEXOptions{
+		SpecVersion: specVersion,
+		ToolName:    "vulnetix",
+		ToolVersion: "cli",
+		AuthorName:  "Vulnetix",
+	})
 }
 
-func cdxAnalysis(status string) map[string]string {
-	switch status {
-	case "not_affected":
-		return map[string]string{"state": "not_affected"}
-	case "fixed":
-		return map[string]string{"state": "resolved"}
-	case "affected":
-		return map[string]string{
-			"state":  "exploitable",
-			"detail": "vulnerability has been triaged and confirmed",
-		}
-	default:
-		return map[string]string{
-			"state":  "under_investigation",
-			"detail": "vulnerability is being investigated",
+// threatModelProperties renders the optional threat-model axes as the
+// namespaced CycloneDX properties they have always been emitted as.
+func threatModelProperties(tm *ThreatModel) map[string]string {
+	if tm == nil {
+		return nil
+	}
+	props := map[string]string{}
+	for name, value := range map[string]string{
+		"threat:attack_vector":       tm.AttackVector,
+		"threat:attack_complexity":   tm.AttackComplexity,
+		"threat:privileges_required": tm.PrivilegesRequired,
+		"threat:user_interaction":    tm.UserInteraction,
+		"threat:reachability":        tm.Reachability,
+		"threat:exposure":            tm.Exposure,
+	} {
+		if value != "" {
+			props[name] = value
 		}
 	}
+	if len(props) == 0 {
+		return nil
+	}
+	return props
 }
