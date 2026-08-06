@@ -419,7 +419,6 @@ jobs:
     permissions:
       contents: write
       id-token: write
-      attestations: write
     env:
       VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}
       VULNETIX_API_KEY: ${{ secrets.VULNETIX_API_KEY }}
@@ -472,28 +471,43 @@ jobs:
         if: hashFiles('vulnetix.cdx.json') != ''
         uses: sigstore/cosign-installer@v3
 
-      - name: Attest the SBOM (in-toto/DSSE, keyless)
-        if: hashFiles('vulnetix.cdx.json') != ''
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-path: vulnetix.cdx.json
-
-      - name: Sign the SBOM (detached, keyless)
+      # Both representations come from cosign rather than
+      # actions/attest-build-provenance. That action signs keyless the same way,
+      # but persists the result through GitHub's attestation store, which is
+      # gated on the organisation's billing plan and refuses outright on the
+      # private repositories in this estate. The gate is on GitHub's storage
+      # API, not on Sigstore: Fulcio and Rekor are public goods, cosign talks to
+      # them directly, and the output verifies with stock tooling either way.
+      - name: Sign the SBOM (keyless)
         if: hashFiles('vulnetix.cdx.json') != ''
         run: |
           set -euo pipefail
+
+          # Detached signature plus the short-lived certificate binding it to
+          # this workflow's identity.
           cosign sign-blob --yes \
             --output-signature vulnetix.cdx.json.sig \
             --output-certificate vulnetix.cdx.json.pem \
             vulnetix.cdx.json
+
+          # The same claim as an in-toto/DSSE envelope, with the SBOM as the
+          # predicate, for consumers that speak attestations.
+          cosign attest-blob --yes \
+            --type cyclonedx \
+            --predicate vulnetix.cdx.json \
+            --output-attestation vulnetix.cdx.json.intoto.jsonl \
+            vulnetix.cdx.json
+
           cosign verify-blob \
             --signature vulnetix.cdx.json.sig \
             --certificate vulnetix.cdx.json.pem \
             --certificate-identity-regexp '^https://github.com/${{ github.repository }}/' \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             vulnetix.cdx.json
+
           gh release upload "${{ needs.release.outputs.version }}" \
-            vulnetix.cdx.json.sig vulnetix.cdx.json.pem --clobber
+            vulnetix.cdx.json.sig vulnetix.cdx.json.pem \
+            vulnetix.cdx.json.intoto.jsonl --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
