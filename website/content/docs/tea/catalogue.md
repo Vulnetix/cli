@@ -11,9 +11,9 @@ The products this provider publishes, as its own API serves them.
 |---|---:|
 | Products published | 42 |
 | Releases sampled | 24 |
-| Artifacts published across the sample | 130 |
+| Artifacts published across the sample | 118 |
 | API root | `https://www.vulnetix.com/tea/v0.4.0` |
-| Generated | 2026-08-07T11:19:38Z |
+| Generated | 2026-08-07T12:21:37Z |
 
 Built by paging `/products` and asking each product for its newest release. Nothing
 here is read from anywhere but the API, so the list is exactly what a consumer sees.
@@ -26,7 +26,7 @@ here is read from anywhere but the API, so the list is exactly what a consumer s
 | Vulnetix/vdb-cyclonedx | v0.15.0 *(pre-release)* | 2026-08-06 | `pkg:github/Vulnetix/vdb-cyclonedx` | `1a35e140-861c-591d-8768-265e457503b5` |
 | Vulnetix/github-runner-aws | d4be99e *(pre-release)* | 2026-08-02 | `pkg:github/Vulnetix/github-runner-aws` | `237eaa48-b523-57dc-89fe-0b6cd3e7a9e8` |
 | Vulnetix/opa-cds-aws-tf | 080c4378f53ad2df4673d6dc7577cecc752c37eb | 2026-08-02 | `pkg:github/Vulnetix/opa-cds-aws-tf` | `2b125d21-1719-5e1c-9228-1c82d7843a8b` |
-| Vulnetix/vdb-site | eb1b071f82053749b88f6c17a3eeb62a5a970416 | 2026-08-07 | `pkg:github/Vulnetix/vdb-site` | `2bae87ba-208a-5415-b3b4-c76771a2c516` |
+| Vulnetix/vdb-site | e00e4618c1af67b5a83d288edeca893367b4d5ac | 2026-08-07 | `pkg:github/Vulnetix/vdb-site` | `2bae87ba-208a-5415-b3b4-c76771a2c516` |
 | Vulnetix/osm-submitter | 8c5251ac0b68feec68d5a244233f857274cf7fc0 | 2026-08-07 | `pkg:github/Vulnetix/osm-submitter` | `2bec72e2-829e-5df7-9bbd-55a3c0cfa28e` |
 | Vulnetix/mcp-server | 2c35d392d284d1a019a05a309fe87536edeed786 | 2026-08-07 | `pkg:github/Vulnetix/mcp-server` | `2d1d1faf-1d93-522f-bf23-e3aa0ada69ad` |
 | Vulnetix/opa-aquasecurity-trivy | 88bded87c9777f367cf0cb206925824139182568 | 2026-08-02 | `pkg:github/Vulnetix/opa-aquasecurity-trivy` | `3017086f-3e5d-5a37-b911-bd7bdb073eee` |
@@ -36,7 +36,7 @@ here is read from anywhere but the API, so the list is exactly what a consumer s
 | Vulnetix/opa-gosec | 30620bf0d7669405ae8b7b1fcfd5c3f945e0d581 | 2026-08-02 | `pkg:github/Vulnetix/opa-gosec` | `41ef7880-35fc-5e98-ba77-0b41f49f1c54` |
 | Vulnetix/community-rules | 73c934ffd5182af2fde78485082eb039e9f063e4 | 2026-08-02 | `pkg:github/Vulnetix/community-rules` | `4e30d6c6-e3c5-55da-a79a-f664f653862f` |
 | Vulnetix/cli | 718594ad0c46cd9ea16a1f76b15073498b45dd60 | 2026-08-07 | `pkg:github/Vulnetix/cli` | `54e8820d-0803-5a4f-858d-88a279486564` |
-| Vulnetix/python-ssvc | 21b91033f5c995bcf34e8299b0905a27b1f15c87 | 2026-08-07 | `pkg:github/Vulnetix/python-ssvc` | `586989aa-0e9e-5ca0-b577-74c931335913` |
+| Vulnetix/python-ssvc | 0bb99a58ef309597115d20be230cc5f8f93b45b4 | 2026-08-07 | `pkg:github/Vulnetix/python-ssvc` | `586989aa-0e9e-5ca0-b577-74c931335913` |
 | Vulnetix/opa-fugue-regula | f6e6aec3a7e3cca4e80bbe4a02ebc6a4c237f781 | 2026-08-02 | `pkg:github/Vulnetix/opa-fugue-regula` | `587d59e6-a61f-59c9-98ea-53a8890cf089` |
 | Vulnetix/opa-checkmarx-kics | 55f5733e6346665092553e90375971ee5410c10e | 2026-08-02 | `pkg:github/Vulnetix/opa-checkmarx-kics` | `62f073ba-248b-5fca-9dc0-a1cd9d3e4590` |
 | Vulnetix/breach-notes | decebc9d167eba0468138d13a6c001dd673df847 | 2026-07-10 | `pkg:github/Vulnetix/breach-notes` | `657513de-9a1d-5406-86c2-c423ee59d9c0` |

@@ -7,7 +7,7 @@ description: "Independent conformance and performance results for the Vulnetix T
 
 | | |
 |---|---|
-| Verdict | **NOT CONFORMANT** |
+| Verdict | **CONFORMANT** |
 | Provider | vulnetix |
 | Discovery domain | `vulnetix.com` |
 | API root | `https://www.vulnetix.com/tea/v0.4.0` |
@@ -16,18 +16,18 @@ description: "Independent conformance and performance results for the Vulnetix T
 | Areas | discovery, consumer, purl, cyclonedx, spdx, insights, cel, provenance, performance, provider |
 | Mode | replay |
 | Request concurrency | 32 |
-| Generated | 2026-08-07T11:19:38Z |
+| Generated | 2026-08-07T12:21:37Z |
 
 ## Result
 
 | Metric | Value |
 |---|---:|
-| Cases | 280 |
-| Passed | 279 |
+| Cases | 290 |
+| Passed | 289 |
 | Failed | 0 |
 | Advisory (reported, not counted against conformance) | 1 |
-| Responses schema-validated | 150 |
-| Responses conforming to schema | 150 |
+| Responses schema-validated | 156 |
+| Responses conforming to schema | 156 |
 
 ### By area
 
@@ -42,7 +42,7 @@ description: "Independent conformance and performance results for the Vulnetix T
 | [cel](cel/) | 16 | 16 | 0 | 0 |
 | [provenance](provenance/) | 3 | 3 | 0 | 0 |
 | [performance](performance/) | 10 | 10 | 0 | 0 |
-| [provider](provider/) | 25 | 25 | 0 | 0 |
+| [provider](provider/) | 35 | 35 | 0 | 0 |
 
 ### Coverage
 
@@ -52,10 +52,8 @@ exercised is named, not quietly left out of the totals.
 | Specification | Version | Declared | Exercised |
 |---|---|---:|---:|
 | TEA consumption API | 0.4.0 | 23 | 23 |
-| TEA publication API | 0.4.0 | 52 | 42 |
+| TEA publication API | 0.4.0 | 52 | 52 |
 | TEA Insights API | 1.0.0 | 2 | 2 |
-
-TEA publication API, not exercised: `createTeaPublicationTarget`, `deleteTeaDistribution`, `deleteTeaPublicationTarget`, `getTeaPublicationTarget`, `listTeaPublicationTargets`, `listTeaPublications`, `listTeaPublishedReleases`, `updateTeaComponent`, `updateTeaComponentRelease`, `updateTeaProductRelease`
 
 ### Specifications this run validated against
 
