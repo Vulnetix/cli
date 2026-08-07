@@ -33,8 +33,8 @@ steps between that domain and an API it can call.
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| discovery document conforms to tea-well-known.schema.json | `wellKnownDiscoveryDocument` | 200 | yes | 194.35 ms | pass |
-| discovery document is not served over plaintext HTTP | `wellKnownDiscoveryDocument` | 200 | - | 58.94 ms | pass |
+| discovery document conforms to tea-well-known.schema.json | `wellKnownDiscoveryDocument` | 200 | yes | 196.54 ms | pass |
+| discovery document is not served over plaintext HTTP | `wellKnownDiscoveryDocument` | 200 | - | 168.83 ms | pass |
 
 
 [Back to the summary](../)

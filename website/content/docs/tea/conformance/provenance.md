@@ -20,16 +20,16 @@ publisher can conform to the object specification while supplying none of the th
 
 | Measure | Value |
 |---|---:|
-| Artifacts inspected | 112 |
-| Carrying a checksum | 112 |
+| Artifacts inspected | 130 |
+| Carrying a checksum | 130 |
 | Carrying a signature | 0 |
-| Carrying a media type | 112 |
+| Carrying a media type | 130 |
 | With more than one immutable revision | 0 |
 | Signatures fetched | 0 |
 
 | Checksum algorithm | Count |
 |---|---:|
-| SHA-256 | 112 |
+| SHA-256 | 130 |
 
 Signatures are fetched, not verified: verification needs a trust root this suite has
 no way to establish, and inventing one would be worse than saying so.
@@ -38,13 +38,13 @@ no way to establish, and inventing one would be worse than saying so.
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| 112 of 112 artifacts carry a checksum | `provenanceCoverage` | - | - | - | pass |
-| 0 of 112 artifacts carry a signature | `provenanceCoverage` | - | - | - | pass |
-| 112 of 112 artifacts carry a media type | `provenanceCoverage` | - | - | - | pass |
+| 130 of 130 artifacts carry a checksum | `provenanceCoverage` | - | - | - | pass |
+| 0 of 130 artifacts carry a signature | `provenanceCoverage` | - | - | - | pass |
+| 130 of 130 artifacts carry a media type | `provenanceCoverage` | - | - | - | pass |
 
 #### Detail
 
-**0 of 112 artifacts carry a signature**
+**0 of 130 artifacts carry a signature**
 
 - *none do, so a consumer cannot verify who published the record*
 

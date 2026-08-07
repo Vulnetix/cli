@@ -39,11 +39,11 @@ change the conformance verdict.
 | Design concern | Evidence from this run | Assessment |
 |---|---|---|
 | Stable release identity | 4 of 4 relevant operations completed successfully. Successful collection responses are checked against the stable release UUID and `belongsTo` value; publishing a later version against that same release is not exercised. | partially demonstrated |
-| Artifact preparation, signing and validation | 2 of 2 relevant operations completed successfully. The sampled catalogue contained 112 artifacts: 112 carried a checksum and 0 exposed a signature URL. Signature integrity, certificate validity, timestamps, transparency inclusion and collection signatures are not cryptographically verified. | partially demonstrated |
-| Collection assembly and signing | 2 of 2 relevant operations completed successfully. The sampled graph contained 24 collections, 0 empty, and 112 referenced artifacts. The round-trip does not prove that a collection was assembled from validated artifact digests or that the collection itself was signed. | partially demonstrated |
+| Artifact preparation, signing and validation | 2 of 2 relevant operations completed successfully. The sampled catalogue contained 130 artifacts: 130 carried a checksum and 0 exposed a signature URL. Signature integrity, certificate validity, timestamps, transparency inclusion and collection signatures are not cryptographically verified. | partially demonstrated |
+| Collection assembly and signing | 2 of 2 relevant operations completed successfully. The sampled graph contained 24 collections, 0 empty, and 130 referenced artifacts. The round-trip does not prove that a collection was assembled from validated artifact digests or that the collection itself was signed. | partially demonstrated |
 | Preparation, separation of duties and approval | CI/CD preparation, publisher-side validation, human approval and separation of roles are internal controls that a black-box HTTP client cannot observe. | not assessed |
 | Commit and publication | 2 of 2 relevant operations completed successfully. These read-backs test that accepted writes become visible through the consumption API. Atomic staging, a distinct commit boundary and DNS trust-anchor updates are not exercised. | consumer visibility demonstrated |
-| Independent version streams, immutability and history | 2 of 2 relevant operations completed successfully. In the sampled catalogue, 0 artifacts had more than one revision (deepest revision 1), and the deepest collection version was 18. The round-trip reads only `latest`; it does not re-fetch an older artifact, collection or CLE version to prove immutability and continued availability. | partially observed |
+| Independent version streams, immutability and history | 2 of 2 relevant operations completed successfully. In the sampled catalogue, 0 artifacts had more than one revision (deepest revision 1), and the deepest collection version was 19. The round-trip reads only `latest`; it does not re-fetch an older artifact, collection or CLE version to prove immutability and continued availability. | partially observed |
 | CLE and compliance-document lifecycle | The publication round-trip has no CLE or compliance-document publication case. The read-side SPDX area inspected 10 lifecycle documents, but did not create a new CLE version. | not assessed |
 
 ### Records created by this run
@@ -60,31 +60,31 @@ change the conformance verdict.
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| an unauthenticated write is refused | `createTeaProduct` | 401 | - | 19.08 ms | pass |
-| look for records left by a previous run | `queryTeaProducts` | 200 | - | 19.84 ms | pass |
-| create a product | `createTeaProduct` | 201 | yes | 32.06 ms | pass |
-| update the product | `updateTeaProduct` | 200 | yes | 25.47 ms | pass |
-| the written product is visible through the consumption API | `getTeaProductByUuid` | 200 | yes | 174.73 ms | pass |
-| create a component | `createTeaComponent` | 201 | yes | 32.31 ms | pass |
-| create a component release | `createTeaComponentRelease` | 201 | yes | 56.41 ms | pass |
-| create a product release pinning the component release | `createTeaProductRelease` | 201 | yes | 43.02 ms | pass |
-| publish a collection for the component release | `publishTeaComponentReleaseCollection` | 200 | yes | 45.26 ms | pass |
-| publish a collection for the product release | `publishTeaProductReleaseCollection` | 200 | yes | 30.39 ms | pass |
-| create a distribution | `createTeaDistribution` | 201 | yes | 68.39 ms | pass |
-| create an artifact | `createTeaArtifact` | 201 | yes | 41.64 ms | pass |
-| upload the artifact bytes | `uploadTeaArtifactContent` | 200 | yes | 89.15 ms | pass |
-| upload a detached signature for the artifact | `uploadTeaArtifactSignature` | 400 | - | 19.13 ms | pass |
-| update the artifact's metadata | `updateTeaArtifact` | 200 | yes | 44.83 ms | pass |
-| the artifact revision is visible through the consumption API | `getLatestArtifact` | 200 | yes | 311.57 ms | pass |
-| the artifact is in the collection it was published against | `getLatestCollection` | 200 | yes | 181.56 ms | pass |
-| read the product's access policy | `getTeaAccessPolicy` | 200 | yes | 43.84 ms | pass |
-| set the product's access policy to private | `setTeaAccessPolicy` | 200 | yes | 61.47 ms | pass |
-| delete the artifact | `deleteTeaArtifact` | 204 | - | 22.88 ms | pass |
-| delete the productRelease | `deleteTeaProductRelease` | 204 | - | 23.75 ms | pass |
-| delete the componentRelease | `deleteTeaComponentRelease` | 204 | - | 28.85 ms | pass |
-| delete the component | `deleteTeaComponent` | 204 | - | 24.88 ms | pass |
-| delete the product | `deleteTeaProduct` | 204 | - | 21.85 ms | pass |
-| the deleted product is gone from the consumption API | `getTeaProductByUuid` | 404 | yes | 139.84 ms | pass |
+| an unauthenticated write is refused | `createTeaProduct` | 401 | - | 258.56 ms | pass |
+| look for records left by a previous run | `queryTeaProducts` | 200 | - | 28.81 ms | pass |
+| create a product | `createTeaProduct` | 201 | yes | 43.57 ms | pass |
+| update the product | `updateTeaProduct` | 200 | yes | 51.67 ms | pass |
+| the written product is visible through the consumption API | `getTeaProductByUuid` | 200 | yes | 359.19 ms | pass |
+| create a component | `createTeaComponent` | 201 | yes | 72.23 ms | pass |
+| create a component release | `createTeaComponentRelease` | 201 | yes | 90.24 ms | pass |
+| create a product release pinning the component release | `createTeaProductRelease` | 201 | yes | 61.03 ms | pass |
+| publish a collection for the component release | `publishTeaComponentReleaseCollection` | 200 | yes | 52.42 ms | pass |
+| publish a collection for the product release | `publishTeaProductReleaseCollection` | 200 | yes | 50.02 ms | pass |
+| create a distribution | `createTeaDistribution` | 201 | yes | 47.07 ms | pass |
+| create an artifact | `createTeaArtifact` | 201 | yes | 89.30 ms | pass |
+| upload the artifact bytes | `uploadTeaArtifactContent` | 200 | yes | 117.14 ms | pass |
+| upload a detached signature for the artifact | `uploadTeaArtifactSignature` | 400 | - | 27.56 ms | pass |
+| update the artifact's metadata | `updateTeaArtifact` | 200 | yes | 38.90 ms | pass |
+| the artifact revision is visible through the consumption API | `getLatestArtifact` | 200 | yes | 351.18 ms | pass |
+| the artifact is in the collection it was published against | `getLatestCollection` | 200 | yes | 390.21 ms | pass |
+| read the product's access policy | `getTeaAccessPolicy` | 200 | yes | 68.84 ms | pass |
+| set the product's access policy to private | `setTeaAccessPolicy` | 200 | yes | 55.65 ms | pass |
+| delete the artifact | `deleteTeaArtifact` | 204 | - | 30.48 ms | pass |
+| delete the productRelease | `deleteTeaProductRelease` | 204 | - | 38.86 ms | pass |
+| delete the componentRelease | `deleteTeaComponentRelease` | 204 | - | 33.41 ms | pass |
+| delete the component | `deleteTeaComponent` | 204 | - | 31.91 ms | pass |
+| delete the product | `deleteTeaProduct` | 204 | - | 32.00 ms | pass |
+| the deleted product is gone from the consumption API | `getTeaProductByUuid` | 404 | yes | 323.04 ms | pass |
 
 
 [Back to the summary](../)
