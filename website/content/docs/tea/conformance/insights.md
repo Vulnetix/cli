@@ -29,27 +29,27 @@ actually lives.
 
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
-| the Insights API is reachable and answers a static query | `postStaticInsights` | 200 | - | 4335.59 ms | pass |
-| select every component | `postStaticInsights` | 200 | - | 724.35 ms | pass |
-| third-party components of a product | `postStaticInsights` | 200 | - | 108.68 ms | pass |
-| open-source components of a product | `postStaticInsights` | 200 | - | 1030.36 ms | pass |
-| components with any vulnerability | `postStaticInsights` | 200 | - | 41.39 ms | pass |
-| cryptographic assets | `postStaticInsights` | 200 | - | 936.59 ms | pass |
-| AI components | `postStaticInsights` | 200 | - | 142.15 ms | pass |
-| components with an OpenSSF Scorecard | `postStaticInsights` | 200 | - | 911.91 ms | pass |
-| components with build provenance | `postStaticInsights` | 200 | - | 142.01 ms | pass |
-| reject an invalid CEL expression | `postStaticInsights` | 400 | - | 118.17 ms | pass |
-| reject a non-boolean expression | `postStaticInsights` | 400 | - | 810.48 ms | pass |
-| reject a missing expression | `postStaticInsights` | 400 | - | 41.27 ms | pass |
-| reject a malformed body | `postStaticInsights` | 400 | - | 41.31 ms | pass |
-| unauthenticated request is rejected | `postStaticInsights` | 401 | - | 41.25 ms | pass |
-| defaults to the specification's CycloneDX 1.6 | `postStaticInsights` | 200 | - | 1719.17 ms | pass |
-| negotiates CycloneDX 1.7 on request | `postStaticInsights` | 200 | - | 2695.82 ms | pass |
-| natural-language query | `postDynamicInsights` | 503 | - | 131.62 ms | pass |
-| reject a missing prompt | `postDynamicInsights` | 400 | - | 108.46 ms | pass |
-| find a component by name | `postStaticInsights` | 200 | - | 114.35 ms | pass |
-| find a component by vulnerability identifier | `postStaticInsights` | 200 | - | 831.59 ms | pass |
-| find a component by vulnerability identifier using in | `postStaticInsights` | 200 | - | 41.34 ms | pass |
+| the Insights API is reachable and answers a static query | `postStaticInsights` | 200 | - | 6686.86 ms | pass |
+| select every component | `postStaticInsights` | 200 | - | 778.71 ms | pass |
+| third-party components of a product | `postStaticInsights` | 200 | - | 1624.84 ms | pass |
+| open-source components of a product | `postStaticInsights` | 200 | - | 1518.55 ms | pass |
+| components with any vulnerability | `postStaticInsights` | 200 | - | 1616.32 ms | pass |
+| cryptographic assets | `postStaticInsights` | 200 | - | 458.75 ms | pass |
+| AI components | `postStaticInsights` | 200 | - | 229.29 ms | pass |
+| components with an OpenSSF Scorecard | `postStaticInsights` | 200 | - | 1722.85 ms | pass |
+| components with build provenance | `postStaticInsights` | 200 | - | 119.95 ms | pass |
+| reject an invalid CEL expression | `postStaticInsights` | 400 | - | 28.86 ms | pass |
+| reject a non-boolean expression | `postStaticInsights` | 400 | - | 119.94 ms | pass |
+| reject a missing expression | `postStaticInsights` | 400 | - | 119.92 ms | pass |
+| reject a malformed body | `postStaticInsights` | 400 | - | 52.62 ms | pass |
+| unauthenticated request is rejected | `postStaticInsights` | 401 | - | 30.21 ms | pass |
+| defaults to the specification's CycloneDX 1.6 | `postStaticInsights` | 200 | - | 3583.82 ms | pass |
+| negotiates CycloneDX 1.7 on request | `postStaticInsights` | 200 | - | 3630.34 ms | pass |
+| natural-language query | `postDynamicInsights` | 503 | - | 1624.80 ms | pass |
+| reject a missing prompt | `postDynamicInsights` | 400 | - | 52.63 ms | pass |
+| find a component by name | `postStaticInsights` | 200 | - | 52.72 ms | pass |
+| find a component by vulnerability identifier | `postStaticInsights` | 200 | - | 2239.49 ms | pass |
+| find a component by vulnerability identifier using in | `postStaticInsights` | 200 | - | 52.74 ms | pass |
 
 
 [Back to the summary](../)

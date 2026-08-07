@@ -16,18 +16,18 @@ description: "Independent conformance and performance results for the Vulnetix T
 | Areas | discovery, consumer, purl, cyclonedx, spdx, insights, cel, provenance, performance, provider |
 | Mode | replay |
 | Request concurrency | 32 |
-| Generated | 2026-08-06T13:49:38Z |
+| Generated | 2026-08-07T11:19:38Z |
 
 ## Result
 
 | Metric | Value |
 |---|---:|
 | Cases | 280 |
-| Passed | 275 |
-| Failed | 4 |
+| Passed | 279 |
+| Failed | 0 |
 | Advisory (reported, not counted against conformance) | 1 |
 | Responses schema-validated | 150 |
-| Responses conforming to schema | 146 |
+| Responses conforming to schema | 150 |
 
 ### By area
 
@@ -36,7 +36,7 @@ description: "Independent conformance and performance results for the Vulnetix T
 | [discovery](discovery/) | 2 | 2 | 0 | 0 |
 | [consumer](consumer/) | 158 | 157 | 0 | 1 |
 | [purl](purl/) | 7 | 7 | 0 | 0 |
-| [cyclonedx](cyclonedx/) | 26 | 22 | 4 | 0 |
+| [cyclonedx](cyclonedx/) | 26 | 26 | 0 | 0 |
 | [spdx](spdx/) | 12 | 12 | 0 | 0 |
 | [insights](insights/) | 21 | 21 | 0 | 0 |
 | [cel](cel/) | 16 | 16 | 0 | 0 |
