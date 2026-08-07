@@ -34,11 +34,11 @@ catalogue covers, which is the number that makes two providers comparable.
 | Case | Operation | Status | Schema | Latency | Verdict |
 |---|---|---:|---|---:|---|
 | every published PURL identifier is well formed | `queryTeaProducts` | - | - | - | pass |
-| a published purl finds its own product | `queryTeaProducts` | 200 | yes | 28.54 ms | pass |
-| a purl for a package this provider does not hold matches nothing | `queryTeaProducts` | 200 | yes | 27.34 ms | pass |
-| reject a purl that is not a purl | `queryTeaProducts` | 200 | - | 25.98 ms | pass |
-| resolve a purl-typed TEI | `discoveryByTei` | 200 | yes | 26.63 ms | pass |
-| a purl-typed TEI from another authority is not resolved | `discoveryByTei` | 404 | yes | 26.22 ms | pass |
+| a published purl finds its own product | `queryTeaProducts` | 200 | yes | 38.42 ms | pass |
+| a purl for a package this provider does not hold matches nothing | `queryTeaProducts` | 200 | yes | 38.35 ms | pass |
+| reject a purl that is not a purl | `queryTeaProducts` | 200 | - | 38.42 ms | pass |
+| resolve a purl-typed TEI | `discoveryByTei` | 200 | yes | 172.29 ms | pass |
+| a purl-typed TEI from another authority is not resolved | `discoveryByTei` | 404 | yes | 172.18 ms | pass |
 | open-source sample: 0 of 5 packages resolved | `queryTeaProducts` | - | - | - | pass |
 
 
