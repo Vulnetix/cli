@@ -1,0 +1,4 @@
+[submodule "testdata/vulnetix-fixture-app"]
+	path = testdata/vulnetix-fixture-app
+	url = git@github.com:Vulnetix/vulnetix-fixture-app.git
+	branch = main
