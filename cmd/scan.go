@@ -19,8 +19,10 @@ import (
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v3/internal/pipeline"
 	"github.com/vulnetix/cli/v3/internal/sast"
 	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/scanopts"
 	"github.com/vulnetix/cli/v3/internal/testsuite"
 	"github.com/vulnetix/cli/v3/internal/triage"
 	"github.com/vulnetix/cli/v3/internal/tui"
@@ -358,20 +360,21 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		return err
 	}
 
-	scanPath, _ := cmd.Flags().GetString("path")
-	depth, _ := cmd.Flags().GetInt("depth")
-	snippetContext := -1
-	if cmd.Flags().Changed("snippet-context") {
-		snippetContext, _ = cmd.Flags().GetInt("snippet-context")
+	// One place knows how a scan-family flag becomes an analysis input. What it
+	// leaves zero — detected files, the No* feature booleans, LockedKinds,
+	// RespectGitignore, git/system context and the seed BOMs — is filled in
+	// below, because none of it is decided by flags alone.
+	opts, err := scanopts.FromCommand(cmd)
+	if err != nil {
+		return err
 	}
+
+	// Locals for the values this function still reasons about before handing
+	// opts to the scan. Everything else stays on opts.
+	scanPath := opts.RootPath
+	depth := opts.Depth
 	suppressTestCode, _ = cmd.Flags().GetBool("suppress-test-code")
-	excludes, _ := cmd.Flags().GetStringArray("exclude")
-	ignoreGlobs, _ := cmd.Flags().GetStringArray("ignore")
-	ignoreGit, _ := cmd.Flags().GetBool("ignore-git")
-	ignoreBinaries, _ := cmd.Flags().GetBool("ignore-binaries")
-	gitHistory, _ := cmd.Flags().GetBool("git-history")
-	gitHistoryMaxCommits, _ := cmd.Flags().GetInt("git-history-max-commits")
-	gitHistoryMaxFiles, _ := cmd.Flags().GetInt("git-history-max-files")
+	excludes := opts.Excludes
 	outputArgs, _ := cmd.Flags().GetStringArray("output")
 	// Backward compat: if --format is set and --output is not, map it.
 	if len(outputArgs) == 0 {
@@ -383,48 +386,23 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	if err != nil {
 		return err
 	}
-	concurrency, _ := cmd.Flags().GetInt("concurrency")
-	showPaths, _ := cmd.Flags().GetBool("show-introduced-paths")
-	if !showPaths {
-		showPaths, _ = cmd.Flags().GetBool("paths")
-	}
-	noExploits, _ := cmd.Flags().GetBool("no-exploits")
-	noRemediation, _ := cmd.Flags().GetBool("no-remediation")
-	severityThreshold, _ := cmd.Flags().GetString("severity")
+	// Already normalised and validated by scanopts.FromCommand.
+	severityThreshold := opts.SeverityThreshold
 
-	// Normalise and validate the severity threshold.
-	if severityThreshold != "" {
-		severityThreshold = strings.ToLower(strings.TrimSpace(severityThreshold))
-		valid := false
-		for _, v := range scan.ValidSeverityThresholds {
-			if severityThreshold == v {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			return fmt.Errorf("invalid --severity %q: must be one of: %s",
-				severityThreshold, strings.Join(scan.ValidSeverityThresholds, ", "))
-		}
-	}
-
-	blockMalware, _ := cmd.Flags().GetBool("block-malware")
-	blockEOL, _ := cmd.Flags().GetBool("block-eol")
+	blockMalware := opts.BlockMalware
+	blockEOL := opts.BlockEOL
 	if v, _ := cmd.Flags().GetString("block-eol-severity"); v != "" {
 		eolBlockSeverity = strings.ToLower(strings.TrimSpace(v))
 	}
-	blockUnpinned, _ := cmd.Flags().GetBool("block-unpinned")
-	exploitThreshold, _ := cmd.Flags().GetString("exploits")
-	resultsOnly, _ := cmd.Flags().GetBool("results-only")
+	blockUnpinned := opts.BlockUnpinned
+	exploitThreshold := opts.ExploitThreshold
+	resultsOnly := opts.ResultsOnly
 	noCIPackageAnalysis, _ := cmd.Flags().GetBool("no-ci-package-analysis")
 	noShellPackageAnalysis, _ := cmd.Flags().GetBool("no-shell-package-analysis")
-	versionLag, _ := cmd.Flags().GetInt("version-lag")
-	cooldownDays, _ := cmd.Flags().GetInt("cooldown")
-	dryRun, _ := cmd.Flags().GetBool("dry-run")
-	licenseAllowCSV, _ := cmd.Flags().GetString("allow")
-	licenseAllowFile, _ := cmd.Flags().GetString("allow-file")
-	licenseMode, _ := cmd.Flags().GetString("license-mode")
-	scaAutofix, _ := cmd.Flags().GetBool("sca-autofix")
+	versionLag := opts.VersionLag
+	cooldownDays := opts.CooldownDays
+	dryRun := opts.DryRun
+	scaAutofix := opts.SCAAutofix
 	scaAutofixStrategyRaw, _ := cmd.Flags().GetString("sca-autofix-strategy")
 	scaAutofixManifest, _ := cmd.Flags().GetString("sca-autofix-manifest")
 	scaAutofixMaxMajorBump, _ := cmd.Flags().GetInt("sca-autofix-max-major-bump")
@@ -469,28 +447,23 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		scaAutofix = false
 	}
 
-	// Normalise and validate the exploit threshold.
-	if exploitThreshold != "" {
-		exploitThreshold = strings.ToLower(strings.TrimSpace(exploitThreshold))
-		validExploit := false
-		for _, v := range scan.ValidExploitThresholds {
-			if exploitThreshold == v {
-				validExploit = true
-				break
-			}
-		}
-		if !validExploit {
-			return fmt.Errorf("invalid --exploits %q: must be one of: %s",
-				exploitThreshold, strings.Join(scan.ValidExploitThresholds, ", "))
-		}
+	// The exploit threshold was normalised and validated by
+	// scanopts.FromCommand, but org quality-gate policy may have replaced it
+	// with a value the org set, so re-validate what is about to be used.
+	exploitThreshold, err = scanopts.NormaliseExploits(exploitThreshold)
+	if err != nil {
+		return err
+	}
+	severityThreshold, err = scanopts.NormaliseSeverity(severityThreshold)
+	if err != nil {
+		return err
 	}
 
 	// SAST flags.
-	disableDefaultRules, _ := cmd.Flags().GetBool("disable-default-rules")
-	ruleArgs, _ := cmd.Flags().GetStringArray("rule")
-	ruleRegistry, _ := cmd.Flags().GetString("rule-registry")
-	ruleID, _ := cmd.Flags().GetString("rule-id")
-	ruleID = strings.ToUpper(strings.TrimSpace(ruleID))
+	disableDefaultRules := opts.DisableDefaultRules
+	ruleRefs := opts.RuleRefs
+	ruleRegistry := opts.RuleRegistry
+	ruleID := opts.RuleID
 	if ruleID != "" {
 		// Single-rule mode: run exactly the one named SAST rule.
 		// Suppress all manifest/package checks and force SAST enabled.
@@ -501,18 +474,6 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		noSAST = false
 		noSecrets = false
 	}
-	if ruleRegistry == "" {
-		ruleRegistry = sast.DefaultRegistry
-	}
-	var ruleRefs []sast.RuleRef
-	for _, arg := range ruleArgs {
-		ref, err := sast.ParseRuleRef(arg)
-		if err != nil {
-			return err
-		}
-		ruleRefs = append(ruleRefs, ref)
-	}
-
 	// Specialized subcommands (containers/secrets/iac/sast) are locked to their
 	// own rule kind: only rules of these kinds run, embedded *and* externally
 	// imported, so a `containers --rule <pack>` scan never bleeds into the
@@ -731,64 +692,59 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	sysInfo := gitctx.CollectSystemInfo()
 
 	// ── 6. Run local scan ──────────────────────────────────────────────
+	// Everything the flags alone decided is already on opts from
+	// scanopts.FromCommand. What follows is the rest: detection results,
+	// collected context, the feature booleans, and the gate values as org
+	// policy may have rewritten them since.
+	opts.Files = supportedFiles
+	opts.GitCtx = gitCtx
+	opts.SysInfo = sysInfo
+	opts.SeedBOM = seedBOM
+	opts.VulnetixSeedBOM = vulnetixSeedBOM
+
+	opts.NoLicenses = noLicenses
+	opts.NoSASTRules = noSAST
+	opts.NoSCA = noSCA
+	opts.NoSecrets = noSecrets
+	opts.NoContainers = noContainers
+	opts.NoIAC = noIAC
+
+	opts.LockedKinds = lockedKinds
+	opts.RespectGitignore = respectGitignoreSAST
+
+	// Re-assigned rather than assumed: applyOrgQualityGate rewrites these in
+	// place, and org policy wins even over an explicitly passed flag.
+	opts.SeverityThreshold = severityThreshold
+	opts.ExploitThreshold = exploitThreshold
+	opts.BlockMalware = blockMalware
+	opts.BlockEOL = blockEOL
+	opts.BlockUnpinned = blockUnpinned
+	opts.VersionLag = versionLag
+	opts.CooldownDays = cooldownDays
+	// scaAutofix is cleared when SCA is disabled, so it cannot be taken from
+	// the flag value either.
+	opts.SCAAutofix = scaAutofix
+	opts.SCAAutofixOpts = autofix.Options{
+		Strategy:     scaAutofixStrategy,
+		MaxMajorBump: scaAutofixMaxMajorBump,
+		Manifest:     scaAutofixManifest,
+		Yes:          yes,
+		PathExplicit: pathExplicit,
+	}
+
+	// Single-rule mode (--rule-id) forces the feature booleans above, and the
+	// scanPath default is applied after parsing, so take both from the locals.
+	opts.RootPath = scanPath
+
 	scanErr := runLocalScan(
 		ctx,
-		supportedFiles,
-		scanPath,
-		depth,
-		excludes,
+		opts,
 		outCfg,
-		concurrency,
-		noProgress,
-		showPaths,
-		noExploits,
-		noRemediation,
-		noLicenses,
-		severityThreshold,
-		blockMalware,
-		blockEOL,
-		blockUnpinned,
-		exploitThreshold,
-		resultsOnly,
-		versionLag,
-		cooldownDays,
-		noSAST,
-		noSCA,
-		noSecrets,
-		noContainers,
-		noIAC,
-		disableDefaultRules,
-		ruleRefs,
-		ruleRegistry,
-		ruleID,
-		lockedKinds,
-		seedBOM,
-		vulnetixSeedBOM,
-		gitCtx,
-		sysInfo,
-		snippetContext,
-		dryRun,
-		scaAutofix,
-		autofix.Options{
-			Strategy:     scaAutofixStrategy,
-			MaxMajorBump: scaAutofixMaxMajorBump,
-			Manifest:     scaAutofixManifest,
-			Yes:          yes,
-			PathExplicit: pathExplicit,
-		},
-		nil,
-		ignoreGlobs,
-		ignoreGit,
-		ignoreBinaries,
-		gitHistory,
-		gitHistoryMaxCommits,
-		gitHistoryMaxFiles,
-		respectGitignoreSAST,
-		LicensePolicyFlags{
-			Mode:      licenseMode,
-			AllowCSV:  licenseAllowCSV,
-			AllowFile: licenseAllowFile,
-		},
+		// The scan is one seven-step progress activity on stderr, exactly as
+		// before; the reporter is now constructed here rather than inside the
+		// analysis, so the same analysis can report to a language-server client
+		// instead.
+		pipeline.NewTerminalReporter("Scan", 7, silent, noProgress),
 	)
 
 	return mergeMalscanBreach(scanErr, malscanBreach)
@@ -809,76 +765,81 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 // When --severity is set and any enriched vulnerability's MaxSeverity meets or
 // exceeds the threshold the function returns a non-nil error that causes the
 // process to exit with code 1.
+// The analysis inputs arrive as a single pipeline.Options rather than the 40
+// positional parameters this function used to take. outCfg stays separate
+// because it is presentation, not analysis: it describes where this process
+// writes CycloneDX and SARIF, which is meaningless to a language server that
+// returns findings over JSON-RPC. rep is likewise the caller's choice of
+// progress sink.
 func runLocalScan(
 	ctx context.Context,
-	files []scan.DetectedFile,
-	rootPath string,
-	depth int,
-	excludes []string,
+	opts pipeline.Options,
 	outCfg *outputConfig,
-	concurrency int,
-	noProgress bool,
-	showPaths bool,
-	noExploits bool,
-	noRemediation bool,
-	noLicenses bool,
-	severityThreshold string,
-	blockMalware bool,
-	blockEOL bool,
-	blockUnpinned bool,
-	exploitThreshold string,
-	resultsOnly bool,
-	versionLag int,
-	cooldownDays int,
-	noSASTRules bool,
-	noSCA bool,
-	noSecrets bool,
-	noContainers bool,
-	noIAC bool,
-	disableDefaultRules bool,
-	ruleRefs []sast.RuleRef,
-	ruleRegistry string,
-	ruleID string,
-	lockedKinds []string,
-	seedBOM *cdx.BOM,
-	vulnetixSeedBOM *cdx.BOM,
-	gitCtx *gitctx.GitContext,
-	sysInfo *gitctx.SystemInfo,
-	snippetContext int,
-	dryRun bool,
-	scaAutofix bool,
-	scaAutofixOpts autofix.Options,
-	autofixResolved []*triage.TriageFinding,
-	// Secrets-stage options. These only affect the SAST engine when the
-	// "secrets" kind is enabled; other kinds ignore them. They are
-	// threaded explicitly so that the secrets subcommand can enable
-	// binary + git-history inspection without affecting the generic
-	// scan behaviour.
-	ignoreGlobs []string,
-	ignoreGit bool,
-	ignoreBinaries bool,
-	gitHistory bool,
-	gitHistoryMaxCommits int,
-	gitHistoryMaxFiles int,
-	respectGitignore bool,
-	// licensePolicy is handed to the license owner (runLicensePipeline) when the
-	// license stage runs.
-	licensePolicy LicensePolicyFlags,
+	rep pipeline.Reporter,
 ) (retErr error) {
-	dctx := display.NewWithProgress(display.ModeText, silent, noProgress)
-	scanProgress := dctx.Progress("Scan", 7)
-	progressStderr := scanProgress.Writer(os.Stderr)
-	scanProgress.SetStage(fmt.Sprintf("Parsing %d detected file(s)", len(files)))
-	progressComplete := false
+	// Unpacked into the local names the body below already uses. The body is
+	// deliberately untouched by this extraction, so the change is reviewable as
+	// "signature only" and the behaviour is provably identical.
+	files := opts.Files
+	rootPath := opts.RootPath
+	depth := opts.Depth
+	excludes := opts.Excludes
+	noProgress := opts.NoProgress
+	showPaths := opts.ShowPaths
+	noExploits := opts.NoExploits
+	noRemediation := opts.NoRemediation
+	noLicenses := opts.NoLicenses
+	severityThreshold := opts.SeverityThreshold
+	blockMalware := opts.BlockMalware
+	blockEOL := opts.BlockEOL
+	blockUnpinned := opts.BlockUnpinned
+	exploitThreshold := opts.ExploitThreshold
+	resultsOnly := opts.ResultsOnly
+	versionLag := opts.VersionLag
+	cooldownDays := opts.CooldownDays
+	noSASTRules := opts.NoSASTRules
+	noSCA := opts.NoSCA
+	noSecrets := opts.NoSecrets
+	noContainers := opts.NoContainers
+	noIAC := opts.NoIAC
+	disableDefaultRules := opts.DisableDefaultRules
+	ruleRefs := opts.RuleRefs
+	ruleRegistry := opts.RuleRegistry
+	ruleID := opts.RuleID
+	lockedKinds := opts.LockedKinds
+	seedBOM := opts.SeedBOM
+	vulnetixSeedBOM := opts.VulnetixSeedBOM
+	gitCtx := opts.GitCtx
+	sysInfo := opts.SysInfo
+	snippetContext := opts.SnippetContext
+	dryRun := opts.DryRun
+	scaAutofix := opts.SCAAutofix
+	scaAutofixOpts := opts.SCAAutofixOpts
+	autofixResolved := opts.AutofixResolved
+	ignoreGlobs := opts.IgnoreGlobs
+	ignoreGit := opts.IgnoreGit
+	ignoreBinaries := opts.IgnoreBinaries
+	gitHistory := opts.GitHistory
+	gitHistoryMaxCommits := opts.GitHistoryMaxCommits
+	gitHistoryMaxFiles := opts.GitHistoryMaxFiles
+	respectGitignore := opts.RespectGitignore
+	licensePolicy := LicensePolicyFlags{
+		Mode:      opts.License.Mode,
+		AllowCSV:  opts.License.AllowCSV,
+		AllowFile: opts.License.AllowFile,
+	}
+
+	progressStderr := rep.Writer()
+	rep.Stage(fmt.Sprintf("Parsing %d detected file(s)", len(files)))
 	defer func() {
-		if progressComplete {
-			return
-		}
+		// Complete and Fail are finish-once, so a path that already finished
+		// the run (autofix dry run, autofix applied, the normal tail) wins and
+		// this deferred call is a no-op.
 		if retErr != nil {
-			scanProgress.Fail("failed")
+			rep.Fail("failed")
 			return
 		}
-		scanProgress.Complete("complete")
+		rep.Complete("complete")
 	}()
 	var localResults []cdx.LocalScanResult
 	var allPackages []scan.ScopedPackage
@@ -1022,7 +983,7 @@ func runLocalScan(
 			localResults = []cdx.LocalScanResult{}
 			allPackages = []scan.ScopedPackage{}
 		}
-		scanProgress.Update(1, fmt.Sprintf("Parsed %d package(s)", len(allPackages)))
+		rep.Update(1, fmt.Sprintf("Parsed %d package(s)", len(allPackages)))
 
 		// Build manifest groups (dependency graphs) and run per-package license
 		// detection BEFORE the SCA round-trip so the payload can carry accurate
@@ -1038,11 +999,11 @@ func runLocalScan(
 			}
 		}
 		manifestGroups = scan.BuildManifestGroups(filePackages, fileEcosystems)
-		scanProgress.SetStage("Building dependency graph")
+		rep.Stage("Building dependency graph")
 		scan.PopulateInstalledEdges(manifestGroups, rootPath)
 
 		if len(allPackages) > 0 {
-			scanProgress.SetStage(fmt.Sprintf("Resolving package licenses for %d package(s)", len(allPackages)))
+			rep.Stage(fmt.Sprintf("Resolving package licenses for %d package(s)", len(allPackages)))
 			licensedPackages = license.DetectLicenses(allPackages, manifestGroups)
 			for _, lp := range licensedPackages {
 				if lp.LicenseSpdxID != "" && lp.LicenseSpdxID != "UNKNOWN" {
@@ -1050,7 +1011,7 @@ func runLocalScan(
 				}
 			}
 		}
-		scanProgress.Update(2, "Prepared dependency metadata")
+		rep.Update(2, "Prepared dependency metadata")
 
 		// Container-only scans also resolve their parsed components (base images
 		// + RUN-installed OS/lang packages) against the VDB so the same CVE data
@@ -1080,7 +1041,7 @@ func runLocalScan(
 			if containerOnly {
 				scaToolName = "vulnetix-containers"
 			}
-			scanProgress.SetStage(fmt.Sprintf("Querying VDB for %d package(s)", countUniquePackages(allPackages)))
+			rep.Stage(fmt.Sprintf("Querying VDB for %d package(s)", countUniquePackages(allPackages)))
 			apiServed, apiVulns, apiEnriched, apiInsights, apiSnapshotUuid, apiSnapshotURL, apiPersistedFindings := tryCliSCA(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, scaToolName, gateOpts, progressStderr)
 			if apiServed {
 				allVulns = apiVulns
@@ -1089,11 +1050,11 @@ func runLocalScan(
 				scaSnapshotUuid = apiSnapshotUuid
 				scaSnapshotURL = apiSnapshotURL
 				scaPersistedFindings = apiPersistedFindings
-				scanProgress.Update(3, fmt.Sprintf("VDB returned %d finding(s)", len(allVulns)))
+				rep.Update(3, fmt.Sprintf("VDB returned %d finding(s)", len(allVulns)))
 			} else if containerOnly {
 				// Container scans degrade gracefully: the misconfiguration rego
 				// rules still run and write SARIF, even with no VDB connectivity.
-				scanProgress.Update(3, fmt.Sprintf("Parsed %d container component(s); VDB lookup unavailable", len(allPackages)))
+				rep.Update(3, fmt.Sprintf("Parsed %d container component(s); VDB lookup unavailable", len(allPackages)))
 			} else {
 				// /v2/cli.sca is the only path to the VDB for SCA — the legacy
 				// per-PURL lookup has been removed. The endpoint self-heals (retry,
@@ -1104,10 +1065,10 @@ func runLocalScan(
 				return fmt.Errorf("VDB SCA lookup failed: /v2/cli.sca was unavailable (check credentials, config, and network connectivity)")
 			}
 		} else {
-			scanProgress.Update(3, fmt.Sprintf("Parsed %d container component(s)", len(allPackages)))
+			rep.Update(3, fmt.Sprintf("Parsed %d container component(s)", len(allPackages)))
 		}
 	} else {
-		scanProgress.Update(3, "Skipped SCA package vulnerability lookup")
+		rep.Update(3, "Skipped SCA package vulnerability lookup")
 	}
 
 	// Attach vulns to each file result.
@@ -1122,9 +1083,9 @@ func runLocalScan(
 	// Skipped when the API-served path populated enriched data already.
 	enrichedVulns := scaEnrichedFromAPI
 	if noSCA && !containerOnly {
-		scanProgress.Update(4, "Skipped SCA vulnerability enrichment")
+		rep.Update(4, "Skipped SCA vulnerability enrichment")
 	} else {
-		scanProgress.Update(4, fmt.Sprintf("Received %d enriched finding(s)", len(enrichedVulns)))
+		rep.Update(4, fmt.Sprintf("Received %d enriched finding(s)", len(enrichedVulns)))
 	}
 
 	// Drop SCA vulns covered by an active suppression ("ignore") rule before any
@@ -1191,8 +1152,7 @@ func runLocalScan(
 		selected = rewriteAutofixCommandsForPackageManagers(selected, files)
 		selectedCounts := autofix.CountPlans(selected)
 		if dryRun {
-			scanProgress.Complete("autofix dry run complete")
-			progressComplete = true
+			rep.Complete("autofix dry run complete")
 			printAutofixProposal(selected, selectedCounts)
 			return nil
 		}
@@ -1251,64 +1211,41 @@ func runLocalScan(
 						fmt.Fprintf(progressStderr, "  warning: could not write autofix VEX: %v\n", vexErr)
 					}
 					postAutofixVEXToSnapshot(scaSnapshotUuid, scaPersistedFindings, resolvedFindings, selected, selectedCounts, gitCtx, sysInfo, rootPath, allPackages, progressStderr)
-					scanProgress.Complete("autofix applied")
-					progressComplete = true
+					rep.Complete("autofix applied")
 					printAutofixReport(selected, selectedCounts, len(resolvedFindings), nil)
 					if vexPath != "" {
 						fmt.Fprintf(os.Stdout, "  VEX: %s\n", vexPath)
 					}
 					fmt.Fprintln(os.Stderr, "Re-scanning to confirm SCA autofix results...")
+
+					// Same run, four deliberate differences. Copying opts rather
+					// than re-listing every field means a new option cannot be
+					// silently dropped from the confirmation pass.
+					confirmOpts := opts
+					// SCA-only: a dependency fix changes only SCA, so re-running
+					// SAST/secrets/containers/IaC just doubles the cost. NoSCA is
+					// left as-is so SCA re-runs and confirms the fixes.
+					confirmOpts.NoSASTRules = true
+					confirmOpts.NoSecrets = true
+					confirmOpts.NoContainers = true
+					confirmOpts.NoIAC = true
+					// Autofix already ran; this pass verifies it.
+					confirmOpts.DryRun = false
+					confirmOpts.SCAAutofix = false
+					confirmOpts.SCAAutofixOpts = autofix.Options{}
+					confirmOpts.AutofixResolved = resolvedFindings
+
 					return runLocalScan(
 						ctx,
-						files,
-						rootPath,
-						depth,
-						excludes,
+						confirmOpts,
 						outCfg,
-						concurrency,
-						noProgress,
-						showPaths,
-						noExploits,
-						noRemediation,
-						noLicenses,
-						severityThreshold,
-						blockMalware,
-						blockEOL,
-						blockUnpinned,
-						exploitThreshold,
-						resultsOnly,
-						versionLag,
-						cooldownDays,
-						// SCA-only confirmation re-scan: a dependency fix changes only
-						// SCA, so re-running SAST/secrets/containers/IaC just doubles the
-						// cost. Keep noSCA as-is so SCA re-runs to confirm the fixes.
-						true, // noSASTRules
-						noSCA,
-						true, // noSecrets
-						true, // noContainers
-						true, // noIAC
-						disableDefaultRules,
-						ruleRefs,
-						ruleRegistry,
-						ruleID,
-						lockedKinds,
-						seedBOM,
-						vulnetixSeedBOM,
-						gitCtx,
-						sysInfo,
-						snippetContext,
-						false,
-						false,
-						autofix.Options{},
-						resolvedFindings,
-						ignoreGlobs,
-						ignoreGit,
-						ignoreBinaries,
-						gitHistory,
-						gitHistoryMaxCommits,
-						gitHistoryMaxFiles,
-						respectGitignore,
-						licensePolicy,
+						// Its own activity, not the caller's. The outer run has not
+						// finished yet, and Complete/Fail are finish-once, so sharing a
+						// reporter would let this nested confirmation scan close the
+						// outer progress row early. This matches what the nested call
+						// did before the extraction, when it built its own
+						// display.Progress internally.
+						pipeline.NewTerminalReporter("Scan", 7, silent, noProgress),
 					)
 				}
 			}
@@ -1486,7 +1423,7 @@ func runLocalScan(
 	disableAllSAST := noSASTRules && noSecrets && noContainers && noIAC
 	var sastReport *sast.SASTReport
 	if !disableAllSAST {
-		scanProgress.SetStage(fmt.Sprintf("Loading %s rules", strings.ToLower(analysisLabel)))
+		rep.Stage(fmt.Sprintf("Loading %s rules", strings.ToLower(analysisLabel)))
 		modules, merr := sast.LoadAllModules(sast.DefaultRulesFS, disableDefaultRules, ruleRefs, ruleRegistry, progressStderr)
 		if merr != nil {
 			fmt.Fprintf(progressStderr, "  warning: could not load SAST rules: %v\n", merr)
@@ -1506,7 +1443,7 @@ func runLocalScan(
 			modules = filterModulesByID(modules, ruleID)
 			eng := sast.NewEngine(modules, rootPath)
 			var eerr error
-			scanProgress.SetStage(fmt.Sprintf("Evaluating %d %s rule(s)", len(modules), strings.ToLower(analysisLabel)))
+			rep.Stage(fmt.Sprintf("Evaluating %d %s rule(s)", len(modules), strings.ToLower(analysisLabel)))
 			// Binary and git-history scanning only make sense for the secrets
 			// subcommand. We enable them automatically when the SAST engine
 			// is being driven by kind "secrets"; the user can still turn
@@ -1703,7 +1640,7 @@ func runLocalScan(
 			// /v2/cli.sca first. The returned snapshot UUID is then supplied to
 			// /v2/cli.containers so SARIF findings attach to the same run snapshot.
 			if containerOnly && len(allPackages) > 0 && scaSnapshotUuid == "" && !isUnauthenticatedScan() {
-				scanProgress.SetStage("Persisting container BOM")
+				rep.Stage("Persisting container BOM")
 				// The persisted findings are not consumed on the container path:
 				// the VEX/autofix passes that read them have already run above.
 				apiServed, apiInsights, apiSnapshotUuid, apiSnapshotURL, _ := postCliSCABOM(allPackages, manifestGroups, licenseByKey, gitCtx, sysInfo, rootPath, "vulnetix-containers", io.Discard)
@@ -1750,12 +1687,12 @@ func runLocalScan(
 		}
 	}
 	if sastReport != nil {
-		scanProgress.Update(5, fmt.Sprintf("%s analysis found %d issue(s)", analysisLabel, len(sastReport.Findings)))
+		rep.Update(5, fmt.Sprintf("%s analysis found %d issue(s)", analysisLabel, len(sastReport.Findings)))
 	} else {
-		scanProgress.Update(5, fmt.Sprintf("%s analysis skipped or produced no findings", analysisLabel))
+		rep.Update(5, fmt.Sprintf("%s analysis skipped or produced no findings", analysisLabel))
 	}
 
-	scanProgress.SetStage("Persisting scan memory")
+	rep.Stage("Persisting scan memory")
 
 	// ── Build .vulnetix/sbom.cdx.json (written below only if non-empty) ──
 	scanCtx := &cdx.ScanContext{
@@ -1862,9 +1799,9 @@ func runLocalScan(
 		if err := memory.Save(vulnetixDir, mem); err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not update memory.yaml: %v\n", err)
 		}
-		scanProgress.Update(6, "Wrote local scan state")
+		rep.Update(6, "Wrote local scan state")
 	} else {
-		scanProgress.Update(6, "Skipped local scan state (--disable-memory)")
+		rep.Update(6, "Skipped local scan state (--disable-memory)")
 	}
 
 	graphToolName := "vulnetix-scan-graph"
@@ -2281,9 +2218,8 @@ func runLocalScan(
 		reportScanFinalization(uuid, finalizationBreaches, controlFlags, gitCtx, sysInfo)
 		finalizedSnapshots[uuid] = true
 	}
-	scanProgress.Update(7, "Evaluated quality gates")
-	scanProgress.Complete("scan complete")
-	progressComplete = true
+	rep.Update(7, "Evaluated quality gates")
+	rep.Complete("scan complete")
 
 	// ── Output ────────────────────────────────────────────────────────────
 
@@ -3709,7 +3645,14 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().StringArrayP("output", "o", nil,
 		"Output target (repeatable): json-cyclonedx or json-sarif for stdout; file path (.cdx.json, .sarif) to write to file")
 	cmd.Flags().StringP("format", "f", "", "Deprecated: use --output instead")
+	// Retired. It was parsed and threaded through the whole scan engine without
+	// ever being read; SCA fan-out is governed by VULNETIX_SCA_CONCURRENCY
+	// (default 6, see cmd/cli_sca.go). Deprecated rather than deleted so a CI
+	// pipeline that passes it keeps working with a warning instead of failing
+	// on "unknown flag". Delete in v4.
 	cmd.Flags().Int("concurrency", 5, "Max concurrent VDB queries")
+	_ = cmd.Flags().MarkDeprecated("concurrency",
+		"it has never had any effect; set VULNETIX_SCA_CONCURRENCY instead")
 	cmd.Flags().Bool("show-introduced-paths", false, "Show the full chain from manifest to the affected transitive package (npm, Python, Rust, Ruby, PHP, Go). Direct deps are introduced by the manifest itself and omitted.")
 	// Deprecated alias retained for backward compatibility — the documented
 	// name is --show-introduced-paths.
