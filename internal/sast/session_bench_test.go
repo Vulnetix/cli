@@ -7,8 +7,6 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"sync"
 	"testing"
 
@@ -194,30 +192,6 @@ func BenchmarkEvalWarm(b *testing.B) {
 	}
 }
 
-// benchKind pulls the declared kind out of a rule module's metadata object.
-// cmd.extractRegoKind does this properly but lives in cmd/, which internal/
-// cannot import. Modules with no kind default to "sast", matching it.
-var benchKindRe = regexp.MustCompile(`"kind"\s*:\s*"([a-z]+)"`)
-
-func benchKind(src string) string {
-	if m := benchKindRe.FindStringSubmatch(src); m != nil {
-		return m[1]
-	}
-	return "sast"
-}
-
-// benchFilterKinds keeps rule modules whose kind is in `keep`, always retaining
-// helper modules (no metadata id) because the kept rules compile against them.
-func benchFilterKinds(modules map[string]string, keep map[string]bool) map[string]string {
-	out := make(map[string]string, len(modules))
-	for name, src := range modules {
-		if !strings.Contains(src, "package vulnetix.rules.") || keep[benchKind(src)] {
-			out[name] = src
-		}
-	}
-	return out
-}
-
 // BenchmarkEvalWarmByKind attributes warm evaluation cost to rule kind.
 //
 // This is the benchmark that decides the language-server hot path. The
@@ -236,9 +210,9 @@ func BenchmarkEvalWarmByKind(b *testing.B) {
 
 	sets := map[string]map[string]string{
 		"all":            all,
-		"sast-only":      benchFilterKinds(all, map[string]bool{"sast": true}),
-		"secrets-only":   benchFilterKinds(all, map[string]bool{"secrets": true}),
-		"without-secret": benchFilterKinds(all, map[string]bool{"sast": true, "iac": true, "oci": true}),
+		"sast-only":      FilterModulesToKinds(all, []string{KindSAST}),
+		"secrets-only":   FilterModulesToKinds(all, []string{KindSecrets}),
+		"without-secret": FilterModulesToKinds(all, InteractiveKinds),
 	}
 
 	for _, name := range []string{"all", "sast-only", "secrets-only", "without-secret"} {

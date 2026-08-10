@@ -82,9 +82,9 @@ func inputFiring(name string, want []int) *ScanInput {
 	}
 }
 
-// evalPrepared runs one prepared query against one input and returns the
+// evalFingerprints runs one prepared query against one input and returns the
 // findings in the same normalised form the engine produces.
-func evalPrepared(ctx context.Context, pq rego.PreparedEvalQuery, in *ScanInput) ([]string, error) {
+func evalFingerprints(ctx context.Context, pq rego.PreparedEvalQuery, in *ScanInput) ([]string, error) {
 	rs, err := pq.Eval(ctx, rego.EvalInput(in))
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func TestPreparedQueryConcurrentEvalParity(t *testing.T) {
 	// Sequential baseline on the same prepared query.
 	sequential := make([][]string, nWorkers)
 	for w := range nWorkers {
-		got, err := evalPrepared(ctx, pq, inputs[w])
+		got, err := evalFingerprints(ctx, pq, inputs[w])
 		require.NoError(t, err)
 		require.NotEmpty(t, got, "worker %d must produce findings, or the test proves nothing", w)
 		sequential[w] = got
@@ -146,7 +146,7 @@ func TestPreparedQueryConcurrentEvalParity(t *testing.T) {
 		go func(w int) {
 			defer wg.Done()
 			<-start // maximise overlap
-			concurrent[w], errs[w] = evalPrepared(ctx, pq, inputs[w])
+			concurrent[w], errs[w] = evalFingerprints(ctx, pq, inputs[w])
 		}(w)
 	}
 	close(start)
@@ -171,12 +171,12 @@ func TestPreparedQueryRepeatedEvalIsStable(t *testing.T) {
 	ctx := context.Background()
 	in := inputFiring("code.txt", []int{0, 1, 2, 40, 79})
 
-	first, err := evalPrepared(ctx, pq, in)
+	first, err := evalFingerprints(ctx, pq, in)
 	require.NoError(t, err)
 	require.Len(t, first, 5)
 
 	for i := range 20 {
-		got, err := evalPrepared(ctx, pq, in)
+		got, err := evalFingerprints(ctx, pq, in)
 		require.NoError(t, err, "iteration %d", i)
 		require.Equal(t, first, got, "iteration %d: prepared query must be stable across reuse", i)
 	}
@@ -195,7 +195,7 @@ func TestPreparedQueryConcurrentSameInput(t *testing.T) {
 	ctx := context.Background()
 	in := inputFiring("code.txt", []int{0, 5, 17, 63, 119})
 
-	want, err := evalPrepared(ctx, pq, in)
+	want, err := evalFingerprints(ctx, pq, in)
 	require.NoError(t, err)
 	require.Len(t, want, 5)
 
@@ -209,7 +209,7 @@ func TestPreparedQueryConcurrentSameInput(t *testing.T) {
 			defer wg.Done()
 			<-start
 			for range 5 {
-				got[w], errs[w] = evalPrepared(ctx, pq, in)
+				got[w], errs[w] = evalFingerprints(ctx, pq, in)
 				if errs[w] != nil {
 					return
 				}
@@ -251,7 +251,7 @@ func TestPreparedQueryPreservesEnginePathParity(t *testing.T) {
 	require.Len(t, current, 5)
 
 	// Warm path: prepare once, pass the input at eval time.
-	warm, err := evalPrepared(ctx, prepare(t, modules), in)
+	warm, err := evalFingerprints(ctx, prepare(t, modules), in)
 	require.NoError(t, err)
 
 	require.Equal(t, current, warm, "prepared-query results must match the current per-call Eval path")

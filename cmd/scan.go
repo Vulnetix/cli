@@ -1435,12 +1435,12 @@ func runLocalScan(
 				if len(lockedKinds) > 0 {
 					// Specialized subcommand: lock to its kind-set, embedded and
 					// externally imported rules alike.
-					modules = filterModulesToKinds(modules, lockedKinds)
+					modules = sast.FilterModulesToKinds(modules, lockedKinds)
 				} else {
-					modules = filterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
+					modules = sast.FilterModulesByKind(modules, noSASTRules, noSecrets, noContainers, noIAC)
 				}
 			}
-			modules = filterModulesByID(modules, ruleID)
+			modules = sast.FilterModulesByID(modules, ruleID)
 			eng := sast.NewEngine(modules, rootPath)
 			var eerr error
 			rep.Stage(fmt.Sprintf("Evaluating %d %s rule(s)", len(modules), strings.ToLower(analysisLabel)))
@@ -3824,7 +3824,7 @@ func filterCommandPackageFiles(files []scan.DetectedFile, noCI, noShell bool) []
 // specializedRuleKinds returns the locked Rego kind-set for a specialized scan
 // subcommand, or nil for the generic "scan" command (and "sca", which runs no
 // Rego). When non-nil the kinds are authoritative: only rules of these kinds
-// run, embedded and externally imported alike (see filterModulesToKinds), so a
+// run, embedded and externally imported alike (see sast.FilterModulesToKinds), so a
 // `containers --rule <pack>` scan cannot bleed into the pack's secrets/iac/api
 // rules. Container rules are tagged inconsistently across rule sources —
 // embedded rules use "oci", community-rules uses "container" — so both are in
@@ -3842,127 +3842,6 @@ func specializedRuleKinds(cmdName string) []string {
 	default:
 		return nil
 	}
-}
-
-// filterModulesToKinds keeps only the Rego modules whose declared kind is in the
-// allowed set. Unlike filterModulesByKind it does NOT exempt externally imported
-// (--rule) packs: a locked specialized subcommand applies its kind scope to
-// every rule regardless of origin.
-//
-// Library/helper modules — those declaring no rule "id" (e.g. a pack's shared
-// _lib/docker.rego) — are always retained: the kept rules compile against them,
-// and OPA compiles every module together, so dropping a dependency would fail
-// the whole evaluation. Libraries produce no findings, so keeping a few extra is
-// harmless. Modules without a "kind" field default to "sast" (see extractRegoKind).
-func filterModulesToKinds(modules map[string]string, kinds []string) map[string]string {
-	if len(kinds) == 0 {
-		return modules
-	}
-	allowed := make(map[string]bool, len(kinds))
-	for _, k := range kinds {
-		allowed[k] = true
-	}
-	filtered := make(map[string]string, len(modules))
-	for name, src := range modules {
-		// Retain shared libraries (no rule id) as compile dependencies.
-		if extractRegoID(src) == "" || allowed[extractRegoKind(src)] {
-			filtered[name] = src
-		}
-	}
-	return filtered
-}
-
-// filterModulesByKind removes Rego modules whose declared kind does not match
-// the enabled feature flags. noSASTRules filters out "sast"-kind rules,
-// noSecrets filters "secrets"-kind, noContainers filters "oci"-kind, noIAC
-// filters "iac"-kind. Modules without a "kind" field default to "sast".
-func filterModulesByKind(modules map[string]string, noSASTRules, noSecrets, noContainers, noIAC bool) map[string]string {
-	if !noSASTRules && !noSecrets && !noContainers && !noIAC {
-		return modules
-	}
-	filtered := make(map[string]string, len(modules))
-	for name, src := range modules {
-		// Externally imported rules (loaded from --rule repos) bypass the
-		// kind filter — the user explicitly asked for them. Embedded
-		// default rules live under the "rules/" prefix in the embed.FS.
-		if !strings.HasPrefix(name, "rules/") {
-			filtered[name] = src
-			continue
-		}
-		kind := extractRegoKind(src)
-		if kind == "sast" && noSASTRules {
-			continue
-		}
-		if kind == "secrets" && noSecrets {
-			continue
-		}
-		if kind == "oci" && noContainers {
-			continue
-		}
-		if kind == "iac" && noIAC {
-			continue
-		}
-		filtered[name] = src
-	}
-	return filtered
-}
-
-// filterModulesByID retains only the Rego module whose metadata "id" field
-// matches ruleID (case-insensitive). Returns the original map unchanged when
-// ruleID is empty.
-func filterModulesByID(modules map[string]string, ruleID string) map[string]string {
-	if ruleID == "" {
-		return modules
-	}
-	target := strings.ToUpper(strings.TrimSpace(ruleID))
-	filtered := make(map[string]string, 1)
-	for name, src := range modules {
-		if strings.ToUpper(extractRegoID(src)) == target {
-			filtered[name] = src
-			break
-		}
-	}
-	return filtered
-}
-
-// extractRegoID returns the value of the "id" field from a Rego module's
-// metadata block. Returns "" when no id is declared.
-func extractRegoID(src string) string {
-	i := strings.Index(src, `"id"`)
-	if i < 0 {
-		return ""
-	}
-	rest := src[i+4:]
-	j := strings.Index(rest, `"`)
-	if j < 0 {
-		return ""
-	}
-	rest = rest[j+1:]
-	k := strings.Index(rest, `"`)
-	if k < 0 {
-		return ""
-	}
-	return rest[:k]
-}
-
-// extractRegoKind returns the value of the "kind" field from a Rego module's
-// metadata block. Returns "sast" when no kind is declared.
-func extractRegoKind(src string) string {
-	i := strings.Index(src, `"kind"`)
-	if i < 0 {
-		return "sast"
-	}
-	rest := src[i+6:]
-	j := strings.Index(rest, `"`)
-	if j < 0 {
-		return "sast"
-	}
-	rest = rest[j+1:]
-	k := strings.Index(rest, `"`)
-	if k < 0 {
-		return "sast"
-	}
-	return rest[:k]
 }
 
 func init() {

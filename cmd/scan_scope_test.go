@@ -1,6 +1,10 @@
 package cmd
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/vulnetix/cli/v3/internal/sast"
+)
 
 func TestSpecializedRuleKinds(t *testing.T) {
 	cases := map[string][]string{
@@ -46,7 +50,7 @@ func TestFilterModulesToKinds_ContainerScope(t *testing.T) {
 		"ext/vnx-sec-1.rego":             regoSrc("VNX-SEC-1", "secrets"),
 		"ext/community/_lib/docker.rego": regoSrc("", ""), // shared library, must be kept
 	}
-	got := filterModulesToKinds(modules, []string{"oci", "container"})
+	got := sast.FilterModulesToKinds(modules, []string{"oci", "container"})
 
 	mustKeep := []string{
 		"rules/vnx-docker-001.rego",
@@ -72,7 +76,7 @@ func TestFilterModulesToKinds_ContainerScope(t *testing.T) {
 
 func TestFilterModulesToKinds_EmptyKindsReturnsAll(t *testing.T) {
 	modules := map[string]string{"a": regoSrc("A", "iac")}
-	got := filterModulesToKinds(modules, nil)
+	got := sast.FilterModulesToKinds(modules, nil)
 	if len(got) != 1 {
 		t.Fatalf("expected passthrough with no kinds, got %v", keys(got))
 	}
