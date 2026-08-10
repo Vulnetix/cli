@@ -386,6 +386,14 @@ func startupHooks() {
 		}
 	}()
 
+	// A language server is a daemon, not a command. It must not poll GitHub for
+	// releases on a schedule the user never asked for, and the update advisory
+	// it would print goes to a stream the editor is parsing as protocol.
+	// The extension owns the CLI's lifecycle instead.
+	if LSPActive() {
+		return
+	}
+
 	// Update check: skip in CI, dev builds, or if checked recently
 	if config.DetectPlatform() != config.PlatformCLI {
 		return

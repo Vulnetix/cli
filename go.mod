@@ -33,6 +33,7 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/gowebpki/jcs v1.0.1 // indirect
+	github.com/sourcegraph/jsonrpc2 v0.2.1 // indirect
 )
 
 require (
