@@ -1,0 +1,120 @@
+name: LSP Contract
+
+# The language server has two contracts that break silently.
+#
+# The first is stdout. Standard output is the JSON-RPC channel, and cmd/ writes
+# to os.Stdout in 144 places; one stray byte desynchronises the framing and the
+# client stops being able to parse anything. That failure is total, and it is
+# invisible to any test that runs the server in-process.
+#
+# The second is the protocol version. The VS Code extension requires an exact
+# match and refuses to connect otherwise, so a bump here without a bump there
+# takes the extension offline for everyone who updates one and not the other.
+#
+# Both are cheap to check and expensive to discover from a bug report.
+
+on:
+  pull_request:
+    paths:
+      - 'internal/lsp/**'
+      - 'internal/sast/**'
+      - 'cmd/lsp.go'
+      - 'cmd/lsp_stdio_test.go'
+      - 'cmd/root.go'
+      - 'go.mod'
+      - '.github/workflows/lsp-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'internal/lsp/**'
+      - 'internal/sast/**'
+      - 'cmd/lsp.go'
+  workflow_dispatch:
+
+concurrency:
+  group: lsp-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Protocol contract
+    # GitHub-hosted on purpose. This gates merges, so it must not wait on the
+    # self-hosted runner being up.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The E2E fixture is a private submodule that these tests do not use.
+          submodules: false
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build ./...
+
+      - name: The handshake must be parseable before anything else
+        run: |
+          # The extension runs this before connecting and refuses to start a
+          # server it cannot parse. A banner or a stray log line here means the
+          # extension reports "not a Vulnetix LSP binary" for a binary that is.
+          go build -o /tmp/vulnetix .
+          /tmp/vulnetix lsp --version > /tmp/handshake.json
+          cat /tmp/handshake.json
+          jq -e '.protocolVersion | numbers' /tmp/handshake.json > /dev/null
+          jq -e '.cliVersion | strings' /tmp/handshake.json > /dev/null
+          jq -e '.capabilities | arrays | length > 0' /tmp/handshake.json > /dev/null
+
+      - name: Protocol version must match the extension's
+        run: |
+          # internal/lsp/protocol/version.go is the server's declaration. The
+          # extension declares the same integer in its package.json. They are in
+          # different repositories, so this checks the server's own consistency
+          # and cli-compat.yml in the extension repo checks the pair.
+          declared=$(grep -oP 'ProtocolVersion = \K[0-9]+' internal/lsp/protocol/version.go)
+          reported=$(jq -r '.protocolVersion' /tmp/handshake.json)
+          echo "declared=$declared reported=$reported"
+          if [ "$declared" != "$reported" ]; then
+            echo "::error::ProtocolVersion in version.go ($declared) does not match the handshake ($reported)"
+            exit 1
+          fi
+
+      - name: Conformance suite
+        run: go test ./internal/lsp/... -count=1 -timeout 20m
+
+      - name: Stdout must carry nothing but protocol
+        run: |
+          # Spawns the real binary and drives a full session through it. The
+          # only way to catch a stray write from any of the 144 os.Stdout call
+          # sites in cmd/.
+          go test ./cmd/ -run TestNoStdoutPollution -count=1 -v -timeout 20m
+
+      - name: Race detector
+        run: |
+          # The scheduler cancels in-flight work from the read loop while scan
+          # goroutines finish and clear their own entries, and one prepared
+          # query is evaluated concurrently by several shards. Both are exactly
+          # the shapes that race.
+          go test ./internal/lsp/... ./internal/sast/ -race -count=1 -timeout 30m
+
+      - name: The server must never write to os.Stdout
+        run: |
+          # The reassignment in runLSP saves code that writes to os.Stdout
+          # indirectly. Code inside the server doing it deliberately is writing
+          # into the protocol stream on purpose, which no redirection fixes.
+          #
+          # Comments are excluded: several of them explain this very rule, and a
+          # guard that fires on its own rationale trains people to ignore it.
+          hits=$(grep -rn 'os\.Stdout' internal/lsp/ --include='*.go' \
+                   | grep -v '_test\.go' \
+                   | grep -vE '^[^:]+:[0-9]+:[[:space:]]*(//|\*)' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::internal/lsp must never write to os.Stdout; that is the JSON-RPC channel"
+            echo "$hits"
+            exit 1
+          fi
+          echo "OK: no os.Stdout writes in internal/lsp"
