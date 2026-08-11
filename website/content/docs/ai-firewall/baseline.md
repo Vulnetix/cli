@@ -26,22 +26,37 @@ It contains **guardrails only**. There are no provider or model allow/deny lists
 
 ## Using it
 
-Set `spec.baseline.enabled` in your [policy file](/docs/ai-firewall/policy-file/) and apply:
-
-```yaml
-spec:
-  baseline:
-    enabled: true
-    ref: recommended
-    exclude:
-      - pii-phone       # by id, not by name
-```
+`apply` composes the baseline in by default, so a [policy file](/docs/ai-firewall/policy-file/) that says nothing about it still gets the recommended set:
 
 ```bash
 vulnetix ai-firewall apply --dry-run
 ```
 
+Pin a different set, or drop individual rules, with a `baseline` block:
+
+```yaml
+spec:
+  baseline:
+    ref: recommended
+    exclude:
+      - pii-phone       # by id, not by name
+```
+
 The baseline guardrails are composed into your own and applied together.
+
+## Declining it
+
+Two ways, and they mean different things. `--no-baseline` skips it for one run, which is what you want while iterating on your own rules. `spec.baseline.enabled: false` records the decision in the file, so every apply and every CI run agrees.
+
+```yaml
+spec:
+  baseline:
+    enabled: false
+```
+
+`vulnetix ai-firewall export` writes that block for you. An export is a snapshot of what the organisation has now, so re-applying one has to stay a no-op rather than quietly adding two dozen rules the snapshot never contained. Flip it to `true` when you want the recommended set.
+
+In CI, pass `--baseline-required` so a baseline the server cannot serve fails the run instead of silently applying fewer rules than you think.
 
 ## Composition rules
 

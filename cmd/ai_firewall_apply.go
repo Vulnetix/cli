@@ -24,8 +24,9 @@ The set comes from the server, so the recommendations improve without a CLI
 release. It never contains provider or model allow/deny lists: what an org may
 call is the org's decision.
 
-Apply it with 'vulnetix ai-firewall apply' and a policy file whose
-spec.baseline.enabled is true. Substitute your own set with --catalog.`,
+'vulnetix ai-firewall apply' composes this set in by default. Decline it with
+--no-baseline or spec.baseline.enabled: false, drop individual rules with
+spec.baseline.exclude, or substitute your own set with --catalog.`,
 		Args: cobra.NoArgs,
 		RunE: runAiFirewallBaseline,
 	}
@@ -144,9 +145,14 @@ providers, then keys, then settings — so that tightening a policy never passes
 through a window where a provider is enabled and the guardrails constraining it
 are not yet in place.
 
-Objects on the server that the file does not mention are reported as drift and
-left alone. --prune deletes them instead; it is off by default because an apply
-must not silently destroy a guardrail someone authored in the dashboard.
+Guardrails and model entries on the server that the file does not mention are
+reported as drift and left alone. --prune deletes them instead; it is off by
+default because an apply must not silently destroy a guardrail someone authored
+in the dashboard.
+
+The server's recommended guardrail baseline is composed in unless you decline it
+with --no-baseline or spec.baseline.enabled: false. An exported policy pins it
+off, so re-applying a snapshot stays a no-op.
 
 Run with --dry-run first: it prints the plan and changes nothing.`,
 		Args: cobra.NoArgs,
@@ -155,7 +161,7 @@ Run with --dry-run first: it prints the plan and changes nothing.`,
 	cmd.Flags().StringP("file", "f", aifw.DefaultPolicyPath, "Policy file")
 	cmd.Flags().Bool("dry-run", false, "Print the plan without changing anything")
 	cmd.Flags().Bool("prune", false, "Delete server objects the file does not mention")
-	cmd.Flags().Bool("no-baseline", false, "Do not apply the server's recommended guardrails")
+	cmd.Flags().Bool("no-baseline", false, "Do not compose in the server's recommended guardrails (on by default)")
 	cmd.Flags().Bool("baseline-required", false, "Fail if the baseline cannot be fetched (use in CI)")
 	cmd.Flags().String("catalog", "", "Use a local baseline file instead of the server's")
 	cmd.Flags().String("ref", "recommended", "Named baseline set")
@@ -205,15 +211,24 @@ func runAiFirewallApply(cmd *cobra.Command, args []string) error {
 	}
 
 	// Compose the desired guardrails from the file plus the server's baseline.
+	// The baseline applies unless the file or the command line declines it: an
+	// org that writes a policy file and says nothing about guardrails should get
+	// the recommended set, not silently run with none.
 	var baselineNote string
-	if bs := pf.Spec.Baseline; bs != nil && bs.Enabled {
+	switch {
+	case !pf.Spec.BaselineRequested():
+		baselineNote = "disabled with spec.baseline.enabled: false"
+	default:
+		if ref := pf.Spec.BaselineRef(); ref != "" && !cmd.Flags().Changed("ref") {
+			_ = cmd.Flags().Set("ref", ref)
+		}
 		baseline, note, err := loadBaseline(cmd, required)
 		if err != nil {
 			return err
 		}
 		baselineNote = note
 		if baseline != nil {
-			pf.Spec.Guardrails = aifw.ComposeGuardrails(pf.Spec.Guardrails, baseline, bs.Exclude)
+			pf.Spec.Guardrails = aifw.ComposeGuardrails(pf.Spec.Guardrails, baseline, pf.Spec.BaselineExclude())
 			baselineNote = fmt.Sprintf("baseline %s (%s) composed in", baseline.Ref, baseline.Version)
 		}
 	}

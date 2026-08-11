@@ -1,6 +1,7 @@
 package aifirewall
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -317,5 +318,138 @@ func TestComposeGuardrailsPrecedence(t *testing.T) {
 	pi := byName["Prompt injection"]
 	if pi.BaselineID != "prompt-injection" {
 		t.Error("a composed baseline rule should record its id, so export can round-trip it")
+	}
+}
+
+// --- model reconciliation ---
+
+// A model row on the server that the file does not mention must be pruned with
+// --prune, exactly as a guardrail is. Leaving it means a policy file is not a
+// complete description of what the org allows.
+func TestPlanPrunesModelRows(t *testing.T) {
+	desired := basePolicy()
+	desired.Spec.Prune = true
+	desired.Spec.Models = []ModelSpec{{Slug: "gpt-4o", Provider: "openai", Action: "allow"}}
+	server := ServerState{
+		Providers: map[string]string{}, HasKey: map[string]bool{},
+		Guardrails: map[string]ServerGuardrail{},
+		Models: map[string]string{
+			"openai/gpt-4o":            "allow",
+			"openai/gpt-4o-mini":       "allow",
+			"anthropic/claude-sonnet-5": "deny",
+		},
+	}
+
+	var deleted []string
+	for _, c := range Plan(desired, server) {
+		if c.Kind != KindModel {
+			continue
+		}
+		if c.Op != OpDelete {
+			t.Fatalf("unexpected model change %+v", c)
+		}
+		if c.Model == nil || c.Model.Action != "remove" {
+			t.Fatalf("a model delete must carry the remove verb the API expects: %+v", c.Model)
+		}
+		deleted = append(deleted, c.Target)
+	}
+	sort.Strings(deleted)
+	want := []string{"anthropic/claude-sonnet-5", "openai/gpt-4o-mini"}
+	if len(deleted) != len(want) {
+		t.Fatalf("got %v, want %v", deleted, want)
+	}
+	for i := range want {
+		if deleted[i] != want[i] {
+			t.Fatalf("got %v, want %v", deleted, want)
+		}
+	}
+}
+
+// Without --prune the same rows are reported, never removed, and never counted
+// as a mutation.
+func TestPlanReportsModelDriftWithoutPrune(t *testing.T) {
+	desired := basePolicy()
+	desired.Spec.Models = []ModelSpec{{Slug: "gpt-4o", Provider: "openai", Action: "allow"}}
+	server := ServerState{
+		Providers: map[string]string{}, HasKey: map[string]bool{},
+		Guardrails: map[string]ServerGuardrail{},
+		Models:     map[string]string{"openai/gpt-4o": "allow", "openai/gpt-4o-mini": "allow"},
+	}
+
+	changes := Plan(desired, server)
+	if got := len(Mutating(changes)); got != 0 {
+		t.Fatalf("an unmentioned model must not mutate anything without --prune: %+v", Mutating(changes))
+	}
+	var drift []Change
+	for _, c := range changes {
+		if c.Kind == KindModel && c.Op == OpDrift {
+			drift = append(drift, c)
+		}
+	}
+	if len(drift) != 1 || drift[0].Target != "openai/gpt-4o-mini" {
+		t.Fatalf("expected drift for openai/gpt-4o-mini, got %+v", drift)
+	}
+}
+
+// anyProvider is expanded server-side into one row per provider. Those rows are
+// mentioned by the file, so prune must not delete what the same apply created.
+func TestPlanPruneKeepsAnyProviderModels(t *testing.T) {
+	desired := basePolicy()
+	desired.Spec.Prune = true
+	desired.Spec.Models = []ModelSpec{{Slug: "gpt-4o", AnyProvider: true, Action: "deny"}}
+	server := ServerState{
+		Providers: map[string]string{}, HasKey: map[string]bool{},
+		Guardrails: map[string]ServerGuardrail{},
+		Models: map[string]string{
+			"openai/gpt-4o":     "deny",
+			"openrouter/gpt-4o": "deny",
+			"openai/o3":         "allow",
+		},
+	}
+
+	for _, c := range Plan(desired, server) {
+		if c.Kind == KindModel && c.Op == OpDelete && c.Target != "openai/o3" {
+			t.Fatalf("prune deleted a row anyProvider covers: %+v", c)
+		}
+	}
+}
+
+// --- baseline default ---
+
+// The apply flags advertise the baseline as on by default (--no-baseline turns
+// it off), so a file that says nothing about it must still get it.
+func TestBaselineRequestedDefaultsOn(t *testing.T) {
+	pf := basePolicy()
+	if !pf.Spec.BaselineRequested() {
+		t.Error("a policy file with no baseline block must still request the baseline")
+	}
+
+	pf.Spec.Baseline = &BaselineSpec{Enabled: false}
+	if pf.Spec.BaselineRequested() {
+		t.Error("spec.baseline.enabled: false must opt out")
+	}
+
+	pf.Spec.Baseline = &BaselineSpec{Enabled: true, Ref: "strict"}
+	if !pf.Spec.BaselineRequested() || pf.Spec.BaselineRef() != "strict" {
+		t.Error("an explicit baseline block must be honoured, ref included")
+	}
+}
+
+// An exported snapshot is the org's current state, so re-applying it must not
+// suddenly compose in a baseline the org never had.
+func TestExportPinsBaselineOff(t *testing.T) {
+	body, err := Export(testOrg, ServerState{
+		Providers: map[string]string{}, HasKey: map[string]bool{},
+		Models: map[string]string{}, Guardrails: map[string]ServerGuardrail{},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pf PolicyFile
+	if err := yaml.Unmarshal(body, &pf); err != nil {
+		t.Fatal(err)
+	}
+	if pf.Spec.BaselineRequested() {
+		t.Errorf("an export must pin the baseline off so a round-trip is a no-op:\n%s", body)
 	}
 }

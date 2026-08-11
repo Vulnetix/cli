@@ -57,6 +57,34 @@ type BaselineSpec struct {
 	Exclude []string `yaml:"exclude,omitempty"` // baseline guardrail ids
 }
 
+// BaselineRequested reports whether apply should compose the server's
+// recommended guardrails into the desired set.
+//
+// A file that says nothing gets them. That is what the apply flags promise
+// (--no-baseline is how you decline, --baseline-required is how you insist), and
+// the alternative is worse than inconsistent: an org writes a policy file, sees
+// no error, and quietly runs with none of the recommended secret and injection
+// rules. Declining is explicit, in the file or on the command line.
+func (s PolicySpec) BaselineRequested() bool {
+	return s.Baseline == nil || s.Baseline.Enabled
+}
+
+// BaselineRef is the named set the file pins, "" when it pins none.
+func (s PolicySpec) BaselineRef() string {
+	if s.Baseline == nil {
+		return ""
+	}
+	return s.Baseline.Ref
+}
+
+// BaselineExclude is the list of baseline ids the file opts out of.
+func (s PolicySpec) BaselineExclude() []string {
+	if s.Baseline == nil {
+		return nil
+	}
+	return s.Baseline.Exclude
+}
+
 type ProviderSpec struct {
 	Slug   string         `yaml:"slug"`
 	Action string         `yaml:"action"` // allow | deny | default
@@ -343,6 +371,31 @@ func Plan(desired PolicyFile, server ServerState) []Change {
 			Detail: m.Action, Model: &m,
 		})
 	}
+	// A model row the file does not mention gets the same treatment as an
+	// unmentioned guardrail: pruned on request, otherwise reported. Without this
+	// a policy file describes only the models it adds, never the ones it drops,
+	// and removing a line from the file is silently a no-op.
+	for _, key := range sortedKeys(server.Models) {
+		if mentionsModel(desired.Spec.Models, key) {
+			continue
+		}
+		if !desired.Spec.Prune {
+			changes = append(changes, Change{
+				Kind: KindModel, Op: OpDrift, Target: key,
+				Detail: server.Models[key] + " on the server, not in this file (pass --prune to delete)",
+			})
+			continue
+		}
+		provider, slug, ok := strings.Cut(key, "/")
+		if !ok {
+			continue
+		}
+		changes = append(changes, Change{
+			Kind: KindModel, Op: OpDelete, Target: key,
+			Detail: "remove " + server.Models[key] + " entry",
+			Model:  &ModelSpec{Slug: slug, Provider: provider, Action: modelRemoveAction},
+		})
+	}
 
 	// Providers.
 	for _, p := range desired.Spec.Providers {
@@ -401,6 +454,42 @@ func hasGuardrail(gs []GuardrailSpec, name string) bool {
 	return false
 }
 
+// modelRemoveAction is the verb the model endpoint takes to drop an entry.
+const modelRemoveAction = "remove"
+
+// mentionsModel reports whether the file covers a "provider/slug" server row.
+// An anyProvider entry is expanded server-side into one row per provider, so it
+// covers every provider for that model slug — matching only the exact key would
+// make prune delete the rows the same apply had just created.
+func mentionsModel(models []ModelSpec, key string) bool {
+	provider, slug, ok := strings.Cut(key, "/")
+	if !ok {
+		return false
+	}
+	for _, m := range models {
+		if m.AnyProvider {
+			if m.Slug == slug {
+				return true
+			}
+			continue
+		}
+		if m.Provider == provider && m.Slug == slug {
+			return true
+		}
+	}
+	return false
+}
+
+// sortedKeys keeps the plan deterministic; map iteration order is not.
+func sortedKeys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func guardrailDiff(cur ServerGuardrail, want GuardrailSpec) string {
 	var parts []string
 	if cur.RuleType != want.RuleType {
@@ -444,6 +533,11 @@ func Export(org string, server ServerState, providerCatalog []string) ([]byte, e
 		Metadata:   PolicyMetadata{Org: org},
 		Spec: PolicySpec{
 			Settings: &SettingsSpec{LogsEnabled: boolPtr(server.LogsEnabled)},
+			// An export is a snapshot of what the org has now. Apply composes the
+			// baseline in by default, so pin it off here or re-applying an export
+			// would add rules the snapshot never contained. Set it to true to take
+			// the recommended set.
+			Baseline: &BaselineSpec{Enabled: false},
 		},
 	}
 

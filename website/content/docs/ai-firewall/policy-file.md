@@ -27,14 +27,15 @@ metadata:
   org: 6f2a1c3e-0000-0000-0000-000000000001
 
 spec:
-  # Whether apply deletes server objects this file does not mention. Default false.
+  # Whether apply deletes guardrails and model entries this file does not
+  # mention. Default false.
   prune: false
 
   settings:
     logsEnabled: false
 
   baseline:
-    enabled: true          # pull in the server's recommended guardrails
+    enabled: true          # the default; set false to decline the recommended set
     ref: recommended
     exclude:               # baseline guardrail ids to skip
       - pii-phone
@@ -76,9 +77,9 @@ spec:
 | `apiVersion` | string | yes | — | Must be `vulnetix.com/v1` |
 | `kind` | string | yes | — | Must be `AiFirewallPolicy` |
 | `metadata.org` | uuid | no | — | Guard. `apply` refuses on a mismatch unless `--force` |
-| `spec.prune` | bool | no | `false` | Delete server objects absent from this file |
+| `spec.prune` | bool | no | `false` | Delete guardrails and model entries absent from this file |
 | `spec.settings.logsEnabled` | bool | no | unset | Inference logging (metadata only). Paid plans |
-| `spec.baseline.enabled` | bool | no | `false` | Compose the server's recommended guardrails in |
+| `spec.baseline.enabled` | bool | no | `true` | Compose the server's recommended guardrails in. Set `false`, or pass `--no-baseline`, to decline |
 | `spec.baseline.ref` | string | no | `recommended` | Named baseline set |
 | `spec.baseline.exclude` | \[string] | no | — | Baseline guardrail **ids** to skip |
 | `spec.providers[].slug` | string | yes | — | e.g. `openai` |
@@ -137,14 +138,19 @@ A half-applied policy is bad. A half-applied policy you do not know about is wor
 
 ## Drift, and `--prune`
 
-Objects that exist on the server but are not in your file are **reported, not destroyed**:
+Guardrails and model entries that exist on the server but are not in your file are **reported, not destroyed**:
 
 ```text
 Drift (left alone)
   guardrail "Ad-hoc PII rule": on the server, not in this file (pass --prune to delete)
+  model "openai/gpt-4o-mini": allow on the server, not in this file (pass --prune to delete)
 ```
 
 Someone authored that in the dashboard, possibly during an incident, possibly an hour ago. Deleting it because it was absent from a file written last quarter would be the wrong default. Pass `--prune` (or set `spec.prune: true`) when you genuinely want the file to be the whole truth — and run `--dry-run` first, which lists exactly what would be deleted.
+
+Model drift matters more than it looks. Without prune, deleting a line from `spec.models` does nothing at all: the entry stays on the server and the model stays allowed or denied. If your file is the record of what the organisation may call, run `apply --prune` so removing a line actually removes the rule.
+
+An `anyProvider` entry is expanded server-side into one row per provider. Those rows count as mentioned, so prune never deletes the rows the same apply just created.
 
 ## `--dry-run`
 
@@ -216,8 +222,8 @@ Check that the live policy matches the committed file on every pull request, and
 | --- | --- |
 | `-f, --file` | Policy file (default `.vulnetix/ai-firewall.yaml`) |
 | `--dry-run` | Print the plan; change nothing |
-| `--prune` | Delete server objects the file does not mention |
-| `--no-baseline` | Do not compose in the recommended guardrails |
+| `--prune` | Delete guardrails and model entries the file does not mention |
+| `--no-baseline` | Do not compose in the recommended guardrails (on by default) |
 | `--baseline-required` | Fail if the baseline cannot be fetched (use in CI) |
 | `--catalog` | Use a local baseline file instead of the server's |
 | `--force` | Apply even when `metadata.org` does not match |
