@@ -509,11 +509,15 @@ func teaReleasePURL(repository string) string {
 // gitDescribeVersion names the current commit relative to the last tag.
 //
 // `v3.75.0-12-gabc1234` sorts after the release it descends from, says how far
-// past it the commit is, and resolves back to that commit. `--always` matters
-// more than it looks: most repositories in the fleet have never been tagged, and
-// without it they would fail to publish rather than publish a SHA.
+// past it the commit is, and resolves back to that commit. `--long` is required
+// even when HEAD is exactly tagged: a branch workflow can still be running when
+// an auto-version job tags the same commit, and publishing the bare tag from that
+// branch would collide with the real release workflow's final (non-pre-release)
+// object. `--always` matters more than it looks: most repositories in the fleet
+// have never been tagged, and without it they would fail to publish rather than
+// publish a SHA.
 func gitDescribeVersion() (string, error) {
-	out, err := exec.Command("git", "describe", "--tags", "--always").Output()
+	out, err := exec.Command("git", "describe", "--tags", "--always", "--long").Output()
 	if err != nil {
 		return "", fmt.Errorf("git describe: %w", err)
 	}

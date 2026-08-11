@@ -58,8 +58,10 @@ func TestGitDescribeVersion_TaggedRepo(t *testing.T) {
 	}
 }
 
-// Exactly on the tag, describe returns the bare tag. That is the same string a
-// tag-triggered run would use, so the two paths agree.
+// Exactly on the tag, a branch-derived version must still carry a commit suffix.
+// Auto Version can tag the commit while a slower branch security run is still
+// executing; returning the bare tag there would make that pre-release collide
+// with the final release workflow's object.
 func TestGitDescribeVersion_OnTheTag(t *testing.T) {
 	initGitRepo(t, "v1.0.0", 0)
 
@@ -67,8 +69,9 @@ func TestGitDescribeVersion_OnTheTag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "v1.0.0" {
-		t.Errorf("got %q, want v1.0.0", got)
+	want := regexp.MustCompile(`^v1\.0\.0-0-g[0-9a-f]{7,}$`)
+	if !want.MatchString(got) {
+		t.Errorf("got %q, want something like v1.0.0-0-gabc1234", got)
 	}
 }
 

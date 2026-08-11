@@ -120,7 +120,10 @@ jobs:
     # version before advertising `brew install` for it. This job cannot
     # reproduce that ordering, so it stays out of the way on tags. When a
     # scanner leg is cancelled or fails, we still publish if the workflow ran.
-    if: ${{ !cancelled() && github.ref_type != 'tag' }}
+    # A main push is auto-versioned by this repository and release.yml publishes
+    # its final tagged release. Publishing branch evidence here can race that
+    # tag creation and claim the same version as a pre-release first.
+    if: ${{ !cancelled() && github.ref_type != 'tag' && !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     uses: Vulnetix/cli/.github/workflows/tea-release.yml@tea-release-v1
     with:
       visibility: public
