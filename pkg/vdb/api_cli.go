@@ -662,8 +662,8 @@ type CliAiFirewallModelRequest struct {
 type CliAiFirewallGuardrailRequest struct {
 	UUID     string  `json:"uuid,omitempty"` // empty = create
 	Name     *string `json:"name,omitempty"`
-	RuleType *string `json:"ruleType,omitempty"` // "blocked_pattern" | "max_messages" | "pii_redact"
-	Action   *string `json:"action,omitempty"`   // "block" | "redact" | "flag"
+	RuleType *string `json:"ruleType,omitempty"` // content: blocked_pattern|max_messages|pii_redact; capability: tool_/mcp_/skill_/client_ allow|deny
+	Action   *string `json:"action,omitempty"`   // "block" | "redact" | "strip" | "flag"
 	Pattern  *string `json:"pattern,omitempty"`
 	Priority *int    `json:"priority,omitempty"`
 	Enabled  *bool   `json:"enabled,omitempty"`
@@ -721,8 +721,8 @@ type AiFirewallModelPolicy struct {
 type AiFirewallGuardrail struct {
 	UUID     string `json:"uuid"`
 	Name     string `json:"name"`
-	RuleType string `json:"ruleType"` // "blocked_pattern" | "max_messages" | "pii_redact"
-	Action   string `json:"action"`   // "block" | "redact" | "flag"
+	RuleType string `json:"ruleType"` // content: blocked_pattern|max_messages|pii_redact; capability: tool_/mcp_/skill_/client_ allow|deny
+	Action   string `json:"action"`   // "block" | "redact" | "strip" | "flag"
 	Pattern  string `json:"pattern"`
 	Enabled  bool   `json:"enabled"`
 	Priority int    `json:"priority"`
@@ -940,6 +940,15 @@ func cliPostWithEnvContext[T any](ctx context.Context, c *Client, route string, 
 }
 
 func decodeCliResponse[T any](raw []byte) (*CliResponse[T], error) {
+	// A plan-locked endpoint answers 200 with a marker body instead of the
+	// usual envelope, so the GUI can render an upgrade CTA rather than an
+	// error. To this decoder that looks like a successful response with no
+	// data, which would make the CLI print "applied" for a write the server
+	// declined. Catch it here, once, for every route.
+	if pl, locked := decodePlanLocked(raw); locked {
+		return nil, pl
+	}
+
 	var wire cliResponseEnvelope
 	if err := json.Unmarshal(raw, &wire); err != nil {
 		return nil, fmt.Errorf("decode envelope: %w", err)
@@ -951,6 +960,42 @@ func decodeCliResponse[T any](raw []byte) (*CliResponse[T], error) {
 		}
 	}
 	return &CliResponse[T]{Meta: wire.Meta, Data: data}, nil
+}
+
+// PlanLockedError is returned when the server declined a write because the
+// organisation's subscription does not include the feature. It is a distinct
+// type so a caller can tell "your plan does not cover this" from "the request
+// was wrong" and say so precisely.
+type PlanLockedError struct {
+	Feature      string
+	RequiredPlan string
+}
+
+func (e *PlanLockedError) Error() string {
+	feature := e.Feature
+	if feature == "" {
+		feature = "this feature"
+	}
+	plan := e.RequiredPlan
+	if plan == "" {
+		plan = "a higher"
+	}
+
+	return fmt.Sprintf("%s requires the %s plan; nothing was changed. See https://www.vulnetix.com/pricing", feature, plan)
+}
+
+// decodePlanLocked reports whether a body is the plan-locked marker.
+func decodePlanLocked(raw []byte) (*PlanLockedError, bool) {
+	var marker struct {
+		PlanLocked   bool   `json:"planLocked"`
+		Feature      string `json:"feature"`
+		RequiredPlan string `json:"requiredPlan"`
+	}
+	if err := json.Unmarshal(raw, &marker); err != nil || !marker.PlanLocked {
+		return nil, false
+	}
+
+	return &PlanLockedError{Feature: marker.Feature, RequiredPlan: marker.RequiredPlan}, true
 }
 
 // ─── Typed methods (one per /v2/cli.* route) ─────────────────────────────

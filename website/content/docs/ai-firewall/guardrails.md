@@ -6,6 +6,12 @@ description: "Content rules the gateway enforces inline — blocked patterns, PI
 
 A guardrail inspects the content of a request and blocks, redacts, or flags it. Guardrails run after provider and model policy, in ascending `priority` (lowest first), on every proxied request.
 
+Capability rules — `tool_allow`/`tool_deny`, `mcp_*`, `skill_*` and `client_*` — live in the same table and are written the same way, but they govern what a request can **do** rather than what it says, they take a glob rather than a regex, and they add a `strip` action that removes a tool or MCP server instead of refusing the whole request. See the [agent context docs](https://docs.guardrails.vulnetix.com/docs/agent-context/).
+
+{{< callout type="note" >}}
+Guardrails and agent governance require the **Teams** plan; provider and model policy require **Pro**. The gateway and the BYOK vault are free on every plan. If your organisation is below the tier, the CLI says so and writes nothing rather than reporting a success the server declined.
+{{< /callout >}}
+
 ```bash
 vulnetix ai-firewall policy guardrail "No connection strings" \
   --rule-type blocked_pattern \

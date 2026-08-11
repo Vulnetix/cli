@@ -177,26 +177,49 @@ func runConfigSetAiFirewallModel(cmd *cobra.Command, args []string) error {
 func newConfigSetAiFirewallGuardrailCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "guardrail <name>",
-		Short: "Create, update, or delete a content guardrail",
-		Long: `Create or update a content guardrail enforced inline on every proxied
-request. Rule types: blocked_pattern (pattern = regex), max_messages
-(pattern = integer cap), pii_redact (pattern = optional regex; empty uses the
-built-in email/card/SSN/phone detectors). Actions: block, redact, flag.
-Update or delete an existing guardrail by --uuid.`,
+		Short: "Create, update, or delete a guardrail",
+		Long: `Create or update a guardrail enforced inline on every proxied request.
+
+Content rules govern what a request SAYS. Pattern is a Go RE2 regex, or an
+integer for max_messages:
+  blocked_pattern   pattern = regex
+  pii_redact        pattern = optional regex; empty uses the built-in
+                    email/card/SSN/phone detectors
+  max_messages      pattern = integer cap
+
+Capability rules govern what a request can DO. Pattern is a GLOB, where only *
+is special and everything else is literal, so Bash matches exactly Bash and
+mcp__github__* covers one MCP server:
+  tool_allow    tool_deny      the tools an agent offers the model
+  mcp_allow     mcp_deny       remote MCP servers, by label
+  skill_allow   skill_deny     named skills
+  client_allow  client_deny    the calling agent, from its headers
+
+Actions: block (403), redact (rewrite content; content rules only), strip
+(remove the tool or MCP server so the model is never offered it; tool and mcp
+rules only), flag (record and allow).
+
+Adding any *_allow rule switches that family to allowlist mode: only what is
+listed passes. Guardrails require the Teams plan; provider and model policy
+require Pro. Update or delete an existing guardrail by --uuid.`,
 		Args: cobra.ExactArgs(1),
 		RunE: runConfigSetAiFirewallGuardrail,
 	}
 	cmd.Flags().String("uuid", "", "Existing guardrail UUID (update/delete)")
-	cmd.Flags().String("rule-type", "", "Rule type: blocked_pattern, max_messages, pii_redact")
-	cmd.Flags().String("action", "", "Action on match: block, redact, flag")
-	cmd.Flags().String("pattern", "", "Regex (blocked_pattern/pii_redact) or integer (max_messages)")
+	cmd.Flags().String("rule-type", "", "Rule type: content (blocked_pattern, max_messages, pii_redact) or capability (tool_/mcp_/skill_/client_ allow|deny)")
+	cmd.Flags().String("action", "", "Action on match: block, redact, strip, flag")
+	cmd.Flags().String("pattern", "", "Regex for content rules, integer for max_messages, or a glob for capability rules")
 	cmd.Flags().Int("priority", 0, "Evaluation order, lowest first (default 100)")
 	cmd.Flags().Bool("enable", false, "Enable the guardrail")
 	cmd.Flags().Bool("disable", false, "Disable the guardrail")
 	cmd.Flags().Bool("delete", false, "Delete the guardrail (requires --uuid)")
 	addAiFirewallCommonFlags(cmd)
-	_ = cmd.RegisterFlagCompletionFunc("rule-type", cobra.FixedCompletions([]string{"blocked_pattern", "max_messages", "pii_redact"}, cobra.ShellCompDirectiveNoFileComp))
-	_ = cmd.RegisterFlagCompletionFunc("action", cobra.FixedCompletions([]string{"block", "redact", "flag"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = cmd.RegisterFlagCompletionFunc("rule-type", cobra.FixedCompletions([]string{
+		"blocked_pattern", "max_messages", "pii_redact",
+		"tool_allow", "tool_deny", "mcp_allow", "mcp_deny",
+		"skill_allow", "skill_deny", "client_allow", "client_deny",
+	}, cobra.ShellCompDirectiveNoFileComp))
+	_ = cmd.RegisterFlagCompletionFunc("action", cobra.FixedCompletions([]string{"block", "redact", "strip", "flag"}, cobra.ShellCompDirectiveNoFileComp))
 	return cmd
 }
 

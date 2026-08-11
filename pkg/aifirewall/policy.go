@@ -121,12 +121,53 @@ func (g GuardrailSpec) IsEnabled() bool {
 	return g.Enabled == nil || *g.Enabled
 }
 
+// The rule vocabulary. Content rules match what a request SAYS; capability
+// rules match what it can DO — the tools it offers the model, the MCP servers
+// wired into the session, the skills it exposes, and which client is calling.
+//
+// Four services must agree on these exact strings: the gateway enforces them
+// (ai-firewall/internal/policy), vdb-site and vdb-api accept them, and this
+// validates them before either is asked. A rule type accepted here and unknown
+// to the gateway is a rule that applies cleanly and enforces nothing.
 var (
-	validProviderActions  = map[string]bool{"allow": true, "deny": true, "default": true}
-	validModelActions     = map[string]bool{"allow": true, "deny": true}
-	validRuleTypes        = map[string]bool{"blocked_pattern": true, "max_messages": true, "pii_redact": true}
-	validGuardrailActions = map[string]bool{"block": true, "redact": true, "flag": true}
+	validProviderActions = map[string]bool{"allow": true, "deny": true, "default": true}
+	validModelActions    = map[string]bool{"allow": true, "deny": true}
+
+	contentRuleTypes = map[string]bool{
+		"blocked_pattern": true, "max_messages": true, "pii_redact": true,
+	}
+	capabilityRuleTypes = map[string]bool{
+		"tool_allow": true, "tool_deny": true,
+		"mcp_allow": true, "mcp_deny": true,
+		"skill_allow": true, "skill_deny": true,
+		"client_allow": true, "client_deny": true,
+	}
+	// strippableRuleTypes are the families where a match can be removed from the
+	// request rather than the request refused. Only entries in a request array
+	// qualify: a skill is a value inside another tool's schema, and a client is a
+	// header, so neither has anything to take out.
+	strippableRuleTypes = map[string]bool{
+		"tool_allow": true, "tool_deny": true, "mcp_allow": true, "mcp_deny": true,
+	}
+
+	validGuardrailActions = map[string]bool{
+		"block": true, "redact": true, "flag": true, "strip": true,
+	}
 )
+
+// IsCapabilityRuleType reports whether a rule governs the capability plane.
+func IsCapabilityRuleType(t string) bool { return capabilityRuleTypes[t] }
+
+// IsContentRuleType reports whether a rule governs the content plane.
+func IsContentRuleType(t string) bool { return contentRuleTypes[t] }
+
+// ruleTypeList renders the accepted rule types for an error message, content
+// first, so somebody who typed one wrong sees the whole vocabulary once.
+func ruleTypeList() string {
+	return "blocked_pattern, max_messages, pii_redact (content), or " +
+		"tool_allow, tool_deny, mcp_allow, mcp_deny, skill_allow, skill_deny, " +
+		"client_allow, client_deny (capability)"
+}
 
 // LoadPolicyFile reads and validates a policy document.
 func LoadPolicyFile(path string) (*PolicyFile, error) {
@@ -197,12 +238,27 @@ func (pf *PolicyFile) Validate() error {
 
 // ValidateGuardrail checks one rule against what the gateway can enforce.
 func ValidateGuardrail(name, ruleType, action, pattern string) error {
-	if !validRuleTypes[ruleType] {
-		return fmt.Errorf("guardrails[%s]: ruleType must be blocked_pattern, max_messages, or pii_redact", name)
+	if !contentRuleTypes[ruleType] && !capabilityRuleTypes[ruleType] {
+		return fmt.Errorf("guardrails[%s]: ruleType must be one of %s", name, ruleTypeList())
 	}
 	if !validGuardrailActions[action] {
-		return fmt.Errorf("guardrails[%s]: action must be block, redact, or flag", name)
+		return fmt.Errorf("guardrails[%s]: action must be block, redact, flag, or strip", name)
 	}
+	// An action a rule type cannot perform does not fail loudly at request time
+	// — the rule sits in the policy, reports itself as enabled, and enforces
+	// less than it claims. This is the last place it can be caught before the
+	// API sees it.
+	if action == "redact" && !contentRuleTypes[ruleType] {
+		return fmt.Errorf("guardrails[%s]: action redact rewrites request content, so it cannot be used with %s: use strip to remove a tool or MCP server, or block to refuse the request", name, ruleType)
+	}
+	if action == "strip" && !strippableRuleTypes[ruleType] {
+		return fmt.Errorf("guardrails[%s]: action strip removes an entry from the request, so it cannot be used with %s: use block or flag", name, ruleType)
+	}
+
+	if capabilityRuleTypes[ruleType] {
+		return validateCapabilityGlob(name, pattern)
+	}
+
 	switch ruleType {
 	case "max_messages":
 		n, err := strconv.Atoi(strings.TrimSpace(pattern))
@@ -237,6 +293,41 @@ func compileRE2(name, pattern string) error {
 			msg += "\n  Go uses RE2, which has no lookahead or lookbehind. Drop it — `orgUuid=\\S+` blocks the same requests as `(?<=orgUuid=)\\S+`."
 		}
 		return fmt.Errorf("%s", msg)
+	}
+	return nil
+}
+
+// validateCapabilityGlob checks a capability rule's pattern.
+//
+// Capability rules take a GLOB, not a regex: only `*` is special and every
+// other character is literal. A name list is the one place regex power is a
+// liability — someone typing a tool name writes `Bash` and means exactly
+// `Bash`, where an unanchored regex would also match `Bashful`. Worse,
+// `mcp__github__*` is a valid regex in which `_*` reads as a quantifier, so it
+// would compile, apply, and match neither what it says nor what anyone meant.
+//
+// Mirrors CompileGlob in ai-firewall/internal/policy/glob.go.
+func validateCapabilityGlob(name, pattern string) error {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		return fmt.Errorf("guardrails[%s]: a capability rule needs a pattern: a name such as Bash, or a glob such as mcp__github__*", name)
+	}
+
+	var b strings.Builder
+	b.WriteString(`\A`)
+	for i, part := range strings.Split(pattern, "*") {
+		if i > 0 {
+			b.WriteString(`.*`)
+		}
+		b.WriteString(regexp.QuoteMeta(part))
+	}
+	b.WriteString(`\z`)
+
+	if _, err := regexp.Compile(b.String()); err != nil {
+		return fmt.Errorf("guardrails[%s]: pattern could not be compiled: %v", name, err)
+	}
+	if strings.HasPrefix(pattern, "^") || strings.HasSuffix(pattern, "$") {
+		return fmt.Errorf("guardrails[%s]: capability patterns are globs, not regexes — %q would match a tool literally named that. Anchors are implied: write Bash, not ^Bash$", name, pattern)
 	}
 	return nil
 }
