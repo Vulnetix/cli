@@ -59,6 +59,7 @@ Worse than the above, because nothing tells you.
 - **"declares metadata.org X, but you are authenticated as Y"** — you are about to apply one organisation's policy to another. That guard exists because it is the easiest way to do real damage. Check before reaching for `--force`.
 - **"duplicate name"** — guardrails are reconciled by name, so names must be unique. Rename one, or manage it by `--uuid` with `policy guardrail`.
 - **`apply` deleted nothing you expected it to.** Deletion is opt-in: unmanaged objects are reported as drift. Pass `--prune`, after a `--dry-run`.
+- **`--prune` did not remove a provider.** It never does. A provider with no row is default-allow, so deleting a `deny` would open the provider rather than close it. Clear it deliberately instead: `action: default` in the file, or `policy provider <slug> --clear`. See [policy as code](/docs/ai-firewall/policy-file/#providers-are-never-pruned).
 - **CI applied a policy with no baseline guardrails and went green.** Add `--baseline-required`. Outside CI an unavailable baseline is a soft failure by design; in CI that is exactly the wrong behaviour.
 
 ## Start over

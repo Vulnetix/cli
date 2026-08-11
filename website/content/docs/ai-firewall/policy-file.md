@@ -28,7 +28,8 @@ metadata:
 
 spec:
   # Whether apply deletes guardrails and model entries this file does not
-  # mention. Default false.
+  # mention. Default false. Providers are never pruned: clearing a deny would
+  # open a provider, so reopening one is always explicit.
   prune: false
 
   settings:
@@ -77,7 +78,7 @@ spec:
 | `apiVersion` | string | yes | — | Must be `vulnetix.com/v1` |
 | `kind` | string | yes | — | Must be `AiFirewallPolicy` |
 | `metadata.org` | uuid | no | — | Guard. `apply` refuses on a mismatch unless `--force` |
-| `spec.prune` | bool | no | `false` | Delete guardrails and model entries absent from this file |
+| `spec.prune` | bool | no | `false` | Delete guardrails and model entries absent from this file. Providers are never pruned |
 | `spec.settings.logsEnabled` | bool | no | unset | Inference logging (metadata only). Paid plans |
 | `spec.baseline.enabled` | bool | no | `true` | Compose the server's recommended guardrails in. Set `false`, or pass `--no-baseline`, to decline |
 | `spec.baseline.ref` | string | no | `recommended` | Named baseline set |
@@ -152,6 +153,32 @@ Model drift matters more than it looks. Without prune, deleting a line from `spe
 
 An `anyProvider` entry is expanded server-side into one row per provider. Those rows count as mentioned, so prune never deletes the rows the same apply just created.
 
+### Providers are never pruned
+
+`--prune` covers guardrails and model entries only. It leaves provider rows alone on purpose, and the asymmetry is a safety property rather than an omission.
+
+A provider row records an `allow` or a `deny`. Deleting that row does not remove access, it removes the organisation's *stated intent*, and a provider with no row is **default-allow**. Pruning a `deny` would therefore open a provider the organisation had explicitly closed, silently, as a side effect of a line being missing from a file.
+
+{{< callout type="warning" >}}
+Pruning a guardrail or a model entry can only hold a policy where it is or tighten it. Pruning a provider is the one case that would loosen it, so `apply` does not do it, with `--prune` or without.
+{{< /callout >}}
+
+Reopening a provider is something you say, not something you omit:
+
+```yaml
+providers:
+  - slug: openrouter
+    action: default      # clears the association, back to default-allow
+```
+
+```bash
+vulnetix ai-firewall policy provider openrouter --clear
+```
+
+Both are explicit and both appear in the plan before they run.
+
+A provider your file does not mention keeps whatever action it has, and is not listed under drift either. Omitting a provider is not a claim about it, so there is nothing to report. If you want the file to be the complete record, give every provider you care about a line, `action: default` included.
+
 ## `--dry-run`
 
 Prints the plan and changes nothing:
@@ -222,7 +249,7 @@ Check that the live policy matches the committed file on every pull request, and
 | --- | --- |
 | `-f, --file` | Policy file (default `.vulnetix/ai-firewall.yaml`) |
 | `--dry-run` | Print the plan; change nothing |
-| `--prune` | Delete guardrails and model entries the file does not mention |
+| `--prune` | Delete guardrails and model entries the file does not mention. Never providers |
 | `--no-baseline` | Do not compose in the recommended guardrails (on by default) |
 | `--baseline-required` | Fail if the baseline cannot be fetched (use in CI) |
 | `--catalog` | Use a local baseline file instead of the server's |
