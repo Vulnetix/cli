@@ -50,6 +50,13 @@
     </div>
   {{ end }}
 
+  {{ with .Site.GetPage "/docs/vscode-plugin" }}
+    <div class="sidebar__section">
+      <div class="sidebar__heading">Editor extension</div>
+      <a class="sidebar__link{{ if eq $currentPage.RelPermalink .RelPermalink }} active{{ end }}" href="{{ .RelPermalink }}">VS Code plugin</a>
+    </div>
+  {{ end }}
+
   {{/* SAST Rules lists categories, not rules. There are 889 rule pages, and one
        menu entry each pushed every other section off the screen. The categories
        come from a data file rather than from the content tree because they are
