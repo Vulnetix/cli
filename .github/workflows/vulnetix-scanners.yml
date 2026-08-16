@@ -231,13 +231,17 @@ jobs:
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          # The converters below need only the standard library, but not every runner
-          # image ships python3. uv carries its own interpreter, so this always resolves.
-          PY=python3
-          if ! command -v python3 >/dev/null 2>&1; then
+          # The converter below runs under uv rather than whatever `python3` happens to
+          # be on the runner. uv carries its own interpreter, so the script runs the same
+          # way on every image, cannot be broken by a system Python that is missing or
+          # externally managed, and cannot install anything into one.
+          if ! command -v uv >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
             export PATH="$HOME/.local/bin:$PATH"
-            PY="uv run --no-project --python 3.12 python"
+          fi
+          if ! command -v uv >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; cannot convert the report'
+            exit 0
           fi
           if ! command -v uvx >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
@@ -252,7 +256,7 @@ jobs:
           else
             uvx --from detect-secrets detect-secrets scan --all-files >detect-secrets-results.json || true
           fi
-          $PY <<'PY'
+          uv run --no-project --python 3.12 python - <<'PY'
           import json
           import os
 
@@ -962,13 +966,17 @@ jobs:
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          # The converters below need only the standard library, but not every runner
-          # image ships python3. uv carries its own interpreter, so this always resolves.
-          PY=python3
-          if ! command -v python3 >/dev/null 2>&1; then
+          # The converter below runs under uv rather than whatever `python3` happens to
+          # be on the runner. uv carries its own interpreter, so the script runs the same
+          # way on every image, cannot be broken by a system Python that is missing or
+          # externally managed, and cannot install anything into one.
+          if ! command -v uv >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
             export PATH="$HOME/.local/bin:$PATH"
-            PY="uv run --no-project --python 3.12 python"
+          fi
+          if ! command -v uv >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; cannot convert the report'
+            exit 0
           fi
           set -uo pipefail
           scripts=$(find . -path ./.git -prune -o -type f \( -name '*.sh' -o -name '*.bash' \) -print)
@@ -990,7 +998,7 @@ jobs:
           # shellcheck exits 1 when it reports anything, which is a successful run.
           # shellcheck disable=SC2086
           shellcheck -f json1 $scripts >shellcheck.json 2>shellcheck.stderr || true
-          $PY <<'PY'
+          uv run --no-project --python 3.12 python - <<'PY'
           import json
           import os
 
@@ -1374,17 +1382,21 @@ jobs:
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          # The converters below need only the standard library, but not every runner
-          # image ships python3. uv carries its own interpreter, so this always resolves.
-          PY=python3
-          if ! command -v python3 >/dev/null 2>&1; then
+          # The converter below runs under uv rather than whatever `python3` happens to
+          # be on the runner. uv carries its own interpreter, so the script runs the same
+          # way on every image, cannot be broken by a system Python that is missing or
+          # externally managed, and cannot install anything into one.
+          if ! command -v uv >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
             export PATH="$HOME/.local/bin:$PATH"
-            PY="uv run --no-project --python 3.12 python"
+          fi
+          if ! command -v uv >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; cannot convert the report'
+            exit 0
           fi
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
           trufflehog filesystem --json . >trufflehog.jsonl || true
-          $PY <<'PY'
+          uv run --no-project --python 3.12 python - <<'PY'
           import json
           import os
 
