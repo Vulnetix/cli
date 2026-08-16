@@ -49,7 +49,7 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
-	github.com/Vulnetix/vdb-sca-match v0.7.0
+	github.com/Vulnetix/vdb-sca-match v0.7.1
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect

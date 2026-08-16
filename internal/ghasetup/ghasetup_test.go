@@ -224,3 +224,35 @@ func TestParseRemote(t *testing.T) {
 		}
 	}
 }
+
+// ScanCode emits explicit nulls for the fields it found nothing for, and
+// CycloneDX 1.3 types them as strings — so the document is cleaned before
+// upload. `version` is the exception to "drop the nulls": the schema lists it
+// as REQUIRED on a component, so dropping a null one trades a type error for
+// "missing property 'version'" and the upload still fails. It did, in
+// production, on every ScanCode run.
+func TestScanCodeCleanupBackfillsTheRequiredVersion(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tool, ok := c.Find("scancode")
+	if !ok {
+		t.Fatal("catalog is missing scancode")
+	}
+
+	var recipe string
+	for _, s := range tool.Steps {
+		recipe += s.Run
+	}
+	if !strings.Contains(recipe, "with_entries(select(.value != null))") {
+		t.Error("scancode no longer strips null fields; CycloneDX 1.3 rejects them")
+	}
+	if !strings.Contains(recipe, `.components |= map(.version //= "")`) {
+		t.Error("scancode strips nulls without backfilling the required component version; " +
+			"every upload will fail on \"missing property 'version'\"")
+	}
+	if !strings.Contains(recipe, `.metadata.component.version //= ""`) {
+		t.Error("scancode does not backfill the metadata component's version")
+	}
+}
