@@ -199,6 +199,13 @@ func printPublishResult(t *display.Terminal, filePath string, res ghaFileResult,
 	if res.Status == "duplicate" {
 		mark, suffix = display.WarningMark(t), " already published (same scan)"
 	}
+	// A 200 that stored nothing is not a publish. The server returns exactly
+	// that for the shared community credential, which the CLI falls back to
+	// whenever a real one cannot be read — so this said "published", printed a
+	// category and a finding count, and left no record anywhere.
+	if res.Status == "uploaded" && !res.Persisted && res.Reason == notPersistedReason {
+		mark, suffix = display.WarningMark(t), " accepted, but no scan was recorded"
+	}
 	b.WriteString(mark + " " + display.Bold(t, filepath.Base(filePath)) + suffix + "\n")
 
 	kv := []display.KVPair{{Key: "Category", Value: res.Category}}

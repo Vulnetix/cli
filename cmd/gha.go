@@ -270,6 +270,14 @@ func runGHAUpload(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Every file accepted and none recorded is the failure mode this command
+	// was built to remove, wearing a green tick. Say it once, loudly, rather
+	// than once per file in a log nobody reads to the end.
+	if n := countNotRecorded(results); n > 0 {
+		dctx.Logger.Warnf("%d of %d file(s) were accepted but no scan was recorded.", n, len(results))
+		dctx.Logger.Warn(notPersistedReason)
+	}
+
 	if err := emitGHAJSON(results, env); err != nil {
 		return err
 	}
@@ -377,6 +385,11 @@ func emitGHAJSON(results []ghaFileResult, env vdb.CliEnv) error {
 		"success":   uploaded,
 		"failed":    failed,
 		"skipped":   skipped,
+		// Additive, and the number worth watching: a file the server accepted
+		// and did not record. It is not a failure — the request succeeded — but
+		// it means the run produced no scan, and nothing else in this summary
+		// would tell you that.
+		"notRecorded": countNotRecorded(results),
 	}
 	if env.CI != nil {
 		output["ci"] = map[string]any{
@@ -572,4 +585,16 @@ func tallyGHAResults(results []ghaFileResult) (uploaded, failed, skipped int) {
 		skipped = 0
 	}
 	return uploaded, failed, skipped
+}
+
+// countNotRecorded counts files the server accepted without storing a scan.
+func countNotRecorded(results []ghaFileResult) int {
+	n := 0
+	for _, r := range results {
+		if r.Status == "uploaded" && !r.Persisted && r.Reason == notPersistedReason {
+			n++
+		}
+	}
+
+	return n
 }

@@ -388,3 +388,37 @@ func TestWorkspacePrefersCIOverGit(t *testing.T) {
 		t.Errorf("workspace = %q, want the git root as fallback", got)
 	}
 }
+
+// A 200 that stored nothing is not a publish. The server returns exactly that
+// under the shared community credential, which the CLI falls back to whenever a
+// real one cannot be read — an unset VULNETIX_API_KEY, or a keyring it cannot
+// unlock in a headless session. Before this, such a run printed "published",
+// a category and a finding count, and left no ScannerRun anywhere.
+func TestNotRecordedIsCountedSeparatelyFromSuccess(t *testing.T) {
+	results := []ghaFileResult{
+		{Name: "gosec", File: "gosec.sarif", Status: "uploaded", Persisted: true, SnapshotUuid: "abc"},
+		{Name: "semgrep", File: "semgrep.sarif", Status: "uploaded", Persisted: false, Reason: notPersistedReason},
+		{Name: "readme", File: "README.md", Status: "skipped"},
+		{Name: "broken", File: "broken.sarif", Status: "error", Error: "invalid"},
+	}
+
+	if got := countNotRecorded(results); got != 1 {
+		t.Errorf("countNotRecorded = %d, want 1", got)
+	}
+
+	// The not-recorded file still counts as a success for the exit code: the
+	// request did succeed, and failing the build on a community credential
+	// would break every unauthenticated user's pipeline.
+	uploaded, failed, skipped := tallyGHAResults(results)
+	if uploaded != 2 || failed != 1 || skipped != 1 {
+		t.Errorf("tally = (%d, %d, %d), want (2, 1, 1)", uploaded, failed, skipped)
+	}
+
+	// A dry run reports uploaded with no snapshot, and must not be mistaken for
+	// the community-credential case.
+	if got := countNotRecorded([]ghaFileResult{
+		{Status: "uploaded", Persisted: false, Reason: "dry run; nothing was sent"},
+	}); got != 0 {
+		t.Errorf("a dry run must not count as not-recorded, got %d", got)
+	}
+}

@@ -53,6 +53,18 @@ type ghaFileResult struct {
 
 	SnapshotUuid string `json:"snapshotUuid,omitempty"`
 	SnapshotURL  string `json:"snapshotUrl,omitempty"`
+
+	// Persisted reports whether the server recorded the report as a scan, as
+	// opposed to accepting it, enriching it and returning nothing.
+	//
+	// The two are indistinguishable from the HTTP status: both are 200. The
+	// server declines to persist under the shared community credential, which
+	// the CLI falls back to whenever a real credential cannot be read — an
+	// unset VULNETIX_API_KEY, or a keyring it cannot unlock in a headless
+	// session. The result was a run that printed "published", listed a category
+	// and a finding count, and left no ScannerRun anywhere: the same
+	// green-job-no-data failure this whole path exists to remove.
+	Persisted bool `json:"persisted"`
 }
 
 // ghaSubmitter holds everything the per-file publishers need.
@@ -188,8 +200,19 @@ func (s *ghaSubmitter) publishSARIF(res ghaFileResult, artifactName string, data
 	res.SnapshotUuid = snapshotUuid
 	res.SnapshotURL = snapshotURL
 	res.PipelineID = snapshotUuid
+	res.Persisted = snapshotUuid != ""
+	if !res.Persisted {
+		res.Reason = notPersistedReason
+		s.warnf("  %s/%s %s", artifactName, res.File, notPersistedReason)
+	}
 	return res
 }
+
+// notPersistedReason explains a 200 that recorded nothing. Community-tier
+// credentials get enrichment without persistence by design, and the CLI falls
+// back to the shared community credential whenever a real one cannot be read.
+const notPersistedReason = "accepted but not recorded: the request authenticated as the shared community credential, " +
+	"so no scan was stored. Set VULNETIX_ORG_ID and VULNETIX_API_KEY, or run 'vulnetix auth login'."
 
 // postSARIFChunks sends the document, splitting large ones so no single request
 // exceeds the server's body limit. Chunk 0 creates the run and snapshot; the
@@ -488,6 +511,11 @@ func (s *ghaSubmitter) postSCA(res ghaFileResult, packages []vdb.CliPackageEntry
 	res.SnapshotUuid = snapshotUuid
 	res.SnapshotURL = snapshotURL
 	res.PipelineID = snapshotUuid
+	res.Persisted = snapshotUuid != ""
+	if !res.Persisted {
+		res.Reason = notPersistedReason
+		s.warnf("  %s %s", res.File, notPersistedReason)
+	}
 	return res
 }
 
