@@ -486,6 +486,17 @@ func DetectFormat(filePath string, data []byte) string {
 		if strings.Contains(content, "\"$schema\"") && strings.Contains(content, "sarif") {
 			return "sarif"
 		}
+		// $schema is optional in SARIF 2.1.0 and plenty of tools omit it —
+		// Brakeman, Insider and several Microsoft analyzers among them. Without
+		// this, such a report named anything but *.sarif was detected as "auto"
+		// and dropped by discovery with no diagnostic. version + runs is the
+		// document's own required shape, so it is a safe positive.
+		if strings.Contains(content, "\"runs\"") &&
+			(strings.Contains(content, "\"version\": \"2.1.0\"") ||
+				strings.Contains(content, "\"version\":\"2.1.0\"") ||
+				strings.Contains(content, "\"tool\"")) {
+			return "sarif"
+		}
 		if strings.Contains(content, "\"@context\"") && strings.Contains(content, "openvex") {
 			return "openvex"
 		}

@@ -221,3 +221,38 @@ func TestDiscoverVulnetixFiles_FindsBareCdx(t *testing.T) {
 	// failure from being invisible to the glob. Assert on the reason.
 	t.Fatalf("sbom.cdx was not discovered at all; got %v", files)
 }
+
+// $schema is optional in SARIF 2.1.0. A report that omits it and is not named
+// *.sarif used to be detected as "auto" and dropped by discovery with no
+// diagnostic, which is how a third-party scanner produces a green job and no
+// findings.
+func TestDetectFormat_SARIFWithoutSchema(t *testing.T) {
+	tests := []struct {
+		name string
+		data string
+		want string
+	}{
+		{
+			"report.json",
+			`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Brakeman"}},"results":[]}]}`,
+			"sarif",
+		},
+		{
+			"out.json",
+			`{"version": "2.1.0", "runs": []}`,
+			"sarif",
+		},
+		{
+			// An arbitrary JSON document that happens to have a "runs" key but
+			// none of SARIF's shape must not be claimed.
+			"metrics.json",
+			`{"runs": 42, "passed": true}`,
+			"auto",
+		},
+	}
+	for _, tc := range tests {
+		if got := DetectFormat(tc.name, []byte(tc.data)); got != tc.want {
+			t.Errorf("DetectFormat(%q): got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

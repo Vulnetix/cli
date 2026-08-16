@@ -75,6 +75,42 @@ var sarifExportHints = []struct {
 	{"nikto", "Nikto has no SARIF mode; publish a CycloneDX or SARIF report from another scanner instead."},
 	{"openvas", "OpenVAS has no SARIF mode; publish a CycloneDX or SARIF report from another scanner instead."},
 	{"qualys", "Qualys has no SARIF mode; use its CycloneDX SBOM export instead."},
+
+	// The rest of the catalog's SARIF-capable tools, keyed on the output
+	// filename each one's own documentation uses. A tool whose native JSON is
+	// uploaded by mistake is the common case, and naming its SARIF flag is the
+	// difference between "unsupported format" and a working scan.
+	{"bandit", "Bandit emits SARIF with -f sarif (bandit-sarif-formatter installed)."},
+	{"brakeman", "Brakeman emits SARIF with -f sarif."},
+	{"gitleaks", "Gitleaks emits SARIF with --report-format sarif --report-path <file>."},
+	{"osv", "OSV-Scanner emits SARIF with --format sarif --output <file>."},
+	{"dependency-check", "OWASP Dependency-Check emits SARIF with --format SARIF."},
+	{"hadolint", "hadolint emits SARIF with --format sarif."},
+	{"dockle", "Dockle emits SARIF with -f sarif -o <file>."},
+	{"kubescape", "Kubescape emits SARIF with --format sarif --output <file>."},
+	{"kics", "KICS emits SARIF with --report-formats sarif."},
+	{"terrascan", "Terrascan emits SARIF with -o sarif."},
+	{"tfsec", "tfsec emits SARIF with --format sarif; newer builds are `trivy config`."},
+	{"conftest", "Conftest emits SARIF with --output sarif."},
+	{"gosec", "gosec emits SARIF with -fmt sarif -out <file>."},
+	{"govulncheck", "govulncheck emits SARIF with -format sarif."},
+	{"golangci", "golangci-lint emits SARIF with --out-format sarif."},
+	{"clippy", "Clippy emits SARIF through clippy-sarif (cargo clippy --message-format=json | clippy-sarif)."},
+	{"cppcheck", "cppcheck emits SARIF with --output-format=sarif (2.13+)."},
+	{"flawfinder", "Flawfinder emits SARIF with --sarif."},
+	{"devskim", "DevSkim emits SARIF with -f sarif -O <file>."},
+	{"detekt", "detekt emits SARIF with --report sarif:<file>."},
+	{"psalm", "Psalm emits SARIF with --report=<file>.sarif."},
+	{"phpstan", "PHPStan emits SARIF with --error-format=sarif."},
+	{"spotbugs", "SpotBugs emits SARIF with -sarif (4.5+)."},
+	{"njsscan", "njsscan emits SARIF with --sarif -o <file>."},
+	{"mobsfscan", "mobsfscan emits SARIF with --sarif -o <file>."},
+	{"nuclei", "Nuclei emits SARIF with -sarif-export <file>."},
+	{"prowler", "Prowler emits SARIF with -M sarif."},
+	{"stylelint", "Stylelint emits SARIF via stylelint-sarif-formatter."},
+	{"biome", "Biome emits SARIF with --reporter=gitlab piped through a converter, or use its GitHub reporter."},
+	{"cdxgen", "cdxgen writes CycloneDX already; publish the .cdx.json it produced rather than a converted file."},
+	{"syft", "Syft writes CycloneDX or SPDX already; publish with -o cyclonedx-json=<file>."},
 }
 
 func sarifExportHint(fileName string) string {
