@@ -37,7 +37,34 @@ type Tool struct {
 	Artifact    string   `json:"artifact"`
 	Paths       []string `json:"paths"`
 	Note        string   `json:"note,omitempty"`
+	Detect      Detect   `json:"detect"`
 	Steps       []Step   `json:"steps"`
+}
+
+// Detect says when `gha setup --detect` should pick a tool for a repository.
+//
+// Every recipe already refuses to run against a tree it has nothing to say
+// about ("no go.mod found; skipping gosec"), so a wrong guess here costs a
+// no-op job rather than a bad result. What it buys is a workflow that names
+// only the scanners this repository can actually feed, which is the difference
+// between reading a run and scrolling past forty skipped jobs.
+type Detect struct {
+	// Always marks a tool that works on any repository: the SBOM producers,
+	// the secret scanners, the multi-language SAST engines.
+	Always bool `json:"always,omitempty"`
+
+	// Files are basenames or directory names that must exist somewhere in the
+	// tree. A match on any one of them selects the tool.
+	Files []string `json:"files,omitempty"`
+
+	// Extensions are file suffixes, matched the same way.
+	Extensions []string `json:"extensions,omitempty"`
+
+	// Manual keeps a tool out of --detect entirely. These are the ones that
+	// need something the repository cannot supply: a licence key (Snyk), or a
+	// live target the operator must nominate (ZAP, Nuclei). Selecting one by
+	// name still works.
+	Manual bool `json:"manual,omitempty"`
 }
 
 // Step is one workflow step. Exactly one of Uses or Run is set.

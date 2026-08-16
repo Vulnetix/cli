@@ -27,6 +27,9 @@ var (
 	ghaSetupForce      bool
 	ghaSetupSelfHosted []string
 	ghaSetupAll        bool
+	ghaSetupDetect     bool
+	ghaSetupTriggers   []string
+	ghaSetupCron       string
 )
 
 var ghaSetupCmd = &cobra.Command{
@@ -49,8 +52,15 @@ so the workflow keeps working without anyone returning to bump a version. The
 third-party scanners themselves are pinned, because there a reproducible scan
 matters more than being current.
 
+--detect picks the scanners this repository can actually feed, by looking at
+what is in the tree: a Go module gets gosec and govulncheck, a Dockerfile gets
+hadolint and the image scanners, and the language-agnostic ones are always
+included. Tools that need a credential or a live target (Snyk, ZAP, Nuclei) are
+never selected automatically; name them when you have one.
+
 Examples:
   vulnetix gha setup --list
+  vulnetix gha setup --detect
   vulnetix gha setup gosec
   vulnetix gha setup trivy-fs trivy-config checkov
   vulnetix gha setup --all --dry-run`,
@@ -74,6 +84,37 @@ func runGHASetup(cmd *cobra.Command, args []string) error {
 	if ghaSetupAll {
 		args = catalog.IDs()
 	}
+
+	// The root is resolved before the tool set because --detect reads the tree
+	// to choose it.
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	root, err := ghasetup.RepoRoot(cwd)
+	if err != nil || root == "" {
+		return fmt.Errorf("not inside a git repository: a workflow file has nowhere to go")
+	}
+
+	if ghaSetupDetect {
+		found, _, derr := ghasetup.DetectTools(catalog, root)
+		if derr != nil {
+			return fmt.Errorf("scan the repository: %w", derr)
+		}
+		if len(found) == 0 {
+			return fmt.Errorf("nothing in this repository matched a scanner in the catalog; name one explicitly")
+		}
+		args = append(args, found...)
+		dctx.Logger.Infof("Detected %d scanner(s) for this repository: %s", len(found), strings.Join(found, ", "))
+		// Said out loud rather than silently omitted: "detect found nothing for
+		// Snyk" and "Snyk is never auto-selected" are different facts, and only
+		// one of them is worth acting on.
+		if manual := ghasetup.ManualTools(catalog); len(manual) > 0 {
+			dctx.Logger.Infof("Not auto-selected (each needs a credential or a target you nominate): %s",
+				strings.Join(manual, ", "))
+		}
+	}
+
 	if len(args) == 0 {
 		return fmt.Errorf("name at least one tool, or pass --list to see what is available")
 	}
@@ -90,15 +131,6 @@ func runGHASetup(cmd *cobra.Command, args []string) error {
 			}
 			return fmt.Errorf("%s", msg)
 		}
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	root, err := ghasetup.RepoRoot(cwd)
-	if err != nil || root == "" {
-		return fmt.Errorf("not inside a git repository: a workflow file has nowhere to go")
 	}
 
 	// A workflow file only does anything on GitHub. Warn rather than refuse:
@@ -134,6 +166,8 @@ func runGHASetup(cmd *cobra.Command, args []string) error {
 
 	content, err := ghasetup.Render(catalog, selected, ghasetup.Options{
 		SelfHostedLabels: ghaSetupSelfHosted,
+		Triggers:         ghaSetupTriggers,
+		ScheduleCron:     ghaSetupCron,
 	})
 	if err != nil {
 		return err
@@ -243,9 +277,12 @@ func orUnknownHost(h string) string {
 func init() {
 	ghaSetupCmd.Flags().BoolVar(&ghaSetupList, "list", false, "List the scanners that can be set up")
 	ghaSetupCmd.Flags().BoolVar(&ghaSetupAll, "all", false, "Set up every scanner in the catalog")
+	ghaSetupCmd.Flags().BoolVar(&ghaSetupDetect, "detect", false, "Select the scanners that match what is in this repository")
 	ghaSetupCmd.Flags().BoolVar(&ghaSetupDryRun, "dry-run", false, "Print the workflow instead of writing it")
 	ghaSetupCmd.Flags().BoolVar(&ghaSetupForce, "force", false, "Replace an existing workflow that was not written by this command")
 	ghaSetupCmd.Flags().StringSliceVar(&ghaSetupSelfHosted, "runs-on", nil, "Runner labels to use instead of ubuntu-latest (e.g. self-hosted,Linux,X64)")
+	ghaSetupCmd.Flags().StringSliceVar(&ghaSetupTriggers, "on", nil, "Workflow triggers (push, pull_request, schedule, workflow_dispatch). Default: push,workflow_dispatch")
+	ghaSetupCmd.Flags().StringVar(&ghaSetupCron, "cron", "", "Cron expression when --on includes schedule (default \""+ghasetup.DefaultScheduleCron+"\")")
 
 	ghaCmd.AddCommand(ghaSetupCmd)
 }

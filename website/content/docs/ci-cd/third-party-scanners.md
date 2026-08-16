@@ -77,10 +77,17 @@ shape without any change to your repository.
 
 | Tool | Category | Report |
 |---|---|---|
+| [Conftest](#conftest) | COMPLIANCE | `conftest.sarif` |
+| [OWASP ZAP](#owasp-zap) | DAST | `owasp-zap.sarif` |
 | [cfn-lint](#cfn-lint) | IAC | `cfn-lint.sarif` |
 | [Checkov](#checkov) | IAC | `results.sarif` |
 | [KICS](#kics) | IAC | `kics-out/results.sarif` |
+| [KubeLinter](#kube-linter) | IAC | `kube-linter.sarif` |
+| [Kubescape](#kubescape) | IAC | `kubescape.sarif` |
+| [Regula](#regula) | IAC | `regula.sarif` |
+| [Snyk IaC](#snyk-iac) | IAC | `snyk-iac.sarif` |
 | [Terrascan](#terrascan) | IAC | `terrascan.sarif` |
+| [TFLint](#tflint) | IAC | `tflint.sarif` |
 | [tfsec](#tfsec) | IAC | `tfsec.sarif` |
 | [Trivy (config)](#trivy-config) | IAC | `trivy-config.sarif` |
 | [ScanCode Toolkit](#scancode) | LICENSE | `scancode.cdx.json` |
@@ -89,40 +96,225 @@ shape without any change to your repository.
 | [golangci-lint](#golangci-lint) | LINT | `golangci-lint.sarif` |
 | [RuboCop](#rubocop) | LINT | `rubocop.sarif` |
 | [Ruff](#ruff) | LINT | `ruff.sarif` |
+| [ShellCheck](#shellcheck) | LINT | `shellcheck.sarif` |
 | [Stylelint](#stylelint) | LINT | `stylelint.sarif` |
 | [SwiftLint](#swiftlint) | LINT | `swiftlint.sarif` |
+| [mobsfscan](#mobsfscan) | MOBILE | `mobsfscan.sarif` |
 | [Dockle](#dockle) | OCI | `dockle.sarif` |
+| [Grype (image)](#grype-image) | OCI | `grype-image.sarif` |
 | [Hadolint](#hadolint) | OCI | `hadolint.sarif` |
+| [Snyk Container](#snyk-container) | OCI | `snyk-container.sarif` |
+| [Syft (image)](#syft-image) | OCI | `syft-image.cdx.json` |
+| [Trivy (image)](#trivy-image) | OCI | `trivy-image.sarif` |
 | [Nuclei](#nuclei) | PENTEST | `nuclei.sarif` |
 | [Bandit](#bandit) | SAST | `bandit.sarif` |
+| [Bearer CLI](#bearer) | SAST | `bearer.sarif` |
 | [Brakeman](#brakeman) | SAST | `brakeman.sarif` |
 | [Cppcheck](#cppcheck) | SAST | `cppcheck.sarif` |
+| [detekt](#detekt) | SAST | `detekt.sarif` |
 | [Flawfinder](#flawfinder) | SAST | `flawfinder.sarif` |
 | [gosec](#gosec) | SAST | `gosec.sarif` |
 | [njsscan](#njsscan) | SAST | `njsscan.sarif` |
+| [OpenGrep](#opengrep) | SAST | `opengrep.sarif` |
 | [PMD](#pmd) | SAST | `pmd-report.sarif` |
+| [Psalm](#psalm) | SAST | `psalm.sarif` |
 | [Semgrep](#semgrep) | SAST | `semgrep.sarif` |
+| [Snyk Code](#snyk-code) | SAST | `snyk-code.sarif` |
 | [zizmor](#zizmor) | SAST | `zizmor.sarif` |
 | [cdxgen](#cdxgen) | SCA | `cdxgen.cdx.json` |
 | [CycloneDX .NET](#cyclonedx-dotnet) | SCA | `cyclonedx-dotnet.cdx.json` |
 | [CycloneDX Go](#cyclonedx-go) | SCA | `cyclonedx-go.cdx.json` |
+| [CycloneDX Maven Plugin](#cyclonedx-maven) | SCA | `cyclonedx-maven.cdx.json` |
 | [CycloneDX npm](#cyclonedx-node) | SCA | `cyclonedx-node.cdx.json` |
 | [CycloneDX PHP](#cyclonedx-php) | SCA | `cyclonedx-php.cdx.json` |
 | [CycloneDX Python](#cyclonedx-python) | SCA | `cyclonedx-python.cdx.json` |
 | [CycloneDX Ruby](#cyclonedx-ruby) | SCA | `cyclonedx-ruby.cdx.json` |
 | [CycloneDX Rust](#cyclonedx-rust) | SCA | `cyclonedx-rust.cdx.json` |
+| [GitHub SBOM Export](#github-sbom) | SCA | `github-sbom.spdx.json` |
 | [govulncheck](#govulncheck) | SCA | `govulncheck.sarif` |
 | [Grype](#grype) | SCA | `grype.sarif` |
 | [npm audit](#npm-audit) | SCA | `npm-audit.sarif` |
 | [OSV-Scanner](#osv-scanner) | SCA | `osv.sarif` |
 | [OWASP Dependency-Check](#owasp-dependency-check) | SCA | `dependency-check.sarif` |
 | [Retire.js](#retirejs) | SCA | `retirejs.cdx.json` |
+| [Snyk Open Source](#snyk-oss) | SCA | `snyk-oss.sarif` |
 | [Syft](#syft) | SCA | `sbom.cdx.json` |
 | [Trivy (filesystem)](#trivy-fs) | SCA | `trivy-fs.cdx.json`, `trivy-fs.sarif` |
 | [CycloneDX Yarn](#yarn-cyclonedx) | SCA | `yarn-cyclonedx.cdx.json` |
 | [detect-secrets](#detect-secrets) | SECRETS | `detect-secrets-results.sarif` |
 | [Gitleaks](#gitleaks) | SECRETS | `gitleaks.sarif` |
+| [Nosey Parker](#noseyparker) | SECRETS | `noseyparker.sarif` |
 | [TruffleHog](#trufflehog) | SECRETS | `trufflehog.sarif` |
+
+### Conftest {#conftest}
+
+Runs a repository's own Rego policies and their unit tests.
+
+```sh
+vulnetix gha setup conftest
+```
+
+The job it adds:
+
+```yaml
+  conftest:
+    name: Conftest (Rego policy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run Conftest
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          if ! find . -path ./.git -prune -o -type f -name '*.rego' -print | head -n 1 | grep -q .; then
+            echo '::notice::no Rego policies found; skipping Conftest'
+            exit 0
+          fi
+          version=0.62.0
+          mkdir -p /tmp/conftest
+          curl -fsSL "https://github.com/open-policy-agent/conftest/releases/download/v${version}/conftest_${version}_Linux_x86_64.tar.gz" \
+            | tar -xz -C /tmp/conftest 2>/dev/null || true
+          if [ ! -x /tmp/conftest/conftest ]; then
+            echo '::warning::conftest could not be installed on this runner; skipping'
+            exit 0
+          fi
+          # `verify` runs the policies' own *_test.rego suites, which is the check that
+          # means something in a repository whose product IS the policy set.
+          /tmp/conftest/conftest verify -p . -o sarif >conftest.sarif 2>conftest.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' conftest.sarif >/dev/null 2>&1; then
+            echo '::warning::conftest produced no valid SARIF; dropping the artifact'
+            rm -f conftest.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: conftest
+          path: conftest.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### OWASP ZAP {#owasp-zap}
+
+Baseline dynamic scan of a running target. Runs only when ZAP_TARGET_URL is set.
+
+{{< callout type="warning" >}}
+ZAP's baseline script writes its own JSON, not SARIF, so it is converted here. Only ever point this at a target you are authorised to test.
+{{< /callout >}}
+
+```sh
+vulnetix gha setup owasp-zap
+```
+
+The job it adds:
+
+```yaml
+  owasp-zap:
+    name: OWASP ZAP (DAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run ZAP baseline
+        continue-on-error: true
+        env:
+          ZAP_TARGET_URL: '${{ vars.ZAP_TARGET_URL }}'
+        shell: bash --noprofile --norc {0}
+        run: |
+          # The converters below need only the standard library, but not every runner
+          # image ships python3. uv carries its own interpreter, so this always resolves.
+          PY=python3
+          if ! command -v python3 >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+            PY="uv run --no-project --python 3.12 python"
+          fi
+          set -uo pipefail
+          if [ -z "${ZAP_TARGET_URL:-}" ]; then
+            echo '::notice::ZAP_TARGET_URL is not set; skipping OWASP ZAP'
+            exit 0
+          fi
+          # -I so a warning does not fail the container; findings are the point.
+          docker run --rm -v "$PWD:/zap/wrk/:rw" ghcr.io/zaproxy/zaproxy:2.16.1 \
+            zap-baseline.py -t "$ZAP_TARGET_URL" -J zap.json -I >/dev/null 2>zap.stderr || true
+          $PY <<'PY'
+          import json
+          import os
+
+          sarif = {
+              "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+              "version": "2.1.0",
+              "runs": [{
+                  "tool": {
+                      "driver": {
+                          "name": "OWASP ZAP",
+                          "informationUri": "https://www.zaproxy.org/",
+                          "rules": [],
+                      }
+                  },
+                  "results": [],
+              }],
+          }
+          rules_seen = set()
+          # ZAP risk codes: 3 high, 2 medium, 1 low, 0 informational.
+          level_map = {"3": "error", "2": "error", "1": "warning", "0": "note"}
+
+
+          def add_rule(rule_id, name, desc):
+              if rule_id in rules_seen:
+                  return
+              sarif["runs"][0]["tool"]["driver"]["rules"].append({
+                  "id": rule_id,
+                  "shortDescription": {"text": name[:200]},
+                  "fullDescription": {"text": desc[:1000]},
+                  "defaultConfiguration": {"level": "warning"},
+              })
+              rules_seen.add(rule_id)
+
+
+          if os.path.exists("zap.json") and os.path.getsize("zap.json") > 0:
+              with open("zap.json", "r", encoding="utf-8") as fh:
+                  try:
+                      data = json.load(fh)
+                  except json.JSONDecodeError:
+                      data = {}
+              for site in data.get("site") or []:
+                  for alert in site.get("alerts") or []:
+                      rule_id = str(alert.get("pluginid") or alert.get("alertRef") or "zap")
+                      name = str(alert.get("name") or rule_id)
+                      add_rule(rule_id, name, str(alert.get("desc") or ""))
+                      level = level_map.get(str(alert.get("riskcode") or "1"), "warning")
+                      for instance in (alert.get("instances") or [{}]):
+                          uri = str(instance.get("uri") or site.get("@name") or "unknown")
+                          sarif["runs"][0]["results"].append({
+                              "ruleId": rule_id,
+                              "level": level,
+                              "message": {"text": f"{name}: {instance.get('evidence') or alert.get('solution') or ''}".strip()},
+                              "locations": [{
+                                  "physicalLocation": {
+                                      "artifactLocation": {"uri": uri},
+                                      "region": {"startLine": 1},
+                                  }
+                              }],
+                          })
+
+          with open("owasp-zap.sarif", "w", encoding="utf-8") as fh:
+              json.dump(sarif, fh, indent=2)
+          PY
+          if ! jq -e '.version and (.runs | type == "array")' owasp-zap.sarif >/dev/null 2>&1; then
+            echo '::warning::owasp zap produced no valid SARIF; dropping the artifact'
+            rm -f owasp-zap.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: owasp-zap
+          path: owasp-zap.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
 
 ### cfn-lint {#cfn-lint}
 
@@ -140,22 +332,27 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python
+      - name: Set up uv
         continue-on-error: true
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+        uses: astral-sh/setup-uv@v6
       - name: Run cfn-lint
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
           templates=$(find . -path ./.git -prune -o -type f \( -name '*.template' -o -name '*.yaml' -o -name '*.yml' -o -name '*.json' \) -print)
           if [ -z "$templates" ]; then
             echo '::notice::no candidate CloudFormation templates found; skipping cfn-lint'
             exit 0
           fi
-          python3 -m pip install --quiet --break-system-packages cfn-lint
-          cfn-lint -f sarif -t $templates >cfn-lint.sarif 2>cfn-lint.stderr
+          uvx --from cfn-lint cfn-lint -f sarif -t $templates >cfn-lint.sarif 2>cfn-lint.stderr
           rc=$?
           if [ $rc -ne 0 ]; then
             echo "::warning::cfn-lint exited $rc"
@@ -195,12 +392,22 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Set up uv
+        continue-on-error: true
+        uses: astral-sh/setup-uv@v6
       - name: Run Checkov
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          python3 -m pip install --quiet --break-system-packages checkov
-          checkov -d . -o sarif --output-file-path . --soft-fail || true
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
+          uvx --from checkov checkov -d . -o sarif --output-file-path . --soft-fail || true
       - uses: actions/upload-artifact@v6
         with:
           name: checkov
@@ -238,6 +445,185 @@ The job it adds:
         with:
           name: kics
           path: kics-out/results.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### KubeLinter {#kube-linter}
+
+Kubernetes manifest and Helm chart misconfiguration checks.
+
+```sh
+vulnetix gha setup kube-linter
+```
+
+The job it adds:
+
+```yaml
+  kube-linter:
+    name: KubeLinter (Kubernetes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run KubeLinter
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          mkdir -p /tmp/kl
+          curl -fsSL https://github.com/stackrox/kube-linter/releases/download/v0.7.6/kube-linter-linux.tar.gz \
+            | tar -xz -C /tmp/kl 2>/dev/null || true
+          if [ ! -x /tmp/kl/kube-linter ]; then
+            echo '::warning::kube-linter could not be installed on this runner; skipping'
+            exit 0
+          fi
+          # Exit 1 means findings.
+          /tmp/kl/kube-linter lint --format sarif . >kube-linter.sarif 2>kube-linter.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' kube-linter.sarif >/dev/null 2>&1; then
+            echo '::warning::kube-linter produced no valid SARIF; dropping the artifact'
+            rm -f kube-linter.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: kube-linter
+          path: kube-linter.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### Kubescape {#kubescape}
+
+Kubernetes posture scanning against NSA, MITRE and CIS controls.
+
+```sh
+vulnetix gha setup kubescape
+```
+
+The job it adds:
+
+```yaml
+  kubescape:
+    name: Kubescape (Kubernetes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run Kubescape
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          curl -fsSL https://raw.githubusercontent.com/kubescape/kubescape/master/install.sh | /bin/bash >/dev/null 2>&1 || true
+          export PATH="$HOME/.kubescape/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
+          if ! command -v kubescape >/dev/null 2>&1; then
+            echo '::warning::kubescape could not be installed on this runner; skipping'
+            exit 0
+          fi
+          kubescape scan . --format sarif --output kubescape.sarif >/dev/null 2>kubescape.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' kubescape.sarif >/dev/null 2>&1; then
+            echo '::warning::kubescape produced no valid SARIF; dropping the artifact'
+            rm -f kubescape.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: kubescape
+          path: kubescape.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### Regula {#regula}
+
+Rego-based policy checks over Terraform, CloudFormation and Kubernetes.
+
+```sh
+vulnetix gha setup regula
+```
+
+The job it adds:
+
+```yaml
+  regula:
+    name: Regula (IaC policy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run Regula
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          version=3.2.1
+          mkdir -p /tmp/regula
+          curl -fsSL "https://github.com/fugue/regula/releases/download/v${version}/regula_${version}_Linux_x86_64.tar.gz" \
+            | tar -xz -C /tmp/regula 2>/dev/null || true
+          if [ ! -x /tmp/regula/regula ]; then
+            echo '::warning::regula could not be installed on this runner; skipping'
+            exit 0
+          fi
+          # Exit 1 means policy violations.
+          /tmp/regula/regula run --format sarif . >regula.sarif 2>regula.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' regula.sarif >/dev/null 2>&1; then
+            echo '::warning::regula produced no valid SARIF; dropping the artifact'
+            rm -f regula.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: regula
+          path: regula.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### Snyk IaC {#snyk-iac}
+
+Snyk's infrastructure-as-code scan. Runs only when SNYK_TOKEN is set.
+
+```sh
+vulnetix gha setup snyk-iac
+```
+
+The job it adds:
+
+```yaml
+  snyk-iac:
+    name: Snyk IaC
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Snyk IaC
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: '${{ secrets.SNYK_TOKEN }}'
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          if [ -z "${SNYK_TOKEN:-}" ]; then
+            echo '::notice::SNYK_TOKEN is not set; skipping Snyk IaC'
+            exit 0
+          fi
+          npm install -g snyk >/dev/null 2>&1 || true
+          snyk iac test --sarif-file-output=snyk-iac.sarif . 2>snyk-iac.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' snyk-iac.sarif >/dev/null 2>&1; then
+            echo '::warning::snyk iac produced no valid SARIF; dropping the artifact'
+            rm -f snyk-iac.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: snyk-iac
+          path: snyk-iac.sarif
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -286,6 +672,54 @@ The job it adds:
         with:
           name: terrascan
           path: terrascan.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### TFLint {#tflint}
+
+Terraform linting, including provider-specific invalid-configuration checks.
+
+```sh
+vulnetix gha setup tflint
+```
+
+The job it adds:
+
+```yaml
+  tflint:
+    name: TFLint (Terraform)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run TFLint
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          if ! find . -path ./.git -prune -o -type f -name '*.tf' -print | head -n 1 | grep -q .; then
+            echo '::notice::no Terraform files found; skipping TFLint'
+            exit 0
+          fi
+          curl -fsSL https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash >/dev/null 2>&1 || true
+          export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+          if ! command -v tflint >/dev/null 2>&1; then
+            echo '::warning::tflint could not be installed on this runner; skipping'
+            exit 0
+          fi
+          tflint --init >/dev/null 2>&1 || true
+          # tflint exits 2 when it reports issues.
+          tflint --recursive --format sarif >tflint.sarif 2>tflint.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' tflint.sarif >/dev/null 2>&1; then
+            echo '::warning::tflint produced no valid SARIF; dropping the artifact'
+            rm -f tflint.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: tflint
+          path: tflint.sarif
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -377,17 +811,22 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python
+      - name: Set up uv
         continue-on-error: true
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+        uses: astral-sh/setup-uv@v6
       - name: Run ScanCode Toolkit
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          python3 -m pip install --quiet --break-system-packages scancode-toolkit
-          scancode --license --copyright --package --cyclonedx scancode.cdx.json . || true
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
+          uvx --python 3.12 --from scancode-toolkit scancode --license --copyright --package --cyclonedx scancode.cdx.json . || true
           if ! jq -e '.bomFormat == "CycloneDX"' scancode.cdx.json >/dev/null 2>&1; then
             echo '::warning::scancode produced no valid CycloneDX JSON; dropping the artifact'
             rm -f scancode.cdx.json
@@ -532,13 +971,20 @@ The job it adds:
           go-version: stable
       - name: Run golangci-lint
         continue-on-error: true
+        env:
+          GO_MODULE_PATTERN: '${{ vars.GO_MODULE_PATTERN }}'
+          GO_MODULE_TOKEN: '${{ secrets.PACKAGES_TOKEN }}'
         shell: bash --noprofile --norc {0}
         run: |
+          if [ -n "${GO_MODULE_TOKEN:-}" ]; then
+            go env -w GOPRIVATE="${GO_MODULE_PATTERN:-github.com/$(echo "${GITHUB_REPOSITORY:-}" | cut -d/ -f1)/*}"
+            git config --global url."https://x-access-token:${GO_MODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping golangci-lint'
             exit 0
           fi
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
           golangci-lint run --output.sarif.path=golangci-lint.sarif || true
           if ! jq -e '.version and (.runs | type == "array")' golangci-lint.sarif >/dev/null 2>&1; then
             echo '::warning::golangci-lint produced no valid SARIF; dropping the artifact'
@@ -579,6 +1025,14 @@ The job it adds:
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
+          # The converters below need only the standard library, but not every runner
+          # image ships python3. uv carries its own interpreter, so this always resolves.
+          PY=python3
+          if ! command -v python3 >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+            PY="uv run --no-project --python 3.12 python"
+          fi
           if ! find . -path ./.git -prune -o -type f -name '*.rb' -print | head -n 1 | grep -q .; then
             echo '::notice::no Ruby files found; skipping RuboCop'
             exit 0
@@ -586,7 +1040,7 @@ The job it adds:
           gem install rubocop
           rubocop --format github --out rubocop.github-actions.txt || true
           rubocop --format json --out rubocop.json || true
-          python3 <<'PY'
+          $PY <<'PY'
           import json
           import os
 
@@ -698,21 +1152,26 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python
+      - name: Set up uv
         continue-on-error: true
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+        uses: astral-sh/setup-uv@v6
       - name: Run Ruff security rules
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
           if ! find . -path ./.git -prune -o -type f -name '*.py' -print | head -n 1 | grep -q .; then
             echo '::notice::no Python files found; skipping Ruff'
             exit 0
           fi
-          python3 -m pip install --quiet --break-system-packages ruff
-          ruff check --select S --output-format sarif -o ruff.sarif . || true
+          uvx --from ruff ruff check --select S --output-format sarif -o ruff.sarif . || true
           if ! jq -e '.version and (.runs | type == "array")' ruff.sarif >/dev/null 2>&1; then
             echo '::warning::ruff produced no valid SARIF; dropping the artifact'
             rm -f ruff.sarif
@@ -721,6 +1180,141 @@ The job it adds:
         with:
           name: ruff
           path: ruff.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### ShellCheck {#shellcheck}
+
+Shell script analysis, including quoting and injection mistakes.
+
+{{< callout type="warning" >}}
+ShellCheck has no SARIF writer of its own, so its json1 output is converted here. The driver name must stay "ShellCheck" or the findings are attributed to nothing.
+{{< /callout >}}
+
+```sh
+vulnetix gha setup shellcheck
+```
+
+The job it adds:
+
+```yaml
+  shellcheck:
+    name: ShellCheck (shell lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run ShellCheck
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          # The converters below need only the standard library, but not every runner
+          # image ships python3. uv carries its own interpreter, so this always resolves.
+          PY=python3
+          if ! command -v python3 >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+            PY="uv run --no-project --python 3.12 python"
+          fi
+          set -uo pipefail
+          scripts=$(find . -path ./.git -prune -o -type f \( -name '*.sh' -o -name '*.bash' \) -print)
+          if [ -z "$scripts" ]; then
+            echo '::notice::no shell scripts found; skipping ShellCheck'
+            exit 0
+          fi
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            version=0.11.0
+            mkdir -p /tmp/sc
+            curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v${version}/shellcheck-v${version}.linux.x86_64.tar.xz" \
+              | tar -xJ -C /tmp/sc 2>/dev/null || true
+            export PATH="/tmp/sc/shellcheck-v${version}:$PATH"
+          fi
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            echo '::warning::shellcheck could not be installed on this runner; skipping'
+            exit 0
+          fi
+          # shellcheck exits 1 when it reports anything, which is a successful run.
+          # shellcheck disable=SC2086
+          shellcheck -f json1 $scripts >shellcheck.json 2>shellcheck.stderr || true
+          $PY <<'PY'
+          import json
+          import os
+
+          sarif = {
+              "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+              "version": "2.1.0",
+              "runs": [{
+                  "tool": {
+                      "driver": {
+                          "name": "ShellCheck",
+                          "informationUri": "https://www.shellcheck.net/",
+                          "rules": [],
+                      }
+                  },
+                  "results": [],
+              }],
+          }
+          rules_seen = set()
+          level_map = {"error": "error", "warning": "warning", "info": "note", "style": "note"}
+
+
+          def to_int(value):
+              try:
+                  return max(1, int(value))
+              except (TypeError, ValueError):
+                  return 1
+
+
+          def add_rule(rule_id, comment):
+              if rule_id in rules_seen:
+                  return
+              sarif["runs"][0]["tool"]["driver"]["rules"].append({
+                  "id": rule_id,
+                  "shortDescription": {"text": comment[:200]},
+                  "helpUri": f"https://www.shellcheck.net/wiki/{rule_id}",
+                  "defaultConfiguration": {"level": "warning"},
+              })
+              rules_seen.add(rule_id)
+
+
+          if os.path.exists("shellcheck.json") and os.path.getsize("shellcheck.json") > 0:
+              with open("shellcheck.json", "r", encoding="utf-8") as fh:
+                  try:
+                      data = json.load(fh)
+                  except json.JSONDecodeError:
+                      data = {}
+              for item in data.get("comments") or []:
+                  rule_id = "SC%s" % item.get("code")
+                  message = str(item.get("message") or rule_id)
+                  add_rule(rule_id, message)
+                  sarif["runs"][0]["results"].append({
+                      "ruleId": rule_id,
+                      "level": level_map.get(str(item.get("level") or "").lower(), "warning"),
+                      "message": {"text": message},
+                      "locations": [{
+                          "physicalLocation": {
+                              "artifactLocation": {"uri": str(item.get("file") or "unknown")},
+                              "region": {
+                                  "startLine": to_int(item.get("line")),
+                                  "startColumn": to_int(item.get("column")),
+                              },
+                          }
+                      }],
+                  })
+
+          with open("shellcheck.sarif", "w", encoding="utf-8") as fh:
+              json.dump(sarif, fh, indent=2)
+          PY
+          if ! jq -e '.version and (.runs | type == "array")' shellcheck.sarif >/dev/null 2>&1; then
+            echo '::warning::shellcheck produced no valid SARIF; dropping the artifact'
+            rm -f shellcheck.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: shellcheck
+          path: shellcheck.sarif
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -820,6 +1414,54 @@ The job it adds:
 
 ```
 
+### mobsfscan {#mobsfscan}
+
+Static analysis of Android and iOS application source for insecure patterns.
+
+```sh
+vulnetix gha setup mobsfscan
+```
+
+The job it adds:
+
+```yaml
+  mobsfscan:
+    name: mobsfscan (Mobile SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up uv
+        continue-on-error: true
+        uses: astral-sh/setup-uv@v6
+      - name: Run mobsfscan
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
+          set -uo pipefail
+          # mobsfscan exits 1 when it reports findings.
+          uvx --from mobsfscan mobsfscan --sarif -o mobsfscan.sarif . 2>mobsfscan.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' mobsfscan.sarif >/dev/null 2>&1; then
+            echo '::warning::mobsfscan produced no valid SARIF; dropping the artifact'
+            rm -f mobsfscan.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: mobsfscan
+          path: mobsfscan.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
 ### Dockle {#dockle}
 
 Container image best-practice scanner with SARIF output.
@@ -843,8 +1485,15 @@ The job it adds:
           go-version: stable
       - name: Run Dockle
         continue-on-error: true
+        env:
+          GO_MODULE_PATTERN: '${{ vars.GO_MODULE_PATTERN }}'
+          GO_MODULE_TOKEN: '${{ secrets.PACKAGES_TOKEN }}'
         shell: bash --noprofile --norc {0}
         run: |
+          if [ -n "${GO_MODULE_TOKEN:-}" ]; then
+            go env -w GOPRIVATE="${GO_MODULE_PATTERN:-github.com/$(echo "${GITHUB_REPOSITORY:-}" | cut -d/ -f1)/*}"
+            git config --global url."https://x-access-token:${GO_MODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
           if [ ! -f Dockerfile ] && [ ! -f Containerfile ]; then
             echo '::notice::no Dockerfile or Containerfile found; skipping Dockle'
             exit 0
@@ -865,6 +1514,74 @@ The job it adds:
         with:
           name: dockle
           path: dockle.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### Grype (image) {#grype-image}
+
+Vulnerability matching against the packages inside the built image.
+
+{{< callout type="warning" >}}
+"grype-image" rather than "grype": the artifact name is what files this as a container scan instead of a dependency scan.
+{{< /callout >}}
+
+```sh
+vulnetix gha setup grype-image
+```
+
+The job it adds:
+
+```yaml
+  grype-image:
+    name: Grype image (OCI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the image
+        id: build
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          if [ ! -f Dockerfile ] && [ ! -f Containerfile ]; then
+            echo '::notice::no Dockerfile or Containerfile found; skipping'
+            exit 0
+          fi
+          dockerfile=Dockerfile
+          if [ -f Containerfile ]; then
+            dockerfile=Containerfile
+          fi
+          image="vulnetix-scan:${GITHUB_SHA:-local}"
+          if ! docker build -f "$dockerfile" -t "$image" . ; then
+            echo '::warning::image build failed; nothing to scan'
+            exit 0
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+      - name: Run Grype
+        id: grype
+        continue-on-error: true
+        uses: anchore/scan-action@v7
+        with:
+          fail-build: false
+          image: '${{ steps.build.outputs.image }}'
+          output-format: sarif
+      - name: Stage Grype SARIF
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          if [ -n "${{ steps.grype.outputs.sarif }}" ]; then
+            cp "${{ steps.grype.outputs.sarif }}" grype-image.sarif || true
+          fi
+          if ! jq -e '.version and (.runs | type == "array")' grype-image.sarif >/dev/null 2>&1; then
+            echo '::warning::grype image produced no valid SARIF; dropping the artifact'
+            rm -f grype-image.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: grype-image
+          path: grype-image.sarif
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -905,6 +1622,205 @@ The job it adds:
 
 ```
 
+### Snyk Container {#snyk-container}
+
+Snyk's image scan. Runs only when SNYK_TOKEN is set and the repository builds an image.
+
+```sh
+vulnetix gha setup snyk-container
+```
+
+The job it adds:
+
+```yaml
+  snyk-container:
+    name: Snyk Container (OCI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the image
+        id: build
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          if [ ! -f Dockerfile ] && [ ! -f Containerfile ]; then
+            echo '::notice::no Dockerfile or Containerfile found; skipping'
+            exit 0
+          fi
+          dockerfile=Dockerfile
+          if [ -f Containerfile ]; then
+            dockerfile=Containerfile
+          fi
+          image="vulnetix-scan:${GITHUB_SHA:-local}"
+          if ! docker build -f "$dockerfile" -t "$image" . ; then
+            echo '::warning::image build failed; nothing to scan'
+            exit 0
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+      - name: Run Snyk Container
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: '${{ secrets.SNYK_TOKEN }}'
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          if [ -z "${SNYK_TOKEN:-}" ]; then
+            echo '::notice::SNYK_TOKEN is not set; skipping Snyk Container'
+            exit 0
+          fi
+          image="${{ steps.build.outputs.image }}"
+          if [ -z "$image" ]; then
+            echo '::notice::no image was built; skipping Snyk Container'
+            exit 0
+          fi
+          npm install -g snyk >/dev/null 2>&1 || true
+          snyk container test "$image" --sarif-file-output=snyk-container.sarif 2>snyk-container.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' snyk-container.sarif >/dev/null 2>&1; then
+            echo '::warning::snyk container produced no valid SARIF; dropping the artifact'
+            rm -f snyk-container.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: snyk-container
+          path: snyk-container.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### Syft (image) {#syft-image}
+
+CycloneDX inventory of everything installed inside the built image.
+
+```sh
+vulnetix gha setup syft-image
+```
+
+The job it adds:
+
+```yaml
+  syft-image:
+    name: Syft image (CycloneDX SBOM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the image
+        id: build
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          if [ ! -f Dockerfile ] && [ ! -f Containerfile ]; then
+            echo '::notice::no Dockerfile or Containerfile found; skipping'
+            exit 0
+          fi
+          dockerfile=Dockerfile
+          if [ -f Containerfile ]; then
+            dockerfile=Containerfile
+          fi
+          image="vulnetix-scan:${GITHUB_SHA:-local}"
+          if ! docker build -f "$dockerfile" -t "$image" . ; then
+            echo '::warning::image build failed; nothing to scan'
+            exit 0
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+      - name: Generate image SBOM
+        continue-on-error: true
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          format: cyclonedx-json
+          image: '${{ steps.build.outputs.image }}'
+          output-file: syft-image.cdx.json
+          upload-artifact: false
+      - name: Validate SBOM
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          if ! jq -e '.bomFormat == "CycloneDX"' syft-image.cdx.json >/dev/null 2>&1; then
+            echo '::warning::syft image produced no valid CycloneDX JSON; dropping the artifact'
+            rm -f syft-image.cdx.json
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: syft-image
+          path: syft-image.cdx.json
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### Trivy (image) {#trivy-image}
+
+Vulnerability scan of the image this repository's Dockerfile builds.
+
+{{< callout type="warning" >}}
+The artifact name must stay "trivy-image": Trivy reports the driver name "Trivy" in every mode, so this is the only thing separating an image scan from a filesystem or config scan.
+{{< /callout >}}
+
+```sh
+vulnetix gha setup trivy-image
+```
+
+The job it adds:
+
+```yaml
+  trivy-image:
+    name: Trivy image (OCI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the image
+        id: build
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          if [ ! -f Dockerfile ] && [ ! -f Containerfile ]; then
+            echo '::notice::no Dockerfile or Containerfile found; skipping'
+            exit 0
+          fi
+          dockerfile=Dockerfile
+          if [ -f Containerfile ]; then
+            dockerfile=Containerfile
+          fi
+          image="vulnetix-scan:${GITHUB_SHA:-local}"
+          if ! docker build -f "$dockerfile" -t "$image" . ; then
+            echo '::warning::image build failed; nothing to scan'
+            exit 0
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+      - name: Trivy image
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          image="${{ steps.build.outputs.image }}"
+          if [ -z "$image" ]; then
+            echo '::notice::no image was built; skipping Trivy image scan'
+            exit 0
+          fi
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/work" -w /work \
+            aquasec/trivy:0.68.0 image --format sarif --output trivy-image.sarif --scanners vuln "$image" \
+            >/dev/null 2>trivy-image.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' trivy-image.sarif >/dev/null 2>&1; then
+            echo '::warning::trivy image produced no valid SARIF; dropping the artifact'
+            rm -f trivy-image.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: trivy-image
+          path: trivy-image.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
 ### Nuclei {#nuclei}
 
 ProjectDiscovery Nuclei scan against a deployed URL. Set the NUCLEI_TARGET_URL repository variable before enabling.
@@ -929,9 +1845,15 @@ The job it adds:
       - name: Run Nuclei
         continue-on-error: true
         env:
+          GO_MODULE_PATTERN: '${{ vars.GO_MODULE_PATTERN }}'
+          GO_MODULE_TOKEN: '${{ secrets.PACKAGES_TOKEN }}'
           NUCLEI_TARGET_URL: '${{ vars.NUCLEI_TARGET_URL }}'
         shell: bash --noprofile --norc {0}
         run: |
+          if [ -n "${GO_MODULE_TOKEN:-}" ]; then
+            go env -w GOPRIVATE="${GO_MODULE_PATTERN:-github.com/$(echo "${GITHUB_REPOSITORY:-}" | cut -d/ -f1)/*}"
+            git config --global url."https://x-access-token:${GO_MODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
           if [ -z "${NUCLEI_TARGET_URL:-}" ]; then
             echo '::notice::NUCLEI_TARGET_URL is not set; skipping Nuclei'
             exit 0
@@ -968,21 +1890,26 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python
+      - name: Set up uv
         continue-on-error: true
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+        uses: astral-sh/setup-uv@v6
       - name: Run Bandit
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
           if ! find . -path ./.git -prune -o -type f -name '*.py' -print | head -n 1 | grep -q .; then
             echo '::notice::no Python files found; skipping Bandit'
             exit 0
           fi
-          python3 -m pip install --quiet --break-system-packages 'bandit[sarif]'
-          bandit -r . -f sarif -o bandit.sarif || true
+          uvx --from 'bandit[sarif]' bandit -r . -f sarif -o bandit.sarif || true
           if ! jq -e '.version and (.runs | type == "array")' bandit.sarif >/dev/null 2>&1; then
             echo '::warning::bandit produced no valid SARIF; dropping the artifact'
             rm -f bandit.sarif
@@ -991,6 +1918,49 @@ The job it adds:
         with:
           name: bandit
           path: bandit.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### Bearer CLI {#bearer}
+
+Data-flow static analysis that reports where sensitive data is handled unsafely.
+
+```sh
+vulnetix gha setup bearer
+```
+
+The job it adds:
+
+```yaml
+  bearer:
+    name: Bearer (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run Bearer
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          curl -sfL https://raw.githubusercontent.com/Bearer/bearer/main/contrib/install.sh | sh -s -- -b "$HOME/.local/bin" >/dev/null 2>&1 || true
+          export PATH="$HOME/.local/bin:$PATH"
+          if ! command -v bearer >/dev/null 2>&1; then
+            echo '::warning::bearer could not be installed on this runner; skipping'
+            exit 0
+          fi
+          # --exit-code 0 because a finding is a successful scan, not a broken one.
+          bearer scan . --format sarif --output bearer.sarif --exit-code 0 --quiet 2>bearer.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' bearer.sarif >/dev/null 2>&1; then
+            echo '::warning::bearer produced no valid SARIF; dropping the artifact'
+            rm -f bearer.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: bearer
+          path: bearer.sarif
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -1066,8 +2036,17 @@ The job it adds:
             echo '::notice::no C/C++ files found; skipping Cppcheck'
             exit 0
           fi
-          sudo apt-get update
-          sudo apt-get install -y cppcheck
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq cppcheck
+          elif command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y -q cppcheck
+          elif command -v apk >/dev/null 2>&1; then
+            sudo apk add --no-cache cppcheck
+          fi
+          if ! command -v cppcheck >/dev/null 2>&1; then
+            echo '::warning::cppcheck could not be installed on this runner; skipping'
+            exit 0
+          fi
           cppcheck --enable=warning,style,performance,portability --output-format=sarif --output-file=cppcheck.sarif . || true
           if ! jq -e '.version and (.runs | type == "array")' cppcheck.sarif >/dev/null 2>&1; then
             echo '::warning::cppcheck produced no valid SARIF; dropping the artifact'
@@ -1077,6 +2056,60 @@ The job it adds:
         with:
           name: cppcheck
           path: cppcheck.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### detekt {#detekt}
+
+Kotlin static analysis, including its security rule set.
+
+```sh
+vulnetix gha setup detekt
+```
+
+The job it adds:
+
+```yaml
+  detekt:
+    name: detekt (Kotlin SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Java
+        continue-on-error: true
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Run detekt
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          if ! find . -path ./.git -prune -o -type f -name '*.kt' -print | head -n 1 | grep -q .; then
+            echo '::notice::no Kotlin files found; skipping detekt'
+            exit 0
+          fi
+          version=1.23.8
+          curl -fsSL -o detekt-cli.zip "https://github.com/detekt/detekt/releases/download/v${version}/detekt-cli-${version}.zip" || true
+          if [ ! -s detekt-cli.zip ]; then
+            echo '::warning::could not download detekt; skipping'
+            exit 0
+          fi
+          unzip -q -o detekt-cli.zip
+          # detekt exits 2 when it reports issues, which is a successful run.
+          "detekt-cli-${version}/bin/detekt-cli" --input . --report sarif:detekt.sarif 2>detekt.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' detekt.sarif >/dev/null 2>&1; then
+            echo '::warning::detekt produced no valid SARIF; dropping the artifact'
+            rm -f detekt.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: detekt
+          path: detekt.sarif
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -1099,21 +2132,26 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python
+      - name: Set up uv
         continue-on-error: true
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+        uses: astral-sh/setup-uv@v6
       - name: Run Flawfinder
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
           if ! find . -path ./.git -prune -o -type f -print | grep -E '\.(c|cc|cpp|h|hpp)$' | head -n 1 | grep -q .; then
             echo '::notice::no C/C++ files found; skipping Flawfinder'
             exit 0
           fi
-          python3 -m pip install --quiet --break-system-packages flawfinder
-          flawfinder --sarif . >flawfinder.sarif 2>flawfinder.stderr
+          uvx --from flawfinder flawfinder --sarif . >flawfinder.sarif 2>flawfinder.stderr
           rc=$?
           if [ $rc -ne 0 ] && [ $rc -ne 1 ]; then
             echo "::warning::flawfinder exited $rc"
@@ -1156,8 +2194,15 @@ The job it adds:
           go-version: stable
       - name: Run gosec
         continue-on-error: true
+        env:
+          GO_MODULE_PATTERN: '${{ vars.GO_MODULE_PATTERN }}'
+          GO_MODULE_TOKEN: '${{ secrets.PACKAGES_TOKEN }}'
         shell: bash --noprofile --norc {0}
         run: |
+          if [ -n "${GO_MODULE_TOKEN:-}" ]; then
+            go env -w GOPRIVATE="${GO_MODULE_PATTERN:-github.com/$(echo "${GITHUB_REPOSITORY:-}" | cut -d/ -f1)/*}"
+            git config --global url."https://x-access-token:${GO_MODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping gosec'
             exit 0
@@ -1194,21 +2239,26 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python
+      - name: Set up uv
         continue-on-error: true
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+        uses: astral-sh/setup-uv@v6
       - name: Run njsscan
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
           if ! find . -path ./.git -prune -o -type f -print | grep -E '\.(js|jsx|ts|tsx)$' | head -n 1 | grep -q .; then
             echo '::notice::no JavaScript or TypeScript files found; skipping njsscan'
             exit 0
           fi
-          python3 -m pip install --quiet --break-system-packages njsscan
-          njsscan --sarif -o njsscan.sarif . || true
+          uvx --from njsscan njsscan --sarif -o njsscan.sarif . || true
           if ! jq -e '.version and (.runs | type == "array")' njsscan.sarif >/dev/null 2>&1; then
             echo '::warning::njsscan produced no valid SARIF; dropping the artifact'
             rm -f njsscan.sarif
@@ -1217,6 +2267,52 @@ The job it adds:
         with:
           name: njsscan
           path: njsscan.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### OpenGrep {#opengrep}
+
+Open-source fork of Semgrep's engine, running the community rulesets.
+
+```sh
+vulnetix gha setup opengrep
+```
+
+The job it adds:
+
+```yaml
+  opengrep:
+    name: OpenGrep (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run OpenGrep
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash >/dev/null 2>&1 || true
+          export PATH="$HOME/.opengrep/cli/latest:$HOME/.local/bin:$PATH"
+          if ! command -v opengrep >/dev/null 2>&1; then
+            echo '::warning::opengrep could not be installed on this runner; skipping'
+            exit 0
+          fi
+          # The CLI tracks Semgrep's flags, but the SARIF flag was renamed between
+          # releases. Try the current spelling, then the older one.
+          opengrep scan --config auto --sarif --output opengrep.sarif . >/dev/null 2>opengrep.stderr \
+            || opengrep scan --config auto --sarif-output=opengrep.sarif . >/dev/null 2>>opengrep.stderr \
+            || true
+          if ! jq -e '.version and (.runs | type == "array")' opengrep.sarif >/dev/null 2>&1; then
+            echo '::warning::opengrep produced no valid SARIF; dropping the artifact'
+            rm -f opengrep.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: opengrep
+          path: opengrep.sarif
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -1256,6 +2352,61 @@ The job it adds:
 
 ```
 
+### Psalm {#psalm}
+
+PHP static analysis with taint tracking.
+
+```sh
+vulnetix gha setup psalm
+```
+
+The job it adds:
+
+```yaml
+  psalm:
+    name: Psalm (PHP SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up PHP
+        continue-on-error: true
+        uses: shivammathur/setup-php@v2
+        with:
+          coverage: none
+          php-version: 8.3
+      - name: Run Psalm
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          if [ ! -f composer.json ]; then
+            echo '::notice::no composer.json found; skipping Psalm'
+            exit 0
+          fi
+          composer require --dev --no-interaction --quiet vimeo/psalm || true
+          if [ ! -x vendor/bin/psalm ]; then
+            echo '::warning::psalm could not be installed; skipping'
+            exit 0
+          fi
+          if [ ! -f psalm.xml ] && [ ! -f psalm.xml.dist ]; then
+            vendor/bin/psalm --init . 1 >/dev/null 2>&1 || true
+          fi
+          # Psalm exits non-zero when it reports issues.
+          vendor/bin/psalm --no-cache --no-progress --report=psalm.sarif 2>psalm.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' psalm.sarif >/dev/null 2>&1; then
+            echo '::warning::psalm produced no valid SARIF; dropping the artifact'
+            rm -f psalm.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: psalm
+          path: psalm.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
 ### Semgrep {#semgrep}
 
 Multi-language static analysis with community rulesets.
@@ -1272,16 +2423,79 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Set up uv
+        continue-on-error: true
+        uses: astral-sh/setup-uv@v6
       - name: Run Semgrep
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          python3 -m pip install --quiet --break-system-packages semgrep
-          semgrep scan --config auto --sarif --output semgrep.sarif .
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
+          uvx --from semgrep semgrep scan --config auto --sarif --output semgrep.sarif .
       - uses: actions/upload-artifact@v6
         with:
           name: semgrep
           path: semgrep.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### Snyk Code {#snyk-code}
+
+Snyk's static analysis. Runs only when SNYK_TOKEN is set.
+
+{{< callout type="warning" >}}
+Snyk reports the driver name "Snyk" for all four of its products, so the artifact name is what separates them.
+{{< /callout >}}
+
+```sh
+vulnetix gha setup snyk-code
+```
+
+The job it adds:
+
+```yaml
+  snyk-code:
+    name: Snyk Code (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Snyk Code
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: '${{ secrets.SNYK_TOKEN }}'
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          if [ -z "${SNYK_TOKEN:-}" ]; then
+            echo '::notice::SNYK_TOKEN is not set; skipping Snyk Code'
+            exit 0
+          fi
+          npm install -g snyk >/dev/null 2>&1 || true
+          # Exit 1 means issues were found.
+          snyk code test --sarif-file-output=snyk-code.sarif 2>snyk-code.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' snyk-code.sarif >/dev/null 2>&1; then
+            echo '::warning::snyk code produced no valid SARIF; dropping the artifact'
+            rm -f snyk-code.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: snyk-code
+          path: snyk-code.sarif
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -1304,16 +2518,26 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Set up uv
+        continue-on-error: true
+        uses: astral-sh/setup-uv@v6
       - name: Run zizmor
         continue-on-error: true
         env:
           GH_TOKEN: '${{ github.token }}'
         shell: bash --noprofile --norc {0}
         run: |
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
           set -uo pipefail
-          python3 -m pip install --quiet --break-system-packages zizmor
           # zizmor exits 14 when it has findings, which is a successful scan.
-          zizmor --format sarif . >zizmor.sarif 2>zizmor.stderr
+          uvx --from zizmor zizmor --format sarif . >zizmor.sarif 2>zizmor.stderr
           rc=$?
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 14 ]; then
             echo "::warning::zizmor exited $rc"; sed -n '1,20p' zizmor.stderr
@@ -1449,8 +2673,15 @@ The job it adds:
           go-version: stable
       - name: Generate Go CycloneDX SBOM
         continue-on-error: true
+        env:
+          GO_MODULE_PATTERN: '${{ vars.GO_MODULE_PATTERN }}'
+          GO_MODULE_TOKEN: '${{ secrets.PACKAGES_TOKEN }}'
         shell: bash --noprofile --norc {0}
         run: |
+          if [ -n "${GO_MODULE_TOKEN:-}" ]; then
+            go env -w GOPRIVATE="${GO_MODULE_PATTERN:-github.com/$(echo "${GITHUB_REPOSITORY:-}" | cut -d/ -f1)/*}"
+            git config --global url."https://x-access-token:${GO_MODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping CycloneDX Go'
             exit 0
@@ -1465,6 +2696,58 @@ The job it adds:
         with:
           name: cyclonedx-go
           path: cyclonedx-go.cdx.json
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
+### CycloneDX Maven Plugin {#cyclonedx-maven}
+
+CycloneDX SBOM from a Maven project's resolved dependency tree.
+
+```sh
+vulnetix gha setup cyclonedx-maven
+```
+
+The job it adds:
+
+```yaml
+  cyclonedx-maven:
+    name: CycloneDX Maven (SBOM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Java
+        continue-on-error: true
+        uses: actions/setup-java@v4
+        with:
+          cache: maven
+          distribution: temurin
+          java-version: 17
+      - name: Generate Maven CycloneDX SBOM
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          if [ ! -f pom.xml ]; then
+            echo '::notice::no pom.xml found; skipping CycloneDX Maven'
+            exit 0
+          fi
+          mvn -B -q org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom \
+            -DoutputFormat=json -DoutputName=cyclonedx-maven 2>cyclonedx-maven.stderr || true
+          found=$(find . -name 'cyclonedx-maven.json' -print -quit)
+          if [ -n "$found" ]; then
+            cp "$found" cyclonedx-maven.cdx.json
+          fi
+          if ! jq -e '.bomFormat == "CycloneDX"' cyclonedx-maven.cdx.json >/dev/null 2>&1; then
+            echo '::warning::cyclonedx maven produced no valid CycloneDX JSON; dropping the artifact'
+            rm -f cyclonedx-maven.cdx.json
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: cyclonedx-maven
+          path: cyclonedx-maven.cdx.json
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -1578,27 +2861,36 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python
+      - name: Set up uv
         continue-on-error: true
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+        uses: astral-sh/setup-uv@v6
       - name: Generate Python CycloneDX SBOM
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          if [ ! -f requirements.txt ] && [ ! -f pyproject.toml ] && ! find . -path ./.git -prune -o -type f -name '*.py' -print | head -n 1 | grep -q .; then
-            echo '::notice::no Python project detected; skipping CycloneDX Python'
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
             exit 0
           fi
-          if [ -f requirements.txt ]; then
-            python3 -m pip install --quiet --break-system-packages -r requirements.txt || true
-          fi
-          python3 -m pip install --quiet --break-system-packages cyclonedx-bom
-          if [ -f requirements.txt ]; then
-            cyclonedx-py requirements requirements.txt --output-format JSON --output-file cyclonedx-python.cdx.json || true
+          # `cyclonedx-py environment` inventories the interpreter it runs under, which
+          # under uvx is an isolated environment holding only cyclonedx-bom itself. Every
+          # subcommand below reads a lockfile instead, so the SBOM describes the project.
+          if [ -f poetry.lock ]; then
+            uvx --from cyclonedx-bom cyclonedx-py poetry . \
+              --output-format JSON --output-file cyclonedx-python.cdx.json || true
+          elif [ -f Pipfile.lock ]; then
+            uvx --from cyclonedx-bom cyclonedx-py pipenv . \
+              --output-format JSON --output-file cyclonedx-python.cdx.json || true
+          elif [ -f requirements.txt ]; then
+            uvx --from cyclonedx-bom cyclonedx-py requirements requirements.txt \
+              --output-format JSON --output-file cyclonedx-python.cdx.json || true
           else
-            cyclonedx-py environment --output-format JSON --output-file cyclonedx-python.cdx.json || true
+            echo '::notice::no Python lockfile (poetry.lock, Pipfile.lock, requirements.txt); skipping CycloneDX Python'
+            exit 0
           fi
           if ! jq -e '.bomFormat == "CycloneDX"' cyclonedx-python.cdx.json >/dev/null 2>&1; then
             echo '::warning::cyclonedx python produced no valid CycloneDX JSON; dropping the artifact'
@@ -1699,6 +2991,50 @@ The job it adds:
 
 ```
 
+### GitHub SBOM Export {#github-sbom}
+
+The dependency graph GitHub already resolved for this repository, as SPDX.
+
+```sh
+vulnetix gha setup github-sbom
+```
+
+The job it adds:
+
+```yaml
+  github-sbom:
+    name: GitHub SBOM (SPDX)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Export the dependency graph
+        continue-on-error: true
+        env:
+          GH_TOKEN: '${{ github.token }}'
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          # 404 when the dependency graph is disabled for the repository, which is a
+          # setting rather than a failure.
+          if ! gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" --jq '.sbom' >github-sbom.spdx.json 2>github-sbom.stderr; then
+            echo '::notice::the dependency graph is not available for this repository; skipping'
+            rm -f github-sbom.spdx.json
+            exit 0
+          fi
+          if ! jq -e '.spdxVersion' github-sbom.spdx.json >/dev/null 2>&1; then
+            echo '::warning::GitHub returned no valid SPDX; dropping the artifact'
+            rm -f github-sbom.spdx.json
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: github-sbom
+          path: github-sbom.spdx.json
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
 ### govulncheck {#govulncheck}
 
 Official Go vulnerability scanner with SARIF output for module and package reachability findings.
@@ -1722,8 +3058,15 @@ The job it adds:
           go-version: stable
       - name: Run govulncheck
         continue-on-error: true
+        env:
+          GO_MODULE_PATTERN: '${{ vars.GO_MODULE_PATTERN }}'
+          GO_MODULE_TOKEN: '${{ secrets.PACKAGES_TOKEN }}'
         shell: bash --noprofile --norc {0}
         run: |
+          if [ -n "${GO_MODULE_TOKEN:-}" ]; then
+            go env -w GOPRIVATE="${GO_MODULE_PATTERN:-github.com/$(echo "${GITHUB_REPOSITORY:-}" | cut -d/ -f1)/*}"
+            git config --global url."https://x-access-token:${GO_MODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping govulncheck'
             exit 0
@@ -1968,6 +3311,54 @@ The job it adds:
 
 ```
 
+### Snyk Open Source {#snyk-oss}
+
+Snyk's dependency scan. Runs only when SNYK_TOKEN is set.
+
+```sh
+vulnetix gha setup snyk-oss
+```
+
+The job it adds:
+
+```yaml
+  snyk-oss:
+    name: Snyk Open Source (SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Snyk Open Source
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: '${{ secrets.SNYK_TOKEN }}'
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          if [ -z "${SNYK_TOKEN:-}" ]; then
+            echo '::notice::SNYK_TOKEN is not set; skipping Snyk Open Source'
+            exit 0
+          fi
+          npm install -g snyk >/dev/null 2>&1 || true
+          snyk test --all-projects --sarif-file-output=snyk-oss.sarif 2>snyk-oss.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' snyk-oss.sarif >/dev/null 2>&1; then
+            echo '::warning::snyk open source produced no valid SARIF; dropping the artifact'
+            rm -f snyk-oss.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: snyk-oss
+          path: snyk-oss.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
 ### Syft {#syft}
 
 CycloneDX software bill of materials.
@@ -2112,22 +3503,35 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python
+      - name: Set up uv
         continue-on-error: true
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
+        uses: astral-sh/setup-uv@v6
       - name: Run detect-secrets
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          python3 -m pip install --quiet --break-system-packages detect-secrets
-          if [ -f .secrets.baseline ]; then
-            detect-secrets scan --baseline .secrets.baseline >detect-secrets-results.json || true
-          else
-            detect-secrets scan --all-files >detect-secrets-results.json || true
+          # The converters below need only the standard library, but not every runner
+          # image ships python3. uv carries its own interpreter, so this always resolves.
+          PY=python3
+          if ! command -v python3 >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+            PY="uv run --no-project --python 3.12 python"
           fi
-          python3 <<'PY'
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
+          if [ -f .secrets.baseline ]; then
+            uvx --from detect-secrets detect-secrets scan --baseline .secrets.baseline >detect-secrets-results.json || true
+          else
+            uvx --from detect-secrets detect-secrets scan --all-files >detect-secrets-results.json || true
+          fi
+          $PY <<'PY'
           import json
           import os
 
@@ -2243,6 +3647,52 @@ The job it adds:
 
 ```
 
+### Nosey Parker {#noseyparker}
+
+High-signal secret detection across the working tree and git history.
+
+```sh
+vulnetix gha setup noseyparker
+```
+
+The job it adds:
+
+```yaml
+  noseyparker:
+    name: Nosey Parker (secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run Nosey Parker
+        continue-on-error: true
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          version=0.24.0
+          url="https://github.com/praetorian-inc/noseyparker/releases/download/v${version}/noseyparker-v${version}-x86_64-unknown-linux-gnu.tar.gz"
+          mkdir -p /tmp/np
+          curl -fsSL "$url" | tar -xz -C /tmp/np 2>/dev/null || true
+          bin=$(find /tmp/np -type f -name noseyparker -perm -u+x -print -quit 2>/dev/null)
+          if [ -z "$bin" ]; then
+            echo '::warning::noseyparker could not be installed on this runner; skipping'
+            exit 0
+          fi
+          "$bin" scan --datastore np.datastore . >/dev/null 2>noseyparker.stderr || true
+          "$bin" report --datastore np.datastore --format sarif --output noseyparker.sarif >/dev/null 2>>noseyparker.stderr || true
+          if ! jq -e '.version and (.runs | type == "array")' noseyparker.sarif >/dev/null 2>&1; then
+            echo '::warning::noseyparker produced no valid SARIF; dropping the artifact'
+            rm -f noseyparker.sarif
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: noseyparker
+          path: noseyparker.sarif
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+```
+
 ### TruffleHog {#trufflehog}
 
 Verified secret discovery from the working tree, converted from TruffleHog JSONL to SARIF.
@@ -2259,18 +3709,21 @@ The job it adds:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Python
-        continue-on-error: true
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
       - name: Run TruffleHog
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
+          # The converters below need only the standard library, but not every runner
+          # image ships python3. uv carries its own interpreter, so this always resolves.
+          PY=python3
+          if ! command -v python3 >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+            PY="uv run --no-project --python 3.12 python"
+          fi
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
           trufflehog filesystem --json . >trufflehog.jsonl || true
-          python3 <<'PY'
+          $PY <<'PY'
           import json
           import os
 
@@ -2402,8 +3855,15 @@ jobs:
           go-version: stable
       - name: Run gosec
         continue-on-error: true
+        env:
+          GO_MODULE_PATTERN: '${{ vars.GO_MODULE_PATTERN }}'
+          GO_MODULE_TOKEN: '${{ secrets.PACKAGES_TOKEN }}'
         shell: bash --noprofile --norc {0}
         run: |
+          if [ -n "${GO_MODULE_TOKEN:-}" ]; then
+            go env -w GOPRIVATE="${GO_MODULE_PATTERN:-github.com/$(echo "${GITHUB_REPOSITORY:-}" | cut -d/ -f1)/*}"
+            git config --global url."https://x-access-token:${GO_MODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
           if [ ! -f go.mod ]; then
             echo '::notice::no go.mod found; skipping gosec'
             exit 0
@@ -2427,12 +3887,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Set up uv
+        continue-on-error: true
+        uses: astral-sh/setup-uv@v6
       - name: Run Semgrep
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          python3 -m pip install --quiet --break-system-packages semgrep
-          semgrep scan --config auto --sarif --output semgrep.sarif .
+          if ! command -v uvx >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          if ! command -v uvx >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; skipping'
+            exit 0
+          fi
+          uvx --from semgrep semgrep scan --config auto --sarif --output semgrep.sarif .
       - uses: actions/upload-artifact@v6
         with:
           name: semgrep

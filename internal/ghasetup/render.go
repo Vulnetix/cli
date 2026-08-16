@@ -26,6 +26,49 @@ type Options struct {
 	// caller explicitly asks; otherwise the secret reference is used, which is
 	// what almost every repository wants.
 	OrgIDLiteral string
+
+	// Triggers are the workflow's `on:` events. Empty means push +
+	// workflow_dispatch, which is what this command has always written.
+	//
+	// It is worth choosing deliberately once a repository runs more than a
+	// handful of scanners: a full detected set is twenty-odd jobs, and on a
+	// small runner pool "on every push" turns a two-minute build into an hour
+	// of queue for everyone else.
+	Triggers []string
+
+	// ScheduleCron is the five-field expression used when Triggers includes
+	// "schedule". Stagger it across repositories; a fleet that all wakes at
+	// 03:00 has one runner-shaped bottleneck, not a schedule.
+	ScheduleCron string
+}
+
+// DefaultScheduleCron is used when "schedule" is requested with no expression.
+const DefaultScheduleCron = "17 3 * * 1"
+
+// renderTriggers writes the `on:` block.
+func renderTriggers(opt Options) string {
+	triggers := opt.Triggers
+	if len(triggers) == 0 {
+		triggers = []string{"push", "workflow_dispatch"}
+	}
+
+	var b strings.Builder
+	b.WriteString("on:\n")
+	for _, t := range triggers {
+		switch t {
+		case "schedule":
+			cron := opt.ScheduleCron
+			if cron == "" {
+				cron = DefaultScheduleCron
+			}
+			fmt.Fprintf(&b, "  schedule:\n    - cron: '%s'\n", cron)
+		default:
+			fmt.Fprintf(&b, "  %s:\n", t)
+		}
+	}
+	b.WriteString("\n")
+
+	return b.String()
 }
 
 // Render produces the complete workflow for the given tool ids.
@@ -67,7 +110,7 @@ func Render(c *Catalog, ids []string, opt Options) (string, error) {
 	b.WriteString("# artifact. The publish job then hands every artifact to Vulnetix in one go,\n")
 	b.WriteString("# attributed to the tool that produced it.\n")
 	b.WriteString("\nname: Third-Party Scanners\n\n")
-	b.WriteString("on:\n  push:\n  workflow_dispatch:\n\n")
+	b.WriteString(renderTriggers(opt))
 	b.WriteString("permissions:\n  contents: read\n\n")
 	b.WriteString("jobs:\n")
 
