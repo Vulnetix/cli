@@ -293,3 +293,61 @@ func TestNoRecipeInvokesSystemPython(t *testing.T) {
 		}
 	}
 }
+
+// A repository that has not been given the Vulnetix secrets yet is not broken;
+// it simply has nowhere to publish. Failing the publish job over it gives that
+// repository a permanent red X reading "authentication required", which names
+// no secret and tells nobody what to do about it.
+func TestPublishSkipsWithoutCredentials(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := Render(c, []string{"gosec"}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(out, `if [ -z "${VULNETIX_ORG_ID:-}" ] || [ -z "${VULNETIX_API_KEY:-}" ]; then`) {
+		t.Error("publish job does not guard on the credentials being present")
+	}
+	if !strings.Contains(out, "::warning::VULNETIX_ORG_ID and VULNETIX_API_KEY are not set") {
+		t.Error("the skip does not name the secrets that need setting")
+	}
+	// exit 0, not exit 1: a missing optional credential is not a build failure.
+	guard := out[strings.Index(out, "Publish scanner reports"):]
+	if !strings.Contains(guard[:strings.Index(guard, "vulnetix gha upload")], "exit 0") {
+		t.Error("the credential guard fails the job instead of skipping it")
+	}
+}
+
+// No recipe may assume it can become root. The AWS runner pools grant exactly
+// one sudo rule — writing the busy/idle heartbeat — because general NOPASSWD
+// sudo would hand the instance role to every workflow on the box through IMDS.
+// A blind `sudo` there does not fail with "permission denied"; it blocks on a
+// password prompt and dies with "sudo: a terminal is required to read the
+// password", taking the job with it.
+func TestNoRecipeAssumesSudo(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range c.Tools {
+		for _, s := range tool.Steps {
+			if s.Run == "" {
+				continue
+			}
+			for i, line := range strings.Split(s.Run, "\n") {
+				code := strings.TrimSpace(line)
+				if code == "" || strings.HasPrefix(code, "#") {
+					continue
+				}
+				if strings.HasPrefix(code, "sudo ") || strings.Contains(code, "| sudo ") {
+					t.Errorf("%s line %d runs sudo unconditionally: %q\n"+
+						"resolve it first (`sudo -n true`) and degrade to a warning when it is unavailable",
+						tool.ID, i+1, code)
+				}
+			}
+		}
+	}
+}

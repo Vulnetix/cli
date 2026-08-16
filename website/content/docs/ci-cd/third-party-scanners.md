@@ -2060,12 +2060,27 @@ The job it adds:
             echo '::notice::no C/C++ files found; skipping Cppcheck'
             exit 0
           fi
-          if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update -qq && sudo apt-get install -y -qq cppcheck
-          elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y -q cppcheck
-          elif command -v apk >/dev/null 2>&1; then
-            sudo apk add --no-cache cppcheck
+          # Resolve how to become root, or do without it.
+          #
+          # The AWS runner pools grant exactly one sudo rule — writing the busy/idle
+          # heartbeat — because general NOPASSWD sudo would hand the instance role to
+          # every workflow on the box through IMDS. A blind `sudo` there does not fail
+          # with "permission denied": it blocks on a password prompt and dies with
+          # "sudo: a terminal is required to read the password".
+          SUDO=""
+          if [ "$(id -u)" -ne 0 ]; then
+            if sudo -n true 2>/dev/null; then
+              SUDO="sudo -n"
+            fi
+          fi
+          if [ -n "$SUDO" ] || [ "$(id -u)" -eq 0 ]; then
+            if command -v apt-get >/dev/null 2>&1; then
+              $SUDO apt-get update -qq && $SUDO apt-get install -y -qq cppcheck || true
+            elif command -v dnf >/dev/null 2>&1; then
+              $SUDO dnf install -y -q cppcheck || true
+            elif command -v apk >/dev/null 2>&1; then
+              $SUDO apk add --no-cache cppcheck || true
+            fi
           fi
           if ! command -v cppcheck >/dev/null 2>&1; then
             echo '::warning::cppcheck could not be installed on this runner; skipping'
@@ -3753,7 +3768,16 @@ The job it adds:
             echo '::warning::uv is unavailable on this runner; cannot convert the report'
             exit 0
           fi
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
+          mkdir -p "$HOME/.local/bin"
+          # Installed into a directory the job already owns rather than /usr/local/bin.
+          # The runner pools do not grant general sudo, so the privileged install died on
+          # a password prompt; a single binary does not need root anyway.
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b "$HOME/.local/bin" >/dev/null 2>&1 || true
+          export PATH="$HOME/.local/bin:$PATH"
+          if ! command -v trufflehog >/dev/null 2>&1; then
+            echo '::warning::trufflehog could not be installed on this runner; skipping'
+            exit 0
+          fi
           trufflehog filesystem --json . >trufflehog.jsonl || true
           uv run --no-project --python 3.12 python - <<'PY'
           import json
@@ -3994,7 +4018,12 @@ jobs:
       - name: Publish scanner reports
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: vulnetix gha upload --org-id "$VULNETIX_ORG_ID" --json --no-banner --no-progress
+        run: |
+          if [ -z "${VULNETIX_ORG_ID:-}" ] || [ -z "${VULNETIX_API_KEY:-}" ]; then
+            echo "::warning::VULNETIX_ORG_ID and VULNETIX_API_KEY are not set for this repository, so the scanners ran but nothing was published. Add both as repository secrets."
+            exit 0
+          fi
+          vulnetix gha upload --org-id "$VULNETIX_ORG_ID" --json --no-banner --no-progress
 ```
 
 ## Self-hosted runners

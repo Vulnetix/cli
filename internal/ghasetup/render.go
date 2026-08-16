@@ -265,7 +265,20 @@ func renderPublish(tools []*Tool, runsOn string, opt Options) string {
 	b.WriteString("      - name: Publish scanner reports\n")
 	b.WriteString("        env:\n")
 	b.WriteString("          GITHUB_TOKEN: ${{ github.token }}\n")
-	b.WriteString("        run: vulnetix gha upload --org-id \"$VULNETIX_ORG_ID\" --json --no-banner --no-progress\n")
+	// The credential check is a skip, not a failure.
+	//
+	// A repository that has not been given VULNETIX_ORG_ID and
+	// VULNETIX_API_KEY yet is not broken — it simply has nowhere to publish.
+	// Without this the publish job exits non-zero on every single run, so the
+	// repository shows a permanent red X that says "authentication required"
+	// and tells nobody which secret to set. A warning that names both secrets
+	// is the useful form of the same information.
+	b.WriteString("        run: |\n")
+	b.WriteString("          if [ -z \"${VULNETIX_ORG_ID:-}\" ] || [ -z \"${VULNETIX_API_KEY:-}\" ]; then\n")
+	b.WriteString("            echo \"::warning::VULNETIX_ORG_ID and VULNETIX_API_KEY are not set for this repository, so the scanners ran but nothing was published. Add both as repository secrets.\"\n")
+	b.WriteString("            exit 0\n")
+	b.WriteString("          fi\n")
+	b.WriteString("          vulnetix gha upload --org-id \"$VULNETIX_ORG_ID\" --json --no-banner --no-progress\n")
 	return b.String()
 }
 
