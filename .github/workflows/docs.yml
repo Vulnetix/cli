@@ -22,7 +22,7 @@ env:
 
 jobs:
   build:
-    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
@@ -31,7 +31,7 @@ jobs:
 
       - uses: peaceiris/actions-hugo@v3
         with:
-          hugo-version: "latest"
+          hugo-version: "0.163.3"
           extended: true
 
       - name: Setup Go
@@ -51,7 +51,7 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
