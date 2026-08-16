@@ -222,13 +222,17 @@ The job it adds:
           ZAP_TARGET_URL: '${{ vars.ZAP_TARGET_URL }}'
         shell: bash --noprofile --norc {0}
         run: |
-          # The converters below need only the standard library, but not every runner
-          # image ships python3. uv carries its own interpreter, so this always resolves.
-          PY=python3
-          if ! command -v python3 >/dev/null 2>&1; then
+          # The converter below runs under uv rather than whatever `python3` happens to
+          # be on the runner. uv carries its own interpreter, so the script runs the same
+          # way on every image, cannot be broken by a system Python that is missing or
+          # externally managed, and cannot install anything into one.
+          if ! command -v uv >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
             export PATH="$HOME/.local/bin:$PATH"
-            PY="uv run --no-project --python 3.12 python"
+          fi
+          if ! command -v uv >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; cannot convert the report'
+            exit 0
           fi
           set -uo pipefail
           if [ -z "${ZAP_TARGET_URL:-}" ]; then
@@ -238,7 +242,7 @@ The job it adds:
           # -I so a warning does not fail the container; findings are the point.
           docker run --rm -v "$PWD:/zap/wrk/:rw" ghcr.io/zaproxy/zaproxy:2.16.1 \
             zap-baseline.py -t "$ZAP_TARGET_URL" -J zap.json -I >/dev/null 2>zap.stderr || true
-          $PY <<'PY'
+          uv run --no-project --python 3.12 python - <<'PY'
           import json
           import os
 
@@ -1037,13 +1041,17 @@ The job it adds:
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          # The converters below need only the standard library, but not every runner
-          # image ships python3. uv carries its own interpreter, so this always resolves.
-          PY=python3
-          if ! command -v python3 >/dev/null 2>&1; then
+          # The converter below runs under uv rather than whatever `python3` happens to
+          # be on the runner. uv carries its own interpreter, so the script runs the same
+          # way on every image, cannot be broken by a system Python that is missing or
+          # externally managed, and cannot install anything into one.
+          if ! command -v uv >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
             export PATH="$HOME/.local/bin:$PATH"
-            PY="uv run --no-project --python 3.12 python"
+          fi
+          if ! command -v uv >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; cannot convert the report'
+            exit 0
           fi
           if ! find . -path ./.git -prune -o -type f -name '*.rb' -print | head -n 1 | grep -q .; then
             echo '::notice::no Ruby files found; skipping RuboCop'
@@ -1052,7 +1060,7 @@ The job it adds:
           gem install rubocop
           rubocop --format github --out rubocop.github-actions.txt || true
           rubocop --format json --out rubocop.json || true
-          $PY <<'PY'
+          uv run --no-project --python 3.12 python - <<'PY'
           import json
           import os
 
@@ -1222,13 +1230,17 @@ The job it adds:
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          # The converters below need only the standard library, but not every runner
-          # image ships python3. uv carries its own interpreter, so this always resolves.
-          PY=python3
-          if ! command -v python3 >/dev/null 2>&1; then
+          # The converter below runs under uv rather than whatever `python3` happens to
+          # be on the runner. uv carries its own interpreter, so the script runs the same
+          # way on every image, cannot be broken by a system Python that is missing or
+          # externally managed, and cannot install anything into one.
+          if ! command -v uv >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
             export PATH="$HOME/.local/bin:$PATH"
-            PY="uv run --no-project --python 3.12 python"
+          fi
+          if ! command -v uv >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; cannot convert the report'
+            exit 0
           fi
           set -uo pipefail
           scripts=$(find . -path ./.git -prune -o -type f \( -name '*.sh' -o -name '*.bash' \) -print)
@@ -1250,7 +1262,7 @@ The job it adds:
           # shellcheck exits 1 when it reports anything, which is a successful run.
           # shellcheck disable=SC2086
           shellcheck -f json1 $scripts >shellcheck.json 2>shellcheck.stderr || true
-          $PY <<'PY'
+          uv run --no-project --python 3.12 python - <<'PY'
           import json
           import os
 
@@ -3522,13 +3534,17 @@ The job it adds:
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          # The converters below need only the standard library, but not every runner
-          # image ships python3. uv carries its own interpreter, so this always resolves.
-          PY=python3
-          if ! command -v python3 >/dev/null 2>&1; then
+          # The converter below runs under uv rather than whatever `python3` happens to
+          # be on the runner. uv carries its own interpreter, so the script runs the same
+          # way on every image, cannot be broken by a system Python that is missing or
+          # externally managed, and cannot install anything into one.
+          if ! command -v uv >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
             export PATH="$HOME/.local/bin:$PATH"
-            PY="uv run --no-project --python 3.12 python"
+          fi
+          if ! command -v uv >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; cannot convert the report'
+            exit 0
           fi
           if ! command -v uvx >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
@@ -3543,7 +3559,7 @@ The job it adds:
           else
             uvx --from detect-secrets detect-secrets scan --all-files >detect-secrets-results.json || true
           fi
-          $PY <<'PY'
+          uv run --no-project --python 3.12 python - <<'PY'
           import json
           import os
 
@@ -3725,17 +3741,21 @@ The job it adds:
         continue-on-error: true
         shell: bash --noprofile --norc {0}
         run: |
-          # The converters below need only the standard library, but not every runner
-          # image ships python3. uv carries its own interpreter, so this always resolves.
-          PY=python3
-          if ! command -v python3 >/dev/null 2>&1; then
+          # The converter below runs under uv rather than whatever `python3` happens to
+          # be on the runner. uv carries its own interpreter, so the script runs the same
+          # way on every image, cannot be broken by a system Python that is missing or
+          # externally managed, and cannot install anything into one.
+          if ! command -v uv >/dev/null 2>&1; then
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
             export PATH="$HOME/.local/bin:$PATH"
-            PY="uv run --no-project --python 3.12 python"
+          fi
+          if ! command -v uv >/dev/null 2>&1; then
+            echo '::warning::uv is unavailable on this runner; cannot convert the report'
+            exit 0
           fi
           curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sudo sh -s -- -b /usr/local/bin
           trufflehog filesystem --json . >trufflehog.jsonl || true
-          $PY <<'PY'
+          uv run --no-project --python 3.12 python - <<'PY'
           import json
           import os
 

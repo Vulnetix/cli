@@ -256,3 +256,40 @@ func TestScanCodeCleanupBackfillsTheRequiredVersion(t *testing.T) {
 		t.Error("scancode does not backfill the metadata component's version")
 	}
 }
+
+// No recipe may invoke a system Python. uv carries its own interpreter, so a
+// converter that runs under it behaves the same on every runner image, cannot
+// be broken by a Python that is missing or externally managed, and cannot
+// install anything into one. The self-hosted pool's image is exactly that case:
+// python3 with no pip, and no actions/setup-python build for the OS.
+func TestNoRecipeInvokesSystemPython(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tool := range c.Tools {
+		for _, s := range tool.Steps {
+			if s.Run == "" {
+				continue
+			}
+			for i, line := range strings.Split(s.Run, "\n") {
+				code, _, _ := strings.Cut(line, "#")
+				code = strings.TrimSpace(code)
+				if code == "" {
+					continue
+				}
+				for _, bad := range []string{"python3 ", "python ", "pip ", "pip3 "} {
+					// A bare invocation at the start of a command, or after a
+					// pipe or a command substitution.
+					if strings.HasPrefix(code, bad) ||
+						strings.Contains(code, "| "+bad) ||
+						strings.Contains(code, "$("+bad) {
+						t.Errorf("%s line %d invokes a system interpreter: %q\n"+
+							"use `uv run --no-project --python 3.12 python -` or `uvx <tool>`", tool.ID, i+1, code)
+					}
+				}
+			}
+		}
+	}
+}
