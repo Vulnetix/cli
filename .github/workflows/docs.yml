@@ -26,7 +26,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          submodules: true
+          # No submodules. testdata/vulnetix-fixture-app is a private repository
+          # and GITHUB_TOKEN is scoped to this one, so the clone fails with
+          # "Repository not found" and takes the docs deploy with it. The Hugo
+          # site does not reference the fixture at all — it is test data for the
+          # scanners, and nothing under website/ mentions it.
+          submodules: false
           fetch-depth: 0
 
       - uses: peaceiris/actions-hugo@v3
