@@ -422,3 +422,29 @@ func TestNotRecordedIsCountedSeparatelyFromSuccess(t *testing.T) {
 		t.Errorf("a dry run must not count as not-recorded, got %d", got)
 	}
 }
+
+// SPDX has no field for a tool's version, so producers append it to the name.
+// GitHub's dependency-graph export writes
+// "protobom-v0.0.0-20260814182028-8c0ca4678565+dirty", which was recorded
+// verbatim as ScannerRun.toolName — a name that changes with every upstream
+// build, so no two exports could be grouped as the same tool.
+func TestSplitSPDXCreator(t *testing.T) {
+	cases := []struct{ in, name, version string }{
+		{"protobom-v0.0.0-20260814182028-8c0ca4678565+dirty", "protobom", "v0.0.0-20260814182028-8c0ca4678565+dirty"},
+		{"syft-1.42.3", "syft", "1.42.3"},
+		{"cdxgen 12.8.3", "cdxgen", "12.8.3"},
+		{"Microsoft.SBOMTool-2.2.7", "Microsoft.SBOMTool", "2.2.7"},
+		{"spdx-sbom-generator", "spdx-sbom-generator", ""},
+
+		// A name that merely contains a digit must survive intact.
+		{"42Crunch", "42Crunch", ""},
+		{"s3scanner", "s3scanner", ""},
+		{"w3af", "w3af", ""},
+	}
+	for _, tc := range cases {
+		name, version := splitSPDXCreator(tc.in)
+		if name != tc.name || version != tc.version {
+			t.Errorf("splitSPDXCreator(%q) = (%q, %q), want (%q, %q)", tc.in, name, version, tc.name, tc.version)
+		}
+	}
+}

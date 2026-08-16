@@ -434,6 +434,7 @@ func (s *ghaSubmitter) publishSPDX(res ghaFileResult, artifactName string, data 
 
 	toolName := firstNonBlank(doc.creatorTool, artifactName)
 	res.Tool = toolName
+	res.ToolVersion = doc.creatorVersion
 	res.Category = string(sarif.CategorySCA)
 	res.CategoryWhy = "format:spdx"
 	res.Findings = len(doc.packages)
@@ -454,6 +455,7 @@ func (s *ghaSubmitter) publishSPDX(res ghaFileResult, artifactName string, data 
 
 	return s.postSCA(res, doc.packages, &vdb.CliToolAttribution{
 		ToolName:     toolName,
+		ToolVersion:  doc.creatorVersion,
 		Source:       "github-actions",
 		ArtifactName: artifactName,
 		FileName:     res.File,
@@ -562,9 +564,43 @@ func cdxPackages(bom *cyclonedx.CDXBom) ([]vdb.CliPackageEntry, int) {
 
 // spdxDoc is the slice of an SPDX document this path needs.
 type spdxDoc struct {
-	creatorTool   string
-	packages      []vdb.CliPackageEntry
-	totalPackages int
+	creatorTool    string
+	creatorVersion string
+	packages       []vdb.CliPackageEntry
+	totalPackages  int
+}
+
+// splitSPDXCreator separates an SPDX creator string into a tool name and a
+// version.
+//
+// SPDX has no field for the version, so producers append it to the name.
+// GitHub's dependency-graph export writes
+// "protobom-v0.0.0-20260814182028-8c0ca4678565+dirty", which was recorded
+// verbatim as the tool name — a ScannerRun nothing could be grouped by, and a
+// name that changes with every upstream build.
+//
+// The cut needs a separator before the digit, so a name that simply contains
+// one (42Crunch, s3scanner, w3af) is left alone.
+func splitSPDXCreator(creator string) (name, version string) {
+	for i := 1; i < len(creator); i++ {
+		c := creator[i]
+		if c != '-' && c != '_' && c != '@' && c != ' ' {
+			continue
+		}
+		rest := creator[i+1:]
+		if rest == "" {
+			continue
+		}
+		isVersion := rest[0] >= '0' && rest[0] <= '9'
+		if !isVersion && (rest[0] == 'v' || rest[0] == 'V') && len(rest) > 1 {
+			isVersion = rest[1] >= '0' && rest[1] <= '9'
+		}
+		if isVersion {
+			return creator[:i], rest
+		}
+	}
+
+	return creator, ""
 }
 
 // parseSPDXPackages reads package identities out of an SPDX 2.x JSON document.
@@ -596,7 +632,7 @@ func parseSPDXPackages(data []byte) (*spdxDoc, error) {
 	doc := &spdxDoc{totalPackages: len(raw.Packages)}
 	for _, creator := range raw.CreationInfo.Creators {
 		if tool, ok := strings.CutPrefix(creator, "Tool: "); ok {
-			doc.creatorTool = strings.TrimSpace(tool)
+			doc.creatorTool, doc.creatorVersion = splitSPDXCreator(strings.TrimSpace(tool))
 			break
 		}
 	}
