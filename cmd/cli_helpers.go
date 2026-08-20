@@ -8,11 +8,13 @@ package cmd
 // succinct.
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/vulnetix/cli/v3/internal/ghactx"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -58,7 +60,31 @@ func envForCliWithGit(git *gitctx.GitContext) vdb.CliEnv {
 			RepoRoot: git.RepoRootPath,
 		}
 	}
+	if env.CI == nil {
+		env.CI = ciContextForCli()
+	}
 	return env
+}
+
+// ciContextForCli collects the CI identity that ships with every cli.* request.
+//
+// Free tier only: environment variables plus the GITHUB_EVENT_PATH payload
+// already on disk. No network, no token. Returns nil outside a runner.
+//
+// This exists because a CI checkout is a detached HEAD, so gitctx reads
+// "HEAD (detached)" for the branch in every runner. The server already prefers
+// the CI fields over the local checkout — findingGitContext and the console's
+// branch key both put ciHeadRef and ciRefName ahead of gitBranch — but until
+// this call was added, only `gha upload` ever populated them. Every other cli.*
+// request from inside GitHub Actions therefore landed under branch "(unknown)",
+// which is why repo/branch filtering across the console has been thin for
+// pipeline scans.
+//
+// `gha upload` keeps its own richer call (ghactx.Options{Lookup: …}); that is
+// the only path allowed to spend GitHub REST calls, and the guard on env.CI
+// above means it is never clobbered by this one.
+func ciContextForCli() *vdb.CliCIContext {
+	return ghactx.Collect(context.Background(), ghactx.Options{NoAPI: true})
 }
 
 // newCliClient returns a /v2 vdb client configured for cli.* endpoints.

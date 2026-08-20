@@ -1259,6 +1259,13 @@ func buildCliEnv(gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo) vdb.CliE
 		ToolVendor:  "Vulnetix",
 		ToolHash:    commit,
 	}
+	// A CI checkout is a detached HEAD, so gitCtx.CurrentBranch reads
+	// "HEAD (detached)" in every runner and the server's branch key falls all the
+	// way through to "(unknown)". The CI fields are the only trustworthy branch
+	// identity there, and the server already prefers them — see ciContextForCli.
+	if env.CI == nil {
+		env.CI = ciContextForCli()
+	}
 	return env
 }
 
