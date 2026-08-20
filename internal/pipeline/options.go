@@ -72,6 +72,16 @@ type Options struct {
 	VersionLag       int
 	CooldownDays     int
 
+	// Jail runs the organisation's jail policy against this repository after the
+	// scan has uploaded, and gates on the verdict.
+	//
+	// Unlike the thresholds above, which grade THIS run's findings, the jail
+	// policy grades the repository's accumulated state across every tool and
+	// category that has reported for it. A breach exits 1 alongside the other
+	// gates; a rule that cannot be evaluated against current scan coverage exits
+	// 3, which is a different problem with a different owner.
+	Jail bool
+
 	// ── Rego rules ──────────────────────────────────────────────────────────
 
 	// DisableDefaultRules drops the embedded corpus, leaving only RuleRefs.

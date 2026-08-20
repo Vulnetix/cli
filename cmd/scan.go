@@ -2219,6 +2219,28 @@ func runLocalScan(
 		finalizedSnapshots[uuid] = true
 	}
 	rep.Update(7, "Evaluated quality gates")
+
+	// ── Jail (--jail) ─────────────────────────────────────────────────────
+	//
+	// Runs AFTER finalization so the snapshots this scan just created exist
+	// server-side, and their uuids are handed to the gate so read-replica lag
+	// cannot make the scan-then-gate sequence read its own upload as missing.
+	//
+	// Staleness stays meaningful in this mode: this invocation refreshed only
+	// the categories it actually ran. The useful verdict from `sca --jail` is
+	// "SCA current and clean, SAST forty days old — indeterminate", which is
+	// exactly what the per-category coverage resolution produces.
+	jailIndeterminate := false
+	if opts.Jail {
+		jailBreaches, indeterminate, jerr := runJailPassForScan(ctx, rootPath, finalizedSnapshotList(scaSnapshotUuid, sarifSnapshotUuids))
+		if jerr != nil {
+			fmt.Fprintf(os.Stderr, "  warning: jail evaluation failed: %v\n", jerr)
+		} else {
+			breaches = append(breaches, jailBreaches...)
+			jailIndeterminate = indeterminate
+		}
+	}
+
 	rep.Complete("scan complete")
 
 	// ── Output ────────────────────────────────────────────────────────────
@@ -2254,6 +2276,9 @@ func runLocalScan(
 		if len(breaches) > 0 {
 			return &MultiPolicyBreachError{Breaches: breaches}
 		}
+		if err := jailIndeterminateError(breaches, jailIndeterminate); err != nil {
+			return err
+		}
 		if autofixReportErr != nil {
 			return autofixReportErr
 		}
@@ -2274,6 +2299,9 @@ func runLocalScan(
 		printSnapshotsToStderr(sarifSnapshots)
 		if len(breaches) > 0 {
 			return &MultiPolicyBreachError{Breaches: breaches}
+		}
+		if err := jailIndeterminateError(breaches, jailIndeterminate); err != nil {
+			return err
 		}
 		if autofixReportErr != nil {
 			return autofixReportErr
@@ -2325,6 +2353,13 @@ func runLocalScan(
 			fmt.Fprintf(os.Stderr, "  ✗ %s\n", b.Message)
 		}
 		return &MultiPolicyBreachError{Breaches: breaches}
+	}
+	// Exit 3 only when nothing breached. A definite violation is more actionable
+	// than an unknown, so a breach anywhere wins the exit code.
+	if err := jailIndeterminateError(breaches, jailIndeterminate); err != nil {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  ? jail could not be evaluated: some rules have no current scan coverage")
+		return err
 	}
 	if autofixReportErr != nil {
 		return autofixReportErr
@@ -3666,6 +3701,7 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().String("severity", "", "Exit with code 1 if any vulnerability meets or exceeds this severity (low, medium, high, critical). Severity is coerced from all available scoring sources (CVSS, EPSS, Coalition ESS, SSVC).")
 	cmd.Flags().Bool("block-malware", false, "Exit with code 1 when any dependency is a known malicious package.")
 	cmd.Flags().Bool("no-malscan", false, "Skip the in-process malscan-engine pass over local dependency install dirs.")
+	cmd.Flags().Bool("jail", false, "After uploading, assess this repository against the organisation's jail policy and gate on the result. Exits 1 when a rule breaches and 3 when a rule cannot be evaluated against current scan coverage. Run 'vulnetix jail' for the standalone gate with artefacts.")
 	cmd.Flags().Bool("block-eol", false, "Exit with code 1 when a runtime or package dependency is end-of-life. Runtimes: Go, Node.js, Python, Ruby. Package-level checks activate when VDB has EOL data (404s are silently skipped).")
 	cmd.Flags().String("block-eol-severity", "critical", "With --block-eol, the graded severity at which an end-of-life component fails the build (critical, high, medium, low). Components graded below it are reported, not blocked. The default blocks only what is already past its end-of-life date.")
 	cmd.Flags().Bool("block-unpinned", false, "Exit with code 1 when any direct dependency uses a version range (^, ~, >=) instead of an exact pin.")

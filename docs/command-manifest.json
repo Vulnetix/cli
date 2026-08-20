@@ -180,7 +180,7 @@
       ]
     },
     "ai-firewall policy guardrail": {
-      "short": "Create, update, or delete a content guardrail",
+      "short": "Create, update, or delete a guardrail",
       "flags": [
         "action",
         "base-url",
@@ -503,6 +503,7 @@
         "output-file",
         "path",
         "sbom-include-ignored",
+        "sign",
         "silent",
         "spec-version",
         "verbose"
@@ -538,6 +539,7 @@
       "subcommands": [
         "ai-firewall",
         "eol-policy",
+        "jail",
         "package-firewall",
         "quality-gate"
       ]
@@ -567,6 +569,26 @@
         "org-id",
         "output",
         "silent",
+        "verbose"
+      ]
+    },
+    "config get jail": {
+      "short": "Show the jail policy in effect for this repository",
+      "flags": [
+        "base-url",
+        "branch",
+        "disable-memory",
+        "max-lookback-days",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "path",
+        "repo",
+        "rule-uuid",
+        "silent",
+        "timeout",
         "verbose"
       ]
     },
@@ -612,6 +634,7 @@
       "subcommands": [
         "ai-firewall",
         "eol-policy",
+        "jail",
         "package-firewall",
         "quality-gate"
       ]
@@ -634,7 +657,7 @@
       ]
     },
     "config set ai-firewall guardrail": {
-      "short": "Create, update, or delete a content guardrail",
+      "short": "Create, update, or delete a guardrail",
       "flags": [
         "action",
         "base-url",
@@ -709,6 +732,46 @@
         "within-30-days-severity"
       ]
     },
+    "config set jail": {
+      "short": "Manage jail exemptions for this repository",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "exempt"
+      ]
+    },
+    "config set jail exempt": {
+      "short": "Create or retire a time-boxed exemption for this repository",
+      "flags": [
+        "base-url",
+        "branch",
+        "deactivate",
+        "deactivate-reason",
+        "disable-memory",
+        "expires",
+        "max-lookback-days",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "path",
+        "reason",
+        "repo",
+        "rule",
+        "rule-uuid",
+        "silent",
+        "timeout",
+        "verbose"
+      ]
+    },
     "config set package-firewall": {
       "short": "Set Package Firewall policy and mirrors",
       "flags": [
@@ -770,7 +833,6 @@
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
-        "concurrency",
         "container-archive",
         "container-rootfs",
         "containers-include-ignored",
@@ -788,6 +850,7 @@
         "ignore-binaries",
         "ignore-git",
         "include-ignored",
+        "jail",
         "license-mode",
         "list-default-rules",
         "no-analytics",
@@ -823,6 +886,7 @@
         "yes"
       ],
       "deprecatedFlags": [
+        "concurrency",
         "format"
       ]
     },
@@ -848,7 +912,6 @@
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
-        "concurrency",
         "cooldown",
         "depth",
         "disable-memory",
@@ -862,6 +925,7 @@
         "ignore-binaries",
         "ignore-git",
         "include-ignored",
+        "jail",
         "license-mode",
         "manifest",
         "max-major-bump",
@@ -893,6 +957,7 @@
         "yes"
       ],
       "deprecatedFlags": [
+        "concurrency",
         "format"
       ]
     },
@@ -917,6 +982,8 @@
       "short": "Add a third-party scanner to this repository's workflows",
       "flags": [
         "all",
+        "cron",
+        "detect",
         "disable-memory",
         "dry-run",
         "force",
@@ -924,6 +991,7 @@
         "no-analytics",
         "no-banner",
         "no-progress",
+        "on",
         "org-id",
         "runs-on",
         "silent",
@@ -973,7 +1041,6 @@
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
-        "concurrency",
         "cooldown",
         "depth",
         "disable-default-rules",
@@ -989,6 +1056,7 @@
         "ignore-binaries",
         "ignore-git",
         "include-ignored",
+        "jail",
         "license-mode",
         "list-default-rules",
         "no-analytics",
@@ -1023,6 +1091,7 @@
         "yes"
       ],
       "deprecatedFlags": [
+        "concurrency",
         "format"
       ]
     },
@@ -1107,6 +1176,103 @@
         "verbose"
       ]
     },
+    "jail": {
+      "short": "Gate this pipeline against the organisation's jail policy",
+      "flags": [
+        "base-url",
+        "branch",
+        "disable-memory",
+        "max-lookback-days",
+        "no-analytics",
+        "no-artefacts",
+        "no-banner",
+        "no-fail",
+        "no-progress",
+        "on-stale",
+        "org-id",
+        "output",
+        "path",
+        "repo",
+        "rule-uuid",
+        "sarif-out",
+        "silent",
+        "staleness-days",
+        "timeout",
+        "verbose",
+        "vex-format",
+        "vex-out"
+      ],
+      "subcommands": [
+        "exempt",
+        "explain",
+        "list"
+      ]
+    },
+    "jail exempt": {
+      "short": "Create or retire a time-boxed exemption for this repository",
+      "flags": [
+        "base-url",
+        "branch",
+        "deactivate",
+        "deactivate-reason",
+        "disable-memory",
+        "expires",
+        "max-lookback-days",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "path",
+        "reason",
+        "repo",
+        "rule",
+        "rule-uuid",
+        "silent",
+        "timeout",
+        "verbose"
+      ]
+    },
+    "jail explain": {
+      "short": "Show why the repository is or is not jailed, rule by rule",
+      "flags": [
+        "base-url",
+        "branch",
+        "disable-memory",
+        "max-lookback-days",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "path",
+        "repo",
+        "rule-uuid",
+        "silent",
+        "timeout",
+        "verbose"
+      ]
+    },
+    "jail list": {
+      "short": "Show the jail policy in effect for this repository",
+      "flags": [
+        "base-url",
+        "branch",
+        "disable-memory",
+        "max-lookback-days",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "path",
+        "repo",
+        "rule-uuid",
+        "silent",
+        "timeout",
+        "verbose"
+      ]
+    },
     "license": {
       "short": "Analyze package licenses for conflicts and policy compliance",
       "flags": [
@@ -1128,6 +1294,22 @@
         "severity",
         "silent",
         "verbose"
+      ]
+    },
+    "lsp": {
+      "short": "Run the Vulnetix language server (LSP over stdio)",
+      "flags": [
+        "debounce-ms",
+        "disable-memory",
+        "log-file",
+        "memory-limit-mb",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose",
+        "version"
       ]
     },
     "malscan": {
@@ -1596,7 +1778,6 @@
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
-        "concurrency",
         "cooldown",
         "depth",
         "disable-default-rules",
@@ -1611,6 +1792,7 @@
         "ignore-binaries",
         "ignore-git",
         "include-ignored",
+        "jail",
         "license-mode",
         "list-default-rules",
         "no-analytics",
@@ -1646,6 +1828,7 @@
         "yes"
       ],
       "deprecatedFlags": [
+        "concurrency",
         "format"
       ]
     },
@@ -1658,7 +1841,6 @@
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
-        "concurrency",
         "cooldown",
         "depth",
         "disable-memory",
@@ -1672,6 +1854,7 @@
         "ignore-binaries",
         "ignore-git",
         "include-ignored",
+        "jail",
         "license-mode",
         "no-analytics",
         "no-banner",
@@ -1700,6 +1883,7 @@
         "yes"
       ],
       "deprecatedFlags": [
+        "concurrency",
         "format"
       ]
     },
@@ -1712,7 +1896,6 @@
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
-        "concurrency",
         "cooldown",
         "depth",
         "disable-default-rules",
@@ -1733,6 +1916,7 @@
         "ignore-binaries",
         "ignore-git",
         "include-ignored",
+        "jail",
         "license-mode",
         "list-default-rules",
         "no-aibom",
@@ -1775,6 +1959,7 @@
         "yes"
       ],
       "deprecatedFlags": [
+        "concurrency",
         "format",
         "fresh-advisories",
         "fresh-exploits",
@@ -1791,7 +1976,6 @@
         "block-eol-severity",
         "block-malware",
         "block-unpinned",
-        "concurrency",
         "cooldown",
         "depth",
         "disable-default-rules",
@@ -1806,6 +1990,7 @@
         "ignore-binaries",
         "ignore-git",
         "include-ignored",
+        "jail",
         "license-mode",
         "list-default-rules",
         "no-analytics",
@@ -1841,6 +2026,7 @@
         "yes"
       ],
       "deprecatedFlags": [
+        "concurrency",
         "format"
       ]
     },
@@ -1910,6 +2096,329 @@
         "org-id",
         "silent",
         "verbose"
+      ]
+    },
+    "tea": {
+      "short": "Publish to and read from the Transparency Exchange API",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "collection",
+        "discover",
+        "distribution",
+        "product",
+        "products",
+        "publish",
+        "release",
+        "resolve",
+        "share"
+      ]
+    },
+    "tea collection": {
+      "short": "Read the artifacts published for a release",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea discover": {
+      "short": "Resolve a domain or TEI to a TEA server",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea distribution": {
+      "short": "Publish and inspect where a release can be obtained",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "add",
+        "list",
+        "remove"
+      ]
+    },
+    "tea distribution add": {
+      "short": "Declare a download or install channel for a release",
+      "flags": [
+        "base-url",
+        "checksums",
+        "description",
+        "disable-memory",
+        "exclude",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "purl",
+        "server",
+        "sha256",
+        "signature-url",
+        "silent",
+        "url",
+        "verbose"
+      ]
+    },
+    "tea distribution list": {
+      "short": "Show where a release can currently be obtained",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea distribution remove": {
+      "short": "Withdraw a download link",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea product": {
+      "short": "Read a product and its releases",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea products": {
+      "short": "List the products a TEA server publishes",
+      "flags": [
+        "disable-memory",
+        "json",
+        "limit",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea publish": {
+      "short": "Create products, releases, collections and artifacts",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "artifact",
+        "collection",
+        "delete",
+        "list",
+        "product",
+        "release"
+      ]
+    },
+    "tea publish artifact": {
+      "short": "Publish an artifact and upload its content",
+      "flags": [
+        "disable-memory",
+        "json",
+        "media-type",
+        "name",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "type",
+        "verbose"
+      ]
+    },
+    "tea publish collection": {
+      "short": "Publish the next collection version for a release",
+      "flags": [
+        "comment",
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "reason",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea publish delete": {
+      "short": "Withdraw a published object",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea publish list": {
+      "short": "List what your organisation has published, and who can read it",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea publish product": {
+      "short": "Register a product",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "purl",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea publish release": {
+      "short": "Publish a release of a product",
+      "flags": [
+        "date",
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "pre-release",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea release": {
+      "short": "Publish a complete release to the transparency log in one command",
+      "flags": [
+        "auto-version",
+        "base-url",
+        "channel",
+        "checksums",
+        "checksums-from-release",
+        "date",
+        "disable-memory",
+        "dry-run",
+        "exclude",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org",
+        "org-id",
+        "pre-release",
+        "product",
+        "reason",
+        "server",
+        "silent",
+        "verbose",
+        "version",
+        "visibility"
+      ]
+    },
+    "tea resolve": {
+      "short": "Resolve a TEI to the object it names",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "server",
+        "silent",
+        "verbose"
+      ]
+    },
+    "tea share": {
+      "short": "Show or change who may read a published object",
+      "flags": [
+        "disable-memory",
+        "json",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org",
+        "org-id",
+        "server",
+        "silent",
+        "verbose",
+        "visibility"
       ]
     },
     "triage": {
@@ -5525,7 +6034,9 @@
         "gha",
         "iac",
         "ignore",
+        "jail",
         "license",
+        "lsp",
         "malscan",
         "package-firewall",
         "report",
@@ -5534,6 +6045,7 @@
         "scan",
         "secrets",
         "skills",
+        "tea",
         "triage",
         "update",
         "upload",

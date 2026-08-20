@@ -612,6 +612,30 @@ Exit code `1` on any malware found. Also runs as a pass inside `scan` (default o
 
 ---
 
+### vulnetix jail
+
+Gate the pipeline on the organisation's policy over the repository's **accumulated** state — vulnerabilities past their remediation window, dependencies past end of life, strategic migrations that have not landed, hygiene categories that regressed. Distinct from the quality gate, which grades a single scan's findings. See the full [Jail Command Reference](jail/).
+
+```bash
+vulnetix jail [flags]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `.` | Repository path to derive identity from |
+| `--no-fail` | `false` | Report the verdict but always exit 0 |
+| `--on-stale` | policy | Override the staleness posture (`fail`, `warn`, `pass`) — tightening only |
+| `--staleness-days` | policy | Override the staleness window — tightening only |
+| `--vex-out` | `.vulnetix/jail.vex.json` | Where to write the VEX document |
+| `--vex-format` | `openvex` | `openvex` or `cyclonedx` |
+| `--sarif-out` | `.vulnetix/jail.sarif` | Where to write the SARIF document |
+| `--no-artefacts` | `false` | Do not write either document |
+| `-o, --output` | `pretty` | Terminal output format: `pretty`, `json` |
+
+Exit `0` clear, `1` jailed, `2` usage error, `3` indeterminate (the backend state a rule needs is stale or missing). Exit 3 is deliberately not exit 1: a breach is fixed by a developer, missing coverage by whoever owns the CI configuration. Subcommands `explain`, `list` and `exempt` inspect and waive without gating. Also available as a `--jail` flag on every scan-family command.
+
+---
+
 ### vulnetix sast
 
 Run only Static Application Security Testing. All other features are disabled. See the [SAST Command Reference](sast/).

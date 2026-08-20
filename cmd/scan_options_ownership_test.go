@@ -39,6 +39,7 @@ var flagToOption = map[string]string{
 	"block-unpinned":          "BlockUnpinned",
 	"version-lag":             "VersionLag",
 	"cooldown":                "CooldownDays",
+	"jail":                    "Jail",
 	"results-only":            "ResultsOnly",
 	"dry-run":                 "DryRun",
 	"ignore":                  "IgnoreGlobs",

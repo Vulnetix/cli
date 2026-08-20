@@ -357,6 +357,15 @@ func Execute() error {
 	if _, ok := err.(*SeverityBreachError); ok {
 		return err
 	}
+	// JailVerdictError — `jail` has already rendered the full verdict block,
+	// with the breached rules, their observed values and their thresholds.
+	// Following that with "Error: repository is jailed" adds nothing and buries
+	// the part the operator has to read. Usage and configuration failures do NOT
+	// come through here: JailUsageError keeps the "Error:" prefix, because
+	// nothing was rendered before it.
+	if isJailVerdictError(err) {
+		return err
+	}
 	// For all other errors, restore normal error reporting.
 	fmt.Fprintln(os.Stderr, "Error:", err)
 	return err

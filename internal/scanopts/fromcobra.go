@@ -72,6 +72,7 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	opts.BlockUnpinned = getBool("block-unpinned")
 	opts.VersionLag = getInt("version-lag")
 	opts.CooldownDays = getInt("cooldown")
+	opts.Jail = getBool("jail")
 
 	severity, err := NormaliseSeverity(getString("severity"))
 	if err != nil {
