@@ -237,8 +237,13 @@ func TestPublishSPDXExtractsPackages(t *testing.T) {
 	if res.Status != "uploaded" {
 		t.Fatalf("status = %q (%s)", res.Status, res.Error)
 	}
-	if res.Tool != "syft-1.42.3" {
-		t.Errorf("tool = %q; the creator entry names it", res.Tool)
+	// SPDX has no version field, so producers append it to the creator name.
+	// splitSPDXCreator separates the two, which is what makes a ScannerRun
+	// groupable — see its doc comment for the GitHub dependency-graph export
+	// that motivated it. The result must match the CycloneDX path above, where
+	// the same tool reports as syft/1.42.3 rather than as one fused string.
+	if res.Tool != "syft" || res.ToolVersion != "1.42.3" {
+		t.Errorf("attribution = %s/%s, want syft/1.42.3", res.Tool, res.ToolVersion)
 	}
 	if res.Findings != 1 {
 		t.Errorf("packages = %d, want 1 (the purl-less package is unmatched and dropped)", res.Findings)
