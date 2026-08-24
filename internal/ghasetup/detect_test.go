@@ -3,6 +3,7 @@ package ghasetup
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Vulnetix/vdb-sca-match/sarif"
@@ -203,5 +204,87 @@ func TestDetectIgnoresVendoredTrees(t *testing.T) {
 		if got == "brakeman" || got == "cyclonedx-php" || got == "psalm" {
 			t.Errorf("--detect selected %s from a vendored dependency's manifest", got)
 		}
+	}
+}
+
+// A repository with no container file must not be given the container tools.
+// Hadolint is the one that used to matter: the action it wrapped wrote a
+// one-byte SARIF when the Dockerfile it was pointed at did not exist, the
+// artifact was uploaded anyway, and the publish job rejected it, so a run in
+// which every scanner succeeded still went red.
+func TestDetectSkipsContainerToolsWithoutAContainerFile(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	root := t.TempDir()
+	for _, rel := range []string{"go.mod", "main.tf", "README.md"} {
+		full := filepath.Join(root, rel)
+		if err := os.WriteFile(full, []byte("x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	ids, _, err := DetectTools(c, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, id := range ids {
+		for _, container := range []string{"hadolint", "dockle", "trivy-image", "syft-image", "grype-image"} {
+			if id == container {
+				t.Errorf("--detect selected %s for a repository with no Dockerfile or Containerfile", id)
+			}
+		}
+	}
+
+	// And the job is therefore absent from the rendered workflow, including
+	// the publish job's needs list, which is what actually fails the run.
+	out, err := Render(c, ids, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "\n  hadolint:\n") {
+		t.Error("rendered workflow carries a hadolint job for a repository with no container file")
+	}
+	if strings.Contains(out, "hadolint") {
+		t.Error("rendered workflow still references hadolint somewhere, including the publish needs list")
+	}
+}
+
+// A container file in a subdirectory still selects hadolint, because detection
+// matches basenames anywhere in the tree. The recipe therefore has to cope with
+// the file not being at the root rather than writing an empty report.
+func TestHadolintRecipeGuardsOnTheContainerFile(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tool, ok := c.Find("hadolint")
+	if !ok {
+		t.Fatal("hadolint is not in the catalog")
+	}
+
+	var recipe string
+	for _, s := range tool.Steps {
+		recipe += s.Run
+		if s.Uses != "" {
+			t.Errorf("hadolint step uses the action %q, which cannot be skipped when no container file exists", s.Uses)
+		}
+	}
+
+	for _, want := range []string{
+		"::notice::no Dockerfile or Containerfile found",
+		"exit 0",
+		"rm -f hadolint.sarif",
+	} {
+		if !strings.Contains(recipe, want) {
+			t.Errorf("hadolint recipe is missing %q", want)
+		}
+	}
+	if !strings.Contains(recipe, "Containerfile") {
+		t.Error("hadolint recipe never looks for a Containerfile")
 	}
 }

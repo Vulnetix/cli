@@ -418,13 +418,7 @@
       "steps": [
         {
           "name": "Run Hadolint",
-          "uses": "hadolint/hadolint-action@v3.1.0",
-          "with": {
-            "dockerfile": "Dockerfile",
-            "format": "sarif",
-            "output-file": "hadolint.sarif",
-            "no-fail": true
-          }
+          "run": "set -uo pipefail\ndockerfile=\"\"\nfor candidate in Dockerfile Containerfile; do\n  if [ -f \"$candidate\" ]; then\n    dockerfile=\"$candidate\"\n    break\n  fi\ndone\n# A repository can keep its container file in a subdirectory; lint that one\n# rather than reporting nothing.\nif [ -z \"$dockerfile\" ]; then\n  dockerfile=\"$(find . -path ./.git -prune -o -type f \\( -name Dockerfile -o -name Containerfile \\) -print 2>/dev/null | sed 's|^\\./||' | sort | head -n 1)\"\nfi\nif [ -z \"$dockerfile\" ]; then\n  echo '::notice::no Dockerfile or Containerfile found; skipping hadolint'\n  exit 0\nfi\n# Hadolint exits 1 when it finds lint issues, which is a successful scan.\ndocker run --rm -v \"$PWD:/repo\" -w /repo hadolint/hadolint:v2.12.0 \\\n  hadolint --format sarif \"$dockerfile\" >hadolint.sarif 2>hadolint.stderr || true\nif ! jq -e '.version and (.runs | type == \"array\")' hadolint.sarif >/dev/null 2>&1; then\n  echo '::warning::hadolint produced no valid SARIF; dropping the artifact'\n  rm -f hadolint.sarif\nfi\n"
         }
       ],
       "detect": {
