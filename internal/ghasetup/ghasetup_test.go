@@ -1,6 +1,7 @@
 package ghasetup
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -349,5 +350,155 @@ func TestNoRecipeAssumesSudo(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// A job with no timeout holds a runner until GitHub's six-hour ceiling. That is
+// not hypothetical: four jobs on the self-hosted pool hit exactly 360.1 minutes
+// before being killed, each having occupied one of twenty-four slots the whole
+// time.
+func TestEveryJobCarriesATimeout(t *testing.T) {
+	c, _ := Load()
+	out, err := Render(c, c.IDs(), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var job string
+	seen := map[string]bool{}
+	for _, line := range strings.Split(out, "\n") {
+		switch {
+		case strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") &&
+			!strings.HasPrefix(line, "   "):
+			job = strings.TrimSuffix(strings.TrimSpace(line), ":")
+		case strings.HasPrefix(line, "    timeout-minutes:"):
+			seen[job] = true
+		}
+	}
+
+	for _, id := range append(c.IDs(), "publish") {
+		if !seen[id] {
+			t.Errorf("job %q has no timeout-minutes; a hang there costs six hours of a runner", id)
+		}
+	}
+}
+
+// The tail of slow jobs is three PHP tools. Two of them only ever ran long
+// because they hung, so they are capped just above the fleet-wide p99 of 29
+// minutes. Dependency-Check is the exception: one legitimate run took 313
+// minutes building the NVD database from cold, so its cap has to clear that,
+// and the cache is what makes the number shrinkable later.
+func TestSlowToolTimeouts(t *testing.T) {
+	c, _ := Load()
+	want := map[string]int{
+		"psalm":                  30,
+		"cyclonedx-php":          30,
+		"owasp-dependency-check": 330,
+	}
+	for id, minutes := range want {
+		tool, ok := c.Find(id)
+		if !ok {
+			t.Fatalf("catalog is missing %q", id)
+		}
+		if tool.TimeoutMinutes != minutes {
+			t.Errorf("%s timeout is %d, want %d", id, tool.TimeoutMinutes, minutes)
+		}
+	}
+
+	dc, _ := c.Find("owasp-dependency-check")
+	// Below GitHub's own ceiling on purpose: a hang should be reported as our
+	// timeout and give the runner back, not be killed at 360 minutes.
+	if dc.TimeoutMinutes >= 360 {
+		t.Error("dependency-check timeout must sit below GitHub's 6h job ceiling")
+	}
+	// And above the one legitimate long run, or the fix breaks real work.
+	if dc.TimeoutMinutes <= 313 {
+		t.Error("dependency-check timeout must clear the measured 313-minute cold-NVD run")
+	}
+
+	out, err := Render(c, []string{"owasp-dependency-check"}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "timeout-minutes: 330") {
+		t.Error("the per-tool timeout did not reach the rendered job")
+	}
+	if !strings.Contains(out, "actions/cache@v4") || !strings.Contains(out, "restore-keys:") {
+		t.Error("dependency-check must restore the NVD database, or every run rebuilds it from cold")
+	}
+	if !strings.Contains(out, "--data") {
+		t.Error("dependency-check must be pointed at the cached data directory")
+	}
+}
+
+// The schedule is derived, not random: the workflow is rewritten in full on
+// every `gha setup`, so anything clock- or random-derived would produce a diff
+// each time and silently move the fleet around.
+func TestScheduleCronForIsStableAndStaggered(t *testing.T) {
+	if a, b := ScheduleCronFor("vulnetix/cli"), ScheduleCronFor("vulnetix/cli"); a != b {
+		t.Errorf("same slug gave %q then %q; regeneration would churn the schedule", a, b)
+	}
+	if ScheduleCronFor("") != DefaultScheduleCron {
+		t.Error("a repository with no slug should fall back to the default schedule")
+	}
+
+	// The fleet as it stands. Every repository must land in its own 20-minute
+	// slot, which is comfortably longer than the ~7 minutes a full 24-job
+	// backlog takes to drain.
+	slugs := []string{
+		"vulnetix/cli", "vulnetix/vdb-api", "vulnetix/vdb-site", "vulnetix/website",
+		"vulnetix/saas", "vulnetix/ai-firewall", "vulnetix/package-firewall",
+		"vulnetix/malscan-engine", "vulnetix/mcp-server", "vulnetix/pkgregistry",
+		"vulnetix/sast-rule-evals", "vulnetix/sca-manifest-fixtures",
+		"vulnetix/vulnetix-fixture-app",
+	}
+	taken := map[string]string{}
+	for _, s := range slugs {
+		cron := ScheduleCronFor(s)
+		var minute, hour, weekday int
+		if _, err := fmt.Sscanf(cron, "%d %d * * %d", &minute, &hour, &weekday); err != nil {
+			t.Fatalf("%s produced an unparseable cron %q", s, cron)
+		}
+		switch {
+		case minute < 0 || minute > 59:
+			t.Errorf("%s: minute %d out of range", s, minute)
+		case hour < 0 || hour > 23:
+			t.Errorf("%s: hour %d out of range", s, hour)
+		case weekday < 0 || weekday > 6:
+			t.Errorf("%s: weekday %d out of range", s, weekday)
+		}
+		// Never on the hour: GitHub queues every cron on the platform there and
+		// delivers them late.
+		if minute%60 == 0 {
+			t.Errorf("%s: scheduled on the hour (%q)", s, cron)
+		}
+		if prev, dup := taken[cron]; dup {
+			t.Errorf("%s and %s share the slot %q", s, prev, cron)
+		}
+		taken[cron] = s
+	}
+}
+
+// Rendering must actually use the derived schedule, and an explicit --cron must
+// still win.
+func TestRenderSchedulePerRepository(t *testing.T) {
+	c, _ := Load()
+
+	a, _ := Render(c, []string{"gosec"}, Options{Triggers: []string{"schedule"}, RepoSlug: "vulnetix/cli"})
+	b, _ := Render(c, []string{"gosec"}, Options{Triggers: []string{"schedule"}, RepoSlug: "vulnetix/website"})
+	if a == b {
+		t.Error("two repositories were given the same schedule; the fleet would pile onto the pool at once")
+	}
+	if !strings.Contains(a, "cron: '"+ScheduleCronFor("vulnetix/cli")+"'") {
+		t.Error("rendered schedule does not match the slug-derived one")
+	}
+
+	pinned, _ := Render(c, []string{"gosec"}, Options{
+		Triggers:     []string{"schedule"},
+		ScheduleCron: "13 5 * * 1",
+		RepoSlug:     "vulnetix/cli",
+	})
+	if !strings.Contains(pinned, "cron: '13 5 * * 1'") {
+		t.Error("an explicit --cron must override the derived schedule")
 	}
 }

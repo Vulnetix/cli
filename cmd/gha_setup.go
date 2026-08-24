@@ -168,6 +168,10 @@ func runGHASetup(cmd *cobra.Command, args []string) error {
 		SelfHostedLabels: ghaSetupSelfHosted,
 		Triggers:         ghaSetupTriggers,
 		ScheduleCron:     ghaSetupCron,
+		// No --cron given: the schedule is derived from the repository name, so
+		// the fleet spreads itself out instead of every repository waking at the
+		// same minute and queueing behind one another on the same runner pool.
+		RepoSlug: remote.Slug,
 	})
 	if err != nil {
 		return err
@@ -282,7 +286,7 @@ func init() {
 	ghaSetupCmd.Flags().BoolVar(&ghaSetupForce, "force", false, "Replace an existing workflow that was not written by this command")
 	ghaSetupCmd.Flags().StringSliceVar(&ghaSetupSelfHosted, "runs-on", nil, "Runner labels to use instead of ubuntu-latest (e.g. self-hosted,Linux,X64)")
 	ghaSetupCmd.Flags().StringSliceVar(&ghaSetupTriggers, "on", nil, "Workflow triggers (push, pull_request, schedule, workflow_dispatch). Default: push,workflow_dispatch")
-	ghaSetupCmd.Flags().StringVar(&ghaSetupCron, "cron", "", "Cron expression when --on includes schedule (default \""+ghasetup.DefaultScheduleCron+"\")")
+	ghaSetupCmd.Flags().StringVar(&ghaSetupCron, "cron", "", "Cron expression when --on includes schedule (default: a weekly slot derived from the repository name, so the fleet is staggered)")
 
 	ghaCmd.AddCommand(ghaSetupCmd)
 }

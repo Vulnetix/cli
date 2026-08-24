@@ -37,8 +37,17 @@ type Tool struct {
 	Artifact    string   `json:"artifact"`
 	Paths       []string `json:"paths"`
 	Note        string   `json:"note,omitempty"`
-	Detect      Detect   `json:"detect"`
-	Steps       []Step   `json:"steps"`
+
+	// TimeoutMinutes overrides DefaultJobTimeoutMinutes for this tool.
+	//
+	// Set it only where the measured runtime says the default is wrong: too
+	// tight and a legitimate slow scan is killed, too loose and a hung one
+	// holds a runner until GitHub's six-hour ceiling. Zero means "use the
+	// default", which is the right answer for almost every scanner.
+	TimeoutMinutes int `json:"timeoutMinutes,omitempty"`
+
+	Detect Detect `json:"detect"`
+	Steps  []Step `json:"steps"`
 }
 
 // Detect says when `gha setup --detect` should pick a tool for a repository.

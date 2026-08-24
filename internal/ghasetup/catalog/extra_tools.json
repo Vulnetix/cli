@@ -442,6 +442,7 @@
       "paths": [
         "dependency-check.sarif"
       ],
+      "timeoutMinutes": 330,
       "steps": [
         {
           "name": "Set up Java",
@@ -452,11 +453,20 @@
           }
         },
         {
+          "name": "Restore the NVD database",
+          "uses": "actions/cache@v4",
+          "with": {
+            "path": "${{ runner.temp }}/dependency-check-data",
+            "key": "dependency-check-nvd-${{ github.run_id }}",
+            "restore-keys": "dependency-check-nvd-"
+          }
+        },
+        {
           "name": "Run OWASP Dependency-Check",
           "env": {
             "NVD_API_KEY": "${{ secrets.NVD_API_KEY }}"
           },
-          "run": "set -uo pipefail\nversion=$(curl -fsSL https://api.github.com/repos/jeremylong/DependencyCheck/releases/latest | jq -r '.tag_name | ltrimstr(\"v\")')\ncurl -fsSL \"https://github.com/jeremylong/DependencyCheck/releases/download/v${version}/dependency-check-${version}-release.zip\" -o dependency-check.zip\nunzip -q dependency-check.zip\nmkdir -p dependency-check-out\nargs=(--scan . --format SARIF --out dependency-check-out)\nif [ -n \"${NVD_API_KEY:-}\" ]; then\n  args+=(--nvdApiKey \"$NVD_API_KEY\")\nfi\ndependency-check/bin/dependency-check.sh \"${args[@]}\" || true\nfound=$(find dependency-check-out -name '*.sarif' -print -quit)\nif [ -n \"$found\" ]; then\n  cp \"$found\" dependency-check.sarif\nfi\nif ! jq -e '.version and (.runs | type == \"array\")' dependency-check.sarif >/dev/null 2>&1; then\n  echo '::warning::dependency-check produced no valid SARIF; dropping the artifact'\n  rm -f dependency-check.sarif\nfi"
+          "run": "set -uo pipefail\nversion=$(curl -fsSL https://api.github.com/repos/jeremylong/DependencyCheck/releases/latest | jq -r '.tag_name | ltrimstr(\"v\")')\ncurl -fsSL \"https://github.com/jeremylong/DependencyCheck/releases/download/v${version}/dependency-check-${version}-release.zip\" -o dependency-check.zip\nunzip -q dependency-check.zip\ndata_dir=\"${RUNNER_TEMP:-$PWD}/dependency-check-data\"\nmkdir -p dependency-check-out \"$data_dir\"\n# --data points at the cached NVD database, kept outside the working tree so it\n# is not itself scanned. On an ephemeral runner with no cache Dependency-Check\n# downloads the whole of the NVD before it scans anything, which is a five-hour\n# job on its own; with the previous run's copy restored it applies the delta.\nargs=(--scan . --format SARIF --out dependency-check-out --data \"$data_dir\")\nif [ -n \"${NVD_API_KEY:-}\" ]; then\n  args+=(--nvdApiKey \"$NVD_API_KEY\")\nfi\ndependency-check/bin/dependency-check.sh \"${args[@]}\" || true\nfound=$(find dependency-check-out -name '*.sarif' -print -quit)\nif [ -n \"$found\" ]; then\n  cp \"$found\" dependency-check.sarif\nfi\nif ! jq -e '.version and (.runs | type == \"array\")' dependency-check.sarif >/dev/null 2>&1; then\n  echo '::warning::dependency-check produced no valid SARIF; dropping the artifact'\n  rm -f dependency-check.sarif\nfi"
         }
       ],
       "detect": {
@@ -771,6 +781,7 @@
       "paths": [
         "cyclonedx-php.cdx.json"
       ],
+      "timeoutMinutes": 30,
       "steps": [
         {
           "name": "Set up PHP",
@@ -967,6 +978,7 @@
       "paths": [
         "psalm.sarif"
       ],
+      "timeoutMinutes": 30,
       "detect": {
         "files": [
           "composer.json"
