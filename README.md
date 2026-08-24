@@ -206,4 +206,4 @@ JVM artefacts, then writes one validated CycloneDX file offline.
 - [GitHub Actions Artifact Upload](docs/GHA_COMMAND.md)
 - [Distribution](docs/PUBLISHING.md)
 - [GitHub App](https://github.com/marketplace/vulnetix)
-<!-- ci-touch: 2026-08-14T04:04:34Z -->
+<!-- ci-touch: 2026-08-24T13:13:32Z -->
