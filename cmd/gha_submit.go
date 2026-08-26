@@ -25,6 +25,7 @@ import (
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/Vulnetix/vdb-sca-match/sarif"
 
+	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/upload"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -369,6 +370,16 @@ func chunkGHASARIF(log *sarif.Log) []ghaChunk {
 // submits it through the SCA path, so a syft or trivy SBOM produces the same
 // Dependency, Finding and IngestionSnapshot rows a `vulnetix sca` run does.
 func (s *ghaSubmitter) publishCycloneDX(res ghaFileResult, artifactName string, data []byte) ghaFileResult {
+	// Heal the known malformed-field classes before validating. Scanners emit
+	// documents their own schema rejects (ScanCode's unexpanded opam URL
+	// template, Trivy's duplicated dependsOn refs), and gha upload fails the
+	// whole run on one rejected artifact, so a single bogus field used to cost
+	// every other report in the job as well.
+	data, healed := cdx.NormalizeThirdPartyCDX(data)
+	for _, note := range healed {
+		s.warnf("  %s/%s: %s", artifactName, res.File, note)
+	}
+
 	bom, err := cyclonedx.ParseCDX(data)
 	if err != nil {
 		res.Status, res.Error = "error", fmt.Sprintf("invalid CycloneDX: %v", err)
