@@ -365,6 +365,7 @@ var SupportedManifestTypes = map[string]bool{
 	"shell-script": true,
 	// C/C++ / Conan
 	"conanfile.txt": true,
+	"conanfile.py":  true,
 	"conan.lock":    true,
 	// C/C++ / vcpkg
 	"vcpkg.json": true,
@@ -391,6 +392,8 @@ var SupportedManifestTypes = map[string]bool{
 	"rebar.lock":   true,
 	// Haskell / Stack
 	"stack.yaml": true,
+	// Haskell / hpack
+	"package.yaml": true, // content-checked: only detected when the file is an hpack description
 	// Haskell / Cabal
 	"*.cabal":              true,
 	"cabal.project.freeze": true,
@@ -469,6 +472,20 @@ func DetectManifest(filename string) (*ManifestInfo, bool) {
 			}
 			return &info, true
 		}
+	}
+
+	// 4a. Content-checked: hpack's package.yaml. hpack generates the .cabal file
+	// from it, so on a stack project it holds the only declaration of the
+	// package's dependencies. The name is generic enough to belong to other
+	// tools, so it counts only when the file carries an hpack section.
+	if base == "package.yaml" && looksLikeHpackYAML(filename) {
+		info := ManifestInfo{
+			Type:      "package.yaml",
+			Ecosystem: "hackage",
+			Language:  "haskell",
+			IsLock:    false,
+		}
+		return &info, true
 	}
 
 	// 5. Content-checked: compose-compatible YAML files with service image/build keys.
@@ -561,6 +578,38 @@ func looksLikeKubernetesYAML(content string) bool {
 			hasKind = true
 		}
 		if hasAPIVersion && hasKind {
+			return true
+		}
+	}
+	return false
+}
+
+// looksLikeHpackYAML reports whether a package.yaml is an hpack package
+// description: it declares dependencies and carries at least one of the
+// component/build sections hpack defines.
+func looksLikeHpackYAML(filename string) bool {
+	info, err := os.Stat(filename)
+	if err != nil || info.IsDir() || info.Size() > 256*1024 {
+		return false
+	}
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return false
+	}
+	hasDeps := false
+	hasSection := false
+	for _, ln := range strings.Split(string(content), "\n") {
+		trimmed := strings.TrimSpace(ln)
+		switch {
+		case strings.HasPrefix(trimmed, "dependencies:"), strings.HasPrefix(trimmed, "build-depends:"):
+			hasDeps = true
+		case strings.HasPrefix(trimmed, "library:"), strings.HasPrefix(trimmed, "executable:"),
+			strings.HasPrefix(trimmed, "executables:"), strings.HasPrefix(trimmed, "internal-libraries:"),
+			strings.HasPrefix(trimmed, "spec-version:"), strings.HasPrefix(trimmed, "ghc-options:"),
+			strings.HasPrefix(trimmed, "default-extensions:"):
+			hasSection = true
+		}
+		if hasDeps && hasSection {
 			return true
 		}
 	}

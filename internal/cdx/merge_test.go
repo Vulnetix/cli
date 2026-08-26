@@ -222,3 +222,65 @@ func assertTool(t *testing.T, bom *BOM, name string) {
 	}
 	t.Fatalf("tool %s not found in %+v", name, bom.Metadata.Tools.Components)
 }
+
+// A BOM written by an older CLI carried the raw SCP-style git remote in
+// metadata.component.externalReferences[].url. That value is not a valid
+// iri-reference, so merging it back in failed CycloneDX 1.7 validation and the
+// scan refused to write any BOM — permanently, because the bad value came from
+// the file on disk. The current run's component must win.
+func TestMergeBOMs_IncomingMetadataComponentWins(t *testing.T) {
+	onDisk := &BOM{
+		BOMFormat:   "CycloneDX",
+		SpecVersion: "1.7",
+		Version:     1,
+		Metadata: &Metadata{Component: &Component{
+			Type:   "application",
+			BOMRef: "urn:project",
+			Name:   "sca-manifest-fixtures",
+			ExternalReferences: []ExternalReference{
+				{Type: "vcs", URL: "git@github.com:Vulnetix/sca-manifest-fixtures.git"},
+			},
+			Properties: []Property{
+				{Name: "vulnetix:git/commit", Value: "oldsha"},
+				{Name: "vulnetix:git/repo-root", Value: "/old/path"},
+			},
+		}},
+	}
+	thisRun := &BOM{
+		BOMFormat:   "CycloneDX",
+		SpecVersion: "1.7",
+		Version:     1,
+		Metadata: &Metadata{Component: &Component{
+			Type:   "application",
+			BOMRef: "urn:project",
+			Name:   "sca-manifest-fixtures",
+			ExternalReferences: []ExternalReference{
+				{Type: "vcs", URL: "https://github.com/Vulnetix/sca-manifest-fixtures"},
+			},
+			Properties: []Property{
+				{Name: "vulnetix:git/commit", Value: "newsha"},
+			},
+		}},
+	}
+
+	merged := MergeBOMs(onDisk, thisRun)
+	got := merged.Metadata.Component
+	if len(got.ExternalReferences) != 1 || got.ExternalReferences[0].URL != "https://github.com/Vulnetix/sca-manifest-fixtures" {
+		t.Fatalf("stale VCS URL survived the merge: %+v", got.ExternalReferences)
+	}
+	var commit, repoRoot string
+	for _, p := range got.Properties {
+		switch p.Name {
+		case "vulnetix:git/commit":
+			commit = p.Value
+		case "vulnetix:git/repo-root":
+			repoRoot = p.Value
+		}
+	}
+	if commit != "newsha" {
+		t.Errorf("git commit = %q, want the current run's value", commit)
+	}
+	if repoRoot != "/old/path" {
+		t.Errorf("property only present on disk was dropped: repo-root = %q", repoRoot)
+	}
+}

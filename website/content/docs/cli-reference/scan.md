@@ -309,6 +309,9 @@ Clojure coordinates resolve as Maven `group:artifact` PURLs.
 | `*.cabal` | Cabal | No |
 | `cabal.project.freeze` | Cabal | Yes |
 | `stack.yaml` | Stack | No |
+| `package.yaml` | hpack | No |
+
+`package.yaml` is only recognized when the file is an hpack package description (it declares dependencies alongside an hpack section such as `library:` or `executables:`).
 
 ### OCaml
 

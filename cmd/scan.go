@@ -628,8 +628,20 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 					f.RelPath, f.ManifestInfo.Ecosystem, f.ManifestInfo.Language, lockStr, supportedStr)
 			}
 		case scan.FileTypeSPDX:
+			// SPDX is an input format like CycloneDX: its packages are scanned,
+			// not merely listed. Only a document whose packages carry purls has
+			// anything to match.
+			spdxComponents, spdxErr := parseSPDXForScan(f.Path)
 			if !resultsOnly && showDetectedForRun {
-				fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
+				if spdxErr == nil {
+					fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-8s (%d pkg)\n", f.RelPath, f.SBOMVersion, len(spdxComponents))
+				} else {
+					fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
+				}
+			}
+			if spdxErr == nil && len(spdxComponents) > 0 {
+				f.Supported = true
+				supportedFiles = append(supportedFiles, f)
 			}
 		case scan.FileTypeCycloneDX:
 			// Parse the CDX to check the producer.
@@ -909,14 +921,14 @@ func runLocalScan(
 		allPackages = make([]scan.ScopedPackage, 0, 256)
 
 		for _, f := range files {
-			// CDX input files: extract components as packages.
-			if f.FileType == scan.FileTypeCycloneDX {
-				cdxBom, err := parseCDXForScan(f.Path)
+			// SBOM input files (CycloneDX or SPDX): extract components as packages.
+			if f.FileType == scan.FileTypeCycloneDX || f.FileType == scan.FileTypeSPDX {
+				components, err := sbomComponentsForScan(f)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
 					continue
 				}
-				pkgs := buildPackagesFromCDX(cdxBom.Components, f.RelPath)
+				pkgs := buildPackagesFromCDX(components, f.RelPath)
 				scopeCounts := map[string]int{}
 				for _, p := range pkgs {
 					scopeCounts[p.Scope]++
@@ -2520,8 +2532,13 @@ func runDryScan(opts dryScanOptions) error {
 					f.RelPath, f.ManifestInfo.Ecosystem, f.ManifestInfo.Language, lockStr, supportedStr)
 			}
 		case scan.FileTypeSPDX:
+			spdxComponents, spdxErr := parseSPDXForScan(f.Path)
 			if showDetectedFiles {
-				fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-9s\n", f.RelPath, f.SBOMVersion)
+				fmt.Fprintf(os.Stderr, "  %-40s spdx        v%-8s (%d pkg)\n", f.RelPath, f.SBOMVersion, len(spdxComponents))
+			}
+			if spdxErr == nil && len(spdxComponents) > 0 {
+				f.Supported = true
+				supportedFiles = append(supportedFiles, f)
 			}
 		case scan.FileTypeCycloneDX:
 			cdxBom, cdxErr := parseCDXForScan(f.Path)
@@ -2562,14 +2579,14 @@ func runDryScan(opts dryScanOptions) error {
 	fmt.Fprintln(os.Stderr, "Parsing manifests (local):")
 	totalPkgs := 0
 	for _, f := range supportedFiles {
-		// CDX input files: extract components as packages.
-		if f.FileType == scan.FileTypeCycloneDX {
-			cdxBom, err := parseCDXForScan(f.Path)
+		// SBOM input files (CycloneDX or SPDX): extract components as packages.
+		if f.FileType == scan.FileTypeCycloneDX || f.FileType == scan.FileTypeSPDX {
+			components, err := sbomComponentsForScan(f)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "  %-40s parse error: %v\n", f.RelPath, err)
 				continue
 			}
-			pkgs := buildPackagesFromCDX(cdxBom.Components, f.RelPath)
+			pkgs := buildPackagesFromCDX(components, f.RelPath)
 			scopeCounts := map[string]int{}
 			for _, p := range pkgs {
 				scopeCounts[p.Scope]++
@@ -3450,7 +3467,7 @@ func formatScopeCounts(counts map[string]int) string {
 func countUniquePackages(packages []scan.ScopedPackage) int {
 	seen := map[string]bool{}
 	for _, p := range packages {
-		if len(p.Name) >= 3 {
+		if p.Name != "" {
 			seen[p.Name+"::"+p.Ecosystem] = true
 		}
 	}
@@ -3458,15 +3475,19 @@ func countUniquePackages(packages []scan.ScopedPackage) int {
 }
 
 // countUniqueMap returns a map of "name::ecosystem" → package (for dedup counting in display).
-// Applies the same len(name) >= 3 filter as countUniquePackages so the counts agree.
+// Applies the same empty-name filter as countUniquePackages so the counts agree.
+// Short names are counted: `db` (crystal), `qs`/`ms` (npm) and `q` are real
+// packages, and dropping them made the summary disagree with both the SBOM and
+// the number of packages actually sent to the VDB.
 func countUniqueMap(packages []scan.ScopedPackage) map[string]scan.ScopedPackage {
 	m := map[string]scan.ScopedPackage{}
 	for _, p := range packages {
-		if len(p.Name) >= 3 {
-			key := p.Name + "::" + p.Ecosystem
-			if _, exists := m[key]; !exists {
-				m[key] = p
-			}
+		if p.Name == "" {
+			continue
+		}
+		key := p.Name + "::" + p.Ecosystem
+		if _, exists := m[key]; !exists {
+			m[key] = p
 		}
 	}
 	return m
@@ -3630,6 +3651,44 @@ func parseCDXForScan(path string) (*cdx.BOM, error) {
 	return &bom, nil
 }
 
+// sbomComponentsForScan returns the components of a detected SBOM input file,
+// whichever of the two formats it is written in.
+func sbomComponentsForScan(f scan.DetectedFile) ([]cdx.Component, error) {
+	if f.FileType == scan.FileTypeSPDX {
+		return parseSPDXForScan(f.Path)
+	}
+	bom, err := parseCDXForScan(f.Path)
+	if err != nil {
+		return nil, err
+	}
+	return bom.Components, nil
+}
+
+// parseSPDXForScan reads an SPDX 2.x document and returns its packages as
+// CycloneDX components, so an SPDX input joins the scan through the same
+// component→package path a CycloneDX input takes. A package without a purl
+// carries no ecosystem and cannot be matched, so it is dropped.
+func parseSPDXForScan(path string) ([]cdx.Component, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	doc, err := parseSPDXPackages(data)
+	if err != nil {
+		return nil, err
+	}
+	components := make([]cdx.Component, 0, len(doc.packages))
+	for _, p := range doc.packages {
+		components = append(components, cdx.Component{
+			Type:    "library",
+			Name:    p.Name,
+			Version: p.Version,
+			Purl:    p.Purl,
+		})
+	}
+	return components, nil
+}
+
 // isVulnetixSCA checks whether the BOM was produced by vulnetix-sca.
 func isVulnetixSCA(bom *cdx.BOM) bool {
 	if bom == nil {
@@ -3726,7 +3785,7 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().StringArray("ignore", nil,
 		"Glob pattern (relative to scan root) to skip during the secrets stage; repeatable")
 	cmd.Flags().Bool("ignore-git", false,
-		"Skip the .git directory during the secrets stage. Default is to scan .git so credentials in past commits are surfaced")
+		"Skip the git-history secrets pass. The .git directory itself is never scanned as source; this flag additionally suppresses reading credentials out of past commits")
 	cmd.Flags().Bool("ignore-binaries", false,
 		"Skip binary files during the secrets stage. Default is to extract printable strings and EXIF metadata from binaries")
 	cmd.Flags().Bool("git-history", true,

@@ -244,11 +244,35 @@ func TestDetectManifestNewTypes(t *testing.T) {
 	if info, ok := DetectManifest(compose2); !ok || info.Type != "compose.yaml" {
 		t.Errorf("compose still detected: %+v ok=%v", info, ok)
 	}
-	for _, name := range []string{"packages.config", "project.clj", "deps.edn", "setup.py", "npm-shrinkwrap.json", ".npmrc", "build.sc"} {
+	for _, name := range []string{"packages.config", "project.clj", "deps.edn", "setup.py", "npm-shrinkwrap.json", ".npmrc", "build.sc", "conanfile.py"} {
 		p := write(name, "")
 		if _, ok := DetectManifest(p); !ok {
 			t.Errorf("%s not detected", name)
 		}
+	}
+}
+
+// package.yaml belongs to hpack only when it looks like one — the name is too
+// generic to claim on sight.
+func TestDetectManifestHpackPackageYAML(t *testing.T) {
+	dir := t.TempDir()
+	write := func(sub, body string) string {
+		p := filepath.Join(dir, sub, "package.yaml")
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	hpack := write("haskell", "name: myapp\nexecutables:\n  myapp:\n    dependencies:\n      - text\n")
+	if info, ok := DetectManifest(hpack); !ok || info.Type != "package.yaml" || info.Ecosystem != "hackage" {
+		t.Errorf("hpack package.yaml detection: %+v ok=%v", info, ok)
+	}
+	other := write("other", "title: notes\nbody: nothing to see\n")
+	if info, ok := DetectManifest(other); ok && info.Type == "package.yaml" {
+		t.Errorf("unrelated package.yaml claimed as hpack: %+v", info)
 	}
 }
 

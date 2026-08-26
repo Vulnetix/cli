@@ -409,13 +409,13 @@ end
 		wantVersion string
 		wantSpec    string
 	}{
-		// cleanLocalVersion strips "~" from "~> 7.0" → "> 7.0" (space preserved).
-		// cleanLocalVersion strips ">=" from ">= 1.1" → " 1.1" (leading space preserved).
+		// cleanLocalVersion strips the whole range operator, so Version is the
+		// bare version a purl can carry ("~> 7.0" → "7.0", ">= 1.1" → "1.1").
 		// VersionSpec always holds the raw string from the Gemfile.
-		{"rails", "> 7.0", "~> 7.0"},
-		{"pg", " 1.1", ">= 1.1"},
+		{"rails", "7.0", "~> 7.0"},
+		{"pg", "1.1", ">= 1.1"},
 		{"puma", "5.6.4", "5.6.4"},
-		{"rspec-rails", "> 6.0", "~> 6.0"},
+		{"rspec-rails", "6.0", "~> 6.0"},
 	}
 	for _, tt := range tests {
 		p, ok := findPkg(pkgs, tt.name)

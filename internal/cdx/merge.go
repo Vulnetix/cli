@@ -65,7 +65,23 @@ func mergeMetadata(existing, incoming *BOM) {
 	if len(existing.Metadata.Lifecycles) == 0 {
 		existing.Metadata.Lifecycles = incoming.Metadata.Lifecycles
 	}
-	if existing.Metadata.Component == nil {
+	// metadata.component describes the subject of the BOM as observed by THIS
+	// run — branch, commit, dirty flag, tags, VCS URL. The copy on disk is a
+	// snapshot of an earlier run, so keeping it froze the git state at whatever
+	// the first scan saw and, worse, made a bad value permanent: a BOM written
+	// by an older CLI carried the raw SCP-style remote
+	// ("git@github.com:org/repo.git") in externalReferences[].url, which is not
+	// a valid iri-reference. Every later scan merged that back in, failed
+	// CycloneDX 1.7 validation, and refused to write a BOM at all — the repo
+	// could never recover on its own. The incoming component wins; properties
+	// the incoming run did not produce are carried over rather than dropped.
+	if incoming.Metadata.Component != nil {
+		if existing.Metadata.Component != nil {
+			incoming.Metadata.Component.Properties = carryOverUnsetProperties(
+				incoming.Metadata.Component.Properties,
+				existing.Metadata.Component.Properties,
+			)
+		}
 		existing.Metadata.Component = incoming.Metadata.Component
 	}
 	if len(existing.Metadata.Authors) == 0 {
@@ -506,4 +522,23 @@ func ParseUpstreamFromJSON(raw []byte) (map[string]any, error) {
 		return nil, fmt.Errorf("parse upstream cdx: %w", err)
 	}
 	return out, nil
+}
+
+// carryOverUnsetProperties appends properties from prev whose NAME the current
+// run did not emit at all. Unlike mergeProperties it never adds a second entry
+// under a name the current run already set: metadata.component properties like
+// vulnetix:git/commit are single-valued, and name+value deduplication would
+// accumulate one stale entry per scan.
+func carryOverUnsetProperties(current, prev []Property) []Property {
+	seen := make(map[string]bool, len(current))
+	for _, p := range current {
+		seen[p.Name] = true
+	}
+	for _, p := range prev {
+		if !seen[p.Name] {
+			seen[p.Name] = true
+			current = append(current, p)
+		}
+	}
+	return current
 }
