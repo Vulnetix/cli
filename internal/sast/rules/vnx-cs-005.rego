@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_cs_005
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-CS-005",
@@ -29,11 +30,12 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`\[Http(Post|Put|Delete|Patch)\]`, line)
-	# Check the surrounding context (10 lines) for missing VAFT
-	window_start := max([0, i - 2])
-	window_end := min([count(lines) - 1, i + 10])
-	window_lines := array.slice(lines, window_start, window_end + 1)
-	window := concat("\n", window_lines)
+	not helpers.is_comment_line(line)
+	# Check the surrounding context (10 lines) for missing VAFT. Comments are
+	# stripped first: a `// TODO: add [ValidateAntiForgeryToken]` note is a
+	# description of the vulnerability, not the mitigation, and it used to
+	# silence this rule.
+	window := helpers.code_window(lines, i, 2, 10)
 	not contains(window, "ValidateAntiForgeryToken")
 	not contains(window, "Consumes(")
 	not contains(window, "IgnoreAntiforgeryToken")

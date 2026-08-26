@@ -25,6 +25,15 @@ _is_bash(path) if endswith(path, ".bash")
 
 _is_bash(path) if endswith(path, ".bats")
 
+# A dynamic eval argument is a parameter/command substitution OR a backtick
+# substitution. Requiring both — which is what listing the two regexes as
+# consecutive body expressions did — meant the rule only fired on the vanishing
+# case of a line using both syntaxes at once, so `eval "$user_input"` (the
+# canonical form of this vulnerability) was never reported.
+_dynamic_eval_arg(line) if regex.match(`\$`, line)
+
+_dynamic_eval_arg(line) if regex.match("`", line)
+
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	_is_bash(path)
@@ -32,8 +41,7 @@ findings contains finding if {
 	some i, line in lines
 	# Check if line contains eval with variables or command substitution
 	regex.match("^\\s*eval\\s+", line)  # Starts with eval
-	regex.match("\\$", line)  # Contains variables
-	regex.match("`", line)  # Contains command substitution
+	_dynamic_eval_arg(line)
 	not regex.match(`^\s*#`, line)
 	finding := {
 		"rule_id": metadata.id,

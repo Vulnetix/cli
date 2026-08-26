@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_llm_001
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-LLM-001",
@@ -24,12 +25,37 @@ _skip(path) if endswith(path, ".sum")
 _skip(path) if endswith(path, ".min.js")
 _skip(path) if endswith(path, ".min.css")
 
+# An LLM call spans several lines: the client call opens on one line and the
+# message list with the interpolated prompt follows. Requiring the SDK name and
+# the f-string on one line meant the canonical shape
+#
+#     response = client.chat.completions.create(
+#         messages=[{"role": "system", "content": f"... {user_input}"}]
+#
+# was never flagged. _in_llm_call looks back over the open call instead.
+_llm_call_re := `(openai|anthropic|bedrock|litellm|langchain|completions?\.create|messages\.create|chat\.complete|chat\.completions|generate_content|invoke_model|\.chat\()`
+
+_in_llm_call(lines, i) if regex.match(_llm_call_re, lines[i])
+
+# Both directions: the message list follows an open `create(`, but a prompt
+# built into a local is assembled just above the call that consumes it.
+_in_llm_call(lines, i) if {
+	start := max([0, i - 10])
+	end := min([count(lines) - 1, i + 6])
+	some j in numbers.range(start, end)
+	j != i
+	not helpers.is_comment_line(lines[j])
+	regex.match(_llm_call_re, lines[j])
+}
+
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	not _skip(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	regex.match(`(openai|anthropic|completion|chat).*f".*\{.*(request|user_input|user_message|query|prompt)`, line)
+	not helpers.is_comment_line(line)
+	regex.match(`f["'].*\{.*(request|user_input|user_message|user_query|query|prompt)`, line)
+	_in_llm_call(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "User-controlled input interpolated into LLM prompt; sanitize user input and use structured message construction to prevent prompt injection",
@@ -46,7 +72,9 @@ findings contains finding if {
 	not _skip(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	regex.match(`(completions\.create|messages\.create|chat\.complete).*\+\s*(user_input|user_message|query|prompt|request)`, line)
+	not helpers.is_comment_line(line)
+	regex.match(`\+\s*(user_input|user_message|user_query|query|prompt|request)\b`, line)
+	_in_llm_call(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "User-controlled input concatenated into LLM prompt; use structured message construction to prevent prompt injection",

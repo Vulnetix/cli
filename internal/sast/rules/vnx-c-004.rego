@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_c_004
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-C-004",
@@ -42,8 +43,11 @@ findings contains finding if {
 	# Extract the freed pointer name
 	m := regex.find_n(`\bfree\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)`, line, 1)
 	count(m) > 0
-	# Check the next line (i+1) for use of the same identifier
-	next_line := lines[i + 1]
+	# Check the next line of *code* for use of the same identifier. Reading
+	# lines[i+1] literally meant a single explanatory comment or blank line
+	# between the free() and the dereference hid the use-after-free.
+	next_idx := helpers.next_code_index(lines, i, 3)
+	next_line := lines[next_idx]
 	ptr_name := regex.find_n(`\bfree\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)`, line, 1)[0]
 	# Extract just the pointer name from the match
 	ptr := regex.find_n(`[a-zA-Z_][a-zA-Z0-9_]*`, ptr_name, -1)[1]
@@ -57,7 +61,7 @@ findings contains finding if {
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
-		"start_line": i + 2,
+		"start_line": next_idx + 1,
 		"snippet": next_line,
 	}
 }

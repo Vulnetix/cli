@@ -94,6 +94,7 @@ var languageExtensions = map[string][]string{
 		".il", ".aspx", ".ascx", ".ashx", ".asmx", ".asax", ".master",
 		".xaml", ".axaml", ".cake", ".t4", ".tt", ".vbhtml", ".resx", ".resw",
 		".asp", ".asa", ".dib", // classic ASP (vbscript/jscript) + .NET notebooks
+		".csproj", ".sln", ".slnx", ".vbproj", ".fsproj", ".nuspec", // project/solution files
 	},
 	"rust":      {".rs", ".rs.in"},
 	"swift":     {".swift", ".swiftinterface", ".gyb", ".docc", ".xcconfig"},
@@ -160,9 +161,10 @@ var languageFilenames = map[string][]string{
 	"package.swift": {"swift"},
 	"cartfile":      {"swift"},
 	// Go
-	"go.mod":  {"go"},
-	"go.sum":  {"go"},
-	"go.work": {"go"},
+	"go.mod":      {"go"},
+	"go.sum":      {"go"},
+	"go.work":     {"go"},
+	"go.work.sum": {"go"},
 	// JVM
 	"build.gradle":     {"java", "android"},
 	"build.gradle.kts": {"kotlin", "android"},
@@ -188,8 +190,47 @@ var languageFilenames = map[string][]string{
 	"makefile":       {"bash"},
 	// Rust
 	"cargo.toml": {"rust"},
+	"cargo.lock": {"rust"},
 	// PHP
 	"composer.json": {"php"},
+	"composer.lock": {"php"},
+	// JS/TS ecosystem manifests and lock files. Without these, a directory
+	// holding only a package.json registers no javascript, and the language
+	// pre-filter drops every javascript rule — including VNX-NODE-001, whose
+	// whole job is to fire on a manifest that has no lock file beside it.
+	"package.json":        {"javascript"},
+	"package-lock.json":   {"javascript"},
+	"npm-shrinkwrap.json": {"javascript"},
+	"yarn.lock":           {"javascript"},
+	"pnpm-lock.yaml":      {"javascript"},
+	"pnpm-workspace.yaml": {"javascript"},
+	"bun.lock":            {"javascript"},
+	"bun.lockb":           {"javascript"},
+	"deno.json":           {"javascript"},
+	"deno.jsonc":          {"javascript"},
+	"deno.lock":           {"javascript"},
+	// Python manifests and lock files — same reasoning as above for
+	// VNX-PY-001. setup.py already matches by extension.
+	"pyproject.toml":   {"python"},
+	"requirements.txt": {"python"},
+	"requirements.in":  {"python"},
+	"setup.cfg":        {"python"},
+	"pipfile":          {"python"},
+	"pipfile.lock":     {"python"},
+	"poetry.lock":      {"python"},
+	"uv.lock":          {"python"},
+	"pdm.lock":         {"python"},
+	"conda.yaml":       {"python"},
+	"environment.yml":  {"python"},
+	// Ruby / Gemfile is listed above; its lock file counts too.
+	"gemfile.lock": {"ruby"},
+	// .NET project/solution files carry the extension form as well, but a
+	// solution-only or packages.config-only directory must still keep the
+	// csharp rules.
+	"packages.config":       {"csharp"},
+	"nuget.config":          {"csharp"},
+	"directory.build.props": {"csharp"},
+	"global.json":           {"csharp"},
 	// Python build systems (Bazel/SCons/Waf/Snakemake — Python source)
 	"snakefile":       {"python"},
 	"sconstruct":      {"python"},

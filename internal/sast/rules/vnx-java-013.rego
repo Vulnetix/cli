@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_java_013
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-JAVA-013",
@@ -21,13 +22,34 @@ metadata := {
 
 _is_java(path) if endswith(path, ".java")
 
+# Servlet / Spring request accessors that return attacker-controlled text.
+_java_source_re := `(getParameter|getHeader|getQueryString|getPathInfo|getCookies|getInputStream|getReader|@RequestParam|@PathVariable|@RequestBody|request\.)`
+
+# Concatenation of a string literal with an expression — the shape of a query
+# assembled by hand rather than bound as a parameter.
+_concat_re := `["']\s*\+|\+\s*["']`
+
+# The sink and the source are almost never on the same source line. The usual
+# shape is three statements: read the parameter, build the expression, then
+# evaluate it. _user_input covers the one-hop case (parameter read into a local
+# that the sink line names) and _built_by_concat covers the expression that was
+# assembled just above the call.
+_user_input(lines, i) if regex.match(_java_source_re, lines[i])
+
+_user_input(lines, i) if helpers.has_tainted_var(lines, i, 10, _java_source_re)
+
+_built_by_concat(lines, i) if regex.match(`xpath\.(evaluate|compile)\s*\(.*\+`, lines[i])
+
+_built_by_concat(lines, i) if helpers.has_tainted_var(lines, i, 10, _concat_re)
+
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	_is_java(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
+	not helpers.is_comment_line(line)
 	regex.match(`xpath\.(evaluate|compile)\s*\(`, line)
-	regex.match(`(getParameter|getHeader|getQuery|request\.)`, line)
+	_user_input(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "XPath expression constructed from user input; use parameterized XPath with variable resolvers or validate input against a strict allowlist",
@@ -44,7 +66,9 @@ findings contains finding if {
 	_is_java(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
-	regex.match(`xpath\.(evaluate|compile)\s*\(.*\+`, line)
+	not helpers.is_comment_line(line)
+	regex.match(`xpath\.(evaluate|compile)\s*\(`, line)
+	_built_by_concat(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "XPath expression constructed with string concatenation; use parameterized XPath queries to prevent XPath injection",

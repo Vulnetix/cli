@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_gql_003
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-GQL-003",
@@ -24,14 +25,29 @@ _skip(path) if endswith(path, ".sum")
 _skip(path) if endswith(path, ".min.js")
 _skip(path) if endswith(path, ".min.css")
 
+_js_source_re := `(req\.|request\.|ctx\.request|body\.|params\.|\.query\.|args\.|searchParams|getParameter)`
+
+# The interpolated value is normally destructured out of the request one or two
+# lines above the template literal, not read inline. Requiring the accessor on
+# the same line as the `${` meant the common shape
+#
+#     const fragment = req.body.fragment;
+#     const query = `query { user { ${fragment} } }`;
+#
+# produced no finding at all.
+_js_user_input(lines, i) if regex.match(_js_source_re, lines[i])
+
+_js_user_input(lines, i) if helpers.has_tainted_var(lines, i, 8, _js_source_re)
+
 # Template literal with request body/params interpolated into a query/mutation/subscription
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	not _skip(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
+	not helpers.is_comment_line(line)
 	regex.match("(?i)(query|mutation|subscription)\\s*[{`].*\\$\\{", line)
-	regex.match(`\$\{.*(req\.|request\.|body\.|params\.|query\.|args\.)`, line)
+	_js_user_input(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "GraphQL query injection: user input interpolated into operation string — use static documents with variables map instead",
@@ -49,8 +65,13 @@ findings contains finding if {
 	not _skip(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
+	not helpers.is_comment_line(line)
 	regex.match(`["']\s*(query|mutation|subscription)\s*\{.*["']\s*\+`, line)
-	regex.match(`\+\s*(req\.|request\.|body\.|params\.|userInput|fragment|field)`, line)
+	# The concatenated operand used to have to be a literal accessor or one of
+	# three hard-coded variable names, so `+ userFields` — a local read from
+	# req.query.fields a line earlier — slipped through. Accept any identifier
+	# that a nearby line assigned from the request.
+	_js_user_input(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "GraphQL query injection: user input concatenated into operation string — use static documents with variables map instead",

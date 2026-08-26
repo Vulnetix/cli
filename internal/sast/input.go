@@ -36,9 +36,8 @@ var languageIndicators = map[string][]string{
 }
 
 // skipDirs is the set of directories we always skip during a regular scan
-// walker. .git is intentionally NOT in this list — the secrets subcommand
-// walks the .git directory by default (honouring --ignore-git) and we want
-// a single walker to handle both cases.
+// walker. .git is handled separately in the walk (see isGitDirName): it is
+// never project source, so it is pruned unconditionally rather than by flag.
 var skipDirs = map[string]bool{
 	"node_modules": true,
 	".hg":          true,
@@ -65,9 +64,11 @@ type BuildOptions struct {
 	MaxDepth int
 	Excludes []string
 
-	// IgnoreGit, when true, skips the .git directory entirely. The default
-	// is false: the secrets subcommand walks .git to surface credentials
-	// that exist only in past commits.
+	// IgnoreGit, when true, also disables the git-history secrets pass.
+	// The .git directory itself is never walked as project source — see
+	// isGitDirName — so this flag now only governs whether git *history*
+	// (reachable through the object database, not the on-disk layout) is
+	// inspected for credentials.
 	IgnoreGit bool
 
 	// IgnoreGlobs is an additional set of glob patterns to exclude. The
@@ -145,24 +146,27 @@ func BuildScanInputWithOptions(rootPath string, opts BuildOptions) (*ScanInput, 
 			depth = strings.Count(relPath, "/") + 1
 		}
 
+		// The git directory is never project source. Its contents are
+		// git's own bookkeeping plus the sample hooks git itself ships,
+		// so scanning it produced findings against files the user never
+		// wrote and cannot fix. Pruned unconditionally, at any depth, for
+		// every rule kind. Credentials in past commits are still surfaced:
+		// that pass reads the object database through go-git (see
+		// secretscan.ScanGitHistory) rather than the on-disk layout.
+		if relPath != "" && isGitDirName(d.Name()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			// A worktree or submodule checkout has `.git` as a *file*
+			// holding "gitdir: <path>". Skip it like the directory.
+			return nil
+		}
+
 		if d.IsDir() {
 			if relPath != "" && depth > opts.MaxDepth {
 				return filepath.SkipDir
 			}
-			// .git is special: by default we walk into it (the secrets
-			// subcommand scans the whole .git directory), but --ignore-git
-			// and --ignore ".git" both suppress it.
 			base := d.Name()
-			if base == ".git" {
-				if opts.IgnoreGit {
-					return filepath.SkipDir
-				}
-				if shouldExclude(relPath, combinedExcludes) || shouldExclude(".git", combinedExcludes) {
-					return filepath.SkipDir
-				}
-				// Recurse normally so loose objects and refs get walked.
-				return nil
-			}
 			if skipDirs[base] {
 				return filepath.SkipDir
 			}
@@ -239,6 +243,12 @@ func matchesIndicator(files map[string]bool, pattern string) bool {
 	}
 	return files[pattern]
 }
+
+// isGitDirName reports whether a directory entry is git's own metadata entry.
+// It is a directory in a normal clone and a *file* containing "gitdir: <path>"
+// in a linked worktree or a submodule checkout, so both forms are recognised
+// by name and the caller prunes whichever kind it found.
+func isGitDirName(name string) bool { return name == ".git" }
 
 // shouldExclude checks if a path matches any exclude glob pattern.
 func shouldExclude(relPath string, excludes []string) bool {

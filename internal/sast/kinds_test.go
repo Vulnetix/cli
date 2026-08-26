@@ -104,12 +104,26 @@ func TestFilterModulesByKindFiltersEachKind(t *testing.T) {
 
 func TestFilterModulesByID(t *testing.T) {
 	got := FilterModulesByID(sampleModules(), "vnx-0003")
-	require.Len(t, got, 1, "single-rule mode keeps exactly one module")
 	require.Contains(t, got, "rules/c.rego")
+	require.Len(t, ruleModulesOnly(got), 1, "single-rule mode keeps exactly one rule")
+	// Shared libraries must survive: OPA compiles every module together, so a
+	// rule that imports data.vulnetix.helpers fails to compile without it and
+	// the run reports a clean scan instead of an error.
+	require.Contains(t, got, "rules/lib.rego", "shared libraries are retained")
 
 	in := sampleModules()
 	require.Len(t, FilterModulesByID(in, ""), len(in), "an empty id means no filter")
-	require.Empty(t, FilterModulesByID(in, "VNX-9999"))
+	require.Empty(t, ruleModulesOnly(FilterModulesByID(in, "VNX-9999")))
+}
+
+func ruleModulesOnly(modules map[string]string) map[string]string {
+	out := map[string]string{}
+	for name, src := range modules {
+		if IsRuleModule(src) {
+			out[name] = src
+		}
+	}
+	return out
 }
 
 // TestEmbeddedCorpusKindDistribution pins the shape the language server's

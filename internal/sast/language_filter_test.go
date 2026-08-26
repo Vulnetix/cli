@@ -232,7 +232,19 @@ func TestPresentLanguages(t *testing.T) {
 		{"fastfile is ruby", "fastlane/Fastfile", []string{"ruby"}},
 		{"asciidoc is html", "guide.adoc", []string{"html"}},
 		{"non-source has no language", "README.md", nil},
-		{"package.json deliberately not a language signal", "package.json", nil},
+		// package.json / pyproject.toml used to be excluded on the grounds
+		// that they appear in repos that are not really JS/Python projects.
+		// That cost more than it saved: the lock-file rules (VNX-NODE-001,
+		// VNX-PY-001) fire on a manifest with no lock file beside it, so a
+		// directory holding only the manifest is exactly the case they
+		// exist for — and the pre-filter silently dropped them. Extra rules
+		// kept for a repo that merely carries a package.json cost eval time;
+		// dropping them costs findings.
+		{"package.json is javascript", "package.json", []string{"javascript"}},
+		{"pyproject.toml is python", "pyproject.toml", []string{"python"}},
+		{"requirements.txt is python", "requirements.txt", []string{"python"}},
+		{"gemfile.lock is ruby", "Gemfile.lock", []string{"ruby"}},
+		{"csproj is csharp", "src/App.csproj", []string{"csharp"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

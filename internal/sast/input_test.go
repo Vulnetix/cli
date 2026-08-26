@@ -3,6 +3,7 @@ package sast
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -204,5 +205,78 @@ func TestLoadFileContents_SkipsBinary(t *testing.T) {
 
 	if _, ok := input.FileContents["binary.txt"]; ok {
 		t.Error("binary file should be skipped")
+	}
+}
+
+// TestBuildScanInput_ExcludesGitDirectory locks in that git's own metadata
+// directory never reaches the rule engine. `vulnetix scan` used to walk it and
+// report findings such as VNX-1054 against .git/hooks/*.sample — sample hooks
+// that git itself ships, that never execute, and that no user can fix.
+func TestBuildScanInput_ExcludesGitDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	gitDir := filepath.Join(tmpDir, ".git", "hooks")
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gitDir, "fsmonitor-watchman.sample"), []byte("#!/usr/bin/perl\n# commented block\n# more\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, ".git", "config"), []byte("[core]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both the default walk and the --ignore-git walk must exclude it.
+	for _, ignoreGit := range []bool{false, true} {
+		input, err := BuildScanInputWithOptions(tmpDir, BuildOptions{MaxDepth: 10, IgnoreGit: ignoreGit})
+		if err != nil {
+			t.Fatalf("ignoreGit=%v: unexpected error: %v", ignoreGit, err)
+		}
+		if !input.FileSet["main.go"] {
+			t.Errorf("ignoreGit=%v: expected main.go in file set", ignoreGit)
+		}
+		for p := range input.FileSet {
+			if p == ".git" || strings.HasPrefix(p, ".git/") {
+				t.Errorf("ignoreGit=%v: .git content leaked into the scan input: %q", ignoreGit, p)
+			}
+		}
+	}
+}
+
+// TestBuildScanInput_ExcludesGitFilePointer covers linked worktrees and
+// submodule checkouts, where `.git` is a file holding "gitdir: <path>" rather
+// than a directory. Nested .git directories (vendored repos, submodule
+// checkouts committed into the tree) are pruned at any depth.
+func TestBuildScanInput_ExcludesGitFilePointer(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(tmpDir, ".git"), []byte("gitdir: /elsewhere/.git/worktrees/wt\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	subDir := filepath.Join(tmpDir, "vendor-src", "dep")
+	if err := os.MkdirAll(filepath.Join(subDir, ".git", "hooks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(subDir, ".git", "hooks", "pre-commit.sample"), []byte("#!/bin/sh\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(subDir, "dep.go"), []byte("package dep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	input, err := BuildScanInputWithOptions(tmpDir, BuildOptions{MaxDepth: 10})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !input.FileSet["vendor-src/dep/dep.go"] {
+		t.Error("expected vendor-src/dep/dep.go in file set")
+	}
+	for p := range input.FileSet {
+		if p == ".git" || strings.Contains(p, "/.git/") || strings.HasPrefix(p, ".git/") {
+			t.Errorf("git metadata leaked into the scan input: %q", p)
+		}
 	}
 }

@@ -43,8 +43,11 @@ findings contains finding if {
 	some i, line in lines
 	some method in _http_methods
 	contains(line, method)
-	# Flag when the argument looks like a variable rather than a string literal
-	regex.match(sprintf(`\.\(%s\)\s*\(\s*[^"]`, [method]), line)
+	# Flag when the argument looks like a variable rather than a string
+	# literal. The escapes here used to read `\.\(%s\)\s*\(`, which is the
+	# literal text ".(OpenRead)(" — a form that never occurs in C#, so the
+	# rule could not fire at all.
+	regex.match(sprintf(`\.%s\s*\(\s*[^"\s)]`, [method]), line)
 	# Context: check for WebClient, HttpClient, WebRequest within nearby lines
 	window_start := max([0, i - 10])
 	window_end := min([count(lines) - 1, i + 2])

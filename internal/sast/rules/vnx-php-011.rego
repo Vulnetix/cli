@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_php_011
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-PHP-011",
@@ -19,6 +20,20 @@ metadata := {
 	"tags": ["sql-injection", "injection", "php"],
 }
 
+# User input reaches the sink either on the same line (a superglobal read
+# inline) or one hop away, through a local assigned from a superglobal a few
+# lines above. Requiring the same line missed the ordinary two-line shape
+#
+#     $id = $_GET["id"];
+#     mysql_query("SELECT ... " . $id);
+#
+# which is the form nearly all real PHP SQL injection takes.
+_php_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES|SERVER)\s*\[`
+
+_user_input(lines, i) if regex.match(_php_source_re, lines[i])
+
+_user_input(lines, i) if helpers.has_tainted_var(lines, i, 12, _php_source_re)
+
 _skip(path) if endswith(path, ".lock")
 _skip(path) if endswith(path, ".sum")
 _skip(path) if endswith(path, ".min.js")
@@ -30,7 +45,7 @@ findings contains finding if {
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
 	regex.match(`mysql_query\s*\(`, line)
-	regex.match(`\$_(GET|POST|REQUEST|COOKIE)\[`, line)
+	_user_input(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "SQL injection: user input concatenated into mysql_query() — use prepared statements with PDO or MySQLi instead",
@@ -49,7 +64,7 @@ findings contains finding if {
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
 	regex.match(`mysqli_query\s*\(`, line)
-	regex.match(`\$_(GET|POST|REQUEST|COOKIE)\[`, line)
+	_user_input(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "SQL injection: user input concatenated into mysqli_query() — use prepared statements with MySQLi bind_param() instead",
@@ -68,7 +83,7 @@ findings contains finding if {
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
 	regex.match(`pg_query\s*\(`, line)
-	regex.match(`\$_(GET|POST|REQUEST|COOKIE)\[`, line)
+	_user_input(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "SQL injection: user input concatenated into pg_query() — use pg_query_params() with parameterized queries instead",

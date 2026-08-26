@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_node_025
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-NODE-025",
@@ -26,6 +27,23 @@ _is_js(path) if endswith(path, ".tsx")
 _is_js(path) if endswith(path, ".mjs")
 _is_js(path) if endswith(path, ".cjs")
 
+# The cookie flags live inside the options object, several lines below the
+# `session({` call that opens it. Demanding "express-session" on the same line
+# as `secure: false` meant a real misconfiguration was only caught when it was
+# written as a one-liner. `not contains(line, "//")` was the second half of the
+# same problem: it discarded any flag carrying a trailing comment, which is
+# exactly how these options are usually annotated.
+_session_open_re := `(express-session|cookie-session|cookieSession|session\s*\(|expressSession)`
+
+_in_session_config(lines, i) if regex.match(_session_open_re, lines[i])
+
+_in_session_config(lines, i) if {
+	start := max([0, i - 15])
+	some j in numbers.range(start, i - 1)
+	not helpers.is_comment_line(lines[j])
+	regex.match(_session_open_re, lines[j])
+}
+
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	_is_js(path)
@@ -34,8 +52,8 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, "secure:")
 	contains(line, "false")
-	regex.match(`(express-session|cookie-session|cookieSession|session\()`, line)
-	not contains(line, "//")
+	_in_session_config(lines, i)
+	not helpers.is_comment_line(line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Session cookie has secure:false; set secure:true to ensure the cookie is only sent over HTTPS",
@@ -55,8 +73,8 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, "httpOnly:")
 	contains(line, "false")
-	regex.match(`(express-session|cookie-session|cookieSession|session\()`, line)
-	not contains(line, "//")
+	_in_session_config(lines, i)
+	not helpers.is_comment_line(line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Session cookie has httpOnly:false; set httpOnly:true to prevent client-side JavaScript from accessing the session cookie",
@@ -76,8 +94,8 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, "resave:")
 	contains(line, "true")
-	regex.match(`(express-session|session)\s*\(`, line)
-	not contains(line, "//")
+	_in_session_config(lines, i)
+	not helpers.is_comment_line(line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "express-session configured with resave:true; this causes unnecessary session saves on every request — set resave:false to reduce session store load",

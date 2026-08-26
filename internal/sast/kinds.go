@@ -131,16 +131,28 @@ func FilterModulesByKind(modules map[string]string, noSAST, noSecrets, noContain
 
 // FilterModulesByID retains only the module whose metadata id matches ruleID,
 // case-insensitively. An empty ruleID returns modules unchanged.
+//
+// Shared libraries are retained alongside it, for the same reason
+// FilterModulesToKinds retains them: OPA compiles every module together, so
+// dropping a library a kept rule imports fails the whole evaluation. Without
+// this, `--rule-id VNX-C-004` aborted with "undefined function
+// data.vulnetix.helpers.next_code_index" and reported a clean scan, because
+// the one rule it kept imports data.vulnetix.helpers.
 func FilterModulesByID(modules map[string]string, ruleID string) map[string]string {
 	if ruleID == "" {
 		return modules
 	}
 	target := strings.ToUpper(strings.TrimSpace(ruleID))
-	filtered := make(map[string]string, 1)
+	filtered := make(map[string]string, 2)
+	matched := false
 	for name, src := range modules {
-		if strings.ToUpper(ExtractRegoID(src)) == target {
+		if !IsRuleModule(src) {
 			filtered[name] = src
-			break
+			continue
+		}
+		if !matched && strings.ToUpper(ExtractRegoID(src)) == target {
+			filtered[name] = src
+			matched = true
 		}
 	}
 	return filtered

@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_java_024
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-JAVA-024",
@@ -24,12 +25,16 @@ _is_java(path) if endswith(path, ".java")
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	_is_java(path)
-	content := input.file_contents[path]
-	contains(content, "DocumentBuilderFactory.newInstance()")
-	not contains(content, "disallow-doctype-decl")
-	not contains(content, "setExpandEntityReferences(false)")
-	lines := split(content, "\n")
+	lines := split(input.file_contents[path], "\n")
+	# The hardening check runs over code only. A comment such as
+	# "// TRIGGERS: ... without disallow-doctype-decl" names the mitigation
+	# without applying it, and used to suppress the finding it described.
+	code := helpers.code_text(lines)
+	contains(code, "DocumentBuilderFactory.newInstance()")
+	not contains(code, "disallow-doctype-decl")
+	not contains(code, "setExpandEntityReferences(false)")
 	some i, line in lines
+	not helpers.is_comment_line(line)
 	contains(line, "DocumentBuilderFactory.newInstance()")
 	finding := {
 		"rule_id": metadata.id,
@@ -45,12 +50,13 @@ findings contains finding if {
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	_is_java(path)
-	content := input.file_contents[path]
-	contains(content, "SAXParserFactory.newInstance()")
-	not contains(content, "disallow-doctype-decl")
-	not contains(content, "setFeature")
-	lines := split(content, "\n")
+	lines := split(input.file_contents[path], "\n")
+	code := helpers.code_text(lines)
+	contains(code, "SAXParserFactory.newInstance()")
+	not contains(code, "disallow-doctype-decl")
+	not contains(code, "setFeature")
 	some i, line in lines
+	not helpers.is_comment_line(line)
 	contains(line, "SAXParserFactory.newInstance()")
 	finding := {
 		"rule_id": metadata.id,

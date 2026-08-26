@@ -1,6 +1,7 @@
 package vulnetix.rules.vnx_java_017
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-JAVA-017",
@@ -21,13 +22,23 @@ metadata := {
 
 _is_java(path) if endswith(path, ".java")
 
+_java_source_re := `getParameter|getHeader|getQueryString|getPathInfo|getAttribute|getCookies|@RequestParam|@PathVariable`
+
+# Reading the parameter and writing the header are separate statements in
+# practice; requiring both on one line meant the rule only caught the inlined
+# form, which is the rarer of the two.
+_user_input(lines, i) if regex.match(_java_source_re, lines[i])
+
+_user_input(lines, i) if helpers.has_tainted_var(lines, i, 10, _java_source_re)
+
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	_is_java(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
+	not helpers.is_comment_line(line)
 	regex.match(`(addHeader|setHeader)\s*\(`, line)
-	regex.match(`getParameter|getHeader|getQueryString|getPathInfo|getAttribute`, line)
+	_user_input(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "HTTP header value derived from user input; strip \\r and \\n before calling addHeader()/setHeader() to prevent HTTP response splitting",
@@ -44,8 +55,9 @@ findings contains finding if {
 	_is_java(path)
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
+	not helpers.is_comment_line(line)
 	contains(line, "sendRedirect")
-	regex.match(`getParameter|getHeader|getQueryString|getPathInfo`, line)
+	_user_input(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "sendRedirect() with unsanitised user input; strip CRLF characters to prevent HTTP response splitting / header injection",
