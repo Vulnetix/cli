@@ -27,18 +27,50 @@ func eventually(t *testing.T, timeout time.Duration, cond func() bool, msg strin
 func TestDebounceCoalescesABurst(t *testing.T) {
 	// The point of the debounce: typing produces a burst of didChange, and the
 	// user wants one evaluation of the final text, not one per keystroke.
-	s := NewScheduler(30 * time.Millisecond)
-	defer s.Close()
+	//
+	// "One burst" is a claim about wall-clock time, and this test is the only
+	// one here that needs the machine to keep a promise about it: the ten
+	// changes have to land inside a single debounce window or the extra
+	// evaluations are correct behaviour, not a bug. A shared CI runner under
+	// -race can stall a 2ms sleep well past 30ms, which is how this test came
+	// to report actual:3 and actual:10 on two different runs of unchanged
+	// scheduler code.
+	//
+	// So the burst is timed and the premise is checked rather than assumed. A
+	// burst that overran the window says nothing about coalescing, and is
+	// retried instead of being judged.
+	const debounce = 200 * time.Millisecond
+	const attempts = 5
 
-	var runs atomic.Int64
-	for range 10 {
-		s.ScheduleDocument("file:///a.go", func(context.Context) { runs.Add(1) })
-		time.Sleep(2 * time.Millisecond)
+	for attempt := 1; attempt <= attempts; attempt++ {
+		s := NewScheduler(debounce)
+
+		var runs atomic.Int64
+		start := time.Now()
+		for range 10 {
+			s.ScheduleDocument("file:///a.go", func(context.Context) { runs.Add(1) })
+			time.Sleep(2 * time.Millisecond)
+		}
+		// The whole burst fitting inside one window is stronger than needed
+		// and much simpler to state: it means no individual gap reached the
+		// debounce, so no timer can have fired part-way through.
+		burst := time.Since(start)
+
+		eventually(t, 5*time.Second, func() bool { return runs.Load() >= 1 }, "the run should eventually happen")
+		time.Sleep(2 * debounce)
+		got := runs.Load()
+		s.Close()
+
+		if burst >= debounce {
+			t.Logf("attempt %d/%d: the ten changes took %v, longer than the %v debounce, so they were never one burst; retrying", attempt, attempts, burst, debounce)
+			continue
+		}
+
+		require.Equal(t, int64(1), got, "ten changes in one burst must produce exactly one evaluation")
+		return
 	}
 
-	eventually(t, time.Second, func() bool { return runs.Load() >= 1 }, "the run should eventually happen")
-	time.Sleep(60 * time.Millisecond)
-	require.Equal(t, int64(1), runs.Load(), "ten changes in one burst must produce exactly one evaluation")
+	t.Skipf("no burst of ten changes fit inside %v in %d attempts; this machine is too loaded to ask the question", debounce, attempts)
 }
 
 func TestDebounceRunsAgainAfterAQuietPeriod(t *testing.T) {
