@@ -513,6 +513,22 @@ func Plan(desired PolicyFile, server ServerState) []Change {
 		}
 	}
 
+	// A provider association the file does not mention is reported as drift but
+	// never deleted, even under --prune. Clearing a provider row removes a "deny",
+	// which *opens* access — the opposite of what every other prune does — so it
+	// stays a deliberate, explicit act. Reporting it costs nothing and stops the
+	// row from being silently invisible, which is how it behaved before.
+	for slug, action := range server.Providers {
+		if action == "" || hasProvider(desired.Spec.Providers, slug) {
+			continue
+		}
+		changes = append(changes, Change{
+			Kind: KindProvider, Op: OpDrift, Target: slug,
+			Detail: action + " on the server, not in this file (prune never clears a provider: " +
+				"run 'vulnetix ai-firewall policy provider " + slug + " --clear')",
+		})
+	}
+
 	// Settings.
 	if s := desired.Spec.Settings; s != nil && s.LogsEnabled != nil && *s.LogsEnabled != server.LogsEnabled {
 		v := *s.LogsEnabled
@@ -539,6 +555,15 @@ func sortChanges(changes []Change) {
 func hasGuardrail(gs []GuardrailSpec, name string) bool {
 	for _, g := range gs {
 		if g.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func hasProvider(ps []ProviderSpec, slug string) bool {
+	for _, p := range ps {
+		if p.Slug == slug {
 			return true
 		}
 	}

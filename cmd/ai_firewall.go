@@ -542,6 +542,25 @@ func resolveInstallClients(args []string, o aifw.Options) ([]aifw.Client, error)
 	return out, nil
 }
 
+// whyNotTargeted explains why a provider is not among the wiring targets. A
+// provider drops out for three different reasons and the remedies are opposites
+// — store a key, or loosen the org policy — so reporting them all as "no key
+// stored" sends the reader to `key set` for a provider whose key is already
+// there. Mirrors the filter in aiFirewallTargets.
+func whyNotTargeted(pol aifw.Policy, provider string) string {
+	if hasKey, known := pol.ProviderHasKey[provider]; known && !hasKey {
+		return "no key stored for " + provider + " — run 'vulnetix ai-firewall key set " + provider + "'"
+	}
+	if pol.ProviderAction[provider] == "deny" {
+		return provider + " is denied by org policy — run 'vulnetix ai-firewall policy provider " + provider + " --allow'"
+	}
+	if _, known := pol.ProviderHasKey[provider]; !known {
+		return provider + " is not in the gateway catalog"
+	}
+	// Reached when --provider narrowed the run to other providers.
+	return provider + " was not selected by --provider"
+}
+
 func installClient(c aifw.Client, o aifw.Options, fwctx *aiFirewallContext, createEnv, dryRun bool) ([]aiFirewallAction, error) {
 	// A client that speaks a wire the gateway does not proxy for its provider
 	// cannot be wired at all. Say so; do not write a config that 404s.
@@ -550,7 +569,7 @@ func installClient(c aifw.Client, o aifw.Options, fwctx *aiFirewallContext, crea
 			return []aiFirewallAction{{Target: c.DisplayName, Result: "skipped — " + why}}, nil
 		}
 		if !o.HasTarget(provider) {
-			return []aiFirewallAction{{Target: c.DisplayName, Result: "skipped — no key stored for " + provider}}, nil
+			return []aiFirewallAction{{Target: c.DisplayName, Result: "skipped — " + whyNotTargeted(fwctx.Policy, provider)}}, nil
 		}
 	}
 

@@ -334,8 +334,8 @@ func TestPlanPrunesModelRows(t *testing.T) {
 		Providers: map[string]string{}, HasKey: map[string]bool{},
 		Guardrails: map[string]ServerGuardrail{},
 		Models: map[string]string{
-			"openai/gpt-4o":            "allow",
-			"openai/gpt-4o-mini":       "allow",
+			"openai/gpt-4o":             "allow",
+			"openai/gpt-4o-mini":        "allow",
 			"anthropic/claude-sonnet-5": "deny",
 		},
 	}
@@ -451,5 +451,40 @@ func TestExportPinsBaselineOff(t *testing.T) {
 	}
 	if pf.Spec.BaselineRequested() {
 		t.Errorf("an export must pin the baseline off so a round-trip is a no-op:\n%s", body)
+	}
+}
+
+// A provider association absent from the file must surface as drift and never as
+// a delete: clearing a provider row drops a "deny", which opens access rather
+// than closing it. Before this, an unmentioned provider was silently invisible.
+func TestPlanReportsProviderDriftAndNeverPrunesIt(t *testing.T) {
+	desired := basePolicy()
+	desired.Spec.Prune = true
+	desired.Spec.Providers = []ProviderSpec{{Slug: "openai", Action: "deny"}}
+	server := ServerState{
+		Providers: map[string]string{
+			"openai": "deny", // mentioned
+			"xai":    "deny", // unmentioned, has an association
+			"groq":   "",     // unmentioned, default — nothing to report
+		},
+		HasKey:     map[string]bool{},
+		Models:     map[string]string{},
+		Guardrails: map[string]ServerGuardrail{},
+	}
+
+	var drift []string
+	for _, c := range Plan(desired, server) {
+		if c.Kind != KindProvider {
+			continue
+		}
+		if c.Op == OpDelete {
+			t.Fatalf("prune must never delete a provider association: %+v", c)
+		}
+		if c.Op == OpDrift {
+			drift = append(drift, c.Target)
+		}
+	}
+	if len(drift) != 1 || drift[0] != "xai" {
+		t.Fatalf("expected drift for xai alone, got %v", drift)
 	}
 }

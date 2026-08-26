@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
@@ -262,6 +263,32 @@ func runAiFirewallSettings(cmd *cobra.Command, args []string) error {
 	if ctx.IsJSON() {
 		return ctx.Logger.ResultJSON(resp.Data)
 	}
-	ctx.Logger.Result(renderPackageFirewallResult(ctx, "AI Firewall settings updated", resp.Data))
+	ctx.Logger.Result(renderPackageFirewallResult(ctx, "AI Firewall settings updated", humaniseEpochMillis(resp.Data)))
 	return nil
+}
+
+// humaniseEpochMillis rewrites epoch-millisecond timestamps into something a
+// reader can use. The shared renderer formats every value with fmt.Sprint, and a
+// JSON number arrives as float64, so `updatedAt` printed as "1.787608801223e+12".
+// It is normalised here rather than in the renderer because that renderer is
+// shared with the package-firewall command tree. JSON output is untouched:
+// machine consumers keep the raw epoch.
+func humaniseEpochMillis(data map[string]any) map[string]any {
+	if data == nil {
+		return nil
+	}
+	out := make(map[string]any, len(data))
+	for k, v := range data {
+		out[k] = v
+		if !strings.HasSuffix(k, "At") {
+			continue
+		}
+		ms, ok := v.(float64)
+		// Guard the range so a non-timestamp number is left exactly as it was.
+		if !ok || ms < 1e12 || ms > 4e12 {
+			continue
+		}
+		out[k] = time.UnixMilli(int64(ms)).UTC().Format(time.RFC3339)
+	}
+	return out
 }
