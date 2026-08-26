@@ -4,16 +4,25 @@ weight: 12
 description: "Configure Conda (Anaconda / conda-forge) to use the Vulnetix Package Firewall."
 ---
 
-Conda packages (Python/R) are firewalled by pointing channels at the proxy. Automatic CLI config is not yet implemented — configure manually.
+Conda packages (Python/R) are firewalled by pointing channels at the proxy.
 
 - **Proxy URL:** `https://packages.vulnetix.com/conda`
 - **Plan:** Pro
 - **Enforcement:** Filter — blocked versions are removed from `repodata.json`.
+- **Status:** not usable on real channels yet. See the limitation below.
+
+## Current limitation
+
+{{< callout type="error" >}}
+**Conda is not usable against production channels today.** Filtering a channel means reading its whole `repodata.json` and evaluating policy for every package in it. Real channels publish that file at 26–184 MB, which does not complete inside the proxy's response deadline: requests to `main` and `conda-forge` time out or return a server error. Only very small private channels currently work.
+
+Do not point a production environment at the Conda proxy expecting it to resolve. Support requires the proxy to filter and cache each channel's index rather than rebuild it per request; until that ships, treat Conda as unsupported rather than slow.
+{{< /callout >}}
 
 ## Getting started
 
 {{< callout type="warning" >}}
-`vulnetix package-firewall conda` is not yet automated and will report "not implemented yet". Configure `~/.condarc` manually as below.
+`vulnetix package-firewall conda` is not automated and will report "not implemented yet". Configure `~/.condarc` manually as below.
 {{< /callout >}}
 
 Conda uses the `requests` library, which reads `~/.netrc` — run any `vulnetix package-firewall <ecosystem>` once to populate netrc, or add the entry yourself.

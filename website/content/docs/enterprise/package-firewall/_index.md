@@ -19,7 +19,7 @@ One proxy fronts **23 ecosystems**. Point a package manager at the firewall (the
 
 | Mode | What a developer sees | Ecosystems |
 | --- | --- | --- |
-| **Filter** (unsigned metadata) | Blocked versions are removed from the index/metadata, so your resolver never selects them. A version you pin explicitly returns a policy status. | npm, PyPI, Cargo, Go, RubyGems, pub.dev, Maven, NuGet, Composer, Conda, CRAN, Helm, Chef, Terraform |
+| **Filter** (unsigned metadata) | Blocked versions are removed from the index/metadata, so your resolver never selects them. A version you pin explicitly returns a policy status. | npm, PyPI, Cargo, Go, RubyGems, pub.dev, Maven, NuGet, Composer, CRAN, Helm, Chef, Terraform |
 | **Gate** (signed / digest-addressed metadata) | The index is served unchanged so signature verification still passes; a blocked version's **download** returns a policy status. | Hex, Conan, Julia, Docker/OCI, Debian, RPM, Alpine, Homebrew, Arch Linux |
 
 You don't configure the mode — it's chosen per ecosystem so the firewall never breaks a registry's signature checks.
@@ -31,7 +31,7 @@ Go and Arch Linux are free for every community account. All other ecosystems req
 | Tier | Ecosystems |
 | --- | --- |
 | **Community** (free) | Go, Arch Linux |
-| **Pro** (and Teams) | npm, PyPI, Cargo, RubyGems, Hex, pub.dev, Maven, NuGet, Composer, Conan, Conda, CRAN, Julia, Homebrew |
+| **Pro** (and Teams) | npm, PyPI, Cargo, RubyGems, Hex, pub.dev, Maven, NuGet, Composer, Conan, CRAN, Julia, Homebrew |
 | **Enterprise** | Docker/OCI, Debian/Ubuntu, RPM, Alpine, Helm, Chef, Terraform |
 
 See [vulnetix.com/pricing](https://www.vulnetix.com/pricing) for details.
@@ -53,7 +53,7 @@ See [vulnetix.com/pricing](https://www.vulnetix.com/pricing) for details.
   {{< card link="nuget" title="NuGet" subtitle=".NET — v3 service index." >}}
   {{< card link="composer" title="Composer" subtitle="PHP — Packagist v2." >}}
   {{< card link="conan" title="Conan" subtitle="C / C++ — remotes." >}}
-  {{< card link="conda" title="Conda" subtitle="Python / R — channels." >}}
+  {{< card link="conda" title="Conda" subtitle="Python / R — not usable on real channels yet." >}}
   {{< card link="cran" title="CRAN" subtitle="R — package repository." >}}
   {{< card link="julia" title="Julia" subtitle="Julia — Pkg server." >}}
   {{< card link="docker" title="Docker / OCI" subtitle="Container images. Enterprise." >}}
