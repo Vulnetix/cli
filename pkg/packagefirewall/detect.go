@@ -18,21 +18,31 @@ type Detected struct {
 func ConfigPaths(eco Ecosystem, home string) []string {
 	switch eco.ID {
 	case "npm":
-		return []string{filepath.Join(home, ".npmrc")}
+		return []string{
+			filepath.Join(home, ".npmrc"),
+			filepath.Join(home, ".yarnrc.yml"),
+		}
 	case "pypi":
 		return []string{
 			filepath.Join(home, ".config", "pip", "pip.conf"),
 			filepath.Join(home, ".pip", "pip.conf"),
 			filepath.Join(home, ".pypirc"),
+			filepath.Join(home, ".config", "uv", "uv.toml"),
 		}
 	case "cargo":
 		return []string{filepath.Join(home, ".cargo", "config.toml")}
 	case "gem":
-		return []string{filepath.Join(home, ".gemrc")}
+		return []string{
+			filepath.Join(home, ".gemrc"),
+			filepath.Join(home, ".bundle", "config"),
+		}
 	case "hex":
 		return []string{filepath.Join(home, ".config", "vulnetix", "package-firewall", "hex.env")}
 	case "pub":
-		return []string{filepath.Join(home, ".config", "vulnetix", "package-firewall", "pub.env")}
+		return []string{
+			filepath.Join(home, ".config", "vulnetix", "package-firewall", "pub.env"),
+			filepath.Join(home, ".config", "dart", "pub-tokens.json"),
+		}
 	case "maven":
 		return []string{filepath.Join(home, ".m2", "settings.xml")}
 	case "nuget":

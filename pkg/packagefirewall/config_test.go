@@ -409,3 +409,38 @@ func TestHomebrewConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestGemWritesBundlerMirror(t *testing.T) {
+	eco, _ := ByCommand("gem")
+	files, err := ConfigFiles(eco, opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("gem files = %d, want 2 (.gemrc + .bundle/config)", len(files))
+	}
+	if files[1].Path != "/home/test/.bundle/config" {
+		t.Fatalf("bundler config path = %q", files[1].Path)
+	}
+	for _, want := range []string{
+		`BUNDLE_MIRROR__ALL: "https://packages.vulnetix.com/gem/"`,
+		`BUNDLE_MIRROR__HTTPS://RUBYGEMS__ORG: "https://packages.vulnetix.com/gem/"`,
+		`BUNDLE_PACKAGES__VULNETIX__COM: "org-123:secret"`,
+	} {
+		if !strings.Contains(files[1].Content, want) {
+			t.Errorf("bundler config missing %q:\n%s", want, files[1].Content)
+		}
+	}
+}
+
+func TestBundlerCredentialKey(t *testing.T) {
+	for host, want := range map[string]string{
+		"packages.vulnetix.com": "BUNDLE_PACKAGES__VULNETIX__COM",
+		"my-proxy.example.org":  "BUNDLE_MY___PROXY__EXAMPLE__ORG",
+		"localhost:3000":        "BUNDLE_LOCALHOST:3000",
+	} {
+		if got := bundlerCredentialKey(host); got != want {
+			t.Errorf("bundlerCredentialKey(%q) = %q, want %q", host, got, want)
+		}
+	}
+}

@@ -387,3 +387,47 @@ func TestMaskSecret(t *testing.T) {
 		t.Errorf("unexpected mask: %q", got)
 	}
 }
+
+// A credentials file never names the proxy host, so removal has to fall back to
+// the file's own marker — otherwise uninstall leaves the secret on disk.
+func TestRemoveFileStructuredUsesMarkerWhenHostAbsent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "credentials.json")
+	body := `{"credentials":[{"remote":"vulnetix","user":"org-123","password":"secret"}]}`
+	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	f := File{Path: path, Content: body, Structured: true, Marker: "vulnetix"}
+	out, err := RemoveFile(f, Markers{Start: "# start", End: "# end"}, "packages.vulnetix.com", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.Configured || !out.Deleted {
+		t.Fatalf("outcome = %+v, want configured+deleted", out)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Error("credentials file should have been deleted")
+	}
+}
+
+func TestRemoveFileStructuredKeepsUnrelatedFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "credentials.json")
+	body := `{"credentials":[{"remote":"artifactory","user":"someone","password":"secret"}]}`
+	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	f := File{Path: path, Content: body, Structured: true, Marker: "vulnetix"}
+	out, err := RemoveFile(f, Markers{Start: "# start", End: "# end"}, "packages.vulnetix.com", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Configured || out.Deleted {
+		t.Fatalf("outcome = %+v, want untouched", out)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Error("an unrelated credentials file must be left alone")
+	}
+}

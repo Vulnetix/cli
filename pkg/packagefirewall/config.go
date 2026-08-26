@@ -27,6 +27,11 @@ type ConfigFile struct {
 	// firewall settings into a user's real config non-destructively (paru.conf,
 	// yay config.json). The writer backs up the original before writing.
 	Merge func(existing string) (string, error)
+	// Marker is an alternative ownership needle used when reversing a Structured
+	// write whose content never names the proxy host — a credentials file, which
+	// carries only the org id and the secret. Without it uninstall declines to
+	// touch the file and the credential stays on disk.
+	Marker string
 }
 
 func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
@@ -58,7 +63,14 @@ func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
 			{Path: filepath.Join(home, ".cargo", "credentials.toml"), Content: cargoCredentials(eco, opts)},
 		}, nil
 	case "gem":
-		return []ConfigFile{{Path: filepath.Join(home, ".gemrc"), Content: gemConfig(eco, opts)}}, nil
+		// .gemrc only steers the `gem` command. Bundler ignores it entirely and
+		// resolves against whatever `source` the Gemfile names, so without the
+		// mirror below every `bundle install` — the way Ruby projects actually
+		// install — went straight to rubygems.org and never met the firewall.
+		return []ConfigFile{
+			{Path: filepath.Join(home, ".gemrc"), Content: gemConfig(eco, opts)},
+			{Path: filepath.Join(home, ".bundle", "config"), Content: bundlerConfig(eco, opts)},
+		}, nil
 	case "hex":
 		return []ConfigFile{{Path: filepath.Join(home, ".config", "vulnetix", "package-firewall", "hex.env"), Content: hexConfig(eco, opts)}}, nil
 	case "pub":
@@ -83,7 +95,7 @@ func ConfigFiles(eco Ecosystem, opts ConfigOptions) ([]ConfigFile, error) {
 	case "conan":
 		return []ConfigFile{
 			{Path: filepath.Join(home, ".conan2", "remotes.json"), Content: conanRemotesConfig(eco, opts), Structured: true},
-			{Path: filepath.Join(home, ".conan2", "credentials.json"), Content: conanCredentialsConfig(opts), Structured: true},
+			{Path: filepath.Join(home, ".conan2", "credentials.json"), Content: conanCredentialsConfig(opts), Structured: true, Marker: conanRemoteName},
 		}, nil
 	case "cran":
 		return []ConfigFile{{Path: filepath.Join(home, ".Rprofile"), Content: cranConfig(eco, opts)}}, nil
@@ -219,6 +231,35 @@ func gemConfig(eco Ecosystem, opts ConfigOptions) string {
 	}, "\n")
 }
 
+// bundlerConfig writes ~/.bundle/config so Bundler resolves and downloads
+// through the firewall. Bundler stores settings under env-var-shaped keys, and
+// credentials are keyed on the mirror's host rather than embedded in the URL —
+// userinfo in a mirror URL is not carried into the gem fetch.
+//
+// mirror.all redirects every source (including private ones); the explicit
+// rubygems.org key is kept alongside it for Bundler versions predating
+// mirror.all.
+func bundlerConfig(eco Ecosystem, opts ConfigOptions) string {
+	// No leading "---": the block is spliced into a file the user may already
+	// have, and a document separator part-way through would make Bundler's YAML
+	// load see two documents and read only the first.
+	mirror := ProxyURLWithSlash(opts.ProxyURL, eco)
+	return strings.Join([]string{
+		"BUNDLE_MIRROR__ALL: " + strconv.Quote(mirror),
+		"BUNDLE_MIRROR__HTTPS://RUBYGEMS__ORG: " + strconv.Quote(mirror),
+		bundlerCredentialKey(proxyHost(opts.ProxyURL)) + ": " + strconv.Quote(opts.OrgID+":"+opts.APIKey),
+		"",
+	}, "\n")
+}
+
+// bundlerCredentialKey mirrors Bundler::Settings.key_for for a hostname: dots
+// become "__", hyphens "___", and the result is upcased under a BUNDLE_ prefix.
+func bundlerCredentialKey(host string) string {
+	k := strings.ReplaceAll(host, ".", "__")
+	k = strings.ReplaceAll(k, "-", "___")
+	return "BUNDLE_" + strings.ToUpper(k)
+}
+
 // hexConfig embeds the credentials in HEX_MIRROR; Hex/mix has no separate auth
 // file for a mirror, and the firewall requires auth on every request. Hex honors
 // userinfo in the mirror URL.
@@ -324,11 +365,15 @@ func composerAuthConfig(opts ConfigOptions) string {
 	return string(out) + "\n"
 }
 
+// conanRemoteName is the remote the firewall registers in Conan, and doubles as
+// the ownership marker for the credentials file, which never names the host.
+const conanRemoteName = "vulnetix"
+
 func conanRemotesConfig(eco Ecosystem, opts ConfigOptions) string {
 	cfg := map[string]any{
 		"remotes": []map[string]any{
 			{
-				"name":       "vulnetix",
+				"name":       conanRemoteName,
 				"url":        ProxyURL(opts.ProxyURL, eco),
 				"verify_ssl": true,
 			},
@@ -348,7 +393,7 @@ func conanCredentialsConfig(opts ConfigOptions) string {
 	cfg := map[string]any{
 		"credentials": []map[string]string{
 			{
-				"remote":   "vulnetix",
+				"remote":   conanRemoteName,
 				"user":     opts.OrgID,
 				"password": opts.APIKey,
 			},

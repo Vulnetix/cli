@@ -40,6 +40,21 @@ type File struct {
 	// Strip reverses a Merge write when no backup is available: it removes only
 	// the keys we injected. The bool reports whether anything was removed.
 	Strip func(path, existing string) (string, bool)
+	// Marker is an alternative ownership needle for a Structured file whose
+	// content does not name the proxy host. A credentials file is the case that
+	// needs it: it carries only the org id and the secret, so a host-only test
+	// declines to remove it and uninstall leaves the credential on disk.
+	Marker string
+}
+
+// ownsContent reports whether existing content looks like something we wrote,
+// by naming the proxy host or the file's own marker.
+func (f File) ownsContent(existing, host string) bool {
+	if host != "" && strings.Contains(existing, host) {
+		return true
+	}
+
+	return f.Marker != "" && strings.Contains(existing, f.Marker)
 }
 
 // Mode reports how f is written.
@@ -182,7 +197,7 @@ func RemoveFile(f File, m Markers, host string, dryRun bool) (RemoveOutcome, err
 		// No backup: the file was created by us (or the user's file was written
 		// before backups existed). It is ours to delete only if it still points at
 		// the firewall.
-		if host == "" || !strings.Contains(existing, host) {
+		if !f.ownsContent(existing, host) {
 			return out, nil
 		}
 		out.Configured = true

@@ -39,6 +39,7 @@ func managedFile(file pfw.ConfigFile) managedfile.File {
 		Structured: file.Structured,
 		Merge:      file.Merge,
 		Strip:      stripMergeKeys,
+		Marker:     file.Marker,
 	}
 }
 
@@ -274,20 +275,17 @@ func runPackageFirewallEcosystem(cmd *cobra.Command, eco pfw.Ecosystem) error {
 		b.WriteString(fmt.Sprintf("  %s: %s\n", action.Target, action.Result))
 	}
 
-	if eco.ID == "homebrew" {
-		b.WriteString("\n" + display.Subheader(t, "Homebrew setup") + "\n")
-		b.WriteString("  Homebrew reads these settings from environment variables.\n")
+	// Hex, pub and Homebrew have no config file we can write: each reads its
+	// registry from an environment variable, so the writer drops a .env file and
+	// the shell has to source it. Saying "setup complete" without saying that
+	// leaves the user with a firewall that is not actually in the request path.
+	if envFile := firstEnvFile(actions); envFile != "" {
+		b.WriteString("\n" + display.Subheader(t, eco.DisplayName+" setup") + "\n")
+		b.WriteString("  " + eco.DisplayName + " reads these settings from environment variables.\n")
 		if packageFirewallDryRun {
 			b.WriteString("  After running without --dry-run, source the env file:\n")
 		} else {
 			b.WriteString("  Source the env file to activate the firewall:\n")
-		}
-		envFile := ""
-		for _, a := range actions {
-			if strings.HasSuffix(a.Target, "homebrew.env") {
-				envFile = a.Target
-				break
-			}
 		}
 		b.WriteString(fmt.Sprintf("    source %s\n", envFile))
 		b.WriteString("  Add that line to your shell profile (e.g. ~/.zshrc or ~/.bashrc) to persist it.\n")
@@ -295,6 +293,17 @@ func runPackageFirewallEcosystem(cmd *cobra.Command, eco pfw.Ecosystem) error {
 
 	ctx.Logger.Result(strings.TrimRight(b.String(), "\n"))
 	return nil
+}
+
+// firstEnvFile returns the first written config file that is a shell env file,
+// i.e. one that only takes effect once the user sources it.
+func firstEnvFile(actions []packageFirewallAction) string {
+	for _, a := range actions {
+		if strings.HasSuffix(a.Target, ".env") {
+			return a.Target
+		}
+	}
+	return ""
 }
 
 func packageFirewallAPIKey(baseURL string) (orgID, apiKey, source string, err error) {
