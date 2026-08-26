@@ -78,12 +78,20 @@ type Detect struct {
 
 // Step is one workflow step. Exactly one of Uses or Run is set.
 type Step struct {
-	Name string            `json:"name,omitempty"`
-	ID   string            `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+	ID   string `json:"id,omitempty"`
+	// If is a GitHub expression written verbatim into the step's `if:`. A step
+	// that cannot run everywhere is gated on a preceding detection step rather
+	// than left to hang the job on a runner that cannot support it.
+	If   string            `json:"if,omitempty"`
 	Uses string            `json:"uses,omitempty"`
 	Run  string            `json:"run,omitempty"`
 	With map[string]any    `json:"with,omitempty"`
 	Env  map[string]string `json:"env,omitempty"`
+	// TimeoutMinutes caps one step. The job cap cannot rescue a step that
+	// blocks on a prompt that never arrives: the job spends its whole budget
+	// inside setup and dies having run no scanner at all.
+	TimeoutMinutes int `json:"timeoutMinutes,omitempty"`
 }
 
 // Load parses the embedded catalog.

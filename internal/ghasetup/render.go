@@ -245,9 +245,18 @@ func renderStep(s Step) string {
 	if s.ID != "" {
 		fmt.Fprintf(&b, "        id: %s\n", s.ID)
 	}
+	if s.If != "" {
+		// Written verbatim. A GitHub expression is already its own syntax, and
+		// quoting it as a YAML scalar would double every apostrophe in it for
+		// no gain; the catalog is first-party content, not user input.
+		fmt.Fprintf(&b, "        if: %s\n", s.If)
+	}
 	// Every scanner step tolerates failure: one broken scanner must not stop the
 	// others from publishing.
 	b.WriteString("        continue-on-error: true\n")
+	if s.TimeoutMinutes > 0 {
+		fmt.Fprintf(&b, "        timeout-minutes: %d\n", s.TimeoutMinutes)
+	}
 
 	if len(s.Env) > 0 {
 		b.WriteString("        env:\n")

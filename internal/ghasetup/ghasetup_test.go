@@ -502,3 +502,77 @@ func TestRenderSchedulePerRepository(t *testing.T) {
 		t.Error("an explicit --cron must override the derived schedule")
 	}
 }
+
+// shivammathur/setup-php shells out to sudo. The self-hosted pools grant the
+// runner user exactly one narrow sudo rule, so on those runners the action
+// blocks forever on a password prompt: continue-on-error cannot help a step
+// that never returns, and the job burns its whole budget inside setup before
+// dying at the cap having run no scanner. Every such action must be gated on a
+// detection step and capped in its own right.
+func TestSudoDependentActionsAreGated(t *testing.T) {
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Actions known to require passwordless sudo on Linux runners.
+	sudoActions := []string{"shivammathur/setup-php@"}
+
+	found := 0
+	for _, tool := range c.Tools {
+		ids := map[string]bool{}
+		for _, s := range tool.Steps {
+			if s.ID != "" {
+				ids[s.ID] = true
+			}
+			needsSudo := false
+			for _, prefix := range sudoActions {
+				if strings.HasPrefix(s.Uses, prefix) {
+					needsSudo = true
+				}
+			}
+			if !needsSudo {
+				continue
+			}
+			found++
+			if s.If == "" {
+				t.Errorf("%s: step %q uses a sudo-dependent action with no if: gate; "+
+					"it will hang on a runner without passwordless sudo", tool.ID, s.Name)
+				continue
+			}
+			if !ids["php-setup"] {
+				t.Errorf("%s: step %q is gated on a detection step that does not precede it",
+					tool.ID, s.Name)
+			}
+			if !strings.Contains(s.If, "steps.php-setup.outputs.run") {
+				t.Errorf("%s: step %q gate %q does not read the detection step's output",
+					tool.ID, s.Name, s.If)
+			}
+			if s.TimeoutMinutes <= 0 || s.TimeoutMinutes > 10 {
+				t.Errorf("%s: step %q needs a short timeout-minutes backstop, got %d",
+					tool.ID, s.Name, s.TimeoutMinutes)
+			}
+		}
+	}
+	if found == 0 {
+		t.Fatal("no sudo-dependent action found in the catalog; the guard has stopped guarding anything")
+	}
+
+	// The gate has to survive rendering, not just live in the catalog.
+	out, err := Render(c, []string{"psalm", "cyclonedx-php"}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"      - name: Detect PHP setup capability\n        id: php-setup\n",
+		"        if: steps.php-setup.outputs.run == 'true'\n",
+		"        timeout-minutes: 5\n        uses: shivammathur/setup-php@v2\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("rendered workflow is missing %q", want)
+		}
+	}
+	if strings.Count(out, "sudo -n true") != 2 {
+		t.Errorf("expected both PHP jobs to probe for passwordless sudo, got %d probes",
+			strings.Count(out, "sudo -n true"))
+	}
+}

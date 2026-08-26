@@ -784,8 +784,15 @@
       "timeoutMinutes": 30,
       "steps": [
         {
+          "name": "Detect PHP setup capability",
+          "id": "php-setup",
+          "run": "# shivammathur/setup-php shells out to sudo. The runner pools grant one\n# narrow sudo rule, so on those runners the action blocks forever on a\n# password prompt and the job dies at its timeout-minutes cap having done\n# nothing. Only run it where sudo is non-interactive.\nif sudo -n true >/dev/null 2>&1; then\n  echo 'run=true' >>\"$GITHUB_OUTPUT\"\nelse\n  echo 'run=false' >>\"$GITHUB_OUTPUT\"\n  echo '::notice::passwordless sudo is unavailable on this runner; using the PHP already installed'\nfi"
+        },
+        {
           "name": "Set up PHP",
+          "if": "steps.php-setup.outputs.run == 'true'",
           "uses": "shivammathur/setup-php@v2",
+          "timeoutMinutes": 5,
           "with": {
             "php-version": "8.2",
             "tools": "composer"
@@ -986,8 +993,15 @@
       },
       "steps": [
         {
+          "name": "Detect PHP setup capability",
+          "id": "php-setup",
+          "run": "# shivammathur/setup-php shells out to sudo. The runner pools grant one\n# narrow sudo rule, so on those runners the action blocks forever on a\n# password prompt and the job dies at its timeout-minutes cap having done\n# nothing. Only run it where sudo is non-interactive.\nif sudo -n true >/dev/null 2>&1; then\n  echo 'run=true' >>\"$GITHUB_OUTPUT\"\nelse\n  echo 'run=false' >>\"$GITHUB_OUTPUT\"\n  echo '::notice::passwordless sudo is unavailable on this runner; using the PHP already installed'\nfi"
+        },
+        {
           "name": "Set up PHP",
+          "if": "steps.php-setup.outputs.run == 'true'",
           "uses": "shivammathur/setup-php@v2",
+          "timeoutMinutes": 5,
           "with": {
             "php-version": "8.3",
             "coverage": "none"
