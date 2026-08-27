@@ -39,7 +39,7 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb ecosystem package](#vdb-ecosystem-package)
   - [vdb ecosystem group](#vdb-ecosystem-group)
   - [vdb eol product](#vdb-eol-product)
-  - [vdb eol package](#vdb-eol-package)
+  - [vdb eol release](#vdb-eol-release)
   - [vdb kev list](#vdb-kev-list)
   - [vdb kev get](#vdb-kev-get)
   - [vdb kev download](#vdb-kev-download)
@@ -48,6 +48,7 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb attack-techniques list](#vdb-attack-techniques-list)
   - [vdb snort-rules get](#vdb-snort-rules-get)
   - [vdb snort-rules list](#vdb-snort-rules-list)
+  - [vdb traffic-filters](#vdb-traffic-filters)
   - [vdb yara-rules get](#vdb-yara-rules-get)
   - [vdb yara-rules list](#vdb-yara-rules-list)
   - [vdb exploits archived](#vdb-exploits-archived)
@@ -1145,7 +1146,9 @@ vulnetix vdb ecosystem group maven org.springframework spring-core -o json
 
 ### vdb eol product
 
-Retrieve end-of-life lifecycle data for a product (runtime, framework, etc.).
+Retrieve end-of-life lifecycle data for a product (runtime, framework, distribution) and every release the EOL database tracks for it.
+
+**Endpoint:** `GET /v1/eol/products/{product}`
 
 **Usage:**
 ```bash
@@ -1164,17 +1167,15 @@ vulnetix vdb eol product nodejs
 vulnetix vdb eol product python
 ```
 
-### vdb eol package
+### vdb eol release
 
-Retrieve end-of-life lifecycle data for a specific package version. Returns lifecycle fields including `isEol`, `eolFrom`, `isMaintained`, and latest version info.
+Retrieve end-of-life lifecycle data for one release of a product. This is the exact record `--block-eol` grades a detected runtime pin against, so it is how to see what the gate will decide before enabling it.
 
-**Endpoint:** `GET /v1/eol/packages/{ecosystem}/{package}/versions/{version}`
-
-When the package or version is not yet tracked in the VDB EOL database, the API returns a 404. The CLI treats this as "not end-of-life" and raises no breach — this is the graceful degradation behaviour that allows `--block-eol` to work today while package coverage grows over time.
+**Endpoint:** `GET /v1/eol/products/{product}/releases/{release}`
 
 **Usage:**
 ```bash
-vulnetix vdb eol package <ecosystem> <package> <version> [flags]
+vulnetix vdb eol release <product> <release> [flags]
 ```
 
 **Flags:**
@@ -1186,22 +1187,30 @@ vulnetix vdb eol package <ecosystem> <package> <version> [flags]
 |-------|------|-------------|
 | `productName` | string | Canonical product name in the EOL database |
 | `release.name` | string | Release/version identifier |
-| `release.isEol` | bool | Whether this version is end-of-life |
+| `release.isEol` | bool | Whether this release is end-of-life |
 | `release.eolFrom` | string? | Date when EOL status took effect (ISO 8601) |
-| `release.isMaintained` | bool | Whether this version still receives updates |
+| `release.isEoas` | bool | Whether active support has ended |
+| `release.eoasFrom` | string? | Date when active support ended |
+| `release.isMaintained` | bool | Whether this release still receives updates |
 | `release.isLts` | bool | Whether this is a long-term support release |
-| `release.latestVersion` | string? | Latest patch version available |
+| `release.latest.name` | string? | Latest patch version available |
+| `release.latest.date` | string? | Date that patch was published |
 
 **Examples:**
 ```bash
-# Check if a specific npm package version is EOL
-vulnetix vdb eol package npm express 3.0.0
+# What --block-eol will decide about a Node 18 pin
+vulnetix vdb eol release nodejs 18
 
 # JSON output for CI integration
-vulnetix vdb eol package pypi django 2.2 -o json
+vulnetix vdb eol release python 3.8 -o json
 ```
 
----
+{{< callout type="info" >}}
+There is no per-package EOL lookup. The EOL database is indexed by product and
+release, not by ecosystem package; `--block-eol` derives a product/release pair
+from a detected runtime pin and grades that. A package the mapping does not
+cover is reported, not blocked.
+{{< /callout >}}
 
 ### vdb kev list
 
@@ -1968,6 +1977,33 @@ vulnetix vdb snort-rules get <CVE-ID> [flags]
 vulnetix vdb snort-rules get CVE-2021-44228
 vulnetix vdb snort-rules get CVE-2021-44228 --format rules > log4shell.rules
 ```
+
+---
+
+### vdb traffic-filters
+
+**Description**: IDS/IPS traffic-filter rules (Snort signatures) mapped to one vulnerability, with detection signatures, MITRE ATT&CK mappings, severity classifications and the full raw rule text.
+
+Only `CVE`, `GHSA` and `CNVD` identifiers resolve here — the mapping is keyed on those three.
+
+**Usage**:
+```bash
+vulnetix vdb traffic-filters <vuln-id> [flags]
+```
+
+**Flags**:
+- `--limit <n>` — maximum results, max `500` (default `100`)
+- `--offset <n>` — results to skip (pagination)
+- `-o, --output string` — `json`, `yaml`, `pretty` (default `pretty`)
+
+**Examples**:
+```bash
+vulnetix vdb traffic-filters CVE-2021-44228
+vulnetix vdb traffic-filters GHSA-jfh8-3a1q-hjz9
+vulnetix vdb traffic-filters CVE-2021-44228 --limit 10 -o json
+```
+
+Related: [vdb snort-rules list](#vdb-snort-rules-list) searches the whole rule catalogue rather than one vulnerability's mapping.
 
 ---
 

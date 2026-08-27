@@ -488,6 +488,8 @@ test-command-vdb-live: dev
     run_live vex_list vex list --cve-id "$live_cve" --limit 3 -o json
     run_live metrics_types metrics types -o json
     run_live ecosystem_package ecosystem package npm express -o json
+    run_live eol_product eol product nodejs -o json
+    run_live eol_release eol release nodejs 18 -o json
     run_live vendor_trends vendor-trends --vendor apache --year 2024 -o json
     run_live exploit_trends exploit-trends -o json
     run_live triage triage --severity high --limit 3 -o json

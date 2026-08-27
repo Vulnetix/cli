@@ -8,17 +8,31 @@ import (
 
 // EOLProductResponse is the response from GET /v1/eol/products/{product}.
 type EOLProductResponse struct {
-	Timestamp int64              `json:"timestamp"`
-	Product   EOLProductDetail   `json:"product"`
-	Releases  []EOLReleaseDetail `json:"releases"`
+	Timestamp int64            `json:"timestamp"`
+	Product   EOLProductDetail `json:"product"`
 }
 
-// EOLProductDetail contains product metadata.
+// EOLProductDetail contains product metadata and every release the EOL
+// database tracks for it.
+//
+// Releases is nested here, not at the top level of the response: the server
+// returns {"product": {..., "releases": [...]}}, and a top-level Releases field
+// decoded to nil on every product without any error surfacing.
 type EOLProductDetail struct {
-	Name     string   `json:"name"`
-	Label    string   `json:"label"`
-	Category string   `json:"category"`
-	Tags     []string `json:"tags"`
+	Name           string             `json:"name"`
+	Label          string             `json:"label"`
+	Category       string             `json:"category"`
+	Tags           []string           `json:"tags"`
+	Aliases        []string           `json:"aliases,omitempty"`
+	VersionCommand *string            `json:"versionCommand,omitempty"`
+	Releases       []EOLReleaseDetail `json:"releases"`
+}
+
+// EOLLatest is the newest release the feed knows of for a lifecycle entry.
+type EOLLatest struct {
+	Name *string `json:"name,omitempty"`
+	Date *string `json:"date,omitempty"`
+	Link *string `json:"link,omitempty"`
 }
 
 // EOLReleaseDetail contains lifecycle data for a single release.
@@ -38,8 +52,26 @@ type EOLReleaseDetail struct {
 	IsDiscontinued   *bool   `json:"isDiscontinued,omitempty"`
 	DiscontinuedFrom *string `json:"discontinuedFrom,omitempty"`
 	IsMaintained     bool    `json:"isMaintained"`
-	LatestVersion    *string `json:"latestVersion,omitempty"`
-	LatestDate       *string `json:"latestDate,omitempty"`
+	// Latest is an object on the wire — {"name","date","link"} — not the flat
+	// latestVersion/latestDate pair this type used to declare, which never
+	// decoded to anything.
+	Latest *EOLLatest `json:"latest,omitempty"`
+}
+
+// LatestVersion returns the newest known version, or nil when the feed has none.
+func (r EOLReleaseDetail) LatestVersion() *string {
+	if r.Latest == nil {
+		return nil
+	}
+	return r.Latest.Name
+}
+
+// LatestDate returns the newest known release date, or nil when the feed has none.
+func (r EOLReleaseDetail) LatestDate() *string {
+	if r.Latest == nil {
+		return nil
+	}
+	return r.Latest.Date
 }
 
 // EOLReleaseResponse is the response from GET /v1/eol/products/{product}/releases/{release}.
