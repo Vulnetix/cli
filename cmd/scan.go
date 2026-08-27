@@ -2355,6 +2355,15 @@ func runLocalScan(
 	//
 	// Order: table → SCA Autofix (if any) → summary footer → artifact links.
 	// This keeps the snapshot URL visible at the very end.
+	// --results-only promises silence on a clean tree. Every renderer below
+	// prints something unconditionally — the divider and the
+	// "0 packages | 0 vulnerabilities" footer, then the artefact links — so a
+	// clean scan still produced output that a pipeline grepping for "no news"
+	// had to filter. Nothing found, nothing printed.
+	if resultsOnly && scanFoundNothing(enrichedVulns, sastReport, licenseResult, breaches) {
+		return nil
+	}
+
 	var scaTotalPkgs, scaTotalVulns int
 	if !noSCA {
 		scaTotalPkgs, scaTotalVulns = printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, resultsOnly)
@@ -3194,6 +3203,22 @@ func printPrettyScanSummary(
 // printScanSummaryFooter prints the closing divider, "N packages | M vulnerabilities"
 // summary line, and optional reachability breakdown. Called after SCA Autofix output
 // so the final artifact links come last.
+// scanFoundNothing reports whether the run produced nothing a reader would act
+// on: no vulnerabilities, no SAST/secrets/IaC/container findings, no license
+// findings, and no policy breach. It backs --results-only.
+func scanFoundNothing(enrichedVulns []scan.EnrichedVuln, sastReport *sast.SASTReport, licenseResult *license.AnalysisResult, breaches []GateBreach) bool {
+	if len(enrichedVulns) > 0 || len(breaches) > 0 {
+		return false
+	}
+	if sastReport != nil && len(sastReport.Findings) > 0 {
+		return false
+	}
+	if licenseResult != nil && len(licenseResult.Findings) > 0 {
+		return false
+	}
+	return true
+}
+
 func printScanSummaryFooter(totalPkgs, totalVulns int, enrichedVulns []scan.EnrichedVuln) {
 	t := display.NewTerminal()
 	fmt.Fprintln(os.Stdout, display.Divider(t))
