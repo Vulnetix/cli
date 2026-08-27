@@ -310,7 +310,20 @@ func newTeaResolveCommand() *cobra.Command {
 			if err != nil {
 				return teaFail(err)
 			}
-			return teaPrintJSON(out)
+			if teaJSONFlag(cmd) {
+				return teaPrintJSON(out)
+			}
+			if len(out) == 0 {
+				fmt.Println("no server resolves that identifier")
+				return nil
+			}
+			for _, d := range out {
+				fmt.Printf("release    %s\n", d.ProductReleaseUUID)
+				for _, s := range d.Servers {
+					fmt.Printf("  server   %s  versions %s\n", s.RootURL, strings.Join(s.Versions, ", "))
+				}
+			}
+			return nil
 		},
 	}
 }

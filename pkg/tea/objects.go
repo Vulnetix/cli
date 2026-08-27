@@ -175,9 +175,28 @@ func (c *Client) LatestCollection(ctx context.Context, releaseUUID string) (*Col
 	return &out, err
 }
 
+// ServerInfo is one TEA server that can serve a resolved release, as advertised
+// by GET /discovery (the `tea-server-info` schema).
+type ServerInfo struct {
+	RootURL  string   `json:"rootUrl"`
+	Versions []string `json:"versions"`
+	Priority *float64 `json:"priority,omitempty"`
+}
+
+// DiscoveryInfo is one entry of the GET /discovery response: the product release
+// a TEI resolves to, and where it can be read from.
+type DiscoveryInfo struct {
+	ProductReleaseUUID string       `json:"productReleaseUuid"`
+	Servers            []ServerInfo `json:"servers"`
+}
+
 // ResolveTEI asks the server to resolve an identifier to the object it names.
-func (c *Client) ResolveTEI(ctx context.Context, tei string) (map[string]any, error) {
-	var out map[string]any
+//
+// GET /discovery returns an ARRAY of discovery-info — one TEI can resolve at
+// more than one server. Decoding it into an object failed on every real
+// response with "cannot unmarshal array into Go value of type map".
+func (c *Client) ResolveTEI(ctx context.Context, tei string) ([]DiscoveryInfo, error) {
+	var out []DiscoveryInfo
 	err := c.Do(ctx, "GET", "/discovery?tei="+url.QueryEscape(tei), nil, &out, nil)
 	return out, err
 }

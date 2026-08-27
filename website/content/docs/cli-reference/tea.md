@@ -23,7 +23,7 @@ vulnetix tea --server https://www.vulnetix.com/tea/v1 products
 | `tea product <uuid>` | One product and its releases |
 | `tea collection <release-uuid>` | The artifacts published for a release |
 | `tea distribution list <component-release-uuid>` | Where a release can be obtained |
-| `tea resolve <tei>` | Resolve a TEI to the object it names |
+| `tea resolve <tei>` | Resolve a TEI to the product release it names, and the servers that serve it |
 
 ```sh
 vulnetix tea discover vulnetix.com
