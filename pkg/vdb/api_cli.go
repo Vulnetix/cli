@@ -685,6 +685,54 @@ type CliAiFirewallSettingsRequest struct {
 	LogsEnabled *bool `json:"logsEnabled,omitempty"`
 }
 
+// CliAiFirewallInventoryRequest reads the org's observed AI capability
+// inventory. Every field is a filter; Clear removes the whole inventory
+// instead of reading it.
+type CliAiFirewallInventoryRequest struct {
+	Kind   string `json:"kind,omitempty"`   // "tool" | "mcp_server" | "skill"
+	Client string `json:"client,omitempty"` // exact client name
+	Search string `json:"search,omitempty"` // substring match on the identity
+	Limit  int    `json:"limit,omitempty"`  // 1..1000, default 200 server-side
+	Clear  bool   `json:"clear,omitempty"`
+}
+
+// AiFirewallInventoryEntry is one capability the gateway has seen an agent
+// carry: a tool, an MCP server, or a skill.
+//
+// Source is the evidence grade and is deliberately not smoothed over:
+// "declared" was read verbatim from a request, "invoked" was seen being called,
+// and "inferred" was derived from a naming convention — a convention must never
+// read as a protocol fact.
+//
+// Observations counts distinct observation windows, NOT requests: the gateway
+// collapses an unchanged agent configuration to one write per window, so it is
+// how often a configuration has turned up, not traffic volume.
+type AiFirewallInventoryEntry struct {
+	Kind          string `json:"kind"`
+	Identity      string `json:"identity"`
+	Detail        string `json:"detail"`
+	Source        string `json:"source"`
+	ClientName    string `json:"clientName"`
+	ClientVersion string `json:"clientVersion"`
+	ProviderSlug  string `json:"providerSlug"`
+	Wire          string `json:"wire"`
+	FirstSeenAt   int64  `json:"firstSeenAt"`
+	LastSeenAt    int64  `json:"lastSeenAt"`
+	Observations  int64  `json:"observations"`
+}
+
+// CliAiFirewallInventory is the inventory read. Truncated says the caller's
+// limit bounded the answer, not that the estate is that small — a capped list
+// that looks complete is the failure worth spending a field on.
+type CliAiFirewallInventory struct {
+	Entries   []AiFirewallInventoryEntry `json:"entries"`
+	Counts    map[string]int             `json:"counts"`
+	Truncated bool                       `json:"truncated"`
+	// Cleared and Removed are returned instead of Entries when Clear was set.
+	Cleared bool  `json:"cleared,omitempty"`
+	Removed int64 `json:"removed,omitempty"`
+}
+
 // CliAiFirewallBaselineRequest asks the server for its recommended guardrail
 // set (PII masking, prompt injection, and so on). Ref selects a named set.
 type CliAiFirewallBaselineRequest struct {
@@ -1259,6 +1307,18 @@ func (c *Client) CliAiFirewallKey(env CliEnv, req CliAiFirewallKeyRequest) (*Cli
 // CliAiFirewallSettings — POST /v2/cli.ai-firewall-settings. Org-wide toggles.
 func (c *Client) CliAiFirewallSettings(env CliEnv, req CliAiFirewallSettingsRequest) (*CliResponse[map[string]any], error) {
 	return cliPostWithEnv[map[string]any](c, "cli.ai-firewall-settings", env, req)
+}
+
+// CliAiFirewallInventory — POST /v2/cli.ai-firewall-inventory. What tools, MCP
+// servers and skills this org's agents actually carry, as observed on the wire.
+//
+// This answers a question a repository scan cannot: a scan finds the AI that is
+// written down, this finds what ran. It is metadata only — a tool name, an MCP
+// server host, a user-agent — never a prompt, completion, tool argument or tool
+// result, which is why the gateway records it for every org rather than only
+// those that opted into inference logging.
+func (c *Client) CliAiFirewallInventory(env CliEnv, req CliAiFirewallInventoryRequest) (*CliResponse[CliAiFirewallInventory], error) {
+	return cliPostWithEnv[CliAiFirewallInventory](c, "cli.ai-firewall-inventory", env, req)
 }
 
 // CliAiFirewallBaseline — POST /v2/cli.ai-firewall-baseline. The server's

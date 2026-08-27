@@ -249,7 +249,7 @@ vulnetix --verbose scan
 
 ### Timeouts Are Fixed
 
-The VDB client uses a 30-second per-request timeout and pooled connections. It is not configurable from the command line. If a proxy is slow enough to trip that, fix the proxy.
+The VDB client uses a 30-second per-request timeout and pooled connections. It is not configurable from the command line. A failed request is retried twice with exponential backoff, so a command sitting against an endpoint that never answers takes roughly 90 seconds to give up, not 30 — worth knowing before you conclude it has hung. If a proxy is slow enough to trip that, fix the proxy.
 
 ### TLS Verification Cannot Be Disabled
 

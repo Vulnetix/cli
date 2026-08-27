@@ -81,6 +81,7 @@ The dashboard can do policy. The CLI can do policy *and* the machine:
 - [`status`](/docs/ai-firewall/status/) is the honest answer to "is this actually on?" It finds clients whose traffic is bypassing the firewall entirely, and guardrails that look enforced but are not.
 - [`apply`](/docs/ai-firewall/policy-file/) reconciles the whole policy from a file you can review and commit.
 - [`snippet`](/docs/ai-firewall/snippets/) is the only route for the clients that environment variables cannot reach.
+- [`inventory`](/docs/ai-firewall/inventory/) lists every tool, MCP server and skill the gateway has seen an agent carry — the list your rules are written against.
 
 {{< cards >}}
   {{< card link="quickstart" title="Quickstart" subtitle="Store a key, wire the machine, prove it works, watch a guardrail fire." >}}
@@ -91,6 +92,7 @@ The dashboard can do policy. The CLI can do policy *and* the machine:
   {{< card link="policy-file" title="Policy as code" subtitle=".vulnetix/ai-firewall.yaml, apply, prune, and drift." >}}
   {{< card link="baseline" title="Recommended guardrails" subtitle="The server-supplied baseline, and how to override it." >}}
   {{< card link="status" title="Status & checks" subtitle="Every check, what it means, and how to fix it." >}}
+  {{< card link="inventory" title="Capability inventory" subtitle="Every tool, MCP server and skill the gateway has seen agents carry." >}}
   {{< card link="snippets" title="Code snippets" subtitle="For the SDKs and providers env vars cannot reach." >}}
   {{< card link="responses" title="Block responses" subtitle="Every 403 code, and what to do about it." >}}
   {{< card link="uninstall" title="Uninstall" subtitle="Removing the wiring without damaging your configs." >}}

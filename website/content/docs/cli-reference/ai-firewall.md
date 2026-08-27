@@ -1,7 +1,7 @@
 ---
 title: "ai-firewall"
 weight: 10
-description: "Command reference for vulnetix ai-firewall — install, status, policy, key, apply, export, baseline, snippet, uninstall."
+description: "Command reference for vulnetix ai-firewall — install, status, policy, key, apply, export, baseline, inventory, snippet, uninstall."
 ---
 
 Wire local AI clients to the Vulnetix AI Firewall gateway, and manage the policy it enforces.
@@ -18,6 +18,7 @@ vulnetix ai-firewall
 ├── apply                     reconcile policy from a file
 ├── export                    write the live policy to a file
 ├── baseline                  the server's recommended guardrails
+├── inventory                 tools, MCP servers and skills seen on the wire
 └── snippet                   ready-to-run code wired to the gateway
 ```
 
@@ -132,6 +133,26 @@ vulnetix ai-firewall apply [-f .vulnetix/ai-firewall.yaml] [--dry-run]
 ```bash
 vulnetix ai-firewall baseline [--ref recommended] [--catalog FILE]
 ```
+
+## inventory
+
+```bash
+vulnetix ai-firewall inventory [--kind KIND] [--client NAME] [--search TEXT] [--limit N] [--clear]
+```
+
+Every tool, MCP server and skill the gateway has seen this org's agents carry,
+each graded `declared`, `invoked` or `inferred`. Metadata only — never a prompt,
+completion, tool argument or tool result. Requires an authenticated org.
+
+| Flag | Values |
+| --- | --- |
+| `--kind` | `tool`, `mcp_server`, `skill` |
+| `--client` | Exact client name, e.g. `claude-code` |
+| `--search` | Substring match on the identity |
+| `--limit` | 1-1000 (default `200`) |
+| `--clear` | Delete the inventory instead of reading it |
+
+Full documentation: [Capability inventory](/docs/ai-firewall/inventory/).
 
 ## snippet
 

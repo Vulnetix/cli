@@ -56,6 +56,7 @@ forwards the request upstream.
 	cmd.AddCommand(newAiFirewallGetCommand())
 	cmd.AddCommand(newAiFirewallSnippetCommand())
 	cmd.AddCommand(newAiFirewallBaselineCommand())
+	cmd.AddCommand(newAiFirewallInventoryCommand())
 	cmd.AddCommand(newAiFirewallApplyCommand())
 	cmd.AddCommand(newAiFirewallExportCommand())
 	return cmd

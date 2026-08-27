@@ -17,6 +17,7 @@
         "export",
         "get",
         "install",
+        "inventory",
         "key",
         "policy",
         "settings",
@@ -111,6 +112,25 @@
         "output",
         "provider",
         "scope",
+        "silent",
+        "verbose"
+      ]
+    },
+    "ai-firewall inventory": {
+      "short": "List the tools, MCP servers and skills the gateway has seen agents carry",
+      "flags": [
+        "base-url",
+        "clear",
+        "client",
+        "disable-memory",
+        "kind",
+        "limit",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "search",
         "silent",
         "verbose"
       ]
