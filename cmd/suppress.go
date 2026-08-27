@@ -168,7 +168,7 @@ func runSuppressAdd(cmd *cobra.Command, _ []string) error {
 func toSetRequest(rec memory.SuppressionRecord, ignoreDays int) vdb.CliSuppressionSetRequest {
 	return vdb.CliSuppressionSetRequest{
 		Action:             "create",
-		RuleID:             rec.RuleID,
+		RuleID:             suppressAnchorID(rec),
 		Category:           rec.Category,
 		SuppressionType:    rec.Type,
 		Reason:             rec.Reason,
@@ -217,8 +217,13 @@ func runSuppressRemove(cmd *cobra.Command, _ []string) error {
 	_, vulnetixDir, git := suppressResolveDir(cmd)
 	uuid, _ := cmd.Flags().GetString("uuid")
 	ruleID, _ := cmd.Flags().GetString("rule")
-	if uuid == "" && ruleID == "" {
-		return fmt.Errorf("--uuid or --rule is required")
+	findingID, _ := cmd.Flags().GetString("finding")
+	anchorID := ruleID
+	if anchorID == "" {
+		anchorID = findingID
+	}
+	if uuid == "" && anchorID == "" {
+		return fmt.Errorf("--uuid, --rule or --finding is required")
 	}
 	repoFullName := ""
 	if git != nil {
@@ -229,7 +234,7 @@ func runSuppressRemove(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	n := mem.DeactivateSuppression(uuid, ruleID, repoFullName)
+	n := mem.DeactivateSuppression(uuid, anchorID, repoFullName)
 	if err := memory.Save(vulnetixDir, mem); err != nil {
 		return err
 	}
@@ -239,7 +244,7 @@ func runSuppressRemove(cmd *cobra.Command, _ []string) error {
 		_, err := client.CliSuppressionsSet(envForCliWithGit(git), vdb.CliSuppressionSetRequest{
 			Action:             "deactivate",
 			UUID:               uuid,
-			RuleID:             ruleID,
+			RuleID:             anchorID,
 			RepositoryFullName: repoFullName,
 			DeactivatedReason:  reason,
 		})
@@ -304,6 +309,20 @@ func suppressKeyLabel(ruleID, findingID string) string {
 	return "—"
 }
 
+// suppressAnchorID is the id the server anchors a suppression to. There is one
+// field on the wire (`ruleId`) and two locally: a rego rule id for SAST-style
+// rules and a CVE for SCA/license/malware ones. Both are matched server-side
+// against Finding.findingId, which holds whichever of the two that finding
+// carries — so a finding-anchored rule must travel in the same field. Sending
+// only RuleID left a `--finding CVE-…` rule on the server with no anchor at
+// all, which suppressed nothing and listed with an em dash where its id belongs.
+func suppressAnchorID(rec memory.SuppressionRecord) string {
+	if rec.RuleID != "" {
+		return rec.RuleID
+	}
+	return rec.FindingID
+}
+
 func suppressAnchorLabel(rec memory.SuppressionRecord) string {
 	switch {
 	case rec.RuleID != "":
@@ -337,6 +356,7 @@ func init() {
 
 	suppressRemoveCmd.Flags().String("uuid", "", "Suppression uuid to deactivate")
 	suppressRemoveCmd.Flags().String("rule", "", "Deactivate rules matching this rego rule id")
+	suppressRemoveCmd.Flags().String("finding", "", "Deactivate rules matching this finding id (CVE/vuln id)")
 	suppressRemoveCmd.Flags().String("reason", "", "Reason for deactivation")
 
 	suppressCmd.AddCommand(suppressAddCmd, suppressListCmd, suppressRemoveCmd, suppressSyncCmd)

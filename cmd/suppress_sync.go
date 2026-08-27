@@ -144,7 +144,7 @@ func reconcileScanSuppressions(mem *memory.Memory, gitCtx *gitctx.GitContext, no
 		}
 		m := vdb.CliSuppressionMint{
 			UUID:            s.UUID,
-			RuleID:          s.RuleID,
+			RuleID:          suppressAnchorID(s),
 			Category:        s.Category,
 			SuppressionType: s.Type,
 			Reason:          s.Reason,

@@ -1154,6 +1154,7 @@
       "short": "Deactivate a suppression rule",
       "flags": [
         "disable-memory",
+        "finding",
         "no-analytics",
         "no-banner",
         "no-progress",

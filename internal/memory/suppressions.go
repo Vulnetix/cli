@@ -19,15 +19,20 @@ func (m *Memory) UpsertSuppression(rec SuppressionRecord) bool {
 // DeactivateSuppression flips IsActive=false on the first matching record.
 // Matches by UUID when set, else by RuleID (+RepositoryFullName when given).
 // Returns the number of records deactivated.
-func (m *Memory) DeactivateSuppression(uuid, ruleID, repoFullName string) int {
+// anchorID matches either anchor a rule can carry: a rego rule id or a finding
+// id (a CVE). A rule added with --finding has an empty RuleID, so matching only
+// on RuleID left it removable by uuid alone — and `ignore list` does not print
+// uuids, which made it unremovable in practice.
+func (m *Memory) DeactivateSuppression(uuid, anchorID, repoFullName string) int {
 	n := 0
 	for i, s := range m.Suppressions {
 		if !s.IsActive {
 			continue
 		}
+		matchesAnchor := anchorID != "" && (s.RuleID == anchorID || s.FindingID == anchorID)
 		switch {
 		case uuid != "" && s.UUID == uuid:
-		case uuid == "" && ruleID != "" && s.RuleID == ruleID && (repoFullName == "" || s.RepositoryFullName == repoFullName):
+		case uuid == "" && matchesAnchor && (repoFullName == "" || s.RepositoryFullName == repoFullName):
 		default:
 			continue
 		}

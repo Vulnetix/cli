@@ -190,8 +190,13 @@ vulnetix ignore add \
 
 ```bash
 vulnetix ignore list
-vulnetix ignore remove --rule vnx-sec-001
+vulnetix ignore remove --rule vnx-sec-001          # a rego-rule anchor
+vulnetix ignore remove --finding CVE-2025-13465    # a finding anchor
+vulnetix ignore remove --uuid <uuid>               # an exact row
 ```
+
+`remove` takes whichever anchor the rule was created with. One of `--rule`,
+`--finding` or `--uuid` is required.
 
 **Share the decision with the org:**
 
