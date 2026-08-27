@@ -58,7 +58,7 @@ func runBinaryScan(cmd *cobra.Command) error {
 		return err
 	}
 	if !noPackages {
-		reportBinaryPackages(scanPath, scanPath, "", scanPath)
+		reportBinaryPackages(cmd, scanPath, scanPath, "", scanPath)
 	}
 	for _, rootfs := range rootfsPaths {
 		if rootfs == "" {
@@ -69,7 +69,7 @@ func runBinaryScan(cmd *cobra.Command) error {
 		}
 		_ = runBinaryScanPath(cmd, rootfs)
 		if !noPackages {
-			reportBinaryPackages(rootfs, rootfs, filepath.Base(rootfs), scanPath)
+			reportBinaryPackages(cmd, rootfs, rootfs, filepath.Base(rootfs), scanPath)
 		}
 	}
 	for _, archive := range archivePaths {
@@ -86,7 +86,7 @@ func runBinaryScan(cmd *cobra.Command) error {
 		}
 		_ = runBinaryScanPath(cmd, dir)
 		if !noPackages {
-			reportBinaryPackages(dir, dir, filepath.Base(archive), scanPath)
+			reportBinaryPackages(cmd, dir, dir, filepath.Base(archive), scanPath)
 		}
 		cleanup()
 	}
@@ -100,7 +100,7 @@ func runBinaryScan(cmd *cobra.Command) error {
 //
 // sbomRoot is the directory whose .vulnetix/sbom.cdx.json is updated; it is the
 // scanned project, not the container root filesystem being inspected.
-func reportBinaryPackages(root, labelRoot, sourceLabel, sbomRoot string) {
+func reportBinaryPackages(cmd *cobra.Command, root, labelRoot, sourceLabel, sbomRoot string) {
 	owners := binpkg.OwnerIndex(nil)
 	if binpkg.HasFileOwnership(root) {
 		owners = binpkg.BuildOwnerIndex(root)
@@ -109,6 +109,13 @@ func reportBinaryPackages(root, labelRoot, sourceLabel, sbomRoot string) {
 	if len(tree.Packages) == 0 {
 		if tree.Examined > 0 {
 			fmt.Fprintf(os.Stderr, "Binary package analysis: %d artefact(s) examined, no embedded package metadata.\n", tree.Examined)
+		}
+		return
+	}
+
+	if binaryScanStdoutTaken(cmd) {
+		if err := mergeBinaryPackagesIntoBOM(tree, labelRoot, sourceLabel, sbomRoot); err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: could not record binary packages in the SBOM: %v\n", err)
 		}
 		return
 	}
@@ -190,6 +197,23 @@ func mergeBinaryPackagesIntoBOM(tree binpkg.TreeResult, labelRoot, sourceLabel, 
 	return writeBOMToFile(merged, sbomPath)
 }
 
+// binaryScanStdoutTaken reports whether this invocation has committed stdout to
+// a machine-readable document (`-o json-cyclonedx` / `-o json-sarif`).
+//
+// The binary pass renders a human table on stdout, and it runs AFTER the scan
+// engine has already written the SARIF or CycloneDX there — so on
+// `containers -o json-sarif` its output landed inside the JSON stream and every
+// consumer got a parse error. When stdout is spoken for, the pass keeps its
+// stderr progress lines and skips the tables.
+func binaryScanStdoutTaken(cmd *cobra.Command) bool {
+	args, _ := cmd.Flags().GetStringArray("output")
+	cfg, err := parseOutputFlags(args)
+	if err != nil || cfg == nil {
+		return false
+	}
+	return cfg.stdoutFmt != ""
+}
+
 func runBinaryScanPath(cmd *cobra.Command, scanPath string) error {
 	fmt.Fprintf(os.Stderr, "Scanning %s for ELF binaries...\n", scanPath)
 
@@ -197,7 +221,7 @@ func runBinaryScanPath(cmd *cobra.Command, scanPath string) error {
 	result := scan.ScanContainerFilesystem(scanPath)
 
 	if result.ELFCount == 0 {
-		fmt.Println("No ELF binaries found.")
+		fmt.Fprintln(os.Stderr, "No ELF binaries found.")
 		return nil
 	}
 
@@ -276,7 +300,9 @@ func runBinaryScanPath(cmd *cobra.Command, scanPath string) error {
 	}
 
 	// Phase 5: Print local results.
-	printBinaryScanResults(result)
+	if !binaryScanStdoutTaken(cmd) {
+		printBinaryScanResults(result)
+	}
 
 	return nil
 }
