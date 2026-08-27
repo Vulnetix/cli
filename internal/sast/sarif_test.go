@@ -45,7 +45,7 @@ func TestBuildSARIF_SingleFinding(t *testing.T) {
 		Snippet:     "bad code",
 		Fingerprint: "abc123",
 		Metadata: &RuleMetadata{
-			Kind: "pass",
+			Kind: "sast",
 		},
 	}}
 
@@ -61,8 +61,14 @@ func TestBuildSARIF_SingleFinding(t *testing.T) {
 	if r.Level != "error" {
 		t.Errorf("expected level 'error', got %q", r.Level)
 	}
-	if r.Kind != "pass" {
-		t.Errorf("expected kind 'pass', got %q", r.Kind)
+	// SARIF's result.kind is an enum, and omitting it means "fail" — which is
+	// what a reported finding is. Our own taxonomy (sast/secrets/iac/oci) is not
+	// in that enum, so writing it here made every document fail validation.
+	if r.Kind != "" {
+		t.Errorf("expected kind to be left at the SARIF default, got %q", r.Kind)
+	}
+	if got := r.Properties["vulnetix/kind"]; got != "sast" {
+		t.Errorf("expected properties[vulnetix/kind] = sast, got %v", got)
 	}
 	if r.Message.Text != "test finding" {
 		t.Errorf("expected message 'test finding', got %q", r.Message.Text)

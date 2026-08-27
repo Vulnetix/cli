@@ -131,6 +131,11 @@ The `sast` command runs only rules with `kind: sast`. For other Rego-based analy
 | IaC analysis | `vulnetix iac` | `iac` |
 | All SAST rules | `vulnetix scan` (default) | all kinds |
 
+The rule kind travels in the SARIF result's property bag as `vulnetix/kind`.
+It is not written to SARIF's own `result.kind`, which is a fixed enum
+(`notApplicable`, `pass`, `fail`, `review`, `open`, `informational`) and is
+left at its default of `fail` for every reported finding.
+
 ## Exit Codes
 
 | Code | Meaning |

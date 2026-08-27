@@ -99,9 +99,13 @@ func BuildSARIF(findings []Finding, rules []RuleMetadata, toolVersion string) *S
 			Level:   f.Level,
 			Message: SARIFMessage{Text: f.Message},
 		}
-		if f.Metadata != nil {
-			result.Kind = f.Metadata.Kind
-		}
+		// result.kind is a SARIF enum (notApplicable|pass|fail|review|open|
+		// informational) and defaults to "fail", which is what a reported
+		// finding is. The rule's Vulnetix kind — sast/secrets/iac/oci — is our
+		// own taxonomy and was being written here, making every SARIF document
+		// we emit fail schema validation on every result. It belongs in the
+		// property bag, which is where the rest of our metadata already lives.
+		// (Routing to /v2/cli.<kind> reads the rule metadata, never this field.)
 
 		loc := SARIFLocation{
 			PhysicalLocation: &SARIFPhysicalLocation{
@@ -131,6 +135,9 @@ func BuildSARIF(findings []Finding, rules []RuleMetadata, toolVersion string) *S
 
 		result.Properties = SARIFPropertyBag{
 			"severity": f.Severity,
+		}
+		if f.Metadata != nil && f.Metadata.Kind != "" {
+			result.Properties["vulnetix/kind"] = f.Metadata.Kind
 		}
 		if f.IsTestSuite {
 			result.Properties["vulnetix/test-suite"] = true
