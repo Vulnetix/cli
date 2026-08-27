@@ -181,7 +181,7 @@ func init() {
 	cdxCmd.Flags().Int("depth", 25, "Maximum recursion depth for file discovery")
 	cdxCmd.Flags().StringArray("exclude", nil, "Exclude paths matching glob pattern during manifest discovery (repeatable)")
 	cdxCmd.Flags().StringArray("ignore", nil, "Exclude paths matching glob pattern during local inventory discovery (repeatable)")
-	cdxCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty, json, cyclonedx-json")
+	cdxCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty (alias: table), json, cyclonedx-json")
 	cdxCmd.Flags().String("output-file", "", "Path to write the CycloneDX SBOM (default: <path>/.vulnetix/sbom.cdx.json)")
 	cdxCmd.Flags().String("spec-version", "1.7", "CycloneDX spec version: 1.6 or 1.7")
 	cdxCmd.Flags().Bool("no-manifests", false, "Skip package manifest and lockfile parsing")
@@ -357,7 +357,7 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 	switch output {
 	case "pretty", "table", "json", "cyclonedx-json":
 	default:
-		return cdxRunOptions{}, fmt.Errorf("--output must be one of: pretty, json, cyclonedx-json")
+		return cdxRunOptions{}, fmt.Errorf("--output must be one of: pretty (alias: table), json, cyclonedx-json")
 	}
 	switch specVersion {
 	case "1.6", "1.7":

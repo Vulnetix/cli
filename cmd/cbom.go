@@ -69,7 +69,7 @@ func init() {
 	cbomCmd.Flags().String("path", ".", "Directory to scan")
 	cbomCmd.Flags().Int("depth", 25, "Maximum recursion depth for file discovery")
 	cbomCmd.Flags().StringArray("ignore", nil, "Exclude paths matching glob pattern (repeatable)")
-	cbomCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty, json, cyclonedx-json")
+	cbomCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty (alias: table), json, cyclonedx-json")
 	cbomCmd.Flags().String("output-file", "", "Path to write the CycloneDX CBOM (default: <path>/.vulnetix/cbom.cdx.json)")
 	cbomCmd.Flags().String("spec-version", "1.7", "CycloneDX spec version: 1.6 or 1.7")
 	cbomCmd.Flags().String("catalog", "", "Path to a catalog file to merge over (or replace) the builtin catalog")
@@ -107,7 +107,7 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 	switch outputFmt {
 	case "pretty", "table", "json", "cyclonedx-json":
 	default:
-		return fmt.Errorf("--output must be one of: pretty, json, cyclonedx-json")
+		return fmt.Errorf("--output must be one of: pretty (alias: table), json, cyclonedx-json")
 	}
 	switch specVersion {
 	case "1.6", "1.7":

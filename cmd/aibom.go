@@ -71,7 +71,7 @@ func init() {
 	aibomCmd.Flags().String("path", ".", "Directory to scan")
 	aibomCmd.Flags().Int("depth", 25, "Maximum recursion depth for file discovery")
 	aibomCmd.Flags().StringArray("ignore", nil, "Exclude paths matching glob pattern (repeatable)")
-	aibomCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty, json, cyclonedx-json")
+	aibomCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty (alias: table), json, cyclonedx-json")
 	aibomCmd.Flags().String("output-file", "", "Path to write the CycloneDX AIBOM (default: <path>/.vulnetix/ai-bom.cdx.json)")
 	aibomCmd.Flags().String("spec-version", "1.7", "CycloneDX spec version: 1.6 or 1.7")
 	aibomCmd.Flags().String("catalog", "", "Path to a catalog file to merge over (or replace) the builtin catalog")
@@ -111,7 +111,7 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 	switch outputFmt {
 	case "pretty", "table", "json", "cyclonedx-json":
 	default:
-		return fmt.Errorf("--output must be one of: pretty, json, cyclonedx-json")
+		return fmt.Errorf("--output must be one of: pretty (alias: table), json, cyclonedx-json")
 	}
 	switch specVersion {
 	case "1.6", "1.7":

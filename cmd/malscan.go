@@ -107,7 +107,7 @@ Examples:
 func init() {
 	malscanCmd.Flags().String("path", ".", "Directory to scan (defaults to CWD; resolves to the git root)")
 	malscanCmd.Flags().Bool("include-home", false, "Also scan user-scoped/home install caches (~/.npm, ~/go/pkg/mod, ~/.cargo, …)")
-	malscanCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty, json, sarif")
+	malscanCmd.Flags().StringP("output", "o", "pretty", "Terminal output format: pretty (alias: table), json, sarif")
 	malscanCmd.Flags().String("output-file", "", "Path to write the SARIF report (default: <path>/.vulnetix/malscan.sarif)")
 	malscanCmd.Flags().Bool("no-binary-analysis", false, "Do not extract/match IOCs in binary files")
 	malscanCmd.Flags().Int("scan-depth", 0, "Max directory depth per target (0 = unlimited)")
@@ -208,7 +208,7 @@ func runMalscanCmd(cmd *cobra.Command, args []string) error {
 	switch outputFmt {
 	case "pretty", "table", "json", "sarif":
 	default:
-		return fmt.Errorf("--output must be one of: pretty, json, sarif")
+		return fmt.Errorf("--output must be one of: pretty (alias: table), json, sarif")
 	}
 	outputFile, _ := cmd.Flags().GetString("output-file")
 	includeHome, _ := cmd.Flags().GetBool("include-home")
