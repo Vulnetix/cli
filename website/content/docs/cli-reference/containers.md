@@ -110,7 +110,8 @@ vulnetix containers --container-archive ./image.tar
 
 | Path | Description |
 |------|-------------|
-| `.vulnetix/sast.sarif` | SARIF 2.1.0 report from container analysis |
+| `.vulnetix/containers.sarif` | SARIF 2.1.0 report from container analysis. Unlike `secrets` and `iac`, which write `sast.sarif`, a container-only scan gets its own file |
+| `.vulnetix/sbom.cdx.json` | CycloneDX SBOM for the packages found in the image or its base images |
 | `.vulnetix/memory.yaml` | Scan state record (timestamp, finding counts, git context) |
 
 ## Exit Codes
