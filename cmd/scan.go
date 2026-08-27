@@ -1048,6 +1048,7 @@ func runLocalScan(
 				SafeVersions: scaAutofix,
 				EOL:          blockEOL,
 				Malware:      blockMalware,
+				Reachability: opts.Reachability,
 			}
 			scaToolName := ""
 			if containerOnly {
@@ -2258,20 +2259,36 @@ func runLocalScan(
 	// ── Output ────────────────────────────────────────────────────────────
 
 	// Write any requested file outputs.
+	//
+	// A file the user asked for and did not get is a failure, not a warning: a
+	// pipeline whose next step reads the SBOM would otherwise carry on against
+	// a missing or stale file and exit 0. The findings and the quality gate are
+	// still printed first — the error is folded into the return value below, so
+	// a policy breach (which is more actionable) still wins the exit code.
+	var outputWriteErr error
+	defer func() {
+		if retErr == nil && outputWriteErr != nil {
+			retErr = outputWriteErr
+		}
+	}()
 	if outCfg.cdxFile != "" {
 		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
 		// Carry the dependency tree into the file output too, so `-o file.cdx.json`
 		// is as complete as the canonical .vulnetix/sbom.cdx.json.
 		outBOM.Dependencies = cdx.BuildDependencies(manifestGroups, cdx.ExportCompRefs(outBOM))
 		if err := writeBOMToFile(outBOM, outCfg.cdxFile); err != nil {
-			fmt.Fprintf(os.Stderr, "  warning: could not write CDX to %s: %v\n", outCfg.cdxFile, err)
+			fmt.Fprintf(os.Stderr, "  ✗ could not write CDX to %s: %v\n", outCfg.cdxFile, err)
+			outputWriteErr = fmt.Errorf("could not write CDX to %s: %w", outCfg.cdxFile, err)
 		}
 	}
 	if outCfg.sarifFile != "" && sastReport != nil {
 		sarifLog := sast.BuildSARIF(sastReport.Findings, sastReport.Rules, version)
 		sarifLog.AddExecutionNotifications(sastReport.Degradations)
 		if err := sast.WriteSARIF(sarifLog, outCfg.sarifFile); err != nil {
-			fmt.Fprintf(os.Stderr, "  warning: could not write SARIF to %s: %v\n", outCfg.sarifFile, err)
+			fmt.Fprintf(os.Stderr, "  ✗ could not write SARIF to %s: %v\n", outCfg.sarifFile, err)
+			if outputWriteErr == nil {
+				outputWriteErr = fmt.Errorf("could not write SARIF to %s: %w", outCfg.sarifFile, err)
+			}
 		}
 	}
 
@@ -3778,6 +3795,10 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("yes", false, "Non-interactive mode for SCA autofix: auto-pick safe defaults and never prompt")
 	cmd.Flags().Int("sca-autofix-max-major-bump", 0, "Refuse SCA autofix targets crossing more than N major versions")
 	cmd.Flags().Bool("dry-run", false, "Detect files and parse packages locally, check memory, then exit — zero API calls")
+	cmd.Flags().String("reachability", "both",
+		"Tree-sitter reachability mode for the CVEs this scan produces: \"direct\" (scan only each vulnerable package's installed directory), \"transitive\" (sweep the rest of the project for callers), \"both\" (default), or \"off\" (skip the analysis and the server-side query fetch). Use \"off\" or \"direct\" on large monorepos where the whole-tree sweep is too slow.")
+	_ = cmd.RegisterFlagCompletionFunc("reachability",
+		cobra.FixedCompletions([]string{"direct", "transitive", "both", "off"}, cobra.ShellCompDirectiveNoFileComp))
 	// Secrets-only flags. They are registered on every scan-style subcommand
 	// so that `scan --evaluate-secrets --ignore-git` works just as well as
 	// `secrets --ignore-git`, but the flags are documented under the

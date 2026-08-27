@@ -12,7 +12,7 @@ Vulnetix CLI supports tab completion for commands, subcommands, flags, and flag 
 |----------|---------|
 | Commands | `vulnetix v<TAB>` &rarr; `vdb`, `version` |
 | Subcommands | `vulnetix vdb e<TAB>` &rarr; `ecosystems`, `exploits` |
-| Flag names | `vulnetix scan --f<TAB>` &rarr; `--file`, `--format` |
+| Flag names | `vulnetix scan --ex<TAB>` &rarr; `--exclude`, `--exploits` |
 | Flag values | `vulnetix upload --format <TAB>` &rarr; `cyclonedx`, `spdx`, `sarif`, `openvex`, `csaf_vex` |
 | File paths | `vulnetix upload --file <TAB>` &rarr; _(file browser)_ |
 | Directories | `vulnetix scan --path <TAB>` &rarr; _(directory browser)_ |

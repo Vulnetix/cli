@@ -225,45 +225,20 @@ test-command-help: dev
     log_dir="$(mktemp -d /tmp/vulnetix-cli-command-help.XXXXXX)"
     echo "Writing command help logs to ${log_dir}"
 
-    commands=(
-      ""
-      "auth" "auth login" "auth logout" "auth status" "auth verify"
-      "completion" "completion bash" "completion zsh" "completion fish" "completion powershell"
-      "containers" "env" "gha" "gha upload" "gha status" "iac" "license"
-      "sast" "sca" "scan" "scan status" "secrets" "triage" "triage status"
-      "update" "upload" "version"
-      "vdb"
-      "vdb advisories" "vdb affected"
-      "vdb ai-assisted-exploits" "vdb ai-discoveries" "vdb ai-in-wild" "vdb ai-malware"
-      "vdb attack-techniques" "vdb attack-techniques get" "vdb attack-techniques list"
-      "vdb cache" "vdb cache clear"
-      "vdb cloud-locators"
-      "vdb cwe" "vdb cwe guidance"
-      "vdb ecosystem" "vdb ecosystem package" "vdb ecosystem group"
-      "vdb ecosystems" "vdb exploit-trends"
-      "vdb exploits" "vdb exploits archived" "vdb exploits download" "vdb exploits poc"
-      "vdb exploits search" "vdb exploits sources" "vdb exploits types"
-      "vdb fixes" "vdb fixes distributions"
-      "vdb gcve" "vdb gcve issuances"
-      "vdb ids" "vdb iocs" "vdb iocs get" "vdb iocs list"
-      "vdb kev" "vdb kev download" "vdb kev get" "vdb kev list" "vdb kev reasons" "vdb kev sources"
-      "vdb metrics" "vdb metrics types"
-      "vdb msrc" "vdb msrc patch-tuesday" "vdb msrc patch-tuesdays"
-      "vdb nuclei" "vdb nuclei get"
-      "vdb packages" "vdb packages search"
-      "vdb product" "vdb purl"
-      "vdb raw" "vdb raw get" "vdb raw sources"
-      "vdb remediation" "vdb remediation plan"
-      "vdb scorecard" "vdb scorecard search"
-      "vdb search" "vdb sightings"
-      "vdb snort-rules" "vdb snort-rules get" "vdb snort-rules list"
-      "vdb sources" "vdb spec" "vdb status" "vdb summary"
-      "vdb timeline" "vdb traffic-filters" "vdb triage"
-      "vdb vendor-trends" "vdb versions"
-      "vdb vex" "vdb vex get" "vdb vex list"
-      "vdb vuln" "vdb vulns" "vdb workarounds"
-      "vdb yara-rules" "vdb yara-rules get" "vdb yara-rules list"
-    )
+    # The command list is read from the binary's own manifest rather than
+    # maintained here. A hand-kept list silently stops covering new commands the
+    # moment someone forgets to add one — it had drifted ~90 commands behind
+    # before this was made self-describing.
+    manifest="${log_dir}/manifest.json"
+    "$BIN" __manifest --no-banner > "${manifest}"
+    mapfile -t commands < <(jq -r '.commands | keys[] | sub("^vulnetix$"; "")' "${manifest}")
+    # cobra's own generated commands are absent from the manifest.
+    commands+=("completion" "completion bash" "completion zsh" "completion fish" "completion powershell")
+
+    if [ "${#commands[@]}" -lt 100 ]; then
+      echo "manifest yielded only ${#commands[@]} command(s); the help matrix is inspecting almost nothing" >&2
+      exit 1
+    fi
 
     for cmd in "${commands[@]}"; do
       label="${cmd:-root}"
@@ -271,6 +246,7 @@ test-command-help: dev
       echo "help: vulnetix ${cmd}"
       # shellcheck disable=SC2086
       "$BIN" $cmd --help > "${log_dir}/${label}.help"
+      test -s "${log_dir}/${label}.help"
     done
 
     for shell in bash zsh fish powershell; do
@@ -279,7 +255,7 @@ test-command-help: dev
       test -s "${log_dir}/completion-${shell}.txt"
     done
 
-    echo "Command help matrix passed"
+    echo "Command help matrix passed (${#commands[@]} commands)"
 
 # CLI argument validation and expected-failure guardrails.
 test-command-args: dev
@@ -334,6 +310,8 @@ test-command-args: dev
     run_fail vdb_mutually_exclusive_indent "$BIN" vdb --compact --sparse status --disable-memory --no-analytics
     run_fail vdb_vuln_missing_arg "$BIN" vdb vuln --disable-memory --no-analytics
     run_fail vdb_cwe_guidance_missing_arg "$BIN" vdb cwe guidance --disable-memory --no-analytics
+    run_fail scan_bad_reachability "$BIN" scan --path "{{sca_fixtures}}/npm-lock" --reachability nope --no-progress --disable-memory --no-analytics
+    run_fail sca_bad_reachability "$BIN" sca --path "{{sca_fixtures}}/npm-lock" --reachability nope --no-progress --disable-memory --no-analytics
 
     if [ "$fail" -ne 0 ]; then
       echo "${fail} argument validation case(s) failed; logs: ${log_dir}" >&2
@@ -406,6 +384,9 @@ test-command-fixtures: dev
     run_ok containers_full_rules "$BIN" containers --path "$sca_work/docker" --depth 2 "${RULE_FLAGS[@]}" --no-progress --disable-memory --no-analytics
     run_ok containers_containerfile "$BIN" containers --path "$sca_work/docker-containerfile" --depth 2 "${RULE_FLAGS[@]}" --no-progress --disable-memory --no-analytics
     run_ok iac_full_rules "$BIN" iac --path "$sca_work/terraform" --depth 2 "${RULE_FLAGS[@]}" --no-progress --disable-memory --no-analytics
+
+    run_ok sca_reachability_off "$BIN" sca --path "$sca_work/npm-lock" --depth 2 --reachability off --no-progress --disable-memory --no-analytics
+    run_ok sca_reachability_direct "$BIN" sca --path "$sca_work/npm-lock" --depth 2 --reachability direct --no-progress --disable-memory --no-analytics
 
     run_ok scan_from_memory "$BIN" scan --from-memory --path "$sca_work/npm-lock" --no-progress --disable-memory --no-analytics
     run_ok license_from_memory "$BIN" license --from-memory --path "$sca_work/npm-lock" --no-progress --disable-memory --no-analytics

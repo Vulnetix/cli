@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/v3/internal/pipeline"
+	"github.com/vulnetix/cli/v3/internal/reachability"
 	"github.com/vulnetix/cli/v3/internal/sast"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
@@ -94,6 +95,15 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	opts.GitHistoryMaxFiles = getInt("git-history-max-files")
 
 	opts.SCAAutofix = getBool("sca-autofix")
+
+	// Reachability is validated here rather than deep in the SCA pass so a typo
+	// fails before any packages are parsed or any request is sent.
+	reach := strings.TrimSpace(getString("reachability"))
+	if _, ok := reachability.ParseMode(reach); !ok {
+		return pipeline.Options{}, fmt.Errorf(
+			"invalid --reachability %q (expected: direct, transitive, both, off)", reach)
+	}
+	opts.Reachability = reach
 
 	opts.License = pipeline.LicensePolicy{
 		Mode:      getString("license-mode"),

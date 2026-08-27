@@ -23,7 +23,7 @@ Consequences worth internalising:
 - **A stale `VULNETIX_API_TOKEN` in your shell silently shadows a fresh `vulnetix auth login`.** The login writes to the keyring; resolution never gets that far.
 - **A project `.vulnetix/credentials.json` beats your home credential.** Cloning a repo that ships one hijacks your identity for that directory. See [File Permissions](../file-permissions/#never-commit-credentials).
 - **Half-set environment pairs are ignored, not errors.** `VULNETIX_API_KEY` without `VULNETIX_ORG_ID` falls through to the files, which is easy to misread as "the env var didn't work".
-- **netrc is a genuine credential source, not just Package Firewall config.** Running `vulnetix package-firewall setup` makes the CLI authenticable even after `vulnetix auth logout`.
+- **netrc is a genuine credential source, not just Package Firewall config.** Running any `vulnetix package-firewall <ecosystem>` subcommand makes the CLI authenticable even after `vulnetix auth logout`.
 
 ## The Keyring Is Not a Separate Level
 

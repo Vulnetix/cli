@@ -34,7 +34,8 @@ All flags from `vulnetix scan` are available except the feature-control flags (`
 | `--depth` | int | `3` | Maximum recursion depth for file discovery |
 | `--exclude` | stringArray | - | Exclude paths matching glob pattern (repeatable) |
 | `-o, --output` | stringArray | - | Output target: `json-cyclonedx` or `json-sarif` for stdout; file path for file output |
-| `--concurrency` | int | `5` | Max concurrent VDB queries |
+| `--concurrency` | int | - | **Deprecated, no-op.** It never had any effect; set `VULNETIX_SCA_CONCURRENCY` (default `6`) to change SCA fan-out |
+| `--reachability` | string | `both` | Tree-sitter reachability mode for the CVEs this scan produces: `direct`, `transitive`, `both`, or `off` |
 | `--no-progress` | bool | `false` | Suppress the progress bar |
 | `--paths` | bool | `false` | Show full transitive dependency paths |
 | `--no-exploits` | bool | `false` | Suppress the exploit intelligence section |

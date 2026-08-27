@@ -102,6 +102,17 @@ type Options struct {
 	// span, 0 disables snippets.
 	SnippetContext int
 
+	// Reachability selects the tree-sitter reachability mode applied to the
+	// CVEs the SCA pass produces: "direct" scans only each vulnerable
+	// package's installed directory, "transitive" sweeps the rest of the
+	// project for callers, "both" does both, and "off" skips the analysis (and
+	// the server-side query fetch) entirely. Empty means "both".
+	//
+	// It is a string rather than a reachability.Mode so internal/pipeline stays
+	// free of the CGo tree-sitter dependency; the value is validated by
+	// internal/scanopts before it gets here.
+	Reachability string
+
 	// ── Walk and secrets-stage options ──────────────────────────────────────
 	//
 	// These only affect the SAST engine when the secrets kind is enabled; other

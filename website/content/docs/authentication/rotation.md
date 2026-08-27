@@ -71,8 +71,8 @@ VULNETIX_API_KEY="$NEW_KEY" VULNETIX_ORG_ID="$ORG" vulnetix auth verify \
 ### netrc
 
 ```sh
-vulnetix package-firewall uninstall   # removes the entry and ecosystem config
-vulnetix package-firewall setup       # rewrites it with the current credential
+vulnetix package-firewall uninstall --all --remove-credentials  # removes the entry and ecosystem config
+vulnetix package-firewall npm                                   # rewrites it with the current credential
 ```
 
 Every package manager configured against `packages.vulnetix.com` picks up the new value on its next fetch. There is no cache to clear.

@@ -30,14 +30,16 @@ The parser accepts the entry on one line or several, strips `#` comments, and st
 
 ## Writing It
 
-Let the CLI do it. `vulnetix package-firewall setup` creates or updates the entry idempotently and sets mode `0600`:
+Let the CLI do it. There is no separate `setup` command — every
+`vulnetix package-firewall <ecosystem>` subcommand writes the shared entry
+first, idempotently, at mode `0600`:
 
 ```sh
-vulnetix package-firewall setup --dry-run   # show what would change
-vulnetix package-firewall setup
+vulnetix package-firewall npm --dry-run   # show what would change
+vulnetix package-firewall npm
 ```
 
-It also writes the per-ecosystem configuration (`GOPROXY`/`GOAUTH`, `.npmrc`, `pip.conf`, and so on). See [Package Firewall](/docs/enterprise/package-firewall/).
+The same subcommand then writes that ecosystem's configuration (`GOPROXY`/`GOAUTH`, `.npmrc`, `pip.conf`, and so on). Run one subcommand per package manager you use; the netrc entry is written once and shared. See [Package Firewall](/docs/enterprise/package-firewall/).
 
 Writing it by hand:
 
@@ -76,7 +78,7 @@ An entry for `packages.vulnetix.com` is the **sixth** and last real source in th
 
 Two consequences:
 
-- Running `vulnetix package-firewall setup` implicitly authenticates the CLI.
+- Running any `vulnetix package-firewall <ecosystem>` subcommand implicitly authenticates the CLI.
 - `vulnetix auth logout` does **not** clear netrc. To fully deauthenticate:
 
 ```sh

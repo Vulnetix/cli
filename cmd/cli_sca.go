@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -75,6 +76,22 @@ type cliSCAGateOptions struct {
 	SafeVersions bool // --sca-autofix
 	EOL          bool // --block-eol (package-level)
 	Malware      bool // --block-malware
+	// Reachability is the --reachability mode string. Empty means "both".
+	// "off" skips both the server-side query fetch and the local tree-sitter
+	// pass, which is the escape hatch for monorepos where the whole-tree sweep
+	// costs more than the evidence is worth.
+	Reachability string
+}
+
+// reachabilityMode resolves the gate options' --reachability value. The value
+// is validated in internal/scanopts, so an unparseable one here can only come
+// from a caller that bypassed flag parsing; treat that as the default.
+func (o cliSCAGateOptions) reachabilityMode() reachability.Mode {
+	mode, ok := reachability.ParseMode(strings.TrimSpace(o.Reachability))
+	if !ok {
+		return reachability.ModeBoth
+	}
+	return mode
 }
 
 func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestGroup, licenseByKey map[string]string, gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo, scanPath, toolName string, gateOpts cliSCAGateOptions, w io.Writer) (apiServed bool, findings []scan.VulnFinding, enriched []scan.EnrichedVuln, insights []vdb.CliPackageInsight, snapshotUuid string, snapshotURL string, persisted []vdb.CliFindingResult) {
@@ -111,6 +128,8 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	if !silent {
 		fmt.Fprintf(w, "Querying VDB via /v2/cli.sca: %d unique package(s) in %d batch(es)...\n", len(uniquePurls), len(chunks))
 	}
+
+	reachMode := gateOpts.reachabilityMode()
 
 	client := newCliClient()
 	if client == nil {
@@ -174,7 +193,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		req := vdb.CliSCARequest{
 			Purls: job.purls,
 			Options: vdb.CliSCAOptions{
-				IncludeReachability: boolPtrCLI(true),
+				IncludeReachability: boolPtrCLI(reachMode != reachability.ModeOff),
 				IncludeCooldown:     gateOpts.Cooldown,
 				IncludeVersionLag:   gateOpts.VersionLag,
 				IncludeSafeVersions: gateOpts.SafeVersions,
@@ -292,8 +311,8 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	// Reachability column on each finding reflects actual code analysis,
 	// not just whether the server delivered queries. Community gets nothing
 	// here because the server already returned reachability=nil.
-	if len(mergedReach) > 0 {
-		runReachabilityForFindings(mergedReach, enriched, scanPath, w)
+	if len(mergedReach) > 0 && reachMode != reachability.ModeOff {
+		runReachabilityForFindings(mergedReach, enriched, scanPath, reachMode, w)
 	}
 
 	// Symbol fallback (all tiers): for any finding the tree-sitter pass
@@ -850,9 +869,15 @@ func runSymbolFallback(enriched []scan.EnrichedVuln, projectRoot string, w io.Wr
 // whose queries run cleanly with zero matches → "unreachable"; CVEs we
 // couldn't evaluate stay empty. Direct-mode (per-install-directory) requires
 // ScopedPackage routing and lands in a follow-up.
-func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.EnrichedVuln, projectRoot string, w io.Writer) {
+func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.EnrichedVuln, projectRoot string, mode reachability.Mode, w io.Writer) {
 	if w == nil {
 		w = os.Stderr
+	}
+	if mode == "" {
+		mode = reachability.ModeBoth
+	}
+	if mode == reachability.ModeOff {
+		return
 	}
 	if len(hits) == 0 || len(enriched) == 0 {
 		return
@@ -870,6 +895,7 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 	type queryEntry struct {
 		query vdb.TreeSitterQuery
 		cves  map[string]bool
+		purls map[string]bool
 	}
 	byHash := make(map[string]*queryEntry, len(hits))
 	for _, h := range hits {
@@ -888,11 +914,15 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 					QueryText: h.QueryText,
 					QueryHash: h.QueryHash,
 				},
-				cves: map[string]bool{},
+				cves:  map[string]bool{},
+				purls: map[string]bool{},
 			}
 			byHash[hash] = entry
 		}
 		entry.cves[h.VulnID] = true
+		if h.Purl != "" {
+			entry.purls[h.Purl] = true
+		}
 	}
 
 	queries := make([]vdb.TreeSitterQuery, 0, len(byHash))
@@ -901,26 +931,79 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 	}
 
 	if verbose {
-		fmt.Fprintf(w, "  running %d reachability query(ies) across %s...\n", len(queries), cwd)
+		fmt.Fprintf(w, "  running %d reachability query(ies) across %s (mode: %s)...\n", len(queries), cwd, mode)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	engine := reachability.NewEngine()
-	res, err := reachability.Scan(ctx, engine, reachability.ScanRequest{
-		ProjectRoot: cwd,
-		Queries:     queries,
-		Mode:        reachability.ModeTransitive,
-	})
-	if err != nil {
-		if verbose {
-			fmt.Fprintf(w, "  reachability scan failed: %v\n", err)
+
+	res := &reachability.Result{Executed: map[string]bool{}}
+
+	if mode.Includes(reachability.ModeTransitive) {
+		r, err := reachability.Scan(ctx, engine, reachability.ScanRequest{
+			ProjectRoot: cwd,
+			Queries:     queries,
+			Mode:        reachability.ModeTransitive,
+		})
+		if err != nil {
+			if verbose {
+				fmt.Fprintf(w, "  reachability scan failed: %v\n", err)
+			}
+			return
 		}
-		return
+		res.Transitive = r.Transitive
+		res.QueriesRun += r.QueriesRun
+		for k, v := range r.Executed {
+			res.Executed[k] = res.Executed[k] || v
+		}
 	}
 
-	// Mark each CVE whose query produced a match.
+	// Direct mode scans each vulnerable package's own installed directory, so
+	// the queries have to be grouped by the purl the server attributed them to.
+	// A hit with no purl cannot be located on disk and is skipped rather than
+	// scanned against the whole tree, which is what transitive mode is for.
+	if mode.Includes(reachability.ModeDirect) {
+		byPurl := map[string][]vdb.TreeSitterQuery{}
+		for _, e := range byHash {
+			for purl := range e.purls {
+				byPurl[purl] = append(byPurl[purl], e.query)
+			}
+		}
+		if len(byPurl) == 0 && verbose {
+			fmt.Fprintf(w, "  reachability: no purl-attributed queries; direct pass skipped\n")
+		}
+		for purl, qs := range byPurl {
+			eco, name := splitPurlForReachability(purl)
+			if name == "" {
+				continue
+			}
+			r, err := reachability.Scan(ctx, engine, reachability.ScanRequest{
+				ProjectRoot: cwd,
+				Ecosystem:   eco,
+				Package:     name,
+				Queries:     qs,
+				Mode:        reachability.ModeDirect,
+			})
+			if err != nil {
+				if verbose {
+					fmt.Fprintf(w, "  reachability direct scan of %s failed: %v\n", purl, err)
+				}
+				continue
+			}
+			res.Direct = append(res.Direct, r.Direct...)
+			res.QueriesRun += r.QueriesRun
+			for k, v := range r.Executed {
+				res.Executed[k] = res.Executed[k] || v
+			}
+		}
+	}
+
+	// Mark each CVE whose query produced a match. A direct match is the stronger
+	// verdict — the vulnerable pattern is present in the installed package —
+	// so it wins over a transitive one for the same CVE.
 	reachableCVEs := map[string]bool{}
+	directCVEs := map[string]bool{}
 	for _, m := range res.Transitive {
 		entry, ok := byHash[m.Query]
 		if !ok {
@@ -928,6 +1011,16 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 		}
 		for cve := range entry.cves {
 			reachableCVEs[cve] = true
+		}
+	}
+	for _, m := range res.Direct {
+		entry, ok := byHash[m.Query]
+		if !ok {
+			continue
+		}
+		for cve := range entry.cves {
+			reachableCVEs[cve] = true
+			directCVEs[cve] = true
 		}
 	}
 	// Track which CVEs had at least one query that *actually executed* (compiled
@@ -963,6 +1056,8 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 			enriched[i].ReachabilityQueryHashes = hashes
 		}
 		switch {
+		case directCVEs[cve]:
+			enriched[i].Reachability = "direct"
 		case reachableCVEs[cve]:
 			enriched[i].Reachability = "transitive"
 		case evaluatedCVEs[cve]:
@@ -973,6 +1068,38 @@ func runReachabilityForFindings(hits []vdb.CliReachabilityHit, enriched []scan.E
 	if verbose {
 		fmt.Fprintf(w, "  reachability: %d/%d evaluated CVE(s) reached\n", len(reachableCVEs), len(evaluatedCVEs))
 	}
+}
+
+// splitPurlForReachability pulls the (ecosystem, name) pair out of a purl so
+// reachability.InstallPath can find the package on disk. It is deliberately
+// minimal — no qualifiers, no subpath, no version — because that is all
+// InstallPath consumes, and a full purl parser would be a dependency for
+// nothing. Namespaced names keep their namespace ("@scope/name", "group/name")
+// because that is how they appear in node_modules and friends.
+func splitPurlForReachability(purl string) (ecosystem, name string) {
+	rest, ok := strings.CutPrefix(purl, "pkg:")
+	if !ok {
+		return "", ""
+	}
+	// Drop qualifiers and subpath before anything else so a "?arch=x86_64" or
+	// "#subdir" cannot be mistaken for part of the name.
+	if i := strings.IndexAny(rest, "?#"); i >= 0 {
+		rest = rest[:i]
+	}
+	eco, remainder, ok := strings.Cut(rest, "/")
+	if !ok || remainder == "" {
+		return "", ""
+	}
+	// The version is everything after the last "@" that is not the leading "@"
+	// of an npm scope.
+	if i := strings.LastIndex(remainder, "@"); i > 0 {
+		remainder = remainder[:i]
+	}
+	unescaped, err := url.PathUnescape(remainder)
+	if err == nil {
+		remainder = unescaped
+	}
+	return strings.ToLower(eco), remainder
 }
 
 // scaJob is one unit of work for the self-healing cli.sca sender. A job either

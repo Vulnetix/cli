@@ -165,18 +165,29 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 			}
 			for _, cs := range pkg.Checksums {
 				switch cs.Alg {
-				case "SHA-256", "SHA-1":
-					comp.Hashes = append(comp.Hashes, Hash{Alg: cs.Alg, Content: cs.Value})
-				case "SHA-512":
-					content := cs.Value
-					if decoded, err := base64.StdEncoding.DecodeString(cs.Value); err == nil {
-						content = hex.EncodeToString(decoded)
+				case "MD5", "SHA-1", "SHA-256", "SHA-512":
+					// CycloneDX requires hashes[].content to be a hex digest of
+					// exactly the algorithm's length. Lock files hand us SRI
+					// (base64) as often as hex, and an npm `integrity` value can
+					// simply be malformed. Emitting either verbatim fails schema
+					// validation, which drops the WHOLE document — so a single
+					// bad checksum used to silently cost the user their SBOM.
+					// Normalise what we can and demote the rest to a property.
+					content, ok := hexDigest(cs.Alg, cs.Value)
+					if ok {
+						comp.Hashes = append(comp.Hashes, Hash{Alg: cs.Alg, Content: content})
+					} else {
+						comp.Properties = append(comp.Properties, Property{
+							Name:  "vulnetix:checksum/" + strings.ToLower(cs.Alg),
+							Value: cs.Value,
+						})
 					}
-					comp.Hashes = append(comp.Hashes, Hash{Alg: "SHA-512", Content: content})
-					comp.Properties = append(comp.Properties, Property{
-						Name:  "vulnetix:integrity",
-						Value: cs.Value,
-					})
+					if cs.Alg == "SHA-512" {
+						comp.Properties = append(comp.Properties, Property{
+							Name:  "vulnetix:integrity",
+							Value: cs.Value,
+						})
+					}
 				case "H1":
 					comp.Properties = append(comp.Properties, Property{
 						Name:  "vulnetix:gosum-h1",
@@ -652,4 +663,46 @@ func ExportCompRefs(bom *BOM) map[string]string {
 		refs[c.Name+"@"+c.Version] = c.BOMRef
 	}
 	return refs
+}
+
+// hexDigestLengths is the hex-character count CycloneDX requires for each hash
+// algorithm it accepts on a component.
+var hexDigestLengths = map[string]int{
+	"MD5":     32,
+	"SHA-1":   40,
+	"SHA-256": 64,
+	"SHA-384": 96,
+	"SHA-512": 128,
+}
+
+// hexDigest normalises a lock-file checksum to the lower-case hex digest
+// CycloneDX wants, accepting either hex or the base64 form used by npm's
+// Subresource Integrity values. It reports false when the value is neither —
+// a truncated or otherwise malformed integrity string, which no amount of
+// decoding will rescue.
+func hexDigest(alg, value string) (string, bool) {
+	want, known := hexDigestLengths[alg]
+	if !known {
+		return "", false
+	}
+	v := strings.TrimSpace(value)
+	if v == "" {
+		return "", false
+	}
+	if len(v) == want && isHexString(v) {
+		return strings.ToLower(v), true
+	}
+	if decoded, err := base64.StdEncoding.DecodeString(v); err == nil && len(decoded)*2 == want {
+		return hex.EncodeToString(decoded), true
+	}
+	return "", false
+}
+
+func isHexString(s string) bool {
+	for _, r := range s {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+			return false
+		}
+	}
+	return true
 }

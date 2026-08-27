@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vulnetix/cli/v3/internal/memory"
+	"github.com/vulnetix/cli/v3/internal/reachability"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -37,7 +38,7 @@ func TestRunReachabilityForFindings_OnlyExecutedQueriesAssessed(t *testing.T) {
 		{VulnID: "CVE-PY-NOFILE", Language: "python", Name: "py-q", QueryText: `(call (identifier) @c)`, QueryHash: "h-py"},
 	}
 
-	runReachabilityForFindings(hits, enriched, root, io.Discard)
+	runReachabilityForFindings(hits, enriched, root, reachability.ModeTransitive, io.Discard)
 
 	byCVE := map[string]scan.EnrichedVuln{}
 	for _, ev := range enriched {

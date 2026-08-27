@@ -54,6 +54,7 @@ var flagToOption = map[string]string{
 	"rule-registry":           "RuleRegistry",
 	"rule-id":                 "RuleID",
 	"snippet-context":         "SnippetContext",
+	"reachability":            "Reachability",
 }
 
 // notAnalysisInput are scan-family flags that legitimately never reach Options,

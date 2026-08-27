@@ -374,16 +374,23 @@ This command:
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--org-id` | string | stored | Organization ID (UUID); uses stored credentials if not set |
-| `--base-url` | string | `https://api.vdb.vulnetix.com/v1` | Base URL for the Vulnetix VDB API |
+| `--dry-run` | bool | `false` | Classify and validate every file without publishing anything |
+| `--fail-on-empty` | bool | `false` | Fail when the run produced no publishable artifact |
+| `--no-github-api` | bool | `false` | Do not call the GitHub REST API to enrich the CI context |
+| `--strict` | bool | `false` | Treat skipped files (unrecognised formats) as failures |
 | `--json` | bool | `false` | Output results as JSON |
+
+The API base URL is not a flag on `gha`; both subcommands go through the shared
+client, so use `VULNETIX_API_URL` if you need to point them elsewhere.
 
 #### gha status
 
-Check the processing status of uploaded artifacts by transaction ID or artifact UUID.
+Report on the ingestion snapshots produced by a workflow run, or on a single
+snapshot by UUID.
 
 ```bash
-vulnetix gha status --txnid <ID>
+vulnetix gha status                    # current run (GITHUB_RUN_ID)
+vulnetix gha status --run-id <RUN_ID>
 vulnetix gha status --uuid <UUID>
 ```
 
@@ -391,10 +398,9 @@ vulnetix gha status --uuid <UUID>
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--txnid` | string | - | Transaction ID to check status |
-| `--uuid` | string | - | Artifact UUID to check status |
-| `--org-id` | string | stored | Organization ID (UUID); uses stored credentials if not set |
-| `--base-url` | string | `https://api.vdb.vulnetix.com/v1` | Base URL for the Vulnetix VDB API |
+| `--run-id` | string | `GITHUB_RUN_ID` | Workflow run id to report on |
+| `--attempt` | int | `GITHUB_RUN_ATTEMPT` | Limit to one run attempt |
+| `--uuid` | string | - | Report on a single ingestion snapshot instead of a whole run |
 | `--json` | bool | `false` | Output results as JSON |
 
 ---
@@ -519,7 +525,7 @@ vulnetix scan [flags]
 | `--exclude` | - | Exclude paths matching glob (repeatable) |
 | `--include-ignored` | `false` | Include `.gitignore`-matched files (SAST/secrets/containers/IaC; sca and malscan always scan them) |
 | `-o, --output` | - | Output target (repeatable): `json-cyclonedx`, `json-sarif` for stdout; `.cdx.json`, `.sarif` file paths to write to file |
-| `--concurrency` | `5` | Max concurrent VDB queries |
+| `--concurrency` | - | **Deprecated, no-op.** Set `VULNETIX_SCA_CONCURRENCY` (default `6`) instead |
 | `--no-progress` | `false` | Suppress progress indicators |
 | `--severity` | - | Exit `1` if any vuln or SAST finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--block-malware` | `false` | Exit `1` when any dependency is a known malicious package |
@@ -932,7 +938,9 @@ vulnetix triage status --format json
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--format` | string | `text` | Output format: `text`, `json` |
-| `--provider` | string | `github` | Vulnerability data provider |
+
+`--provider` is a flag on `vulnetix triage`, not on `triage status`; it defaults
+to `vulnetix` and accepts `github`.
 
 **Output (text):**
 

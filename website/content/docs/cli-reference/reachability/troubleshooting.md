@@ -69,7 +69,7 @@ Tactics:
 
 Parsers and queries are short-lived in the smacker/go-tree-sitter binding — both `Close()` on the tree and the query cursor are deferred in the engine's `Run` path, so per-file allocations don't accumulate. Parser instances themselves are pooled per language via `sync.Pool`, which keeps allocator pressure low for repeated runs.
 
-If you observe a memory leak in long-running reachability runs (uncommon), capture a heap profile (`vulnetix --pprof-heap …`) and file an issue with the dump.
+If you observe a memory leak in long-running reachability runs (uncommon), capture a heap profile with the Go runtime's own tooling (`GODEBUG=gctrace=1`, or run the command under `go tool pprof` from a source build) and file an issue with the dump.
 
 ## Reachability runs even though I passed `-V v1`
 
@@ -82,6 +82,6 @@ Today reachability is a side-effect of `vdb vuln`, `vdb remediation plan`, and `
 If you need to clear and re-run from scratch:
 
 ```bash
-vulnetix vdb cache clear --identifier CVE-2021-23337
+vulnetix vdb cache clear   # clears the whole VDB response cache
 vulnetix vdb vuln CVE-2021-23337
 ```

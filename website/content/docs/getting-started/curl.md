@@ -452,21 +452,18 @@ chmod +x vulnetix
 sudo install vulnetix "$INSTALL_DIR/"
 sudo ln -sf "$INSTALL_DIR/vulnetix" /usr/local/bin/vulnetix
 
-# Create enterprise configuration
-sudo tee "$CONFIG_DIR/config.yaml" > /dev/null <<EOF
-org_id: ${VULNETIX_ORG_ID}
-api_endpoint: ${VULNETIX_API_URL:-https://api.vdb.vulnetix.com}
-default_team: ${VULNETIX_DEFAULT_TEAM:-security}
-proxy:
-  http_proxy: ${HTTP_PROXY:-}
-  https_proxy: ${HTTPS_PROXY:-}
-  no_proxy: ${NO_PROXY:-}
+# Site-wide defaults. The CLI reads no config file of its own — credentials and
+# the API endpoint come from the environment (or from `vulnetix auth login`),
+# and proxying comes from Go's standard HTTP_PROXY/HTTPS_PROXY/NO_PROXY.
+sudo tee /etc/profile.d/vulnetix.sh > /dev/null <<EOF
+export VULNETIX_ORG_ID="${VULNETIX_ORG_ID}"
+export VULNETIX_API_URL="${VULNETIX_API_URL:-https://api.vdb.vulnetix.com}"
 EOF
 
 # Set permissions
 sudo chown -R root:root "$INSTALL_DIR" "$CONFIG_DIR"
 sudo chmod 755 "$INSTALL_DIR/vulnetix"
-sudo chmod 644 "$CONFIG_DIR/config.yaml"
+sudo chmod 644 /etc/profile.d/vulnetix.sh
 
 # Cleanup
 rm -f vulnetix checksums.txt

@@ -61,7 +61,7 @@ vulnetix scan [flags]
 | `--include-ignored` | bool | `false` | Include files matched by `.gitignore`. By default the SAST, secrets, containers and IaC passes skip gitignored paths; **SCA and malscan always scan them** (dependency install dirs like `node_modules/` are commonly gitignored). |
 | `-o, --output` | stringArray | - | Output target (repeatable): `json-cyclonedx` or `json-sarif` for stdout; file path (`.cdx.json`, `.cdx`, `.bom.json`, `.sbom.json`) for CycloneDX to file; file path (`.sarif`, `.sarif.json`) for SARIF to file. Multiple flags combine file outputs with pretty display. |
 | `-f, --format` | string | - | **Deprecated** — maps to `--output json-cyclonedx`. Use `--output` instead. |
-| `--concurrency` | int | `5` | Max concurrent VDB queries |
+| `--concurrency` | int | - | **Deprecated, no-op.** It never had any effect; set `VULNETIX_SCA_CONCURRENCY` (default `6`) to change SCA fan-out |
 | `--no-progress` | bool | `false` | Suppress progress indicators |
 | `--paths` | bool | `false` | Show full transitive dependency paths (npm, Python, Rust, Ruby, PHP, Go). Edges are built from locally installed packages (`node_modules/`, venv, `vendor/`, `cargo metadata`). |
 | `--no-exploits` | bool | `false` | Suppress the detailed exploit intelligence section |
@@ -864,4 +864,6 @@ Non-authenticated scans (no credentials, or the community fallback) have no orga
 | Code | Meaning |
 |------|---------|
 | `0` | Scan completed successfully (no threshold breach) |
-| `1` | A gate was breached (`--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`, `--version-lag`, `--cooldown`), or a fatal error occurred |
+| `1` | A gate was breached (`--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`, `--version-lag`, `--cooldown`), or a fatal error occurred — including a file requested with `-o <path>` that could not be written |
+| `2` | A local argument or configuration error, caught before any scanning started |
+| `3` | With `--jail`: the policy ran but could not reach a verdict, because some rules have no current scan coverage. Not a pass and not a breach |

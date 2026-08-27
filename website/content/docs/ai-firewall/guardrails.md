@@ -156,9 +156,9 @@ vulnetix ai-firewall policy guardrail "No connection strings" --uuid <uuid> --de
 | Flag | Meaning |
 | --- | --- |
 | `--uuid` | Existing guardrail (required for `--delete`) |
-| `--rule-type` | `blocked_pattern`, `max_messages`, `pii_redact` — required when creating |
-| `--action` | `block`, `redact`, `flag` |
-| `--pattern` | Regex, or the integer for `max_messages` |
+| `--rule-type` | Content: `blocked_pattern`, `max_messages`, `pii_redact`. Capability: `tool_allow`/`tool_deny`, `mcp_allow`/`mcp_deny`, `skill_allow`/`skill_deny`, `client_allow`/`client_deny`. Required when creating |
+| `--action` | `block`, `redact`, `strip`, `flag` |
+| `--pattern` | Regex for content rules, the integer for `max_messages`, or a glob for capability rules |
 | `--priority` | Evaluation order, lowest first (default `100`) |
 | `--enable` / `--disable` | Toggle without deleting |
 | `--delete` | Remove it (needs `--uuid`) |
