@@ -100,6 +100,15 @@ func init() {
 	// for the autofix knobs.
 	addScanFlags(fixCmd)
 
+	// --dry-run means something different here. Everywhere else in the scan
+	// family it stops before any network work; a fix plan cannot be computed
+	// without the VDB's Safe-Harbour versions, so this one queries and stops
+	// before touching a manifest. Saying so in the help avoids a promise of
+	// "zero API calls" that the command cannot keep.
+	if f := fixCmd.Flags().Lookup("dry-run"); f != nil {
+		f.Usage = "Show the fix plan and change nothing. Unlike the rest of the scan family this still queries the VDB — the plan is built from it — but no manifest is edited, no install runs and no rescan runs"
+	}
+
 	fixCmd.Flags().String("strategy", "stable", "Fix target strategy: stable, safest or latest")
 	fixCmd.Flags().String("manifest", "", "Restrict fixes to one manifest file")
 	fixCmd.Flags().Int("max-major-bump", 0, "Refuse fix targets crossing more than N major versions (0 = no limit)")
