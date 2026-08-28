@@ -873,6 +873,10 @@ func runLocalScan(
 	// sarifSnapshots holds per-kind (SAST/Secrets/IaC/Containers) ingestion
 	// snapshot links from postScanSARIF, surfaced in the artefact summary.
 	var sarifSnapshots []snapshotLink
+	// Reset per run so a second invocation in the same process cannot attach its
+	// binaries to the previous scan's snapshot.
+	lastContainerSnapshotUuid = ""
+
 	// sarifSnapshotUuids maps category → snapshotUuid for SARIF kinds, used to
 	// call cli.finalize for each SARIF-only snapshot.
 	var sarifSnapshotUuids map[string]string
@@ -1696,6 +1700,15 @@ func runLocalScan(
 				var suppResults []vdb.CliSuppressionResult
 				sarifSnapshots, sarifSnapshotUuids, suppResults = postScanSARIF(sastReport, enabledKinds, gitCtx, rootPath, snippetContext, scaSnapshotUuid, suppressionMints, testConfigMeta, progressStderr)
 				applyMintedSuppressionUUIDs(mem, suppResults)
+				// Hand the container scan's snapshot to the ELF pass, which runs
+				// after this function returns (cmd/specialized_scans.go). Without
+				// it the binary inventory opens a second snapshot and one
+				// `vulnetix containers` shows up twice in the console.
+				if u := sarifSnapshotUuids["containers"]; u != "" {
+					lastContainerSnapshotUuid = u
+				} else {
+					lastContainerSnapshotUuid = scaSnapshotUuid
+				}
 			}
 		}
 	}

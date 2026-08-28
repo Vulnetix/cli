@@ -272,6 +272,7 @@ func runBinaryScanPath(cmd *cobra.Command, scanPath string) error {
 			ScannerRunUUID: scannerRunUUID,
 			Path:           result.Path,
 			Binaries:       make([]vdb.CliBinaryAnalyzeEntry, 0, len(result.Binaries)),
+			SnapshotUuid:   lastContainerSnapshotUuid,
 		}
 		for _, b := range result.Binaries {
 			req.Binaries = append(req.Binaries, cliBinaryToEntry(b))
@@ -291,9 +292,15 @@ func runBinaryScanPath(cmd *cobra.Command, scanPath string) error {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "API error: %v (results available locally)\n", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "API: %d binaries stored, %d findings created (%d malware, %d CVE matches)\n",
-				resp.Data.BinariesStored, resp.Data.FindingsCreated,
-				resp.Data.MalwareHits, resp.Data.CveMatches)
+			// Findings and CVE matches are not this endpoint's job — malware
+			// raises its finding through malscan, and packages found inside
+			// binaries reach the SCA path as real purls — so reporting a count
+			// that is structurally always zero would only read as a failure.
+			fmt.Fprintf(os.Stderr, "API: %d binaries stored (%d flagged by the malware corpus)\n",
+				resp.Data.BinariesStored, resp.Data.MalwareHits)
+			if resp.Data.IngestionSnapshot != nil && resp.Data.IngestionSnapshot.URL != "" {
+				fmt.Fprintf(os.Stderr, "     %s\n", resp.Data.IngestionSnapshot.URL)
+			}
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "No credentials — skipping API submission.\n")
@@ -463,3 +470,10 @@ func stringsJoin(ss []string, sep string) string {
 	}
 	return result
 }
+
+// lastContainerSnapshotUuid carries the snapshot the container scan just
+// created to the ELF pass, which runs after runScanWithFeatures has returned
+// and so cannot be given it as an argument. Set by runLocalScan and consumed
+// once by runBinaryScanPath; empty means the pass opens a snapshot of its own,
+// which is what a bare `containers --container-rootfs` needs.
+var lastContainerSnapshotUuid string

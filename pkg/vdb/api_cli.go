@@ -1555,18 +1555,34 @@ type CliBinaryAnalyzeEntry struct {
 }
 
 // CliBinaryAnalyzeRequest is the full payload for POST /v2/cli.analyze.
+//
+// ScannerRunUUID is this run's local correlation id. The server does not use it
+// as a key — it mints its own, as every other cli.* route does.
+//
+// SnapshotUuid attaches the inventory to the container scan that produced it,
+// so one `vulnetix containers` invocation yields one snapshot rather than two.
+// Empty opens a run of its own, which is what a standalone rootfs scan needs.
 type CliBinaryAnalyzeRequest struct {
 	ScannerRunUUID string                  `json:"scannerRunUuid"`
 	Path           string                  `json:"path"`
 	Binaries       []CliBinaryAnalyzeEntry `json:"binaries"`
+	SnapshotUuid   string                  `json:"ingestionSnapshotUuid,omitempty"`
 }
 
 // CliBinaryAnalyzeResponse is the typed response from /v2/cli.analyze.
+//
+// FindingsCreated and CveMatches are 0 by design. Malware raises its Finding
+// through cli.malscan, which owns the Finding/Triage/OpenVEX chain, and
+// packages found inside binaries reach cli.sca as real purls — deriving CVEs
+// here from an unqualified hashlookup package name would be fuzzy matching on a
+// bare string. Both fields are kept so the shape does not change under a client
+// if either ever gains a source it can substantiate.
 type CliBinaryAnalyzeResponse struct {
-	BinariesStored  int `json:"binariesStored"`
-	FindingsCreated int `json:"findingsCreated"`
-	MalwareHits     int `json:"malwareHits"`
-	CveMatches      int `json:"cveMatches"`
+	BinariesStored    int                   `json:"binariesStored"`
+	FindingsCreated   int                   `json:"findingsCreated"`
+	MalwareHits       int                   `json:"malwareHits"`
+	CveMatches        int                   `json:"cveMatches"`
+	IngestionSnapshot *CliIngestionSnapshot `json:"ingestionSnapshot,omitempty"`
 }
 
 // CliBinaryAnalyze — POST /v2/cli.analyze. Sends the full binary scan

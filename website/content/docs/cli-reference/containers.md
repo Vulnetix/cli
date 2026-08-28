@@ -23,6 +23,32 @@ pass with `--no-binary-package-analysis`; the ELF weakness scan still runs. See
 [Binary package discovery](../cdx/#binary-package-discovery) for what each format
 yields.
 
+## The binary inventory
+
+When you are authenticated, the ELF pass uploads what it found: for every
+binary, its hashes, ELF header, hardening weaknesses (no PIE, no RELRO, no stack
+canary, setuid), capabilities, extracted strings and EXIF, the CIRCL hashlookup
+correlation and the local malware-corpus verdict. That is the record an SBOM
+cannot give you — an unpackaged binary nobody declared is in no manifest, but it
+is on disk.
+
+It attaches to the same snapshot as the container scan that produced it, so one
+`vulnetix containers` run is one entry in the console rather than two. A
+standalone `--container-rootfs` inspection with no container scan around it gets
+a snapshot of its own.
+
+The inventory is a forensic record, not a verdict:
+
+- **Vulnerabilities** come from the packages the binaries are read *for* — Go
+  build info, cargo-auditable crate lists, JVM coordinates — which travel as
+  real purls in the SBOM and are matched there. A CIRCL package *name* with no
+  ecosystem to qualify it is not matched against advisories; string-matching
+  "openssl" across every source is how a scanner starts reporting things that
+  are not true.
+- **Malware** raises its finding through [`malscan`](../malscan/), which owns
+  the triage and VEX records. A binary the corpus flags here is marked on its
+  inventory row and counted in the command's output.
+
 > **Credentials are optional.** When no credentials are configured the community fallback is used automatically.
 
 ## Usage

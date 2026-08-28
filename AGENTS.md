@@ -86,6 +86,33 @@ Declarative policy lives in `.vulnetix/ai-firewall.yaml` (`apiVersion: vulnetix.
 
 Backend follow-ups (not yet implemented): `cli.ai-firewall-get` must return `hasKey`/`keyUpdatedAt`/`logsEnabled`/`gateway.wireApis`; new endpoints `cli.ai-firewall-key`, `cli.ai-firewall-settings`, `cli.ai-firewall-baseline`. The CLI ships first and tolerates their absence. Docs: `website/content/docs/ai-firewall/` (hand-written, not generated).
 
+### Binary Inventory (`containers` ELF pass)
+
+`containers` runs a second, internal pass after the Rego one: `runBinaryScan`
+walks the filesystem for ELF binaries and posts them to `/v2/cli.analyze` as
+`ContainerBinary` rows — hashes, ELF header, hardening weaknesses, capabilities,
+strings, EXIF, the CIRCL hashlookup correlation and the malware-corpus verdict.
+
+Two rules keep it honest, and both are load-bearing:
+
+  - It does **no** CVE matching. Packages compiled into binaries already travel
+    as real purls (`internal/binpkg` → the SBOM → `/v2/cli.sca`). A hashlookup
+    package *name* carries no ecosystem, so matching it against advisories is
+    string-matching "openssl" across every source in the database.
+  - It creates **no** findings. Malware raises its finding through
+    `/v2/cli.malscan`, which owns the Finding/Triage/OpenVEX chain; this pass
+    marks the verdict on the row and counts it.
+
+`findingsCreated` and `cveMatches` in the response are therefore structurally 0.
+They are kept in the shape rather than removed so a client does not break if
+either ever gains a source it can substantiate.
+
+The pass attaches to the container scan's snapshot via
+`lastContainerSnapshotUuid` (set by `runLocalScan`, consumed by
+`runBinaryScanPath`) so one invocation records one snapshot. It runs after
+`runScanWithFeatures` has returned, which is why the value travels in a package
+var rather than an argument.
+
 ### Malscan Subcommand
 
 The `malscan` command runs the `malscan-engine` (module `github.com/vulnetix/malscan-engine`, consumed like `vdb-cyclonedx`) **in-process** against the project's locally-installed dependencies — unlike `--block-malware` on the `sca` path, which defers to the backend's periodic pipelines. It runs the full engine over each resolved ecosystem target: `iocscan.Scan` (STIX IOC filesystem scan — known-bad domains/IPs/URLs in text + extracted binary strings, with file+line+context), `detect.Detect` (manifest/install-script pattern + shell-obfuscation detectors), `ioc.ExtractIOCs`, and `badhash` (known-bad artifact-hash blocklist over declared/candidate hashes).

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://vulnetix.com/schemas/binary-analyze.schema.json",
   "title": "CliBinaryAnalyzeRequest",
-  "description": "CLI binary analysis payload for POST /v2/cli.analyze — one request per container filesystem scan. Mirrors the server schema so the CLI verifies its own request before sending.",
+  "description": "CLI binary analysis payload for POST /v2/cli.analyze — one request per container filesystem scan. The CLI validates its own request against this before sending, so a contract drift surfaces locally rather than as a server-side 400.",
   "type": "object",
   "required": ["scannerRunUuid", "path", "binaries"],
   "properties": {
@@ -15,6 +15,10 @@
       "type": "string",
       "minLength": 1,
       "description": "Absolute path to the scanned container filesystem root on the scanner host."
+    },
+    "ingestionSnapshotUuid": {
+      "type": "string",
+      "description": "Snapshot of the container scan this binary inventory belongs to, so one `vulnetix containers` invocation records one snapshot. Absent for a standalone rootfs scan, which opens a run of its own."
     },
     "binaries": {
       "type": "array",
