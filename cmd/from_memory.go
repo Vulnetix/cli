@@ -395,7 +395,12 @@ func fetchFreshExploits(vulns []scan.EnrichedVuln, uniqueCVEs []string) {
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			exploitData, err := client.GetExploits(id)
+			// Ask for a large page: this path mines the exploits array for IDS
+			// rules, so the server's 100-item default would silently drop most
+			// of them. 1000 is the endpoint's ceiling; a CVE with more than
+			// that contributes its first thousand rather than sixteen thousand
+			// records nobody reads.
+			exploitData, err := client.GetExploits(id, 1000, 0)
 			if err != nil {
 				return
 			}
@@ -416,7 +421,12 @@ func fetchFreshExploits(vulns []scan.EnrichedVuln, uniqueCVEs []string) {
 // parseExploitFromAPI mirrors scan.parseExploitSummary (unexported).
 func parseExploitFromAPI(data map[string]interface{}) *scan.ExploitSummary {
 	es := &scan.ExploitSummary{}
+	// exploitCount is the whole-set signal tally. "total" is the whole-set size
+	// of the exploits array; "count" is only the length of the returned page, so
+	// it is the last resort rather than the first.
 	if ec, ok := data["exploitCount"].(float64); ok {
+		es.ExploitCount = int(ec)
+	} else if ec, ok := data["total"].(float64); ok {
 		es.ExploitCount = int(ec)
 	} else if ec, ok := data["count"].(float64); ok {
 		es.ExploitCount = int(ec)

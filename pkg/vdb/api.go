@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -305,8 +306,24 @@ func (c *Client) GetOpenAPISpec() (map[string]interface{}, error) {
 }
 
 // GetExploits retrieves exploit intelligence for a specific CVE identifier
-func (c *Client) GetExploits(identifier string) (map[string]interface{}, error) {
+// GetExploits reads one vulnerability's exploit intelligence.
+//
+// limit/offset page the `exploits` array only. The summary counts describe the
+// whole set regardless of the page, because a count of "how much exploitation
+// exists for this CVE" that changed with your page size would be useless.
+// A limit of 0 leaves the server's default in place.
+func (c *Client) GetExploits(identifier string, limit, offset int) (map[string]interface{}, error) {
 	path := fmt.Sprintf("/exploits/%s", url.PathEscape(identifier))
+	q := url.Values{}
+	if limit > 0 {
+		q.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		q.Set("offset", strconv.Itoa(offset))
+	}
+	if len(q) > 0 {
+		path += "?" + q.Encode()
+	}
 
 	respBody, err := c.DoRequest("GET", path, nil)
 	if err != nil {

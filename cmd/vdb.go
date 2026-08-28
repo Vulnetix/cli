@@ -268,6 +268,8 @@ Subcommands:
 
 Examples:
   vulnetix vdb exploits CVE-2021-44228
+  vulnetix vdb exploits CVE-2021-44228 --limit 500
+  vulnetix vdb exploits CVE-2021-44228 --limit 100 --offset 100
   vulnetix vdb exploits GHSA-jfh8-3a1q-hjz9
   vulnetix vdb exploits search --severity CRITICAL --limit 10
   vulnetix vdb exploits sources
@@ -284,7 +286,9 @@ Examples:
 
 		ctx.Logger.Infof("💥 Fetching exploit intelligence for %s...", identifier)
 
-		result, err := client.GetExploits(identifier)
+		limit, _ := cmd.Flags().GetInt("limit")
+		offset, _ := cmd.Flags().GetInt("offset")
+		result, err := client.GetExploits(identifier, limit, offset)
 		if err != nil {
 			return fmt.Errorf("failed to get exploits: %w", err)
 		}
@@ -2155,6 +2159,11 @@ func init() {
 	exploitsSearchCmd.Flags().String("min-epss", "", "Minimum EPSS score (0-1)")
 	exploitsSearchCmd.Flags().StringP("query", "q", "", "Free text search")
 	exploitsSearchCmd.Flags().String("sort", "", "Sort order (recent, epss, severity, maturity)")
+	// 0, not 100: an unset flag leaves the server's default in place rather than
+	// this command asserting a page size the API is free to change.
+	exploitsCmd.Flags().Int("limit", 0, "Maximum exploit records in the response (max 1000; the summary counts always describe the whole set)")
+	exploitsCmd.Flags().Int("offset", 0, "Exploit records to skip (pagination)")
+
 	exploitsSearchCmd.Flags().Int("limit", 100, "Maximum results (max 100)")
 	exploitsSearchCmd.Flags().Int("offset", 0, "Results to skip (pagination)")
 	_ = exploitsSearchCmd.RegisterFlagCompletionFunc("source", cobra.FixedCompletions([]string{"exploitdb", "metasploit", "nuclei", "nmap-nse", "vulncheck-xdb", "crowdsec", "github", "poc"}, cobra.ShellCompDirectiveNoFileComp))

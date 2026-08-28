@@ -145,7 +145,10 @@ func (p *VulnetixProvider) TriageCVE(ctx context.Context, cveID string, pkgName,
 	}
 
 	// ── 5. Fetch exploits ──────────────────────────────────────────────
-	exploits, err := p.client.GetExploits(cveID)
+	// Only the counts are read here, and those describe the whole set whatever
+	// the page size, so ask for the smallest page the endpoint will serve
+	// instead of a CVE's entire exploit array.
+	exploits, err := p.client.GetExploits(cveID, 1, 0)
 	if err == nil {
 		finding.ExploitCount = countExploits(exploits)
 		finding.InKEV = inKEV(exploits)
@@ -305,11 +308,21 @@ func countExploits(resp map[string]interface{}) int {
 	if resp == nil {
 		return 0
 	}
-	if exploits, ok := resp["exploits"].([]interface{}); ok {
-		return len(exploits)
+	// Whole-set counts first. len(exploits) is the length of ONE PAGE, so
+	// preferring it capped every triage decision at the page size — and it is
+	// zero outright for a community caller, whose exploits array is filtered
+	// out by plan.
+	if c, ok := resp["exploitCount"].(float64); ok {
+		return int(c)
+	}
+	if c, ok := resp["total"].(float64); ok {
+		return int(c)
 	}
 	if c, ok := resp["exploit_count"].(float64); ok {
 		return int(c)
+	}
+	if exploits, ok := resp["exploits"].([]interface{}); ok {
+		return len(exploits)
 	}
 	return 0
 }

@@ -470,6 +470,8 @@ vulnetix vdb exploits <vuln-id> [flags]
 
 **Flags:**
 - `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
+- `--limit int`: Maximum exploit records in the response (server default `100`, max `1000`)
+- `--offset int`: Exploit records to skip
 
 **Examples:**
 ```bash
@@ -481,9 +483,37 @@ vulnetix vdb exploits GHSA-jfh8-3a1q-hjz9
 
 # JSON output
 vulnetix vdb exploits CVE-2021-44228 --output json
+
+# Walk a wide CVE a page at a time
+vulnetix vdb exploits CVE-2021-44228 --limit 500
+vulnetix vdb exploits CVE-2021-44228 --limit 500 --offset 500
 ```
 
 **Sources include:** ExploitDB, Metasploit modules, Nuclei templates, VulnCheck, CrowdSec, and GitHub proof-of-concept repositories.
+
+#### Counts versus the page
+
+The `exploits` array is paginated. The counts are not — they describe the whole
+set whatever page you asked for, because "how much exploitation exists for this
+CVE" that changed with your page size would be useless. Some CVEs are very wide:
+CVE-2021-44228 carries over sixteen thousand proof-of-concept records.
+
+| Field | Means |
+|---|---|
+| `exploitCount` | Every exploit signal for the vulnerability, across all sources |
+| `sightingCount` | Real-world sighting sources: honeypots, KEV catalogues, MISP |
+| `total` | Size of the whole `exploits` array before paging |
+| `count` | Number of records in **this page** |
+| `limit`, `offset` | The page you asked for |
+| `hasMore` | Whether records follow this page |
+
+`summary` breaks `exploitCount` down by source and is likewise whole-set.
+
+{{< callout type="info" >}}
+The detailed `exploits` array is a Pro feature. Community callers receive the
+counts and the `summary` breakdown with `exploits` filtered out — which the
+response marks in `_entitlements`.
+{{< /callout >}}
 
 ---
 
