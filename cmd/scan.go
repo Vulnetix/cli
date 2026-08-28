@@ -963,7 +963,21 @@ func runLocalScan(
 				f.ManifestInfo.Ecosystem, f.ManifestInfo.Type, f.Path, f.RelPath, confident, pkgs)
 			if gerr != nil {
 				if !dropFile {
-					return gerr
+					// A manifest we cannot resolve to exact versions is not
+					// scannable for vulnerabilities, but it is not a reason to
+					// abandon the whole scan. Returning here aborted before SAST,
+					// secrets and malscan ever ran, so a repository without a
+					// lockfile got zero coverage of any kind — and the three rules
+					// that exist to report exactly this (VNX-NODE-001,
+					// VNX-PHP-001, VNX-RUBY-001) could never fire, because the
+					// scan was already over. Two mechanisms reported the same
+					// condition and the cruder one won.
+					//
+					// The manifest is dropped from SCA, which is what being
+					// unresolvable means, and the SAST rule reports it as a
+					// finding with the same remediation text.
+					fmt.Fprintf(os.Stderr, "Note: %v — scanning continues; SCA skips this manifest\n", gerr)
+					continue
 				}
 				continue // tentative + unconfirmed → not a real manifest
 			}
