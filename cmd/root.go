@@ -122,6 +122,7 @@ automated remediation over discovery. It helps organizations prioritize and reso
 vulnerabilities efficiently.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initDisplayContext(cmd, display.ModeText)
+		captureDeploymentContext(cmd)
 		printBanner(cmd)
 		// Track command invocation
 		analytics.TrackCommand(cmd.Name(), map[string]interface{}{

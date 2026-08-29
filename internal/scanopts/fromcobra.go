@@ -60,6 +60,11 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	opts.Excludes = getStrings("exclude")
 	opts.NoProgress = getBool("no-progress")
 
+	// Read here rather than at each call site, so every member of the scan
+	// family honours --project/--cluster/--namespace/--environment/--tag by
+	// construction. See deployment.go.
+	opts.Deployment = DeploymentFromCommand(cmd)
+
 	// --paths is the deprecated spelling; either one enables the behaviour.
 	opts.ShowPaths = getBool("show-introduced-paths") || getBool("paths")
 

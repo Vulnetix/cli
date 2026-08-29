@@ -55,6 +55,14 @@ var flagToOption = map[string]string{
 	"rule-id":                 "RuleID",
 	"snippet-context":         "SnippetContext",
 	"reachability":            "Reachability",
+	// Deployment labels. All five land on the one Deployment field, because
+	// they describe a single thing — where these results are deployed and who
+	// owns them — and are consumed together.
+	"project":     "Deployment",
+	"cluster":     "Deployment",
+	"namespace":   "Deployment",
+	"environment": "Deployment",
+	"tag":         "Deployment",
 }
 
 // notAnalysisInput are scan-family flags that legitimately never reach Options,

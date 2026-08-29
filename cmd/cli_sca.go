@@ -1362,6 +1362,7 @@ func buildCliEnv(gitCtx *gitctx.GitContext, sysInfo *gitctx.SystemInfo) vdb.CliE
 		CliVersion: version,
 		Commit:     commit,
 		BuildDate:  buildDate,
+		Deployment: deploymentEnv(),
 	}
 	if sysInfo != nil {
 		env.OS = sysInfo.OS

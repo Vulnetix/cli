@@ -38,6 +38,13 @@ type Options struct {
 	// Excludes are glob patterns removed from the walk (--exclude).
 	Excludes []string
 
+	// Deployment labels where these results are deployed and who owns them
+	// (--project/--cluster/--namespace/--environment/--tag). It is inert for
+	// the analysis itself — nothing branches on it — and exists so the labels
+	// reach the CycloneDX metadata and the upload envelope, where the server
+	// can join results across repositories. See internal/cdx/deployment.go.
+	Deployment cdx.DeploymentContext
+
 	// ── Feature toggles ─────────────────────────────────────────────────────
 	//
 	// Negative names throughout, matching the flags they come from. The scan

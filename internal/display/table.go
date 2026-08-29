@@ -80,7 +80,7 @@ func renderRow(term *Terminal, cols []Column, widths []int, cells []string, isHe
 		w := widths[i]
 
 		// Truncate if needed
-		if len(cell) > w {
+		if Width(cell) > w {
 			cell = Truncate(cell, w)
 		}
 
@@ -111,7 +111,7 @@ func calculateColumnWidths(term *Terminal, cols []Column, rows [][]string) []int
 		if col.Width > 0 {
 			widths[i] = col.Width
 		} else {
-			widths[i] = len(col.Header)
+			widths[i] = Width(col.Header)
 		}
 	}
 
@@ -121,8 +121,8 @@ func calculateColumnWidths(term *Terminal, cols []Column, rows [][]string) []int
 			continue // fixed width
 		}
 		for _, row := range rows {
-			if i < len(row) && len(row[i]) > widths[i] {
-				widths[i] = len(row[i])
+			if i < len(row) && Width(row[i]) > widths[i] {
+				widths[i] = Width(row[i])
 			}
 		}
 		if col.MinWidth > 0 && widths[i] < col.MinWidth {

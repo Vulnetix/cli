@@ -1,0 +1,49 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:11111111-1111-4111-8111-111111111111",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-07-01T00:00:00Z",
+    "tools": { "components": [{ "type": "application", "name": "vulnetix-sca", "version": "3.95.0" }] },
+    "component": { "type": "application", "bom-ref": "root", "name": "payment-service", "version": "2.3.0" }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/lodash@4.17.20",
+      "name": "lodash",
+      "version": "4.17.20",
+      "purl": "pkg:npm/lodash@4.17.20",
+      "licenses": [{ "license": { "id": "MIT" } }]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/left-pad@1.3.0",
+      "name": "left-pad",
+      "version": "1.3.0",
+      "purl": "pkg:npm/left-pad@1.3.0",
+      "licenses": [{ "license": { "id": "WTFPL" } }]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/express@4.18.2",
+      "name": "express",
+      "version": "4.18.2",
+      "purl": "pkg:npm/express@4.18.2",
+      "licenses": [{ "license": { "id": "MIT" } }]
+    }
+  ],
+  "dependencies": [
+    { "ref": "root", "dependsOn": ["pkg:npm/lodash@4.17.20", "pkg:npm/express@4.18.2"] },
+    { "ref": "pkg:npm/express@4.18.2", "dependsOn": ["pkg:npm/left-pad@1.3.0"] }
+  ],
+  "vulnerabilities": [
+    {
+      "bom-ref": "vuln-1",
+      "id": "CVE-2020-8203",
+      "ratings": [{ "score": 7.4, "severity": "high", "method": "CVSSv31" }],
+      "affects": [{ "ref": "pkg:npm/lodash@4.17.20" }]
+    }
+  ]
+}

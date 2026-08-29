@@ -1,0 +1,48 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:22222222-2222-4222-8222-222222222222",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-08-01T00:00:00Z",
+    "tools": { "components": [{ "type": "application", "name": "vulnetix-sca", "version": "3.95.0" }] },
+    "component": { "type": "application", "bom-ref": "root", "name": "payment-service", "version": "2.4.0" }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/lodash@4.17.21",
+      "name": "lodash",
+      "version": "4.17.21",
+      "purl": "pkg:npm/lodash@4.17.21",
+      "licenses": [{ "license": { "id": "MIT" } }]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/express@4.18.1",
+      "name": "express",
+      "version": "4.18.1",
+      "purl": "pkg:npm/express@4.18.1",
+      "licenses": [{ "license": { "id": "Apache-2.0" } }]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/chalk@5.3.0",
+      "name": "chalk",
+      "version": "5.3.0",
+      "purl": "pkg:npm/chalk@5.3.0",
+      "licenses": [{ "license": { "id": "MIT" } }]
+    }
+  ],
+  "dependencies": [
+    { "ref": "root", "dependsOn": ["pkg:npm/lodash@4.17.21", "pkg:npm/express@4.18.1", "pkg:npm/chalk@5.3.0"] }
+  ],
+  "vulnerabilities": [
+    {
+      "bom-ref": "vuln-2",
+      "id": "CVE-2024-9999",
+      "ratings": [{ "score": 9.1, "severity": "critical", "method": "CVSSv31" }],
+      "affects": [{ "ref": "pkg:npm/express@4.18.1" }]
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "payment-service",
+  "documentNamespace": "https://anchore.com/syft/dir/payment-service-6f0f0d1a",
+  "creationInfo": {
+    "licenseListVersion": "3.21",
+    "creators": ["Organization: Anchore, Inc", "Tool: syft-1.18.1", "Person: Jo Rivers (jo@example.com)"],
+    "created": "2026-08-01T09:14:22Z"
+  },
+  "documentDescribes": ["SPDXRef-Package-root"],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-root",
+      "name": "payment-service",
+      "versionInfo": "2.4.0",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "filesAnalyzed": false,
+      "primaryPackagePurpose": "APPLICATION"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-lodash",
+      "name": "lodash",
+      "versionInfo": "4.17.20",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "mit",
+      "copyrightText": "NOASSERTION",
+      "filesAnalyzed": false,
+      "supplier": "Organization: OpenJS Foundation",
+      "homepage": "https://lodash.com",
+      "checksums": [
+        { "algorithm": "SHA256", "checksumValue": "9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b" }
+      ],
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/lodash@4.17.20"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-hashicorp-lru",
+      "name": "github.com/hashicorp/golang-lru",
+      "versionInfo": "v0.5.4",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MPL-2.0",
+      "licenseDeclared": "MPL-2.0",
+      "copyrightText": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:golang/github.com/hashicorp/golang-lru@v0.5.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-dual",
+      "name": "dual-licensed-lib",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "https://example.com/dual-1.0.0.tgz",
+      "licenseConcluded": "MIT OR Apache-2.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "filesAnalyzed": false
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-root"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-root",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-lodash"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-hashicorp-lru",
+      "relationshipType": "DEPENDENCY_OF",
+      "relatedSpdxElement": "SPDXRef-Package-root"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-lodash",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-dual"
+    }
+  ]
+}

@@ -9,7 +9,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// SPDXDocument represents an SPDX 2.3 JSON document.
+// SPDXDocument represents an SPDX 2.x JSON document.
+//
+// The fields BuildSPDXDocument writes are the required core; the rest carry
+// `omitempty` and exist for the read side, so a document this package builds
+// serialises exactly as it did before they were added. internal/bom parses
+// third-party SPDX (Syft, BuildKit, cdxgen) through this same struct set —
+// dropping supplier and checksum data on the way in would leave the SBOM
+// quality check unable to see fields that are demonstrably present.
 type SPDXDocument struct {
 	SPDXVersion             string                 `json:"spdxVersion"`
 	DataLicense             string                 `json:"dataLicense"`
@@ -20,12 +27,16 @@ type SPDXDocument struct {
 	Packages                []SPDXPackage          `json:"packages"`
 	Relationships           []SPDXRelationship     `json:"relationships,omitempty"`
 	ExtractedLicensingInfos []SPDXExtractedLicense `json:"extractedLicensingInfos,omitempty"`
+	DocumentDescribes       []string               `json:"documentDescribes,omitempty"`
+	Comment                 string                 `json:"comment,omitempty"`
 }
 
 // SPDXCreationInfo describes when and by whom the SPDX document was created.
 type SPDXCreationInfo struct {
-	Created  string   `json:"created"`
-	Creators []string `json:"creators"`
+	Created            string   `json:"created"`
+	Creators           []string `json:"creators"`
+	LicenseListVersion string   `json:"licenseListVersion,omitempty"`
+	Comment            string   `json:"comment,omitempty"`
 }
 
 // SPDXPackage is an SPDX package entry.
@@ -39,6 +50,23 @@ type SPDXPackage struct {
 	CopyrightText    string            `json:"copyrightText"`
 	FilesAnalyzed    bool              `json:"filesAnalyzed"`
 	ExternalRefs     []SPDXExternalRef `json:"externalRefs,omitempty"`
+
+	// Read-side fields — see the SPDXDocument doc comment.
+	Supplier              string         `json:"supplier,omitempty"`
+	Originator            string         `json:"originator,omitempty"`
+	Homepage              string         `json:"homepage,omitempty"`
+	Description           string         `json:"description,omitempty"`
+	Summary               string         `json:"summary,omitempty"`
+	SourceInfo            string         `json:"sourceInfo,omitempty"`
+	PackageFileName       string         `json:"packageFileName,omitempty"`
+	PrimaryPackagePurpose string         `json:"primaryPackagePurpose,omitempty"`
+	Checksums             []SPDXChecksum `json:"checksums,omitempty"`
+}
+
+// SPDXChecksum is a package checksum entry.
+type SPDXChecksum struct {
+	Algorithm     string `json:"algorithm"`
+	ChecksumValue string `json:"checksumValue"`
 }
 
 // SPDXExternalRef is a package external reference.
@@ -53,6 +81,7 @@ type SPDXRelationship struct {
 	Element        string `json:"spdxElementId"`
 	RelType        string `json:"relationshipType"`
 	RelatedElement string `json:"relatedSpdxElement"`
+	Comment        string `json:"comment,omitempty"`
 }
 
 // SPDXExtractedLicense captures non-standard license text.

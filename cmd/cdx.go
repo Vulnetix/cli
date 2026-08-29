@@ -30,6 +30,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/scanopts"
 )
 
 // cdxCmd is named for the format it emits. `sbom` is an alias rather than the
@@ -127,6 +128,7 @@ type cdxRunOptions struct {
 	NoBuiltinAIBOM    bool
 	NoBuiltinCBOM     bool
 	Sign              bool
+	Deployment        scanopts.DeploymentContext
 }
 
 type cdxSummary struct {
@@ -208,6 +210,7 @@ func init() {
 	cdxCmd.Flags().Bool("no-builtin-aibom-catalog", false, "Do not load the embedded AIBOM catalog (use only --aibom-catalog)")
 	cdxCmd.Flags().Bool("no-builtin-cbom-catalog", false, "Do not load the embedded CBOM catalog (use only --cbom-catalog)")
 	cdxCmd.Flags().Bool("sign", false, "Sign the SBOM with this machine's own OIDC identity (CI runners); writes .sig, .pem and .intoto.jsonl beside it")
+	scanopts.AddDeploymentFlags(cdxCmd.Flags())
 	_ = cdxCmd.MarkFlagDirname("path")
 	rootCmd.AddCommand(cdxCmd)
 }
@@ -269,6 +272,18 @@ func runCDX(cmd *cobra.Command, args []string) error {
 	bomData, preserved, err := preserveCDXVulnerabilities(opts.OutputFile, bomData)
 	if err != nil {
 		warnings = append(warnings, "preserving existing findings: "+err.Error())
+	}
+
+	// Deployment labels are stamped before signing, because the signature covers
+	// the document that is written and anything added afterwards would not be
+	// attested. See cmd/deployment.go for why cluster and project are separate.
+	if !opts.Deployment.Empty() {
+		stamped, derr := scanopts.StampDeploymentJSON(bomData, opts.Deployment)
+		if derr != nil {
+			warnings = append(warnings, "deployment context: "+derr.Error())
+		} else {
+			bomData = stamped
+		}
 	}
 
 	// Signing happens here, immediately before the write, because the JSF
@@ -398,7 +413,7 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 		NoAIBOM: noAIBOM, NoCBOM: noCBOM, NoSignatures: noSignatures, IncludeHome: includeHome,
 		IncludeIgnored: includeIgnored, ContainerRootfs: rootfs, ContainerArchives: archives,
 		AIBOMCatalog: aibomCatalog, CBOMCatalog: cbomCatalog, NoBuiltinAIBOM: noBuiltinAIBOM, NoBuiltinCBOM: noBuiltinCBOM,
-		Sign: sign,
+		Sign: sign, Deployment: scanopts.DeploymentFromCommand(cmd),
 	}, nil
 }
 

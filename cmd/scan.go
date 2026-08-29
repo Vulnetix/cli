@@ -1813,6 +1813,10 @@ func runLocalScan(
 		// After the merge, so a resolution annotates the vulnerability entry the
 		// previous run left on disk instead of appending a twin under the same id.
 		cdx.ApplyVEXAnalysis(bom, cdxVEX)
+		// Also after the merge: MergeBOMs preserves the existing document's
+		// values, so stamping before it would let a stale --cluster from a
+		// previous run survive a re-tag. This run's labels must win.
+		cdx.ApplyDeploymentContext(bom, opts.Deployment)
 		if err := writeBOMToFile(bom, sbomPath); err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: could not write BOM: %v\n", err)
 		} else {
@@ -2303,6 +2307,7 @@ func runLocalScan(
 		// Carry the dependency tree into the file output too, so `-o file.cdx.json`
 		// is as complete as the canonical .vulnetix/sbom.cdx.json.
 		outBOM.Dependencies = cdx.BuildDependencies(manifestGroups, cdx.ExportCompRefs(outBOM))
+		cdx.ApplyDeploymentContext(outBOM, opts.Deployment)
 		if err := writeBOMToFile(outBOM, outCfg.cdxFile); err != nil {
 			fmt.Fprintf(os.Stderr, "  ✗ could not write CDX to %s: %v\n", outCfg.cdxFile, err)
 			outputWriteErr = fmt.Errorf("could not write CDX to %s: %w", outCfg.cdxFile, err)
@@ -2324,6 +2329,7 @@ func runLocalScan(
 	// instead of losing them.
 	if outCfg.stdoutFmt == "json-cyclonedx" {
 		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
+		cdx.ApplyDeploymentContext(outBOM, opts.Deployment)
 		outBOM.NormalizeForSchema()
 		if err := outBOM.WriteJSON(os.Stdout); err != nil {
 			return err
@@ -3802,6 +3808,10 @@ func buildPackagesFromCDX(components []cdx.Component, sourceFile string) []scan.
 // addScanFlags registers the common scan flags on cmd. Used by scan and all
 // specialized scan subcommands (sca, sast, secrets, containers, iac).
 func addScanFlags(cmd *cobra.Command) {
+	// Deployment context (--project/--cluster/--namespace/--environment/--tag)
+	// is registered family-wide and read in exactly one place, so no member of
+	// the family can silently ignore it. See cmd/deployment.go.
+	scanopts.AddDeploymentFlags(cmd.Flags())
 	cmd.Flags().String("path", ".", "Directory to scan")
 	cmd.Flags().Int("depth", 3, "Max recursion depth")
 	cmd.Flags().StringArray("exclude", nil, "Exclude paths matching glob (repeatable)")

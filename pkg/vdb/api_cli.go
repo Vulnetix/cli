@@ -52,6 +52,34 @@ type CliEnv struct {
 	// and branch information: the checkout is a detached HEAD, so Git.Branch
 	// reads "HEAD (detached)".
 	CI *CliCIContext `json:"ci,omitempty"`
+	// Deployment is where these results are deployed and who owns them
+	// (--project/--cluster/--namespace/--environment/--tag).
+	//
+	// A repository scan cannot know where its artefacts run, so the labels come
+	// from the pipeline that deployed them. Carrying them on every submission is
+	// what lets the server answer fleet questions the CLI structurally cannot:
+	// which clusters run the vulnerable version, which projects share a
+	// dependency, where a component is at inconsistent versions. Absent when the
+	// run supplied none — an unlabelled scan must not claim a cluster.
+	Deployment *CliDeploymentContext `json:"deployment,omitempty"`
+}
+
+// CliDeploymentContext is the deployment label set carried on a submission.
+//
+// Cluster and project are separate, orthogonal dimensions rather than one
+// field: a scan belongs to cluster `prod-eu` AND project `payment-service` at
+// the same time, and collapsing them would make either query impossible.
+type CliDeploymentContext struct {
+	// Project is what the artefact is and who owns it. High cardinality.
+	Project string `json:"project,omitempty"`
+	// Cluster is where it is deployed. Low cardinality, platform-team owned.
+	Cluster string `json:"cluster,omitempty"`
+	// Namespace is the sub-cluster boundary it runs in.
+	Namespace string `json:"namespace,omitempty"`
+	// Environment is the deployment stage, e.g. production, staging.
+	Environment string `json:"environment,omitempty"`
+	// Tags are additional free-form labels supplied with --tag key=value.
+	Tags map[string]string `json:"tags,omitempty"`
 }
 
 // CliCIContext is the CI pipeline the scan ran in. Mirrors

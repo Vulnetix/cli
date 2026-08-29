@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/scanopts"
 	"github.com/vulnetix/cli/v3/internal/upload"
 	"github.com/vulnetix/cli/v3/pkg/auth"
 )
@@ -240,6 +241,7 @@ func init() {
 	uploadCmd.Flags().StringVar(&uploadBaseURL, "base-url", "", "Override the Vulnetix API base URL")
 	uploadCmd.Flags().StringVar(&uploadFormat, "format", "", "Override auto-detected format (cyclonedx, spdx, sarif, openvex, csaf_vex)")
 	uploadCmd.Flags().BoolVar(&uploadOutputJSON, "json", false, "Output result as JSON")
+	scanopts.AddDeploymentFlags(uploadCmd.Flags())
 	_ = uploadCmd.RegisterFlagCompletionFunc("format", cobra.FixedCompletions([]string{"cyclonedx", "spdx", "sarif", "openvex", "csaf_vex"}, cobra.ShellCompDirectiveNoFileComp))
 	_ = uploadCmd.MarkFlagFilename("file")
 

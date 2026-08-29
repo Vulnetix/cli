@@ -6,6 +6,8 @@ import (
 	"math"
 	"strings"
 	"time"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // FormatNumber adds comma separators to an integer (e.g., 1234567 → "1,234,567").
@@ -79,10 +81,34 @@ func Truncate(s string, max int) string {
 	if max <= 3 {
 		return s
 	}
-	if len(s) <= max {
+	if Width(s) <= max {
 		return s
 	}
-	return s[:max-3] + "..."
+	// Rune-wise, not s[:max-3]. Slicing bytes through the middle of a multi-byte
+	// rune emits a replacement character, and every table in the CLI renders
+	// em dashes and arrows.
+	limit := max - 3
+	width := 0
+	var b strings.Builder
+	for _, r := range s {
+		rw := runewidth.RuneWidth(r)
+		if width+rw > limit {
+			break
+		}
+		width += rw
+		b.WriteRune(r)
+	}
+	return b.String() + "..."
+}
+
+// Width is the number of terminal cells a string occupies.
+//
+// Not len(): that counts bytes, so an em dash reserves three columns and
+// renders one, shifting every cell after it. Not utf8.RuneCountInString()
+// either: CJK and emoji occupy two cells each. This is the only measurement
+// that matches what the terminal actually draws.
+func Width(s string) int {
+	return runewidth.StringWidth(s)
 }
 
 // Percentage formats a ratio as percentage string.
@@ -146,18 +172,20 @@ func FormatFloat(f float64, decimals int) string {
 
 // PadRight pads a string to the given width with spaces.
 func PadRight(s string, width int) string {
-	if len(s) >= width {
+	w := Width(s)
+	if w >= width {
 		return s
 	}
-	return s + strings.Repeat(" ", width-len(s))
+	return s + strings.Repeat(" ", width-w)
 }
 
 // PadLeft pads a string to the given width with spaces on the left.
 func PadLeft(s string, width int) string {
-	if len(s) >= width {
+	w := Width(s)
+	if w >= width {
 		return s
 	}
-	return strings.Repeat(" ", width-len(s)) + s
+	return strings.Repeat(" ", width-w) + s
 }
 
 // Max returns the larger of two ints.

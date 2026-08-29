@@ -1,0 +1,64 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "predicateType": "https://spdx.dev/Document",
+  "subject": [
+    {
+      "name": "registry.example.com/payment-service",
+      "digest": { "sha256": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0" }
+    }
+  ],
+  "predicate": {
+    "spdxVersion": "SPDX-2.3",
+    "dataLicense": "CC0-1.0",
+    "SPDXID": "SPDXRef-DOCUMENT",
+    "name": "payment-service-image",
+    "documentNamespace": "https://buildkit.example/spdx/9f8e7d6c",
+    "creationInfo": {
+      "created": "2026-08-01T10:00:00Z",
+      "creators": ["Tool: buildkit-v0.16.0"]
+    },
+    "documentDescribes": ["SPDXRef-Package-image"],
+    "packages": [
+      {
+        "SPDXID": "SPDXRef-Package-image",
+        "name": "payment-service-image",
+        "versionInfo": "2.4.0",
+        "downloadLocation": "NOASSERTION",
+        "licenseConcluded": "NOASSERTION",
+        "licenseDeclared": "NOASSERTION",
+        "copyrightText": "NOASSERTION",
+        "filesAnalyzed": false,
+        "primaryPackagePurpose": "CONTAINER"
+      },
+      {
+        "SPDXID": "SPDXRef-Package-openssl",
+        "name": "openssl",
+        "versionInfo": "3.0.13-r0",
+        "downloadLocation": "NOASSERTION",
+        "licenseConcluded": "Apache-2.0",
+        "licenseDeclared": "Apache-2.0",
+        "copyrightText": "NOASSERTION",
+        "filesAnalyzed": false,
+        "externalRefs": [
+          {
+            "referenceCategory": "PACKAGE-MANAGER",
+            "referenceType": "purl",
+            "referenceLocator": "pkg:apk/alpine/openssl@3.0.13-r0"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "spdxElementId": "SPDXRef-DOCUMENT",
+        "relationshipType": "DESCRIBES",
+        "relatedSpdxElement": "SPDXRef-Package-image"
+      },
+      {
+        "spdxElementId": "SPDXRef-Package-image",
+        "relationshipType": "CONTAINS",
+        "relatedSpdxElement": "SPDXRef-Package-openssl"
+      }
+    ]
+  }
+}
