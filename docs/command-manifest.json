@@ -986,6 +986,7 @@
         "no-progress",
         "no-remediation",
         "no-shell-package-analysis",
+        "no-vex",
         "org-id",
         "output",
         "path",
@@ -1010,6 +1011,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex-file",
         "yes"
       ],
       "deprecatedFlags": [
@@ -1067,6 +1069,7 @@
         "no-progress",
         "no-remediation",
         "no-shell-package-analysis",
+        "no-vex",
         "org-id",
         "output",
         "path",
@@ -1087,6 +1090,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex-file",
         "yes"
       ],
       "deprecatedFlags": [
@@ -1203,6 +1207,7 @@
         "no-progress",
         "no-remediation",
         "no-shell-package-analysis",
+        "no-vex",
         "org-id",
         "output",
         "path",
@@ -1227,6 +1232,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex-file",
         "yes"
       ],
       "deprecatedFlags": [
@@ -1946,6 +1952,7 @@
         "no-progress",
         "no-remediation",
         "no-shell-package-analysis",
+        "no-vex",
         "org-id",
         "output",
         "path",
@@ -1971,6 +1978,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex-file",
         "yes"
       ],
       "deprecatedFlags": [
@@ -2013,6 +2021,7 @@
         "no-progress",
         "no-remediation",
         "no-shell-package-analysis",
+        "no-vex",
         "org-id",
         "output",
         "path",
@@ -2032,6 +2041,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex-file",
         "yes"
       ],
       "deprecatedFlags": [
@@ -2090,6 +2100,7 @@
         "no-sca",
         "no-secrets",
         "no-shell-package-analysis",
+        "no-vex",
         "org-id",
         "output",
         "path",
@@ -2114,6 +2125,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex-file",
         "yes"
       ],
       "deprecatedFlags": [
@@ -2162,6 +2174,7 @@
         "no-progress",
         "no-remediation",
         "no-shell-package-analysis",
+        "no-vex",
         "org-id",
         "output",
         "path",
@@ -2187,6 +2200,7 @@
         "tag",
         "verbose",
         "version-lag",
+        "vex-file",
         "yes"
       ],
       "deprecatedFlags": [
@@ -6299,6 +6313,85 @@
         "verbose"
       ]
     },
+    "vex": {
+      "short": "Read, validate and apply VEX statements",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "apply",
+        "ls",
+        "merge",
+        "validate"
+      ]
+    },
+    "vex apply": {
+      "short": "Apply VEX statements to an SBOM",
+      "flags": [
+        "bom",
+        "disable-memory",
+        "fail-on-effective",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "out",
+        "output",
+        "silent",
+        "verbose",
+        "vex"
+      ]
+    },
+    "vex ls": {
+      "short": "List VEX statements and what they assert",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "status",
+        "verbose",
+        "vex"
+      ]
+    },
+    "vex merge": {
+      "short": "Combine VEX documents into one",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "out",
+        "output",
+        "silent",
+        "verbose",
+        "vex"
+      ]
+    },
+    "vex validate": {
+      "short": "Check VEX documents for structural and semantic problems",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose",
+        "vex"
+      ]
+    },
     "vulnetix": {
       "short": "Vulnetix CLI - Automate vulnerability remediation",
       "flags": [
@@ -6344,7 +6437,8 @@
         "update",
         "upload",
         "vdb",
-        "version"
+        "version",
+        "vex"
       ]
     }
   }

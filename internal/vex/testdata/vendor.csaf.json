@@ -1,0 +1,40 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "title": "Acme advisory for chalk",
+    "publisher": { "name": "Acme PSIRT", "category": "vendor" },
+    "tracking": { "id": "ACME-2026-0042", "current_release_date": "2026-08-02T00:00:00Z" }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Acme",
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "chalk",
+            "product": {
+              "product_id": "CHALK-5",
+              "name": "chalk 5.3.0",
+              "product_identification_helper": { "purl": "pkg:npm/chalk@5.3.0" }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-1234",
+      "product_status": { "known_not_affected": ["CHALK-5"] },
+      "flags": [
+        { "label": "component_not_present", "product_ids": ["CHALK-5"] }
+      ],
+      "threats": [
+        { "category": "impact", "details": "The affected module is not bundled.", "product_ids": ["CHALK-5"] }
+      ]
+    }
+  ]
+}

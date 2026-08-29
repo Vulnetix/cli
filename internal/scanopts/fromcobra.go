@@ -65,6 +65,13 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	// construction. See deployment.go.
 	opts.Deployment = DeploymentFromCommand(cmd)
 
+	// --no-vex is resolved here rather than carried through, so the engine
+	// checks one thing (are there files) instead of two (are there files AND is
+	// the feature on), which is the shape that lets a toggle be forgotten.
+	if !getBool("no-vex") {
+		opts.VEXFiles = getStrings("vex-file")
+	}
+
 	// --paths is the deprecated spelling; either one enables the behaviour.
 	opts.ShowPaths = getBool("show-introduced-paths") || getBool("paths")
 

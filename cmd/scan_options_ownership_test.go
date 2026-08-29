@@ -63,6 +63,10 @@ var flagToOption = map[string]string{
 	"namespace":   "Deployment",
 	"environment": "Deployment",
 	"tag":         "Deployment",
+	// Third-party VEX. --no-vex is resolved into VEXFiles by scanopts rather
+	// than carried separately, so the engine checks one thing instead of two.
+	"vex-file": "VEXFiles",
+	"no-vex":   "VEXFiles",
 }
 
 // notAnalysisInput are scan-family flags that legitimately never reach Options,

@@ -1861,6 +1861,36 @@ func runLocalScan(
 	}
 	postScannerGraphInsights(rootPath, graphToolName, gitCtx, progressStderr)
 
+	// ── Third-party VEX ───────────────────────────────────────────────────
+	// Applied here, in one place, immediately before the gates. Every gate that
+	// reads enrichedVulns therefore honours VEX by construction — filtering per
+	// gate would leave one that could be forgotten, and the forgotten one would
+	// fail a build over a finding the vendor has already said does not apply.
+	//
+	// The suppressed findings are removed from the gate input, not from the
+	// report: they are still in the BOM, annotated with the statement and its
+	// provenance, and still counted in the total/suppressed/effective split.
+	var vexPass *VEXPassResult
+	if len(opts.VEXFiles) > 0 {
+		var vexErr error
+		vexPass, vexErr = runVEXPass(VEXPassOptions{Paths: opts.VEXFiles, BOM: bom})
+		if vexErr != nil {
+			// A malformed VEX document must not silently widen the gate. Fail
+			// loudly rather than proceeding as though no statements existed.
+			return fmt.Errorf("applying --vex-file: %w", vexErr)
+		}
+		enrichedVulns = filterVEXSuppressed(enrichedVulns, vexPass)
+		if bomWritten {
+			// The annotations landed after the file was written, so rewrite it.
+			if err := writeBOMToFile(bom, sbomPath); err != nil {
+				fmt.Fprintf(os.Stderr, "  warning: could not rewrite BOM with VEX analysis: %v\n", err)
+			}
+		}
+		if !resultsOnly {
+			reportVEXPass(vexPass)
+		}
+	}
+
 	// ── Quality gate evaluation ───────────────────────────────────────────
 	// Evaluated after writing artefacts so that the SBOM and memory.yaml are
 	// always written regardless of exit code, giving CI pipelines access to
@@ -2403,7 +2433,7 @@ func runLocalScan(
 		if autofixReportPlans != nil {
 			printAutofixReport(autofixReportPlans, autofixReportCounts, 0, autofixReportErr)
 		}
-		printScanSummaryFooter(scaTotalPkgs, scaTotalVulns, enrichedVulns)
+		printScanSummaryFooter(scaTotalPkgs, scaTotalVulns, enrichedVulns, vexSuppressedCount(vexPass))
 	} else if sastReport != nil {
 		sast.PrintHeadlineWithLabel(sastReport, analysisLabel)
 	}
@@ -3252,10 +3282,16 @@ func scanFoundNothing(enrichedVulns []scan.EnrichedVuln, sastReport *sast.SASTRe
 	return true
 }
 
-func printScanSummaryFooter(totalPkgs, totalVulns int, enrichedVulns []scan.EnrichedVuln) {
+func printScanSummaryFooter(totalPkgs, totalVulns int, enrichedVulns []scan.EnrichedVuln, vexSuppressed int) {
 	t := display.NewTerminal()
 	fmt.Fprintln(os.Stdout, display.Divider(t))
 	summary := fmt.Sprintf("  %d packages | %s", totalPkgs, pluralise("vulnerability", totalVulns))
+	// The count is the effective one — what survived VEX. Saying so on the same
+	// line matters: "0 vulnerabilities" on its own reads as "nothing was found",
+	// when what happened is that somebody asserted the findings do not apply.
+	if vexSuppressed > 0 {
+		summary += fmt.Sprintf(" (%d suppressed by VEX)", vexSuppressed)
+	}
 	fmt.Fprintln(os.Stdout, display.Bold(t, summary))
 	if anyReachabilityAssessed(enrichedVulns) {
 		assessed, reachable, notReachable, notAssessable := countReachability(enrichedVulns)
@@ -3810,8 +3846,13 @@ func buildPackagesFromCDX(components []cdx.Component, sourceFile string) []scan.
 func addScanFlags(cmd *cobra.Command) {
 	// Deployment context (--project/--cluster/--namespace/--environment/--tag)
 	// is registered family-wide and read in exactly one place, so no member of
-	// the family can silently ignore it. See cmd/deployment.go.
+	// the family can silently ignore it. See internal/scanopts/deployment.go.
 	scanopts.AddDeploymentFlags(cmd.Flags())
+	// Third-party VEX, family-wide for the same reason: a statement asserting a
+	// finding does not apply must be honoured whichever scanner surfaced it.
+	cmd.Flags().StringArray("vex-file", nil,
+		"Apply VEX statements from this file or directory before gates are evaluated (repeatable)")
+	cmd.Flags().Bool("no-vex", false, "Ignore --vex-file and apply no third-party VEX")
 	cmd.Flags().String("path", ".", "Directory to scan")
 	cmd.Flags().Int("depth", 3, "Max recursion depth")
 	cmd.Flags().StringArray("exclude", nil, "Exclude paths matching glob (repeatable)")

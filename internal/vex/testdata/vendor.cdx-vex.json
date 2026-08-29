@@ -1,0 +1,28 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:33333333-3333-4333-8333-333333333333",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-08-03T00:00:00Z",
+    "authors": [{ "name": "Acme Engineering" }]
+  },
+  "components": [
+    { "type": "library", "bom-ref": "ref-lodash", "name": "lodash", "version": "4.17.20", "purl": "pkg:npm/lodash@4.17.20" }
+  ],
+  "vulnerabilities": [
+    {
+      "id": "CVE-2020-28500",
+      "analysis": {
+        "state": "false_positive",
+        "detail": "The toNumber path is unreachable in this build."
+      },
+      "affects": [{ "ref": "ref-lodash" }],
+      "updated": "2026-08-03T00:00:00Z"
+    },
+    {
+      "id": "CVE-2099-0001",
+      "affects": [{ "ref": "ref-lodash" }]
+    }
+  ]
+}

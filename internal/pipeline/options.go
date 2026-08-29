@@ -45,6 +45,11 @@ type Options struct {
 	// can join results across repositories. See internal/cdx/deployment.go.
 	Deployment cdx.DeploymentContext
 
+	// VEXFiles are third-party VEX documents to apply to the findings before
+	// the quality gates are evaluated (--vex-file). Empty when --no-vex was
+	// passed, so the engine has one thing to check rather than two.
+	VEXFiles []string
+
 	// ── Feature toggles ─────────────────────────────────────────────────────
 	//
 	// Negative names throughout, matching the flags they come from. The scan
