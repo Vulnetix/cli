@@ -476,9 +476,13 @@
       "subcommands": [
         "diff",
         "import",
+        "ls",
         "merge",
+        "search",
+        "skew",
         "tree",
-        "validate"
+        "validate",
+        "where"
       ]
     },
     "bom diff": {
@@ -514,6 +518,22 @@
         "verbose"
       ]
     },
+    "bom ls": {
+      "short": "List the SBOM documents in a corpus",
+      "flags": [
+        "depth",
+        "disable-memory",
+        "from",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "recursive",
+        "silent",
+        "verbose"
+      ]
+    },
     "bom merge": {
       "short": "Combine SBOM documents into one",
       "flags": [
@@ -524,6 +544,41 @@
         "org-id",
         "out",
         "output",
+        "silent",
+        "verbose"
+      ]
+    },
+    "bom search": {
+      "short": "Search a corpus for packages, documents, vulnerabilities and licences",
+      "flags": [
+        "depth",
+        "disable-memory",
+        "from",
+        "limit",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "recursive",
+        "silent",
+        "verbose"
+      ]
+    },
+    "bom skew": {
+      "short": "Find packages at inconsistent versions across a corpus",
+      "flags": [
+        "depth",
+        "disable-memory",
+        "fail-on-count",
+        "from",
+        "min-versions",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "recursive",
         "silent",
         "verbose"
       ]
@@ -554,6 +609,23 @@
         "no-progress",
         "org-id",
         "output",
+        "silent",
+        "verbose"
+      ]
+    },
+    "bom where": {
+      "short": "Find which documents contain a package",
+      "flags": [
+        "depth",
+        "disable-memory",
+        "fail-on-found",
+        "from",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "recursive",
         "silent",
         "verbose"
       ]

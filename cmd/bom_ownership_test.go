@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -35,19 +36,30 @@ func parseCmdFile(t *testing.T, name string) (*token.FileSet, *ast.File) {
 	return fset, f
 }
 
-// TestBOMParsingHasOneOwner asserts that internal/bom is imported only by its
-// owner file. Any other file in cmd reaching for the parser directly is the
-// beginning of a second code path.
+// bomFamilyFiles are the files that collectively own SBOM reading.
+//
+// They are one capability split for readability, not several owners: every one
+// of them parses through internal/bom's loader, so all of them unwrap
+// attestation envelopes, normalise SPDX and stamp source provenance. The rule
+// that matters is that nothing outside this set parses an SBOM.
+var bomFamilyFiles = map[string]bool{
+	"bom.go":        true,
+	"bom_corpus.go": true,
+}
+
+// TestBOMParsingHasOneOwner asserts that nothing outside the bom command family
+// parses an SBOM. A file reaching for encoding/json on a document, or calling
+// the loader directly, is the beginning of a second parser — and the second
+// parser is always the one that forgets the envelope unwrapping.
 func TestBOMParsingHasOneOwner(t *testing.T) {
 	const bomPkg = `"github.com/vulnetix/cli/v3/internal/bom"`
-	const owner = "bom.go"
 
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range files {
-		if name == owner || strings.HasSuffix(name, "_test.go") {
+		if bomFamilyFiles[name] || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
 		data, err := os.ReadFile(name)
@@ -55,11 +67,42 @@ func TestBOMParsingHasOneOwner(t *testing.T) {
 			t.Fatal(err)
 		}
 		if strings.Contains(string(data), bomPkg) {
-			t.Errorf("%s imports internal/bom directly. SBOM reading is owned by %s "+
-				"and reached through runBOMImport; a second call site is a second parser "+
-				"that will not unwrap attestation envelopes or stamp source provenance.",
-				name, owner)
+			t.Errorf("%s imports internal/bom directly. SBOM reading is owned by the bom "+
+				"command family (%v) and reached through runBOMImport / runBOMCorpus; a "+
+				"call site outside it is a second parser that will not unwrap attestation "+
+				"envelopes or stamp source provenance.",
+				name, sortedFamilyFiles())
 		}
+	}
+}
+
+// sortedFamilyFiles renders the family for an error message.
+func sortedFamilyFiles() []string {
+	out := make([]string, 0, len(bomFamilyFiles))
+	for f := range bomFamilyFiles {
+		out = append(out, f)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// TestCorpusIsReachedThroughItsEntryPoint asserts every corpus query builds its
+// index through the one function, so they all agree about what the corpus
+// contains and all report the same unreadable documents.
+func TestCorpusIsReachedThroughItsEntryPoint(t *testing.T) {
+	data, err := os.ReadFile("bom_corpus.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(data)
+	if strings.Count(body, "bom.Collect(") != 1 {
+		t.Errorf("bom.Collect is called %d times in bom_corpus.go; it must be called once, "+
+			"from runBOMCorpus, or two queries can disagree about what is in the corpus",
+			strings.Count(body, "bom.Collect("))
+	}
+	if strings.Count(body, "bom.NewIndex(") != 1 {
+		t.Errorf("bom.NewIndex is called %d times; it must be called once, from runBOMCorpus",
+			strings.Count(body, "bom.NewIndex("))
 	}
 }
 
@@ -98,7 +141,10 @@ func TestBOMSubcommandsUseTheEntryPoint(t *testing.T) {
 // command manifest.
 func TestBOMCommandsRegistered(t *testing.T) {
 	want := map[string]bool{
+		// Single-document.
 		"import": false, "validate": false, "diff": false, "merge": false, "tree": false,
+		// Corpus.
+		"ls": false, "where": false, "skew": false, "search": false,
 	}
 	for _, sub := range bomCmd.Commands() {
 		name := sub.Name()

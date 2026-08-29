@@ -33,18 +33,113 @@ Every capability has exactly one owner, reached through one options-struct entry
 | Capability | Owner entry point | File |
 |---|---|---|
 | License policy | `runLicensePipeline(LicenseRunOptions)` | `cmd/license.go` |
+| License policy/exception documents | `loadLicenseGovernance` | `cmd/license_policy.go` |
 | AI inventory | `runAIBOMPass(AIBOMPassOptions)` | `cmd/aibom.go` |
 | Crypto inventory | `runCBOMPass(CBOMPassOptions)` | `cmd/cbom.go` |
 | Built-in rule listing | `handleSASTRuleListing` / `listBuiltinSASTRules` | `cmd/sast_rules.go` |
 | Local malware | `runMalscanForGate` | `cmd/malscan.go` |
 | Remediation (autofix) | `fixCmd` + helpers | `cmd/fix.go`, `cmd/fix_autofix.go` |
 | Report replay | `renderStoredReport` → `LoadFromMemory` | `cmd/report.go`, `cmd/from_memory.go` |
+| SBOM reading | `runBOMImport(BOMImportOptions)` | `cmd/bom.go` |
+| SBOM corpus queries | `runBOMCorpus(BOMCorpusOptions)` | `cmd/bom_corpus.go` |
+| VEX consumption | `runVEXPass(VEXPassOptions)` | `cmd/vex.go` |
 
 When adding a capability: put it behind such a function in its owner's file and have `scan` call it. Do not inline a second implementation into `cmd/scan.go` — that is how the license stage came to run a weaker fixed-policy fork of `vulnetix license`.
 
 Flags registered family-wide by `addScanFlags`/`addSASTFlags` must be **honoured** family-wide. `--dry-run` and `--list-default-rules` are handled inside `runScanWithFeatures` (before any network work) precisely so every subcommand honours them; `--snippet-context` lives in `addSASTFlags` because it shapes SARIF for every rego command. `cmd/scan_flag_ownership_test.go` locks this in.
 
 `--from-memory`/`--fresh-*` on `scan` are deprecated aliases delegating to `report`; `--sca-autofix` is the in-pipeline trigger for `fix`. Keep both working.
+
+### `cdx` Writes SBOMs, `bom` Reads Them
+
+Two nouns, deliberately. `cdx` (alias `sbom`) generates a CycloneDX document from
+a working tree. `bom` consumes documents this CLI did not necessarily write —
+CycloneDX 1.0–1.7 and SPDX 2.2/2.3, bare or inside an in-toto attestation
+envelope (DSSE or plain). That envelope case is the one a `bomFormat` check
+misses entirely, and it is the shape Syft and BuildKit emit for container SBOMs.
+
+Everything parsed normalises into one canonical model, `cdx.BOM`. SPDX in,
+CycloneDX model out, so diff, validate, licence evaluation and VEX application
+are written once instead of once per serialisation. What the document originally
+was is stamped into `metadata.properties` (`vulnetix:bom/source-format`,
+`-spec-version`, `-envelope`, `-digest`, `-path`) — normalisation is lossy, and
+the stamp is what keeps it honest.
+
+Single-document: `import`, `validate`, `diff`, `merge`, `tree`. Corpus (`--from`
+a file, directory or glob): `ls`, `where`, `skew`, `search`. The corpus layer has
+no store and no server — it indexes in memory per invocation, because the
+questions it answers are about documents already on disk. The bigger version of
+the same question, across every repository and over time, is what the deployment
+labels push to the backend instead.
+
+`bom diff` matches components by versionless purl, then bom-ref, then
+name@version — the cascade `internal/cdx/merge.go` already proved — so a bump
+reads as one upgrade rather than an add plus a remove. Versions are ordered
+through `internal/versions`, so a downgrade says downgrade. `purlWithoutVersion`
+splits on the **last** `@` after the final `/`: splitting on the first collapses
+every scoped npm package to `pkg:npm/` and pairs unrelated components.
+
+**Deployment context** (`--project`/`--cluster`/`--namespace`/`--environment`/
+`--tag`) is registered family-wide by `addScanFlags` and read in exactly one
+place, `scanopts.DeploymentFromCommand`. Cluster and project are separate
+dimensions on purpose: a scan belongs to `prod-eu` AND `payment-service` at once,
+and collapsing them makes either query impossible. Nothing is inferred from a
+branch name — a wrong environment label is worse than an absent one. The labels
+travel into CycloneDX metadata, memory and the `cli.*` upload envelope, because
+a repository scan cannot know where its artefacts run and the pipeline that
+deployed them can.
+
+### VEX Is Consumed As Well As Emitted
+
+`internal/triage` writes VEX from this CLI's own triage decisions;
+`internal/vex` reads VEX that somebody else wrote. Both directions matter, and
+only the read side lets an upstream's "this CVE does not affect the
+configuration we ship" reach a scan.
+
+OpenVEX 0.2.0, CycloneDX VEX and CSAF 2.0 VEX normalise to one statement model.
+Each hides the same assertion somewhere different: CSAF scatters the
+justification into a `flags` entry and the prose into a `threats` entry, both
+keyed by an opaque `product_id` defined in a nested product tree; CycloneDX puts
+it in `analysis`, and **an entry with no analysis block is a finding, not an
+assertion** — reading those as VEX would turn every SBOM into statements
+asserting nothing.
+
+Matching is a cascade, not exact equality on (vulnerability, purl). Exact
+equality is why VEX so often appears to do nothing, and it fails **silently**:
+a statement against `pkg:npm/foo@1.2.3` misses 1.2.4, a statement naming a
+package with no version matches nothing though it means every version, and an
+identifier written as a URL never compares equal to a bare id. So:
+versionless-purl and range matching, alias matching, URL identifiers reduced to
+bare ids, most-specific basis winning with newest timestamp breaking ties.
+Every match records its basis and source.
+
+**Nothing is deleted.** A suppressed finding keeps its entry, gains an analysis
+block and `vulnetix:vex/*` provenance properties, and is counted separately —
+total, suppressed, effective. `--vex-file`/`--no-vex` are family-wide and applied
+in **one place immediately before the gates** (`filterVEXSuppressed`), so every
+gate honours VEX by construction; filtering per gate would leave one that could
+be forgotten, and the forgotten one fails a build over a finding the vendor
+already excluded.
+
+### Licence Policy And Exceptions
+
+`.vulnetix/license-policy.yaml` classifies by category and attaches a severity;
+`.vulnetix/license-exceptions.yaml` records approved exceptions with approver,
+date, grounds and expiry. Both are loaded by `loadLicenseGovernance` and reach
+the evaluator only through `runLicensePipeline`, so `scan --evaluate-licenses`
+and `license` cannot disagree about the same repository.
+
+`DefaultPolicy()` reproduces **exactly** what the evaluator did before policies
+existed — only strong copyleft carries a severity, no scope is ignored — so an
+upgrade never turns a build red for a decision nobody made. `RecommendedPolicy()`
+is the stricter one `license policy init` writes.
+
+Exception name matching is anchored at path-segment boundaries, **not
+substring**: a substring test makes an exception for `gpl-lib` silently cover
+`agpl-lib`, a different and stricter licence. Purl matching strips the version so
+an exception does not lapse on the next dependency bump. An expired exception
+stops applying and says so; exempted findings are retained, badged and counted
+separately, and only the gate ignores them.
 
 ### SBOM/CDX Subcommand
 
