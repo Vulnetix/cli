@@ -188,4 +188,11 @@ type LicensePolicy struct {
 	AllowCSV string
 	// AllowFile is a path to a newline-separated SPDX allowlist.
 	AllowFile string
+	// PolicyFile and ExceptionsFile are the declarative forms of the same
+	// decision: a category-based policy and its approved exceptions. Empty
+	// means "discover the default path under the scanned root, and fall back to
+	// the built-in policy" — so a project that has neither behaves exactly as
+	// it did before they existed.
+	PolicyFile     string
+	ExceptionsFile string
 }

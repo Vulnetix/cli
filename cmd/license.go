@@ -18,6 +18,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/scanopts"
 )
 
 // ---------------------------------------------------------------------------
@@ -32,6 +33,11 @@ type LicensePolicyFlags struct {
 	Mode      string
 	AllowCSV  string
 	AllowFile string
+	// PolicyFile and ExceptionsFile are the declarative forms
+	// (--policy-file / --exceptions-file). Empty means "discover the default
+	// path under the scanned root, and fall back to the built-in policy".
+	PolicyFile     string
+	ExceptionsFile string
 }
 
 // LicenseRunOptions is everything the license pipeline needs from a caller. The
@@ -50,6 +56,15 @@ type LicenseRunOptions struct {
 	AllowFile string
 	// SeverityThreshold filters findings below the given severity.
 	SeverityThreshold string
+	// PolicyFile is a declarative licence policy (.vulnetix/license-policy.yaml).
+	// Empty means the default policy, which reproduces what the evaluator did
+	// before policies existed.
+	PolicyFile string
+	// ExceptionsFile is the approved-exception set
+	// (.vulnetix/license-exceptions.yaml). Empty means no exceptions.
+	ExceptionsFile string
+	// Project selects per-project policy overrides, from --project.
+	Project string
 	// Packages are the parsed manifest packages to analyse.
 	Packages []scan.ScopedPackage
 	// ManifestGroups carries the dependency graph used for introduced-via chains.
@@ -136,10 +151,18 @@ func runLicensePipeline(opts LicenseRunOptions) (*LicenseRunResult, error) {
 		return nil, err
 	}
 
+	policy, exceptions, err := loadLicenseGovernance(opts)
+	if err != nil {
+		return nil, err
+	}
+
 	result := license.Evaluate(licensed, license.EvalConfig{
 		Mode:              mode,
 		AllowedLicenses:   allowed,
 		SeverityThreshold: opts.SeverityThreshold,
+		Policy:            policy,
+		Exceptions:        exceptions,
+		Project:           opts.Project,
 	})
 
 	// Drop findings covered by an active suppression ("ignore") rule before
@@ -236,6 +259,8 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 	mode, _ := cmd.Flags().GetString("mode")
 	allowCSV, _ := cmd.Flags().GetString("allow")
 	allowFile, _ := cmd.Flags().GetString("allow-file")
+	policyFile, _ := cmd.Flags().GetString("policy-file")
+	exceptionsFile, _ := cmd.Flags().GetString("exceptions-file")
 	severityThreshold, _ := cmd.Flags().GetString("severity")
 	outputFmt, _ := cmd.Flags().GetString("output")
 	fromMemory, _ := cmd.Flags().GetBool("from-memory")
@@ -421,6 +446,9 @@ func runLicense(cmd *cobra.Command, args []string) (retErr error) {
 		AllowCSV:          allowCSV,
 		AllowFile:         allowFile,
 		SeverityThreshold: severityThreshold,
+		PolicyFile:        policyFile,
+		ExceptionsFile:    exceptionsFile,
+		Project:           scanopts.DeploymentFromCommand(cmd).Project,
 		Packages:          allPackages,
 		ManifestGroups:    manifestGroups,
 		Memory:            mem,
@@ -679,13 +707,19 @@ func printPrettyLicenseSummary(result *license.AnalysisResult, sbomPath, vulneti
 			}},
 			{Header: "ID", MinWidth: 16, MaxWidth: 28},
 			{Header: "Package", MinWidth: 14, MaxWidth: 36},
-			{Header: "Title", MinWidth: 20, MaxWidth: 60},
+			{Header: "Title", MinWidth: 20, MaxWidth: 48},
+			{Header: "Status", MinWidth: 10},
 		}
 
-		// Sort findings by severity.
+		// Sort findings by severity, exempted last: they are recorded rather
+		// than actionable, and mixing them through the list buries the ones a
+		// reviewer has to do something about.
 		sorted := make([]license.Finding, len(result.Findings))
 		copy(sorted, result.Findings)
-		sort.Slice(sorted, func(i, j int) bool {
+		sort.SliceStable(sorted, func(i, j int) bool {
+			if sorted[i].Exempted != sorted[j].Exempted {
+				return !sorted[i].Exempted
+			}
 			return severityOrd(sorted[i].Severity) < severityOrd(sorted[j].Severity)
 		})
 
@@ -696,10 +730,24 @@ func printPrettyLicenseSummary(result *license.AnalysisResult, sbomPath, vulneti
 				f.ID,
 				f.Package.PackageName,
 				f.Title,
+				licenseFindingStatus(f),
 			})
 		}
 
 		fmt.Fprintln(os.Stdout, display.Table(t, findingCols, findingRows))
+
+		// The attribution belongs next to the finding it exempts: a suppressed
+		// violation whose approver and expiry are not visible is not an audit
+		// trail, it is a smaller number.
+		for _, f := range sorted {
+			if f.Exempted || f.ExemptionExpired {
+				fmt.Fprintf(os.Stdout, "    %s %s: %s — %s\n",
+					display.Muted(t, "exception"),
+					f.Package.PackageName,
+					display.Muted(t, f.ExemptionLabel),
+					display.Muted(t, f.ExemptionReason))
+			}
+		}
 
 		// Show introduced paths for findings that have them.
 		for _, f := range sorted {
@@ -722,7 +770,20 @@ func printPrettyLicenseSummary(result *license.AnalysisResult, sbomPath, vulneti
 		len(result.Summary.LicenseCounts),
 		pluralise("conflict", result.Summary.ConflictCount),
 		pluralise("finding", len(result.Findings)))
+	// The exempted count belongs on the same line as the finding count. Without
+	// it, a number that fell because somebody wrote an exception is
+	// indistinguishable from one that fell because the dependency was removed.
+	if result.Summary.Exempted > 0 {
+		summary += fmt.Sprintf(" (%d exempted)", result.Summary.Exempted)
+	}
 	fmt.Fprintln(os.Stdout, display.Bold(t, summary))
+	// An expired exception is why a finding came back. Saying so is the whole
+	// reason the expiry was worth writing down.
+	if result.Summary.ExpiredExceptions > 0 {
+		fmt.Fprintf(os.Stdout, "  %s %s expired and no longer apply — run 'vulnetix license exceptions check'\n",
+			display.WarningMark(t),
+			pluralise("licence exception", result.Summary.ExpiredExceptions))
+	}
 	fmt.Fprintln(os.Stdout)
 
 	// Artefact paths.
@@ -1027,6 +1088,7 @@ func init() {
 	licenseCmd.Flags().String("mode", "inclusive", "Analysis mode: inclusive (default) or individual")
 	licenseCmd.Flags().String("allow", "", "Comma-separated allow list of SPDX IDs")
 	licenseCmd.Flags().String("allow-file", "", "Path to YAML allow list file")
+	addLicenseGovernanceFlags(licenseCmd)
 	licenseCmd.Flags().String("severity", "", "Exit with code 1 if any finding meets or exceeds this severity (low, medium, high, critical)")
 	licenseCmd.Flags().StringP("output", "o", "", "Output format: pretty (default), json (CycloneDX), json-spdx (SPDX 2.3)")
 	licenseCmd.Flags().Bool("from-memory", false, "Reconstruct license output from .vulnetix/memory.yaml without re-scanning")

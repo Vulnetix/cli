@@ -964,6 +964,7 @@
         "disable-memory",
         "dry-run",
         "environment",
+        "exceptions-file",
         "exclude",
         "exploits",
         "git-history",
@@ -991,6 +992,7 @@
         "output",
         "path",
         "paths",
+        "policy-file",
         "project",
         "reachability",
         "results-only",
@@ -1047,6 +1049,7 @@
         "disable-memory",
         "dry-run",
         "environment",
+        "exceptions-file",
         "exclude",
         "exploits",
         "git-history",
@@ -1074,6 +1077,7 @@
         "output",
         "path",
         "paths",
+        "policy-file",
         "project",
         "reachability",
         "results-only",
@@ -1185,6 +1189,7 @@
         "disable-memory",
         "dry-run",
         "environment",
+        "exceptions-file",
         "exclude",
         "exploits",
         "git-history",
@@ -1212,6 +1217,7 @@
         "output",
         "path",
         "paths",
+        "policy-file",
         "project",
         "reachability",
         "results-only",
@@ -1427,6 +1433,7 @@
         "depth",
         "disable-memory",
         "dry-run",
+        "exceptions-file",
         "exclude",
         "from-memory",
         "mode",
@@ -1436,8 +1443,146 @@
         "org-id",
         "output",
         "path",
+        "policy-file",
         "results-only",
         "severity",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "exceptions",
+        "policy"
+      ]
+    },
+    "license exceptions": {
+      "short": "Manage approved licence exceptions",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "add",
+        "check",
+        "ls"
+      ]
+    },
+    "license exceptions add": {
+      "short": "Append a licence exception",
+      "flags": [
+        "approver",
+        "disable-memory",
+        "expires",
+        "file",
+        "id",
+        "license",
+        "name",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "path",
+        "project",
+        "purl",
+        "reason",
+        "scope",
+        "silent",
+        "verbose"
+      ]
+    },
+    "license exceptions check": {
+      "short": "Report licence exceptions expiring soon",
+      "flags": [
+        "disable-memory",
+        "expiring-within",
+        "file",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "path",
+        "silent",
+        "verbose"
+      ]
+    },
+    "license exceptions ls": {
+      "short": "List approved licence exceptions",
+      "flags": [
+        "disable-memory",
+        "file",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "path",
+        "silent",
+        "verbose"
+      ]
+    },
+    "license policy": {
+      "short": "Manage the declarative licence policy",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "init",
+        "show",
+        "validate"
+      ]
+    },
+    "license policy init": {
+      "short": "Write a recommended starting policy",
+      "flags": [
+        "disable-memory",
+        "file",
+        "force",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "path",
+        "silent",
+        "verbose"
+      ]
+    },
+    "license policy show": {
+      "short": "Print the licence policy in effect",
+      "flags": [
+        "disable-memory",
+        "file",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "path",
+        "project",
+        "silent",
+        "verbose"
+      ]
+    },
+    "license policy validate": {
+      "short": "Check a licence policy document for problems",
+      "flags": [
+        "disable-memory",
+        "file",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "path",
         "silent",
         "verbose"
       ]
@@ -1931,6 +2076,7 @@
         "disable-memory",
         "dry-run",
         "environment",
+        "exceptions-file",
         "exclude",
         "exploits",
         "git-history",
@@ -1957,6 +2103,7 @@
         "output",
         "path",
         "paths",
+        "policy-file",
         "project",
         "reachability",
         "results-only",
@@ -2001,6 +2148,7 @@
         "disable-memory",
         "dry-run",
         "environment",
+        "exceptions-file",
         "exclude",
         "exploits",
         "git-history",
@@ -2026,6 +2174,7 @@
         "output",
         "path",
         "paths",
+        "policy-file",
         "project",
         "reachability",
         "results-only",
@@ -2071,6 +2220,7 @@
         "evaluate-sast",
         "evaluate-sca",
         "evaluate-secrets",
+        "exceptions-file",
         "exclude",
         "exploits",
         "git-history",
@@ -2105,6 +2255,7 @@
         "output",
         "path",
         "paths",
+        "policy-file",
         "project",
         "reachability",
         "results-only",
@@ -2153,6 +2304,7 @@
         "disable-memory",
         "dry-run",
         "environment",
+        "exceptions-file",
         "exclude",
         "exploits",
         "git-history",
@@ -2179,6 +2331,7 @@
         "output",
         "path",
         "paths",
+        "policy-file",
         "project",
         "reachability",
         "results-only",

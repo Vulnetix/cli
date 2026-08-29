@@ -118,9 +118,11 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	opts.Reachability = reach
 
 	opts.License = pipeline.LicensePolicy{
-		Mode:      getString("license-mode"),
-		AllowCSV:  getString("allow"),
-		AllowFile: getString("allow-file"),
+		Mode:           getString("license-mode"),
+		AllowCSV:       getString("allow"),
+		AllowFile:      getString("allow-file"),
+		PolicyFile:     getString("policy-file"),
+		ExceptionsFile: getString("exceptions-file"),
 	}
 
 	// SAST flags. sca registers none of these, so every read is guarded by the

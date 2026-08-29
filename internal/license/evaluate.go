@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
 // FindingID builds the stable identifier for a per-package license finding.
@@ -81,18 +82,39 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 		allowList = &AllowList{Licenses: cfg.AllowedLicenses}
 	}
 
+	// Nil policy falls back to the defaults, which reproduce the severities
+	// this evaluator used before policies existed. Adopting a policy is then a
+	// deliberate act rather than something an upgrade does to a build.
+	policy := cfg.Policy
+	if policy == nil {
+		policy = DefaultPolicy()
+	}
+
 	for i := range packages {
 		pkg := &packages[i]
 
+		// A scope the policy does not evaluate produces no findings at all.
+		// Development and test dependencies are not distributed, so a copyleft
+		// build tool is usually not a licence obligation — and reporting it as
+		// one buries the findings that are.
+		if !policy.EvaluatesScope(pkg.Scope, cfg.Project) {
+			continue
+		}
+
 		// Rule: unknown-license
 		if pkg.LicenseSpdxID == "UNKNOWN" {
-			result.Findings = append(result.Findings, findingWithProvenance(
-				FindingID("unknown-license", *pkg),
-				fmt.Sprintf("Unknown license for %s", pkg.PackageName),
-				fmt.Sprintf("No license could be detected for %s@%s from %s", pkg.PackageName, pkg.PackageVersion, pkg.Ecosystem),
-				"medium", "unknown-license", 1.0, *pkg,
-				[]EvidenceStep{{Rule: "unknown-license", Input: pkg.PackageName, Expected: "known SPDX ID", Actual: "UNKNOWN", Result: "FAIL"}},
-			))
+			// The severity depends on the policy's stance: an unresolved licence
+			// is a gap in the data, and whether that gap is a violation or a
+			// warning is a compliance decision, not a property of the scanner.
+			if sev := unknownSeverity(policy, cfg.Project); sev != "" {
+				result.Findings = append(result.Findings, findingWithProvenance(
+					FindingID("unknown-license", *pkg),
+					fmt.Sprintf("Unknown license for %s", pkg.PackageName),
+					fmt.Sprintf("No license could be detected for %s@%s from %s", pkg.PackageName, pkg.PackageVersion, pkg.Ecosystem),
+					sev, "unknown-license", 1.0, *pkg,
+					[]EvidenceStep{{Rule: "unknown-license", Input: pkg.PackageName, Expected: "known SPDX ID", Actual: "UNKNOWN", Result: "FAIL"}},
+				))
+			}
 		}
 
 		// Rule: non-standard license (deps.dev reports a license exists but it's not SPDX-recognized)
@@ -132,15 +154,23 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 			))
 		}
 
-		// Rule: copyleft-in-production
-		if pkg.Record.Category == CategoryStrongCopyleft && isProductionScope(pkg.Scope) {
+		// Rule: category-in-production
+		//
+		// The category comes from the policy when it overrides the embedded
+		// classification, and the severity comes from the policy's table. This
+		// is what makes a policy more useful than a flat allow list: a licence
+		// nobody enumerated still lands in a category, and the category still
+		// has a decision attached to it.
+		effectiveCat := policy.CategoryFor(pkg.LicenseSpdxID, pkg.Record.Category)
+		if sev := policy.SeverityFor(effectiveCat, cfg.Project); sev != "" && isProductionScope(pkg.Scope) {
 			result.Findings = append(result.Findings, findingWithProvenance(
 				FindingID("copyleft-in-production", *pkg),
-				fmt.Sprintf("Strong copyleft license %s in production", pkg.LicenseSpdxID),
-				fmt.Sprintf("%s@%s uses strong copyleft license %s in production scope", pkg.PackageName, pkg.PackageVersion, pkg.LicenseSpdxID),
-				"high", "copyleft-in-production", 0.9, *pkg,
+				fmt.Sprintf("%s license %s in production", effectiveCat, pkg.LicenseSpdxID),
+				fmt.Sprintf("%s@%s uses %s, classified %s, in production scope",
+					pkg.PackageName, pkg.PackageVersion, pkg.LicenseSpdxID, effectiveCat),
+				sev, "copyleft-in-production", 0.9, *pkg,
 				[]EvidenceStep{
-					{Rule: "copyleft-in-production", Input: pkg.LicenseSpdxID, Expected: "permissive or weak-copyleft", Actual: string(pkg.Record.Category), Result: "FAIL"},
+					{Rule: "category-policy", Input: pkg.LicenseSpdxID, Expected: "a category the policy permits", Actual: string(effectiveCat), Result: "FAIL"},
 					{Rule: "scope-check", Input: pkg.Scope, Expected: "development/test", Actual: pkg.Scope, Result: "FAIL"},
 				},
 			))
@@ -196,11 +226,81 @@ func Evaluate(packages []PackageLicense, cfg EvalConfig) *AnalysisResult {
 	}
 
 	result.Summary.ConflictCount = len(result.Conflicts)
+
+	// Exceptions are applied last, over the complete finding set, so an
+	// exception covers a package regardless of which rule flagged it. Applying
+	// them per rule would mean an exception that silently stopped working when
+	// a package tripped a different rule.
+	applyExceptions(result, cfg)
+
 	for _, f := range result.Findings {
 		result.Summary.FindingsBySev[f.Severity]++
 	}
 
 	return result
+}
+
+// applyExceptions marks findings an approved exception covers.
+//
+// Marks, not removes. See the Finding.Exempted doc comment: a violation count
+// that fell because somebody wrote an exception is a different fact from one
+// that fell because the dependency was removed.
+func applyExceptions(result *AnalysisResult, cfg EvalConfig) {
+	now := cfg.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+
+	for i := range result.Findings {
+		f := &result.Findings[i]
+		// A conflict finding names two packages and belongs to neither, so a
+		// package exception cannot speak for it.
+		if f.Category == "license-conflict" {
+			result.Summary.Effective++
+			continue
+		}
+
+		applied, exempt := cfg.Exceptions.Match(f.Package, cfg.Project, now)
+		switch {
+		case exempt:
+			f.Exempted = true
+			f.ExemptionReason = applied.Exception.Reason
+			f.ExemptionLabel = applied.Label()
+			result.Summary.Exempted++
+		case applied.Expired:
+			// An expired exception does not exempt. Saying so is the point:
+			// otherwise the finding reappears with no explanation and the user
+			// has no reason to look at the expiry they wrote.
+			f.ExemptionExpired = true
+			f.ExemptionReason = applied.Exception.Reason
+			f.ExemptionLabel = applied.Label() + " — EXPIRED"
+			result.Summary.ExpiredExceptions++
+			result.Summary.Effective++
+		default:
+			result.Summary.Effective++
+		}
+	}
+}
+
+// unknownSeverity resolves the severity an unresolved licence carries.
+func unknownSeverity(policy *Policy, project string) string {
+	switch policy.UnknownFor(project) {
+	case UnknownIgnore:
+		return ""
+	case UnknownFail:
+		// The policy's stated position is that an unidentified licence cannot
+		// ship, so it is reported at the severity the policy gives the unknown
+		// category — defaulting to high rather than the advisory medium.
+		if sev := policy.SeverityFor(CategoryUnknown, project); sev != "" && sev != "medium" {
+			return sev
+		}
+		return "high"
+	default:
+		if sev := policy.SeverityFor(CategoryUnknown, project); sev != "" {
+			return sev
+		}
+		return "medium"
+	}
 }
 
 // detectConflicts checks all distinct license pairs for incompatibilities.
@@ -301,6 +401,12 @@ func CountFindingsAtOrAbove(findings []Finding, threshold string) int {
 	thresholdRank := severityRank(threshold)
 	count := 0
 	for _, f := range findings {
+		// An exempted finding must not breach the gate — an approved exception
+		// that still failed the build would be no exception at all. It remains
+		// in the report, badged; only the gate ignores it.
+		if f.Exempted {
+			continue
+		}
 		if severityRank(f.Severity) <= thresholdRank {
 			count++
 		}

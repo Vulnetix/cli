@@ -84,6 +84,8 @@ var notAnalysisInput = map[string]string{
 	"allow":                      "folded into Options.License",
 	"allow-file":                 "folded into Options.License",
 	"license-mode":               "folded into Options.License",
+	"policy-file":                "folded into Options.License",
+	"exceptions-file":            "folded into Options.License",
 	"sca-autofix-strategy":       "folded into Options.SCAAutofixOpts",
 	"sca-autofix-manifest":       "folded into Options.SCAAutofixOpts",
 	"sca-autofix-max-major-bump": "folded into Options.SCAAutofixOpts",

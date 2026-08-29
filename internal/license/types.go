@@ -1,5 +1,7 @@
 package license
 
+import "time"
+
 // Category classifies a license by its copyleft characteristics.
 type Category string
 
@@ -73,6 +75,21 @@ type Finding struct {
 	Evidence        []EvidenceStep `json:"evidence"`
 	IntroducedPaths [][]string     `json:"introducedPaths,omitempty"`
 	PathCount       int            `json:"pathCount,omitempty"`
+
+	// Exempted marks a finding an approved exception covers. Exempted findings
+	// are retained and badged, never dropped: a violation count that fell
+	// because somebody wrote an exception is a different fact from one that
+	// fell because the dependency was removed, and a report that cannot tell
+	// them apart is not an audit trail.
+	Exempted bool `json:"exempted,omitempty"`
+	// ExemptionReason is why the exception exists.
+	ExemptionReason string `json:"exemptionReason,omitempty"`
+	// ExemptionLabel attributes the exception — its id, approver and expiry.
+	ExemptionLabel string `json:"exemptionLabel,omitempty"`
+	// ExemptionExpired marks a finding whose exception has lapsed. It is NOT
+	// exempted; the field exists so the report can say why an exception the
+	// user wrote is no longer working.
+	ExemptionExpired bool `json:"exemptionExpired,omitempty"`
 }
 
 // AnalysisSummary provides aggregate counts.
@@ -86,6 +103,16 @@ type AnalysisSummary struct {
 	FsfLibre       int              `json:"fsfLibre"`
 	Deprecated     int              `json:"deprecated"`
 	Unknown        int              `json:"unknown"`
+
+	// Exempted is the count an approved exception covers, and Effective is what
+	// remains. The same split VEX uses for vulnerabilities, for the same
+	// reason: the number to act on is not the number found.
+	Exempted  int `json:"exempted"`
+	Effective int `json:"effective"`
+	// ExpiredExceptions counts findings whose exception has lapsed. They are
+	// live findings; the count exists so a lapse is visible rather than
+	// arriving as an unexplained new violation.
+	ExpiredExceptions int `json:"expiredExceptions"`
 }
 
 // AnalysisResult is the complete output of a license analysis run.
@@ -102,4 +129,16 @@ type EvalConfig struct {
 	Mode              string   // "inclusive" or "individual"
 	AllowedLicenses   []string // SPDX IDs; empty = no allow list
 	SeverityThreshold string   // "critical", "high", "medium", "low"
+
+	// Policy is the declarative licence policy. Nil falls back to
+	// DefaultPolicy(), which reproduces the severities the evaluator used
+	// before policies existed — so adopting one is a deliberate change rather
+	// than something that arrives with an upgrade and turns a build red.
+	Policy *Policy
+	// Exceptions is the approved-exception set. Nil means no exceptions.
+	Exceptions *ExceptionSet
+	// Project selects per-project policy overrides, from --project.
+	Project string
+	// Now is the clock used for exception expiry. Zero means time.Now().
+	Now time.Time
 }

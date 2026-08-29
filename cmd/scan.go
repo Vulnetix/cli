@@ -836,9 +836,11 @@ func runLocalScan(
 	gitHistoryMaxFiles := opts.GitHistoryMaxFiles
 	respectGitignore := opts.RespectGitignore
 	licensePolicy := LicensePolicyFlags{
-		Mode:      opts.License.Mode,
-		AllowCSV:  opts.License.AllowCSV,
-		AllowFile: opts.License.AllowFile,
+		Mode:           opts.License.Mode,
+		AllowCSV:       opts.License.AllowCSV,
+		AllowFile:      opts.License.AllowFile,
+		PolicyFile:     opts.License.PolicyFile,
+		ExceptionsFile: opts.License.ExceptionsFile,
 	}
 
 	progressStderr := rep.Writer()
@@ -1764,6 +1766,9 @@ func runLocalScan(
 			Mode:             licensePolicy.Mode,
 			AllowCSV:         licensePolicy.AllowCSV,
 			AllowFile:        licensePolicy.AllowFile,
+			PolicyFile:       licensePolicy.PolicyFile,
+			ExceptionsFile:   licensePolicy.ExceptionsFile,
+			Project:          opts.Deployment.Project,
 			Packages:         allPackages,
 			ManifestGroups:   manifestGroups,
 			LicensedPackages: licensedPackages, // reuse the pre-SCA detection
@@ -3853,6 +3858,9 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().StringArray("vex-file", nil,
 		"Apply VEX statements from this file or directory before gates are evaluated (repeatable)")
 	cmd.Flags().Bool("no-vex", false, "Ignore --vex-file and apply no third-party VEX")
+	// Licence governance, family-wide so `scan --evaluate-licenses` and
+	// `license` reach the same verdict from the same policy.
+	addLicenseGovernanceFlags(cmd)
 	cmd.Flags().String("path", ".", "Directory to scan")
 	cmd.Flags().Int("depth", 3, "Max recursion depth")
 	cmd.Flags().StringArray("exclude", nil, "Exclude paths matching glob (repeatable)")
