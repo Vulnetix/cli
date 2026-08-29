@@ -45,6 +45,7 @@ func parseCmdFile(t *testing.T, name string) (*token.FileSet, *ast.File) {
 var bomFamilyFiles = map[string]bool{
 	"bom.go":        true,
 	"bom_corpus.go": true,
+	"bom_enrich.go": true,
 }
 
 // TestBOMParsingHasOneOwner asserts that nothing outside the bom command family
@@ -145,6 +146,8 @@ func TestBOMCommandsRegistered(t *testing.T) {
 		"import": false, "validate": false, "diff": false, "merge": false, "tree": false,
 		// Corpus.
 		"ls": false, "where": false, "skew": false, "search": false,
+		// Enrichment.
+		"enrich": false,
 	}
 	for _, sub := range bomCmd.Commands() {
 		name := sub.Name()

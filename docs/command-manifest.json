@@ -380,6 +380,41 @@
         "window-days"
       ]
     },
+    "attest": {
+      "short": "Verify signatures and provenance on artefacts",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "verify"
+      ]
+    },
+    "attest verify": {
+      "short": "Verify an artefact's signature, identity and provenance",
+      "flags": [
+        "certificate",
+        "disable-memory",
+        "envelope",
+        "identity",
+        "issuer",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "require",
+        "signature",
+        "silent",
+        "trusted-root",
+        "verbose"
+      ]
+    },
     "auth": {
       "short": "Manage Vulnetix authentication",
       "flags": [
@@ -475,6 +510,7 @@
       ],
       "subcommands": [
         "diff",
+        "enrich",
         "import",
         "ls",
         "merge",
@@ -499,12 +535,34 @@
         "verbose"
       ]
     },
+    "bom enrich": {
+      "short": "Resolve licences, attach vulnerabilities and VEX to a supplied SBOM",
+      "flags": [
+        "disable-memory",
+        "keep-original",
+        "no-analytics",
+        "no-banner",
+        "no-licenses",
+        "no-progress",
+        "no-vex",
+        "no-vulns",
+        "org-id",
+        "out",
+        "output",
+        "sign",
+        "silent",
+        "verbose",
+        "vex"
+      ]
+    },
     "bom import": {
       "short": "Parse an SBOM document and report what it contains",
       "flags": [
         "cluster",
         "disable-memory",
         "environment",
+        "identity",
+        "issuer",
         "namespace",
         "no-analytics",
         "no-banner",
@@ -513,9 +571,12 @@
         "out",
         "output",
         "project",
+        "require",
         "silent",
         "tag",
-        "verbose"
+        "trusted-root",
+        "verbose",
+        "verify-attestation"
       ]
     },
     "bom ls": {
@@ -6634,6 +6695,7 @@
         "ai-firewall",
         "aibom",
         "analyze",
+        "attest",
         "auth",
         "bom",
         "cbom",

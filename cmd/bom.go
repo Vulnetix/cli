@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/vulnetix/cli/v3/internal/attest"
 	"github.com/vulnetix/cli/v3/internal/bom"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
@@ -89,6 +90,11 @@ type BOMImportOptions struct {
 	OutPath string
 	// Deployment tags the document with where it is deployed and what owns it.
 	Deployment scanopts.DeploymentContext
+	// Verify, when set, checks the document's attestation before trusting it.
+	// Nil skips verification entirely — reading a document does not imply
+	// believing it, and conflating the two would make every parse a trust
+	// decision the caller did not ask for.
+	Verify *AttestVerifyOptions
 }
 
 // BOMImportResult is what a successful import produced.
@@ -96,6 +102,8 @@ type BOMImportResult struct {
 	Document *bom.Document
 	// Written is the path the normalised document was written to, or "".
 	Written string
+	// Verification is the attestation result when the caller asked for one.
+	Verification *attest.Result
 }
 
 // runBOMImport parses a document and optionally re-emits it. This is the shared
@@ -114,25 +122,64 @@ func runBOMImport(opts BOMImportOptions) (*BOMImportResult, error) {
 		return nil, err
 	}
 
+	res := &BOMImportResult{Document: doc}
+
+	// Verification runs after the parse and before the caller sees the
+	// document, and a failure aborts the import. Returning a document alongside
+	// a failed verification would leave the caller holding something it has no
+	// way to know it should not trust.
+	if opts.Verify != nil {
+		if res.Verification, err = verifyImported(opts); err != nil {
+			return nil, err
+		}
+	}
+
 	cdx.ApplyDeploymentContext(doc.BOM, opts.Deployment)
 
-	res := &BOMImportResult{Document: doc}
 	if opts.OutPath != "" {
-		data, mErr := json.MarshalIndent(doc.BOM, "", "  ")
-		if mErr != nil {
-			return nil, mErr
-		}
-		if dir := filepath.Dir(opts.OutPath); dir != "" && dir != "." {
-			if mkErr := os.MkdirAll(dir, 0o755); mkErr != nil {
-				return nil, mkErr
-			}
-		}
-		if wErr := os.WriteFile(opts.OutPath, append(data, '\n'), 0o644); wErr != nil {
-			return nil, wErr
+		if err := writeNormalisedBOM(doc, opts.OutPath); err != nil {
+			return nil, err
 		}
 		res.Written = opts.OutPath
 	}
 	return res, nil
+}
+
+// verifyImported checks a document's attestation, failing on any failed check.
+func verifyImported(opts BOMImportOptions) (*attest.Result, error) {
+	if opts.Path == "-" {
+		return nil, fmt.Errorf("cannot verify a document read from stdin: the signature sidecars are found beside a file")
+	}
+	verify := *opts.Verify
+	verify.ArtifactPath = opts.Path
+
+	result, err := runAttestVerify(verify)
+	if err != nil {
+		return nil, fmt.Errorf("verifying %s: %w", opts.Path, err)
+	}
+	if failures := result.Failures(); len(failures) > 0 {
+		names := make([]string, 0, len(failures))
+		for _, f := range failures {
+			names = append(names, f.Name+" ("+f.Detail+")")
+		}
+		return nil, fmt.Errorf("%s failed attestation verification: %s",
+			opts.Path, strings.Join(names, "; "))
+	}
+	return result, nil
+}
+
+// writeNormalisedBOM writes the canonical document to a path.
+func writeNormalisedBOM(doc *bom.Document, path string) error {
+	data, err := json.MarshalIndent(doc.BOM, "", "  ")
+	if err != nil {
+		return err
+	}
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
+	return os.WriteFile(path, append(data, '\n'), 0o644)
 }
 
 func runBOMImportCmd(cmd *cobra.Command, args []string) error {
@@ -142,11 +189,23 @@ func runBOMImportCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	res, err := runBOMImport(BOMImportOptions{
+	opts := BOMImportOptions{
 		Path:       args[0],
 		OutPath:    outPath,
 		Deployment: scanopts.DeploymentFromCommand(cmd),
-	})
+	}
+	if verify, _ := cmd.Flags().GetBool("verify-attestation"); verify {
+		identity, _ := cmd.Flags().GetString("identity")
+		issuer, _ := cmd.Flags().GetString("issuer")
+		trustedRoot, _ := cmd.Flags().GetString("trusted-root")
+		require, _ := cmd.Flags().GetStringArray("require")
+		opts.Verify = &AttestVerifyOptions{
+			Identity: identity, Issuer: issuer,
+			TrustedRootPath: trustedRoot, Require: require,
+		}
+	}
+
+	res, err := runBOMImport(opts)
 	if err != nil {
 		return err
 	}
@@ -781,6 +840,17 @@ func init() {
 	bomImportCmd.Flags().String("out", "", "Write the normalised CycloneDX document to this path")
 	bomImportCmd.Flags().StringP("output", "o", "pretty", "Output format: pretty (alias: table), json")
 	scanopts.AddDeploymentFlags(bomImportCmd.Flags())
+	// Verification is opt-in. Reading a document is not believing it, and making
+	// every parse a trust decision would break importing an unsigned SBOM —
+	// which is most of them.
+	bomImportCmd.Flags().Bool("verify-attestation", false,
+		"Verify the document's signature before trusting it; fails the import when a check fails")
+	bomImportCmd.Flags().String("identity", "", "Regular expression the certificate subject must match")
+	bomImportCmd.Flags().String("issuer", "", "OIDC issuer the certificate must name")
+	bomImportCmd.Flags().String("trusted-root", "",
+		"PEM bundle to validate the certificate chain against (also SIGSTORE_ROOT_FILE)")
+	bomImportCmd.Flags().StringArray("require", nil,
+		"Treat this check as a failure if it was not performed, e.g. certificate-chain (repeatable)")
 
 	bomValidateCmd.Flags().StringP("output", "o", "pretty", "Output format: pretty (alias: table), json")
 	bomValidateCmd.Flags().Int("min-score", 0, "Exit non-zero when the completeness score is below this value (0 disables)")

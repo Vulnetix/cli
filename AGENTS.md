@@ -42,7 +42,9 @@ Every capability has exactly one owner, reached through one options-struct entry
 | Report replay | `renderStoredReport` → `LoadFromMemory` | `cmd/report.go`, `cmd/from_memory.go` |
 | SBOM reading | `runBOMImport(BOMImportOptions)` | `cmd/bom.go` |
 | SBOM corpus queries | `runBOMCorpus(BOMCorpusOptions)` | `cmd/bom_corpus.go` |
+| SBOM enrichment | `runBOMEnrichPass(BOMEnrichOptions)` | `cmd/bom_enrich.go` |
 | VEX consumption | `runVEXPass(VEXPassOptions)` | `cmd/vex.go` |
+| Attestation verification | `runAttestVerify(AttestVerifyOptions)` | `cmd/attest.go` |
 
 When adding a capability: put it behind such a function in its owner's file and have `scan` call it. Do not inline a second implementation into `cmd/scan.go` — that is how the license stage came to run a weaker fixed-policy fork of `vulnetix license`.
 
@@ -120,6 +122,43 @@ in **one place immediately before the gates** (`filterVEXSuppressed`), so every
 gate honours VEX by construction; filtering per gate would leave one that could
 be forgotten, and the forgotten one fails a build over a finding the vendor
 already excluded.
+
+### Attestation Verification Never Claims What It Did Not Check
+
+`internal/cdxsign` signs; `internal/attest` verifies. The whole design of the
+verifier follows from one rule: **a green tick for a check that did not run is
+worse than no verifier at all**, because it converts an unknown into a false
+assurance.
+
+So `Verify` returns no bare boolean. It returns a list of checks, each
+passed/failed/skipped with a reason, and the terminal output is that table.
+Signature validity and certificate identity are checked locally and always run.
+Certificate chain validation runs **only** with `--trusted-root` (or
+`SIGSTORE_ROOT_FILE`) and is reported as skipped otherwise — treating "I have no
+trust root" as a pass would assert that any self-issued certificate is as good
+as a Fulcio one. Rekor inclusion is **never** claimed: it needs the log's public
+key and an online query. `--require <check>` turns a skip into a failure, which
+is how a pipeline that genuinely needs chain validation is told it did not
+happen.
+
+An expired certificate **passes** with a caveat. Fulcio certificates live ten
+minutes, so failing every signature older than that would make the verifier
+useless; what an expiry cannot tell you without a log entry is whether the
+signature predates it, and the detail says so.
+
+`Predicate` reads SLSA v0.2 and v1 provenance but deliberately reports **fields
+present, not a SLSA level**. A level is a property of the build platform, which
+no consumer can determine by reading a document that build produced.
+
+`bom enrich` resolves licences, attaches VDB vulnerabilities and applies VEX to
+a supplied document, and must not lose two things. Fidelity: the input's digest
+is stamped on the output and `--keep-original` writes the input beside it, so a
+transformation is always traceable. Attribution: `--sign` signs with **this**
+machine's identity, because this machine made these claims; a signature on the
+input attests the input and is preserved as a property rather than discarded.
+The VDB request carries a `CliToolAttribution` naming the input's own generator,
+so the server records "syft found these, Vulnetix enriched them" rather than
+claiming the discovery.
 
 ### Licence Policy And Exceptions
 
