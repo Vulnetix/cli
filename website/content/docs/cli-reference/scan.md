@@ -97,6 +97,15 @@ vulnetix scan [flags]
 | `--allow` | string | - | Comma-separated SPDX licenses allowed by policy; passed to the [license](../license/) pass |
 | `--allow-file` | string | - | YAML allow-list file for the license pass (overrides `--allow`) |
 | `--license-mode` | string | `inclusive` | License conflict detection mode: `inclusive` (whole project) or `individual` (per manifest) |
+| `--policy-file` | string | discovered | [Licence policy](../license/#licence-policy) document (default `.vulnetix/license-policy.yaml` when present) |
+| `--exceptions-file` | string | discovered | [Approved licence exceptions](../license/#exceptions) (default `.vulnetix/license-exceptions.yaml` when present) |
+| `--vex-file` | stringArray | - | Apply [VEX](../vex/) statements from this file or directory **before gates are evaluated** (repeatable) |
+| `--no-vex` | bool | `false` | Ignore `--vex-file` and apply no third-party VEX |
+| `--project` | string | inferred | What this artefact is / who owns it — see [Deployment context](#deployment-context) |
+| `--cluster` | string | inferred | Where it is deployed |
+| `--namespace` | string | inferred | Namespace within the cluster |
+| `--environment` | string | inferred | Deployment stage, e.g. `production` |
+| `--tag` | stringArray | - | Additional `key=value` deployment label (repeatable) |
 | `--snippet-context` | int | `-1` | Surrounding non-empty source lines captured around each SARIF finding (`-1` = dynamic, `0` disables). Also available on `sast`, `secrets`, `containers` and `iac` |
 | `--no-malscan` | bool | `false` | Skip the in-process [malscan](../malscan/) pass over local dependency install dirs |
 | `--no-aibom` | bool | `false` | Skip the [AIBOM](../aibom/) inventory pass |
@@ -111,6 +120,66 @@ vulnetix scan [flags]
 | `--fresh-advisories` | bool | `false` | **Deprecated** — use `vulnetix report --fresh-advisories` |
 | `--fresh-vulns` | bool | `false` | **Deprecated** — use `vulnetix report --fresh-vulns` |
 | `--reachability` | string | `both` | Tree-sitter reachability mode: `direct`, `transitive`, `both`, or `off`. Per-finding source-level reachability analysis runs against every produced CVE. Disable globally with `off` for large monorepos. See the [Reachability Analysis](reachability/) section. |
+
+## Third-party VEX
+
+`--vex-file` and `--no-vex` are registered on **every** member of the scan
+family — `scan`, `sca`, `sast`, `secrets`, `containers`, `iac`.
+
+```bash
+vulnetix sca --vex-file vendor.openvex.json --severity high
+vulnetix scan --vex-file ./vex/
+```
+
+Statements are applied in **one place, immediately before the quality gates**,
+so every gate honours VEX by construction. Filtering per gate would leave one
+that could be forgotten, and the forgotten one fails a build over a finding the
+vendor has already said does not apply.
+
+The summary line names the suppressed count, because `0 vulnerabilities` on its
+own reads as *"nothing was found"*:
+
+```
+1 packages | 0 vulnerabilities (12 suppressed by VEX)
+```
+
+Suppressed findings are annotated in the SBOM, never deleted. See the
+[VEX Command Reference](../vex/) for the formats read, how statements are
+matched, and what the provenance properties record.
+
+## Deployment context
+
+A repository scan answers *"what is in this code"*. It cannot answer *"which of
+our clusters runs the vulnerable version"* — a repository has no idea where its
+artefacts end up. These labels carry that from the pipeline that does know.
+
+```bash
+vulnetix scan --project payment-service --cluster prod-eu --namespace payments
+```
+
+| Dimension | Answers | Cardinality | Owned by |
+|-----------|---------|-------------|----------|
+| `cluster` / `namespace` / `environment` | Where is it deployed? | Low, stable | Platform team |
+| `project` | What is it, who owns it? | High, volatile | Dev teams |
+
+They are **separate, orthogonal** fields on purpose: a scan belongs to cluster
+`prod-eu` **and** project `payment-service` at once, and collapsing them makes
+either query impossible.
+
+Unset values are inferred from `VULNETIX_CLUSTER`, `VULNETIX_PROJECT`,
+`VULNETIX_NAMESPACE`, `VULNETIX_ENVIRONMENT`, `CI_ENVIRONMENT_NAME`,
+`POD_NAMESPACE` and `CI_PROJECT_NAME`, so a pipeline can export them once for a
+whole job.
+
+**Nothing is inferred from a branch name.** "main means production" is a
+convention this CLI has no business assuming, and a wrong environment label is
+worse than an absent one — it attributes a finding to a cluster that never ran
+the code.
+
+The labels land in `metadata.properties` as `vulnetix:deployment/*`, in
+`.vulnetix/memory.yaml`, and in the `cli.*` upload envelope, so the backend can
+answer fleet-scale questions across repositories. Locally, the same labels are
+queryable with [`bom ls`](../bom/#bom-ls) and [`bom where`](../bom/#bom-where).
 
 ## Output Files
 

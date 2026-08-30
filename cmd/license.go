@@ -1089,6 +1089,13 @@ func init() {
 	licenseCmd.Flags().String("allow", "", "Comma-separated allow list of SPDX IDs")
 	licenseCmd.Flags().String("allow-file", "", "Path to YAML allow list file")
 	addLicenseGovernanceFlags(licenseCmd)
+	// --project selects the policy's per-project overrides, and runLicense
+	// already reads it. Without registering it here the override could only be
+	// reached through the environment, which makes the policy feature half
+	// unusable on the command that owns it. The rest of the deployment context
+	// comes along because `license` writes an SBOM too, and that document
+	// should carry the same labels a scan's would.
+	scanopts.AddDeploymentFlags(licenseCmd.Flags())
 	licenseCmd.Flags().String("severity", "", "Exit with code 1 if any finding meets or exceeds this severity (low, medium, high, critical)")
 	licenseCmd.Flags().StringP("output", "o", "", "Output format: pretty (default), json (CycloneDX), json-spdx (SPDX 2.3)")
 	licenseCmd.Flags().Bool("from-memory", false, "Reconstruct license output from .vulnetix/memory.yaml without re-scanning")

@@ -24,6 +24,9 @@ vulnetix license [flags]
 | `--mode` | string | `inclusive` | Analysis mode: `inclusive` (all packages as one unit) or `individual` (per-manifest conflict detection) |
 | `--allow` | string | - | Comma-separated allow list of SPDX license IDs |
 | `--allow-file` | string | - | Path to YAML allow list file |
+| `--policy-file` | string | discovered | [Licence policy](#licence-policy) document (default `.vulnetix/license-policy.yaml` when present) |
+| `--exceptions-file` | string | discovered | [Approved exceptions](#exceptions) (default `.vulnetix/license-exceptions.yaml` when present) |
+| `--project` | string | - | Select per-project policy overrides |
 | `--severity` | string | - | Exit with code `1` if any finding meets or exceeds this level: `low`, `medium`, `high`, `critical` |
 | `-o, --output` | string | pretty summary | Output format: `json` (CycloneDX), `json-spdx` (SPDX 2.3); omit for a human-readable summary |
 | `--results-only` | bool | `false` | Only show output when there are findings or conflicts (summary + issues, no full package table) |
@@ -111,7 +114,7 @@ Each package is evaluated against these rules. Findings include evidence chains 
 | `non-standard-license` | low | deps.dev reports a license exists but it is not an SPDX-recognized identifier |
 | `deprecated-license` | low | License uses an SPDX-deprecated identifier |
 | `not-osi-approved` | low | License is not OSI-approved (public domain licenses are exempt) |
-| `copyleft-in-production` | high | Strong copyleft license in a production-scope dependency |
+| `copyleft-in-production` | policy | A category the [policy](#licence-policy) assigns a severity to, in a production-scope dependency. Defaults to `high` for strong copyleft |
 | `license-conflict` | critical / high | Two licenses in the project are incompatible |
 | `not-in-allowlist` | high | License is not in the configured allow list |
 
@@ -167,6 +170,187 @@ licenses:
 ```bash
 vulnetix license --allow-file .vulnetix/license-allow.yaml
 ```
+
+An allow list is the right answer for most projects. It stops being one when it
+is a hundred entries long and nobody can say why MPL-2.0 is on it and EPL-2.0 is
+not — and it says nothing at all about a licence nobody has enumerated yet. For
+that, use a policy.
+
+## Licence policy
+
+A policy classifies licences **by category** and attaches a severity to each,
+which is how the decision is actually made. Unlike a flat allow list it stays
+correct when a dependency introduces a licence you have never seen.
+
+```bash
+vulnetix license policy init        # write a recommended starting policy
+vulnetix license policy show        # the policy in effect, defaults filled in
+vulnetix license policy validate    # check a policy document
+```
+
+```yaml
+# .vulnetix/license-policy.yaml
+apiVersion: vulnetix.com/v1
+kind: LicensePolicy
+
+# Reassign SPDX ids, overriding the built-in classification. The embedded
+# database is a reasonable default, not an authority on what your organisation
+# decided about a particular licence.
+categories:
+  strong-copyleft:
+    - AGPL-3.0-only
+    - AGPL-3.0-or-later
+    - SSPL-1.0
+
+severity:
+  permissive: none
+  public-domain: none
+  weak-copyleft: low
+  strong-copyleft: high
+  proprietary: high
+  unknown: medium
+
+# warn | fail | ignore
+unknown: warn
+
+# evaluate | ignore
+scopes:
+  development: ignore
+  dev: ignore
+  test: ignore
+  optional: ignore
+
+# Per-project overrides, keyed on --project
+projects:
+  payment-service:
+    severity:
+      weak-copyleft: high
+```
+
+### The built-in default is deliberately looser
+
+When no policy file exists, the built-in default reproduces **exactly** what the
+evaluator did before policies existed: only strong copyleft carries a severity,
+and no scope is ignored. Adopting a policy is a change you make deliberately,
+not one that arrives with an upgrade and turns your build red for a decision
+nobody made.
+
+`license policy init` writes the stricter policy most teams adopting one
+actually want — proprietary flagged, AGPL and SSPL treated as strong copyleft
+(their obligation triggers on network use rather than distribution, which the
+embedded database does not separate out), and unshipped dependencies out of
+scope.
+
+```bash
+vulnetix license policy show
+```
+
+```
+Category            Severity
+permissive          none (not a finding)
+public-domain       none (not a finding)
+weak-copyleft       low
+strong-copyleft     high
+proprietary         high
+unknown             medium
+
+Unresolved licences: warn
+Scopes ignored:      dev, development, optional, test
+```
+
+`show` prints the **resolved** policy — absent sections shown with the values
+they inherit — so what you read is what the evaluator will do.
+
+## Exceptions
+
+Every real policy has exceptions: a vendored MPL-2.0 utility counsel signed off,
+a GPL build tool that never ships. What matters is whether the exception is
+recorded, or whether somebody quietly widened the allow list.
+
+```bash
+vulnetix license exceptions add --license MPL-2.0 \
+  --reason "file-level copyleft, unmodified" --approver security@example.com
+
+vulnetix license exceptions add --purl 'pkg:golang/github.com/hashicorp/*' \
+  --license MPL-2.0 --reason "vendored, unmodified" --expires 2027-08-01
+
+vulnetix license exceptions ls       # what is recorded, and whether it still applies
+vulnetix license exceptions check    # what lapses soon; exits 1 on anything expired
+```
+
+```yaml
+# .vulnetix/license-exceptions.yaml
+apiVersion: vulnetix.com/v1
+kind: LicenseExceptions
+
+blanket:
+  - license: MPL-2.0
+    reason: file-level copyleft, unmodified, dynamically linked
+    approver: security@example.com
+    approvedDate: 2026-08-01
+    expires: 2027-08-01
+
+packages:
+  - purl: pkg:golang/github.com/hashicorp/*
+    license: MPL-2.0
+    scope: vendored, unmodified
+    reason: widely used, reviewed 2026-08
+    approver: security@example.com
+    expires: 2027-08-01
+    projects: [payment-service]   # omit to apply everywhere
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `license` | blanket only | Prefix-matched: `MPL-2.0` also covers `MPL-2.0-no-copyleft-exception` |
+| `purl` / `name` | one, package only | `purl` accepts `*` globs; the **version is stripped** so an exception does not lapse on the next bump |
+| `reason` | **yes** | An exception nobody can explain is indistinguishable from a mistake |
+| `approver`, `approvedDate`, `scope` | no | Attribution |
+| `expires` | no | `YYYY-MM-DD`, inclusive |
+| `projects` | no | Limit to named projects |
+
+### Name matching is segment-anchored
+
+`name: gpl-lib` matches `gpl-lib`, `github.com/acme/gpl-lib` and
+`@acme/gpl-lib` — but **not** `agpl-lib`, which is a different and stricter
+licence. An exception that quietly covers more than it names is the worst
+failure this file can have, so matching is anchored at `/` boundaries rather
+than being a substring test.
+
+### Expiry is enforced
+
+An expired exception **stops applying**, and the finding says so rather than
+reappearing unexplained:
+
+```
+high  LICENSE:copyl...  github.com/cyphar/fil...  strong-copyleft GPL-3.0-only  EXPIRED
+    exception github.com/cyphar/filepath-securejoin: package exception,
+      exc-2026-08-001, approved by security@example.com, expires 2026-01-01
+      — EXPIRED — build-time only, not linked into the shipped binary
+```
+
+Run `license exceptions check` on a schedule to turn the expiry into a review
+cadence instead of a trap:
+
+```bash
+vulnetix license exceptions check --expiring-within 90d
+```
+
+### Exempted findings are retained
+
+An exempted finding keeps its row, is badged `exempted`, carries its
+attribution, and is counted separately:
+
+```
+239 packages | 7 licenses | 0 conflicts | 8 findings (2 exempted)
+```
+
+A violation count that fell because somebody wrote an exception is a different
+fact from one that fell because the dependency was removed, and a report that
+cannot tell them apart is not an audit trail.
+
+Only the **gate** ignores them — an approved exception that still failed the
+build would be no exception at all.
 
 ## Output Formats
 

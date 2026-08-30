@@ -421,11 +421,27 @@ vulnetix license [flags]
 | `--mode` | `inclusive` | Analysis mode: `inclusive` or `individual` |
 | `--allow` | - | Comma-separated allow list of SPDX IDs |
 | `--allow-file` | - | Path to YAML allow list file |
+| `--policy-file` | discovered | Category-based licence policy (default `.vulnetix/license-policy.yaml`) |
+| `--exceptions-file` | discovered | Approved exceptions (default `.vulnetix/license-exceptions.yaml`) |
 | `-o, --output` | pretty | Output format: `json` (CycloneDX), `json-spdx` (SPDX 2.3) |
 | `--results-only` | `false` | Only show output when there are findings or conflicts |
 | `--severity` | - | Exit `1` if any finding meets or exceeds: `low`, `medium`, `high`, `critical` |
 | `--from-memory` | `false` | Reconstruct from `.vulnetix/memory.yaml` without re-scanning |
 | `--dry-run` | `false` | Detect files and parse packages only — no evaluation |
+
+**Subcommands:**
+
+```bash
+vulnetix license policy init|show|validate      # category-based policy
+vulnetix license exceptions add|ls|check        # approved exceptions
+```
+
+A policy classifies licences by category and attaches a severity to each, which
+stays correct when a dependency introduces a licence nobody enumerated. The
+built-in default reproduces exactly what the evaluator did before policies
+existed, so adopting one is deliberate rather than something an upgrade does to
+your build. Exceptions carry approver, grounds and expiry; an expired one stops
+applying and says so.
 
 > License analysis also runs automatically during `vulnetix scan` (disable with `--no-licenses`).
 
@@ -507,6 +523,90 @@ vulnetix sbom [path] [flags]   # alias
 | `--no-binary-analysis` / `--no-binary-packages` | `false` | Skip binary analysis, or keep it but omit the packages embedded in binaries |
 | `--no-licenses` | `false` | Skip license detection |
 | `--no-aibom` / `--no-cbom` | `false` | Omit AI or cryptographic components |
+| `--sign` | `false` | Sign with this machine's own OIDC identity; verifies with stock `cosign` |
+| `--project` / `--cluster` / `--namespace` / `--environment` / `--tag` | inferred | [Deployment context](scan/#deployment-context) |
+
+---
+
+### vulnetix bom
+
+Read SBOM documents, including ones this CLI did not produce. Where `cdx` **generates** a CycloneDX document from a working tree, `bom` **reads** documents back in: CycloneDX 1.0–1.7, SPDX 2.2/2.3, and in-toto attestation envelopes — the shape Syft and BuildKit emit for container SBOMs, which a plain `bomFormat` check misses entirely.
+
+Everything parsed normalises into one CycloneDX model, so an SPDX file and a CycloneDX file diff against each other and appear side by side in a corpus query. See the full [BOM Command Reference](bom/).
+
+```bash
+vulnetix bom import <file|->              # parse and report; --out re-emits as CycloneDX
+vulnetix bom validate <file>              # structure plus per-field completeness
+vulnetix bom diff <before> <after>        # the change-review gate
+vulnetix bom merge <file> <file...>
+vulnetix bom tree <file>                  # --invert answers "what pulls this in"
+vulnetix bom enrich <file> --out <file>   # resolve licences, attach vulns, apply VEX
+
+vulnetix bom ls     --from ./sboms/       # corpus inventory
+vulnetix bom where  <pkg> --from ./sboms/ # blast radius, direct vs transitive
+vulnetix bom skew   --from ./sboms/       # inconsistent versions across services
+vulnetix bom search <query> --from ./sboms/
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--out` | - | Where `import`, `merge` and `enrich` write their document |
+| `--from` | - | File, directory or glob for the corpus queries (repeatable) |
+| `--fail-on` | `none` | `diff` gate: `any`, `added`, `removed`, `downgraded`, `vuln-added`, `license-regression` |
+| `--fail-on-found` | `false` | `where` gate: exit `1` when the package is present |
+| `--fail-on-count` | `-1` | `skew` gate: exit `1` above this many skewed packages |
+| `--min-score` | `0` | `validate` gate on the completeness score |
+| `--verify-attestation` | `false` | `import`: verify the signature before trusting the document |
+| `-o, --output` | `pretty` | `pretty`, `json`; `diff` also accepts `markdown` |
+
+---
+
+### vulnetix vex
+
+Read, validate, merge and apply VEX statements — OpenVEX 0.2.0, CycloneDX VEX and CSAF 2.0 VEX — including ones this CLI did not write. That is the case VEX exists for: an upstream publishing "this CVE does not affect the configuration we ship" reaching your scan. See the full [VEX Command Reference](vex/).
+
+```bash
+vulnetix vex apply --vex vendor.openvex.json --bom sbom.cdx.json
+vulnetix vex ls --vex ./vex/
+vulnetix vex validate --vex ./vex/
+vulnetix vex merge --vex ./vex/ --out merged.openvex.json
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--vex` | - | VEX file or directory (repeatable, required) |
+| `--bom` | - | `apply`: the SBOM to apply statements to |
+| `--out` | - | Where `apply` and `merge` write |
+| `--fail-on-effective` | `-1` | Exit `1` above this many vulnerabilities surviving VEX |
+| `--status` | - | `ls`: filter by `not_affected`, `affected`, `fixed`, `under_investigation` |
+
+Matching is not exact equality on `(vulnerability, purl)` — that is why VEX so often appears to do nothing, and it fails silently. Version ranges, unversioned products, aliases and URL-form identifiers are all handled, and every match records why it matched.
+
+`--vex-file` and `--no-vex` apply the same statements during a [scan](scan/#third-party-vex), in one place before the gates, so every gate honours VEX by construction. Suppressed findings are annotated, never deleted, and counted separately.
+
+---
+
+### vulnetix attest
+
+Verify signatures and in-toto provenance on artefacts you consume. Reads what `cdx --sign` writes and anything else in those formats. See the full [Attest Command Reference](attest/).
+
+```bash
+vulnetix attest verify sbom.cdx.json
+vulnetix attest verify sbom.cdx.json --strict
+vulnetix attest verify sbom.cdx.json --identity 'https://github.com/acme/repo/...' --issuer github
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--identity` | - | Require this exact signer (the command prints the one it found) |
+| `--identity-regex` | - | Require the signer to match a pattern |
+| `--issuer` | - | Require this OIDC issuer — a URL or `github`, `gitlab`, `google`, `microsoft`, `buildkite`, `codefresh` |
+| `--strict` | `false` | Require the signer to be pinned; fails naming the exact flags to add |
+| `--trusted-root` | resolved | Root of a private Sigstore deployment |
+| `--require` | - | Fail when a named check did not run (repeatable) |
+| `--verbose` | `false` | Show every check, including the ones that passed |
+
+The Sigstore public-good root is **built in**, so the certificate chain is validated by default, as cosign does it. `--trusted-root` is an override for a private deployment, resolving through `SIGSTORE_ROOT_FILE` and `.vulnetix/trusted-root.pem` first — and the output names whichever anchor answered.
 
 ---
 
@@ -540,6 +640,10 @@ vulnetix scan [flags]
 | `--enable-containers` / `--no-containers` | - | Enable/disable container file analysis |
 | `--evaluate-iac` / `--no-iac` | - | Enable/disable IaC file analysis |
 | `--no-malscan` | `false` | Skip the in-process [malscan](malscan/) malware pass (runs by default) |
+| `--vex-file` | - | Apply [VEX](vex/) statements before gates are evaluated (repeatable) |
+| `--no-vex` | `false` | Ignore `--vex-file` |
+| `--policy-file` / `--exceptions-file` | discovered | [Licence policy and exceptions](license/#licence-policy) |
+| `--project` / `--cluster` / `--namespace` / `--environment` / `--tag` | inferred | [Deployment context](scan/#deployment-context) |
 | `--disable-default-rules` | `false` | Skip built-in SAST rules (external `--rule` repos still loaded) |
 | `-R, --rule` | - | External SAST rule repo in `org/repo` format (repeatable) — see [Custom Rule Repositories](../sast-rules/custom-rules/) |
 | `--dry-run` | `false` | Detect files and parse packages only — zero API calls |
@@ -558,6 +662,8 @@ vulnetix sca [flags]
 Equivalent to `vulnetix scan --evaluate-sca --no-sast --no-secrets --no-containers --no-iac --no-licenses`.
 
 When `--block-malware` (or the org `blockMalware` policy) is in effect, `sca` also runs the in-process [malscan](malscan/) pass over the installed dependencies and gates on any locally-detected malware.
+
+`--vex-file`, `--no-vex`, `--policy-file`, `--exceptions-file` and the [deployment-context](scan/#deployment-context) flags are registered on every member of the scan family — `scan`, `sca`, `sast`, `secrets`, `containers`, `iac` — and honoured by all of them.
 
 ---
 

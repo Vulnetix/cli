@@ -1567,13 +1567,16 @@
       "flags": [
         "allow",
         "allow-file",
+        "cluster",
         "depth",
         "disable-memory",
         "dry-run",
+        "environment",
         "exceptions-file",
         "exclude",
         "from-memory",
         "mode",
+        "namespace",
         "no-analytics",
         "no-banner",
         "no-progress",
@@ -1581,9 +1584,11 @@
         "output",
         "path",
         "policy-file",
+        "project",
         "results-only",
         "severity",
         "silent",
+        "tag",
         "verbose"
       ],
       "subcommands": [

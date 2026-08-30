@@ -63,6 +63,12 @@ vulnetix cdx [path] [flags]
 | `--cbom-catalog` | string | - | CBOM catalog to merge over (or replace) the builtin catalog |
 | `--no-builtin-aibom-catalog` | bool | `false` | Use only `--aibom-catalog` |
 | `--no-builtin-cbom-catalog` | bool | `false` | Use only `--cbom-catalog` |
+| `--sign` | bool | `false` | Sign the document with this machine's own OIDC identity; writes `.sig`, `.pem` and `.intoto.jsonl` beside it |
+| `--project` | string | inferred | What this artefact is / who owns it — see [Deployment context](../scan/#deployment-context) |
+| `--cluster` | string | inferred | Where it is deployed |
+| `--namespace` | string | inferred | Namespace within the cluster |
+| `--environment` | string | inferred | Deployment stage, e.g. `production` |
+| `--tag` | stringArray | - | Additional `key=value` deployment label (repeatable) |
 
 ## Examples
 
@@ -206,3 +212,37 @@ manifest, package, and binary files: `.sig`, `.asc`, `.minisig`, `.sigstore`,
 When a Sigstore-style bundle carries Rekor transparency-log entries, `cdx` adds
 the offline inclusion metadata to the component as CycloneDX properties under
 `vulnetix:tlog/*`. It does not perform live Rekor lookups.
+
+### Signing the document itself
+
+`--sign` signs the document `cdx` just produced, using the machine's **own**
+ambient OIDC identity — a workflow reference in CI, a SPIFFE ID for a workload.
+Deliberately not a Vulnetix credential: a scan run in your pipeline is more
+usefully attested by you than by the tool vendor, and the result verifies with
+stock `cosign verify-blob` against no Vulnetix trust root.
+
+```bash
+vulnetix cdx --sign
+```
+
+Writes three sidecars beside the document — `.sig`, `.pem` and `.intoto.jsonl` —
+plus an embedded JSF signature. On a laptop there is no ambient identity, and
+that is not an error: signing is skipped with a reason and the scan completes,
+because losing scan results over a missing signature would be the worse outcome.
+
+Verify with [`attest verify`](../attest/):
+
+```bash
+vulnetix attest verify .vulnetix/sbom.cdx.json
+```
+
+## Reading documents back
+
+`cdx` writes. [`bom`](../bom/) reads — CycloneDX 1.0–1.7, SPDX 2.2/2.3, and
+in-toto attestation envelopes, whether this CLI produced them or not.
+
+```bash
+vulnetix bom diff before.cdx.json after.cdx.json   # what changed
+vulnetix bom tree sbom.cdx.json --invert           # what pulls this in
+vulnetix bom skew --from ./sboms/                  # inconsistent versions
+```
