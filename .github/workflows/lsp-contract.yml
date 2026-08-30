@@ -54,6 +54,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+        run: |
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+
       - name: Build
         run: go build ./...
 
