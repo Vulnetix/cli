@@ -65,6 +65,17 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	// construction. See deployment.go.
 	opts.Deployment = DeploymentFromCommand(cmd)
 
+	// BOM authoring identity, read here for the same reason: a document emitted
+	// by any member of the family must be able to say who created it and at
+	// which lifecycle stage its data was captured. Resolving it per call site is
+	// how five of them came to disagree.
+	opts.ManufacturerSources = ManufacturerSourcesFromCommand(cmd)
+	phases, phaseErr := LifecycleOverrideFromCommand(cmd)
+	if phaseErr != nil {
+		return opts, phaseErr
+	}
+	opts.LifecycleOverride = phases
+
 	// --no-vex is resolved here rather than carried through, so the engine
 	// checks one thing (are there files) instead of two (are there files AND is
 	// the feature on), which is the shape that lets a toggle be forgotten.

@@ -8,7 +8,7 @@ func TestNormalizeForSchema_SeverityUnscoredBecomesUnknown(t *testing.T) {
 			{ID: "CVE-1", Ratings: []Rating{{Severity: "unscored"}, {Severity: "HIGH"}, {Severity: ""}}},
 		},
 	}
-	bom.NormalizeForSchema()
+	NormalizeForSchema(bom)
 	got := bom.Vulnerabilities[0].Ratings
 	if got[0].Severity != "unknown" {
 		t.Errorf("unscored → %q, want unknown", got[0].Severity)
@@ -30,7 +30,7 @@ func TestNormalizeForSchema_LegacyJustificationUpdate(t *testing.T) {
 			{ID: "CVE-1", Analysis: &Analysis{State: "resolved", Justification: "update", Detail: "x"}},
 		},
 	}
-	bom.NormalizeForSchema()
+	NormalizeForSchema(bom)
 	a := bom.Vulnerabilities[0].Analysis
 	if a.Justification != "" {
 		t.Errorf("justification = %q, want cleared", a.Justification)
@@ -46,7 +46,7 @@ func TestNormalizeForSchema_ValidJustificationPreserved(t *testing.T) {
 			{ID: "CVE-1", Analysis: &Analysis{State: "not_affected", Justification: "code_not_present"}},
 		},
 	}
-	bom.NormalizeForSchema()
+	NormalizeForSchema(bom)
 	if bom.Vulnerabilities[0].Analysis.Justification != "code_not_present" {
 		t.Errorf("valid justification should be preserved, got %q", bom.Vulnerabilities[0].Analysis.Justification)
 	}
@@ -67,7 +67,7 @@ func TestNormalizeForSchema_HealsThenValidates(t *testing.T) {
 	if _, err := bom.MarshalValidatedJSON(); err == nil {
 		t.Fatal("expected pre-normalization BOM to fail validation")
 	}
-	bom.NormalizeForSchema()
+	NormalizeForSchema(bom)
 	if _, err := bom.MarshalValidatedJSON(); err != nil {
 		t.Fatalf("post-normalization BOM should validate, got: %v", err)
 	}

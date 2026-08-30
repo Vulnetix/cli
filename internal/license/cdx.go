@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
@@ -35,7 +35,7 @@ func FindingsToCDXVulnerabilities(findings []Finding, packages []PackageLicense)
 			Ratings: []cdx.Rating{
 				{
 					Severity: f.Severity,
-					Score:    f.Confidence,
+					Score:    cdx.Score(f.Confidence),
 					Method:   "other",
 					Source:   &cdx.Source{Name: CDXSourceName},
 				},
@@ -112,13 +112,9 @@ func MergeBOM(existingPath string, newVulns []cdx.Vulnerability, source string) 
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("failed to read BOM: %w", err)
 	} else {
-		// No existing BOM — create minimal structure.
-		bom = cdx.BOM{
-			BOMFormat:    "CycloneDX",
-			SpecVersion:  "1.7",
-			SerialNumber: "urn:uuid:" + uuid.New().String(),
-			Version:      1,
-		}
+		// No existing BOM — create a minimal one. ensureLicenseBOMMetadata below
+		// fills in the header and records this pass in the tool table.
+		bom = *cyclonedx.NewDocument("1.7")
 	}
 	ensureLicenseBOMMetadata(&bom)
 
@@ -206,31 +202,21 @@ func PopulateBOMLicenses(bomPath string, packages []PackageLicense, groups []sca
 	_ = os.WriteFile(bomPath, out, 0o644)
 }
 
+// ensureLicenseBOMMetadata records the licence pass in a document it is
+// enriching.
+//
+// This is the transformer tier: the licence analyser adds findings to a document
+// the SCA pass usually authored, so it appends itself to metadata.tools —
+// CycloneDX's own words for that member are "the tool(s) used in the creation,
+// enrichment, and validation of the BOM" — and leaves the author's serialNumber,
+// timestamp and manufacturer exactly as it found them.
+//
+// The entry used to carry no version at all, which made it impossible to tell
+// which release produced a licence verdict.
 func ensureLicenseBOMMetadata(bom *cdx.BOM) {
-	if bom.BOMFormat == "" {
-		bom.BOMFormat = "CycloneDX"
-	}
-	if bom.SpecVersion == "" {
-		bom.SpecVersion = "1.7"
-	}
-	if bom.SerialNumber == "" {
-		bom.SerialNumber = "urn:uuid:" + uuid.New().String()
-	}
-	if bom.Version == 0 {
-		bom.Version = 1
-	}
-	if bom.Metadata == nil {
-		bom.Metadata = &cdx.Metadata{}
-	}
+	cyclonedx.EnsureDocumentHeader(bom, "1.7")
 	if bom.Metadata.Timestamp == "" {
 		bom.Metadata.Timestamp = time.Now().UTC().Format(time.RFC3339)
 	}
-	if bom.Metadata.Tools == nil || len(bom.Metadata.Tools.Components) == 0 {
-		bom.Metadata.Tools = &cdx.Tools{
-			Components: []cdx.Component{{
-				Type: "application",
-				Name: CDXSourceName,
-			}},
-		}
-	}
+	_ = cyclonedx.AppendToolParticipation(bom, cdx.Participating(CDXSourceName))
 }

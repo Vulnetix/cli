@@ -67,6 +67,11 @@ var flagToOption = map[string]string{
 	// than carried separately, so the engine checks one thing instead of two.
 	"vex-file": "VEXFiles",
 	"no-vex":   "VEXFiles",
+	// BOM authoring identity. --bom-manufacturer lands among the candidate
+	// sources rather than a resolved value, because the last fallback is the git
+	// remote and resolving it here would walk the repository a second time.
+	"bom-manufacturer": "ManufacturerSources",
+	"lifecycle":        "LifecycleOverride",
 }
 
 // notAnalysisInput are scan-family flags that legitimately never reach Options,

@@ -736,8 +736,7 @@ func firstErrorLine(report sarif.Report) string {
 // set tool metadata to "Vulnetix SCA", "Vulnetix Malscan", "vulnetix-containers"
 // and so on.
 func isVulnetixOwnTool(toolName string) bool {
-	n := strings.ToLower(strings.TrimSpace(toolName))
-	return n == "vulnetix" || strings.HasPrefix(n, "vulnetix ") || strings.HasPrefix(n, "vulnetix-")
+	return cyclonedx.IsVulnetixToolName(toolName)
 }
 
 func firstNonBlank(vals ...string) string {

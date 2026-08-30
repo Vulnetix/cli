@@ -179,9 +179,16 @@ func cdxToEnrichedVuln(bv *cdx.Vulnerability, compLookup map[string]cdx.Componen
 		if r.Source != nil {
 			src = r.Source.Name
 		}
+		// An absent score is absent, not zero: CycloneDX omits the member on an
+		// unscored rating, and reading it as 0 would record a claim the document
+		// does not make.
+		score := 0.0
+		if r.Score != nil {
+			score = *r.Score
+		}
 		switch src {
 		case "NVD":
-			ev.CVSSScore = r.Score
+			ev.CVSSScore = score
 			ev.CVSSSeverity = r.Severity
 			if ev.VulnFinding.MetricType == "" {
 				ev.VulnFinding.MetricType = r.Method
@@ -189,14 +196,14 @@ func cdxToEnrichedVuln(bv *cdx.Vulnerability, compLookup map[string]cdx.Componen
 			if ev.VulnFinding.Severity == "" {
 				ev.VulnFinding.Severity = r.Severity
 			}
-			if ev.VulnFinding.Score == 0 && r.Score > 0 {
-				ev.VulnFinding.Score = r.Score
+			if ev.VulnFinding.Score == 0 && score > 0 {
+				ev.VulnFinding.Score = score
 			}
 		case "EPSS":
-			ev.EPSSScore = r.Score
+			ev.EPSSScore = score
 			ev.EPSSSeverity = r.Severity
 		case "Coalition ESS":
-			ev.CoalitionESS = r.Score
+			ev.CoalitionESS = score
 			ev.CESSeverity = r.Severity
 		case "SSVC":
 			ev.SSVCSeverity = r.Severity

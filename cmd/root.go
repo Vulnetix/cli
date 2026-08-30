@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/v3/internal/analytics"
+	"github.com/vulnetix/cli/v3/internal/buildinfo"
 	"github.com/vulnetix/cli/v3/internal/config"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/update"
@@ -33,6 +34,11 @@ var (
 	commit    = "unknown" // -X github.com/vulnetix/cli/v3/cmd.commit=
 	buildDate = "unknown" // -X github.com/vulnetix/cli/v3/cmd.buildDate=
 )
+
+// Packages below cmd cannot import it, but internal/cdx has to name a real
+// version in metadata.tools. Mirroring the ldflags values into buildinfo here
+// keeps the injection sites unchanged while making the version reachable.
+func init() { buildinfo.Set(version, commit, buildDate) }
 
 // updateCheckResult receives the update advisory message from the background
 // goroutine started by the most recent startupHooks invocation. It is guarded

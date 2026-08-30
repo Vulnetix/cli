@@ -1,126 +1,12 @@
 package cdx
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"strings"
 
-	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
-
-// CycloneDX BOM structs for versions 1.2 through 1.7 output.
-
-// BOM is the top-level CycloneDX Bill of Materials.
-type BOM struct {
-	BOMFormat       string          `json:"bomFormat"`
-	SpecVersion     string          `json:"specVersion"`
-	SerialNumber    string          `json:"serialNumber"`
-	Version         int             `json:"version"`
-	Metadata        *Metadata       `json:"metadata,omitempty"`
-	Components      []Component     `json:"components,omitempty"`
-	Dependencies    []CDXDependency `json:"dependencies,omitempty"`
-	Vulnerabilities []Vulnerability `json:"vulnerabilities,omitempty"`
-}
-
-// CDXDependency represents a CycloneDX dependency graph node.
-type CDXDependency struct {
-	Ref       string   `json:"ref"`
-	DependsOn []string `json:"dependsOn,omitempty"`
-}
-
-// Metadata describes the BOM creation context (CycloneDX 1.5+).
-type Metadata struct {
-	Timestamp  string                  `json:"timestamp"`
-	Lifecycles []Lifecycle             `json:"lifecycles,omitempty"`
-	Tools      *Tools                  `json:"tools,omitempty"`
-	Authors    []OrganizationalContact `json:"authors,omitempty"`
-	// Component is the top-level subject described by this BOM.
-	Component  *Component `json:"component,omitempty"`
-	Properties []Property `json:"properties,omitempty"`
-}
-
-// Lifecycle describes a phase in the product lifecycle (CycloneDX 1.5+).
-// Use the Phase field for standard phases; set Name + Description for custom phases.
-type Lifecycle struct {
-	Phase       string `json:"phase,omitempty"`
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-}
-
-// OrganizationalContact describes a person or organisation.
-type OrganizationalContact struct {
-	Name  string `json:"name,omitempty"`
-	Email string `json:"email,omitempty"`
-}
-
-// Tools holds tool information in CycloneDX format.
-type Tools struct {
-	Components []Component `json:"components,omitempty"`
-}
-
-// Hash represents a cryptographic hash of a component, per CycloneDX spec.
-type Hash struct {
-	Alg     string `json:"alg"`
-	Content string `json:"content"`
-}
-
-// Component represents a software component.
-type Component struct {
-	Type   string `json:"type"`
-	BOMRef string `json:"bom-ref,omitempty"`
-	// Publisher / Group identify the producer of the component. Used by the
-	// AIBOM builder to attribute an AI tool to its vendor and a model to its
-	// provider (e.g. "Anthropic", "OpenAI").
-	Publisher   string `json:"publisher,omitempty"`
-	Group       string `json:"group,omitempty"`
-	Name        string `json:"name"`
-	Version     string `json:"version,omitempty"`
-	Description string `json:"description,omitempty"`
-	Scope       string `json:"scope,omitempty"`
-	Purl        string `json:"purl,omitempty"`
-	// Hashes represents cryptographic hashes (e.g., SHA-256, SHA-512).
-	Hashes []Hash `json:"hashes,omitempty"`
-	// Licenses is a CycloneDX 1.5+ licenseChoice array.
-	Licenses []LicenseChoice `json:"licenses,omitempty"`
-	// Authors is supported in CycloneDX 1.6+.
-	Authors            []OrganizationalContact `json:"authors,omitempty"`
-	ExternalReferences []ExternalReference     `json:"externalReferences,omitempty"`
-	Properties         []Property              `json:"properties,omitempty"`
-	// ModelCard (CycloneDX 1.5+) describes a machine learning model. The schema
-	// requires it to appear ONLY on components of type "machine-learning-model".
-	ModelCard *ModelCard `json:"modelCard,omitempty"`
-}
-
-// LicenseChoice represents either a specific license or an SPDX expression.
-type LicenseChoice struct {
-	License    *LicenseData `json:"license,omitempty"`
-	Expression string       `json:"expression,omitempty"`
-}
-
-// LicenseData describes a specific license.
-type LicenseData struct {
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-	URL  string `json:"url,omitempty"`
-}
-
-// ExternalReference is an external URL resource associated with a component or the BOM.
-type ExternalReference struct {
-	// Type is one of the CycloneDX defined types: vcs, website, issue-tracker,
-	// distribution, license, build-meta, build-system, release-notes, other, etc.
-	Type string `json:"type"`
-	URL  string `json:"url"`
-}
-
-// Property is a name-value pair.
-type Property struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
 
 // ScanContext carries optional environment-enrichment data passed to BOM builders.
 // All fields are optional; nil pointers are silently ignored.
@@ -134,52 +20,13 @@ type ScanContext struct {
 	// ToolName is the CycloneDX metadata tool component name. Defaults to
 	// vulnetix-sca for backward compatibility.
 	ToolName string
-}
-
-// Vulnerability represents a CycloneDX vulnerability entry.
-type Vulnerability struct {
-	BOMRef      string     `json:"bom-ref,omitempty"`
-	ID          string     `json:"id"`
-	Source      *Source    `json:"source,omitempty"`
-	Ratings     []Rating   `json:"ratings,omitempty"`
-	Description string     `json:"description,omitempty"`
-	Affects     []Affect   `json:"affects,omitempty"`
-	Analysis    *Analysis  `json:"analysis,omitempty"`
-	Properties  []Property `json:"properties,omitempty"`
-	Advisories  []Advisory `json:"advisories,omitempty"`
-}
-
-// Source identifies where vulnerability data comes from.
-type Source struct {
-	Name string `json:"name,omitempty"`
-	URL  string `json:"url,omitempty"`
-}
-
-// Rating is a vulnerability scoring entry.
-type Rating struct {
-	Score    float64 `json:"score"`
-	Severity string  `json:"severity,omitempty"`
-	Method   string  `json:"method,omitempty"`
-	Source   *Source `json:"source,omitempty"`
-}
-
-// Affect identifies a component affected by a vulnerability.
-type Affect struct {
-	Ref string `json:"ref"`
-}
-
-// Analysis contains vulnerability analysis state (CycloneDX VEX profile).
-//
-// Note the two distinct enums: Justification (impactAnalysisJustification) is
-// only meaningful when State == "not_affected", whereas Response
-// (impactAnalysisResponse: can_not_fix, will_not_fix, update, rollback,
-// workaround_available) describes the remediation taken and is the correct
-// home for values like "update" on a "resolved" finding.
-type Analysis struct {
-	State         string   `json:"state,omitempty"`
-	Justification string   `json:"justification,omitempty"`
-	Response      []string `json:"response,omitempty"`
-	Detail        string   `json:"detail,omitempty"`
+	// Manufacturer is the organization that created the BOM — the one running
+	// this scan, resolved by ResolveManufacturer. Nil when nothing resolved it,
+	// which leaves metadata.manufacturer absent rather than guessed.
+	Manufacturer *OrganizationalEntity
+	// Phases are the lifecycle stages at which this pass captured its data,
+	// derived by DerivePhases from what the pass actually read.
+	Phases []LifecyclePhase
 }
 
 // AnalysisForStateChange builds a CycloneDX VEX analysis block for an
@@ -244,11 +91,6 @@ func ApplyVEXAnalysis(bom *BOM, vexEntries []Vulnerability) {
 	}
 }
 
-// Advisory is an external advisory reference.
-type Advisory struct {
-	URL string `json:"url,omitempty"`
-}
-
 // scoreTypeToMethod maps internal score type names to CycloneDX method identifiers.
 var scoreTypeToMethod = map[string]string{
 	"epss":          "other",
@@ -277,37 +119,6 @@ func vulnSourceForFind(f scan.VulnFinding) *Source {
 		return &Source{Name: f.Source, URL: "https://www.vulnetix.com/vdb"}
 	}
 	return &Source{Name: "Vulnetix VDB", URL: "https://www.vulnetix.com/vdb"}
-}
-
-// MarshalValidatedJSON serializes the BOM to indented JSON and validates the
-// result against the canonical CycloneDX schema (vdb-cyclonedx) for its declared
-// specVersion. It returns an error — without producing output — when the
-// document does not validate, so callers never persist an SBOM that downstream
-// consumers (the website upload page and the backend upload pipeline) would
-// reject. This is the write-time guard that turns a generator regression (e.g.
-// an invalid analysis enum) into an immediate, local failure.
-func (b *BOM) MarshalValidatedJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	if err := b.WriteJSON(&buf); err != nil {
-		return nil, err
-	}
-	version, violations, err := cyclonedx.ValidateCycloneDX(buf.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("validating generated CycloneDX BOM: %w", err)
-	}
-	if len(violations) > 0 {
-		return nil, fmt.Errorf("generated CycloneDX %s BOM failed schema validation (%d issue(s)); first: %s — %s",
-			version, len(violations), violations[0].Path, violations[0].Message)
-	}
-	return buf.Bytes(), nil
-}
-
-// WriteJSON writes the BOM as indented JSON to the writer.
-func (b *BOM) WriteJSON(w io.Writer) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	return enc.Encode(b)
 }
 
 // ---------------------------------------------------------------------------

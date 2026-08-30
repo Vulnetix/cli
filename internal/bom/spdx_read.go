@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/purl"
@@ -47,16 +48,25 @@ func parseSPDX(data []byte) (*cdx.BOM, error) {
 		},
 	}
 	// An SPDX documentNamespace is a URI unique to the document, which is
-	// exactly what a CycloneDX serialNumber is for.
+	// exactly what a CycloneDX serialNumber is for. It is rarely a UUID urn
+	// though, and serialNumber is pattern-constrained from 1.6, so it is
+	// normalised — deterministically, or the same SPDX file would convert to a
+	// different identity on every run.
 	if doc.DocumentNamespace != "" {
-		bom.SerialNumber = doc.DocumentNamespace
+		bom.SerialNumber = cyclonedx.NormalizeSerialNumber(doc.DocumentNamespace)
 	}
+	// The SPDX document's creators are its authors and stay its authors. This is
+	// a conversion, not an authoring: we claim no manufacturer, record ourselves
+	// in metadata.tools — which CycloneDX defines as the tools used in a
+	// document's "creation, enrichment, and validation" — and leave the original
+	// attribution intact.
 	if tools := spdxTools(doc.CreationInfo.Creators); len(tools) > 0 {
 		bom.Metadata.Tools = &cdx.Tools{Components: tools}
 	}
 	if authors := spdxAuthors(doc.CreationInfo.Creators); len(authors) > 0 {
 		bom.Metadata.Authors = authors
 	}
+	_ = cyclonedx.AppendToolParticipation(bom, cdx.Participating(cyclonedx.ToolBOMImport))
 
 	// spdxID → index into bom.Components, so relationships can be resolved to
 	// bom-refs in a second pass.

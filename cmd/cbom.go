@@ -13,6 +13,7 @@ import (
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/cbom"
+	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/memory"
@@ -381,10 +382,15 @@ func runCBOMPass(opts CBOMPassOptions) (*CBOMPassResult, error) {
 	}
 	reconcileCBOMMemory(rootPath, gitCtx, det, opts.Passes)
 
+	// Crypto assets are identified by observing source, config and certificates
+	// on disk — the spec's discovery phase.
+	authorship := cdx.Authoring(cyclonedx.ToolCBOM,
+		cdx.ResolveManufacturer(cdx.ManufacturerSources{Git: gitCtx, OrgID: orgID}),
+		cdx.PhaseDiscovery)
+
 	bomData, err := cyclonedx.BuildCBOM(det, cyclonedx.CBOMOptions{
 		SpecVersion: specVersion,
-		ToolName:    "vulnetix-cbom",
-		ToolVersion: version,
+		Authorship:  &authorship,
 		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
 	})
 	if err != nil {

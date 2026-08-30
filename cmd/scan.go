@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/analytics"
 	"github.com/vulnetix/cli/v3/internal/cdx"
@@ -895,7 +896,7 @@ func runLocalScan(
 	analysisLabel := "SAST"
 	analysisTitle := "SAST Analysis"
 	sarifFileName := "sast.sarif"
-	bomToolName := "vulnetix-sca"
+	bomToolName := cyclonedx.ToolSCA
 	iacOnly := noSASTRules && noSCA && noSecrets && noContainers && !noIAC
 	secretsOnly := noSASTRules && noSCA && !noSecrets && noContainers && noIAC
 	switch {
@@ -903,7 +904,7 @@ func runLocalScan(
 		analysisLabel = "Container"
 		analysisTitle = "Container Analysis"
 		sarifFileName = "containers.sarif"
-		bomToolName = "vulnetix-containers"
+		bomToolName = cyclonedx.ToolContainers
 	case iacOnly:
 		analysisLabel = "IaC"
 		analysisTitle = "IaC Analysis"
@@ -1737,11 +1738,30 @@ func runLocalScan(
 	rep.Stage("Persisting scan memory")
 
 	// ── Build .vulnetix/sbom.cdx.json (written below only if non-empty) ──
+	// What this pass actually read decides which lifecycle stages it may claim.
+	// Reading a manifest says what a build is *intended* to resolve — the
+	// artefacts do not exist yet — so that is pre-build, not the `build` every
+	// builder used to hardcode. A container scan reads something already built.
+	phases := opts.LifecycleOverride
+	if phases == nil {
+		phases = cdx.DerivePhases(cdx.LifecycleSources{
+			Manifests:      !containerOnly && len(localResults) > 0,
+			ContainerImage: containerOnly,
+			Deployed:       !opts.Deployment.Empty(),
+		})
+	}
+	// The git fallback for the manufacturer is applied here rather than where the
+	// flags were read, so resolving it does not walk the repository a second
+	// time — gitCtx is already collected by this point.
+	manufacturerSources := opts.ManufacturerSources
+	manufacturerSources.Git = gitCtx
 	scanCtx := &cdx.ScanContext{
-		Git:         gitCtx,
-		System:      sysInfo,
-		ToolVersion: version,
-		ToolName:    bomToolName,
+		Git:          gitCtx,
+		System:       sysInfo,
+		ToolVersion:  version,
+		ToolName:     bomToolName,
+		Manufacturer: cdx.ResolveManufacturer(manufacturerSources),
+		Phases:       phases,
 	}
 	// Prefer vulnetix-sca seed (version-matched) over external CDX seed.
 	effectiveSeed := seedBOM
@@ -2365,7 +2385,7 @@ func runLocalScan(
 	if outCfg.stdoutFmt == "json-cyclonedx" {
 		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
 		cdx.ApplyDeploymentContext(outBOM, opts.Deployment)
-		outBOM.NormalizeForSchema()
+		cdx.NormalizeForSchema(outBOM)
 		if err := outBOM.WriteJSON(os.Stdout); err != nil {
 			return err
 		}
@@ -3739,7 +3759,7 @@ func writeBOMToFile(bom *cdx.BOM, path string) error {
 	// Heal known legacy enum classes (e.g. severity "unscored", a stale
 	// justification carried forward from an older on-disk SBOM during merge)
 	// before validating, so a rescan never fails on values it did not author.
-	bom.NormalizeForSchema()
+	cdx.NormalizeForSchema(bom)
 	data, err := bom.MarshalValidatedJSON()
 	if err != nil {
 		return err
@@ -3805,31 +3825,23 @@ func parseSPDXForScan(path string) ([]cdx.Component, error) {
 	return components, nil
 }
 
-// isVulnetixSCA checks whether the BOM was produced by vulnetix-sca.
+// isVulnetixSCA checks whether the BOM was produced by the SCA pass.
+//
+// Deliberately narrow. It gates whether an on-disk document may be re-used as a
+// scan seed, and a container-authored document describes a different thing from
+// a manifest-authored one — widening this to "any Vulnetix tool" would let one
+// silently feed the other.
 func isVulnetixSCA(bom *cdx.BOM) bool {
-	if bom == nil {
-		return false
-	}
-	if bom.Metadata != nil && bom.Metadata.Tools != nil {
-		for _, tc := range bom.Metadata.Tools.Components {
-			if tc.Name == "vulnetix-sca" {
-				return true
-			}
-		}
-	}
-	return false
+	return bom != nil && bom.Metadata != nil && bom.Metadata.Tools.Find(cyclonedx.ToolSCA) != nil
 }
 
-// vulnetixSCAVersion returns the version string of the vulnetix-sca tool
-// component in the BOM metadata, or "" if not present.
+// vulnetixSCAVersion returns the version of the SCA tool entry, or "".
 func vulnetixSCAVersion(bom *cdx.BOM) string {
-	if bom == nil || bom.Metadata == nil || bom.Metadata.Tools == nil {
+	if bom == nil || bom.Metadata == nil {
 		return ""
 	}
-	for _, tc := range bom.Metadata.Tools.Components {
-		if tc.Name == "vulnetix-sca" {
-			return tc.Version
-		}
+	if tool := bom.Metadata.Tools.Find(cyclonedx.ToolSCA); tool != nil {
+		return tool.Version
 	}
 	return ""
 }
@@ -3853,6 +3865,10 @@ func addScanFlags(cmd *cobra.Command) {
 	// is registered family-wide and read in exactly one place, so no member of
 	// the family can silently ignore it. See internal/scanopts/deployment.go.
 	scanopts.AddDeploymentFlags(cmd.Flags())
+	// BOM authoring identity (--bom-manufacturer/--lifecycle), family-wide for
+	// the same reason: any command that emits a document must be able to say who
+	// created it and at which stage its data was captured.
+	scanopts.AddAuthorshipFlags(cmd.Flags())
 	// Third-party VEX, family-wide for the same reason: a statement asserting a
 	// finding does not apply must be honoured whichever scanner surfaced it.
 	cmd.Flags().StringArray("vex-file", nil,

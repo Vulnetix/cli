@@ -3,6 +3,7 @@ package vex
 import (
 	"sort"
 
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/vulnetix/cli/v3/internal/cdx"
 )
 
@@ -230,17 +231,15 @@ func annotate(v *cdx.Vulnerability, m Match) {
 }
 
 // setProp writes or replaces a namespaced property on an entry.
+//
+// Upsert, not append: applying VEX twice to one document must leave one
+// provenance property per name, or the entry asserts two different bases for the
+// same suppression and a consumer picks between them arbitrarily.
 func setProp(v *cdx.Vulnerability, name, value string) {
 	if value == "" {
 		return
 	}
-	for i := range v.Properties {
-		if v.Properties[i].Name == name {
-			v.Properties[i].Value = value
-			return
-		}
-	}
-	v.Properties = append(v.Properties, cdx.Property{Name: name, Value: value})
+	v.Properties = cyclonedx.SetProperty(v.Properties, name, value)
 }
 
 // firstAffectedPurl returns the first resolvable purl an entry affects.

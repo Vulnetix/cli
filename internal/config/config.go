@@ -277,7 +277,7 @@ func loadJenkinsCIContext(version string) CIContext {
 	return CIContext{
 		Platform:         PlatformJenkins,
 		Repository:       getEnv("GIT_URL"),
-		RepositoryOwner:  extractOwnerFromGitURL(getEnv("GIT_URL")),
+		RepositoryOwner:  OwnerFromGitURL(getEnv("GIT_URL")),
 		RunID:            getEnv("BUILD_ID"),
 		RunNumber:        getEnv("BUILD_NUMBER"),
 		JobID:            getEnv("JOB_NAME"),
@@ -416,7 +416,11 @@ func getRefType(refName, tag string) string {
 	return "unknown"
 }
 
-func extractOwnerFromGitURL(gitURL string) string {
+// OwnerFromGitURL extracts the owner/namespace segment from a git remote URL.
+// It is exported because BOM authoring needs the same answer: the organization
+// that owns the repository is the one running the scan, and CycloneDX asks for
+// it as metadata.manufacturer.
+func OwnerFromGitURL(gitURL string) string {
 	if gitURL == "" {
 		return ""
 	}

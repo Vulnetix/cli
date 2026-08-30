@@ -198,13 +198,7 @@ func stampSource(bom *cdx.BOM, src SourceInfo) {
 		if value == "" {
 			return
 		}
-		for i := range bom.Metadata.Properties {
-			if bom.Metadata.Properties[i].Name == name {
-				bom.Metadata.Properties[i].Value = value
-				return
-			}
-		}
-		bom.Metadata.Properties = append(bom.Metadata.Properties, cdx.Property{Name: name, Value: value})
+		bom.Metadata.SetProperty(name, value)
 	}
 	set(PropSourceFormat, string(src.Format))
 	set(PropSourceSpec, src.SpecVersion)

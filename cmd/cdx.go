@@ -129,6 +129,11 @@ type cdxRunOptions struct {
 	NoBuiltinCBOM     bool
 	Sign              bool
 	Deployment        scanopts.DeploymentContext
+	// ManufacturerSources and LifecycleOverride carry BOM authoring identity.
+	// The git fallback for the manufacturer is filled in during the run, where
+	// git context has already been collected.
+	ManufacturerSources cdx.ManufacturerSources
+	LifecycleOverride   []cdx.LifecyclePhase
 }
 
 type cdxSummary struct {
@@ -211,6 +216,7 @@ func init() {
 	cdxCmd.Flags().Bool("no-builtin-cbom-catalog", false, "Do not load the embedded CBOM catalog (use only --cbom-catalog)")
 	cdxCmd.Flags().Bool("sign", false, "Sign the SBOM with this machine's own OIDC identity (CI runners); writes .sig, .pem and .intoto.jsonl beside it")
 	scanopts.AddDeploymentFlags(cdxCmd.Flags())
+	scanopts.AddAuthorshipFlags(cdxCmd.Flags())
 	_ = cdxCmd.MarkFlagDirname("path")
 	rootCmd.AddCommand(cdxCmd)
 }
@@ -250,6 +256,27 @@ func runCDX(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// The document says which stages its data was captured at, and this command
+	// can read several: manifests state what a build is *intended* to resolve
+	// (pre-build), an installed tree states what it did resolve (build), and a
+	// container rootfs or a compiled binary is something already built
+	// (post-build). Emitting one fixed phase for all three, as this used to,
+	// tells a consumer nothing about how much the component list can be trusted.
+	manufacturerSources := opts.ManufacturerSources
+	manufacturerSources.Git = gitCtx
+	phases := opts.LifecycleOverride
+	if phases == nil {
+		phases = cdx.DerivePhases(cdx.LifecycleSources{
+			Manifests:         !opts.NoManifests,
+			InstalledTree:     !opts.NoFilesystem,
+			ContainerImage:    len(opts.ContainerRootfs) > 0 || len(opts.ContainerArchives) > 0,
+			CompiledArtifacts: !opts.NoBinaryAnalysis && !opts.NoBinaryPackages,
+			Discovery:         !opts.NoAIBOM || !opts.NoCBOM,
+			Deployed:          !opts.Deployment.Empty(),
+		})
+	}
+	authorship := cdx.Authoring(cyclonedx.ToolCDX, cdx.ResolveManufacturer(manufacturerSources), phases...)
+
 	bomData, err := cyclonedx.BuildSBOM(cyclonedx.SBOMInventory{
 		Packages:         inv.Packages,
 		Dependencies:     inv.Dependencies,
@@ -257,8 +284,7 @@ func runCDX(cmd *cobra.Command, args []string) error {
 		CryptoDetections: cryptoDet,
 	}, cyclonedx.SBOMOptions{
 		SpecVersion:     opts.SpecVersion,
-		ToolName:        "vulnetix-cdx",
-		ToolVersion:     version,
+		Authorship:      &authorship,
 		Project:         aibomProject(gitCtx, sysInfo),
 		CanonicalSPDXID: license.CanonicalSPDXID,
 	})
@@ -406,6 +432,10 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 	noBuiltinAIBOM, _ := cmd.Flags().GetBool("no-builtin-aibom-catalog")
 	noBuiltinCBOM, _ := cmd.Flags().GetBool("no-builtin-cbom-catalog")
 	sign, _ := cmd.Flags().GetBool("sign")
+	lifecycle, err := scanopts.LifecycleOverrideFromCommand(cmd)
+	if err != nil {
+		return cdxRunOptions{}, err
+	}
 	return cdxRunOptions{
 		RootPath: abs, Depth: depth, Exclude: exclude, Ignore: ignore, Output: output, OutputFile: outputFile, SpecVersion: specVersion,
 		NoManifests: noManifests, NoFilesystem: noFilesystem, NoContainerfiles: noContainerfiles, NoCI: noCI, NoShell: noShell,
@@ -414,6 +444,8 @@ func readCDXOptions(cmd *cobra.Command, args []string) (cdxRunOptions, error) {
 		IncludeIgnored: includeIgnored, ContainerRootfs: rootfs, ContainerArchives: archives,
 		AIBOMCatalog: aibomCatalog, CBOMCatalog: cbomCatalog, NoBuiltinAIBOM: noBuiltinAIBOM, NoBuiltinCBOM: noBuiltinCBOM,
 		Sign: sign, Deployment: scanopts.DeploymentFromCommand(cmd),
+		ManufacturerSources: scanopts.ManufacturerSourcesFromCommand(cmd),
+		LifecycleOverride:   lifecycle,
 	}, nil
 }
 

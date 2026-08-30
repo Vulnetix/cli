@@ -440,7 +440,7 @@ func translateUpstreamVuln(obj map[string]any, refMap map[string]string) *Vulner
 				Severity: stringField(rObj, "severity"),
 			}
 			if s, ok := rObj["score"].(float64); ok {
-				rating.Score = s
+				rating.Score = Score(s)
 			}
 			if s, ok := rObj["source"].(map[string]any); ok {
 				rating.Source = &Source{Name: stringField(s, "name")}

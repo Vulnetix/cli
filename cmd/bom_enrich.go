@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/bom"
 	"github.com/vulnetix/cli/v3/internal/cdx"
@@ -313,22 +314,30 @@ func enrichVulnerabilities(cmd *cobra.Command, b *cdx.BOM) (int, []string) {
 }
 
 // stampEnrichment records what was done, so the output can be traced back.
+// stampEnrichment records this pass on a document somebody else authored.
+//
+// This is the transformer tier, and the distinction is the whole point.
+// CycloneDX describes metadata.tools as "the tool(s) used in the creation,
+// enrichment, and validation of the BOM", so an enricher belongs in that table —
+// but metadata.manufacturer and metadata.authors say who *created* the document,
+// and enriching syft's SBOM does not make us its author. Those are left as
+// found, along with the original tool entries.
+//
+// The output is written to a new path, so it is a new artefact: NextRevision
+// mints a serialNumber for it and records the one it derived from, which is what
+// keeps the chain followable after the identity changes.
 func stampEnrichment(doc *bom.Document) {
 	if doc.BOM.Metadata == nil {
 		doc.BOM.Metadata = &cdx.Metadata{}
 	}
+	_ = cyclonedx.AppendToolParticipation(doc.BOM, cdx.Participating(cyclonedx.ToolBOMEnrich))
+	_ = cyclonedx.NextRevision(doc.BOM, "")
+
 	set := func(name, value string) {
 		if value == "" {
 			return
 		}
-		for i := range doc.BOM.Metadata.Properties {
-			if doc.BOM.Metadata.Properties[i].Name == name {
-				doc.BOM.Metadata.Properties[i].Value = value
-				return
-			}
-		}
-		doc.BOM.Metadata.Properties = append(doc.BOM.Metadata.Properties,
-			cdx.Property{Name: name, Value: value})
+		doc.BOM.Metadata.SetProperty(name, value)
 	}
 	set(PropEnrichedFrom, "sha256:"+doc.Source.Digest)
 	set(PropEnrichedAt, time.Now().UTC().Format(time.RFC3339))
@@ -404,9 +413,10 @@ func preserveOriginalSignature(res *BOMEnrichResult, doc *bom.Document, opts BOM
 		if !fileExists(path) {
 			continue
 		}
-		doc.BOM.Metadata.Properties = append(doc.BOM.Metadata.Properties, cdx.Property{
-			Name: PropOriginalSignature, Value: filepath.Base(path),
-		})
+		// Upsert, not append: this used to append unconditionally, so
+		// re-enriching a document left it asserting the same property twice with
+		// different values, which a consumer resolves by picking one arbitrarily.
+		doc.BOM.Metadata.SetProperty(PropOriginalSignature, filepath.Base(path))
 		res.Warnings = append(res.Warnings, fmt.Sprintf(
 			"%s signs the input, not this enriched document; it is recorded as %s",
 			filepath.Base(path), PropOriginalSignature))

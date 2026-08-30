@@ -46,7 +46,7 @@ func normalizeCDXSeverity(s string) string {
 //
 // It is applied at every BOM output path; anything it does not recognise is left
 // untouched so the write-time validation guard still catches new bug classes.
-func (b *BOM) NormalizeForSchema() {
+func NormalizeForSchema(b *BOM) {
 	for i := range b.Vulnerabilities {
 		v := &b.Vulnerabilities[i]
 		for j := range v.Ratings {

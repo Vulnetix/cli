@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/google/uuid"
+	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
+
 	"github.com/vulnetix/cli/v3/internal/scan"
 )
 
@@ -48,30 +48,19 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 		}
 	}
 
-	toolVersion := "cli"
-	if scanCtx != nil && scanCtx.ToolVersion != "" {
-		toolVersion = scanCtx.ToolVersion
-	}
-	toolName := "vulnetix-sca"
-	if scanCtx != nil && scanCtx.ToolName != "" {
-		toolName = scanCtx.ToolName
+	toolName := cyclonedx.ToolSCA
+	var manufacturer *OrganizationalEntity
+	var phases []LifecyclePhase
+	if scanCtx != nil {
+		if scanCtx.ToolName != "" {
+			toolName = scanCtx.ToolName
+		}
+		manufacturer = scanCtx.Manufacturer
+		phases = scanCtx.Phases
 	}
 
-	bom := &BOM{
-		BOMFormat:    "CycloneDX",
-		SpecVersion:  specVersion,
-		SerialNumber: "urn:uuid:" + uuid.New().String(),
-		Version:      1,
-		Metadata: &Metadata{
-			Timestamp:  time.Now().UTC().Format(time.RFC3339),
-			Lifecycles: []Lifecycle{{Phase: "build"}},
-			Tools: &Tools{
-				Components: []Component{
-					{Type: "application", Name: toolName, Version: toolVersion},
-				},
-			},
-		},
-	}
+	bom := &BOM{BOMFormat: "CycloneDX", SpecVersion: specVersion, Metadata: &Metadata{}}
+	_, _ = cyclonedx.ApplyAuthorship(bom, Authoring(toolName, manufacturer, phases...))
 
 	if scanCtx != nil {
 		populateMetadataFromContext(bom.Metadata, scanCtx)
@@ -108,13 +97,36 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 			}
 		}
 
-		// Preserve serial number and tools from seed.
-		bom.SerialNumber = seed.SerialNumber
-		bom.Version = seed.Version
+		// The seed's identity carries forward — this is the same document, one
+		// revision on — but its tool table does not: this run is the author, at
+		// this version.
+		//
+		// The version increments. It used to be copied verbatim, so a repository
+		// scanned a hundred times produced a hundred documents all claiming
+		// version 1 under one serialNumber, and nothing downstream could put them
+		// in order.
+		if seed.SerialNumber != "" {
+			bom.SerialNumber = seed.SerialNumber
+		}
+		bom.Version = seed.Version + 1
+		if bom.Version < 2 {
+			bom.Version = 2
+		}
 		if seed.Metadata != nil {
-			bom.Metadata.Tools = seed.Metadata.Tools
+			// Third-party tools the seed recorded are still true and are kept. A
+			// prior self-identification is superseded rather than left beside the
+			// new one — a document naming this command at two versions cannot be
+			// read as a statement about which produced it.
+			for _, t := range toolComponents(seed.Metadata.Tools) {
+				if !cyclonedx.IsVulnetixTool(t) {
+					_ = cyclonedx.AppendToolParticipation(bom, t)
+				}
+			}
 			if seed.Metadata.Component != nil {
 				bom.Metadata.Component = seed.Metadata.Component
+			}
+			if bom.Metadata.Manufacturer == nil {
+				bom.Metadata.Manufacturer = seed.Metadata.Manufacturer
 			}
 		}
 	}
@@ -248,7 +260,7 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 						method = "other"
 					}
 					vuln.Ratings = append(vuln.Ratings, Rating{
-						Score:    ev.CVSSScore,
+						Score:    Score(ev.CVSSScore),
 						Severity: strings.ToLower(ev.CVSSSeverity),
 						Method:   method,
 						Source:   &Source{Name: "NVD"},
@@ -260,7 +272,7 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 						method = "other"
 					}
 					vuln.Ratings = append(vuln.Ratings, Rating{
-						Score:    v.Score,
+						Score:    Score(v.Score),
 						Severity: strings.ToLower(v.Severity),
 						Method:   method,
 					})
@@ -268,7 +280,7 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 
 				if ev.EPSSScore > 0 {
 					vuln.Ratings = append(vuln.Ratings, Rating{
-						Score:    ev.EPSSScore,
+						Score:    Score(ev.EPSSScore),
 						Severity: strings.ToLower(ev.EPSSSeverity),
 						Method:   "other",
 						Source:   &Source{Name: "EPSS"},
@@ -277,7 +289,7 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 
 				if ev.CoalitionESS > 0 {
 					vuln.Ratings = append(vuln.Ratings, Rating{
-						Score:    ev.CoalitionESS,
+						Score:    Score(ev.CoalitionESS),
 						Severity: strings.ToLower(ev.CESSeverity),
 						Method:   "other",
 						Source:   &Source{Name: "Coalition ESS"},
@@ -286,7 +298,7 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 
 				if ev.SSVCDecision != "" {
 					vuln.Ratings = append(vuln.Ratings, Rating{
-						Score:    float64(scan.SeverityLevel(ev.SSVCSeverity)),
+						Score:    Score(float64(scan.SeverityLevel(ev.SSVCSeverity))),
 						Severity: strings.ToLower(ev.SSVCSeverity),
 						Method:   "other",
 						Source:   &Source{Name: "SSVC"},
@@ -339,7 +351,7 @@ func BuildFromLocalScan(results []LocalScanResult, specVersion string, scanCtx *
 						method = "other"
 					}
 					vuln.Ratings = append(vuln.Ratings, Rating{
-						Score:    v.Score,
+						Score:    Score(v.Score),
 						Severity: strings.ToLower(v.Severity),
 						Method:   method,
 					})

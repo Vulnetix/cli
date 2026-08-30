@@ -3,7 +3,6 @@ package scanopts
 import (
 	"encoding/json"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -137,56 +136,27 @@ func firstEnv(names ...string) string {
 	return ""
 }
 
-// StampDeploymentJSON applies deployment labels to already-serialised CycloneDX.
+// StampDeploymentJSON applies deployment labels to already-serialised CycloneDX,
+// for callers that hold bytes rather than a document.
 //
-// The document arrives as bytes from the shared vdb-cyclonedx builder, so it is
-// round-tripped through a generic map rather than the internal model: decoding
-// into cdx.BOM and re-encoding would silently drop every field the internal
-// model does not declare, and this function has no business narrowing a
-// document it was only asked to label.
+// This used to be a second, map-based implementation of ApplyDeploymentContext.
+// The reason was real at the time: the CLI's own CycloneDX model did not declare
+// most of the specification, so decoding a document into it and re-encoding
+// silently dropped everything it did not know about — and a function asked only
+// to label a document has no business narrowing it.
+//
+// The model is now the shared one in vdb-cyclonedx, which round-trips unmodelled
+// members rather than discarding them, so the duplicate is gone and this is a
+// decode, the one implementation, and an encode. The guarantee is pinned by
+// TestStampDeploymentJSONPreservesUnknownFields.
 func StampDeploymentJSON(data []byte, d DeploymentContext) ([]byte, error) {
 	if d.Empty() {
 		return data, nil
 	}
-	var doc map[string]any
+	var doc cdx.BOM
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, err
 	}
-
-	meta, _ := doc["metadata"].(map[string]any)
-	if meta == nil {
-		meta = map[string]any{}
-		doc["metadata"] = meta
-	}
-	props, _ := meta["properties"].([]any)
-
-	set := func(name, value string) {
-		if value == "" {
-			return
-		}
-		for _, raw := range props {
-			if p, ok := raw.(map[string]any); ok && p["name"] == name {
-				p["value"] = value
-				return
-			}
-		}
-		props = append(props, map[string]any{"name": name, "value": value})
-	}
-
-	set(cdx.PropDeploymentProject, d.Project)
-	set(cdx.PropDeploymentCluster, d.Cluster)
-	set(cdx.PropDeploymentNamespace, d.Namespace)
-	set(cdx.PropDeploymentEnvironment, d.Environment)
-
-	keys := make([]string, 0, len(d.Tags))
-	for k := range d.Tags {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		set(cdx.PropDeploymentTagPrefix+k, d.Tags[k])
-	}
-
-	meta["properties"] = props
-	return json.MarshalIndent(doc, "", "  ")
+	cdx.ApplyDeploymentContext(&doc, d)
+	return json.MarshalIndent(&doc, "", "  ")
 }

@@ -91,7 +91,7 @@ func TestMergeUpstream_RewritesAffectsRef(t *testing.T) {
 	if len(v.Affects) != 1 || v.Affects[0].Ref != "local-lodash" {
 		t.Errorf("affects.ref not rewritten to local bom-ref; got %+v", v.Affects)
 	}
-	if len(v.Ratings) != 1 || v.Ratings[0].Score != 7.2 {
+	if len(v.Ratings) != 1 || v.Ratings[0].Score == nil || *v.Ratings[0].Score != 7.2 {
 		t.Errorf("rating not preserved: %+v", v.Ratings)
 	}
 }

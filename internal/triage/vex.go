@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
+	"github.com/vulnetix/cli/v3/internal/cdx"
 )
 
 // ---------------------------------------------------------------------------
@@ -145,10 +146,14 @@ func GenerateCDXVEX(findings []*TriageFinding, specVersion string) ([]byte, erro
 		out = append(out, v)
 	}
 
+	// A VEX statement is about software that exists and is deployed, so the
+	// stage at which these claims were captured is operations. The tool version
+	// used to be the literal string "cli", which is not a version and told a
+	// consumer nothing about which release made the assertion.
+	authorship := cdx.Authoring(cyclonedx.ToolVEX, nil, cdx.PhaseOperations)
 	return cyclonedx.BuildCDXVEX(out, cyclonedx.VEXOptions{
 		SpecVersion: specVersion,
-		ToolName:    "vulnetix",
-		ToolVersion: "cli",
+		Authorship:  &authorship,
 		AuthorName:  "Vulnetix",
 	})
 }

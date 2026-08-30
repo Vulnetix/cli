@@ -390,10 +390,17 @@ func runAIBOMPass(opts AIBOMPassOptions) (*AIBOMPassResult, error) {
 	// Memory always lives under the resolved scan root, never the process CWD.
 	reconcileAIBOMMemory(rootPath, gitCtx, det, opts.Passes)
 
+	// An AI inventory is found by observing source, config and commit history
+	// rather than by resolving a declared dependency set, which is what the
+	// spec's discovery phase describes; design applies too, because it is read
+	// out of source rather than out of a built artefact.
+	authorship := cdx.Authoring(cyclonedx.ToolAIBOM,
+		cdx.ResolveManufacturer(cdx.ManufacturerSources{Git: gitCtx, OrgID: orgID}),
+		cdx.PhaseDesign, cdx.PhaseDiscovery)
+
 	bomData, err := cyclonedx.BuildAIBOM(det, cyclonedx.AIBOMOptions{
 		SpecVersion: specVersion,
-		ToolName:    "vulnetix-aibom",
-		ToolVersion: version,
+		Authorship:  &authorship,
 		Project:     aibomProject(gitCtx, gitctx.CollectSystemInfo()),
 	})
 	if err != nil {
