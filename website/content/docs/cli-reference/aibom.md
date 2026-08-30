@@ -37,6 +37,13 @@ vulnetix aibom [path] [flags]
 - `table` — a human-readable summary.
 - `json` — the raw detection result.
 
+The document names its producer as `vulnetix-aibom` in `metadata.tools`, records
+the organization running the scan as `metadata.manufacturer`, and claims the
+`design` and `discovery` lifecycle phases — an AI inventory is read out of
+source, configuration and commit history by observation rather than by resolving
+a declared dependency set. See
+[BOM authoring identity](../scan/#bom-authoring-identity).
+
 ## Examples
 
 ```bash

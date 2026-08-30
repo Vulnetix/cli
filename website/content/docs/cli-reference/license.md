@@ -45,6 +45,14 @@ License findings are merged into the same artifacts used by `vulnetix scan`:
 
 The merge is keyed by source name — running `vulnetix scan` and `vulnetix license` independently will not overwrite each other's findings in the BOM.
 
+The licence pass adds findings to a document another pass usually authored, so
+it appends `vulnetix-license-analyzer` to `metadata.tools` — CycloneDX's own
+description of that member is "the tool(s) used in the creation, **enrichment**,
+and validation of the BOM" — and leaves the author's `serialNumber`, `timestamp`
+and `manufacturer` untouched. The entry now carries the version that ran; it
+previously carried none, which made it impossible to tell which release produced
+a licence verdict. See [BOM authoring identity](../scan/#bom-authoring-identity).
+
 ## License Resolution
 
 Licenses are resolved through a multi-source pipeline. Each step only runs for packages not yet resolved by a previous step.

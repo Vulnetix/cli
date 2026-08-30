@@ -38,6 +38,12 @@ vulnetix cbom [path] [flags]
 - `cyclonedx-json` — the CycloneDX CBOM. Algorithms map to `cryptographic-asset` components (with `cryptoProperties`), certificates to `cryptographic-asset` (`assetType: certificate`) plus a `related-crypto-material` key, and crypto libraries to `library` components. PQC posture and the standards matrix ride on `vulnetix:crypto/*` properties. The document is schema-validated before it is written.
 - `json` — the raw detection result.
 
+The document names its producer as `vulnetix-cbom` in `metadata.tools`, records
+the organization running the scan as `metadata.manufacturer`, and claims the
+`discovery` lifecycle phase — crypto assets are found by observing source,
+configuration and certificates on disk. See
+[BOM authoring identity](../scan/#bom-authoring-identity).
+
 ## Examples
 
 ```bash

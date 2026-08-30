@@ -230,6 +230,20 @@ Generated VEX still lands where it always has:
 `vex apply --vex .vulnetix/` reads all of them; non-VEX files in that directory
 are skipped rather than fatal.
 
+### Who asserted it
+
+A VEX statement is an assertion by somebody, and a document that does not say
+who asserted it is worth less than one that does. CycloneDX VEX this CLI writes
+carries `metadata.authors` naming Vulnetix, and a `metadata.tools` entry of
+`vulnetix-vex` at the version that produced it — previously the version was the
+literal string `cli`, which told a consumer nothing.
+
+It also claims the `operations` lifecycle phase, because a VEX statement is
+about software that exists and is deployed. Documents written before this
+carried no `lifecycles` at all, leaving a reader unable to tell a statement
+about a running system from one about a design proposal. See
+[BOM authoring identity](../scan/#bom-authoring-identity).
+
 ## Exit codes
 
 | Code | Meaning |

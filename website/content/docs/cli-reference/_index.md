@@ -525,6 +525,7 @@ vulnetix sbom [path] [flags]   # alias
 | `--no-aibom` / `--no-cbom` | `false` | Omit AI or cryptographic components |
 | `--sign` | `false` | Sign with this machine's own OIDC identity; verifies with stock `cosign` |
 | `--project` / `--cluster` / `--namespace` / `--environment` / `--tag` | inferred | [Deployment context](scan/#deployment-context) |
+| `--bom-manufacturer` / `--lifecycle` | derived | [BOM authoring identity](scan/#bom-authoring-identity) |
 
 ---
 
@@ -644,6 +645,7 @@ vulnetix scan [flags]
 | `--no-vex` | `false` | Ignore `--vex-file` |
 | `--policy-file` / `--exceptions-file` | discovered | [Licence policy and exceptions](license/#licence-policy) |
 | `--project` / `--cluster` / `--namespace` / `--environment` / `--tag` | inferred | [Deployment context](scan/#deployment-context) |
+| `--bom-manufacturer` / `--lifecycle` | derived | [BOM authoring identity](scan/#bom-authoring-identity) |
 | `--disable-default-rules` | `false` | Skip built-in SAST rules (external `--rule` repos still loaded) |
 | `-R, --rule` | - | External SAST rule repo in `org/repo` format (repeatable) — see [Custom Rule Repositories](../sast-rules/custom-rules/) |
 | `--dry-run` | `false` | Detect files and parse packages only — zero API calls |

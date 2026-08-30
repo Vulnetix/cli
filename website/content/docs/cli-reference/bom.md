@@ -395,6 +395,44 @@ which is still a fact worth carrying. The VDB request also names the input's own
 generator, so the backend records "syft found these packages, Vulnetix enriched
 them" rather than claiming the discovery.
 
+### Attribution when enriching
+
+Enriching a document does not make us its author, and the output says so.
+
+CycloneDX describes `metadata.tools` as "the tool(s) used in the **creation,
+enrichment, and validation** of the BOM", so an enricher belongs in that list —
+appended, after whoever created the document. `metadata.manufacturer` and
+`metadata.authors` say who *created* it, and those are left exactly as found.
+
+Enriching a Syft SBOM produces:
+
+```json
+"metadata": {
+  "manufacturer": { "name": "Anchore" },
+  "lifecycles": [{ "phase": "post-build" }],
+  "tools": { "components": [
+    { "name": "syft", "version": "1.2.3", "group": "Anchore" },
+    { "name": "vulnetix-bom-enrich", "version": "3.98.0", "group": "Vulnetix" }
+  ]}
+}
+```
+
+Because the result is written to a new path it is a new artefact, so it gets a
+fresh `serialNumber` and records the one it came from as
+`vulnetix:bom/derived-from`. Enriching the same document twice leaves **one**
+entry per tool — `metadata.tools.components` is a unique set from CycloneDX 1.5,
+so a duplicate would make the document fail its own schema.
+
+[`bom import`](#bom-import) behaves the same way when converting SPDX: the SPDX
+document's creators become the CycloneDX `tools` and `authors` entries and stay
+there, `vulnetix-bom-import` is appended, and no manufacturer is claimed. The
+SPDX `documentNamespace` becomes the `serialNumber`, normalised to the `urn:uuid`
+form the schema requires from 1.6 — deterministically, so the same input file
+always converts to the same identity.
+
+The full model is described under
+[BOM authoring identity](../scan/#bom-authoring-identity).
+
 ---
 
 ## Deployment context

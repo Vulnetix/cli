@@ -69,6 +69,8 @@ vulnetix cdx [path] [flags]
 | `--namespace` | string | inferred | Namespace within the cluster |
 | `--environment` | string | inferred | Deployment stage, e.g. `production` |
 | `--tag` | stringArray | - | Additional `key=value` deployment label (repeatable) |
+| `--bom-manufacturer` | string | repo owner | Organization that created the BOM — see [BOM authoring identity](../scan/#bom-authoring-identity) |
+| `--lifecycle` | string | derived | Lifecycle stage(s) the BOM data was captured at, comma-separated |
 
 ## Examples
 
@@ -110,6 +112,7 @@ SBOM and a scanned one describe packages identically:
 | Signatures | `vulnetix:signature/*`, `vulnetix:tlog/*` |
 | Dependency graph | CycloneDX `dependencies`, resolved from lockfile and installed-tree edges |
 | Repository and host context | `metadata.component` git properties and `metadata.properties` host properties |
+| Who made the document | `metadata.manufacturer`, `metadata.tools`, `metadata.lifecycles` — see [BOM authoring identity](../scan/#bom-authoring-identity) |
 
 `source-type` values are `manifest` (declared in a manifest or lockfile),
 `installed` (found in an installed package tree), `container-db` (an OS package
@@ -123,6 +126,21 @@ pinned install command or archive manifest attributes, `low` for an unpinned
 install command or a version read off a filename. A command-derived component is
 an inference — the command may be conditional or never executed — and is graded
 accordingly.
+
+### Authoring identity
+
+The document names its producer as `vulnetix-cdx`, at the version that ran, and
+records the organization running the scan as `metadata.manufacturer` — omitted
+rather than guessed when nothing resolves it.
+
+Because `cdx` reads several kinds of source in one pass, it usually claims
+several lifecycle phases at once: `pre-build` for the manifests, `build` for an
+installed tree, `post-build` for a container rootfs or compiled artefacts, and
+`discovery` for the AIBOM and CBOM passes. Skipping a pass drops its phase, so
+`--no-aibom --no-cbom` removes `discovery`. Override the whole set with
+`--lifecycle`. The rules are the same for every command that writes a document
+and are described once under
+[BOM authoring identity](../scan/#bom-authoring-identity).
 
 ### Existing findings are preserved
 

@@ -106,6 +106,8 @@ vulnetix scan [flags]
 | `--namespace` | string | inferred | Namespace within the cluster |
 | `--environment` | string | inferred | Deployment stage, e.g. `production` |
 | `--tag` | stringArray | - | Additional `key=value` deployment label (repeatable) |
+| `--bom-manufacturer` | string | repo owner | Organization that created the BOM — see [BOM authoring identity](#bom-authoring-identity) |
+| `--lifecycle` | string | derived | Lifecycle stage(s) the BOM data was captured at, comma-separated |
 | `--snippet-context` | int | `-1` | Surrounding non-empty source lines captured around each SARIF finding (`-1` = dynamic, `0` disables). Also available on `sast`, `secrets`, `containers` and `iac` |
 | `--no-malscan` | bool | `false` | Skip the in-process [malscan](../malscan/) pass over local dependency install dirs |
 | `--no-aibom` | bool | `false` | Skip the [AIBOM](../aibom/) inventory pass |
@@ -180,6 +182,122 @@ The labels land in `metadata.properties` as `vulnetix:deployment/*`, in
 `.vulnetix/memory.yaml`, and in the `cli.*` upload envelope, so the backend can
 answer fleet-scale questions across repositories. Locally, the same labels are
 queryable with [`bom ls`](../bom/#bom-ls) and [`bom where`](../bom/#bom-where).
+
+## BOM authoring identity
+
+Every CycloneDX document this CLI writes says who made it and what it was
+looking at when it did. CycloneDX has no single field for that — it splits the
+idea across five members of `metadata`, and their own descriptions decide which
+is which:
+
+| Field | The spec's own words | What we put there |
+|-------|----------------------|-------------------|
+| `metadata.manufacturer` | "The organization that **created the BOM**… common in BOMs created through **automated processes**" | The organization running the scan |
+| `metadata.authors` | "The person(s) who created the BOM… common in BOMs created through **manual processes**" | Only where a person made the claims, as in a hand-curated VEX |
+| `metadata.tools` | "The tool(s) used in the **creation, enrichment, and validation** of the BOM" | Every Vulnetix command that touched the document |
+| `metadata.supplier` | "The organization that supplied **the component that the BOM describes**" | Subject-level; says nothing about who wrote the document |
+| `metadata.lifecycles` | "The stage(s) in which **data in the BOM was captured**" | What this pass actually read |
+
+### Who created it
+
+`metadata.manufacturer` is the organization running the scan — **not Vulnetix**.
+Vulnetix supplied the instrument, and the instrument is named in
+`metadata.tools`; a document claiming Vulnetix created an inventory of your
+repository would be saying something different, and something untrue.
+
+It is resolved from the first of these that answers:
+
+1. `--bom-manufacturer`
+2. `VULNETIX_BOM_MANUFACTURER`
+3. The repository owner your CI provider states — GitHub, GitLab, Azure DevOps, Bitbucket, Jenkins or the generic variables
+4. The owner segment of the repository's git remote
+
+If none of them answers, the field is **omitted**. An absent manufacturer costs
+a reader one unknown; an invented one is a false claim they have no way to
+detect.
+
+When an organization id is available — `--org-id` or `VULNETIX_ORG_ID` — it
+rides along as `manufacturer.bom-ref` (`urn:uuid:<org>`), tying the document to a
+Vulnetix organization without asserting a display name the CLI cannot resolve.
+An id on its own is not enough to name a manufacturer, though: `manufacturer.name`
+is what a reader sees, so the field stays absent until one of the four sources
+above supplies a name.
+
+### What it was looking at
+
+`metadata.lifecycles` is a statement about the observation, not about the
+product, and it is an array because one pass reads several kinds of source:
+
+| What the pass read | Phase |
+|--------------------|-------|
+| Manifests and lockfiles | `pre-build` |
+| An installed dependency tree — `node_modules`, `site-packages`, `vendor/` | `build` |
+| A container image, or packages recovered from compiled binaries | `post-build` |
+| AI or cryptographic inventory, found by observation | `discovery` |
+| Any of the above with deployment labels supplied | adds `operations` |
+
+Reading a manifest tells you what a build is *intended* to resolve — the
+artefacts do not exist yet — so that is `pre-build`. A consumer uses the
+difference to decide how much the component list can be trusted.
+
+For the scan family specifically that means `scan` and `sca` claim `pre-build`,
+`containers` claims `post-build`, and any of them adds `operations` when
+deployment labels are supplied. [`cdx`](../cdx/) reads more source kinds in one
+pass and usually claims several phases at once.
+
+`--lifecycle` replaces the derived answer outright, because a pipeline that
+states its own stage is making a claim about its process that no amount of
+filesystem inspection can contradict:
+
+```bash
+vulnetix scan --lifecycle post-build,operations
+```
+
+Valid phases are `design`, `pre-build`, `build`, `post-build`, `operations`,
+`discovery` and `decommission`. An unrecognised value is rejected rather than
+treated as a custom phase name — a typo silently becoming a custom lifecycle is
+indistinguishable downstream from a deliberate one.
+
+### Which tool
+
+`metadata.tools.components[0]` is the command that authored the document, with
+its real version, its purl and links back to the project:
+
+```json
+{
+  "type": "application",
+  "bom-ref": "urn:tool:vulnetix-sca",
+  "group": "Vulnetix",
+  "name": "vulnetix-sca",
+  "version": "3.98.0",
+  "purl": "pkg:golang/github.com/vulnetix/cli@v3.98.0",
+  "externalReferences": [
+    { "type": "website", "url": "https://www.vulnetix.com" },
+    { "type": "vcs", "url": "https://github.com/vulnetix/cli" }
+  ]
+}
+```
+
+Each command names itself — `vulnetix-sca`, `vulnetix-containers`,
+`vulnetix-cdx`, `vulnetix-aibom`, `vulnetix-cbom`, `vulnetix-vex`,
+`vulnetix-license-analyzer` — because what produced a document is a real
+question, and "an SBOM built from manifests" differs from "an inventory read out
+of a container image" in ways the component list alone does not show.
+
+### Re-scanning the same repository
+
+A re-scan writes the **next revision of the same document**: the `serialNumber`
+is kept and `version` increments, so two revisions can be ordered. Tool entries
+from other producers are preserved; this CLI's own entry is replaced with the
+version that just ran, rather than sitting beside the older one.
+
+### Documents this CLI did not author
+
+A command that transforms someone else's document — [`bom enrich`](../bom/#bom-enrich),
+[`bom import`](../bom/#bom-import) — appends itself to `metadata.tools` and
+leaves `manufacturer` and `authors` exactly as it found them. Enriching Syft's
+SBOM does not make us its author. See
+[Attribution when enriching](../bom/#attribution-when-enriching).
 
 ## Output Files
 

@@ -45,6 +45,7 @@ Every capability has exactly one owner, reached through one options-struct entry
 | SBOM enrichment | `runBOMEnrichPass(BOMEnrichOptions)` | `cmd/bom_enrich.go` |
 | VEX consumption | `runVEXPass(VEXPassOptions)` | `cmd/vex.go` |
 | Attestation verification | `runAttestVerify(AttestVerifyOptions)` | `cmd/attest.go` |
+| BOM authoring identity | `Authoring` / `Participating` / `ResolveManufacturer` / `DerivePhases` | `internal/cdx/authorship.go` |
 
 When adding a capability: put it behind such a function in its owner's file and have `scan` call it. Do not inline a second implementation into `cmd/scan.go` — that is how the license stage came to run a weaker fixed-policy fork of `vulnetix license`.
 
@@ -90,6 +91,70 @@ branch name — a wrong environment label is worse than an absent one. The label
 travel into CycloneDX metadata, memory and the `cli.*` upload envelope, because
 a repository scan cannot know where its artefacts run and the pipeline that
 deployed them can.
+
+### The Document Model Lives In `vdb-cyclonedx`, Not Here
+
+`cdx.BOM` is a **type alias** for `cyclonedx.Document`, not a local declaration.
+This package used to declare the model itself, and the cost was not the
+duplication — it was that two declarations are two sets of omissions, and they
+did not match. The local one had no `metadata.manufacturer` and no
+`metadata.supplier`, which is most of what CycloneDX uses to say who produced a
+document. It was also lossy: decoding a third-party BOM into it dropped every
+member it did not declare, which is why `internal/scanopts` carried a **third**,
+map-based implementation of deployment labelling rather than reuse
+`ApplyDeploymentContext`.
+
+The shared model round-trips unmodelled members through an `Extra` map, so a
+command asked only to label a document no longer narrows it. Do not add fields
+to a local copy of the model — add them upstream and let the alias carry them.
+`TestStampDeploymentJSONPreservesUnknownFields` and the library's
+`document_extra_test.go` are what keep this true.
+
+### BOM Authoring Identity: Author, Transformer, Reader
+
+CycloneDX has no "authoring" field. It splits the idea across `metadata`:
+`manufacturer` is "the organization that **created the BOM**" (automated
+processes), `authors` is the same for manual ones, `tools` is "the tool(s) used
+in the **creation, enrichment, and validation** of the BOM", `supplier` is
+subject-level, and `lifecycles` is "the stage(s) in which **data in the BOM was
+captured**". Three tiers follow, and every emitting path is one of them:
+
+- **Author** — creates a document. Owns `serialNumber`, `version`,
+  `metadata.timestamp`, `manufacturer`, `lifecycles`, and the first
+  `metadata.tools` entry. `scan`/`sca`/`containers`, `cdx`, `aibom`, `cbom`, VEX.
+- **Transformer** — enriches, converts or validates a document it did not
+  create. **Appends** itself to `metadata.tools` and touches nothing else;
+  `NextRevision` re-identifies the output only when it is written to a new path.
+  `bom enrich`, `bom import`, the licence pass.
+- **Reader** — `diff`, `tree`, `ls`, `where`, `skew`, `search`, `attest verify`.
+  Stamps nothing.
+
+Two rules that are easy to get wrong and were:
+
+**`manufacturer` is the org running the scan, not Vulnetix.** Vulnetix is the
+tool and belongs in `metadata.tools`. It is resolved by one function,
+`cdx.ResolveManufacturer`, and returns **nil rather than guessing** — an absent
+manufacturer costs a reader one unknown, an invented one is a false claim.
+Enriching syft's SBOM must not overwrite `manufacturer: Anchore`.
+
+**Authorship is spec-version-conditional.** `metadata` carries
+`"additionalProperties": false` from 1.4, `manufacturer` exists only in 1.6+,
+`lifecycles` in 1.5+, and the object form of `tools` in 1.5+ — so emitting
+`manufacturer` into the 1.5 document the VEX path produces is a hard validation
+failure. `Document.MarshalJSON` projects members away for versions that cannot
+carry them (`specversion.go`); callers never do this themselves. 2.0 additionally
+renames `bomFormat` to `specFormat` and closes the document root.
+
+`metadata.tools.components` carries `uniqueItems: true` from 1.5, so dedupe on
+append is a validity requirement, not tidiness — enriching one document twice
+would otherwise produce a document that fails its own schema.
+
+The tool entry is built in exactly one place (`cdx.Authoring` /
+`cdx.Participating`) and carries a real version from `internal/buildinfo` — four
+builders used to default it to the literal string `"cli"`. `--lifecycle` and
+`--bom-manufacturer` are registered by `addScanFlags` and on `cdx`, and are
+**not** registered on transformer-tier commands, which have no manufacturer to
+claim. `cmd/bom_authoring_ownership_test.go` locks all of this in.
 
 ### VEX Is Consumed As Well As Emitted
 
