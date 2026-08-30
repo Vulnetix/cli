@@ -402,6 +402,7 @@
         "disable-memory",
         "envelope",
         "identity",
+        "identity-regex",
         "issuer",
         "no-analytics",
         "no-banner",
@@ -411,6 +412,7 @@
         "require",
         "signature",
         "silent",
+        "strict",
         "trusted-root",
         "verbose"
       ]
@@ -562,6 +564,7 @@
         "disable-memory",
         "environment",
         "identity",
+        "identity-regex",
         "issuer",
         "namespace",
         "no-analytics",
@@ -573,6 +576,7 @@
         "project",
         "require",
         "silent",
+        "strict",
         "tag",
         "trusted-root",
         "verbose",

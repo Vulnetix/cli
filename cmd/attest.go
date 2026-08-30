@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/attest"
 	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/gitctx"
+	"github.com/vulnetix/cli/v3/internal/suppress"
 )
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -89,14 +91,19 @@ type AttestVerifyOptions struct {
 	// SignaturePath, CertificatePath and EnvelopePath override sidecar
 	// discovery. Empty means "look beside the artefact".
 	SignaturePath, CertificatePath, EnvelopePath string
-	// Identity is a regexp the certificate subject must match.
-	Identity string
-	// Issuer is the OIDC issuer the certificate must name.
+	// Identity is the exact certificate subject required; IdentityRegex is the
+	// pattern form.
+	Identity      string
+	IdentityRegex string
+	// Issuer is the OIDC issuer the certificate must name. A shortcut name is
+	// accepted as well as a URL.
 	Issuer string
-	// TrustedRootPath enables certificate chain validation.
+	// TrustedRootPath overrides trust-anchor discovery.
 	TrustedRootPath string
 	// Require names checks that must have been performed.
 	Require []string
+	// Strict requires the verification to be fully pinned.
+	Strict bool
 }
 
 // runAttestVerify verifies an artefact. The shared entry point; `bom import
@@ -128,11 +135,18 @@ func runAttestVerify(opts AttestVerifyOptions) (*attest.Result, error) {
 		}
 	}
 	if envelope == "" && signature == "" {
+		// Say how to create one. "No signature found" leaves a beginner with
+		// nothing to do; the usual reason is that nothing has signed it yet.
 		return nil, fmt.Errorf(
-			"no signature found for %s: expected %s.intoto.jsonl or %s.sig beside it, "+
-				"or name one with --envelope / --signature",
-			opts.ArtifactPath, filepath.Base(opts.ArtifactPath), filepath.Base(opts.ArtifactPath))
+			"no signature found for %s\n"+
+				"  expected %s.intoto.jsonl or %s.sig beside it, or name one with --envelope / --signature\n"+
+				"  to produce one:  vulnetix cdx --sign --output-file %s",
+			opts.ArtifactPath,
+			filepath.Base(opts.ArtifactPath), filepath.Base(opts.ArtifactPath),
+			opts.ArtifactPath)
 	}
+
+	projectRoot, repoFullName := attestProjectContext(opts.ArtifactPath)
 
 	return attest.Verify(attest.Options{
 		ArtifactPath:    opts.ArtifactPath,
@@ -141,10 +155,76 @@ func runAttestVerify(opts AttestVerifyOptions) (*attest.Result, error) {
 		CertificatePath: certificate,
 		EnvelopePath:    envelope,
 		Identity:        opts.Identity,
+		IdentityRegex:   opts.IdentityRegex,
 		Issuer:          opts.Issuer,
 		TrustedRootPath: opts.TrustedRootPath,
+		ProjectRoot:     projectRoot,
+		RepoFullName:    repoFullName,
 		Require:         opts.Require,
+		Strict:          opts.Strict,
 	})
+}
+
+// addAttestVerifyFlags registers the verification flags on a command.
+//
+// One registration and one reader, shared by `attest verify` and
+// `bom import --verify-attestation`. Two copies would drift, and the way they
+// would drift is a document accepted by one path and refused by the other —
+// which is worse than either behaviour on its own.
+func addAttestVerifyFlags(cmd *cobra.Command) {
+	cmd.Flags().String("identity", "",
+		"Require this exact signer (the command prints the one it found, ready to paste)")
+	cmd.Flags().String("identity-regex", "",
+		"Require the signer to match this pattern, for deliberately accepting a set")
+	cmd.Flags().String("issuer", "",
+		"Require this OIDC issuer — a URL, or one of: "+strings.Join(attest.IssuerShortcutNames(), ", "))
+	cmd.Flags().String("trusted-root", "",
+		"Root certificate of a private Sigstore deployment (default: "+
+			attest.ProjectTrustRootPath+" if present, else the built-in public-good root; "+
+			"also SIGSTORE_ROOT_FILE)")
+	cmd.Flags().StringArray("require", nil,
+		"Fail when this check did not run, e.g. transparency-log (repeatable)")
+	cmd.Flags().Bool("strict", false,
+		"Require the signer to be pinned; fails naming the exact flags to add")
+}
+
+// attestVerifyOptionsFromFlags reads what addAttestVerifyFlags registered.
+func attestVerifyOptionsFromFlags(cmd *cobra.Command) (AttestVerifyOptions, error) {
+	get := func(name string) string { v, _ := cmd.Flags().GetString(name); return v }
+
+	opts := AttestVerifyOptions{
+		Identity:        get("identity"),
+		IdentityRegex:   get("identity-regex"),
+		Issuer:          get("issuer"),
+		TrustedRootPath: get("trusted-root"),
+	}
+	opts.Require, _ = cmd.Flags().GetStringArray("require")
+	opts.Strict, _ = cmd.Flags().GetBool("strict")
+
+	if opts.Identity != "" && opts.IdentityRegex != "" {
+		return opts, fmt.Errorf(
+			"pass --identity for an exact subject or --identity-regex for a pattern, not both")
+	}
+	return opts, nil
+}
+
+// attestProjectContext finds the repository the artefact belongs to.
+//
+// Two things come from it, both of which remove a flag the user would otherwise
+// have to know about: the project's own .vulnetix/trusted-root.pem, and the
+// "owner/repo" used to tell them whether the signer is their own CI or somebody
+// else's. Both degrade to empty outside a repository, which is a supported case
+// — verifying a downloaded artefact in /tmp is exactly when this matters most.
+func attestProjectContext(artifactPath string) (projectRoot, repoFullName string) {
+	dir := filepath.Dir(artifactPath)
+	if dir == "" {
+		dir = "."
+	}
+	git := gitctx.Collect(dir)
+	if git == nil {
+		return "", ""
+	}
+	return git.RepoRootPath, suppress.RepoFullName(git.RemoteURLs)
 }
 
 func runAttestVerifyCmd(cmd *cobra.Command, args []string) error {
@@ -152,24 +232,16 @@ func runAttestVerifyCmd(cmd *cobra.Command, args []string) error {
 	if err := validateBOMOutput(outputFmt); err != nil {
 		return err
 	}
-	envelope, _ := cmd.Flags().GetString("envelope")
-	signature, _ := cmd.Flags().GetString("signature")
-	certificate, _ := cmd.Flags().GetString("certificate")
-	identity, _ := cmd.Flags().GetString("identity")
-	issuer, _ := cmd.Flags().GetString("issuer")
-	trustedRoot, _ := cmd.Flags().GetString("trusted-root")
-	require, _ := cmd.Flags().GetStringArray("require")
+	opts, err := attestVerifyOptionsFromFlags(cmd)
+	if err != nil {
+		return err
+	}
+	opts.ArtifactPath = args[0]
+	opts.EnvelopePath, _ = cmd.Flags().GetString("envelope")
+	opts.SignaturePath, _ = cmd.Flags().GetString("signature")
+	opts.CertificatePath, _ = cmd.Flags().GetString("certificate")
 
-	res, err := runAttestVerify(AttestVerifyOptions{
-		ArtifactPath:    args[0],
-		EnvelopePath:    envelope,
-		SignaturePath:   signature,
-		CertificatePath: certificate,
-		Identity:        identity,
-		Issuer:          issuer,
-		TrustedRootPath: trustedRoot,
-		Require:         require,
-	})
+	res, err := runAttestVerify(opts)
 	if err != nil {
 		return err
 	}
@@ -238,6 +310,16 @@ func renderAttestResult(res *attest.Result) {
 		if res.TrustAnchor != "" && res.PerformedChain() {
 			fmt.Printf("  %s\n", display.Muted(term,
 				"certificate issued by "+res.TrustAnchor))
+		}
+		// "Signed by github.com/acme/repo" means nothing until you know whether
+		// that is your repository. Saying which it is costs nothing and is the
+		// difference between a fact and an answer.
+		switch {
+		case res.SignerIsThisRepo:
+			fmt.Printf("  %s\n", display.Success(term, "this is the repository you are in"))
+		case res.SignerRepo != "":
+			fmt.Printf("  %s\n", display.Muted(term,
+				"a different repository from the one you are in"))
 		}
 		fmt.Println()
 	}
@@ -390,10 +472,5 @@ func init() {
 	attestVerifyCmd.Flags().String("envelope", "", "DSSE envelope (default: <artifact>.intoto.jsonl)")
 	attestVerifyCmd.Flags().String("signature", "", "Detached signature (default: <artifact>.sig)")
 	attestVerifyCmd.Flags().String("certificate", "", "Signing certificate (default: <artifact>.pem)")
-	attestVerifyCmd.Flags().String("identity", "", "Require the signer to match this regular expression (the command prints the one it found)")
-	attestVerifyCmd.Flags().String("issuer", "", "OIDC issuer the certificate must name")
-	attestVerifyCmd.Flags().String("trusted-root", "",
-		"Root certificate of a private Sigstore deployment (default: the built-in public-good root; also SIGSTORE_ROOT_FILE)")
-	attestVerifyCmd.Flags().StringArray("require", nil,
-		"Fail when this check did not run, e.g. transparency-log (repeatable)")
+	addAttestVerifyFlags(attestVerifyCmd)
 }

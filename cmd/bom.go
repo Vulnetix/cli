@@ -195,14 +195,11 @@ func runBOMImportCmd(cmd *cobra.Command, args []string) error {
 		Deployment: scanopts.DeploymentFromCommand(cmd),
 	}
 	if verify, _ := cmd.Flags().GetBool("verify-attestation"); verify {
-		identity, _ := cmd.Flags().GetString("identity")
-		issuer, _ := cmd.Flags().GetString("issuer")
-		trustedRoot, _ := cmd.Flags().GetString("trusted-root")
-		require, _ := cmd.Flags().GetStringArray("require")
-		opts.Verify = &AttestVerifyOptions{
-			Identity: identity, Issuer: issuer,
-			TrustedRootPath: trustedRoot, Require: require,
+		verifyOpts, err := attestVerifyOptionsFromFlags(cmd)
+		if err != nil {
+			return err
 		}
+		opts.Verify = &verifyOpts
 	}
 
 	res, err := runBOMImport(opts)
@@ -845,12 +842,7 @@ func init() {
 	// which is most of them.
 	bomImportCmd.Flags().Bool("verify-attestation", false,
 		"Verify the document's signature before trusting it; fails the import when a check fails")
-	bomImportCmd.Flags().String("identity", "", "Require the signer to match this regular expression (the command prints the one it found)")
-	bomImportCmd.Flags().String("issuer", "", "OIDC issuer the certificate must name")
-	bomImportCmd.Flags().String("trusted-root", "",
-		"Root certificate of a private Sigstore deployment (default: the built-in public-good root; also SIGSTORE_ROOT_FILE)")
-	bomImportCmd.Flags().StringArray("require", nil,
-		"Fail when this check did not run, e.g. transparency-log (repeatable)")
+	addAttestVerifyFlags(bomImportCmd)
 
 	bomValidateCmd.Flags().StringP("output", "o", "pretty", "Output format: pretty (alias: table), json")
 	bomValidateCmd.Flags().Int("min-score", 0, "Exit non-zero when the completeness score is below this value (0 disables)")

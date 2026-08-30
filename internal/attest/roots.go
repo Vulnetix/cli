@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -62,6 +63,42 @@ func LoadTrustAnchor(path string) (*TrustAnchor, error) {
 		return nil, err
 	}
 	return parseAnchor(path, data)
+}
+
+// ProjectTrustRootPath is where a repository keeps its own trust root.
+//
+// A team running a private Sigstore commits this once and never types
+// --trusted-root again. It is the same shape as .vulnetix/license-policy.yaml
+// and .vulnetix/ai-firewall.yaml: the project states its own defaults in the
+// repository, so the knowledge lives with the code rather than in whoever
+// remembers the flag.
+const ProjectTrustRootPath = ".vulnetix/trusted-root.pem"
+
+// resolveAnchor picks the trust anchor, most-specific source first.
+//
+//	--trusted-root            this run
+//	SIGSTORE_ROOT_FILE        this shell or CI job
+//	.vulnetix/trusted-root.pem  this repository
+//	embedded                  the Sigstore public-good instance
+//
+// The same resolution shape as credentials in pkg/auth: an explicit answer
+// wins, a project answer covers the team, and a working default covers everyone
+// else. Result.TrustAnchor names whichever link answered, so the output never
+// leaves the reader guessing what "trusted" meant on this run.
+func resolveAnchor(opts Options) (*TrustAnchor, error) {
+	if opts.TrustedRootPath != "" {
+		return LoadTrustAnchor(opts.TrustedRootPath)
+	}
+	if p := os.Getenv("SIGSTORE_ROOT_FILE"); p != "" {
+		return LoadTrustAnchor(p)
+	}
+	if opts.ProjectRoot != "" {
+		candidate := filepath.Join(opts.ProjectRoot, ProjectTrustRootPath)
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return LoadTrustAnchor(candidate)
+		}
+	}
+	return PublicGood()
 }
 
 // parseAnchor builds an anchor from a PEM bundle.

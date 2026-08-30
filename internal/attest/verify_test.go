@@ -435,11 +435,11 @@ func TestIdentityAndIssuerChecks(t *testing.T) {
 	f := newSigningFixture(t, subject, "https://token.actions.githubusercontent.com")
 	envelope := f.writeDSSE(t, "identity.intoto.jsonl", []byte(`{}`))
 
-	// Matching identity and issuer pass.
+	// The exact subject, and the issuer by shortcut name rather than URL.
 	res, err := Verify(Options{
 		ArtifactPath: "identity", EnvelopePath: envelope, TrustedRootPath: f.rootPath,
-		Identity: `^https://github\.com/acme/.*`,
-		Issuer:   "https://token.actions.githubusercontent.com",
+		Identity: subject,
+		Issuer:   "github",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -448,10 +448,22 @@ func TestIdentityAndIssuerChecks(t *testing.T) {
 		t.Fatalf("matching identity failed: %+v", res.Checks)
 	}
 
+	// The pattern form, for deliberately accepting a set.
+	res, err = Verify(Options{
+		ArtifactPath: "identity", EnvelopePath: envelope, TrustedRootPath: f.rootPath,
+		IdentityRegex: `^https://github\.com/acme/.*`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Verified() {
+		t.Fatalf("matching pattern failed: %+v", res.Checks)
+	}
+
 	// A different org must fail.
 	res, err = Verify(Options{
 		ArtifactPath: "identity", EnvelopePath: envelope, TrustedRootPath: f.rootPath,
-		Identity: `^https://github\.com/someone-else/.*`,
+		IdentityRegex: `^https://github\.com/someone-else/.*`,
 	})
 	if err != nil {
 		t.Fatal(err)

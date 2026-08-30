@@ -45,6 +45,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -103,6 +104,10 @@ type Result struct {
 	Identity Identity `json:"identity,omitzero"`
 	// TrustAnchor names what the chain was verified against.
 	TrustAnchor string `json:"trustAnchor,omitempty"`
+	// SignerIsThisRepo reports that the signer is the repository being scanned.
+	SignerIsThisRepo bool `json:"signerIsThisRepo,omitempty"`
+	// SignerRepo names the signer's repository when it is NOT this one.
+	SignerRepo string `json:"signerRepo,omitempty"`
 	// Checks is every verification step and its outcome. This, not a boolean,
 	// is the honest answer.
 	Checks []Check `json:"checks"`
@@ -211,15 +216,18 @@ func (r *Result) suggestCommand(why, command string) {
 // actually found, is what makes it actionable by someone who has never written
 // a certificate-identity regex.
 func addHardeningSuggestions(res *Result, opts Options) {
-	if opts.Identity == "" && res.Identity.Subject != "" {
+	if opts.Identity == "" && opts.IdentityRegex == "" && res.Identity.Subject != "" {
+		// The exact subject, unescaped. --identity is an exact comparison, so
+		// this pastes back verbatim; the earlier regex form produced a line
+		// full of backslashes that nobody would read, let alone check.
 		res.suggest(
 			"any identity this CA will issue to would also pass, not just this one",
-			"--identity '"+regexp.QuoteMeta(res.Identity.Subject)+"'")
+			"--identity "+quoteArg(res.Identity.Subject))
 	}
 	if opts.Issuer == "" && res.Identity.Issuer != "" {
 		res.suggest(
 			"any OIDC provider this CA accepts would also pass",
-			"--issuer "+res.Identity.Issuer)
+			"--issuer "+issuerShortcutFor(res.Identity.Issuer))
 	}
 
 	// Last, and as a whole command rather than flags to add: proving *when* a
@@ -273,16 +281,37 @@ type Options struct {
 	SignaturePath, CertificatePath string
 	// EnvelopePath is a DSSE envelope (.intoto.jsonl).
 	EnvelopePath string
-	// Identity, when set, is a regular expression the certificate subject must
-	// match. Verifying a signature without checking who made it establishes
-	// only that somebody signed it, which is rarely the question.
+	// Identity, when set, is the exact certificate subject required.
+	//
+	// Exact, not a pattern. Every keyless subject is a URL, so a pattern is
+	// full of dots, and a user pasting "https://github.com/acme/repo" as a
+	// regex gets a match on "https://githubXcom/acme/repo" too. The safe
+	// comparison is the default and the pattern is opt-in, which is also the
+	// split cosign uses (--certificate-identity vs -regexp).
 	Identity string
-	// Issuer, when set, is the OIDC issuer the certificate must name.
+	// IdentityRegex, when set, is a pattern the subject must match. For
+	// deliberately matching a set — every workflow in one repository, say.
+	IdentityRegex string
+	// Issuer, when set, is the OIDC issuer the certificate must name. Accepts a
+	// shortcut name (github, gitlab, google, microsoft) as well as a URL.
 	Issuer string
 	// TrustedRootPath is a PEM bundle to validate the certificate chain
-	// against. Absent, chain validation is reported as skipped rather than
-	// silently passed.
+	// against. Empty resolves through SIGSTORE_ROOT_FILE, then the project's
+	// own root, then the embedded public-good one — see resolveAnchor.
 	TrustedRootPath string
+	// ProjectRoot is the repository the artefact belongs to. Used to discover
+	// .vulnetix/trusted-root.pem, and to notice when the signer is that
+	// repository's own CI.
+	ProjectRoot string
+	// RepoFullName is the "owner/repo" of ProjectRoot, when it is known.
+	// Purely informational: a signature from the repository being scanned is
+	// worth pointing out, and one from somewhere else is worth pointing out
+	// more.
+	RepoFullName string
+	// Strict requires the verification to be fully pinned: an identity and an
+	// issuer expectation, and a chain that verified. It fails with the exact
+	// flags to add rather than a lecture about what strict means.
+	Strict bool
 	// Require names checks that must have been performed. A required check that
 	// was skipped becomes a failure.
 	Require []string
@@ -336,9 +365,11 @@ func Verify(opts Options) (*Result, error) {
 
 	if leaf != nil {
 		res.Identity = identityFrom(leaf)
+		noteRepositoryMatch(res, opts)
 		checkValidity(res, leaf, now)
 		checkIdentity(res, opts)
 		checkChain(res, leaf, intermediates, opts)
+		checkStrict(res, opts)
 	}
 
 	// A required check that did not run is a failure. This is how a caller who
@@ -529,32 +560,163 @@ func checkValidity(res *Result, cert *x509.Certificate, now time.Time) {
 // missing at all: the identity had been read successfully and the user had
 // simply not said what they expected it to be. Suggestions carry that instead.
 func checkIdentity(res *Result, opts Options) {
-	if opts.Identity != "" {
-		re, err := regexp.Compile(opts.Identity)
+	switch {
+	case opts.Identity != "":
+		switch {
+		case res.Identity.Subject == "":
+			res.add("identity", CheckFailed, "certificate carries no subject alternative name to match against")
+		case res.Identity.Subject != opts.Identity:
+			res.add("identity", CheckFailed,
+				fmt.Sprintf("signed by %q, not %q", res.Identity.Subject, opts.Identity))
+		default:
+			res.add("identity", CheckPassed, "")
+		}
+
+	case opts.IdentityRegex != "":
+		re, err := regexp.Compile(opts.IdentityRegex)
 		switch {
 		case err != nil:
-			res.add("identity", CheckFailed, fmt.Sprintf("--identity is not a valid regexp: %v", err))
+			res.add("identity", CheckFailed, fmt.Sprintf("--identity-regex is not a valid regexp: %v", err))
 		case res.Identity.Subject == "":
 			res.add("identity", CheckFailed, "certificate carries no subject alternative name to match against")
 		case !re.MatchString(res.Identity.Subject):
 			res.add("identity", CheckFailed,
-				fmt.Sprintf("signed by %q, which does not match %q", res.Identity.Subject, opts.Identity))
+				fmt.Sprintf("signed by %q, which does not match %q", res.Identity.Subject, opts.IdentityRegex))
 		default:
 			res.add("identity", CheckPassed, "")
 		}
 	}
 
 	if opts.Issuer != "" {
+		want := ExpandIssuer(opts.Issuer)
 		switch {
 		case res.Identity.Issuer == "":
 			res.add("issuer", CheckFailed, "certificate names no OIDC issuer")
-		case res.Identity.Issuer != opts.Issuer:
+		case res.Identity.Issuer != want:
 			res.add("issuer", CheckFailed,
-				fmt.Sprintf("authenticated by %q, not %q", res.Identity.Issuer, opts.Issuer))
+				fmt.Sprintf("authenticated by %q, not %q", res.Identity.Issuer, want))
 		default:
 			res.add("issuer", CheckPassed, "")
 		}
 	}
+}
+
+// issuerShortcuts map a provider name onto its OIDC issuer URL.
+//
+// Nobody remembers that GitHub Actions authenticates as
+// token.actions.githubusercontent.com. Requiring the URL to pin the issuer
+// means the pin does not get applied, which is the outcome the flag exists to
+// prevent. A full URL is still accepted unchanged.
+var issuerShortcuts = map[string]string{
+	"github":    "https://token.actions.githubusercontent.com",
+	"gitlab":    "https://gitlab.com",
+	"google":    "https://accounts.google.com",
+	"microsoft": "https://login.microsoftonline.com",
+	"buildkite": "https://agent.buildkite.com",
+	"codefresh": "https://oidc.codefresh.io",
+}
+
+// ExpandIssuer resolves a shortcut name to its issuer URL, or returns the input.
+func ExpandIssuer(name string) string {
+	if url, ok := issuerShortcuts[strings.ToLower(strings.TrimSpace(name))]; ok {
+		return url
+	}
+	return name
+}
+
+// issuerShortcutFor is the inverse: the short name for a URL, when one exists.
+//
+// Used in suggestions, so the offered command reads `--issuer github` rather
+// than a URL the reader would have to recognise to trust.
+func issuerShortcutFor(url string) string {
+	for name, u := range issuerShortcuts {
+		if u == url {
+			return name
+		}
+	}
+	return quoteArg(url)
+}
+
+// IssuerShortcutNames lists the accepted shortcuts, for help text.
+func IssuerShortcutNames() []string {
+	names := make([]string, 0, len(issuerShortcuts))
+	for n := range issuerShortcuts {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// checkStrict requires the verification to be fully pinned.
+//
+// The failure names the flags to add, with the values already filled in from
+// what was read. A --strict that only said "not strict enough" would make the
+// user go and find out what strict means; this one hands them the command.
+func checkStrict(res *Result, opts Options) {
+	if !opts.Strict {
+		return
+	}
+	var missing []string
+	if opts.Identity == "" && opts.IdentityRegex == "" {
+		if res.Identity.Subject != "" {
+			missing = append(missing, "--identity "+quoteArg(res.Identity.Subject))
+		} else {
+			missing = append(missing, "--identity (the certificate names no subject to pin)")
+		}
+	}
+	if opts.Issuer == "" {
+		if res.Identity.Issuer != "" {
+			missing = append(missing, "--issuer "+quoteArg(res.Identity.Issuer))
+		} else {
+			missing = append(missing, "--issuer (the certificate names no issuer to pin)")
+		}
+	}
+	if len(missing) == 0 {
+		res.add("strict", CheckPassed, "")
+		return
+	}
+	res.add("strict", CheckFailed,
+		"--strict requires the signer to be pinned; add: "+strings.Join(missing, " "))
+}
+
+// noteRepositoryMatch records whether the signer is the scanned repository.
+//
+// Zero configuration, and it answers the question a reader actually has. "This
+// was signed by github.com/acme/repo" means nothing without knowing whether
+// that is your repository; saying so, or saying it is somebody else's, is the
+// whole difference. It is a note rather than a check because a third-party
+// artefact legitimately comes from a third party — failing on that by default
+// would make the tool unusable for the case it is most needed in.
+func noteRepositoryMatch(res *Result, opts Options) {
+	if opts.RepoFullName == "" || res.Identity.Subject == "" {
+		return
+	}
+	signerRepo := githubRepoFromSubject(res.Identity.Subject)
+	if signerRepo == "" {
+		return
+	}
+	if strings.EqualFold(signerRepo, opts.RepoFullName) {
+		res.SignerIsThisRepo = true
+		return
+	}
+	res.SignerRepo = signerRepo
+}
+
+// githubRepoFromSubject pulls "owner/repo" out of a GitHub workflow identity.
+//
+// The subject is https://github.com/<owner>/<repo>/<path>@<ref>; anything that
+// does not have that shape yields "", because guessing wrong here would produce
+// a confident and false "this is not your repository".
+func githubRepoFromSubject(subject string) string {
+	rest, ok := strings.CutPrefix(subject, "https://github.com/")
+	if !ok {
+		return ""
+	}
+	parts := strings.SplitN(rest, "/", 3)
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return ""
+	}
+	return parts[0] + "/" + parts[1]
 }
 
 // checkChain validates the certificate chain against a trust anchor.
@@ -592,18 +754,6 @@ func checkChain(res *Result, leaf *x509.Certificate, intermediates *x509.CertPoo
 		return
 	}
 	res.add("certificate-chain", CheckPassed, "issued by "+anchor.Name)
-}
-
-// resolveAnchor picks the trust anchor: an explicit one, else the embedded root.
-func resolveAnchor(opts Options) (*TrustAnchor, error) {
-	path := opts.TrustedRootPath
-	if path == "" {
-		path = os.Getenv("SIGSTORE_ROOT_FILE")
-	}
-	if path != "" {
-		return LoadTrustAnchor(path)
-	}
-	return PublicGood()
 }
 
 // Fulcio certificate extension OIDs.
