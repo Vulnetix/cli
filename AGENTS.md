@@ -123,23 +123,44 @@ gate honours VEX by construction; filtering per gate would leave one that could
 be forgotten, and the forgotten one fails a build over a finding the vendor
 already excluded.
 
-### Attestation Verification Never Claims What It Did Not Check
+### Attestation Verification: Do The Work, Then Be Exact About It
 
-`internal/cdxsign` signs; `internal/attest` verifies. The whole design of the
-verifier follows from one rule: **a green tick for a check that did not run is
-worse than no verifier at all**, because it converts an unknown into a false
-assurance.
+`internal/cdxsign` signs; `internal/attest` verifies. Two rules pull against
+each other and both matter. A green tick for a check that did not run converts
+an unknown into a false assurance. But a verifier that answers every question
+with "you did not tell me what to trust" is not careful either — it is making
+the user do its job and calling that honesty.
 
-So `Verify` returns no bare boolean. It returns a list of checks, each
-passed/failed/skipped with a reason, and the terminal output is that table.
-Signature validity and certificate identity are checked locally and always run.
-Certificate chain validation runs **only** with `--trusted-root` (or
-`SIGSTORE_ROOT_FILE`) and is reported as skipped otherwise — treating "I have no
-trust root" as a pass would assert that any self-issued certificate is as good
-as a Fulcio one. Rekor inclusion is **never** claimed: it needs the log's public
-key and an online query. `--require <check>` turns a skip into a failure, which
-is how a pipeline that genuinely needs chain validation is told it did not
-happen.
+The first version got this wrong and it is worth not repeating. It skipped chain
+validation unless given `--trusted-root`, listed the identity and issuer as
+"skipped" whenever no expectation was supplied, and printed six rows of which
+four said skipped. A non-expert read that as having failed at something, with no
+indication of what.
+
+What it does now:
+
+- **The Sigstore public-good root is embedded** (`internal/attest/roots/`) and
+  used by default, exactly as cosign does. `--trusted-root` is an override for a
+  private deployment, not a prerequisite. A chain that does not anchor there
+  *fails* and says to pass `--trusted-root` — it does not shrug.
+- **`parseCertificate` reads the whole PEM bundle.** Fulcio returns leaf +
+  intermediate + root and the signer stores all of it; decoding only the first
+  block threw the intermediates away and made every chain check unable to build
+  a path. That single bug is why chain validation looked impossible without user
+  input when the material was in the file already.
+- **The identity is a fact, not a check.** It is always read and always
+  reported. Comparing it against an expectation is the check, and only runs when
+  one is given.
+- **What is genuinely not done becomes a `Suggestion`** carrying a complete,
+  pre-filled command — never a fragment with an ellipsis, which a reader can
+  only complete if they already knew the answer. Ordered most-actionable first;
+  the cosign invocation for transparency-log inclusion goes last.
+- `--require <check>` turns "did not run" into a failure, for a pipeline needing
+  a specific assurance rather than the default set.
+
+The embedded root is pinned rather than fetched over TUF. `TestEmbeddedRootIsUsable`
+fails once it expires, so the day the pin goes stale is loud rather than a
+mystery chain error.
 
 An expired certificate **passes** with a caveat. Fulcio certificates live ten
 minutes, so failing every signature older than that would make the verifier

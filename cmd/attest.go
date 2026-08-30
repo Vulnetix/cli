@@ -19,9 +19,10 @@ import (
 // and `bom import --verify-attestation` apply the same checks — a document
 // trusted by one path and not the other would be worse than neither.
 //
-// The output is a per-check table, never a bare tick. A verifier that reports
-// success for a check it did not perform converts an unknown into a false
-// assurance, which is the one thing worse than not verifying at all.
+// The defaults do the work: the Sigstore public-good root is embedded, so a
+// chain is validated without being asked. What could not be established is said
+// once, with the command that would establish it — never as a wall of skipped
+// checks the reader has to decode.
 // ─────────────────────────────────────────────────────────────────────────
 
 var attestCmd = &cobra.Command{
@@ -32,15 +33,10 @@ var attestCmd = &cobra.Command{
 Reads what 'vulnetix cdx --sign' writes — a DSSE envelope and cosign-compatible
 detached sidecars — and anything else in those formats.
 
-What is checked, and what is not, is always stated. Signature validity and the
-certificate's identity are checked locally. Certificate chain validation happens
-only when you supply a trusted root, and is reported as skipped otherwise, not
-quietly passed. Rekor transparency-log inclusion is never checked here: it needs
-the log's public key and an online query, and claiming it without doing it would
-be a lie the output cannot recover from.
-
-For the full Sigstore verification path, use 'cosign verify-blob'. This command
-is what a scan can honestly do offline, said precisely.
+Run it with no flags. The Sigstore public-good root is built in, so the
+certificate chain is validated by default, exactly as cosign does it. The output
+says who signed the artefact and, if the check could be tighter, the one command
+that would tighten it.
 
 Subcommands:
   verify  check an artefact's signature, identity and provenance`,
@@ -52,26 +48,33 @@ var attestVerifyCmd = &cobra.Command{
 	Short: "Verify an artefact's signature, identity and provenance",
 	Long: `Verify an artefact's signature and report what its provenance claims.
 
-Sidecars are discovered beside the artefact unless named explicitly:
-<artifact>.intoto.jsonl for the DSSE envelope, <artifact>.sig and
-<artifact>.pem for the detached cosign pair.
+Run it with no flags:
 
---identity is a regular expression the certificate subject must match, and
---issuer the OIDC issuer it must name. Without them a valid signature proves
-only that somebody signed it, which is rarely the question being asked.
+  vulnetix attest verify sbom.cdx.json
 
---trusted-root enables certificate chain validation. Without it, the certificate
-is read but not proven to come from a CA you trust, and the report says so.
---require makes a skipped check a failure, so a pipeline that genuinely needs
-chain validation is told when it did not happen instead of reading a pass.
+Sidecars are found beside the artefact — <artifact>.intoto.jsonl for a DSSE
+envelope, <artifact>.sig and <artifact>.pem for the detached cosign pair.
 
-Exits 1 when any performed check failed, or when a required check was skipped.
+The signature and the certificate chain are checked by default, against the
+built-in Sigstore public-good root. A valid signature means somebody Sigstore
+trusts made it — which, for GitHub Actions, is any workflow in any repository.
+To require a particular signer, pin the identity; the command prints the exact
+flag with the identity it found, so you can paste it back:
+
+  vulnetix attest verify sbom.cdx.json --identity 'https://github.com/acme/repo/...'
+
+--issuer pins the OIDC provider. --trusted-root points at a private Sigstore
+deployment's root instead of the built-in one. --require <check> fails the run
+when a named check did not happen, for a pipeline that needs a specific
+assurance rather than the default set.
+
+Exits 1 when any check fails.
 
 Examples:
   vulnetix attest verify sbom.cdx.json
   vulnetix attest verify sbom.cdx.json --identity 'https://github.com/acme/.*'
-  vulnetix attest verify sbom.cdx.json --issuer https://token.actions.githubusercontent.com
-  vulnetix attest verify sbom.cdx.json --trusted-root fulcio.pem --require certificate-chain
+  vulnetix attest verify sbom.cdx.json --trusted-root private-fulcio.pem
+  vulnetix attest verify sbom.cdx.json --verbose      # show every check
   vulnetix attest verify sbom.cdx.json -o json`,
 	Args:         cobra.ExactArgs(1),
 	RunE:         runAttestVerifyCmd,
@@ -196,72 +199,119 @@ func runAttestVerifyCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// renderAttestResult prints the verdict.
+//
+// Shaped for somebody who has never verified a signature before: the answer
+// first in one line, then what was established, then — only if there is
+// something to do — the exact command that would tighten it. The earlier
+// version led with a six-row table of which four rows said "skipped", which
+// told a non-expert they had failed at something without saying at what.
 func renderAttestResult(res *attest.Result) {
 	term := display.NewTerminal()
 
 	fmt.Println(display.Header(term, "Attestation"))
 	fmt.Println()
-	fmt.Printf("Artifact: %s\n", display.Bold(term, res.Artifact))
-	if res.Digest != "" {
-		fmt.Printf("Digest:   sha256:%s\n", res.Digest)
-	}
-	fmt.Printf("Envelope: %s\n", orDash(res.Envelope))
-	fmt.Println()
 
-	if res.Identity.Subject != "" || res.Identity.Issuer != "" {
+	// The verdict, first and in one line.
+	switch {
+	case len(res.Failures()) > 0:
+		fmt.Printf("%s %s could not be verified.\n\n",
+			display.CrossMark(term), display.Bold(term, filepath.Base(res.Artifact)))
+	case res.Verified():
+		fmt.Printf("%s %s is signed, and the signature is valid.\n\n",
+			display.CheckMark(term), display.Bold(term, filepath.Base(res.Artifact)))
+	default:
+		fmt.Printf("%s %s carries no signature this CLI could check.\n\n",
+			display.WarningMark(term), display.Bold(term, filepath.Base(res.Artifact)))
+	}
+
+	// Who signed it, as prose rather than a field dump. This is the fact a
+	// reader most wants and the one they are least able to assemble from a
+	// certificate.
+	if res.Identity.Subject != "" {
 		fmt.Println(display.Subheader(term, "Signed by"))
-		rows := [][]string{
-			{"Subject", orDash(res.Identity.Subject)},
-			{"Issuer", orDash(res.Identity.Issuer)},
+		fmt.Printf("  %s\n", display.Bold(term, res.Identity.Subject))
+		if res.Identity.Issuer != "" {
+			fmt.Printf("  %s\n", display.Muted(term,
+				"authenticated by "+res.Identity.Issuer))
 		}
-		if res.Identity.SourceRepository != "" {
-			rows = append(rows, []string{"Source repo", res.Identity.SourceRepository})
+		if res.TrustAnchor != "" && res.PerformedChain() {
+			fmt.Printf("  %s\n", display.Muted(term,
+				"certificate issued by "+res.TrustAnchor))
 		}
-		if res.Identity.SourceRevision != "" {
-			rows = append(rows, []string{"Source revision", res.Identity.SourceRevision})
-		}
-		if !res.Identity.NotBefore.IsZero() {
-			rows = append(rows, []string{"Certificate valid",
-				res.Identity.NotBefore.Format("2006-01-02T15:04:05Z") + " → " +
-					res.Identity.NotAfter.Format("2006-01-02T15:04:05Z")})
-		}
-		fmt.Print(display.Table(term, []display.Column{
-			{Header: "Field", MinWidth: 18},
-			{Header: "Value"},
-		}, rows))
-		fmt.Print("\n\n")
+		fmt.Println()
 	}
 
-	// The check table is the output. A single verdict line would hide which
-	// assurances were actually obtained.
-	fmt.Println(display.Subheader(term, "Checks"))
+	renderAttestChecks(term, res)
+
+	if res.Predicate != nil {
+		renderPredicate(term, res.Predicate)
+	}
+
+	// Failures get the detail; a passing run does not need to be lectured.
+	if failures := res.Failures(); len(failures) > 0 {
+		fmt.Println(display.Subheader(term, "Why it failed"))
+		for _, f := range failures {
+			fmt.Printf("  %s %s\n", display.ErrorStyle(term, f.Name+":"), f.Detail)
+		}
+		fmt.Println()
+		return
+	}
+
+	renderAttestSuggestions(term, res)
+}
+
+// renderAttestChecks prints the check table only when it adds something.
+//
+// A run where everything passed does not need six rows saying so — the verdict
+// line already said it. --verbose, or any failure, brings the table back.
+func renderAttestChecks(term *display.Terminal, res *attest.Result) {
+	if !verbose && len(res.Failures()) == 0 {
+		return
+	}
 	rows := make([][]string, 0, len(res.Checks))
 	for _, c := range res.Checks {
 		rows = append(rows, []string{string(c.Status), c.Name, c.Detail})
 	}
+	if len(rows) == 0 {
+		return
+	}
+	fmt.Println(display.Subheader(term, "Checks"))
 	fmt.Print(display.Table(term, []display.Column{
 		{Header: "Result", MinWidth: 8, Color: attestStatusColour(term)},
 		{Header: "Check", MinWidth: 22},
 		{Header: "Detail"},
 	}, rows))
 	fmt.Print("\n\n")
+}
 
-	if res.Predicate != nil {
-		renderPredicate(term, res.Predicate)
+// renderAttestSuggestions prints how to make the verification stricter.
+//
+// Each one is a complete command, not a description of a flag. Somebody who has
+// never written a certificate-identity regex can copy the line and be done,
+// which is the entire difference between a report that is honest and one that
+// is usable.
+func renderAttestSuggestions(term *display.Terminal, res *attest.Result) {
+	if len(res.Suggestions) == 0 {
+		return
 	}
+	fmt.Println(display.Subheader(term, "This check is looser than it could be"))
+	for _, s := range res.Suggestions {
+		fmt.Printf("  %s\n", display.Muted(term, s.Why))
+		fmt.Printf("    %s\n\n", display.Bold(term, suggestionCommand(res, s)))
+	}
+}
 
-	switch {
-	case len(res.Failures()) > 0:
-		fmt.Printf("%s %s failed.\n", display.CrossMark(term),
-			pluralise("check", len(res.Failures())))
-	case res.Verified():
-		// "N checks" then a separate verb, because pluralise() appends its "s"
-		// to the whole phrase it is given.
-		fmt.Printf("%s Signature verified. %s were not performed — see the table above.\n",
-			display.CheckMark(term), pluralise("check", len(res.Missing())))
-	default:
-		fmt.Printf("%s Nothing was verified.\n", display.WarningMark(term))
+// suggestionCommand renders a suggestion as a runnable line.
+//
+// A suggestion carrying a whole Command names a different tool and is printed
+// as-is; one carrying Flags is an argument to add to the command just run, so
+// the run is reconstructed around it.
+func suggestionCommand(res *attest.Result, s attest.Suggestion) string {
+	if s.Command != "" {
+		return s.Command
 	}
+	return fmt.Sprintf("vulnetix attest verify %s %s", res.Artifact, s.Flags)
 }
 
 func renderPredicate(term *display.Terminal, p *attest.Predicate) {
@@ -340,10 +390,10 @@ func init() {
 	attestVerifyCmd.Flags().String("envelope", "", "DSSE envelope (default: <artifact>.intoto.jsonl)")
 	attestVerifyCmd.Flags().String("signature", "", "Detached signature (default: <artifact>.sig)")
 	attestVerifyCmd.Flags().String("certificate", "", "Signing certificate (default: <artifact>.pem)")
-	attestVerifyCmd.Flags().String("identity", "", "Regular expression the certificate subject must match")
+	attestVerifyCmd.Flags().String("identity", "", "Require the signer to match this regular expression (the command prints the one it found)")
 	attestVerifyCmd.Flags().String("issuer", "", "OIDC issuer the certificate must name")
 	attestVerifyCmd.Flags().String("trusted-root", "",
-		"PEM bundle to validate the certificate chain against (also SIGSTORE_ROOT_FILE)")
+		"Root certificate of a private Sigstore deployment (default: the built-in public-good root; also SIGSTORE_ROOT_FILE)")
 	attestVerifyCmd.Flags().StringArray("require", nil,
-		"Treat this check as a failure if it was not performed, e.g. certificate-chain (repeatable)")
+		"Fail when this check did not run, e.g. transparency-log (repeatable)")
 }

@@ -15,6 +15,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -166,7 +168,7 @@ func TestVerifyDSSE(t *testing.T) {
 	payload := []byte(`{"bomFormat":"CycloneDX","specVersion":"1.6","version":1}`)
 	envelope := f.writeDSSE(t, "sbom.cdx.json.intoto.jsonl", payload)
 
-	res, err := Verify(Options{ArtifactPath: "sbom.cdx.json", EnvelopePath: envelope})
+	res, err := Verify(Options{ArtifactPath: "sbom.cdx.json", EnvelopePath: envelope, TrustedRootPath: f.rootPath})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,6 +230,7 @@ func TestVerifyCosignDetached(t *testing.T) {
 	res, err := Verify(Options{
 		ArtifactPath: path, Artifact: artifact,
 		SignaturePath: sigPath, CertificatePath: certPath,
+		TrustedRootPath: f.rootPath,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -240,6 +243,7 @@ func TestVerifyCosignDetached(t *testing.T) {
 	res, err = Verify(Options{
 		ArtifactPath: path, Artifact: []byte(`{"different":true}`),
 		SignaturePath: sigPath, CertificatePath: certPath,
+		TrustedRootPath: f.rootPath,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -249,10 +253,11 @@ func TestVerifyCosignDetached(t *testing.T) {
 	}
 }
 
-// TestChainIsSkippedNotPassed is the central honesty property: a verifier that
-// treats "I have no trust root" as a pass is asserting that any self-issued
-// certificate is as good as a Fulcio one.
-func TestChainIsSkippedNotPassed(t *testing.T) {
+// TestChainIsVerifiedByDefault pins the corrected default. Demanding a
+// --trusted-root before doing any chain work made the user answer a question
+// the tool can answer itself: cosign verifies against the public-good root
+// without being asked, and so does this.
+func TestChainIsVerifiedByDefault(t *testing.T) {
 	f := newSigningFixture(t, "https://example.com/signer", "https://issuer.example.com")
 	envelope := f.writeDSSE(t, "unrooted.intoto.jsonl", []byte(`{}`))
 
@@ -262,19 +267,114 @@ func TestChainIsSkippedNotPassed(t *testing.T) {
 	}
 	c := checkNamed(res, "certificate-chain")
 	if c == nil {
-		t.Fatal("no certificate-chain check was reported at all")
+		t.Fatal("no certificate-chain check ran")
 	}
-	if c.Status != CheckSkipped {
-		t.Errorf("certificate-chain = %q, want skipped when no trusted root is supplied", c.Status)
+	// The fixture CA is not Sigstore, so with no override this must FAIL —
+	// not skip. A skip would mean the tool declined to have an opinion about a
+	// certificate from an unknown authority.
+	if c.Status != CheckFailed {
+		t.Errorf("certificate-chain = %q, want failed for a certificate from an unknown CA", c.Status)
 	}
-	if c.Detail == "" {
-		t.Error("a skipped check must say why")
+	if !strings.Contains(c.Detail, "--trusted-root") {
+		t.Errorf("the failure does not say how to fix it: %q", c.Detail)
+	}
+	if res.Verified() {
+		t.Error("a certificate from an unknown CA was reported as verified")
+	}
+}
+
+// TestEmbeddedRootIsUsable guards the pinned trust anchor itself. A root that
+// failed to parse, or that had quietly expired, would make every default
+// verification fail with an unhelpful chain error.
+func TestEmbeddedRootIsUsable(t *testing.T) {
+	anchor, err := PublicGood()
+	if err != nil {
+		t.Fatalf("the embedded Sigstore root does not parse: %v", err)
+	}
+	if len(anchor.Roots) == 0 {
+		t.Fatal("the embedded anchor holds no certificates")
+	}
+	name, expiry := anchor.EarliestExpiry()
+	if name == "" || expiry == "" {
+		t.Fatal("the anchor reports no expiry")
+	}
+	for _, c := range anchor.Roots {
+		if c.NotAfter.Before(time.Now()) {
+			t.Errorf("embedded root %q expired on %s; refresh internal/attest/roots/",
+				c.Subject.CommonName, c.NotAfter.Format("2006-01-02"))
+		}
+	}
+}
+
+// TestIdentityIsAFactNotASkippedCheck pins the second half of the fix. The
+// identity is always read; not having an expectation to compare it against is
+// not a gap in the verification, and listing it as "skipped" told a reader they
+// had failed at something without saying at what.
+func TestIdentityIsAFactNotASkippedCheck(t *testing.T) {
+	subject := "https://github.com/acme/repo/.github/workflows/release.yml@refs/heads/main"
+	f := newSigningFixture(t, subject, "https://token.actions.githubusercontent.com")
+	envelope := f.writeDSSE(t, "facts.intoto.jsonl", []byte(`{}`))
+
+	res, err := Verify(Options{
+		ArtifactPath: "facts", EnvelopePath: envelope, TrustedRootPath: f.rootPath,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	// And Rekor is never claimed.
-	tlog := checkNamed(res, "transparency-log")
-	if tlog == nil || tlog.Status != CheckSkipped {
-		t.Errorf("transparency-log = %+v, want an explicit skip", tlog)
+	// The identity is reported as a fact.
+	if res.Identity.Subject != subject {
+		t.Errorf("Identity.Subject = %q, want the certificate's SAN", res.Identity.Subject)
+	}
+	// And not as a check at all, since nothing was asked of it.
+	for _, name := range []string{"identity", "issuer"} {
+		if c := checkNamed(res, name); c != nil {
+			t.Errorf("%s appears as a check (%q) when no expectation was given", name, c.Status)
+		}
+	}
+	// Instead, a suggestion carrying the flag that would pin it — pre-filled,
+	// so somebody who has never written one can paste it back.
+	if len(res.Suggestions) == 0 {
+		t.Fatal("no suggestions offered for an unpinned verification")
+	}
+	var sawIdentity bool
+	for _, s := range res.Suggestions {
+		if strings.Contains(s.Flags, "--identity") {
+			sawIdentity = true
+			if !strings.Contains(s.Flags, "acme/repo") {
+				t.Errorf("the --identity suggestion is not pre-filled: %q", s.Flags)
+			}
+		}
+		if s.Why == "" {
+			t.Errorf("suggestion %q has no explanation", s.Flags)
+		}
+	}
+	if !sawIdentity {
+		t.Errorf("no --identity suggestion offered: %+v", res.Suggestions)
+	}
+}
+
+// TestSuggestionsDisappearWhenPinned pins that the advice stops once taken.
+func TestSuggestionsDisappearWhenPinned(t *testing.T) {
+	subject := "https://example.com/signer"
+	f := newSigningFixture(t, subject, "https://issuer.example.com")
+	envelope := f.writeDSSE(t, "pinned.intoto.jsonl", []byte(`{}`))
+
+	res, err := Verify(Options{
+		ArtifactPath: "pinned", EnvelopePath: envelope, TrustedRootPath: f.rootPath,
+		Identity: regexp.QuoteMeta(subject), Issuer: "https://issuer.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range res.Suggestions {
+		if strings.Contains(s.Flags, "--identity") || strings.Contains(s.Flags, "--issuer") {
+			t.Errorf("still suggesting a pin that was already applied: %q", s.Flags)
+		}
+	}
+	// The transparency-log suggestion remains: it is genuinely not done.
+	if len(res.Suggestions) == 0 {
+		t.Error("the transparency-log suggestion should survive, since it is still not checked")
 	}
 }
 
@@ -337,7 +437,7 @@ func TestIdentityAndIssuerChecks(t *testing.T) {
 
 	// Matching identity and issuer pass.
 	res, err := Verify(Options{
-		ArtifactPath: "identity", EnvelopePath: envelope,
+		ArtifactPath: "identity", EnvelopePath: envelope, TrustedRootPath: f.rootPath,
 		Identity: `^https://github\.com/acme/.*`,
 		Issuer:   "https://token.actions.githubusercontent.com",
 	})
@@ -350,7 +450,7 @@ func TestIdentityAndIssuerChecks(t *testing.T) {
 
 	// A different org must fail.
 	res, err = Verify(Options{
-		ArtifactPath: "identity", EnvelopePath: envelope,
+		ArtifactPath: "identity", EnvelopePath: envelope, TrustedRootPath: f.rootPath,
 		Identity: `^https://github\.com/someone-else/.*`,
 	})
 	if err != nil {
@@ -363,7 +463,7 @@ func TestIdentityAndIssuerChecks(t *testing.T) {
 	// A wrong issuer must fail: accepting any provider Fulcio trusts would let
 	// anyone with a Google account sign as this workflow.
 	res, err = Verify(Options{
-		ArtifactPath: "identity", EnvelopePath: envelope,
+		ArtifactPath: "identity", EnvelopePath: envelope, TrustedRootPath: f.rootPath,
 		Issuer: "https://accounts.google.com",
 	})
 	if err != nil {
@@ -371,16 +471,6 @@ func TestIdentityAndIssuerChecks(t *testing.T) {
 	}
 	if res.Verified() {
 		t.Error("a signature from a different OIDC issuer verified")
-	}
-
-	// Without --identity, the check is reported as skipped rather than passed:
-	// a valid signature alone proves only that somebody signed it.
-	res, err = Verify(Options{ArtifactPath: "identity", EnvelopePath: envelope})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c := checkNamed(res, "identity"); c == nil || c.Status != CheckSkipped {
-		t.Errorf("identity = %+v, want skipped when no expectation was given", c)
 	}
 }
 
@@ -392,7 +482,7 @@ func TestExpiredCertificatePasses(t *testing.T) {
 	envelope := f.writeDSSE(t, "old.intoto.jsonl", []byte(`{}`))
 
 	res, err := Verify(Options{
-		ArtifactPath: "old", EnvelopePath: envelope,
+		ArtifactPath: "old", EnvelopePath: envelope, TrustedRootPath: f.rootPath,
 		Now: time.Now().Add(365 * 24 * time.Hour),
 	})
 	if err != nil {

@@ -845,12 +845,12 @@ func init() {
 	// which is most of them.
 	bomImportCmd.Flags().Bool("verify-attestation", false,
 		"Verify the document's signature before trusting it; fails the import when a check fails")
-	bomImportCmd.Flags().String("identity", "", "Regular expression the certificate subject must match")
+	bomImportCmd.Flags().String("identity", "", "Require the signer to match this regular expression (the command prints the one it found)")
 	bomImportCmd.Flags().String("issuer", "", "OIDC issuer the certificate must name")
 	bomImportCmd.Flags().String("trusted-root", "",
-		"PEM bundle to validate the certificate chain against (also SIGSTORE_ROOT_FILE)")
+		"Root certificate of a private Sigstore deployment (default: the built-in public-good root; also SIGSTORE_ROOT_FILE)")
 	bomImportCmd.Flags().StringArray("require", nil,
-		"Treat this check as a failure if it was not performed, e.g. certificate-chain (repeatable)")
+		"Fail when this check did not run, e.g. transparency-log (repeatable)")
 
 	bomValidateCmd.Flags().StringP("output", "o", "pretty", "Output format: pretty (alias: table), json")
 	bomValidateCmd.Flags().Int("min-score", 0, "Exit non-zero when the completeness score is below this value (0 disables)")
