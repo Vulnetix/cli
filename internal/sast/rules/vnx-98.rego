@@ -16,7 +16,7 @@ metadata := {
 	"capec": ["CAPEC-253"],
 	"attack_technique": ["T1059.004"],
 	"cvssv4": "",
-	"cwss": "",
+	"cwss": "CWSS:1.0/TI:C/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:H/EC:N/P:W",
 	"tags": ["rfi", "file-inclusion", "php", "cwe-98"],
 }
 

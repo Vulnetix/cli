@@ -125,6 +125,14 @@ gen-secrets:
     go run ./internal/sast/secretsgen .
     just fmt
 
+
+# Regenerate every rule's CWSS vector from its severity, kind, CWE and tags.
+# The vectors are generated, not authored: internal/sast's CWSS tests fail if a
+# rule is edited without running this.
+gen-cwss:
+    go run ./internal/sast/cwssgen
+    just fmt
+
 # Regenerate AIBOM detection docs from the catalog (single source of truth)
 gen-aibom:
     go run ./internal/aibom/aibomgen

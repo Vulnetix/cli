@@ -18,7 +18,7 @@ metadata := {
 	"capec": ["CAPEC-191"],
 	"attack_technique": ["T1552.004"],
 	"cvssv4": "",
-	"cwss": "CWSS:1.0/TI:H/AP:A/AL:H/IC:H/FC:H/RP:H/RL:H/AV:N/AS:L/IN:L/SC:N/CONF:N/T:A/P:H",
+	"cwss": "CWSS:1.0/TI:C/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:H/EC:N/P:W",
 	"tags": ["secrets", "rsa", "private-keys"],
 }
 

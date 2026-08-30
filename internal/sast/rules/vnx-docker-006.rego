@@ -15,7 +15,7 @@ metadata := {
 	"capec": ["CAPEC-185"],
 	"attack_technique": ["T1195.002"],
 	"cvssv4": "",
-	"cwss": "",
+	"cwss": "CWSS:1.0/TI:L/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
 	"tags": ["docker", "best-practice", "container"],
 }
 

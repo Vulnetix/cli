@@ -15,7 +15,7 @@ metadata := {
 	"capec": ["CAPEC-118"],
 	"attack_technique": ["T1592"],
 	"cvssv4": "",
-	"cwss": "CWSS:1.0/TI:H/AP:A/AL:H/IC:M/FC:M/RP:M/RL:M/AV:N/AS:L/IN:L/SC:N/CONF:N/T:A/P:H",
+	"cwss": "CWSS:1.0/TI:L/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
 	"tags": ["graphql", "information-disclosure", "schema"],
 }
 

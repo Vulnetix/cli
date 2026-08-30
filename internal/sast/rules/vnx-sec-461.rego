@@ -18,7 +18,7 @@ metadata := {
 	"capec": ["CAPEC-191"],
 	"attack_technique": ["T1552.001"],
 	"cvssv4": "",
-	"cwss": "CWSS:1.0/TI:L/AP:A/AL:L/IC:L/FC:L/RP:H/RL:H/AV:N/AS:L/IN:L/SC:N/CONF:N/T:A/P:L",
+	"cwss": "CWSS:1.0/TI:L/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
 	"tags": ["secrets", "knock", "communication"],
 }
 

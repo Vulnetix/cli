@@ -15,7 +15,7 @@ metadata := {
 	"capec": ["CAPEC-461"],
 	"attack_technique": ["T1600"],
 	"cvssv4": "",
-	"cwss": "CWSS:1.0/TI:M/AP:A/AL:M/IC:M/FC:M/RP:M/RL:H/AV:N/AS:L/IN:L/SC:N/CONF:N/T:A/P:H",
+	"cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:H/EX:M/EC:N/P:C",
 	"tags": ["crypto", "hash", "weak-hash", "kotlin"],
 }
 

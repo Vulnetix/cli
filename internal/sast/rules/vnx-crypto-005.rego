@@ -15,7 +15,7 @@ metadata := {
 	"capec": ["CAPEC-94"],
 	"attack_technique": ["T1557"],
 	"cvssv4": "",
-	"cwss": "",
+	"cwss": "CWSS:1.0/TI:H/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
 	"tags": ["tls", "certificate", "mitm", "transport-security"],
 }
 

@@ -15,7 +15,7 @@ metadata := {
 	"capec": ["CAPEC-86"],
 	"attack_technique": ["T1059"],
 	"cvssv4": "",
-	"cwss": "CWSS:1.0/TI:H/AP:A/AL:H/IC:M/FC:M/RP:M/RL:M/AV:N/AS:L/IN:L/SC:N/CONF:N/T:A/P:H",
+	"cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:H/EX:M/EC:N/P:C",
 	"tags": ["header-injection", "crlf", "go"],
 }
 

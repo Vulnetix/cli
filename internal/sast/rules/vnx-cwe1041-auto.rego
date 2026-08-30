@@ -16,7 +16,7 @@ metadata := {
 	"capec": ["CAPEC-204"],
 	"attack_technique": [],
 	"cvssv4": "",
-	"cwss": "",
+	"cwss": "CWSS:1.0/TI:L/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
 	"tags": ["redundant-code", "duplicate-check", "code-quality", "cwe-1041"],
 }
 

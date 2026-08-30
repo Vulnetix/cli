@@ -19,7 +19,7 @@ metadata := {
     "capec": ["CAPEC-97"],
     "attack_technique": ["T1557"],
     "cvssv4": "",
-    "cwss": "",
+    "cwss": "CWSS:1.0/TI:M/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:M/DI:H/EX:M/EC:N/P:C",
     "tags": ["placeholder", "cwe-635"],
 }
 

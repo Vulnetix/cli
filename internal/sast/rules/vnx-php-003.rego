@@ -15,7 +15,7 @@ metadata := {
 	"capec": ["CAPEC-193"],
 	"attack_technique": ["T1059"],
 	"cvssv4": "",
-	"cwss": "",
+	"cwss": "CWSS:1.0/TI:C/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:C/DI:H/EX:H/EC:N/P:W",
 	"tags": ["file-inclusion", "lfi", "rfi", "rce"],
 }
 

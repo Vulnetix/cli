@@ -15,7 +15,7 @@ metadata := {
 	"capec": ["CAPEC-61"],
 	"attack_technique": ["T1565.001"],
 	"cvssv4": "",
-	"cwss": "CWSS:1.0/TI:H/AP:A/AL:H/IC:H/FC:H/RP:H/RL:H/AV:N/AS:L/IN:L/SC:N/CONF:N/T:A/P:H",
+	"cwss": "CWSS:1.0/TI:H/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:H/DI:H/EX:H/EC:N/P:H",
 	"tags": ["session-poisoning", "session", "access-control", "php"],
 }
 

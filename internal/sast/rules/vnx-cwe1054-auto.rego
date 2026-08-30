@@ -16,7 +16,7 @@ metadata := {
 	"capec": [],
 	"attack_technique": [],
 	"cvssv4": "",
-	"cwss": "",
+	"cwss": "CWSS:1.0/TI:L/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
 	"tags": ["commented-code", "dead-code", "code-quality", "secrets-in-comments", "cwe-1054"],
 }
 

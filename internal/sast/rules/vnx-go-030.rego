@@ -15,7 +15,7 @@ metadata := {
     "capec": ["CAPEC-63"],
     "attack_technique": ["T1059.007"],
     "cvssv4": "",
-    "cwss": "",
+    "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:H/EX:M/EC:N/P:C",
     "tags": ["cookie", "secure", "session"],
 }
 
