@@ -217,11 +217,13 @@ func buildAPISARIFFinding(f sast.Finding, memRecords map[string]memory.FindingRe
 	ruleName := ""
 	description := ""
 	cwes := []int{}
+	cwssVector := ""
 	tags := []string{}
 	if f.Metadata != nil {
 		ruleName = f.Metadata.Name
 		description = f.Metadata.Description
 		cwes = append(cwes, f.Metadata.CWE...)
+		cwssVector = f.Metadata.CWSS
 		tags = append(tags, f.Metadata.Tags...)
 	}
 	mem := memHitForRule(memRecords, f.RuleID)
@@ -244,6 +246,7 @@ func buildAPISARIFFinding(f sast.Finding, memRecords map[string]memory.FindingRe
 			EndLine:          f.EndLine,
 			Fingerprint:      f.Fingerprint,
 			CWEs:             cwes,
+			CWSS:             cwssVector,
 			Tags:             tags,
 			SARIFGuid:        f.Fingerprint,
 			CodeSnippet:      snippet,
