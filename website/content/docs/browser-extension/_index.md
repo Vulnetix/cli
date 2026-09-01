@@ -69,12 +69,24 @@ sha256sum -c SHA256SUMS.txt --ignore-missing
 ```
 
 While the repository is private these downloads need a GitHub session with
-access. A signed-in browser will fetch them; `curl` will not. For scripts, use
-the GitHub CLI, which handles authentication:
+access. The `/releases/latest/download/` links are the web route and
+authenticate with a browser session, so a signed-in browser fetches them and a
+bare `curl` gets a 404 — a token does not help there, because that route
+ignores it. For scripts, use the GitHub CLI:
 
 ```sh
 gh release download --repo Vulnetix/browser-extension \
   --pattern 'vulnetix-chrome.zip' --pattern 'SHA256SUMS.txt'
+```
+
+Where `gh` is unavailable, the REST asset endpoint does accept a token, as long
+as you ask for the bytes rather than the metadata:
+
+```sh
+url=$(gh api repos/Vulnetix/browser-extension/releases/latest \
+  --jq '.assets[] | select(.name == "vulnetix-chrome.zip") | .url')
+curl -sSL -H "Authorization: Bearer $GITHUB_TOKEN" \
+  -H "Accept: application/octet-stream" -o vulnetix-chrome.zip "$url"
 ```
 
 ### Store listings
