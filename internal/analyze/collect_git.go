@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 )
@@ -64,7 +65,43 @@ type gitStats struct {
 
 	walked    int
 	truncated bool
-	window    Window
+
+	// Why the walk stopped short, in the words the metric will carry. A truncation with
+	// no reason is the failure this whole report format exists to prevent.
+	truncationReason string
+
+	// The history itself is grafted: this clone never had the older commits, so no cap
+	// and no window explains what is missing.
+	shallow bool
+
+	window Window
+}
+
+// graftedParents returns the hashes a shallow clone does not hold: the parents of every
+// commit listed in `.git/shallow`. They are the only hashes reachable from HEAD that
+// cannot be resolved, so they are exactly what the walk must not descend into.
+//
+// An unreadable shallow file is treated as "not shallow" rather than as a failure. If the
+// history really is grafted the walk will say so itself; refusing to read any history
+// because one metadata file is odd is the trade this function exists to avoid.
+func graftedParents(repo *git.Repository) []plumbing.Hash {
+	boundary, err := repo.Storer.Shallow()
+	if err != nil || len(boundary) == 0 {
+		return nil
+	}
+
+	var missing []plumbing.Hash
+	for _, h := range boundary {
+		c, cerr := repo.CommitObject(h)
+		if cerr != nil {
+			// A boundary commit that is not in the object store cannot be walked into
+			// either, so there is nothing to fence off.
+			continue
+		}
+		missing = append(missing, c.ParentHashes...)
+	}
+
+	return missing
 }
 
 // collectGit walks history once and derives everything that comes from it. One walk, because
@@ -75,10 +112,19 @@ func collectGit(b *Builder, repo *git.Repository, opts Options, now time.Time, p
 	if err != nil {
 		return nil, fmt.Errorf("resolve HEAD: %w", err)
 	}
-	iter, err := repo.Log(&git.LogOptions{From: head.Hash()})
+	headCommit, err := repo.CommitObject(head.Hash())
 	if err != nil {
 		return nil, fmt.Errorf("read history: %w", err)
 	}
+
+	// A shallow checkout — which is what CI hands us, `actions/checkout` cloning at its
+	// default depth of 1 — keeps the boundary commits and drops their parents. go-git
+	// resolves parent hashes eagerly, so the moment the walk reaches a graft it fails the
+	// whole iteration with "object not found" and discards every commit already read with
+	// it. Seeding the walker's seen set with those unreachable parents ends each branch at
+	// the graft instead, which is where this checkout's history genuinely ends.
+	grafted := graftedParents(repo)
+	iter := object.NewCommitPreorderIter(headCommit, nil, grafted)
 	defer iter.Close()
 
 	st := &gitStats{
@@ -88,12 +134,20 @@ func collectGit(b *Builder, repo *git.Repository, opts Options, now time.Time, p
 		fileFirst:   map[string]time.Time{},
 		fileLast:    map[string]time.Time{},
 	}
+	if len(grafted) > 0 {
+		st.shallow = true
+		st.truncated = true
+		st.truncationReason = "the checkout is a shallow clone, so history older than the graft point is not present in it — re-run against a full clone (`fetch-depth: 0` in GitHub Actions) for complete history"
+	}
+
 	ids := NewIdentitySet()
 	since := now.AddDate(0, 0, -opts.WindowDays)
 
 	err = iter.ForEach(func(c *object.Commit) error {
 		if st.walked >= opts.MaxCommits {
 			st.truncated = true
+			st.truncationReason = fmt.Sprintf(
+				"history walk stopped at the --max-commits limit of %d; older commits were not read", opts.MaxCommits)
 
 			return errStopWalk
 		}
@@ -220,6 +274,16 @@ func emitGitMetrics(b *Builder, st *gitStats, opts Options, now time.Time) {
 	window := &MetricWindow{Since: st.window.Since, Until: st.window.Until,
 		Label: fmt.Sprintf("last_%d_days", opts.WindowDays)}
 
+	// A grafted history is a fact about the checkout, not about the repository, and every
+	// number below inherits it. A reader comparing two runs of the same repo has to be able
+	// to see that one of them only ever had part of the history to count.
+	if st.shallow {
+		b.Diagnose(Diagnostic{Level: "warning", Collector: "git", Caveat: true,
+			Message: fmt.Sprintf(
+				"This is a shallow clone: %s were present to read, and every activity, contributor, ownership and bus-factor number below covers only those. Check out with full history (`fetch-depth: 0` in GitHub Actions) to measure the repository rather than the checkout.",
+				plural(st.walked, "commit", "commits"))})
+	}
+
 	// Every commit and contributor becomes an evidence record exactly once. Metrics reference
 	// them; nothing duplicates them.
 	commitRefs := make(map[string]EvidenceRef, len(st.commits))
@@ -275,11 +339,10 @@ func emitGitMetrics(b *Builder, st *gitStats, opts Options, now time.Time) {
 		allCommitRefs = append(allCommitRefs, commitRefs[c.SHA])
 	}
 	if st.truncated {
-		// The cap was hit. Say so, say by how much we cannot know, and do not pretend the number
-		// is the whole story. We know how many we walked, not how many exist — so the honest
-		// statement is that at least one was omitted and the limit is why.
-		b.CountTruncated(commitMetric, allCommitRefs, 1,
-			fmt.Sprintf("history walk stopped at the --max-commits limit of %d; older commits were not read", opts.MaxCommits))
+		// The walk stopped short. Say so, say by how much we cannot know, and do not pretend the
+		// number is the whole story. We know how many we walked, not how many exist — so the
+		// honest statement is that at least one was omitted and why.
+		b.CountTruncated(commitMetric, allCommitRefs, 1, st.truncationReason)
 	} else {
 		b.Count(commitMetric, allCommitRefs)
 	}
