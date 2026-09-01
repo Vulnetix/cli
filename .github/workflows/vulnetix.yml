@@ -65,6 +65,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          # `vulnetix analyze` walks git history. The default depth-1 checkout
+          # has none of it, so every contributor, activity, ownership and
+          # bus-factor metric would describe one commit instead of the repository.
+          fetch-depth: 0
 
       - name: Install Vulnetix CLI
         run: |
