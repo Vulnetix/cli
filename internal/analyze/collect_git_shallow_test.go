@@ -124,4 +124,28 @@ func TestCollectGitWalksCompleteClone(t *testing.T) {
 	require.Len(t, st.commits, 2)
 	require.False(t, st.truncated)
 	require.Empty(t, st.truncationReason)
+
+	// The branch the commits were made on is a record, not just a run-level string.
+	require.Len(t, st.branches, 1)
+	require.NotEmpty(t, st.branches[0].Name)
+	require.NotEmpty(t, st.branches[0].LastCommitAt)
+	require.NotNil(t, st.branches[0].AgeSeconds)
+}
+
+// A branch whose tip this checkout does not hold is not a branch we can describe, and must
+// not become a record with invented dates.
+func TestCollectBranchesSkipsRefsWithNoObject(t *testing.T) {
+	repo, root := newShallowRepo(t, 1)
+	require.NoError(t, repo.Storer.SetReference(
+		plumbing.NewHashReference("refs/heads/ghost", plumbing.NewHash("0123456789012345678901234567890123456789"))))
+
+	b := NewBuilder(Tool{Name: "test", Version: "dev"}, Target{RepoID: "acme/demo", RootPath: root}, time.Now())
+	opts := DefaultOptions()
+	opts.Path = root
+
+	st, err := collectGit(b, repo, opts, time.Now(), reporter{})
+	require.NoError(t, err)
+	for _, br := range st.branches {
+		require.NotEqual(t, "ghost", br.Name)
+	}
 }

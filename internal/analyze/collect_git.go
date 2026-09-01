@@ -55,6 +55,7 @@ var coAuthorLine = regexp.MustCompile(`(?im)^\s*co-authored-by:\s*(.+?)\s*<([^>]
 type gitStats struct {
 	commits      []*CommitRecord
 	contributors []*ContributorRecord
+	branches     []*BranchRecord
 	byEmail      map[string]*ContributorRecord
 
 	// Per-file authorship, for ownership and hotspot metrics.
@@ -265,9 +266,106 @@ func collectGit(b *Builder, repo *git.Repository, opts Options, now time.Time, p
 		st.window.Since = st.commits[len(st.commits)-1].CommittedAt
 	}
 
+	st.branches = collectBranches(repo, b.report.Target.DefaultBranch, st.shallow, now)
+
 	emitGitMetrics(b, st, opts, now)
 
 	return st, nil
+}
+
+// maxBranchAncestryChecks caps the merged-into-default test. Each check walks history, and a
+// repository that never prunes can carry thousands of remote refs — at which point the answer
+// costs more than it is worth. Branches past the cap are recorded without a merged verdict,
+// which is not the same as recording them as unmerged.
+const maxBranchAncestryChecks = 200
+
+// collectBranches records the branches this checkout holds. It is deliberately a record of
+// the checkout: a CI clone fetches one ref, a developer's clone has whatever they fetched,
+// and neither is the full set of branches on the forge. The forge collector is what knows
+// that; this is what git knows.
+func collectBranches(repo *git.Repository, defaultBranch string, shallow bool, now time.Time) []*BranchRecord {
+	refs, err := repo.References()
+	if err != nil {
+		return nil
+	}
+	defer refs.Close()
+
+	// Remote-tracking refs and local branches name the same branch. Keep one record per name,
+	// preferring the local ref, so `main` and `origin/main` never both appear.
+	byName := map[string]*BranchRecord{}
+	fromLocal := map[string]bool{}
+	tips := map[string]*object.Commit{}
+
+	_ = refs.ForEach(func(ref *plumbing.Reference) error {
+		if ref.Type() != plumbing.HashReference {
+			return nil
+		}
+		name := ref.Name()
+		local := name.IsBranch()
+		if !local && !name.IsRemote() {
+			return nil
+		}
+
+		short := name.Short()
+		if !local {
+			// refs/remotes/origin/main → main. origin/HEAD is a pointer, not a branch.
+			if i := strings.Index(short, "/"); i >= 0 {
+				short = short[i+1:]
+			}
+			if short == "HEAD" || short == "" {
+				return nil
+			}
+		}
+		if _, held := byName[short]; held && !local {
+			return nil
+		}
+
+		c, cerr := repo.CommitObject(ref.Hash())
+		if cerr != nil {
+			// The ref points at something this checkout does not hold. A shallow fetch does
+			// exactly that for every branch it did not ask for.
+			return nil
+		}
+
+		last := c.Committer.When.UTC()
+		age := int(now.Sub(last).Seconds())
+		byName[short] = &BranchRecord{
+			ID:           "branch-" + safeID(short),
+			Type:         "branch",
+			Name:         short,
+			IsDefault:    defaultBranch != "" && short == defaultBranch,
+			LastCommitAt: last.Format(time.RFC3339),
+			AgeSeconds:   &age,
+		}
+		fromLocal[short] = local
+		tips[short] = c
+
+		return nil
+	})
+
+	out := make([]*BranchRecord, 0, len(byName))
+	for _, rec := range byName {
+		out = append(out, rec)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+
+	// "Merged" means merged into the default branch, which can only be answered where the
+	// default branch is present and the history reaching back to the fork point is too. In a
+	// grafted clone it is not, so the question is left unanswered rather than answered wrongly.
+	if def := tips[defaultBranch]; def != nil && !shallow {
+		checks := 0
+		for _, rec := range out {
+			if rec.IsDefault || checks >= maxBranchAncestryChecks {
+				continue
+			}
+			checks++
+			if merged, aerr := tips[rec.Name].IsAncestor(def); aerr == nil {
+				rec.Merged = merged
+			}
+		}
+	}
+
+	return out
 }
 
 func emitGitMetrics(b *Builder, st *gitStats, opts Options, now time.Time) {
@@ -388,6 +486,32 @@ func emitGitMetrics(b *Builder, st *gitStats, opts Options, now time.Time) {
 		Definition: "Commits whose subject begins with revert, undo or rollback — the firefighting signal.",
 		Window:     window,
 	}, revertCommits)
+
+	// ─── branches ──────────────────────────────────────────────────────────────
+	// What this checkout holds, not what the forge holds. A CI clone fetches one ref, so a
+	// branch count of 1 there is a fact about the clone; the forge collector is what can
+	// speak for the repository.
+	if len(st.branches) > 0 {
+		branchRefs := make([]EvidenceRef, 0, len(st.branches))
+		staleBranchRefs := []EvidenceRef{}
+		for _, br := range st.branches {
+			ref := b.AddRecord(br.ID, br)
+			branchRefs = append(branchRefs, ref)
+			if !br.IsDefault && br.AgeSeconds != nil && float64(*br.AgeSeconds)/86400 > 90 {
+				staleBranchRefs = append(staleBranchRefs, ref)
+			}
+		}
+
+		b.Count(Metric{
+			ID: "activity.branches.total", Family: "activity", Name: "Branches",
+			Definition: "Branches present in this checkout, counted once per branch name whether the ref is local or remote-tracking. A shallow or single-ref clone holds fewer than the repository has.",
+		}, branchRefs)
+
+		b.Count(Metric{
+			ID: "activity.branches.stale", Family: "activity", Name: "Stale branches",
+			Definition: "Non-default branches whose last commit is more than 90 days old — the same 90-day threshold every other staleness signal in this report uses.",
+		}, staleBranchRefs)
+	}
 
 	// ─── contributors ──────────────────────────────────────────────────────────
 	humans := []*ContributorRecord{}
