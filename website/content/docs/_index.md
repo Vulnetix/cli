@@ -19,6 +19,7 @@ Welcome to the Vulnetix CLI documentation. Choose a section to get started.
   {{< card link="cbom" title="CBOM" subtitle="Discover cryptographic usage; emit a CycloneDX Cryptography Bill of Materials with post-quantum posture." icon="lock-closed" >}}
   {{< card link="tea" title="Transparency Exchange API" subtitle="Consume the Vulnetix TEA server as another provider: DNS discovery, the OWASP specifications we target, and public unauthenticated examples." icon="server" >}}
   {{< card link="vscode-plugin" title="VS Code plugin" subtitle="Run the CLI scanning engine in VS Code, Cursor, Windsurf, VSCodium and other compatible editors." icon="code" >}}
+  {{< card link="browser-extension" title="Browser extension" subtitle="Hover any vulnerability identifier on any page, and list every identifier on the page in a browser sidebar. Chromium and Firefox." icon="globe-alt" >}}
 {{< /cards >}}
 
 ## What's new
