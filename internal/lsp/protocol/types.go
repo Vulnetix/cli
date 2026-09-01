@@ -20,6 +20,10 @@ const (
 
 	MethodPublishDiagnostics = "textDocument/publishDiagnostics"
 
+	MethodHover      = "textDocument/hover"
+	MethodCodeAction = "textDocument/codeAction"
+	MethodInlayHint  = "textDocument/inlayHint"
+
 	MethodLogMessage             = "window/logMessage"
 	MethodShowMessage            = "window/showMessage"
 	MethodWorkDoneProgressCreate = "window/workDoneProgress/create"
@@ -167,6 +171,12 @@ type ServerCaps struct {
 	TextDocumentSync *TextDocumentSyncOptions `json:"textDocumentSync,omitempty"`
 	Workspace        *WorkspaceCaps           `json:"workspace"`
 	ExecuteCommand   *ExecuteCommandOptions   `json:"executeCommandProvider,omitempty"`
+
+	// Dependency features. Advertised only when the SCA path is enabled, so a
+	// client does not send requests that can only ever answer nothing.
+	Hover      bool               `json:"hoverProvider,omitempty"`
+	CodeAction *CodeActionOptions `json:"codeActionProvider,omitempty"`
+	InlayHint  bool               `json:"inlayHintProvider,omitempty"`
 }
 
 type WorkspaceCaps struct {
@@ -374,4 +384,100 @@ type DidChangeWatchedFilesParams struct {
 type CancelParams struct {
 	// ID is a request id, which JSON-RPC allows to be a number or a string.
 	ID json.RawMessage `json:"id"`
+}
+
+// ── Hover ────────────────────────────────────────────────────────────────────
+
+type HoverParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Position     Position               `json:"position"`
+}
+
+// MarkupContent is hover body text. Only markdown is produced; the kind is
+// stated explicitly because a client that treats it as plaintext renders the
+// asterisks literally.
+type MarkupContent struct {
+	Kind  string `json:"kind"`
+	Value string `json:"value"`
+}
+
+const MarkupMarkdown = "markdown"
+
+type Hover struct {
+	Contents MarkupContent `json:"contents"`
+	// Range highlights what the hover describes while the card is open.
+	Range *Range `json:"range,omitempty"`
+}
+
+// ── Code actions ─────────────────────────────────────────────────────────────
+
+// CodeActionKind values. QuickFix is the one behind the lightbulb and under
+// "Quick Fix…", which is where a version bump belongs.
+const (
+	CodeActionQuickFix = "quickfix"
+	CodeActionSource   = "source"
+)
+
+type CodeActionContext struct {
+	Diagnostics []Diagnostic `json:"diagnostics"`
+	Only        []string     `json:"only,omitempty"`
+}
+
+type CodeActionParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Range        Range                  `json:"range"`
+	Context      CodeActionContext      `json:"context"`
+}
+
+type TextEdit struct {
+	Range   Range  `json:"range"`
+	NewText string `json:"newText"`
+}
+
+// WorkspaceEdit carries the document changes an action applies. Only the
+// `changes` form is produced: `documentChanges` adds versioning the server has
+// no use for, since the edit is computed from text the client just sent.
+type WorkspaceEdit struct {
+	Changes map[string][]TextEdit `json:"changes,omitempty"`
+}
+
+type CodeAction struct {
+	Title string `json:"title"`
+	Kind  string `json:"kind,omitempty"`
+	// Diagnostics links the action to what it resolves, so the editor can strike
+	// through the finding it fixes.
+	Diagnostics []Diagnostic `json:"diagnostics,omitempty"`
+	// IsPreferred marks the single action the editor may apply without asking:
+	// the recommended target version and nothing else.
+	IsPreferred bool           `json:"isPreferred,omitempty"`
+	Edit        *WorkspaceEdit `json:"edit,omitempty"`
+}
+
+type CodeActionOptions struct {
+	CodeActionKinds []string `json:"codeActionKinds,omitempty"`
+}
+
+// ── Inlay hints ──────────────────────────────────────────────────────────────
+
+// InlayHintKind values. The dependency markers are Type hints: they annotate
+// what a declaration resolves to, and clients style Parameter hints differently.
+const (
+	InlayHintType      = 1
+	InlayHintParameter = 2
+)
+
+type InlayHintParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Range        Range                  `json:"range"`
+}
+
+// InlayHint is the quiet channel: a checked marker on a clean dependency, a
+// pending marker while Safe-Harbour resolves, the target version once it has.
+// None of those are problems, so none belong in a diagnostic.
+type InlayHint struct {
+	Position    Position `json:"position"`
+	Label       string   `json:"label"`
+	Kind        int      `json:"kind,omitempty"`
+	Tooltip     string   `json:"tooltip,omitempty"`
+	PaddingLeft bool     `json:"paddingLeft,omitempty"`
 }

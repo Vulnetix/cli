@@ -145,7 +145,11 @@ func printLSPHandshake() error {
 		BuildDate:       buildDate,
 		GoVersion:       runtime.Version(),
 		Platform:        runtime.GOOS + "/" + runtime.GOARCH,
-		Capabilities:    []string{"sast", "secrets", "iac", "containers"},
+		// Dependency analysis ships in the binary and defaults on, so the
+		// pre-connect handshake reports it. A client uses this list to decide
+		// whether to offer the dependency UI at all, and it has to answer before
+		// a session exists to ask.
+		Capabilities: []string{"sast", "secrets", "iac", "containers", "sca"},
 	}
 	enc, err := json.Marshal(out)
 	if err != nil {

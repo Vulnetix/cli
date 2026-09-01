@@ -383,3 +383,151 @@ func login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: "session", Value: "abc123"})
 }
 `
+
+// ── Dependency features over the wire ────────────────────────────────────────
+
+// The dependency features have to be advertised, or a client never sends the
+// requests that drive them.
+func TestDependencyCapabilitiesAreAdvertised(t *testing.T) {
+	root := fixtureRepo(t)
+	c, stop := startServer(t, root)
+	defer stop()
+
+	result := initialize(t, c, root)
+
+	require.True(t, result.Capabilities.Hover,
+		"the dependency card is a hover; without the capability the client never asks")
+	require.True(t, result.Capabilities.InlayHint,
+		"the checked and pending markers are inlay hints")
+	require.NotNil(t, result.Capabilities.CodeAction,
+		"the version bump is a code action")
+	require.Contains(t, result.Capabilities.CodeAction.CodeActionKinds, protocol.CodeActionQuickFix)
+}
+
+// vulnetix/serverInfo drives whatever UI the client gates on capability, so the
+// list has to name the dependency family.
+func TestServerInfoReportsSCA(t *testing.T) {
+	root := fixtureRepo(t)
+	c, stop := startServer(t, root)
+	defer stop()
+
+	initialize(t, c, root)
+
+	var info protocol.ServerInfoResult
+	require.NoError(t, c.conn.Call(context.Background(), protocol.MethodServerInfo, nil, &info))
+	require.Contains(t, info.Capabilities, "sca")
+	require.Equal(t, protocol.ProtocolVersion, info.ProtocolVersion)
+}
+
+// Turning dependency analysis off has to withdraw the capabilities too, or the
+// client keeps asking questions that can only answer nothing.
+func TestDisablingSCAWithdrawsItsCapabilities(t *testing.T) {
+	root := fixtureRepo(t)
+	serverEnd, clientEnd := net.Pipe()
+
+	srv := NewServer(Config{CLIVersion: "test", Debounce: 0, Logf: func(string, ...any) {}})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverConn := jsonrpc2.NewConn(ctx,
+		jsonrpc2.NewBufferedStream(serverEnd, jsonrpc2.VSCodeObjectCodec{}),
+		jsonrpc2.AsyncHandler(jsonrpc2.HandlerWithError(srv.handle)))
+	srv.conn = serverConn
+	defer serverConn.Close()
+
+	c := &testClient{diagnostics: map[string][]protocol.Diagnostic{}, published: make(chan string, 8)}
+	c.conn = jsonrpc2.NewConn(ctx,
+		jsonrpc2.NewBufferedStream(clientEnd, jsonrpc2.VSCodeObjectCodec{}),
+		jsonrpc2.AsyncHandler(c))
+	defer c.conn.Close()
+	defer srv.sched.Close()
+
+	opts, err := json.Marshal(map[string]any{"sca": map[string]any{"enabled": false}})
+	require.NoError(t, err)
+
+	var result protocol.InitializeResult
+	require.NoError(t, c.conn.Call(context.Background(), protocol.MethodInitialize, protocol.InitializeParams{
+		WorkspaceFolders:      []protocol.Folder{{URI: PathToURI(root), Name: "test"}},
+		InitializationOptions: opts,
+	}, &result))
+
+	require.False(t, result.Capabilities.Hover)
+	require.False(t, result.Capabilities.InlayHint)
+	require.Nil(t, result.Capabilities.CodeAction)
+
+	var info protocol.ServerInfoResult
+	require.NoError(t, c.conn.Call(context.Background(), protocol.MethodServerInfo, nil, &info))
+	require.NotContains(t, info.Capabilities, "sca")
+}
+
+// A settings payload that cannot be used must not take the server down, and must
+// not silently switch analysis off. This is the wire-level half of the
+// validation the settings tests cover directly.
+func TestBadConfigurationDoesNotBreakTheServer(t *testing.T) {
+	root := fixtureRepo(t)
+	c, stop := startServer(t, root)
+	defer stop()
+
+	initialize(t, c, root)
+
+	bad := map[string]any{"vulnetix": map[string]any{
+		"scan":        map[string]any{"debounceMs": float64(-1)},
+		"lsp":         map[string]any{"memoryLimitMb": float64(0)},
+		"sca":         map[string]any{"safeHarbourStrategy": "nonsense", "maxMajorBump": float64(-5)},
+		"diagnostics": map[string]any{"lowAsHint": "not a bool"},
+	}}
+	require.NoError(t, c.conn.Notify(context.Background(),
+		protocol.MethodDidChangeConfiguration, protocol.DidChangeConfigurationParams{
+			Settings: mustRawJSON(t, bad),
+		}))
+
+	// The server is still answering, and still reports dependency analysis as
+	// available: no value in that payload was allowed to disable it.
+	var info protocol.ServerInfoResult
+	require.NoError(t, c.conn.Call(context.Background(), protocol.MethodServerInfo, nil, &info))
+	require.Contains(t, info.Capabilities, "sca")
+}
+
+// Hover and code action on a file with no dependency data answer emptily rather
+// than erroring. A client sends these on every cursor move.
+func TestDependencyRequestsOnAPlainFileAreEmpty(t *testing.T) {
+	root := fixtureRepo(t)
+	c, stop := startServer(t, root)
+	defer stop()
+
+	initialize(t, c, root)
+
+	uri := PathToURI(filepath.Join(root, "main.go"))
+	require.NoError(t, c.conn.Notify(context.Background(), protocol.MethodDidOpen, protocol.DidOpenParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI: uri, LanguageID: "go", Version: 1,
+			Text: "package main\n\nfunc main() {}\n",
+		},
+	}))
+
+	var hover *protocol.Hover
+	require.NoError(t, c.conn.Call(context.Background(), protocol.MethodHover, protocol.HoverParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+		Position:     protocol.Position{Line: 0},
+	}, &hover))
+	require.Nil(t, hover, "a Go source file has no dependency card")
+
+	var actions []protocol.CodeAction
+	require.NoError(t, c.conn.Call(context.Background(), protocol.MethodCodeAction, protocol.CodeActionParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+	}, &actions))
+	require.Empty(t, actions)
+
+	var hints []protocol.InlayHint
+	require.NoError(t, c.conn.Call(context.Background(), protocol.MethodInlayHint, protocol.InlayHintParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+	}, &hints))
+	require.Empty(t, hints)
+}
+
+func mustRawJSON(t *testing.T, v any) json.RawMessage {
+	t.Helper()
+	raw, err := json.Marshal(v)
+	require.NoError(t, err)
+	return raw
+}

@@ -242,3 +242,17 @@ func (s *Scheduler) Close() {
 
 	s.wg.Wait()
 }
+
+// SetDebounce changes the quiet period for subsequent scheduling.
+//
+// Timers already pending keep the interval they were created with. Rescheduling
+// them would restart the clock for a change the user has already finished
+// making, which is the opposite of what a shorter debounce was asked for.
+func (s *Scheduler) SetDebounce(d time.Duration) {
+	if d < 0 {
+		return
+	}
+	s.mu.Lock()
+	s.debounce = d
+	s.mu.Unlock()
+}

@@ -71,6 +71,11 @@ type DiagnosticData struct {
 	AnchorConfidence string `json:"anchorConfidence,omitempty"`
 	FixAvailable     bool   `json:"fixAvailable,omitempty"`
 	Suppressible     bool   `json:"suppressible"`
+
+	// SCA is present only on dependency findings. It carries the package
+	// coordinate and the resolved fix target so a code action can be built
+	// without repeating the lookup.
+	SCA *scaDiagnosticData `json:"sca,omitempty"`
 }
 
 // ToDiagnostic converts one Rego finding into an LSP diagnostic against the
@@ -216,4 +221,20 @@ func DescribeCounts(counts map[string]int) string {
 	}
 	return fmt.Sprintf("%d error(s), %d warning(s), %d note(s)",
 		counts["error"], counts["warning"], counts["info"])
+}
+
+// decodeDiagnosticData reads back the payload ToDiagnostic attached.
+//
+// Diagnostics travel to the client and come back on a code-action request, so
+// the data field is the only place a feature can look up what a squiggle was
+// about without repeating the scan.
+func decodeDiagnosticData(d protocol.Diagnostic) (DiagnosticData, bool) {
+	if len(d.Data) == 0 {
+		return DiagnosticData{}, false
+	}
+	var out DiagnosticData
+	if err := json.Unmarshal(d.Data, &out); err != nil {
+		return DiagnosticData{}, false
+	}
+	return out, true
 }

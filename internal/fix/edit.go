@@ -520,3 +520,16 @@ func preserveRangeOperator(oldSpec, target string) string {
 	}
 	return target
 }
+
+// EditManifestText applies a version bump to manifest content and returns the
+// rewritten text, reporting whether anything changed.
+//
+// The file-based Apply path exists for the CLI, which owns the working tree.
+// The language server does not: it holds the editor's unsaved buffer and must
+// hand back a text edit for the editor to apply, so that the change lands in
+// the user's undo history and cannot race a concurrent edit. Both go through
+// the same per-ecosystem rewriters, so a fix suggested in the editor is the one
+// `vulnetix fix` would have written.
+func EditManifestText(content string, p FixCandidate) (string, bool) {
+	return editManifest(content, p)
+}
