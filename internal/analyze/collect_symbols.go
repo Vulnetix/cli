@@ -13,6 +13,8 @@ package analyze
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path"
@@ -255,9 +257,19 @@ func collectSymbols(b *Builder, root string, files *fileStats, modulePath string
 			// that has them. The line number disambiguates them, which means a symbol id is not
 			// stable across edits — the report schema says so, and nothing persists these as a
 			// foreign key.
-			id := fmt.Sprintf("%s:%s:%s", kind, f.Path, name)
+			//
+			// The line is not always enough on its own. A bundled or minified file puts many
+			// symbols on one line — `.yarn/plugins/…-cyclonedx.cjs` declares several `compare`
+			// methods on line 6 — and two nodes sharing an id made the evidence builder panic
+			// on the duplicate, taking the whole analyze run with it. Counting up from the line
+			// keeps the id readable where it can be and unique where it cannot.
+			base := fmt.Sprintf("%s:%s:%s", kind, f.Path, name)
+			id := base
 			if symbolIDs[id] {
-				id = fmt.Sprintf("%s#%d", id, m.StartLine)
+				id = fmt.Sprintf("%s#%d", base, m.StartLine)
+				for n := 2; symbolIDs[id]; n++ {
+					id = fmt.Sprintf("%s#%d#%d", base, m.StartLine, n)
+				}
 			}
 			symbolIDs[id] = true
 			st.nodes = append(st.nodes, Node{
@@ -638,11 +650,17 @@ func callSiteProperty(site callSite) map[string]any {
 
 func emitSymbolMetrics(b *Builder, st *symbolStats, opts Options) {
 	byKind := map[string][]EvidenceRef{}
+	// safeID replaces every unsafe character with the same "-", so it is lossy: two distinct
+	// node ids can sanitise to one string even when the ids themselves are unique. AddRecord
+	// treats a duplicate as a programming error and panics, so the sanitised form is made
+	// injective here rather than letting a punctuation collision abort the run.
+	taken := map[string]string{}
 	for _, n := range st.nodes {
+		recordID := uniqueSymbolRecordID(n.ID, taken)
 		// The node is already in the graph; the evidence points at it rather than duplicating
 		// it. Two copies of the same fact are two facts that can disagree.
-		ref := b.AddRecord("sym-"+safeID(n.ID), &GraphElementRecord{
-			ID:        "sym-" + safeID(n.ID),
+		ref := b.AddRecord(recordID, &GraphElementRecord{
+			ID:        recordID,
 			Type:      "graph_element",
 			ElementID: n.ID,
 			Element:   "node",
@@ -747,4 +765,27 @@ func sortedKeys[V any](m map[string]V) []string {
 	sort.Strings(out)
 
 	return out
+}
+
+// uniqueSymbolRecordID derives an evidence record id from a symbol node id,
+// keeping it readable while guaranteeing distinct nodes never share one.
+//
+// `taken` maps an issued record id to the node id it was issued for, so the
+// same node asked twice would get the same answer while a genuinely different
+// node that sanitises identically gets a suffix instead of colliding.
+func uniqueSymbolRecordID(nodeID string, taken map[string]string) string {
+	id := "sym-" + safeID(nodeID)
+	owner, clash := taken[id]
+	if !clash || owner == nodeID {
+		taken[id] = nodeID
+
+		return id
+	}
+	// Deterministic rather than a counter: the same repository analysed twice
+	// produces the same ids regardless of the order symbols were visited in.
+	sum := sha256.Sum256([]byte(nodeID))
+	id = fmt.Sprintf("%s-%s", id, hex.EncodeToString(sum[:4]))
+	taken[id] = nodeID
+
+	return id
 }
