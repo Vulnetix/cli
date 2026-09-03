@@ -3,12 +3,14 @@
 // an org-level or local Suppression covers, before report output is generated.
 //
 // A rule is anchored by one or more of: rego rule id (the rego file id), a
-// finding id (CVE/vuln id), or a file path. A finding is suppressed when every
-// anchor the rule specifies matches the finding and the rule is active and
-// unexpired.
+// finding id (CVE/vuln id), a component value (an inventory component's SPDX
+// id / purl / model name), or a file path — optionally narrowed to a line
+// range. A finding is suppressed when every anchor the rule specifies matches
+// the finding and the rule is active and unexpired.
 package suppress
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/vulnetix/cli/v3/internal/memory"
@@ -23,7 +25,13 @@ type Rule struct {
 	Type               string
 	Reason             string
 	FindingID          string
+	// TargetValue anchors an inventory rule to a component identity: an
+	// algorithm SPDX id, a certificate subject, a purl or a model name. Crypto
+	// and AI components have no rego rule id and no CVE, so this is the only
+	// anchor that names them.
+	TargetValue        string
 	FilePath           string
+	LineNumber         int
 	LineRange          string
 	RepositoryFullName string
 	Branch             string
@@ -36,7 +44,13 @@ type Finding struct {
 	Category  string
 	RuleID    string
 	FindingID string
-	FilePath  string
+	// Value is the component identity an inventory rule's TargetValue is
+	// compared against. Empty for the scanner families, which have no such id.
+	Value string
+	FilePath string
+	// Line is the 1-based line the finding sits on, when known. Zero means
+	// "unknown", which makes a rule's line range non-binding — see ruleMatches.
+	Line int
 }
 
 // Set is a matchable collection of rules.
@@ -92,11 +106,47 @@ func ruleMatches(r Rule, f Finding) bool {
 	if r.FindingID != "" && !strings.EqualFold(r.FindingID, f.FindingID) {
 		return false
 	}
+	if r.TargetValue != "" && !strings.EqualFold(r.TargetValue, f.Value) {
+		return false
+	}
 	if r.FilePath != "" && !pathMatches(r.FilePath, f.FilePath) {
 		return false
 	}
+	// A line range narrows a rule to one occurrence, but only when the caller
+	// knows which line it is looking at. Gating on f.Line > 0 keeps every
+	// existing caller byte-identical: they pass no line, so a nosec rule that
+	// happens to carry a LineRange keeps matching its whole file as before.
+	if r.LineRange != "" && f.Line > 0 && !lineInRange(r.LineRange, f.Line) {
+		return false
+	}
 	// A rule with no anchor at all would match everything; guard against it.
-	return r.RuleID != "" || r.FindingID != "" || r.FilePath != ""
+	return r.RuleID != "" || r.FindingID != "" || r.TargetValue != "" || r.FilePath != ""
+}
+
+// lineInRange reports whether line falls inside a "14" or "10-14" spec. An
+// unparseable spec is treated as non-binding (true) rather than as a rule that
+// silently matches nothing.
+func lineInRange(spec string, line int) bool {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return true
+	}
+	lo, hi, found := strings.Cut(spec, "-")
+	start, err := strconv.Atoi(strings.TrimSpace(lo))
+	if err != nil {
+		return true
+	}
+	if !found {
+		return line == start
+	}
+	end, err := strconv.Atoi(strings.TrimSpace(hi))
+	if err != nil {
+		return line == start
+	}
+	if end < start {
+		start, end = end, start
+	}
+	return line >= start && line <= end
 }
 
 // pathMatches compares two file paths tolerant of leading "./" and separator
@@ -128,7 +178,9 @@ func FromMemory(recs []memory.SuppressionRecord) []Rule {
 			Type:               s.Type,
 			Reason:             s.Reason,
 			FindingID:          s.FindingID,
+			TargetValue:        s.TargetValue,
 			FilePath:           s.FilePath,
+			LineNumber:         s.LineNumber,
 			LineRange:          s.LineRange,
 			RepositoryFullName: s.RepositoryFullName,
 			Branch:             s.Branch,

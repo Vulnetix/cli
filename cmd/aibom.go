@@ -164,7 +164,15 @@ func runAIBOM(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stdout, string(bomData))
 		return nil
 	default: // pretty / table
-		return renderAIBOMTable(cmd, det)
+		if err := renderAIBOMTable(cmd, det); err != nil {
+			return err
+		}
+		// Say what was withheld. A quietly smaller inventory is indistinguishable
+		// from a scan that found less.
+		if pass.Suppressed > 0 {
+			fmt.Fprintf(os.Stdout, "\n%d AI component(s) skipped by ignore rules (vulnetix ignore list).\n", pass.Suppressed)
+		}
+		return nil
 	}
 }
 
@@ -340,6 +348,10 @@ type AIBOMPassResult struct {
 	Detections  cyclonedx.AIDetections
 	BOM         []byte
 	SpecVersion string
+	// Suppressed counts AI components dropped by an active ignore rule. They are
+	// skipped outright rather than labelled: an ignored AI component is also
+	// never shown in the console.
+	Suppressed int
 }
 
 // runAIBOMPass detects AI usage, reconciles it against local memory, builds the
@@ -387,6 +399,10 @@ func runAIBOMPass(opts AIBOMPassOptions) (*AIBOMPassResult, error) {
 	if gitCtx == nil {
 		gitCtx = gitctx.Collect(rootPath)
 	}
+	// Drop ignored AI components before anything else consumes the detection, so
+	// they reach neither memory.yaml, the emitted CycloneDX nor the backend.
+	suppressed := filterSuppressedAIDetections(&det, scanSuppressionSetLoad(rootPath, gitCtx))
+
 	// Memory always lives under the resolved scan root, never the process CWD.
 	reconcileAIBOMMemory(rootPath, gitCtx, det, opts.Passes)
 
@@ -410,7 +426,7 @@ func runAIBOMPass(opts AIBOMPassOptions) (*AIBOMPassResult, error) {
 	if opts.Upload && aibomDetectionCount(det) > 0 {
 		uploadAIBOM(specVersion, det, bomData, gitCtx)
 	}
-	return &AIBOMPassResult{Detections: det, BOM: bomData, SpecVersion: specVersion}, nil
+	return &AIBOMPassResult{Detections: det, BOM: bomData, SpecVersion: specVersion, Suppressed: suppressed}, nil
 }
 
 // aibomDetectionCount is the "did we find anything" test used to avoid uploading

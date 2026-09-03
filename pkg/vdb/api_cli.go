@@ -1230,7 +1230,9 @@ type CliSuppression struct {
 	FindingUUID        string `json:"findingUuid"`
 	SuppressionType    string `json:"suppressionType"`
 	Reason             string `json:"reason"`
+	TargetValue        string `json:"targetValue"`
 	FilePath           string `json:"filePath"`
+	LineNumber         int    `json:"lineNumber"`
 	LineRange          string `json:"lineRange"`
 	RepositoryFullName string `json:"repositoryFullName"`
 	BranchName         string `json:"branchName"`
@@ -1245,6 +1247,7 @@ type CliSuppressionsGetRequest struct {
 	RepositoryFullName string `json:"repositoryFullName,omitempty"`
 	BranchName         string `json:"branchName,omitempty"`
 	Category           string `json:"category,omitempty"`
+	TargetValue        string `json:"targetValue,omitempty"`
 	ActiveOnly         bool   `json:"activeOnly,omitempty"`
 }
 
@@ -1267,7 +1270,9 @@ type CliSuppressionSetRequest struct {
 	Category           string `json:"category,omitempty"`
 	SuppressionType    string `json:"suppressionType,omitempty"`
 	Reason             string `json:"reason,omitempty"`
+	TargetValue        string `json:"targetValue,omitempty"`
 	FilePath           string `json:"filePath,omitempty"`
+	LineNumber         int    `json:"lineNumber,omitempty"`
 	LineRange          string `json:"lineRange,omitempty"`
 	RepositoryFullName string `json:"repositoryFullName,omitempty"`
 	BranchName         string `json:"branchName,omitempty"`

@@ -161,6 +161,11 @@ func runCBOM(cmd *cobra.Command, args []string) error {
 		if err := renderCBOMTable(cmd, det); err != nil {
 			return err
 		}
+		// Say what was withheld. A quietly smaller inventory is indistinguishable
+		// from a scan that found less.
+		if pass.Suppressed > 0 {
+			fmt.Fprintf(os.Stdout, "\n%d crypto asset(s) skipped by ignore rules (vulnetix ignore list).\n", pass.Suppressed)
+		}
 	}
 
 	return evaluateFailOn(det.Summary, failOn)
@@ -336,6 +341,9 @@ type CBOMPassResult struct {
 	Detections  cyclonedx.CryptoDetections
 	BOM         []byte
 	SpecVersion string
+	// Suppressed counts crypto assets dropped by an active ignore rule, so the
+	// caller can say so rather than silently reporting a smaller inventory.
+	Suppressed int
 }
 
 // runCBOMPass detects cryptographic usage, reconciles it against local memory,
@@ -380,6 +388,16 @@ func runCBOMPass(opts CBOMPassOptions) (*CBOMPassResult, error) {
 	if gitCtx == nil {
 		gitCtx = gitctx.Collect(rootPath)
 	}
+
+	// Drop ignored crypto assets before anything else consumes the detection, so
+	// they reach neither memory.yaml, the emitted CycloneDX nor the backend. The
+	// posture rollup is recomputed from what survived, otherwise --fail-on would
+	// gate on components the report no longer contains.
+	suppressed := filterSuppressedCryptoDetections(&det, scanSuppressionSetLoad(rootPath, gitCtx))
+	if suppressed > 0 {
+		det.Summary = cyclonedx.ComputeCryptoSummary(det)
+	}
+
 	reconcileCBOMMemory(rootPath, gitCtx, det, opts.Passes)
 
 	// Crypto assets are identified by observing source, config and certificates
@@ -400,7 +418,7 @@ func runCBOMPass(opts CBOMPassOptions) (*CBOMPassResult, error) {
 	if opts.Upload && len(det.Assets)+len(det.Certificates)+len(det.Libraries) > 0 {
 		uploadCBOM(specVersion, det, bomData, gitCtx)
 	}
-	return &CBOMPassResult{Detections: det, BOM: bomData, SpecVersion: specVersion}, nil
+	return &CBOMPassResult{Detections: det, BOM: bomData, SpecVersion: specVersion, Suppressed: suppressed}, nil
 }
 
 // parseFailOn validates the --fail-on selection.

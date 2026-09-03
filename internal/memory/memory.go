@@ -336,6 +336,10 @@ type SuppressionRecord struct {
 	Type               string `yaml:"type,omitempty"` // suppressionType: false_positive | wont_fix | risk_accepted | ...
 	Reason             string `yaml:"reason,omitempty"`
 	FindingID          string `yaml:"finding_id,omitempty"` // CVE/vuln id anchor (SCA/malscan/license)
+	// TargetValue anchors an inventory rule (category crypto|ai) to a component
+	// identity: an algorithm SPDX id, a certificate subject, a purl or a model
+	// name. Those components carry neither a rego rule id nor a CVE.
+	TargetValue        string `yaml:"target_value,omitempty"`
 	FilePath           string `yaml:"file_path,omitempty"`
 	LineRange          string `yaml:"line_range,omitempty"`
 	RepositoryFullName string `yaml:"repository_full_name,omitempty"`

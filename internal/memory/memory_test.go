@@ -613,3 +613,95 @@ func TestStampSeen_NoContext(t *testing.T) {
 		t.Errorf("expected empty ts when both now and context are empty, got %q", ts)
 	}
 }
+
+// An inventory rule carries no rego rule id, so identity must fall back to the
+// value it anchors — otherwise every `ignore add --value` run appends a
+// duplicate instead of replacing the existing rule.
+func TestUpsertSuppression_InventoryIdentityIsTheValue(t *testing.T) {
+	m := &Memory{}
+
+	first := SuppressionRecord{
+		Category: "crypto", TargetValue: "SHA-1", Type: "risk_accepted",
+		RepositoryFullName: "acme/app", Reason: "vendored fixture", IsActive: true,
+	}
+	if replaced := m.UpsertSuppression(first); replaced {
+		t.Fatal("first insert should append, not replace")
+	}
+
+	second := first
+	second.Reason = "reviewed and accepted"
+	if replaced := m.UpsertSuppression(second); !replaced {
+		t.Fatal("re-adding the same value anchor should replace the existing rule")
+	}
+	if len(m.Suppressions) != 1 {
+		t.Fatalf("expected 1 suppression, got %d", len(m.Suppressions))
+	}
+	if m.Suppressions[0].Reason != "reviewed and accepted" {
+		t.Errorf("expected the replacement's reason, got %q", m.Suppressions[0].Reason)
+	}
+
+	// A different value, and the same value in a different repo, are distinct rules.
+	other := first
+	other.TargetValue = "MD5"
+	m.UpsertSuppression(other)
+	otherRepo := first
+	otherRepo.RepositoryFullName = "acme/other"
+	m.UpsertSuppression(otherRepo)
+	if len(m.Suppressions) != 3 {
+		t.Fatalf("expected 3 distinct suppressions, got %d", len(m.Suppressions))
+	}
+}
+
+// `ignore add` pushes to the backend before saving locally and stamps whatever
+// uuid the server minted; the create endpoint mints a fresh one every call. If
+// a differing uuid vetoed anchor identity, every re-add appended a duplicate
+// and the same component got filtered twice.
+func TestUpsertSuppression_DifferingServerUUIDsStillMatchByAnchor(t *testing.T) {
+	m := &Memory{}
+
+	m.UpsertSuppression(SuppressionRecord{
+		UUID: "server-uuid-1", Category: "ai", TargetValue: "gpt-4o",
+		Type: "risk_accepted", Reason: "sample code", IsActive: true,
+	})
+	replaced := m.UpsertSuppression(SuppressionRecord{
+		UUID: "server-uuid-2", Category: "ai", TargetValue: "gpt-4o",
+		Type: "risk_accepted", Reason: "reviewed and accepted", IsActive: true,
+	})
+
+	if !replaced {
+		t.Fatal("a re-add of the same anchor must replace, even with a new server uuid")
+	}
+	if len(m.Suppressions) != 1 {
+		t.Fatalf("expected 1 suppression, got %d", len(m.Suppressions))
+	}
+	if m.Suppressions[0].UUID != "server-uuid-2" {
+		t.Errorf("expected the newest server uuid to win, got %q", m.Suppressions[0].UUID)
+	}
+	if m.Suppressions[0].Reason != "reviewed and accepted" {
+		t.Errorf("expected the replacement's reason, got %q", m.Suppressions[0].Reason)
+	}
+}
+
+// The same guard applies to rule-anchored rules, which had the identical
+// problem: `ignore add --rule vnx-315` twice left two records.
+func TestUpsertSuppression_RuleAnchorSurvivesDifferingUUIDs(t *testing.T) {
+	m := &Memory{}
+	m.UpsertSuppression(SuppressionRecord{UUID: "u1", RuleID: "vnx-315", RepositoryFullName: "acme/app", IsActive: true})
+	m.UpsertSuppression(SuppressionRecord{UUID: "u2", RuleID: "vnx-315", RepositoryFullName: "acme/app", IsActive: true})
+
+	if len(m.Suppressions) != 1 {
+		t.Fatalf("expected 1 suppression, got %d", len(m.Suppressions))
+	}
+}
+
+// Two genuinely different rules must still stay separate.
+func TestUpsertSuppression_DistinctAnchorsStaySeparate(t *testing.T) {
+	m := &Memory{}
+	m.UpsertSuppression(SuppressionRecord{UUID: "u1", RuleID: "vnx-315", RepositoryFullName: "acme/app", IsActive: true})
+	m.UpsertSuppression(SuppressionRecord{UUID: "u2", RuleID: "vnx-320", RepositoryFullName: "acme/app", IsActive: true})
+	m.UpsertSuppression(SuppressionRecord{UUID: "u3", Category: "ai", TargetValue: "gpt-4o", IsActive: true})
+
+	if len(m.Suppressions) != 3 {
+		t.Fatalf("expected 3 distinct suppressions, got %d", len(m.Suppressions))
+	}
+}
