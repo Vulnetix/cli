@@ -19,12 +19,12 @@ import (
 // Rule is the normalized form a Set matches against. It is produced from a
 // memory.SuppressionRecord (local) or a backend Suppression (remote).
 type Rule struct {
-	UUID               string
-	RuleID             string
-	Category           string
-	Type               string
-	Reason             string
-	FindingID          string
+	UUID      string
+	RuleID    string
+	Category  string
+	Type      string
+	Reason    string
+	FindingID string
 	// TargetValue anchors an inventory rule to a component identity: an
 	// algorithm SPDX id, a certificate subject, a purl or a model name. Crypto
 	// and AI components have no rego rule id and no CVE, so this is the only
@@ -46,7 +46,7 @@ type Finding struct {
 	FindingID string
 	// Value is the component identity an inventory rule's TargetValue is
 	// compared against. Empty for the scanner families, which have no such id.
-	Value string
+	Value    string
 	FilePath string
 	// Line is the 1-based line the finding sits on, when known. Zero means
 	// "unknown", which makes a rule's line range non-binding — see ruleMatches.
