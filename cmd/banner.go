@@ -17,7 +17,7 @@ func init() {
 }
 
 func printBanner(cmd *cobra.Command) {
-	if noBanner || silent || os.Getenv("CI") == "true" || os.Getenv("DO_NOT_TRACK") == "1" {
+	if noBanner || silent || AgentHookActive() || os.Getenv("CI") == "true" || os.Getenv("DO_NOT_TRACK") == "1" {
 		return
 	}
 

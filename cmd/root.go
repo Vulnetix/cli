@@ -130,12 +130,21 @@ vulnerabilities efficiently.`,
 		initDisplayContext(cmd, display.ModeText)
 		captureDeploymentContext(cmd)
 		printBanner(cmd)
-		// Track command invocation
-		analytics.TrackCommand(cmd.Name(), map[string]interface{}{
-			"full_command": cmd.CommandPath(),
-		})
+		// Track command invocation. Not for a hook: it fires once per tool call
+		// rather than once per thing a person decided to run, so counting it
+		// would drown every real invocation in the same session.
+		if !AgentHookActive() {
+			analytics.TrackCommand(cmd.Name(), map[string]interface{}{
+				"full_command": cmd.CommandPath(),
+			})
+		}
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		// The advisory goes to stderr, but a hook's caller reads both streams
+		// and an update notice is not what it asked about.
+		if AgentHookActive() {
+			return
+		}
 		if msg := consumeUpdateAdvisory(); msg != "" {
 			fmt.Fprint(os.Stderr, msg)
 		}
@@ -406,7 +415,9 @@ func startupHooks() {
 	// releases on a schedule the user never asked for, and the update advisory
 	// it would print goes to a stream the editor is parsing as protocol.
 	// The extension owns the CLI's lifecycle instead.
-	if LSPActive() {
+	// A hook is the same shape of thing: not a command a person ran, fired once
+	// per tool call, and writing to a stream the host is parsing as protocol.
+	if LSPActive() || AgentHookActive() {
 		return
 	}
 

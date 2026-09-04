@@ -4,12 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/vulnetix/cli/v3/internal/lsp/anchor"
 	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
-	"github.com/vulnetix/cli/v3/internal/scan"
+	"github.com/vulnetix/cli/v3/internal/scaview"
 )
 
 // SourceSCA is the Diagnostic.source for dependency findings.
@@ -58,15 +57,16 @@ func (e *scaEngine) scaDiagnostic(a *scaAnnotation, m SeverityMapping) (protocol
 		return protocol.Diagnostic{}, false
 	}
 
-	counts := countBySeverityLabel(vulns)
-	worst := worstSeverity(vulns)
-	top := topVuln(vulns)
+	worst := scaview.WorstSeverity(vulns)
+	top := scaview.TopVuln(vulns)
 
 	diag := protocol.Diagnostic{
 		Range:    a.Range,
 		Severity: severityToLSP(worst, m),
 		Source:   SourceSCA,
-		Message:  scaMessage(a, vulns, counts, top),
+		// Rendered from the same Subject the hover card uses, so the Problems
+		// panel and the card cannot describe one package two ways.
+		Message: scaview.Headline(e.subject(a)),
 	}
 
 	if top.CveID != "" {
@@ -102,7 +102,7 @@ func (e *scaEngine) scaDiagnostic(a *scaAnnotation, m SeverityMapping) (protocol
 			Package:    a.Pkg.Name,
 			Version:    a.Pkg.Version,
 			Ecosystem:  a.Pkg.Ecosystem,
-			CveIDs:     cveIDs(vulns),
+			CveIDs:     scaview.CVEIDs(vulns),
 			TargetVer:  target,
 			IsDirect:   a.Pkg.IsDirect,
 			Transitive: len(a.Introduced) > 0,
@@ -113,43 +113,6 @@ func (e *scaEngine) scaDiagnostic(a *scaAnnotation, m SeverityMapping) (protocol
 	}
 
 	return diag, true
-}
-
-// scaMessage renders the one-line summary the Problems panel shows.
-//
-// Shape follows what the finding actually is: the package and version being
-// named first is what a reader scans for, the counts say how bad, and the
-// leading CVE gives something to search. When the vulnerability is transitive
-// the message says so rather than implying the named package is itself
-// vulnerable.
-func scaMessage(a *scaAnnotation, vulns []scan.EnrichedVuln, counts map[string]int, top scan.EnrichedVuln) string {
-	var b strings.Builder
-
-	ownCount := 0
-	if a.Verdict != nil {
-		ownCount = len(a.Verdict.Vulns)
-	}
-
-	fmt.Fprintf(&b, "%s@%s: %s", a.Pkg.Name, a.Pkg.Version, pluralVulns(len(vulns)))
-
-	if split := severitySplit(counts); split != "" {
-		fmt.Fprintf(&b, " (%s)", split)
-	}
-
-	if ownCount == 0 && len(a.Introduced) > 0 {
-		// Nothing wrong with this package; it is the route to something else.
-		fmt.Fprintf(&b, " introduced via %s", strings.Join(introducedNames(a.Introduced), ", "))
-	} else if len(a.Introduced) > 0 {
-		fmt.Fprintf(&b, ", including %s pulled in transitively", strings.Join(introducedNames(a.Introduced), ", "))
-	}
-
-	if top.CveID != "" {
-		fmt.Fprintf(&b, " — %s", top.CveID)
-		if top.InCisaKev {
-			b.WriteString(" (CISA KEV)")
-		}
-	}
-	return b.String()
 }
 
 // scaRelatedInformation points at the transitive packages rolled up onto this
@@ -175,7 +138,7 @@ func (e *scaEngine) scaRelatedInformation(a *scaAnnotation) []protocol.Diagnosti
 				// file itself is the useful part of the link.
 				Range: protocol.Range{},
 			},
-			Message: fmt.Sprintf("%s@%s: %s", v.Name, v.Version, pluralVulns(len(v.Vulns))),
+			Message: fmt.Sprintf("%s@%s: %s", v.Name, v.Version, scaview.PluralVulns(len(v.Vulns))),
 		})
 	}
 	return out
@@ -193,134 +156,6 @@ func (e *scaEngine) targetVersionFor(v *scaVerdict) string {
 		return ""
 	}
 	return target
-}
-
-// ── Rendering helpers ────────────────────────────────────────────────────────
-
-func pluralVulns(n int) string {
-	if n == 1 {
-		return "1 vulnerability"
-	}
-	return fmt.Sprintf("%d vulnerabilities", n)
-}
-
-// severityOrder is worst-first, which is both the sort order and the render
-// order for the count split.
-var severityOrder = []string{"critical", "high", "medium", "low", "info"}
-
-func countBySeverityLabel(vulns []scan.EnrichedVuln) map[string]int {
-	counts := map[string]int{}
-	for _, v := range vulns {
-		counts[normaliseSeverity(v.MaxSeverity)]++
-	}
-	return counts
-}
-
-// severitySplit renders "2 critical, 3 high", omitting the tail that carries no
-// information: a reader deciding whether to act does not need the low count.
-func severitySplit(counts map[string]int) string {
-	parts := make([]string, 0, 2)
-	for _, label := range severityOrder {
-		if n := counts[label]; n > 0 {
-			parts = append(parts, fmt.Sprintf("%d %s", n, label))
-		}
-		if len(parts) == 2 {
-			break
-		}
-	}
-	return strings.Join(parts, ", ")
-}
-
-func worstSeverity(vulns []scan.EnrichedVuln) string {
-	best := "info"
-	bestRank := severityRank(best)
-	for _, v := range vulns {
-		if r := severityRank(v.MaxSeverity); r < bestRank {
-			bestRank = r
-			best = normaliseSeverity(v.MaxSeverity)
-		}
-	}
-	return best
-}
-
-// severityRank orders severities worst-first, so a lower rank is more severe.
-func severityRank(severity string) int {
-	target := normaliseSeverity(severity)
-	for i, label := range severityOrder {
-		if label == target {
-			return i
-		}
-	}
-	return len(severityOrder)
-}
-
-func normaliseSeverity(severity string) string {
-	s := strings.ToLower(strings.TrimSpace(severity))
-	switch s {
-	case "critical", "high", "medium", "low":
-		return s
-	case "moderate":
-		return "medium"
-	case "none", "":
-		return "info"
-	}
-	return s
-}
-
-// topVuln picks the one vulnerability to name in a one-line message: most
-// severe, then known-exploited, then highest exploit count, then newest
-// identifier.
-//
-// The last tiebreak is not arbitrary. Among equally severe advisories the more
-// recent one is the more useful thing to name — it is what a reader is likely
-// to have heard of and what a search will find current information about — and
-// ordering by identifier keeps the choice stable across scans.
-func topVuln(vulns []scan.EnrichedVuln) scan.EnrichedVuln {
-	if len(vulns) == 0 {
-		return scan.EnrichedVuln{}
-	}
-	sorted := make([]scan.EnrichedVuln, len(vulns))
-	copy(sorted, vulns)
-
-	sort.SliceStable(sorted, func(i, j int) bool {
-		ri, rj := severityRank(sorted[i].MaxSeverity), severityRank(sorted[j].MaxSeverity)
-		if ri != rj {
-			return ri < rj
-		}
-		ki, kj := sorted[i].InCisaKev, sorted[j].InCisaKev
-		if ki != kj {
-			return ki
-		}
-		// Prefer a CVE over a database-specific identifier, ahead of the exploit
-		// count rather than after it. The same advisory routinely arrives under
-		// both a CVE and a GHSA with different per-source exploit tallies, so
-		// ranking on the tally first picks a name by an accident of which
-		// database recorded more. The CVE is the name that appears in advisories,
-		// tickets and news, so it is the one worth showing.
-		ci, cj := isCVE(sorted[i].CveID), isCVE(sorted[j].CveID)
-		if ci != cj {
-			return ci
-		}
-		if sorted[i].ExploitCount != sorted[j].ExploitCount {
-			return sorted[i].ExploitCount > sorted[j].ExploitCount
-		}
-		return sorted[i].CveID > sorted[j].CveID
-	})
-	return sorted[0]
-}
-
-func cveIDs(vulns []scan.EnrichedVuln) []string {
-	seen := map[string]bool{}
-	out := make([]string, 0, len(vulns))
-	for _, v := range vulns {
-		if v.CveID == "" || seen[v.CveID] {
-			continue
-		}
-		seen[v.CveID] = true
-		out = append(out, v.CveID)
-	}
-	sort.Strings(out)
-	return out
 }
 
 func introducedNames(verdicts []*scaVerdict) []string {
@@ -349,7 +184,7 @@ func advisoryURL(id string) string {
 // `tool:vuln:purl` shape the protocol's Finding type documents. Stability is
 // what lets a client keep selection and expansion state across a rescan.
 func scaFindingID(a *scaAnnotation) string {
-	top := topVuln(a.AllVulns())
+	top := scaview.TopVuln(a.AllVulns())
 	return "sca:" + top.CveID + ":" + purlOf(a)
 }
 
