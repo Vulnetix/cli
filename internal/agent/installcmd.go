@@ -61,9 +61,15 @@ var installVerbs = []installVerb{
 		valueFlags: []string{"-w", "--filter", "-F", "--dir", "-C", "--registry"}},
 	{argv: []string{"pnpm", "install"}, ecosystem: "npm", manager: "pnpm", separator: "@",
 		valueFlags: []string{"-w", "--filter", "-F", "--dir", "-C", "--registry"}},
+	{argv: []string{"pnpm", "i"}, ecosystem: "npm", manager: "pnpm", separator: "@",
+		valueFlags: []string{"-w", "--filter", "-F", "--dir", "-C", "--registry"}},
 	{argv: []string{"bun", "add"}, ecosystem: "npm", manager: "bun", separator: "@",
 		valueFlags: []string{"--cwd", "--registry"}},
 	{argv: []string{"bun", "install"}, ecosystem: "npm", manager: "bun", separator: "@",
+		valueFlags: []string{"--cwd", "--registry"}},
+	{argv: []string{"bun", "i"}, ecosystem: "npm", manager: "bun", separator: "@",
+		valueFlags: []string{"--cwd", "--registry"}},
+	{argv: []string{"yarn", "install"}, ecosystem: "npm", manager: "yarn", separator: "@",
 		valueFlags: []string{"--cwd", "--registry"}},
 	{argv: []string{"deno", "add"}, ecosystem: "npm", manager: "deno", separator: "@",
 		valueFlags: []string{"--config"}},
@@ -211,7 +217,16 @@ func splitSegments(command string) []string {
 func parseSegment(segment string) []Candidate {
 	tokens := tokenise(segment)
 	tokens = stripEnvAssignments(tokens)
+	tokens = normaliseInterpreter(tokens)
 	if len(tokens) == 0 {
+		return nil
+	}
+
+	// A global install puts a tool on the machine rather than a dependency in
+	// this project. Nothing it does shows up in a manifest, so reporting on it
+	// is a comment about the developer's toolbox, not about the software being
+	// built.
+	if hasGlobalFlag(tokens) {
 		return nil
 	}
 
@@ -243,30 +258,95 @@ func parseSegment(segment string) []Candidate {
 	return out
 }
 
-// matchVerb finds the longest install verb the tokens begin with.
+// preSubcommandValueFlags are flags that can sit between a package manager and
+// its subcommand and consume the next token.
+//
+// `npm --prefix ./web install axios` and `yarn --cwd web add axios` are both
+// ordinary spellings, and matching only on adjacent tokens misses them
+// entirely — which is a silent miss, the worst kind for a guard.
+var preSubcommandValueFlags = map[string]bool{
+	"--prefix": true, "--cwd": true, "-c": true, "--dir": true,
+	"--config": true, "--registry": true, "-w": true, "--workspace": true,
+	"--filter": true, "-f": true, "--project": true, "-p": true,
+}
+
+// matchVerb finds the longest install verb the tokens begin with, allowing
+// flags between the binary and its subcommand.
+//
+// Returns the verb and everything after the subcommand. Flags skipped on the
+// way are dropped: they configure where the install happens, not what is
+// installed.
 func matchVerb(tokens []string) (installVerb, []string, bool) {
 	best := -1
+	bestEnd := 0
 	bestLen := 0
+
 	for i, v := range installVerbs {
-		if len(v.argv) <= bestLen || len(tokens) < len(v.argv) {
+		if len(v.argv) <= bestLen || len(tokens) == 0 {
 			continue
 		}
-		match := true
-		for j, want := range v.argv {
-			if !strings.EqualFold(basename(tokens[j]), want) {
-				match = false
+		if !strings.EqualFold(basename(tokens[0]), v.argv[0]) {
+			continue
+		}
+
+		pos := 1
+		matched := true
+		for _, want := range v.argv[1:] {
+			// Skip any flags sitting between the binary and this word.
+			for pos < len(tokens) && strings.HasPrefix(tokens[pos], "-") {
+				flag := strings.ToLower(tokens[pos])
+				pos++
+				if !strings.Contains(flag, "=") && preSubcommandValueFlags[flag] && pos < len(tokens) {
+					pos++
+				}
+			}
+			if pos >= len(tokens) || !strings.EqualFold(basename(tokens[pos]), want) {
+				matched = false
 				break
 			}
+			pos++
 		}
-		if match {
+		if matched {
 			best = i
+			bestEnd = pos
 			bestLen = len(v.argv)
 		}
 	}
+
 	if best < 0 {
 		return installVerb{}, nil, false
 	}
-	return installVerbs[best], tokens[bestLen:], true
+	return installVerbs[best], tokens[bestEnd:], true
+}
+
+// normaliseInterpreter rewrites `python -m pip` and friends to the tool they
+// run, so the verb table does not need an entry per interpreter.
+func normaliseInterpreter(tokens []string) []string {
+	if len(tokens) < 3 || tokens[1] != "-m" {
+		return tokens
+	}
+	switch basename(tokens[0]) {
+	case "python", "python3", "py", "python2":
+	default:
+		return tokens
+	}
+	switch strings.ToLower(tokens[2]) {
+	case "pip", "uv", "pdm", "poetry", "pipenv":
+		return append([]string{tokens[2]}, tokens[3:]...)
+	}
+	return tokens
+}
+
+// hasGlobalFlag reports whether a command installs into the machine rather than
+// into this project.
+func hasGlobalFlag(tokens []string) bool {
+	for _, t := range tokens {
+		switch strings.ToLower(t) {
+		case "-g", "--global", "--location=global":
+			return true
+		}
+	}
+	return false
 }
 
 // positionalArgs drops flags and the values they consume, leaving the package
