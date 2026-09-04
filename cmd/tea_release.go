@@ -137,12 +137,14 @@ func resolveTeaReleaseInputs(cmd *cobra.Command, args []string) (teaReleaseInput
 		// at, per the file header above, not the wall clock. That is also what
 		// makes the two Create*Release calls below actually idempotent: their
 		// idempotency key is stable across re-runs, so the body they carry has
-		// to be too, and time.Now() changes on every invocation. time.Now() is
-		// kept only as a last resort for running outside a git checkout; taking
-		// it costs the very idempotency this default exists to provide, so a
-		// retry there can still make progress but a re-run is not safe to expect
-		// to republish cleanly.
-		d, err := gitCommitDate()
+		// to be too, and time.Now() changes on every invocation. Resolved from
+		// in.Version's tag rather than HEAD for the same reason: a re-run one
+		// commit later is still the same release. time.Now() is kept only as a
+		// last resort for running outside a git checkout; taking it costs the
+		// very idempotency this default exists to provide, so a retry there can
+		// still make progress but a re-run is not safe to expect to republish
+		// cleanly.
+		d, err := gitCommitDate(in.Version)
 		if err != nil {
 			d = time.Now().UTC().Format(time.RFC3339)
 		}
@@ -528,7 +530,21 @@ func gitDescribeVersion() (string, error) {
 	return v, nil
 }
 
-// gitCommitDate returns HEAD's committer date, normalised to RFC3339 UTC.
+// gitCommitDate returns the committer date of the commit the release's tag
+// points at, normalised to RFC3339 UTC.
+//
+// The tag rather than HEAD, and this is the whole point of the function. The
+// release body carries this date while the idempotency key does not, so the
+// date has to be a property of the release being published, not of whatever the
+// working tree happens to be sitting on. In CI the two coincide, because the
+// workflow checks the tag out; everywhere else they diverge the moment another
+// commit lands, and a re-run then sends a different body under the same key and
+// is refused with VERSION_CONFLICT. That is exactly what happened to v3.103.0:
+// the release was cut at the tag, the recovery ran a commit later, and the
+// documented way to repair a failed publish could not.
+//
+// Falls back to HEAD when the tag cannot be resolved, which covers a release cut
+// before its tag exists and a shallow clone that did not fetch tags.
 //
 // The committer date rather than the author date: a tag is cut on the
 // committer's clock, and %cI is what git log and GitHub both call "committed
@@ -538,8 +554,17 @@ func gitDescribeVersion() (string, error) {
 // timezones would otherwise stamp a release with two different strings for
 // the one instant, which is the same idempotency-breaking bug this function
 // exists to close, just one commit removed from the wall clock.
-func gitCommitDate() (string, error) {
-	out, err := exec.Command("git", "log", "-1", "--format=%cI").Output()
+func gitCommitDate(version string) (string, error) {
+	// `<tag>^{commit}` resolves an annotated tag to the commit it wraps; a
+	// lightweight tag already is one, and the suffix is a no-op there.
+	rev := "HEAD"
+	if v := strings.TrimSpace(version); v != "" {
+		if err := exec.Command("git", "rev-parse", "--verify", "--quiet", v+"^{commit}").Run(); err == nil {
+			rev = v + "^{commit}"
+		}
+	}
+
+	out, err := exec.Command("git", "log", "-1", "--format=%cI", rev).Output()
 	if err != nil {
 		return "", fmt.Errorf("git log: %w", err)
 	}

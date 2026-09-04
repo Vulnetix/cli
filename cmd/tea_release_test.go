@@ -106,7 +106,7 @@ func TestGitCommitDate_MatchesHeadCommitterDate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := gitCommitDate()
+	got, err := gitCommitDate("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,11 +122,11 @@ func TestGitCommitDate_MatchesHeadCommitterDate(t *testing.T) {
 func TestGitCommitDate_DeterministicAcrossCalls(t *testing.T) {
 	initGitRepo(t, "", 0)
 
-	first, err := gitCommitDate()
+	first, err := gitCommitDate("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := gitCommitDate()
+	second, err := gitCommitDate("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestGitCommitDate_NormalisesNonUTCOffset(t *testing.T) {
 		t.Fatalf("git commit: %v\n%s", err, out)
 	}
 
-	got, err := gitCommitDate()
+	got, err := gitCommitDate("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +282,7 @@ func TestResolveTeaReleaseInputs_DateDefaultsToCommitDateAndIsStable(t *testing.
 	t.Setenv("GITHUB_REF_TYPE", "tag")
 	t.Setenv("GITHUB_REF_NAME", "v1.0.0")
 
-	wantDate, err := gitCommitDate()
+	wantDate, err := gitCommitDate("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -426,5 +426,72 @@ func TestResolveChecksumsManifest_OffByDefault(t *testing.T) {
 	}
 	if got != "" {
 		t.Errorf("got %q, want nothing without the flag", got)
+	}
+}
+
+// TestGitCommitDate_StableWhenHeadMovesPastTheTag is the regression this
+// function actually needed.
+//
+// Determinism at one HEAD was already covered, and that is precisely why the
+// bug shipped: the release body carries the date while the idempotency key does
+// not, so what has to be stable is the date *for a given release*, across every
+// checkout it might be published from. v3.103.0 was cut at its tag, its publish
+// failed on an unrelated transient, and the documented recovery ran one commit
+// later — sending a different body under the same key, which the server refused
+// with VERSION_CONFLICT.
+func TestGitCommitDate_StableWhenHeadMovesPastTheTag(t *testing.T) {
+	initGitRepo(t, "v9.9.9", 0)
+
+	atTag, err := gitCommitDate("v9.9.9")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Land another commit, as any repository does between a release and the
+	// moment somebody has to repair its publish. The date is pinned rather than
+	// left to the clock: two commits made in the same second share a committer
+	// date, and the assertion below would then pass without testing anything.
+	later := exec.Command("git", "commit", "-q", "--allow-empty", "-m", "later work")
+	later.Env = append(os.Environ(),
+		"GIT_COMMITTER_DATE=2030-01-01T12:00:00+00:00",
+		"GIT_AUTHOR_DATE=2030-01-01T12:00:00+00:00",
+	)
+	if out, err := later.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, out)
+	}
+
+	fromHead, err := gitCommitDate("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fromHead == atTag {
+		t.Fatal("test setup failed: HEAD did not move to a different committer date")
+	}
+
+	afterMove, err := gitCommitDate("v9.9.9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterMove != atTag {
+		t.Errorf("date changed when HEAD moved past the tag: at tag %q, after %q (HEAD is %q)",
+			atTag, afterMove, fromHead)
+	}
+}
+
+// An unknown tag is not an error: a release may legitimately be published
+// before its tag exists, and a shallow clone may not have fetched tags at all.
+func TestGitCommitDate_FallsBackWhenTagIsUnknown(t *testing.T) {
+	initGitRepo(t, "", 0)
+
+	got, err := gitCommitDate("v0.0.0-does-not-exist")
+	if err != nil {
+		t.Fatalf("an unresolvable tag must fall back to HEAD, got %v", err)
+	}
+	head, err := gitCommitDate("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != head {
+		t.Errorf("got %q, want HEAD's date %q", got, head)
 	}
 }
