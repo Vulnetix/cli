@@ -16,6 +16,7 @@ import (
 
 	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
 	"github.com/vulnetix/cli/v3/internal/sast"
+	"github.com/vulnetix/cli/v3/internal/scaview"
 )
 
 // Config is what the process supplies to the server.
@@ -1135,9 +1136,9 @@ func aboveSeverityFloor(diags []protocol.Diagnostic, floor string) []protocol.Di
 	if floor == "" {
 		return diags
 	}
-	limit := severityRank(floor)
+	limit := scaview.SeverityRank(floor)
 	// An unrecognised floor is not a reason to hide anything.
-	if limit >= len(severityOrder) {
+	if !scaview.SeverityKnown(floor) {
 		return diags
 	}
 
@@ -1160,11 +1161,11 @@ func aboveSeverityFloor(diags []protocol.Diagnostic, floor string) []protocol.Di
 func lspSeverityRank(severity int) int {
 	switch severity {
 	case protocol.SeverityError:
-		return severityRank("critical")
+		return scaview.SeverityRank("critical")
 	case protocol.SeverityWarning:
-		return severityRank("medium")
+		return scaview.SeverityRank("medium")
 	case protocol.SeverityInformation, protocol.SeverityHint:
-		return severityRank("low")
+		return scaview.SeverityRank("low")
 	}
-	return severityRank("info")
+	return scaview.SeverityRank("info")
 }
