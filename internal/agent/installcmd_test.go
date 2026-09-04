@@ -3,6 +3,8 @@ package agent
 import (
 	"strings"
 	"testing"
+
+	"github.com/vulnetix/cli/v3/internal/cdx"
 )
 
 // want is a compact spelling of one expected candidate: "ecosystem:name@version".
@@ -37,7 +39,7 @@ func TestParseInstallCommand(t *testing.T) {
 		{"cargo add", "cargo add serde", []string{"cargo:serde"}},
 		{"gem install", "gem install rails", []string{"rubygems:rails"}},
 		{"bundle add", "bundle add rails", []string{"rubygems:rails"}},
-		{"composer require", "composer require monolog/monolog", []string{"packagist:monolog/monolog"}},
+		{"composer require", "composer require monolog/monolog", []string{"composer:monolog/monolog"}},
 		{"go get", "go get github.com/gin-gonic/gin", []string{"golang:github.com/gin-gonic/gin"}},
 		{"dotnet add package", "dotnet add package Newtonsoft.Json", []string{"nuget:Newtonsoft.Json"}},
 		{"mvn dependency:get", "mvn dependency:get -Dartifact=x", nil},
@@ -55,7 +57,7 @@ func TestParseInstallCommand(t *testing.T) {
 		{"pip extras bare", "pip install requests[security]", []string{"pypi:requests"}},
 		{"cargo pin", "cargo add serde@1.0.100", []string{"cargo:serde@1.0.100"}},
 		{"go pin", "go get github.com/gin-gonic/gin@v1.9.1", []string{"golang:github.com/gin-gonic/gin@v1.9.1"}},
-		{"composer pin", "composer require monolog/monolog:^3.0", []string{"packagist:monolog/monolog@^3.0"}},
+		{"composer pin", "composer require monolog/monolog:^3.0", []string{"composer:monolog/monolog@^3.0"}},
 		{"maven coords", "mvn dependency:get org.apache.logging.log4j:log4j-core:2.14.1",
 			[]string{"maven:org.apache.logging.log4j:log4j-core@2.14.1"}},
 
@@ -145,5 +147,54 @@ func TestParseInstallCommandKeepsManagerForReporting(t *testing.T) {
 	got := ParseInstallCommand("pnpm add axios")
 	if len(got) != 1 || got[0].Manager != "pnpm" {
 		t.Fatalf("got %+v, want Manager pnpm", got)
+	}
+}
+
+// TestEveryEcosystemBuildsAPurl is the guard against the worst class of bug this
+// package can have.
+//
+// A candidate whose ecosystem the purl builder does not recognise gets an empty
+// purl, is dropped from the request, and produces exactly the same silence as a
+// package with nothing wrong with it. That is how every `composer require` went
+// unchecked: the table said "packagist", which is what VDB's search flag calls
+// the registry, and the purl builder wants "composer".
+//
+// Anything added to installVerbs is checked here, so a new ecosystem cannot be
+// spelled in a way that silently drops it.
+func TestEveryEcosystemBuildsAPurl(t *testing.T) {
+	seen := map[string]bool{}
+	for _, v := range installVerbs {
+		if seen[v.ecosystem] {
+			continue
+		}
+		seen[v.ecosystem] = true
+		if purl := cdx.BuildLocalPurl("example-pkg", "1.0.0", v.ecosystem); purl == "" {
+			t.Errorf("ecosystem %q (from %v) builds no purl, so every package it names is silently dropped",
+				v.ecosystem, v.argv)
+		}
+	}
+}
+
+// TestManifestAndCommandEcosystemsAgree keeps the two entry points naming the
+// same registry the same way. A dependency added by editing a manifest and the
+// same dependency added by running a command must reach VDB identically.
+func TestManifestAndCommandEcosystemsAgree(t *testing.T) {
+	// Left is what the manifest parser emits, right is what this table emits.
+	pairs := map[string]string{
+		"npm":      "npm",
+		"pypi":     "pypi",
+		"golang":   "golang",
+		"cargo":    "cargo",
+		"rubygems": "rubygems",
+		"composer": "composer",
+		"maven":    "maven",
+		"nuget":    "nuget",
+	}
+	for manifestEco, commandEco := range pairs {
+		a := cdx.BuildLocalPurl("example-pkg", "1.0.0", manifestEco)
+		b := cdx.BuildLocalPurl("example-pkg", "1.0.0", commandEco)
+		if a == "" || a != b {
+			t.Errorf("manifest ecosystem %q builds %q, command ecosystem %q builds %q", manifestEco, a, commandEco, b)
+		}
 	}
 }
