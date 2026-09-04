@@ -26,6 +26,11 @@ const (
 	// SignalKEVCritical is a critical advisory that is also on a known-exploited
 	// list. Proceeding is never the right call without a decision being made.
 	SignalKEVCritical Signal = "kev-critical"
+	// SignalMalwareUnresolved is a malware flag against a package's name rather
+	// than against a release: the command named no version, and the one it
+	// would install could not be resolved. That "some version was malicious" is
+	// true of express, so this informs rather than blocks by default.
+	SignalMalwareUnresolved Signal = "malware-unresolved"
 	// SignalSeverityHigh is a high-or-worse advisory with no exploitation
 	// evidence.
 	SignalSeverityHigh Signal = "severity-high"
@@ -119,7 +124,7 @@ func DefaultPolicy() Policy {
 			// warning on it fires on nearly every command and teaches people to
 			// stop reading. A repository that wants exact pins has --block-unpinned
 			// on the scan family, which is where a build-time policy belongs.
-			Warn: []Signal{SignalSeverityHigh, SignalBelowTarget, SignalEOL, SignalCooldown},
+			Warn: []Signal{SignalSeverityHigh, SignalBelowTarget, SignalEOL, SignalCooldown, SignalMalwareUnresolved},
 		},
 		ChangeGuard: GuardPolicy{
 			Block: []Signal{SignalSecret},
