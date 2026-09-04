@@ -110,7 +110,7 @@ var installVerbs = []installVerb{
 		valueFlags: []string{"-v", "--version", "--group", "-g", "--source", "--git", "--path"}},
 
 	// ── PHP ─────────────────────────────────────────────────────────────────
-	{argv: []string{"composer", "require"}, ecosystem: "packagist", manager: "composer", separator: ":",
+	{argv: []string{"composer", "require"}, ecosystem: "composer", manager: "composer", separator: ":",
 		valueFlags: []string{"--working-dir", "-d", "--prefer-install"}},
 
 	// ── .NET ────────────────────────────────────────────────────────────────
