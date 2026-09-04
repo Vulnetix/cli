@@ -2,12 +2,15 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/v3/internal/agent"
+	"github.com/vulnetix/cli/v3/pkg/auth"
 )
 
 var (
@@ -69,7 +72,18 @@ func init() {
 	agentHookCmd.Flags().StringVar(&agentHookRoot, "root", "",
 		"Repository root. Defaults to the payload's cwd, then the working directory.")
 
+	agentInstallCmd.Flags().StringArrayVar(&agentInstallHosts, "agent", nil,
+		"Wire only this agent (repeatable). Default is every agent detected on this machine.")
+	agentInstallCmd.Flags().BoolVar(&agentInstallDryRun, "dry-run", false,
+		"Report what would change without writing anything")
+	agentInstallCmd.Flags().BoolVar(&agentInstallNoHooks, "no-hooks", false,
+		"Skip hook configuration")
+	agentHostsCmd.Flags().StringVarP(&agentHostsOutput, "output", "o", "pretty",
+		"Output format: pretty or json")
+
 	agentCmd.AddCommand(agentHookCmd)
+	agentCmd.AddCommand(agentInstallCmd)
+	agentCmd.AddCommand(agentHostsCmd)
 	rootCmd.AddCommand(agentCmd)
 
 	// Set as early as possible: startupHooks runs via cobra.OnInitialize, after
@@ -126,6 +140,130 @@ func runAgentHook(cmd *cobra.Command, _ []string) error {
 	resp := runner.Run(context.Background(), payload)
 	if err := resp.Encode(cmd.OutOrStdout()); err != nil {
 		return nil
+	}
+	return nil
+}
+
+var (
+	agentInstallHosts   []string
+	agentInstallDryRun  bool
+	agentInstallNoHooks bool
+	agentHostsOutput    string
+)
+
+var agentInstallCmd = &cobra.Command{
+	Use:   "install",
+	Short: "Wire the coding agents on this machine to Vulnetix",
+	Long: `Detect installed coding agents and configure them.
+
+Existing configuration is preserved: this CLI's entry is added or updated in
+place and everything else in the file is written back untouched. Re-running is
+safe and reports that nothing changed.
+
+Hooks are only configured for hosts whose hook contract has been verified
+against this CLI. A host that documents one this build has not tested is wired
+for skills and said so, rather than being promised support that was never run.`,
+	Args: cobra.NoArgs,
+	RunE: runAgentInstall,
+}
+
+var agentHostsCmd = &cobra.Command{
+	Use:   "hosts",
+	Short: "List the coding agents this CLI can wire, and what it can wire for each",
+	Long: `Print the support matrix.
+
+This is the source of truth the documentation and the marketing support tables
+are generated from, so a page cannot claim a capability the installer does not
+implement.`,
+	Args: cobra.NoArgs,
+	RunE: runAgentHosts,
+}
+
+func runAgentInstall(cmd *cobra.Command, _ []string) error {
+	hosts := agent.DetectHosts()
+	if len(agentInstallHosts) > 0 {
+		hosts = nil
+		for _, id := range agentInstallHosts {
+			h, ok := agent.HostByID(id)
+			if !ok {
+				return fmt.Errorf("unknown agent %q; run 'vulnetix agent hosts' for the list", id)
+			}
+			hosts = append(hosts, h)
+		}
+	}
+
+	out := cmd.OutOrStdout()
+	if len(hosts) == 0 {
+		fmt.Fprintln(out, "No coding agents detected on this machine.")
+		fmt.Fprintln(out, "Name one explicitly with --agent, or run 'vulnetix agent hosts' for the list.")
+		return nil
+	}
+
+	opts := agent.InstallOptions{DryRun: agentInstallDryRun, Hooks: !agentInstallNoHooks}
+
+	for _, h := range hosts {
+		fmt.Fprintf(out, "%s\n", h.Name)
+
+		if opts.Hooks {
+			res := agent.InstallHooks(h, opts)
+			switch {
+			case res.Err != nil:
+				fmt.Fprintf(out, "  hooks    %v\n", res.Err)
+			case len(res.Wired) == 0:
+				// Nothing to report beyond the note explaining why.
+			case res.Changed && opts.DryRun:
+				fmt.Fprintf(out, "  hooks    would configure %s\n", h.HookConfig)
+			case res.Changed:
+				fmt.Fprintf(out, "  hooks    configured %s\n", h.HookConfig)
+			default:
+				fmt.Fprintf(out, "  hooks    already configured\n")
+			}
+			for _, note := range res.Notes {
+				fmt.Fprintf(out, "  note     %s\n", note)
+			}
+		}
+
+		for _, dir := range h.SkillDirs {
+			fmt.Fprintf(out, "  skills   %s\n", dir)
+		}
+		if h.MCP {
+			fmt.Fprintf(out, "  mcp      https://mcp.vulnetix.com/mcp\n")
+		}
+	}
+
+	fmt.Fprintln(out)
+	reportAgentAuth(out)
+	return nil
+}
+
+// reportAgentAuth says which credential the guard will run on, because the
+// answer changes the rate limit a developer gets and the fix is one URL.
+func reportAgentAuth(out io.Writer) {
+	creds, err := auth.LoadCredentials()
+	switch {
+	case err == nil && creds != nil && !auth.IsCommunity(creds):
+		fmt.Fprintln(out, "Authenticated.")
+	default:
+		fmt.Fprintln(out, "Running on the shared Community tier: reads work, rate limits are shared.")
+		fmt.Fprintln(out, "A free Community key with its own quota:")
+		fmt.Fprintln(out, "  https://www.vulnetix.com/resolve/register, then 'vulnetix auth login'.")
+	}
+}
+
+func runAgentHosts(cmd *cobra.Command, _ []string) error {
+	out := cmd.OutOrStdout()
+	if agentHostsOutput == "json" {
+		return json.NewEncoder(out).Encode(agent.Hosts)
+	}
+
+	fmt.Fprintf(out, "%-16s %-18s %-10s %-6s %-5s %s\n", "ID", "NAME", "INSTALLED", "SKILLS", "HOOKS", "MCP")
+	for _, h := range agent.Hosts {
+		fmt.Fprintf(out, "%-16s %-18s %-10s %-6s %-5s %s\n",
+			h.ID, h.Name,
+			yesNo(h.Installed()),
+			yesNo(h.Supports(agent.SurfaceSkills)),
+			yesNo(h.Supports(agent.SurfaceHooks)),
+			yesNo(h.Supports(agent.SurfaceMCP)))
 	}
 	return nil
 }
