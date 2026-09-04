@@ -58,6 +58,16 @@ func (r Runner) changeGuard(ctx context.Context, p Payload) Response {
 		return silent
 	}
 
+	// `git -C dir commit` operates on dir, not on the cwd the host reported.
+	// Without this the guard ran its own git commands in the wrong directory,
+	// found no repository there, and cleared a commit it never looked at.
+	if dir := gitChangeDir(p.Command()); dir != "" {
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(r.Root, dir)
+		}
+		r.Root = dir
+	}
+
 	// Nothing in the policy asks about this change, so there is nothing to
 	// spend the budget on.
 	if r.Policy.ChangeGuard.Decide(SignalSecret) == Silent {
@@ -81,7 +91,21 @@ func (r Runner) changeGuard(ctx context.Context, p Payload) Response {
 		return silent
 	}
 	if len(findings) == 0 {
-		return silent
+		if !truncated {
+			return silent
+		}
+		// Nothing found in the part that was read is not a clean bill for the
+		// part that was not. Silence here would be exactly that claim, on the
+		// commits large enough for it to matter most — a vendored tree, a
+		// generated bundle, a first push of a whole repository.
+		return Response{
+			Event:    p.HookEventName,
+			Decision: Inform,
+			Message: fmt.Sprintf(
+				"Vulnetix read %d files of this %s for credentials and stopped at its cap "+
+					"(%d files or %d MB). Nothing was found in what it read; the rest was not checked.",
+				len(docs), changeVerb(kind), changeGuardMaxFiles, changeGuardMaxBytes>>20),
+		}
 	}
 
 	decision := r.Policy.ChangeGuard.Decide(SignalSecret)
@@ -166,6 +190,87 @@ func isGitCommitAllFlag(f string) bool {
 	return strings.ContainsRune(f[1:], 'a')
 }
 
+// gitChangeDir returns the directory a `git -C dir …` command operates on, or
+// empty when the command relies on the cwd.
+func gitChangeDir(command string) string {
+	for _, segment := range splitSegments(command) {
+		fields := shellWords(segment)
+		if len(fields) < 3 || path.Base(fields[0]) != "git" {
+			continue
+		}
+		for i := 1; i < len(fields); i++ {
+			f := fields[i]
+			switch {
+			case f == "-C" && i+1 < len(fields):
+				return fields[i+1]
+			case strings.HasPrefix(f, "-C") && len(f) > 2:
+				return f[2:]
+			// Other git options that take a separate value: skip the value so
+			// `git -c user.name=x -C dir commit` still finds its -C.
+			case f == "-c" || f == "--git-dir" || f == "--work-tree" || f == "--namespace" || f == "--exec-path":
+				i++
+			case !strings.HasPrefix(f, "-"):
+				// The subcommand. -C only means anything before it.
+				return ""
+			}
+		}
+	}
+	return ""
+}
+
+// shellWords splits a command the way a shell would for the cases that matter
+// here: whitespace separates words, and single or double quotes keep a path
+// with a space in it together. Nothing more — this is not an interpreter.
+func shellWords(s string) []string {
+	var out []string
+	var cur strings.Builder
+	inWord := false
+	var quote rune
+	for _, r := range s {
+		switch {
+		case quote != 0:
+			if r == quote {
+				quote = 0
+			} else {
+				cur.WriteRune(r)
+			}
+		case r == '"' || r == '\'':
+			quote = r
+			inWord = true
+		case r == ' ' || r == '\t' || r == '\n':
+			if inWord {
+				out = append(out, cur.String())
+				cur.Reset()
+				inWord = false
+			}
+		default:
+			cur.WriteRune(r)
+			inWord = true
+		}
+	}
+	if inWord {
+		out = append(out, cur.String())
+	}
+	return out
+}
+
+// repoTop resolves the repository root, which is where repository-relative
+// paths are joined. Falls back to Root when git cannot say.
+func (r Runner) repoTop(ctx context.Context) string {
+	out, err := r.gitOutput(ctx, "rev-parse", "--show-toplevel")
+	if top := strings.TrimSpace(string(out)); err == nil && top != "" {
+		return top
+	}
+	return r.Root
+}
+
+func changeVerb(kind changeKind) string {
+	if kind == changePush {
+		return "push"
+	}
+	return "commit"
+}
+
 // changedDocuments reads the content the operation would record, keyed by
 // repository-relative path.
 //
@@ -188,19 +293,19 @@ func (r Runner) changedDocuments(ctx context.Context, kind changeKind, alsoUnsta
 	switch kind {
 	case changeCommit:
 		sources = append(sources, source{
-			paths:   r.git(ctx, "diff", "--cached", "--name-only", "-z", "--diff-filter=ACM"),
+			paths:   r.git(ctx, "diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR"),
 			blobRef: "", // ":path" — the staged blob; handled in readDoc.
 		})
 		if alsoUnstaged {
 			sources = append(sources, source{
-				paths: r.git(ctx, "diff", "--name-only", "-z", "--diff-filter=ACM"),
+				paths: r.git(ctx, "diff", "--name-only", "-z", "--diff-filter=ACMR"),
 				// -a records the working tree, so that is what to read.
 				blobRef: "worktree",
 			})
 		}
 	case changePush:
 		// With an upstream, the change is exactly what the remote has not seen.
-		if paths := r.git(ctx, "diff", "--name-only", "-z", "--diff-filter=ACM", "@{upstream}..HEAD"); len(paths) > 0 {
+		if paths := r.git(ctx, "diff", "--name-only", "-z", "--diff-filter=ACMR", "@{upstream}..HEAD"); len(paths) > 0 {
 			sources = append(sources, source{paths: paths, blobRef: "HEAD"})
 			break
 		}
@@ -259,7 +364,12 @@ func (r Runner) readDoc(ctx context.Context, blobRef, rel string) (string, bool)
 	case "":
 		spec = ":" + rel // the staged blob
 	case "worktree":
-		return readWorktreeFile(filepath.Join(r.Root, rel))
+		// rel is repository-relative whatever directory git ran in, so it is
+		// joined onto the repository's top level, not onto Root. A host that
+		// reports a subdirectory as cwd — which is where `git commit -a` is
+		// often typed — otherwise gets a path that does not exist, the read
+		// fails, and the file the commit is about to record goes unchecked.
+		return readWorktreeFile(filepath.Join(r.repoTop(ctx), rel))
 	default:
 		spec = blobRef + ":" + rel
 	}

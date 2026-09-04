@@ -129,6 +129,8 @@ func (l *VDBLookup) Assess(ctx context.Context, cands []Candidate) []Assessment 
 			IncludeSafeVersions: true,
 			IncludeEOL:          true,
 			IncludeMalware:      true,
+			// The version list is what resolves an unversioned install below.
+			IncludeVersionLag: true,
 		},
 	})
 	if err != nil || resp == nil {
@@ -164,6 +166,112 @@ func (l *VDBLookup) Assess(ctx context.Context, cands []Candidate) []Assessment 
 		}
 	}
 
+	return l.resolveUnversioned(ctx, client, cands, out)
+}
+
+// resolveUnversioned re-assesses `npm i express` as the version it installs.
+//
+// A version-less purl asks the server about the package as a whole, and the
+// answer to "is any published version of express malicious" is yes: one
+// compromised release, years ago, is on the OSS malicious-packages list. The
+// first pass therefore came back `isMalicious: true` for `pkg:npm/express`
+// and the guard refused `npm i express` outright — while `express@5.1.0`,
+// which is what that command installs, is clean.
+//
+// So a candidate that named no version is resolved to the newest published
+// version from the first pass and assessed again as that concrete purl. A
+// typosquat's newest version is still malicious and is still refused; a real
+// package with one bad release in its history is judged on the release that
+// would actually land. Where the newest version cannot be determined the
+// bare-name verdict is kept but marked NameLevel, and the guard reports it
+// instead of blocking on it.
+func (l *VDBLookup) resolveUnversioned(ctx context.Context, client *vdb.Client, cands []Candidate, out []Assessment) []Assessment {
+	type retry struct {
+		index   int
+		purl    string
+		version string
+	}
+	var retries []retry
+	purls := make([]string, 0, 4)
+
+	for i := range out {
+		if out[i].Unknown || versionForQuery(cands[i].Version) != "" {
+			continue
+		}
+		in := out[i].Insight
+		if in == nil || len(in.LatestVersions) == 0 || in.LatestVersions[0].Version == "" {
+			// Nothing to resolve to. Whatever the bare name said stands, but as a
+			// name-level fact rather than a verdict on what will install.
+			out[i].NameLevel = true
+			continue
+		}
+		latest := in.LatestVersions[0].Version
+		purl := cdx.BuildLocalPurl(cands[i].Name, latest, cands[i].Ecosystem)
+		if purl == "" {
+			out[i].NameLevel = true
+			continue
+		}
+		retries = append(retries, retry{index: i, purl: purl, version: latest})
+		purls = append(purls, purl)
+	}
+	if len(retries) == 0 {
+		return out
+	}
+
+	packages := make([]scan.ScopedPackage, 0, len(retries))
+	purlByIndex := make([]string, 0, len(retries))
+	for _, rt := range retries {
+		c := cands[rt.index]
+		packages = append(packages, scan.ScopedPackage{
+			Name:      c.Name,
+			Version:   rt.version,
+			Ecosystem: c.Ecosystem,
+			Scope:     parse.ScopeProduction,
+		})
+		purlByIndex = append(purlByIndex, rt.purl)
+	}
+
+	resp, err := client.CliSCAWithContext(ctx, vdb.SnapshotEnv(l.Root, l.CLIVersion, "", ""), vdb.CliSCARequest{
+		Purls: purls,
+		Options: vdb.CliSCAOptions{
+			IncludeReachability: boolPtr(false),
+			IncludeSafeVersions: true,
+			IncludeEOL:          true,
+			IncludeMalware:      true,
+		},
+	})
+	if err != nil || resp == nil {
+		// The second look failed. The first answer is all there is; say it is
+		// about the name, not the install.
+		for _, rt := range retries {
+			out[rt.index].NameLevel = true
+		}
+		return out
+	}
+
+	_, enriched, _ := scan.SynthesiseFromCDX(resp.Data.CycloneDX, packages, purlByIndex)
+
+	insightByPurl := make(map[string]*vdb.CliPackageInsight, len(resp.Data.PackageInsights))
+	for i := range resp.Data.PackageInsights {
+		in := &resp.Data.PackageInsights[i]
+		insightByPurl[strings.ToLower(in.Purl)] = in
+	}
+	vulnsByPkg := make(map[string][]scan.EnrichedVuln)
+	for _, v := range enriched {
+		k := pkgKey(v.PackageName, v.Ecosystem)
+		vulnsByPkg[k] = append(vulnsByPkg[k], v)
+	}
+
+	for _, rt := range retries {
+		c := cands[rt.index]
+		out[rt.index].Vulns = vulnsByPkg[pkgKey(c.Name, c.Ecosystem)]
+		if in, ok := insightByPurl[strings.ToLower(rt.purl)]; ok {
+			out[rt.index].Insight = in
+			out[rt.index].Resolved = in.Version
+		} else {
+			out[rt.index].NameLevel = true
+		}
+	}
 	return out
 }
 

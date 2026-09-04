@@ -20,6 +20,13 @@ type Assessment struct {
 	// same as the package being fine.
 	Resolved string
 
+	// NameLevel records that the command named no version and nothing could
+	// resolve the one it would install, so Insight describes the package's
+	// whole history rather than a release. A malware flag at that level means
+	// "some version has been malicious", which is true of express and is not a
+	// reason to refuse `npm i express`.
+	NameLevel bool
+
 	Vulns   []scan.EnrichedVuln
 	Insight *vdb.CliPackageInsight
 
@@ -107,7 +114,12 @@ func signalsFor(p Policy, a Assessment) []Signal {
 	var out []Signal
 
 	if a.Insight != nil && a.Insight.IsMalicious {
-		out = append(out, SignalMalware)
+		if a.NameLevel {
+			// A fact about the package's history, not about what installs.
+			out = append(out, SignalMalwareUnresolved)
+		} else {
+			out = append(out, SignalMalware)
+		}
 	}
 	if a.Insight != nil && a.Insight.IsEOL {
 		out = append(out, SignalEOL)
@@ -206,6 +218,11 @@ func renderAssessment(a Assessment, p Policy) string {
 	if isUnpinned(a.Candidate.Version) && a.Resolved != "" {
 		card += fmt.Sprintf("\n**Unpinned.** `%s` resolves to %s today; a later install may differ.\n",
 			displaySpec(a.Candidate), a.Resolved)
+	}
+	if a.NameLevel && a.Insight != nil && a.Insight.IsMalicious {
+		card += fmt.Sprintf("\n**About the name, not a release.** At least one published version of `%s` "+
+			"is on a malicious-package list, and the version this command would install could not be "+
+			"determined. Pin one explicitly and it will be judged on its own.\n", a.Candidate.Name)
 	}
 	return strings.TrimRight(card, "\n")
 }
