@@ -12,9 +12,24 @@
         "verbose"
       ],
       "subcommands": [
+        "capabilities",
         "hook",
         "hosts",
         "install"
+      ]
+    },
+    "agent capabilities": {
+      "short": "Record what this machine and this repository can do",
+      "flags": [
+        "disable-memory",
+        "force",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "root",
+        "silent",
+        "verbose"
       ]
     },
     "agent hook": {

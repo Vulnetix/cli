@@ -33,6 +33,8 @@ func (r Runner) Run(ctx context.Context, p Payload) Response {
 	switch p.HookEventName {
 	case EventPreToolUse:
 		return r.preToolUse(ctx, p)
+	case EventSessionStart, EventUserPromptSubmit:
+		return r.sessionContext(ctx, p)
 	default:
 		return Response{Event: p.HookEventName, Decision: Silent}
 	}
@@ -45,6 +47,13 @@ func (r Runner) preToolUse(ctx context.Context, p Payload) Response {
 
 	switch {
 	case isShellTool(p.ToolName):
+		// One shell command is one of two questions, never both: `git commit`
+		// records a change, `npm i` adds a dependency. Asking the change guard
+		// first means a commit never pays for a dependency lookup that has
+		// nothing to look at.
+		if kind, _ := classifyGitCommand(p.Command()); kind != changeNone {
+			return r.changeGuard(ctx, p)
+		}
 		candidates = ParseInstallCommand(p.Command())
 	case isWriteTool(p.ToolName):
 		candidates = r.manifestCandidates(p)

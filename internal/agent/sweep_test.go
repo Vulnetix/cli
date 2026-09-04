@@ -3,7 +3,10 @@ package agent
 import "testing"
 
 func TestSweepRealWorldSpellings(t *testing.T) {
-	cases := []struct{ cmd string; wantPkg string }{
+	cases := []struct {
+		cmd     string
+		wantPkg string
+	}{
 		{"npm install --save axios", "axios"},
 		{"npm i axios --save-dev", "axios"},
 		{"yarn add -D typescript", "typescript"},
