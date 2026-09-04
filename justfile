@@ -866,7 +866,28 @@ tea-release VERSION="":
         "https://github.com/Vulnetix/cli/releases/download/${VER}/checksums.txt" \
         -o "$TMPDIR/checksums.txt"
 
-    go run . sca --no-banner --no-progress -o "$TMPDIR/vulnetix.cdx.json"
+    # The organisation's quality gate makes `sca` exit non-zero on a policy
+    # breach, and it writes the SBOM before returning that verdict. The verdict
+    # is a scan result, not a publication failure: the release already exists on
+    # GitHub by this point, so refusing to record it would leave the
+    # transparency log silent about the release most worth being transparent
+    # about.
+    #
+    # release.yml allows the same step to fail, for the same reason. This recipe
+    # is its manual equivalent — the one documented way to recover a failed
+    # publish — so it has to agree, or the fallback can never itself succeed.
+    # It could not: this repository vendors a deliberately vulnerable fixture
+    # under testdata/, so a scan of it always breaches the gate and `set -e`
+    # aborted the recipe before it ever reached `tea release`.
+    go run . sca --no-banner --no-progress -o "$TMPDIR/vulnetix.cdx.json" || true
+
+    # `tea release` drops files it cannot read and says so, so a missing SBOM
+    # publishes the release and its download links rather than nothing.
+    if [ -s "$TMPDIR/vulnetix.cdx.json" ]; then
+        echo "SBOM: $(wc -c < "$TMPDIR/vulnetix.cdx.json") bytes"
+    else
+        echo "warning: no SBOM was produced; publishing the release without one"
+    fi
 
     go run . tea release "$TMPDIR/vulnetix.cdx.json" \
         --product Vulnetix/cli \
