@@ -81,9 +81,15 @@ func init() {
 	agentHostsCmd.Flags().StringVarP(&agentHostsOutput, "output", "o", "pretty",
 		"Output format: pretty or json")
 
+	agentCapabilitiesCmd.Flags().StringVar(&agentCapabilitiesRoot, "root", "",
+		"Repository root. Defaults to the working directory.")
+	agentCapabilitiesCmd.Flags().BoolVar(&agentCapabilitiesForce, "force", false,
+		"Re-detect even when the recorded detection is still fresh")
+
 	agentCmd.AddCommand(agentHookCmd)
 	agentCmd.AddCommand(agentInstallCmd)
 	agentCmd.AddCommand(agentHostsCmd)
+	agentCmd.AddCommand(agentCapabilitiesCmd)
 	rootCmd.AddCommand(agentCmd)
 
 	// Set as early as possible: startupHooks runs via cobra.OnInitialize, after
@@ -149,6 +155,9 @@ var (
 	agentInstallDryRun  bool
 	agentInstallNoHooks bool
 	agentHostsOutput    string
+
+	agentCapabilitiesRoot  string
+	agentCapabilitiesForce bool
 )
 
 var agentInstallCmd = &cobra.Command{
@@ -177,6 +186,59 @@ are generated from, so a page cannot claim a capability the installer does not
 implement.`,
 	Args: cobra.NoArgs,
 	RunE: runAgentHosts,
+}
+
+var agentCapabilitiesCmd = &cobra.Command{
+	Use:   "capabilities",
+	Short: "Record what this machine and this repository can do",
+	Long: `Write .vulnetix/capabilities.yaml.
+
+Skills and hooks read that file to scope themselves to the tools actually
+installed and the project markers actually present, so a skill does not offer a
+container workflow in a repository with no container files, or reach for a
+binary this machine does not have.
+
+The detection was a shell script until now, which meant it did not run on native
+Windows and got some answers wrong — a repository with an empty .github/workflows
+directory was reported as having CI. Re-running is cheap and idempotent; the file
+is refreshed when it is older than a day, or immediately with --force.`,
+	Args: cobra.NoArgs,
+	RunE: runAgentCapabilities,
+}
+
+func runAgentCapabilities(cmd *cobra.Command, _ []string) error {
+	root := agentCapabilitiesRoot
+	if root == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("resolving the working directory: %w", err)
+		}
+		root = wd
+	}
+
+	out := cmd.OutOrStdout()
+
+	if !agentCapabilitiesForce && agent.CapabilitiesFresh(root) {
+		fmt.Fprintf(out, "%s is current. Re-detect with --force.\n", agent.CapabilitiesFile)
+		return nil
+	}
+
+	// Detection reports the credential state, so it has to resolve one. A
+	// failure here is not fatal: "unauthenticated" is a true answer, and
+	// refusing to write the file over it would leave every skill unscoped.
+	lookup := agent.NewVDBLookup(root, version)
+	lookup.Warm()
+
+	caps := agent.DetectCapabilities(root, lookup.AuthState())
+
+	path, err := agent.WriteCapabilities(root, caps)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(out, "Wrote %s\n\n", path)
+	fmt.Fprint(out, agent.CapabilitySummary(caps))
+	return nil
 }
 
 func runAgentInstall(cmd *cobra.Command, _ []string) error {

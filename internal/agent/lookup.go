@@ -61,6 +61,16 @@ func NewVDBLookup(root, cliVersion string) *VDBLookup {
 // AuthState reports the credential the lookup resolved.
 func (l *VDBLookup) AuthState() Auth { return l.auth }
 
+// Warm resolves the credential without asking a question.
+//
+// AuthState is only meaningful once a client has been built, and building one
+// happens lazily inside Assess. A caller that wants the credential state and
+// nothing else — capability detection, an installer reporting what it wired —
+// would otherwise have to make a pointless query to find out.
+func (l *VDBLookup) Warm() {
+	_, _ = l.ensureClient()
+}
+
 // Assess looks up every candidate in one request.
 //
 // Every failure path returns Unknown rather than an error. The caller is a hook

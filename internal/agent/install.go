@@ -16,9 +16,27 @@ import (
 // read the agent performs.
 const hookMatcher = "Bash|Edit|Write|MultiEdit"
 
+// hookRegistration is one event and the matcher it needs.
+//
+// The matcher is per-event, not global. A tool-name pattern is right for
+// PreToolUse and meaningless for the session events, which carry no tool: giving
+// SessionStart a matcher of "Bash|Edit|Write|MultiEdit" registers a hook that
+// can never fire, which is worse than not registering it, because the
+// configuration then claims a surface that does nothing.
+type hookRegistration struct {
+	event Event
+	// matcher is empty for events that have nothing to match on, and the key is
+	// then omitted from the written entry.
+	matcher string
+}
+
 // hookEvents are the events the guard answers. Registering only these keeps a
 // host from paying for a process on events that return Silent by construction.
-var hookEvents = []Event{EventPreToolUse}
+var hookEvents = []hookRegistration{
+	{event: EventPreToolUse, matcher: hookMatcher},
+	{event: EventSessionStart},
+	{event: EventUserPromptSubmit},
+}
 
 // InstallResult records what wiring one host actually changed.
 type InstallResult struct {
@@ -74,6 +92,17 @@ func InstallHooks(h Host, opts InstallOptions) InstallResult {
 	res.Changed = changed
 	res.Wired = append(res.Wired, SurfaceHooks)
 
+	if h.HookDialect == DialectCodex {
+		// Codex 0.153 added a trust gate: a hook it has not been told to trust
+		// is skipped, with no error and no output. Writing the configuration is
+		// therefore not the same as the guard running, and saying nothing here
+		// would leave someone believing they are guarded when they are not.
+		res.Notes = append(res.Notes,
+			"Codex asks you to trust a hook the first time it sees one. Approve it when "+
+				"prompted, or the guard stays silent — Codex skips an untrusted hook without "+
+				"reporting anything.")
+	}
+
 	if !changed || opts.DryRun {
 		return res
 	}
@@ -104,13 +133,13 @@ func applyHookConfig(doc map[string]any, dialect HookDialect) (map[string]any, b
 	}
 
 	changed := false
-	for _, event := range hookEvents {
-		entries, _ := container[string(event)].([]any)
-		next, evChanged := upsertHookEntry(entries, dialect)
+	for _, reg := range hookEvents {
+		entries, _ := container[string(reg.event)].([]any)
+		next, evChanged := upsertHookEntry(entries, dialect, reg.matcher)
 		if evChanged {
 			changed = true
 		}
-		container[string(event)] = next
+		container[string(reg.event)] = next
 	}
 	doc["hooks"] = container
 	return doc, changed, nil
@@ -118,11 +147,10 @@ func applyHookConfig(doc map[string]any, dialect HookDialect) (map[string]any, b
 
 // upsertHookEntry adds or refreshes the Vulnetix matcher group, leaving every
 // other group in place and in order.
-func upsertHookEntry(entries []any, dialect HookDialect) ([]any, bool) {
+func upsertHookEntry(entries []any, dialect HookDialect, matcher string) ([]any, bool) {
 	command := HookCommand()
 
-	matcher := hookMatcher
-	if dialect == DialectCodex {
+	if matcher != "" && dialect == DialectCodex {
 		// Codex matches on a regex it applies to the tool name, and its shell
 		// tool is not called Bash on every version. Matching everything and
 		// deciding in the binary is both simpler and stable across versions;
@@ -131,12 +159,16 @@ func upsertHookEntry(entries []any, dialect HookDialect) ([]any, bool) {
 	}
 
 	entry := map[string]any{
-		"matcher": matcher,
 		"hooks": []any{map[string]any{
 			"type":    "command",
 			"command": command,
 			"timeout": 30,
 		}},
+	}
+	// Omitted rather than empty for the session events. An empty matcher is not
+	// the same as no matcher: hosts read it as a pattern that matches nothing.
+	if matcher != "" {
+		entry["matcher"] = matcher
 	}
 
 	for i, raw := range entries {
@@ -248,8 +280,8 @@ func Uninstall(h Host, opts InstallOptions) InstallResult {
 		return res
 	}
 
-	for _, event := range hookEvents {
-		entries, _ := container[string(event)].([]any)
+	for _, reg := range hookEvents {
+		entries, _ := container[string(reg.event)].([]any)
 		kept := make([]any, 0, len(entries))
 		for _, raw := range entries {
 			group, ok := raw.(map[string]any)
@@ -260,9 +292,9 @@ func Uninstall(h Host, opts InstallOptions) InstallResult {
 			kept = append(kept, raw)
 		}
 		if len(kept) == 0 {
-			delete(container, string(event))
+			delete(container, string(reg.event))
 		} else {
-			container[string(event)] = kept
+			container[string(reg.event)] = kept
 		}
 	}
 
