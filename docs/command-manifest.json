@@ -1,5 +1,64 @@
 {
   "commands": {
+    "agent": {
+      "short": "Wire AI coding agents to Vulnetix",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "hook",
+        "hosts",
+        "install"
+      ]
+    },
+    "agent hook": {
+      "short": "Answer a coding agent's lifecycle hook",
+      "flags": [
+        "disable-memory",
+        "event",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "root",
+        "silent",
+        "verbose"
+      ]
+    },
+    "agent hosts": {
+      "short": "List the coding agents this CLI can wire, and what it can wire for each",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "output",
+        "silent",
+        "verbose"
+      ]
+    },
+    "agent install": {
+      "short": "Wire the coding agents on this machine to Vulnetix",
+      "flags": [
+        "agent",
+        "disable-memory",
+        "dry-run",
+        "no-analytics",
+        "no-banner",
+        "no-hooks",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ]
+    },
     "ai-firewall": {
       "short": "Wire AI clients to the Vulnetix AI Firewall and manage its policy",
       "flags": [
@@ -6720,6 +6779,7 @@
         "version"
       ],
       "subcommands": [
+        "agent",
         "ai-firewall",
         "aibom",
         "analyze",
