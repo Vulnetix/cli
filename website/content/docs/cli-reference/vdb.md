@@ -1363,28 +1363,35 @@ vulnetix vdb kev download --reason known_ransomware -o ransomware-kev.csv
 
 ### vdb kev reasons
 
-**Description**: Print the valid enum values for the `--reason` flag. These are the qualifying-path labels the processor attaches to every catalogue entry.
+**Description**: Print the valid enum values for the `--reason` flag. These are the evidence labels the processor attaches to every catalogue entry. They describe the evidence behind a listing, not which rule admitted it: a Tier A label lists a CVE on its own, a Tier B label needs a second independent signal, a Tier C label never lists one alone, and `critical_cvss` is context that never qualifies anything.
 
 **Usage**:
 ```bash
 vulnetix vdb kev reasons
 ```
 
-**Output**:
+**Output** (grouped by tier):
 ```
-crowdsec_sighting
+vendor_exploited        # Tier A — direct assertions of exploitation
+zero_day_itw
+reported_itw
+demonstrated_exploit
+known_ransomware
+crowdsec_sighting       # Tier B — sensor observations
 misp_sighting
 shadowserver_sighting
 shadowserver_surge
 multi_source_sighting
-snort_rule
+snort_rule              # Tier C — weaponisation artefacts
 nuclei_template
 metasploit_module
-known_ransomware
-critical_cvss
+nse_script
+yara_rule
+exploitdb_verified
+critical_cvss           # Tier D — context only
 ```
 
-See the [Vulnetix KEV design doc](https://github.com/Vulnetix/vdb-manager/blob/main/scripts/go-processors/vulnetix-kev-processor.design.md) for what each reason means and which qualifying path triggers a CVE's inclusion.
+See the [Vulnetix KEV processor design doc](https://vulnetix.github.io/vdb-manager/docs/processors/vulnetix-kev-processor/) for what each reason means and which qualifying path triggers a CVE's inclusion. The catalogue is published under the Apache License 2.0; every API response carries `X-Data-License: Apache-2.0`.
 
 ---
 

@@ -11,18 +11,31 @@ import (
 )
 
 // VulnetixKevReason enum values — kept in sync with the VulnetixKevReason
-// Postgres enum + the processor's reasons() output.
+// Postgres enum (saas/prisma/models/threat-intel.prisma) and the processor's
+// reasons() output. Grouped by evidence tier: a Tier A signal lists a CVE on
+// its own, Tier B needs a second signal, Tier C never qualifies alone, and
+// critical_cvss is context that never qualifies anything.
 var validKevReasons = []string{
+	// Tier A — direct assertions of exploitation
+	"vendor_exploited",
+	"zero_day_itw",
+	"reported_itw",
+	"demonstrated_exploit",
+	"known_ransomware",
+	// Tier B — sensor observations
 	"crowdsec_sighting",
 	"misp_sighting",
 	"shadowserver_sighting",
 	"shadowserver_surge",
 	"multi_source_sighting",
+	// Tier C — weaponisation artefacts
 	"snort_rule",
 	"nuclei_template",
 	"metasploit_module",
 	"nse_script",
-	"known_ransomware",
+	"yara_rule",
+	"exploitdb_verified",
+	// Tier D — context only
 	"critical_cvss",
 }
 
@@ -45,13 +58,18 @@ var kevCmd = &cobra.Command{
 	Use:   "kev",
 	Short: "Access the Vulnetix KEV (Known Exploited Vulnerabilities) catalogue",
 	Long: `The Vulnetix KEV catalogue is an independent, evidence-driven list of
-Known-Exploited-Vulnerabilities derived from multiple honeypot sources
-(CrowdSec, MISP, Shadowserver) and weaponisation signals (Snort rules,
-Nuclei templates, Metasploit modules) — for CVEs that are *not* already
-in CISA KEV or VulnCheck KEV.
+Known-Exploited-Vulnerabilities for CVEs that are *not* already in CISA,
+ENISA or VulnCheck KEV. A CVE is listed on a direct assertion of
+exploitation (a vendor's exploitation-detected flag, a Project Zero
+in-the-wild entry, a MISP "exploited" sighting, a named ransomware
+campaign), or on a sensor sighting (CrowdSec, Shadowserver, MISP)
+corroborated by a second independent signal such as a Snort rule, a
+Nuclei template or a Metasploit module. An exploit artefact alone never
+qualifies. KEV data is public; no plan is required.
 
-Each entry carries a ` + "`reasons`" + ` array (qualifying-path labels) plus the
-standard KEV fields (vendor, product, required action, due date).`,
+Each entry carries a ` + "`reasons`" + ` array (evidence labels, not a record of
+which rule admitted it) plus the standard KEV fields (vendor, product,
+required action, due date).`,
 }
 
 var kevListCmd = &cobra.Command{

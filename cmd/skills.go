@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -16,17 +17,6 @@ var (
 	skillsAgent string
 	skillsSkill string
 )
-
-var knownVulnetixSkills = []string{
-	"attack-mapping", "capabilities-detect", "code-review-security",
-	"compliance-report", "container-scan", "dashboard", "dep-add-guard",
-	"dep-resolve", "detection-rules", "eol-check", "exploit-test",
-	"exploits", "exploits-search", "find-skills", "fix", "iac-scan",
-	"incident-respond", "ioc-pivot", "kev-watch", "license-check",
-	"package-search", "remediation", "safe-version", "sast-scan",
-	"sbom-generate", "secret-scan", "secure-code-write", "soc-triage",
-	"threat-feed", "typosquat-check", "verify-fix", "vex-publish", "vuln",
-}
 
 var skillsCmd = &cobra.Command{
 	Use:   "skills",
@@ -95,13 +85,9 @@ You can explicitly target an agent and/or skill using --agent and --skill flags.
 				fmt.Printf("    %s %s\n", display.WarningMark(t), display.Muted(t, "No supported agents detected with existing skill directories. Skipping 'gh skills add'."))
 				fmt.Printf("    %s %s\n", display.Muted(t, "ℹ"), "Tip: You can explicitly target an agent using --agent and --skill flags.")
 			} else {
-				skills := []string{
-					"attack-mapping", "capabilities-detect", "code-review-security",
-					"compliance-report", "container-scan", "dashboard", "dep-add-guard",
-					"dep-resolve", "detection-rules", "eol-check", "exploit-test",
-					"exploits", "exploits-search", "fix", "iac-scan", "incident-respond",
-					"ioc-pivot", "kev-watch", "license-check",
-				}
+				up := resolveUpstreamSkills()
+				skills := sortedSkillNames(up.Names)
+				fmt.Printf("    %s Release %s: %d skills\n", display.Muted(t, "•"), display.Bold(t, up.Tag), len(skills))
 				for _, agent := range installedAgents {
 					fmt.Printf("    %s Installing skills for %s...\n", display.Muted(t, "•"), display.Bold(t, agent))
 					for _, skill := range skills {
@@ -138,10 +124,9 @@ var skillsCheckCmd = &cobra.Command{
 			return nil
 		}
 
-		knownSkillsSet := make(map[string]bool)
-		for _, skill := range knownVulnetixSkills {
-			knownSkillsSet[skill] = true
-		}
+		up := resolveUpstreamSkills()
+		knownSkillsSet := up.Names
+		fmt.Printf("  %s Release %s: %d skills\n", display.Muted(t, "•"), display.Bold(t, up.Tag), len(knownSkillsSet))
 
 		foundAny := false
 		for _, agent := range installedAgents {
@@ -158,8 +143,12 @@ var skillsCheckCmd = &cobra.Command{
 					for _, entry := range entries {
 						if knownSkillsSet[entry.Name()] {
 							skillPath := filepath.Join(expandedDir, entry.Name())
+							// Stat follows the installer's symlink; a dangling one
+							// is reported rather than silently skipped.
 							if info, err := os.Stat(skillPath); err == nil && info.IsDir() {
 								vulnetixSkills = append(vulnetixSkills, entry.Name())
+							} else if li, lerr := os.Lstat(skillPath); lerr == nil && li.Mode()&os.ModeSymlink != 0 {
+								vulnetixSkills = append(vulnetixSkills, entry.Name()+" (dangling link)")
 							}
 						}
 					}
@@ -180,8 +169,32 @@ var skillsCheckCmd = &cobra.Command{
 			fmt.Println(display.Muted(t, "No Vulnetix skills detected in any supported agent directories."))
 		}
 
+		// What the release no longer ships, and what it ships that is not here.
+		if home, err := os.UserHomeDir(); err == nil {
+			if plan, _, err := planPrune(home, pruneHostDirs(home), knownSkillsSet, nil); err == nil {
+				if len(plan.Targets) > 0 {
+					var names []string
+					for _, tg := range plan.Targets {
+						names = append(names, tg.Name)
+					}
+					fmt.Printf("  %s Installed but removed from release %s: %s\n", display.WarningMark(t), up.Tag, strings.Join(names, ", "))
+					fmt.Printf("    %s\n", display.Muted(t, "Run `vulnetix skills prune --yes` to remove them."))
+				}
+				printMissingSkills(os.Stdout, t, plan.Missing)
+			}
+		}
+
 		return nil
 	},
+}
+
+func sortedSkillNames(set map[string]bool) []string {
+	out := make([]string, 0, len(set))
+	for name := range set {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 var skillsUninstallCmd = &cobra.Command{
@@ -256,6 +269,20 @@ var skillsUpdateCmd = &cobra.Command{
 			fmt.Printf("  %s %s\n", display.CrossMark(t), display.ErrorStyle(t, "No supported tool (npx, gh, claude) found for updating skills."))
 		}
 
+		// None of those updaters removes a skill the release dropped, so say
+		// what is left behind rather than let it accumulate silently.
+		if home, err := os.UserHomeDir(); err == nil {
+			up := resolveUpstreamSkills()
+			if plan, _, err := planPrune(home, pruneHostDirs(home), up.Names, nil); err == nil && len(plan.Targets) > 0 {
+				var names []string
+				for _, tg := range plan.Targets {
+					names = append(names, tg.Name)
+				}
+				fmt.Printf("  %s %d skill(s) no longer shipped by release %s: %s\n", display.WarningMark(t), len(names), up.Tag, strings.Join(names, ", "))
+				fmt.Printf("    %s\n", display.Muted(t, "Run `vulnetix skills prune --yes` to remove them."))
+			}
+		}
+
 		return nil
 	},
 }
@@ -264,11 +291,13 @@ func init() {
 	rootCmd.AddCommand(skillsCmd)
 
 	skillsInstallCmd.Flags().StringVar(&skillsAgent, "agent", "", "Target a specific agent (e.g., claude-code, codex, pi)")
-	skillsInstallCmd.Flags().StringVar(&skillsSkill, "skill", "", "Target a specific skill (e.g., fix, exploits)")
+	skillsInstallCmd.Flags().StringVar(&skillsSkill, "skill", "", "Target a specific skill (e.g., fix, sast-scan)")
+	skillsPruneCmd.Flags().BoolVar(&skillsPruneYes, "yes", false, "Remove the skills; without it only print what would be removed")
 	skillsCmd.AddCommand(skillsInstallCmd)
 	skillsCmd.AddCommand(skillsCheckCmd)
 	skillsCmd.AddCommand(skillsUninstallCmd)
 	skillsCmd.AddCommand(skillsUpdateCmd)
+	skillsCmd.AddCommand(skillsPruneCmd)
 }
 
 func runExplicitInstall(cmd *cobra.Command) error {
@@ -292,13 +321,7 @@ func runExplicitInstall(cmd *cobra.Command) error {
 
 	skillsToInstall := []string{skillsSkill}
 	if skillsSkill == "" {
-		skillsToInstall = []string{
-			"attack-mapping", "capabilities-detect", "code-review-security",
-			"compliance-report", "container-scan", "dashboard", "dep-add-guard",
-			"dep-resolve", "detection-rules", "eol-check", "exploit-test",
-			"exploits", "exploits-search", "fix", "iac-scan", "incident-respond",
-			"ioc-pivot", "kev-watch", "license-check",
-		}
+		skillsToInstall = sortedSkillNames(resolveUpstreamSkills().Names)
 	}
 
 	agentsToInstall := []string{skillsAgent}
