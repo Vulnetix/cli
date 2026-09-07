@@ -2610,6 +2610,7 @@
       "subcommands": [
         "check",
         "install",
+        "prune",
         "uninstall",
         "update"
       ]
@@ -2638,6 +2639,19 @@
         "silent",
         "skill",
         "verbose"
+      ]
+    },
+    "skills prune": {
+      "short": "Remove Vulnetix skills the current release no longer ships",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose",
+        "yes"
       ]
     },
     "skills uninstall": {
@@ -4773,6 +4787,8 @@
         "github-repo",
         "highlight",
         "ignore-env",
+        "include-cisa",
+        "include-enisa",
         "limit",
         "manifest-format",
         "method",
@@ -4858,6 +4874,8 @@
         "github-repo",
         "highlight",
         "ignore-env",
+        "include-cisa",
+        "include-enisa",
         "limit",
         "manifest-format",
         "method",
