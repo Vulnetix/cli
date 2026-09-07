@@ -1244,7 +1244,7 @@ cover is reported, not blocked.
 
 ### vdb kev list
 
-**Description**: List the full Vulnetix KEV catalogue — the independent, evidence-driven Known-Exploited-Vulnerabilities list derived from multiple honeypot sources (CrowdSec, MISP, Shadowserver) and weaponisation signals (Snort rules, Nuclei templates, Metasploit modules), for CVEs that are **not** already in CISA KEV or VulnCheck KEV.
+**Description**: List the full Vulnetix KEV catalogue — the independent, evidence-driven Known-Exploited-Vulnerabilities list derived from multiple honeypot sources (CrowdSec, MISP, Shadowserver) and weaponisation signals (Snort rules, Nuclei templates, Metasploit modules), for CVEs that are **not** already in CISA KEV or ENISA's EU KEV. VulnCheck KEV is a vendor catalogue that carries all of CISA, not an authority, so it never excludes an entry.
 
 The catalogue is refreshed daily by the `vulnetix-kev-processor` and cached at the edge for 1 hour.
 
@@ -1263,6 +1263,8 @@ vulnetix vdb kev list [flags]
 - `--limit <n>` — max items (JSON only; CSV streams the full set)
 - `--offset <n>` — pagination offset (JSON only)
 - `--no-references` — omit the per-entry `references` bucket (JSON only; references are included by default)
+- `--include-cisa` — fold the CISA KEV catalogue into the vulnetix export as its own rows (`source=cisa`). Routes to the vulnetix export (`/v2/vulnetix-kev`), so it composes with `--reason` and `--format csv`, not with `--source`.
+- `--include-enisa` — fold ENISA's EU KEV catalogue into the vulnetix export as its own rows (`source=enisa`). VulnCheck is not offered here: it carries all of CISA plus its own additions, so take it from [vulncheck.com/kev](https://vulncheck.com/kev) or `--source vulncheck`.
 - `-o, --output <file>` — write the response to a file instead of stdout
 
 > **Behaviour change (v2.6+)**: `vdb kev list` (JSON) now merges all four KEV sources by default — CISA, vulnetix, enisa, and vulncheck — via the unified `/v2/kev` endpoint. To restore the previous vulnetix-only behaviour pass `--source vulnetix` (or use `--reason …` / `--format csv`, both of which still resolve to the vulnetix-only export).
@@ -1350,13 +1352,19 @@ vulnetix vdb kev get CVE-2024-12847 -o CVE-2024-12847.json
 vulnetix vdb kev download [flags]
 ```
 
-**Flags**: same as [vdb kev list](#vdb-kev-list) — `--reason`, `--all`, `-o/--output` are the most useful.
+**Flags**: same as [vdb kev list](#vdb-kev-list) — `--reason`, `--all`, `-o/--output`, `--include-cisa`, `--include-enisa` are the most useful.
+
+- `--include-cisa` — fold the CISA KEV catalogue into the export as its own rows (`source=cisa`).
+- `--include-enisa` — fold ENISA's EU KEV catalogue into the export as its own rows (`source=enisa`).
+
+Every row carries a `source` column (`vulnetix`, `cisa`, `enisa`). A Vulnetix row is never emitted for a CVE that CISA or ENISA lists, so a CVE appears once per catalogue that carries it. VulnCheck KEV is not offered: it is a vendor catalogue that carries all of CISA plus its own additions, not an authority; take it from [vulncheck.com/kev](https://vulncheck.com/kev).
 
 **Examples**:
 ```bash
 vulnetix vdb kev download                             # writes ./vulnetix-kev.csv
 vulnetix vdb kev download -o /tmp/kev.csv
 vulnetix vdb kev download --reason known_ransomware -o ransomware-kev.csv
+vulnetix vdb kev download --include-cisa --include-enisa -o kev-complete.csv
 ```
 
 ---

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // VulnetixKevParams holds filter options for GET /v2/vulnetix-kev.
@@ -15,12 +16,19 @@ type VulnetixKevParams struct {
 	Limit             int      // JSON pagination
 	Offset            int      // JSON pagination
 	IncludeReferences bool     // JSON-only; adds the `references` bucket per item
+	// Include appends authority catalogues as their own rows: "cisa", "enisa".
+	// Every row carries `source`. VulnCheck is not an option; it is a vendor
+	// superset of CISA, not an authority.
+	Include []string
 }
 
 func (p VulnetixKevParams) query() string {
 	q := url.Values{}
 	if p.Format != "" {
 		q.Set("format", p.Format)
+	}
+	if len(p.Include) > 0 {
+		q.Set("include", strings.Join(p.Include, ","))
 	}
 	for _, r := range p.Reasons {
 		q.Add("reason", r)

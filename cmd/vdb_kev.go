@@ -41,15 +41,29 @@ var validKevReasons = []string{
 
 // kev flags — shared across list + get subcommands
 var (
-	kevFormat     string
-	kevReasons    []string
-	kevAllReasons bool
-	kevLimit      int
-	kevOffset     int
-	kevNoRefs     bool
-	kevOutput     string
-	kevSources    []string // CISA | vulnetix | enisa | vulncheck (repeat)
+	kevFormat       string
+	kevReasons      []string
+	kevAllReasons   bool
+	kevLimit        int
+	kevOffset       int
+	kevNoRefs       bool
+	kevOutput       string
+	kevSources      []string // CISA | vulnetix | enisa | vulncheck (repeat)
+	kevIncludeCisa  bool     // fold CISA KEV into the Vulnetix export
+	kevIncludeEnisa bool     // fold ENISA EU KEV into the Vulnetix export
 )
+
+// kevIncludes is the authority catalogues to fold into a Vulnetix export.
+func kevIncludes() []string {
+	var out []string
+	if kevIncludeCisa {
+		out = append(out, "cisa")
+	}
+	if kevIncludeEnisa {
+		out = append(out, "enisa")
+	}
+	return out
+}
 
 // validKevSources mirrors the four kev sources in the unified /v2/kev API.
 var validKevSources = []string{"CISA", "vulnetix", "enisa", "vulncheck"}
@@ -58,8 +72,9 @@ var kevCmd = &cobra.Command{
 	Use:   "kev",
 	Short: "Access the Vulnetix KEV (Known Exploited Vulnerabilities) catalogue",
 	Long: `The Vulnetix KEV catalogue is an independent, evidence-driven list of
-Known-Exploited-Vulnerabilities for CVEs that are *not* already in CISA,
-ENISA or VulnCheck KEV. A CVE is listed on a direct assertion of
+Known-Exploited-Vulnerabilities for CVEs that are *not* already in CISA KEV
+or ENISA's EU KEV (VulnCheck is a vendor catalogue that carries all of CISA,
+not an authority, so it does not exclude). A CVE is listed on a direct assertion of
 exploitation (a vendor's exploitation-detected flag, a Project Zero
 in-the-wild entry, a MISP "exploited" sighting, a named ransomware
 campaign), or on a sensor sighting (CrowdSec, Shadowserver, MISP)
@@ -86,6 +101,11 @@ Filter by qualifying reason:
 Export as CSV (downloads into the current directory if --output is omitted):
 
   vulnetix vdb kev list --format csv -o vulnetix-kev.csv
+
+Fold the authority catalogues into the same export (each row carries a
+` + "`source`" + ` column; VulnCheck is not offered, see https://vulncheck.com/kev):
+
+  vulnetix vdb kev download --include-cisa --include-enisa
 
 Use ` + "`vulnetix vdb kev reasons`" + ` to see the full list of qualifying reasons.`,
 	RunE: runKevList,
@@ -154,9 +174,12 @@ func runKevList(cmd *cobra.Command, args []string) error {
 	//   * `--format csv` → vulnetix-only catalogue with CSV streaming (existing
 	//     /v2/vulnetix-kev path; CSV is the export format for SOAR ingest).
 	//   * `--reason …`  → vulnetix-source qualifying-reason filter (vulnetix-only).
+	//   * `--include-*` → the Vulnetix export with the authority catalogues
+	//     folded in (a `source` column tells the rows apart).
 	//   * Otherwise   → unified /v2/kev (CISA + vulnetix + enisa + vulncheck);
 	//     `--source` narrows the merge.
-	useUnified := format == "json" && len(kevReasons) == 0
+	includes := kevIncludes()
+	useUnified := format == "json" && len(kevReasons) == 0 && len(includes) == 0
 	client := newVDBClient()
 
 	if useUnified {
@@ -185,6 +208,7 @@ func runKevList(cmd *cobra.Command, args []string) error {
 		Limit:             kevLimit,
 		Offset:            kevOffset,
 		IncludeReferences: format == "json" && !kevNoRefs,
+		Include:           includes,
 	}
 	if kevAllReasons {
 		params.FilterMode = "all"
@@ -194,7 +218,8 @@ func runKevList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fetch Vulnetix KEV: %w", err)
 	}
 	printRateLimit(client)
-	recordVDBQuery("kev-list", fmt.Sprintf("format=%s reasons=%s", format, strings.Join(kevReasons, ",")))
+	recordVDBQuery("kev-list", fmt.Sprintf("format=%s reasons=%s include=%s",
+		format, strings.Join(kevReasons, ","), strings.Join(includes, ",")))
 	return writeOutput(cmd, body, kevOutput)
 }
 
@@ -281,6 +306,10 @@ func init() {
 		c.Flags().StringSliceVar(&kevSources, "source", nil,
 			"KEV source to include (repeatable; one of CISA, vulnetix, enisa, vulncheck). "+
 				"When omitted with --format json, the unified /v2/kev surface returns all four.")
+		c.Flags().BoolVar(&kevIncludeCisa, "include-cisa", false,
+			"Fold the CISA KEV catalogue into the Vulnetix export (rows carry source=cisa)")
+		c.Flags().BoolVar(&kevIncludeEnisa, "include-enisa", false,
+			"Fold ENISA's EU KEV catalogue into the Vulnetix export (rows carry source=enisa)")
 	}
 	kevGetCmd.Flags().StringVarP(&kevOutput, "output", "o", "",
 		"Write the entry JSON to this file instead of stdout")
