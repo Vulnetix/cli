@@ -48,6 +48,12 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
   - [vdb attack-techniques list](#vdb-attack-techniques-list)
   - [vdb snort-rules get](#vdb-snort-rules-get)
   - [vdb snort-rules list](#vdb-snort-rules-list)
+  - [vdb virtual-patches get](#vdb-virtual-patches-get)
+  - [vdb virtual-patches list](#vdb-virtual-patches-list)
+  - [vdb virtual-patches fetch](#vdb-virtual-patches-fetch)
+  - [vdb countermeasures get](#vdb-countermeasures-get)
+  - [vdb countermeasures list](#vdb-countermeasures-list)
+  - [vdb countermeasures fetch](#vdb-countermeasures-fetch)
   - [vdb traffic-filters](#vdb-traffic-filters)
   - [vdb yara-rules get](#vdb-yara-rules-get)
   - [vdb yara-rules list](#vdb-yara-rules-list)
@@ -2021,6 +2027,151 @@ vulnetix vdb snort-rules get <CVE-ID> [flags]
 ```bash
 vulnetix vdb snort-rules get CVE-2021-44228
 vulnetix vdb snort-rules get CVE-2021-44228 --format rules > log4shell.rules
+```
+
+---
+
+### vdb virtual-patches get
+
+**Description**: Blocking defences for a single advisory, derived from the proof-of-concept exploits Vulnetix has ingested for it. Formats: Snort, Suricata, nginx ModSecurity, AWS WAF, Cloudflare WAF and layer-7 regex.
+
+Each artifact names the exploit it came from, the confidence in it, the mode it is safe to start in (`log` or `block`), and what it does not cover. `--format <name>` emits that format's rule bodies as a loadable file instead of JSON.
+
+Counts are available on every plan. The rule bodies require Pro; a community key gets the counts and an upgrade message rather than a silent empty file.
+
+**Usage**:
+```bash
+vulnetix vdb virtual-patches get <CVE-ID> [flags]
+```
+
+**Flags**:
+- `--format json|snort|suricata|modsecurity|nginx|awswaf|cloudflare|regex` — output format (default: `json`)
+- `-o, --output <file>` — write to file instead of stdout
+
+**Examples**:
+```bash
+vulnetix vdb virtual-patches get CVE-2021-44228
+vulnetix vdb virtual-patches get CVE-2021-44228 --format modsecurity -o modsec.conf
+vulnetix vdb virtual-patches get CVE-2021-44228 --format awswaf -o wafv2-rule.json
+```
+
+---
+
+### vdb virtual-patches list
+
+**Description**: Search the whole virtual-patch catalogue rather than one advisory's set.
+
+**Usage**:
+```bash
+vulnetix vdb virtual-patches list [flags]
+```
+
+**Flags**:
+- `--kind <FORMAT>` — repeat for OR: `SNORT`, `SURICATA`, `MODSECURITY`, `NGINX`, `AWS_WAF`, `CLOUDFLARE_WAF`, `REGEX_L7`
+- `--cve-id <id>` — repeat to limit to specific advisories
+- `--confidence HIGH|MEDIUM|LOW`
+- `--deploy-mode log|block` — the mode the artifact is safe to start in
+- `--exploit-source <slug>` — source of the originating exploit, e.g. `exploit-db`, `github-poc`
+- `--match-content <text>` — free text over title, description and rule body
+- `--limit <n>` (default `50`, max `200`), `--offset <n>`
+- `--format`, `-o, --output` — as above
+
+**Examples**:
+```bash
+vulnetix vdb virtual-patches list --kind AWS_WAF --deploy-mode block
+vulnetix vdb virtual-patches list --cve-id CVE-2021-44228 --confidence HIGH
+vulnetix vdb virtual-patches list --exploit-source exploit-db --format snort -o local.rules
+```
+
+---
+
+### vdb virtual-patches fetch
+
+**Description**: Download one artifact's body with the filename and content type its tool expects, so it can be loaded without editing. Pro only.
+
+**Usage**:
+```bash
+vulnetix vdb virtual-patches fetch <uuid> [flags]
+```
+
+**Flags**:
+- `-o, --output <file>` — write to file instead of stdout
+
+**Examples**:
+```bash
+vulnetix vdb virtual-patches fetch 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d -o local.rules
+```
+
+---
+
+### vdb countermeasures get
+
+**Description**: Detection content for a single advisory, derived from the proof-of-concept exploits Vulnetix has ingested for it. Formats: Sigma for a SIEM, YARA for an endpoint or memory scan, STIX 2.1 for a threat platform, OpenIOC for a host sweep.
+
+`--format sigma` emits a multi-document YAML file that pySigma reads directly; `--format stix` emits the bundle.
+
+Counts are available on every plan; the rule bodies require Pro.
+
+**Usage**:
+```bash
+vulnetix vdb countermeasures get <CVE-ID> [flags]
+```
+
+**Flags**:
+- `--format json|sigma|yara|stix|openioc` — output format (default: `json`)
+- `-o, --output <file>` — write to file instead of stdout
+
+**Examples**:
+```bash
+vulnetix vdb countermeasures get CVE-2021-44228
+vulnetix vdb countermeasures get CVE-2021-44228 --format sigma -o rules.yml
+vulnetix vdb countermeasures get CVE-2021-44228 --format yara -o rules.yar
+```
+
+---
+
+### vdb countermeasures list
+
+**Description**: Search the whole countermeasure catalogue rather than one advisory's set.
+
+**Usage**:
+```bash
+vulnetix vdb countermeasures list [flags]
+```
+
+**Flags**:
+- `--kind <FORMAT>` — repeat for OR: `SIGMA`, `YARA`, `STIX`, `OPENIOC`
+- `--cve-id <id>` — repeat to limit to specific advisories
+- `--confidence HIGH|MEDIUM|LOW`
+- `--exploit-source <slug>`
+- `--match-content <text>`
+- `--limit <n>` (default `50`, max `200`), `--offset <n>`
+- `--format`, `-o, --output` — as above
+
+**Examples**:
+```bash
+vulnetix vdb countermeasures list --kind YARA --confidence HIGH
+vulnetix vdb countermeasures list --cve-id CVE-2021-44228 --format stix -o bundle.json
+vulnetix vdb countermeasures list --match-content "powershell" --limit 100
+```
+
+---
+
+### vdb countermeasures fetch
+
+**Description**: Download one artifact's body with the filename and content type its tool expects. Pro only.
+
+**Usage**:
+```bash
+vulnetix vdb countermeasures fetch <uuid> [flags]
+```
+
+**Flags**:
+- `-o, --output <file>` — write to file instead of stdout
+
+**Examples**:
+```bash
+vulnetix vdb countermeasures fetch 2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e -o rule.yar
 ```
 
 ---
