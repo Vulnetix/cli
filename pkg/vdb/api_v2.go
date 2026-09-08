@@ -72,6 +72,16 @@ func doV2Get(c *Client, path string) (map[string]interface{}, error) {
 		return nil, err
 	}
 
+	// A plan-gated endpoint answers 200 with a marker object rather than an
+	// error status, so without this every gated GET printed
+	// {"planLocked":true,...} as if it were the requested data, and exited 0.
+	// Only the CLI-RPC path decoded it. Turning it into a typed error here
+	// means one message the caller can act on, and a non-zero exit that a
+	// script can branch on.
+	if pl, locked := decodePlanLocked(respBody); locked {
+		return nil, pl
+	}
+
 	var result map[string]interface{}
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
@@ -870,4 +880,88 @@ func (c *Client) V2TreeSitterQueries(id string, p V2TreeSitterParams) (*TreeSitt
 		return nil, fmt.Errorf("failed to parse tree-sitter response: %w", err)
 	}
 	return &out, nil
+}
+
+// DefenceSearchParams carries the filters for the virtual-patch and
+// countermeasure catalogue searches. All fields are optional.
+type DefenceSearchParams struct {
+	Kinds         []string // output format (SNORT, SIGMA, STIX, …)
+	CveIDs        []string
+	Confidence    string // HIGH | MEDIUM | LOW
+	DeployMode    string // log | block (virtual patches only)
+	ExploitSource string // source slug of the originating exploit
+	Q             string // free text over title, description and rule body
+	Limit         int
+	Offset        int
+}
+
+func defenceQuery(p DefenceSearchParams) string {
+	q := url.Values{}
+	for _, v := range p.Kinds {
+		q.Add("kind", v)
+	}
+	for _, v := range p.CveIDs {
+		q.Add("cveId", v)
+	}
+	for k, v := range map[string]string{
+		"confidence":    p.Confidence,
+		"deployMode":    p.DeployMode,
+		"exploitSource": p.ExploitSource,
+		"q":             p.Q,
+	} {
+		if v != "" {
+			q.Set(k, v)
+		}
+	}
+	if p.Limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", p.Limit))
+	}
+	if p.Offset > 0 {
+		q.Set("offset", fmt.Sprintf("%d", p.Offset))
+	}
+	if encoded := q.Encode(); encoded != "" {
+		return "?" + encoded
+	}
+
+	return ""
+}
+
+// V2VirtualPatches retrieves the blocking defences linked to one advisory.
+func (c *Client) V2VirtualPatches(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/virtual-patches", url.PathEscape(id)))
+}
+
+// V2Countermeasures retrieves the detection artifacts linked to one advisory.
+func (c *Client) V2Countermeasures(id string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/countermeasures", url.PathEscape(id)))
+}
+
+// V2VirtualPatchSearch searches the virtual-patch catalogue.
+func (c *Client) V2VirtualPatchSearch(p DefenceSearchParams) (map[string]interface{}, error) {
+	return doV2Get(c, "/virtual-patches"+defenceQuery(p))
+}
+
+// V2CountermeasureSearch searches the countermeasure catalogue.
+func (c *Client) V2CountermeasureSearch(p DefenceSearchParams) (map[string]interface{}, error) {
+	return doV2Get(c, "/countermeasures"+defenceQuery(p))
+}
+
+// V2DefenceArchive downloads one defence rule as the file its tool expects.
+//
+// Returns the raw bytes, not JSON: the response is a Snort rule, a Sigma
+// document, a STIX bundle or an OpenIOC file depending on the artifact's kind.
+// lane is "virtual-patches" or "countermeasures".
+func (c *Client) V2DefenceArchive(lane, uuid string) ([]byte, error) {
+	body, err := c.DoRequest("GET", fmt.Sprintf("/%s/%s/archive", lane, url.PathEscape(uuid)), nil)
+	if err != nil {
+		return nil, err
+	}
+	// The archive route is Pro-gated in the handler and answers 200 with the
+	// marker for anyone below it, so the check that doV2Get does for JSON
+	// endpoints has to be repeated here.
+	if pl, locked := decodePlanLocked(body); locked {
+		return nil, pl
+	}
+
+	return body, nil
 }

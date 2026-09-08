@@ -60,3 +60,44 @@ func TestPlanLockedFalseIsNotLocked(t *testing.T) {
 		t.Fatalf("planLocked:false must decode normally, got %v", err)
 	}
 }
+
+// The v2 GET path had the same hole for longer, and more quietly: doV2Get
+// unmarshalled the marker into a plain map and handed it back as data, so
+// `vulnetix vdb countermeasures get CVE-…` on a community key printed
+// {"planLocked":true,…} as though that were the answer, and exited 0. A script
+// checking the exit code saw a success; an operator saw JSON.
+//
+// decodePlanLocked is what doV2Get now runs first. These assert the two halves
+// of that contract on the exact bodies the defence endpoints return.
+
+func TestV2PlanLockedMarkerDecodes(t *testing.T) {
+	body := []byte(`{"planLocked":true,"feature":"countermeasures","requiredPlan":"pro","upgrade":true,` +
+		`"error":"Pro subscription required to download a defence rule",` +
+		`"_entitlements":{"plan":"community","gated":[{"feature":"countermeasures","requiredPlan":"pro"}]}}`)
+
+	locked, ok := decodePlanLocked(body)
+	if !ok {
+		t.Fatal("the defence archive marker must be recognised as plan-locked")
+	}
+	if locked.Feature != "countermeasures" || locked.RequiredPlan != "pro" {
+		t.Errorf("feature/plan = %q/%q, want countermeasures/pro", locked.Feature, locked.RequiredPlan)
+	}
+	if msg := locked.Error(); !strings.Contains(msg, "pro") {
+		t.Errorf("message = %q, should name the plan the caller needs", msg)
+	}
+}
+
+func TestV2FieldGatedResponseIsNotPlanLocked(t *testing.T) {
+	// A field-gated 200 is NOT the marker. The catalogue endpoints null the
+	// rule bodies and attach _entitlements while keeping count and total, and
+	// that response must reach the caller: the counts are the part every tier
+	// is entitled to. Treating it as an error would withhold the warning.
+	body := []byte(`{"identifier":"CVE-2021-44228","count":3,"total":3,` +
+		`"byKind":{"SIGMA":2,"YARA":1},` +
+		`"countermeasures":null,` +
+		`"_entitlements":{"plan":"community","gated":[{"feature":"countermeasures","requiredPlan":"pro"}]}}`)
+
+	if _, ok := decodePlanLocked(body); ok {
+		t.Fatal("a field-gated response must not be treated as plan-locked; the counts are still owed to the caller")
+	}
+}
