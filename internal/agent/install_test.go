@@ -52,6 +52,12 @@ func TestInstallHooksCreatesConfig(t *testing.T) {
 	}
 }
 
+func TestHookCommandUsesPATHAtHookTime(t *testing.T) {
+	if got, want := HookCommand(), "vulnetix agent hook"; got != want {
+		t.Fatalf("HookCommand() = %q, want %q", got, want)
+	}
+}
+
 // TestInstallHooksIsIdempotent is what makes the installer safe to re-run,
 // which is how anyone upgrading will use it.
 func TestInstallHooksIsIdempotent(t *testing.T) {

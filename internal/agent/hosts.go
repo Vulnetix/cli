@@ -3,7 +3,6 @@ package agent
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -237,19 +236,10 @@ func ExpandHome(p string) string {
 
 // HookCommand is the command a host runs for every hook event.
 //
-// The binary's absolute path rather than a bare name: a host does not
-// necessarily inherit the shell PATH that installed the CLI, and a hook that
-// cannot be found fails silently on some hosts.
+// Keep this as a symbolic command resolved by the host at hook time. Package
+// managers commonly make their stable executable a symlink into a versioned
+// directory (for example, Homebrew's Cellar); persisting os.Executable() here
+// bakes that ephemeral target into user configuration and breaks on upgrade.
 func HookCommand() string {
-	exe, err := os.Executable()
-	if err != nil || strings.TrimSpace(exe) == "" {
-		return "vulnetix agent hook"
-	}
-	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
-		exe = resolved
-	}
-	if runtime.GOOS == "windows" || !strings.ContainsAny(exe, " \t") {
-		return exe + " agent hook"
-	}
-	return `"` + exe + `" agent hook`
+	return "vulnetix agent hook"
 }
