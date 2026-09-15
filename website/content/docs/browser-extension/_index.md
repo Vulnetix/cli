@@ -1,7 +1,7 @@
 ---
 title: "Browser extension"
 weight: 13
-description: "Hover any vulnerability identifier on any page for VDB intelligence, and list every identifier on the page in a browser sidebar. Chromium and Firefox."
+description: "Hover any vulnerability identifier on any page for VDB intelligence, and list every identifier on the page in a browser sidebar. Install from the Chrome Web Store or Firefox Add-ons."
 ---
 
 The Vulnetix browser extension puts VDB intelligence where you already read
@@ -31,7 +31,32 @@ Over 30 identifier formats are recognised, including `CVE`, `GHSA`, `PYSEC`,
 
 ### Chromium (Chrome, Edge, Brave, Arc, Opera, Vivaldi)
 
-Download `vulnetix-chrome.zip` from the
+Install from the
+[Chrome Web Store](https://chromewebstore.google.com/detail/vulnetix/mfopdnbogadgchlpfjmfehcococbdbdd)
+and choose **Add to Chrome**. Edge, Brave, Arc, Opera and Vivaldi all install
+Chrome Web Store extensions directly: Edge asks once for permission to allow
+extensions from other stores, and Opera may prompt to install its Chrome
+extension bridge. Updates arrive on their own from there.
+
+Pin the Vulnetix icon to the toolbar. Clicking it opens the sidebar.
+
+### Firefox
+
+Install from
+[Firefox Add-ons](https://addons.mozilla.org/firefox/addon/vulnetix/) and choose
+**Add to Firefox**. The build there has been through Mozilla review and is
+signed, so it installs permanently and updates itself. Firefox ESR, Zen,
+LibreWolf and Waterfox install the same add-on from the same page.
+
+Firefox 128 ESR and newer are supported. The toolbar button toggles the sidebar.
+
+### Install without a store
+
+Every release still publishes the files, for an environment where store installs
+are blocked by policy or unavailable. A sideloaded copy does **not** update
+itself, so prefer the store unless you have a reason not to.
+
+For Chromium, download `vulnetix-chrome.zip` from the
 [latest release](https://github.com/Vulnetix/browser-extension/releases/latest),
 unzip it, then:
 
@@ -39,22 +64,15 @@ unzip it, then:
 2. Turn on **Developer mode**
 3. Choose **Load unpacked** and select the unzipped folder
 
-Pin the Vulnetix icon to the toolbar. Clicking it opens the sidebar.
-
 A `.zip` cannot be dragged onto the extensions page the way a `.crx` can, so
-**Load unpacked** is the route until the store listing is live.
+**Load unpacked** is the route.
 
-### Firefox
-
-Download `vulnetix-firefox.xpi` from the
-[latest release](https://github.com/Vulnetix/browser-extension/releases/latest).
-It is signed by Mozilla, so it installs permanently:
+For Firefox, download `vulnetix-firefox.xpi`, which is signed by Mozilla and
+installs permanently:
 
 1. Open **Add-ons and themes** (`about:addons`)
 2. Click the gear icon, then **Install Add-on From File**
 3. Select the `.xpi`
-
-Firefox 128 ESR and newer are supported. The toolbar button toggles the sidebar.
 
 `vulnetix-firefox.zip` is the *unsigned* build. Firefox will only load it
 temporarily, via `about:debugging#/runtime/this-firefox` → **Load Temporary
@@ -91,9 +109,13 @@ curl -sSL -H "Authorization: Bearer $GITHUB_TOKEN" \
 
 ### Store listings
 
-Chrome Web Store, Edge Add-ons and Firefox Add-ons publishing is wired up and
-runs from a release; the listings are not live yet. Until they are, the release
-downloads above are the supported route.
+- [Chrome Web Store](https://chromewebstore.google.com/detail/vulnetix/mfopdnbogadgchlpfjmfehcococbdbdd)
+  — Chrome, Edge, Brave, Arc, Opera, Vivaldi and Chromium
+- [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/vulnetix/) —
+  Firefox, Firefox ESR, Zen, LibreWolf and Waterfox
+
+Edge Add-ons publishing is wired up and runs from a release, but that listing is
+not live yet. Edge installs the Chrome Web Store build in the meantime.
 
 ## Sign in
 
