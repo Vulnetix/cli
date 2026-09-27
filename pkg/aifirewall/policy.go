@@ -135,6 +135,7 @@ var (
 
 	contentRuleTypes = map[string]bool{
 		"blocked_pattern": true, "max_messages": true, "pii_redact": true,
+		"delimiter_integrity": true,
 	}
 	capabilityRuleTypes = map[string]bool{
 		"tool_allow": true, "tool_deny": true,
@@ -164,7 +165,7 @@ func IsContentRuleType(t string) bool { return contentRuleTypes[t] }
 // ruleTypeList renders the accepted rule types for an error message, content
 // first, so somebody who typed one wrong sees the whole vocabulary once.
 func ruleTypeList() string {
-	return "blocked_pattern, max_messages, pii_redact (content), or " +
+	return "blocked_pattern, max_messages, pii_redact, delimiter_integrity (content), or " +
 		"tool_allow, tool_deny, mcp_allow, mcp_deny, skill_allow, skill_deny, " +
 		"client_allow, client_deny (capability)"
 }
@@ -248,6 +249,9 @@ func ValidateGuardrail(name, ruleType, action, pattern string) error {
 	// — the rule sits in the policy, reports itself as enabled, and enforces
 	// less than it claims. This is the last place it can be caught before the
 	// API sees it.
+	if ruleType == "delimiter_integrity" && action != "block" && action != "flag" {
+		return fmt.Errorf("guardrails[%s]: delimiter_integrity judges sealed harness blocks, so its action is block or flag", name)
+	}
 	if action == "redact" && !contentRuleTypes[ruleType] {
 		return fmt.Errorf("guardrails[%s]: action redact rewrites request content, so it cannot be used with %s: use strip to remove a tool or MCP server, or block to refuse the request", name, ruleType)
 	}
@@ -271,6 +275,10 @@ func ValidateGuardrail(name, ruleType, action, pattern string) error {
 		}
 		if err := compileRE2(name, pattern); err != nil {
 			return err
+		}
+	case "delimiter_integrity":
+		if strings.TrimSpace(pattern) != "" {
+			return fmt.Errorf("guardrails[%s]: delimiter_integrity takes no pattern", name)
 		}
 	case "pii_redact":
 		// An empty pattern selects the built-in email/card/SSN/phone detectors.
