@@ -186,6 +186,9 @@ integer for max_messages:
   pii_redact        pattern = optional regex; empty uses the built-in
                     email/card/SSN/phone detectors
   max_messages      pattern = integer cap
+  delimiter_integrity  no pattern; block or flag a request carrying a sealed
+                    harness block whose integrity check fails (see the
+                    nonces docs)
 
 Capability rules govern what a request can DO. Pattern is a GLOB, where only *
 is special and everything else is literal, so Bash matches exactly Bash and
@@ -206,7 +209,7 @@ require Pro. Update or delete an existing guardrail by --uuid.`,
 		RunE: runConfigSetAiFirewallGuardrail,
 	}
 	cmd.Flags().String("uuid", "", "Existing guardrail UUID (update/delete)")
-	cmd.Flags().String("rule-type", "", "Rule type: content (blocked_pattern, max_messages, pii_redact) or capability (tool_/mcp_/skill_/client_ allow|deny)")
+	cmd.Flags().String("rule-type", "", "Rule type: content (blocked_pattern, max_messages, pii_redact, delimiter_integrity) or capability (tool_/mcp_/skill_/client_ allow|deny)")
 	cmd.Flags().String("action", "", "Action on match: block, redact, strip, flag")
 	cmd.Flags().String("pattern", "", "Regex for content rules, integer for max_messages, or a glob for capability rules")
 	cmd.Flags().Int("priority", 0, "Evaluation order, lowest first (default 100)")
@@ -215,7 +218,7 @@ require Pro. Update or delete an existing guardrail by --uuid.`,
 	cmd.Flags().Bool("delete", false, "Delete the guardrail (requires --uuid)")
 	addAiFirewallCommonFlags(cmd)
 	_ = cmd.RegisterFlagCompletionFunc("rule-type", cobra.FixedCompletions([]string{
-		"blocked_pattern", "max_messages", "pii_redact",
+		"blocked_pattern", "max_messages", "pii_redact", "delimiter_integrity",
 		"tool_allow", "tool_deny", "mcp_allow", "mcp_deny",
 		"skill_allow", "skill_deny", "client_allow", "client_deny",
 	}, cobra.ShellCompDirectiveNoFileComp))
