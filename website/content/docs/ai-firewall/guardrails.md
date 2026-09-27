@@ -22,19 +22,22 @@ vulnetix ai-firewall policy guardrail "No connection strings" \
 
 ## Rule types and actions
 
-Three rule types, three actions. Every combination is valid, and they mean different things:
+Three pattern rule types and three actions, where every combination is valid and means something different, plus `delimiter_integrity`, which takes no pattern and only blocks or flags:
 
 | Rule type | `pattern` holds | What it matches |
 | --- | --- | --- |
 | `blocked_pattern` | an RE2 regex | anything in the request content |
 | `pii_redact` | an RE2 regex, **or empty** | empty selects the built-in detectors: email, credit card, SSN, phone |
 | `max_messages` | a positive integer | conversations longer than that many messages |
+| `delimiter_integrity` | nothing | a request carrying a sealed harness block whose integrity check fails (see [nonces](/docs/ai-firewall/nonces/)); `block` answers 403 `delimiter_tampered` |
 
 | Action | What the gateway does |
 | --- | --- |
 | `block` | 403 `request_blocked`, naming the rule in `blocked_by`. The request never reaches the provider. |
 | `redact` | Rewrites each match to the literal `[REDACTED]` and **forwards** the request. |
 | `flag` | Forwards the request and records **that** a rule matched — never what it matched. |
+
+Whatever the action, the response says what happened in its `X-Vulnetix-Firewall-Decision` and `X-Vulnetix-Firewall-Rules` headers (see [block responses](/docs/ai-firewall/responses/#response-headers)). A redaction or flag is no longer invisible to the client, and the matched text is still never sent back.
 
 `flag` is the one to reach for first. It tells you how often a rule would have fired without breaking anyone's workflow, which is how you find out that your "obviously safe" pattern matches half the legitimate prompts in the company.
 
@@ -156,7 +159,7 @@ vulnetix ai-firewall policy guardrail "No connection strings" --uuid <uuid> --de
 | Flag | Meaning |
 | --- | --- |
 | `--uuid` | Existing guardrail (required for `--delete`) |
-| `--rule-type` | Content: `blocked_pattern`, `max_messages`, `pii_redact`. Capability: `tool_allow`/`tool_deny`, `mcp_allow`/`mcp_deny`, `skill_allow`/`skill_deny`, `client_allow`/`client_deny`. Required when creating |
+| `--rule-type` | Content: `blocked_pattern`, `max_messages`, `pii_redact`, `delimiter_integrity`. Capability: `tool_allow`/`tool_deny`, `mcp_allow`/`mcp_deny`, `skill_allow`/`skill_deny`, `client_allow`/`client_deny`. Required when creating |
 | `--action` | `block`, `redact`, `strip`, `flag` |
 | `--pattern` | Regex for content rules, the integer for `max_messages`, or a glob for capability rules |
 | `--priority` | Evaluation order, lowest first (default `100`) |

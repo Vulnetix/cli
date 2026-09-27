@@ -488,3 +488,22 @@ func TestPlanReportsProviderDriftAndNeverPrunesIt(t *testing.T) {
 		t.Fatalf("expected drift for xai alone, got %v", drift)
 	}
 }
+
+// delimiter_integrity judges sealed harness blocks: it takes no pattern and
+// can only block or flag.
+func TestValidateGuardrailDelimiterIntegrity(t *testing.T) {
+	if err := ValidateGuardrail("sealed", "delimiter_integrity", "block", ""); err != nil {
+		t.Fatalf("block: %v", err)
+	}
+	if err := ValidateGuardrail("sealed", "delimiter_integrity", "flag", ""); err != nil {
+		t.Fatalf("flag: %v", err)
+	}
+	for _, action := range []string{"redact", "strip"} {
+		if err := ValidateGuardrail("sealed", "delimiter_integrity", action, ""); err == nil {
+			t.Fatalf("%s accepted", action)
+		}
+	}
+	if err := ValidateGuardrail("sealed", "delimiter_integrity", "block", ".*"); err == nil {
+		t.Fatal("a pattern was accepted")
+	}
+}
