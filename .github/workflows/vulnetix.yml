@@ -2,6 +2,11 @@ name: Vulnetix Security
 
 on:
   push:
+    # Not Dependabot's branches: each update PR already runs its own checks, and a
+    # run per branch push fanned seven Dependabot PRs into 70 jobs at once.
+    # Tags are listed because any branch filter alone stops tag pushes.
+    branches-ignore: ['dependabot/**']
+    tags: ['**']
   # A release cut from a tag that already existed produces no push event, so
   # the tag-push trigger above does not cover it.
   release:
