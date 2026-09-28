@@ -53,9 +53,11 @@ concurrency:
 jobs:
   publish:
     name: Publish to TEA
-    runs-on: ubuntu-latest # Not an input: the self-hosted pool queues silently
-    # when nothing is started, and a publish that never runs is worse than
-    # one that costs GitHub-hosted minutes.
+    # Self-hosted. This was ubuntu-latest because a caller missing from the
+    # pool's watch list queued forever; the scale-out poller now also discovers
+    # every recently pushed org repo, so that failure mode is gone, and
+    # GitHub-hosted minutes are reserved for macOS builds.
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     env:
       VULNETIX_ORG_ID: ${{ secrets.VULNETIX_ORG_ID }}

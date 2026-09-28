@@ -27,7 +27,7 @@ env:
 
 jobs:
   version:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 5
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
@@ -46,7 +46,7 @@ jobs:
   build-cross:
     # Linux + Windows targets are cross-compiled from ubuntu using zig cc.
     needs: version
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
@@ -67,17 +67,20 @@ jobs:
             zig version
             exit 0
           fi
+          # Into the job's own temp dir, not /opt: the runner pools grant no
+          # general sudo, and a blind sudo dies on a password prompt.
           ZIG_VER="0.13.0"
-          rm -rf "/tmp/zig-linux-x86_64-${ZIG_VER}"
-          curl -sSL "https://ziglang.org/download/${ZIG_VER}/zig-linux-x86_64-${ZIG_VER}.tar.xz" -o /tmp/zig.tar.xz
-          tar -xJf /tmp/zig.tar.xz -C /tmp
-          sudo rm -rf "/opt/zig/zig-linux-x86_64-${ZIG_VER}"
-          sudo mkdir -p /opt/zig
-          sudo mv /tmp/zig-linux-x86_64-${ZIG_VER} /opt/zig
-          sudo ln -sf "/opt/zig/zig-linux-x86_64-${ZIG_VER}/zig" /usr/local/bin/zig
-          zig version
+          curl -fsSL "https://ziglang.org/download/${ZIG_VER}/zig-linux-x86_64-${ZIG_VER}.tar.xz" -o "$RUNNER_TEMP/zig.tar.xz"
+          tar -xJf "$RUNNER_TEMP/zig.tar.xz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/zig-linux-x86_64-${ZIG_VER}" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/zig-linux-x86_64-${ZIG_VER}/zig" version
 
       - name: Build linux + windows binaries
+        env:
+          # /tmp on the self-hosted pools is a 3.8 GB tmpfs; six CGO targets
+          # link past it and die with "no space left on device". runner.temp is
+          # on the root volume.
+          GOTMPDIR: ${{ runner.temp }}
         run: |
           VERSION=${{ needs.version.outputs.version }}
           COMMIT=$(git rev-parse --short HEAD)
@@ -149,7 +152,7 @@ jobs:
 
   release:
     needs: [version, build-cross, build-darwin]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     outputs:
       version: ${{ needs.version.outputs.version }}
@@ -217,7 +220,7 @@ jobs:
 
   test-go-install:
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     steps:
       # This job deliberately does not check out the repo — it proves the
@@ -234,12 +237,16 @@ jobs:
           git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
 
       - name: Test go install
+        env:
+          GOTMPDIR: ${{ runner.temp }}
         run: |
           sleep 30
           go install github.com/vulnetix/cli/v3@latest
           vulnetix --help || echo "Binary not found in PATH"
 
       - name: Test specific version install
+        env:
+          GOTMPDIR: ${{ runner.temp }}
         run: |
           VERSION=${{ needs.release.outputs.version }}
           go install github.com/vulnetix/cli/v3@${VERSION}
@@ -247,7 +254,7 @@ jobs:
 
   update-packages:
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     steps:
       - name: Checkout cli repo
@@ -411,7 +418,7 @@ jobs:
   # one.
   publish-tea:
     needs: [release, update-packages]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     timeout-minutes: 20
     # id-token lets this job get an OIDC token from GitHub, which is the
     # identity public Fulcio issues a short-lived certificate against. That is
@@ -434,8 +441,10 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x bin/vulnetix-linux-amd64
-          sudo mv bin/vulnetix-linux-amd64 /usr/local/bin/vulnetix
-          vulnetix version --short
+          mkdir -p "$HOME/.local/bin"
+          mv bin/vulnetix-linux-amd64 "$HOME/.local/bin/vulnetix"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/vulnetix" version --short
 
       - name: Download checksums
         run: |

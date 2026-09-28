@@ -43,7 +43,7 @@ jobs:
     name: Protocol contract
     # GitHub-hosted on purpose. This gates merges, so it must not wait on the
     # self-hosted runner being up.
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
     steps:
       - uses: actions/checkout@v5
         with:
