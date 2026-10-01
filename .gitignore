@@ -53,6 +53,7 @@ src/@iconify/icons-bundle.js
 
 # Vulnetix credentials
 .vulnetix/
+.claude/
 **/credentials.json
 **/vdb.json
 
