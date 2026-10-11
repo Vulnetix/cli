@@ -38,9 +38,19 @@ Each toggle blocks a package version when the condition is true:
 
 Each ecosystem has an ordered list of upstream mirrors. The firewall tries them by priority and serves the first that responds. Defaults are seeded automatically (for example `registry.npmjs.org` for npm); add your own regional or internal mirrors per ecosystem in the **Mirrors** tab of the console, or with [`vulnetix config set package-firewall <ecosystem> <url>`](#manage-mirrors).
 
+## Upstream mirror checks
+
+When you add a mirror in the console it checks the URL as you type (HTTPS only, not already in the list, not a Vulnetix host, which would loop) and then probes it from Vulnetix servers with a request the registry should answer, such as the `lodash` packument for npm or `@v/list` for a Go proxy. A mirror that only your private network can reach fails the probe but can still be saved. The **Mirrors** tab also shows each ecosystem's upstream errors over the last 14 days.
+
 ## Decision log
 
-Every PASS / BLOCK / ERROR decision is recorded with its ecosystem, package, version, action, and reason. Filter the log by **ecosystem** and **action** in the console to audit what the firewall has allowed or blocked.
+Every PASS, BLOCK, WARN and ERROR decision is recorded with its ecosystem, package, version, action and reason. Open it at [www.vulnetix.com/resolve/logs#package](https://www.vulnetix.com/resolve/logs#package) and filter by **ecosystem**, **action** and **package**. Links from the Package Firewall page open it already filtered.
+
+The Package Firewall page reads the same log in aggregate: block counts per rule for the last 30 days, weekly decisions for the last 26 weeks, the packages blocked most often, and wildcard malware advisories (`WARN`) waiting for an allow or deny decision.
+
+## Curation review cadence
+
+Two settings decide when the console asks you to look at an allow or deny entry again: **Re-review a decision after** (days since it was decided or last reviewed) and **Flag an entry unused after** (days without a matching request). They are set on the console's **Policies** tab and fill the review queue on the **Curation** tab. They have no CLI flag.
 
 {{< callout type="info" >}}
 Policy changes are cached by the firewall for up to 60 seconds, so a new threshold takes effect within a minute.
