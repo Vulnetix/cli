@@ -31,7 +31,15 @@ const (
 	WireChat      = "chat"      // OpenAI /v1/chat/completions
 	WireResponses = "responses" // OpenAI /v1/responses — what Codex requires
 	WireMessages  = "messages"  // Anthropic /v1/messages — what Claude Code speaks
+	WireKiro      = "kiro"      // Kiro /v1/generateAssistantResponse — what belai's kiro provider speaks
 )
+
+// KiroSlug is the gateway provider for Kiro. It is deliberately not in the
+// Providers catalogue: that list is what `install` wires through environment
+// variables, and no SDK reads one for Kiro. Kiro reaches the gateway through
+// belai, and its stored key is a Kiro login provisioned with
+// `vulnetix ai-firewall kiro login`, not an API key from `key set`.
+const KiroSlug = "kiro"
 
 // Provider is one upstream the gateway can proxy, plus the local knowledge the
 // server does not have: which environment variables real SDKs actually read.

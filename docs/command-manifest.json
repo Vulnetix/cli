@@ -93,6 +93,7 @@
         "install",
         "inventory",
         "key",
+        "kiro",
         "policy",
         "settings",
         "snippet",
@@ -253,6 +254,44 @@
         "output",
         "silent",
         "stdin",
+        "verbose"
+      ]
+    },
+    "ai-firewall kiro": {
+      "short": "Provision the Kiro sign-in the gateway uses",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "login"
+      ]
+    },
+    "ai-firewall kiro login": {
+      "short": "Sign in to Kiro and store the sign-in in the secrets vault",
+      "flags": [
+        "api-region",
+        "base-url",
+        "disable-memory",
+        "expires-in-days",
+        "import",
+        "name",
+        "no-analytics",
+        "no-banner",
+        "no-browser",
+        "no-progress",
+        "org-id",
+        "output",
+        "owner",
+        "profile-arn",
+        "region",
+        "silent",
+        "start-url",
         "verbose"
       ]
     },
@@ -2268,6 +2307,35 @@
         "purge",
         "remove-credentials",
         "silent",
+        "verbose"
+      ]
+    },
+    "pix": {
+      "short": "Manage the Pix AI coding assistant plugin",
+      "flags": [
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "verbose"
+      ],
+      "subcommands": [
+        "install"
+      ]
+    },
+    "pix install": {
+      "short": "Install Vulnetix skills into Pix",
+      "flags": [
+        "agent",
+        "disable-memory",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "silent",
+        "skill",
         "verbose"
       ]
     },
@@ -7177,6 +7245,7 @@
         "lsp",
         "malscan",
         "package-firewall",
+        "pix",
         "report",
         "sast",
         "sca",

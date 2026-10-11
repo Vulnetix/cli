@@ -92,6 +92,9 @@ func runAiFirewallKeySet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	slug := strings.TrimSpace(args[0])
+	if slug == aifw.KiroSlug {
+		return fmt.Errorf("Kiro has no API key: run 'vulnetix ai-firewall kiro login' to store a Kiro sign-in in the secrets vault")
+	}
 	if _, ok := aifw.ProviderBySlug(slug); !ok {
 		return fmt.Errorf("unknown provider %q", slug)
 	}

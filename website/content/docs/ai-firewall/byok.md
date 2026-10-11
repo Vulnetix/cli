@@ -79,6 +79,17 @@ Skipped providers
   anthropic: no key stored for this org — run 'vulnetix ai-firewall key set anthropic'
 ```
 
+## Kiro
+
+Kiro has no API key, so `key set kiro` is refused. Sign in instead:
+
+```bash
+vulnetix ai-firewall kiro login            # AWS Builder ID
+vulnetix ai-firewall kiro login --import   # reuse the Kiro IDE / kiro-cli sign-in
+```
+
+The sign-in goes to the secrets vault, and the gateway mints a Kiro access token from it for every request. When AWS stops accepting it, requests are refused with `403 vault_kiro_relogin`; run the command again to fix it. See [`kiro login`](../../cli-reference/ai-firewall/#kiro-login).
+
 ## Keys in a policy file
 
 A [policy file](/docs/ai-firewall/policy-file/) can name where a key comes from — never the key itself:

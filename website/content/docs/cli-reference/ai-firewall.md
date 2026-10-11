@@ -95,7 +95,22 @@ vulnetix ai-firewall key set <provider> --from-env VAR | --stdin | --key <litera
 vulnetix ai-firewall key remove <provider>
 ```
 
-The key is write-only: no command returns it. `--key` warns, because it lands in your shell history.
+The key is write-only: no command returns it. `--key` warns, because it lands in your shell history. `key set kiro` is refused, because Kiro has no API key; use `kiro login` instead.
+
+## kiro login
+
+```bash
+vulnetix ai-firewall kiro login [--start-url URL] [--region R] [--api-region R] [--profile-arn ARN]
+                                [--import] [--owner UUID ...] [--expires-in-days N] [--name NAME] [--no-browser]
+```
+
+This signs in to Kiro with an AWS Builder ID (the default) or an IAM Identity Center start URL (`--start-url`, `--region`). The sign-in is stored in the secrets vault as the `kiro` provider's key, granted to the AI Firewall. The gateway then mints a short-lived Kiro access token from it for every request, and clients send only their Vulnetix API key, to `https://guardrails.vulnetix.com/kiro/{orgUuid}/v1`.
+
+- **Device sign-in.** The command shows a code and a URL, and opens the browser when it can. The sign-in registers its own AWS client, so the gateway never shares a refresh token with your Kiro IDE.
+- **`--import`.** Reuses the sign-in the Kiro IDE (`~/.aws/sso/cache/kiro-auth-token.json`) or kiro-cli already holds. That tool and the gateway then share one refresh token. GitHub and Google Kiro sign-ins cannot be used.
+- **Profiles.** For an Identity Center account with several Kiro profiles, the command asks which one to use; pass `--profile-arn` to choose without a prompt.
+- **Running it again.** It replaces the value of the vault entry that already serves Kiro to the AI Firewall, keeping its grants. Do this when requests are refused with `vault_kiro_relogin`.
+- **New entries.** A new entry is granted to every API key owner unless `--owner` names some. It never expires unless `--expires-in-days` is set.
 
 ## settings
 
