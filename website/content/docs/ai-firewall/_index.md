@@ -25,6 +25,38 @@ The organisation is a **path component**, not a header. That is a deliberate con
 
 (The Package Firewall makes the opposite trade, carrying the org as the HTTP Basic username, because package managers all speak netrc and none of them let you rewrite a URL path.)
 
+## Providers
+
+The gateway fronts **13 providers**, each reached at its own slug:
+
+| Slug | Provider | Request surface |
+| --- | --- | --- |
+| `openai` | OpenAI | OpenAI Chat, OpenAI Responses |
+| `anthropic` | Anthropic | Anthropic Messages |
+| `mistral` | Mistral | OpenAI Chat |
+| `groq` | Groq | OpenAI Chat |
+| `deepseek` | DeepSeek | OpenAI Chat |
+| `xai` | xAI | OpenAI Chat |
+| `openrouter` | OpenRouter | OpenAI Chat |
+| `together` | Together AI | OpenAI Chat |
+| `fireworks` | Fireworks AI | OpenAI Chat |
+| `alibaba` | Alibaba Cloud | OpenAI Chat |
+| `moonshot` | Moonshot AI | OpenAI Chat |
+| `minimax` | MiniMax | OpenAI Chat |
+| `kiro` | Kiro | Kiro |
+
+All thirteen are available on every plan. Every provider but Kiro is called with a provider API key you store ([BYOK](/docs/ai-firewall/byok/)); Kiro has no API key and is authorised by a stored sign-in instead ([`kiro login`](/docs/ai-firewall/byok/#kiro)).
+
+### Compatible providers
+
+An organisation on the Pro plan or above can add its own provider: a server of its own that speaks OpenAI Chat, OpenAI Responses or Anthropic Messages. It is given a slug of its own and then goes through the same policy, guardrails and logging as the built-in providers. Add and delete them on the **Connect** tab of the AI Firewall page; the CLI does not create them. The slug must not be one of the 13 above, and a built-in slug always wins.
+
+- **HTTPS only.** The base URL must be `https`.
+- **Public hosts only.** The gateway runs in the cloud and refuses loopback, link-local, private-network and other internal addresses, including after DNS resolution and on redirects, so a server on `localhost` or inside your network cannot be added.
+- **Kiro is not available as a compatible provider.** Its host is fixed by the region of the stored sign-in, so a custom provider cannot use the Kiro surface.
+- **Limits.** An organisation can have up to 10 compatible providers, with up to 100 models each.
+- **After a downgrade** an existing compatible provider keeps working, and can still be deleted; adding one needs Pro.
+
 ## Two keys, and only one of them is yours to carry
 
 This is the part that trips everyone up. There are two credentials, and they are not interchangeable:
@@ -36,7 +68,7 @@ This is the part that trips everyone up. There are two credentials, and they are
 
 A wired client sends `Authorization: Bearer $VULNETIX_API_KEY`. The gateway resolves your org from the URL, checks the request against policy, decrypts your provider key, swaps it into the outbound `Authorization` header, and forwards the call. The request that reaches OpenAI is authenticated with *your* OpenAI key — so billing stays direct with the provider, and there is no token markup.
 
-The provider key never travels to a developer machine. It is stored write-only: no API returns it, and the CLI can only tell you whether one exists ([BYOK](/docs/ai-firewall/byok/)).
+The provider key never travels to a developer machine. It is stored write-only: no API returns it, and the CLI can only tell you whether one exists ([BYOK](/docs/ai-firewall/byok/)). Kiro is the one provider with no API key: its stored credential is a Kiro sign-in, and the gateway mints a short-lived access token from it for each request.
 
 {{< callout type="error" >}}
 It follows that a client is only wired when **both** halves are right: the base URL points at the gateway *and* the API key variable holds the Vulnetix key. Setting only the base URL sends your provider key to the gateway, which rejects it. Setting only the key sends the Vulnetix key straight to OpenAI, which rejects it. `vulnetix ai-firewall status` checks for exactly this.
@@ -63,11 +95,12 @@ This is the single most surprising behaviour in the product, and the usual cause
 
 ## Wire formats
 
-The gateway proxies an OpenAI-compatible surface. That matters because not every client speaks it:
+The gateway serves four request surfaces. That matters because not every client speaks the OpenAI one:
 
-- **`/v1/chat/completions`** — the OpenAI SDKs, LangChain, LlamaIndex, aider, Continue, Cursor, Windsurf.
-- **`/v1/messages`** — the Anthropic wire. Claude Code speaks *only* this.
+- **`/v1/chat/completions`** — OpenAI Chat: the OpenAI SDKs, LangChain, LlamaIndex, aider, Continue, Cursor, Windsurf.
+- **`/v1/messages`** — Anthropic Messages. Claude Code speaks *only* this.
 - **`/v1/responses`** — the OpenAI Responses API. Codex speaks *only* this: its `wire_api` setting no longer accepts anything else.
+- **`/v1/generateAssistantResponse`** — Kiro, for the Kiro IDE and CLI. The reply is an AWS event stream rather than Server-Sent Events. It is served only under the `kiro` slug, and a client sends just its Vulnetix API key to `https://guardrails.vulnetix.com/kiro/{orgUuid}/v1`.
 
 The CLI does not guess. It asks the server what the gateway proxies for each provider, and if a client needs a wire the gateway does not serve, `install` **skips that client and says why** rather than writing a configuration that would 404 at request time.
 
