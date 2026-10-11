@@ -24,7 +24,7 @@ vulnetix ai-firewall policy provider openai --clear    # back to default
 
 Default and `allow` behave identically today. The difference is intent: an explicit `allow` records that someone decided, which matters when you are reading a policy six months later, and it survives a future change to what "default" means.
 
-A provider with **no stored key** is not usable whatever its policy says — the gateway has nothing to authenticate upstream with, and returns `provider_key_missing`. See [BYOK](/docs/ai-firewall/byok/).
+A provider with **no stored key** is not usable whatever its policy says — the gateway has nothing to authenticate upstream with, and returns `provider_key_missing`. Kiro has no key: it needs a stored sign-in instead (`vault_kiro_relogin` when AWS stops accepting it). See [BYOK](/docs/ai-firewall/byok/) and the [13 providers](/docs/ai-firewall/#providers).
 
 Because clearing a provider returns it to default-allow, `--clear` is the one policy command that can widen what an organisation may call. That is also why `apply --prune` never touches provider rows: dropping a `deny` because a line went missing from a file would open a provider by accident. Clearing one is always something you ask for, here or with `action: default` in a [policy file](/docs/ai-firewall/policy-file/#providers-are-never-pruned).
 

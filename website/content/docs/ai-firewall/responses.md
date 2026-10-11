@@ -28,6 +28,7 @@ When the gateway refuses a request it returns **HTTP 403** with an OpenAI-shaped
 | --- | --- | --- | --- |
 | 403 | `provider_denied` | The org denies this provider outright. | `vulnetix ai-firewall policy provider <slug> --allow`, or point the client somewhere else. |
 | 403 | `provider_key_missing` | No provider key is stored for this org, so the gateway has nothing to call upstream with. | `vulnetix ai-firewall key set <slug>` — see [BYOK](/docs/ai-firewall/byok/). |
+| 403 | `vault_kiro_relogin` | The stored Kiro sign-in is no longer accepted by AWS. | `vulnetix ai-firewall kiro login` again — see [BYOK](/docs/ai-firewall/byok/#kiro). |
 | 403 | `model_denied` | This model is on the org's deny list. | Use another model, or remove the deny entry. |
 | 403 | `model_not_allowed` | The provider is in **allowlist mode** and this model is not on the list — note that nobody denied it. | Add it: `policy model <slug> --provider <p> --allow`. See [the allowlist flip](/docs/ai-firewall/policy/). |
 | 403 | `request_blocked` | A guardrail with `--action block` matched. `blocked_by` names it. | Change the prompt, or the rule. |

@@ -14,15 +14,36 @@ vulnetix ai-firewall baseline
 Recommended guardrails
 
   Ref      recommended
-  Version  2026-07-01
+  Version  2026.10.1
 
-  ID                        Name                        Rule             Action  Priority
-  pii-email-redact          PII email redaction         pii_redact       redact        20
-  pii-card-redact           PII card redaction          pii_redact       redact        21
-  prompt-injection-ignore   Prompt injection: override  blocked_pattern  flag          30
+  ID                            Name                            Rule                 Action  Priority
+  secret-private-key            Private key material            blocked_pattern      block         10
+  injection-delimiter-tampered  Sealed harness block tampered   delimiter_integrity  block         25
+  injection-role-override       Prompt injection: role override blocked_pattern      flag          33
+  pii-email                     PII: email address              pii_redact           redact        50
+  agent-deploy-skill            Deployment skill offered ...    skill_deny           flag         103
 ```
 
 It contains **guardrails only**. There are no provider or model allow/deny lists in it, and there never will be: which models an organisation may call is a decision about that organisation's business, not something to be pushed as a default.
+
+What is in it, by band of priority:
+
+| Priority | Rules | Action |
+| --- | --- | --- |
+| 10-29 | Secrets (private keys, cloud and provider tokens, connection strings) and `injection-delimiter-tampered` | `block` |
+| 30-49 | Prompt-injection phrasing | `flag` |
+| 50-69 | PII (email, card, SSN, phone) | `redact` |
+| 90 | Runaway conversations (`max_messages`) | `flag` |
+| 100-119 | Agent capability: shell and destructive MCP tools, remote MCP servers, deployment and shell skills (`skill_deny`), `curl` as a client (`client_deny`), known clients only (`client_allow`) | `flag` |
+
+Four rules ship **disabled** because they are noisy or change what a whole family means. Enable them with a local guardrail of the same name once you have read your inventory:
+
+| ID | Why it is off |
+| --- | --- |
+| `injection-delimiter-spoof` | Fires on ordinary source code that mentions role tags |
+| `injection-delimiter-tampered` | A `delimiter_integrity` block that refuses requests. It only makes sense once your clients take their nonces from the gateway (see [nonces](/docs/ai-firewall/nonces/)); it takes no pattern and accepts `block` or `flag` |
+| `pii-phone` | Also matches version strings and issue ids |
+| `agent-known-clients` | A `client_allow` allowlist: every client not named would be flagged. Any rule that puts a family into allowlist mode ships disabled |
 
 ## Using it
 

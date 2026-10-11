@@ -29,7 +29,7 @@ Three pattern rule types and three actions, where every combination is valid and
 | `blocked_pattern` | an RE2 regex | anything in the request content |
 | `pii_redact` | an RE2 regex, **or empty** | empty selects the built-in detectors: email, credit card, SSN, phone |
 | `max_messages` | a positive integer | conversations longer than that many messages |
-| `delimiter_integrity` | nothing | a request carrying a sealed harness block whose integrity check fails (see [nonces](/docs/ai-firewall/nonces/)); `block` answers 403 `delimiter_tampered` |
+| `delimiter_integrity` | nothing (a pattern is rejected) | a request carrying a sealed harness block whose integrity check fails (see [nonces](/docs/ai-firewall/nonces/)); `block` answers 403 `delimiter_tampered`. Only `block` and `flag` are accepted; `redact` and `strip` are rejected by the server and the CLI alike |
 
 | Action | What the gateway does |
 | --- | --- |
@@ -161,7 +161,7 @@ vulnetix ai-firewall policy guardrail "No connection strings" --uuid <uuid> --de
 | `--uuid` | Existing guardrail (required for `--delete`) |
 | `--rule-type` | Content: `blocked_pattern`, `max_messages`, `pii_redact`, `delimiter_integrity`. Capability: `tool_allow`/`tool_deny`, `mcp_allow`/`mcp_deny`, `skill_allow`/`skill_deny`, `client_allow`/`client_deny`. Required when creating |
 | `--action` | `block`, `redact`, `strip`, `flag` |
-| `--pattern` | Regex for content rules, the integer for `max_messages`, or a glob for capability rules |
+| `--pattern` | Regex for content rules, the integer for `max_messages`, or a glob for capability rules. Omit it for `delimiter_integrity` |
 | `--priority` | Evaluation order, lowest first (default `100`) |
 | `--enable` / `--disable` | Toggle without deleting |
 | `--delete` | Remove it (needs `--uuid`) |
