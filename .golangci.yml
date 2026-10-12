@@ -1,0 +1,24 @@
+version: "2"
+
+# This reproduces what golangci-lint v1 ran by default, so moving the CI job to v2
+# (v1.64.8 cannot lint a Go 1.25 module) does not silently add rules.
+#
+# v1 ran errcheck, govet, ineffassign, unused and staticcheck, with gosimple folded into
+# staticcheck since v2. Its staticcheck covered the SA and S checks only; the ST (style) and
+# QF (quick fix) groups are new in v2's default, so they are switched off here.
+linters:
+  default: standard
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - -ST*
+        - -QF*
+  exclusions:
+    # v1's default exclusions: unchecked Close, Fprint*, os.Remove*, os.Setenv and stdout writes,
+    # plus the comment-style and known false-positive rules.
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
