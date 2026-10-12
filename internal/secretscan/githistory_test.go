@@ -1,7 +1,10 @@
 package secretscan
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -54,5 +57,52 @@ func TestScanGitHistory_NoGitDir(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Errorf("expected 0 entries, got %d", len(entries))
+	}
+}
+
+// A shallow clone ends at a commit whose parent is not in the object store. Every GitHub
+// Actions checkout is one, and a worktree of it shares the same boundary, so the history scan
+// has to read what exists and stop rather than fail with "object not found".
+func TestScanGitHistory_ShallowCloneAndItsWorktree(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	git := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com",
+			"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+
+	origin := t.TempDir()
+	git(origin, "init", "-q", "-b", "main")
+	for i, body := range []string{"one\n", "two\n", "three\n"} {
+		name := filepath.Join(origin, "f.txt")
+		if err := os.WriteFile(name, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		git(origin, "add", ".")
+		git(origin, "commit", "-q", "-m", "commit "+strconv.Itoa(i))
+	}
+
+	clone := filepath.Join(t.TempDir(), "clone")
+	git(filepath.Dir(clone), "clone", "-q", "--depth", "1", "file://"+origin, clone)
+	worktree := filepath.Join(clone, ".claude", "worktrees", "feature")
+	git(clone, "worktree", "add", "-q", "--detach", worktree, "HEAD")
+
+	for name, dir := range map[string]string{"shallow clone": clone, "worktree of it": worktree} {
+		entries, err := ScanGitHistory(dir, GitHistoryOptions{MaxCommits: 5, MaxFiles: 20})
+		if err != nil {
+			t.Fatalf("%s: ScanGitHistory: %v", name, err)
+		}
+		if len(entries) == 0 {
+			t.Errorf("%s: expected the one commit that exists to be read", name)
+		}
 	}
 }

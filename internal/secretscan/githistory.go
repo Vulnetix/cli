@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -111,6 +112,12 @@ func ScanGitHistory(repoRoot string, opts GitHistoryOptions) ([]GitHistoryEntry,
 			break
 		}
 		if err != nil {
+			// A shallow clone (every GitHub Actions checkout starts as one) ends at a commit whose
+			// parent is not in the object store, and go-git reports that when asked for the next
+			// commit. That is the end of the history that exists here, not a failure to read it.
+			if errors.Is(err, plumbing.ErrObjectNotFound) && commitCount > 0 {
+				break
+			}
 			return out, err
 		}
 		commitCount++
@@ -141,6 +148,16 @@ func ScanGitHistory(repoRoot string, opts GitHistoryOptions) ([]GitHistoryEntry,
 			for _, ph := range parents {
 				parentTree, err := treeForCommit(repo, ph)
 				if err != nil {
+					if errors.Is(err, plumbing.ErrObjectNotFound) {
+						// The shallow boundary: this commit's parent is not in the object store, so
+						// there is nothing to diff against. Git treats such a commit as a root, and
+						// so does this: everything in its tree is what the commit has to show.
+						if files, lerr := listTreeFiles(repo, c.TreeHash); lerr == nil {
+							for _, p := range files {
+								changed[p] = changeAdded
+							}
+						}
+					}
 					continue
 				}
 				changes, err := object.DiffTree(parentTree, currentTree)
