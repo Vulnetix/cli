@@ -23,6 +23,13 @@ The `vdb` command queries the Vulnetix Vulnerability Database API. Commands defa
 **V1+V2 commands**: `vuln`, `exploits`, `gcve`, `product`, `packages`, `ecosystems`, `sources`, `summary`, `ids`, `eol` (+ `product`/`release`), `purl`
 **V2-only commands** (require v2, which is now the default — do not pass `-V v1`): `scorecard` (+ `search` subcommand), `timeline`, `affected`, `kev`, `advisories`, `workarounds`, `cwe` (+ `guidance`), `remediation` (+ `plan`), `cloud-locators`, `fixes` (V2 fetches registry/distributions/source in parallel), tree-sitter reachability (`x_treeSitterQueries`)
 **Utility**: `status`, `cache` (+ `clear`)
+**Defences**: `virtual-patches` and `countermeasures`, each with `get`, `list`, `fetch` and `counts` (`POST /v2/defences/counts`, which returns console links for Pro).
+
+**Input kinds**: every input-taking vdb command accepts every input kind the API does: a vulnerability id, `--package` with `--ecosystem` and `--package-version`, `--purl`, `--vendor`/`--product`, `--cpe`, `--swid`, `--tei` and `--cel`.
+- **Flags and parsing:** the flags and the argument autodetector (`detectInput`) are in `cmd/input_flags.go`; the client types are in `pkg/vdb/inputs.go`.
+- **Vuln-keyed commands get them automatically.** `cmd/vdb_zz_inputs.go` wraps every command whose `Use` names a `<vuln-id>` or `<CVE-ID>` argument. The wrapper resolves a non-id input through `GET /v2/inputs/resolve` and runs the command once per vulnerability; a vulnerability id passes straight through.
+- **Name a new command's argument `<vuln-id>`.** It then gets the input kinds with no further code. Keep vdb command files sorting before `vdb_zz_inputs.go`: `TestEveryVulnCommandTakesInputKinds` fails otherwise.
+- **The version flag is `--package-version`**, because the root owns `--version`.
 
 ### `scan` Is An Orchestrator — Do Not Give It Private Logic
 
