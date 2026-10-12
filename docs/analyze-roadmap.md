@@ -87,6 +87,11 @@ scoped to a repo, an org, a server, or one author. Its `status_group` (1=Active,
 **Evidence.** Every node and every edge is itself an evidence record (`graph_element`). A graph metric
 ("modules with no inbound edges: 7") references the 7 nodes.
 
+Record ids are the sanitised graph id behind a kind prefix (`sym-`, `imp-`, `call-`) and must be unique,
+because a duplicate aborts the run. Sanitising is lossy — `.claude/worktrees/x` and `.claude-worktrees-x`
+flatten to the same string — so `uniqueRecordID` gives the first claimant the readable id and any later
+distinct graph id a deterministic hash suffix. This applies to edges as much as nodes.
+
 **For us.** One graph, all kinds. `graphNode.kind` spans code symbols, infrastructure, the technology
 inventory *and* people, because the questions we want to answer ("who owns the code that talks to the payment
 service") cross all three. Copy GitNexus's decision to put `confidence` and `resolution` on every edge — an

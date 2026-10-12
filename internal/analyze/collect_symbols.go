@@ -700,7 +700,7 @@ func emitSymbolMetrics(b *Builder, st *symbolStats, opts Options) {
 		if e.Kind != "imports" {
 			continue
 		}
-		id := "imp-" + safeID(e.ID)
+		id := uniqueRecordID("imp-", e.ID, taken)
 		importRefs = append(importRefs, b.AddRecord(id, &GraphElementRecord{
 			ID:        id,
 			Type:      "graph_element",
@@ -719,7 +719,7 @@ func emitSymbolMetrics(b *Builder, st *symbolStats, opts Options) {
 		if e.Kind != "calls" {
 			continue
 		}
-		id := "call-" + safeID(e.ID)
+		id := uniqueRecordID("call-", e.ID, taken)
 		callRefs = append(callRefs, b.AddRecord(id, &GraphElementRecord{
 			ID:        id,
 			Type:      "graph_element",
@@ -769,23 +769,36 @@ func sortedKeys[V any](m map[string]V) []string {
 
 // uniqueSymbolRecordID derives an evidence record id from a symbol node id,
 // keeping it readable while guaranteeing distinct nodes never share one.
-//
-// `taken` maps an issued record id to the node id it was issued for, so the
-// same node asked twice would get the same answer while a genuinely different
-// node that sanitises identically gets a suffix instead of colliding.
 func uniqueSymbolRecordID(nodeID string, taken map[string]string) string {
-	id := "sym-" + safeID(nodeID)
-	owner, clash := taken[id]
-	if !clash || owner == nodeID {
-		taken[id] = nodeID
+	return uniqueRecordID("sym-", nodeID, taken)
+}
+
+// uniqueRecordID derives an evidence record id of the form prefix+safeID(sourceID).
+//
+// `taken` maps an issued record id to the source id it was issued for, so the
+// same source asked twice would get the same answer while a genuinely different
+// one that sanitises identically gets a suffix instead of colliding. Edge ids
+// need this as much as node ids do: ".claude/worktrees/x" and ".claude-worktrees-x"
+// are different paths with the same safeID.
+func uniqueRecordID(prefix, sourceID string, taken map[string]string) string {
+	id := prefix + safeID(sourceID)
+	if owner, clash := taken[id]; !clash || owner == sourceID {
+		taken[id] = sourceID
 
 		return id
 	}
 	// Deterministic rather than a counter: the same repository analysed twice
-	// produces the same ids regardless of the order symbols were visited in.
-	sum := sha256.Sum256([]byte(nodeID))
-	id = fmt.Sprintf("%s-%s", id, hex.EncodeToString(sum[:4]))
-	taken[id] = nodeID
+	// produces the same ids regardless of the order records were visited in.
+	sum := sha256.Sum256([]byte(sourceID))
+	base := fmt.Sprintf("%s-%s", id, hex.EncodeToString(sum[:4]))
+	id = base
+	for n := 2; ; n++ {
+		if owner, clash := taken[id]; !clash || owner == sourceID {
+			break
+		}
+		id = fmt.Sprintf("%s-%d", base, n)
+	}
+	taken[id] = sourceID
 
 	return id
 }

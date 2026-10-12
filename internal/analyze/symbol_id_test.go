@@ -3,6 +3,7 @@ package analyze
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 // A bundled or minified file declares many same-named symbols on one line, so
@@ -78,4 +79,34 @@ func TestUniqueSymbolRecordID_SameNodeIsStable(t *testing.T) {
 	if second := uniqueSymbolRecordID("method:a.js:run", taken); second != first {
 		t.Errorf("the same node must map to the same record id, got %q then %q", first, second)
 	}
+}
+
+// The crash reported from a real repository: call and import edges were keyed by
+// "call-"+safeID(edgeID) with no collision handling, so two edges whose ids differ
+// only in punctuation — here a `.claude/worktrees/...` path against a
+// `.claude-worktrees-...` one — produced the same record id and AddRecord panicked.
+func TestEmitSymbolMetrics_EdgeIDsCollidingAfterSanitisationDoNotPanic(t *testing.T) {
+	callee := func(path string) Node {
+		return Node{ID: "function:" + path + ":_t", Kind: "function"}
+	}
+	nodes := []Node{
+		{ID: "function:a/chart.min.js:e", Kind: "function"},
+		callee("a/chart.min.js"),
+		{ID: "function:a-chart.min.js:e", Kind: "function"},
+		callee("a-chart.min.js"),
+	}
+	edges := []Edge{
+		{ID: "e:calls:function:a/chart.min.js:e->function:a/chart.min.js:_t", Kind: "calls"},
+		{ID: "e:calls:function:a-chart.min.js:e->function:a-chart.min.js:_t", Kind: "calls"},
+		{ID: "e:imports:a/x.js->a/y.js", Kind: "imports"},
+		{ID: "e:imports:a-x.js->a-y.js", Kind: "imports"},
+	}
+
+	b := NewBuilder(Tool{}, Target{}, time.Time{})
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("emitSymbolMetrics panicked on colliding sanitised edge ids: %v", r)
+		}
+	}()
+	emitSymbolMetrics(b, &symbolStats{nodes: nodes, edges: edges}, Options{})
 }
