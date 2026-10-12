@@ -1,11 +1,48 @@
 ---
 title: Open-source catalogue
 weight: 3
-description: "The open-source projects the Vulnetix TEA server publishes as TEA products, listed by paging the API itself."
+description: "The two Vulnetix TEA catalogues, first party and open source, how to search them from the CLI, and the first party products as the API serves them."
 ---
 
 
 The products this provider publishes, as its own API serves them.
+
+## Two roots
+
+Vulnetix serves two catalogues. This page lists the first.
+
+| | First party | Open source |
+|---|---|---|
+| Root | `https://www.vulnetix.com/tea/v1` | `https://www.vulnetix.com/tea/public/v1` |
+| Holds | Vulnetix's own products and components | The most starred GitHub projects, at most 1,500 |
+| Without a credential | Returns the public records | Refused with `401` |
+| Plan required | None to read public records | None; any valid API key reads it |
+| Identifiers | TEI and PURL | A TEI and a `pkg:github/owner/repo` PURL |
+| CLI | `vulnetix tea products` | `vulnetix tea --catalogue public products` |
+
+The CLI needs no login for either. Not logged in, it sends no credential to the first party root and the shared community credential to the open source root. The community credential is never sent to the first party root: there it would return the community organisation's own catalogue instead of the public records.
+
+## Finding a project from the CLI
+
+The server has no name search, only paging and an exact filter on one identifier. Use the exact filters when you know the PURL or TEI, and `--search` when you only know part of a name.
+
+```sh
+# Exact, answered by the server
+vulnetix tea --catalogue public products --purl pkg:github/prefix-dev/pixi
+vulnetix tea --catalogue public products --tei urn:tei:uuid:vulnetix.com:<uuid>
+
+# Text search, done by the CLI over the first 20 pages of 100
+vulnetix tea --catalogue public products --search pixi
+
+# Walk the catalogue
+vulnetix tea --catalogue public products --limit 100
+vulnetix tea --catalogue public products --limit 100 --page-token tea1:100
+vulnetix tea --catalogue public products --all --json
+```
+
+Search matches the name and every identifier value, ignoring case. When the 20 page cap stops it, the CLI says how many items it searched. Components are listed the same way with `vulnetix tea components`. All flags are in the [CLI reference](../../cli-reference/tea/).
+
+## First party products
 
 | | |
 |---|---:|

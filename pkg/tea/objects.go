@@ -22,6 +22,14 @@ type Product struct {
 	Identifiers []Identifier `json:"identifiers,omitempty"`
 }
 
+// Component is a piece of software a product is built from. It is listed by
+// GET /components and carries the same identifying fields as a product.
+type Component struct {
+	UUID        string       `json:"uuid"`
+	Name        string       `json:"name"`
+	Identifiers []Identifier `json:"identifiers,omitempty"`
+}
+
 // Release covers both flavours. The consumption API distinguishes a product
 // release from a component release; the fields that differ are the parent and
 // its name, so one struct carries both rather than duplicating the rest.
@@ -140,17 +148,85 @@ type AccessStatus struct {
 
 // ── Consumption ─────────────────────────────────────────────────────────────
 
+// ListOptions are the parameters the list operations (GET /products and
+// GET /components) accept. Zero values are left off the query string so the
+// server applies its own defaults.
+type ListOptions struct {
+	// PageSize is 1..100 on the server; 0 leaves it to the server (25).
+	PageSize int
+	// PageToken is the opaque token a previous page returned.
+	PageToken string
+	// IDType and IDValue together filter on one identifier, exactly: the server
+	// does no wildcard matching and no case folding.
+	IDType  string
+	IDValue string
+	// SortField is "name" for products and components; SortOrder is asc or desc.
+	SortField string
+	SortOrder string
+}
+
+// IDTypes are the identifier types the server filters on.
+var IDTypes = []string{"CPE", "TEI", "PURL", "COMPLIANCE_DOCUMENT"}
+
+// ValidIDType normalises an identifier type to the server's upper case spelling
+// and reports whether it is one the server filters on.
+func ValidIDType(s string) (string, bool) {
+	up := strings.ToUpper(strings.TrimSpace(s))
+	for _, t := range IDTypes {
+		if t == up {
+			return up, true
+		}
+	}
+	return "", false
+}
+
+// Query renders the options as a query string.
+func (o ListOptions) Query() url.Values {
+	q := url.Values{}
+	if o.PageSize > 0 {
+		q.Set("pageSize", fmt.Sprint(o.PageSize))
+	}
+	if o.PageToken != "" {
+		q.Set("pageToken", o.PageToken)
+	}
+	if o.IDType != "" {
+		q.Set("idType", o.IDType)
+	}
+	if o.IDValue != "" {
+		q.Set("idValue", o.IDValue)
+	}
+	if o.SortField != "" {
+		q.Set("sortField", o.SortField)
+	}
+	if o.SortOrder != "" {
+		q.Set("sortOrder", o.SortOrder)
+	}
+	return q
+}
+
+func listPath(base string, o ListOptions) string {
+	if q := o.Query().Encode(); q != "" {
+		return base + "?" + q
+	}
+	return base
+}
+
 // Products lists products.
 func (c *Client) Products(ctx context.Context, pageSize int, pageToken string) (*Page[Product], error) {
-	q := url.Values{}
-	if pageSize > 0 {
-		q.Set("pageSize", fmt.Sprint(pageSize))
-	}
-	if pageToken != "" {
-		q.Set("pageToken", pageToken)
-	}
+	return c.ListProducts(ctx, ListOptions{PageSize: pageSize, PageToken: pageToken})
+}
+
+// ListProducts lists products with paging, sorting and identifier filtering.
+func (c *Client) ListProducts(ctx context.Context, o ListOptions) (*Page[Product], error) {
 	var out Page[Product]
-	err := c.Do(ctx, "GET", "/products?"+q.Encode(), nil, &out, nil)
+	err := c.Do(ctx, "GET", listPath("/products", o), nil, &out, nil)
+	return &out, err
+}
+
+// ListComponents lists components with paging, sorting and identifier filtering.
+func (c *Client) ListComponents(ctx context.Context, o ListOptions) (*Page[Component], error) {
+	var out Page[Component]
+	err := c.Do(ctx, "GET", listPath("/components", o), nil, &out, nil)
 	return &out, err
 }
 

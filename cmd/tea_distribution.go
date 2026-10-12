@@ -157,9 +157,13 @@ func newTeaDistributionListCommand() *cobra.Command {
 			ctx, cancel := teaContext(cmd)
 			defer cancel()
 
-			detail, err := teaClient(cmd).ComponentRelease(ctx, args[0])
+			c, err := teaReadClient(cmd)
 			if err != nil {
-				return teaFail(err)
+				return err
+			}
+			detail, err := c.ComponentRelease(ctx, args[0])
+			if err != nil {
+				return teaFailFor(cmd, err)
 			}
 			if teaJSONFlag(cmd) {
 				return teaPrintJSON(detail.Release.Distributions)

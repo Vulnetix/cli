@@ -212,13 +212,22 @@ vulnetix tea collection 3e6a317c-6027-5448-abd7-5f260cec7e4b
 vulnetix tea resolve urn:tei:uuid:vulnetix.com:54e8820d-0803-5a4f-858d-88a279486564
 ```
 
-Reading a public catalogue needs no credentials. See [`tea` in the CLI reference](../cli-reference/tea/) for publishing your own.
+Reading Vulnetix's public records needs no login. The open source catalogue is a second root, selected with `--catalogue public`; the CLI uses the shared community credential for it when you are not logged in, so that needs no login either:
+
+```sh
+vulnetix tea --catalogue public products --search pixi
+vulnetix tea --catalogue public products --purl pkg:github/prefix-dev/pixi
+```
+
+See [`tea` in the CLI reference](../cli-reference/tea/) for searching, paging and publishing your own, and the [open source catalogue](catalogue/) for what each root holds.
 
 ## Authentication
 
 Authentication is **optional**, and it only ever widens what you can see: a credential gets you objects shared with your organisation in addition to the public ones. It is never required to read a public catalogue. That is what makes this an exchange rather than a portal.
 
 If you do send a credential it must be valid. An unrecognised one is refused with `401` rather than quietly downgraded to anonymous, so a stale key fails loudly instead of silently hiding the releases you expected to see.
+
+The open source root, `https://www.vulnetix.com/tea/public/v1`, differs on this one point: it requires a credential and refuses anonymous requests with `401`. There is no plan gate, so any valid API key reads it, including a community-tier key.
 
 | Scheme | Header |
 |---|---|

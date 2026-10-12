@@ -32,11 +32,51 @@ import (
 // https://vulnetix.com/.well-known/tea.
 const DefaultServer = "https://www.vulnetix.com/tea/v1"
 
+// PublicServer is the open source catalogue root: the top GitHub projects by
+// stars, published as products and components. It is a different root from
+// DefaultServer, not a filtered view of it. It requires a credential but has no
+// plan gate, so any valid ApiKey, including the shared community one, reads it.
+const PublicServer = "https://www.vulnetix.com/tea/public/v1"
+
+// Catalogue names accepted by ServerForCatalogue.
+const (
+	CatalogueFirstParty = "first-party"
+	CataloguePublic     = "public"
+)
+
+// Catalogues lists the valid catalogue names, default first.
+var Catalogues = []string{CatalogueFirstParty, CataloguePublic}
+
+// ServerForCatalogue maps a catalogue name to its root URL. An empty name is
+// the first party catalogue. Matching ignores case and surrounding space.
+func ServerForCatalogue(name string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "", CatalogueFirstParty:
+		return DefaultServer, nil
+	case CataloguePublic:
+		return PublicServer, nil
+	}
+	return "", fmt.Errorf("unknown catalogue %q: valid catalogues are %s",
+		name, strings.Join(Catalogues, ", "))
+}
+
+// IsPublicServer reports whether a root URL is the open source catalogue root,
+// ignoring a trailing slash and letter case.
+func IsPublicServer(root string) bool {
+	return strings.EqualFold(strings.TrimRight(strings.TrimSpace(root), "/"), PublicServer)
+}
+
 // Client talks to one TEA server.
 type Client struct {
 	BaseURL string
 	Creds   *auth.Credentials
 	HTTP    *http.Client
+
+	// Err, when set, is returned by every request instead of sending it. It lets
+	// a caller that could not configure the client (conflicting flags, say)
+	// hand back a client that fails loudly rather than one that quietly talks
+	// to the wrong server.
+	Err error
 }
 
 // New builds a client. Credentials may be nil: the consumption operations of a
@@ -89,6 +129,9 @@ func (e *Error) IsNotFound() bool {
 // Content-Digest, which are the two the publication API acts on and which a
 // generic client would otherwise have no way to send.
 func (c *Client) Do(ctx context.Context, method, path string, body any, out any, headers map[string]string) error {
+	if c.Err != nil {
+		return c.Err
+	}
 	var reader io.Reader
 	var raw []byte
 

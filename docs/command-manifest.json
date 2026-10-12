@@ -2749,6 +2749,7 @@
     "tea": {
       "short": "Publish to and read from the Transparency Exchange API",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2761,6 +2762,7 @@
       ],
       "subcommands": [
         "collection",
+        "components",
         "discover",
         "distribution",
         "product",
@@ -2774,6 +2776,7 @@
     "tea collection": {
       "short": "Read the artifacts published for a release",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2785,9 +2788,33 @@
         "verbose"
       ]
     },
+    "tea components": {
+      "short": "List or search the components a TEA server publishes",
+      "flags": [
+        "all",
+        "catalogue",
+        "disable-memory",
+        "id-type",
+        "id-value",
+        "json",
+        "limit",
+        "no-analytics",
+        "no-banner",
+        "no-progress",
+        "org-id",
+        "page-token",
+        "purl",
+        "search",
+        "server",
+        "silent",
+        "tei",
+        "verbose"
+      ]
+    },
     "tea discover": {
       "short": "Resolve a domain or TEI to a TEA server",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2802,6 +2829,7 @@
     "tea distribution": {
       "short": "Publish and inspect where a release can be obtained",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2822,6 +2850,7 @@
       "short": "Declare a download or install channel for a release",
       "flags": [
         "base-url",
+        "catalogue",
         "checksums",
         "description",
         "disable-memory",
@@ -2843,6 +2872,7 @@
     "tea distribution list": {
       "short": "Show where a release can currently be obtained",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2857,6 +2887,7 @@
     "tea distribution remove": {
       "short": "Withdraw a download link",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2871,6 +2902,7 @@
     "tea product": {
       "short": "Read a product and its releases",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2883,23 +2915,32 @@
       ]
     },
     "tea products": {
-      "short": "List the products a TEA server publishes",
+      "short": "List or search the products a TEA server publishes",
       "flags": [
+        "all",
+        "catalogue",
         "disable-memory",
+        "id-type",
+        "id-value",
         "json",
         "limit",
         "no-analytics",
         "no-banner",
         "no-progress",
         "org-id",
+        "page-token",
+        "purl",
+        "search",
         "server",
         "silent",
+        "tei",
         "verbose"
       ]
     },
     "tea publish": {
       "short": "Create products, releases, collections and artifacts",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2922,6 +2963,7 @@
     "tea publish artifact": {
       "short": "Publish an artifact and upload its content",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "media-type",
@@ -2939,6 +2981,7 @@
     "tea publish collection": {
       "short": "Publish the next collection version for a release",
       "flags": [
+        "catalogue",
         "comment",
         "disable-memory",
         "json",
@@ -2955,6 +2998,7 @@
     "tea publish delete": {
       "short": "Withdraw a published object",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2969,6 +3013,7 @@
     "tea publish list": {
       "short": "List what your organisation has published, and who can read it",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2983,6 +3028,7 @@
     "tea publish product": {
       "short": "Register a product",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -2998,6 +3044,7 @@
     "tea publish release": {
       "short": "Publish a release of a product",
       "flags": [
+        "catalogue",
         "date",
         "disable-memory",
         "json",
@@ -3016,6 +3063,7 @@
       "flags": [
         "auto-version",
         "base-url",
+        "catalogue",
         "channel",
         "checksums",
         "checksums-from-release",
@@ -3043,6 +3091,7 @@
     "tea resolve": {
       "short": "Resolve a TEI to the object it names",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",
@@ -3057,6 +3106,7 @@
     "tea share": {
       "short": "Show or change who may read a published object",
       "flags": [
+        "catalogue",
         "disable-memory",
         "json",
         "no-analytics",

@@ -17,6 +17,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -37,7 +38,8 @@ resolves: they start from one identifier, follow DNS to a discovery document,
 and walk a standard object graph to the exact artifact they need.
 
     discover    resolve a domain or TEI to a TEA server
-    products    list products a server publishes
+    products    list or search the products a server publishes
+    components  list or search the components a server publishes
     product     read one product and its releases
     collection  read the artifacts published for a release
     resolve     resolve a TEI to the object it names
@@ -47,17 +49,26 @@ and walk a standard object graph to the exact artifact they need.
     share         control who may read a published object
     release       publish everything about a release in one command
 
-Reading a public catalogue needs no credentials. Publishing does, and always
-targets your own organisation's server.`,
+Two catalogues are built in. The default, first-party, is Vulnetix's own
+server: it lists the public records without any login. The public catalogue
+(--catalogue public) is the open source one, the most starred GitHub projects.
+It needs a credential, and when you are not logged in the CLI uses the shared
+community credential, so no login is needed to read it.
+
+Publishing needs your own credentials and always targets your own
+organisation's server.`,
 	}
 
 	cmd.PersistentFlags().String("server", tea.DefaultServer,
 		"TEA server root URL (a supplier's server works for every read)")
+	cmd.PersistentFlags().String("catalogue", tea.CatalogueFirstParty,
+		"which built-in catalogue to read: "+strings.Join(tea.Catalogues, " or ")+" (not combinable with --server)")
 	cmd.PersistentFlags().Bool("json", false, "emit raw JSON rather than a table")
 
 	cmd.AddCommand(
 		newTeaDiscoverCommand(),
 		newTeaProductsCommand(),
+		newTeaComponentsCommand(),
 		newTeaProductCommand(),
 		newTeaCollectionCommand(),
 		newTeaResolveCommand(),
@@ -80,13 +91,114 @@ func init() {
 // useless for reading somebody else's open transparency log. A write against a
 // server that does not know the caller is refused by that server, which is the
 // right place for that decision.
+//
+// This is the client for writes, and for the reads that predate catalogues. It
+// honours --server and refuses --catalogue public, which is read only, and it
+// never falls back to the community credential: a write must be attributable to
+// the person who made it.
 func teaClient(cmd *cobra.Command) *tea.Client {
-	server, _ := cmd.Flags().GetString("server")
-	creds, err := auth.LoadCredentials()
+	sel, err := teaSelect(cmd, false)
 	if err != nil {
-		creds = nil
+		return &tea.Client{Err: err}
 	}
-	return tea.New(server, creds)
+	if sel.Public && catalogueFlag(cmd) == tea.CataloguePublic {
+		return &tea.Client{Err: fmt.Errorf("--catalogue public is read only: " +
+			"publishing targets your own organisation's server")}
+	}
+	return teaNewClient(sel)
+}
+
+// teaVerbose reports whether diagnostics were asked for. A variable so a test
+// can set it without depending on how the root command parses -v.
+var teaVerbose = func() bool { return verbose && !silent }
+
+// teaTransport, when set, carries every tea request. Production leaves it nil;
+// the tests use it to reach the fixed public root URL without the network.
+var teaTransport http.RoundTripper
+
+func teaNewClient(sel *teaSelection) *tea.Client {
+	c := tea.New(sel.Server, sel.Creds)
+	if teaTransport != nil {
+		c.HTTP.Transport = teaTransport
+	}
+	return c
+}
+
+// teaReadClient builds a client for a read command. On the public catalogue root
+// it falls back to the community credential when nothing is stored.
+func teaReadClient(cmd *cobra.Command) (*tea.Client, error) {
+	sel, err := teaSelect(cmd, true)
+	if err != nil {
+		return nil, err
+	}
+	if sel.Source == teaCredCommunity && teaVerbose() {
+		fmt.Fprintln(os.Stderr, "tea: using the community credential")
+	}
+	return teaNewClient(sel), nil
+}
+
+// Where the credential a tea request carries came from.
+const (
+	teaCredNone      = "none"
+	teaCredStored    = "stored"
+	teaCredCommunity = "community"
+)
+
+// teaSelection is the resolved target of one tea invocation.
+type teaSelection struct {
+	Server string
+	// Public is true when Server is the open source catalogue root.
+	Public bool
+	Creds  *auth.Credentials
+	Source string
+}
+
+func catalogueFlag(cmd *cobra.Command) string {
+	v, _ := cmd.Flags().GetString("catalogue")
+	return strings.ToLower(strings.TrimSpace(v))
+}
+
+// teaSelect works out which root a command reads and which credential it sends.
+//
+// Stored credentials always win. The community credential is added only for the
+// open source catalogue root: the same key sent to the first party root does not
+// give the anonymous public view, it returns the community organisation's own
+// catalogue, which is a different set of objects. The first party root and any
+// custom --server therefore never see it.
+func teaSelect(cmd *cobra.Command, allowCommunity bool) (*teaSelection, error) {
+	serverFlag := cmd.Flags().Lookup("server")
+	catalogueFl := cmd.Flags().Lookup("catalogue")
+	serverSet := serverFlag != nil && serverFlag.Changed
+	catalogueSet := catalogueFl != nil && catalogueFl.Changed
+
+	if serverSet && catalogueSet {
+		return nil, fmt.Errorf("use either --server or --catalogue, not both: " +
+			"--server names a root URL and --catalogue names one of the built-in roots")
+	}
+
+	server := tea.DefaultServer
+	if serverFlag != nil {
+		server = serverFlag.Value.String()
+	}
+	if catalogueSet {
+		root, err := tea.ServerForCatalogue(catalogueFl.Value.String())
+		if err != nil {
+			return nil, err
+		}
+		server = root
+	}
+	server = strings.TrimRight(strings.TrimSpace(server), "/")
+	if server == "" {
+		server = tea.DefaultServer
+	}
+
+	sel := &teaSelection{Server: server, Public: tea.IsPublicServer(server), Source: teaCredNone}
+	if creds, err := auth.LoadCredentials(); err == nil && creds != nil {
+		sel.Creds, sel.Source = creds, teaCredStored
+	} else if allowCommunity && sel.Public {
+		sel.Creds, sel.Source = auth.CommunityCredentials(), teaCredCommunity
+	}
+	return sel, nil
 }
 
 func teaJSONFlag(cmd *cobra.Command) bool {
@@ -110,6 +222,10 @@ func teaFail(err error) error {
 	if ok := asTeaError(err, &apiErr); !ok {
 		return err
 	}
+	if apiErr.Status == http.StatusUnauthorized {
+		return fmt.Errorf("%w\n\nThe server requires valid credentials. "+
+			"Run `vulnetix auth login`, or set VULNETIX_API_KEY and VULNETIX_ORG_ID", err)
+	}
 	switch apiErr.Code {
 	case "ACCESS_WIDENS_PARENT":
 		return fmt.Errorf("%w\n\nAn object cannot be more visible than the one it belongs to. "+
@@ -120,6 +236,35 @@ func teaFail(err error) error {
 		return fmt.Errorf("%w\n\nThe uploaded bytes did not match their digest — the transfer was truncated or the file changed mid-upload", err)
 	}
 	return err
+}
+
+// teaFailFor is teaFail with the context of the invocation, so a 401 can say
+// what was sent and to which root. The answer differs: the public catalogue
+// rejects a stored key that has gone stale, and a server that was sent nothing
+// simply requires credentials.
+func teaFailFor(cmd *cobra.Command, err error) error {
+	var apiErr *tea.Error
+	if !asTeaError(err, &apiErr) || apiErr.Status != http.StatusUnauthorized {
+		return teaFail(err)
+	}
+	sel, selErr := teaSelect(cmd, true)
+	if selErr != nil {
+		return teaFail(err)
+	}
+	switch {
+	case sel.Public && sel.Source == teaCredStored:
+		return fmt.Errorf("%w\n\nThe public catalogue rejected your API key. "+
+			"Run `vulnetix auth login` to sign in again", err)
+	case sel.Public && sel.Source == teaCredCommunity:
+		return fmt.Errorf("%w\n\nThe public catalogue rejected the built-in community credential. "+
+			"Run `vulnetix auth login` to use your own", err)
+	case sel.Source == teaCredStored:
+		return fmt.Errorf("%w\n\n%s rejected your credentials. "+
+			"Run `vulnetix auth login` to sign in again", err, sel.Server)
+	default:
+		return fmt.Errorf("%w\n\n%s requires credentials and none were found. "+
+			"Run `vulnetix auth login`, or set VULNETIX_API_KEY and VULNETIX_ORG_ID", err, sel.Server)
+	}
 }
 
 func asTeaError(err error, out **tea.Error) bool {
@@ -189,34 +334,7 @@ hand.`,
 	}
 }
 
-func newTeaProductsCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "products",
-		Short: "List the products a TEA server publishes",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := teaContext(cmd)
-			defer cancel()
-
-			limit, _ := cmd.Flags().GetInt("limit")
-			page, err := teaClient(cmd).Products(ctx, limit, "")
-			if err != nil {
-				return teaFail(err)
-			}
-			if teaJSONFlag(cmd) {
-				return teaPrintJSON(page)
-			}
-			for _, p := range page.Results {
-				fmt.Printf("%s  %s\n", p.UUID, p.Name)
-			}
-			if page.HasNext {
-				fmt.Fprintf(os.Stderr, "\n(more available; raise --limit or page with the API)\n")
-			}
-			return nil
-		},
-	}
-	cmd.Flags().Int("limit", 50, "how many products to list")
-	return cmd
-}
+// products and components live in tea_search.go.
 
 func newTeaProductCommand() *cobra.Command {
 	return &cobra.Command{
@@ -227,14 +345,17 @@ func newTeaProductCommand() *cobra.Command {
 			ctx, cancel := teaContext(cmd)
 			defer cancel()
 
-			c := teaClient(cmd)
+			c, err := teaReadClient(cmd)
+			if err != nil {
+				return err
+			}
 			product, err := c.Product(ctx, args[0])
 			if err != nil {
-				return teaFail(err)
+				return teaFailFor(cmd, err)
 			}
 			releases, err := c.ProductReleases(ctx, args[0])
 			if err != nil {
-				return teaFail(err)
+				return teaFailFor(cmd, err)
 			}
 			if teaJSONFlag(cmd) {
 				return teaPrintJSON(map[string]any{"product": product, "releases": releases.Results})
@@ -265,9 +386,13 @@ func newTeaCollectionCommand() *cobra.Command {
 			ctx, cancel := teaContext(cmd)
 			defer cancel()
 
-			col, err := teaClient(cmd).LatestCollection(ctx, args[0])
+			c, err := teaReadClient(cmd)
 			if err != nil {
-				return teaFail(err)
+				return err
+			}
+			col, err := c.LatestCollection(ctx, args[0])
+			if err != nil {
+				return teaFailFor(cmd, err)
 			}
 			if teaJSONFlag(cmd) {
 				return teaPrintJSON(col)
@@ -306,9 +431,13 @@ func newTeaResolveCommand() *cobra.Command {
 			ctx, cancel := teaContext(cmd)
 			defer cancel()
 
-			out, err := teaClient(cmd).ResolveTEI(ctx, args[0])
+			c, err := teaReadClient(cmd)
 			if err != nil {
-				return teaFail(err)
+				return err
+			}
+			out, err := c.ResolveTEI(ctx, args[0])
+			if err != nil {
+				return teaFailFor(cmd, err)
 			}
 			if teaJSONFlag(cmd) {
 				return teaPrintJSON(out)
