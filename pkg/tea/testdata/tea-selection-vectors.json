@@ -1,0 +1,74 @@
+{
+  "description": "TEA endpoint and version selection. Each case lists the roots a client should try, best first. The same file is checked by vdb-site, the website and the CLI, so the three implementations cannot drift.",
+  "cases": [
+    {
+      "name": "newest mutual version first, older version of the same endpoint as fallback",
+      "supported": ["1.0.0", "0.4.0"],
+      "endpoints": [{ "url": "https://x.example.com/tea", "versions": ["0.4.0", "1.0.0"] }],
+      "roots": ["https://x.example.com/tea/v1.0.0", "https://x.example.com/tea/v0.4.0"]
+    },
+    {
+      "name": "a publisher that only offers the older version",
+      "supported": ["1.0.0", "0.4.0"],
+      "endpoints": [{ "url": "https://x.example.com", "versions": ["0.4.0"] }],
+      "roots": ["https://x.example.com/v0.4.0"]
+    },
+    {
+      "name": "a client that has not learned the newer version yet",
+      "supported": ["0.4.0"],
+      "endpoints": [{ "url": "https://x.example.com", "versions": ["1.0.0"] }],
+      "roots": []
+    },
+    {
+      "name": "version beats priority, priority breaks ties",
+      "supported": ["1.0.0", "0.4.0"],
+      "endpoints": [
+        { "url": "https://a.example.com", "versions": ["1.0.0", "0.4.0"], "priority": 0.5 },
+        { "url": "https://b.example.com", "versions": ["0.4.0"], "priority": 1 }
+      ],
+      "roots": ["https://a.example.com/v1.0.0", "https://b.example.com/v0.4.0", "https://a.example.com/v0.4.0"]
+    },
+    {
+      "name": "equal version, higher priority first",
+      "supported": ["1.0.0"],
+      "endpoints": [
+        { "url": "https://low.example.com", "versions": ["1.0.0"], "priority": 0.2 },
+        { "url": "https://high.example.com", "versions": ["1.0.0"], "priority": 0.9 }
+      ],
+      "roots": ["https://high.example.com/v1.0.0", "https://low.example.com/v1.0.0"]
+    },
+    {
+      "name": "equal version and priority, document order",
+      "supported": ["1.0.0"],
+      "endpoints": [
+        { "url": "https://first.example.com", "versions": ["1.0.0"] },
+        { "url": "https://second.example.com", "versions": ["1.0.0"] }
+      ],
+      "roots": ["https://first.example.com/v1.0.0", "https://second.example.com/v1.0.0"]
+    },
+    {
+      "name": "build metadata is ignored for matching and kept in the URL",
+      "supported": ["1.0.0"],
+      "endpoints": [{ "url": "https://x.example.com", "versions": ["1.0.0+build.5"] }],
+      "roots": ["https://x.example.com/v1.0.0+build.5"]
+    },
+    {
+      "name": "pre-releases and unsupported majors never match",
+      "supported": ["1.0.0", "0.4.0"],
+      "endpoints": [{ "url": "https://x.example.com", "versions": ["2.0.0", "1.1.0-beta.1", "1.0.0-rc.1"] }],
+      "roots": []
+    },
+    {
+      "name": "versions compare as numbers, not strings",
+      "supported": ["0.10.0", "0.4.0"],
+      "endpoints": [{ "url": "https://x.example.com", "versions": ["0.4.0", "0.10.0"] }],
+      "roots": ["https://x.example.com/v0.10.0", "https://x.example.com/v0.4.0"]
+    },
+    {
+      "name": "invalid versions are skipped, a two part version reads as .0",
+      "supported": ["1.0.0"],
+      "endpoints": [{ "url": "https://x.example.com", "versions": ["v1.0.0", "abc", "1", "1.0"] }],
+      "roots": ["https://x.example.com/v1.0"]
+    }
+  ]
+}

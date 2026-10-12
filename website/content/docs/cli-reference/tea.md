@@ -22,8 +22,8 @@ Vulnetix serves two catalogues, each at its own root.
 
 | `--catalogue` | Root | What it holds | Credential |
 |---|---|---|---|
-| `first-party` (default) | `https://www.vulnetix.com/tea/v1` | Vulnetix's own products and components, plus whatever your organisation has published | None needed for the public records |
-| `public` | `https://www.vulnetix.com/tea/public/v1` | The open source catalogue: the most starred GitHub projects | Required by the server; the CLI supplies one for you |
+| `first-party` (default) | `https://www.vulnetix.com/tea/v1.0.0` | Vulnetix's own products and components, plus whatever your organisation has published | None needed for the public records |
+| `public` | `https://www.vulnetix.com/tea/public/v1.0.0` | The open source catalogue: the most starred GitHub projects | Required by the server; the CLI supplies one for you |
 
 Without a login, the default root returns the public records only. Sign in with `vulnetix auth login` and it also returns what your organisation has published or has had shared with it.
 
@@ -46,12 +46,17 @@ The open source catalogue rejects anonymous requests but has no plan gate: any v
 | `tea product <uuid>` | One product and its releases |
 | `tea collection <release-uuid>` | The artifacts published for a release |
 | `tea distribution list <component-release-uuid>` | Where a release can be obtained |
-| `tea resolve <tei>` | Resolve a TEI to the product release it names, and the servers that serve it |
+| `tea resolve <tei\|purl>` | Resolve a TEI or a Package URL to the product release it names, and the servers that serve it |
 
 ```sh
 vulnetix tea discover vulnetix.com
-vulnetix tea resolve urn:tei:uuid:vulnetix.com:54e8820d-0803-5a4f-858d-88a279486564
+vulnetix tea resolve tei://vulnetix.com/uuid/54e8820d-0803-5a4f-858d-88a279486564
+vulnetix tea resolve pkg:github/prefix-dev/pixi
 ```
+
+A TEI can be written either way, `tei://<domain>/<type>/<id>` (TEA 1.0.0) or `urn:tei:<type>:<domain>:<id>` (TEA 0.x). The CLI sends it in the spelling the server's version speaks, taken from the version in the root, so either works against either. A root that names no version, such as the stable alias `/tea/v1`, gets it as typed. A Package URL needs a 1.0.0 server.
+
+The CLI reads TEA 1.0.0 and 0.4.0. To read the older shapes, point `--server` at `https://www.vulnetix.com/tea/v0.4.0`. Publishing always goes to `/tea/v1`, because publication is not part of any TEA version and is not served at the version path.
 
 `tea product`, `tea collection`, `tea resolve` and `tea distribution list` read from whichever root `--catalogue` or `--server` selects.
 

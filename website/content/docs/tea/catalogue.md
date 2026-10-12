@@ -13,7 +13,7 @@ Vulnetix serves two catalogues. This page lists the first.
 
 | | First party | Open source |
 |---|---|---|
-| Root | `https://www.vulnetix.com/tea/v1` | `https://www.vulnetix.com/tea/public/v1` |
+| Root | `https://www.vulnetix.com/tea/v1.0.0` | `https://www.vulnetix.com/tea/public/v1.0.0` |
 | Holds | Vulnetix's own products and components | The most starred GitHub projects, at most 1,500 |
 | Without a credential | Returns the public records | Refused with `401` |
 | Plan required | None to read public records | None; any valid API key reads it |
@@ -29,7 +29,7 @@ The server has no name search, only paging and an exact filter on one identifier
 ```sh
 # Exact, answered by the server
 vulnetix tea --catalogue public products --purl pkg:github/prefix-dev/pixi
-vulnetix tea --catalogue public products --tei urn:tei:uuid:vulnetix.com:<uuid>
+vulnetix tea --catalogue public products --tei tei://vulnetix.com/uuid/<uuid>
 
 # Text search, done by the CLI over the first 20 pages of 100
 vulnetix tea --catalogue public products --search pixi

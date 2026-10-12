@@ -2,6 +2,7 @@ package tea
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -65,12 +66,38 @@ type Distribution struct {
 
 // ComponentReleaseDetail is what GET /componentRelease/{uuid} returns: the
 // release and the collection currently published for it.
+//
+// The two versions of the specification spell it differently. 0.4.0 wraps it,
+// {"release": {...}, "latestCollection": {...}}; 1.0.0 puts latestCollection
+// beside the release's own fields. UnmarshalJSON reads either, so a caller sees one
+// shape whichever server answered. Marshalling keeps the wrapped form, which is
+// what `--json` output has always been.
 type ComponentReleaseDetail struct {
 	Release struct {
 		Release
 		Distributions []Distribution `json:"distributions,omitempty"`
 	} `json:"release"`
 	LatestCollection Collection `json:"latestCollection"`
+}
+
+// UnmarshalJSON reads the wrapped 0.4.0 shape and the flat 1.0.0 one.
+func (d *ComponentReleaseDetail) UnmarshalJSON(b []byte) error {
+	var probe struct {
+		Release          json.RawMessage `json:"release"`
+		LatestCollection Collection      `json:"latestCollection"`
+	}
+	if err := json.Unmarshal(b, &probe); err != nil {
+		return err
+	}
+	d.LatestCollection = probe.LatestCollection
+
+	// A "release" key that is an object is the wrapper. A flat 1.0.0 component
+	// release has none: it carries its own fields at the top level.
+	src := b
+	if trimmed := strings.TrimSpace(string(probe.Release)); strings.HasPrefix(trimmed, "{") {
+		src = probe.Release
+	}
+	return json.Unmarshal(src, &d.Release)
 }
 
 // Checksum is one digest over an artifact format's bytes.
@@ -108,12 +135,25 @@ type UpdateReason struct {
 
 // Collection is a versioned set of artifacts for one release.
 type Collection struct {
-	UUID         string        `json:"uuid"`
-	Version      int           `json:"version"`
+	UUID    string `json:"uuid"`
+	Version int    `json:"version"`
+
+	// Date is 0.4.0's name for when a collection version was made, and was
+	// optional. CreatedDate is 1.0.0's, and is required. Read it with When.
 	Date         string        `json:"date,omitempty"`
+	CreatedDate  string        `json:"createdDate,omitempty"`
 	BelongsTo    string        `json:"belongsTo,omitempty"`
 	UpdateReason *UpdateReason `json:"updateReason,omitempty"`
 	Artifacts    []Artifact    `json:"artifacts,omitempty"`
+}
+
+// When is when the collection version was made, whichever version of the
+// specification said so. It is empty for a 0.4.0 server that left the date out.
+func (c Collection) When() string {
+	if c.CreatedDate != "" {
+		return c.CreatedDate
+	}
+	return c.Date
 }
 
 // Page is the consumption API's pagination envelope.
@@ -268,12 +308,29 @@ type DiscoveryInfo struct {
 
 // ResolveTEI asks the server to resolve an identifier to the object it names.
 //
+// The TEI is sent in the spelling the server speaks. A 1.0.0 server recognises
+// only tei://domain/type/id and a 0.4.0 one only urn:tei:type:domain:id, so a
+// TEI written the other way is converted when the root names its version. When it
+// does not (the stable alias, a custom path), the TEI is sent as typed: Vulnetix
+// accepts both, and another server's answer to what the user wrote is better than
+// a guess about which it wanted.
+//
 // GET /discovery returns an ARRAY of discovery-info — one TEI can resolve at
 // more than one server. Decoding it into an object failed on every real
 // response with "cannot unmarshal array into Go value of type map".
 func (c *Client) ResolveTEI(ctx context.Context, tei string) ([]DiscoveryInfo, error) {
 	var out []DiscoveryInfo
+	tei = TEIForVersion(tei, c.Version())
 	err := c.Do(ctx, "GET", "/discovery?tei="+url.QueryEscape(tei), nil, &out, nil)
+	return out, err
+}
+
+// ResolvePURL resolves a Package URL to the product release it names, through the
+// 1.0.0 operation that takes one directly. A 0.4.0 server has no such parameter;
+// it answers with a 400, and the caller can fall back to a purl-typed TEI.
+func (c *Client) ResolvePURL(ctx context.Context, purl string) ([]DiscoveryInfo, error) {
+	var out []DiscoveryInfo
+	err := c.Do(ctx, "GET", "/discovery?purl="+url.QueryEscape(purl), nil, &out, nil)
 	return out, err
 }
 
@@ -288,13 +345,13 @@ func (c *Client) CreateProduct(ctx context.Context, name string, identifiers []I
 		body["identifiers"] = identifiers
 	}
 	var out Product
-	err := c.Do(ctx, "POST", "/product", body, &out, idempotencyHeader(idempotencyKey))
+	err := c.DoPublish(ctx, "POST", "/product", body, &out, idempotencyHeader(idempotencyKey))
 	return &out, err
 }
 
 // DeleteProduct removes a product and everything beneath it.
 func (c *Client) DeleteProduct(ctx context.Context, uuid string) error {
-	return c.Do(ctx, "DELETE", "/product/"+url.PathEscape(uuid), nil, nil, nil)
+	return c.DoPublish(ctx, "DELETE", "/product/"+url.PathEscape(uuid), nil, nil, nil)
 }
 
 // DeleteObject removes any published object by its kind's path segment.
@@ -305,7 +362,7 @@ func (c *Client) DeleteProduct(ctx context.Context, uuid string) error {
 // means naming both, and a CLI that could create a component but never remove
 // one would leave that impossible from the terminal.
 func (c *Client) DeleteObject(ctx context.Context, segment, uuid string) error {
-	return c.Do(ctx, "DELETE", "/"+segment+"/"+url.PathEscape(uuid), nil, nil, nil)
+	return c.DoPublish(ctx, "DELETE", "/"+segment+"/"+url.PathEscape(uuid), nil, nil, nil)
 }
 
 // CreateProductRelease publishes a release of a product.
@@ -319,7 +376,7 @@ func (c *Client) CreateProductRelease(ctx context.Context, productUUID, version,
 		body["releaseDate"] = releaseDate
 	}
 	var out Release
-	err := c.Do(ctx, "POST", "/productRelease", body, &out, idempotencyHeader(idempotencyKey))
+	err := c.DoPublish(ctx, "POST", "/productRelease", body, &out, idempotencyHeader(idempotencyKey))
 	return &out, err
 }
 
@@ -334,7 +391,7 @@ func (c *Client) CreateComponent(ctx context.Context, name string, identifiers [
 		body["identifiers"] = identifiers
 	}
 	var out Product
-	err := c.Do(ctx, "POST", "/component", body, &out, idempotencyHeader(idempotencyKey))
+	err := c.DoPublish(ctx, "POST", "/component", body, &out, idempotencyHeader(idempotencyKey))
 	return &out, err
 }
 
@@ -349,7 +406,7 @@ func (c *Client) CreateComponentRelease(ctx context.Context, componentUUID, vers
 		body["releaseDate"] = releaseDate
 	}
 	var out Release
-	err := c.Do(ctx, "POST", "/componentRelease", body, &out, idempotencyHeader(idempotencyKey))
+	err := c.DoPublish(ctx, "POST", "/componentRelease", body, &out, idempotencyHeader(idempotencyKey))
 	return &out, err
 }
 
@@ -360,7 +417,7 @@ func (c *Client) CreateComponentRelease(ctx context.Context, componentUUID, vers
 // rather than listing each of them twice.
 func (c *Client) CreateDistribution(ctx context.Context, componentReleaseUUID string, d Distribution, idempotencyKey string) (*Distribution, error) {
 	var out Distribution
-	err := c.Do(ctx, "POST",
+	err := c.DoPublish(ctx, "POST",
 		"/componentRelease/"+url.PathEscape(componentReleaseUUID)+"/distribution",
 		d, &out, idempotencyHeader(idempotencyKey))
 	return &out, err
@@ -369,7 +426,7 @@ func (c *Client) CreateDistribution(ctx context.Context, componentReleaseUUID st
 // DeleteDistribution withdraws a download link. It does not make anything
 // already downloaded go away.
 func (c *Client) DeleteDistribution(ctx context.Context, uuid string) error {
-	return c.Do(ctx, "DELETE", "/distribution/"+url.PathEscape(uuid), nil, nil, nil)
+	return c.DoPublish(ctx, "DELETE", "/distribution/"+url.PathEscape(uuid), nil, nil, nil)
 }
 
 // ComponentRelease reads a component release with its distributions. The
@@ -384,7 +441,7 @@ func (c *Client) ComponentRelease(ctx context.Context, uuid string) (*ComponentR
 // PublishCollection publishes the next version of a release's collection.
 func (c *Client) PublishCollection(ctx context.Context, releaseUUID string, reason UpdateReason) (*Collection, error) {
 	var out Collection
-	err := c.Do(ctx, "PUT", "/productRelease/"+url.PathEscape(releaseUUID)+"/collection",
+	err := c.DoPublish(ctx, "PUT", "/productRelease/"+url.PathEscape(releaseUUID)+"/collection",
 		map[string]any{"updateReason": reason}, &out, nil)
 	return &out, err
 }
@@ -400,7 +457,7 @@ func (c *Client) CreateArtifact(ctx context.Context, collectionUUID, name, artif
 		"formats":    formats,
 	}
 	var out Artifact
-	err := c.Do(ctx, "POST", "/artifact", body, &out, idempotencyHeader(idempotencyKey))
+	err := c.DoPublish(ctx, "POST", "/artifact", body, &out, idempotencyHeader(idempotencyKey))
 	return &out, err
 }
 
@@ -415,7 +472,7 @@ func (c *Client) UploadArtifactFile(ctx context.Context, artifactUUID string, fo
 		mediaType = MediaTypeForFile(path)
 	}
 	var out map[string]any
-	err = c.Do(ctx, "PUT",
+	err = c.DoPublish(ctx, "PUT",
 		fmt.Sprintf("/artifact/%s/format/%d/content", url.PathEscape(artifactUUID), formatIndex),
 		body, &out, map[string]string{
 			"Content-Type":   mediaType,
@@ -429,7 +486,7 @@ func (c *Client) UploadArtifactFile(ctx context.Context, artifactUUID string, fo
 // without the scheme has to guess how to verify — which in practice means not
 // verifying.
 func (c *Client) AttachSignature(ctx context.Context, artifactUUID string, formatIndex int, sig map[string]any) error {
-	return c.Do(ctx, "PUT",
+	return c.DoPublish(ctx, "PUT",
 		fmt.Sprintf("/artifact/%s/format/%d/signature", url.PathEscape(artifactUUID), formatIndex),
 		sig, nil, nil)
 }
@@ -437,7 +494,7 @@ func (c *Client) AttachSignature(ctx context.Context, artifactUUID string, forma
 // AccessPolicy reads the policy in force for an object.
 func (c *Client) AccessPolicy(ctx context.Context, uuid string) (*AccessStatus, error) {
 	var out AccessStatus
-	err := c.Do(ctx, "GET", "/accessPolicy/"+url.PathEscape(uuid), nil, &out, nil)
+	err := c.DoPublish(ctx, "GET", "/accessPolicy/"+url.PathEscape(uuid), nil, &out, nil)
 	return &out, err
 }
 
@@ -452,7 +509,7 @@ func (c *Client) SetAccessPolicy(ctx context.Context, uuid string, policy Access
 		path += "?confirm=public"
 	}
 	var out AccessStatus
-	err := c.Do(ctx, "PUT", path, policy, &out, nil)
+	err := c.DoPublish(ctx, "PUT", path, policy, &out, nil)
 	return &out, err
 }
 
@@ -463,7 +520,7 @@ func (c *Client) Publications(ctx context.Context) ([]map[string]any, error) {
 	var out struct {
 		Products []map[string]any `json:"products"`
 	}
-	err := c.Do(ctx, "GET", "/publications", nil, &out, nil)
+	err := c.DoPublish(ctx, "GET", "/publications", nil, &out, nil)
 	return out.Products, err
 }
 

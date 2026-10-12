@@ -56,7 +56,7 @@ func addTeaListFlags(cmd *cobra.Command, noun string) {
 	f := cmd.Flags()
 	f.String("search", "", "case-insensitive text to find in the "+noun+" name or any identifier (client side; reads at most 20 pages of 100)")
 	f.String("purl", "", "exact PURL filter, for example pkg:github/prefix-dev/pixi (server side)")
-	f.String("tei", "", "exact TEI filter, for example urn:tei:uuid:vulnetix.com:<uuid> (server side)")
+	f.String("tei", "", "exact TEI filter, for example tei://vulnetix.com/uuid/<uuid> or urn:tei:uuid:vulnetix.com:<uuid> (server side)")
 	f.String("id-type", "", "identifier type for an exact filter: "+strings.Join(tea.IDTypes, ", ")+" (use with --id-value)")
 	f.String("id-value", "", "identifier value for an exact filter (use with --id-type)")
 	f.Int("limit", teaDefaultLimit, "most "+noun+"s to print")

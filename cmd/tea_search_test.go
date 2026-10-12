@@ -204,7 +204,7 @@ func TestTeaCatalogue_PublicUsesPublicRootAndCommunityCredential(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := f.last(t)
-	if got.Path != "/tea/public/v1/products" {
+	if got.Path != "/tea/public/v1.0.0/products" {
 		t.Errorf("path = %q, want the public root", got.Path)
 	}
 	if got.Auth != communityHeader() {
@@ -236,7 +236,7 @@ func TestTeaCatalogue_FirstPartyDefaultNeverGetsTheCommunityKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := f.last(t)
-	if got.Path != "/tea/v1/products" {
+	if got.Path != "/tea/v1.0.0/products" {
 		t.Errorf("path = %q, want the first party root", got.Path)
 	}
 	if got.Auth != "" {
@@ -247,7 +247,7 @@ func TestTeaCatalogue_FirstPartyDefaultNeverGetsTheCommunityKey(t *testing.T) {
 	if _, _, err := runTea(t, "--catalogue", "first-party", "products"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.last(t); got.Path != "/tea/v1/products" || got.Auth != "" {
+	if got := f.last(t); got.Path != "/tea/v1.0.0/products" || got.Auth != "" {
 		t.Errorf("--catalogue first-party: %+v", got)
 	}
 }
@@ -277,7 +277,7 @@ func TestTeaCatalogue_ServerEqualToPublicRootCountsAsPublic(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := f.last(t)
-	if got.Path != "/tea/public/v1/products" || got.Auth != communityHeader() {
+	if got.Path != "/tea/public/v1.0.0/products" || got.Auth != communityHeader() {
 		t.Errorf("got %+v, want public path with community credential", got)
 	}
 }
@@ -749,7 +749,7 @@ func TestTeaComponents_HitsTheComponentsEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := f.last(t)
-	if got.Path != "/tea/public/v1/components" {
+	if got.Path != "/tea/public/v1.0.0/components" {
 		t.Errorf("path = %q", got.Path)
 	}
 	if got.Query.Get("idType") != "PURL" || got.Query.Get("idValue") != "pkg:github/org/repo2" {
@@ -781,14 +781,14 @@ func TestTeaProductAndCollection_UseTheSelectedRoot(t *testing.T) {
 		// A product read is two requests: the product, then its releases.
 		t.Fatalf("product requests = %d", f.count())
 	}
-	if got := f.requests[0]; got.Path != "/tea/public/v1/product/abc" || got.Auth != communityHeader() {
+	if got := f.requests[0]; got.Path != "/tea/public/v1.0.0/product/abc" || got.Auth != communityHeader() {
 		t.Errorf("product: %+v", got)
 	}
-	if got := f.requests[1]; got.Path != "/tea/public/v1/product/abc/releases" || got.Auth != communityHeader() {
+	if got := f.requests[1]; got.Path != "/tea/public/v1.0.0/product/abc/releases" || got.Auth != communityHeader() {
 		t.Errorf("releases: %+v", got)
 	}
 	_, _, _ = runTea(t, "--catalogue", "public", "collection", "rel-1")
-	if got := f.last(t); got.Path != "/tea/public/v1/productRelease/rel-1/collection/latest" || got.Auth != communityHeader() {
+	if got := f.last(t); got.Path != "/tea/public/v1.0.0/productRelease/rel-1/collection/latest" || got.Auth != communityHeader() {
 		t.Errorf("collection: %+v", got)
 	}
 }
@@ -800,7 +800,7 @@ func TestTeaDistributionList_UsesTheSelectedRoot(t *testing.T) {
 	teaRedirect(t, f)
 
 	_, _, _ = runTea(t, "--catalogue", "public", "distribution", "list", "rel-2")
-	if got := f.last(t); got.Path != "/tea/public/v1/componentRelease/rel-2" || got.Auth != communityHeader() {
+	if got := f.last(t); got.Path != "/tea/public/v1.0.0/componentRelease/rel-2" || got.Auth != communityHeader() {
 		t.Errorf("distribution list: %+v", got)
 	}
 }

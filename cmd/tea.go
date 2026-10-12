@@ -16,6 +16,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -315,20 +316,33 @@ hand.`,
 			if err != nil {
 				return err
 			}
-			root := tea.RootFrom(doc)
+			roots := tea.RootsFrom(doc)
+			root := ""
+			if len(roots) > 0 {
+				root = roots[0]
+			}
 
 			if teaJSONFlag(cmd) {
 				return teaPrintJSON(map[string]any{
 					"wellKnownUrl": wellKnown,
 					"endpoints":    doc.Endpoints,
 					"root":         root,
+					"candidates":   roots,
+					"supported":    tea.SupportedVersions,
 				})
 			}
 			fmt.Printf("discovery  %s\n", wellKnown)
 			for _, e := range doc.Endpoints {
 				fmt.Printf("endpoint   %s  versions %s\n", e.URL, strings.Join(e.Versions, ", "))
 			}
+			if root == "" {
+				return fmt.Errorf("the provider advertises TEA %s; this CLI speaks %s",
+					strings.Join(tea.AdvertisedVersions(doc), ", "), strings.Join(tea.SupportedVersions, ", "))
+			}
 			fmt.Printf("root       %s\n", root)
+			for _, fallback := range roots[1:] {
+				fmt.Printf("fallback   %s\n", fallback)
+			}
 			return nil
 		},
 	}
@@ -401,7 +415,11 @@ func newTeaCollectionCommand() *cobra.Command {
 			if col.UpdateReason != nil {
 				reason = col.UpdateReason.Type
 			}
-			fmt.Printf("collection v%d  %s\n", col.Version, reason)
+			header := fmt.Sprintf("collection v%d  %s", col.Version, reason)
+			if when := col.When(); when != "" {
+				header += "  " + when
+			}
+			fmt.Println(header)
 			for _, a := range col.Artifacts {
 				fmt.Printf("\n  %s  [%s]\n", a.Name, a.Type)
 				for _, f := range a.Formats {
@@ -424,9 +442,18 @@ func newTeaCollectionCommand() *cobra.Command {
 
 func newTeaResolveCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "resolve <tei>",
-		Short: "Resolve a TEI to the object it names",
-		Args:  cobra.ExactArgs(1),
+		Use:   "resolve <tei|purl>",
+		Short: "Resolve a TEI or a purl to the object it names",
+		Long: `Resolve an identifier to the product release it names and the servers that serve it.
+
+A TEI may be written either way: tei://<domain>/<type>/<id> (TEA 1.0.0) or
+urn:tei:<type>:<domain>:<id> (TEA 0.x). It is sent in the spelling the server's
+version speaks, so either works against either. A Package URL (pkg:...) is
+resolved directly, which needs a 1.0.0 server.`,
+		Example: `  vulnetix tea resolve tei://vulnetix.com/uuid/<uuid>
+  vulnetix tea resolve urn:tei:uuid:vulnetix.com:<uuid>
+  vulnetix tea resolve pkg:github/acme/widget`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := teaContext(cmd)
 			defer cancel()
@@ -435,7 +462,17 @@ func newTeaResolveCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := c.ResolveTEI(ctx, args[0])
+			var out []tea.DiscoveryInfo
+			if strings.HasPrefix(strings.ToLower(strings.TrimSpace(args[0])), "pkg:") {
+				out, err = c.ResolvePURL(ctx, strings.TrimSpace(args[0]))
+				var apiErr *tea.Error
+				if errors.As(err, &apiErr) && apiErr.Status == http.StatusBadRequest {
+					return teaFailFor(cmd, fmt.Errorf("%w: this server does not take a purl directly (that arrived in TEA 1.0.0); "+
+						"write it as a TEI instead: tei://<domain>/purl/<base64url of the purl>", err))
+				}
+			} else {
+				out, err = c.ResolveTEI(ctx, args[0])
+			}
 			if err != nil {
 				return teaFailFor(cmd, err)
 			}

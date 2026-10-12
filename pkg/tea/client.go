@@ -22,21 +22,48 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/vulnetix/cli/v3/pkg/auth"
 )
 
-// DefaultServer is Vulnetix's own TEA root. It is the `rootUrl` advertised in
-// https://vulnetix.com/.well-known/tea.
-const DefaultServer = "https://www.vulnetix.com/tea/v1"
+// DefaultServer is Vulnetix's own TEA root, at the current specification. It is
+// the base advertised in https://vulnetix.com/.well-known/tea completed with
+// "/v1.0.0", which is exactly how that document tells a client to build it.
+const DefaultServer = "https://www.vulnetix.com/tea/v1.0.0"
 
 // PublicServer is the open source catalogue root: the top GitHub projects by
 // stars, published as products and components. It is a different root from
 // DefaultServer, not a filtered view of it. It requires a credential but has no
 // plan gate, so any valid ApiKey, including the shared community one, reads it.
-const PublicServer = "https://www.vulnetix.com/tea/public/v1"
+const PublicServer = "https://www.vulnetix.com/tea/public/v1.0.0"
+
+// LegacyServer and LegacyPublicServer are the same two roots at TEA 0.4.0, for a
+// caller that has to read the older shapes: `--server` takes either.
+const (
+	LegacyServer       = "https://www.vulnetix.com/tea/v0.4.0"
+	LegacyPublicServer = "https://www.vulnetix.com/tea/public/v0.4.0"
+)
+
+// stableAlias is where the publication operations are served. Publication is a
+// Vulnetix extension and not part of any TEA version, so it is not at the version
+// path; it is at the stable alias, which is also what publishers have always
+// written to.
+var stableAliasRE = regexp.MustCompile(`^(.*/tea)/v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$`)
+
+// PublicationBase maps a server root to where the publication operations live.
+// For a Vulnetix-shaped root (".../tea/v<version>") that is ".../tea/v1"; any
+// other root is returned as it is, because publication is Vulnetix's extension
+// and a server that has it serves it where it serves everything else.
+func PublicationBase(root string) string {
+	root = strings.TrimRight(strings.TrimSpace(root), "/")
+	if m := stableAliasRE.FindStringSubmatch(root); m != nil {
+		return m[1] + "/v1"
+	}
+	return root
+}
 
 // Catalogue names accepted by ServerForCatalogue.
 const (
@@ -63,14 +90,25 @@ func ServerForCatalogue(name string) (string, error) {
 // IsPublicServer reports whether a root URL is the open source catalogue root,
 // ignoring a trailing slash and letter case.
 func IsPublicServer(root string) bool {
-	return strings.EqualFold(strings.TrimRight(strings.TrimSpace(root), "/"), PublicServer)
+	root = strings.TrimRight(strings.TrimSpace(root), "/")
+	for _, public := range []string{PublicServer, LegacyPublicServer, "https://www.vulnetix.com/tea/public/v1"} {
+		if strings.EqualFold(root, public) {
+			return true
+		}
+	}
+	return false
 }
 
 // Client talks to one TEA server.
 type Client struct {
 	BaseURL string
-	Creds   *auth.Credentials
-	HTTP    *http.Client
+
+	// PublishURL is where the publication operations are sent. Left empty it is
+	// worked out from BaseURL (see PublicationBase), which is right unless a caller
+	// is pointing at a server that serves publication somewhere unusual.
+	PublishURL string
+	Creds      *auth.Credentials
+	HTTP       *http.Client
 
 	// Err, when set, is returned by every request instead of sending it. It lets
 	// a caller that could not configure the client (conflicting flags, say)
@@ -123,12 +161,54 @@ func (e *Error) IsNotFound() bool {
 		e.Code == "OBJECT_UNKNOWN" || e.Code == "OBJECT_NOT_FOUND"
 }
 
-// Do performs one request and decodes the result into out.
+// IsNotImplemented reports a 1.0.0 server saying it does not provide an optional
+// capability (CLE, /token). It is not a failure of the object: a client carries on
+// without the capability.
+func (e *Error) IsNotImplemented() bool { return e.Code == "NOT_IMPLEMENTED" }
+
+// IsInvalidPageToken reports a 1.0.0 server refusing a page token, because it was
+// not issued for this request or a parameter now contradicts it. The remedy is to
+// start the listing again without the token.
+func (e *Error) IsInvalidPageToken() bool { return e.Code == "INVALID_PAGE_TOKEN" }
+
+// IsSignatureNotFound reports a 1.0.0 server saying the artifact exists and has no
+// signature for the format asked about.
+func (e *Error) IsSignatureNotFound() bool { return e.Code == "SIGNATURE_NOT_FOUND" }
+
+// IsNoAcceptableFormat reports a 1.0.0 server saying the artifact has no format
+// matching the request.
+func (e *Error) IsNoAcceptableFormat() bool { return e.Code == "NO_ACCEPTABLE_FORMAT" }
+
+// Version is the TEA specification version the client's root names, normalised to
+// major.minor.patch, or "" when the root does not say. The stable alias /tea/v1
+// and a custom path do not, which is why a caller cannot assume one.
+func (c *Client) Version() string { return VersionFromRoot(c.BaseURL) }
+
+// publishBase is where the publication operations are sent.
+func (c *Client) publishBase() string {
+	if strings.TrimSpace(c.PublishURL) != "" {
+		return strings.TrimRight(c.PublishURL, "/")
+	}
+	return PublicationBase(c.BaseURL)
+}
+
+// Do performs one request against the server's TEA root and decodes the result
+// into out.
 //
 // headers are applied last so a caller can set Idempotency-Key and
 // Content-Digest, which are the two the publication API acts on and which a
 // generic client would otherwise have no way to send.
 func (c *Client) Do(ctx context.Context, method, path string, body any, out any, headers map[string]string) error {
+	return c.do(ctx, c.BaseURL, method, path, body, out, headers)
+}
+
+// DoPublish is Do for the publication operations, which are not served at the
+// version path (see PublicationBase).
+func (c *Client) DoPublish(ctx context.Context, method, path string, body any, out any, headers map[string]string) error {
+	return c.do(ctx, c.publishBase(), method, path, body, out, headers)
+}
+
+func (c *Client) do(ctx context.Context, base, method, path string, body any, out any, headers map[string]string) error {
 	if c.Err != nil {
 		return c.Err
 	}
@@ -149,7 +229,7 @@ func (c *Client) Do(ctx context.Context, method, path string, body any, out any,
 		reader = bytes.NewReader(encoded)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, reader)
+	req, err := http.NewRequestWithContext(ctx, method, base+path, reader)
 	if err != nil {
 		return err
 	}
@@ -208,12 +288,15 @@ func ContentDigest(body []byte) string {
 
 // WellKnown is the discovery document at /.well-known/tea.
 type WellKnown struct {
-	SchemaVersion int `json:"schemaVersion"`
-	Endpoints     []struct {
-		URL      string   `json:"url"`
-		Versions []string `json:"versions"`
-		Priority *float64 `json:"priority,omitempty"`
-	} `json:"endpoints"`
+	SchemaVersion int                 `json:"schemaVersion"`
+	Endpoints     []WellKnownEndpoint `json:"endpoints"`
+}
+
+// WellKnownEndpoint is one entry of the discovery document's endpoints.
+type WellKnownEndpoint struct {
+	URL      string   `json:"url"`
+	Versions []string `json:"versions"`
+	Priority *float64 `json:"priority,omitempty"`
 }
 
 // Discover resolves a domain to a TEA root, following the specification: query
@@ -256,51 +339,26 @@ func Discover(ctx context.Context, domainOrTEI string) (*WellKnown, string, erro
 	return &doc, wellKnownURL, nil
 }
 
-// RootFrom picks the endpoint and version to use from a discovery document.
-//
-// Highest priority wins, and among an endpoint's versions the newest STABLE one
-// is chosen. Plain SemVer ordering would rank 1.1.0-beta.1 above 1.0.0, and
-// pointing a user's tooling at a provider's beta API is not a decision to make
-// on their behalf.
-func RootFrom(doc *WellKnown) string {
-	if doc == nil || len(doc.Endpoints) == 0 {
-		return ""
+// RootsFrom lists every root worth trying for a discovery document, best first
+// (see RankCandidates for the rules). A caller fails over down the list on DNS
+// or TLS errors, 5xx, and a 404 that carries no TEA error body, but not on 401
+// or 403.
+func RootsFrom(doc *WellKnown) []string {
+	cands := RankCandidates(doc, SupportedVersions)
+	out := make([]string, len(cands))
+	for i, c := range cands {
+		out[i] = c.Root()
 	}
-	best := doc.Endpoints[0]
-	bestPriority := 1.0
-	if best.Priority != nil {
-		bestPriority = *best.Priority
-	}
-	for _, e := range doc.Endpoints[1:] {
-		p := 1.0
-		if e.Priority != nil {
-			p = *e.Priority
-		}
-		if p > bestPriority {
-			best, bestPriority = e, p
-		}
-	}
+	return out
+}
 
-	stable, pre := "", ""
-	for _, v := range best.Versions {
-		if strings.Contains(v, "-") {
-			if pre == "" {
-				pre = v
-			}
-			continue
-		}
-		if stable == "" || v > stable {
-			stable = v
-		}
+// RootFrom is the best root for a discovery document, or "" when the provider
+// offers no version this client speaks.
+func RootFrom(doc *WellKnown) string {
+	if roots := RootsFrom(doc); len(roots) > 0 {
+		return roots[0]
 	}
-	version := stable
-	if version == "" {
-		version = pre
-	}
-	if version == "" {
-		return strings.TrimRight(best.URL, "/")
-	}
-	return strings.TrimRight(best.URL, "/") + "/v" + version
+	return ""
 }
 
 // NormaliseDomain reduces what a person pastes — a bare domain, a URL, or a

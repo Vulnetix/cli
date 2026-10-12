@@ -87,27 +87,3 @@ func TestNormaliseDomain(t *testing.T) {
 		}
 	}
 }
-
-// Pointing a user's tooling at a provider's beta API is not a decision to make
-// on their behalf, so a stable version wins even when a pre-release sorts
-// higher.
-func TestRootFromPrefersPriorityThenStable(t *testing.T) {
-	low, high := 0.2, 0.9
-	doc := &WellKnown{
-		SchemaVersion: 1,
-		Endpoints: []struct {
-			URL      string   `json:"url"`
-			Versions []string `json:"versions"`
-			Priority *float64 `json:"priority,omitempty"`
-		}{
-			{URL: "https://low.example.com", Versions: []string{"1.0.0"}, Priority: &low},
-			{URL: "https://high.example.com", Versions: []string{"0.4.0", "1.0.0", "1.1.0-beta.1"}, Priority: &high},
-		},
-	}
-	if got := RootFrom(doc); got != "https://high.example.com/v1.0.0" {
-		t.Errorf("got %q, want the higher-priority endpoint at its newest stable version", got)
-	}
-	if got := RootFrom(nil); got != "" {
-		t.Errorf("a nil document produced %q", got)
-	}
-}

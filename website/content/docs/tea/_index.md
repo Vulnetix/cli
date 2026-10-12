@@ -21,7 +21,14 @@ TEA is developed in the open by the OWASP TEA working group. We track the specif
 | Consumption API (the contract below) | [CycloneDX/transparency-exchange-api](https://github.com/CycloneDX/transparency-exchange-api) → `spec/openapi.yaml` |
 | Publication API (not yet upstream) | [0x73746F66/transparency-exchange-api](https://github.com/0x73746F66/transparency-exchange-api) → `spec/publisher/openapi.yaml` |
 
-**We currently target specification version `0.4.0`**, which is what our discovery document advertises. The publication document is generated from the consumption document so the two cannot drift apart.
+**We serve two specification versions, `1.0.0` and `0.4.0`**, and our discovery document advertises both. A client that speaks both should use `1.0.0`: it is the default of the `vulnetix` CLI and of the TEA Explorer whenever a publisher offers it. `0.4.0` stays available at its own path for clients and publishers that pin it. The publication document is generated from the consumption document so the two cannot drift apart, and publication is a Vulnetix extension that sits beside either version rather than being part of one.
+
+Two things to know about the roots:
+
+- `https://www.vulnetix.com/tea/v1.0.0` is the specification, and nothing else.
+- `https://www.vulnetix.com/tea/v1` is the stable alias. It serves `1.0.0`, with the publication operations beside it, because that is where publishers have always written. It used to serve `0.4.0`; that now lives at `https://www.vulnetix.com/tea/v0.4.0`.
+
+The sample responses below were captured from `0.4.0`. They differ from `1.0.0` in the ways listed under [What changed in 1.0.0](#what-changed-in-100).
 
 ## 1. Start at DNS
 
@@ -37,20 +44,22 @@ curl https://vulnetix.com/.well-known/tea
   "endpoints": [
     {
       "url": "https://www.vulnetix.com/tea",
-      "versions": ["0.4.0"],
+      "versions": ["1.0.0", "0.4.0"],
       "priority": 1
     }
   ]
 }
 ```
 
-- `versions`: the specification versions this server implements.
-- `url`: the API root. Append the major version you selected: `https://www.vulnetix.com/tea/v1`.
+- `versions`: the specification versions this server implements, as full SemVer.
+- `url`: the API base, without a version. Append `/v` and the version you selected: `https://www.vulnetix.com/tea/v1.0.0`. Select the greatest version you and the server both support, and use `priority` only to choose between endpoints that offer it equally.
 - `priority`: orders endpoints where a server advertises several.
 
-Every example below uses `https://www.vulnetix.com/tea/v1` as the base.
+The examples below use `https://www.vulnetix.com/tea/v1`, the stable alias, as the base. Substitute `/tea/v1.0.0` to name the version explicitly.
 
 ## 2. Resolve an identifier
+
+A TEI is written `tei://<domain>/<type>/<id>` in `1.0.0` and `urn:tei:<type>:<domain>:<id>` in `0.4.0`. Our server understands both, whichever version you speak. The examples use the older spelling because that is what they were captured with. A `1.0.0` server also takes a Package URL directly, as `/discovery?purl=pkg:github/owner/repo`.
 
 If you already hold a TEI, `/discovery` tells you which product release it names and which servers can answer for it. This is the step that lets a client arrive knowing one string and nothing else.
 
@@ -65,8 +74,8 @@ curl 'https://www.vulnetix.com/tea/v1/discovery\
     "productReleaseUuid": "8b406807-739d-5b4b-aae6-18ffb9e56c17",
     "servers": [
       {
-        "rootUrl": "https://www.vulnetix.com/tea/v1",
-        "versions": ["0.4.0"]
+        "rootUrl": "https://www.vulnetix.com/tea",
+        "versions": ["1.0.0", "0.4.0"]
       }
     ]
   }
@@ -207,9 +216,10 @@ The `tea` command speaks this protocol against any conformant server, not only o
 
 ```sh
 vulnetix tea discover vulnetix.com
-vulnetix tea products --server https://www.vulnetix.com/tea/v1
+vulnetix tea products --server https://www.vulnetix.com/tea/v1.0.0
 vulnetix tea collection 3e6a317c-6027-5448-abd7-5f260cec7e4b
-vulnetix tea resolve urn:tei:uuid:vulnetix.com:54e8820d-0803-5a4f-858d-88a279486564
+vulnetix tea resolve tei://vulnetix.com/uuid/54e8820d-0803-5a4f-858d-88a279486564
+vulnetix tea resolve pkg:github/prefix-dev/pixi
 ```
 
 Reading Vulnetix's public records needs no login. The open source catalogue is a second root, selected with `--catalogue public`; the CLI uses the shared community credential for it when you are not logged in, so that needs no login either:
@@ -239,3 +249,24 @@ The open source root, `https://www.vulnetix.com/tea/public/v1`, differs on this 
 
 - **Objects nobody published.** We serve a projection of scan history to authenticated tenants for their own software. None of that appears in the public catalogue: an inference we drew about somebody else's code is not ours to publish.
 - **Anything marked private or shared.** These return `404`, not `403`. Telling you an object exists but is not yours is itself a disclosure.
+
+## What changed in 1.0.0
+
+The `1.0.0` responses differ from the `0.4.0` samples above in these ways. The `vulnetix` CLI reads both and shows one shape.
+
+| | `0.4.0` | `1.0.0` |
+|---|---|---|
+| Root | `/tea/v0.4.0` | `/tea/v1.0.0`, and the alias `/tea/v1` |
+| Last page of a list | `"nextPageToken": ""` | `nextPageToken` is absent, and `hasNext` is `false` |
+| Page token | An offset | Bound to the request: changing the sort, the filter or the path while holding a token is a `400` with `INVALID_PAGE_TOKEN` |
+| Component release | `{ "release": {…}, "latestCollection": {…} }` | The release's own fields, with `latestCollection` beside them |
+| Collection date | `date`, optional | `createdDate`, required |
+| Artifact format `url` | Always present, pointing at our download route | Present only for content hosted elsewhere, with `checksums`. Hosted content is fetched from `/artifact/{uuid}/{version}/download?mediaType=…` |
+| Checksums | Include `MD5` where nothing better exists | `MD5` is gone |
+| Downloads | One download route | Adds `/latest/download`, signature downloads, `ETag` and `If-None-Match` (`304`), `Content-Location`, and `406 NO_ACCEPTABLE_FORMAT` |
+| `/discovery` | `tei` | Exactly one of `tei` or `purl` |
+| TEI | `urn:tei:<type>:<domain>:<id>` | `tei://<domain>/<type>/<id>`, with a purl base64url encoded |
+| Errors | `{ "error" }` | `{ "error", "message" }`, with `NOT_IMPLEMENTED`, `NO_ACCEPTABLE_FORMAT`, `SIGNATURE_NOT_FOUND`, `INVALID_REQUEST` and `INVALID_PAGE_TOKEN` |
+| Authentication | Basic or an API key, directly | `POST /token` exchanges Basic credentials for a short-lived Bearer token. Basic and an API key still work directly on every endpoint |
+
+Publication is not part of the specification and is not served at `/tea/v1.0.0`. It is served at `/tea/v1` and `/tea/v0.4.0`, and the CLI sends it there whichever root it reads from.
