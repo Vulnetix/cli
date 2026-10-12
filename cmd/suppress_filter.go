@@ -201,16 +201,6 @@ func evidenceSites(ev []cyclonedx.AIEvidence) []evidenceSite {
 	return out
 }
 
-// componentSuppressed reports whether an inventory component is covered by an
-// active rule. Each of the component's identities is tried in turn, because a
-// user may have written the rule against whichever one the console showed them
-// (SPDX id, display name, purl). A rule with no file anchor matches wherever the
-// component was seen; a rule with one must match an evidence site.
-func componentSuppressed(set *suppress.Set, category string, values []string, ev []cyclonedx.AIEvidence) bool {
-	_, dropped := componentSuppression(set, category, values, ev)
-	return dropped
-}
-
 // componentSuppression decides what survives for one component.
 //
 // The distinction matters because a CBOM/AIBOM component is one entry with many

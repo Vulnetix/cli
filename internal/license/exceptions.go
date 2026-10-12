@@ -325,10 +325,7 @@ func packageExceptionMatches(e PackageException, pkg PackageLicense) bool {
 		return false
 	}
 	if e.Purl != "" {
-		if !purlGlobMatch(e.Purl, pkg) {
-			return false
-		}
-		return true
+		return purlGlobMatch(e.Purl, pkg)
 	}
 	if e.Name != "" {
 		return packageNameMatches(e.Name, pkg.PackageName)

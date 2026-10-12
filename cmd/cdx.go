@@ -594,7 +594,7 @@ func buildCDXDependencies(inv cdxInventory) []cyclonedx.SBOMDependency {
 	}
 	var out []cyclonedx.SBOMDependency
 	for _, dep := range cdx.BuildDependencies(inv.ManifestGroups, refs) {
-		out = append(out, cyclonedx.SBOMDependency{Ref: dep.Ref, DependsOn: dep.DependsOn})
+		out = append(out, cyclonedx.SBOMDependency(dep))
 	}
 	// Edges carried on the inventory already use bom-refs (see collectCDXBinaries).
 	out = append(out, inv.Dependencies...)

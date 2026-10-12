@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vulnetix/cli/v3/internal/lsp/anchor"
 	"github.com/vulnetix/cli/v3/internal/lsp/protocol"
 	"github.com/vulnetix/cli/v3/internal/scaview"
 )
@@ -193,19 +192,4 @@ func purlOf(a *scaAnnotation) string {
 		return a.Verdict.Purl
 	}
 	return ""
-}
-
-// scaConfidenceOf exposes the anchor confidence as the protocol string.
-func scaConfidenceOf(a *scaAnnotation) string {
-	if a.Confidence == "" {
-		return string(anchor.ConfidenceToken)
-	}
-	return string(a.Confidence)
-}
-
-// isCVE reports whether an identifier is a CVE rather than a database-specific
-// alias such as a GHSA. Used only to break ties between equally severe
-// advisories, where the CVE is the more recognisable name.
-func isCVE(id string) bool {
-	return strings.HasPrefix(id, "CVE-")
 }

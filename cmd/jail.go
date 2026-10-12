@@ -525,19 +525,6 @@ func runJailCmd(cmd *cobra.Command, mode string) error {
 	}
 }
 
-// jailVerdictErrorFrom builds the gate's typed error from a result, for callers
-// that compose the gate rather than run it as a command.
-func jailVerdictErrorFrom(result *JailRunResult) error {
-	if result == nil || result.Response == nil || result.ExitCode == ExitOK {
-		return nil
-	}
-	return &JailVerdictError{
-		Verdict: result.Response.Verdict,
-		Code:    result.ExitCode,
-		Summary: result.Response.Summary,
-	}
-}
-
 // isJailVerdictError reports whether err is a jail verdict, for callers that
 // need to distinguish a gate decision from a transport failure.
 func isJailVerdictError(err error) bool {
