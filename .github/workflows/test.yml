@@ -107,6 +107,61 @@ jobs:
         with:
           org-id: '123e4567-e89b-12d3-a456-426614174000'
 
+  # Runs the unit tests and `analyze` from a git worktree rather than a clone.
+  #
+  # Developers (and coding agents) work in worktrees under `.claude/worktrees/<name>`, and a
+  # worktree is not a clone: `.git` is a file, and the tree sits inside another checkout whose
+  # walker also sees it. `analyze` derives evidence record ids from file paths, and the paths in
+  # that layout collapsed to duplicate ids and aborted the run with a panic. The unit tests alone
+  # never caught it because no test ran against a path like this.
+  #
+  # The script also writes two files whose paths differ only in punctuation, which is the
+  # collision itself; without that fixture a clean worktree would pass even on the broken code.
+  worktree:
+    name: Test in a git worktree
+    runs-on: [self-hosted, Linux, X64, vulnetix-local]
+    needs: [lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Configure vdb-sca-match private fetch (not yet in module proxy)
+        run: |
+          go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
+          git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
+
+      - name: Build the CLI
+        run: go build -o "$RUNNER_TEMP/vulnetix" .
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-w"
+
+      - name: Analyze a worktree, from inside it and from the checkout that contains it
+        run: bash scripts/ci-worktree-analyze.sh "$RUNNER_TEMP/vulnetix"
+        shell: bash
+
+      - name: Run the unit tests from a worktree
+        run: |
+          set -euo pipefail
+          wt=".claude/worktrees/ci-test-$GITHUB_RUN_ID"
+          mkdir -p .claude/worktrees
+          git worktree add --detach "$wt" HEAD
+          trap 'git worktree remove --force "$wt" || true; git worktree prune' EXIT
+          cd "$wt"
+          test -f .git   # a worktree's .git is a file; a directory means this is not testing one
+          go test ./...
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-w"
+
   # Proves the customer-facing signing path end to end, against public Fulcio
   # and public Rekor, using the identity this workflow already has.
   #

@@ -192,6 +192,11 @@ test:
         exit 1
     fi
 
+# Analyze a git worktree (what the "Test in a git worktree" CI job does)
+test-worktree:
+    CGO_ENABLED=1 CGO_CFLAGS=-w go build -o "${TMPDIR:-/tmp}/vulnetix-worktree-test" .
+    bash scripts/ci-worktree-analyze.sh "${TMPDIR:-/tmp}/vulnetix-worktree-test"
+
 # Benchmark the installed vulnetix CLI against this repo: sca, sast,
 # sca+autofix(safest), scan, scan+autofix(safest). Each scenario runs on a fresh
 # repo copy; min/median/max wall-clock + findings are written to a Markdown
