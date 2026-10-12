@@ -21,6 +21,9 @@ package analyze
 // its working, so each alias carries the rule and a confidence.
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -192,10 +195,11 @@ func splitEmail(email string) (user, domain string) {
 type IdentitySet struct {
 	byKey map[string]*ContributorRecord
 	order []string
+	ids   map[string]string
 }
 
 func NewIdentitySet() *IdentitySet {
-	return &IdentitySet{byKey: map[string]*ContributorRecord{}}
+	return &IdentitySet{byKey: map[string]*ContributorRecord{}, ids: map[string]string{}}
 }
 
 // key is the login when we have one (authoritative), else the email.
@@ -213,7 +217,7 @@ func (s *IdentitySet) Observe(id Identity) *ContributorRecord {
 	c, ok := s.byKey[k]
 	if !ok {
 		c = &ContributorRecord{
-			ID:       "contributor-" + safeID(k),
+			ID:       uniqueRecordID("contributor-", k, s.ids),
 			Type:     "contributor",
 			Identity: &id,
 		}
@@ -260,4 +264,38 @@ var unsafeID = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
 
 func safeID(s string) string {
 	return strings.Trim(unsafeID.ReplaceAllString(s, "-"), "-")
+}
+
+// uniqueRecordID derives an evidence record id of the form prefix+safeID(sourceID).
+//
+// safeID flattens every unsafe character to "-", so it is lossy: `collide/a/m.js` and
+// `collide/a-m.js` are different files with one safeID, as are `.claude/worktrees/x` and
+// `.claude-worktrees-x`. Builder.AddRecord treats a duplicate id as fatal, so a record id built
+// as prefix+safeID(source) aborts the whole run on the first such pair.
+//
+// `taken` maps each id issued so far to the source it was issued for. The same source asked
+// twice gets the same answer; a different source that sanitises identically gets a hash suffix.
+// The first claimant keeps the readable form. Collectors that mint ids before a Builder exists
+// hold their own map; everything else uses Builder.RecordID.
+func uniqueRecordID(prefix, sourceID string, taken map[string]string) string {
+	id := prefix + safeID(sourceID)
+	if owner, clash := taken[id]; !clash || owner == sourceID {
+		taken[id] = sourceID
+
+		return id
+	}
+	// Deterministic rather than a counter: the same repository analysed twice produces the same
+	// suffix regardless of the order records were visited in.
+	sum := sha256.Sum256([]byte(sourceID))
+	base := fmt.Sprintf("%s-%s", id, hex.EncodeToString(sum[:4]))
+	id = base
+	for n := 2; ; n++ {
+		if owner, clash := taken[id]; !clash || owner == sourceID {
+			break
+		}
+		id = fmt.Sprintf("%s-%d", base, n)
+	}
+	taken[id] = sourceID
+
+	return id
 }

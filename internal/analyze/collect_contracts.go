@@ -1172,7 +1172,7 @@ func emitContractMetrics(b *Builder, st *contractStats) {
 	byKind := map[string]map[string][]EvidenceRef{}
 
 	for _, e := range st.edges {
-		id := "xr-" + safeID(e.ID)
+		id := b.RecordID("xr-", e.ID)
 		ref := b.AddRecord(id, &GraphElementRecord{
 			ID:        id,
 			Type:      "graph_element",

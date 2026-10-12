@@ -36,6 +36,7 @@ type depStats struct {
 func collectDeps(b *Builder, root string, opts Options) (*depStats, error) {
 	st := &depStats{}
 	seen := map[string]bool{}
+	depIDs := map[string]string{}
 
 	files, err := scan.WalkForScanFiles(scan.WalkOptions{RootPath: root, MaxDepth: 20})
 	if err != nil {
@@ -69,7 +70,7 @@ func collectDeps(b *Builder, root string, opts Options) (*depStats, error) {
 					sourceType := pkg.SourceType
 					discoveredVia := dependencyDiscoveredVia(sourceType, f.ManifestInfo.IsLock)
 					st.deps = append(st.deps, &DependencyRecord{
-						ID:              "dep-" + safeID(purl),
+						ID:              uniqueRecordID("dep-", purl, depIDs),
 						Type:            "dependency",
 						Purl:            purl,
 						Ecosystem:       pkg.Ecosystem,

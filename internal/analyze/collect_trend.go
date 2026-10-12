@@ -151,7 +151,7 @@ func collectTrend(b *Builder, repo *git.Repository, files *fileStats, git2 *gitS
 
 		// The evidence is the file's node, which carries the slope, the fit and the sample count.
 		// A reader who wants to check the number opens the node and finds the working.
-		id := "trend-" + safeID(c.rec.Path)
+		id := b.RecordID("trend-", c.rec.Path)
 		ref := b.AddRecord(id, &GraphElementRecord{
 			ID:        id,
 			Type:      "graph_element",

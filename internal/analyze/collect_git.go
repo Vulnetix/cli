@@ -293,6 +293,7 @@ func collectBranches(repo *git.Repository, defaultBranch string, shallow bool, n
 	// Remote-tracking refs and local branches name the same branch. Keep one record per name,
 	// preferring the local ref, so `main` and `origin/main` never both appear.
 	byName := map[string]*BranchRecord{}
+	branchIDs := map[string]string{}
 	fromLocal := map[string]bool{}
 	tips := map[string]*object.Commit{}
 
@@ -330,7 +331,7 @@ func collectBranches(repo *git.Repository, defaultBranch string, shallow bool, n
 		last := c.Committer.When.UTC()
 		age := int(now.Sub(last).Seconds())
 		byName[short] = &BranchRecord{
-			ID:           "branch-" + safeID(short),
+			ID:           uniqueRecordID("branch-", short, branchIDs),
 			Type:         "branch",
 			Name:         short,
 			IsDefault:    defaultBranch != "" && short == defaultBranch,

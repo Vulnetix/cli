@@ -448,6 +448,9 @@ type Builder struct {
 	records []any
 	seen    map[string]bool
 
+	// recordOwners maps each record id RecordID has issued to the source id it was issued for.
+	recordOwners map[string]string
+
 	// fileByPath indexes each file record by its path.
 	//
 	// A path is a file record's identity, not merely one of its fields. Two records for one path
@@ -466,9 +469,20 @@ func NewBuilder(tool Tool, target Target, startedAt time.Time) *Builder {
 			Run:           RunMeta{StartedAt: startedAt.UTC().Format(time.RFC3339)},
 			Metrics:       []Metric{},
 		},
-		seen:       map[string]bool{},
-		fileByPath: map[string]int{},
+		seen:         map[string]bool{},
+		recordOwners: map[string]string{},
+		fileByPath:   map[string]int{},
 	}
+}
+
+// RecordID returns the evidence record id for a graph element or path, derived from sourceID.
+//
+// Collectors must mint record ids here rather than as prefix+safeID(source): safeID is lossy, so
+// two different sources can sanitise to one string, and AddRecord treats a duplicate id as fatal.
+// A path is enough to trigger it: `collide/a/m.js` and `collide/a-m.js` are different files with
+// the same safeID. See uniqueRecordID for how a clash is resolved.
+func (b *Builder) RecordID(prefix, sourceID string) string {
+	return uniqueRecordID(prefix, sourceID, b.recordOwners)
 }
 
 // AddFile stores a file record — or folds it into the record already held for that path — and

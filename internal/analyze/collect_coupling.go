@@ -153,7 +153,7 @@ func collectCoupling(b *Builder, git *gitStats, files *fileStats) *couplingStats
 			},
 		})
 
-		id := "coupling-" + safeID(edgeID)
+		id := b.RecordID("coupling-", edgeID)
 		refs = append(refs, b.AddRecord(id, &GraphElementRecord{
 			ID:        id,
 			Type:      "graph_element",

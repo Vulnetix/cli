@@ -98,6 +98,7 @@ func collectFiles(b *Builder, root string, git *gitStats, opts Options, now time
 	st := &fileStats{}
 	skippedLangs := map[string]int{}
 	var skippedLarge int
+	fileIDs := map[string]string{}
 
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -134,7 +135,7 @@ func collectFiles(b *Builder, root string, git *gitStats, opts Options, now time
 		}
 
 		rec := &FileRecord{
-			ID:        "file-" + safeID(rel),
+			ID:        uniqueRecordID("file-", rel, fileIDs),
 			Type:      "file",
 			Path:      rel,
 			Language:  string(lang),

@@ -88,9 +88,18 @@ scoped to a repo, an org, a server, or one author. Its `status_group` (1=Active,
 ("modules with no inbound edges: 7") references the 7 nodes.
 
 Record ids are the sanitised graph id behind a kind prefix (`sym-`, `imp-`, `call-`) and must be unique,
-because a duplicate aborts the run. Sanitising is lossy — `.claude/worktrees/x` and `.claude-worktrees-x`
-flatten to the same string — so `uniqueRecordID` gives the first claimant the readable id and any later
-distinct graph id a deterministic hash suffix. This applies to edges as much as nodes.
+because a duplicate aborts the run. Sanitising is lossy: `.claude/worktrees/x` and `.claude-worktrees-x`
+flatten to the same string, so `uniqueRecordID` gives the first claimant the readable id and any later
+distinct graph id a deterministic hash suffix. This applies to every producer (file, contributor,
+branch and dependency records as well as symbol, import, call, coupling, trend and cross-repo edges), so a
+new collector mints ids through `Builder.RecordID` (or `uniqueRecordID` where it runs before a builder
+exists), never as `prefix + safeID(x)`.
+
+Worktrees are a supported layout. A worktree's `.git` is a file and its objects live in the main repo's git
+dir, so every history reader opens the repository through `internal/gitopen`, which sets
+`EnableDotGitCommonDir`; opening with go-git directly looks fine and then fails with `object not found`.
+`scripts/ci-worktree-analyze.sh` (CI job "Test in a git worktree", `just test-worktree`) runs `analyze` from
+inside a nested worktree and from its parent with a pair of colliding paths as the fixture.
 
 **For us.** One graph, all kinds. `graphNode.kind` spans code symbols, infrastructure, the technology
 inventory *and* people, because the questions we want to answer ("who owns the code that talks to the payment
