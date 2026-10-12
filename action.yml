@@ -10,7 +10,7 @@ inputs:
     description: 'Organization ID (UUID) for Vulnetix operations'
     required: true
   version:
-    description: 'Version of Vulnetix CLI to use'
+    description: 'Release of the Vulnetix CLI to install, for example v3.111.0 (default: latest)'
     required: false
     default: 'latest'
   task:
@@ -68,28 +68,30 @@ runs:
   steps:
     - name: Setup Vulnetix CLI
       shell: bash
+      # The released binary, not a build from source: building needs private Go
+      # modules (vdb-sca-match), which a runner in another repository cannot read.
+      # Every reusable workflow in the fleet installs the same way.
+      env:
+        VX_VERSION: ${{ inputs.version }}
       run: |
         echo "Setting up Vulnetix CLI..."
 
-        # Ensure Go is available (install if not present)
-        if ! command -v go &> /dev/null; then
-          echo "Go not found, installing via go install is not possible."
-          echo "Please add actions/setup-go to your workflow before this action."
-          exit 1
+        mkdir -p "$HOME/bin"
+        args=(--install-dir "$HOME/bin")
+
+        # install.sh takes a release tag, which starts with v; accept 3.59.4 as well.
+        if [ -n "$VX_VERSION" ] && [ "$VX_VERSION" != "latest" ]; then
+          case "$VX_VERSION" in
+            v*) args+=(--version "$VX_VERSION") ;;
+            *) args+=(--version "v$VX_VERSION") ;;
+          esac
         fi
 
-        # Build from source using the action's own repository
-        ACTION_DIR="${{ github.action_path }}"
-        cd "$ACTION_DIR"
+        curl -fsSL https://cli.vulnetix.com/install.sh | sh -s -- "${args[@]}"
 
-        mkdir -p "$HOME/bin"
-        COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        go build -ldflags "-s -w -X github.com/vulnetix/cli/v3/cmd.version=${{ inputs.version }} -X github.com/vulnetix/cli/v3/cmd.commit=${COMMIT} -X github.com/vulnetix/cli/v3/cmd.buildDate=${BUILD_DATE}" -o "$HOME/bin/vulnetix" .
+        echo "$HOME/bin" >> "$GITHUB_PATH"
 
-        echo "$HOME/bin" >> $GITHUB_PATH
-
-        echo "Vulnetix CLI setup complete ($(go version))"
+        "$HOME/bin/vulnetix" version
 
     - name: Authenticate with Vulnetix
       if: inputs.api-key != ''

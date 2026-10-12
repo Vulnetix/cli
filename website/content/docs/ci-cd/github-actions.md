@@ -9,7 +9,7 @@ This page builds up from the smallest working workflow to a full release pipelin
 {{< callout type="warning" >}}
 `Vulnetix/cli@v3` is a **moving major tag**: it is repointed at each v3 release, so a workflow using it stays current without anyone returning to bump a version. Pin an exact tag instead (`Vulnetix/cli@v3.73.1`) when you need a reproducible build.
 
-There is no `v1` or `v2` tag. The action builds the CLI from the ref you use, so `actions/setup-go` must run before it.
+There is no `v1` or `v2` tag. The action installs the released CLI binary with the install script, so no Go toolchain is needed.
 
 If anything here is stale, [open an issue](https://github.com/Vulnetix/cli/issues/new) and we will fix the docs.
 {{< /callout >}}
@@ -40,7 +40,7 @@ Two ways to run the CLI in a workflow:
 
 | Approach | When to use |
 |----------|-------------|
-| **Native action** — `uses: Vulnetix/cli@v3` | Quickstart, `upload`, `gha` artifact collection, and `tea-release`. Requires `actions/setup-go`. |
+| **Native action** — `uses: Vulnetix/cli@v3` | Quickstart, `upload`, `gha` artifact collection, and `tea-release`. Installs the released binary; no Go toolchain needed. |
 | **Install script** — `curl -fsSL https://cli.vulnetix.com/install.sh \| sh` | Any subcommand (`scan`, `cbom`, `aibom`, `license`, `secrets`, …). No Go toolchain needed. |
 
 The action exposes only `info`, `upload`, `gha`, and `tea-release` tasks. Every other subcommand is run with the install script.
@@ -67,18 +67,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # The action compiles the CLI from source — Go must be on PATH first.
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-
       - uses: Vulnetix/cli@v3
         with:
           org-id: ${{ secrets.VULNETIX_ORG_ID }}
           api-key: ${{ secrets.VULNETIX_API_KEY }}
 ```
-
-Omitting `actions/setup-go` fails the run with `Please add actions/setup-go to your workflow before this action`.
 
 ### Action Inputs
 
@@ -104,7 +97,7 @@ Omitting `actions/setup-go` fails the run with `Please add actions/setup-go to y
 {{< /callout >}}
 
 {{< callout type="info" >}}
-`version` only stamps a version string into the binary via ldflags. It does **not** select which release is built — that is determined by the git ref you pin in `uses:`.
+`version` selects the CLI release the action installs, for example `v3.111.0`. The default, `latest`, installs the newest release. It is independent of the ref you pin in `uses:`, which selects the action itself.
 {{< /callout >}}
 
 ### Action Outputs
@@ -469,10 +462,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-
       - name: Upload all run artifacts to Vulnetix
         uses: Vulnetix/cli@v3
         with:
@@ -587,10 +576,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-
       - name: Upload all run artifacts to Vulnetix
         uses: Vulnetix/cli@v3
         with:
@@ -666,7 +651,7 @@ Grant only what the job uses. Split release publishing into its own job so `cont
 
 ## Troubleshooting
 
-**`Please add actions/setup-go to your workflow before this action`** — the action compiles the CLI from source. Add `actions/setup-go@v6` before it, or drop the action and use the install script.
+**The action fails while installing the CLI** — it downloads the release binary from `cli.vulnetix.com/install.sh` and GitHub releases. Check that the runner can reach both, or drop the action and run the install script yourself.
 
 **Action reference not found** — there is no `v1` or `v2` tag. Use `Vulnetix/cli@v3`, an exact release tag, or `Vulnetix/cli@main` for unreleased changes.
 
