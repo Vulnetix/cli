@@ -71,10 +71,9 @@ install-zig:
     ln -sf zig-dist/zig ./bin/zig
     echo "zig installed: $(./bin/zig version)"
 
-# Build for all platforms using build.sh
-build-all:
-    @echo "Building for all platforms..."
-    @VERSION={{version}} ./build.sh
+# Build for all platforms (the old build.sh used CGO_ENABLED=0, which the bundled
+# tree-sitter grammars rule out; build-release cross-compiles with zig)
+build-all: build-release
 
 # Build release binaries for all platforms. CGO is required for the
 # bundled tree-sitter grammars. Uses `zig cc` as a cross-platform C

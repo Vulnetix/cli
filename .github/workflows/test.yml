@@ -85,11 +85,21 @@ jobs:
           go env -w GOPRIVATE=github.com/Vulnetix/vdb-sca-match
           git config --global url."https://x-access-token:${{ secrets.PACKAGES_TOKEN }}@github.com/Vulnetix/vdb-sca-match".insteadOf "https://github.com/Vulnetix/vdb-sca-match"
 
-      - name: Build binaries
+      # The host binary only. build.sh cross-compiles six targets with CGO_ENABLED=0, which the
+      # bundled tree-sitter grammars rule out; the release workflow cross-compiles with zig.
+      - name: Build binary
         run: |
-          export VERSION="test-$(git rev-parse --short HEAD)"
-          ./build.sh
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ARCH=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
+          VERSION="test-$(git rev-parse --short HEAD)"
+          mkdir -p bin
+          go build \
+            -ldflags "-s -w -X github.com/vulnetix/cli/v3/cmd.version=${VERSION} -X github.com/vulnetix/cli/v3/cmd.commit=$(git rev-parse --short HEAD)" \
+            -o "bin/vulnetix-${OS}-${ARCH}" .
         shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-w"
 
       - name: Test CLI directly
         run: |
@@ -154,10 +164,14 @@ jobs:
       - name: Run the unit tests from a worktree
         run: |
           set -euo pipefail
-          wt=".claude/worktrees/ci-test-$GITHUB_RUN_ID"
-          mkdir -p .claude/worktrees
+          root="$PWD"
+          wt="$root/.claude/worktrees/ci-test-$GITHUB_RUN_ID"
+          mkdir -p "$root/.claude/worktrees"
           git worktree add --detach "$wt" HEAD
-          trap 'git worktree remove --force "$wt" || true; git worktree prune' EXIT
+          # Clean up from the repository root: a trap that runs inside the worktree deletes the
+          # directory it is standing in, the next git command dies with 128, and that exit code
+          # replaces the real test result.
+          trap 'cd "$root"; git worktree remove --force "$wt" || true; git worktree prune || true' EXIT
           cd "$wt"
           test -f .git   # a worktree's .git is a file; a directory means this is not testing one
           go test ./...
