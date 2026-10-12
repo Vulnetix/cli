@@ -5,6 +5,8 @@ on:
     branches: [ main, master ]
     paths-ignore:
       - 'internal/sast/rules/**'
+  # Lets a maintainer run the suite, including the worktree job, on any branch without a pull request.
+  workflow_dispatch:
 
 concurrency:
   group: test-${{ github.ref }}
