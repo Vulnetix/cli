@@ -40,10 +40,10 @@ Two ways to run the CLI in a workflow:
 
 | Approach | When to use |
 |----------|-------------|
-| **Native action** — `uses: Vulnetix/cli@v3` | Quickstart, `upload`, and `gha` artifact collection. Requires `actions/setup-go`. |
+| **Native action** — `uses: Vulnetix/cli@v3` | Quickstart, `upload`, `gha` artifact collection, and `tea-release`. Requires `actions/setup-go`. |
 | **Install script** — `curl -fsSL https://cli.vulnetix.com/install.sh \| sh` | Any subcommand (`scan`, `cbom`, `aibom`, `license`, `secrets`, …). No Go toolchain needed. |
 
-The action exposes only `info`, `upload`, and `gha` tasks. Every other subcommand is run with the install script.
+The action exposes only `info`, `upload`, `gha`, and `tea-release` tasks. Every other subcommand is run with the install script.
 
 ---
 
@@ -85,11 +85,23 @@ Omitting `actions/setup-go` fails the run with `Please add actions/setup-go to y
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `org-id` | Organization ID (UUID) | Yes | — |
-| `task` | `info`, `upload`, or `gha` | No | `info` |
+| `task` | `info`, `upload`, `gha`, or `tea-release` | No | `info` |
 | `version` | Version string stamped into the built binary | No | `latest` |
 | `api-key` | API key (hex digest) | No | — |
 | `upload-file` | Artifact path (with `task: upload`) | No | — |
 | `upload-format` | Override format: `cyclonedx`, `spdx`, `sarif`, `openvex`, `csaf_vex` | No | — |
+| `tea-files` | Files to publish, one path or glob per line (with `task: tea-release`) | With `tea-release` | — |
+| `tea-product` | TEA product name (with `task: tea-release`) | No | The GitHub repository |
+| `tea-purl` | Package URL identifying the product. Set it when the product is not a GitHub repository | No | `pkg:github/<tea-product>` |
+| `tea-version` | Release version | No | The tag, on a tag run |
+| `tea-date` | Release date (RFC3339). Set it for a version that is not a git tag, so that re-running the job republishes the same release instead of failing on a changed date | No | The tag's commit date |
+| `tea-pre-release` | `true` marks the release as a pre-release | No | `false` |
+| `tea-visibility` | `private`, `shared`, or `public`. Public cannot be undone | No | — (private) |
+| `tea-dry-run` | `true` prints what would be published and exits | No | `false` |
+
+{{< callout type="info" >}}
+`tea-release` runs `vulnetix tea release`, so it needs a Pro plan and an API key for the publishing organisation. See the [`tea` command reference](/docs/cli-reference/tea/).
+{{< /callout >}}
 
 {{< callout type="info" >}}
 `version` only stamps a version string into the binary via ldflags. It does **not** select which release is built — that is determined by the git ref you pin in `uses:`.

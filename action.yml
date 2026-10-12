@@ -14,7 +14,7 @@ inputs:
     required: false
     default: 'latest'
   task:
-    description: 'Task to perform: info, upload, gha'
+    description: 'Task to perform: info, upload, gha, tea-release'
     required: false
     default: 'info'
   api-key:
@@ -26,6 +26,32 @@ inputs:
   upload-format:
     description: 'Override auto-detected artifact format (cyclonedx, spdx, sarif, openvex, csaf_vex)'
     required: false
+  tea-files:
+    description: 'Files to publish, one path or glob per line (used with task: tea-release)'
+    required: false
+  tea-product:
+    description: 'TEA product name; defaults to the GitHub repository (used with task: tea-release)'
+    required: false
+  tea-purl:
+    description: 'Package URL identifying the TEA product; defaults to pkg:github/<tea-product> (used with task: tea-release)'
+    required: false
+  tea-version:
+    description: 'TEA release version; defaults to the tag on a tag run (used with task: tea-release)'
+    required: false
+  tea-date:
+    description: 'TEA release date (RFC3339). Set it for a version that is not a git tag, so that re-running the job republishes the same release (used with task: tea-release)'
+    required: false
+  tea-pre-release:
+    description: 'Mark the TEA release as a pre-release: true or false (used with task: tea-release)'
+    required: false
+    default: 'false'
+  tea-visibility:
+    description: 'Visibility once published: private, shared or public. Public cannot be undone (used with task: tea-release)'
+    required: false
+  tea-dry-run:
+    description: 'Print what would be published and exit: true or false (used with task: tea-release)'
+    required: false
+    default: 'false'
 outputs:
   result:
     description: 'Result of the Vulnetix CLI execution'
@@ -83,8 +109,50 @@ runs:
     - name: Run Vulnetix CLI
       id: vulnetix-run
       shell: bash
+      # Read by the tea-release task below. They arrive as environment variables
+      # rather than being interpolated into the script, so a value containing a
+      # quote or a command substitution stays data.
+      env:
+        VX_TASK: ${{ inputs.task }}
+        VX_TEA_FILES: ${{ inputs.tea-files }}
+        VX_TEA_PRODUCT: ${{ inputs.tea-product }}
+        VX_TEA_PURL: ${{ inputs.tea-purl }}
+        VX_TEA_VERSION: ${{ inputs.tea-version }}
+        VX_TEA_DATE: ${{ inputs.tea-date }}
+        VX_TEA_PRE_RELEASE: ${{ inputs.tea-pre-release }}
+        VX_TEA_VISIBILITY: ${{ inputs.tea-visibility }}
+        VX_TEA_DRY_RUN: ${{ inputs.tea-dry-run }}
       run: |
         echo "Running Vulnetix CLI with org-id: ${{ inputs.org-id }}"
+
+        # Handle tea-release task - publish a product, release, collection and artifacts to TEA
+        if [ "$VX_TASK" = "tea-release" ]; then
+          args=(tea release)
+
+          # One path or glob per line; the CLI expands globs itself.
+          while IFS= read -r f; do
+            f="${f#"${f%%[![:space:]]*}"}"
+            f="${f%"${f##*[![:space:]]}"}"
+            [ -n "$f" ] && args+=("$f")
+          done <<< "$VX_TEA_FILES"
+
+          [ -n "$VX_TEA_PRODUCT" ] && args+=(--product "$VX_TEA_PRODUCT")
+          [ -n "$VX_TEA_PURL" ] && args+=(--purl "$VX_TEA_PURL")
+          [ -n "$VX_TEA_VERSION" ] && args+=(--version "$VX_TEA_VERSION")
+          [ -n "$VX_TEA_DATE" ] && args+=(--date "$VX_TEA_DATE")
+          [ -n "$VX_TEA_VISIBILITY" ] && args+=(--visibility "$VX_TEA_VISIBILITY")
+          [ "$VX_TEA_PRE_RELEASE" = "true" ] && args+=(--pre-release)
+          [ "$VX_TEA_DRY_RUN" = "true" ] && args+=(--dry-run)
+
+          vulnetix "${args[@]}"
+          echo "result=success" >> $GITHUB_OUTPUT
+          if [ "$VX_TEA_DRY_RUN" = "true" ]; then
+            echo "summary=TEA release dry run completed; nothing was published" >> $GITHUB_OUTPUT
+          else
+            echo "summary=TEA release published successfully" >> $GITHUB_OUTPUT
+          fi
+          exit 0
+        fi
 
         # Handle gha task - upload all workflow artifacts via GitHub API
         if [ "${{ inputs.task }}" = "gha" ]; then
