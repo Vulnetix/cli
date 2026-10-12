@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -38,6 +39,12 @@ func TestChangeGuard_ReadsARenamedFile(t *testing.T) {
 // Over the file cap with the secret in the part that was not read: the guard
 // must say it stopped, not imply a clean bill.
 func TestChangeGuard_SaysSoWhenItStopsAtTheCap(t *testing.T) {
+	// The cap is under test, not the clock: on a slow runner the default budget expires first and
+	// the guard, correctly, gives no verdict.
+	old := changeGuardBudget
+	changeGuardBudget = 2 * time.Minute
+	t.Cleanup(func() { changeGuardBudget = old })
+
 	root := gitRepo(t)
 	for i := 0; i < changeGuardMaxFiles; i++ {
 		write(t, root, fmt.Sprintf("f%04d.txt", i), "x\n")

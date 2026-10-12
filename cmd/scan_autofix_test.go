@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -60,6 +61,7 @@ func TestRecordAutofixMemoryEventsDoesNotDuplicateHistory(t *testing.T) {
 }
 
 func TestRewriteAutofixCommandsUsesYarnClassicLockfile(t *testing.T) {
+	withFakePackageManagers(t, "yarn")
 	dir := t.TempDir()
 	requireNoErr(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"packageManager":"yarn@1.22.22"}`), 0o644))
 	requireNoErr(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte("# yarn lockfile v1\n"), 0o644))
@@ -83,6 +85,7 @@ func TestRewriteAutofixCommandsUsesYarnClassicLockfile(t *testing.T) {
 }
 
 func TestRewriteAutofixCommandsUsesYarnBerryUp(t *testing.T) {
+	withFakePackageManagers(t, "yarn")
 	dir := t.TempDir()
 	requireNoErr(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"packageManager":"yarn@4.5.0"}`), 0o644))
 	requireNoErr(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte("__metadata:\n  version: 8\n"), 0o644))
@@ -106,6 +109,7 @@ func TestRewriteAutofixCommandsUsesYarnBerryUp(t *testing.T) {
 }
 
 func TestRewriteAutofixCommandsRewritesSkippedManualCommands(t *testing.T) {
+	withFakePackageManagers(t, "yarn")
 	dir := t.TempDir()
 	requireNoErr(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"packageManager":"yarn@1.22.22"}`), 0o644))
 	requireNoErr(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte("# yarn lockfile v1\n"), 0o644))
@@ -130,6 +134,7 @@ func TestRewriteAutofixCommandsRewritesSkippedManualCommands(t *testing.T) {
 }
 
 func TestRewriteAutofixCommandsUsesAuthoritativePythonLockfile(t *testing.T) {
+	withFakePackageManagers(t, "uv")
 	plans := []autofix.FixCandidate{{
 		PackageName: "requests",
 		Ecosystem:   "pypi",
@@ -148,6 +153,7 @@ func TestRewriteAutofixCommandsUsesAuthoritativePythonLockfile(t *testing.T) {
 }
 
 func TestAutofixEvidencePayloadIncludesProofOfWork(t *testing.T) {
+	withFakePackageManagers(t, "yarn")
 	payload := autofixEvidencePayload(&triage.TriageFinding{
 		Package:      "lodash",
 		Ecosystem:    "npm",
@@ -180,4 +186,22 @@ func TestHasActionableAutofixPlan(t *testing.T) {
 func requireNoErr(t *testing.T, err error) {
 	t.Helper()
 	assert.NoError(t, err)
+}
+
+// withFakePackageManagers puts executables with the given names first on PATH.
+//
+// rewriteAutofixCommandsForPackageManagers only emits a manager's command when that manager is
+// installed, and falls back to another one otherwise. A test that expects `uv sync` or `yarn up`
+// therefore passes on a machine with uv and yarn and fails on a runner without them. The tests
+// say which managers exist rather than inheriting whatever the host happens to have.
+func withFakePackageManagers(t *testing.T, names ...string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake package managers are shell scripts")
+	}
+	dir := t.TempDir()
+	for _, name := range names {
+		requireNoErr(t, os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\necho 1.0.0\n"), 0o755))
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }

@@ -21,7 +21,11 @@ import (
 // Shorter than the dependency guard's, because this one runs on `git commit`,
 // which people type constantly and expect to be instant. Overrunning it yields
 // no verdict rather than a late one.
-const changeGuardBudget = 8 * time.Second
+//
+// A variable so a test of what the guard says at a cap can lift the budget: that test reads 400
+// files, which takes about 3 seconds here and more than 8 on a slow runner, and a test about the
+// cap should not turn into a test of how fast the machine is.
+var changeGuardBudget = 8 * time.Second
 
 // changeGuardMaxFiles and changeGuardMaxBytes cap how much of a change is read.
 //
