@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/vulnetix/cli/v3/internal/gitopen"
 
 	cdx "github.com/Vulnetix/vdb-cyclonedx"
 )
@@ -37,7 +38,7 @@ func (c *collector) detectCommits(root string, maxCommits int) {
 		return
 	}
 
-	repo, err := git.PlainOpenWithOptions(root, &git.PlainOpenOptions{DetectDotGit: true})
+	repo, err := gitopen.Open(root, true)
 	if err != nil {
 		return
 	}

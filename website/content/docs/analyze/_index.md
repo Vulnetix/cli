@@ -46,6 +46,12 @@ numbers are null.
 See [Authentication](authentication/). In GitHub Actions it already works, with no
 configuration.
 
+**A clone or a git worktree.** Both work. A worktree keeps its commits in the main
+repository's git directory rather than its own, and `analyze` reads them from there, so
+history-derived metrics are the same as they would be from the main checkout. A worktree
+nested inside another checkout (for example `.claude/worktrees/<name>`) is also analysed
+correctly when you run from the parent. CI runs both layouts on every pull request.
+
 ## What it produces
 
 ```bash

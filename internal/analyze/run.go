@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/vulnetix/cli/v3/internal/gitopen"
 
 	"github.com/vulnetix/cli/v3/internal/analyze/forge"
 	"github.com/vulnetix/cli/v3/internal/sast"
@@ -88,7 +89,7 @@ func Check(ctx context.Context, opts Options) (*Preflight, error) {
 
 	p := &Preflight{Target: Target{RootPath: root}}
 
-	repo, repoErr := git.PlainOpenWithOptions(root, &git.PlainOpenOptions{DetectDotGit: true})
+	repo, repoErr := gitopen.Open(root, true)
 	if repoErr == nil {
 		fillTargetFromGit(&p.Target, repo, root)
 	} else {
@@ -166,7 +167,7 @@ func Run(tool Tool, opts Options, pre *Preflight) (*Report, []byte, error) {
 	root := pre.Target.RootPath
 	target := pre.Target
 
-	repo, repoErr := git.PlainOpenWithOptions(root, &git.PlainOpenOptions{DetectDotGit: true})
+	repo, repoErr := gitopen.Open(root, true)
 
 	b := NewBuilder(tool, target, started)
 

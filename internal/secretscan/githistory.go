@@ -16,6 +16,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/vulnetix/cli/v3/internal/gitopen"
 )
 
 // zlibInflate is a small wrapper around compress/zlib for use in the
@@ -86,7 +87,7 @@ func ScanGitHistory(repoRoot string, opts GitHistoryOptions) ([]GitHistoryEntry,
 	if err != nil {
 		return nil, err
 	}
-	repo, err := git.PlainOpen(absRoot)
+	repo, err := gitopen.Open(absRoot, false)
 	if err != nil {
 		// Not a git repository — quiet success, empty history.
 		return nil, nil

@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/vulnetix/cli/v3/internal/gitopen"
 )
 
 // storeErrStop short-circuits a go-git ForEach without signalling a real error.
@@ -47,7 +48,7 @@ const maxTreeFiles = 20000
 // On any git error it returns (nil, err) and the caller should fall back to the
 // on-disk snippet check — drift tracking is best-effort, never fatal.
 func Reconcile(repoRoot string, anchors []Anchor) ([]Result, error) {
-	repo, err := git.PlainOpen(repoRoot)
+	repo, err := gitopen.Open(repoRoot, false)
 	if err != nil {
 		return nil, err
 	}

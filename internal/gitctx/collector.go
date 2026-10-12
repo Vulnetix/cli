@@ -9,6 +9,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/vulnetix/cli/v3/internal/gitopen"
 )
 
 // GitContext holds repository metadata collected via go-git.
@@ -41,9 +42,7 @@ const maxLogCommits = 50
 // Collect gathers git context from the repository containing scanPath.
 // Returns nil if scanPath is not inside a git repository.
 func Collect(scanPath string) *GitContext {
-	repo, err := git.PlainOpenWithOptions(scanPath, &git.PlainOpenOptions{
-		DetectDotGit: true,
-	})
+	repo, err := gitopen.Open(scanPath, true)
 	if err != nil {
 		return nil
 	}
