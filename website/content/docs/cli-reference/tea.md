@@ -120,6 +120,7 @@ A release spans **two roots**: the product holds the evidence, the component hol
 | Flag | Meaning |
 |---|---|
 | `--product` | Product name; defaults to `GITHUB_REPOSITORY` |
+| `--purl` | Package URL identifying the product; defaults to `pkg:github/<product>` when the product is `owner/repo`. Set it when the product is not a GitHub repository |
 | `--version` | Release version; defaults to the tag |
 | `--date` | Release date (RFC3339); defaults to now |
 | `--pre-release` | Mark the release as a pre-release |

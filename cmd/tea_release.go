@@ -52,6 +52,8 @@ that as part of the same run; public cannot be undone.`,
 		RunE: runTeaRelease,
 	}
 	cmd.Flags().String("product", "", "product name; defaults to the GitHub repository")
+	cmd.Flags().String("purl", "",
+		"Package URL identifying the product; defaults to pkg:github/<--product> when that is owner/repo")
 	cmd.Flags().String("version", "", "release version; defaults to the tag")
 	cmd.Flags().Bool("auto-version", false,
 		"outside a tag run, derive the version from `git describe` and mark it a pre-release")
@@ -79,6 +81,7 @@ that as part of the same run; public cannot be undone.`,
 // teaReleaseInputs is everything the command needs, after defaults.
 type teaReleaseInputs struct {
 	Product    string
+	PURL       string
 	Version    string
 	Date       string
 	PreRelease bool
@@ -100,6 +103,15 @@ func resolveTeaReleaseInputs(cmd *cobra.Command, args []string) (teaReleaseInput
 	}
 	if in.Product == "" {
 		return in, fmt.Errorf("--product is required outside GitHub Actions (GITHUB_REPOSITORY was not set)")
+	}
+
+	// A product that is not a GitHub repository, such as a container image built
+	// from a private monorepo, would otherwise be given a pkg:github identity
+	// naming a repository that does not exist.
+	in.PURL, _ = cmd.Flags().GetString("purl")
+	in.PURL = strings.TrimSpace(in.PURL)
+	if in.PURL == "" {
+		in.PURL = teaReleasePURL(in.Product)
 	}
 
 	in.Version, _ = cmd.Flags().GetString("version")
@@ -222,6 +234,9 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("product   %s\n", in.Product)
+	if in.PURL != "" {
+		fmt.Printf("purl      %s\n", in.PURL)
+	}
 	fmt.Printf("version   %s\n", in.Version)
 	fmt.Printf("released  %s\n", in.Date)
 	for _, f := range in.Files {
@@ -242,7 +257,7 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 	// 1. Product. Idempotent on the name, so a re-run finds the same object
 	//    rather than creating a second one.
 	product, err := c.CreateProduct(ctx, in.Product,
-		[]tea.Identifier{{IDType: "PURL", IDValue: teaReleasePURL(in.Product)}},
+		[]tea.Identifier{{IDType: "PURL", IDValue: in.PURL}},
 		"cli-product-"+in.Product)
 	if err != nil {
 		return teaFail(err)
@@ -271,7 +286,7 @@ func runTeaRelease(cmd *cobra.Command, args []string) error {
 	// Same name, same version — derived identically on the server, so this is
 	// idempotent alongside everything else here.
 	component, err := c.CreateComponent(ctx, in.Product,
-		[]tea.Identifier{{IDType: "PURL", IDValue: teaReleasePURL(in.Product)}},
+		[]tea.Identifier{{IDType: "PURL", IDValue: in.PURL}},
 		"cli-component-"+in.Product)
 	if err != nil {
 		return teaFail(err)

@@ -3031,6 +3031,7 @@
         "org-id",
         "pre-release",
         "product",
+        "purl",
         "reason",
         "server",
         "silent",

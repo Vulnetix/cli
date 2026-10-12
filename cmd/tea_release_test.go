@@ -271,6 +271,55 @@ func TestResolveTeaReleaseInputs_ExplicitDateWinsOverCommitDate(t *testing.T) {
 	}
 }
 
+// A product that is not a GitHub repository must be able to say so: without
+// --purl its identity is derived as pkg:github/<product>, which for an image
+// built out of another repository names a repository that does not exist.
+func TestResolveTeaReleaseInputs_ExplicitPURLWinsOverDerivedOne(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/website")
+
+	cmd := newTeaReleaseCommand()
+	for k, v := range map[string]string{
+		"product": "Vulnetix/pix-sandbox",
+		"purl":    "pkg:generic/vulnetix/pix-sandbox",
+		"version": "image-0123456789ab",
+		"date":    "2026-10-12T00:00:00Z",
+	} {
+		if err := cmd.Flags().Set(k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	in, err := resolveTeaReleaseInputs(cmd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.PURL != "pkg:generic/vulnetix/pix-sandbox" {
+		t.Errorf("purl %q, want the explicit --purl unchanged", in.PURL)
+	}
+}
+
+func TestResolveTeaReleaseInputs_PURLDefaultsToGitHubRepository(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "Vulnetix/cli")
+
+	cmd := newTeaReleaseCommand()
+	for k, v := range map[string]string{
+		"version": "v1.0.0",
+		"date":    "2026-10-12T00:00:00Z",
+	} {
+		if err := cmd.Flags().Set(k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	in, err := resolveTeaReleaseInputs(cmd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.PURL != "pkg:github/Vulnetix/cli" {
+		t.Errorf("purl %q, want pkg:github/Vulnetix/cli", in.PURL)
+	}
+}
+
 // Without --date, the release date is HEAD's committer date, and it must not
 // move between calls against the same commit. This is the production bug:
 // CreateProductRelease and CreateComponentRelease send this value under a
