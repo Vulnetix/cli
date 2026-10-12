@@ -885,12 +885,13 @@ func (c *Client) V2TreeSitterQueries(id string, p V2TreeSitterParams) (*TreeSitt
 // DefenceSearchParams carries the filters for the virtual-patch and
 // countermeasure catalogue searches. All fields are optional.
 type DefenceSearchParams struct {
+	Inputs        Inputs   // what to find defences for, in any input kind
 	Kinds         []string // output format (SNORT, SIGMA, STIX, …)
-	CveIDs        []string
-	Confidence    string // HIGH | MEDIUM | LOW
-	DeployMode    string // log | block (virtual patches only)
-	ExploitSource string // source slug of the originating exploit
-	Q             string // free text over title, description and rule body
+	CveIDs        []string // kept for callers that predate Inputs; sent as vulnId
+	Confidence    string   // HIGH | MEDIUM | LOW
+	DeployMode    string   // log | block (virtual patches only)
+	ExploitSource string   // source slug of the originating exploit
+	Q             string   // free text over title, description and rule body
 	Limit         int
 	Offset        int
 }
@@ -900,9 +901,9 @@ func defenceQuery(p DefenceSearchParams) string {
 	for _, v := range p.Kinds {
 		q.Add("kind", v)
 	}
-	for _, v := range p.CveIDs {
-		q.Add("cveId", v)
-	}
+	in := p.Inputs
+	in.VulnIDs = append(append([]string{}, in.VulnIDs...), p.CveIDs...)
+	in.Encode(q)
 	for k, v := range map[string]string{
 		"confidence":    p.Confidence,
 		"deployMode":    p.DeployMode,
@@ -938,12 +939,58 @@ func (c *Client) V2Countermeasures(id string) (map[string]interface{}, error) {
 
 // V2VirtualPatchSearch searches the virtual-patch catalogue.
 func (c *Client) V2VirtualPatchSearch(p DefenceSearchParams) (map[string]interface{}, error) {
-	return doV2Get(c, "/virtual-patches"+defenceQuery(p))
+	return c.V2DefenceSearch("virtual-patches", p)
 }
 
 // V2CountermeasureSearch searches the countermeasure catalogue.
 func (c *Client) V2CountermeasureSearch(p DefenceSearchParams) (map[string]interface{}, error) {
-	return doV2Get(c, "/countermeasures"+defenceQuery(p))
+	return c.V2DefenceSearch("countermeasures", p)
+}
+
+// V2DefenceSearch searches one lane's catalogue ("virtual-patches" or
+// "countermeasures"). Inputs too long for a query string (a SWID tag, a CEL
+// expression) go as a JSON body to the same route.
+func (c *Client) V2DefenceSearch(lane string, p DefenceSearchParams) (map[string]interface{}, error) {
+	if !p.Inputs.NeedsBody() {
+		return doV2Get(c, "/"+lane+defenceQuery(p))
+	}
+	body := map[string]any{}
+	in := p.Inputs
+	in.VulnIDs = append(append([]string{}, in.VulnIDs...), p.CveIDs...)
+	raw, _ := json.Marshal(in)
+	_ = json.Unmarshal(raw, &body)
+	if len(p.Kinds) > 0 {
+		body["kind"] = p.Kinds
+	}
+	for k, v := range map[string]string{"confidence": p.Confidence, "deployMode": p.DeployMode, "exploitSource": p.ExploitSource, "q": p.Q} {
+		if v != "" {
+			body[k] = v
+		}
+	}
+	if p.Limit > 0 {
+		body["limit"] = p.Limit
+	}
+	if p.Offset > 0 {
+		body["offset"] = p.Offset
+	}
+	resp, err := c.DoRequest("POST", "/"+lane, body)
+	if err != nil {
+		return nil, err
+	}
+	if pl, locked := decodePlanLocked(resp); locked {
+		return nil, pl
+	}
+	var out map[string]interface{}
+	if err := json.Unmarshal(resp, &out); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return out, nil
+}
+
+// V2VulnDefences retrieves one lane's defences for an identifier: a
+// vulnerability id, or in its place a purl, CPE or TEI.
+func (c *Client) V2VulnDefences(lane, identifier string) (map[string]interface{}, error) {
+	return doV2Get(c, fmt.Sprintf("/vuln/%s/%s", url.PathEscape(identifier), lane))
 }
 
 // V2DefenceArchive downloads one defence rule as the file its tool expects.

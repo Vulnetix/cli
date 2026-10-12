@@ -257,6 +257,41 @@ The VDB accepts **78+ vulnerability identifier formats**. You are not limited to
 
 > See `vulnetix vdb spec` for the complete OpenAPI specification and the full list of accepted identifier patterns.
 
+### Input kinds
+
+Every command that takes a `<vuln-id>` or `<CVE-ID>` also takes the software itself, in whatever form you hold it.
+
+You can put any of these in the id's place:
+- a purl
+- a CPE (2.3 or 2.2)
+- a TEI
+- a SWID tag file
+- a JSON object of inputs
+
+Or you can use these flags:
+
+| Flag | Input |
+|------|-------|
+| `--vuln-id <id>` | Any advisory id (repeatable) |
+| `--package <name>` with `--ecosystem` and `--package-version` | A package as its ecosystem names it (npm `@scope/name`, Maven `group:artifact`) |
+| `--purl <purl>` | A Package URL |
+| `--vendor <vendor>` with `--product <product>` | Software as CVE records and CPEs name it |
+| `--cpe <cpe>` | A CPE 2.3 formatted string or 2.2 URI |
+| `--swid <file>` | A SWID tag: a file path, `-` for stdin, or the XML itself |
+| `--tei <urn:tei:…>` | A Transparency Exchange Identifier. purl TEIs from any publisher; uuid TEIs against your organisation's transparency log |
+| `--cel <expr>` | A TEA Insights CEL predicate over your organisation's transparency log, the TEA Explorer dialect |
+
+When the input is not a vulnerability id, it is resolved to the advisories that affect it, using the matcher `vulnetix sca` uses. The command then runs once for each, at most 25. A vulnerability id runs the command exactly as before.
+
+A command's own flag of the same name keeps its meaning. For example, `fixes --purl` still filters the fixes to that package.
+
+```bash
+vulnetix vdb workarounds pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1
+vulnetix vdb kev get cpe:2.3:o:paloaltonetworks:pan-os:11.1.0:*:*:*:*:*:*:*
+vulnetix vdb exploits --vendor apache --product log4j --package-version 2.14.1
+vulnetix vdb advisories urn:tei:purl:vulnetix.com:pkg:npm/lodash@4.17.20
+```
+
 ## CLI Commands
 
 ### vdb vuln
@@ -2033,7 +2068,7 @@ vulnetix vdb snort-rules get CVE-2021-44228 --format rules > log4shell.rules
 
 ### vdb virtual-patches get
 
-**Description**: Blocking defences for a single advisory, derived from the proof-of-concept exploits Vulnetix has ingested for it. Formats: Snort, Suricata, nginx ModSecurity, AWS WAF, Cloudflare WAF and layer-7 regex.
+**Description**: Blocking defences for an advisory, a package, a product, or any other input kind, derived from the proof-of-concept exploits Vulnetix has ingested. Formats: Snort, Suricata, nginx ModSecurity, AWS WAF, Cloudflare WAF and layer-7 regex.
 
 Each artifact names the exploit it came from, the confidence in it, the mode it is safe to start in (`log` or `block`), and what it does not cover. `--format <name>` emits that format's rule bodies as a loadable file instead of JSON.
 
@@ -2041,18 +2076,22 @@ Counts are available on every plan. The rule bodies require Pro; a community key
 
 **Usage**:
 ```bash
-vulnetix vdb virtual-patches get <CVE-ID> [flags]
+vulnetix vdb virtual-patches get [input] [flags]
 ```
 
 **Flags**:
 - `--format json|snort|suricata|modsecurity|nginx|awswaf|cloudflare|regex` — output format (default: `json`)
 - `-o, --output <file>` — write to file instead of stdout
+- every input-kind flag (see [Input kinds](#input-kinds)); flags narrow the argument
 
 **Examples**:
 ```bash
 vulnetix vdb virtual-patches get CVE-2021-44228
 vulnetix vdb virtual-patches get CVE-2021-44228 --format modsecurity -o modsec.conf
 vulnetix vdb virtual-patches get CVE-2021-44228 --format awswaf -o wafv2-rule.json
+vulnetix vdb virtual-patches get pkg:maven/org.springframework.cloud/spring-cloud-function-core@3.1.6
+vulnetix vdb virtual-patches get cpe:2.3:o:paloaltonetworks:pan-os:11.1.0:*:*:*:*:*:*:*
+vulnetix vdb virtual-patches get --vendor "Palo Alto Networks" --product PAN-OS --package-version 11.1.0
 ```
 
 ---
@@ -2068,6 +2107,7 @@ vulnetix vdb virtual-patches list [flags]
 
 **Flags**:
 - `--kind <FORMAT>` — repeat for OR: `SNORT`, `SURICATA`, `MODSECURITY`, `NGINX`, `AWS_WAF`, `CLOUDFLARE_WAF`, `REGEX_L7`
+- every input-kind flag (`--vuln-id`, `--package`, `--ecosystem`, `--package-version`, `--purl`, `--vendor`, `--product`, `--cpe`, `--swid`, `--tei`, `--cel`)
 - `--cve-id <id>` — repeat to limit to specific advisories
 - `--confidence HIGH|MEDIUM|LOW`
 - `--deploy-mode log|block` — the mode the artifact is safe to start in
@@ -2081,6 +2121,7 @@ vulnetix vdb virtual-patches list [flags]
 vulnetix vdb virtual-patches list --kind AWS_WAF --deploy-mode block
 vulnetix vdb virtual-patches list --cve-id CVE-2021-44228 --confidence HIGH
 vulnetix vdb virtual-patches list --exploit-source exploit-db --format snort -o local.rules
+vulnetix vdb virtual-patches list --cel "component.ecosystem == 'npm'" --kind NGINX
 ```
 
 ---
@@ -2106,7 +2147,7 @@ vulnetix vdb virtual-patches fetch 1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d -o local
 
 ### vdb countermeasures get
 
-**Description**: Detection content for a single advisory, derived from the proof-of-concept exploits Vulnetix has ingested for it. Formats: Sigma for a SIEM, YARA for an endpoint or memory scan, STIX 2.1 for a threat platform, OpenIOC for a host sweep.
+**Description**: Detection content for an advisory, a package, a product, or any other input kind, derived from the proof-of-concept exploits Vulnetix has ingested. Formats: Sigma for a SIEM, YARA for an endpoint or memory scan, STIX 2.1 for a threat platform, OpenIOC for a host sweep.
 
 `--format sigma` emits a multi-document YAML file that pySigma reads directly; `--format stix` emits the bundle.
 
@@ -2114,18 +2155,21 @@ Counts are available on every plan; the rule bodies require Pro.
 
 **Usage**:
 ```bash
-vulnetix vdb countermeasures get <CVE-ID> [flags]
+vulnetix vdb countermeasures get [input] [flags]
 ```
 
 **Flags**:
 - `--format json|sigma|yara|stix|openioc` — output format (default: `json`)
 - `-o, --output <file>` — write to file instead of stdout
+- every input-kind flag (see [Input kinds](#input-kinds)); flags narrow the argument
 
 **Examples**:
 ```bash
 vulnetix vdb countermeasures get CVE-2021-44228
 vulnetix vdb countermeasures get CVE-2021-44228 --format sigma -o rules.yml
 vulnetix vdb countermeasures get CVE-2021-44228 --format yara -o rules.yar
+vulnetix vdb countermeasures get pkg:npm/lodash@4.17.20
+vulnetix vdb countermeasures get ./product.swidtag
 ```
 
 ---
@@ -2142,6 +2186,7 @@ vulnetix vdb countermeasures list [flags]
 **Flags**:
 - `--kind <FORMAT>` — repeat for OR: `SIGMA`, `YARA`, `STIX`, `OPENIOC`
 - `--cve-id <id>` — repeat to limit to specific advisories
+- every input-kind flag (`--vuln-id`, `--package`, `--ecosystem`, `--package-version`, `--purl`, `--vendor`, `--product`, `--cpe`, `--swid`, `--tei`, `--cel`)
 - `--confidence HIGH|MEDIUM|LOW`
 - `--exploit-source <slug>`
 - `--match-content <text>`
@@ -2172,6 +2217,38 @@ vulnetix vdb countermeasures fetch <uuid> [flags]
 **Examples**:
 ```bash
 vulnetix vdb countermeasures fetch 2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e -o rule.yar
+```
+
+---
+
+### vdb virtual-patches counts / vdb countermeasures counts
+
+**Description**: Counts the lane's defences for many inputs at once, in one request per 100 inputs (`POST /v2/defences/counts`).
+
+Inputs can come from three places:
+- **Arguments:** each one is an input, read as any `get` argument would be.
+- **Input-kind flags:** together they make one more input.
+- **`--file`:** one input per line, written as an argument would be or as a JSON object of inputs with an optional `"key"`.
+
+The counts (total, and by kind) are on every plan. With Pro, each defence is listed with the console link that opens it, for example `https://www.vulnetix.com/resolve/virtual-patching?dc=<uuid>#catalogue`. The link is clickable in a terminal that supports it.
+
+**Usage**:
+```bash
+vulnetix vdb virtual-patches counts [input...] [flags]
+vulnetix vdb countermeasures counts [input...] [flags]
+```
+
+**Flags**:
+- `--file <path>`: one input per line; `-` reads stdin. Blank lines and `#` comments are skipped
+- `--format table|json`: output format (default: `table`); JSON carries both lanes and `resolved` for every input
+- `-o, --output json|pretty|table|<file>`: `json`, `pretty` and `table` choose the format, as elsewhere in `vdb`; any other value is a file the JSON response is written to
+- every input-kind flag, as one more input
+
+**Examples**:
+```bash
+vulnetix vdb virtual-patches counts CVE-2024-3400 pkg:npm/lodash@4.17.20
+vulnetix vdb countermeasures counts --file inputs.txt
+printf '%s\n' '{"key":"log4j","vendor":"apache","product":"log4j","version":"2.14.1"}' | vulnetix vdb virtual-patches counts --file -
 ```
 
 ---
