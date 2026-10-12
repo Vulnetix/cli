@@ -55,11 +55,13 @@ jobs:
           CGO_CFLAGS: "-w"
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           # Pinned: a linter upgrade must be a deliberate commit, not a
-          # surprise red pipeline on an unrelated PR.
-          version: v1.64.8
+          # surprise red pipeline on an unrelated PR. v1.64.8 was built with
+          # Go 1.24 and refuses a module that targets Go 1.25, so the job failed
+          # before checking any code and skipped every job that needs it.
+          version: v2.14.0
           args: --timeout=10m
         env:
           CGO_ENABLED: "1"
