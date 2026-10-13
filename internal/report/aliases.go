@@ -10,8 +10,9 @@ import (
 // package listing both reads as two problems, and the reader has no way to know
 // fixing one fixes the other.
 //
-// Two advisories fold only when each lists the other as an alias, they reached the
-// same verdict and they are different kinds of identifier, so an alias group that
+// Two advisories fold only when one of them makes an unambiguous claim on the other
+// (it lists the other as an alias and no second id of that family), they reached
+// the same verdict and they are different kinds of identifier, so an alias group that
 // wrongly holds a second vulnerability never hides one the scan found affecting
 // the package while the other did not The advisory kept is the one that sorts first; the
 // others' ids move to AlsoKnownAs, and their signals, KEV flag, exploit count
@@ -37,15 +38,17 @@ func foldAliases(in []Advisory) []Advisory {
 		}
 		return i
 	}
-	// Only a mutual statement links two advisories: each lists the other's id as
-	// an alias. A shared third alias is how one polluted group chained six
+	// Only an unambiguous statement links two advisories: one lists the other's id
+	// as an alias and names no second id of that family. The server caps alias lists
+	// at 20, so the CVE side of a SNYK/GMS twin often omits it; a polluted record
+	// lists many ids of one family and so claims nothing. A shared third alias is how one polluted group chained six
 	// distinct CVEs into one row, so it is not evidence. A group also holds at
 	// most one identifier per family (one CVE, one GHSA, one PYSEC, one SNYK'
 	// ...): two CVEs are two vulnerabilities whatever a group says.
 	for i, a := range in {
 		for _, al := range a.Ev.Aliases {
 			j, ok := index[strings.ToUpper(strings.TrimSpace(al))]
-			if !ok || j == i || in[j].Verdict.Verdict != a.Verdict.Verdict || !lists(in[j], a.ID) {
+			if !ok || j == i || in[j].Verdict.Verdict != a.Verdict.Verdict || !(claims(a, in[j].ID) || claims(in[j], a.ID)) {
 				continue
 			}
 			ri, rj := find(i), find(j)
@@ -152,14 +155,21 @@ func sharesFamily(a, b map[string]bool) bool {
 	return false
 }
 
-// lists reports whether a names id among its aliases.
-func lists(a Advisory, id string) bool {
+// claims reports whether a lists id as an alias and lists no other id of the same
+// family: a precise statement, where a record that lists six CVEs names none of them.
+func claims(a Advisory, id string) bool {
+	fam, found, others := idFamily(id), false, 0
 	for _, al := range a.Ev.Aliases {
+		if idFamily(al) != fam {
+			continue
+		}
 		if strings.EqualFold(strings.TrimSpace(al), strings.TrimSpace(id)) {
-			return true
+			found = true
+		} else {
+			others++
 		}
 	}
-	return false
+	return found && others == 0
 }
 
 // idRank orders the identifier a folded row is named by: the canonical CVE, then

@@ -98,3 +98,24 @@ func TestFoldAliasesNamesTheRowByTheCanonicalID(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+// The server caps alias lists, so the CVE side of a SNYK twin often omits it. The
+// SNYK record's own single, unambiguous claim is enough.
+func TestFoldAliasesAcceptsAnUnambiguousOneSidedClaim(t *testing.T) {
+	cve := aliasAdv("CVE-2021-23337", scan.VerdictAffected, "GHSA-35jh-r3h4-6jhm")
+	snyk := aliasAdv("SNYK-JS-LODASH-1040724", scan.VerdictAffected, "CVE-2021-23337")
+	got := foldAliases([]Advisory{cve, snyk})
+	if len(got) != 1 || got[0].ID != "CVE-2021-23337" || len(got[0].AlsoKnownAs) != 1 {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+// A record that lists several ids of one family claims none of them.
+func TestFoldAliasesIgnoresAnAmbiguousClaim(t *testing.T) {
+	multi := aliasAdv("GMS-2020-1", scan.VerdictAffected, "CVE-2020-0001", "CVE-2020-0002")
+	a := aliasAdv("CVE-2020-0001", scan.VerdictAffected)
+	b := aliasAdv("CVE-2020-0002", scan.VerdictAffected)
+	if got := foldAliases([]Advisory{multi, a, b}); len(got) != 3 {
+		t.Fatalf("an ambiguous claim must not fold anything, got %d", len(got))
+	}
+}
