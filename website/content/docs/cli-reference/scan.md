@@ -123,6 +123,12 @@ then compares your version against every comparable range in it.
   recommended upgrade reflects every advisory on the package.
 - A wildcard (`*`) entry says nothing about where a fix landed and never outweighs
   a precise range, so a package well past its fix stops reporting vulnerable.
+  There is one exception. An explicit "introduced 0, never fixed" range, in a record
+  that has **no bounded range** for the package, settles the install as `affected`:
+  the releases such a record lists beside it are that range spelled out, not the
+  complete list. This is how whole-package malware is recorded, and judging your
+  version against the listed releases alone reported every other version as safe.
+  A bounded range still wins, and a bare `*` version or a git range is no evidence.
 - Versions are compared the way their ecosystem writes them: PEP 440 (`1.0.0rc1`,
   `3.2.0.dev0`, `1.0.post1`) for Python, and a precompiled RubyGem's platform
   suffix (`1.19.1-x86_64-linux-gnu`) is ignored.
