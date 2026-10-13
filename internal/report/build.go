@@ -85,6 +85,8 @@ func Build(in Input) Report {
 	rep.Meta.Strict = in.Strict
 	for _, key := range order {
 		p := byKey[key]
+		p.Advisories = foldAliases(p.Advisories)
+		p.RuledOut = foldAliases(p.RuledOut)
 		finish(p, in.Controls, now)
 		rep.Packages = append(rep.Packages, *p)
 	}

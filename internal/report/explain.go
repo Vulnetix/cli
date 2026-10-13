@@ -24,7 +24,7 @@ func FindExplain(r Report, query string) []Package {
 			continue
 		}
 		for _, a := range append(append([]Advisory{}, p.Advisories...), p.RuledOut...) {
-			if strings.EqualFold(a.ID, q) {
+			if advisoryNamed(a, q) {
 				p.Advisories = filterByID(p.Advisories, q)
 				p.RuledOut = filterByID(p.RuledOut, q)
 				out = append(out, p)
@@ -38,7 +38,7 @@ func FindExplain(r Report, query string) []Package {
 func filterByID(in []Advisory, id string) []Advisory {
 	var out []Advisory
 	for _, a := range in {
-		if strings.EqualFold(a.ID, id) {
+		if advisoryNamed(a, id) {
 			out = append(out, a)
 		}
 	}
@@ -76,6 +76,9 @@ func explainAdvisory(p Package, a Advisory, o Options, s *Style) string {
 	var b strings.Builder
 	v := a.Verdict
 	fmt.Fprintf(&b, "\n %s %s %s\n\n", s.Bold(p.Label()), s.Dim(s.G.Sep), s.Bold(a.ID))
+	if len(a.AlsoKnownAs) > 0 {
+		fmt.Fprintf(&b, " %s\n\n", s.Dim("also known as "+strings.Join(a.AlsoKnownAs, ", ")))
+	}
 
 	var head string
 	switch v.Verdict {

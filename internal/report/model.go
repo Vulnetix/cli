@@ -95,7 +95,10 @@ type Advisory struct {
 	AnyUpgrade bool
 	// FixAvailability is the server's word: available, partial, no_fix.
 	FixAvailability string
-	Ev              scan.EnrichedVuln
+	// AlsoKnownAs lists the other identifiers of the same vulnerability that were
+	// folded into this one (see foldAliases).
+	AlsoKnownAs []string
+	Ev          scan.EnrichedVuln
 }
 
 // FixState is the package-level answer to "how do I fix it".

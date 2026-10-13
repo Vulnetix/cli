@@ -19,6 +19,8 @@ type VulnFinding struct {
 	InVulnCheckKev bool
 	InEuKev        bool
 	ExploitCount   int
+	// Aliases are the other identifiers the server knows this advisory by.
+	Aliases []string
 }
 
 // LookupStats summarises the outcome of a VDB lookup. /v2/cli.sca populates it
