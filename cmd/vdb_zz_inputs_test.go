@@ -106,12 +106,21 @@ func TestWrapperPassesAVulnIDStraightThrough(t *testing.T) {
 }
 
 // The capped fan-out runs the ids that matter first: CVE, GHSA and CNVD ids
-// ahead of the other families, newest first.
-func TestFanoutOrderRanksCVEGHSAAndCNVDNewestFirst(t *testing.T) {
-	got := fanoutOrder([]string{"BDU:2022-01628", "CVE-2021-9999", "PYSEC-2022-1", "CVE-2022-22963", "GHSA-6v73-fgf6-w5j7", "CVE-2021-10001", "CNVD-2022-23944"})
-	want := []string{"GHSA-6v73-fgf6-w5j7", "CVE-2022-22963", "CVE-2021-10001", "CVE-2021-9999", "CNVD-2022-23944", "PYSEC-2022-1", "BDU:2022-01628"}
+// ahead of the other families. The server ranks /v2/inputs/resolve (known
+// exploited first), so its order stands within a family; an unranked
+// (alphabetical) list gets newest first.
+func TestFanoutOrderRanksCVEGHSAAndCNVDFirst(t *testing.T) {
+	// As the server ranks them: the known-exploited CVE-2024-3400 first.
+	got := fanoutOrder([]string{"PAN-SA-2024-0015", "CVE-2024-3400", "BDU:2024-02984", "CVE-2025-0108", "CVE-2017-15944"})
+	want := []string{"CVE-2024-3400", "CVE-2025-0108", "CVE-2017-15944", "PAN-SA-2024-0015", "BDU:2024-02984"}
 	if strings.Join(got, " ") != strings.Join(want, " ") {
-		t.Fatalf("fanoutOrder = %v\nwant %v", got, want)
+		t.Fatalf("ranked: fanoutOrder = %v\nwant %v", got, want)
+	}
+	// Unranked, as an older server sends them: newest first.
+	got = fanoutOrder([]string{"BDU:2022-01628", "CNVD-2022-23944", "CVE-2021-10001", "CVE-2021-9999", "CVE-2022-22963", "GHSA-6v73-fgf6-w5j7", "PYSEC-2022-1"})
+	want = []string{"GHSA-6v73-fgf6-w5j7", "CVE-2022-22963", "CVE-2021-10001", "CVE-2021-9999", "CNVD-2022-23944", "PYSEC-2022-1", "BDU:2022-01628"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("unranked: fanoutOrder = %v\nwant %v", got, want)
 	}
 }
 

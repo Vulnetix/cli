@@ -145,8 +145,10 @@ var inapplicableAnswer = regexp.MustCompile(`(?i)invalid vulnerability identifie
 func inapplicable(err error) bool { return inapplicableAnswer.MatchString(err.Error()) }
 
 // fanoutOrder ranks the ids an input resolves to, so the capped run covers the
-// ones that matter: CVE, GHSA and CNVD ids first, then the other families, and
-// newest first within each.
+// ones that matter: CVE, GHSA and CNVD ids first, then the other families. The
+// server already ranks /v2/inputs/resolve (known exploited first, then newest),
+// and it alone knows which are exploited, so its order stands within a family.
+// A server that sent them unranked (alphabetical) gets newest first instead.
 func fanoutOrder(ids []string) []string {
 	out := append([]string{}, ids...)
 	rank := func(id string) int {
@@ -156,11 +158,12 @@ func fanoutOrder(ids []string) []string {
 		}
 		return 1
 	}
+	ranked := !sort.StringsAreSorted(ids)
 	sort.SliceStable(out, func(i, j int) bool {
 		if ri, rj := rank(out[i]), rank(out[j]); ri != rj {
 			return ri < rj
 		}
-		return naturalGreater(out[i], out[j])
+		return !ranked && naturalGreater(out[i], out[j])
 	})
 	return out
 }
