@@ -77,6 +77,8 @@ type advisory struct {
 	Fix           string `json:"fix"`
 	FixSource     string `json:"fixSource"`
 	Detail        string `json:"detail"`
+	// Aliases are the identifiers the report folded into this row.
+	Aliases []string `json:"aliases"`
 }
 
 type pkg struct {
@@ -342,6 +344,16 @@ type repoResult struct {
 	OSVRulesOut               int // OSV says affected, we ruled it out
 }
 
+func advisoryClosure(o *osvClient, a advisory) map[string]bool {
+	set := closure(o, a.ID)
+	for _, al := range a.Aliases {
+		for k := range closure(o, al) {
+			set[k] = true
+		}
+	}
+	return set
+}
+
 func closure(o *osvClient, id string) map[string]bool {
 	set := map[string]bool{strings.ToUpper(id): true}
 	if r := o.vuln(id); r != nil {
@@ -416,6 +428,9 @@ func compare(name string, rep *vxReport, allPurls []string, o *osvClient) repoRe
 	for _, p := range rep.Packages {
 		for _, a := range append(append([]advisory{}, p.Advisories...), p.RuledOut...) {
 			ids[a.ID] = true
+			for _, al := range a.Aliases {
+				ids[al] = true
+			}
 		}
 	}
 	var wg sync.WaitGroup
@@ -443,12 +458,12 @@ func compare(name string, rep *vxReport, allPurls []string, o *osvClient) repoRe
 		ours := p.Advisories
 		oursSets := make([]map[string]bool, len(ours))
 		for i, a := range ours {
-			oursSets[i] = closure(o, a.ID)
+			oursSets[i] = advisoryClosure(o, a)
 		}
 		ruled := p.RuledOut
 		ruledSets := make([]map[string]bool, len(ruled))
 		for i, a := range ruled {
-			ruledSets[i] = closure(o, a.ID)
+			ruledSets[i] = advisoryClosure(o, a)
 		}
 		res.Counted += len(ours)
 

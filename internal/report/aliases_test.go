@@ -88,3 +88,13 @@ func TestFoldAliasesNeverChainsDistinctCVEs(t *testing.T) {
 		}
 	}
 }
+
+// The row is named by the most canonical identifier, not the one that sorts last.
+func TestFoldAliasesNamesTheRowByTheCanonicalID(t *testing.T) {
+	gms := aliasAdv("GMS-2022-11", scan.VerdictAffected, "GHSA-64g7-mvw6-v9qj")
+	ghsa := aliasAdv("GHSA-64g7-mvw6-v9qj", scan.VerdictAffected, "GMS-2022-11")
+	got := foldAliases([]Advisory{gms, ghsa})
+	if len(got) != 1 || got[0].ID != "GHSA-64g7-mvw6-v9qj" || len(got[0].AlsoKnownAs) != 1 {
+		t.Fatalf("got %+v", got)
+	}
+}
