@@ -68,7 +68,7 @@ If you need a dropped target, the CLI is open source: open an issue or build fro
 Per `Engine.Run`:
 
 1. Acquire a parser from the language's pool (or create one).
-2. `ParseCtx(ctx, nil, source)` — produces a `*Tree`, deferred `Close()`.
+2. `ParseCtx(ctx, nil, source)` — produces a `*Tree`, deferred `Close()`. If the parse fails, the parser is **closed, not returned to the pool**. A parse halted by cancellation (the scan's context ending mid-file) leaves the parser holding its half-built state, and tree-sitter resumes that parse on the next call — against whatever source that call passes. A pooled parser in that state hands the next file a tree carrying the previous file's byte offsets, and reading a capture panics with `slice bounds out of range`. As a second guard, a tree whose root spans more bytes than the source is rejected as a parse failure rather than queried.
 3. `NewQuery([]byte(queryText), language)` — compiles the S-expression, deferred `Close()`. A compile error here causes the query to be skipped for that file; the run continues.
 4. `NewQueryCursor()` + `Exec(query, tree.RootNode())` — primes the cursor.
 5. Loop `NextMatch()` + `FilterPredicates(match, source)` — the second call applies `#eq?`/`#match?`/`#any-of?` semantics that the cursor doesn't enforce on its own.

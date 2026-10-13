@@ -63,13 +63,26 @@ func (e *Engine) Run(ctx context.Context, id treesitter.LanguageID, source []byt
 		return nil, fmt.Errorf("unsupported language %q", id)
 	}
 	parser := pp.pool.Get().(*sitter.Parser)
-	defer pp.pool.Put(parser)
 
 	tree, err := parser.ParseCtx(ctx, nil, source)
 	if err != nil {
+		// A halted parse (cancellation or operation limit) leaves the parser
+		// holding its half-built state, and tree-sitter resumes it on the
+		// next call — against whatever source that call passes. Pooling it
+		// would hand another file a tree with this file's byte offsets, which
+		// panics in Node.Content. A cancellation racing a completed parse can
+		// also leave go-tree-sitter's cancel flag set. Discard the parser.
+		parser.Close()
 		return nil, fmt.Errorf("parse failed: %w", err)
 	}
+	defer pp.pool.Put(parser)
 	defer tree.Close()
+
+	// Belt and braces: never run predicates over a tree that does not
+	// describe this source.
+	if int(tree.RootNode().EndByte()) > len(source) {
+		return nil, fmt.Errorf("parse failed: tree spans %d bytes, source has %d", tree.RootNode().EndByte(), len(source))
+	}
 
 	q, err := sitter.NewQuery([]byte(queryText), pp.lang)
 	if err != nil {
