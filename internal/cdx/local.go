@@ -457,15 +457,18 @@ func buildLocalPurl(name, version, ecosystem string) string {
 		version = scan.StripGemPlatform(version)
 	}
 
-	// npm scoped packages: @scope/name → pkg:npm/scope/name
+	// npm scoped packages: @scope/name → pkg:npm/%40scope/name. The package-url spec
+	// makes the scope the namespace and percent-encodes its @. Dropping the @
+	// (pkg:npm/scope/name) names a different package to every other tool, which is
+	// why an OSV lookup by this purl found nothing for any scoped dependency.
 	if purlType == "npm" && strings.HasPrefix(name, "@") {
 		parts := strings.SplitN(name[1:], "/", 2)
 		if len(parts) == 2 {
 			if version != "" {
-				return fmt.Sprintf("pkg:npm/%s/%s@%s",
+				return fmt.Sprintf("pkg:npm/%%40%s/%s@%s",
 					url.PathEscape(parts[0]), parts[1], url.PathEscape(version))
 			}
-			return fmt.Sprintf("pkg:npm/%s/%s", url.PathEscape(parts[0]), parts[1])
+			return fmt.Sprintf("pkg:npm/%%40%s/%s", url.PathEscape(parts[0]), parts[1])
 		}
 	}
 

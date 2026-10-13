@@ -18,7 +18,7 @@ func TestBuildPkgFromComponentDerivesIdentityFromPURL(t *testing.T) {
 	assert.Equal(t, "@babel/traverse", pkg.Name)
 	assert.Equal(t, "7.25.9", pkg.Version)
 	assert.Equal(t, "npm", pkg.Ecosystem)
-	assert.Equal(t, "pkg:npm/babel/traverse@7.25.9", cdx.BuildLocalPurl(pkg.Name, pkg.Version, pkg.Ecosystem))
+	assert.Equal(t, "pkg:npm/%40babel/traverse@7.25.9", cdx.BuildLocalPurl(pkg.Name, pkg.Version, pkg.Ecosystem))
 }
 
 func TestBuildPkgFromComponentKeepsVulnetixProperties(t *testing.T) {
