@@ -117,8 +117,10 @@ then compares your version against every comparable range in it.
 - One vulnerability under several identifiers (`CVE-2018-16487` and `SNYK-JS-LODASH-73638`
   on the same lodash) is shown **once**, under the identifier that sorts first, with the
   others listed as "also known as" (and under `aliases` in JSON). Advisories fold only
-  when their identifier sets overlap and they reached the same verdict, and the folded
-  advisory keeps the strongest signals of its members. `--explain` finds a folded
+  when one lists the other as an alias without naming a second id of the same family
+  (a polluted group lists many), they are different kinds of identifier, and they
+  reached the same verdict. The folded advisory keeps the strongest signals of its
+  members. `--explain` finds a folded
   identifier. JSON, SARIF and the SBOM still hold every finding.
 - An open-ended range (`< 1.11.23`, "introduced 0") is how a database writes "from
   the beginning, as far as I know". When the record also gives bounded ranges
