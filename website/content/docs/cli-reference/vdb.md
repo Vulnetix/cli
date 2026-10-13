@@ -98,6 +98,8 @@ The VDB API aggregates vulnerability data from:
 - **Ecosystem Sources**: GitHub Security Advisories, OSV, EUVD
 - **Risk Scoring**: FIRST EPSS, Coalition CESS
 
+**Output flag.** `-o` takes a format (`json`, `pretty`, `table`, `yaml`) on every `vdb` command. On commands that can also write a file, any other value is the path to write to, so `-o json` prints JSON and `-o rules.json` writes it.
+
 ## Authentication
 
 ### Recommended: `vulnetix auth login`
@@ -1306,7 +1308,7 @@ vulnetix vdb kev list [flags]
 - `--no-references` — omit the per-entry `references` bucket (JSON only; references are included by default)
 - `--include-cisa` — fold the CISA KEV catalogue into the vulnetix export as its own rows (`source=cisa`). Routes to the vulnetix export (`/v2/vulnetix-kev`), so it composes with `--reason` and `--format csv`, not with `--source`.
 - `--include-enisa` — fold ENISA's EU KEV catalogue into the vulnetix export as its own rows (`source=enisa`). VulnCheck is not offered here: it carries all of CISA plus its own additions, so take it from [vulncheck.com/kev](https://vulncheck.com/kev) or `--source vulncheck`.
-- `-o, --output <file>` — write the response to a file instead of stdout
+- `-o, --output <file>`: write the response to a file instead of stdout
 
 > **Behaviour change (v2.6+)**: `vdb kev list` (JSON) now merges all four KEV sources by default — CISA, vulnetix, enisa, and vulncheck — via the unified `/v2/kev` endpoint. To restore the previous vulnetix-only behaviour pass `--source vulnetix` (or use `--reason …` / `--format csv`, both of which still resolve to the vulnetix-only export).
 
@@ -1374,7 +1376,7 @@ vulnetix vdb kev get <CVE-ID> [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write the entry JSON to a file instead of stdout
+- `-o, --output <file>`: write the entry JSON to a file instead of stdout
 
 **Example**:
 ```bash
@@ -1454,7 +1456,7 @@ vulnetix vdb exploits archived <CVE-ID> [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write JSON to a file
+- `-o, --output <file>`: write JSON to a file
 
 **Example**:
 ```bash
@@ -1473,7 +1475,7 @@ vulnetix vdb exploits poc <exploit-uuid> [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write to this path (default: filename from `Content-Disposition`)
+- `-o, --output <file>`: write to this path (default: filename from `Content-Disposition`)
 - `--print` — write to stdout instead of disk
 
 **Example**:
@@ -1515,7 +1517,7 @@ vulnetix vdb iocs get <CVE-ID> [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write JSON to a file
+- `-o, --output <file>`: write JSON to a file
 
 **Example**:
 ```bash
@@ -1544,7 +1546,7 @@ vulnetix vdb iocs list [flags]
 
 **Output flags**:
 - `--format <name>` — `json` (default) | `csv` | `stix`
-- `-o, --output <file>` — write to a file
+- `-o, --output <file>`: write to a file
 
 **Examples**:
 ```bash
@@ -1570,7 +1572,7 @@ vulnetix vdb sightings <CVE-ID> [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write JSON to a file
+- `-o, --output <file>`: write JSON to a file
 
 **Example**:
 ```bash
@@ -1589,7 +1591,7 @@ vulnetix vdb vex get <CVE-ID> [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write JSON to a file
+- `-o, --output <file>`: write JSON to a file
 
 **Example**:
 ```bash
@@ -1613,7 +1615,7 @@ vulnetix vdb vex list [flags]
 - `--supplier <text>` — ILIKE substring
 - `--since <RFC3339>` — only statements with timestamp >=
 - `--limit <n>` (default 50, max 200), `--offset <n>`
-- `-o, --output <file>` — write JSON to a file
+- `-o, --output <file>`: write JSON to a file
 
 **Examples**:
 ```bash
@@ -1654,7 +1656,7 @@ vulnetix vdb triage [flags]
 
 **Output flags**:
 - `--format <name>` — `json` (default) | `csv`
-- `-o, --output <file>` — write to a file
+- `-o, --output <file>`: write to a file
 
 **Examples**:
 ```bash
@@ -1703,7 +1705,7 @@ vulnetix vdb raw get --source <slug> <CVE-ID> [flags]
 
 **Flags**:
 - `--source <slug>` — required. Run `vdb raw sources` for the catalogue (`mitre-cve`, `ghsa`, `osv`, `euvd`, …).
-- `-o, --output <file>` — write to this path (default: `<source>-<CVE>.bin`)
+- `-o, --output <file>`: write to this path (default: `<source>-<CVE>.bin`)
 
 **Example**:
 ```bash
@@ -1724,7 +1726,7 @@ vulnetix vdb nuclei get <CVE-ID> [flags]
 **Flags**:
 - `--format <name>` — `json` (default) | `yaml`
 - `--first` — (yaml only) return only the first template body
-- `-o, --output <file>` — write to a file
+- `-o, --output <file>`: write to a file
 
 **Examples**:
 ```bash
@@ -1768,7 +1770,7 @@ vulnetix vdb msrc patch-tuesdays [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write JSON to a file
+- `-o, --output <file>`: write JSON to a file
 
 **Example**:
 ```bash
@@ -1962,7 +1964,7 @@ vulnetix vdb attack-techniques get <CVE-ID> [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write JSON to a file instead of stdout
+- `-o, --output <file>`: write JSON to a file instead of stdout
 
 **JSON response shape** (abbreviated):
 ```json
@@ -2026,7 +2028,7 @@ vulnetix vdb attack-techniques list [flags]
 - `--until <RFC3339>` — only mappings created at or before this time
 - `--limit <n>` — max items per page (1-200, default 50)
 - `--offset <n>` — pagination offset
-- `-o, --output <file>` — write JSON to a file
+- `-o, --output <file>`: write JSON to a file
 
 **Examples**:
 ```bash
@@ -2056,7 +2058,7 @@ vulnetix vdb snort-rules get <CVE-ID> [flags]
 
 **Flags**:
 - `--format json|rules` — output format (default: `json`)
-- `-o, --output <file>` — write to file instead of stdout
+- `-o, --output <file>`: write to file instead of stdout
 
 **Examples**:
 ```bash
@@ -2081,7 +2083,7 @@ vulnetix vdb virtual-patches get [input] [flags]
 
 **Flags**:
 - `--format json|snort|suricata|modsecurity|nginx|awswaf|cloudflare|regex` — output format (default: `json`)
-- `-o, --output <file>` — write to file instead of stdout
+- `-o, --output <file>`: write to file instead of stdout
 - every input-kind flag (see [Input kinds](#input-kinds)); flags narrow the argument
 
 **Examples**:
@@ -2136,7 +2138,7 @@ vulnetix vdb virtual-patches fetch <uuid> [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write to file instead of stdout
+- `-o, --output <file>`: write to file instead of stdout
 
 **Examples**:
 ```bash
@@ -2160,7 +2162,7 @@ vulnetix vdb countermeasures get [input] [flags]
 
 **Flags**:
 - `--format json|sigma|yara|stix|openioc` — output format (default: `json`)
-- `-o, --output <file>` — write to file instead of stdout
+- `-o, --output <file>`: write to file instead of stdout
 - every input-kind flag (see [Input kinds](#input-kinds)); flags narrow the argument
 
 **Examples**:
@@ -2212,7 +2214,7 @@ vulnetix vdb countermeasures fetch <uuid> [flags]
 ```
 
 **Flags**:
-- `-o, --output <file>` — write to file instead of stdout
+- `-o, --output <file>`: write to file instead of stdout
 
 **Examples**:
 ```bash
@@ -2314,7 +2316,7 @@ vulnetix vdb snort-rules list [flags]
 
 **Output flags**:
 - `--format json|rules` — `json` (default) or raw `.rules`-file syntax
-- `-o, --output <file>` — write to file instead of stdout
+- `-o, --output <file>`: write to file instead of stdout
 
 **Examples**:
 ```bash
@@ -2353,7 +2355,7 @@ vulnetix vdb yara-rules get <CVE-ID> [flags]
 
 **Flags**:
 - `--format json|rules` — output format (default: `json`)
-- `-o, --output <file>` — write to file
+- `-o, --output <file>`: write to file
 
 **Examples**:
 ```bash
@@ -2390,7 +2392,7 @@ vulnetix vdb yara-rules list [flags]
 
 **Output flags**:
 - `--format json|rules` — `json` (default) or raw `.yar` concatenation
-- `-o, --output <file>` — write to file
+- `-o, --output <file>`: write to file
 
 **Examples**:
 ```bash

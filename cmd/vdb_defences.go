@@ -46,7 +46,7 @@ type defenceFlags struct {
 
 // outputFormats are the values of -o that name a format, as everywhere else in
 // vdb. Any other value is a file to write the response to.
-var outputFormats = map[string]bool{"json": true, "pretty": true, "table": true}
+var outputFormats = map[string]bool{"json": true, "pretty": true, "table": true, "yaml": true}
 
 // target splits -o into a format name and a file path.
 func (f *defenceFlags) target() (format, path string) {
