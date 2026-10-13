@@ -20,6 +20,8 @@ package cmd
 import (
 	"fmt"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -97,30 +99,88 @@ func wrapVulnCommand(c *cobra.Command) {
 		if err != nil {
 			return fmt.Errorf("resolve %s: %w", in.Label(), err)
 		}
-		ids := res.VulnIDs
+		ids := fanoutOrder(res.VulnIDs)
 		if len(ids) == 0 {
 			fmt.Fprintf(cmd.ErrOrStderr(), "%s resolves to no known vulnerability.\n", in.Label())
 			return nil
 		}
 		if len(ids) > maxInputFanout {
-			fmt.Fprintf(cmd.ErrOrStderr(), "%s resolves to %d vulnerability ids; running for the first %d. Narrow it with --package-version or --vuln-id.\n",
+			fmt.Fprintf(cmd.ErrOrStderr(), "%s resolves to %d vulnerability ids; running for the first %d (CVE, GHSA and CNVD first, newest first). Narrow it with --package-version or --vuln-id.\n",
 				in.Label(), len(ids), maxInputFanout)
 			ids = ids[:maxInputFanout]
 		}
-		var failed []string
+		var failed, skipped []string
 		for i, id := range ids {
 			if len(ids) > 1 {
 				fmt.Fprintf(cmd.ErrOrStderr(), "\n── %s (%d of %d, from %s)\n", id, i+1, len(ids), in.Label())
 			}
 			if err := orig(cmd, append([]string{id}, rest...)); err != nil {
+				if len(ids) > 1 && inapplicable(err) {
+					skipped = append(skipped, id)
+					continue
+				}
 				failed = append(failed, id+": "+err.Error())
 			}
+		}
+		if len(skipped) > 0 {
+			fmt.Fprintf(cmd.ErrOrStderr(), "\nSkipped %d of %d ids this command does not read or has no record of: %s\n",
+				len(skipped), len(ids), strings.Join(skipped, ", "))
 		}
 		if len(failed) > 0 {
 			return fmt.Errorf("%d of %d failed:\n  %s", len(failed), len(ids), strings.Join(failed, "\n  "))
 		}
 		return nil
 	}
+}
+
+// inapplicableAnswer matches an answer that says the id is not one the command
+// reads (the traffic-filter and detection-rule routes take only CVE, GHSA and
+// CNVD ids) or that it has no record of the id.
+var inapplicableAnswer = regexp.MustCompile(`(?i)invalid vulnerability identifier|API error \(404\)|not found|is not in the vulnetix kev catalogue`)
+
+// inapplicable reports whether a command's error for one of several ids from an
+// input means "nothing here for this id" rather than a failure. One input names
+// many advisories across many families, and an id the command cannot use is
+// skipped, as the server does in its own fan-out.
+func inapplicable(err error) bool { return inapplicableAnswer.MatchString(err.Error()) }
+
+// fanoutOrder ranks the ids an input resolves to, so the capped run covers the
+// ones that matter: CVE, GHSA and CNVD ids first, then the other families, and
+// newest first within each.
+func fanoutOrder(ids []string) []string {
+	out := append([]string{}, ids...)
+	rank := func(id string) int {
+		u := strings.ToUpper(id)
+		if strings.HasPrefix(u, "CVE-") || strings.HasPrefix(u, "GHSA-") || strings.HasPrefix(u, "CNVD-") {
+			return 0
+		}
+		return 1
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if ri, rj := rank(out[i]), rank(out[j]); ri != rj {
+			return ri < rj
+		}
+		return naturalGreater(out[i], out[j])
+	})
+	return out
+}
+
+// naturalGreater compares ids by their dash-separated parts, numerically where
+// both parts are numbers, so CVE-2024-10001 sorts above CVE-2024-9999.
+func naturalGreater(a, b string) bool {
+	pa, pb := strings.Split(a, "-"), strings.Split(b, "-")
+	for i := 0; i < len(pa) && i < len(pb); i++ {
+		if pa[i] == pb[i] {
+			continue
+		}
+		na, ea := strconv.Atoi(pa[i])
+		nb, eb := strconv.Atoi(pb[i])
+		if ea == nil && eb == nil {
+			return na > nb
+		}
+		return pa[i] > pb[i]
+	}
+	return len(pa) > len(pb)
 }
 
 // addMissingInputFlags registers the input flags a command does not already
