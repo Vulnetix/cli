@@ -73,7 +73,13 @@ func foldAliases(in []Advisory) []Advisory {
 	out := make([]Advisory, 0, len(roots))
 	for _, r := range roots {
 		members := groups[r]
-		sort.SliceStable(members, func(x, y int) bool { return advisoryLess(in[members[x]], in[members[y]]) })
+		sort.SliceStable(members, func(x, y int) bool {
+			a, b := in[members[x]], in[members[y]]
+			if ra, rb := idRank(a.ID), idRank(b.ID); ra != rb {
+				return ra < rb
+			}
+			return advisoryLess(a, b)
+		})
 		keep := in[members[0]]
 		for _, m := range members[1:] {
 			o := in[m]
@@ -154,4 +160,19 @@ func lists(a Advisory, id string) bool {
 		}
 	}
 	return false
+}
+
+// idRank orders the identifier a folded row is named by: the canonical CVE, then
+// the GitHub advisory, then the ecosystem databases, then the vendor and
+// aggregator ids (GMS-, SNYK-, ECHO-, ...) that only restate them.
+func idRank(id string) int {
+	switch idFamily(id) {
+	case "CVE":
+		return 0
+	case "GHSA":
+		return 1
+	case "PYSEC", "GO", "RUSTSEC", "OSV", "MAL", "GSD":
+		return 2
+	}
+	return 3
 }
