@@ -165,6 +165,7 @@ func SynthesiseFromCDX(cdxDoc map[string]any, packages []ScopedPackage, purls []
 		score, metric, severity, cvssScore, epssScore, vector := extractRatings(obj)
 		props := extractVulnetixProps(obj)
 		source := extractSourceName(obj)
+		aliases := extractAliases(obj, cveID)
 
 		for _, pkg := range affectedPkgs {
 			f := VulnFinding{
@@ -183,6 +184,7 @@ func SynthesiseFromCDX(cdxDoc map[string]any, packages []ScopedPackage, purls []
 				InVulnCheckKev: props.inVulnCheckKev,
 				InEuKev:        props.inEuKev,
 				ExploitCount:   props.exploitCount,
+				Aliases:        aliases,
 			}
 			findings = append(findings, f)
 
@@ -492,3 +494,25 @@ type sentinelErr string
 func (e sentinelErr) Error() string { return string(e) }
 
 const errBadInt sentinelErr = "not an integer"
+
+// extractAliases reads the other identifiers the server lists for a
+// vulnerability (CycloneDX `references[].id`), without the id itself.
+func extractAliases(vuln map[string]any, self string) []string {
+	refs, _ := vuln["references"].([]any)
+	var out []string
+	seen := map[string]bool{strings.ToUpper(self): true}
+	for _, r := range refs {
+		m, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+		id, _ := m["id"].(string)
+		id = strings.TrimSpace(id)
+		if id == "" || seen[strings.ToUpper(id)] {
+			continue
+		}
+		seen[strings.ToUpper(id)] = true
+		out = append(out, id)
+	}
+	return out
+}

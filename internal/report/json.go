@@ -25,6 +25,7 @@ type jsonAdvisory struct {
 	KEV           bool     `json:"kev,omitempty"`
 	Exploits      int      `json:"exploits,omitempty"`
 	CVSS          float64  `json:"cvss,omitempty"`
+	Aliases       []string `json:"aliases,omitempty"`
 	Signals       []string `json:"signals,omitempty"`
 }
 
@@ -104,6 +105,7 @@ func toJSONAdvisory(a Advisory) jsonAdvisory {
 		Confidence: a.Verdict.Confidence, Range: a.Verdict.Range, FixedIn: a.Verdict.FixedIn,
 		FixedInSource: a.Verdict.FixedInSource, MatchedBy: a.Verdict.MatchedBy, Detail: a.Verdict.Detail,
 		Fix: a.Fix, FixSource: a.FixSource, KEV: a.KEV, Exploits: a.Exploits, CVSS: a.CVSS,
+		Aliases: a.AlsoKnownAs,
 	}
 	for _, s := range a.Signals {
 		ja.Signals = append(ja.Signals, s.Label)

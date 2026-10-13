@@ -114,6 +114,12 @@ then compares your version against every comparable range in it.
   lookup that fails is skipped, so a flaky network costs accuracy and never a scan.
 - Evidence from an alias may only **clear** a finding when every alias that names
   the package agrees, because alias groups are not always clean.
+- One vulnerability under several identifiers (`CVE-2018-16487` and `SNYK-JS-LODASH-73638`
+  on the same lodash) is shown **once**, under the identifier that sorts first, with the
+  others listed as "also known as" (and under `aliases` in JSON). Advisories fold only
+  when their identifier sets overlap and they reached the same verdict, and the folded
+  advisory keeps the strongest signals of its members. `--explain` finds a folded
+  identifier. JSON, SARIF and the SBOM still hold every finding.
 - An open-ended range (`< 1.11.23`, "introduced 0") is how a database writes "from
   the beginning, as far as I know". When the record also gives bounded ranges
   (`>= 1.11.0 < 1.11.23`) and your version falls in none of them, the finding is
