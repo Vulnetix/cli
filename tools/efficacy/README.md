@@ -36,3 +36,18 @@ For each `vdb` command and a set of well-known vulnerabilities, checks that the 
 output renders what `-o json` returns: no header with a blank identifier, no "No X found"
 when the JSON has data, no output far smaller than its data. A vulnerability the database
 has no record of (a 404 "Vulnerability not found") is a valid answer, not a failure.
+
+## Second oracle: GitHub advisories
+
+OSV cannot confirm everything the scan reports (a CVE record may list a package OSV
+omits). `tools/ghcheck` takes the harness output and, for each counted CVE finding
+in the `FP-unverifiable` and `FP-unknown-to-osv` classes, asks GitHub's advisory
+database (`gh api advisories?cve_id=…`) whether the installed version is inside its
+vulnerable range:
+
+    go run ./tools/ghcheck path/to/efficacy-output.txt
+
+It prints each finding GitHub contradicts (`GH-SAYS-NOT-AFFECTED`) and a tally of
+agreements, contradictions and packages GitHub has no entry for. It needs an
+authenticated `gh`. Contradictions are real false positives to chase; "no entry"
+proves nothing either way.
