@@ -1,0 +1,12 @@
+
+ fastapi 0.135.1 · PYSEC-2024-38
+
+ ? UNVERIFIED
+   The advisory's range is a git commit (9d34ad0), which cannot be compared with version 0.135.1.
+
+   advisory range   <9d34ad0ee8a0dfbbcce06f76c2d5d851085024fc
+   installed        0.135.1  requirements.txt
+   matched by       package name only
+   confidence       low
+   check it         https://osv.dev/vulnerability/PYSEC-2024-38  the advisory text may name a fixed version
+   severity         HIGH

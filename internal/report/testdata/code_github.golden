@@ -1,0 +1,4 @@
+::error file=src/app.py,line=5,title=VNX-PY-004::yaml.load() without SafeLoader; use yaml.safe_load() or pass Loader=SafeLoader
+::error file=config/prod.env,line=7,title=VNX-SEC-001::AWS access key ID found; rotate the key
+::warning file=src/app.py,line=4,title=VNX-1117::Function without docstring summary
+::warning file=src/app.py,line=4,title=VNX-1117::Function without docstring summary

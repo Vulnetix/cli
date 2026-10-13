@@ -1,0 +1,27 @@
+ ✖ 15 advisories in 9 packages          5 need action · 4 can wait · 1 not affected
+   142 packages · 3 manifests · sca sast · 4.2s
+
+ NEEDS ACTION · 5 packages
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● CRITICAL  CVE-2021-44228      log4j-core 2.14.1           → 2.17.1     ▲ KEV ▲ weaponized ▲ reachable
+ ● CRITICAL  CVE-2021-45046      log4j-core 2.14.1           → 2.17.1
+ ● HIGH      CVE-2021-45105      log4j-core 2.14.1           → 2.17.1
+ ● MEDIUM    CVE-2021-44832      log4j-core 2.14.1           → 2.17.1
+ ● CRITICAL  CVE-2025-11111      legacy-xml 3.1.4            no fix       ▲ PoC exploit ▲ referenced
+ ● HIGH      CVE-2025-22222      libexample 1.8.2            no fix       ▲ PoC exploit
+ ● HIGH      CVE-2025-33333      otherlib 4.0.0              no fix       ▲ KEV
+ ● HIGH      CVE-2018-18074      requests 2.19.1             → 2.31.0     ▲ PoC exploit ▲ referenced
+ ● MEDIUM    CVE-2023-32681      requests 2.19.1             → 2.31.0
+
+ CAN WAIT · 4 packages · no known exploit
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● CRITICAL  CVE-2020-14343      pyyaml 5.3                  → 5.4
+ ● HIGH      CVE-2025-44444      oldparser 0.9.2             no fix
+ ● MEDIUM    CVE-2020-28493      jinja2 2.10                 → 2.11.3
+ ● MEDIUM    CVE-2019-10906      jinja2 2.10                 → 2.11.3
+ ● MEDIUM    CVE-2019-11324      urllib3 1.24.1              → 1.24.3
+ ● MEDIUM    CVE-2019-11236      urllib3 1.24.1              → 1.24.3
+
+ NOT AFFECTED · 1 package · matched by name, ruled out by version
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● MEDIUM    PYSEC-2024-38       fastapi 0.135.1

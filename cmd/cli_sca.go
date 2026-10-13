@@ -105,14 +105,26 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	purls := make([]string, len(allPackages))
 	deduped := make(map[string]bool, len(allPackages))
 	uniquePurls := make([]string, 0, len(allPackages))
+	unresolved := 0
 	for i, p := range allPackages {
 		pu := cdx.BuildLocalPurl(p.Name, p.Version, p.Ecosystem)
 		purls[i] = pu
+		// A dependency with no resolved version cannot be assessed, and a versionless
+		// purl asks for every advisory it has ever had. Skip the query; the package
+		// stays in the SBOM.
+		if !scan.IsResolvedVersion(p.Version) {
+			purls[i] = ""
+			unresolved++
+			continue
+		}
 		if pu == "" || deduped[pu] {
 			continue
 		}
 		deduped[pu] = true
 		uniquePurls = append(uniquePurls, pu)
+	}
+	if verbose && unresolved > 0 {
+		fmt.Fprintf(w, "  %d dependenc(ies) have no resolved version (latest, catalog:, workspace:, an unresolved property) and were not queried\n", unresolved)
 	}
 	if len(uniquePurls) == 0 {
 		return false, nil, nil, nil, "", "", nil
@@ -234,6 +246,18 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 		if resp.Meta.Tier == "pro" {
 			tierObserved = "pro"
 		}
+		lastSCATier = resp.Meta.Tier
+		if len(resp.Meta.TierGated) > 0 {
+			if lastSCATierGated == nil {
+				lastSCATierGated = map[string]bool{}
+			}
+			for k, v := range resp.Meta.TierGated {
+				lastSCATierGated[k] = lastSCATierGated[k] || v
+			}
+		}
+		if verbose {
+			fmt.Fprintf(w, "  /v2/cli.sca tier=%s gated=%v\n", resp.Meta.Tier, resp.Meta.TierGated)
+		}
 		if resp.Meta.TierGated["reachability"] {
 			anyTierGated = true
 		}
@@ -306,6 +330,9 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	if verbose {
 		fmt.Fprintf(w, "  /v2/cli.sca returned %d finding(s) across %d package(s)\n", len(findings), len(uniquePurls))
 	}
+
+	// Settle what the response left unverifiable. See scan.ResolveUnverified.
+	resolveUnverifiedFindings(enriched, w)
 
 	// Pro+ tiers: run the returned tree-sitter queries locally so the
 	// Reachability column on each finding reflects actual code analysis,

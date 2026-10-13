@@ -1,0 +1,13 @@
+
+ VNX-PY-004 · yaml.load() without SafeLoader
+
+   severity     HIGH
+   kind         sast
+   about        yaml.load() without an explicit safe Loader can deserialize arbitrary Python
+                objects.
+   weakness     CWE-502
+   more         https://example.invalid/rules/vnx-py-004
+
+   1 place
+   src/app.py:5 yaml.load() without SafeLoader; use yaml.safe_load() or pass Loader=SafeLoader
+               5    │     data = yaml.load(doc)

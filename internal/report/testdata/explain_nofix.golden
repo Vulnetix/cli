@@ -1,0 +1,18 @@
+
+ legacy-xml 3.1.4 · CVE-2025-11111
+
+ ✖ AFFECTED
+   The source reports 3.1.4 as affected; it supplied no range to check.
+
+   advisory range   none supplied
+   installed        3.1.4  requirements.txt
+   matched by       package name and version
+   confidence       medium
+   severity         CRITICAL
+   exploit          1 known
+   reach            app/parse.py:18 (symbol match, lower confidence)
+   upgrade to       no fix
+
+   ◆ block   ModSecurity · nginx     start in log only
+   ◆ detect  Sigma
+   → vulnetix defend CVE-2025-11111

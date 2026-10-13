@@ -1,0 +1,55 @@
+ x 15 advisories in 9 packages          5 need action | 4 can wait | 1 not affected
+   142 packages | 3 manifests | sca sast | 4.2s
+
+ NEEDS ACTION | 5 packages
+ ------------------------------------------------------------------------------------------------
+ * CRITICAL  log4j-core 2.14.1             -> 2.17.1       maven  pom.xml
+             CVE-2021-44228  ^ KEV  ^ weaponized  ^ reachable
+             + 3 more advisories, the same upgrade clears them
+
+ * CRITICAL  legacy-xml 3.1.4              no fix          pypi   requirements.txt
+             CVE-2025-11111  ^ PoC exploit  ^ referenced  app/parse.py:18
+             # block   ModSecurity | nginx     start in log only
+             # detect  Sigma
+             -> vulnetix defend CVE-2025-11111
+
+ * HIGH      libexample 1.8.2              no fix          deb    Dockerfile
+             CVE-2025-22222  ^ PoC exploit
+             # block   nothing published for this yet
+             # detect  Sigma
+             -> vulnetix defend CVE-2025-22222
+
+ * HIGH      otherlib 4.0.0                no fix          npm    package-lock.json
+             CVE-2025-33333  ^ KEV
+             # 2 block rules and 1 detection exist | Pro unlocks the rules
+
+ * HIGH      requests 2.19.1               -> 2.31.0       pypi   requirements.txt
+             CVE-2018-18074  ^ PoC exploit  ^ referenced  api/client.py:12
+             + 1 more advisory, the same upgrade clears it
+
+ CAN WAIT | 4 packages | no known exploit
+ ------------------------------------------------------------------------------------------------
+ * CRITICAL  pyyaml 5.3                    -> 5.4          pypi   requirements.txt
+             CVE-2020-14343
+
+ * HIGH      oldparser 0.9.2               no fix          cargo  Cargo.lock
+             CVE-2025-44444
+             # nothing published for this yet
+             -> vulnetix vdb workarounds CVE-2025-44444
+
+ * MEDIUM    jinja2 2.10                   -> 2.11.3       pypi   requirements.txt
+             CVE-2020-28493
+             + 1 more advisory, the same upgrade clears it
+
+ * MEDIUM    urllib3 1.24.1                -> 1.24.3       pypi   requirements.txt
+             CVE-2019-11324
+             + 1 more advisory, the same upgrade clears it
+
+ NOT AFFECTED | 1 package | matched by name, ruled out by version
+ ------------------------------------------------------------------------------------------------
+ + fastapi 0.135.1   PYSEC-2024-38 is fixed in 0.109.1 | you are past it | --explain PYSEC-2024-38
+
+ NEXT
+   vulnetix fix                         apply 5 upgrades
+   vulnetix scan --explain log4j-core   why each advisory applies, with the evidence
+   vulnetix scan -v                     scores, version checks and match evidence

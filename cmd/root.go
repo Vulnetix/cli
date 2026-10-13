@@ -22,9 +22,12 @@ import (
 
 var (
 	// Command line flags
-	orgID         string
-	silent        bool
-	verbose       bool
+	orgID   string
+	silent  bool
+	verbose bool
+	// verboseLevel counts -v: 1 for -v, 2 for -vv. verbose stays the boolean the
+	// rest of the CLI reads; startupHooks derives it from this.
+	verboseLevel  int
 	noProgress    bool
 	disableMemory bool
 	noAnalytics   bool
@@ -389,6 +392,7 @@ func Execute() error {
 
 // startupHooks runs before any command via cobra.OnInitialize.
 func startupHooks() {
+	verbose = verboseLevel > 0
 	installCommandProgress()
 
 	// Propagate verbose flag into vdb client (gates retry/backoff stderr chatter).
@@ -438,7 +442,7 @@ func startupHooks() {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&orgID, "org-id", "", "Organization ID (UUID) for Vulnetix operations")
 	rootCmd.PersistentFlags().BoolVar(&silent, "silent", false, "Suppress all log output, only print final result")
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show verbose diagnostic output (rate limits, cache status, auth notes)")
+	rootCmd.PersistentFlags().CountVarP(&verboseLevel, "verbose", "v", "Show more detail: -v adds diagnostics (rate limits, cache status, auth notes) and per-advisory version checks; -vv adds the raw evidence")
 	rootCmd.PersistentFlags().BoolVar(&noProgress, "no-progress", false, "Suppress progress indicators")
 	rootCmd.PersistentFlags().BoolVar(&disableMemory, "disable-memory", false, "Disable memory file reads/writes. For users who do not use the Claude Code Plugin or for debugging. VDB commands will skip memory-related side effects when set.")
 	rootCmd.PersistentFlags().BoolVar(&noAnalytics, "no-analytics", false, "Disable anonymous usage analytics")

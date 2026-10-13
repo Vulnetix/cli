@@ -825,6 +825,27 @@ html.vdb-v2 .vdb-v1-only { display: none !important; }
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+/* v2 is the current API; v1 is deprecated. The two read differently at a glance:
+   current is a quiet outline, deprecated carries the warning colour. */
+.vdb-current-badge,
+.vdb-deprecated-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.vdb-current-badge {
+  background: var(--vx-mint-12);
+  color: var(--vx-mint);
+  border: 1px solid var(--vx-mint);
+}
+.vdb-deprecated-badge {
+  background: var(--vx-sand-amber);
+  color: var(--vx-ink);
+}
 
 /* =========================================================
    RESPONSIVE — mobile shell collapse

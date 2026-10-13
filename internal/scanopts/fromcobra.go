@@ -110,6 +110,34 @@ func FromCommand(cmd *cobra.Command) (pipeline.Options, error) {
 	}
 	opts.ExploitThreshold = exploits
 
+	// The gate vocabulary (--fail-on, --strict, --accept-defended) folds into the
+	// same fields the legacy flags set, so there is one evaluation path and one
+	// place org policy can override.
+	failOn, err := ParseFailOn(getStrings("fail-on"))
+	if err != nil {
+		return pipeline.Options{}, err
+	}
+	failOn.ApplyTo(&opts)
+	opts.Strict = getBool("strict")
+	opts.AcceptDefended = getBool("accept-defended")
+
+	// The display vocabulary (--show, --hide, -q) maps onto the legacy switches
+	// the engine still reads, for the same reason.
+	for _, part := range ParseSet(getStrings("show")) {
+		if part == "paths" {
+			opts.ShowPaths = true
+		}
+	}
+	for _, part := range ParseSet(getStrings("hide")) {
+		switch part {
+		case "exploits":
+			opts.NoExploits = true
+		case "fixes":
+			opts.NoRemediation = true
+		}
+	}
+	opts.ResultsOnly = opts.ResultsOnly || getBool("quiet")
+
 	opts.IgnoreGlobs = getStrings("ignore")
 	opts.IgnoreGit = getBool("ignore-git")
 	opts.IgnoreBinaries = getBool("ignore-binaries")

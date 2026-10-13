@@ -11,6 +11,7 @@ import (
 	"github.com/vulnetix/cli/v3/internal/cdx"
 	"github.com/vulnetix/cli/v3/internal/display"
 	purlpkg "github.com/vulnetix/cli/v3/internal/purl"
+	"github.com/vulnetix/cli/v3/internal/report"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/versions"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
@@ -100,15 +101,13 @@ func LoadFromMemory(rootPath string, freshExploits, freshAdvisories, freshVulns 
 	}
 
 	// ── Print pretty summary (same renderer as full scan). ──
-	printPrettyScanSummary(
-		enrichedVulns,
-		manifestGroups,
-		allPackages,
-		false, // showPaths — dep graph not reconstructed
-		false, // noExploits
-		false, // noRemediation
-		false, // resultsOnly
-	)
+	// Same renderer as a live scan. No defence lookup: a stored report makes no
+	// API calls, so it says nothing about defences rather than claiming none.
+	printScanReport(report.Build(report.Input{
+		Vulns:  enrichedVulns,
+		Groups: manifestGroups,
+		Meta:   report.Meta{ScannedPackages: len(countUniqueMap(allPackages)), Kinds: []string{"sca"}},
+	}), activeSurface)
 	// Artefact links at the bottom (no snapshots in the offline render).
 	printScanArtifacts(sbomPath, sarifPath, filepath.Join(rootPath, ".vulnetix"), "", "", nil, nil)
 

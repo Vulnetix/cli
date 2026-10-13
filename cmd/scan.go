@@ -15,12 +15,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/analytics"
 	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v3/internal/defences"
 	"github.com/vulnetix/cli/v3/internal/display"
 	autofix "github.com/vulnetix/cli/v3/internal/fix"
 	"github.com/vulnetix/cli/v3/internal/gitctx"
 	"github.com/vulnetix/cli/v3/internal/license"
 	"github.com/vulnetix/cli/v3/internal/memory"
 	"github.com/vulnetix/cli/v3/internal/pipeline"
+	"github.com/vulnetix/cli/v3/internal/report"
 	"github.com/vulnetix/cli/v3/internal/sast"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/internal/scanopts"
@@ -119,6 +121,7 @@ type outputConfig struct {
 	stdoutFmt  string // at most one stdout format, or ""
 	cdxFile    string // CDX file path, or ""
 	sarifFile  string // SARIF file path, or ""
+	reportFile string // JSON report file path (.report.json), or ""
 	prettyOnly bool   // true when no stdout format → emit pretty output
 }
 
@@ -142,6 +145,13 @@ func parseOutputFlags(args []string) (*outputConfig, error) {
 			cfg.stdoutFmt = "json-sarif"
 			cfg.targets = append(cfg.targets, outputTarget{stdoutFmt: "json-sarif", fileKind: "sarif"})
 
+		case "json-report":
+			if cfg.stdoutFmt != "" {
+				return nil, fmt.Errorf("cannot combine --output %s and --output %s: only one stdout format allowed", cfg.stdoutFmt, arg)
+			}
+			cfg.stdoutFmt = "json-report"
+			cfg.targets = append(cfg.targets, outputTarget{stdoutFmt: "json-report", fileKind: "report"})
+
 		default:
 			// File path — infer kind from extension.
 			kind := inferFileKind(arg)
@@ -159,6 +169,11 @@ func parseOutputFlags(args []string) (*outputConfig, error) {
 					return nil, fmt.Errorf("duplicate SARIF file output: %q and %q", cfg.sarifFile, arg)
 				}
 				cfg.sarifFile = arg
+			case "report":
+				if cfg.reportFile != "" {
+					return nil, fmt.Errorf("duplicate report file output: %q and %q", cfg.reportFile, arg)
+				}
+				cfg.reportFile = arg
 			}
 			cfg.targets = append(cfg.targets, outputTarget{filePath: arg, fileKind: kind})
 		}
@@ -171,6 +186,9 @@ func parseOutputFlags(args []string) (*outputConfig, error) {
 // inferFileKind returns "cdx" or "sarif" based on file extension, or "" if unknown.
 func inferFileKind(path string) string {
 	lower := strings.ToLower(path)
+	if strings.HasSuffix(lower, ".report.json") {
+		return "report"
+	}
 	if strings.HasSuffix(lower, ".cdx.json") || strings.HasSuffix(lower, ".cdx") {
 		return "cdx"
 	}
@@ -237,23 +255,35 @@ Examples:
   vulnetix scan -o /tmp/out.sarif      # save SARIF to file, pretty to stdout
   vulnetix scan -o /tmp/out.cdx.json -o /tmp/out.sarif  # save both, pretty to stdout
   vulnetix scan --no-progress          # suppress progress indicators
-  vulnetix scan --severity high        # exit 1 if any vuln is high or critical
-  vulnetix scan --severity low         # exit 1 on any scored severity (low+)
-  vulnetix scan --block-malware        # exit 1 on any known malicious package
-  vulnetix scan --block-eol            # exit 1 if runtime is end-of-life
-  vulnetix scan --block-unpinned       # exit 1 if any direct dep uses a version range
-  vulnetix scan --exploits poc         # exit 1 if any vuln has a public exploit
-  vulnetix scan --exploits active      # exit 1 if any vuln is actively exploited (CISA/EU KEV)
-  vulnetix scan --version-lag 1        # exit 1 if using the very latest release of any dep
-  vulnetix scan --cooldown 3           # exit 1 if any dep was published in the last 3 days
-  vulnetix scan --block-malware --block-unpinned --version-lag 1 --cooldown 3 --severity high
-  vulnetix scan --results-only         # silent when clean; show table only when findings exist
+
+What to show:
+  vulnetix scan -v                     # add per-advisory version checks and scores
+  vulnetix scan --explain PYSEC-2024-38  # why one finding applies, with the evidence
+  vulnetix scan --filter reachable,fixable   # only what is reachable and has a fix
+  vulnetix scan --min-severity high    # hide anything below high (does not change the exit code)
+  vulnetix scan --view findings        # one line per advisory instead of per package
+  vulnetix scan --hide defences        # skip the block-rule and detection lookup for no-fix findings
+  vulnetix scan -q                     # one line when there are findings, nothing when clean
+
+When to fail (exit 1):
+  vulnetix scan --fail-on high         # any vuln is high or critical
+  vulnetix scan --fail-on kev          # any vuln is actively exploited (CISA/EU KEV)
+  vulnetix scan --fail-on exploit=poc  # any vuln has a public exploit
+  vulnetix scan --fail-on malware      # any known malicious package
+  vulnetix scan --fail-on unprotected  # a finding has no fix and no recorded control
+  vulnetix scan --fail-on malware,unpinned,lag=1,cooldown=3d,high
+  vulnetix scan --fail-on high --strict  # also count findings the advisory rules out by version
   vulnetix scan --from-memory                  # reconstruct pretty output from .vulnetix/sbom.cdx.json
   vulnetix scan --from-memory --fresh-exploits # reconstruct + fetch latest exploit intel
   vulnetix scan --from-memory --fresh-advisories # reconstruct + fetch latest remediation plans
   vulnetix scan --from-memory --fresh-vulns    # reconstruct + re-check affected versions
   vulnetix scan --dry-run                      # detect files + parse packages, then show memory — zero API calls
-  vulnetix scan --dry-run --path ./myproject   # dry run on a specific directory`,
+  vulnetix scan --dry-run --path ./myproject   # dry run on a specific directory
+
+The flags --severity, --block-malware, --block-eol, --block-unpinned, --exploits,
+--version-lag, --cooldown, --results-only, --no-exploits, --no-remediation and the
+--evaluate-X / --no-X pairs still work. They are superseded by --fail-on, -q,
+--hide, --only and --skip.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		printBanner(cmd)
 		initDisplayContext(cmd, display.ModeText)
@@ -308,6 +338,17 @@ Examples:
 		noContainers, _ := cmd.Flags().GetBool("no-containers")
 		evaluateIAC, _ := cmd.Flags().GetBool("evaluate-iac")
 		noIAC, _ := cmd.Flags().GetBool("no-iac")
+
+		// --only and --skip are the two flags that replace the twelve
+		// --evaluate-X / --no-X below; they fold into the same booleans.
+		only, skip, kindErr := scanKindSelection(cmd)
+		if kindErr != nil {
+			return kindErr
+		}
+		evaluateSAST, evaluateSCA, evaluateLicenses = evaluateSAST || only["sast"], evaluateSCA || only["sca"], evaluateLicenses || only["licenses"]
+		evaluateSecrets, enableContainers, evaluateIAC = evaluateSecrets || only["secrets"], enableContainers || only["containers"], evaluateIAC || only["iac"]
+		noSAST, noSCA, noLicenses = noSAST || skip["sast"], noSCA || skip["sca"], noLicenses || skip["licenses"]
+		noSecrets, noContainers, noIAC = noSecrets || skip["secrets"], noContainers || skip["containers"], noIAC || skip["iac"]
 
 		// Apply feature control logic:
 		// If any --evaluate-X flag is set, disable everything not explicitly evaluated.
@@ -370,6 +411,18 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 		return err
 	}
 
+	// The output and gating vocabulary (--view, --filter, --fail-on, ...). It is
+	// parsed once and handed to the renderer through activeSurface; the gates
+	// themselves were already folded into opts by FromCommand.
+	surface, err := scanopts.SurfaceFromCommand(cmd)
+	if err != nil {
+		return err
+	}
+	activeSurface = surface
+	for _, note := range scanopts.LegacyNotes(cmd) {
+		fmt.Fprintln(os.Stderr, "note:", note)
+	}
+
 	// Locals for the values this function still reasons about before handing
 	// opts to the scan. Everything else stays on opts.
 	scanPath := opts.RootPath
@@ -394,6 +447,11 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 	blockEOL := opts.BlockEOL
 	if v, _ := cmd.Flags().GetString("block-eol-severity"); v != "" {
 		eolBlockSeverity = strings.ToLower(strings.TrimSpace(v))
+	}
+	// --fail-on eol=<severity> is the same setting spelled in the new vocabulary,
+	// and wins when both are given.
+	if surface.FailOn.EOLSeverity != "" {
+		eolBlockSeverity = surface.FailOn.EOLSeverity
 	}
 	blockUnpinned := opts.BlockUnpinned
 	exploitThreshold := opts.ExploitThreshold
@@ -793,6 +851,7 @@ func runLocalScan(
 	// Unpacked into the local names the body below already uses. The body is
 	// deliberately untouched by this extraction, so the change is reviewable as
 	// "signature only" and the behaviour is provably identical.
+	scanStarted := time.Now()
 	files := opts.Files
 	rootPath := opts.RootPath
 	depth := opts.Depth
@@ -1916,6 +1975,21 @@ func runLocalScan(
 		}
 	}
 
+	// ── Report model ──────────────────────────────────────────────────────
+	// Built once, here, so the gates and every view read the same verdicts,
+	// fixes and groups. Findings with no fix are looked up for block rules and
+	// detections as part of this (see internal/defences).
+	scanControls, _ := defences.LoadControls(rootPath)
+	scanReport := buildScanReport(ctx, scanReportInput{
+		Opts: opts, Root: rootPath, Vulns: enrichedVulns, Groups: manifestGroups,
+		AllPackages: allPackages, VEXHidden: vexSuppressedCount(vexPass), Started: scanStarted,
+	})
+	// What the vulnerability gates read: findings the advisory rules out by
+	// version are not a reason to fail a build (unless --strict), and neither is
+	// one covered by an unexpired recorded control when --accept-defended says
+	// the record counts. The report and the BOM still carry all of them.
+	gateInput := gateVulns(enrichedVulns, opts, scanControls, time.Now())
+
 	// ── Quality gate evaluation ───────────────────────────────────────────
 	// Evaluated after writing artefacts so that the SBOM and memory.yaml are
 	// always written regardless of exit code, giving CI pipelines access to
@@ -1939,7 +2013,7 @@ func runLocalScan(
 	if blockMalware {
 		maliciousNames := map[string]bool{}
 		var malwareLabels []string
-		for _, ev := range enrichedVulns {
+		for _, ev := range gateInput {
 			if ev.IsMalicious && !maliciousNames[ev.PackageName] {
 				maliciousNames[ev.PackageName] = true
 				malwareLabels = append(malwareLabels, ev.PackageName)
@@ -1965,7 +2039,7 @@ func runLocalScan(
 	// Gate 2: exploits
 	if exploitThreshold != "" {
 		var exploitVulns []scan.EnrichedVuln
-		for _, ev := range enrichedVulns {
+		for _, ev := range gateInput {
 			if scan.ExploitMeetsThreshold(ev, exploitThreshold) {
 				exploitVulns = append(exploitVulns, ev)
 			}
@@ -1983,7 +2057,7 @@ func runLocalScan(
 	// Gate 3: severity
 	if severityThreshold != "" {
 		var severityVulns []scan.EnrichedVuln
-		for _, ev := range enrichedVulns {
+		for _, ev := range gateInput {
 			if scan.SeverityMeetsThreshold(ev.MaxSeverity, severityThreshold) {
 				severityVulns = append(severityVulns, ev)
 			}
@@ -1994,6 +2068,24 @@ func runLocalScan(
 				Count: len(severityVulns),
 				Message: fmt.Sprintf("--severity %s: %s at or above the threshold",
 					severityThreshold, pluralise("vulnerability", len(severityVulns))),
+			})
+		}
+	}
+
+	// Gate: unprotected. A finding with no fix and no unexpired recorded control
+	// is "no fix and no plan". A recorded control is the plan; whether it also
+	// satisfies the other gates is --accept-defended's decision, not this one's.
+	if opts.FailOnUnprotected {
+		if unprotected := report.Unprotected(scanReport); len(unprotected) > 0 {
+			labels := make([]string, 0, len(unprotected))
+			for _, p := range unprotected {
+				labels = append(labels, p.Label())
+			}
+			breaches = append(breaches, GateBreach{
+				Gate:  "unprotected",
+				Count: len(unprotected),
+				Message: fmt.Sprintf("--fail-on unprotected: %s with no fix and no recorded control: %s",
+					pluralise("package", len(unprotected)), strings.Join(labels, ", ")),
 			})
 		}
 	}
@@ -2357,6 +2449,13 @@ func runLocalScan(
 			retErr = outputWriteErr
 		}
 	}()
+	if outCfg.reportFile != "" {
+		if data, merr := report.RenderJSON(scanReport); merr == nil {
+			if werr := os.WriteFile(outCfg.reportFile, append(data, 0x0a), 0o644); werr != nil {
+				fmt.Fprintf(os.Stderr, "  ✗ could not write report to %s: %v\n", outCfg.reportFile, werr)
+			}
+		}
+	}
 	if outCfg.cdxFile != "" {
 		outBOM := cdx.BuildFromLocalScan(localResults, "1.7", scanCtx, seedBOM)
 		// Carry the dependency tree into the file output too, so `-o file.cdx.json`
@@ -2400,6 +2499,22 @@ func runLocalScan(
 			return autofixReportErr
 		}
 		return nil
+	}
+	if outCfg.stdoutFmt == "json-report" {
+		data, merr := report.RenderJSON(scanReport)
+		if merr != nil {
+			return fmt.Errorf("marshal report: %w", merr)
+		}
+		os.Stdout.Write(data)
+		fmt.Fprintln(os.Stdout)
+		printSnapshotsToStderr(sarifSnapshots)
+		if len(breaches) > 0 {
+			return &MultiPolicyBreachError{Breaches: breaches}
+		}
+		if err := jailIndeterminateError(breaches, jailIndeterminate); err != nil {
+			return err
+		}
+		return autofixReportErr
 	}
 	if outCfg.stdoutFmt == "json-sarif" {
 		sarifLog := sast.BuildSARIF(nil, nil, version)
@@ -2452,25 +2567,57 @@ func runLocalScan(
 		return nil
 	}
 
+	// --explain shows the working behind one finding and nothing else; -q keeps to
+	// the findings. Both skip the artefact tail, which is chatter in those modes.
+	explainOnly := activeSurface.Explain != ""
+	quiet := activeSurface.Display.Quiet
+	explained := false
+
 	var scaTotalPkgs, scaTotalVulns int
 	if !noSCA {
-		scaTotalPkgs, scaTotalVulns = printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, resultsOnly)
-		if autofixReportPlans != nil {
-			printAutofixReport(autofixReportPlans, autofixReportCounts, 0, autofixReportErr)
+		if scanViewTable(activeSurface) {
+			// The legacy eighteen-column table, kept behind --view table for one
+			// release so anything that read it has time to move.
+			scaTotalPkgs, scaTotalVulns = printPrettyScanSummary(enrichedVulns, manifestGroups, allPackages, showPaths, noExploits, noRemediation, resultsOnly)
+			if autofixReportPlans != nil {
+				printAutofixReport(autofixReportPlans, autofixReportCounts, 0, autofixReportErr)
+			}
+			printScanSummaryFooter(scaTotalPkgs, scaTotalVulns, enrichedVulns, vexSuppressedCount(vexPass))
+		} else {
+			explained = printScanReport(scanReport, activeSurface) && explainOnly
+			if autofixReportPlans != nil && !explainOnly {
+				printAutofixReport(autofixReportPlans, autofixReportCounts, 0, autofixReportErr)
+			}
 		}
-		printScanSummaryFooter(scaTotalPkgs, scaTotalVulns, enrichedVulns, vexSuppressedCount(vexPass))
-	} else if sastReport != nil {
-		sast.PrintHeadlineWithLabel(sastReport, analysisLabel)
 	}
-	if licenseResult != nil && len(licenseResult.Findings) > 0 {
-		printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
+	// --explain falls through to the rule engine's findings when no dependency
+	// matched, so one flag explains either kind of finding.
+	if explainOnly && !explained && sastReport != nil {
+		explained = printCodeExplain(sastReport, analysisLabel, activeSurface)
 	}
-	sast.PrintPrettySummaryWithTitle(sastReport, resultsOnly, analysisTitle)
+	if explainOnly && !explained {
+		fmt.Fprintf(os.Stderr, "Nothing to explain: no finding matches %q. Use an advisory id, a rule id, a package name, name@version or a file path.\n", activeSurface.Explain)
+	}
+	if !explainOnly {
+		if licenseResult != nil && len(licenseResult.Findings) > 0 {
+			printPrettyLicenseSummary(licenseResult, sbomPath, vulnetixDir)
+		}
+		if scanViewTable(activeSurface) {
+			if noSCA {
+				sast.PrintHeadlineWithLabel(sastReport, analysisLabel)
+			}
+			sast.PrintPrettySummaryWithTitle(sastReport, resultsOnly, analysisTitle)
+		} else {
+			printCodeReport(sastReport, analysisLabel, activeSurface, resultsOnly)
+		}
+	}
 
 	// Artefact links print last, after all analysis output.
-	printScanArtifacts(displaySBOM, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL, vexPaths, sarifSnapshots)
-	if isUnauthenticatedScan() {
-		printCommunitySignupReminder()
+	if !explainOnly && !quiet {
+		printScanArtifacts(displaySBOM, sarifPath, vulnetixDir, rulesPath, scaSnapshotURL, vexPaths, sarifSnapshots)
+		if isUnauthenticatedScan() {
+			printCommunitySignupReminder()
+		}
 	}
 
 	if len(breaches) > 0 {
@@ -2940,7 +3087,7 @@ func printPrettyScanSummary(
 				return s
 			}
 		}},
-		{Header: "Match", MinWidth: 5, MaxWidth: 14},
+		{Header: "Verdict", MinWidth: 7, MaxWidth: 20},
 		// Dependency relationship: direct (declared in manifest) or
 		// transitive (pulled in by another dep). Replaces the older
 		// asterisk footnote convention.
@@ -3079,10 +3226,9 @@ func printPrettyScanSummary(
 				}
 			}
 
-			matchMethod := v.MatchMethod
-			if matchMethod == "" {
-				matchMethod = "name"
-			}
+			// The version verdict replaces the old "Match" word, which defaulted to
+			// "name" and said nothing about whether this version is affected.
+			matchMethod := scan.EvaluateVerdict(v).Verdict.Label()
 
 			reach := v.Reachability
 
@@ -3881,7 +4027,7 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Int("depth", 3, "Max recursion depth")
 	cmd.Flags().StringArray("exclude", nil, "Exclude paths matching glob (repeatable)")
 	cmd.Flags().StringArrayP("output", "o", nil,
-		"Output target (repeatable): json-cyclonedx or json-sarif for stdout; file path (.cdx.json, .sarif) to write to file")
+		"Output target (repeatable): json-cyclonedx or json-sarif for stdout; file path (.cdx.json, .sarif, .report.json) to write to file")
 	cmd.Flags().StringP("format", "f", "", "Deprecated: use --output instead")
 	// Retired. It was parsed and threaded through the whole scan engine without
 	// ever being read; SCA fan-out is governed by VULNETIX_SCA_CONCURRENCY
@@ -3916,8 +4062,8 @@ func addScanFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("show-all-manifests", false, "Include rows in the SCA table for manifests that have no vulnerabilities.")
 	cmd.Flags().Int("version-lag", 0, "Exit with code 1 when any dependency is within the N most recently published versions of that package (0 = disabled).")
 	cmd.Flags().Int("cooldown", 0, "Exit with code 1 when any dependency version was published within the last N days (0 = disabled, best-effort).")
-	cmd.Flags().Bool("sca-autofix", false, "Apply validated SCA fixes with the project package manager, then rescan to confirm")
-	cmd.Flags().String("sca-autofix-strategy", "stable", "SCA autofix target strategy: latest, safest, or stable")
+	cmd.Flags().Bool("sca-autofix", false, "Apply validated SCA fixes with the project package manager, then rescan to confirm (alias: --fix)")
+	cmd.Flags().String("sca-autofix-strategy", "stable", "SCA autofix target strategy: latest, safest, or stable (alias: --fix-strategy)")
 	cmd.Flags().String("sca-autofix-manifest", "", "Restrict SCA autofix edits to one manifest file")
 	cmd.Flags().Bool("yes", false, "Non-interactive mode for SCA autofix: auto-pick safe defaults and never prompt")
 	cmd.Flags().Int("sca-autofix-max-major-bump", 0, "Refuse SCA autofix targets crossing more than N major versions")
@@ -3961,9 +4107,16 @@ func addScanFlags(cmd *cobra.Command) {
 	_ = cmd.RegisterFlagCompletionFunc("exploits", cobra.FixedCompletions(
 		scan.ValidExploitThresholds, cobra.ShellCompDirectiveNoFileComp))
 	_ = cmd.RegisterFlagCompletionFunc("output", cobra.FixedCompletions(
-		[]string{"json-cyclonedx", "json-sarif"}, cobra.ShellCompDirectiveDefault))
+		[]string{"json-cyclonedx", "json-sarif", "json-report"}, cobra.ShellCompDirectiveDefault))
 	_ = cmd.RegisterFlagCompletionFunc("severity", cobra.FixedCompletions(
 		[]string{"low", "medium", "high", "critical"}, cobra.ShellCompDirectiveNoFileComp))
+	// The output and gating vocabulary, family-wide: every scanner takes the same
+	// words and honours them the same way. The flags it supersedes keep working
+	// and are hidden from help. See internal/scanopts/surface.go.
+	scanopts.AddSurfaceFlags(cmd)
+	cmd.Flags().SetNormalizeFunc(scanFlagAliases(cmd.Flags().GetNormalizeFunc()))
+	scanopts.HideLegacyFlags(cmd)
+	cmd.SetUsageFunc(groupedUsage)
 	_ = cmd.MarkFlagDirname("path")
 }
 
@@ -4093,6 +4246,13 @@ func init() {
 	addScanFlags(scanCmd)
 	addSASTFlags(scanCmd)
 
+	// Feature selection (scan command only — specialized commands hard-code
+	// these). --only and --skip replace the --evaluate-X / --no-X pairs below,
+	// which keep working and are hidden from help.
+	scanCmd.Flags().StringArray("only", nil, "Run just these: "+strings.Join(scanKinds, ", ")+" (comma-separated, repeatable)")
+	scanCmd.Flags().StringArray("skip", nil, "Run everything except these: "+strings.Join(scanKinds, ", ")+" (comma-separated, repeatable)")
+	_ = scanCmd.RegisterFlagCompletionFunc("only", cobra.FixedCompletions(scanKinds, cobra.ShellCompDirectiveNoFileComp))
+	_ = scanCmd.RegisterFlagCompletionFunc("skip", cobra.FixedCompletions(scanKinds, cobra.ShellCompDirectiveNoFileComp))
 	// Feature control flags (scan command only — specialized commands hard-code these)
 	scanCmd.Flags().Bool("evaluate-sast", false, "Enable SAST analysis")
 	scanCmd.Flags().Bool("no-sast", false, "Skip SAST analysis")
@@ -4108,6 +4268,9 @@ func init() {
 	scanCmd.Flags().Bool("no-containers", false, "Skip container file detection")
 	scanCmd.Flags().Bool("evaluate-iac", false, "Enable Infrastructure as Code detection")
 	scanCmd.Flags().Bool("no-iac", false, "Skip Infrastructure as Code detection")
+	for _, name := range []string{"evaluate-sast", "no-sast", "evaluate-sca", "no-sca", "evaluate-licenses", "no-licenses", "evaluate-secrets", "no-secrets", "enable-containers", "no-containers", "evaluate-iac", "no-iac"} {
+		scanCmd.Flags().Lookup(name).Hidden = true
+	}
 
 	// Report replay, kept as deprecated aliases for `vulnetix report` so existing
 	// pipelines keep working. `report` is the owner (cmd/report.go).

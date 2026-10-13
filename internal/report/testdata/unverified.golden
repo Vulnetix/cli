@@ -1,0 +1,17 @@
+ ✖ 3 advisories in 2 packages          1 need action · 1 unverified
+
+ NEEDS ACTION · 1 package
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● HIGH      requests 2.19.1               → 2.20.0        pypi   requirements.txt
+             CVE-2018-18074  ▲ PoC exploit
+
+ UNVERIFIED · 1 package · matched by name, version could not be checked
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● CRITICAL  fastapi 0.135.1                               pypi   requirements.txt
+             CVE-2024-24762  ? unverified  ▲ KEV  ▲ weaponized
+             + 1 more advisory
+
+ NEXT
+   vulnetix fix                       apply 1 upgrade
+   vulnetix scan --explain requests   why each advisory applies, with the evidence
+   vulnetix scan -v                   scores, version checks and match evidence

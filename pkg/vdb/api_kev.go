@@ -66,29 +66,75 @@ func (c *Client) VulnetixKevList(p VulnetixKevParams) ([]byte, error) {
 	return c.DoRequest("GET", path, nil)
 }
 
-// VulnetixKevGet fetches a single entry by CVE ID. Implemented client-side as
-// a list + filter since the API exposes the catalogue as a collection.
-// Returns a NotFoundError if the CVE isn't in the catalogue.
-func (c *Client) VulnetixKevGet(cveID string) (map[string]any, error) {
-	body, err := c.VulnetixKevList(VulnetixKevParams{
-		Format:            "json",
-		Limit:             5000,
-		IncludeReferences: true,
-	})
-	if err != nil {
-		return nil, err
-	}
+// kevGetPageSize is how many rows one page of the catalogue holds.
+const kevGetPageSize = 2000
 
-	var env struct {
-		Items []map[string]any `json:"items"`
-	}
-	if err := json.Unmarshal(body, &env); err != nil {
-		return nil, fmt.Errorf("decode vulnetix-kev list: %w", err)
-	}
-	for _, item := range env.Items {
-		if id, _ := item["cveId"].(string); id == cveID {
-			return item, nil
+// VulnetixKevGet fetches the KEV entry for a CVE.
+//
+// It searches every catalogue the API folds together, not only Vulnetix's own.
+// Vulnetix's catalogue is deliberately the CVEs that CISA and ENISA do not list,
+// so searching it alone answered "not in the Vulnetix KEV catalogue" for Log4Shell,
+// Heartbleed and Spring4Shell, which reads as "not a known exploited
+// vulnerability". The result names each catalogue that lists the CVE.
+//
+// The API exposes the catalogues as a paged collection, so this lists and
+// filters client-side. It returns a NotFoundError if no catalogue lists the CVE.
+func (c *Client) VulnetixKevGet(cveID string) (map[string]any, error) {
+	return kevGetFrom(func(offset int) ([]byte, error) {
+		return c.VulnetixKevList(VulnetixKevParams{
+			Format:            "json",
+			Limit:             kevGetPageSize,
+			Offset:            offset,
+			IncludeReferences: true,
+			Include:           []string{"cisa", "enisa"},
+		})
+	}, cveID)
+}
+
+// kevGetFrom is VulnetixKevGet over any pager, so it can be tested without a
+// network.
+func kevGetFrom(page func(offset int) ([]byte, error), cveID string) (map[string]any, error) {
+	var found map[string]any
+	var catalogues []string
+	seen := map[string]bool{}
+	for offset := 0; ; offset += kevGetPageSize {
+		body, err := page(offset)
+		if err != nil {
+			return nil, err
+		}
+		var env struct {
+			Total int              `json:"total"`
+			Items []map[string]any `json:"items"`
+		}
+		if err := json.Unmarshal(body, &env); err != nil {
+			return nil, fmt.Errorf("decode vulnetix-kev list: %w", err)
+		}
+		for _, item := range env.Items {
+			if id, _ := item["cveId"].(string); strings.EqualFold(id, cveID) {
+				if found == nil {
+					found = item
+				}
+				src, _ := item["source"].(string)
+				if src == "" {
+					src = "vulnetix"
+				}
+				if !seen[src] {
+					seen[src] = true
+					catalogues = append(catalogues, src)
+				}
+			}
+		}
+		if len(env.Items) < kevGetPageSize || offset+len(env.Items) >= env.Total {
+			break
 		}
 	}
-	return nil, &NotFoundError{Message: fmt.Sprintf("CVE %s is not in the Vulnetix KEV catalogue", cveID)}
+	if found == nil {
+		return nil, &NotFoundError{Message: fmt.Sprintf("CVE %s is in none of the KEV catalogues checked (Vulnetix, CISA, ENISA)", cveID)}
+	}
+	out := make(map[string]any, len(found)+1)
+	for k, v := range found {
+		out[k] = v
+	}
+	out["catalogues"] = catalogues
+	return out, nil
 }

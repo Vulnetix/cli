@@ -1,0 +1,6 @@
+vulnetix scan: FINDINGS  4 sast findings in 2 files, 2 need action, 2 can wait
+
+  CRITICAL  config/prod.env:7  VNX-SEC-001  AWS access key ID found; rotate the key
+  HIGH      src/app.py:5  VNX-PY-004  yaml.load() without SafeLoader; use yaml.safe_load() or pass Loader=SafeLoader
+  LOW       src/app.py:4  VNX-1117  Function without docstring summary
+  LOW       src/app.py:4  VNX-1117  Function without docstring summary

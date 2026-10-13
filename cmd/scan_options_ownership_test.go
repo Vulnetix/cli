@@ -72,6 +72,10 @@ var flagToOption = map[string]string{
 	// remote and resolving it here would walk the repository a second time.
 	"bom-manufacturer": "ManufacturerSources",
 	"lifecycle":        "LifecycleOverride",
+	// The gate vocabulary. --fail-on feeds six gate fields at once, so it is
+	// excused below rather than mapped to one of them.
+	"strict":          "Strict",
+	"accept-defended": "AcceptDefended",
 }
 
 // notAnalysisInput are scan-family flags that legitimately never reach Options,
@@ -123,6 +127,20 @@ var notAnalysisInput = map[string]string{
 	"no-secrets":                 "feature toggle, folded into the No* booleans",
 	"no-containers":              "feature toggle, folded into the No* booleans",
 	"no-iac":                     "feature toggle, folded into the No* booleans",
+	"fail-on":                    "folded into the gate fields of Options (severity, exploits, block-*, FailOnUnprotected) by scanopts.ParseFailOn",
+	"quiet":                      "folded into Options.ResultsOnly, and read as a display option by scanopts.SurfaceFromCommand",
+	"only":                       "feature selection, folded into the No* booleans",
+	"skip":                       "feature selection, folded into the No* booleans",
+	"view":                       "display: carried in scanopts.Surface, never reaches the analysis",
+	"filter":                     "display: carried in scanopts.Surface, never reaches the analysis",
+	"min-severity":               "display: carried in scanopts.Surface, never reaches the analysis",
+	"sort":                       "display: carried in scanopts.Surface, never reaches the analysis",
+	"show":                       "display: carried in scanopts.Surface; `paths` also sets Options.ShowPaths",
+	"hide":                       "display: carried in scanopts.Surface; `exploits` and `fixes` also set Options.NoExploits and NoRemediation",
+	"explain":                    "display: carried in scanopts.Surface, never reaches the analysis",
+	"color":                      "display: carried in scanopts.Surface, never reaches the analysis",
+	"ascii":                      "display: carried in scanopts.Surface, never reaches the analysis",
+	"width":                      "display: carried in scanopts.Surface, never reaches the analysis",
 	"no-aibom":                   "AIBOM runs as its own pass outside runLocalScan",
 	"no-cbom":                    "CBOM runs as its own pass outside runLocalScan",
 }
@@ -223,22 +241,23 @@ func TestOptionsFieldsAreReachable(t *testing.T) {
 	}
 	// Fields with no single flag behind them, each set from elsewhere.
 	for _, field := range []string{
-		"Files",            // manifest detection
-		"NoSCA",            // feature booleans, from --evaluate-*/--no-*
-		"NoSASTRules",      //
-		"NoSecrets",        //
-		"NoContainers",     //
-		"NoIAC",            //
-		"NoLicenses",       //
-		"LockedKinds",      // specializedRuleKinds(cmd.Name())
-		"RespectGitignore", // computed from the --*-include-ignored family
-		"SCAAutofixOpts",   // built from the --sca-autofix-* family
-		"AutofixResolved",  // set only by the confirmation re-scan
-		"License",          // built from --allow/--allow-file/--license-mode
-		"GitCtx",           // collected, not flagged
-		"SysInfo",          //
-		"SeedBOM",          //
-		"VulnetixSeedBOM",  //
+		"Files",             // manifest detection
+		"NoSCA",             // feature booleans, from --evaluate-*/--no-*
+		"NoSASTRules",       //
+		"NoSecrets",         //
+		"NoContainers",      //
+		"NoIAC",             //
+		"NoLicenses",        //
+		"LockedKinds",       // specializedRuleKinds(cmd.Name())
+		"RespectGitignore",  // computed from the --*-include-ignored family
+		"SCAAutofixOpts",    // built from the --sca-autofix-* family
+		"AutofixResolved",   // set only by the confirmation re-scan
+		"License",           // built from --allow/--allow-file/--license-mode
+		"FailOnUnprotected", // from --fail-on, via scanopts.ParseFailOn
+		"GitCtx",            // collected, not flagged
+		"SysInfo",           //
+		"SeedBOM",           //
+		"VulnetixSeedBOM",   //
 	} {
 		mapped[field] = true
 	}

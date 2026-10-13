@@ -98,6 +98,17 @@ type Options struct {
 	VersionLag       int
 	CooldownDays     int
 
+	// FailOnUnprotected fails the run when a finding has no fix and no unexpired
+	// recorded compensating control: "no fix and no plan".
+	FailOnUnprotected bool
+	// Strict counts findings the advisory itself rules out (not affected and
+	// likely not affected) toward the gates, as they were before version
+	// verdicts existed.
+	Strict bool
+	// AcceptDefended lets an unexpired recorded control satisfy the severity,
+	// exploit and malware gates for the finding it covers.
+	AcceptDefended bool
+
 	// Jail runs the organisation's jail policy against this repository after the
 	// scan has uploaded, and gates on the verdict.
 	//

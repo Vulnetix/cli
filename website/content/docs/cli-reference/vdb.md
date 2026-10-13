@@ -89,7 +89,13 @@ The `vdb` subcommand provides access to the Vulnetix Vulnerability Database (VDB
 
 ## Overview
 
-> **Migration note — API v2 is now the default.** Previous releases of the CLI defaulted to `-V v1`; current releases default to **v2** (the richer surface that includes timelines, scorecards, KEV merging, fixes-in-parallel, and the tree-sitter reachability queries). Pass `-V v1` only if you specifically need the legacy surface — `v1` is retained for backwards compatibility and will be removed in a future release. Examples in this document that still show `-V v2` are correct but redundant; the flag can be omitted.
+> **API v2 is current; v1 is deprecated.** Every `vdb` command runs on the v2 API by default, so none of them needs a version flag: `vulnetix vdb advisories CVE-2021-44228` is the whole command. v2 is the richer surface, with timelines, scorecards, KEV merging, fixes in parallel and the tree-sitter reachability queries. `-V v1` selects the legacy API. It is kept only for backwards compatibility, prints a deprecation notice, and will be removed. Commands that exist only on v2 (`timeline`, `affected`, `kev`, `advisories`, `workarounds`, `cwe`, `remediation`, `cloud-locators`, `scorecard`) refuse it and tell you to drop the flag.
+
+<div class="vdb-v1-only">
+
+> **You are reading the v1 view of this page.** The v1 API is deprecated and will be removed. Switch the API selector in the header to **v2**, which is current and the default for the CLI.
+
+</div>
 
 The VDB API aggregates vulnerability data from:
 
@@ -308,7 +314,7 @@ vulnetix vdb vuln <vuln-id> [flags]
 **Flags:**
 - `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 - `--reachability {direct|transitive|both|off}`: Tree-sitter reachability analysis mode (default `both`). Direct scans the installed package folder; transitive scans the rest of the project tree. `off` skips the analysis and the additional `/vuln/{id}/tree-sitter` request entirely. See the [Reachability Analysis](reachability/) section for full details.
-- `-V, --api-version {v2|v1}`: VDB API version. **v2 is the default**; pass `-V v1` only when the legacy surface is required (reachability is not produced on v1).
+- `-V, --api-version {v2|v1}`: VDB API version. **v2 is current and the default, so there is nothing to pass.** `-V v1` selects the legacy API: deprecated, kept for backwards compatibility, removed in a future release, and it produces no reachability.
 
 **Examples:**
 ```bash
@@ -663,7 +669,7 @@ vulnetix vdb fixes <vuln-id> [flags]
 **Flags:**
 - `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 
-> **V2 note:** When using API v2 (`-V v2`), fix data is fetched in parallel with other enrichment endpoints for faster response times.
+> **Note:** On the v2 API (the default), fix data is fetched in parallel with other enrichment endpoints for faster response times.
 
 **Examples:**
 ```bash
@@ -741,7 +747,7 @@ vulnetix vdb fixes distributions --output json
 
 Retrieve the vulnerability lifecycle timeline — CVE dates, exploits, scoring history, patches, and advisories.
 
-Works without `-V v2` (v1 default). With `-V v2`, also returns `sources{}` providing raw source transparency data.
+Returns `sources{}` providing raw source transparency data. This is the v2 API, which is the default; the deprecated v1 API omits it.
 
 **Usage:**
 ```bash
@@ -774,7 +780,7 @@ vulnetix vdb timeline <vuln-id> [flags]
 vulnetix vdb timeline CVE-2021-44228
 
 # With source transparency (v2)
-vulnetix vdb timeline CVE-2021-44228 -V v2
+vulnetix vdb timeline CVE-2021-44228
 
 # Only exploit events
 vulnetix vdb timeline CVE-2021-44228 --include exploit
@@ -786,7 +792,7 @@ vulnetix vdb timeline CVE-2021-44228 --exclude score-change
 vulnetix vdb timeline CVE-2021-44228 --dates published --scores-limit 10
 
 # JSON output with v2 source transparency
-vulnetix vdb timeline CVE-2021-44228 -V v2 --include exploit --output json
+vulnetix vdb timeline CVE-2021-44228 --include exploit --output json
 ```
 
 **Response (v1):**
@@ -1868,7 +1874,7 @@ vulnetix vdb ai-malware [--cve <CVE-ID>] [--limit <n>]
 
 ## V2 Commands
 
-The following commands are available when using API v2 (`-V v2`). They provide additional vulnerability enrichment data.
+The following commands are on the v2 API, which is the default, so they need no version flag. They provide additional vulnerability enrichment data and are not available on the deprecated v1 API.
 
 <div class="vdb-v2-only">
 
@@ -1878,7 +1884,7 @@ Get workaround information for a vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb workarounds <vuln-id> -V v2 [flags]
+vulnetix vdb workarounds <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -1886,8 +1892,8 @@ vulnetix vdb workarounds <vuln-id> -V v2 [flags]
 
 **Examples:**
 ```bash
-vulnetix vdb workarounds CVE-2021-44228 -V v2
-vulnetix vdb workarounds CVE-2021-44228 -V v2 -o json
+vulnetix vdb workarounds CVE-2021-44228
+vulnetix vdb workarounds CVE-2021-44228 -o json
 ```
 
 ---
@@ -1898,7 +1904,7 @@ Get advisory data for a vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb advisories <vuln-id> -V v2 [flags]
+vulnetix vdb advisories <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -1906,8 +1912,8 @@ vulnetix vdb advisories <vuln-id> -V v2 [flags]
 
 **Examples:**
 ```bash
-vulnetix vdb advisories CVE-2021-44228 -V v2
-vulnetix vdb advisories GHSA-jfh8-3a1q-hjz9 -V v2 -o json
+vulnetix vdb advisories CVE-2021-44228
+vulnetix vdb advisories GHSA-jfh8-3a1q-hjz9 -o json
 ```
 
 ---
@@ -1918,7 +1924,7 @@ Get CWE-based guidance for a vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb cwe guidance <vuln-id> -V v2 [flags]
+vulnetix vdb cwe guidance <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -1926,8 +1932,8 @@ vulnetix vdb cwe guidance <vuln-id> -V v2 [flags]
 
 **Examples:**
 ```bash
-vulnetix vdb cwe guidance CVE-2021-44228 -V v2
-vulnetix vdb cwe guidance CVE-2021-44228 -V v2 -o json
+vulnetix vdb cwe guidance CVE-2021-44228
+vulnetix vdb cwe guidance CVE-2021-44228 -o json
 ```
 
 ---
@@ -1938,7 +1944,7 @@ Get CISA KEV (Known Exploited Vulnerabilities) status for a vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb kev <vuln-id> -V v2 [flags]
+vulnetix vdb kev <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -1946,8 +1952,8 @@ vulnetix vdb kev <vuln-id> -V v2 [flags]
 
 **Examples:**
 ```bash
-vulnetix vdb kev CVE-2021-44228 -V v2
-vulnetix vdb kev CVE-2021-44228 -V v2 -o json
+vulnetix vdb kev CVE-2021-44228
+vulnetix vdb kev CVE-2021-44228 -o json
 ```
 
 ---
@@ -2423,7 +2429,7 @@ Get the vulnerability timeline showing key dates and events.
 
 **Usage:**
 ```bash
-vulnetix vdb timeline <vuln-id> -V v2 [flags]
+vulnetix vdb timeline <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -2431,8 +2437,8 @@ vulnetix vdb timeline <vuln-id> -V v2 [flags]
 
 **Examples:**
 ```bash
-vulnetix vdb timeline CVE-2021-44228 -V v2
-vulnetix vdb timeline CVE-2021-44228 -V v2 -o json
+vulnetix vdb timeline CVE-2021-44228
+vulnetix vdb timeline CVE-2021-44228 -o json
 ```
 
 ---
@@ -2443,7 +2449,7 @@ Get affected products and packages for a vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb affected <vuln-id> -V v2 [flags]
+vulnetix vdb affected <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -2456,9 +2462,9 @@ vulnetix vdb affected <vuln-id> -V v2 [flags]
 
 **Examples:**
 ```bash
-vulnetix vdb affected CVE-2021-44228 -V v2
-vulnetix vdb affected CVE-2021-44228 -V v2 --ecosystem maven
-vulnetix vdb affected CVE-2021-44228 -V v2 --ecosystem maven --package-name log4j-core -o json
+vulnetix vdb affected CVE-2021-44228
+vulnetix vdb affected CVE-2021-44228 --ecosystem maven
+vulnetix vdb affected CVE-2021-44228 --ecosystem maven --package-name log4j-core -o json
 ```
 
 ---
@@ -2469,7 +2475,7 @@ Get the OpenSSF Scorecard for a vulnerability's source repository, including sec
 
 **Usage:**
 ```bash
-vulnetix vdb scorecard <vuln-id> -V v2 [flags]
+vulnetix vdb scorecard <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -2477,8 +2483,8 @@ vulnetix vdb scorecard <vuln-id> -V v2 [flags]
 
 **Examples:**
 ```bash
-vulnetix vdb scorecard CVE-2021-44228 -V v2
-vulnetix vdb scorecard CVE-2021-44228 -V v2 -o json
+vulnetix vdb scorecard CVE-2021-44228
+vulnetix vdb scorecard CVE-2021-44228 -o json
 ```
 
 #### vdb scorecard search
@@ -2487,13 +2493,13 @@ Search OpenSSF Scorecards by repository name.
 
 **Usage:**
 ```bash
-vulnetix vdb scorecard search <query> -V v2 [flags]
+vulnetix vdb scorecard search <query> [flags]
 ```
 
 **Examples:**
 ```bash
-vulnetix vdb scorecard search openssl -V v2
-vulnetix vdb scorecard search github.com/openssl/openssl -V v2 -o json
+vulnetix vdb scorecard search openssl
+vulnetix vdb scorecard search github.com/openssl/openssl -o json
 ```
 
 ---
@@ -2504,7 +2510,7 @@ Get a context-aware remediation plan for a vulnerability.
 
 **Usage:**
 ```bash
-vulnetix vdb remediation plan <vuln-id> -V v2 [flags]
+vulnetix vdb remediation plan <vuln-id> [flags]
 ```
 
 **Flags:**
@@ -2528,18 +2534,18 @@ vulnetix vdb remediation plan <vuln-id> -V v2 [flags]
 **Examples:**
 ```bash
 # Basic remediation plan
-vulnetix vdb remediation plan CVE-2021-44228 -V v2
+vulnetix vdb remediation plan CVE-2021-44228
 
 # With package context
-vulnetix vdb remediation plan CVE-2021-44228 -V v2 \
+vulnetix vdb remediation plan CVE-2021-44228 \
   --ecosystem maven --package-name log4j-core --current-version 2.14.1
 
 # Using PURL
-vulnetix vdb remediation plan CVE-2021-44228 -V v2 \
+vulnetix vdb remediation plan CVE-2021-44228 \
   --purl "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
 
 # With full context and guidance
-vulnetix vdb remediation plan CVE-2021-44228 -V v2 \
+vulnetix vdb remediation plan CVE-2021-44228 \
   --ecosystem maven --package-name log4j-core \
   --current-version 2.14.1 --package-manager maven \
   --include-guidance --include-verification-steps -o json
@@ -2551,7 +2557,7 @@ Derive cloud-native resource identifier templates from vendor/product pairs. Ret
 
 **Usage:**
 ```bash
-vulnetix vdb cloud-locators -V v2 [flags]
+vulnetix vdb cloud-locators [flags]
 ```
 
 **Flags:**
@@ -2565,25 +2571,25 @@ vulnetix vdb cloud-locators -V v2 [flags]
 **Examples:**
 ```bash
 # AWS S3 (regional service)
-vulnetix vdb cloud-locators --vendor amazon --product s3 -V v2
+vulnetix vdb cloud-locators --vendor amazon --product s3
 
 # AWS CloudFront (global-only, region=us-east-1)
-vulnetix vdb cloud-locators --vendor amazon --product cloudfront -V v2
+vulnetix vdb cloud-locators --vendor amazon --product cloudfront
 
 # Azure Storage
-vulnetix vdb cloud-locators --vendor microsoft --product storage -V v2
+vulnetix vdb cloud-locators --vendor microsoft --product storage
 
 # GCP Compute Engine
-vulnetix vdb cloud-locators --vendor google --product compute -V v2
+vulnetix vdb cloud-locators --vendor google --product compute
 
 # Cloudflare Workers
-vulnetix vdb cloud-locators --vendor cloudflare --product workers -V v2
+vulnetix vdb cloud-locators --vendor cloudflare --product workers
 
 # Oracle Compute
-vulnetix vdb cloud-locators --vendor oracle --product compute -V v2
+vulnetix vdb cloud-locators --vendor oracle --product compute
 
 # JSON output for automation
-vulnetix vdb cloud-locators --vendor amazon --product lambda -V v2 -o json
+vulnetix vdb cloud-locators --vendor amazon --product lambda -o json
 ```
 
 **Response includes:**
@@ -2890,7 +2896,7 @@ All `vdb` commands support these global flags:
 - `--secret string`: SigV4 secret key (overrides VVD_SECRET env var)
 - `--method string`: Auth method: `apikey` or `sigv4` (auto-detected from flags if omitted)
 - `--base-url string`: VDB API base URL (default "https://api.vdb.vulnetix.com")
-- `-V, --api-version string`: API version path (default "v1"; e.g. "v2")
+- `-V, --api-version string`: API version (default "v2", the current API; "v1" is deprecated)
 - `-o, --output string`: Output format: `json`, `yaml`, `pretty` (default "pretty")
 - `--compact`: 2-space JSON indent (`--output json` only)
 - `--comfortable`: 4-space JSON indent, the default (`--output json` only)
@@ -2968,7 +2974,7 @@ curl -I https://api.vdb.vulnetix.com/v1/spec
 vulnetix vdb ecosystems --base-url https://custom-endpoint.example.com
 
 # Target a different API version
-vulnetix vdb ecosystems --api-version v2
+vulnetix vdb ecosystems
 ```
 
 ## API Documentation

@@ -18,7 +18,7 @@ This is a Go-based CLI application with the following key components:
 
 ### VDB Subcommands
 
-The `vdb` command queries the Vulnetix Vulnerability Database API. Commands default to `-V v2`; pass `-V v1` only when the legacy surface is specifically required. `-o json` selects JSON output. v1 is retained for backwards compatibility and will be removed in a future release.
+The `vdb` command queries the Vulnetix Vulnerability Database API. v2 is the current API and the default, so commands and their examples take no `-V` flag. `-V v1` selects the deprecated legacy API (it prints a notice and will be removed); v2-only commands refuse it via `requireV2`. `-o json` selects JSON output.
 
 **V1+V2 commands**: `vuln`, `exploits`, `gcve`, `product`, `packages`, `ecosystems`, `sources`, `summary`, `ids`, `eol` (+ `product`/`release`), `purl`
 **V2-only commands** (require v2, which is now the default — do not pass `-V v1`): `scorecard` (+ `search` subcommand), `timeline`, `affected`, `kev`, `advisories`, `workarounds`, `cwe` (+ `guidance`), `remediation` (+ `plan`), `cloud-locators`, `fixes` (V2 fetches registry/distributions/source in parallel), tree-sitter reachability (`x_treeSitterQueries`)
@@ -59,6 +59,19 @@ When adding a capability: put it behind such a function in its owner's file and 
 Flags registered family-wide by `addScanFlags`/`addSASTFlags` must be **honoured** family-wide. `--dry-run` and `--list-default-rules` are handled inside `runScanWithFeatures` (before any network work) precisely so every subcommand honours them; `--snippet-context` lives in `addSASTFlags` because it shapes SARIF for every rego command. `cmd/scan_flag_ownership_test.go` locks this in.
 
 `--from-memory`/`--fresh-*` on `scan` are deprecated aliases delegating to `report`; `--sca-autofix` is the in-pipeline trigger for `fix`. Keep both working.
+
+### Output Is One Report Model, Not Per-Scanner Printing
+
+Every scanner's terminal output is drawn by `internal/report`: `Build` turns findings into a `Report` once, and the packages, findings, tree, plain and GitHub renderers (plus `RenderCode` for the rule engine) read it. A renderer never computes urgency, a fix or a verdict, so two views cannot disagree about the same package. `cmd/scan_report.go` is the only bridge from the scan to it; `--view table` keeps the old eighteen-column table behind a flag and is the only other path.
+
+- **The unit is the package.** A fix is the lowest version that clears every advisory on it, taken from the advisory's own affected range when it has one. A server `no_fix` flag does not override a range like `< 2.32.4`.
+- **A verdict is computed, never assumed** (`scan.EvaluateVerdict`): `affected`, `unverified`, `likely not affected`, `not affected`. A git-commit range (OSV records many PYSEC advisories this way) cannot be compared with a version, so it is `unverified` with that reason, not `affected` because a source flagged it. `Counts()` decides what the gates see; `--strict` overrides it. Nothing is deleted: JSON, SARIF and the SBOM keep every finding.
+- **Evidence is weighed, not summed.** `scan.ResolveUnverified` reads an advisory's own record for what the scan response could not settle. It only resolves: an open-ended range (`introduced 0`, `*`), an enumerated version, or a distro-rebuild bound (`+echo.1`) never confirms a version that no bounded range contains. That is `unverified` (conflict), which still counts, and no evidence may clear a finding unless every alias that names the package agrees. Unresolved specifiers (`latest`, `catalog:`, `workspace:`) are never queried. `tools/efficacy` measures all of this against OSV; read `FP-REAL` (a wrong "affected") separately from `FP-flagged-unverified`.
+- **Groups are what to do, not how severe.** `UNVERIFIED` still counts but never claims urgency. Only advisories established as affecting this version raise a package's urgency.
+- **Showing and failing are different verbs.** `--min-severity` and `--filter` change the view; `--fail-on` changes the exit code. `--fail-on` is a vocabulary over the existing gate fields (`scanopts.ParseFailOn` folds into `pipeline.Options`), so org quality-gate policy still wins. The legacy flags keep working and are hidden (`scanopts.HideLegacyFlags`); `--fix` aliases `--sca-autofix` through a flag normalizer, not a second flag.
+- **Any advisory family can be looked up** (the server widens each id through its alias group), and the lookup has several honest non-answers (the `internal/defences` states). The source is a seam (`defences.Source`); `vdbSource` asks `POST /v2/defences/counts` once for every no-fix advisory (counts for every plan, rules and console links for Pro) and only `defend` pays for the full records. The lookup is bounded (20s in a scan): a slow backend costs the defence lines, never the scan. `StateUnavailable` (no client registered) prints nothing, never "none"; do not report `StateNone` from a source that did not ask. Tests use `defences.Unavailable` so they never reach the network. A recorded control (`.vulnetix/controls.json`, written by `defend --record`) is a claim with an expiry, written to VEX as `affected`, never `not_affected`, and it never satisfies a gate unless `--accept-defended` says so.
+- **A secret's value is never printed**, in any view, at any verbosity, in `--explain` or in annotations (`TestSecretValuesAreNeverPrinted`).
+- **Golden files** in `internal/report/testdata` pin every view at 110, 80 and 50 columns, plain and ASCII; regenerate with `go test ./internal/report -update` and read the diff.
 
 ### `cdx` Writes SBOMs, `bom` Reads Them
 

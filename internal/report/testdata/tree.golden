@@ -1,0 +1,44 @@
+ ✖ 15 advisories in 9 packages          5 need action · 4 can wait · 1 not affected
+   142 packages · 3 manifests · sca sast · 4.2s
+
+ Cargo.lock
+ ● HIGH      oldparser 0.9.2               no fix          cargo
+             CVE-2025-44444
+             ◆ nothing published for this yet
+             → vulnetix vdb workarounds CVE-2025-44444
+
+ Dockerfile
+ ● HIGH      libexample 1.8.2              no fix          deb
+             CVE-2025-22222  ▲ PoC exploit
+             ◆ block   nothing published for this yet
+             ◆ detect  Sigma
+             → vulnetix defend CVE-2025-22222
+
+ package-lock.json
+ ● HIGH      otherlib 4.0.0                no fix          npm
+             CVE-2025-33333  ▲ KEV
+             ◆ 2 block rules and 1 detection exist · Pro unlocks the rules
+
+ pom.xml
+ ● CRITICAL  log4j-core 2.14.1             → 2.17.1        maven
+             CVE-2021-44228  ▲ KEV  ▲ weaponized  ▲ reachable
+             + 3 more advisories, the same upgrade clears them
+
+ requirements.txt
+ ● CRITICAL  legacy-xml 3.1.4              no fix          pypi
+             CVE-2025-11111  ▲ PoC exploit  ▲ referenced  app/parse.py:18
+             ◆ block   ModSecurity · nginx     start in log only
+             ◆ detect  Sigma
+             → vulnetix defend CVE-2025-11111
+ ● HIGH      requests 2.19.1               → 2.31.0        pypi
+             CVE-2018-18074  ▲ PoC exploit  ▲ referenced  api/client.py:12
+             + 1 more advisory, the same upgrade clears it
+ ● CRITICAL  pyyaml 5.3                    → 5.4           pypi
+             CVE-2020-14343
+ ● MEDIUM    jinja2 2.10                   → 2.11.3        pypi
+             CVE-2020-28493
+             + 1 more advisory, the same upgrade clears it
+ ● MEDIUM    urllib3 1.24.1                → 1.24.3        pypi
+             CVE-2019-11324
+             + 1 more advisory, the same upgrade clears it
+ ✔ fastapi 0.135.1   PYSEC-2024-38 is fixed in 0.109.1 · you are past it · --explain PYSEC-2024-38

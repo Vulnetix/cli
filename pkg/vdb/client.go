@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -114,6 +115,9 @@ func formatAPIError(statusCode int, body []byte) string {
 			return fmt.Sprintf("API error (%d): %s - %s", statusCode, errResp.Error, errResp.Details)
 		}
 		return fmt.Sprintf("API error (%d): %s", statusCode, errResp.Error)
+	}
+	if msg, ok := htmlErrorSummary(statusCode, body); ok {
+		return msg
 	}
 	return fmt.Sprintf("API error (%d): %s", statusCode, string(body))
 }
@@ -936,4 +940,27 @@ func LoadCredentials() (orgID, secretKey string, err error) {
 // LoadFullCredentials loads credentials as a full Credentials struct
 func LoadFullCredentials() (*auth.Credentials, error) {
 	return auth.LoadCredentials()
+}
+
+var htmlTitleRe = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+
+// htmlErrorSummary turns a gateway or CDN error page into one line. A 502 from
+// the edge arrives as a page of HTML, and printing it verbatim buries the one
+// thing the user needs to know: the request did not reach the API, so nothing
+// they typed is wrong.
+func htmlErrorSummary(statusCode int, body []byte) (string, bool) {
+	head := strings.ToLower(strings.TrimSpace(string(body)))
+	if len(head) > 200 {
+		head = head[:200]
+	}
+	if !strings.HasPrefix(head, "<!doctype html") && !strings.HasPrefix(head, "<html") && !strings.Contains(head, "<head") {
+		return "", false
+	}
+	what := http.StatusText(statusCode)
+	if m := htmlTitleRe.FindSubmatch(body); m != nil {
+		if t := strings.TrimSpace(string(m[1])); t != "" {
+			what = t
+		}
+	}
+	return fmt.Sprintf("API error (%d): the API gateway answered %q before the request reached the API. This is a server-side problem, not your input; try again shortly", statusCode, what), true
 }
