@@ -26,7 +26,7 @@ var versionCmd = &cobra.Command{
 		}
 
 		var b strings.Builder
-		b.WriteString(display.Bold(t, fmt.Sprintf("Vulnetix CLI v%s", version)) + "\n")
+		b.WriteString(display.Bold(t, "Vulnetix CLI "+displayVersion()) + "\n")
 		b.WriteString(display.KeyValue(t, []display.KVPair{
 			{Key: "Commit", Value: commit},
 			{Key: "Built", Value: buildDate},
@@ -86,4 +86,11 @@ func moduleVersionFromDeps(path string, deps []*debug.Module) string {
 func init() {
 	versionCmd.Flags().BoolVar(&versionShort, "short", false, "Print only the version number")
 	rootCmd.AddCommand(versionCmd)
+}
+
+// displayVersion is the version as the banner prints it: exactly one leading
+// "v". Release builds inject the tag ("v3.115.5") and dev builds a bare
+// semver, so prefixing unconditionally printed "vv3.115.5" for every release.
+func displayVersion() string {
+	return "v" + strings.TrimPrefix(version, "v")
 }

@@ -170,7 +170,7 @@ func runInfoTask(cmd *cobra.Command) error {
 	progress := ctx.Progress("Authentication healthcheck", 6)
 
 	var b strings.Builder
-	b.WriteString(display.Bold(t, fmt.Sprintf("Vulnetix CLI v%s", version)) + "\n")
+	b.WriteString(display.Bold(t, "Vulnetix CLI "+displayVersion()) + "\n")
 	b.WriteString(display.Muted(t, fmt.Sprintf("Platform: %s", config.DetectPlatform())) + "\n")
 	b.WriteString("\n" + display.Subheader(t, "Authentication Sources") + "\n")
 
