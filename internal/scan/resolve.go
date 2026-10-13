@@ -281,6 +281,25 @@ func openStart(ve versions.VersionEntry) bool {
 	return v == "" || v == "0" || v == "0.0" || v == "0.0.0" || v == "*" || strings.EqualFold(v, "x")
 }
 
+// neverFixedFromStart reports an explicit "introduced 0, never fixed": a start of zero with
+// a wildcard upper bound. A bare wildcard version ("*") is a different, weaker claim and is
+// not matched, and neither is a git range.
+func neverFixedFromStart(ve versions.VersionEntry) bool {
+	if strings.EqualFold(ve.VersionType, "git") {
+		return false
+	}
+	wild := func(p *string) bool {
+		if p == nil {
+			return false
+		}
+		s := strings.TrimSpace(*p)
+		return s == "*" || strings.EqualFold(s, "x")
+	}
+	v := strings.TrimSpace(ve.Version)
+	zero := v == "" || v == "0" || v == "0.0" || v == "0.0.0"
+	return zero && (wild(ve.LessThan) || wild(ve.LessThanOrEqual))
+}
+
 // evaluateAffectedData checks one installed version against the entries of an
 // affected record that name this package.
 //
@@ -300,6 +319,8 @@ func evaluateAffectedData(data map[string]any, pkgName, ecosystem, installed str
 	seen := map[string]bool{}
 	sawComparable, affected := false, false
 	var affectedBounded, affectedOpen, hasBounded bool
+	// openToEnd: the record says "introduced 0, never fixed" for this package.
+	var openToEnd, hasFixRange bool
 	seenBounded := map[string]bool{}
 
 	for _, e := range entries {
@@ -309,12 +330,18 @@ func evaluateAffectedData(data map[string]any, pkgName, ecosystem, installed str
 		}
 		var usable, ranges []versions.VersionEntry
 		for _, ve := range decodeVersionEntries(am) {
+			if neverFixedFromStart(ve) {
+				openToEnd = true
+			}
 			if !comparableEntry(ve, ecosystem) {
 				continue
 			}
 			usable = append(usable, ve)
 			if ve.LessThan != nil || ve.LessThanOrEqual != nil {
 				ranges = append(ranges, ve)
+				// comparableEntry has dropped wildcard bounds, so this range has a
+				// real upper bound: a fix landed.
+				hasFixRange = true
 			} else {
 				exactParts = appendUniq(exactParts, "= "+ve.Version, seen)
 			}
@@ -365,6 +392,14 @@ func evaluateAffectedData(data map[string]any, pkgName, ecosystem, installed str
 		}
 	}
 
+	// "Introduced 0, never fixed" is the whole statement when the record has no bounded
+	// range for the package: any releases it lists beside it are that range spelled out
+	// (a malware advisory names the versions it was seen in, and means all of them), so
+	// they are not the complete list and cannot rule the install out. A bounded range is
+	// different: it says a fix landed, and a wildcard must not override it.
+	if openToEnd && !hasFixRange && !affected {
+		return affectedResult{status: versions.StatusAffected, rangeStr: "*"}
+	}
 	if affected && !affectedBounded && affectedOpen && hasBounded && len(boundedParts) > 0 {
 		return affectedResult{status: versions.StatusAffected, rangeStr: strings.Join(boundedParts, " || "), weak: true}
 	}

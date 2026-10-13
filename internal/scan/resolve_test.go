@@ -424,3 +424,45 @@ func TestAFailedLookupIsRetriedOnceAndCountedWhenItStaysFailed(t *testing.T) {
 		t.Errorf("a finding whose lookup failed must keep counting")
 	}
 }
+
+func malRecord(extra ...any) map[string]any {
+	versions := append([]any{
+		map[string]any{"version": "0", "lessThan": "*", "status": "affected", "versionType": "semver"},
+		map[string]any{"version": "5.0.0", "status": "affected", "versionType": "custom"},
+		map[string]any{"version": "9.1.0", "status": "affected", "versionType": "custom"},
+	}, extra...)
+	return map[string]any{"affected": []any{map[string]any{
+		"packageName": "eslint-plugin-react-hooks-published", "ecosystem": "npm", "versions": versions}}}
+}
+
+func malFinding(ver string) EnrichedVuln {
+	return EnrichedVuln{
+		VulnFinding:   VulnFinding{CveID: "MAL-2025-191488", PackageName: "eslint-plugin-react-hooks-published", PackageVer: ver, Ecosystem: "npm"},
+		AffectedRange: "*", VersionStatus: "affected", Confirmed: true,
+	}
+}
+
+// A whole-package malware advisory is recorded as "introduced 0, never fixed" plus the
+// releases it was seen in. Those releases are that range spelled out; they are not the
+// complete list. Reading them as complete ruled every other version out, so installing
+// 5.2.0 of a package that is malware in every version was reported as safe.
+func TestOpenRangeBesideEnumeratedVersionsStillAffects(t *testing.T) {
+	var calls int32
+	vs := []EnrichedVuln{malFinding("5.2.0")}
+	ResolveUnverified(context.Background(), vs, fetcher(map[string]map[string]any{"MAL-2025-191488": malRecord()}, &calls), 4)
+	if v := EvaluateVerdict(vs[0]).Verdict; v != VerdictAffected {
+		t.Fatalf("verdict = %q, want affected: the record says every version is", v)
+	}
+}
+
+// A real fix still wins. An open range beside a bounded range that excludes the install is
+// the stale-wildcard case this pass exists to clear.
+func TestOpenRangeLosesToABoundedFix(t *testing.T) {
+	var calls int32
+	rec := malRecord(map[string]any{"version": "0", "lessThan": "2.0.0", "status": "affected", "versionType": "semver"})
+	vs := []EnrichedVuln{malFinding("5.2.0")}
+	ResolveUnverified(context.Background(), vs, fetcher(map[string]map[string]any{"MAL-2025-191488": rec}, &calls), 4)
+	if v := EvaluateVerdict(vs[0]).Verdict; v == VerdictAffected {
+		t.Fatalf("verdict = %q: a bounded fix below the install must not be overridden by a wildcard", v)
+	}
+}
