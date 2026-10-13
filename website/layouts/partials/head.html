@@ -32,11 +32,13 @@
 <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
 
 <script>
-  document.documentElement.classList.add('vdb-' + (localStorage.getItem('vdb-api-version') || 'v1'));
+  document.documentElement.classList.add('vdb-' + (localStorage.getItem('vdb-api-version') || 'v2'));
 </script>
 <script defer>
 document.addEventListener('DOMContentLoaded', function () {
-  var currentVersion = localStorage.getItem('vdb-api-version') || 'v1';
+  // v2 is the current API and the default; v1 is deprecated and kept only for
+  // readers who still need the legacy surface. A stored choice is respected.
+  var currentVersion = localStorage.getItem('vdb-api-version') || 'v2';
   var navLinks = document.querySelector('.site-nav__links');
   if (!navLinks) return;
 
@@ -48,8 +50,13 @@ document.addEventListener('DOMContentLoaded', function () {
   btn.setAttribute('aria-haspopup', 'true');
   btn.setAttribute('aria-expanded', 'false');
   btn.setAttribute('data-state', 'closed');
+  function badge(v){
+    return v === 'v2'
+      ? '<span class="vdb-current-badge">current</span>'
+      : '<span class="vdb-deprecated-badge">deprecated</span>';
+  }
   function updateBtn(v){
-    btn.innerHTML = 'API ' + v + (v === 'v2' ? ' <span class="vdb-alpha-badge">alpha</span>' : '') +
+    btn.innerHTML = 'API ' + v + ' ' + badge(v) +
       ' <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>';
   }
   updateBtn(currentVersion);
@@ -57,13 +64,13 @@ document.addEventListener('DOMContentLoaded', function () {
   var menu = document.createElement('ul');
   menu.className = 'vdb-version-menu';
   menu.setAttribute('data-show', 'false');
-  [{id:'v1',label:'v1'},{id:'v2',label:'v2',badge:true}].forEach(function(v){
+  [{id:'v2',label:'v2'},{id:'v1',label:'v1'}].forEach(function(v){
     var li = document.createElement('li');
     var opt = document.createElement('button');
     opt.setAttribute('role','menuitemradio');
     opt.setAttribute('aria-checked', v.id === currentVersion ? 'true':'false');
     opt.setAttribute('data-version', v.id);
-    opt.innerHTML = v.label + (v.badge ? ' <span class="vdb-alpha-badge">alpha</span>' : '');
+    opt.innerHTML = v.label + ' ' + badge(v.id);
     opt.addEventListener('click', function(){ setVersion(v.id); close(); });
     li.appendChild(opt);
     menu.appendChild(li);
@@ -78,9 +85,10 @@ document.addEventListener('DOMContentLoaded', function () {
   btn.addEventListener('click', function(e){ e.stopPropagation(); menu.getAttribute('data-show')==='true' ? close() : open(); });
   document.addEventListener('click', function(e){ if (!switcher.contains(e.target)) close(); });
 
-  function setVersion(v){
+  // apply shows a version without recording it, so only an explicit choice is
+  // ever stored and the default can still move.
+  function apply(v){
     currentVersion = v;
-    localStorage.setItem('vdb-api-version', v);
     document.documentElement.classList.remove('vdb-v1','vdb-v2');
     document.documentElement.classList.add('vdb-' + v);
     updateBtn(v);
@@ -91,7 +99,11 @@ document.addEventListener('DOMContentLoaded', function () {
       a.href = a.href.replace(/\/v[12]\//g, '/' + v + '/');
     });
   }
-  if (currentVersion !== 'v1') setVersion(currentVersion);
+  function setVersion(v){
+    try { localStorage.setItem('vdb-api-version', v); } catch (e) {}
+    apply(v);
+  }
+  apply(currentVersion);
 });
 </script>
 

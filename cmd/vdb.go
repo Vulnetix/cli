@@ -132,6 +132,7 @@ Examples:
 		if err := validateAPIVersion(); err != nil {
 			return err
 		}
+		warnLegacyAPIVersion()
 		if err := resolveVDBCredentials(true); err != nil {
 			return err
 		}
@@ -355,14 +356,14 @@ Examples:
 
 // fixesCmd retrieves fix data for a specific vulnerability
 // Also serves as parent for fixes subcommands (distributions)
-// With -V v2, merges registry, distributions, and source fixes in parallel
+// On the v2 API (the default), merges registry, distributions, and source fixes in parallel
 var fixesCmd = &cobra.Command{
 	Use:   "fixes [vuln-id]",
 	Short: "Get fix data for a specific vulnerability",
 	Long: `Retrieve comprehensive fix data for a vulnerability including patches, advisories,
 workarounds, KEV required actions, and AI-generated analysis.
 
-With -V v2, fetches and merges registry fixes, distribution patches, and source fixes
+On the v2 API (the default), fetches and merges registry fixes, distribution patches, and source fixes
 from three separate V2 endpoints in parallel.
 
 Accepts any supported vulnerability identifier (CVE, GHSA, PYSEC, ZDI, SNYK, and 70+ more).
@@ -372,7 +373,7 @@ Subcommands:
 
 Examples:
   vulnetix vdb fixes CVE-2021-44228
-  vulnetix vdb fixes CVE-2021-44228 -V v2
+  vulnetix vdb fixes CVE-2021-44228
   vulnetix vdb fixes distributions`,
 	Args: cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -415,7 +416,7 @@ var timelineCmd = &cobra.Command{
 	Long: `Retrieve the vulnerability lifecycle timeline including CVE dates, exploits,
 scoring history, patches, and advisories.
 
-With -V v2, also returns source transparency data (sources{}).
+On the v2 API (the default), also returns source transparency data (sources{}).
 
 Event types: source, exploit, score-change, patch, advisory, scorecard
 
@@ -426,7 +427,7 @@ Examples:
   vulnetix vdb timeline CVE-2021-44228 --include exploit,source
   vulnetix vdb timeline CVE-2021-44228 --exclude score-change
   vulnetix vdb timeline CVE-2021-44228 --scores-limit 10
-  vulnetix vdb timeline CVE-2021-44228 -V v2 --output json`,
+  vulnetix vdb timeline CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		identifier := args[0]
@@ -1442,7 +1443,7 @@ Examples:
   vulnetix vdb traffic-filters GHSA-jfh8-3a1q-hjz9
   vulnetix vdb traffic-filters CVE-2021-44228 -o json
   vulnetix vdb traffic-filters CVE-2021-44228 --limit 10
-  vulnetix vdb traffic-filters CVE-2021-44228 -V v2`,
+  vulnetix vdb traffic-filters CVE-2021-44228`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		identifier := args[0]
@@ -2069,10 +2070,10 @@ func init() {
 	vdbCmd.PersistentFlags().StringVar(&vdbAPIKey, "api-key", "", "Direct API key (overrides VULNETIX_API_KEY env var)")
 	vdbCmd.PersistentFlags().StringVar(&vdbMethod, "method", "", "Auth method: apikey or sigv4 (auto-detected from flags if omitted)")
 	vdbCmd.PersistentFlags().StringVar(&vdbBaseURL, "base-url", vdb.DefaultBaseURL, "VDB API base URL")
-	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "v2", `VDB API version: "v2" (default) or "v1" (legacy). v1 is retained for backwards compatibility and will be removed in a future release. New commands (timeline, affected, kev, advisories, workarounds, cwe, remediation, cloud-locators, fixes, scorecard, tree-sitter reachability) require v2.`)
+	vdbCmd.PersistentFlags().StringVarP(&vdbAPIVersion, "api-version", "V", "v2", `VDB API version. v2 is the current API and the default, so there is nothing to pass. "v1" is the legacy API: deprecated, kept for backwards compatibility, and it will be removed. Commands that exist only on v2 (timeline, affected, kev, advisories, workarounds, cwe, remediation, cloud-locators, scorecard, reachability) refuse -V v1.`)
 	vdbCmd.PersistentFlags().StringVarP(&vdbOutput, "output", "o", "pretty", "Output format (json, yaml, pretty)")
 	vdbCmd.PersistentFlags().StringVar(&vdbReachability, "reachability", "both",
-		`Tree-sitter reachability analysis mode for vuln commands: "direct" (only scan the installed package folder), "transitive" (only scan the rest of the project for callers), "both" (default), or "off" (skip; no API call). Requires -V v2 (the default). Direct mode confirms the vulnerable pattern is present in the installed version; transitive mode finds first-party or other-dep code paths that reach it.`)
+		`Tree-sitter reachability analysis mode for vuln commands: "direct" (only scan the installed package folder), "transitive" (only scan the rest of the project for callers), "both" (default), or "off" (skip; no API call). Runs on the v2 API (the default; skipped on the legacy v1). Direct mode confirms the vulnerable pattern is present in the installed version; transitive mode finds first-party or other-dep code paths that reach it.`)
 	vdbCmd.PersistentFlags().BoolVar(&vdbNoCache, "no-cache", false, "Bypass local disk cache entirely")
 	vdbCmd.PersistentFlags().BoolVar(&vdbRefreshCache, "refresh-cache", false, "Ignore cached data and fetch fresh from API (updates cache)")
 	vdbCmd.PersistentFlags().BoolVar(&vdbNoCommunity, "no-community", false, "Disable community fallback credentials (require explicit authentication)")

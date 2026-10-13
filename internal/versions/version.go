@@ -90,6 +90,14 @@ func Parse(s string) (Version, error) {
 		return v, nil
 	}
 
+	// PEP 440 (Python): 1.0.0rc1, 2.0a1, 3.2.0.dev0, 1.0.post1. SemVer cannot read
+	// these, and an installed version that cannot be parsed cannot be compared.
+	// Converted once and parsed below; the output is plain SemVer, so converting
+	// again would only loop.
+	if conv, ok := pep440ToSemver(s); ok {
+		s = conv
+	}
+
 	// Build metadata: everything after the first "+" is ignored for
 	// comparison but preserved.
 	if i := strings.IndexByte(s, '+'); i >= 0 {

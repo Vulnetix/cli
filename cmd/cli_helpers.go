@@ -160,28 +160,99 @@ func callWorkarounds(client *vdb.Client, id string) (map[string]any, error) {
 	if c := newCliClient(); c != nil {
 		if resp, err := c.CliWorkarounds(envForCli(), []string{id}); err == nil {
 			if per := extractByID(resp.Data, "workaroundsByVuln", id); per != nil {
-				return asMap(per), nil
+				return workaroundsResult(id, per), nil
 			}
-			return resp.Data, nil
+			logCliOp("  cli.workarounds had no entry for %s, trying /v2/vuln/%s/workarounds", id, id)
 		} else if !isCli404(err) {
 			logCliOp("  cli.workarounds errored (%v), falling back to legacy", err)
 		}
 	}
-	return client.V2Workarounds(id)
+	m, err := client.V2Workarounds(id)
+	if err != nil {
+		if isCli404(err) {
+			return workaroundsResult(id, nil), nil
+		}
+		return nil, err
+	}
+	return withIdentifier(m, id), nil
 }
 
 func callAdvisories(client *vdb.Client, id string) (map[string]any, error) {
 	if c := newCliClient(); c != nil {
 		if resp, err := c.CliAdvisories(envForCli(), []string{id}); err == nil {
 			if per := extractByID(resp.Data, "advisoriesByVuln", id); per != nil {
-				return asMap(per), nil
+				return advisoriesResult(id, per), nil
 			}
-			return resp.Data, nil
+			// The batched endpoint answered, but with nothing for this id. That is
+			// not the same as "there are none": ask the per-vulnerability endpoint
+			// before saying so, instead of returning the empty envelope as though
+			// it were the answer.
+			logCliOp("  cli.advisories had no entry for %s, trying /v2/vuln/%s/advisories", id, id)
 		} else if !isCli404(err) {
 			logCliOp("  cli.advisories errored (%v), falling back to legacy", err)
 		}
 	}
-	return client.V2Advisories(id)
+	m, err := client.V2Advisories(id)
+	if err != nil {
+		if isCli404(err) {
+			return advisoriesResult(id, nil), nil
+		}
+		return nil, err
+	}
+	return withIdentifier(m, id), nil
+}
+
+// withIdentifier makes sure a per-vulnerability result says which vulnerability it
+// is for. A renderer that prints "Advisories for" and then nothing has no way to
+// tell the reader what was looked up.
+func withIdentifier(m map[string]any, id string) map[string]any {
+	if m == nil {
+		m = map[string]any{}
+	}
+	if s, _ := m["identifier"].(string); s == "" {
+		m["identifier"] = id
+	}
+	return m
+}
+
+// advisoriesResult shapes a cli.advisories payload into what the renderer and
+// JSON consumers read. The batched endpoint returns reference rows
+// ({url, referenceSource, tags}); the per-vulnerability endpoint returns
+// {identifier, advisories: [{id, title, url, source}]}. Both land in the second.
+func advisoriesResult(id string, per any) map[string]any {
+	out := map[string]any{"identifier": id, "advisories": []any{}}
+	switch v := per.(type) {
+	case map[string]any:
+		// Already per-vulnerability shaped.
+		return withIdentifier(v, id)
+	case []any:
+		advs := make([]any, 0, len(v))
+		for _, row := range v {
+			r, ok := row.(map[string]any)
+			if !ok {
+				continue
+			}
+			adv := map[string]any{"url": r["url"], "source": r["referenceSource"]}
+			if tags, ok := r["tags"]; ok && tags != nil {
+				adv["tags"] = tags
+			}
+			advs = append(advs, adv)
+		}
+		out["advisories"] = advs
+	}
+	return out
+}
+
+// workaroundsResult is advisoriesResult's counterpart for workarounds.
+func workaroundsResult(id string, per any) map[string]any {
+	out := map[string]any{"identifier": id, "workarounds": []any{}}
+	switch v := per.(type) {
+	case map[string]any:
+		return withIdentifier(v, id)
+	case []any:
+		out["workarounds"] = v
+	}
+	return out
 }
 
 func callCweGuidance(client *vdb.Client, id string) (map[string]any, error) {
@@ -189,7 +260,10 @@ func callCweGuidance(client *vdb.Client, id string) (map[string]any, error) {
 		// cli.cwe-guidance is keyed by CWE id; for CVE→CWE fan-out we still
 		// need the legacy plus the new pivot.
 		if resp, err := c.CliCweGuidance(envForCli(), []string{id}); err == nil {
-			return resp.Data, nil
+			if !cliAnswerPending(resp.Data, "guidanceByCwe") {
+				return resp.Data, nil
+			}
+			logCliOp("  cli.cwe-guidance returned a placeholder for %s, trying /v2/vuln/%s/cwe-guidance", id, id)
 		} else if !isCli404(err) {
 			logCliOp("  cli.cwe-guidance errored (%v), falling back to legacy", err)
 		}
@@ -202,7 +276,10 @@ func callScorecard(client *vdb.Client, id string) (map[string]any, error) {
 		// scorecard is purl-keyed; legacy was CVE-keyed. Use id as a generic
 		// hint until the server cuts over to PURL-keyed scorecards.
 		if resp, err := c.CliScorecard(envForCli(), []string{id}); err == nil {
-			return resp.Data, nil
+			if !cliAnswerPending(resp.Data, "scorecardByPurl") {
+				return resp.Data, nil
+			}
+			logCliOp("  cli.scorecard returned a placeholder for %s, trying /v2/vuln/%s/scorecard", id, id)
 		} else if !isCli404(err) {
 			logCliOp("  cli.scorecard errored (%v), falling back to legacy", err)
 		}
@@ -229,7 +306,9 @@ func callRemediation(client *vdb.Client, id string, p vdb.V2RemediationParams) (
 			if per := extractByID(resp.Data, "planByVuln", id); per != nil {
 				return asMap(per), nil
 			}
-			return resp.Data, nil
+			// No entry for this id: ask the per-vulnerability endpoint rather than
+			// returning the empty batched envelope as the answer.
+			logCliOp("  cli.remediation had no entry for %s, trying the legacy plan endpoint", id)
 		} else if !isCli404(err) {
 			logCliOp("  cli.remediation errored (%v), falling back to legacy", err)
 		}
@@ -295,4 +374,16 @@ func warnOutputExtension(path, wantSuffix string) {
 	}
 	fmt.Fprintf(os.Stderr, "warning: %s does not end in %s, but this command always writes %s content\n",
 		path, wantSuffix, strings.TrimPrefix(wantSuffix, "."))
+}
+
+// cliAnswerPending reports whether a cli.* response is a placeholder rather than
+// an answer: the keyed bag is empty, or the server says its backend is not wired
+// up yet. Returning one of those as the result prints a header with nothing under
+// it, so the caller falls through to the per-vulnerability endpoint instead.
+func cliAnswerPending(data map[string]any, key string) bool {
+	if note, _ := data["note"].(string); strings.Contains(strings.ToLower(note), "pending") {
+		return true
+	}
+	bag, ok := data[key].(map[string]any)
+	return !ok || len(bag) == 0
 }

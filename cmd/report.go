@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/scanopts"
 )
 
 // reportCmd owns replaying stored scan results. It is the report view over
@@ -53,6 +54,7 @@ func init() {
 	reportCmd.Flags().String("path", ".", "Project directory whose .vulnetix/ results are rendered")
 	reportCmd.Flags().Bool("fresh-exploits", false, "Re-fetch exploit intelligence for the stored findings")
 	reportCmd.Flags().Bool("fresh-advisories", false, "Re-fetch remediation plans for the stored findings")
+	scanopts.AddDisplayFlags(reportCmd)
 	reportCmd.Flags().Bool("fresh-vulns", false, "Re-check affected version ranges and scoring for the stored findings")
 	_ = reportCmd.MarkFlagDirname("path")
 	rootCmd.AddCommand(reportCmd)
@@ -68,6 +70,11 @@ func runReport(cmd *cobra.Command, args []string) error {
 	}
 	freshExploits, _ := cmd.Flags().GetBool("fresh-exploits")
 	freshAdvisories, _ := cmd.Flags().GetBool("fresh-advisories")
+	surface, err := scanopts.SurfaceFromCommand(cmd)
+	if err != nil {
+		return err
+	}
+	activeSurface = surface
 	freshVulns, _ := cmd.Flags().GetBool("fresh-vulns")
 
 	return renderStoredReport(rootPath, freshExploits, freshAdvisories, freshVulns)

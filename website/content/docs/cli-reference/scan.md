@@ -45,6 +45,194 @@ same verdict. Two things are deliberately different when you go through `scan`:
 Replaying results is not a scan: use [`report`](../report/) (`scan --from-memory`
 is a deprecated alias for it).
 
+## Reading the output
+
+The default output answers one question first: *what do I do now?* It opens with
+a verdict, groups packages by what to do about them, and ends with the next
+command.
+
+```text
+ ✖ 12 advisories in 6 packages          2 need action · 3 can wait · 1 not affected
+   142 packages · 2 manifests · sca sast · 4.2s
+
+ NEEDS ACTION · 2 packages
+ ────────────────────────────────────────────────────────────────────────────
+ ● CRITICAL  log4j-core 2.14.1             → 2.17.1        maven  pom.xml
+             CVE-2021-44228  ▲ KEV  ▲ weaponized  ▲ reachable
+             + 3 more advisories, the same upgrade clears them
+```
+
+The unit is the **package**, not the advisory: nobody upgrades an advisory, they
+upgrade a package once, to a version that clears every advisory on it. The arrow
+is that version, taken from the advisory's own affected range when it has one.
+`→ 2.31.0 (12 of 14)` means the upgrade clears twelve of fourteen advisories.
+
+### Groups
+
+Groups say what to do, which is not the same as how severe something is. A
+critical advisory nothing reaches can wait; a medium one under active
+exploitation cannot.
+
+| Group | Meaning |
+|-------|---------|
+| `NEEDS ACTION` | Exploited, on a KEV list, reachable from your code, malicious, or SSVC `Act` |
+| `CAN WAIT` | Affected, with none of those signals |
+| `UNVERIFIED` | Matched by package name, but the advisory's range cannot be compared with your version (a git commit, for example). It **still counts**: unknown is not safe. It does not claim urgency, because nothing established the package is affected |
+| `PROTECTED` | No fix, with an unexpired recorded control that blocks the request. Still affected, still counted |
+| `MONITORED` | No fix, with a recorded detection or a block rule still in log-only mode. Stops nothing |
+| `NOT AFFECTED` | Matched by name and ruled out by version |
+
+The counts in the header always add up: every package with a counting advisory
+is in exactly one of the first five groups.
+
+### Version verdicts
+
+Every finding carries a verdict: is the version installed here actually affected?
+`scan --explain <id>` shows the working.
+
+| Verdict | Basis | Counts toward `--fail-on` |
+|---------|-------|---------------------------|
+| `affected` | Inside a range the advisory supplied, or the source asserted it and nothing contradicts it | Yes |
+| `unverified` | Matched by name and the version cannot be settled: the range is missing or is a git commit, or the range and the source disagree. After the scan reads the advisory's own record, most of these resolve to `affected` or `not affected` | Yes |
+| `likely not affected` | No usable range, but you are not older than the recommended fix | No, unless `--strict` |
+| `not affected` | Outside every range the advisory supplied, or the source said so | No, unless `--strict` |
+
+Nothing is deleted: a finding the verdict rules out stays in `-o json-cyclonedx`,
+SARIF and the SBOM, with its verdict attached. Only the terminal view and the
+gates change.
+
+#### How the version is checked
+
+The scan response carries one affected range per finding, and for many advisories
+that range is a git commit, or `*` (every release). Neither says whether *your*
+version is affected. So after the response arrives, the scan reads the advisory's
+own record for every finding it could not settle from a comparable range, and for
+the aliases of that advisory when the record names no entry for your package. It
+then compares your version against every comparable range in it.
+
+- It **only resolves**. What it cannot settle stays `unverified` and counted; a
+  lookup that fails is skipped, so a flaky network costs accuracy and never a scan.
+- Evidence from an alias may only **clear** a finding when every alias that names
+  the package agrees, because alias groups are not always clean.
+- An open-ended range (`< 1.11.23`, "introduced 0") is how a database writes "from
+  the beginning, as far as I know". When the record also gives bounded ranges
+  (`>= 1.11.0 < 1.11.23`) and your version falls in none of them, the finding is
+  `unverified`, not `affected`. The same goes for versions the record merely
+  enumerates, and for a bound that is a distribution rebuild (`5.2.1+echo.1`).
+  A finding is also read against its record when it names no fix version, so the
+  recommended upgrade reflects every advisory on the package.
+- A wildcard (`*`) entry says nothing about where a fix landed and never outweighs
+  a precise range, so a package well past its fix stops reporting vulnerable.
+- Versions are compared the way their ecosystem writes them: PEP 440 (`1.0.0rc1`,
+  `3.2.0.dev0`, `1.0.post1`) for Python, and a precompiled RubyGem's platform
+  suffix (`1.19.1-x86_64-linux-gnu`) is ignored.
+- A dependency with **no resolved version** (`latest`, `catalog:`, `workspace:*`,
+  `${property}`, a bracketed Maven range) is not queried at all and stays in the
+  SBOM: a versionless query asks for every advisory the package ever had.
+
+Use `-v` to see how many findings were verified.
+
+### Views
+
+`--view` picks the presentation. `auto` (the default) chooses `plain` for a pipe,
+a file or CI, and `packages` for a terminal.
+
+| View | Shape |
+|------|-------|
+| `packages` | The default: groups, one block per package |
+| `findings` | One line per advisory |
+| `tree` | Packages under the manifest that declared them |
+| `plain` | One line per package, stable columns, ASCII only. A documented output format scripts may rely on |
+| `table` | The previous eighteen-column table, kept for one release |
+
+The layout follows the terminal. At 100 columns and above a package line carries
+its ecosystem and manifest; below that they drop out, and below 60 the fix moves
+to its own line. A tier drops whole fields in a fixed order and never clips a
+package name or a version. `--width`, `COLUMNS`, `--color`, `NO_COLOR` and
+`--ascii` are honoured. Under GitHub Actions the plain view is followed by
+workflow-command annotations on the manifest line, and a Markdown summary is
+appended to `$GITHUB_STEP_SUMMARY`.
+
+### Choosing what to show and when to fail
+
+Showing and failing are different verbs, and they never imply each other. A
+hidden finding cannot fail a build, and a failing one cannot be hidden.
+
+```bash
+vulnetix scan --filter reachable,fixable      # only what is reachable and has a fix
+vulnetix scan --min-severity high             # hide below high (exit code unchanged)
+vulnetix scan --hide defences,not-affected    # drop sections
+vulnetix scan --show paths,scores             # add the transitive chain and CVSS
+vulnetix scan -v                              # per-advisory version checks and scores
+vulnetix scan -vv                             # plus match evidence and every severity source
+
+vulnetix scan --fail-on high                  # exit 1 on high or critical
+vulnetix scan --fail-on kev,malware,unprotected
+vulnetix scan --fail-on high --strict         # also count findings ruled out by version
+```
+
+`--fail-on` takes `low | medium | high | critical`, `kev`,
+`exploit=poc|active|weaponized`, `malware`, `eol[=severity]`, `unpinned`,
+`unprotected`, `lag=<n>` and `cooldown=<n>d`, comma-separated or repeated. It is a
+vocabulary over the gates that already existed, so org quality-gate policy still
+overrides it, and where a legacy flag set the same gate the stricter value wins.
+
+### Superseded flags
+
+These still work and are hidden from `--help`. On a terminal the first use prints
+one note naming the replacement; in CI it stays silent.
+
+| Flag | Now |
+|------|-----|
+| `--severity <level>` | `--fail-on <level>` |
+| `--block-malware` | `--fail-on malware` |
+| `--block-eol`, `--block-eol-severity` | `--fail-on eol`, `--fail-on eol=<severity>` |
+| `--block-unpinned` | `--fail-on unpinned` |
+| `--exploits <tier>` | `--fail-on exploit=<tier>` (`kev` for active) |
+| `--version-lag <n>`, `--cooldown <n>` | `--fail-on lag=<n>`, `--fail-on cooldown=<n>d` |
+| `--no-exploits`, `--no-remediation` | `--hide exploits`, `--hide fixes` |
+| `--show-introduced-paths`, `--paths` | `--show paths` |
+| `--show-detected`, `--show-all-manifests` | `--show files`, `--show clean` |
+| `--results-only` | `-q` |
+| `--evaluate-X`, `--no-X` | `--only X`, `--skip X` |
+| `--sca-autofix`, `--sca-autofix-strategy`, … | `--fix`, `--fix-strategy`, … (true aliases) |
+
+## When there is no fix
+
+A finding with no fix is never a dead end. Vulnetix builds protection from the
+public exploits for a vulnerability, and `scan` says which of these holds for each
+package that has no fix:
+
+```text
+ ● CRITICAL  legacy-xml 3.1.4              no fix          pypi   requirements.txt
+             CVE-2025-11111  ▲ PoC exploit  ▲ referenced  app/parse.py:18
+             ◆ block   ModSecurity · nginx     start in log only
+             ◆ detect  Sigma
+             → vulnetix defend CVE-2025-11111
+```
+
+- **block** is a *virtual patch*: a rule for your WAF, sensor or web server that
+  stops the request.
+- **detect** is a *countermeasure*: Sigma, YARA, STIX or OpenIOC that tells you
+  it happened. Detection is not prevention.
+
+They are never mixed on a line. The lines are specific about what could and could
+not be established:
+
+| Line | Meaning |
+|------|---------|
+| `◆ block …` / `◆ detect …` | Rules exist, with their formats |
+| `◆ 2 block rules and 1 detection exist · Pro unlocks the rules` | They exist; rule bodies and downloads need Pro |
+| `◆ nothing published for this yet` | Asked, and nothing has been built. Never "cannot be defended" |
+| `◆ not indexed: … is not an advisory identifier the database can look up` | The identifier was not shaped like an advisory id, or the database refused it. Any advisory family is accepted and widened through its aliases |
+| `◆ not checked (offline)` / `◆ lookup failed (…)` | We did not get an answer, which is not the same as none |
+
+Use [`vulnetix defend`](../defend/) to read a rule's mode, false-positive risk and
+coverage limits, save it in the file its tool loads, and record that a control is
+in place. `--hide defences` skips the lookup.
+
+The lookup asks the database once, in a single request for every no-fix finding, and waits at most 20 seconds. If it is slow or unavailable the scan carries on and the line says `lookup failed (timed out)` rather than claiming there is nothing.
+
 ## Usage
 
 ```bash
@@ -53,10 +241,30 @@ vulnetix scan [flags]
 
 ## Flags
 
+The flags the [output section](#reading-the-output) lists as superseded (`--severity`, `--block-*`, `--exploits`, `--results-only`, `--evaluate-X`, `--no-X` and the rest) still work; they are hidden from `--help` and documented below for existing pipelines.
+
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--path` | string | `.` | Directory to scan |
 | `--depth` | int | `3` | Maximum recursion depth for file discovery |
+| `--only` | stringArray | - | Run just these passes: `sca`, `sast`, `secrets`, `licenses`, `containers`, `iac` (comma-separated, repeatable). Replaces the `--evaluate-X` flags |
+| `--skip` | stringArray | - | Run everything except these passes. Replaces the `--no-X` flags |
+| `--view` | string | `auto` | `auto`, `packages`, `findings`, `tree`, `plain` or `table`. See [Views](#views) |
+| `--filter` | stringArray | - | Show only findings matching **all** of: `kev`, `exploited`, `reachable`, `fixable`, `nofix`, `defended`, `unprotected`, `direct`, `transitive` |
+| `--min-severity` | string | - | Hide anything below `low`, `medium`, `high` or `critical`. Changes what is shown, never the exit code |
+| `--sort` | string | `threat` | Order within a group: `threat`, `severity` or `package` |
+| `--show` | stringArray | - | Add `paths`, `files`, `clean`, `scores` or `defences` to the output |
+| `--hide` | stringArray | - | Remove `fixes`, `exploits`, `defences` or `not-affected` from the output |
+| `-v, --verbose` | count | `0` | `-v` adds per-advisory version checks and scores; `-vv` adds match evidence and every severity source |
+| `-q, --quiet` | bool | `false` | Findings only: one line when there are findings, nothing when the scan is clean |
+| `--explain` | string | - | Show why one finding applies, with the evidence: an advisory id, a rule id, a package, `name@version` or a file path |
+| `--fail-on` | stringArray | - | Exit `1` when any of these hold: `low`, `medium`, `high`, `critical`, `kev`, `exploit=poc\|active\|weaponized`, `malware`, `eol[=severity]`, `unpinned`, `unprotected`, `lag=<n>`, `cooldown=<n>d` (comma-separated, repeatable). Replaces `--severity`, `--block-*`, `--exploits`, `--version-lag` and `--cooldown` |
+| `--strict` | bool | `false` | Also count findings the advisory rules out by version (`not affected`, `likely not affected`) toward the gates |
+| `--accept-defended` | bool | `false` | Let an unexpired control recorded with [`defend --record`](../defend/) satisfy the gates for the finding it covers |
+| `--color` | string | `auto` | `auto`, `always` or `never`. `NO_COLOR` is honoured |
+| `--ascii` | bool | `false` | Draw with plain ASCII characters instead of unicode symbols |
+| `--width` | int | terminal | Force the output width in columns. `COLUMNS` is honoured when stdout is not a terminal |
+| `--fix` | bool | `false` | Alias of `--sca-autofix`; `--fix-strategy`, `--fix-manifest` and `--fix-max-major-bump` alias the other autofix flags |
 | `--exclude` | stringArray | - | Exclude paths matching glob pattern (repeatable) |
 | `--include-ignored` | bool | `false` | Include files matched by `.gitignore`. By default the SAST, secrets, containers and IaC passes skip gitignored paths; **SCA and malscan always scan them** (dependency install dirs like `node_modules/` are commonly gitignored). |
 | `-o, --output` | stringArray | - | Output target (repeatable): `json-cyclonedx` or `json-sarif` for stdout; file path (`.cdx.json`, `.cdx`, `.bom.json`, `.sbom.json`) for CycloneDX to file; file path (`.sarif`, `.sarif.json`) for SARIF to file. Multiple flags combine file outputs with pretty display. |

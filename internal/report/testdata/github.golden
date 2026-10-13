@@ -1,0 +1,9 @@
+::error file=pom.xml,title=log4j-core 2.14.1 (CRITICAL)::CVE-2021-44228 and 3 more. KEV, weaponized, reachable. Upgrade to 2.17.1.
+::error file=requirements.txt,title=legacy-xml 3.1.4 (CRITICAL)::CVE-2025-11111. PoC exploit, referenced. No fix. 2 block rules and 1 detection available.
+::error file=Dockerfile,title=libexample 1.8.2 (HIGH)::CVE-2025-22222. PoC exploit. No fix. 1 detection available.
+::error file=package-lock.json,title=otherlib 4.0.0 (HIGH)::CVE-2025-33333. KEV. No fix. 2 block rules and 1 detection available.
+::error file=requirements.txt,title=requests 2.19.1 (HIGH)::CVE-2018-18074 and 1 more. PoC exploit, referenced. Upgrade to 2.31.0.
+::warning file=requirements.txt,title=pyyaml 5.3 (CRITICAL)::CVE-2020-14343. Upgrade to 5.4.
+::warning file=Cargo.lock,title=oldparser 0.9.2 (HIGH)::CVE-2025-44444. No fix.
+::warning file=requirements.txt,title=jinja2 2.10 (MEDIUM)::CVE-2020-28493 and 1 more. Upgrade to 2.11.3.
+::warning file=requirements.txt,title=urllib3 1.24.1 (MEDIUM)::CVE-2019-11324 and 1 more. Upgrade to 1.24.3.

@@ -1,0 +1,22 @@
+ ✖ 2 advisories in 1 package          1 need action
+   142 packages · 3 manifests · sca sast · 4.2s
+
+ NEEDS ACTION · 1 package
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● HIGH      requests 2.19.1               → 2.31.0        pypi   requirements.txt
+
+             CVE-2018-18074  HIGH  ▲ PoC exploit  ▲ referenced
+               version   The source reports 2.19.1 as affected; it supplied no range to check.
+               verdict   affected  reported by the source
+               fixed in  2.20.0  recommended
+               exploit   1 known
+               reach     api/client.py:12 (symbol match, lower confidence)
+
+             CVE-2023-32681  MEDIUM
+               version   The source reports 2.19.1 as affected; it supplied no range to check.
+               verdict   affected  reported by the source
+               fixed in  2.31.0  recommended
+
+ NEXT
+   vulnetix fix                       apply 1 upgrade
+   vulnetix scan --explain requests   why each advisory applies, with the evidence

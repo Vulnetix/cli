@@ -33,6 +33,7 @@ vulnetix report [path] [flags]
 | `--fresh-exploits` | bool | `false` | Re-fetch exploit intelligence (KEV, PoC, weaponisation) for the stored findings |
 | `--fresh-advisories` | bool | `false` | Re-fetch remediation plans and fix availability |
 | `--fresh-vulns` | bool | `false` | Re-check affected version ranges and current scoring |
+| `--view`, `--filter`, `--min-severity`, `--sort`, `--show`, `--hide`, `-v`, `-q`, `--explain`, `--color`, `--ascii`, `--width` | - | - | The same display options as [`scan`](../scan/#choosing-what-to-show-and-when-to-fail). The gate flags (`--fail-on`, `--strict`) are not offered, because `report` never sets an exit code |
 
 Each `--fresh-*` flag refreshes exactly one class of data and leaves everything
 else as stored, so you can bring exploit intelligence up to date without repeating

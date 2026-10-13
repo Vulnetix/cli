@@ -916,7 +916,7 @@ vulnetix vdb <subcommand> [flags]
 
 <div class="vdb-v2-only">
 
-**V2-only subcommands** — the v2 API is now the **default**; `-V v1` is the legacy override:
+**Subcommands that exist only on v2** (the default API, so no flag is needed; the deprecated `-V v1` refuses them):
 
 | Subcommand | Description |
 |------------|-------------|

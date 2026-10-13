@@ -452,6 +452,11 @@ func buildLocalPurl(name, version, ecosystem string) string {
 		return ""
 	}
 
+	// A precompiled RubyGem carries its platform in the version.
+	if purlType == "gem" {
+		version = scan.StripGemPlatform(version)
+	}
+
 	// npm scoped packages: @scope/name → pkg:npm/scope/name
 	if purlType == "npm" && strings.HasPrefix(name, "@") {
 		parts := strings.SplitN(name[1:], "/", 2)

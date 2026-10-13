@@ -1,0 +1,14 @@
+
+ fastapi 0.135.1 · PYSEC-2024-38
+
+ ✔ NOT AFFECTED
+   0.135.1 is outside < 0.109.1.
+
+   advisory range   < 0.109.1
+   fixed in         0.109.1  from the advisory
+   installed        0.135.1  requirements.txt
+   check            0.135.1 is newer than 0.109.1
+   matched by       package name and version
+   confidence       high
+
+   Not counted by --fail-on. Use --strict to count it.

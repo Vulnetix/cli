@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -81,8 +82,15 @@ func (g *DepGraph) FindPath(targetPkg string) []string {
 	visited := map[string]bool{}
 	queue := []queueEntry{}
 
-	// Seed with direct deps.
+	// Seed with direct deps, in name order. Ranging over the map picked the winner at
+	// random whenever two direct dependencies reach the target at the same depth, so the
+	// same scan named "via requests" on one run and "via httpx" on the next.
+	seeds := make([]string, 0, len(g.DirectDeps))
 	for name := range g.DirectDeps {
+		seeds = append(seeds, name)
+	}
+	sort.Strings(seeds)
+	for _, name := range seeds {
 		queue = append(queue, queueEntry{node: name, path: []string{name}})
 		visited[name] = true
 	}
@@ -95,7 +103,11 @@ func (g *DepGraph) FindPath(targetPkg string) []string {
 			return cur.path
 		}
 
-		for _, child := range g.Edges[cur.node] {
+		// Children are visited in name order too: PopulateNpmLockEdges fills these
+		// slices by ranging over a map, so their order is not stable between runs.
+		children := append([]string(nil), g.Edges[cur.node]...)
+		sort.Strings(children)
+		for _, child := range children {
 			if !visited[child] {
 				visited[child] = true
 				newPath := make([]string, len(cur.path)+1)

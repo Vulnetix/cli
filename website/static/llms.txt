@@ -18,14 +18,14 @@ Use the first matching rule:
 - CVE/identifier mentioned without an explicit command → Vulnerability Context Injection hook has already injected prior context; do not re-query unless the user asks for more detail
 - User mentions a vulnerability identifier → `vulnetix vdb vuln <id> -o json`
 - User asks about exploit risk or weaponisation → `vulnetix vdb exploits <id> -o json`; interpret `exploitationMaturity.level`: `NONE` / `POC` / `WEAPONIZED` / `ACTIVE` / `WIDESPREAD`
-- User asks how to fix a vulnerability → `vulnetix vdb fixes <id> -o json`, then `vulnetix vdb remediation plan <id> -V v2 -o json` (add package context flags when available)
+- User asks how to fix a vulnerability → `vulnetix vdb fixes <id> -o json`, then `vulnetix vdb remediation plan <id> -o json` (add package context flags when available)
 - User asks whether a package is safe to add → `vulnetix vdb packages search <name> --ecosystem <eco> -o json`; check `exploitationSignals`, `safeHarbour.recommendedVersions`, `eolStatus`
 - User asks about all vulnerabilities in a package → `vulnetix vdb vulns <package> -o json`
 - User asks about a specific package version → `vulnetix vdb purl "pkg:<ecosystem>/<package>@<version>" -o json`
 
 ## Commands
 
-All commands use `-o json`. Commands marked **v2** require `-V v2`.
+All commands use `-o json` and run on the v2 API, which is the default. Do not pass `-V`: `-V v1` is the deprecated legacy API, and the v2-only commands refuse it.
 
 ```bash
 # Vulnerability lookup — returns identifier, aliases, description, CVSS v2/v3/v4, EPSS, KEV status, affected ranges, fix versions, references
@@ -44,10 +44,10 @@ vulnetix vdb exploits search --severity critical --min-epss 0.9 --limit 20 -o js
 vulnetix vdb exploits search -q "remote code execution" -o json
 
 # Remediation plan (v2) — minimal
-vulnetix vdb remediation plan <id> -V v2 -o json
+vulnetix vdb remediation plan <id> -o json
 
 # Remediation plan (v2) — with package context (preferred; generates manifest-aware instructions)
-vulnetix vdb remediation plan <id> -V v2 \
+vulnetix vdb remediation plan <id> \
   --ecosystem <eco> \
   --package-name <name> \
   --current-version <version> \
@@ -57,19 +57,19 @@ vulnetix vdb remediation plan <id> -V v2 \
   -o json
 
 # Remediation plan (v2) — via PURL
-vulnetix vdb remediation plan <id> -V v2 \
+vulnetix vdb remediation plan <id> \
   --purl "pkg:<type>/<namespace>/<name>@<version>" \
   -o json
 
 # v2-only commands
-vulnetix vdb kev <id> -V v2 -o json                                              # CISA KEV status
-vulnetix vdb advisories <id> -V v2 -o json                                       # all advisories
-vulnetix vdb workarounds <id> -V v2 -o json                                      # workarounds
-vulnetix vdb affected <id> -V v2 --ecosystem <eco> -o json                       # affected products
-vulnetix vdb timeline <id> -V v2 -o json                                         # full lifecycle timeline
-vulnetix vdb scorecard <id> -V v2 -o json                                        # OpenSSF Scorecard
-vulnetix vdb cwe guidance <id> -V v2 -o json                                     # CWE-based remediation guidance
-vulnetix vdb cloud-locators --vendor <v> --product <p> -V v2 -o json             # cloud resource identifier templates
+vulnetix vdb kev <id> -o json                                              # CISA KEV status
+vulnetix vdb advisories <id> -o json                                       # all advisories
+vulnetix vdb workarounds <id> -o json                                      # workarounds
+vulnetix vdb affected <id> --ecosystem <eco> -o json                       # affected products
+vulnetix vdb timeline <id> -o json                                         # full lifecycle timeline
+vulnetix vdb scorecard <id> -o json                                        # OpenSSF Scorecard
+vulnetix vdb cwe guidance <id> -o json                                     # CWE-based remediation guidance
+vulnetix vdb cloud-locators --vendor <v> --product <p> -o json             # cloud resource identifier templates
 ```
 
 ## Automatic Hooks

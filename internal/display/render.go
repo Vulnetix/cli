@@ -1611,55 +1611,6 @@ func RenderCloudLocators(data any, ctx *Context) string {
 	return b.String()
 }
 
-// RenderAdvisories renders advisory data.
-func RenderAdvisories(data any, ctx *Context) string {
-	m, ok := data.(map[string]any)
-	if !ok {
-		return fmt.Sprintf("%v", data)
-	}
-	t := ctx.Term
-	var b strings.Builder
-
-	id := ToStringVal(m["identifier"])
-	b.WriteString("\n" + Bold(t, "Advisories for "+id) + "\n")
-
-	if advisories, ok := m["advisories"].([]any); ok && len(advisories) > 0 {
-		b.WriteString(Muted(t, fmt.Sprintf("  %d advisory/advisories found", len(advisories))) + "\n\n")
-		for i, adv := range advisories {
-			if am, ok := adv.(map[string]any); ok {
-				source := ToStringVal(am["source"])
-				advID := ToStringVal(am["id"])
-				if advID == "" {
-					advID = ToStringVal(am["advisoryId"])
-				}
-				title := ToStringVal(am["title"])
-				url := ToStringVal(am["url"])
-
-				prefix := fmt.Sprintf("  %d.", i+1)
-				name := advID
-				if name == "" {
-					name = title
-				}
-				b.WriteString(fmt.Sprintf("%s %s", prefix, Bold(t, name)))
-				if source != "" {
-					b.WriteString("  " + Muted(t, "["+source+"]"))
-				}
-				b.WriteString("\n")
-				if title != "" && title != name {
-					b.WriteString("     " + title + "\n")
-				}
-				if url != "" {
-					b.WriteString("     " + Muted(t, Truncate(url, t.Width-6)) + "\n")
-				}
-			}
-		}
-	} else {
-		b.WriteString(Muted(t, "  No advisories found") + "\n")
-	}
-
-	return b.String()
-}
-
 // RenderWorkarounds renders workaround information.
 func RenderWorkarounds(data any, ctx *Context) string {
 	m, ok := data.(map[string]any)
@@ -1689,7 +1640,7 @@ func RenderWorkarounds(data any, ctx *Context) string {
 			}
 		}
 	} else {
-		b.WriteString(Muted(t, "  No workarounds found") + "\n")
+		b.WriteString(Muted(t, "  No workarounds were returned for "+id+".") + "\n")
 	}
 
 	return b.String()
@@ -2438,6 +2389,11 @@ func renderMapEntries(t *Terminal, b *strings.Builder, m map[string]any) {
 	sort.Strings(keys)
 
 	for _, k := range keys {
+		// HATEOAS links are for programs: -o json carries them, a reader does not
+		// need twenty-three lines of hrefs.
+		if k == "_links" {
+			continue
+		}
 		v := m[k]
 		switch val := v.(type) {
 		case map[string]any:

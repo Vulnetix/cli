@@ -1,0 +1,26 @@
+ ✖ 4 advisories in 4 packages          2 need action · 1 can wait · 1 protected
+
+ NEEDS ACTION · 2 packages
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● HIGH      libexample 1.8.2              no fix          deb    Dockerfile
+             CVE-2025-22222  ▲ PoC exploit
+
+ ● HIGH      otherlib 4.0.0                no fix          npm    package-lock.json
+             CVE-2025-33333  ▲ KEV
+
+ CAN WAIT · 1 package · no known exploit
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● HIGH      oldparser 0.9.2               no fix          cargo  Cargo.lock
+             CVE-2025-44444
+
+ PROTECTED · 1 package · still affected, control recorded
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ◆ legacy-xml 3.1.4  no fix
+   CVE-2025-11111
+   ModSecurity, prod-eu ingress
+   recorded 2026-10-12 · review by 2026-10-13
+   The CLI cannot verify it is deployed. This is your statement.
+
+ NEXT
+   vulnetix scan --explain libexample   why each advisory applies, with the evidence
+   vulnetix scan -v                     scores, version checks and match evidence

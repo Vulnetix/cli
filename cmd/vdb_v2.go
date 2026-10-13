@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -9,12 +10,23 @@ import (
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
 
-// requireV2 checks that -V v2 was specified
+// requireV2 guards the commands that exist only on the v2 API. v2 is the default,
+// so this fires only when someone selected the legacy surface with -V v1, and the
+// message says how to leave it rather than asking for a flag they never needed.
 func requireV2(cmdName string) error {
 	if normalizeAPIVersion(vdbAPIVersion) != "/v2" {
-		return fmt.Errorf("this command requires -V v2\n\nUsage: vulnetix vdb %s <vuln-id> -V v2", cmdName)
+		return fmt.Errorf("vdb %s is only available on the v2 API, and -V v1 (legacy, deprecated) was selected\n\nDrop -V v1; v2 is the default:\n  vulnetix vdb %s <vuln-id>", cmdName, cmdName)
 	}
 	return nil
+}
+
+// warnLegacyAPIVersion says once, on stderr, that -V v1 is deprecated. It is the
+// only place the flag is mentioned to anyone: v2 needs no flag and gets no notice.
+func warnLegacyAPIVersion() {
+	if silent || normalizeAPIVersion(vdbAPIVersion) != "/v1" {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "note: -V v1 selects the legacy VDB API, which is deprecated and will be removed. v2 is the default; drop -V to use it.")
 }
 
 // buildV2QueryParams constructs V2QueryParams from command flags
@@ -45,14 +57,12 @@ func addV2PaginationFlags(cmd *cobra.Command) {
 // v2WorkaroundsCmd retrieves workaround data for a vulnerability
 var v2WorkaroundsCmd = &cobra.Command{
 	Use:   "workarounds <vuln-id>",
-	Short: "Get workaround information for a vulnerability (V2)",
+	Short: "Get workaround information for a vulnerability",
 	Long: `Retrieve workaround information for a vulnerability from the V2 API.
 
-Requires -V v2.
-
 Examples:
-  vulnetix vdb workarounds CVE-2021-44228 -V v2
-  vulnetix vdb workarounds CVE-2021-44228 -V v2 --output json`,
+  vulnetix vdb workarounds CVE-2021-44228
+  vulnetix vdb workarounds CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireV2("workarounds"); err != nil {
@@ -77,14 +87,12 @@ Examples:
 // v2AdvisoriesCmd retrieves advisory data for a vulnerability
 var v2AdvisoriesCmd = &cobra.Command{
 	Use:   "advisories <vuln-id>",
-	Short: "Get advisory data for a vulnerability (V2)",
+	Short: "Get advisory data for a vulnerability",
 	Long: `Retrieve advisory data for a vulnerability from the V2 API.
 
-Requires -V v2.
-
 Examples:
-  vulnetix vdb advisories CVE-2021-44228 -V v2
-  vulnetix vdb advisories CVE-2021-44228 -V v2 --output json`,
+  vulnetix vdb advisories CVE-2021-44228
+  vulnetix vdb advisories CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireV2("advisories"); err != nil {
@@ -107,20 +115,18 @@ Examples:
 // v2CweCmd is the parent for CWE-related subcommands
 var v2CweCmd = &cobra.Command{
 	Use:   "cwe",
-	Short: "CWE-related vulnerability intelligence (V2)",
+	Short: "CWE-related vulnerability intelligence",
 }
 
 // v2CweGuidanceCmd retrieves CWE-based guidance for a vulnerability
 var v2CweGuidanceCmd = &cobra.Command{
 	Use:   "guidance <vuln-id>",
-	Short: "Get CWE-based guidance for a vulnerability (V2)",
+	Short: "Get CWE-based guidance for a vulnerability",
 	Long: `Retrieve CWE-based remediation guidance for a vulnerability from the V2 API.
 
-Requires -V v2.
-
 Examples:
-  vulnetix vdb cwe guidance CVE-2021-44228 -V v2
-  vulnetix vdb cwe guidance CVE-2021-44228 -V v2 --output json`,
+  vulnetix vdb cwe guidance CVE-2021-44228
+  vulnetix vdb cwe guidance CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireV2("cwe guidance"); err != nil {
@@ -149,20 +155,18 @@ Examples:
 //
 // Note: a standalone V2 `timeline <CVE>` command used to live here.
 // Removed for the same reason — `timelineCmd` in vdb.go already
-// dispatches to V2Timeline when `-V v2` is passed.
+// dispatches to V2Timeline on the v2 API, which is the default.
 
 // v2AffectedCmd retrieves affected product/package data
 var v2AffectedCmd = &cobra.Command{
 	Use:   "affected <vuln-id>",
-	Short: "Get affected products/packages for a vulnerability (V2)",
+	Short: "Get affected products/packages for a vulnerability",
 	Long: `Retrieve affected product and package data from the V2 API.
 
-Requires -V v2.
-
 Examples:
-  vulnetix vdb affected CVE-2021-44228 -V v2
-  vulnetix vdb affected CVE-2021-44228 -V v2 --ecosystem npm
-  vulnetix vdb affected CVE-2021-44228 -V v2 --output json`,
+  vulnetix vdb affected CVE-2021-44228
+  vulnetix vdb affected CVE-2021-44228 --ecosystem npm
+  vulnetix vdb affected CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireV2("affected"); err != nil {
@@ -187,14 +191,12 @@ Examples:
 // v2ScorecardCmd retrieves the vulnerability scorecard
 var v2ScorecardCmd = &cobra.Command{
 	Use:   "scorecard <vuln-id>",
-	Short: "Get vulnerability scorecard (V2)",
+	Short: "Get vulnerability scorecard",
 	Long: `Retrieve the vulnerability scorecard from the V2 API.
 
-Requires -V v2.
-
 Examples:
-  vulnetix vdb scorecard CVE-2021-44228 -V v2
-  vulnetix vdb scorecard CVE-2021-44228 -V v2 --output json`,
+  vulnetix vdb scorecard CVE-2021-44228
+  vulnetix vdb scorecard CVE-2021-44228 --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireV2("scorecard"); err != nil {
@@ -217,14 +219,12 @@ Examples:
 // v2ScorecardSearchCmd searches scorecards by repository name
 var v2ScorecardSearchCmd = &cobra.Command{
 	Use:   "search <query>",
-	Short: "Search scorecards by repository name (V2)",
+	Short: "Search scorecards by repository name",
 	Long: `Search OpenSSF Scorecards by repository name.
 
-Requires -V v2.
-
 Examples:
-  vulnetix vdb scorecard search openssl -V v2
-  vulnetix vdb scorecard search github.com/openssl/openssl -V v2 --output json`,
+  vulnetix vdb scorecard search openssl
+  vulnetix vdb scorecard search github.com/openssl/openssl --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireV2("scorecard search"); err != nil {
@@ -247,25 +247,23 @@ Examples:
 // v2RemediationCmd is the parent for remediation subcommands
 var v2RemediationCmd = &cobra.Command{
 	Use:   "remediation",
-	Short: "Remediation intelligence (V2)",
+	Short: "Remediation intelligence",
 }
 
 // v2RemediationPlanCmd retrieves a context-aware remediation plan
 var v2RemediationPlanCmd = &cobra.Command{
 	Use:   "plan <vuln-id>",
-	Short: "Get a context-aware remediation plan (V2)",
+	Short: "Get a context-aware remediation plan",
 	Long: `Retrieve a context-aware remediation plan for a vulnerability from the V2 API.
 The plan includes prioritized actions, severity assessment, SSVC decision,
 fix availability, and optionally CWE guidance and verification steps.
 
-Requires -V v2.
-
 Examples:
-  vulnetix vdb remediation plan CVE-2021-44228 -V v2
-  vulnetix vdb remediation plan CVE-2021-44228 -V v2 --include-guidance
-  vulnetix vdb remediation plan CVE-2021-44228 -V v2 --ecosystem npm --package-name log4j
-  vulnetix vdb remediation plan CVE-2021-44228 -V v2 --purl "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
-  vulnetix vdb remediation plan CVE-2021-44228 -V v2 --include-guidance --include-verification-steps --output json`,
+  vulnetix vdb remediation plan CVE-2021-44228
+  vulnetix vdb remediation plan CVE-2021-44228 --include-guidance
+  vulnetix vdb remediation plan CVE-2021-44228 --ecosystem npm --package-name log4j
+  vulnetix vdb remediation plan CVE-2021-44228 --purl "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+  vulnetix vdb remediation plan CVE-2021-44228 --include-guidance --include-verification-steps --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireV2("remediation plan"); err != nil {
@@ -303,22 +301,20 @@ Examples:
 // v2CloudLocatorsCmd retrieves cloud resource locator templates
 var v2CloudLocatorsCmd = &cobra.Command{
 	Use:   "cloud-locators",
-	Short: "Get cloud resource locator templates for a vendor/product (V2)",
+	Short: "Get cloud resource locator templates for a vendor/product",
 	Long: `Derive cloud-native resource identifier templates (AWS ARN, Azure Resource ID,
 GCP Resource Name, Cloudflare Locator, Oracle OCID) from vendor/product pairs.
 
 Templates contain placeholders for account-specific values that you fill in
 to match your infrastructure resources.
 
-Requires -V v2.
-
 Examples:
-  vulnetix vdb cloud-locators --vendor amazon --product s3 -V v2
-  vulnetix vdb cloud-locators --vendor microsoft --product storage -V v2
-  vulnetix vdb cloud-locators --vendor google --product compute -V v2
-  vulnetix vdb cloud-locators --vendor cloudflare --product workers -V v2
-  vulnetix vdb cloud-locators --vendor oracle --product compute -V v2
-  vulnetix vdb cloud-locators --vendor amazon --product cloudfront -V v2 --output json`,
+  vulnetix vdb cloud-locators --vendor amazon --product s3
+  vulnetix vdb cloud-locators --vendor microsoft --product storage
+  vulnetix vdb cloud-locators --vendor google --product compute
+  vulnetix vdb cloud-locators --vendor cloudflare --product workers
+  vulnetix vdb cloud-locators --vendor oracle --product compute
+  vulnetix vdb cloud-locators --vendor amazon --product cloudfront --output json`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireV2("cloud-locators"); err != nil {
 			return err
@@ -344,7 +340,7 @@ Examples:
 	},
 }
 
-// v2FixesMerged handles the -V v2 case for the fixes command by calling
+// v2FixesMerged handles the v2 (default) case for the fixes command by calling
 // all three V2 fix endpoints in parallel and merging the results.
 func v2FixesMerged(identifier string, cmd *cobra.Command) (map[string]interface{}, error) {
 	client := newVDBClient()
@@ -420,7 +416,7 @@ func init() {
 	v2RemediationCmd.AddCommand(v2RemediationPlanCmd)
 
 	// V2 timeline flags now live on the unified `timelineCmd` in vdb.go;
-	// it dispatches to V2 when `-V v2` is set.
+	// it dispatches to V2 unless the legacy -V v1 is selected.
 
 	// Affected flags
 	addV2ContextFlags(v2AffectedCmd)

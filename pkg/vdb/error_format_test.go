@@ -34,8 +34,8 @@ func TestFormatAPIError(t *testing.T) {
 		{
 			name:   "non-JSON falls back to the raw body",
 			status: 502,
-			body:   "<html>bad gateway</html>",
-			want:   "API error (502): <html>bad gateway</html>",
+			body:   "upstream connect error",
+			want:   "API error (502): upstream connect error",
 		},
 		{
 			name:   "empty body",
