@@ -1,11 +1,15 @@
 package cmd
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -169,5 +173,36 @@ func TestCountsTotalDecidesTheUpgradeNote(t *testing.T) {
 	some := &vdb.DefenceCountsResponse{Items: []vdb.DefenceCountsResult{{Countermeasures: &vdb.DefenceLaneCounts{Total: 3}}, {}}}
 	if countsTotal(some, "countermeasures") != 3 || countsTotal(some, "virtual-patches") != 0 {
 		t.Error("totals are per lane")
+	}
+}
+
+// Sixteen vdb subcommands define their own -o <file>. `-o json` on them created a
+// file named json and printed nothing; a format word now prints to stdout, and
+// anything else is still a file.
+func TestWriteOutputNeverWritesAFileNamedAfterAFormat(t *testing.T) {
+	t.Chdir(t.TempDir())
+	for _, word := range []string{"json", "JSON", " pretty ", "table", "yaml"} {
+		var out bytes.Buffer
+		c := &cobra.Command{}
+		c.SetOut(&out)
+		c.SetErr(io.Discard)
+		if err := writeOutput(c, []byte(`{"ok":true}`), word); err != nil {
+			t.Fatal(err)
+		}
+		if strings.TrimSpace(out.String()) != `{"ok":true}` {
+			t.Errorf("-o %q printed %q", word, out.String())
+		}
+		if _, err := os.Stat(strings.TrimSpace(word)); err == nil {
+			t.Errorf("-o %q created a file", word)
+		}
+	}
+	c := &cobra.Command{}
+	c.SetOut(io.Discard)
+	c.SetErr(io.Discard)
+	if err := writeOutput(c, []byte(`{}`), "rules.json"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat("rules.json"); err != nil {
+		t.Errorf("a path is still a file: %v", err)
 	}
 }

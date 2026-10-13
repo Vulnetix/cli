@@ -275,6 +275,12 @@ func validateReasons(rs []string) error {
 
 // writeOutput — print to stdout, or save to the given file path if non-empty.
 func writeOutput(cmd *cobra.Command, body []byte, path string) error {
+	// Every other vdb command reads -o as a format, so `-o json` here means
+	// "print it", not "create a file named json" (which is what happened, quietly,
+	// on sixteen subcommands that define their own -o <file>).
+	if outputFormats[strings.ToLower(strings.TrimSpace(path))] {
+		path = ""
+	}
 	if path == "" {
 		_, err := cmd.OutOrStdout().Write(body)
 		if err == nil && len(body) > 0 && body[len(body)-1] != '\n' {
