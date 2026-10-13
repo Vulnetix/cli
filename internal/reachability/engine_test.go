@@ -87,3 +87,27 @@ func TestModeIncludes(t *testing.T) {
 		t.Error("direct should not include transitive")
 	}
 }
+
+// A query whose #match? predicate carries a regex that does not compile used to take the
+// whole scan down: go-tree-sitter builds the pattern with regexp.MustCompile while it
+// filters matches, so one bad query from the server panicked with exit status 2 on every
+// JavaScript project that reached it (lodash, react, nodegoat). A bad query must cost that
+// query, never the scan.
+func TestEngineBadPredicateRegexIsAnErrorNotAPanic(t *testing.T) {
+	engine := NewEngine()
+	src := []byte(`const x = require('lodash'); x.template(input);`)
+	query := "((call_expression function: (member_expression) @callee) (#match? @callee \"\\\\s[^'\\\"/\\\\>\\\\]*\"))"
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Run panicked on a predicate with an invalid regex: %v", r)
+		}
+	}()
+	if _, err := engine.Run(context.Background(), treesitter.LangJavaScript, src, query); err == nil {
+		t.Fatal("expected an error for a predicate regex that does not compile")
+	}
+	// The engine must still be usable afterwards.
+	good := `(call_expression function: (member_expression) @callee)`
+	if m, err := engine.Run(context.Background(), treesitter.LangJavaScript, src, good); err != nil || len(m) == 0 {
+		t.Fatalf("engine unusable after a bad query: matches=%d err=%v", len(m), err)
+	}
+}

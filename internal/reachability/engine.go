@@ -57,7 +57,16 @@ type QueryMatch struct {
 
 // Run parses source as the given language and executes queryText against
 // it, returning every top-level match.
-func (e *Engine) Run(ctx context.Context, id treesitter.LanguageID, source []byte, queryText string) ([]QueryMatch, error) {
+func (e *Engine) Run(ctx context.Context, id treesitter.LanguageID, source []byte, queryText string) (matches []QueryMatch, err error) {
+	// go-tree-sitter compiles every #match? / #not-match? pattern with
+	// regexp.MustCompile while filtering matches, so a query whose regex does not compile
+	// panics instead of failing. Queries come from the server, and one bad pattern used to
+	// crash the whole scan (exit status 2). It costs that query only.
+	defer func() {
+		if r := recover(); r != nil {
+			matches, err = nil, fmt.Errorf("query failed: %v", r)
+		}
+	}()
 	pp := e.poolFor(id)
 	if pp == nil {
 		return nil, fmt.Errorf("unsupported language %q", id)
