@@ -208,6 +208,34 @@ test-worktree:
 benchmark:
     bash benchmark/run.sh
 
+# Measure scan efficacy: clone popular open-source repos, run the scan, and
+# compare every package against OSV. Fails on any wrong "affected" claim beyond
+# MAX_WRONG (default 2) or recall
+# below MIN_RECALL (default 95). Needs network. Takes a long time; narrow it with
+#   ONLY=flask,fastapi just efficacy
+# Add deliberately vulnerable apps with REPOS=path/to/repos.json (see tools/efficacy).
+efficacy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    work="${EFFICACY_WORK:-${TMPDIR:-/tmp}/vulnetix-efficacy}"
+    mkdir -p "$work"
+    go build -o "$work/vulnetix" .
+    go build -o "$work/efficacy" ./tools/efficacy
+    args=(-bin "$work/vulnetix" -work "$work" -max-wrong "${MAX_WRONG:-2}" -min-recall "${MIN_RECALL:-95}" -out "$work/result.json")
+    [ -n "${ONLY:-}" ] && args+=(-only "$ONLY")
+    [ -n "${REPOS:-}" ] && args+=(-repos "$REPOS")
+    "$work/efficacy" "${args[@]}"
+
+# Check that every vdb command renders what -o json returns, for well-known CVEs.
+# Catches "No X found" printed for a vulnerability that has data. Needs network.
+vdb-smoke:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    work="${EFFICACY_WORK:-${TMPDIR:-/tmp}/vulnetix-efficacy}"
+    mkdir -p "$work"
+    go build -o "$work/vulnetix" .
+    bash tools/efficacy/vdbsmoke.sh "$work/vulnetix" "$work/vdbsmoke"
+
 # Coverage reporting
 test-coverage:
     go test -v -cover ./...
