@@ -48,6 +48,8 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 		gitignore.LoadDir(rootPath, "")
 	}
 
+	excludes := ignore.Globs(opts.Excludes)
+
 	var detected []DetectedFile
 
 	err = filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
@@ -89,7 +91,7 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 			}
 
 			// Check excludes on directories
-			if shouldExclude(relPath, opts.Excludes) {
+			if excludes.Ignored(relPath, true) {
 				return filepath.SkipDir
 			}
 
@@ -111,7 +113,7 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 		}
 
 		// Check excludes
-		if shouldExclude(relPath, opts.Excludes) {
+		if excludes.Ignored(relPath, false) {
 			return nil
 		}
 
@@ -159,18 +161,4 @@ func WalkForScanFiles(opts WalkOptions) ([]DetectedFile, error) {
 	}
 
 	return detected, nil
-}
-
-// shouldExclude checks whether a relative path matches any of the exclusion globs.
-func shouldExclude(relPath string, excludes []string) bool {
-	for _, pattern := range excludes {
-		if matched, _ := filepath.Match(pattern, relPath); matched {
-			return true
-		}
-		// Also match against the base name
-		if matched, _ := filepath.Match(pattern, filepath.Base(relPath)); matched {
-			return true
-		}
-	}
-	return false
 }

@@ -35,6 +35,27 @@ type gitignoreRule struct {
 // New returns an empty matcher.
 func New() *Matcher { return &Matcher{} }
 
+// Globs returns a matcher for user-supplied exclusion patterns (--exclude,
+// --ignore), each relative to the walk root. They follow the rules of a root
+// .gitignore, which is what people expect when they type one: a trailing `/`
+// names a directory and everything beneath it, a pattern with no slash matches
+// that name at any depth, and `**` spans directories. A leading `./` anchors
+// the pattern to the root, as a leading `/` does.
+func Globs(patterns []string) *Matcher {
+	m := New()
+	for _, p := range patterns {
+		p = strings.TrimSpace(filepath.ToSlash(p))
+		if strings.HasPrefix(p, "./") {
+			for strings.HasPrefix(p, "./") {
+				p = strings.TrimLeft(p[2:], "/")
+			}
+			p = "/" + p
+		}
+		m.addPatterns("", p)
+	}
+	return m
+}
+
 // LoadDir reads a .gitignore in absDir (whose slash-relative path from the walk
 // root is relDir, "" for the root) and appends its rules. Missing or unreadable
 // files are silently ignored.
