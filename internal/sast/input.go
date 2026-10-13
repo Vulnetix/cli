@@ -72,8 +72,8 @@ type BuildOptions struct {
 	IgnoreGit bool
 
 	// IgnoreGlobs is an additional set of glob patterns to exclude. The
-	// patterns are matched against the relative path and the base name
-	// (mirroring --exclude). The CLI's --ignore flag is wired into this
+	// patterns are compiled with --exclude through ignore.Globs, so they
+	// follow root .gitignore rules. The CLI's --ignore flag is wired into this
 	// slice so that a single --ignore "fixtures/**" is enough.
 	IgnoreGlobs []string
 
@@ -122,6 +122,7 @@ func BuildScanInputWithOptions(rootPath string, opts BuildOptions) (*ScanInput, 
 	combinedExcludes := make([]string, 0, len(opts.Excludes)+len(opts.IgnoreGlobs))
 	combinedExcludes = append(combinedExcludes, opts.Excludes...)
 	combinedExcludes = append(combinedExcludes, opts.IgnoreGlobs...)
+	excludes := ignore.Globs(combinedExcludes)
 
 	var gitignore *ignore.Matcher
 	if opts.RespectGitignore {
@@ -170,7 +171,7 @@ func BuildScanInputWithOptions(rootPath string, opts BuildOptions) (*ScanInput, 
 			if skipDirs[base] {
 				return filepath.SkipDir
 			}
-			if shouldExclude(relPath, combinedExcludes) {
+			if excludes.Ignored(relPath, true) {
 				return filepath.SkipDir
 			}
 			if gitignore != nil {
@@ -185,7 +186,7 @@ func BuildScanInputWithOptions(rootPath string, opts BuildOptions) (*ScanInput, 
 		if depth > opts.MaxDepth {
 			return nil
 		}
-		if shouldExclude(relPath, combinedExcludes) {
+		if excludes.Ignored(relPath, false) {
 			return nil
 		}
 		if gitignore != nil && gitignore.Ignored(relPath, false) {
@@ -249,20 +250,6 @@ func matchesIndicator(files map[string]bool, pattern string) bool {
 // in a linked worktree or a submodule checkout, so both forms are recognised
 // by name and the caller prunes whichever kind it found.
 func isGitDirName(name string) bool { return name == ".git" }
-
-// shouldExclude checks if a path matches any exclude glob pattern.
-func shouldExclude(relPath string, excludes []string) bool {
-	for _, pattern := range excludes {
-		if matched, _ := filepath.Match(pattern, relPath); matched {
-			return true
-		}
-		base := filepath.Base(relPath)
-		if matched, _ := filepath.Match(pattern, base); matched {
-			return true
-		}
-	}
-	return false
-}
 
 // LoadOptions configures LoadFileContents. The MaxFileSize and IgnoreBinaries
 // fields correspond directly to the CLI flags of the same name; MaxDepth and

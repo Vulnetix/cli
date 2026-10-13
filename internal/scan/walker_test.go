@@ -65,3 +65,32 @@ func TestWalkForScanFiles_PrunesEcosystemInstallDirs(t *testing.T) {
 		}
 	}
 }
+
+// TestWalkForScanFiles_HonoursExcludeDirectory is `sca --exclude "testdata/"`:
+// manifests anywhere under a directory of that name must not be discovered.
+func TestWalkForScanFiles_HonoursExcludeDirectory(t *testing.T) {
+	root := t.TempDir()
+	manifest := []byte(`{"name":"x","dependencies":{"lodash":"4.17.0"}}`)
+	for _, rel := range []string{"package.json", "testdata/a/package.json", "sub/testdata/package.json"} {
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, manifest, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, pattern := range []string{"testdata/", "testdata", "**/testdata/**"} {
+		files, err := WalkForScanFiles(WalkOptions{RootPath: root, MaxDepth: 5, Excludes: []string{pattern}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(files) != 1 || files[0].RelPath != "./package.json" {
+			var got []string
+			for _, f := range files {
+				got = append(got, f.RelPath)
+			}
+			t.Errorf("--exclude %q: discovered %v, want only ./package.json", pattern, got)
+		}
+	}
+}

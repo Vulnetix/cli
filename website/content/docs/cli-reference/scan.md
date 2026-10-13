@@ -1061,7 +1061,16 @@ The scanner walks the directory tree starting from `--path` up to `--depth` leve
 - `__pycache__`, `.tox`, `.venv`
 - `vendor`, `.cargo`
 
-Use `--exclude` to skip additional paths by glob pattern.
+Use `--exclude` to skip additional paths by glob pattern. Patterns follow root `.gitignore` rules:
+
+| Pattern | Excludes |
+|---------|----------|
+| `testdata/` or `testdata` | every directory named `testdata`, at any depth, and everything beneath it |
+| `./testdata/` or `/testdata/` | only the `testdata` directory at the scan root |
+| `testdata/**` | everything under the root `testdata` directory |
+| `**/fixtures/**` | everything under any `fixtures` directory |
+| `*_test.go` | matching file names at any depth |
+| `sub/*.json` | `.json` files directly inside the root `sub` directory |
 
 ### Dependency graph from installed packages
 

@@ -58,6 +58,8 @@ When adding a capability: put it behind such a function in its owner's file and 
 
 Flags registered family-wide by `addScanFlags`/`addSASTFlags` must be **honoured** family-wide. `--dry-run` and `--list-default-rules` are handled inside `runScanWithFeatures` (before any network work) precisely so every subcommand honours them; `--snippet-context` lives in `addSASTFlags` because it shapes SARIF for every rego command. `cmd/scan_flag_ownership_test.go` locks this in.
 
+`--exclude` (and `--ignore`) patterns are compiled once by `ignore.Globs` and follow **root `.gitignore` rules**, in both walkers (`internal/scan/walker.go`, `internal/sast/input.go`): `testdata/` or `testdata` prunes that directory at any depth, a pattern with a slash or a leading `./` is root-anchored, and `**` crosses directories. Do not go back to `filepath.Match`, under which `testdata/` never matched the directory `testdata` and the excluded manifests were scanned anyway. `TestGlobs` pins the spellings.
+
 `--from-memory`/`--fresh-*` on `scan` are deprecated aliases delegating to `report`; `--sca-autofix` is the in-pipeline trigger for `fix`. Keep both working.
 
 ### Output Is One Report Model, Not Per-Scanner Printing

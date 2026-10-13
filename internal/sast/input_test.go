@@ -131,21 +131,31 @@ func TestBuildScanInput_LanguageIndicators(t *testing.T) {
 	}
 }
 
-func TestShouldExclude_Basename(t *testing.T) {
-	if !shouldExclude("test/foo_test.go", []string{"*_test.go"}) {
-		t.Error("should exclude by basename pattern")
+func TestBuildScanInputHonoursExcludes(t *testing.T) {
+	root := t.TempDir()
+	for _, f := range []string{"main.go", "foo_test.go", "testdata/a/x.go", "sub/testdata/y.go", "vendored/lib.go"} {
+		p := filepath.Join(root, f)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("package x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if shouldExclude("main.go", []string{"*_test.go"}) {
-		t.Error("should not exclude non-matching file")
+	input, err := BuildScanInputWithOptions(root, BuildOptions{
+		MaxDepth: 5,
+		Excludes: []string{"testdata/", "*_test.go", "./vendored/*"},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestShouldExclude_PathGlob(t *testing.T) {
-	if !shouldExclude("vendor/lib.go", []string{"vendor/*"}) {
-		t.Error("should exclude by path glob")
+	if !input.FileSet["main.go"] {
+		t.Error("main.go should be kept")
 	}
-	if shouldExclude("lib/vendor.go", []string{"vendor/*"}) {
-		t.Error("should not exclude non-matching path")
+	for _, f := range []string{"foo_test.go", "testdata/a/x.go", "sub/testdata/y.go", "vendored/lib.go"} {
+		if input.FileSet[f] {
+			t.Errorf("%s should be excluded", f)
+		}
 	}
 }
 
