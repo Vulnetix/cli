@@ -65,7 +65,11 @@ var (
 
 const (
 	minChunkSize = 1  // a job at this size can no longer be split on failure
-	sCAChunkSize = 25 // PURLs per batch; halved adaptively on transient failure
+	// PURLs per batch; halved adaptively on transient failure. Discovery chunks
+	// wait for the primary one (they append to its snapshot), so every extra chunk
+	// is another round trip on the critical path; 25 dated from when one batch
+	// could take a minute server-side.
+	sCAChunkSize = 100
 )
 
 // cliSCAGateOptions tells tryCliSCA which per-package gate signals the active
