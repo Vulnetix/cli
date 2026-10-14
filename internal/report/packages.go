@@ -60,6 +60,12 @@ func renderHeader(r Report, c Counts, s *Style) string {
 	}
 
 	if c.Packages == 0 {
+		if n := len(r.Meta.Unchecked); n > 0 {
+			// Nothing found is not "clean" when part of the lookup failed.
+			b.WriteString(fmt.Sprintf(" %s %s\n", s.Warn(s.G.Unknown), s.Bold("Incomplete: "+plural(n, "package")+" could not be checked")))
+			b.WriteString(s.Dim("   the advisory lookup failed after retries; re-run the scan") + "\n")
+			return b.String()
+		}
 		line := fmt.Sprintf(" %s %s", s.Good(s.G.OK), s.Bold("No vulnerabilities in "+plural(r.Meta.ScannedPackages, "package")))
 		if r.Meta.ScannedPackages == 0 {
 			line = fmt.Sprintf(" %s %s", s.Good(s.G.OK), s.Bold("No vulnerabilities found"))
@@ -120,6 +126,9 @@ func renderHeader(r Report, c Counts, s *Style) string {
 	}
 	if len(meta) > 0 && s.Width >= tierCompact {
 		b.WriteString(s.Dim("   "+strings.Join(meta, " "+s.G.Sep+" ")) + "\n")
+	}
+	if n := len(r.Meta.Unchecked); n > 0 {
+		b.WriteString(s.Warn("   "+plural(n, "package")+" could not be checked (the advisory lookup failed after retries); the list above may be incomplete") + "\n")
 	}
 	return b.String()
 }

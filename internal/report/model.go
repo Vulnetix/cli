@@ -187,6 +187,9 @@ type Meta struct {
 	Elapsed time.Duration
 	// VEXSuppressed is how many findings third-party VEX closed.
 	VEXSuppressed int
+	// Unchecked are packages the advisory lookup could not answer for after retries.
+	// A report that omits them is incomplete, and must not read as "clean".
+	Unchecked []string
 	// Strict records that not-affected findings were counted anyway.
 	Strict bool
 }

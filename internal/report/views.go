@@ -28,7 +28,10 @@ func RenderPlain(r Report, o Options, t *display.Terminal) string {
 	var b strings.Builder
 
 	if c.Packages == 0 {
-		if r.Meta.ScannedPackages > 0 {
+		if n := len(r.Meta.Unchecked); n > 0 {
+			// Nothing found is not "clean" when part of the answer is missing.
+			fmt.Fprintf(&b, "vulnetix %s: INCOMPLETE  no vulnerabilities found, but %s could not be checked (the advisory lookup failed after retries); re-run the scan", cmd, plural(n, "package"))
+		} else if r.Meta.ScannedPackages > 0 {
 			fmt.Fprintf(&b, "vulnetix %s: CLEAN  no vulnerabilities in %s", cmd, plural(r.Meta.ScannedPackages, "package"))
 		} else {
 			fmt.Fprintf(&b, "vulnetix %s: CLEAN  no vulnerabilities found", cmd)
@@ -54,6 +57,9 @@ func RenderPlain(r Report, o Options, t *display.Terminal) string {
 		if n := c.ByGroup[g.g]; n > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", n, g.label))
 		}
+	}
+	if n := len(r.Meta.Unchecked); n > 0 {
+		parts = append(parts, fmt.Sprintf("%d not checked", n))
 	}
 	fmt.Fprintf(&b, "vulnetix %s: FINDINGS  %s\n", cmd, strings.Join(parts, ", "))
 	for _, g := range groupOrder {

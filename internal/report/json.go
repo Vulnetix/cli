@@ -77,6 +77,9 @@ func RenderJSON(r Report) ([]byte, error) {
 			"kinds": r.Meta.Kinds, "strict": r.Meta.Strict,
 		},
 	}
+	if len(r.Meta.Unchecked) > 0 {
+		out.Meta["unchecked"] = r.Meta.Unchecked
+	}
 	for g, n := range c.ByGroup {
 		out.Counts.ByGroup[string(g)] = n
 	}

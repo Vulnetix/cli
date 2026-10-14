@@ -81,16 +81,19 @@ func postScannerGraphInsights(rootPath, toolName string, gitCtx *gitctx.GitConte
 		fmt.Fprintf(w, "  graph insights report artifact omitted from upload (%s request limit)\n", formatByteSize(budget.LimitBytes))
 	}
 
-	resp, err := client.CliInsights(env, req)
-	if err != nil {
-		if verbose {
-			fmt.Fprintf(w, "  graph insights upload skipped: %v\n", err)
+	// The graph is read from the tree now; only the upload is background work.
+	goBackground(w, func(w io.Writer) {
+		resp, err := client.CliInsights(env, req)
+		if err != nil {
+			if verbose {
+				fmt.Fprintf(w, "  graph insights upload skipped: %v\n", err)
+			}
+			return
 		}
-		return
-	}
-	if verbose && resp != nil && resp.Data.Insights != nil {
-		s := resp.Data.Insights
-		fmt.Fprintf(w, "  graph insights stored: %d node(s), %d edge(s), %d cross-repo key(s)\n",
-			s.NodesStored, s.EdgesStored, s.CrossRepoEdgesStored)
-	}
+		if verbose && resp != nil && resp.Data.Insights != nil {
+			s := resp.Data.Insights
+			fmt.Fprintf(w, "  graph insights stored: %d node(s), %d edge(s), %d cross-repo key(s)\n",
+				s.NodesStored, s.EdgesStored, s.CrossRepoEdgesStored)
+		}
+	})
 }

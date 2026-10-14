@@ -282,6 +282,7 @@ func tryCliSCA(allPackages []scan.ScopedPackage, manifestGroups []scan.ManifestG
 	}
 
 	unservable, anyOK, firstErr := runSCAJobs(client, jobs, buildReq, onResult, w)
+	lastSCAUnchecked = append([]string(nil), unservable...)
 
 	// The v2 endpoint is the only path now: there is no legacy fallback. A total
 	// failure means the API is genuinely unusable (auth/config/network), which
@@ -761,19 +762,24 @@ func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vd
 		return
 	}
 
-	resp, err := client.CliSCAReachability(env, vdb.CliSCAReachabilityRequest{
-		IngestionSnapshotUuid: snapshot.Uuid,
-		Results:               payloads,
-	})
-	if err != nil {
-		if verbose {
-			fmt.Fprintf(w, "  reachability post failed: %v\n", err)
+	// The payload is built from the findings now; only the send is background
+	// work, so later changes to the findings cannot race with it.
+	snapshotUuid := snapshot.Uuid
+	goBackground(w, func(w io.Writer) {
+		resp, err := client.CliSCAReachability(env, vdb.CliSCAReachabilityRequest{
+			IngestionSnapshotUuid: snapshotUuid,
+			Results:               payloads,
+		})
+		if err != nil {
+			if verbose {
+				fmt.Fprintf(w, "  reachability post failed: %v\n", err)
+			}
+			return
 		}
-		return
-	}
-	if verbose {
-		fmt.Fprintf(w, "  reachability persisted: %d (sbom=%s, vex=%s)\n", resp.Data.Persisted, resp.Data.SBOMUrl, resp.Data.VEXUrl)
-	}
+		if verbose {
+			fmt.Fprintf(w, "  reachability persisted: %d (sbom=%s, vex=%s)\n", resp.Data.Persisted, resp.Data.SBOMUrl, resp.Data.VEXUrl)
+		}
+	})
 }
 
 // memoryHit captures the three VEX-relevant memory fields per finding.
@@ -1260,6 +1266,26 @@ func runSCAJobs(
 		}
 	}
 	for _, j := range rest {
+		if len(j.purls) == 0 {
+			// A manifest-body job only archives raw manifests under the snapshot:
+			// nothing in its answer reaches this scan, so it is background work
+			// rather than a round trip the scan waits on.
+			env, req, skip := buildReq(j)
+			if skip {
+				continue
+			}
+			label := scaJobLabel(j)
+			goBackground(w, func(w io.Writer) {
+				if _, err := sendCliSCAWithRetry(client, env, req, label, w); err != nil {
+					if verbose {
+						fmt.Fprintf(w, "  %s failed (%v); manifest body dropped\n", label, err)
+					}
+				} else if verbose {
+					fmt.Fprintf(w, "  %s ok\n", label)
+				}
+			})
+			continue
+		}
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(j scaJob) {
