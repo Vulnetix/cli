@@ -69,11 +69,14 @@ func TestDeferredCallsCarryTheHeaderAndOthersDoNot(t *testing.T) {
 	if _, err := c.CliSCAReachabilityDeferred(CliEnv{}, CliSCAReachabilityRequest{IngestionSnapshotUuid: "s"}); err != nil {
 		t.Fatal(err)
 	}
+	if r, err := c.CliInsightsDeferred(CliEnv{}, CliInsightsRequest{}); err != nil || !r.Data.Deferred {
+		t.Fatalf("insights: %+v %v", r, err)
+	}
 	if _, err := c.CliSCAReachability(CliEnv{}, CliSCAReachabilityRequest{IngestionSnapshotUuid: "s"}); err != nil {
 		t.Fatal(err)
 	}
 	// The plain reachability call came last on its path, so its header is what is left.
-	if got["/v2/cli.finalize"] != "1" || got["/v2/cli.sca-reachability"] != "" {
+	if got["/v2/cli.finalize"] != "1" || got["/v2/cli.insights"] != "1" || got["/v2/cli.sca-reachability"] != "" {
 		t.Fatalf("headers %v", got)
 	}
 }
