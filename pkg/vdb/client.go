@@ -700,7 +700,7 @@ func (c *Client) doRequestCached(method, path string, body interface{}, ttl time
 
 	// Scoped to the credential: the API strips fields by plan, so an answer cached
 	// for one organisation (or for community access) must not serve another.
-	key := cache.CacheKey(c.APIVersion+"\x00"+c.tokenKey()+"\x00", path)
+	key := c.responseCacheKey(path)
 
 	// Check cache (unless forced refresh)
 	if !c.RefreshCache {
@@ -1012,4 +1012,11 @@ func htmlErrorSummary(statusCode int, body []byte) (string, bool) {
 		}
 	}
 	return fmt.Sprintf("API error (%d): the API gateway answered %q before the request reached the API. This is a server-side problem, not your input; try again shortly", statusCode, what), true
+}
+
+// responseCacheKey is the local response cache key for a GET path. It is
+// scoped to the credential: the API strips fields by plan, so an answer cached
+// for one organisation (or for community access) must not serve another.
+func (c *Client) responseCacheKey(path string) string {
+	return cache.CacheKey(c.APIVersion+"\x00"+c.tokenKey()+"\x00", path)
 }

@@ -1,6 +1,7 @@
 package vdb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/vulnetix/cli/v3/pkg/cache"
 )
 
 // V2QueryParams holds common context-filter query parameters for V2 endpoints.
@@ -1036,4 +1039,93 @@ func (c *Client) V2DefenceArchive(lane, uuid string) ([]byte, error) {
 	}
 
 	return body, nil
+}
+
+// AffectedLookup is one GET /v2/vuln/{id}/affected request.
+type AffectedLookup struct {
+	ID     string
+	Params V2QueryParams
+}
+
+// AffectedResult is one AffectedLookup's answer, as V2AffectedCached gives it.
+type AffectedResult struct {
+	Data map[string]interface{}
+	Err  error
+}
+
+type cliAffectedBatchItem struct {
+	Status int             `json:"status"`
+	Body   json.RawMessage `json:"body"`
+}
+
+type cliAffectedBatchData struct {
+	Results []cliAffectedBatchItem `json:"results"`
+}
+
+// affectedBatchSize is the most lookups POST /v2/cli.affected-batch takes at once.
+const affectedBatchSize = 200
+
+// V2AffectedBatch answers many affected-record lookups: from the local response
+// cache where V2AffectedCached would, and the rest in POST /v2/cli.affected-batch
+// requests, whose items the API serves exactly as the single route. Answers
+// are cached as V2AffectedCached caches them. A batch request that fails gives
+// every item it carried that error, so the caller can ask for each on its own.
+func (c *Client) V2AffectedBatch(ctx context.Context, env CliEnv, lookups []AffectedLookup) []AffectedResult {
+	out := make([]AffectedResult, len(lookups))
+	paths := make([]string, len(lookups))
+	useCache := c.Cache != nil && !c.NoCache && !c.RefreshCache
+	var miss []int
+	for i, l := range lookups {
+		paths[i] = fmt.Sprintf("/vuln/%s/affected%s", url.PathEscape(l.ID), v2QueryString(l.Params))
+		if useCache {
+			if entry, ok := c.Cache.Get(c.responseCacheKey(paths[i])); ok && entry.IsFresh() {
+				out[i] = decodeAffected(entry.Body)
+				continue
+			}
+		}
+		miss = append(miss, i)
+	}
+	for start := 0; start < len(miss); start += affectedBatchSize {
+		chunk := miss[start:min(start+affectedBatchSize, len(miss))]
+		req := struct {
+			Paths []string `json:"paths"`
+		}{}
+		for _, i := range chunk {
+			req.Paths = append(req.Paths, paths[i])
+		}
+		resp, err := cliPostWithEnvContext[cliAffectedBatchData](ctx, c, "cli.affected-batch", env, req)
+		if err == nil && len(resp.Data.Results) != len(chunk) {
+			err = fmt.Errorf("cli.affected-batch: %d answers for %d lookups", len(resp.Data.Results), len(chunk))
+		}
+		for j, i := range chunk {
+			if err != nil {
+				out[i] = AffectedResult{Err: err}
+				continue
+			}
+			item := resp.Data.Results[j]
+			switch {
+			case item.Status == http.StatusOK:
+				out[i] = decodeAffected(item.Body)
+				if useCache && out[i].Err == nil {
+					c.Cache.Put(c.responseCacheKey(paths[i]), &cache.Entry{Body: item.Body, CachedAt: time.Now(), TTL: affectedCacheTTL}) //nolint:errcheck
+				}
+			case item.Status == http.StatusNotFound:
+				out[i] = AffectedResult{Err: &NotFoundError{Message: formatAPIError(item.Status, item.Body)}}
+			default:
+				out[i] = AffectedResult{Err: fmt.Errorf("%s", formatAPIError(item.Status, item.Body))}
+			}
+		}
+	}
+	return out
+}
+
+func decodeAffected(body []byte) AffectedResult {
+	if pl, locked := decodePlanLocked(body); locked {
+		return AffectedResult{Err: pl}
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return AffectedResult{Err: fmt.Errorf("failed to parse response: %w", err)}
+	}
+	return AffectedResult{Data: result}
 }

@@ -466,3 +466,48 @@ func TestOpenRangeLosesToABoundedFix(t *testing.T) {
 		t.Fatalf("verdict = %q: a bounded fix below the install must not be overridden by a wildcard", v)
 	}
 }
+
+// A batch answers the wave in one call; the single fetcher is not used.
+func TestResolveUnverifiedBatchedAnswersInOneCall(t *testing.T) {
+	var single, batches int32
+	vs := []EnrichedVuln{fastapiFinding("PYSEC-2024-38", "0.135.1")}
+	records := map[string]map[string]any{"PYSEC-2024-38": pysec38()}
+	batch := func(ctx context.Context, qs []AffectedQuery) []AffectedAnswer {
+		atomic.AddInt32(&batches, 1)
+		out := make([]AffectedAnswer, len(qs))
+		var n int32
+		for i, q := range qs {
+			d, err := fetcher(records, &n)(ctx, q.ID, q.PkgName, q.Ecosystem)
+			out[i] = AffectedAnswer{Data: d, Err: err}
+		}
+		return out
+	}
+	ResolveUnverifiedBatched(context.Background(), vs, fetcher(records, &single), batch, 4)
+	if got := EvaluateVerdict(vs[0]); got.Verdict != VerdictNotAffected || got.FixedIn != "0.109.1" {
+		t.Fatalf("verdict = %+v", got)
+	}
+	if single != 0 || batches == 0 {
+		t.Fatalf("single fetches %d, batches %d", single, batches)
+	}
+}
+
+// An item the batch could not answer is asked for on its own, so a failed or
+// missing batch route costs speed, never a verdict.
+func TestResolveUnverifiedBatchedFallsBackToSingleLookups(t *testing.T) {
+	var single int32
+	vs := []EnrichedVuln{fastapiFinding("PYSEC-2024-38", "0.135.1")}
+	failing := func(_ context.Context, qs []AffectedQuery) []AffectedAnswer {
+		out := make([]AffectedAnswer, len(qs))
+		for i := range out {
+			out[i] = AffectedAnswer{Err: errors.New("cli.affected-batch: 502 bad gateway")}
+		}
+		return out
+	}
+	st := ResolveUnverifiedBatched(context.Background(), vs, fetcher(map[string]map[string]any{"PYSEC-2024-38": pysec38()}, &single), failing, 4)
+	if got := EvaluateVerdict(vs[0]); got.Verdict != VerdictNotAffected {
+		t.Fatalf("verdict = %+v", got)
+	}
+	if single == 0 || st.Failed != 0 {
+		t.Fatalf("single fetches %d, failed %d; the failed batch items should have been fetched singly", single, st.Failed)
+	}
+}

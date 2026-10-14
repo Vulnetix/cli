@@ -14,6 +14,21 @@ import (
 // that names hundreds of products still returns the one that matters.
 type AffectedFetcher func(ctx context.Context, id, pkgName, ecosystem string) (map[string]any, error)
 
+// AffectedQuery is one AffectedFetcher call: an advisory and a package.
+type AffectedQuery struct {
+	ID, PkgName, Ecosystem string
+}
+
+// AffectedAnswer is one AffectedQuery's answer, as AffectedFetcher would give it.
+type AffectedAnswer struct {
+	Data map[string]any
+	Err  error
+}
+
+// AffectedBatchFetcher answers many AffectedQuery at once, in order. An item it
+// could not answer (any error but not-found) is asked again on its own.
+type AffectedBatchFetcher func(ctx context.Context, queries []AffectedQuery) []AffectedAnswer
+
 // ResolveStats reports what a resolution pass did.
 type ResolveStats struct {
 	// Candidates is how many findings the pass tried to settle.
@@ -48,6 +63,14 @@ type ResolveStats struct {
 // version against every comparable range. It only ever resolves; a finding it
 // cannot settle is left exactly as it was.
 func ResolveUnverified(ctx context.Context, vulns []EnrichedVuln, fetch AffectedFetcher, workers int) ResolveStats {
+	return ResolveUnverifiedBatched(ctx, vulns, fetch, nil, workers)
+}
+
+// ResolveUnverifiedBatched is ResolveUnverified that sends each wave of lookups
+// through batch, one request instead of one per advisory. Answers are used
+// exactly as fetch's would be; an item the batch could not answer falls back to
+// fetch, with its usual retry.
+func ResolveUnverifiedBatched(ctx context.Context, vulns []EnrichedVuln, fetch AffectedFetcher, batch AffectedBatchFetcher, workers int) ResolveStats {
 	var st ResolveStats
 	if fetch == nil {
 		return st
@@ -78,7 +101,50 @@ func ResolveUnverified(ctx context.Context, vulns []EnrichedVuln, fetch Affected
 		id string
 		i  int
 	}
+	// fetchBatched answers what it can of reqs in batch calls and records it in
+	// cache exactly as fetchAll would; fetchAll then skips those and asks fetch
+	// for the rest.
+	fetchBatched := func(reqs []req) []req {
+		var queries []AffectedQuery
+		var keys []string
+		seen := map[string]bool{}
+		for _, r := range reqs {
+			k := key(r.id, r.i)
+			mu.Lock()
+			_, have := cache[k]
+			mu.Unlock()
+			if have || seen[k] {
+				continue
+			}
+			seen[k] = true
+			queries = append(queries, AffectedQuery{ID: r.id, PkgName: vulns[r.i].PackageName, Ecosystem: vulns[r.i].Ecosystem})
+			keys = append(keys, k)
+		}
+		if len(queries) == 0 || ctx.Err() != nil {
+			return reqs
+		}
+		answers := batch(ctx, queries)
+		mu.Lock()
+		defer mu.Unlock()
+		for j, a := range answers {
+			if j >= len(keys) {
+				break
+			}
+			switch {
+			case a.Err == nil:
+				cache[keys[j]] = a.Data
+				st.Fetches++
+			case notFoundErr(a.Err):
+				cache[keys[j]] = nil
+				st.Fetches++
+			}
+		}
+		return reqs
+	}
 	fetchAll := func(reqs []req) {
+		if batch != nil {
+			reqs = fetchBatched(reqs)
+		}
 		var wg sync.WaitGroup
 		sem := make(chan struct{}, workers)
 		for _, r := range reqs {
