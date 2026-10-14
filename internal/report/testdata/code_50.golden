@@ -1,21 +1,19 @@
  ✖ SAST 4 findings in 2 files
    2 need action · 2 can wait
 
- config/prod.env
-  7     ● CRITICAL  VNX-SEC-001
-               AWS access key ID found; rotate
-               the key
+ NEEDS ACTION · 2 rules · 2 places
+ ────────────────────────────────────────────────
+ ● CRITICAL  VNX-SEC-001        config/prod.env:7
+   AWS access key ID found
 
- src/app.py
-  5     ● HIGH      VNX-PY-004
-               yaml.load() without SafeLoader;
-               use yaml.safe_load() or pass
-               Loader=SafeLoader
-               5    │     data = yaml.load(doc)
-  4     ● LOW       VNX-1117  ×2
-               Function without docstring summary
-               4    │ def run(cmd, doc):
+ ● HIGH  VNX-PY-004                  src/app.py:5
+   yaml.load() without SafeLoader
+
+ CAN WAIT · 1 rule · 2 places
+ ────────────────────────────────────────────────
+ ● LOW  VNX-1117                      2 in 1 file
 
  NEXT
    vulnetix scan --explain VNX-SEC-001
-   vulnetix scan -v    the matched code
+   vulnetix scan --explain VNX-PY-004
+   vulnetix scan -v

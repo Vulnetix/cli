@@ -1,0 +1,33 @@
+
+ VNX-GO-014  ● HIGH  Lock() without a deferred Unlock()
+ sast · 17 places · 15 in production code, 2 in tests
+
+ WHY IT MATTERS
+   Mutex Lock() not immediately followed by defer Unlock(); add defer
+
+ WHERE · 15 in 4 files
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+   internal/lsp/server.go                                                                      10
+       172 │     s.mu.Lock()
+       184 │     s.mu.Lock()
+       251 │     s.mu.Lock()
+      + 7 more in this file
+
+   internal/lsp/sca.go                                                                          3
+       231 │     s.mu.Lock()
+       247 │     s.mu.Lock()
+       252 │     s.mu.Lock()
+
+   cmd/root.go                                                                                  1
+        66 │     s.mu.Lock()
+
+   internal/display/progress.go                                                                 1
+        68 │     s.mu.Lock()
+
+ IN TESTS · 2 in 2 files
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+   cmd/other_test.go 1 · cmd/root_test.go 1
+
+ NEXT
+   vulnetix sast --explain VNX-GO-014 -v  every place, with its code
+   vulnetix sast                          back to every rule

@@ -79,6 +79,56 @@ vulnetix sast --results-only
 vulnetix sast --suppress-test-code
 ```
 
+## Reading the output
+
+The terminal report is organised by **rule**, the way the dependency report is
+organised by package. Each rule appears once, with how many places it fired and in
+how many files, followed by its top files and their line numbers:
+
+```text
+ ✖ SAST 1068 findings in 325 files          150 need action · 846 can wait · 65 in tests · 7 vendored
+   12 rules need action · 774 of 2865 rules ran
+
+ NEEDS ACTION · 12 rules · 150 places · production code
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● HIGH      VNX-GO-014    Lock() without a deferred Unlock()                       69 in 20 files
+             internal/lsp/server.go          23   172 184 251 268 287 322 351 +16
+             internal/lsp/sca.go             10   231 247 252 260 359 394 534 +3
+             internal/display/progress.go     7   68 100 122 150 177 192 199
+             + 17 more files
+
+ CAN WAIT · 21 rules · 846 places · medium and low
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● MEDIUM    VNX-GO-039    Login handler without rate limiting                      37 in 13 files
+
+ IN TESTS · 65 high-severity places · listed, not ranked
+ VENDORED · 7 places · third-party files in the tree
+
+ NEXT
+   vulnetix sast --explain VNX-GO-014  the rule, and all 69 places with the matched code
+   vulnetix sast -v                    one snippet per rule, and every rule that can wait
+   vulnetix sast --show tests          rank test code with the rest
+```
+
+The groups say what to do, not only how severe:
+
+| Group | What is in it |
+|-------|---------------|
+| **NEEDS ACTION** | Critical and high findings in production code. |
+| **CAN WAIT** | Medium and low findings, one line per rule. The default view shows seven; `-v` lists every rule. |
+| **IN TESTS** | Critical and high findings in [test code](#test-suite-detection). They are counted and listed, not ranked. `--show tests` moves them into NEEDS ACTION. |
+| **VENDORED** | Critical and high findings under a `third_party/`, `third-party/`, `vendor/`, `vendored/`, `node_modules/` or `bower_components/` directory: code you did not write. The NEXT block names the `--exclude` that stops scanning it. |
+
+These groups only change the terminal view. Every finding stays in SARIF, JSON, the
+snapshot upload and the GitHub annotations, and `--severity`/`--fail-on` gate on
+severity exactly as before.
+
+`--explain <rule-id>` shows the rule's description and CWE, then every place it fired:
+production code first, grouped by file with three matched lines each (all of them at
+`-v`), then test code. `--explain <file-path>` explains each rule that fired in that
+file. The same layout is used by [`secrets`](../secrets/), [`iac`](../iac/) and
+[`containers`](../containers/); a secret's value is never printed.
+
 ## Test-suite detection
 
 Because the CLI runs inside your repository, it can tell whether a finding lives in

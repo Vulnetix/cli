@@ -1,0 +1,28 @@
+ ✖ SAST 19 findings in 8 files
+   15 need action · 1 can wait · 2 in tests · 1 vendored
+
+ NEEDS ACTION · 1 rule · 15 places
+ ────────────────────────────────────────────────
+ ● HIGH  VNX-GO-014                 15 in 4 files
+   Lock() without a deferred Unlock()
+   internal/lsp/server.go   10
+   internal/lsp/sca.go       3
+   + 2 more files
+
+ CAN WAIT · 1 rule · 1 place
+ ────────────────────────────────────────────────
+ ● MEDIUM  VNX-1325               cmd/scan.go:103
+
+ IN TESTS
+ ────────────────────────────────────────────────
+   VNX-GO-014 2
+
+ VENDORED
+ ────────────────────────────────────────────────
+   schemas/third_party/    1
+
+ NEXT
+   vulnetix sast --explain VNX-GO-014
+   vulnetix sast -v
+   vulnetix sast --show tests
+   vulnetix sast --exclude schemas/third_party/

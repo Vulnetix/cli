@@ -1,0 +1,28 @@
+ ✖ SAST 19 findings in 8 files          15 need action · 1 can wait · 2 in tests · 1 vendored
+   1 rule needs action · 774 of 2865 rules ran
+
+ NEEDS ACTION · 1 rule · 15 places · production code
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● HIGH      VNX-GO-014    Lock() without a deferred Unlock()                       15 in 4 files
+             internal/lsp/server.go   10   172 184 251 268 287 322 351 378 518 601
+             internal/lsp/sca.go       3   231 247 252
+             cmd/root.go               1   66
+             + 1 more file
+
+ CAN WAIT · 1 rule · 1 place · medium and low
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● MEDIUM    VNX-1325      make() sized from len()                                cmd/scan.go:103
+
+ IN TESTS · 2 high-severity places · listed, not ranked
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+             VNX-GO-014 2
+
+ VENDORED · 1 place · third-party files in the tree
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+             schemas/third_party/    1   VNX-CRYPTO-004 ×1
+
+ NEXT
+   vulnetix sast --explain VNX-GO-014            the rule, and all 15 places with the matched code
+   vulnetix sast -v                              one snippet per rule, and every file it fired in
+   vulnetix sast --show tests                    rank test code with the rest
+   vulnetix sast --exclude schemas/third_party/  stop scanning code you did not write
