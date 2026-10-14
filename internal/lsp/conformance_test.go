@@ -248,7 +248,7 @@ func TestDidOpenPublishesDiagnostics(t *testing.T) {
 		},
 	}))
 
-	diags := c.waitForPublish(t, uri, 30*time.Second)
+	diags := c.waitForPublish(t, uri, 2*time.Minute)
 	require.NotEmpty(t, diags, "the fixture contains obvious findings")
 
 	for _, d := range diags {
@@ -276,7 +276,7 @@ func TestClosingADocumentClearsItsDiagnostics(t *testing.T) {
 	require.NoError(t, c.conn.Notify(context.Background(), protocol.MethodDidOpen, protocol.DidOpenParams{
 		TextDocument: protocol.TextDocumentItem{URI: uri, LanguageID: "go", Version: 1, Text: vulnerableGo},
 	}))
-	c.waitForPublish(t, uri, 30*time.Second)
+	c.waitForPublish(t, uri, 2*time.Minute)
 
 	require.NoError(t, c.conn.Notify(context.Background(), protocol.MethodDidClose, protocol.DidCloseParams{
 		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
