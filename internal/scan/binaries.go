@@ -2,9 +2,15 @@ package scan
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -125,25 +131,38 @@ func ResolvePackageManagerBinaries(presentFiles []string) []ResolvedBinary {
 		}
 	}
 
+	// Version commands run concurrently: each is a process start, and some (gradle
+	// starts a JVM) take over a second, so a manifest with six candidates waited on
+	// six in a row.
 	out := make([]ResolvedBinary, 0, len(candidates))
 	for bin := range candidates {
-		rb := ResolvedBinary{
+		out = append(out, ResolvedBinary{
 			Ecosystem:     binaryEcosystem[bin],
 			Binary:        bin,
 			Authoritative: authoritative[bin],
-		}
-		if path, err := exec.LookPath(bin); err == nil {
-			rb.Detected = true
-			rb.BinaryPath = path
-			args := binaryVersionArgs[bin]
-			if len(args) == 0 {
-				args = []string{"--version"}
-			}
-			rb.VersionCommand = bin + " " + strings.Join(args, " ")
-			rb.Version = runBinaryVersion(bin, args)
-		}
-		out = append(out, rb)
+		})
 	}
+	var wg sync.WaitGroup
+	for i := range out {
+		rb := &out[i]
+		path, err := exec.LookPath(rb.Binary)
+		if err != nil {
+			continue
+		}
+		rb.Detected = true
+		rb.BinaryPath = path
+		args := binaryVersionArgs[rb.Binary]
+		if len(args) == 0 {
+			args = []string{"--version"}
+		}
+		rb.VersionCommand = rb.Binary + " " + strings.Join(args, " ")
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rb.Version = binaryVersion(rb.Binary, path, args)
+		}()
+	}
+	wg.Wait()
 	return out
 }
 
@@ -157,4 +176,60 @@ func runBinaryVersion(bin string, args []string) string {
 		return ""
 	}
 	return semverRe.FindString(string(out))
+}
+
+// binaryVersion is runBinaryVersion with the answer remembered on disk. The key
+// is the resolved executable's path, size and modification time plus the
+// arguments, so the same file always reports the version it reported before,
+// and an upgrade (a new file, or a new Cellar path) is asked again. Only a
+// version found is stored. VULNETIX_NO_BINARY_CACHE disables the store.
+func binaryVersion(bin, path string, args []string) string {
+	key := binaryVersionKey(path, args)
+	if key != "" {
+		if raw, err := os.ReadFile(filepath.Join(binaryVersionDir, key)); err == nil && len(raw) > 0 {
+			return string(raw)
+		}
+	}
+	v := runBinaryVersion(bin, args)
+	if v != "" && key != "" && os.MkdirAll(binaryVersionDir, 0o700) == nil {
+		tmp, err := os.CreateTemp(binaryVersionDir, ".tmp-*")
+		if err == nil {
+			_, werr := tmp.WriteString(v)
+			cerr := tmp.Close()
+			if werr != nil || cerr != nil || os.Rename(tmp.Name(), filepath.Join(binaryVersionDir, key)) != nil {
+				_ = os.Remove(tmp.Name())
+			}
+		}
+	}
+	return v
+}
+
+// binaryVersionDir is where versions persist; empty disables the store.
+var binaryVersionDir = defaultBinaryVersionDir()
+
+func defaultBinaryVersionDir() string {
+	if os.Getenv("VULNETIX_NO_BINARY_CACHE") != "" {
+		return ""
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".vulnetix", "cache", "binaries")
+}
+
+func binaryVersionKey(path string, args []string) string {
+	if binaryVersionDir == "" {
+		return ""
+	}
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return ""
+	}
+	info, err := os.Stat(real)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%d\x00%d\x00%s", real, info.Size(), info.ModTime().UnixNano(), strings.Join(args, "\x00"))))
+	return hex.EncodeToString(sum[:16])
 }
