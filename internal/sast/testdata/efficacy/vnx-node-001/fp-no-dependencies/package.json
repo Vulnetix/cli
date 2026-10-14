@@ -1,0 +1,7 @@
+{
+  "name": "lint-config",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {},
+  "scripts": { "test": "node test.js" }
+}

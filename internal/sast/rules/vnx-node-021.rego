@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_node_021
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-NODE-021",
 	"name": "XXE via libxmljs with noent:true",
-	"description": "libxmljs or libxmljs2 is parsing XML with noent set to true, enabling XML External Entity (XXE) processing. An attacker can supply a crafted XML document referencing external entities to read arbitrary files from the server (e.g. /etc/passwd) or trigger server-side request forgery. Set noent to false and avoid DTDLOAD when processing untrusted XML.",
+	"description": "libxml2 is told to substitute entities while parsing, which turns on XML External Entity (XXE) processing: a document that declares <!ENTITY x SYSTEM \"file:///etc/passwd\"> gets the file's contents (or an internal URL's response) spliced in. Reported, in JavaScript and TypeScript files that import or require libxmljs, libxmljs2 or libxml2-wasm: a noent: true option (in the parseXml/parseXmlString call, across line breaks, or in an options object passed to it), and libxml2-wasm's ParseOption.XML_PARSE_NOENT flag. Not reported: noent: false or omitted (the libxml2 default leaves entities unexpanded), a noent key in a file that does not use libxml (fast-xml-parser, xml2js and sax never fetch external entities), comments and string literals. Leave noent off and do not combine dtdload with untrusted XML.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-021/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
@@ -19,47 +21,38 @@ metadata := {
 	"tags": ["xxe", "xml", "libxmljs", "node"],
 }
 
-_is_js(path) if endswith(path, ".js")
-_is_js(path) if endswith(path, ".ts")
-_is_js(path) if endswith(path, ".jsx")
-_is_js(path) if endswith(path, ".tsx")
-_is_js(path) if endswith(path, ".mjs")
-_is_js(path) if endswith(path, ".cjs")
+_is_js(path) if regex.match(`\.(js|jsx|mjs|cjs|ts|tsx|mts|cts)$`, path)
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_js(path)
-	not endswith(path, ".min.js")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
+_strip(line) := regex.replace(line, "'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`", `""`)
+
+# A quoted key ('noent': true) is unquoted first so stripping keeps it.
+_noent(line) if {
 	contains(line, "noent")
-	contains(line, "true")
-	regex.match(`(libxmljs|parseXml|parseXmlString)`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "libxmljs XML parsing with noent:true enables XXE; set noent:false and avoid DTDLOAD when parsing untrusted XML",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+	regex.match(`\bnoent\s*:\s*true\b`, _strip(regex.replace(line, `'noent'|"noent"`, "noent")))
+}
+
+_noent(line) if {
+	contains(line, "XML_PARSE_NOENT")
+	regex.match(`\bXML_PARSE_NOENT\b`, _strip(line))
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	_is_js(path)
 	not endswith(path, ".min.js")
-	lines := split(input.file_contents[path], "\n")
+	regex.match(`libxmljs|libxml2-wasm`, content)
+	regex.match(`noent|XML_PARSE_NOENT`, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`(libxmljs|libxmljs2)`, line)
-	contains(line, "require(")
+	regex.match(`noent|NOENT`, line)
+	not helpers.is_comment_line(line)
+	_noent(line)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "libxmljs imported; ensure XML parsing is done with noent:false to prevent XXE attacks on untrusted XML input",
+		"message": "libxml2 entity substitution (noent / XML_PARSE_NOENT) is enabled: untrusted XML can read local files or reach internal URLs through external entities (XXE). Leave noent off",
 		"artifact_uri": path,
-		"severity": "medium",
-		"level": "warning",
+		"severity": metadata.severity,
+		"level": metadata.level,
 		"start_line": i + 1,
 		"snippet": line,
 	}

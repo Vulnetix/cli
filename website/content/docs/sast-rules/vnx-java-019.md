@@ -1,11 +1,11 @@
 ---
 title: "VNX-JAVA-019 – Java hardcoded cryptographic key literal"
-description: "Detects cryptographic keys, secrets, and IVs hardcoded as string or byte literals passed to SecretKeySpec, IvParameterSpec, or similar constructors — keys embedded in source code can be extracted from any copy of the binary."
+description: "Detects symmetric and signing keys written into Java source: SecretKeySpec, PBEKeySpec, JJWT signWith/setSigningKey, auth0 Algorithm.HMAC* and Keys.hmacShaKeyFor given a string, decoded or byte-array literal, or a constant holding one. Keys embedded in source can be extracted from any copy of the binary."
 ---
 
 ## Overview
 
-This rule flags two distinct patterns: `SecretKeySpec` constructed directly from a string literal (e.g., `new SecretKeySpec("mysecretkey12345".getBytes(), "AES")`), and constant declarations where a variable named `SECRET_KEY`, `ENCRYPTION_KEY`, `AES_KEY`, `HMAC_KEY`, `CRYPTO_KEY`, or similar is assigned a string literal. Both patterns indicate that a cryptographic key has been hardcoded into the source code, which is classified as CWE-321 (Use of Hard-coded Cryptographic Key).
+This rule flags a key that is fixed in the source and handed to a key API: `new SecretKeySpec(...)` or `new PBEKeySpec(...)` given a string literal (e.g., `new SecretKeySpec("mysecretkey12345".getBytes(), "AES")`), a Base64 or hex decode of a literal, or a byte-array literal; JJWT `signWith(alg, key)`/`setSigningKey(key)`, auth0 `Algorithm.HMAC256(key)` and `Keys.hmacShaKeyFor(key)` with such a value; and any of these given a constant or variable declared in the file with such a literal. A constant that is declared but never passed to a key API is not reported. This is CWE-321 (Use of Hard-coded Cryptographic Key).
 
 A hardcoded key is present in source repositories, compiled `.class` files, JAR archives, Docker images, and any other artifact derived from the source. Anyone with read access to the repository — including contributors, CI workers, third-party auditors, or an attacker who gains access to any artifact — can extract the key and use it to decrypt protected data, forge signatures, or impersonate services. The key cannot be rotated without a code change and a new deployment, making incident response slow and costly.
 
@@ -28,10 +28,16 @@ For HMAC-signed tokens (such as JWTs), a hardcoded signing key means any party w
 private static final String KEY_STRING = "SuperSecretKey!!";
 SecretKeySpec keySpec = new SecretKeySpec(KEY_STRING.getBytes(), "AES");
 
-// FLAGGED: named constant with hardcoded key value
-private static final String SECRET_KEY = "ChangeMe123456789";
-private static final String AES_KEY     = "0123456789abcdef";
-private static final String HMAC_KEY    = "hmac-signing-key-v1";
+// FLAGGED: JWT signing key held in a constant
+private static final String JWT_PASSWORD = "bm9kZS1zZWNyZXQtMTIz";
+Jwts.builder().setClaims(claims).signWith(SignatureAlgorithm.HS512, JWT_PASSWORD).compact();
+
+// FLAGGED: byte-array literal and PBE password literal
+new SecretKeySpec(new byte[] {(byte) 0x9f, 0x10, 0x22, 0x31, 0x44, 0x5a, 0x61, 0x7c}, "DES");
+new PBEKeySpec("master-password".toCharArray(), salt, 210000, 256);
+
+// NOT FLAGGED: key from the environment, a parameter or KeyGenerator
+new SecretKeySpec(Base64.getDecoder().decode(System.getenv(KEY_ENV)), "AES");
 ```
 
 ## Remediation

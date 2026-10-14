@@ -1,13 +1,13 @@
 ---
 title: "VNX-JAVA-026 – Java Spring File Serving Without Access Control"
-description: "Detects Spring and servlet file-serving handlers that return FileSystemResource or InputStreamResource from user-supplied path parameters without verifying the requesting user is authorised to access that file."
+description: "Detects Spring and servlet handlers that serve a file (FileSystemResource, UrlResource, PathResource, InputStreamResource, copyToByteArray, Files.readAllBytes/copy) whose path comes from a request value, when the handler makes no authorisation decision (no @PreAuthorize/@Secured, Principal, Authentication or owner check)."
 ---
 
 ## Overview
 
 Spring MVC and plain servlet applications frequently need to serve files — reports, exports, attachments, or user-uploaded documents. A common pattern is to accept a filename or path parameter from the HTTP request, resolve it to a `FileSystemResource` or `InputStreamResource`, and return it in the response body. Without an explicit authorisation check before resolving the path, any authenticated (or even unauthenticated) user can request any file the application has read access to. This is Insecure Direct Object Reference (IDOR) at the filesystem level, covered by CWE-552 (Files or Directories Accessible to External Parties).
 
-This rule flags `new FileSystemResource(...)` and `new InputStreamResource(...)` on the same line as `getParameter`, `@PathVariable`, or `@RequestParam` — patterns that indicate the resource path is derived from user input. The presence of user-controlled input in the resource constructor without an adjacent authorisation check is the finding.
+This rule flags `new FileSystemResource/UrlResource/PathResource/FileUrlResource/InputStreamResource(...)`, and `FileCopyUtils.copyToByteArray`, `Files.readAllBytes`, `Files.copy` or `IOUtils.copy/toByteArray` returned in the response, when the argument is a handler parameter bound with `@PathVariable`, `@RequestParam`, `@RequestHeader` or `@RequestPart`, or a local read from `getParameter`/`getHeader`/`getPathInfo`, followed through up to two local assignments (`new File(dir, name)`, `root.resolve(name)`). A handler or class annotated `@PreAuthorize`/`@PostAuthorize`/`@Secured`/`@RolesAllowed`, or one that consults the caller (`Principal`, `Authentication`, `@AuthenticationPrincipal`, `isUserInRole`, `SecurityContextHolder`, an owner check), is not reported; neither are constant paths, `ClassPathResource` and in-memory streams. Flows through other methods are not followed.
 
 Path traversal is a frequent companion vulnerability: if the user-supplied value is not canonicalised and checked against a permitted base directory, an attacker can supply `../../etc/passwd` or `../../application.properties` to read arbitrary files. This rule targets the access-control gap; a separate path-traversal rule covers the canonicalisation gap.
 
@@ -37,6 +37,11 @@ public ResponseEntity<InputStreamResource> getFile(
         @RequestParam String path) throws IOException {
     return ResponseEntity.ok(new InputStreamResource(new FileInputStream(path)));
 }
+
+// FLAGGED: servlet parameter reaches the response through a File
+String name = req.getParameter("file");
+File f = new File("/data/attachments", name);
+Files.copy(f.toPath(), resp.getOutputStream());
 ```
 
 ## Remediation

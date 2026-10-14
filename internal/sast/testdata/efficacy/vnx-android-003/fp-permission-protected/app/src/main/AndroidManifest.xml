@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.vault">
+    <permission
+        android:name="com.example.vault.permission.ADMIN"
+        android:protectionLevel="signature" />
+    <application android:label="Vault">
+        <activity
+            android:name=".AdminActivity"
+            android:exported="true"
+            android:permission="com.example.vault.permission.ADMIN" />
+        <service
+            android:name=".BackupJobService"
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+        <receiver
+            android:name=".PartnerReceiver"
+            android:exported="true"
+            android:permission="com.example.vault.permission.ADMIN">
+            <intent-filter>
+                <action android:name="com.example.vault.SYNC" />
+            </intent-filter>
+        </receiver>
+        <provider
+            android:name=".VaultProvider"
+            android:authorities="com.example.vault.items"
+            android:exported="true"
+            android:readPermission="com.example.vault.permission.ADMIN"
+            android:writePermission="com.example.vault.permission.ADMIN" />
+    </application>
+</manifest>

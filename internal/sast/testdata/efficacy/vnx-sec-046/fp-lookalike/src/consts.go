@@ -1,0 +1,4 @@
+package consts
+
+const prefix = "EAAA"
+const facebookAppKind = "EAAAPPLICATIONTYPEUNKNOWNDEFAULTSETTINGSFORMOBILEPLATFORMSONLYAA"

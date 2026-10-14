@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-002 – eval() or system() in Ruby"
-description: "Detect calls to eval() and system() in Ruby source files, which can execute arbitrary code or OS commands when called with user-controlled input."
+description: "Reports eval/instance_eval/class_eval/module_eval and shell-string system, exec, spawn, Kernel#open, IO.popen, backticks and %x() when request input reaches them directly or through a nearby variable; argument-list forms and escaped input are not reported."
 ---
 
 ## Overview
@@ -19,17 +19,23 @@ The [Rails Security Guide](https://guides.rubyonrails.org/security.html#command-
 
 ## What Gets Flagged
 
+The rule reports the call when request input (`params`, `request.params`/`body`/`headers`/..., `cookies`, an upload's `original_filename`) reaches it, on the same line or through a variable assigned from it a few lines above.
+
 ```ruby
-# FLAGGED: eval with user-controlled input — remote code execution
-eval(params[:code])
-eval("User.find(#{user_id}).destroy")
+# FLAGGED: request input in a shell string or evaluated as code
+system("ping -c 1 #{params[:host]}")
+domain = params[:domain]
+@answer = `nslookup #{domain}`
+result = eval(params[:expression])
+system("cp /tmp/uploads/#{upload.original_filename} #{dir}")
+open(params[:source]).read          # Kernel#open runs "|cmd"
 
-# FLAGGED: system with user-controlled input — command injection
-system("ls #{params[:dir]}")
-system("convert #{filename} output.png")
-
-# NOT flagged (false-positive suppression in rule):
-operating_system.name   # contains "system" substring but is not a method call
+# NOT flagged: argument-list form, escaped or numeric input, constants
+system("ping", "-c", "1", params[:host])
+system("ping -c 1 #{Shellwords.escape(params[:host])}")
+system("kill -TERM #{params[:pid].to_i}")
+revision = `git rev-parse HEAD`
+File.open(params[:path])            # a path problem, not command execution
 ```
 
 ## Remediation

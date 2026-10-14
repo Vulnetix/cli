@@ -1,0 +1,9 @@
+{
+    "type": "project",
+    "require": {
+        "php": "^8.2",
+        "ext-json": "*",
+        "ext-mbstring": "*"
+    },
+    "autoload": { "psr-4": { "Tool\\": "src/" } }
+}

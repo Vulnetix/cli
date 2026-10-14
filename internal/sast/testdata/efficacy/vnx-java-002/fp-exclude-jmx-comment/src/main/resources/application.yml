@@ -1,0 +1,9 @@
+management:
+  endpoints:
+    jmx:
+      exposure:
+        include: "*"
+    web:
+      exposure:
+        exclude: "*"
+        # include: "*"

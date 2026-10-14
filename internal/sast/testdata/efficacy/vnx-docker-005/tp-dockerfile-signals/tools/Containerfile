@@ -1,0 +1,4 @@
+FROM registry.fedoraproject.org/fedora-toolbox:40
+LABEL com.github.containers.toolbox="true" \
+~>      RUN="podman run --privileged --net=host --pid=host -v /:/host IMAGE"
+~>ENTRYPOINT ["/bin/sh", "-c", "podman run --privileged --rm quay.io/example/probe:3.1"]

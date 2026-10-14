@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-001 – Command Injection via Runtime.exec()"
-description: "Detects Runtime.getRuntime().exec() calls that concatenate user-controlled input into a shell command string, enabling OS command injection."
+description: "Reports Runtime.exec() commands and shell ProcessBuilder scripts built at run time from concatenation, String.format or request values, directly or through a variable assigned a few lines above."
 ---
 
 ## Overview
@@ -19,17 +19,21 @@ Unlike SQL injection, command injection has no parameterized equivalent in the s
 
 ## What Gets Flagged
 
-The rule matches any `.java` file where a line contains both `Runtime.getRuntime().exec(` and a `+` operator immediately before or inside the argument, signalling string concatenation.
+The rule reports `Runtime.getRuntime().exec()` (or a variable assigned from `Runtime.getRuntime()`) whose command is concatenated or formatted with a non-constant value, reads a request value, or is a variable assigned that way within the 40 lines above. It also reports a `ProcessBuilder` or `pb.command()` that runs a shell (`sh -c`, `bash -c`, `cmd /c`, `powershell -Command`), inline or through a list built with `add("-c")`, whose script is built the same way.
 
 ```java
-// FLAGGED: user input concatenated directly into shell command
-String filename = request.getParameter("file");
-Runtime.getRuntime().exec("convert " + filename + " output.png");
+// FLAGGED: concatenation into the command
+Process p = Runtime.getRuntime().exec("ping -c 1 " + host);
 
-// FLAGGED: indirect concatenation still detectable
-String cmd = "ping -c 1 " + host;
+// FLAGGED: two-line form
+String cmd = "nslookup " + req.getParameter("name");
 Runtime.getRuntime().exec(cmd);
+
+// FLAGGED: a shell parses the built script
+new ProcessBuilder("sh", "-c", "grep " + pattern + " /var/log/app.log");
 ```
+
+Not flagged: a constant command, concatenation of literals and `UPPER_CASE` constants only, an argument list that does not invoke a shell (`new ProcessBuilder("convert", input, output)`), a command that arrives as a plain method parameter of a wrapper, comments and string literals.
 
 ## Remediation
 

@@ -1,0 +1,3 @@
+datadog:
+~>  apiKey: "@@sample:[a-f0-9]{32}@@"
+  site: datadoghq.com

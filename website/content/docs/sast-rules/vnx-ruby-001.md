@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-001 – Missing Gemfile.lock"
-description: "Detect Ruby projects that have a Gemfile but no Gemfile.lock, leaving dependencies unpinned and vulnerable to non-deterministic resolution and supply chain attacks."
+description: "Reports an application Gemfile with no Gemfile.lock beside it, so every bundle install resolves floating ranges afresh; gem libraries (gemspec), test fixtures and vendored gems are not reported."
 ---
 
 ## Overview
@@ -19,13 +19,24 @@ The `Gemfile.lock` also enables `bundle exec`, which runs commands using exactly
 
 ## What Gets Flagged
 
-The rule fires when a directory is registered as containing Ruby source files but the file `Gemfile.lock` is absent from that same directory.
+The rule reports line 1 of an application `Gemfile` that has no `Gemfile.lock` in the same directory.
 
-```ruby
-# FLAGGED: project directory has Gemfile but no Gemfile.lock
-# $ ls
-# Gemfile   app/   lib/
-# (Gemfile.lock is missing — gems are not pinned)
+```text
+# FLAGGED: application Gemfile, no lock beside it
+services/billing/Gemfile
+services/billing/app.rb
+
+# NOT flagged: the lock is committed
+web/Gemfile
+web/Gemfile.lock
+
+# NOT flagged: a gem library (gemspec beside it, or `gemspec` in the Gemfile)
+Gemfile          # contains: gemspec
+tidy_slug.gemspec
+
+# NOT flagged: test fixtures and vendored gems
+spec/fixtures/sample_app/Gemfile
+vendor/bundle/ruby/3.2.0/gems/rake-13.0.6/Gemfile
 ```
 
 ## Remediation

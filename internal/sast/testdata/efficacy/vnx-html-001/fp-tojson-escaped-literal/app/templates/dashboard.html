@@ -1,0 +1,8 @@
+<script>
+  window.__STATE__ = {{ state|tojson|safe }};
+  window.__USER__ = {{ user|tojson }};
+</script>
+<p>{{ "<br>"|safe }}</p>
+<p>{{ note|escape|safe }}</p>
+<p>{{ title|safe_title }}</p>
+{% autoescape true %}{{ banner }}{% endautoescape %}

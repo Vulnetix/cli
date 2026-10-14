@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_184
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-184",
 	"name": "Incomplete List of Disallowed Inputs",
@@ -40,8 +42,8 @@ findings contains finding if {
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
 	not _is_comment_line(line)
-	some _pat in {"BLACKLIST", "DENYLIST", "BLOCKLIST", "FORBIDDEN"}
-	contains(line, _pat)
+	regex.match(_denylist_name, line)
+	not helpers.is_test_path(path)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Deny-list based validation found — deny-lists are inherently incomplete, prefer an allow-list",
@@ -52,3 +54,8 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+# A variable or constant NAMED as a deny-list that is assigned a collection.
+# "FORBIDDEN" as an HTTP status, an enum value or a log word is not validation
+# by deny-list.
+_denylist_name := `(?i)\b(black_?list|deny_?list|block_?list|bad_?(chars|words|patterns|inputs?|extensions?)|forbidden_?(chars|words|patterns|names|extensions?|paths?|inputs?))\w*\s*(:=|=|:)\s*(\[|\{|set\(|new\s|map\[)`

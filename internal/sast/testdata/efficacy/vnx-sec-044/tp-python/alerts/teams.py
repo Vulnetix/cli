@@ -1,0 +1,4 @@
+import requests
+
+~>TEAMS_URL = "@@sample:https://acme\.webhook\.office\.com/webhookb2/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/IncomingWebhook/[0-9a-f]{32}/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@@"
+requests.post(TEAMS_URL, json={"text": "build failed"})

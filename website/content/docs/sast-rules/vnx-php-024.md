@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-024 – PHP mb_ereg_replace with variable options enabling eval modifier"
-description: "Detects mb_ereg_replace() or mb_eregi_replace() called with a non-literal options parameter or an options string containing the 'e' modifier, which causes PHP to evaluate the replacement string as executable PHP code."
+description: "Detects mb_ereg_replace()/mb_eregi_replace() whose options argument is a literal containing the 'e' (evaluate) modifier or comes from the request, and mb_regex_set_options() with 'e', which make PHP evaluate the replacement as code."
 ---
 
 ## Overview
@@ -24,15 +24,18 @@ The variable options pattern is dangerous even if the `e` modifier is not curren
 ## What Gets Flagged
 
 ```php
-// FLAGGED: options parameter is a variable — could contain 'e' modifier
-$options = 'i';
-$result = mb_ereg_replace($pattern, $replacement, $subject, $options);
-
 // FLAGGED: options string explicitly contains the 'e' eval modifier
 $result = mb_ereg_replace('(.+)', $_POST['template'], $subject, 'e');
 
-// FLAGGED: mb_eregi_replace with non-literal options
-$result = mb_eregi_replace('\w+', $userTemplate, $text, $opts);
+// FLAGGED: options taken from the request
+$flags = $_GET['flags'];
+$out = mb_eregi_replace('foo', 'bar', $text, $flags);
+
+// FLAGGED: 'e' made a default option
+mb_regex_set_options('pze');
+
+// NOT FLAGGED: no options, or literal options without 'e'
+$s = mb_ereg_replace('[^\w\s-]', '', $s, 'msr');
 ```
 
 ## Remediation

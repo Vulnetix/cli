@@ -1,0 +1,4 @@
+import os
+
+SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")

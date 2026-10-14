@@ -1,15 +1,15 @@
 ---
-title: "VNX-GO-012 – Go HTTP Response Header Injection (CRLF)"
-description: "Detect Go code that passes user-controlled query or form input directly into HTTP response headers, enabling CRLF injection and response splitting attacks."
+title: "VNX-GO-012 – Go HTTP Response Header Set from a Request Parameter"
+description: "Detect Go code that writes a query, form or route parameter into an HTTP response header (net/http, gin, echo, fiber, fasthttp), inline or through a variable, without neutralising or constraining it."
 ---
 
 ## Overview
 
-This rule flags Go code where `w.Header().Set()` or `w.Header().Add()` receives a value sourced from `r.URL.Query().Get()` or `r.FormValue()` on the same line. If an attacker includes carriage return and line feed characters (`\r\n`) in the input, they can inject additional HTTP headers or split the response entirely, leading to cache poisoning, cross-site scripting, or session fixation. This maps to [CWE-113: Improper Neutralization of CRLF Sequences in HTTP Headers](https://cwe.mitre.org/data/definitions/113.html).
+This rule flags Go code where a response header is set from a query, form or route parameter, inline or through a variable, with no neutralising step. If an attacker includes carriage return and line feed characters (`\r\n`) in the input, they can inject additional HTTP headers or split the response entirely, leading to cache poisoning, cross-site scripting, or session fixation. This maps to [CWE-113: Improper Neutralization of CRLF Sequences in HTTP Headers](https://cwe.mitre.org/data/definitions/113.html).
 
 **Severity:** Medium | **CWE:** [CWE-113 – Improper Neutralization of CRLF Sequences in HTTP Headers](https://cwe.mitre.org/data/definitions/113.html) | **OWASP ASVS:** [V5.2 – Sanitization and Sandboxing](https://owasp.org/www-project-application-security-verification-standard/)
 
-> **Go idiom note:** Validating user input before placing it into response headers is expected Go practice but is NOT enforced by the standard library in Go versions before 1.22. Go 1.22+ added runtime validation that panics on CRLF in header values, but earlier versions silently write the injected content. The secure approach — allowlisting or sanitising header values — is NOT the default: it must be implemented explicitly.
+> **Go idiom note:** `net/http` replaces CR and LF in header values with spaces when it writes a response, so on servers built on it (net/http, gin, echo, chi, gorilla) the attacker cannot add headers or split the response. What remains is that the attacker chooses the content of the header: a `Location`, a `Content-Disposition` filename, a `Content-Language`. Servers that write header values without that replacement can be split. Allow-listing or encoding header values must be done explicitly either way.
 
 ## Why This Matters
 
@@ -21,19 +21,28 @@ OWASP ASVS v4.0 requirement **V5.2.1** requires that all untrusted HTML input is
 
 ## What Gets Flagged
 
-The rule fires when `w.Header().Set()` or `w.Header().Add()` appears on the same line as `r.URL.Query().Get()` or `r.FormValue()`.
+The rule reports a response-header write (`w.Header().Set/Add`, `w.Header()[k] = ...`, gin `c.Header`, echo `c.Response().Header().Set`, fiber `c.Set`/`c.Append`, fasthttp `ctx.Response.Header.Set/Add`) whose value is a query, form or route parameter (`r.URL.Query().Get`, `q.Get`/`q[k]` on `q := r.URL.Query()`, `FormValue`, `PostFormValue`, `Form.Get`, `mux.Vars`, `chi.URLParam`, `r.PathValue`, gin/echo/fiber `Query`/`Param`/`QueryParam`, fasthttp `QueryArgs().Peek`), inline or through a variable assigned from one in the same function.
 
 ```go
-// FLAGGED: user input directly in response header
-func handler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Language", r.URL.Query().Get("lang"))
+func Localised(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Language", r.URL.Query().Get("lang")) // FLAGGED
 }
 
-// FLAGGED: form value in custom header
-func handler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Add("X-Request-Id", r.FormValue("requestId"))
+func Download(w http.ResponseWriter, r *http.Request) {
+    name := r.URL.Query().Get("name")
+    w.Header().Set("Content-Disposition", "attachment; filename="+name) // FLAGGED
+}
+
+func AfterLogin(w http.ResponseWriter, r *http.Request) {
+    next := r.FormValue("next")
+    if len(next) == 0 { // a length check does not neutralise the value
+        next = "/home"
+    }
+    w.Header().Set("Location", next) // FLAGGED
 }
 ```
+
+Not reported: a value passed through `url.QueryEscape`/`PathEscape`, `url.Parse` (it rejects control characters), a parse that validates it (`uuid.Parse`, `netip.Parse*`, `time.Parse`, `mail.ParseAddress`), `strconv`, `mime.FormatMediaType`, `%q` formatting, a CR/LF replacer or a `strings.ContainsAny(v, "\r\n")` guard, an allow-list map lookup or `switch`; values derived through `len()`, a `mime` function or a hash; constant or server-derived values; a value echoed from the request's own headers (a client can only change its own response); headers on outbound requests; gin's `c.Set` (a context value, not a header); comments and strings.
 
 ## Remediation
 
@@ -75,11 +84,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-3. **Upgrade to Go 1.22+** where the standard library panics if a header value contains CRLF characters, providing a runtime safety net. However, relying solely on runtime panics is not a substitute for input validation — a panic in a production handler causes a 500 response and log noise, and may itself be used as a denial-of-service vector.
+3. **Do not rely on the server to neutralise the value.** `net/http` turns CR and LF into spaces when it writes headers, which stops response splitting but still sends the attacker's text as the header's content. Other servers may not do even that. Validate the value against what the header may hold.
 
 ```go
-// Go 1.22+: the runtime will panic if lang contains \r or \n
-// This is a last-resort safety net, not a primary control
+// net/http writes "en\r\nSet-Cookie: x=y" as "en  Set-Cookie: x=y":
+// no new header, but still not a language tag.
 w.Header().Set("Content-Language", lang)
 ```
 
@@ -92,6 +101,5 @@ w.Header().Set("Content-Language", lang)
 - [OWASP HTTP Response Splitting](https://owasp.org/www-community/attacks/HTTP_Response_Splitting)
 - [OWASP Go Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Go_Security_Cheat_Sheet.html)
 - [Go net/http package documentation](https://pkg.go.dev/net/http)
-- [Go 1.22 release notes – header validation](https://go.dev/doc/go1.22)
 - [staticcheck – available checks](https://staticcheck.dev/docs/checks/)
 - [CAPEC-86: XSS Through HTTP Headers](https://capec.mitre.org/data/definitions/86.html)

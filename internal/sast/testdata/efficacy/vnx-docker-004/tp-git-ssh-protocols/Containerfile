@@ -1,0 +1,9 @@
+FROM alpine:3.20 AS src
+~>ADD git://git.example.org/mirror/libfoo.git /src/libfoo
+~>ADD ssh://git@git.example.org/team/schemas.git#v2.1.0 /src/schemas
+# pinned to a commit: verified by content
+ADD https://github.com/example/proto.git#4b825dc642cb6eb9a060e54bf8d69288fbee4904 /src/proto
+
+FROM debian:bookworm-slim
+~>onbuild add   http://mirror.example.net/keys/archive.asc   /etc/apt/keyrings/
+COPY --from=src /src /opt/src

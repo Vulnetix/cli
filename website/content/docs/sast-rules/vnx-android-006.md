@@ -1,11 +1,11 @@
 ---
 title: "VNX-ANDROID-006 – Android Hardcoded API Key in strings.xml"
-description: "Detects string resources in Android XML value files whose names suggest they hold credentials (api_key, secret, token, password, private_key, auth) and contain non-placeholder values that will be bundled into the APK."
+description: "Detects a <string> resource in an Android res/values*/ file whose name marks it as a credential (api key, secret, token, password, private or signing key) and whose value is a credential-shaped literal, not UI text, a placeholder, a reference or a public Firebase/Facebook client id."
 ---
 
 ## Overview
 
-This rule examines Android resource XML files — specifically `strings.xml` and any XML file under `res/values/` — for `<string>` elements whose `name` attribute matches a credential-related pattern (case-insensitive variants of `api_key`, `secret`, `token`, `password`, `passwd`, `private_key`, `auth`). It additionally requires that the string body contains a non-empty, non-placeholder value (at least four characters that are not `PLACEHOLDER`, `YOUR_`, or `REPLACE`) to minimise noise from documentation examples.
+This rule examines `<string>` and `<item type="string">` elements in Android values resource files (`res/values*/*.xml`, including `strings.xml`, `secrets.xml`, qualified `values-xx` folders and Compose Multiplatform `composeResources/values`). It reports one whose `name` marks it as a credential (api key, secret, token, password, passphrase, passcode, private, signing, encryption or licence key) and whose value looks like one: at least 8 characters, no whitespace, not a resource or `${build}` reference and not a URL. UI text is not reported (names with hint, label, title, error, message, button and similar, or values that are a sentence, a Title-case word, a snake_case identifier or end in `:`), nor are placeholders (`YOUR_...`, `changeme`, `xxxx`), the Firebase and Facebook client identifiers that are public by design (`google_api_key`, `facebook_client_token`), XML comments, layouts and test source sets. Tokens with a known provider shape are also reported by the generated secret rules.
 
 When a credential is placed in `strings.xml`, it is compiled verbatim into the APK's `resources.arsc` file. Anyone who downloads or decompiles the APK — using freely available tools such as `apktool`, `jadx`, or `dex2jar` — can extract every string resource in seconds. This vulnerability maps to CWE-798 (Use of Hard-coded Credentials).
 
@@ -22,11 +22,16 @@ The correct approach is never to include long-lived credentials in client-side c
 ## What Gets Flagged
 
 ```xml
-<!-- FLAGGED: API key hardcoded as a string resource (example patterns for testing) -->
 <resources>
-    <string name="google_api_key">AIzaSy_EXAMPLE_REDACTED</string>  <!-- Test pattern, not real key -->
-    <string name="stripe_secret_token">sk_live_EXAMPLE_REDACTED</string>  <!-- Test pattern, not real key -->
-    <string name="db_password">Sup3rS3cur3!</string>  <!-- Test pattern, not real password -->
+    <!-- FLAGGED: credential-named resources holding credential-shaped values -->
+    <string name="payments_api_key">k3J9xQ2mV8pL4tZ7wR1n</string>
+    <string name="backend_client_secret">e1f0c9b8a7d6e5f4c3b2</string>
+    <string name="db_password">Tr0ub4dor-and-3</string>
+
+    <!-- Not flagged: UI text, placeholders and public client ids -->
+    <string name="password_hint">Password</string>
+    <string name="api_key">YOUR_API_KEY_HERE</string>
+    <string name="google_api_key">AIzaSyPublicClientId</string>
 </resources>
 ```
 

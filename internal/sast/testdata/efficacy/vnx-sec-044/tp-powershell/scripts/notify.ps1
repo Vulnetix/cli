@@ -1,0 +1,2 @@
+$body = @{ text = "nightly done" } | ConvertTo-Json
+~>Invoke-RestMethod -Method Post -ContentType 'application/json' -Body $body -Uri '@@sample:https://contoso\.webhook\.office\.com/webhookb2/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/IncomingWebhook/[0-9a-f]{32}/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/V2[A-Za-z0-9_-]{40}@@'

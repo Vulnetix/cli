@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-007 – Go Path Traversal"
-description: "Detect Go code that passes user-controlled input from HTTP requests directly to file system functions without path sanitization, enabling directory traversal attacks."
+description: "Reports a file read, listed or served (os.Open, os.ReadFile, os.ReadDir, ioutil.ReadFile, http.ServeFile, gin/echo/fiber file responses) from a path holding a request value, inline, through a variable or through one filepath.Join/Sprintf built from it. filepath.Base, IsLocal, Rel or HasPrefix checks, os.Root, and operator-supplied paths are not reported."
 ---
 
 ## Overview
@@ -15,7 +15,16 @@ Path traversal gives attackers read (and sometimes write) access to files outsid
 
 ## What Gets Flagged
 
-The rule fires when `os.Open`, `os.ReadFile`, `os.Create`, `filepath.Join`, `http.ServeFile`, or similar file system functions are called with a path argument sourced directly from `r.FormValue()` or `r.URL.Query()`.
+The rule fires when the path argument of `os.Open`, `os.OpenFile`, `os.ReadFile`, `os.ReadDir`, `os.DirFS`, `ioutil.ReadFile`/`ReadDir`, `http.ServeFile`, `http.Dir`, gin `c.File`/`c.FileAttachment`, echo `c.File`/`c.Attachment`/`c.Inline` or fiber `c.SendFile`/`c.Download` contains a request value (`r.FormValue`, `r.URL.Query()`, `r.PathValue`, `mux.Vars`, `ps.ByName`, gin `c.Query`/`c.Param`, echo `c.QueryParam`, fiber `c.Params`...). The value may be inline, in the variable it was assigned to, or in one path built from that variable (`filepath.Join`, `fmt.Sprintf`, `+`). `filepath.Clean` alone is not a check.
+
+It does not fire when the value is reduced or checked first (`filepath.Base`, `filepath.IsLocal`, `filepath.Rel`, `strings.HasPrefix` on the joined path, a `".."` test, `strconv.Atoi`), when the file is opened through `os.Root`, for `r.URL.Path` given to `http.ServeFile` (which rejects `..` itself), or for paths from flags, `os.Args` or the environment. Writes with a request-chosen path are reported by VNX-GO-018.
+
+```go
+// FLAGGED: the parameter reaches the path through one join
+vars := mux.Vars(r)
+full := filepath.Join(baseDir, vars["name"])
+f, err := os.Open(full)
+```
 
 ```go
 // FLAGGED: user input used directly as file path

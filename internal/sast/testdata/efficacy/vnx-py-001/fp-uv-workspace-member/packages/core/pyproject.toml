@@ -1,0 +1,7 @@
+[project]
+name = "core"
+version = "0.1.0"
+dependencies = ["attrs>=23"]
+
+[tool.uv]
+package = true

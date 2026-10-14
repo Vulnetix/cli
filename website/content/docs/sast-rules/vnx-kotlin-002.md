@@ -1,13 +1,15 @@
 ---
 title: "VNX-KOTLIN-002 – Kotlin RSA Key Smaller Than 2048 Bits"
-description: "Detects RSA KeyPairGenerator initialisation with fewer than 2048 bits in Kotlin, producing keys that can be factored with modern computing resources."
+description: "Detects RSA, DSA and Diffie-Hellman key pairs generated with fewer than 2048 bits in Kotlin: KeyPairGenerator.initialize(), RSAKeyGenParameterSpec, Android keystore setKeySize() and Bouncy Castle RSAKeyGenerationParameters."
 ---
 
 ## Overview
 
 The security of RSA encryption and signing depends entirely on the computational difficulty of factoring the modulus — the product of two large primes. As computing power and factoring algorithms improve, the minimum key size required to maintain adequate security increases over time. Keys of 512 bits were factored publicly in 1999; 768-bit keys were factored in 2009; 1024-bit keys are now considered within reach of well-resourced adversaries. NIST SP 800-57 Part 1 requires at least 2048 bits for RSA keys and recommends 3072 or 4096 bits for long-lived keys. This is CWE-326 (Inadequate Encryption Strength).
 
-This rule flags `KeyPairGenerator.initialize()` calls in Kotlin (`.kt`, `.kts`) where the key size argument is 512, 768, or 1024. These sizes are below the current minimum security threshold regardless of the algorithm or use case.
+This rule flags Kotlin code (`.kt`, `.kts`) that generates an RSA, DSA or Diffie-Hellman key pair with a modulus below 2048 bits. It recognises `initialize(n)` and `initialize(n, random)` on a generator obtained from `KeyPairGenerator.getInstance("RSA" | "RSASSA-PSS" | "DSA" | "DH" | "DiffieHellman")` or `KeyProperties.KEY_ALGORITHM_RSA` (through a variable, a `by lazy` property, or inside `apply`/`run`/`also`/`with`), `RSAKeyGenParameterSpec(n, ...)`, `setKeySize(n)` on an Android `KeyGenParameterSpec.Builder` that feeds an RSA generator or on the legacy `KeyPairGeneratorSpec.Builder`, and Bouncy Castle `RSAKeyGenerationParameters(e, random, n, certainty)`. The size can be a literal, a constant or a parameter default that the file assigns exactly once.
+
+It does not report 2048 bits or more, EC, EdDSA or symmetric key sizes (`ec.initialize(256)`, `KeyGenerator.init(128)`, an AES keystore `setKeySize(256)`), a size variable the file assigns on several paths, a generator whose algorithm is not visible in the file (a parameter or a variable algorithm name), unrelated `initialize()` calls, test sources, comments or string literals.
 
 Undersized RSA keys affect every operation that uses the key pair: TLS certificates with a 1024-bit RSA key allow decryption of captured traffic once the key is factored; JWT signing keys allow token forgery; code-signing keys allow malicious package distribution. The impact is systemic because a single weak key can compromise all data ever protected by it.
 
@@ -24,12 +26,39 @@ Android applications and embedded Kotlin services are particularly at risk becau
 ## What Gets Flagged
 
 ```kotlin
-// FLAGGED: 512-bit RSA key
-val kpg = KeyPairGenerator.getInstance("RSA")
-kpg.initialize(512)
-
 // FLAGGED: 1024-bit RSA key
+val kpg = KeyPairGenerator.getInstance("RSA")
 kpg.initialize(1024)
+
+// FLAGGED: inside a scope function, with a SecureRandom
+KeyPairGenerator.getInstance("RSA").run {
+    initialize(512, SecureRandom())
+    generateKeyPair()
+}
+
+// FLAGGED: the size comes from a constant
+private const val RSA_KEY_BITS = 1024
+kpg.initialize(RSA_KEY_BITS)
+
+// FLAGGED: parameter spec and Android keystore builder
+kpg.initialize(RSAKeyGenParameterSpec(1024, RSAKeyGenParameterSpec.F4))
+KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN)
+    .setKeySize(1024)
+
+// FLAGGED: DSA and Diffie-Hellman below 2048 bits
+val dh = KeyPairGenerator.getInstance("DH")
+dh.initialize(512)
+```
+
+Not flagged:
+
+```kotlin
+val rsa = KeyPairGenerator.getInstance("RSA")
+rsa.initialize(2048)
+val ec = KeyPairGenerator.getInstance("EC")
+ec.initialize(256)   // an EC size, not an RSA modulus
+val aes = KeyGenerator.getInstance("AES")
+aes.init(128)
 ```
 
 ## Remediation

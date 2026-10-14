@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-002 – eval() / exec() Usage"
-description: "Detect use of Python's eval() and exec() built-in functions, which execute arbitrary code and enable remote code execution when any part of their input is user-controlled."
+description: "Detect eval() and exec() (and Pillow ImageMath.eval) called on a non-constant argument, which executes arbitrary code when any part of it is user-controlled."
 ---
 
 ## Overview
@@ -17,9 +17,21 @@ Developers often reach for `eval()` as a shortcut to parse structured data (JSON
 
 ## What Gets Flagged
 
-Any line in a `.py` file that calls `eval(` or `exec(` is flagged, regardless of the argument.
+A call to the `eval()` or `exec()` builtin (bare or as `builtins.eval`/`builtins.exec`), or to Pillow's `ImageMath.eval()`/`ImageMath.unsafe_eval()`, whose code argument is not a constant string: a variable, a request value, an f-string, a concatenation or a format call.
+
+Not flagged: `ast.literal_eval()`, methods and definitions that happen to be named `eval`/`exec` (`model.eval()`, `app.exec()`), a constant literal such as `eval("6 * 7")`, executing the source of a file the code opens itself (`exec(compile(f.read(), path, "exec"))`, `exec(open(path).read())`), and comments or strings that mention the functions.
 
 ```python
+# FLAGGED: two-line flow from the request
+expression = request.POST.get("expression")
+value = eval(expression)
+
+# FLAGGED: f-string built code
+exec(f"import {module_name} as handler")
+
+# FLAGGED: Pillow ImageMath.eval hands the expression to eval()
+out = ImageMath.eval(expr, r=r, g=g, b=b)
+
 # FLAGGED: eval with user input — direct RCE
 result = eval(request.form["expression"])
 

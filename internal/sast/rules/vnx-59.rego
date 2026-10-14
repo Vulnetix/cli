@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_59
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-59",
 	"name": "Improper Link Resolution Before File Access ('Link Following')",
@@ -61,6 +63,8 @@ findings contains finding if {
 	some i, line in lines
 	not _is_comment_line(line)
 	contains(line, "os.Readlink(")
+	not helpers.is_test_path(path)
+	_untrusted_arg(lines, i, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "os.Readlink used; if path is user-controlled, validate that resolved target stays within allowed root",
@@ -89,4 +93,17 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# The Readlink argument comes from outside the program: a request value, a
+# command-line argument, or a variable assigned from one. Resolving a path the
+# program found itself (a directory walk, a known install location) is not a
+# traversal primitive.
+_untrusted := `(\b(r|req|request)\.(FormValue|PostFormValue|URL\.Query\(\)\.Get|Header\.Get)\(|os\.Args|\bflag\.(String|Arg)|\.Query\(\)\.Get\(|Getenv\()`
+
+_untrusted_arg(_, _, line) if regex.match(_untrusted, line)
+
+_untrusted_arg(lines, i, line) if {
+	some v in helpers.tainted_names(lines, i, 20, _untrusted)
+	regex.match(concat("", [`\b`, v, `\b`]), line)
 }

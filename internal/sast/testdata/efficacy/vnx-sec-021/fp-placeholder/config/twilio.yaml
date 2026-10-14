@@ -1,0 +1,4 @@
+twilio:
+  account_sid: ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  auth_token: your_auth_token_here_replace_me_x
+  api_secret: "00000000000000000000000000000000"

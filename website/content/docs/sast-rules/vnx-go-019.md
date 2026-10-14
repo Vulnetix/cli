@@ -1,6 +1,6 @@
 ---
-title: "VNX-GO-019 – Go Server Binding to All Interfaces (0.0.0.0)"
-description: "Detects net.Listen, tls.Listen, or http.ListenAndServe calls that bind to 0.0.0.0 or all interfaces with :PORT notation, exposing the service on every network interface including public ones."
+title: "VNX-GO-019 – Go Debug Endpoints (pprof, expvar) Served on All Interfaces"
+description: "Detects pprof and expvar debug handlers served on a listener bound to every interface: the default mux when net/http/pprof or expvar is imported, a mux carrying the debug handlers, or a gin engine with gin-contrib pprof. Loopback and configured addresses, and public listeners without debug handlers, are not reported."
 ---
 
 ## Overview
@@ -19,15 +19,27 @@ In cloud environments, binding to `0.0.0.0` in a container may expose the servic
 
 ## What Gets Flagged
 
+The rule reports a listener on every interface only when it serves the
+profiling or introspection handlers. Binding an ordinary service to every
+interface is VNX-1327's concern.
+
 ```go
-// FLAGGED: binding to all interfaces on a fixed port
-ln, err := net.Listen("tcp", "0.0.0.0:8080")
+import _ "net/http/pprof" // registers /debug/pprof/ on the default mux
 
-// FLAGGED: :PORT shorthand binds to all interfaces
-http.ListenAndServe(":9090", metricsHandler)
+// FLAGGED: the default mux, and with it pprof, on every interface
+log.Println(http.ListenAndServe(":6060", nil))
 
-// FLAGGED: pprof debug server exposed on all interfaces
-go http.ListenAndServe(":6060", nil) // pprof registered via import
+// FLAGGED: a mux carrying the debug handlers, bound publicly
+mux.HandleFunc("/debug/pprof/", pprof.Index)
+return http.ListenAndServe(":6060", mux)
+
+// FLAGGED: gin-contrib/pprof on a public gin engine
+pprof.Register(r)
+r.Run(":8080")
+
+// NOT FLAGGED: pprof on loopback, or a public mux without debug handlers
+go http.ListenAndServe("localhost:6060", nil)
+srv := &http.Server{Addr: ":8080", Handler: api}
 ```
 
 ## Remediation

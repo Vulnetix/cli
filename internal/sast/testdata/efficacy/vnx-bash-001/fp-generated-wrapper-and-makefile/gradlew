@@ -1,0 +1,11 @@
+#!/bin/sh
+# Generated wrapper script: arguments are escaped by the generator before use.
+DEFAULT_JVM_OPTS='"-Xmx64m"'
+set -- "$@"
+eval "set -- $(
+        printf '%s\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS" |
+        xargs -n1 |
+        sed ' s~[^-[:alnum:]+,._/:=@]~\\&~g; ' |
+        tr '\n' ' '
+    )" '"$@"'
+exec "$JAVACMD" "$@"

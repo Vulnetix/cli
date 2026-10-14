@@ -1,11 +1,12 @@
 package vulnetix.rules.vnx_sec_045
 
+import data.vulnetix.lib.secrets
 import rego.v1
 
 metadata := {
 	"id": "VNX-SEC-045",
 	"name": "Discord bot token",
-	"description": "A Discord bot token was found in source code. Discord bot tokens grant full control of the bot account including the ability to read all DMs the bot receives and post messages as the bot.",
+	"description": "Reports a Discord bot token written into a file: three dot-separated base64url segments whose first segment is the base64 encoding of a numeric Discord snowflake id (17 to 20 digits, which fixes the character at every position), a 6-character timestamp and a 27- or 38-character HMAC. The token grants full control of the bot account. The snippet is redacted. Not reported: dotted strings whose first segment cannot decode to digits (JWTs, hashes, other base64), segments inside a longer token, placeholders (xxxx, EXAMPLE), and test, fixture and vendored paths. Discord webhook URLs and client secrets are VNX-SEC-417, VNX-SEC-726 and VNX-SEC-418.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-045/",
 	"languages": [],
 	"severity": "critical",
@@ -19,16 +20,24 @@ metadata := {
 	"tags": ["secrets", "discord", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+# Base64 of ASCII digits: every 4-character group is [MNO][DTjz][AEIMQUYcgk][w-z0-5];
+# a trailing 1-byte remainder is [MNO][AQgw], a 2-byte one [MNO][DTjz][AEIMQUYcgk].
+_id := `(?:[MNO][DTjz][AEIMQUYcgk][w-z0-5]){5,6}(?:[MNO][DTjz][AEIMQUYcgk]|[MNO][AQgw])?`
+
+_token_re := concat("", [`(`, _id, `\.[A-Za-z0-9_-]{6,7}\.[A-Za-z0-9_-]{27,38})`])
+
+_pattern := concat("", [`(?:^|[^A-Za-z0-9_.-])`, _token_re, `(?:[^A-Za-z0-9_.-]|$)`])
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	regex.match(_token_re, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`[MN][A-Za-z0-9]{23,25}\.[A-Za-z0-9_-]{6,7}\.[A-Za-z0-9_-]{27,38}`, line)
+	m := regex.find_all_string_submatch_n(_pattern, line, 1)
+	count(m) > 0
+	token := m[0][1]
+	not secrets.is_example_token(token)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Discord bot token found; regenerate the token in the Discord developer portal",
@@ -36,6 +45,6 @@ findings contains finding if {
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

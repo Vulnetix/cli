@@ -1,6 +1,6 @@
 ---
 title: "VNX-LLM-003 – Hardcoded LLM API Key"
-description: "An LLM provider API key is hardcoded in source code, enabling unauthorized model usage and billing abuse by anyone with repository access."
+description: "Reports Anthropic and OpenAI API keys by their prefixes, and high-entropy literals assigned to LLM-provider key variables or passed to provider clients; placeholders and environment lookups are ignored."
 ---
 
 ## Overview
@@ -15,18 +15,24 @@ LLM API keys are credentials with real monetary value. A leaked OpenAI key can b
 
 ## What Gets Flagged
 
-Hardcoded string literals matching known LLM API key patterns, or assignments to variables named after LLM API keys with a literal string value.
+Anthropic (`sk-ant-api03-...`), OpenAI project/service-account/admin (`sk-proj-`, `sk-svcacct-`, `sk-admin-`) and classic (`sk-...T3BlbkFJ...`) keys anywhere in a file, and a high-entropy literal assigned to a provider-named key variable or passed as `api_key`/`apiKey` to a provider client.
 
 ```python
-# FLAGGED: OpenAI key hardcoded
-openai.api_key = "sk-proj-EXAMPLE_REDACTED"
-
-# FLAGGED: Anthropic key in variable
-ANTHROPIC_API_KEY = "sk-ant-api03-EXAMPLE_REDACTED"
-
-# FLAGGED: key in constructor argument
-client = openai.OpenAI(api_key="sk-EXAMPLE_REDACTED")
+# FLAGGED: OpenAI project key passed to the client
+client = OpenAI(api_key="sk-proj-<64 random characters>")
 ```
+
+```bash
+# FLAGGED: Anthropic key in a committed .env file
+ANTHROPIC_API_KEY=sk-ant-api03-<93 random characters>AA
+```
+
+```typescript
+// FLAGGED: provider-named key constant
+export const COHERE_API_KEY = "<40 random characters>";
+```
+
+Not flagged: keys read from the environment (`os.environ["OPENAI_API_KEY"]`), placeholders (`sk-your-openai-api-key-here`, `sk-ant-xxxx...`, `REPLACE_WITH_...`), `sk-` inside longer identifiers (`task-`, `desk-`), and test or fixture paths.
 
 ## Remediation
 

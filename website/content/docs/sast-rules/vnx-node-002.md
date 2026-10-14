@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-002 – eval() or new Function() in JavaScript"
-description: "Detects use of eval() and new Function() which execute arbitrary JavaScript and enable remote code execution when called with user-controlled input."
+description: "Reports eval(), new Function()/Function(), vm.runIn*Context/compileFunction/new vm.Script with a non-constant argument, and setTimeout/setInterval given a code string built from variables."
 ---
 
 ## Overview
@@ -21,23 +21,25 @@ OWASP ASVS v4 requirement **V5.2.4** states: "Verify that the application does n
 
 ## What Gets Flagged
 
-The rule scans all `.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, and `.cjs` files for the patterns `eval(` and `new Function(`.
+Dynamic code evaluation in `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs` and `.cjs` files whose code argument is not a constant:
 
 ```javascript
-// FLAGGED: eval with user input
-app.post('/calculate', (req, res) => {
-  const result = eval(req.body.expression);
-  res.json({ result });
-});
+// FLAGGED: request data evaluated
+const preTax = eval(req.body.preTax);
 
-// FLAGGED: new Function used to build dynamic logic
-const fn = new Function('x', req.query.body);
-fn(42);
+// FLAGGED: Function constructor body built by concatenation or interpolation
+const fn = new Function("ctx", "return (" + body + ");");
+return Function(`return ${src}`)();
 
-// FLAGGED: eval even without obvious user input (static analysis cannot
-// always trace data flow — treat all eval() as potentially dangerous)
-const computed = eval(someVar);
+// FLAGGED: vm with a variable source
+vm.runInNewContext(code, sandbox, { timeout: 50 });
+const script = new vm.Script(source);
+
+// FLAGGED: timer given a code string
+setTimeout("refresh(" + id + ")", 1000);
 ```
+
+Not flagged: `eval("require('crypto')")` and `new Function('a', 'b', 'return a + b')` (string literals only), `vm.runInContext("parse(data)", sandbox)`, methods named eval or evaluate (`redis.eval`, `page.evaluate`, mathjs `evaluate`), `declare function eval(...)`, timers given a function, the pattern inside strings or comments, and minified files or lines over 400 characters.
 
 ## Remediation
 

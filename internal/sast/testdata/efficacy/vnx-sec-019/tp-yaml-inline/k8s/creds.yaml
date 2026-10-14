@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gcp-creds
+stringData:
+  type: service_account
+  project_id: acme-prod
+~>  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQ@@sample:[A-Za-z0-9+/]{64}@@\n@@sample:[A-Za-z0-9+/]{64}@@\n-----END PRIVATE KEY-----\n"

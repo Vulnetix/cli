@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-001 – MD5 Usage Detected"
-description: "Detects use of the MD5 hash algorithm across Python, Node.js, Go, Java, Ruby, and PHP, flagging code that relies on a cryptographically broken hash function."
+description: "Reports MD5 computed through a hash or signature API in Python, Node.js, Go, Java, Ruby and PHP (hashlib.md5, createHash('md5'), md5.Sum, MessageDigest.getInstance(\"MD5\"), Digest::MD5, md5()), with imports and aliases resolved. HMAC-MD5, usedforsecurity=False, names merely containing md5, digests used as part of a cache key, comments, strings and test files are not reported."
 ---
 
 ## Overview
@@ -40,6 +40,13 @@ MessageDigest md = MessageDigest.getInstance("MD5");
 import "crypto/md5"
 hash := md5.Sum(data)
 ```
+
+```php
+// FLAGGED: PHP md5()
+$pass = md5($pass);
+```
+
+Not flagged: HMAC-MD5 (`hmac.new(k, m, hashlib.md5)`, `createHmac('md5')`, `hash_hmac('md5', ...)`), Python calls with `usedforsecurity=False`, a field or method merely named `md5`, an MD5 joined to a literal prefix or suffix to build a cache key (`'login_'.md5($x)`), the import alone, comments, strings, documentation and test files.
 
 ## Remediation
 

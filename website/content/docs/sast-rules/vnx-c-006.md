@@ -1,11 +1,11 @@
 ---
 title: "VNX-C-006 – Use of alloca() for Dynamic Stack Allocation"
-description: "Detects calls to alloca() in C and C++ code, which allocates memory on the stack based on a runtime-determined size with no bounds checking, enabling stack overflow or stack frame corruption when the size is large or attacker-controlled."
+description: "Reports C, C++ and Objective-C stack allocations with an unbounded run-time size: alloca, _alloca and __builtin_alloca whose size names a variable or call, strdupa of a non-literal, and variable-length arrays sized by strlen() or by a count parsed or received just above. Constant sizes, sizes compared or clamped first, _malloca, declarations, macros and comments are not reported."
 ---
 
 ## Overview
 
-This rule flags any call to `alloca()` in C and C++ source files (`.c`, `.h`, `.cpp`, `.cc`, `.cxx`). Unlike `malloc()` which allocates from the heap with a well-defined failure mode (returning `NULL`), `alloca()` allocates directly from the stack frame of the calling function by adjusting the stack pointer. No bounds checking occurs, there is no failure return value, and stack space is not unlimited. Commented-out lines are excluded from detection.
+This rule reports a stack allocation whose size is decided at run time without a bound: `alloca()`, `_alloca()` and `__builtin_alloca()` whose size names a variable, member or call (`alloca(len)`, `alloca(strlen(a) + strlen(b) + 2)`, `alloca(n * sizeof(T))`), `strdupa()` of a non-literal string, and a variable-length array whose size uses `strlen()` or a count parsed or received in the 30 lines above (`atoi`/`strtol`, `ntohl`, `getenv`, an `&out` of `scanf`/`fread`/`read`/`recv`). It does not report sizes built only from literals, upper-case macros and `sizeof`, a size compared with `<`/`>` in the 15 lines above or in a ternary on the same line (`n < 256 ? alloca(n) : malloc(n)`), a `MIN()` clamp, `_malloca` (which falls back to the heap), `strndupa`, other functions whose names contain `alloca`, declarations, `#define` macros, VLAs sized by a plain parameter, string literals and comments. Unlike `malloc()`, `alloca()` has no failure return: an oversized request moves the stack pointer past the guard page into whatever memory lies beyond.
 
 The core problem is that `alloca()` provides no way to detect or handle exhaustion of available stack space. If the requested size is large — whether due to a logic error, a large input, or attacker manipulation — the function silently adjusts the stack pointer past the end of the available stack, overwriting memory below the stack in process (typically memory belonging to other stack frames, signal handlers, or the kernel guard page). This either causes a crash or — in the absence of guard pages — corrupts adjacent stack data including return addresses and saved registers.
 
@@ -22,19 +22,29 @@ Even without explicit attacker control, `alloca()` is dangerous when called insi
 ## What Gets Flagged
 
 ```c
-// FLAGGED: alloca with user-supplied size, no bounds check possible
-void process_packet(size_t pkt_len) {
-    char *buf = alloca(pkt_len);  // stack overflow if pkt_len is large
-    read_packet(buf, pkt_len);
-    handle(buf);
-}
+// FLAGGED: size from the lengths of caller strings
+char *path = alloca(strlen(root) + strlen(name) + 2);
 
-// FLAGGED: alloca inside a loop (stack not reclaimed between iterations)
-for (int i = 0; i < count; i++) {
-    char *tmp = alloca(item_size);
-    process(tmp, item_size);
-}
+// FLAGGED: length from the wire
+uint32_t len = ntohl(*(const uint32_t *)pkt);
+uint8_t *copy = alloca(len);
+
+// FLAGGED: strdupa copies a string of any length onto the stack
+char *work = strdupa(input);
+
+// FLAGGED: variable-length arrays sized by input
+int count = atoi(argv[1]);
+int values[count];
+char copy[strlen(name) + 1];
 ```
+
+```cpp
+// FLAGGED: C++ and MSVC spellings
+char *scratch = static_cast<char *>(__builtin_alloca(title.size() + 1));
+wchar_t *buf = (wchar_t *)_alloca(chars * sizeof(wchar_t));
+```
+
+Not flagged: `alloca(sizeof(struct hdr))`, `alloca(FRAME_BYTES)`, `if (n > STACK_LIMIT) return NULL;` before `alloca(n)`, `len < 256 ? alloca(len) : malloc(len)` and `_malloca(n)`.
 
 ## Remediation
 

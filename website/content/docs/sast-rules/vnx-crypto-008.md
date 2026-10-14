@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-008 – Timing Attack via Direct Comparison of Secrets"
-description: "Detects direct == or === comparison of HMAC digests, hashes, tokens, or signatures, which leaks timing information that allows attackers to incrementally reconstruct the expected value."
+description: "Reports a MAC, signature, digest or secret token checked with ordinary equality (==, !=, ===, !==, Java equals/Arrays.equals, Go bytes.Equal) in Python, Node.js, Go, Java, PHP and Ruby, and any equality on a line that computes an HMAC. Presence checks, constants, lexer token kinds, hash-named values and constant-time APIs are not reported."
 ---
 
 ## Overview
@@ -30,11 +30,23 @@ if token == stored_token:
 ```
 
 ```javascript
-// FLAGGED: === comparison of hash values
-if (hash === expectedHash) {
+// FLAGGED: an HMAC computed and compared with ===
+if (crypto.createHmac('sha256', secret).update(body).digest('hex') === req.get('X-Signature')) {
   verifyWebhook();
 }
 ```
+
+```go
+// FLAGGED: Go string equality on a signature
+return sig == expected
+```
+
+```php
+// FLAGGED: PHP CSRF token compared with !==
+if ($user_token !== $session_token) { die('CSRF token is incorrect'); }
+```
+
+Not flagged: presence checks against an empty string, `null`, `None`, `nil`, a boolean or a number; comparisons with an ALL_CAPS constant or after `typeof` (lexer token kinds); `.length`, `.type` and size comparisons; names that only contain `hash` (`geometryHash`, `location.hash`); lines already using `hmac.compare_digest`, `crypto.timingSafeEqual`, `hmac.Equal`, `hash_equals`, `secure_compare` or `MessageDigest.isEqual`; comments, strings and test files.
 
 ## Remediation
 

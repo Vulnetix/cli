@@ -1,0 +1,8 @@
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"deployed"}' \
+~>            @@sample:https://hooks\.slack\.com/services/T[A-Z0-9]{10}/B[A-Z0-9]{11}/[A-Za-z0-9]{24}@@

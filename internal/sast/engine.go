@@ -196,26 +196,48 @@ func (e *Engine) Evaluate(opts EvalOptions) (*SASTReport, error) {
 	// per-shard findings is identical to a single combined evaluation.
 	shared, rules := partitionModules(modules)
 	n := shardCount(len(rules))
-	if n <= 1 {
-		rep, err := evalModules(modules, scanInput)
-		if rep != nil {
-			rep.Degradations = degradations
+
+	// Each rule sees only the file contents it can report on. A finding on a
+	// file outside a rule's declared languages, or on prose for a source-code
+	// rule, is discarded by findingApplies after evaluation, so evaluating the
+	// rule against those files is pure cost: most of the embedded rules test
+	// every line of every file. Rules are grouped by scope and each group gets
+	// an input whose FileContents holds only in-scope files; FileSet stays
+	// complete so existence checks ("is go.sum present") are unchanged.
+	groups := groupByScope(rules)
+	type job struct {
+		mods  map[string]string
+		input *ScanInput
+	}
+	var jobs []job
+	for _, g := range groups {
+		in := scopedInput(scanInput, g.scope)
+		k := 1
+		if n > 1 {
+			k = max(1, (n*len(g.rules)+len(rules)/2)/len(rules))
 		}
-		return rep, err
+		for _, shard := range shardModules(g.rules, min(k, len(g.rules))) {
+			if len(shard) == 0 {
+				continue
+			}
+			mods := make(map[string]string, len(shared)+len(shard))
+			maps.Copy(mods, shared)
+			maps.Copy(mods, shard)
+			jobs = append(jobs, job{mods, in})
+		}
 	}
 
-	shards := shardModules(rules, n)
-	reports := make([]*SASTReport, len(shards))
-	errs := make([]error, len(shards))
+	reports := make([]*SASTReport, len(jobs))
+	errs := make([]error, len(jobs))
 	var wg sync.WaitGroup
-	for i := range shards {
+	sem := make(chan struct{}, max(1, n))
+	for i := range jobs {
 		wg.Add(1)
+		sem <- struct{}{}
 		go func(i int) {
 			defer wg.Done()
-			mods := make(map[string]string, len(shared)+len(shards[i]))
-			maps.Copy(mods, shared)
-			maps.Copy(mods, shards[i])
-			reports[i], errs[i] = evalModules(mods, scanInput)
+			defer func() { <-sem }()
+			reports[i], errs[i] = evalModules(jobs[i].mods, jobs[i].input)
 		}(i)
 	}
 	wg.Wait()
@@ -426,6 +448,9 @@ func extractAllFindings(rs rego.ResultSet, rules []RuleMetadata) ([]Finding, err
 				continue
 			}
 			f.Metadata = metaByID[f.RuleID]
+			if f.Metadata != nil && !findingApplies(f.Metadata, f.ArtifactURI, f.Snippet) {
+				continue
+			}
 
 			// Derive level from metadata if not set by the finding.
 			if f.Level == "" && f.Metadata != nil {

@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-021 – Laravel mass assignment via empty guarded array"
-description: "Detects Laravel Eloquent models that set $guarded to an empty array or call Model::unguard(), disabling mass-assignment protection and allowing attackers to set any model attribute via request data."
+description: "Detects a $guarded = [] property declaration and Model::unguard() without reguard() in Laravel application code; seeders, factories, migrations, pivot models, framework/vendor models and tests are not reported."
 ---
 
 ## Overview
@@ -35,6 +35,9 @@ class AppServiceProvider extends ServiceProvider {
         Model::unguard(); // dangerous — affects every model
     }
 }
+
+// NOT FLAGGED: scoped unguarding, or unguard()/reguard() in a seeder
+Model::unguarded(fn () => Order::create($row));
 ```
 
 ## Remediation

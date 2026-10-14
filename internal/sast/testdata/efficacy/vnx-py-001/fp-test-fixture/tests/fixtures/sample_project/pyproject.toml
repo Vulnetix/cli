@@ -1,0 +1,7 @@
+[tool.poetry]
+name = "sample"
+version = "0.0.1"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+requests = "*"

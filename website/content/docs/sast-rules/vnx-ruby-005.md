@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-005 – Ruby XSS via html_safe or raw"
-description: "Detect use of .html_safe and raw() in Rails views and helpers, which bypass Rails' automatic HTML escaping and can introduce cross-site scripting (XSS) vulnerabilities when applied to user-controlled strings."
+description: "Reports .html_safe, raw(), <%== %> and Haml != applied to a model attribute, variable, method result or an interpolated string with a dynamic part, in Ruby, ERB and Haml; fixed literals, escaped values, translations and Rails helpers are not reported."
 ---
 
 ## Overview
@@ -17,25 +17,27 @@ Because Rails escapes by default, `.html_safe` is by design an escape hatch — 
 
 ## What Gets Flagged
 
-The rule matches any file (including `.erb`, `.haml`, `.rb`) that contains `.html_safe` or a `<%= raw ` expression.
+The rule reads `.rb`, `.erb`, `.haml` and `.slim` files and reports escaping switched off for a value that is not a fixed string.
+
+```erb
+<%# FLAGGED %>
+<span class="name"><%= current_user.first_name.html_safe %></span>
+body { font-size: <%= raw cookies[:font] %> !important; }
+<div class="banner"><%== @announcement.body %></div>
+```
 
 ```ruby
-# FLAGGED: user attribute marked as html_safe — direct XSS if name contains HTML
-@user.name.html_safe
+# FLAGGED
+flash[:error] = "No account matches #{params[:email]}".html_safe
+html = "<p>#{comment.text}</p>"
+html.html_safe
 
-# FLAGGED: raw() in ERB template with user data
-<%= raw @comment.body %>
-
-# FLAGGED: html_safe on an interpolated string containing user data
-"Hello, #{current_user.name}!".html_safe
-
-# FLAGGED: html_safe in a helper that processes user content
-def format_bio(user)
-  user.bio.gsub("\n", "<br>").html_safe
-end
-
-# FLAGGED: html_safe on a string built from params
-link = "<a href='#{params[:url]}'>click</a>".html_safe
+# NOT flagged: fixed markup, escaped values, helpers, safe interpolations
+'<i class="bi bi-check"></i>'.html_safe
+sanitize(text, tags: %w[b i]).html_safe
+t("notices.welcome_html", name: user.name).html_safe
+"/users/#{current_user.id}/messages.json".inspect.html_safe
+value.html_safe?
 ```
 
 ## Remediation

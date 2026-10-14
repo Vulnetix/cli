@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-007 – Node.js SQL Injection"
-description: "Detects SQL queries built with string concatenation or template literals in Node.js database libraries (mysql2, pg, knex, sequelize), enabling SQL injection attacks."
+description: "Reports SQL built with template-literal interpolation or concatenation (directly or via a nearby variable) passed to mysql, pg, sequelize, knex raw, Prisma $queryRawUnsafe or sqlite calls."
 ---
 
 ## Overview
@@ -17,23 +17,23 @@ Node.js applications are particularly susceptible because template literals make
 
 ## What Gets Flagged
 
-The rule matches `.query()` calls where the argument is a string literal containing SELECT/INSERT/UPDATE/DELETE, and also `.query()` calls where a template literal with `${` is used.
-
 ```javascript
-// FLAGGED: string concatenation in mysql2 query
-const userId = req.params.id;
-connection.query('SELECT * FROM users WHERE id = ' + userId, (err, rows) => {
-  res.json(rows);
-});
+// FLAGGED: concatenation
+connection.query("SELECT * FROM users WHERE id = " + req.params.id, cb);
 
-// FLAGGED: template literal in pg query
-const name = req.query.name;
-pool.query(`SELECT * FROM products WHERE name = '${name}'`, (err, result) => {
-  res.json(result.rows);
-});
+// FLAGGED: template literal, also across several lines
+await pool.query(`SELECT * FROM orders WHERE user_id = '${userId}'`);
+
+// FLAGGED: two-line form
+const sql = "DELETE FROM sessions WHERE token = '" + token + "'";
+db.run(sql, done);
+
+// FLAGGED: knex raw fragments and Prisma unsafe raw
+knex("users").whereRaw("name = '" + criteria + "'");
+prisma.$queryRawUnsafe(`SELECT * FROM "User" WHERE id = ${id}`);
 ```
 
-Payload: `?name=' OR '1'='1` returns all rows. Payload: `?id=1; DROP TABLE users--` destroys the table.
+Not flagged: parameterised queries (`'... WHERE id = $1', [id]`, `?` placeholders), SQL without interpolation, tagged templates that parameterise (``sql`...` ``, ``Prisma.sql`...` ``, ``prisma.$queryRaw`...` ``), interpolations of `Number()`/`parseInt()`, `hash()`, `escape()`/`escapeId()`/`format()`, placeholder lists built with `$${i + 1}` or `'?'`, and non-SQL strings such as ``api.get(`/users/${id}`)``.
 
 ## Remediation
 

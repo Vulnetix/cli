@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-022 – Java Insecure Temporary File Creation"
-description: "Detects use of File.createTempFile() and predictable /tmp/ path construction that are vulnerable to TOCTOU race conditions and symlink attacks."
+description: "Detects File.createTempFile() in the shared temp directory (created with umask permissions, often world-readable) and fixed or user-derived file names under /tmp or java.io.tmpdir, which are open to symlink and pre-creation attacks."
 ---
 
 ## Overview

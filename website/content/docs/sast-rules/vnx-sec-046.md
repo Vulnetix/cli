@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-046 – Square Access Token"
-description: "Detects Square access tokens (EAAA or sq0atp- prefix) hardcoded in source code."
+description: "Reports Square access tokens (EAAA plus 56-64 characters, or legacy sq0atp- OAuth tokens) standing alone in files; EAAA inside base64 blobs is not reported."
 ---
 
 ## Overview
 
-This rule detects square access token matching the `EAAA... or sq0atp-...` pattern hardcoded anywhere in source files. Detects Square access tokens (EAAA or sq0atp- prefix) hardcoded in source code.
+This rule reports a Square access token: a production or sandbox access token (`EAAA` followed by 56 to 64 base64url characters) or a legacy OAuth access token (`sq0atp-` followed by 22 to 43 characters), standing alone rather than inside a longer base64 run. `EAAA` inside an embedded image, font or certificate, placeholders (`EAAAxxxx...`, `sq0atp-REPLACE...`), low-entropy values, environment lookups and test, fixture and vendored paths are not reported, and the snippet is redacted.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

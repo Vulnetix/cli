@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_node_005
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-NODE-005",
 	"name": "innerHTML or dangerouslySetInnerHTML usage",
-	"description": "Setting innerHTML or using dangerouslySetInnerHTML with user-controlled data enables cross-site scripting (XSS).",
+	"description": "HTML is written into the DOM from a value that is not a constant: an assignment (= or +=) to .innerHTML or .outerHTML, insertAdjacentHTML(position, html), document.write/writeln(html), or a React dangerouslySetInnerHTML={{ __html: value }} (also across line breaks), where the value is a variable, a call, concatenation or a template literal with ${...} interpolation (including one spanning several lines). If any part of it is user-controlled this is cross-site scripting. Not reported: string literals without interpolation, ALL_CAPS constants, copying another element's innerHTML, values passed through DOMPurify.sanitize, sanitize-html or an escape/encode function, reads and comparisons of innerHTML, textContent/innerText, comments and string literals, minified files. Overlaps VNX-NODE-012 and VNX-NODE-027, which match the same sinks less strictly.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-005/",
 	"languages": ["node"],
 	"severity": "medium",
@@ -19,22 +21,47 @@ metadata := {
 	"tags": ["xss", "web", "react"],
 }
 
-_is_js(path) if endswith(path, ".js")
-_is_js(path) if endswith(path, ".ts")
-_is_js(path) if endswith(path, ".jsx")
-_is_js(path) if endswith(path, ".tsx")
-_is_js(path) if endswith(path, ".mjs")
-_is_js(path) if endswith(path, ".cjs")
+_is_js(path) if regex.match(`\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts)$`, path)
+
+_file_gate := `innerHTML|outerHTML|insertAdjacentHTML|document\.write|dangerouslySetInnerHTML`
+
+# A template literal with interpolation becomes the identifier tpl_x; every
+# other complete string literal collapses to "".
+_strip(line) := regex.replace(
+	regex.replace(line, `\x60(?:[^\x60\\]|\\.)*\$\{(?:[^\x60\\]|\\.)*\x60`, "tpl_x"),
+	`'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|\x60[^\x60]*\x60`, `""`,
+)
+
+_sinks := [
+	{"re": `\.(?:inner|outer)HTML\s*\+?=(?:[^=](.*))?$`, "what": "innerHTML/outerHTML assignment"},
+	{"re": `\.insertAdjacentHTML\s*\(\s*""\s*,(.*)$`, "what": "insertAdjacentHTML()"},
+	{"re": `(?:^|[^\w$.])document\.write(?:ln)?\s*\((.*)$`, "what": "document.write()"},
+	{"re": `dangerouslySetInnerHTML\s*[=:]\s*\{\s*\{?\s*(.*)$`, "what": "dangerouslySetInnerHTML"},
+]
+
+_sanitizer_re := `(?i)sanitiz|purify|escape|encode|\bxss\s*\(|\bhe\.`
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	_is_js(path)
-	lines := split(input.file_contents[path], "\n")
+	not endswith(path, ".min.js")
+	not _vendored(path)
+	regex.match(_file_gate, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	contains(line, "dangerouslySetInnerHTML")
+	regex.match(_file_gate, line)
+	count(line) <= 400
+	not helpers.is_comment_line(line)
+	s := _strip(line)
+	some sink in _sinks
+	m := regex.find_all_string_submatch_n(sink.re, s, 1)
+	count(m) > 0
+	v := _value(lines, i, m[0][1])
+	_dynamic(v)
+	not regex.match(_sanitizer_re, v)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "dangerouslySetInnerHTML can lead to XSS; sanitize content with DOMPurify or similar",
+		"message": sprintf("%s with a non-constant value can lead to XSS; set textContent, or sanitize the HTML with DOMPurify.sanitize() first", [sink.what]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
@@ -43,19 +70,48 @@ findings contains finding if {
 	}
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_js(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`\.innerHTML\s*=`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "innerHTML assignment can lead to XSS; use textContent or sanitize input",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+# The value written, with the __html: key of a React prop removed. A call
+# broken right after its opening brace or the = continues on the next line;
+# a template literal left open is followed until it closes.
+_value(lines, i, rest) := v if {
+	trim_space(rest) != ""
+	not _open_template(rest)
+	v := regex.replace(rest, `^\s*__html\s*:`, "")
 }
+
+_value(lines, i, rest) := v if {
+	trim_space(rest) == ""
+	i + 1 < count(lines)
+	v := regex.replace(_strip(lines[i + 1]), `^\s*(?:\{\s*)?__html\s*:`, "")
+}
+
+_value(lines, i, rest) := "tpl_x" if {
+	_open_template(rest)
+	tail := concat("\n", array.slice(lines, i + 1, i + 20))
+	m := regex.find_all_string_submatch_n(`^[^\x60]*`, tail, 1)
+	contains(m[0][0], "${")
+}
+
+_value(lines, i, rest) := `""` if {
+	_open_template(rest)
+	tail := concat("\n", array.slice(lines, i + 1, i + 20))
+	m := regex.find_all_string_submatch_n(`^[^\x60]*`, tail, 1)
+	not contains(m[0][0], "${")
+}
+
+_open_template(rest) if regex.match(`^\s*(?:__html\s*:\s*)?\x60[^\x60]*$`, rest)
+
+# Up to the end of the expression, anything but string literals, an ALL_CAPS
+# constant, or another element's innerHTML.
+_dynamic(v) if {
+	head := regex.replace(v, `\}\}.*$|;.*$`, "")
+	not regex.match(`^\s*\(?\s*(?:[\w$]+\.)*[A-Z][A-Z0-9_]*\s*\)?\s*[,)]?\s*$`, head)
+	not regex.match(`^\s*[\w$.\[\]()"]+\.(?:inner|outer)HTML\s*$`, head)
+	regex.match(`[\w$]`, regex.replace(head, `""`, ""))
+}
+
+# Vendored third-party libraries (jQuery, editors, plugins) are not the
+# application's sinks.
+_vendored(path) if regex.match(`(^|/)(vendors?|libs|third[_-]?party|bower_components|plugins)/`, path)
+
+_vendored(path) if regex.match(`(^|/)jquery[\w.-]*\.js$`, path)

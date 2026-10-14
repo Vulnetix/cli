@@ -5,7 +5,9 @@ description: "Detect Python code that passes user-controlled input directly to r
 
 ## Overview
 
-This rule detects Python code that passes user-controlled input (such as Flask/Django request parameters) directly into regular expression functions like `re.compile()`, `re.match()`, `re.search()`, or `re.fullmatch()`. When an attacker can control the regex pattern, they can craft a pathological expression that causes catastrophic backtracking, consuming CPU and memory until the application becomes unresponsive.
+This rule detects Python code that uses a value read from the request as the *pattern* of a regular expression: `re` or `regex` (or an alias such as `import re as rx`) calling `compile`, `match`, `search`, `fullmatch`, `findall`, `finditer`, `sub`, `subn` or `split`. The value may be read inline (`request.args`, `request.form`, `request.values`, `request.json`, `request.GET`, `request.POST`), assigned to a variable first (up to two assignments, including f-strings and concatenation), or be a route parameter such as `<pat>` in `@app.route("/grep/<pat>")`. When an attacker can control the regex pattern, they can craft a pathological expression that causes catastrophic backtracking, consuming CPU and memory until the application becomes unresponsive.
+
+Not reported: a pattern passed through `re.escape()`, a fixed or configured pattern, user text used only as the subject being searched (`EMAIL.match(email)`), argparse and settings values, and comments or strings that merely mention the call.
 
 **Severity:** High | **CWE:** [CWE-1333 – Inefficient Regular Expression Complexity](https://cwe.mitre.org/data/definitions/1333.html)
 

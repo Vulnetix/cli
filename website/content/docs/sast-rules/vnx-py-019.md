@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-019 – Paramiko Implicit Host Key Trust"
-description: "Detect Python code that configures a paramiko SSHClient with AutoAddPolicy or WarningPolicy, silently accepting unverified SSH host keys and enabling man-in-the-middle attacks."
+description: "Detect Python code that passes paramiko AutoAddPolicy or WarningPolicy to set_missing_host_key_policy() (directly or through a variable), or defines a MissingHostKeyPolicy whose missing_host_key() accepts every key. RejectPolicy, imports and isinstance checks are not reported."
 ---
 
 ## Overview
@@ -40,6 +40,17 @@ def run_remote_command(host: str, cmd: str) -> str:
     client.connect(host)
     _, stdout, _ = client.exec_command(cmd)
     return stdout.read().decode()
+
+# FLAGGED: the policy assigned first, and a custom policy that accepts everything
+policy = AutoAddPolicy()
+client.set_missing_host_key_policy(policy)
+
+class TrustEverything(paramiko.MissingHostKeyPolicy):
+    def missing_host_key(self, client, hostname, key):
+        pass
+
+# NOT FLAGGED: RejectPolicy, an isinstance check, an import
+client.set_missing_host_key_policy(paramiko.RejectPolicy())
 ```
 
 The rule applies only to `.py` files.

@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-038 – Potential mass assignment via struct binding"
-description: "Detect Go code that binds or decodes request bodies directly into structs without field-level restrictions, enabling attackers to set privileged or internal fields that were not intended to be user-controlled."
+description: "Detects Go handlers that bind a request body into a value and then save that same value whole (GORM Create/Save/Updates, Mongo InsertOne, repository Insert/Update), allowing mass assignment."
 ---
 
 ## Overview
 
-This rule flags Go code that calls `Bind`, `ShouldBind`, `Decode`, or `json.Unmarshal` with a source of `r.Body`, `r.Form`, `json.NewDecoder(r.Body)`, or equivalent request data, where the target struct does not use `binding:"-"` or `json:"-"` tags to exclude sensitive fields. Mass assignment (also called auto-binding or over-posting) occurs when a web framework automatically maps all request parameters to object fields, allowing an attacker to supply values for fields such as `IsAdmin`, `Role`, `Balance`, or `Verified` that the application never intended to accept from user input. This maps to [CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes](https://cwe.mitre.org/data/definitions/915.html).
+This rule flags Go HTTP handlers that bind the request body into a value (`json.NewDecoder(r.Body).Decode`, `json.Unmarshal` of the body, gin `ShouldBind*`/`Bind*`, echo `c.Bind`, fiber `c.BodyParser`) and then pass that same value whole to a create or update call (GORM `Create`/`Save`/`Updates`, Mongo `InsertOne`/`UpdateOne`, a repository `Insert`/`Update`). Mass assignment (also called auto-binding or over-posting) lets an attacker supply values for fields such as `IsAdmin`, `Role`, `Balance` or `Verified` that the application never intended to accept. Binding into a dedicated input type whose fields are copied, or restricting the write with `Select`/`Omit`, is not reported. This maps to [CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes](https://cwe.mitre.org/data/definitions/915.html).
 
 This vulnerability class has been responsible for significant security incidents, including the 2012 GitHub mass-assignment vulnerability where an attacker added their SSH key to the Ruby on Rails organisation by exploiting unfiltered model binding.
 
@@ -19,52 +19,29 @@ The impact depends on what privileged fields exist in the struct. Privilege esca
 
 ## What Gets Flagged
 
-The rule fires when request body data is decoded directly into a struct that may contain unexported-dangerous or system-managed fields.
+A request body bound into a value that is then saved whole:
 
 ```go
-// FLAGGED: full User model bound directly from request body
-type User struct {
-    ID        int    `json:"id"`
-    Email     string `json:"email"`
-    IsAdmin   bool   `json:"is_admin"`   // should never come from user input
-    CreatedAt string `json:"created_at"` // server-managed
-}
+// FLAGGED: gin bind, then GORM create
+var u models.User
+if err := c.ShouldBindJSON(&u); err != nil { ... }
+db.Create(&u)
 
-func updateUser(w http.ResponseWriter, r *http.Request) {
-    var user User
-    // Attacker can set IsAdmin: true in the JSON body
-    json.NewDecoder(r.Body).Decode(&user)
-    db.Save(&user)
-}
+// FLAGGED: bound map passed to Updates
+_ = c.Bind(&input)
+db.Model(&models.User{}).Where("id = ?", id).Updates(input)
 
-// FLAGGED: gin binding without exclusions
-func createUser(c *gin.Context) {
-    var user User
-    c.ShouldBind(&user) // all exported fields are bindable
-    database.Create(&user)
-}
+// FLAGGED: decoder variable, then a repository save
+dec := json.NewDecoder(r.Body)
+if err := dec.Decode(acct); err != nil { ... }
+s.store.Save(r.Context(), acct)
+
+// FLAGGED: io.ReadAll + json.Unmarshal, then Mongo InsertOne
+_ = json.Unmarshal(body, &u)
+coll.InsertOne(r.Context(), u)
 ```
 
-```go
-// SAFE: dedicated request DTO with only user-writable fields
-type UpdateUserRequest struct {
-    Email       string `json:"email"        binding:"required,email"`
-    DisplayName string `json:"display_name" binding:"max=100"`
-    // IsAdmin deliberately absent — not accepted from user input
-}
-
-func updateUser(w http.ResponseWriter, r *http.Request) {
-    var req UpdateUserRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "invalid request", http.StatusBadRequest)
-        return
-    }
-    // Apply only the permitted fields to the domain model
-    user.Email = req.Email
-    user.DisplayName = req.DisplayName
-    db.Save(&user)
-}
-```
+Not flagged: a request DTO whose fields are copied (`db.Create(&User{Name: in.Name})`), a write restricted with `Select(...)` or `Omit(...)`, a bound value that is only read, decoding `resp.Body` from an outgoing call, test files, comments and strings.
 
 ## Remediation
 

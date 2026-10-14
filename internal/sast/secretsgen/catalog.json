@@ -296,10 +296,9 @@
     "description": "A legacy Sentry DSN containing both the public and secret key was found, allowing event submission and project access.",
     "severity": "high",
     "strategy": "fixed_prefix",
-    "token_pattern": "(https://[0-9a-f]{32}:[0-9a-f]{32}@[a-z0-9.-]+/[0-9]+)",
+    "token_pattern": "(https://[0-9a-f]{32}:[0-9a-f]{32}@(?:[a-z0-9-]+\\.)*(?:sentry|ingest)[a-z0-9.-]*/[0-9]+)",
     "keywords": [
-      "sentry.io",
-      "@o",
+      "sentry",
       "ingest"
     ],
     "entropy_min": 0,
@@ -1055,12 +1054,12 @@
     "description": "An Azure Active Directory (Entra ID) application client secret assigned to a context keyword was found. The client secret authenticates a service principal and grants the app's API permissions.",
     "severity": "critical",
     "strategy": "keyword_entropy",
-    "token_pattern": "(?i)(?:azure|aad|client)[a-z0-9_]*(?:client[_-]?secret|secret)\\s*[:=]\\s*['\"]?([A-Za-z0-9_.~-]{34,40})['\"]?",
+    "token_pattern": "(?i)(?:azure|aad|entra|msal)[a-z0-9_]*(?:client[_-]?secret|secret)\\s*[:=]\\s*['\"]?([A-Za-z0-9_.~-]{34,40})['\"]?",
     "keywords": [
       "azure",
       "aad",
-      "client",
-      "secret"
+      "entra",
+      "msal"
     ],
     "entropy_min": 3.8,
     "cwe": [
@@ -2431,8 +2430,9 @@
     "strategy": "keyword_entropy",
     "token_pattern": "(?i)(?:clientSecret|client_secret)['\"]?\\s*[:=]\\s*['\"]([A-Za-z0-9_.~-]{34,40})['\"]",
     "keywords": [
-      "clientsecret",
-      "client_secret"
+      "azure",
+      "tenant",
+      "subscription"
     ],
     "entropy_min": 3.8,
     "cwe": [
@@ -8744,7 +8744,7 @@
       "klarna",
       "pk"
     ],
-    "entropy_min": 3.4,
+    "entropy_min": 3.2,
     "cwe": [
       798
     ],
@@ -8951,7 +8951,7 @@
       "razorpay",
       "webhook"
     ],
-    "entropy_min": 3.5,
+    "entropy_min": 3.2,
     "cwe": [
       798
     ],
@@ -8981,7 +8981,7 @@
       "coinbase",
       "passphrase"
     ],
-    "entropy_min": 3.4,
+    "entropy_min": 2.7,
     "cwe": [
       798
     ],
@@ -9455,7 +9455,7 @@
       "vonage",
       "nexmo"
     ],
-    "entropy_min": 3.0,
+    "entropy_min": 2.3,
     "cwe": [
       798
     ],
@@ -10600,7 +10600,7 @@
     "strategy": "fixed_prefix",
     "token_pattern": "\\b(sk_(?:test_)?[A-Za-z0-9_-]{30,60})\\b",
     "keywords": [
-      "sk_"
+      "knock"
     ],
     "entropy_min": 3.5,
     "cwe": [
@@ -11109,7 +11109,7 @@
       "cio",
       "track"
     ],
-    "entropy_min": 3.8,
+    "entropy_min": 3.3,
     "cwe": [
       798
     ],
@@ -13063,7 +13063,7 @@
       "pipedrive",
       "token"
     ],
-    "entropy_min": 4.0,
+    "entropy_min": 3.8,
     "cwe": [
       798
     ],
@@ -14330,10 +14330,12 @@
     "description": "An Elasticsearch / Elastic Cloud API key encoded as base64 id:api_key and assigned to a context keyword was found. It authenticates to Elasticsearch with the key's role descriptors.",
     "severity": "high",
     "strategy": "keyword_entropy",
-    "token_pattern": "(?i)(?:elastic|elasticsearch|es)[a-z0-9_]*api[_-]?key\\s*[:=]\\s*['\"]?([A-Za-z0-9+/]{40,}={0,2})['\"]?",
+    "token_pattern": "(?i)(?:elastic(?:search)?|\\bes)[_-]?(?:cloud[_-]?)?api[_-]?key\\s*[:=]\\s*['\"]?([A-Za-z0-9+/]{40,}={0,2})['\"]?",
     "keywords": [
       "elastic",
-      "apikey"
+      "es_api",
+      "es-api",
+      "esapi"
     ],
     "entropy_min": 3.8,
     "cwe": [
@@ -14395,7 +14397,7 @@
       "atlas",
       "public"
     ],
-    "entropy_min": 3.0,
+    "entropy_min": 2.7,
     "cwe": [
       798
     ],
@@ -15331,9 +15333,10 @@
     "description": "A Dynatrace API token using the dt0c01 prefix was found. It authenticates to the Dynatrace environment API with the token's assigned scopes (metrics, config, logs, etc.).",
     "severity": "critical",
     "strategy": "fixed_prefix",
-    "token_pattern": "\\b(dt0[a-z]\\d{2}\\.[A-Z0-9]{24}\\.[A-Z0-9]{64})\\b",
+    "token_pattern": "\\b(dt0[cs]\\d{2}\\.[A-Z0-9]{24}\\.[A-Z0-9]{64})\\b",
     "keywords": [
-      "dt0c01."
+      "dt0c",
+      "dt0s"
     ],
     "entropy_min": 0,
     "cwe": [
@@ -16357,7 +16360,7 @@
     "description": "An OpenSSH-format private key block (BEGIN OPENSSH PRIVATE KEY header) was found. This is the private half of an SSH key pair and grants login access to any host trusting the corresponding public key.",
     "severity": "critical",
     "strategy": "regex_only",
-    "token_pattern": "(-----BEGIN OPENSSH PRIVATE KEY-----)",
+    "token_pattern": "(-----BEGIN OPENSSH PRIVATE KEY-----)(?:\\s*[\"']?,?\\s*$|(?:(?:\\\\r)?\\\\n|\\s)?[A-Za-z0-9+/=]{16})",
     "keywords": [
       "begin",
       "private key",
@@ -16388,7 +16391,7 @@
     "description": "A PEM RSA private key block (BEGIN RSA PRIVATE KEY header) was found. It is the private half of an RSA key pair usable for TLS, SSH or signing.",
     "severity": "critical",
     "strategy": "regex_only",
-    "token_pattern": "(-----BEGIN RSA PRIVATE KEY-----)",
+    "token_pattern": "(-----BEGIN RSA PRIVATE KEY-----)(?:\\s*[\"']?,?\\s*$|(?:(?:\\\\r)?\\\\n|\\s)?[A-Za-z0-9+/=]{16})",
     "keywords": [
       "begin",
       "private key",
@@ -16419,7 +16422,7 @@
     "description": "A PEM elliptic-curve private key block (BEGIN EC PRIVATE KEY header) was found. It is the private half of an ECDSA/ECDH key pair usable for TLS, SSH or signing.",
     "severity": "critical",
     "strategy": "regex_only",
-    "token_pattern": "(-----BEGIN EC PRIVATE KEY-----)",
+    "token_pattern": "(-----BEGIN EC PRIVATE KEY-----)(?:\\s*[\"']?,?\\s*$|(?:(?:\\\\r)?\\\\n|\\s)?[A-Za-z0-9+/=]{16})",
     "keywords": [
       "begin",
       "private key",
@@ -16450,7 +16453,7 @@
     "description": "A PEM DSA private key block (BEGIN DSA PRIVATE KEY header) was found. It is the private half of a DSA key pair used for SSH or signing.",
     "severity": "critical",
     "strategy": "regex_only",
-    "token_pattern": "(-----BEGIN DSA PRIVATE KEY-----)",
+    "token_pattern": "(-----BEGIN DSA PRIVATE KEY-----)(?:\\s*[\"']?,?\\s*$|(?:(?:\\\\r)?\\\\n|\\s)?[A-Za-z0-9+/=]{16})",
     "keywords": [
       "begin",
       "private key",
@@ -16481,7 +16484,7 @@
     "description": "A PEM PKCS#8 private key block (BEGIN PRIVATE KEY header) was found. This generic container holds an unencrypted private key (RSA, EC, Ed25519, etc).",
     "severity": "critical",
     "strategy": "regex_only",
-    "token_pattern": "(-----BEGIN PRIVATE KEY-----)",
+    "token_pattern": "(-----BEGIN PRIVATE KEY-----)(?:\\s*[\"']?,?\\s*$|(?:(?:\\\\r)?\\\\n|\\s)?[A-Za-z0-9+/=]{16})",
     "keywords": [
       "begin",
       "private key"
@@ -16511,7 +16514,7 @@
     "description": "A PEM encrypted PKCS#8 private key block (BEGIN ENCRYPTED PRIVATE KEY header) was found. Although passphrase-protected, the key material is exposed and the passphrase is often committed nearby.",
     "severity": "high",
     "strategy": "regex_only",
-    "token_pattern": "(-----BEGIN ENCRYPTED PRIVATE KEY-----)",
+    "token_pattern": "(-----BEGIN ENCRYPTED PRIVATE KEY-----)(?:\\s*[\"']?,?\\s*$|(?:(?:\\\\r)?\\\\n|\\s)?[A-Za-z0-9+/=]{16})",
     "keywords": [
       "begin",
       "private key",
@@ -16571,7 +16574,7 @@
     "description": "An SSH2 (SECSH/commercial) private key block header (BEGIN SSH2 ENCRYPTED PRIVATE KEY) was found. It is an SSH private key in the IETF SECSH format.",
     "severity": "critical",
     "strategy": "regex_only",
-    "token_pattern": "(---- BEGIN SSH2 (?:ENCRYPTED )?PRIVATE KEY ----)",
+    "token_pattern": "(---- BEGIN SSH2 (?:ENCRYPTED )?PRIVATE KEY ----)(?:\\s*[\"']?,?\\s*$|(?:(?:\\\\r)?\\\\n|\\s)?[A-Za-z0-9+/=]{16})",
     "keywords": [
       "begin ssh2",
       "private key"
@@ -17325,7 +17328,6 @@
     "strategy": "fixed_prefix",
     "token_pattern": "\\b(sk_[A-Za-z0-9_-]{40,})\\b",
     "keywords": [
-      "sk_",
       "thirdweb"
     ],
     "entropy_min": 3.5,
@@ -17719,7 +17721,7 @@
     "description": "A Twitter/X app-only bearer token (AAAAAAAAAA prefix) was found. It authenticates app-only Twitter API v2 requests.",
     "severity": "high",
     "strategy": "fixed_prefix",
-    "token_pattern": "\\b(A{10,}[A-Za-z0-9%]{30,})\\b",
+    "token_pattern": "\\b(A{20,24}[A-Za-z0-9%]{80,})\\b",
     "keywords": [
       "bearer",
       "twitter",
@@ -18052,7 +18054,7 @@
     "description": "A generic SSH/PEM private key begin marker (BEGIN ... PRIVATE KEY) for an uncommon key type was found, indicating committed private key material.",
     "severity": "critical",
     "strategy": "regex_only",
-    "token_pattern": "(-----BEGIN (?:OPENSSH|RSA|DSA|EC|ENCRYPTED|PGP|ED25519|SSH2) ?(?:ENCRYPTED )?PRIVATE KEY-----)",
+    "token_pattern": "(-----BEGIN (?:OPENSSH|RSA|DSA|EC|ENCRYPTED|PGP|ED25519|SSH2) ?(?:ENCRYPTED )?PRIVATE KEY-----)(?:\\s*[\"']?,?\\s*$|(?:(?:\\\\r)?\\\\n|\\s)?[A-Za-z0-9+/=]{16})",
     "keywords": [
       "begin",
       "private key"
@@ -18543,7 +18545,7 @@
       "okx",
       "passphrase"
     ],
-    "entropy_min": 3.0,
+    "entropy_min": 2.2,
     "cwe": [
       798
     ],
@@ -19182,7 +19184,7 @@
       "kucoin",
       "passphrase"
     ],
-    "entropy_min": 3.0,
+    "entropy_min": 2.2,
     "cwe": [
       798
     ],
@@ -19784,7 +19786,7 @@
       "bamboohr",
       "key"
     ],
-    "entropy_min": 4,
+    "entropy_min": 3.8,
     "cwe": [
       798
     ],
@@ -20594,7 +20596,7 @@
       "copper",
       "token"
     ],
-    "entropy_min": 4,
+    "entropy_min": 3.7,
     "cwe": [
       798
     ],
@@ -21636,7 +21638,7 @@
     "strategy": "fixed_prefix",
     "token_pattern": "\\b(sk_[0-9a-z]+_[A-Za-z0-9]{40,})\\b",
     "keywords": [
-      "sk_"
+      "recharge"
     ],
     "entropy_min": 0,
     "cwe": [
@@ -23398,7 +23400,7 @@
       "klaviyo",
       "company"
     ],
-    "entropy_min": 3.5,
+    "entropy_min": 2.2,
     "cwe": [
       798
     ],
@@ -24456,9 +24458,7 @@
     "strategy": "keyword_entropy",
     "token_pattern": "(?i)(?:gcp[_-]?iot|cloud[_-]?iot|iot[_-]?core)[a-z0-9_]*\\s*[:=]\\s*['\"]?(-----BEGIN (?:EC |RSA )?PRIVATE KEY-----[A-Za-z0-9+/=\\s]{40,}-----END (?:EC |RSA )?PRIVATE KEY-----)['\"]?",
     "keywords": [
-      "gcp iot",
-      "cloud iot",
-      "iot core"
+      "iot"
     ],
     "entropy_min": 3.5,
     "cwe": [
@@ -25587,7 +25587,7 @@
       "deribit",
       "client"
     ],
-    "entropy_min": 3.5,
+    "entropy_min": 2.7,
     "cwe": [
       798
     ],
@@ -28026,7 +28026,7 @@
       "omdb",
       "apikey"
     ],
-    "entropy_min": 3.0,
+    "entropy_min": 2.3,
     "cwe": [
       798
     ],
@@ -29518,7 +29518,7 @@
       "jwplayer",
       "apikey"
     ],
-    "entropy_min": 3.0,
+    "entropy_min": 2.7,
     "cwe": [
       798
     ],

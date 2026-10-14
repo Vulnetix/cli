@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-028 – npm Access Token Hardcoded"
-description: "Detect npm access tokens (npm_ prefix) hardcoded in source code, which can be used to publish packages, access private registries, and modify organization settings depending on their scope."
+description: "Detect npm access tokens (npm_ followed by exactly 36 letters or digits) in any file, and legacy UUID auth tokens written literally in .npmrc or .yarnrc.yml, ignoring ${NPM_TOKEN} references, npm_config_* names and placeholders."
 ---
 
 ## Overview
@@ -23,15 +23,17 @@ Token exposure in source code is especially dangerous because npm tokens do not 
 
 ## What Gets Flagged
 
-The rule matches any file (excluding lock files, checksums, and minified assets) containing a string matching `npm_` followed by 36 alphanumeric characters.
+The rule reports `npm_` followed by exactly 36 letters or digits, delimited on both sides, in any file, and a legacy UUID token assigned to `_authToken` or `npmAuthToken` in `.npmrc` or `.yarnrc.yml`:
 
-```bash
-# FLAGGED: npm token in .npmrc or deployment script
-//registry.npmjs.org/:_authToken=npm_EXAMPLE_REDACTED
-
-# FLAGGED: token in CI configuration
-NPM_TOKEN=npm_EXAMPLE_REDACTED
+```text
+# FLAGGED
+//registry.npmjs.org/:_authToken=npm_<36 characters>
+//registry.npmjs.org/:_authToken=<uuid>                (in .npmrc)
+NODE_AUTH_TOKEN: npm_<36 characters>                  (workflow env)
+RUN echo "//registry.npmjs.org/:_authToken=npm_<36 characters>" > .npmrc
 ```
+
+Not flagged: `${NPM_TOKEN}` references, `process.env.npm_package_version` and other `npm_*` identifiers, `npm_xxxx...` or all-zero placeholders, and test or fixture paths.
 
 ## Remediation
 

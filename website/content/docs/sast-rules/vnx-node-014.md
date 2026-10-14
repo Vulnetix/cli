@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-014 – NoSQL Injection in MongoDB"
-description: "Detects unsanitized user input (req.body, req.query) passed directly to MongoDB query methods, enabling NoSQL injection attacks that bypass authentication or extract arbitrary data."
+description: "Reports a MongoDB query filter (find, findOne, update*, delete*, count, aggregate...) taken from req.query/body or Koa ctx, as the whole filter or as a member value, or a $where clause built from any request value. Cast or $eq-wrapped values, sanitised input, findById and SQL ORM where: filters are not reported."
 ---
 
 ## Overview
@@ -21,30 +21,25 @@ Real-world consequences include complete authentication bypass, unauthorised dat
 
 ## What Gets Flagged
 
-The rule matches lines where MongoDB query methods receive `req.body` or `req.query` as a direct argument.
+The filter (first argument) must carry a body or query value, which a parser can turn into an operator object such as `{"$ne": null}`, or a `$where` clause must be built from any request value.
 
 ```javascript
-// FLAGGED: findOne with req.body directly as filter
-app.post('/login', async (req, res) => {
-  const user = await User.findOne(req.body);
-  if (user) res.json({ token: generateToken(user) });
-  else res.status(401).json({ error: 'Invalid credentials' });
+// FLAGGED: operator injection through a member value
+const user = await User.findOne({
+  username: req.body.username,
+  password: req.body.password,
 });
+await User.deleteMany(req.body);
 
-// FLAGGED: find with req.query as filter
-app.get('/users', async (req, res) => {
-  const users = await User.find(req.query);
-  res.json(users);
-});
+// FLAGGED: two lines
+const { email } = req.body;
+await db.collection('accounts').findOne({ email });
 
-// FLAGGED: deleteMany with body spread
-await Collection.deleteMany(req.body);
-
-// FLAGGED: updateOne with query object from request
-await Item.updateOne(req.query, { $set: { active: false } });
+// FLAGGED: JavaScript injection in $where
+db.orders.find({ $where: `this.orderId === '${id}'` });   // id = req.params.id
 ```
 
-Payload for login bypass: `POST /login` with body `{ "username": "admin", "password": { "$ne": null } }` — logs in as admin without the password.
+Not flagged: `String(req.body.username)`, `new ObjectId(req.params.id)`, `{ $eq: req.body.email }`, `mongoSanitize(req.query)` or the express-mongo-sanitize middleware, `findById`, `{ where: { ... } }` (Sequelize, TypeORM, Prisma), route params used as a member value, and `users.find(u => ...)`.
 
 ## Remediation
 

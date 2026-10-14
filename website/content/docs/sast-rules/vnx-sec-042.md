@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-042 – Slack Incoming Webhook URL"
-description: "Detects hardcoded Slack incoming webhook URLs (hooks.slack.com) that grant the ability to post messages to a Slack channel."
+description: "Reports complete Slack incoming, workflow and trigger webhook URLs (hooks.slack.com) written into files; placeholder URLs are not reported."
 ---
 
 ## Overview
 
-This rule detects Slack incoming webhook URLs in the form `https://hooks.slack.com/{services,workflows,triggers}/<43-56 char token>`. Slack webhooks let anyone who knows the URL post arbitrary messages to the channel the webhook is wired to. They cannot read messages, but they are routinely abused for phishing (fake "your account was compromised" alerts), spam, and pivoting into a workspace's trust graph.
+This rule reports a complete Slack webhook URL: an incoming webhook `https://hooks.slack.com/services/T<team>/B<bot>/<24-character secret>` and a Workflow Builder or trigger webhook `https://hooks.slack.com/workflows/...` or `/triggers/...` ending in a 32-character secret. A URL without its secret segment, the documentation placeholder `T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX`, URLs built from the environment and test, fixture and vendored paths are not reported, and the snippet is redacted. Slack webhooks let anyone who knows the URL post arbitrary messages to the channel the webhook is wired to. They cannot read messages, but they are routinely abused for phishing (fake "your account was compromised" alerts), spam, and pivoting into a workspace's trust graph.
 
 **Severity:** High | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 
@@ -16,9 +16,13 @@ Webhook URLs are long, high-entropy strings, but unlike API tokens they are rout
 ## What Gets Flagged
 
 ```python
-# FLAGGED
-slack_webhook = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
-requests.post(slack_webhook, json={"text": "Hello from CI"})
+# FLAGGED: a real team id, bot id and 24-character secret
+WEBHOOK = "https://hooks.slack.com/services/T4Q7ZK2M9/B07H3RJ5WQ2/<24-character secret>"
+requests.post(WEBHOOK, json={"text": text})
+
+# NOT FLAGGED: the documentation placeholder, or the URL read at runtime
+WEBHOOK = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+WEBHOOK = os.environ["SLACK_WEBHOOK_URL"]
 ```
 
 ## Remediation

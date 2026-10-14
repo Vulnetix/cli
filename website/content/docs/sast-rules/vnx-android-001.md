@@ -1,11 +1,11 @@
 ---
-title: "VNX-ANDROID-001 – Android Insecure Manifest Configuration"
-description: "Detects insecure AndroidManifest.xml settings such as android:debuggable='true' and android:allowBackup='true' that expose apps to debugging attacks and data extraction."
+title: "VNX-ANDROID-001 – Android App Shipped Debuggable or With Unrestricted Backup"
+description: "Detects a production Android build made debuggable (android:debuggable=\"true\" in AndroidManifest.xml, or debuggable / isDebuggable in the release build type) and android:allowBackup=\"true\" on an application with no backup or data-extraction rules."
 ---
 
 ## Overview
 
-This rule detects dangerous configuration flags in `AndroidManifest.xml` that are commonly enabled during development but must be disabled before shipping to production. Flags such as `android:debuggable="true"`, `android:allowBackup="true"`, `android:usesCleartextTraffic="true"`, and `android:exported="true"` each widen the attack surface of the application in distinct ways. Taken together, they represent a class of misconfiguration vulnerabilities covered by CWE-489 (Active Debug Code) and CWE-921 (Storage of Sensitive Data in a Mechanism without Access Control).
+This rule reports two production-hardening mistakes in an Android app: a debuggable release build, and an app that lets the platform back up all of its private data. They are covered by CWE-489 (Active Debug Code) and CWE-921 (Storage of Sensitive Data in a Mechanism without Access Control). Exported components are reported by [VNX-ANDROID-003](../vnx-android-003/) and cleartext traffic (`android:usesCleartextTraffic`) by [VNX-ANDROID-005](../vnx-android-005/).
 
 **Severity:** High | **CWE:** [CWE-489 – Active Debug Code](https://cwe.mitre.org/data/definitions/489.html), [CWE-921 – Storage of Sensitive Data in a Mechanism without Access Control](https://cwe.mitre.org/data/definitions/921.html)
 
@@ -13,27 +13,34 @@ This rule detects dangerous configuration flags in `AndroidManifest.xml` that ar
 
 When `android:debuggable="true"` is present in a production APK, any user with `adb` access — or any app running with `android.permission.GET_TASKS` — can attach a debugger to the process, inspect heap memory, override method return values, and exfiltrate secrets. The 2012 Skype Android data-leakage incident and several banking-trojan campaigns have exploited debuggable flags left in production releases.
 
-`android:allowBackup="true"` lets any computer with `adb` execute `adb backup` against the app without root, pulling the entire private data directory — databases, tokens, session cookies — onto the attacker's machine. `android:usesCleartextTraffic="true"` permits HTTP connections, exposing data in transit to network-level interception. `android:exported="true"` on Activities, Services, or BroadcastReceivers allows other apps to invoke them without permission checks, enabling privilege escalation and data theft.
+`android:allowBackup="true"` with no backup rules copies the entire private data directory (databases, tokens, session cookies, shared preferences) into cloud backups and device-to-device transfers, and on older platform versions lets any computer with `adb` pull it with `adb backup` without root.
 
 ## What Gets Flagged
 
-The rule scans every file in the project for the four indicator strings. Any line containing one of these strings in any file will produce a finding, making it effective for detecting manifest flags that may be templated, generated, or duplicated across modules.
+- `android:debuggable="true"` in an `AndroidManifest.xml`.
+- `debuggable true` (Groovy) or `isDebuggable = true` (Kotlin DSL) inside the `release` build type of `build.gradle` or `build.gradle.kts`.
+- `android:allowBackup="true"` on an `<application>` that declares neither `android:fullBackupContent` nor `android:dataExtractionRules`.
 
 ```xml
-<!-- FLAGGED: debuggable flag left on for production -->
+<!-- FLAGGED: both attributes, and no backup rules -->
 <application
-    android:debuggable="true"
+    android:name=".WalletApp"
     android:allowBackup="true"
-    android:usesCleartextTraffic="true"
-    ... >
+    android:debuggable="true"
+    android:label="@string/app_name">
 ```
 
-```xml
-<!-- FLAGGED: component exported without explicit permission -->
-<activity
-    android:name=".DeepLinkActivity"
-    android:exported="true" />
+```kotlin
+// FLAGGED: the release build type is debuggable
+buildTypes {
+    getByName("release") {
+        isMinifyEnabled = true
+        isDebuggable = true
+    }
+}
 ```
+
+Not flagged: `false` or `${placeholder}` values; `allowBackup="true"` together with `fullBackupContent` or `dataExtractionRules` (the rules decide what is excluded); the `debug` and other build types; manifests in `src/debug`, `src/androidTest` and `src/test`; test, sample, example and demo modules; XML comments; the attribute text inside Java or Kotlin strings. An omitted `allowBackup` (which defaults to true) is not reported.
 
 ## Remediation
 
@@ -50,7 +57,7 @@ The rule scans every file in the project for the four indicator strings. Any lin
    }
    ```
 
-2. **Disable backup or define a backup rules file.** Set `android:allowBackup="false"` unless cloud backup is a deliberate product feature. If you need selective backup, use `android:fullBackupContent` with an XML rules file that excludes sensitive files.
+2. **Disable backup or define a backup rules file.** Set `android:allowBackup="false"` unless cloud backup is a deliberate product feature. If you need selective backup, use `android:dataExtractionRules` (API 31+) and `android:fullBackupContent` with XML rules files that exclude sensitive files.
 
    ```xml
    <!-- SAFE: backup disabled for sensitive apps -->
@@ -60,11 +67,7 @@ The rule scans every file in the project for the four indicator strings. Any lin
        ... >
    ```
 
-3. **Remove `android:usesCleartextTraffic="true"`.** Define a Network Security Configuration file instead, and whitelist only the specific domains that require cleartext (none, ideally).
-
-4. **Lock down exported components.** Only set `android:exported="true"` on components that genuinely need to be invoked by other apps. Add `android:permission` to require a declared permission, and use intent filters carefully — any component with an intent filter defaults to exported on API level < 31.
-
-5. **Automate enforcement.** Add a lint rule or a build script assertion that fails the build if the release APK manifest contains `debuggable=true` or `allowBackup=true`. The Android Gradle plugin will also emit warnings for these flags.
+3. **Automate enforcement.** Add a lint rule or a build script assertion that fails the build if the release APK manifest contains `debuggable=true` or `allowBackup=true`. The Android Gradle plugin will also emit warnings for these flags.
 
 ## References
 

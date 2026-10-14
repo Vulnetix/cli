@@ -1,0 +1,6 @@
+~>{
+  "require": {
+    "monolog/monolog": "^3.5",
+    "symfony/http-foundation": "~7.0"
+  }
+}

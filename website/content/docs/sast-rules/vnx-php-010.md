@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-010 – PHP Type Juggling in Comparison"
-description: "Detect loose comparisons (==) between user-supplied input and application values in PHP, which are vulnerable to type juggling attacks including authentication bypass via magic hash strings."
+description: "Detects loose comparisons (==, !=, <>) that decide an authentication or integrity check: a hash result compared with a variable or a 0e literal, user input compared with a non-literal secret value, and strcmp() of user input tested with == 0 or negation. Strict comparisons, hash_equals(), password_verify() and input compared with a constant are not reported."
 ---
 
 ## Overview
@@ -23,29 +23,28 @@ Beyond magic hashes, loose comparison enables:
 
 ## What Gets Flagged
 
-The rule matches `.php` files where a superglobal value is on either side of a `==` operator.
+The rule matches `.php` files where a loose comparison decides a check an attacker can pass through type juggling:
+
+1. the result of `md5()`, `sha1()`, `hash()`, `hash_hmac()`, `crypt()` or a `*_file()` hash compared with a variable, call or property, or with a `'0e<digits>'` literal;
+2. user input (a superglobal element, or a variable assigned directly from one, from `json_decode()`, `php://input` or `$request->input()` within the 30 lines above) compared with a variable, call or property when either side names a secret (password, token, secret, hash, signature, hmac, otp, nonce, csrf, api key, auth, digest, code, pin);
+3. `strcmp()`/`strcasecmp()`/`strncmp()` of user input whose result is compared loosely with `0` or negated (an array argument makes it return `NULL`).
 
 ```php
-// FLAGGED: token comparison with loose equality — vulnerable to type juggling
-if ($_GET['token'] == $expected_token) {
-    // grant access
-}
+// FLAGGED: user input against a stored secret
+if ($_POST['password'] == $row['password']) { login($row); }
 
-// FLAGGED: password hash comparison with ==
-if (md5($_POST['password']) == $stored_hash) {
-    // magic hash bypass possible
-}
+// FLAGGED: magic hash — two different '0e...' digests compare equal
+if (md5($plain) == $stored) { return true; }
 
-// FLAGGED: admin check with loose comparison
-if ($_COOKIE['role'] == 1) {
-    $is_admin = true;
-}
+// FLAGGED: JSON true equals any non-empty string
+$data = json_decode(file_get_contents('php://input'));
+if ($data->secret == $secret) { process($data); }
 
-// FLAGGED: reversed form — same problem
-if ($secret == $_REQUEST['key']) {
-    // proceed
-}
+// FLAGGED: strcmp(array, ...) returns NULL, and NULL == 0
+if (strcmp($_POST['password'], $adminPassword) == 0) { grant(); }
 ```
+
+Not flagged: `===`/`!==`, `hash_equals()`, `password_verify()`, user input compared with a constant literal such as `$_POST['step'] == '1'` (a request value is always a string, so a non-numeric literal does not juggle), two user values compared with each other (a password confirmation), and comparisons of names that do not denote a secret.
 
 ## Remediation
 

@@ -26,16 +26,17 @@ _pattern := `(?i)klaviyo[a-z0-9_]*(?:company[_-]?id|public[_-]?key|site[_-]?id)\
 _keywords := ["klaviyo", "company"]
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	secrets.has_keyword(content, _keywords)
+	lines := split(content, "\n")
 	some i, line in lines
 	secrets.has_keyword(line, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]
 	not secrets.is_example_token(token)
-	secrets.high_entropy(token, 3.5)
+	secrets.high_entropy(token, 2.2)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Klaviyo company id found; this is a public identifier, ensure no private pk_ key was also exposed",

@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-010 – Spring CSRF Protection Disabled"
-description: "Detects Spring Security configurations that call csrf().disable() or use equivalent patterns to turn off Cross-Site Request Forgery protection, exposing authenticated users to state-change attacks."
+description: "Reports Spring Security configurations that switch CSRF protection off for browser-facing applications: csrf().disable(), csrf(c -> c.disable()), csrf(AbstractHttpConfigurer::disable), WebFlux CsrfSpec::disable, CSRF ignored for every path, and csrf disabled=true in XML configuration. Stateless bearer-token APIs and test configurations are not reported."
 ---
 
 ## Overview
@@ -19,7 +19,7 @@ Practical consequences include account takeover (an attacker can change a victim
 
 ## What Gets Flagged
 
-Any `.java` file containing one of the CSRF disable patterns.
+A Java security configuration (or Spring Security XML file) that turns CSRF protection off, including the `.csrf()` and `.disable()` calls split over two lines. Exempting specific paths, a configuration in the same file that is stateless (`SessionCreationPolicy.STATELESS`) and authenticates with bearer tokens or JWTs, and test configurations are not reported.
 
 ```java
 // FLAGGED: legacy Spring Security API
@@ -31,8 +31,8 @@ http.csrf(csrf -> csrf.disable());
 // FLAGGED: method reference form
 http.csrf(AbstractHttpConfigurer::disable);
 
-// FLAGGED: partially disabled (still creates a vulnerability surface)
-http.csrf().ignoringAntMatchers("/api/**");
+// FLAGGED: CSRF ignored for every path (ignoring one webhook path is not reported)
+http.csrf().ignoringAntMatchers("/**");
 ```
 
 ## Remediation

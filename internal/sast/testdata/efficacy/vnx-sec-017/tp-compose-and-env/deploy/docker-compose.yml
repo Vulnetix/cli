@@ -1,0 +1,7 @@
+services:
+  worker:
+    image: acme/worker:1.4
+    environment:
+~>      - BROKER_URL=amqp://worker:hunter2@rabbitmq:5672/
+~>      - LDAP_URL=ldap://ldap.acme.internal
+      - CACHE_URL=redis://redis:6379/1

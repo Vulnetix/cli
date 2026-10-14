@@ -1,13 +1,13 @@
 ---
 title: "VNX-NODE-019 – Hardcoded JWT or Session Secret"
-description: "Detects hardcoded string literals used as JWT signing secrets, session secrets, or HMAC keys instead of environment variables or a secrets manager."
+description: "Reports a string literal used as the key of jwt.sign/verify, session/JWT middleware, cookieParser or createHmac, directly or through a constant, and literal jwtSecret/sessionSecret-style config values. Not reported: env or config lookups, env fallbacks, tests, examples/ and comments."
 ---
 
 ## Overview
 
 This rule flags hardcoded string literals passed as cryptographic secrets to `jwt.sign()`, `jwt.verify()`, `express-session`'s `secret:` configuration option, or `crypto.createHmac()`. A hardcoded secret is one embedded directly in source code as a quoted string rather than loaded at runtime from an environment variable (`process.env.SECRET_NAME`) or a secrets manager (AWS Secrets Manager, HashiCorp Vault, etc.).
 
-The rule matches `jwt.sign(payload, 'literal-string')` and `jwt.verify(token, 'literal-string')`, `secret: 'literal-string'` in any session or cookie configuration, and `crypto.createHmac('sha256', 'literal-key')`. It excludes lines that reference `process.env` (a variable load) and comment lines.
+The rule matches `jwt.sign(payload, 'literal')` and `jwt.verify(token, 'literal')` (also when the call spans lines); `secret`, `secretOrKey` or `secretOrPrivateKey` given a literal inside express-session, cookie-session, express-jwt, koa-jwt, @fastify/jwt, NestJS `JwtModule.register` or a passport-jwt `Strategy`; `cookieParser('literal')`; `crypto.createHmac(alg, 'literal')`; a `const` holding a literal that one of those calls uses as its key (reported at the assignment); and a property or variable named `jwtSecret`, `sessionSecret`, `cookieSecret`, `tokenSecret`, `authSecret`, `signingSecret` or `JWT_KEY` set to a literal. It does not report keys read from `process.env` or a config object, the literal fallback in `process.env.X || '...'`, an empty string, TOTP secrets, test files, `examples/` directories, comments, or calls written inside a string literal. VNX-JWT-003 overlaps on `jwt.sign`.
 
 Hardcoded secrets are functionally equivalent to no secret at all for anyone with read access to the repository. Every JWT the application signs with a known secret can be forged, every session can be hijacked, and every HMAC can be replicated by an attacker who has recovered the key from source code.
 
@@ -37,8 +37,20 @@ app.use(session({
   saveUninitialized: false,
 }));
 
-// FLAGGED: hardcoded HMAC key
+// FLAGGED: hardcoded HMAC key and cookie-signing secret
 const hmac = crypto.createHmac('sha256', 'static-key');
+app.use(cookieParser('cookie-signing-secret'));
+
+// FLAGGED (at the assignment): a constant used as the key
+const SIGNING_KEY = 'b2c4e6f8a0-signing';
+jwt.sign({ sub: userId }, SIGNING_KEY);
+
+// FLAGGED: config value named for the purpose
+module.exports = { cookieSecret: 'session_cookie_secret_value' };
+
+// Not flagged
+app.use(session({ secret: process.env.SESSION_SECRET }));
+generateSync({ secret: user.totpSecret });
 ```
 
 ## Remediation

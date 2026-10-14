@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-009 – PHP preg_replace() with /e Modifier"
-description: "Detect use of the /e (eval) modifier in preg_replace() calls, which evaluates the replacement string as PHP code and enables remote code execution. This modifier was deprecated in PHP 5.5 and removed in PHP 7.0."
+description: "Detects preg_replace() and preg_filter() calls whose pattern literal (inline, split across lines, in an array of patterns, or in a variable assigned just above) carries the e modifier, which evaluates the replacement as PHP code. preg_replace_callback(), patterns without e and the call inside a comment or string are not reported."
 ---
 
 ## Overview
@@ -19,9 +19,13 @@ Legacy PHP 5 applications are the primary target, but `/e` usage also appears in
 
 ## What Gets Flagged
 
-The rule matches `.php` files where `preg_replace()` is called with a pattern string that includes the `e` modifier flag.
+The rule matches `.php` files where `preg_replace()` or `preg_filter()` is given a pattern literal whose closing delimiter (any delimiter, including `{}` pairs) is followed only by valid PCRE modifiers that include `e`. The pattern may be inline, on the next lines of a call broken across lines, in an array of patterns, or in a variable assigned within the 15 lines above. Not flagged: `preg_replace_callback()`, patterns such as `'/edit/'` whose trailing text is not a modifier list, and the call inside a comment or string literal.
 
 ```php
+// FLAGGED: the pattern comes from a variable assigned just above
+$pattern = '/:(\w+):/e';
+return preg_replace($pattern, 'smiley_html("$1")', $text);
+
 // FLAGGED: /e modifier evaluates replacement as PHP code
 $output = preg_replace('/\[b\](.*?)\[\/b\]/e', '"<b>".$1."</b>"', $user_input);
 

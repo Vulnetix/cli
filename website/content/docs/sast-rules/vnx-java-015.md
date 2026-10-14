@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-015 – Java JPQL/HQL Injection via String Concatenation"
-description: "Detect Java code that builds JPQL, HQL, or native SQL queries using string concatenation or String.format() in EntityManager.createQuery() or Session.createQuery(), enabling query injection attacks that can expose, modify, or delete data."
+description: "Reports EntityManager and Hibernate Session createQuery/createNativeQuery calls whose JPQL, HQL or SQL text carries HTTP request data, or concatenates a String method parameter into a value position, directly or through a local built a few lines above. Named and positional parameters, constants and entity names are not reported."
 ---
 
 ## Overview
@@ -37,10 +37,10 @@ can close the literal, append `OR '1'='1`, and return every user in the table. W
 String name = request.getParameter("name");
 em.createQuery("SELECT u FROM User u WHERE u.name = '" + name + "'");
 
-// FLAGGED: String.format() used to build query
+// FLAGGED: String.format() with a JAX-RS query parameter (@QueryParam("id") String id)
 em.createNativeQuery(String.format("SELECT * FROM users WHERE id = %s", id));
 
-// FLAGGED: HQL concatenation via Hibernate Session
+// FLAGGED: HQL concatenation of a repository method parameter (findByOwner(String username))
 session.createQuery("FROM Account WHERE owner = '" + username + "'");
 ```
 

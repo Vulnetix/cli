@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-015 – PHP Unrestricted File Upload via move_uploaded_file"
-description: "Detects move_uploaded_file() usage, which requires review to confirm that MIME type, file extension, content, upload destination, and filename are all validated to prevent webshell upload and remote code execution."
+description: "Detects uploads stored under a client-chosen name with no extension allowlist: move_uploaded_file() whose destination contains $_FILES[...]['name'] or request input (directly or through variables built from it), and UploadedFile move()/storeAs() given getClientOriginalName(). An extension check against an allowlist, or a generated name, suppresses the finding; a client MIME-type check does not."
 ---
 
 ## Overview
@@ -29,23 +29,32 @@ Bypassing naive upload validation is straightforward and well-documented:
 
 ## What Gets Flagged
 
-The rule matches every call to `move_uploaded_file(` in `.php` files, regardless of surrounding context, because each one requires individual verification that all safeguards are present.
+The rule matches `move_uploaded_file()` whose destination (the second argument) contains `$_FILES[...]['name']`, a `$_GET`/`$_POST`/`$_REQUEST`/`$_COOKIE` value, or a variable built from one within the 40 lines above, and Laravel/Symfony `->move()`/`->storeAs()`/`->storePubliclyAs()` given `getClientOriginalName()`. The call is treated as validated, and not flagged, when the 40 lines above extract the extension (`pathinfo(..., PATHINFO_EXTENSION)`, `strrpos`/`strrchr`/`explode` on `'.'`, `getClientOriginalExtension()`) and compare it with an allowlist, or `preg_match()` the name against an extension pattern.
 
 ```php
 // FLAGGED: user-supplied filename used as destination — webshell upload risk
 $destination = '/var/www/uploads/' . $_FILES['file']['name'];
 move_uploaded_file($_FILES['file']['tmp_name'], $destination);
 
-// FLAGGED: destination inside web root with no content validation visible
-$uploadDir = __DIR__ . '/uploads/';
-move_uploaded_file($_FILES['avatar']['tmp_name'], $uploadDir . $_FILES['avatar']['name']);
-
-// FLAGGED (even with some validation): requires confirmation all five checks are present
-$ext = pathinfo($_FILES['doc']['name'], PATHINFO_EXTENSION);
-if ($ext === 'pdf') {
-    move_uploaded_file($_FILES['doc']['tmp_name'], '/uploads/' . $_FILES['doc']['name']);
+// FLAGGED: the client's MIME type is not validation; the name keeps .php
+$target = "uploads/" . basename($_FILES['uploaded']['name']);
+if ($_FILES['uploaded']['type'] == "image/jpeg") {
+    move_uploaded_file($_FILES['uploaded']['tmp_name'], $target);
 }
+
+// FLAGGED: Laravel keeps the original client name
+$file->move(public_path('uploads'), $file->getClientOriginalName());
+
+// NOT FLAGGED: extension allowlisted before the move
+$ext = strtolower(pathinfo($_FILES['doc']['name'], PATHINFO_EXTENSION));
+if (!in_array($ext, ['pdf', 'txt'], true)) { exit; }
+move_uploaded_file($_FILES['doc']['tmp_name'], 'docs/' . $_FILES['doc']['name']);
+
+// NOT FLAGGED: the stored name is generated server-side
+move_uploaded_file($_FILES['img']['tmp_name'], '/var/uploads/' . bin2hex(random_bytes(16)) . '.png');
 ```
+
+Whether the destination is outside the web root is not judged.
 
 ## Remediation
 

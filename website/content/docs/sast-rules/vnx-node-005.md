@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-005 – innerHTML or dangerouslySetInnerHTML Usage"
-description: "Detects innerHTML assignment and React's dangerouslySetInnerHTML, which enable cross-site scripting (XSS) when used with unsanitized user-controlled content."
+description: "Reports HTML written into the DOM from a non-constant value (innerHTML/outerHTML assignment, insertAdjacentHTML, document.write, React dangerouslySetInnerHTML) that is not sanitized."
 ---
 
 ## Overview
@@ -17,17 +17,24 @@ React specifically named its prop `dangerouslySetInnerHTML` to make developers p
 
 ## What Gets Flagged
 
-The rule matches `dangerouslySetInnerHTML` (any occurrence) and `.innerHTML =` assignments in JS/TS/JSX/TSX files.
-
 ```javascript
-// FLAGGED: dangerouslySetInnerHTML with dynamic content
-function Comment({ text }) {
-  return <div dangerouslySetInnerHTML={{ __html: text }} />;
-}
+// FLAGGED: URL data into innerHTML
+document.getElementById('results-title').innerHTML = term;
 
-// FLAGGED: innerHTML assignment
-document.getElementById('preview').innerHTML = userInput;
+// FLAGGED: template literal / concatenation
+el.innerHTML = `<h2>${user.name}</h2>`;
+list.innerHTML += "<li>" + text + "</li>";
+
+// FLAGGED: other HTML sinks
+node.outerHTML = html;
+container.insertAdjacentHTML('beforeend', `<div>${message}</div>`);
+document.write("<a href='" + ref + "'>back</a>");
+
+// FLAGGED: React prop, also when split over lines
+<div dangerouslySetInnerHTML={{ __html: body }} />
 ```
+
+Not flagged: string literals without interpolation (`el.innerHTML = ''`), ALL_CAPS constants (`el.innerHTML = SPINNER_SVG`), copying another element's `innerHTML`, values passed through `DOMPurify.sanitize`, `sanitize-html` or an escape/encode helper, reads and comparisons of `innerHTML`, `textContent`/`innerText`, comments and strings, minified and vendored files (`vendor/`, `libs/`, `plugins/`, `jquery*.js`).
 
 ## Remediation
 

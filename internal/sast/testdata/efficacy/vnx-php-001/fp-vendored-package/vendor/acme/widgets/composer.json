@@ -1,0 +1,4 @@
+{
+    "type": "project",
+    "require": { "nesbot/carbon": "^3.0" }
+}

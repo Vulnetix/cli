@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-025 – PHP deprecated mcrypt encryption functions"
-description: "Detects use of the mcrypt extension functions (mcrypt_encrypt, mcrypt_decrypt, etc.), which were deprecated in PHP 7.1 and removed in PHP 7.2 due to their insecure cipher implementations and unmaintained codebase."
+description: "Reports calls to the PHP mcrypt functions that encrypt, decrypt or set up a cipher (mcrypt_encrypt/decrypt, mcrypt_cbc/cfb/ecb/ofb, mcrypt_module_open, mcrypt_generic, mdecrypt_generic, mcrypt_create_iv), directly or through call_user_func. Sizing and teardown helpers, same-named methods, polyfill definitions and mentions in strings or comments are not reported."
 ---
 
 ## Overview
@@ -30,11 +30,16 @@ $encrypted = mcrypt_encrypt(MCRYPT_DES, $key, $plaintext, MCRYPT_MODE_CBC, $iv);
 // FLAGGED: mcrypt_decrypt
 $plaintext = mcrypt_decrypt(MCRYPT_RIJNDAEL_128, $key, $ciphertext, MCRYPT_MODE_ECB);
 
-// FLAGGED: mcrypt generic interface
+// FLAGGED: mcrypt generic interface (module_open and generic; the init call is not reported separately)
 $module = mcrypt_module_open(MCRYPT_BLOWFISH, '', MCRYPT_MODE_CBC, '');
 mcrypt_generic_init($module, $key, $iv);
 $encrypted = mcrypt_generic($module, $data);
+
+// FLAGGED: called by name
+return call_user_func('mcrypt_decrypt', MCRYPT_RIJNDAEL_256, $key, $data, MCRYPT_MODE_CBC, $iv);
 ```
+
+Not flagged: `function_exists('mcrypt_encrypt')`, `$this->mcrypt_encrypt(...)` on a class of your own, a polyfill `function mcrypt_encrypt(...)` definition, and `mcrypt_get_iv_size()` / `mcrypt_module_close()` helpers.
 
 ## Remediation
 

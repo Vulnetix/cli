@@ -1,11 +1,11 @@
 ---
 title: "VNX-NODE-011 – Node.js Server-Side Template Injection"
-description: "Detects user input passed as the template string to render/compile functions in ejs, pug, Handlebars, or nunjucks, enabling server-side template injection and remote code execution."
+description: "Reports a template engine (ejs, pug/jade, Handlebars, nunjucks, lodash _.template, doT, Mustache, Eta, Squirrelly, swig) compiling or rendering a template source taken from req.query/body/params or Koa ctx, directly or through a variable or a concatenation built from one. User data passed as the render context is not reported."
 ---
 
 ## Overview
 
-This rule detects cases where user-controlled request data (`req.*` or `request.*`) is passed as the first argument to template engine `render` or `compile` functions — `ejs.render()`, `pug.render()`, `Handlebars.compile()`, `nunjucks.renderString()`, `new Function()`, or `eval()`. When a user can control the template string itself (rather than just the data bound into the template), they can embed template directives that execute arbitrary server-side code. This is CWE-1336 (Improper Neutralization of Special Elements Used in a Template Engine).
+This rule detects cases where user-controlled request data (`req.*` or `request.*`) is passed as the first argument to template engine `render` or `compile` functions — `ejs.render()`, `pug.render()`, `Handlebars.compile()`, `nunjucks.renderString()`, lodash `_.template()`, doT, Mustache, Eta and swig, either directly or through a variable or concatenation built from the request a few lines above. When a user can control the template string itself (rather than just the data bound into the template), they can embed template directives that execute arbitrary server-side code. This is CWE-1336 (Improper Neutralization of Special Elements Used in a Template Engine).
 
 **Severity:** Critical | **CWE:** [CWE-1336 – Improper Neutralization of Special Elements Used in a Template Engine](https://cwe.mitre.org/data/definitions/1336.html)
 
@@ -17,23 +17,21 @@ This is a common mistake in applications that offer users a "custom email templa
 
 ## What Gets Flagged
 
-The rule matches lines where `ejs.render(req.`, `pug.render(req.`, `Handlebars.compile(req.`, `nunjucks.renderString(req.`, `new Function(req.`, or `eval(req.` appear (also `request.` variants).
+The template source (the first argument of `render`, `compile` or `renderString`) must come from the request. Data passed as the second, context argument is the safe use and is not reported.
 
 ```javascript
-// FLAGGED: user input as EJS template string
-app.post('/preview', (req, res) => {
-  const rendered = ejs.render(req.body.template, { user: currentUser });
-  res.send(rendered);
-});
+// FLAGGED: the client supplies the template
+res.send(ejs.render(req.body.template, { user: req.user }));
+res.send(pug.render(req.query.tpl));
+const fn = Handlebars.compile(req.body.layout);
 
-// FLAGGED: user input compiled by Handlebars
-app.post('/email-preview', (req, res) => {
-  const template = Handlebars.compile(req.body.template);
-  res.send(template({ name: 'Test' }));
-});
+// FLAGGED: template built from request input
+const name = req.query.name;
+const tpl = 'Hello ' + name + '!';
+res.send(nunjucks.renderString(tpl, {}));
 ```
 
-Payload: `<%= require('child_process').execSync('cat /etc/passwd').toString() %>` — the server returns the contents of `/etc/passwd`.
+Not flagged: `res.render('profile', { name: req.query.name })`, `ejs.render(fileTemplate, { user: req.body })`, `pug.renderFile(...)`, and constant templates such as `nunjucks.renderString('Hello {{ name }}', { name: req.query.name })`. `eval()` and `new Function()` are VNX-NODE-002.
 
 ## Remediation
 

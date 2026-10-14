@@ -1,11 +1,21 @@
 ---
 title: "VNX-SEC-052 – Artifactory / JFrog API Key"
-description: "Detects Artifactory and JFrog API keys (AKCp or cmVmd prefix) hardcoded in source code."
+description: "Reports a JFrog Artifactory API key (AKCp + 69 alphanumerics) or reference token (cmVmd + 59 alphanumerics) as a whole token in any file; lookalikes inside longer base64 runs and placeholders are not reported."
 ---
 
 ## Overview
 
-This rule detects artifactory / jfrog api key matching the `AKCp..., cmVmd...` pattern hardcoded anywhere in source files. Detects Artifactory and JFrog API keys (AKCp or cmVmd prefix) hardcoded in source code.
+This rule reports a JFrog Artifactory credential as a whole token: a legacy API key (`AKCp` followed by 69 letters and digits) or a reference/access token (`cmVmd` followed by 59 letters and digits). Typical places are `.npmrc`, `gradle.properties`, an `X-JFrog-Art-Api` header or a Bearer header. The prefix inside a longer alphanumeric run (base64 data), shorter lookalikes, placeholder bodies, environment references and test paths are not reported.
+
+### What Gets Flagged
+
+```ini
+//acme.jfrog.io/artifactory/api/npm/npm-virtual/:_password=AKCp<69 characters>
+```
+
+```python
+TOKEN = "cmVmdGtuOjAx<52 characters>"
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

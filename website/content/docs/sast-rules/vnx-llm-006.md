@@ -1,13 +1,13 @@
 ---
 title: "VNX-LLM-006 – LLM Output Interpolated into SQL Query"
-description: "Detects LLM completion output used directly in SQL query construction via f-strings or string concatenation, creating a SQL injection vulnerability that can be triggered by prompt injection."
+description: "Reports LLM response text, read directly or through up to two assignments, executed as SQL or interpolated into a query at execute(), text(), raw(), read_sql() or SQLDatabase.run()."
 ---
 
 ## Overview
 
 SQL injection via LLM output is a two-stage attack that combines prompt injection with a classic SQL injection vulnerability. The first stage: an attacker injects instructions into any input the LLM processes, directing the model to produce SQL-fragment output. The second stage: that output is interpolated directly into a `cursor.execute()` call, executing attacker-controlled SQL against the database. This is CWE-89 (SQL Injection), with the novel wrinkle that the injection source is the model's own output rather than a raw request parameter.
 
-This rule flags three patterns in Python files: `cursor.execute()` calls where the SQL string is constructed with an f-string; `cursor.execute()` calls where the SQL string is assembled with string concatenation; and lines containing `.choices[0].message.content` (OpenAI completion output) immediately followed by a `cursor.execute()` call on the next line. All three patterns indicate that model output may flow into SQL without parameterisation.
+This rule flags Python code where the text of an LLM response (`.choices[0].message.content`, `.content[0].text`, the result of `llm.invoke()` and similar), read directly or through up to two assignments, is executed as SQL or interpolated into a query at `.execute()`, `.executescript()`, SQLAlchemy `text()`, Django `.raw()`, `pandas.read_sql()` or LangChain `SQLDatabase.run()`. SQL built from ordinary request values is left to VNX-89.
 
 Even in the absence of a prompt injection attack, interpolating LLM output into SQL is dangerous because the model can produce unexpected output due to hallucination or ambiguous prompts. Parameterised queries are the correct defence in all cases.
 
@@ -23,18 +23,28 @@ The impact of SQL injection is well understood: full database read/write access,
 
 ## What Gets Flagged
 
+The text of an LLM response, used directly or through up to two assignments, executed as SQL or interpolated into a query at `.execute()`, `.executescript()`, `.execute(text(...))`, Django `.raw()`, `pandas.read_sql()` or LangChain `db.run()`.
+
 ```python
-# FLAGGED: f-string SQL with potential LLM output
-sql_query = llm_response.choices[0].message.content
-cursor.execute(f"SELECT * FROM orders WHERE {sql_query}")
-
-# FLAGGED: string concatenation SQL
-cursor.execute("SELECT * FROM users WHERE name = " + llm_output)
-
-# FLAGGED: LLM output on line before cursor.execute
-result = response.choices[0].message.content
-cursor.execute(result)
+# FLAGGED: text-to-SQL output executed
+sql = resp.choices[0].message.content.strip()
+cursor.execute(sql)
 ```
+
+```python
+# FLAGGED: model-written WHERE clause interpolated
+where_clause = msg.content[0].text
+cur.execute(f"SELECT id, name FROM orders WHERE {where_clause}")
+```
+
+```python
+# FLAGGED: SQLAlchemy and pandas
+generated = llm.invoke(f"SQL for: {question}").content
+rows = conn.execute(text(generated)).fetchall()
+frame = pd.read_sql(generated, engine)
+```
+
+Not flagged: model output passed as a bound parameter (`cur.execute("... WHERE name = ?", (name,))`), and SQL built from values that do not come from a model response (VNX-89 covers ordinary SQL injection).
 
 ## Remediation
 

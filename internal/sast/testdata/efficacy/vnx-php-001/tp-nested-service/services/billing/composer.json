@@ -1,0 +1,10 @@
+~>{
+    "name": "acme/billing-service",
+    "type": "project",
+    "require": {
+        "stripe/stripe-php": "^13.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    }
+}

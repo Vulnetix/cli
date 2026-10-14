@@ -1,0 +1,7 @@
+{% extends "blog/base.html" %}
+{% block body %}
+~>{% autoescape off %}
+  {{ post.body }}
+{% endautoescape %}
+~>{%- autoescape false %}{{ post.summary }}{% endautoescape %}
+{% endblock %}

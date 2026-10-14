@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-012 – PHP reflected XSS via echo/print of user input"
-description: "Detects user-controlled input from PHP superglobals passed directly to echo, print, or printf without HTML encoding, enabling reflected cross-site scripting attacks."
+description: "Detects request input written into the response without HTML encoding: echo, print, <?= ?>, printf() and die()/exit() of a superglobal or a variable read from one, and an HTML fragment built with such a value (the $html .= pattern). Values passed through htmlspecialchars(), htmlentities(), (int) or json_encode() are not reported."
 ---
 
 ## Overview
@@ -32,7 +32,24 @@ PHP codebases that mix HTML and PHP logic are especially prone to scattered `ech
 
 <!-- FLAGGED: REQUEST data in printf() -->
 <?php printf('<p>Search results for: %s</p>', $_REQUEST['q']); ?>
+
+<!-- FLAGGED: short echo inside an attribute -->
+<input type="text" name="q" value="<?= $_GET['q'] ?>">
 ```
+
+```php
+// FLAGGED: an HTML buffer built from input, printed later
+$html .= '<pre>Hello ' . $_GET['name'] . '</pre>';
+
+// FLAGGED: a variable read from input a few lines above
+$name = str_replace('<script>', '', $_GET['name']);
+$html .= "<pre>Hello {$name}</pre>";
+
+// FLAGGED: client-controlled $_SERVER keys (headers, PHP_SELF, REQUEST_URI)
+echo '<form action="' . $_SERVER['PHP_SELF'] . '">';
+```
+
+Not flagged: `htmlspecialchars()`, `htmlentities()`, `strip_tags()`, `(int)`/`intval()`, `json_encode()` and `urlencode()` around the value, `isset()`/`empty()` tests, server-configured keys such as `$_SERVER['SERVER_NAME']`, and input inside a single-quoted literal. A value passed through a second variable before it is echoed, stored XSS and template engines are not tracked.
 
 Attacker payload in the URL:
 ```

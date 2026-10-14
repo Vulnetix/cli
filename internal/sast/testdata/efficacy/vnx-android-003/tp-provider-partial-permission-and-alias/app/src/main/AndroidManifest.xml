@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.contacts">
+    <permission
+        android:name="com.example.contacts.READ"
+        android:protectionLevel="signature" />
+    <application android:label="Contacts">
+        <!-- Reads need the permission; writes are open to every app. -->
+~>        <provider
+            android:name=".ContactsProvider"
+            android:authorities="com.example.contacts.data"
+            android:readPermission="com.example.contacts.READ"
+            android:exported="true" />
+        <activity android:name=".internal.DebugMenuActivity" android:exported="false" />
+~>        <activity-alias
+            android:name=".DebugMenu"
+            android:targetActivity=".internal.DebugMenuActivity"
+            android:exported="true" />
+    </application>
+</manifest>

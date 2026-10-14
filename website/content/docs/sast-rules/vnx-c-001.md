@@ -1,11 +1,11 @@
 ---
 title: "VNX-C-001 – Use of Unbounded String Copy Function (strcpy/strcat/gets)"
-description: "Detects calls to strcpy, stpcpy, strcat, gets, wcscpy, wcscat, and related unbounded string copy functions in C and C++ code. These functions copy data without checking the destination buffer size, enabling classic stack and heap buffer overflow attacks."
+description: "Reports C and C++ copies of unknown length into a buffer without a size: gets() and _getws() always; strcpy, stpcpy, strcat and their wide, multibyte, TCHAR and lstrcpy/lstrcat forms when the source is not a literal or macro; sprintf/wsprintf with an unbounded %s and vsprintf; scanf-family %s or %[ without a field width. Bounded APIs, measured or size-checked copies, literal sources, declarations and comments are not reported."
 ---
 
 ## Overview
 
-This rule flags any call to the family of C string functions that perform copies or concatenations without a length argument: `strcpy`, `stpcpy`, `strcat`, `gets`, `wcscpy`, `wcpcpy`, `wcscat`, `_mbscpy`, `_mbscat`, and equivalent wide-character variants. The check applies to `.c`, `.h`, `.cpp`, `.cc`, and `.cxx` files and excludes lines that begin with a comment marker.
+This rule reports calls that copy data of unknown length into a buffer that has no size argument. `gets()` and `_getws()` are always reported. `strcpy`, `stpcpy`, `strcat`, `wcscpy`, `wcpcpy`, `wcscat`, `_mbscpy`, `_mbscat`, `_tcscpy`, `_tcscat` and `lstrcpy`/`lstrcat` (A/W) are reported when the source is not a string literal or an upper-case macro constant. `sprintf`/`wsprintf` are reported when their literal format has a `%s` with no precision, `vsprintf` always, and the `scanf` family when a `%s`, `%ls` or `%[` conversion has no field width. It does not report the bounded APIs (`strlcpy`, `strncpy`, `snprintf`, `fgets`, the `_s` functions), `%.Ns`/`%Ns`/`%ms`/`%*s`, a copy whose source length was measured (`strlen(src)`) or whose destination size was compared in the 15 lines above (which covers `malloc(strlen(s) + 1)`), a copy between two fields of the same name, declarations, `#define` redefinitions, methods named like these functions, string literals and comments. It applies to `.c`, `.h`, `.cc`, `.cpp`, `.cxx`, `.hpp`, `.mm` and Objective-C `.m` files.
 
 These functions share a fundamental design flaw: they write into the destination buffer until they encounter a null terminator in the source, with no knowledge of how large the destination buffer is. If the source string is longer than the destination buffer, the function writes past the end of the buffer, corrupting adjacent memory. That corrupted memory may contain return addresses, function pointers, security-critical flags, or other sensitive data.
 
@@ -29,24 +29,29 @@ Exploitation of this class maps to ATT&CK T1203 (Exploitation for Client Executi
 ## What Gets Flagged
 
 ```c
-// FLAGGED: strcpy with user-supplied source, no bounds check
-char buf[64];
-strcpy(buf, user_input);
+// FLAGGED: source from the environment, destination has no size
+const char *home = getenv("HOME");
+strcat(config_path, home);
 
-// FLAGGED: gets reads from stdin with no limit whatsoever
-char line[256];
-gets(line);   // gets() removed from C11; cannot be used safely
+// FLAGGED: unbounded %s into a fixed buffer
+char msg[64];
+sprintf(msg, "login user=%s host=%s", user, host);
 
-// FLAGGED: strcat appends without checking remaining space in destination
-char result[128] = "Hello, ";
-strcat(result, username);
+// FLAGGED: gets() and wide/Windows variants
+gets(line);
+wcscpy(wbuf, wuser);
+lstrcpyA(abuf, ansi);
 
-// FLAGGED: wide-character equivalents carry the same risk
-wchar_t wbuf[64];
-wcscpy(wbuf, wide_input);
+// FLAGGED: scanf %s with no field width
+scanf("%s", name);
+
+// FLAGGED: C++ and wrapped calls
+std::strcpy(record->name, other.c_str());
+strcpy(record->note,
+       input);
 ```
 
-The rule also catches `stpcpy`, `wcpcpy`, `_mbscpy`, and `_mbscat` because these functions carry the same unbounded-copy behaviour.
+Not flagged: `strcpy(buf, "literal")`, `strcpy(dst, DEFAULT_NAME)`, `snprintf(msg, sizeof msg, "%s", user)`, `scanf("%63s", name)`, and a copy preceded by `if (strlen(src) >= sizeof(dst)) return;`.
 
 ## Remediation
 

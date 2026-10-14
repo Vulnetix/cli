@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_php_020
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-PHP-020",
 	"name": "PHP curl SSL certificate verification disabled",
-	"description": "CURLOPT_SSL_VERIFYPEER is set to false or 0, disabling TLS certificate validation for curl requests. This allows man-in-the-middle attackers to intercept or modify HTTPS traffic without detection. Remove the option or set it to true; if using self-signed certs in development, use CURLOPT_CAINFO to specify the CA bundle.",
+	"description": "TLS certificate or hostname verification is switched off for an outgoing HTTPS request: curl_setopt() or a curl_setopt_array() entry setting CURLOPT_SSL_VERIFYPEER or CURLOPT_SSL_VERIFYHOST to false, 0, '0', '' or null; a Guzzle option 'verify' => false (new Client([...]), ->request(), Laravel Http::withOptions()) in a file that uses Guzzle or the Laravel HTTP client; Laravel Http::withoutVerifying(); or a stream context / Symfony HttpClient option 'verify_peer' or 'verify_peer_name' => false. Any network attacker can then present their own certificate and read or alter the traffic. Not reported: verification enabled (true, VERIFYHOST 2, a CA bundle path), a value taken from a variable or configuration, test files, comments and string literals. CURLOPT_SSL_VERIFYHOST 1 is not reported: current libcurl treats it as 2.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-020/",
 	"languages": ["php"],
 	"severity": "high",
@@ -19,34 +21,60 @@ metadata := {
 	"tags": ["tls", "ssl", "curl", "mitm", "php"],
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	endswith(path, ".php")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	contains(line, "CURLOPT_SSL_VERIFYPEER")
-	regex.match(`CURLOPT_SSL_VERIFYPEER\s*,\s*(false|0|FALSE)`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "CURLOPT_SSL_VERIFYPEER disabled; TLS certificate validation is off, enabling MITM attacks — remove this option or set it to true",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+_no_strings(s) := regex.replace(s, `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`, `""`)
+
+# The value position once string literals are blanked: false, null, 0, or a
+# string ('0', '') which curl reads as 0.
+_off := `\s*(?:(?i:false|null)\b|0\b|""\s*[,)\]])`
+
+_curl_re := concat("", [`\\?\bCURLOPT_SSL_VERIFY(?:PEER|HOST)\s*(?:,|=>)`, _off])
+
+_gate_re := `CURLOPT_SSL_VERIFY|['"]verify(_peer|_peer_name)?['"]\s*=>|withoutVerifying`
+
+_guzzle_file_re := `GuzzleHttp|\bHttp::|withOptions\s*\(|new\s+Client\s*\(`
+
+_is("curl", line, _) if {
+	contains(line, "CURLOPT_SSL_VERIFY")
+	regex.match(_curl_re, _no_strings(line))
+}
+
+_is("stream", line, _) if {
+	regex.match(`['"]verify_peer(?:_name)?['"]\s*=>\s*(?i:false)\b`, line)
+	regex.match(`""\s*=>\s*(?i:false)\b`, _no_strings(line))
+}
+
+_is("guzzle", line, content) if {
+	regex.match(`['"]verify['"]\s*=>\s*(?i:false)\b`, line)
+	regex.match(`""\s*=>\s*(?i:false)\b`, _no_strings(line))
+	regex.match(_guzzle_file_re, content)
+}
+
+_is("laravel", line, _) if {
+	contains(line, "withoutVerifying")
+	regex.match(`->\s*withoutVerifying\s*\(|\bHttp::withoutVerifying\s*\(`, _no_strings(line))
+}
+
+_message := {
+	"curl": "CURLOPT_SSL_VERIFYPEER/VERIFYHOST is disabled: curl accepts any certificate, so a network attacker can intercept the request; remove the option (or set VERIFYPEER true, VERIFYHOST 2) and use CURLOPT_CAINFO for a private CA",
+	"guzzle": "Guzzle 'verify' => false disables TLS certificate validation; remove it or pass the path to a CA bundle instead",
+	"laravel": "Http::withoutVerifying() disables TLS certificate validation for this request; remove it or configure a CA bundle with withOptions(['verify' => $path])",
+	"stream": "Stream context 'verify_peer'/'verify_peer_name' => false disables TLS certificate validation; remove it and set 'cafile' for a private CA",
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	endswith(path, ".php")
-	lines := split(input.file_contents[path], "\n")
+	regex.match(_gate_re, content)
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
 	some i, line in lines
-	contains(line, "CURLOPT_SSL_VERIFYHOST")
-	regex.match(`CURLOPT_SSL_VERIFYHOST\s*,\s*(false|0|FALSE)`, line)
+	regex.match(`(?i)verify`, line)
+	not helpers.is_comment_line(line)
+	some kind, _ in _message
+	_is(kind, line, content)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "CURLOPT_SSL_VERIFYHOST disabled; TLS hostname validation is off, enabling MITM attacks — set to 2 (the default) to enforce hostname matching",
+		"message": _message[kind],
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

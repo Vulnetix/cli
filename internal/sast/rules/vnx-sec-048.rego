@@ -1,11 +1,12 @@
 package vulnetix.rules.vnx_sec_048
 
+import data.vulnetix.lib.secrets
 import rego.v1
 
 metadata := {
 	"id": "VNX-SEC-048",
 	"name": "OpenAI project / service / admin key",
-	"description": "An OpenAI project, service account, or admin key (sk-proj-, sk-svcacct-, sk-admin- prefix) was found in source code. These keys grant access to OpenAI APIs and can incur significant cost or expose user data.",
+	"description": "Reports an OpenAI project, service-account or admin key written into a file: sk-proj-, sk-svcacct- or sk-admin- followed by at least 40 base64url characters, standing alone rather than inside a longer identifier. These keys bill the organisation and can read its files, assistants and fine-tunes. The snippet is redacted. Not reported: truncated or elided keys (sk-proj-..., sk-proj-abc), placeholders (xxxx, your-key, EXAMPLE, REPLACE), low-entropy values, keys read from the environment, and test, fixture and vendored paths. Classic sk-...T3BlbkFJ keys are VNX-SEC-251; VNX-SEC-018 and VNX-LLM-003 also report project keys.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-048/",
 	"languages": [],
 	"severity": "critical",
@@ -19,16 +20,22 @@ metadata := {
 	"tags": ["secrets", "openai", "ai", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+_pattern := `(?:^|[^A-Za-z0-9_-])(sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{40,})`
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	regex.match(`sk-(?:proj|svcacct|admin)-`, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`sk-(proj|svcacct|admin)-[A-Za-z0-9_-]{20,}`, line)
+	contains(line, "sk-")
+	m := regex.find_all_string_submatch_n(_pattern, line, 1)
+	count(m) > 0
+	token := m[0][1]
+	regex.match(`[0-9]`, token)
+	regex.match(`[A-Z]`, token)
+	not secrets.is_example_token(token)
+	secrets.high_entropy(token, 3.5)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "OpenAI project/service/admin key found; revoke the key in the OpenAI dashboard",
@@ -36,6 +43,6 @@ findings contains finding if {
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

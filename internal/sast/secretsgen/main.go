@@ -148,11 +148,17 @@ metadata := {
 
 _pattern := ` + "`{{.Pattern}}`" + `
 {{if .HasKeywords}}_keywords := [{{.KeywordList}}]
-
-{{end}}findings contains finding if {
-	some path in object.keys(input.file_contents)
+{{else}}
+# Whole-file gate: the pattern in multi-line mode matches the file whenever it
+# matches any line of it, so a file it cannot match is never split into lines.
+_file_gate := ` + "`(?m){{.Pattern}}`" + `
+{{end}}
+findings contains finding if {
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+{{if .HasKeywords}}	secrets.has_keyword(content, _keywords)
+{{else}}	regex.match(_file_gate, content)
+{{end}}	lines := split(content, "\n")
 	some i, line in lines
 {{if .HasKeywords}}	secrets.has_keyword(line, _keywords)
 {{end}}	m := regex.find_all_string_submatch_n(_pattern, line, 1)

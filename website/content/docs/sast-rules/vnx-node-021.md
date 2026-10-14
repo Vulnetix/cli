@@ -1,11 +1,11 @@
 ---
 title: "VNX-NODE-021 – XXE via libxmljs with noent:true"
-description: "Detects libxmljs or libxmljs2 XML parsing with the noent option set to true, enabling XML External Entity (XXE) attacks that can read arbitrary server files or trigger SSRF."
+description: "Reports noent: true (inline, across lines or in an options object) in files using libxmljs/libxmljs2, and libxml2-wasm's XML_PARSE_NOENT flag. Not reported: noent false or omitted, a noent key in files without libxml, a bare import, comments and strings."
 ---
 
 ## Overview
 
-This rule detects two patterns involving the `libxmljs` and `libxmljs2` Node.js XML parsing libraries: any call that enables external entity expansion via `noent: true`, and any import of these libraries (as a warning, prompting review). When `noent` is set to `true`, the XML parser resolves and expands external entity declarations in the Document Type Definition (DTD), which can reference local file paths or remote URLs.
+This rule reports entity substitution being switched on in a file that uses `libxmljs`, `libxmljs2` or `libxml2-wasm`: a `noent: true` option (in the parse call, on a later line of it, or in an options object passed to it) and the `ParseOption.XML_PARSE_NOENT` flag. Importing the library is not a finding, and neither is a `noent` key in a file that does not use libxml (fast-xml-parser, xml2js and sax never fetch external entities). When `noent` is set to `true`, the XML parser resolves and expands external entity declarations in the Document Type Definition (DTD), which can reference local file paths or remote URLs.
 
 An XML External Entity attack begins with a crafted XML document containing a DTD that declares an entity pointing to a sensitive file (e.g., `file:///etc/passwd`) or a network-accessible service. When the application parses this document with entity expansion enabled, the content of the referenced resource is injected into the XML document body and returned in the response, or processed in a way that leaks it to the attacker.
 
@@ -31,8 +31,18 @@ const doc = libxml.parseXmlString(req.body.xmlData, { noent: true });
 // FLAGGED: parseXml with noent:true on user input
 const doc = libxml.parseXml(xmlBuffer, { noent: true, dtdload: true });
 
-// FLAGGED (warning): libxmljs imported — review all parse calls for noent
-const libxmljs = require('libxmljs2');
+// FLAGGED: the noent line of a multi-line options object
+return libxml.parseXmlString(xml, {
+  dtdload: true,
+  noent: true,
+});
+
+// FLAGGED: libxml2-wasm entity substitution flag
+const option = ParseOption.XML_PARSE_NOENT | ParseOption.XML_PARSE_DTDLOAD;
+
+// Not flagged
+libxml.parseXml(body, { noent: false, nonet: true });
+libxml.parseXmlString(body);
 ```
 
 A malicious XML payload:

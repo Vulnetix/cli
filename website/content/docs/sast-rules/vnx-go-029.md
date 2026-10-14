@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-029 – Hardcoded weak or default password"
-description: "Detects password, passwd, or similar credential variables assigned common weak or default string values such as 'admin', 'password', or '123456'."
+description: "Detects a well-known weak or default password (admin, password, 123456, changeme, postgres...) written into Go source as a credential: a password variable or field, a setter or SetBasicAuth, connection-string userinfo, or an env/flag/viper default."
 ---
 
 ## Overview
@@ -19,26 +19,22 @@ Beyond active exploitation, hardcoded credentials embedded in source code become
 
 ## What Gets Flagged
 
-The rule flags assignments of common weak passwords to credential-named variables:
+A common default password used as a credential.
 
 ```go
-// FLAGGED: default password hardcoded in initialization
-var password = "admin"
+// FLAGGED: password-named constant, map key and struct field
+const defaultPassword = "admin123"
+var creds = map[string]string{"username": "admin", "password": "admin"}
+cfg := DB{User: "sa", Password: "Passw0rd"}
 
-// FLAGGED: weak password in struct literal
-cfg := Config{
-    Username: "admin",
-    Passwd:   "password",
-}
+// FLAGGED: user:password in a connection string
+sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/shop")
 
-// FLAGGED: classic default in function
-func newDBConnection() *sql.DB {
-    pass := "123456"
-    dsn := fmt.Sprintf("user:root password:%s@tcp(localhost)/app", pass)
-    db, _ := sql.Open("mysql", dsn)
-    return db
-}
+// FLAGGED: a weak default for a password flag
+dbPass := flag.String("db-password", "password", "database password")
 ```
+
+Not flagged: field-name constants (`PasswordField = "password"`), empty defaults, environment lookups and `${VAR}` placeholders, deny-lists of common passwords, strong literals (other rules cover hard-coded secrets), test files.
 
 ## Remediation
 

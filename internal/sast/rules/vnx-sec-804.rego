@@ -26,9 +26,10 @@ _pattern := `(?i)zoho[a-z0-9_]*client[_-]?secret\s*[:=]\s*['"]?([a-f0-9]{40,})['
 _keywords := ["zoho", "secret"]
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	secrets.has_keyword(content, _keywords)
+	lines := split(content, "\n")
 	some i, line in lines
 	secrets.has_keyword(line, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)

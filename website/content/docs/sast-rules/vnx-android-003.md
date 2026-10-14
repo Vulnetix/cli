@@ -1,11 +1,11 @@
 ---
 title: "VNX-ANDROID-003 – Android Exported Component Without Permission Check"
-description: "Detects Activity, Service, BroadcastReceiver, or ContentProvider components declared with android:exported='true' in the AndroidManifest without a required permission, allowing any third-party app to invoke them."
+description: "Detects an activity, activity-alias, service, receiver or provider in a production AndroidManifest.xml that is exported (android:exported=\"true\", or an intent-filter with no exported attribute) and requires no permission, excluding components that answer platform actions such as the launcher, deep links and system broadcasts."
 ---
 
 ## Overview
 
-This rule scans `AndroidManifest.xml` for component declarations (`<activity>`, `<service>`, `<receiver>`, `<provider>`) that include `android:exported="true"` without pairing that declaration with an `android:permission` attribute. The rule checks both the component's opening tag and the following eight lines to ensure no permission constraint is present anywhere in the component's attribute block.
+This rule reads each `<activity>`, `<activity-alias>`, `<service>`, `<receiver>` and `<provider>` start tag in a production `AndroidManifest.xml`, wherever its attributes are split across lines, and reports it when it is exported and requires no permission. Exported means `android:exported="true"`, or (for activities, services and receivers) an `<intent-filter>` with no `android:exported` attribute, which exports the component on API 30 and lower. Protected means `android:permission`, or for a provider both `android:readPermission` and `android:writePermission`. Components whose intent filters answer a platform action (`android.*` or `com.google.android.*`: the launcher entry, deep links, share targets, system broadcasts) are public by design and not reported, nor are components with `tools:node="remove"` or `android:enabled="false"`, manifests in debug and test source sets or sample modules, and XML comments. Whether the permission's protection level is strong enough is not judged.
 
 Without a required permission, any application installed on the same device can send an Intent directly to the exported component. There is no OS-level enforcement preventing a malicious or misconfigured app from invoking that Activity, binding to that Service, subscribing to that BroadcastReceiver, or querying that ContentProvider. This vulnerability maps to CWE-926 (Improper Export of Android Application Components).
 
@@ -24,17 +24,27 @@ The CAPEC-1 attack pattern ("Accessing/Intercepting/Modifying HTTP Cookies") and
 ## What Gets Flagged
 
 ```xml
-<!-- FLAGGED: activity exported with no android:permission attribute -->
+<!-- FLAGGED: exported, no permission -->
 <activity
-    android:name=".AdminActivity"
+    android:name=".admin.AdminConsoleActivity"
     android:exported="true" />
 
-<!-- FLAGGED: service exported inline with no permission in the surrounding block -->
-<service
-    android:name=".SyncService"
+<!-- FLAGGED: a custom-action intent filter with no android:exported (exported on API 30 and lower) -->
+<receiver android:name=".sync.SyncTrigger">
+    <intent-filter>
+        <action android:name="com.example.bank.ACTION_SYNC" />
+    </intent-filter>
+</receiver>
+
+<!-- FLAGGED: a provider with only a read permission -->
+<provider
+    android:name=".data.AccountsProvider"
+    android:authorities="com.example.bank.accounts"
     android:exported="true"
-    android:label="Sync" />
+    android:readPermission="com.example.bank.READ_ACCOUNTS" />
 ```
+
+Not flagged: the `android.intent.action.MAIN` launcher activity, a `VIEW`/`BROWSABLE` deep-link activity, or a service with `android:permission="com.example.bank.permission.BIND_SYNC"`.
 
 ## Remediation
 

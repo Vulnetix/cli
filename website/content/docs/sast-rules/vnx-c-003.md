@@ -1,11 +1,11 @@
 ---
 title: "VNX-C-003 – OS Command Injection via system() or popen() with Non-Literal Argument"
-description: "Detects calls to system(), popen(), p2open(), and wordexp() in C and C++ where the command argument is not a string literal. When user-controlled input reaches these shell-invoking functions, an attacker can inject arbitrary OS commands."
+description: "Reports C and C++ calls that hand a non-constant string to a shell (system, popen, _popen, _wsystem, p2open, std::system, execl of sh -c) when the command comes from argv, getenv or input, or was composed nearby with sprintf/snprintf/asprintf %s, strcat/strcpy or C++ string concatenation, and wordexp() without WRDE_NOCMD. Literal commands, exec without a shell, validated or quoted input, wrapper parameters and comments are not reported."
 ---
 
 ## Overview
 
-This rule flags calls to `system()`, `popen()`, `p2open()`, and `wordexp()` in C and C++ files (`.c`, `.h`, `.cpp`, `.cc`, `.cxx`) where the first argument is not a string literal — identified by the absence of a `"` immediately after the opening parenthesis. Commented-out lines are excluded from detection.
+This rule reports calls that pass a command string to a shell (`system`, `popen`, `_popen`, `_wpopen`, `_wsystem`, `p2open`, `std::system`, and `execl`/`execlp`/`execle` of `sh`/`bash`/`zsh`/`dash` with `-c`) when the command is `argv[...]` or `getenv(...)`, a variable read from `getenv`, `argv`, `readline`, `fgets`, `read`, `recv`, `fread`, `getline` or `scanf` in the 25 lines above, or a variable composed in those lines from non-constant data (`sprintf`/`snprintf`/`asprintf` with a `%s` argument, `strcat`/`strcpy` of a non-constant, C++ `std::string` concatenation, `append()` or `<<`). It also reports `wordexp()` of a non-literal without `WRDE_NOCMD`. It does not report literal or macro commands, `system(NULL)`, commands built only from literals and `%d` numbers, a command that is a parameter of the enclosing function, a command preceded by validation or quoting (`is_valid_*`, `sanitize`, `escape`, `g_shell_quote`, `strspn`/`strpbrk`), `exec*` without a shell, `posix_spawn`, prototypes, string literals and comments.
 
 All four of these functions pass their argument to a shell for interpretation. `system()` and `popen()` invoke `/bin/sh -c <command>`, `p2open()` is a Solaris extension that does the same, and `wordexp()` performs shell-style word expansion including variable substitution and command substitution. When any portion of the command string derives from external input — user-supplied data, environment variables, filenames read from the filesystem, HTTP headers, or network packet fields — an attacker who controls that portion can inject shell metacharacters (`;`, `|`, `&&`, `$(...)`, `` ` ``) to execute arbitrary commands.
 
@@ -30,32 +30,31 @@ Embedded systems and network appliances are especially affected because they fre
 ## What Gets Flagged
 
 ```c
-// FLAGGED: user_filename incorporated into shell command via snprintf
-char cmd[512];
-snprintf(cmd, sizeof(cmd), "convert %s output.png", user_filename);
-system(cmd);   // attacker injects: "evil.png; rm -rf /"
+// FLAGGED: command composed from a caller-supplied host name
+char cmd[256];
+snprintf(cmd, sizeof(cmd), "ping -c 1 %s > /dev/null", host);
+return system(cmd);
 
-// FLAGGED: popen with dynamic grep argument
-char query[256];
-snprintf(query, sizeof(query), "grep %s /var/log/app.log", search_term);
-FILE *fp = popen(query, "r");
+// FLAGGED: command assembled with strcat
+strcpy(cmd, "grep -c ");
+strcat(cmd, pattern);
+fp = popen(cmd, "r");
 
-// FLAGGED: wordexp performs shell word expansion on attacker-controlled input
-wordexp(user_pattern, &we, 0);
-
-// FLAGGED: p2open with non-literal string
-char pipe_cmd[256];
-snprintf(pipe_cmd, sizeof(pipe_cmd), "ls %s", directory);
-p2open(pipe_cmd, fds);
+// FLAGGED: argv, the environment and stdin straight to the shell
+system(argv[1]);
+return system(getenv("POST_HOOK"));
+while (fgets(line, sizeof(line), stdin) != NULL)
+    system(line);
 ```
 
-Calls with a literal string argument are not flagged because the shell receives a fixed, developer-controlled command:
-
-```c
-// NOT flagged: literal string argument — no user input reaches the shell
-system("date");
-FILE *fp = popen("uname -r", "r");
+```cpp
+// FLAGGED: C++ string concatenation
+std::string cmd = "tar -xf " + archive + " -C " + dest;
+return std::system(cmd.c_str());
+FILE *p = popen(("ls " + dir).c_str(), "r");
 ```
+
+Not flagged: `system("date")`, `popen("uname -r", "r")`, `execvp(argv[0], argv)` (no shell), and a command whose input passed `is_valid_hostname(host)` first.
 
 ## Remediation
 

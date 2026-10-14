@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-036 – Heroku API Key"
-description: "Detects Heroku API keys (HRKU-AA prefix) hardcoded in source code."
+description: "Reports a Heroku platform API key: a standalone v2 key (HRKU-AA followed by 58 characters), or a legacy UUID-format key assigned to a name that contains heroku and key, token or secret (HEROKU_API_KEY=..., heroku_api_token: ...). A bare UUID without that context, placeholder or example UUIDs and test or fixture paths are not reported."
 ---
 
 ## Overview
@@ -13,7 +13,18 @@ This rule detects Heroku API keys (v2 format) matching the `HRKU-AA[0-9a-zA-Z_-]
 
 A leaked Heroku API key is sufficient to push a malicious build to a production app, attach to the production database, and exfiltrate customer data. Because Heroku's git push deploy model is git-based, the attacker can deploy without re-authentication if they have a key with `deploy` scope.
 
-## What Remediation
+## What Gets Flagged
+
+Flagged:
+
+```bash
+HEROKU_API_KEY=HRKU-AA<58 characters>
+export HEROKU_API_KEY=<uuid>          # legacy key, named as a Heroku key or token
+```
+
+Not flagged: a UUID assigned to a name without both `heroku` and key/token/secret (`HEROKU_APP_ID`, `REQUEST_ID`), `ENV["HEROKU_API_KEY"]`, the all-zero UUID and other placeholders, and test or fixture files.
+
+## Remediation
 
 1. **Regenerate the API key** in the Heroku account settings.
 2. **Use platform API OAuth tokens** for CI instead of long-lived API keys.

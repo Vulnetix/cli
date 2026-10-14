@@ -2,12 +2,14 @@ package vulnetix.rules.vnx_jwt_004
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-JWT-004",
 	"name": "JWT algorithm explicitly set to 'none'",
-	"description": "A JWT is encoded or decoded with algorithm='none', which disables cryptographic signing and allows any party to forge valid tokens by omitting the signature. Never use the 'none' algorithm in production; always specify a strong signing algorithm such as HS256, RS256, or ES256.",
+	"description": "A JWT is signed with, or a verifier accepts, the unsigned 'none' algorithm, so anyone can forge a valid token by dropping the signature. Reported: an algorithm/algorithms option (keyword argument, object or hash key, including a list split over several lines) whose value is or contains 'none' in any case, and PyJWT jwt.encode(..., algorithm=None), in Python, JavaScript/TypeScript and Ruby; ruby-jwt JWT.encode(payload, nil, 'none') and PyJWT jwt.encode(payload, key, 'none'); jose UnsecuredJWT; Auth0 java-jwt Algorithm.none() and jjwt Jwts.parser().unsecured() (Java/Kotlin); golang-jwt SigningMethodNone used to sign and UnsafeAllowNoneSignatureType. Not reported: code that compares a token's alg with 'none' to reject it, strong algorithm lists, comments and string literals. Verification switched off by other means (verify_signature: False, jjwt parse()) is VNX-JWT-001.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-jwt-004/",
-	"languages": ["python", "javascript", "typescript"],
+	"languages": ["python", "javascript", "typescript", "ruby", "java", "kotlin", "go"],
 	"severity": "critical",
 	"level": "error",
 	"kind": "sast",
@@ -19,58 +21,109 @@ metadata := {
 	"tags": ["jwt", "algorithm", "authentication", "none-alg"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
+_lang(path) := "js" if regex.match(`\.(?:js|mjs|cjs|jsx|ts|tsx)$`, path)
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`jwt\.encode\s*\(.*algorithm\s*=\s*["']none["']`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "jwt.encode() uses algorithm='none' which produces unsigned tokens that any attacker can forge; specify a strong algorithm such as HS256 or RS256",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+_lang(path) := "py" if endswith(path, ".py")
+
+_lang(path) := "rb" if endswith(path, ".rb")
+
+_lang(path) := "jvm" if endswith(path, ".java")
+
+_lang(path) := "jvm" if endswith(path, ".kt")
+
+_lang(path) := "go" if endswith(path, ".go")
+
+_odd_quotes(p) if count(indexof_n(p, `"`)) % 2 == 1
+
+_odd_quotes(p) if count(indexof_n(p, "'")) % 2 == 1
+
+_finding(path, i, line) := {
+	"rule_id": metadata.id,
+	"message": "JWT 'none' algorithm used or accepted: an unsigned token passes as valid. Sign and verify with an explicit strong algorithm (HS256, RS256, ES256)",
+	"artifact_uri": path,
+	"severity": metadata.severity,
+	"level": metadata.level,
+	"start_line": i + 1,
+	"snippet": line,
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`jwt\.sign\s*\(.*algorithm\s*[:=]\s*["']none["']`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "jwt.sign() uses algorithm 'none' which produces unsigned tokens; use a strong algorithm such as HS256 or RS256",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+# The option key opens on this line; its value (or a list continuing for up
+# to 5 lines) names 'none'.
+_opt_re := `^([^\n]*?)["']?\balgorithms?["']?\s*(?:=>|[:=])\s*(?:[\[\(]\s*(?:["'][\w-]*["']\s*,\s*)*)?["'](?i:none)["']`
+
+_win(lines, i) := concat("\n", [l |
+	some j in numbers.range(i, min([count(lines) - 1, i + 5]))
+	l := lines[j]
+	not helpers.is_comment_line(l)
+])
+
+_line_re := {
+	"py": [
+		`^(.*?)\bjwt\.encode\s*\((?:[^()]|\([^()]*\))*\balgorithm\s*=\s*None\b`,
+		`^(.*?)\bjwt\.encode\s*\(\s*(?:\{[^{}]*\}|[^,{}]+)\s*,\s*[^,]+,\s*["'](?i:none)["']`,
+	],
+	"rb": [`^(.*?)\bJWT\.encode\s*\(\s*(?:\{[^{}]*\}|[^,{}]+)\s*,\s*[^,]+,\s*["'](?i:none)["']`],
+	"js": [`^(.*?)(?:\bnew\s+UnsecuredJWT\s*\(|\bUnsecuredJWT\s*\.\s*decode\s*\()`],
+	"jvm": [
+		`^(.*?)\bAlgorithm\s*\.\s*none\s*\(\s*\)`,
+		`^(.*?)\bJwts\s*\.\s*parser\s*\(\s*\)[^;]*\.unsecured\s*\(\s*\)`,
+	],
+	"go": [
+		`^(.*?)\bjwt\.UnsafeAllowNoneSignatureType\b`,
+		`^(.*?)\bjwt\.NewWithClaims\s*\(\s*jwt\.SigningMethodNone\b`,
+		`^(.*?)\bjwt\.New\s*\(\s*jwt\.SigningMethodNone\b`,
+	],
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+_anchor := {
+	"py": ["jwt"],
+	"rb": ["JWT"],
+	"js": ["UnsecuredJWT"],
+	"jvm": ["none(", "unsecured("],
+	"go": ["None"],
+}
+
+_anchored(lang, s) if {
+	some a in _anchor[lang]
+	contains(s, a)
+}
+
+# The option belongs to a JWT library, not a compressor or a database.
+_jwt_file(content) if contains(content, "jwt")
+
+_jwt_file(content) if contains(content, "JWT")
+
+_jwt_file(content) if contains(content, "jose")
+
+# algorithm / algorithms option naming 'none'
+findings contains f if {
+	some path, content in input.file_contents
+	lang := _lang(path)
+	lang in {"py", "js", "rb"}
+	regex.match(`(?i)["']none["']`, content)
+	contains(content, "lgorithm")
+	_jwt_file(content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`algorithms\s*[:=]\s*\[\s*["']none["']`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "JWT decode accepts 'none' as the sole permitted algorithm, allowing unsigned tokens; specify only strong signing algorithms in the algorithms list",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+	contains(line, "lgorithm")
+	not helpers.is_comment_line(line)
+	m := regex.find_all_string_submatch_n(_opt_re, _win(lines, i), 1)
+	count(m) > 0
+	not _odd_quotes(m[0][1])
+	f := _finding(path, i, line)
+}
+
+findings contains f if {
+	some path, content in input.file_contents
+	lang := _lang(path)
+	res := _line_re[lang]
+	_anchored(lang, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	not helpers.is_comment_line(line)
+	some re in res
+	m := regex.find_all_string_submatch_n(re, line, 1)
+	count(m) > 0
+	not _odd_quotes(m[0][1])
+	f := _finding(path, i, line)
 }

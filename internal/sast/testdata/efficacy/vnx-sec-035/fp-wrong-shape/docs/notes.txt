@@ -1,0 +1,2 @@
+Tokens look like dop_v1_ followed by hex, e.g. dop_v1_abc123.
+An uppercase body DOP_V1_@@sample:[A-F0-9]{64}@@ is not one.

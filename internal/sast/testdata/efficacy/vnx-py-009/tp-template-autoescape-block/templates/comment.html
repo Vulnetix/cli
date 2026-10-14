@@ -1,0 +1,7 @@
+<div class="comment">
+  <h3>{{ comment.author }}</h3>
+~>  {% autoescape false %}
+  {{ comment.body }}
+  {% endautoescape %}
+~>  {%- autoescape False -%}{{ comment.signature }}{%- endautoescape -%}
+</div>

@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-023 – Java Unrestricted File Upload"
-description: "Detects MultipartFile upload handlers that store files using the original filename or without validating content type or extension against an allowlist, enabling remote code execution via malicious file upload."
+description: "Detects Java upload handlers that write a MultipartFile, Servlet Part or commons FileItem to disk under the client-supplied filename with no extension or content-type check, enabling remote code execution via malicious file upload."
 ---
 
 ## Overview

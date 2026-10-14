@@ -1,13 +1,13 @@
 ---
 title: "VNX-KOTLIN-001 – Kotlin ECB Cipher Mode"
-description: "Detects Cipher.getInstance() calls using ECB mode in Kotlin, which produces deterministic ciphertext that reveals plaintext patterns and provides no integrity protection."
+description: "Detects Kotlin Cipher.getInstance() calls that select ECB mode for any block cipher (AES, DES, DESede, Blowfish and others): an X/ECB transformation, a bare block-cipher name whose provider default is ECB, a template or concatenation with ECB in the mode position, or a constant holding one of those. RSA/ECB is not reported."
 ---
 
 ## Overview
 
 Electronic Codebook (ECB) is the simplest block cipher mode of operation, but it is cryptographically broken for almost all practical purposes. When `Cipher.getInstance("AES/ECB/PKCS5Padding")` or any variant containing ECB is used in Kotlin code, each 16-byte block of plaintext is encrypted independently using the same key. Identical plaintext blocks always produce identical ciphertext blocks, meaning that data patterns — repeated values, block-aligned fields, or headers — are preserved in the ciphertext and are directly observable to anyone who intercepts it. This is CWE-327 (Use of a Broken or Risky Cryptographic Algorithm).
 
-This rule flags any `Cipher.getInstance()` call in a `.kt` or `.kts` file where the same line also contains the string `ECB` (case-insensitive). The pattern catches both explicit `AES/ECB/...` strings and variable names or comments that reference ECB mode.
+This rule reads the first argument of every `Cipher.getInstance()` call in a `.kt` or `.kts` file (also across a line break) and reports it when it selects ECB for a block cipher: an `X/ECB/...` transformation, a bare block-cipher name such as `"AES"`, `"DES"`, `"DESede"` or `KeyProperties.KEY_ALGORITHM_AES` (which the provider completes as ECB), a string template or concatenation with ECB in the mode position, or a constant anywhere in the file whose literal value is one of those. `RSA/ECB/...` (RSA's mode name, not block ECB), GCM, CBC and CTR, ChaCha20, `KeyGenerator`/`SecretKeySpec`, transformations passed in as parameters, ECB in a comment or an unrelated string, and Java files are not reported. AES-ECB is also reported, in Java and Kotlin, by VNX-ANDROID-007.
 
 Beyond pattern leakage, ECB provides no authentication or integrity protection. An attacker who can intercept and modify ciphertext can cut, paste, and rearrange cipher blocks to alter the decrypted output without knowing the key — a block-manipulation attack that can corrupt data or forge messages.
 
@@ -28,12 +28,19 @@ OWASP Mobile Application Security Verification Standard (MASVS) requires under M
 ## What Gets Flagged
 
 ```kotlin
-// FLAGGED: explicit ECB mode
-val cipher = Cipher.getInstance("AES/ECB/PKCS5Padding")
+// FLAGGED: explicit ECB with any block cipher
+val aes = Cipher.getInstance("AES/ECB/PKCS5Padding")
+val des = Cipher.getInstance("DESede/ECB/NoPadding", "BC")
 
-// FLAGGED: ECB in variable or comment on same line as Cipher.getInstance
-val cipher = Cipher.getInstance(ECB_CIPHER_TRANSFORM) // ECB
+// FLAGGED: no mode named, so the provider default (ECB) applies
+val legacy = Cipher.getInstance("Blowfish")
+
+// FLAGGED: ECB through a template or a constant
+val c = Cipher.getInstance("${KeyProperties.KEY_ALGORITHM_AES}/${KeyProperties.BLOCK_MODE_ECB}/${KeyProperties.ENCRYPTION_PADDING_PKCS7}")
+val d = Cipher.getInstance(TRANSFORMATION) // const val TRANSFORMATION = "AES/ECB/PKCS5Padding"
 ```
+
+Not flagged: `Cipher.getInstance("AES/GCM/NoPadding")`, `Cipher.getInstance("RSA/ECB/OAEPPadding")`, or `Cipher.getInstance(transformation)` with a parameter.
 
 ## Remediation
 

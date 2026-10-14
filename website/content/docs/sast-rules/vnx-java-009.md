@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-009 – Java Path Traversal"
-description: "Detects Java code that constructs file paths or streams from user-controlled request parameters without validation, enabling directory traversal attacks to read or write arbitrary server files."
+description: "Reports Java file and path APIs (new File, FileInputStream/FileOutputStream, FileReader/FileWriter, Paths.get, Path.of, Path.resolve, Files.*, FileSystemResource) whose path argument carries servlet request data, an upload file name or an annotated Spring/JAX-RS handler parameter, directly or through up to five local assignments, unless the path is checked for containment or reduced to a bare file name."
 ---
 
 ## Overview
@@ -17,7 +17,7 @@ Write variants are even more dangerous: an attacker able to supply a path to a `
 
 ## What Gets Flagged
 
-The rule matches lines where `request.getParameter` or `req.getParameter` feeds directly into a file-access constructor or path method.
+The rule reports the file or path call whose argument carries request data: a servlet request value, `MultipartFile.getOriginalFilename()`, a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier in the same method. Paths checked with `startsWith` after normalising or canonicalising, names tested for `..`, names reduced with `FilenameUtils.getName` or converted to numbers, and request bodies written as file content are not reported.
 
 ```java
 // FLAGGED: File constructor with raw user input

@@ -1,11 +1,21 @@
 ---
 title: "VNX-SEC-049 – Anthropic Admin API Key"
-description: "Detects Anthropic admin API keys (sk-ant-admin01- prefix) hardcoded in source code."
+description: "Reports a complete Anthropic Admin API key (sk-ant-admin01-, a 93-character body and the AA terminator) in any file; prefixes, truncated keys, placeholders and test paths are not reported."
 ---
 
 ## Overview
 
-This rule detects anthropic admin api key matching the `sk-ant-admin01-...` pattern hardcoded anywhere in source files. Detects Anthropic admin API keys (sk-ant-admin01- prefix) hardcoded in source code.
+This rule reports a complete Anthropic Admin API key in any file: source, `.env`, YAML or a shell script. The token must be whole: `sk-ant-admin01-`, a 93-character body, and the closing `AA`. A bare prefix, a truncated key, a placeholder body (`xxxx…`, `your-admin-key-here`), keys under test, fixture or vendored paths, and ordinary `sk-ant-api03-` workspace keys are not reported.
+
+### What Gets Flagged
+
+```python
+ADMIN_KEY = "sk-ant-admin01-<93 characters>AA"
+```
+
+```sh
+curl -H "x-api-key: sk-ant-admin01-<93 characters>AA" https://api.anthropic.com/v1/organizations/users
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

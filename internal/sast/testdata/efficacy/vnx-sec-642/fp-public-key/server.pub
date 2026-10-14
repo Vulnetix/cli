@@ -1,0 +1,3 @@
+-----BEGIN PUBLIC KEY-----
+@@sample:[A-Za-z0-9+/]{64}@@
+-----END PUBLIC KEY-----

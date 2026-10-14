@@ -26,16 +26,17 @@ _pattern := `(?i)copper[a-z0-9_]*(?:api)?[_-]?token\s*[:=]\s*['"]?([a-f0-9]{32,4
 _keywords := ["copper", "token"]
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	secrets.has_keyword(content, _keywords)
+	lines := split(content, "\n")
 	some i, line in lines
 	secrets.has_keyword(line, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]
 	not secrets.is_example_token(token)
-	secrets.high_entropy(token, 4)
+	secrets.high_entropy(token, 3.7)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Copper API token found; regenerate it in Copper under Settings \u003e Integrations \u003e API Keys",

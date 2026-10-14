@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_sec_018
 
 import rego.v1
 
+import data.vulnetix.lib.secrets
+
 metadata := {
 	"id": "VNX-SEC-018",
 	"name": "AI provider API key",
-	"description": "An AI provider API key (Anthropic, OpenAI, or Hugging Face) was found in source code. These keys grant access to paid AI services and should be stored in environment variables or a secrets manager.",
+	"description": "Reports an AI provider API key written into a file: an Anthropic key (sk-ant-api03-, sk-ant-admin01- or another sk-ant-<kind><nn>- prefix with a 40+ character body), an OpenAI project, service-account or admin key (sk-proj-, sk-svcacct-, sk-admin- with a 40+ character body), or a Hugging Face user access token (hf_ followed by 34+ letters and digits). The token must stand alone (not the tail of a longer identifier), must not be a placeholder (xxxx, your-key, EXAMPLE) and must have the entropy of a real key; the snippet is redacted. Not reported: keys read from the environment or a secrets manager, truncated or documentation keys shorter than the real format, and test, fixture, vendored and generated paths. Overlaps VNX-LLM-003 (LLM-focused view) and the generated provider rules VNX-SEC-027/049/251/252/285/298/299.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-018/",
 	"languages": [],
 	"severity": "critical",
@@ -19,57 +21,43 @@ metadata := {
 	"tags": ["secrets", "ai", "anthropic", "openai", "huggingface"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+_patterns := [
+	{"re": `(?:^|[^\w-])(sk-ant-[a-z]+\d{2}-[A-Za-z0-9_-]{40,})`, "who": "Anthropic API key"},
+	{"re": `(?:^|[^\w-])(sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{40,})`, "who": "OpenAI API key"},
+	{"re": `(?:^|[^\w-])(hf_[A-Za-z0-9]{34,})(?:[^\w-]|$)`, "who": "Hugging Face access token"},
+]
+
+_whos(line) := {p.who |
+	some p in _patterns
+	some m in regex.find_all_string_submatch_n(p.re, line, -1)
+	tok := m[1]
+	not secrets.is_example_token(tok)
+	secrets.high_entropy(tok, 3.5)
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	_gate(content)
+
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`sk-ant-[A-Za-z0-9\-_]{20,}`, line)
+	regex.match(`sk-ant-|sk-proj-|sk-svcacct-|sk-admin-|hf_`, line)
+	some who in _whos(line)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Anthropic API key found; rotate the key and use environment variables or a secrets manager",
+		"message": sprintf("%s found; revoke and rotate it at the provider, then load it from the environment or a secrets manager", [who]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`sk-proj-[A-Za-z0-9]{20,}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "OpenAI API key found; rotate the key and use environment variables or a secrets manager",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+_gate(content) if {
+	some s in ["sk-ant-", "sk-proj-", "sk-svcacct-", "sk-admin-"]
+	contains(content, s)
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`hf_[A-Za-z0-9]{34,}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "Hugging Face token found; rotate the token and use environment variables or a secrets manager",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
+_gate(content) if contains(content, "hf_")

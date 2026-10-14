@@ -26,16 +26,17 @@ _pattern := `(?i)atlas[a-z0-9_]*public[_-]?key\s*[:=]\s*['"]?([a-z]{8})['"]?`
 _keywords := ["atlas", "public"]
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	secrets.has_keyword(content, _keywords)
+	lines := split(content, "\n")
 	some i, line in lines
 	secrets.has_keyword(line, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]
 	not secrets.is_example_token(token)
-	secrets.high_entropy(token, 3)
+	secrets.high_entropy(token, 2.7)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "MongoDB Atlas API public key found; ensure the paired private key is rotated in Atlas under Access Manager \u003e API Keys",

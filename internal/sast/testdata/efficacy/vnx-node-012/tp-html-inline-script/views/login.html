@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<body>
+  <div id="flash"></div>
+  <script>
+    var paramValue = new URLSearchParams(window.location.search).get('msg');
+    if (paramValue) {
+~>      document.write("<div class='alert'>" + paramValue + "</div>");
+    }
+  </script>
+</body>
+</html>

@@ -23,10 +23,16 @@ metadata := {
 }
 
 _pattern := `\b(00[a-zA-Z0-9]{13}![A-Za-z0-9._]{96,})`
+
+# Whole-file gate: the pattern in multi-line mode matches the file whenever it
+# matches any line of it, so a file it cannot match is never split into lines.
+_file_gate := `(?m)\b(00[a-zA-Z0-9]{13}![A-Za-z0-9._]{96,})`
+
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	regex.match(_file_gate, content)
+	lines := split(content, "\n")
 	some i, line in lines
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0

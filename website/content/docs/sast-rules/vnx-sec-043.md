@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-043 – Twilio API Key"
-description: "Detects Twilio API keys (SK prefix, 32 hex chars) hardcoded in source code."
+description: "Reports Twilio API key SIDs (SK followed by exactly 32 lowercase hex characters, standing alone) written into files."
 ---
 
 ## Overview
 
-This rule detects Twilio API keys matching `SK[0-9a-fA-F]{32}`. These keys (different from the Account SID + Auth Token pair) are issued via the Twilio console and grant the ability to send SMS, make voice calls, and read account logs.
+This rule reports a Twilio API key SID: `SK` followed by exactly 32 lowercase hexadecimal characters, not inside a longer word or hex run (`DISK3f2a...`, `TASK...`, a 34-character hash). Placeholders (`SKxxxx...`, `SK000...`), low-entropy values and test, fixture and vendored paths are not reported, and the snippet is redacted. Account SIDs (`AC...`) are identifiers and are not reported. These keys (different from the Account SID + Auth Token pair) are issued via the Twilio console and grant the ability to send SMS, make voice calls, and read account logs.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

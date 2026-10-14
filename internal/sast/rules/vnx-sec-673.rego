@@ -23,12 +23,13 @@ metadata := {
 }
 
 _pattern := `\b(sk_[A-Za-z0-9_-]{40,})\b`
-_keywords := ["sk_", "thirdweb"]
+_keywords := ["thirdweb"]
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	secrets.has_keyword(content, _keywords)
+	lines := split(content, "\n")
 	some i, line in lines
 	secrets.has_keyword(line, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)

@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_256
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-256",
 	"name": "Plaintext Storage of a Password",
@@ -40,14 +42,13 @@ findings contains finding if {
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
 	not _is_comment_line(line)
-	contains(line, "\"")
-	some _pat in {"password = ", "PASSWORD =", "password:"}
-	contains(line, _pat)
-	not contains(line, "hash")
-	not contains(line, "bcrypt")
-	not contains(line, "argon")
-	not contains(line, "scrypt")
-	not contains(line, "encrypt")
+	not helpers.is_test_path(path)
+	m := regex.find_all_string_submatch_n(_literal_assign, line, 1)
+	count(m) > 0
+	value := m[0][1]
+	count(value) > 0
+	not regex.match(`(%|\$\{|\{\{|<|os\.environ|getenv|process\.env|hash|bcrypt|argon|scrypt|encrypt)`, lower(value))
+	not regex.match(`(?i)(hash|bcrypt|argon|scrypt|encrypt)`, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Password appears stored as plaintext; hash with bcrypt/argon2/scrypt",
@@ -58,3 +59,8 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+# A name containing password, assigned a quoted literal. A format string that
+# mentions "password = %q", an environment lookup and a YAML template that is
+# built from a variable are not a stored password.
+_literal_assign := `(?i)\b\w*password\w*["']?\s*(?::=|=|:)\s*["'\x60]([^"'\x60]*)["'\x60]`

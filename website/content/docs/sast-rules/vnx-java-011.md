@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-011 – Java Expression Language Injection"
-description: "Detects use of SpEL, OGNL, and ScriptEngine to evaluate user-controlled input as expressions, enabling remote code execution through expression language sandbox bypass."
+description: "Reports SpEL, OGNL, Jakarta EL, ScriptEngine, MVEL, JEXL and Bean Validation message-template calls whose expression argument carries HTTP request data or the validated value, directly or through up to five local assignments. Constant expressions and request data bound as variables are not reported."
 ---
 
 ## Overview
@@ -17,7 +17,7 @@ SpEL injection has been demonstrated in high-profile CVEs: CVE-2022-22963 (Sprin
 
 ## What Gets Flagged
 
-The rule matches any `.java` file containing indicators of expression evaluation, particularly when combined with request parameter reads.
+The rule reports the evaluation call (`parseExpression`, `Ognl.getValue`, `createValueExpression`, `ELProcessor.eval`, `ScriptEngine.eval`, `MVEL.eval`, `buildConstraintViolationWithTemplate` and similar) when one of its arguments is a servlet request value, an annotated handler parameter, the value a `ConstraintValidator` is judging, or a local assigned from one a few lines above. Creating a parser or engine, evaluating constants, and SpEL evaluated with a `SimpleEvaluationContext` are not reported.
 
 ```java
 // FLAGGED: SpEL parser with user input as the expression

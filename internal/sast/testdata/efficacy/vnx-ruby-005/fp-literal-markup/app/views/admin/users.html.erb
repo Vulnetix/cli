@@ -1,0 +1,11 @@
+<table>
+  <% @users.each do |u| %>
+    <tr>
+      <td><%= u.admin ? '<i class="bi bi-check"></i>'.html_safe : '<i class="bi bi-dash"></i>'.html_safe %></td>
+      <td><%= "&nbsp;".html_safe %></td>
+      <td><%= raw "<br>" %></td>
+      <td><%= raw("<hr/>") %></td>
+      <td><%= u.name %></td>
+    </tr>
+  <% end %>
+</table>

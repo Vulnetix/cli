@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-013 – Node.js Command Injection via child_process"
-description: "Detects direct user input (req.* or request.*) passed to child_process.exec(), execSync(), or similar functions, enabling OS command injection and remote code execution."
+description: "Reports a shell command built from req.query/body/params/headers or Koa ctx and run through child_process exec/execSync (by module alias, destructured import or promisify wrapper), spawn/execFile with shell: true or sh -c, shelljs exec or execa's command API. Argument arrays without a shell and escaped values are not reported."
 ---
 
 ## Overview
@@ -17,29 +17,24 @@ The critical severity reflects that exploitation requires no special conditions 
 
 ## What Gets Flagged
 
-The rule matches lines containing `exec(req.`, `exec(request.`, `execSync(req.`, `execSync(request.`, `child_process.exec(`, `child_process.execSync(`, and template literal patterns `` exec(`...${` ``.
+The command string (or the `sh -c` script) must come from the request, on the same line or through a variable assigned from it a few lines above, and the call must resolve to a shell-running API.
 
 ```javascript
-// FLAGGED: exec with direct user input
-const { exec } = require('child_process');
-app.get('/ping', (req, res) => {
-  exec('ping -c 1 ' + req.query.host, (err, stdout) => {
-    res.send(stdout);
-  });
-});
+// FLAGGED
+exec('ping -c 1 ' + req.query.host, cb);
+const out = execSync(`git log --oneline ${req.body.ref}`);
+child_process.exec(req.body.cmd, cb);
 
-// FLAGGED: execSync with request body
-const { execSync } = require('child_process');
-app.post('/process', (req, res) => {
-  const output = execSync(`convert ${req.body.filename} output.jpg`);
-  res.send(output);
-});
+// FLAGGED: two lines
+const { file } = req.query;
+cp.exec(`convert ${file} -resize 64x64 thumb.png`, cb);
 
-// FLAGGED: child_process.exec directly
-child_process.exec(req.query.cmd, callback);
+// FLAGGED: spawn through a shell
+spawn(`tar -xf ${req.body.archive}`, { shell: true });
+spawnSync('sh', ['-c', 'echo ' + req.query.msg]);
 ```
 
-An attacker sends `?host=8.8.8.8; id; whoami` and receives the server's command output.
+Not flagged: `execFile('ping', ['-c', '1', host])` and `spawn('git', ['log', ref])` (no shell), `exec('ls -la ' + quote([dir]))`, constant commands, and `RegExp.exec`/`db.exec`. VNX-NODE-003 reports exec/execSync with any run-time command string.
 
 ## Remediation
 

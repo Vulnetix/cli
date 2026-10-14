@@ -1,0 +1,6 @@
+tls:
+  key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    ...
+    -----END RSA PRIVATE KEY-----
+  other: "-----BEGIN PRIVATE KEY-----\n<your key here>\n-----END PRIVATE KEY-----"

@@ -1,11 +1,24 @@
 ---
 title: "VNX-SEC-054 – Datadog API / APP Key"
-description: "Detects Datadog API or APP keys (32 hex chars near 'datadog' keyword) hardcoded in source code."
+description: "Reports a Datadog API key (32 hex) or application key (40 hex) assigned to a Datadog key name, or to a generic api_key/app_key in Datadog configuration; bare hex strings, the public RUM client token and variable references are not reported."
 ---
 
 ## Overview
 
-This rule detects datadog api / app key matching the `(context-dependent 32 hex)` pattern hardcoded anywhere in source files. Detects Datadog API or APP keys (32 hex chars near 'datadog' keyword) hardcoded in source code.
+This rule reports a hard-coded Datadog API key (32 lower-case hex characters) or application key (40 hex characters). The value must be assigned to a Datadog key name (`DD_API_KEY`, `DD_APP_KEY`, `datadog_api_key`), or to a generic `api_key`/`app_key`/`apiKey`/`apiKeyAuth` when the file is Datadog configuration: a path naming datadog, or a line naming Datadog within eight lines above (`provider "datadog"`, `from datadog import`, `@datadog/datadog-api-client`, a `datadog:` block). Not reported: hex values with no Datadog context, the public RUM client token (`pub…`), variable or environment references, placeholders and test paths.
+
+### What Gets Flagged
+
+```sh
+DD_API_KEY=<32 hex characters>
+```
+
+```hcl
+provider "datadog" {
+  api_key = "<32 hex characters>"
+  app_key = "<40 hex characters>"
+}
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

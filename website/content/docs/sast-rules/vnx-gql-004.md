@@ -1,13 +1,13 @@
 ---
 title: "VNX-GQL-004 – GraphQL Field Suggestion Disclosure Enabled"
-description: "Detects Apollo Server and graphql-yoga configurations that do not explicitly disable field suggestions, leaking internal schema field names through error messages in production."
+description: "Reports JavaScript/TypeScript GraphQL servers (Apollo Server, graphql-yoga, NestJS GraphQLModule, express-graphql, Mercurius) in a project that nowhere suppresses graphql-js 'Did you mean' field suggestions."
 ---
 
 ## Overview
 
-This rule detects GraphQL server configurations in Apollo Server and graphql-yoga (or similar servers) that do not explicitly disable field suggestion (also called schema suggestion or did-you-mean). When field suggestions are enabled, GraphQL returns error messages such as `Cannot query field "usernam" on type "Query". Did you mean "username"?` in response to malformed queries. This leaks field names that exist in the schema but are not discoverable through standard introspection — for example, fields hidden by introspection-disabling middleware. This maps to CWE-200 (Exposure of Sensitive Information to an Unauthorized Actor).
+This rule reports each GraphQL server constructed in JavaScript or TypeScript (`new ApolloServer(...)`, `createYoga(...)`, `GraphQLModule.forRoot(...)`, `graphqlHTTP(...)`, `app.register(mercurius, ...)`) when no file in the project suppresses field suggestions. These servers run graphql-js validation, which answers a malformed query with errors such as `Cannot query field "usernam" on type "Query". Did you mean "username"?`. Those hints leak field names even when introspection is disabled. This maps to CWE-200 (Exposure of Sensitive Information to an Unauthorized Actor).
 
-For Apollo Server, the configuration option to disable this is `suggestions: false`. For graphql-yoga and similar servers, the equivalent is `maskedErrors: true`, which replaces all error details with a generic message. Both options should be enabled in production deployments, where error details are security-sensitive rather than developer-helpful.
+A project counts as mitigated when any of its files sets `hideSchemaDetailsFromClientErrors: true` (Apollo Server), uses GraphQL Armor (`ApolloArmor`, `EnvelopArmor`, `blockFieldSuggestions`), installs a disable-suggestions plugin, or rewrites "Did you mean" messages in a `formatError`/`maskError` hook. Error masking alone (`maskedErrors` in graphql-yoga) does not hide validation errors, so it is not counted. Test files, comments and string literals are not reported; servers in other languages are not covered.
 
 **Severity:** Low | **CWE:** [CWE-200 – Exposure of Sensitive Information to an Unauthorized Actor](https://cwe.mitre.org/data/definitions/200.html)
 
@@ -22,61 +22,55 @@ Disabling suggestions does not reduce functionality for legitimate users — it 
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: ApolloServer created without suggestions: false
+// FLAGGED: Apollo Server with default (suggesting) validation errors
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  introspection: false,
 });
 
-// FLAGGED: graphql-yoga created without maskedErrors: true
-const yoga = createYoga({
-  schema,
-});
+// FLAGGED: graphql-yoga; maskedErrors does not hide validation suggestions
+export const yoga = createYoga({ schema, maskedErrors: true });
+```
+
+Not flagged, when anywhere in the project:
+
+```javascript
+const armor = new ApolloArmor({ blockFieldSuggestion: { enabled: true } });
+export const server = new ApolloServer({ typeDefs, resolvers, ...armor.protect() });
 ```
 
 ## Remediation
 
-1. **Set `suggestions: false` in Apollo Server** to prevent field name hints from appearing in production error responses.
+1. **Apollo Server**: set `hideSchemaDetailsFromClientErrors: true` so validation errors no longer carry "Did you mean" hints.
 
    ```javascript
-   // SAFE: suggestions disabled in production
+   // SAFE
    const server = new ApolloServer({
      typeDefs,
      resolvers,
-     // Disable field suggestions in production to prevent schema enumeration
-     ...(process.env.NODE_ENV === "production" && { suggestions: false }),
+     hideSchemaDetailsFromClientErrors: true,
    });
    ```
 
-2. **Set `maskedErrors: true` in graphql-yoga** to replace detailed error messages with a generic response in production.
+2. **graphql-yoga, Envelop, Mercurius or older Apollo versions**: use GraphQL Armor's field-suggestion blocker.
 
    ```javascript
-   // SAFE: masked errors prevent schema leakage in production
-   const yoga = createYoga({
-     schema,
-     maskedErrors: process.env.NODE_ENV === "production",
-   });
+   // SAFE
+   import { blockFieldSuggestions } from '@escape.tech/graphql-armor-block-field-suggestions';
+
+   const yoga = createYoga({ schema, plugins: [blockFieldSuggestions()] });
    ```
 
-3. **Combine suggestion disabling with introspection disabling** for defence in depth. Both controls together prevent automated schema discovery through both the introspection API and the suggestion mechanism.
-
-   ```javascript
-   // SAFE: both introspection and suggestions disabled in production
-   const isProd = process.env.NODE_ENV === "production";
-   const server = new ApolloServer({
-     typeDefs,
-     resolvers,
-     introspection: !isProd,
-     suggestions: !isProd,
-   });
-   ```
+3. **Combine with disabled introspection** (VNX-GQL-001). Each control alone leaves the schema discoverable through the other.
 
 ## References
 
 - [CWE-200: Exposure of Sensitive Information to an Unauthorized Actor](https://cwe.mitre.org/data/definitions/200.html)
 - [CAPEC-118: Collect and Analyze Information](https://capec.mitre.org/data/definitions/118.html)
 - [MITRE ATT&CK T1592 – Gather Victim Host Information](https://attack.mitre.org/techniques/T1592/)
-- [Apollo Server – Security configuration (suggestions)](https://www.apollographql.com/docs/apollo-server/security/security/)
+- [Apollo Server – Production considerations](https://www.apollographql.com/docs/apollo-server/security/production-considerations/)
+- [GraphQL Armor – Block field suggestions](https://escape.tech/graphql-armor/docs/plugins/block-field-suggestions/)
 - [graphql-yoga – Error masking](https://the-guild.dev/graphql/yoga-server/docs/features/error-masking)
 - [OWASP GraphQL Cheat Sheet – Disable introspection and suggestions](https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html)
 - [clairvoyance – GraphQL schema enumeration via suggestions](https://github.com/nikitastupin/clairvoyance)

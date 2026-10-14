@@ -1,11 +1,15 @@
 ---
 title: "VNX-CRYPTO-010 – Hardcoded IV, Nonce, or Salt in Cryptographic Operation"
-description: "Detects hardcoded or zero-filled initialization vectors, nonces, and salts assigned to variables named iv, nonce, or salt across multiple languages, which destroys the security properties of stream ciphers, AEAD schemes, and key derivation functions."
+description: "Detects a constant IV, nonce or salt (a string or byte literal, a literal byte array, or a zero-filled buffer) passed to a cipher, AEAD or password KDF call in Python, JavaScript/TypeScript, Go, Java/Kotlin, C/C++/Objective-C and Rust, directly or through a variable assigned that constant. Random, ciphertext-derived and in-place-filled IVs are not reported."
 ---
 
 ## Overview
 
-This rule scans across Python, JavaScript, TypeScript, Go, Java, C, C++, and Rust source files for two related patterns. The first pattern matches variable assignments where the variable is named `iv`, `nonce`, `initialization_vector`, or `init_vector` and the right-hand side is a byte-string literal, a byte array constructor, or a raw byte sequence. The second pattern matches any of `iv`, `nonce`, or `salt` variables whose values are zero-filled via patterns like `b'\x00' * 16`, `bytes.fromhex("000000")`, or `[0] * 16`. Lock files, checksum files, and minified JavaScript are excluded.
+This rule reports a constant used as the IV, nonce or salt argument of a cipher, AEAD or password-KDF call. A constant is a string or byte literal, a literal byte array (`{0x00, 0x01, ...}`, `[]byte{...}`, `byteArrayOf(...)`), a literal wrapped in a conversion (`"...".getBytes()`, `Buffer.from("...", "hex")`, `bytes.fromhex("...")`, `CryptoJS.enc.Utf8.parse("...")`), or a zero-filled buffer (`bytes(16)`, `Buffer.alloc(16)`, `new Uint8Array(12)`, `make([]byte, n)`, `var nonce [12]byte`, `new byte[16]`, `ByteArray(16)`, `[0u8; 12]`, `memset(iv, 0, ...)`). It is reported on the call line when it is written in the call, and on the assignment when a variable carries it: the variable's nearest assignment above the call is the constant, and nothing fills it in between.
+
+The calls are: Python pycryptodome `AES/DES/Blowfish.new`, cryptography `modes.CBC/CTR/GCM/CFB/OFB/XTS`, `AESGCM`/`AESCCM`/`ChaCha20Poly1305` `encrypt`/`decrypt`, the `iv=`/`nonce=`/`salt=` keywords of those and of `PBKDF2HMAC`/`Scrypt`, `hashlib.pbkdf2_hmac`, `PBKDF2`/`scrypt`, argon2 `hash_secret`, `bcrypt.hashpw`; Node `createCipheriv`/`createDecipheriv`, `pbkdf2(Sync)`/`scrypt(Sync)`, WebCrypto and CryptoJS `iv:`/`salt:` parameters, `CryptoJS.PBKDF2`; Go `cipher.NewCBCEncrypter`/`NewCBCDecrypter`/`NewCTR`/`NewOFB`/`NewCFB*`, AEAD `Seal`/`Open`, `secretbox`/`box` `Seal`/`Open`, `pbkdf2`/`scrypt`/`argon2` `Key`; Java and Kotlin `IvParameterSpec`, `GCMParameterSpec`, `PBEKeySpec`, `PBEParameterSpec`, `ChaCha20ParameterSpec`, `BCrypt.hashpw`; C, C++ and Objective-C `EVP_EncryptInit`/`DecryptInit`/`CipherInit` (and `_ex`), `AES_cbc_encrypt` and friends, `PKCS5_PBKDF2_HMAC`, `mbedtls_aes_crypt_cbc`, `mbedtls_gcm_crypt_and_tag`, `crypto_secretbox_easy`, `CCCrypt`; Rust `Nonce::from_slice`, ring `Nonce::assume_unique_for_key`, CBC/CTR/CFB/OFB `::new` and `new_from_slices`, `pbkdf2_hmac`, `pbkdf2::derive` and Argon2 `hash_password_into`.
+
+Not reported: values from a CSPRNG, read from the ciphertext, or filled in place before use (`rand.Read`, `io.ReadFull`, `randomFillSync`, `getRandomValues`, `nextBytes`, `RAND_bytes`, `fill_bytes`); values from configuration objects (`config.iv`) or from function parameters with no constant assignment in the file; HKDF salts (RFC 5869 allows a constant one); `NULL` IVs; calls in comments, docstrings and string literals; and test files, where known-answer vectors use fixed IVs by design. Flows through more than one variable, through helper functions or across files are not followed.
 
 The IV (initialization vector), nonce, and salt all serve the same essential purpose: they introduce uniqueness and unpredictability into cryptographic operations so that encrypting the same plaintext twice with the same key produces different ciphertext, and so that deriving a key from the same password twice produces a different derived key. When these values are hardcoded or zeroed, this uniqueness property is entirely eliminated.
 
@@ -22,25 +26,51 @@ For KDFs like PBKDF2, bcrypt, and Argon2, a hardcoded or zero salt means all pas
 ## What Gets Flagged
 
 ```python
-# FLAGGED: hardcoded IV byte string
-iv = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-cipher = AES.new(key, AES.MODE_CBC, iv)
+# FLAGGED: a literal IV and a literal PBKDF2 salt
+cipher = AES.new(key, AES.MODE_CBC, b"0123456789abcdef")
+return hashlib.pbkdf2_hmac('sha1', pin.encode(), b'pinsalt', 1000)
 
-# FLAGGED: zero-filled nonce pattern
-nonce = b'\x00' * 12
-aesgcm.encrypt(nonce, plaintext, None)
+# FLAGGED (on the assignment): a zero nonce reaching the cipher
+nonce = bytes(12)
+return ChaCha20.new(key=key, nonce=nonce).encrypt(data)
 ```
 
 ```javascript
-// FLAGGED: hardcoded IV array
-const iv = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-crypto.subtle.encrypt({ name: 'AES-CBC', iv }, key, data);
+// FLAGGED: a zero IV, and a constant reaching createCipheriv
+const cipher = crypto.createCipheriv('aes-256-cbc', key, Buffer.alloc(16, 0));
+const IV = Buffer.from("00112233445566778899aabbccddeeff", "hex");
+crypto.createCipheriv("aes-256-gcm", key, IV);
 ```
 
 ```go
-// FLAGGED: zero-initialized nonce
-var nonce [12]byte  // zero IV — do not use
+// FLAGGED: a zero nonce; a literal IV
+var nonce [12]byte
 gcm.Seal(nil, nonce[:], plaintext, nil)
+mode := cipher.NewCBCEncrypter(block, []byte("1234567890123456"))
+```
+
+```java
+// FLAGGED: a zero IV in the call; a constant salt field
+cipher.init(Cipher.ENCRYPT_MODE, k, new IvParameterSpec(new byte[16]));
+private static final byte[] SALT = "acme-salt-value".getBytes(StandardCharsets.UTF_8);
+```
+
+```c
+// FLAGGED: a literal IV and salt
+EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, (const unsigned char *)"0123456789012345");
+PKCS5_PBKDF2_HMAC(pw, (int)strlen(pw), (const unsigned char *)"saltsalt", 8, 100000, EVP_sha256(), 32, out);
+```
+
+```rust
+// FLAGGED: a fixed nonce
+let nonce = Nonce::from_slice(b"unique nonce");
+```
+
+```javascript
+// NOT FLAGGED: random, filled in place, or read from the payload
+const iv = crypto.randomBytes(16);
+const buf = Buffer.alloc(16); crypto.randomFillSync(buf);
+crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(parts[0], 'hex'));
 ```
 
 ## Remediation

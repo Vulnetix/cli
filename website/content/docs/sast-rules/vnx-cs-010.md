@@ -1,38 +1,57 @@
 ---
 title: "VNX-CS-010 – C# Hardcoded Connection String with Credentials"
-description: "Detects database connection string literals in C# source files that contain a Password= or pwd= key-value pair with a plaintext value, indicating hardcoded database credentials that cannot be rotated without a code change."
+description: "Reports C# source that hardcodes the password of a database or cache connection: a Password=/Pwd= value in a connection-string literal, or a literal assigned to the Password of a ConnectionStringBuilder, Redis ConfigurationOptions or RabbitMQ ConnectionFactory. Passwords from configuration, format and interpolation holes, placeholders, SQL text, comments, test projects and configuration files are not reported."
 ---
 
 ## Overview
 
-This rule scans C# files (`.cs`) for lines that contain a `Password=` or `pwd=` pattern (case-insensitive) followed by a non-empty value not ending at a semicolon, brace, or whitespace, where the line also contains a double-quote character indicating it is a string literal. Lines that reference `ConfigurationManager`, `GetConnectionString`, `Environment.Get`, or `appsettings` are excluded, as those patterns indicate the connection string is being read from configuration rather than being defined inline.
+This rule reports a line of C# (`.cs`) that hardcodes a connection password. Two shapes are reported:
 
-Database connection strings in source code are one of the highest-impact forms of credential exposure. They typically contain database server hostnames, database names, usernames, and passwords in a single string, providing everything needed to connect directly to the database and access or exfiltrate all stored data. Unlike API keys or tokens that may have limited scope, direct database credentials usually grant full read/write access to the application's data.
+- **A connection-string literal** (regular, verbatim `@"..."`, interpolated `$"..."`, or one part of a `+` concatenation) holding a `Password=` or `Pwd=` key (also `Jet OLEDB:Database Password=` and the StackExchange.Redis `,password=` option) whose value is a literal. The string must be recognisably a connection string: another connection key (`Server`, `Data Source`, `Host`, `Database`, `Initial Catalog`, `User Id`, `Uid`, `Port`, `Provider` ...) in it or in the concatenation lines around it, a Redis `host:port,` endpoint at its start, or a connection sink on the line (`new SqlConnection(`, `new NpgsqlConnection(`, `UseSqlServer(`, `UseNpgsql(`, `ConnectionMultiplexer.Connect(`, `ConnectionString =`). Attribute arguments such as a `Settings.Designer.cs` `DefaultSettingValueAttribute` and default parameter values count.
+- **A builder property:** a literal assigned to `Password` (or the `["Password"]` indexer) of a `*ConnectionStringBuilder`, a StackExchange.Redis `ConfigurationOptions` or a RabbitMQ `ConnectionFactory`, by assignment (`csb.Password = "..."`) or in its object initializer.
+
+Deliberately not reported:
+
+- A password read from configuration, the environment or a variable: `string.Format("...Password={0}", ...)`, `$"...Password={pwd}"`, `"...Password=" + pwd`, `builder.Password = _config["Db:Password"]`.
+- An empty value (`Password=;`), Integrated Security and managed-identity strings.
+- Placeholders: `<password>`, `[password]`, `myPassword`, `YOUR_PASSWORD`, `***`, `#{DbPassword}#`, `$(SqlPassword)`, `%DB_PASS%`, `__DB_PASSWORD__`, `@p`.
+- SQL text that compares or sets a `Password` column, and code that redacts or inspects a connection string.
+- Comments, test projects (`tests/`, `*.Tests/`, `*.IntegrationTests/`, `*Tests.cs`), and configuration files such as `appsettings.json` and `Web.config`, which other rules cover.
+- URI-form connection strings (`postgres://user:pass@host`) are reported by VNX-SEC-008, Azure `AccountKey`/`SharedAccessKey` values by the generated secret rules, and a plain `string password = "..."` by VNX-259. A connection string spread over the lines of one multi-line verbatim literal is not seen.
+
+Database connection strings in source code are one of the highest-impact forms of credential exposure. They typically contain the server, the database, the user and the password in a single string, which is everything needed to connect directly and read or change all stored data. Unlike API keys with limited scope, direct database credentials usually grant full read/write access to the application's data.
 
 **Severity:** High | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 
 ## Why This Matters
 
-Hardcoded database credentials in C# source code are a consistently high-severity finding in security audits and bug bounty programs. A single developer committing a connection string with credentials to a repository — even a private one — creates durable exposure: the credentials are visible in version control history, build logs, CI artefact archives, and any other copies of the repository. If the repository is later made public, forked, or accessed by an attacker, the credentials are immediately available.
+Hardcoded database credentials in C# source code are a consistently high-severity finding in security audits and bug bounty programs. A connection string with a password committed to a repository, even a private one, is durable exposure: the credentials live on in version control history, build logs, CI artefact archives, every clone, and the compiled assembly, where `strings` recovers them. If the repository is later made public, forked, or accessed by an attacker, the credentials are immediately available.
 
-The 2017 Uber breach and numerous other high-profile incidents involved credentials committed to source code repositories. Automated scanners continuously monitor GitHub, GitLab, and other platforms for credential patterns, and the mean time between a credential being committed and being discovered and exploited by external parties is measured in minutes.
+The 2017 Uber breach and numerous other high-profile incidents involved credentials committed to source code repositories. Automated scanners continuously monitor GitHub, GitLab, and other platforms for credential patterns, and the time between a credential being committed and being found by someone else is measured in minutes.
 
-In .NET applications, connection strings should be stored in `appsettings.json` in a format that can be overridden by environment variables, or managed entirely through Azure Key Vault, AWS Secrets Manager, or .NET's User Secrets feature in development. The `ASPNETCORE_ENVIRONMENT` configuration system makes this straightforward, and there is no legitimate reason to hardcode database passwords in source code. This maps to ATT&CK T1552 (Unsecured Credentials) and CAPEC-191 (Read Sensitive Constants Within an Executable).
+In .NET applications, connection strings belong in configuration that can be overridden by environment variables, or entirely in Azure Key Vault, AWS Secrets Manager, or .NET's User Secrets in development. `Scaffold-DbContext` even emits `#warning To protect potentially sensitive information in your connection string, you should move it out of source code.` above the string it writes into `OnConfiguring`. This maps to ATT&CK T1552 (Unsecured Credentials) and CAPEC-191 (Read Sensitive Constants Within an Executable).
 
 ## What Gets Flagged
 
 ```csharp
-// FLAGGED: hardcoded SQL Server connection string with password
-private string connStr = "Server=db.example.com;Database=AppDB;User ID=appuser;Password=MySecret123;";
+// FLAGGED: literal password passed to a connection
+using var conn = new SqlConnection("Server=db01.internal;Database=Orders;User Id=orders_app;Password=Q7v!m2Lp;");
 
-// FLAGGED: hardcoded connection string in method
-public SqlConnection GetConnection()
-{
-    return new SqlConnection("Data Source=prod-db;Initial Catalog=Users;User ID=sa;Password=P@ssw0rd;");
-}
+// FLAGGED: scaffolded DbContext
+optionsBuilder.UseSqlServer("Server=tcp:shop.database.windows.net,1433;Initial Catalog=Shop;User ID=shopadmin;Password=Sh0p-Adm1n;Encrypt=True;");
 
-// FLAGGED: PostgreSQL connection string with embedded password
-string pgConn = "Host=localhost;Username=postgres;Password=adminpass;Database=mydb";
+// FLAGGED: the password half of a concatenated string, and an interpolated one
+private static readonly string Conn = "Server=10.0.4.12;Database=Ledger;" +
+    "User Id=ledger;Password=L3dger#2023;";
+var cs = $"Host={_host};Username=etl;Password=Etl-Load-9;Database={_db}";
+
+// FLAGGED: builder and Redis configuration
+csb.Password = "Npg-Secret-1";
+ConnectionMultiplexer.Connect("cache.internal:6380,password=R3dis-Cache-Key,ssl=True");
+
+// NOT FLAGGED: the password comes from configuration or a format hole
+options.UseSqlServer(_config.GetConnectionString("DefaultConnection"));
+string.Format("Server={0};User Id={1};Password={2};", server, user, password);
 ```
 
 ## Remediation

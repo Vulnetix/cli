@@ -1,0 +1,2 @@
+gitlab:
+~>  token: glpat-@@sample:[A-Za-z0-9_-]{27}@@.01.@@sample:[0-9a-z]{9}@@

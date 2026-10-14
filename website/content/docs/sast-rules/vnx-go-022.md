@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-022 – Use of eval() or dynamic code execution"
-description: "Detects usage of eval() or similar dynamic code execution functions with user input, which can lead to Remote Code Execution (RCE) vulnerabilities."
+description: "Detects request data, the request body or a caller-supplied parameter passed as code to an embedded interpreter or expression engine (goja, otto, yaegi, gopher-lua, govaluate, expr, gval, cel-go, tengo, starlark) or parsed as an html/template or text/template. Constant, embedded and configured scripts are not reported."
 ---
 
 ## Overview
@@ -17,28 +17,27 @@ Dynamic code execution functions allow code to be generated and executed at runt
 
 ## What Gets Flagged
 
-The rule flags usage of dynamic code execution patterns in Go source files:
+Go has no `eval()`, so the rule looks for the embedded interpreters,
+expression engines and template parsers that play its part, and reports them
+only when the code they are given comes from a request or from the caller.
 
 ```go
-// FLAGGED: template execution with user input
-func handler(w http.ResponseWriter, r *http.Request) {
-    userInput := r.URL.Query().Get("template")
-    tmpl := template.New("dynamic").Parse(userInput) // User input as template
-    tmpl.Execute(w, nil) // Executes user-controlled code
-}
+// FLAGGED: the request body is JavaScript and goja runs it
+src, err := io.ReadAll(r.Body)
+v, err := vm.RunString(string(src))
 
-// FLAGGED: Potential eval-like usage (though Go doesn't have eval, similar patterns)
-func processData(input string) {
-    // In Go, this might be achieved with plugins or other mechanisms
-    // that execute user-provided code
-}
+// FLAGGED: an expression the requester writes
+q := r.URL.Query().Get("filter")
+program, err := expr.Compile(q, expr.Env(env))
+
+// FLAGGED: server-side template injection
+body := r.FormValue("template")
+t, err := template.New("preview").Parse(body)
+
+// NOT FLAGGED: scripts and rules that ship with the program or its config
+vm.RunString(shim)
+expr.Compile(r.When, expr.Env(env)) // r ranges over configured rules
 ```
-
-Note: While Go doesn't have a direct `eval()` function like JavaScript or Python, similar risks exist with:
-- `template.Parse()` followed by `Execute()` with user-controlled templates
-- Plugin loading with user-controlled paths
-- `go:generate` or build tags influenced by user input
-- Runtime code generation and execution
 
 ## Remediation
 

@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-026 – PHP session poisoning via user-controlled session key"
-description: "Detects user-controlled input from PHP superglobals used as the key when writing to $_SESSION, enabling session poisoning that can overwrite authentication flags, roles, or CSRF tokens."
+description: "Reports session writes whose key comes from the request: $_SESSION[$_GET[...]] = ..., a variable or foreach key read from a superglobal or $request and then used as a $_SESSION key or a Session::put/session()->put/$session->set/set_userdata key, and whole request arrays merged into $_SESSION. Fixed or prefixed keys, nested keys under a fixed outer key, reads, and allowlist-checked keys are not reported."
 ---
 
 ## Overview
@@ -33,7 +33,19 @@ $_SESSION[$key] = 'true';
 
 // FLAGGED: COOKIE value as session key
 $_SESSION[$_COOKIE['pref']] = 1;
+
+// FLAGGED: every posted field copied into the session
+foreach ($_POST as $k => $v) {
+    $_SESSION[$k] = $v;
+}
+$_SESSION = array_merge($_SESSION, $_POST);
+
+// FLAGGED: framework session API with a request-chosen key
+$key = $request->input('key');
+Session::put($key, $value);
 ```
+
+Not flagged: `$_SESSION['filters'][$col] = ...` (fixed outer key), `$_SESSION['sort_' . $col]`, `$shown = $_SESSION[$k] ?? null` (a read), and a key checked with `in_array($k, $allowed, true)` or `array_key_exists` before the write.
 
 Attacker request to set `authenticated` key:
 

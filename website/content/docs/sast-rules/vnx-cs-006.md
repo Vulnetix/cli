@@ -1,11 +1,11 @@
 ---
 title: "VNX-CS-006 – C# Insecure Random Number Generator (System.Random for Security)"
-description: "Detects use of System.Random in security-sensitive contexts such as token, password, key, nonce, salt, or session generation, where a cryptographically secure random number generator is required."
+description: "Detects C# calls to System.Random (Next, NextInt64, NextDouble, NextBytes, GetItems) whose result becomes a password, token, key, salt, nonce, IV, session or CSRF value, an OTP or a reset code."
 ---
 
 ## Overview
 
-This rule detects two patterns in C# code: `new Random()` or `Random x = new Random()` used within a code block that contains security-sensitive keywords (password, token, secret, key, nonce, salt, session, CSRF), and any call to `Random.NextBytes()` — both indicators that `System.Random` is being used where a cryptographically secure generator is required.
+This rule reports a `Next`, `NextInt64`, `NextDouble`, `NextSingle`, `NextBytes` or `GetItems` call on `System.Random` (an inline `new Random(...)`, `Random.Shared`, or a variable, field or parameter declared as `Random`) when the value is security-sensitive: the line or the enclosing method's name names a password, token, secret, key, salt, nonce, IV, session, CSRF token, OTP/PIN, reset, verification or invitation code, or the assigned variable or `NextBytes` buffer is used that way within four lines (`aes.IV = buffer`). The declaration of the `Random` instance is not reported, nor is `System.Random` used for shuffling, jitter, colours or sampling, `RandomNumberGenerator`, `RNGCryptoServiceProvider`, BouncyCastle `SecureRandom`, test projects, comments and string literals. A value that only becomes a secret in another method is not followed.
 
 `System.Random` is a pseudo-random number generator (PRNG) seeded from a time-based value. It is designed for statistical simulations, games, and non-security use cases that need fast, repeatable sequences. It is not designed to be unpredictable. Its output can be predicted from a small number of observed values, and because its default seed is derived from the current timestamp, an attacker who knows approximately when the value was generated can brute-force the seed and reproduce the entire output sequence.
 

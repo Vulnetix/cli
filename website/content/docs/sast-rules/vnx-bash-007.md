@@ -1,11 +1,11 @@
 ---
 title: "VNX-BASH-007 – Unquoted Command Substitution in Shell Script"
-description: "Detects command substitutions using $(...) that are not wrapped in double-quotes, exposing the result to word splitting and glob expansion and enabling argument injection if the output is attacker-influenced."
+description: "Reports an unquoted $(...) or backtick substitution used as a command argument, or a for loop over a file or text listing, where word splitting and globbing break its output into extra arguments. Quoted, assigned, arithmetic, command-position and single-token outputs are not reported."
 ---
 
 ## Overview
 
-This rule flags lines in Bash and shell scripts (`.sh`, `.bash`, `.bats`) where a `$(...)` command substitution appears without enclosing double-quotes. The detection looks for `$(...)` that is not immediately preceded by a double-quote character and is not part of a variable assignment or another `$` expression. Lines that are commented out are excluded, as are lines where the command substitution is already quoted with `"$(..."`.
+This rule reports a command substitution, `$(...)` or a backtick pair, used outside double quotes as an argument of a command in a Bash script (`.sh`, `.bash` and extensionless files with a sh/bash/dash/ksh shebang): `cd $(dirname "$f")`, `chmod 600 $(find ...)`, `tar czf out.tgz $(cat list)`, `export $(grep -v '^#' .env | xargs)`, the first word of a continued command line, and a `for` loop over a file or text listing (`$(ls ...)`, `$(find ...)`, `$(cat ...)`, `$(grep ...)`, `$(git ls-files)`). Not reported: substitutions inside double quotes (including nested ones and multi-line strings), assignments and `${VAR:-$(...)}` defaults, `[[ ]]`, `(( ))` and `$(( ))` arithmetic, `case` words, here-strings and here-document bodies, a substitution in command position (`if ! $(grep -q ...)`), commands whose output is a number or a single token (`seq`, `nproc`, `jobs -p`, `id`, `date`, `wc`, `uname`, `whoami`, `hostname`, `git rev-parse`), `for` loops over other tool output, comments, `echo`/`printf` text, test paths and `.bats` files.
 
 When command output is captured without double-quotes, the shell applies word splitting (splitting on whitespace or the current `IFS`) and glob expansion (expanding `*`, `?`, and `[...]` patterns) to the result before passing it to the enclosing command. A command that produces a filename with spaces, a path with glob characters, or newline-separated output will be split into multiple unexpected arguments.
 
@@ -24,15 +24,23 @@ The fix is mechanical and has zero performance cost: simply add double-quotes ar
 ## What Gets Flagged
 
 ```bash
-# FLAGGED: unquoted command substitution in assignment used in command
-files=$(ls /tmp)
-rm $files    # $files unquoted and subject to splitting/glob
+chmod 600 $(find /etc/app -name '*.key')       # FLAGGED: a name with a space becomes two
+export $(grep -v '^#' .env | xargs)            # FLAGGED: values split and globbed
+cp `ls -t backups/*.sql | head -1` /restore/   # FLAGGED: backtick form
+for f in $(ls /var/log/app/*.log); do gzip "$f"; done   # FLAGGED
+rsync -a \
+  $(sed 's/^/--exclude=/' excludes.txt) src/ dst/      # FLAGGED: continued line
+```
 
-# FLAGGED: unquoted $() passed directly to a command
-chown $(id -u):$(id -g) /some/path
+Not flagged:
 
-# FLAGGED: command substitution in test without quotes
-if [ $(whoami) = "root" ]; then echo ok; fi
+```bash
+echo "size: $(wc -c < "$f") bytes"
+CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+chown $(id -u):$(id -g) /data
+make -j$(nproc)
+for i in $(seq 1 5); do echo "$i"; done
+if (( $(wc -l < file.txt) > 10 )); then :; fi
 ```
 
 ## Remediation

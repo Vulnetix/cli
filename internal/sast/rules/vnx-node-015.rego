@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_node_015
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-NODE-015",
 	"name": "WebSocket server without origin verification (CSWSH)",
-	"description": "WebSocket.Server or Socket.IO server is created without origin validation. Without origin checking, the server is vulnerable to Cross-Site WebSocket Hijacking (CSWSH) where a malicious page can open a WebSocket connection using the victim's cookies.",
+	"description": "A WebSocket server accepts connections from any origin. Reported: a ws server (new WebSocket.Server(...), new ws.Server(...), new WebSocketServer(...) in a file that imports ws) whose options carry no verifyClient callback, in a file whose code never reads the Origin header (no verifyClient, origin or headers.origin check anywhere, for example in an upgrade handler); and a Socket.IO server whose options (within the eight lines after new Server(...), io(...) or require('socket.io')(...)) set cors origin to '*' or true, or the v2 origins: '*:*', without an allowRequest callback. Browsers send cookies on a cross-site WebSocket handshake, so without an origin check a malicious page can open an authenticated socket in the victim's name (Cross-Site WebSocket Hijacking). Not reported: servers with verifyClient or an origin check in the same file, Socket.IO servers with a list of origins, Express cors({ origin: '*' }) middleware, browser WebSocket clients, test files, comments and string literals. An origin check in another file (shared middleware, a reverse proxy) is not seen.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-015/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
@@ -19,45 +21,66 @@ metadata := {
 	"tags": ["websocket", "cswsh", "origin-validation"],
 }
 
-_is_js(path) if endswith(path, ".js")
-_is_js(path) if endswith(path, ".ts")
-_is_js(path) if endswith(path, ".mjs")
-_is_js(path) if endswith(path, ".cjs")
-
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_js(path)
+_is_js(path) if {
+	some ext in {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
+	endswith(path, ext)
 	not endswith(path, ".min.js")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	contains(line, "WebSocket.Server")
-	not contains(line, "verifyClient")
-	finding := {
-		"rule_id": metadata.id,
-		"message": "WebSocket.Server created without verifyClient callback; add a verifyClient function that validates the Origin header to prevent CSWSH attacks",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+	not endswith(path, ".d.ts")
+}
+
+_blank(s) := regex.replace(s, `'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"`, "''")
+
+_imports_ws(content) if regex.match(`require\(\s*['"]ws['"]\s*\)|from\s+['"]ws['"]`, content)
+
+_imports_socketio(content) if regex.match(`require\(\s*['"]socket\.io['"]\s*\)|from\s+['"]socket\.io['"]`, content)
+
+_ws_ctor := `\bnew\s+(?:(?:WebSocket|ws|WS|wsModule)\.Server|WebSocketServer)\s*\(`
+
+# The ws server's own options, up to eight further lines.
+_window(lines, i, n) := concat("\n", array.slice(lines, i, min([count(lines), i + n + 1])))
+
+_finding(path, i, line, msg) := {
+	"rule_id": metadata.id,
+	"message": msg,
+	"artifact_uri": path,
+	"severity": metadata.severity,
+	"level": metadata.level,
+	"start_line": i + 1,
+	"snippet": line,
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	_is_js(path)
-	not endswith(path, ".min.js")
-	lines := split(input.file_contents[path], "\n")
+	not helpers.is_test_path(path)
+	regex.match(`WebSocket\.Server|WebSocketServer|\.Server\s*\(`, content)
+	_imports_ws(content)
+	lines := split(content, "\n")
+	code := helpers.code_text(lines)
+	not regex.match(`verifyClient|\borigin\b`, code)
 	some i, line in lines
-	regex.match(`cors\s*:\s*\{\s*origin\s*:\s*["']\*["']`, line)
-	regex.match(`(io\(|new Server\()`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "Socket.IO server configured with cors origin '*'; restrict to specific trusted domains to prevent CSWSH attacks",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+	not helpers.is_comment_line(line)
+	regex.match(_ws_ctor, _blank(line))
+	finding := _finding(path, i, line, "WebSocket server accepts any Origin: a malicious page can open a socket with the victim's cookies (CSWSH). Add a verifyClient callback (or check req.headers.origin on upgrade) that accepts only trusted origins")
+}
+
+# Socket.IO: the server's options allow every origin.
+_io_ctor := `\bnew\s+[\w$]*Server\s*\(|\bsocket\.io['"]\s*\)\s*\(|(?:^|[^\w$.])(?:io|socketIo|socketIO|SocketIO)\s*\(\s*[\w$]+\s*,`
+
+findings contains finding if {
+	some path, content in input.file_contents
+	_is_js(path)
+	not helpers.is_test_path(path)
+	contains(content, "origin")
+	_imports_socketio(content)
+	lines := split(content, "\n")
+	some i, line in lines
+	not helpers.is_comment_line(line)
+	regex.match(`\borigins?\s*:\s*(?:'\*(?::\*)?'|"\*(?::\*)?"|true\b)`, line)
+	not regex.match(`\bcors\s*\(\s*\{`, line)
+	some k in numbers.range(max([0, i - 8]), i)
+	regex.match(_io_ctor, lines[k])
+	not regex.match(`\bcors\s*\(`, lines[k])
+	not contains(_window(lines, k, 12), "allowRequest")
+	finding := _finding(path, i, line, "Socket.IO server accepts any Origin: a malicious page can open a socket with the victim's cookies (CSWSH). List the trusted origins in cors.origin, or check the origin in allowRequest")
 }

@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-004 – TLS InsecureSkipVerify Enabled"
-description: "Detect Go TLS configurations that set InsecureSkipVerify to true, disabling certificate validation and enabling man-in-the-middle attacks."
+description: "Reports InsecureSkipVerify set to the constant true in a tls.Config literal or assignment. A value from a variable, flag or environment, true inside an if on the insecure option itself, a config with its own VerifyPeerCertificate/VerifyConnection, comments, strings and test code are not reported."
 ---
 
 ## Overview
@@ -19,7 +19,7 @@ OWASP ASVS v4.0 requirement **V9.1.2** requires that TLS certificates be valid, 
 
 ## What Gets Flagged
 
-The rule matches any Go line containing `InsecureSkipVerify` set to `true`. This covers direct struct literals and assignments to the field.
+The rule fires on `InsecureSkipVerify: true` in a struct literal and on `x.InsecureSkipVerify = true`, in production Go code. A debug switch (`if debug {`) does not make it safe. It does not fire when the value comes from a variable, flag or environment value (the operator's choice), when `true` is set inside an `if` whose condition names the insecure option (`if o.Insecure {`, like `curl -k`), when the same config installs its own `VerifyPeerCertificate` or `VerifyConnection` callback (certificate pinning), in `_test.go`/testdata code, or in comments and strings.
 
 ```go
 // FLAGGED: certificate validation completely disabled

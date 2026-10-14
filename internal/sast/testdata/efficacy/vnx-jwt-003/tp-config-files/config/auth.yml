@@ -1,0 +1,3 @@
+auth:
+~>  jwt_secret: "w1ndy-d4y-hmac"
+  jwt_ttl: 15m

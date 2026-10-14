@@ -26,16 +26,17 @@ _pattern := `(?i)jwplayer[a-z0-9_]*(?:api)?[_-]?key\s*[:=]\s*['"]?([A-Za-z0-9]{8
 _keywords := ["jwplayer", "apikey"]
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	secrets.has_keyword(content, _keywords)
+	lines := split(content, "\n")
 	some i, line in lines
 	secrets.has_keyword(line, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]
 	not secrets.is_example_token(token)
-	secrets.high_entropy(token, 3)
+	secrets.high_entropy(token, 2.7)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "JW Player API key found; ensure the paired secret is not committed and rotate credentials",

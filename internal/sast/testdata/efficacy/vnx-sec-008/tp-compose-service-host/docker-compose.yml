@@ -1,0 +1,4 @@
+services:
+  api:
+    environment:
+~>      DATABASE_URL: postgres://api:@@sample:[A-Za-z0-9]{16}@@@postgres:5432/api

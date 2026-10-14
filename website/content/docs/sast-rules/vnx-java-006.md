@@ -1,11 +1,11 @@
 ---
 title: "VNX-JAVA-006 – Insecure TLS Trust Manager"
-description: "Detects Java TLS configurations that disable certificate validation via empty checkServerTrusted() implementations or always-true HostnameVerifier instances, enabling man-in-the-middle attacks."
+description: "Reports Java code that disables TLS server authentication: empty checkServerTrusted(), always-true HostnameVerifier/TrustStrategy implementations and lambdas, and trust-all constants such as NoopHostnameVerifier and TrustAllStrategy."
 ---
 
 ## Overview
 
-This rule detects two closely related patterns that render TLS completely ineffective: (1) an `X509TrustManager` whose `checkServerTrusted()` method has an empty body, meaning it performs no validation and silently accepts any certificate presented by any server; and (2) named patterns such as `ALLOW_ALL_HOSTNAME_VERIFIER`, `TrustAllCerts`, `TrustAll`, and `NullTrustManager` that signal a hostname verifier which always returns `true`. Both patterns are covered by CWE-295 (Improper Certificate Validation).
+This rule detects two closely related patterns that render TLS completely ineffective: (1) an `X509TrustManager` whose `checkServerTrusted()` method has an empty body, meaning it performs no validation and silently accepts any certificate presented by any server; and (2) hostname verifiers and trust strategies that always return `true`, including library constants such as `ALLOW_ALL_HOSTNAME_VERIFIER` and `NoopHostnameVerifier`. Both patterns are covered by CWE-295 (Improper Certificate Validation).
 
 **Severity:** Critical | **CWE:** [CWE-295 – Improper Certificate Validation](https://cwe.mitre.org/data/definitions/295.html)
 
@@ -17,7 +17,15 @@ In a microservices environment, a MitM position between internal services means 
 
 ## What Gets Flagged
 
-The rule matches two patterns. First, named trust-manager bypass classes:
+The rule reports trust-everything code, not names: an empty (or return-only) `checkServerTrusted()`, a `verify(String, SSLSession)` or `isTrusted(X509Certificate[], String)` that just returns `true`, a `(hostname, session) -> true` lambda given to a hostname-verifier setter or assigned to a `HostnameVerifier`, a `loadTrustMaterial` lambda returning `true`, and the constants `NoopHostnameVerifier`, `ALLOW_ALL_HOSTNAME_VERIFIER`, `AllowAllHostnameVerifier`, `TrustAllStrategy`, `TrustSelfSignedStrategy` and Netty `InsecureTrustManagerFactory.INSTANCE`. Class or field names such as `TrustAllCerts`, an empty `checkClientTrusted`, imports, comments, strings and test files are not reported.
+
+```java
+// FLAGGED: lambda verifier and trust-all constants
+conn.setHostnameVerifier((hostname, session) -> true);
+new SSLConnectionSocketFactory(ctx, NoopHostnameVerifier.INSTANCE);
+```
+
+Hostname verifiers that always return true:
 
 ```java
 // FLAGGED: ALLOW_ALL_HOSTNAME_VERIFIER disables hostname checking

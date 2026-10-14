@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Acme</string>
+~>    <string name="google_maps_key" translatable="false">@@sample:AIza[0-9A-Za-z_-]{35}@@</string>
+</resources>

@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-005 – Dockerfile Privileged Container Flag"
-description: "Detects --privileged mode in Dockerfiles and docker-compose files, which disables all container security boundaries and grants full access to the host kernel."
+description: "Reports privileged containers: privileged: true on a Compose service or directly under a Kubernetes securityContext, and in Dockerfiles RUN --security=insecure, a LABEL RUN/INSTALL with --privileged, or docker/podman run --privileged."
 ---
 
 ## Overview
@@ -23,21 +23,33 @@ The principle of least privilege requires that containers be granted only the sp
 
 ## What Gets Flagged
 
-```dockerfile
-# FLAGGED: --privileged disables all security boundaries
-RUN --privileged ./setup-network.sh
+The rule reports configuration that actually runs a container privileged:
 
-# FLAGGED: entrypoint that requests privileged mode
-ENTRYPOINT ["docker-entrypoint.sh", "--privileged"]
+- `privileged: true` (also `True` or `"true"`) on a Compose service;
+- `privileged: true` directly under a Kubernetes `securityContext` (containers, init and ephemeral containers, any manifest or Helm template);
+- in a Dockerfile, `RUN --security=insecure`, a `LABEL RUN=`/`INSTALL=` run command that passes `--privileged`, and a `RUN`, `CMD` or `ENTRYPOINT` that starts a container with `docker`/`podman`/`nerdctl run --privileged`.
+
+```yaml
+services:
+  dind:
+    image: docker:27.1-dind
+    privileged: true          # FLAGGED
 ```
 
 ```yaml
-# FLAGGED: docker-compose.yml granting privileged mode to a service
-services:
-  app:
-    image: myapp:latest
-    privileged: true
+      containers:
+        - name: agent
+          securityContext:
+            privileged: true    # FLAGGED
 ```
+
+```dockerfile
+LABEL RUN="docker run --privileged -v /:/host --name NAME IMAGE"        # FLAGGED
+RUN --security=insecure mount -t tmpfs tmpfs /mnt                     # FLAGGED
+CMD ["docker", "run", "--privileged", "--rm", "ghcr.io/example/agent:1.0"]  # FLAGGED
+```
+
+Not reported: `privileged: false` or a variable, a `privileged` key under any other parent (environment, labels, ConfigMap data, a PodSecurityPolicy), `--privileged=false`, `--privileged` in comments, echo strings or free-text labels, test and `.devcontainer` configuration.
 
 ## Remediation
 

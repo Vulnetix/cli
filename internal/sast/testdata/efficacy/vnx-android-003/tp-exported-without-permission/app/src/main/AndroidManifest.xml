@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.bank">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name">
+        <activity
+            android:name=".LoginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+~>        <activity
+            android:name=".TransferActivity"
+            android:exported="true"
+            android:label="@string/title_transfer" >
+        </activity>
+~>        <activity android:name=".StatementActivity" android:exported="true" />
+~>        <provider
+            android:name=".AccountsProvider"
+            android:authorities="com.example.bank.accounts"
+            android:exported="true" >
+        </provider>
+~>        <service android:name=".SyncService"
+            android:exported="true" />
+    </application>
+
+</manifest>

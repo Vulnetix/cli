@@ -1,0 +1,6 @@
+from registry.access.redhat.com/ubi9/ubi-minimal:9.4
+run microdnf install -y nginx-1.20.1 && microdnf clean all
+copy nginx.conf /etc/nginx/nginx.conf
+~>user 0:0
+expose 8080
+cmd ["nginx", "-g", "daemon off;"]

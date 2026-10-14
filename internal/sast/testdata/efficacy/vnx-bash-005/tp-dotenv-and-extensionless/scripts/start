@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+~>REDIS_PASSWORD=r3d1sPa55word
+exec redis-server --requirepass "$REDIS_PASSWORD"

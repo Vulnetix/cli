@@ -1,0 +1,4 @@
+{
+    "type": "project",
+    "require": { "acme/widgets": "^1.0" }
+}

@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-003 – Insecure Deserialization with pickle"
-description: "Detect use of Python's pickle and cPickle deserializers, which execute arbitrary code embedded in serialized data and have no safe way to load untrusted input."
+description: "Detect pickle-format deserialization (pickle, cPickle, _pickle, dill, cloudpickle load/loads/Unpickler, including aliases and imported names, and unsafe jsonpickle.decode), which executes code embedded in the data."
 ---
 
 ## Overview
@@ -29,9 +29,17 @@ This payload is only a few bytes and trivially embeds in any data channel that u
 
 ## What Gets Flagged
 
-Any `.py` file containing `pickle.load(`, `pickle.loads(`, `cPickle.load(`, or `cPickle.loads(`.
+A call to `load()`, `loads()` or `Unpickler()` of `pickle`, `cPickle`, `_pickle`, `dill` or `cloudpickle`, through the module, an `import pickle as pkl` alias, or a name imported with `from pickle import loads as unpickle`; and `jsonpickle.decode()` without `safe=True`.
+
+Not flagged: `pickle.dump()`/`dumps()`, a deep-copy round trip (`pickle.loads(pickle.dumps(obj))`), `json`/`msgpack`, other objects' `loads` methods (`serializer.loads(...)`), and mentions in comments or strings. ML model loaders such as `torch.load` are VNX-PY-013.
 
 ```python
+# FLAGGED: an aliased module and an imported name
+import pickle as pkl
+from pickle import loads as unpickle
+a = pkl.loads(blob)
+task = unpickle(message.body)
+
 # FLAGGED: loading from a file
 with open("data.pkl", "rb") as f:
     obj = pickle.load(f)

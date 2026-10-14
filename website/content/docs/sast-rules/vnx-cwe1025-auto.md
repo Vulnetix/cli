@@ -1,61 +1,74 @@
 ---
-title: "VNX-1025 – Improper Comparison of User-Supplied Input"
-description: "Detects equality comparison operators in Go, Node.js, and Python that may indicate non-constant-time comparisons of security-sensitive values such as tokens, passwords, or MACs."
+title: "VNX-1025 – Comparison Using Wrong Factors"
+description: "Reports comparisons that test the wrong property of their operands: Java == on Strings and boxed numbers, Python is against literals, JavaScript comparisons with fresh []/{} or impossible typeof strings, Go error-text and type-name comparisons, and PHP loose comparisons of hashes, strcmp and get_class."
 ---
 
 ## Overview
 
-VNX-1025 is an auto-generated broad-pattern rule that searches for equality comparison operators (`==` in Go and Python, `===` in Node.js) across source files. The rule is associated with [CWE-1025: Comparison Using Wrong Factors](https://cwe.mitre.org/data/definitions/1025.html), which covers situations where comparisons are made using factors that do not accurately represent the intended condition — for example, comparing a cryptographic token with a standard equality operator that short-circuits on the first differing byte.
+VNX-1025 reports [CWE-1025: Comparison Using Wrong Factors](https://cwe.mitre.org/data/definitions/1025.html): a comparison that examines the wrong property of its operands, so it can succeed or fail regardless of the values the author meant to compare.
 
-Standard equality operators are not timing-safe. When used to compare secrets such as HMAC signatures, session tokens, or password hashes, they are vulnerable to timing side-channel attacks: an attacker who can make many requests can measure response times to progressively guess the correct value byte by byte.
+What is reported:
 
-This rule has a very high false-positive rate because `==` is used in virtually all programs. Findings must be reviewed in context to determine whether the comparison involves security-sensitive data.
+- **Java**: `==` or `!=` between object references where a value comparison was meant. That covers a String literal operand, a String-returning call (`getParameter`, `getHeader`, `trim`, `toString` ...), a variable declared `String` in the enclosing method, and two variables declared `Integer`/`Long`/`BigDecimal` or another boxed type. Classes compared by name (`getClass().getName()`/`getSimpleName()` with `equals` or `==`) are also reported.
+- **Python**: `is`/`is not` against a str, bytes, number, list, dict or empty-tuple literal in an `if`/`elif`/`while`/`assert`/`return`, and `type(x).__name__` or `x.__class__.__name__` compared with `==`/`!=`.
+- **JavaScript/TypeScript**: `==`/`===` against a fresh `[]` or `{}` (always a different object), `x.constructor.name` compared with `==`/`===`, and `typeof` compared with a string `typeof` never returns (`'array'`, `'null'`, `'date'` ...).
+- **Go**: `err.Error()` text compared with `==`/`!=` instead of `errors.Is` (directly, or through a variable assigned `err.Error()` a few lines above), and `reflect.TypeOf(x).Name()`/`String()` or `fmt.Sprintf("%T")` compared with `==`.
+- **PHP**: loose `==`/`!=` with an `md5`/`sha1`/`hash`/`hash_hmac`/`crypt` result (`"0e..."` hashes compare as numbers), `strcmp`/`strcasecmp(...) == 0` (`NULL == 0` when an argument is an array), and `get_class()` compared with a string literal.
 
-**Severity:** Medium | **CWE:** [CWE-1025 – Comparison Using Wrong Factors](https://cwe.mitre.org/data/definitions/1025.html) | **OWASP:** [A02:2021 – Cryptographic Failures](https://owasp.org/Top10/A02_2021-Cryptographic_Failures/)
+Not reported: comparisons with `null`/`None`/`True`/`False`, enums, primitives and char literals; `equals()`, `Objects.equals`, `MessageDigest.isEqual`, `hash_equals`, `password_verify`, `errors.Is`, `instanceof` and `isinstance`; strict `===` in PHP; `a.intern() == b.intern()`; `get_class()` against `::class` or `__CLASS__`; timing-unsafe comparison of secrets (a different weakness); test code, comments and the pattern inside string literals.
+
+**Severity:** Low | **CWE:** [CWE-1025](https://cwe.mitre.org/data/definitions/1025.html)
 
 ## Why This Matters
 
-Timing attacks against string comparison have been exploited in real production systems, including HMAC verification bypasses in web frameworks. An attacker who can submit controlled input and observe response times with sufficient precision can recover a secret token without ever seeing it directly, turning an authentication bypass into a matter of statistical analysis over a large number of requests.
-
-Fixing this class of vulnerability requires replacing standard equality with a constant-time comparison function for every location where security-sensitive secrets are compared, not just the obvious authentication paths.
+These comparisons look right and pass simple tests, then decide security checks wrongly. In Java, `request.getParameter("role") == "admin"` compares object identity and is false for every request, while two interned constants compare equal by accident. PHP's `md5($token) == $hash` treats `"0e1234..."` hashes as the number zero, so unrelated tokens match. `strcmp($_POST['password'], $stored) == 0` passes when the password is sent as an array. A class or error compared by name is fooled by any class or message that reuses the name.
 
 ## What Gets Flagged
 
-The rule scans Go, Node.js, and Python files for equality operator usage:
-
-```python
-# FLAGGED: non-constant-time token comparison
-if user_token == expected_token:
-    grant_access()
+```java
+return request.getParameter("role") == "admin";                             // FLAGGED
+if (plugin.getClass().getName().equals("com.acme.plugins.TrustedPlugin")) { // FLAGGED
 ```
 
-```go
-// FLAGGED: direct string equality on HMAC
-if receivedMAC == computedMAC {
-    process(request)
-}
+```python
+if role is "admin":                                                          # FLAGGED
+return type(user).__name__ == "Superuser"                                    # FLAGGED
 ```
 
 ```javascript
-// FLAGGED: strict equality on API key
-if (req.headers['x-api-key'] === process.env.API_KEY) {
-    next();
-}
+if (typeof filter === 'array') {                                             // FLAGGED
+if (user.roles === []) {                                                     // FLAGGED
+```
+
+```go
+if err.Error() == "connection reset by peer" {                               // FLAGGED
+```
+
+```php
+if (md5($token) == $user['reset_hash']) {                                    // FLAGGED
+if (strcmp($_POST['password'], $user['password']) == 0) {                    // FLAGGED
+```
+
+## What Is Not Flagged
+
+```java
+return "admin".equals(request.getParameter("role"));
+```
+
+```php
+if (hash_equals($user['reset_hash'], md5($token))) {
 ```
 
 ## Remediation
 
-1. Replace secret comparisons with constant-time equivalents:
-   - **Go**: `crypto/subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1`
-   - **Python**: `hmac.compare_digest(a, b)`
-   - **Node.js**: `crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))`
-2. Never compare raw password strings — always compare derived hashes using the KDF library's built-in verification function (e.g., `bcrypt.CheckPasswordHash`).
-3. Limit the scope of findings by suppressing confirmed-safe comparisons with a `// vulnetix-ignore: VNX-1025` comment after review.
+1. Java: compare values with `equals()`/`Objects.equals`, and types with `instanceof` or `getClass() == Other.class`.
+2. Python: use `==` for values and `isinstance` for types.
+3. JavaScript: use `Array.isArray`, `.length`, `instanceof` or `=== null`.
+4. Go: use `errors.Is`/`errors.As` and type switches.
+5. PHP: use `===`, `hash_equals` and `password_verify`.
 
 ## References
 
 - [CWE-1025: Comparison Using Wrong Factors](https://cwe.mitre.org/data/definitions/1025.html)
-- [CWE-208: Observable Timing Discrepancy](https://cwe.mitre.org/data/definitions/208.html)
-- [OWASP Testing Guide – Testing for Timing Attacks](https://owasp.org/www-project-web-security-testing-guide/)
-- [Go crypto/subtle package](https://pkg.go.dev/crypto/subtle)
-- [Python hmac.compare_digest](https://docs.python.org/3/library/hmac.html#hmac.compare_digest)
+- [CWE-597: Use of Wrong Operator in String Comparison](https://cwe.mitre.org/data/definitions/597.html)
+- [PHP: Comparison operators and type juggling](https://www.php.net/manual/en/language.operators.comparison.php)

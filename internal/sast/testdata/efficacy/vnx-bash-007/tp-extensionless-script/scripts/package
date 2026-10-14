@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+~>zip -r release.zip $(git ls-files)

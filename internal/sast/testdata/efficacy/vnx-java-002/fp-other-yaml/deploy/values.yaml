@@ -1,0 +1,5 @@
+exposure:
+  include: "*"
+management:
+  security:
+    enabled: false

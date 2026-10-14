@@ -1,0 +1,5 @@
+variables:
+~>  DEPLOY_TOKEN: gldt-@@sample:[A-Za-z0-9_-]{20}@@
+build:
+  script:
+    - make build

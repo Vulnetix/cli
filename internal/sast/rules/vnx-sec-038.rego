@@ -1,11 +1,12 @@
 package vulnetix.rules.vnx_sec_038
 
 import rego.v1
+import data.vulnetix.lib.secrets
 
 metadata := {
 	"id": "VNX-SEC-038",
 	"name": "HashiCorp Terraform Cloud token",
-	"description": "A HashiCorp Terraform Cloud API token was found in source code. Terraform Cloud tokens grant ability to modify infrastructure-as-code state and trigger runs that can alter production infrastructure.",
+	"description": "Reports a Terraform Cloud / Terraform Enterprise API token: a standalone token of 14 letters and digits, .atlasv1., and 60 or more base64url characters, in any file including .tfvars and .terraformrc. Placeholders and test or fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-038/",
 	"languages": [],
 	"severity": "critical",
@@ -19,24 +20,26 @@ metadata := {
 	"tags": ["secrets", "terraform", "hashicorp", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".tfvars")
+_pattern := `\b([A-Za-z0-9]{14}\.atlasv1\.[A-Za-z0-9_=-]{60,})`
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	contains(content, ".atlasv1.")
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`[a-z0-9]{14}\.atlasv1\.[a-z0-9\-_=]{60,70}`, line)
+	contains(line, ".atlasv1.")
+	m := regex.find_all_string_submatch_n(_pattern, line, 1)
+	count(m) > 0
+	token := m[0][1]
+	not secrets.is_example_token(token)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Terraform Cloud API token found; revoke the token in TFC and rotate any leaked secrets",
+		"message": "Terraform Cloud API token found; revoke it in Terraform Cloud (User or Team settings > Tokens) and rotate any secrets its workspaces expose",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

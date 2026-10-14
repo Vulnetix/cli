@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-033 – AWS Bedrock Long-Lived API Key"
-description: "Detects hardcoded AWS Bedrock long-lived API keys (ABSK prefix) that grant programmatic access to Anthropic, Cohere, Meta, Mistral and Stability models."
+description: "Reports an AWS Bedrock long-term API key: the ABSK prefix followed by 109 to 269 base64 characters, standing alone (not embedded in a longer base64 run). Placeholder and example values, test and fixture paths, and short-term bedrock-api-key- tokens (which expire within hours) are not reported."
 ---
 
 ## Overview
@@ -15,7 +15,13 @@ Anthropic, Cohere, Meta Llama, Mistral, Stability, and Amazon Titan models are a
 
 ## What Gets Flagged
 
-Any source file line containing a 100+ character base64 string starting with `ABSK`.
+Flagged (a standalone `ABSK` token of 109 to 269 base64 characters):
+
+```bash
+AWS_BEARER_TOKEN_BEDROCK=ABSKQmVkcm9ja0FQSUtleS<...base64 body...>
+```
+
+Not flagged: `os.environ["AWS_BEARER_TOKEN_BEDROCK"]`, an `ABSK` run inside a longer base64 blob, `ABSKxxxx…` placeholders, files under test or fixture paths, and short-term `bedrock-api-key-` tokens.
 
 ## Remediation
 

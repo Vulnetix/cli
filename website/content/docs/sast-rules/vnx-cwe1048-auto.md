@@ -1,55 +1,54 @@
 ---
-title: "VNX-1048 – Sensitive Data in Referrer"
-description: "Detects outbound HTTP client patterns across Go, Java, Node.js, PHP, and Python that may expose sensitive data through Referer headers or query strings in GET requests."
+title: "VNX-1048 – Function with a Large Number of Outward Calls"
+description: "Detects a single function or method in Go, Java, JavaScript/TypeScript, PHP, Python or Ruby whose body calls 40 or more distinct functions or methods (excessive fan-out)."
 ---
 
 ## Overview
 
-VNX-1048 is an auto-generated broad-pattern rule that searches for HTTP client request patterns across Go, Java, Node.js, PHP, and Python source files. The rule targets `http.NewRequest` in Go, `HttpURLConnection` in Java, `fetch` in Node.js, `curl` in PHP, and `requests.get` in Python. These are associated with [CWE-1048](https://cwe.mitre.org/data/definitions/1048.html) in the rule metadata.
+VNX-1048 reports a function or method that calls **40 or more distinct functions or methods** in its own body ([CWE-1048](https://cwe.mitre.org/data/definitions/1048.html), excessive fan-out). Each distinct callee name counts once, with its receiver, so `db.Close()` and `store.Close()` are two callees and a call repeated ten times is one. String literals and comment lines are removed before counting and language keywords (`if`, `for`, `return`, `len`, `isset`...) are ignored. In Ruby a method sent without parentheses (`account.suspended?`) counts as a call.
 
-Note: CWE-1048 in MITRE's catalog covers "Invokable Control Element with Large Number of Outward Calls." The vulnerability this rule detects — information exposure through Referer headers and GET query strings — maps to [CWE-598: Use of GET Request Method with Sensitive Query Strings](https://cwe.mitre.org/data/definitions/598.html) and [CWE-200: Exposure of Sensitive Information to an Unauthorized Actor](https://cwe.mitre.org/data/definitions/200.html). The CWE mapping is a known limitation of this auto-generated rule.
+The body runs to the function's closing brace (Go, Java, PHP, JavaScript/TypeScript), its dedent (Python) or its `end` (Ruby), measured over at most 300 lines.
 
-All flagged patterns are standard HTTP client APIs; findings require manual review to determine whether sensitive data such as tokens, session IDs, or personal information is transmitted in URLs or headers that may be logged or leaked.
-
-**Severity:** Medium | **CWE:** [CWE-1048](https://cwe.mitre.org/data/definitions/1048.html) | **OWASP:** [A02:2021 – Cryptographic Failures](https://owasp.org/Top10/A02_2021-Cryptographic_Failures/)
+**Severity:** Low | **CWE:** [CWE-1048](https://cwe.mitre.org/data/definitions/1048.html)
 
 ## Why This Matters
 
-Sensitive data placed in URL query strings is captured in browser history, server access logs, proxy logs, and the HTTP `Referer` header sent to third-party resources. Tokens, API keys, passwords, and personal identifiers passed as GET parameters can leak through any of these channels without the application's knowledge.
-
-Similarly, applications that make outbound HTTP requests with secrets embedded in URLs — webhook callbacks, third-party API calls — expose those secrets to the infrastructure handling those requests, including intermediary proxies and CDNs.
+A unit that reaches 40 other units does many jobs at once: it is hard to review as one, hard to test exhaustively, and a security check placed among the calls (an authorisation test, a rate limit, a fraud screen) is easy to miss, reorder or bypass when the function is edited.
 
 ## What Gets Flagged
 
-The rule scans Go, Java, Node.js, PHP, and Python source files for outbound HTTP client patterns:
-
-```python
-# FLAGGED: Python requests.get with token in URL
-import requests
-requests.get(f"https://api.example.com/data?token={secret_token}")
+```go
+// FLAGGED: main wires config, database, cache, auth, metrics, routes and shutdown itself
+func main() {
+	cfg, err := config.Load(*cfgPath)
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	store := cache.NewRedis(cfg.RedisAddr)
+	verifier, err := auth.NewVerifier(cfg.JWKSURL)
+	// ... 40+ distinct calls
+}
 ```
 
 ```javascript
-// FLAGGED: Node.js fetch — review for query string secrets
-fetch(`https://api.example.com/notify?key=${apiKey}&user=${userId}`)
+// FLAGGED: a route handler that authenticates, checks quota, scans, stores, queues and notifies
+router.post('/documents', upload.single('file'), async (req, res, next) => {
+  const quota = await db.quotas.findOne({ userId: req.user.id });
+  const verdict = await scanFile(req.file.path);
+  await s3.putObject({ Bucket: process.env.BUCKET, Key: key, Body: buffer }).promise();
+  // ... 40+ distinct calls
+});
 ```
 
-```go
-// FLAGGED: Go http.NewRequest — confirm no secrets in URL
-req, _ := http.NewRequest("GET", "https://api.example.com/query?auth="+token, nil)
-```
+## What Is Not Flagged
+
+- The same work split into helpers that each call fewer than 40 things (`validate`, `price`, `persist`, `notifyParties`).
+- A long function that repeats a few calls (`out.write(format_row(...))` sixty times).
+- SQL functions inside a query string (`COUNT(`, `COALESCE(`), and calls in comments.
+- Test files, vendored or minified code, front-end libraries in `static/js/libs` and similar, and AMD `define([...], function () {...})` module wrappers.
 
 ## Remediation
 
-1. Never place secrets, tokens, session IDs, or personal data in URL query strings. Use request headers (e.g., `Authorization: Bearer <token>`) instead.
-2. Use POST with a request body for any operation that transmits sensitive data, so the payload is not recorded in access logs.
-3. Audit outbound HTTP calls for secrets embedded in the URL path or query parameters.
-4. Configure your HTTP client to suppress the `Referer` header when making requests to third-party services, or set `Referrer-Policy: no-referrer` in browser contexts.
-5. Rotate any credentials that may have been logged in server access logs as a result of GET-based transmission.
+Split the function by responsibility: keep the orchestration in one short function and move each step (validation, pricing, persistence, notification) into its own named function that can be read and tested alone. Keep security checks at the top of the orchestrating function where a reviewer sees them first.
 
 ## References
 
-- [CWE-598: Use of GET Request Method with Sensitive Query Strings](https://cwe.mitre.org/data/definitions/598.html)
-- [CWE-200: Exposure of Sensitive Information to an Unauthorized Actor](https://cwe.mitre.org/data/definitions/200.html)
-- [OWASP Testing for Sensitive Information in HTTP Referrer Header](https://owasp.org/www-project-web-security-testing-guide/)
-- [OWASP Transport Layer Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html)
+- [CWE-1048: Invokable Control Element with Large Number of Outward Calls](https://cwe.mitre.org/data/definitions/1048.html)

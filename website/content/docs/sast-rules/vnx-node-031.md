@@ -1,11 +1,11 @@
 ---
 title: "VNX-NODE-031 – Logging of sensitive data"
-description: "Detects Node.js logging calls that include arguments containing sensitive keywords such as password, token, secret, or credit card data, risking credential and PII exposure in log files."
+description: "Reports console and logger (winston, pino, bunyan) calls that pass a variable or property named as a password, secret, token, API key, credential, authorization header, CVV, SSN or card number; words in the message text alone are not reported."
 ---
 
 ## Overview
 
-This rule detects `console.log`, `console.info`, `console.warn`, `console.error`, and structured logging calls via `logger.*`, `winston.*`, `bunyan.*`, or `pino.*` where the arguments include sensitive keyword patterns: `password`, `passwd`, `secret`, `token`, `auth`, `credit`, `card`, `cvv`, `ssn`, or `pin`. Logging sensitive data causes those values to appear in log files, log aggregation systems, and monitoring dashboards — surfaces that typically have broader access than the application's primary datastore and are retained for extended periods. This is classified as CWE-532 (Insertion of Sensitive Information into Log File).
+This rule detects `console.log`, `console.info`, `console.warn`, `console.error`, and structured logging calls via `logger.*`, `winston.*`, `bunyan.*`, or `pino.*` where an argument passes a variable or property named as a secret: `password`/`pass`/`pwd`, `secret`, `token`, `apiKey`/`privateKey`, `credential`, `authorization`, `jwt`, `otp`, `pin`, `ssn`, `cvv`, `cardNumber`/`creditCard`. The value must be read in the call; a sensitive word in the message text alone is not reported. Logging sensitive data causes those values to appear in log files, log aggregation systems, and monitoring dashboards — surfaces that typically have broader access than the application's primary datastore and are retained for extended periods. This is classified as CWE-532 (Insertion of Sensitive Information into Log File).
 
 Sensitive values commonly end up in logs through debugging practices (logging request bodies or full objects), error handling (logging caught exceptions that include the originating data), and audit trails that inadvertently capture authentication material. Once written to a log, sensitive data may propagate to SIEM systems, cold storage, third-party log management services, and developer workstations — each an additional attack surface.
 
@@ -20,18 +20,20 @@ From a compliance perspective, logging passwords or cardholder data (card number
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: password logged directly
-console.log('User login attempt:', { username, password });
+// FLAGGED: the password argument
+console.log('authenticating %s:%s', name, pass);
 
-// FLAGGED: auth token in structured log
-logger.info({ userId, token: authToken }, 'User authenticated');
+// FLAGGED: API key in a structured log, token in a concatenation
+logger.info({ endpoint, apiKey }, 'calling upstream');
+logger.debug('received token ' + accessToken);
 
-// FLAGGED: credit card data in error log
-winston.error('Payment failed for card: ' + creditCardNumber + ' CVV: ' + cvv);
-
-// FLAGGED: secret included in debug output
-pino.debug({ apiSecret, endpoint }, 'Calling external API');
+// FLAGGED: template interpolation and request headers
+winston.info(`login ok for ${userId} with session ${sessionToken}`);
+log.info('auth header', req.headers.authorization);
+console.error('charge failed', cardNumber, cvv);
 ```
+
+Not flagged: the word only in the message (`logger.info('password changed for user %s', user.id)`), derived values (`token.length`, `!!password`, `typeof token`, `token.substring(0, 8)`), redacted or hashed values (`redact(secret)`, `sha256(password)`), lookalike names (`tokens`, `tokenizer`, `isTokenValid`, `passwordPolicy`), and test files.
 
 ## Remediation
 

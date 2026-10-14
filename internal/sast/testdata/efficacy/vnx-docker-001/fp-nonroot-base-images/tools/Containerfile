@@ -1,0 +1,8 @@
+FROM cgr.dev/chainguard/go:latest-dev AS build
+WORKDIR /work
+COPY . .
+RUN go build -o /work/tool .
+
+FROM cgr.dev/chainguard/static:latest
+COPY --from=build /work/tool /usr/bin/tool
+ENTRYPOINT ["/usr/bin/tool"]

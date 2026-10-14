@@ -1,15 +1,15 @@
 ---
 title: "VNX-GO-014 – sync.Mutex Lock() Without Deferred Unlock()"
-description: "Detects sync.Mutex.Lock() or sync.RWMutex.RLock() calls that are not immediately followed by a deferred Unlock or RUnlock, risking goroutine deadlocks on panic or early return."
+description: "Detects sync.Mutex.Lock() or sync.RWMutex.RLock() calls that can leave the mutex held: the function returns, panics or continues its loop on a path that never reaches an Unlock, or never unlocks and no other function releases it, and no deferred Unlock covers it."
 ---
 
 ## Overview
 
-This rule detects calls to `sync.Mutex.Lock()` or `sync.RWMutex.RLock()` that are not immediately followed by a `defer mu.Unlock()` or `defer mu.RUnlock()` on the next non-blank line. When a mutex is locked without a deferred unlock, any panic or early return between the lock and the eventual unlock call leaves the mutex permanently held. Subsequent goroutines that attempt to acquire the same lock will block indefinitely, causing a goroutine leak and a denial-of-service condition. This maps to CWE-667 (Improper Locking) and CWE-833 (Deadlock).
+This rule detects calls to `sync.Mutex.Lock()` or `sync.RWMutex.RLock()` that can be left held: no deferred `Unlock`/`RUnlock` covers the lock, and the function either never unlocks or can return or panic first. When a mutex is locked without a deferred unlock, any panic or early return between the lock and the eventual unlock call leaves the mutex permanently held. Subsequent goroutines that attempt to acquire the same lock will block indefinitely, causing a goroutine leak and a denial-of-service condition. This maps to CWE-667 (Improper Locking) and CWE-833 (Deadlock).
 
 The idiomatic Go pattern for safe mutex usage is to call `defer mu.Unlock()` immediately after `mu.Lock()` on the next line. This guarantees that the unlock occurs regardless of how the function exits — whether through a normal return, an error return, or a panic that is recovered higher up the stack. Any pattern that deviates from this — such as conditionally unlocking, or unlocking only on the happy path — is a source of latent deadlock bugs.
 
-The rule checks the immediately following non-blank, non-comment line after every lock call. It does not attempt full data-flow analysis, so patterns where the deferred unlock is placed further away are flagged conservatively.
+The rule follows each lock to the end of its function. It reports the lock when there is no deferred unlock for that receiver and either the function never unlocks it, or a `return` or `panic` is reached before the first matching `Unlock`. A short critical section that locks, does its work and unlocks with nothing that can exit in between is correct and is not reported, and neither is a lock followed by any `defer`red unlock (or a `defer func() {` block) further down. Wrapper methods named `Lock`/`RLock` (whose caller owns the unlock) and test files are skipped. There is no full data-flow analysis: a panic raised by a call in the middle of a critical section is not seen.
 
 **Severity:** High | **CWE:** [CWE-667 – Improper Locking](https://cwe.mitre.org/data/definitions/667.html), [CWE-833 – Deadlock](https://cwe.mitre.org/data/definitions/833.html)
 
@@ -35,14 +35,53 @@ func (s *Store) Set(key, value string) {
     s.mu.Unlock()
 }
 
-// FLAGGED: RLock() without deferred RUnlock()
+// NOT FLAGGED: a short critical section with no exit between Lock and Unlock
 func (s *Store) Get(key string) string {
     s.mu.RLock()
     val := s.data[key]
     s.mu.RUnlock()
     return val
 }
+
+// FLAGGED: a return while the lock is held
+func (s *Store) Lookup(key string) (string, error) {
+    s.mu.RLock()
+    val, ok := s.data[key]
+    if !ok {
+        return "", ErrMissing // RUnlock never runs on this path
+    }
+    s.mu.RUnlock()
+    return val, nil
+}
+
+// FLAGGED: the first error path unlocks, the second forgets
+func (l *Ledger) Withdraw(id string, amt int64) error {
+    l.mu.Lock()
+    bal, ok := l.balances[id]
+    if !ok {
+        l.mu.Unlock()
+        return ErrUnknown
+    }
+    if bal < amt {
+        return ErrInsufficient // still locked
+    }
+    l.balances[id] = bal - amt
+    l.mu.Unlock()
+    return nil
+}
+
+// FLAGGED: a lock taken inside a loop, skipped with continue
+for _, d := range docs {
+    mu.Lock()
+    if d.ID == "" {
+        continue // the next iteration's Lock deadlocks
+    }
+    byID[d.ID] = d
+    mu.Unlock()
+}
 ```
+
+Not reported: an `Unlock` deferred anywhere in the function (or a `defer func() {` whose body unlocks or releases; a deferred `recover()` or log line does not count), a `return` inside a func literal or a `continue` of a loop opened inside the critical section, a lock re-acquired after the function released it (the `sync.Cond` unlock, wait, lock shape), a wrapper whose name is `Lock`, `RLock`, `Acquire`, `Enter` or `Begin...`, and a lock whose release half is another function in the same file that unlocks the same field without locking it (`NewTxn`/`Commit`, `start`/`end`). Test files are skipped.
 
 ## Remediation
 

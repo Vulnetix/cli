@@ -1,6 +1,6 @@
 ---
 title: "VNX-LLM-002 – LLM Output Passed to Code Execution (RCE)"
-description: "Detects LLM model response content passed directly to eval(), exec(), os.system(), or subprocess — enabling remote code execution if the model is manipulated via prompt injection."
+description: "Reports LLM response text, read directly or through up to two assignments, passed to eval(), exec(), os.system(), subprocess, or JavaScript eval/new Function/vm/child_process exec, enabling code execution through prompt injection."
 ---
 
 ## Overview
@@ -17,23 +17,28 @@ In an agentic architecture where the model generates Python code to answer data 
 
 ## What Gets Flagged
 
-The rule matches lines where `eval`, `exec`, `os.system`, or `subprocess` appear in proximity to LLM response variable names (`response`, `content`, `result`, `output`, `choices`).
+The text of an LLM response (`.choices[0].message.content`, `.content[0].text`, `.output_text`, or the result of `llm.invoke()`/`predict()`/`run()`), used directly or through up to two assignments, reaching `eval()`, `exec()`, `os.system()`, `subprocess.*`, or in JavaScript `eval()`, `new Function()`, `vm.runIn*Context()` or `child_process.exec()/execSync()`.
 
 ```python
-# FLAGGED: LLM output content passed to exec()
-content = response.choices[0].message.content
-exec(content)
+# FLAGGED: model-written code executed
+code = resp.choices[0].message.content
+exec(code)
 ```
 
 ```python
-# FLAGGED: LLM result passed to eval on same line
-eval(result)  # where result is derived from LLM choices
+# FLAGGED: model-suggested shell command run through two assignments
+answer = llm.invoke(f"Give one shell command that answers: {question}")
+command = answer.content.strip()
+subprocess.run(command, shell=True, check=True)
 ```
 
-```python
-# FLAGGED: shell execution of LLM-generated command
-os.system(response.choices[0].message.content)
+```javascript
+// FLAGGED: completion text evaluated
+const snippet = completion.choices[0].message.content;
+return eval(snippet);
 ```
+
+Not flagged: tool-call arguments parsed with `json.loads`/`JSON.parse` and dispatched to fixed handlers, `ast.literal_eval()`, a regex `.exec()`, and execution of values that do not come from a model response.
 
 ## Remediation
 

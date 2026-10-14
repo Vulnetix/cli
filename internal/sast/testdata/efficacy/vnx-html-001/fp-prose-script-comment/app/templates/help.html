@@ -1,0 +1,6 @@
+<h2>Templating guide</h2>
+<p>Only use the <code>|safe</code> filter for HTML you produced yourself.</p>
+{# {{ legacy_html|safe }} was removed in 2.0 #}
+<script>
+  const pattern = /\|safe/g;
+</script>

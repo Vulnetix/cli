@@ -1,13 +1,13 @@
 ---
 title: "VNX-JAVA-027 – Java Spring Security Headers Disabled"
-description: "Detects Spring Security configurations that explicitly disable X-Frame-Options, Content-Security-Policy, or all HTTP security headers, leaving the application vulnerable to clickjacking and UI-redressing attacks."
+description: "Detects Spring Security configurations that disable all default security headers, X-Frame-Options, HSTS or X-Content-Type-Options, in the chained, lambda and method-reference DSL forms. xssProtection().disable(), sameOrigin()/deny() and test code are not reported."
 ---
 
 ## Overview
 
 Spring Security automatically adds a set of defensive HTTP response headers — `X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Strict-Transport-Security`, and `Content-Security-Policy` — when the `headers()` configuration is active (the default). Calling `frameOptions().disable()` disables the `X-Frame-Options` header specifically, while calling `headers().disable()` removes all security headers entirely. Both patterns leave the application exposed to clickjacking and related UI-redressing attacks. This is captured by CWE-693 (Protection Mechanism Failure).
 
-This rule flags the two most common disablement patterns in Spring Security DSL code. Either pattern in a security configuration class indicates that a deliberate choice has been made to remove protective headers, which must be reviewed to confirm the decision is intentional and the risk is accepted.
+This rule flags `headers().disable()`, `frameOptions().disable()`, `httpStrictTransportSecurity().disable()` and `contentTypeOptions().disable()` in every form the Spring Security DSL accepts: the chained form (also when `.headers()`, `.frameOptions()` and `.disable()` sit on separate lines), the lambda form (`headers(h -> h.disable())`, `frameOptions(f -> { f.disable(); })`) and the method-reference form (`headers(AbstractHttpConfigurer::disable)`, `frameOptions(FrameOptionsConfig::disable)`). It does not report `xssProtection().disable()` (the X-XSS-Protection header is deprecated and disabling it is current advice), `csrf()`/`cors()` disable calls, `sameOrigin()`/`deny()`, test code, comments or string literals.
 
 The `X-Frame-Options` header is the primary defence against clickjacking: it prevents the application from being embedded in an `<iframe>` on a third-party page. Without it, an attacker can overlay an invisible iframe of the legitimate application over a deceptive page, tricking users into performing authenticated actions (transferring funds, changing account settings, approving access) without their knowledge.
 
@@ -34,6 +34,11 @@ http
 http
     .headers().disable()
     ...
+
+// FLAGGED: lambda and method-reference DSL
+.headers(headers -> headers.disable())
+.headers(h -> h.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
+.httpStrictTransportSecurity(hsts -> hsts.disable())
 ```
 
 ## Remediation

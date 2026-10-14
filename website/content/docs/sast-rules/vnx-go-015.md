@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-015 – sync.WaitGroup.Add() Called Inside Goroutine"
-description: "Detects WaitGroup.Add() calls placed inside an anonymous goroutine body, which creates a race condition between Add() and Wait() that can cause premature completion or a panic."
+description: "Detects a positive WaitGroup.Add() inside the go func literal it counts, where the parent's Wait() can run first and return early; Add calls in the parent, local WaitGroups and goroutines already counted by the parent are not reported."
 ---
 
 ## Overview
 
-This rule detects `WaitGroup.Add()` calls that appear inside an anonymous goroutine (i.e., after a `go func(` launch expression). Calling `wg.Add()` inside the goroutine body introduces a race condition: if the scheduler does not begin executing the goroutine before the calling goroutine reaches `wg.Wait()`, the `Wait()` will return immediately because the counter is still zero — even though work is still pending. In the worst case the program panics with a negative WaitGroup counter when `wg.Done()` is called after `Wait()` has already returned and the counter has underflowed. This maps to CWE-362 (Concurrent Execution Using Shared Resource with Improper Synchronization) and CWE-667 (Improper Locking).
+This rule detects a positive `WaitGroup.Add()` call inside the `go func` literal it is meant to count. Calling `wg.Add()` inside the goroutine body introduces a race condition: if the scheduler does not begin executing the goroutine before the calling goroutine reaches `wg.Wait()`, the `Wait()` will return immediately because the counter is still zero — even though work is still pending. In the worst case the program panics with a negative WaitGroup counter when `wg.Done()` is called after `Wait()` has already returned and the counter has underflowed. This maps to CWE-362 (Concurrent Execution Using Shared Resource with Improper Synchronization) and CWE-667 (Improper Locking).
 
 The correct pattern is to call `wg.Add(n)` synchronously in the goroutine-launching code, before calling `go func()`, so that the counter is incremented before `Wait()` could possibly be called. The goroutine body then calls `defer wg.Done()` to decrement the counter when it finishes.
 
@@ -32,7 +32,18 @@ for _, item := range items {
     }(item)
 }
 wg.Wait()
+
+// FLAGGED: an uncounted producer goroutine adds the workers
+go func() {
+    for _, p := range paths {
+        wg.Add(1) // Wait may already have seen zero
+        go func(p string) { defer wg.Done(); check(p) }(p)
+    }
+}()
+wg.Wait()
 ```
+
+The WaitGroup is one the file declares as `sync.WaitGroup` (variable, struct field or parameter) or a name like `wg`, `fooWg` or `waitGroup`. Not reported: an `Add` in the parent before the `go` statement (including the `Add` that follows an already-closed goroutine), a WaitGroup declared and waited on inside the goroutine, a goroutine the parent counted just before starting it, or with `wg.Add(len(items))` immediately before the loop that starts it (its own `Add` calls run while the counter is above zero), negative deltas, other `Add` methods (`atomic.Int64`, `time.Time`, `big.Int`) and comments. A named function started with `go` that calls `Add` itself is not followed.
 
 ## Remediation
 

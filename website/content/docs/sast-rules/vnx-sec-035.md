@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-035 – DigitalOcean Personal Access Token"
-description: "Detects DigitalOcean personal access tokens (dop_v1_) and OAuth tokens (doo_v1_) hardcoded in source code."
+description: "Reports a DigitalOcean API token: a standalone dop_v1_ personal access token, doo_v1_ OAuth access token or dor_v1_ OAuth refresh token followed by exactly 64 hex characters. Placeholder values and test or fixture paths are not reported."
 ---
 
 ## Overview
@@ -15,11 +15,15 @@ DigitalOcean tokens are commonly leaked via `.env` files committed to GitHub. Th
 
 ## What Gets Flagged
 
-```bash
-# FLAGGED
-export DIGITALOCEAN_TOKEN="dop_v1_EXAMPLE_REDACTED"
-doctl auth init
+Flagged (`dop_v1_`, `doo_v1_` or `dor_v1_` followed by exactly 64 lower-case hex characters):
+
+```hcl
+provider "digitalocean" {
+  token = "dop_v1_<64 hex characters>"
+}
 ```
+
+Not flagged: `token = var.do_token`, `dop_v1_xxxx…` placeholders, truncated examples such as `dop_v1_abc123`, and test or fixture files.
 
 ## Remediation
 

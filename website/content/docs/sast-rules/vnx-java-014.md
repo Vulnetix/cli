@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-014 – Java Zip Slip via ZipEntry getName()"
-description: "Detects Java code that passes ZipEntry.getName() to File or Paths constructors without validating for path traversal sequences, enabling arbitrary file write outside the intended extraction directory."
+description: "Reports archive extraction code that builds an output path (new File, FileOutputStream, Paths.get, Path.resolve, Files.copy and similar) from a ZipEntry, JarEntry or Commons Compress entry name without a canonical-path or normalize-and-startsWith containment check."
 ---
 
 ## Overview
@@ -26,7 +26,7 @@ Zip Slip affects all archive formats that support path components in entry names
 
 ## What Gets Flagged
 
-The rule matches any `.java` file where `new File(...)` or `Paths.get(...)` is called with the result of `getName()` on what is presumed to be a `ZipEntry` (or similar archive entry object).
+The rule reports the output-path call whose arguments contain an archive entry's `getName()`, directly or through a local assigned from it, when no `getCanonicalPath`/`normalize()` plus `startsWith` check or `..` test appears within a few lines. Listing or logging entry names and `File.getName()` are not reported.
 
 ```java
 // FLAGGED: ZipEntry name used without traversal check
@@ -34,12 +34,9 @@ ZipEntry entry = zis.getNextEntry();
 File outFile = new File(destDir, entry.getName());  // Zip Slip!
 FileOutputStream fos = new FileOutputStream(outFile);
 
-// FLAGGED: Paths.get() form — same vulnerability
+// FLAGGED: Paths.get() form: same vulnerability
 Path outPath = Paths.get(destDir.toString(), entry.getName());  // Zip Slip!
 Files.copy(zis, outPath, StandardCopyOption.REPLACE_EXISTING);
-
-// FLAGGED: combined on one line
-new File(destDir, zipFile.getEntry(name).getName());
 ```
 
 ## Remediation

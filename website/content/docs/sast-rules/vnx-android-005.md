@@ -1,11 +1,11 @@
 ---
 title: "VNX-ANDROID-005 – Android Network Security Config Allows Plaintext HTTP Traffic"
-description: "Detects cleartextTrafficPermitted='true' in Android network security configuration XML files, which permits unencrypted HTTP connections that can be intercepted by network attackers."
+description: "Detects cleartextTrafficPermitted=\"true\" on the base-config, or on a domain-config naming a non-loopback host, of an Android network security configuration, and android:usesCleartextTraffic=\"true\" on an application with no networkSecurityConfig, outside debug and test source sets."
 ---
 
 ## Overview
 
-This rule scans XML files for the attribute `cleartextTrafficPermitted="true"` within Android network security configuration files. Android's Network Security Configuration (NSC) framework, introduced in API level 24, allows developers to declaratively control network security behaviour including which domains may use plaintext HTTP traffic. Setting `cleartextTrafficPermitted="true"` globally or for specific domains overrides the platform default, which since Android 9 (API 28) blocks cleartext traffic for all apps by default.
+This rule reports `cleartextTrafficPermitted="true"` on the `<base-config>` of a network security configuration, or on a `<domain-config>` that names at least one host other than loopback or the emulator host alias (`localhost`, `127.0.0.1`, `::1`, `10.0.2.2`, `10.0.3.2`), and `android:usesCleartextTraffic="true"` on an `<application>` that declares no `android:networkSecurityConfig` (the configuration takes precedence and is judged on its own). Files in debug and test source sets, sample modules, debug-overrides, XML comments and the attribute text inside Java or Kotlin strings are not reported. Android's Network Security Configuration (NSC) framework, introduced in API level 24, allows developers to declaratively control network security behaviour including which domains may use plaintext HTTP traffic. Setting `cleartextTrafficPermitted="true"` globally or for specific domains overrides the platform default, which since Android 9 (API 28) blocks cleartext traffic for all apps by default.
 
 When cleartext traffic is permitted, the app sends HTTP requests without TLS encryption. Any passive observer on the same Wi-Fi network, a rogue access point, or an active man-in-the-middle attacker can intercept, read, and modify all HTTP communication between the device and any server the app contacts over cleartext. This vulnerability maps to CWE-319 (Cleartext Transmission of Sensitive Information).
 
@@ -22,25 +22,23 @@ The ATT&CK technique T1557 (Man-in-the-Middle) covers exactly this class of atta
 ## What Gets Flagged
 
 ```xml
-<!-- FLAGGED: global cleartext permitted in network security config -->
-<?xml version="1.0" encoding="utf-8"?>
+<!-- FLAGGED: cleartext allowed for every host -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </base-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>
+
+<!-- FLAGGED: cleartext allowed for a public host -->
+<domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">api.example.com</domain>
+</domain-config>
+
+<!-- FLAGGED: in AndroidManifest.xml, with no networkSecurityConfig -->
+<application
+    android:usesCleartextTraffic="true"
+    android:label="@string/app_name">
 ```
 
-```xml
-<!-- FLAGGED: cleartext permitted for a specific domain -->
-<network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">api.example.com</domain>
-    </domain-config>
-</network-security-config>
-```
+Not flagged: a `domain-config` for `10.0.2.2` and `localhost` only, the same file under `src/debug/`, or `usesCleartextTraffic="true"` beside `android:networkSecurityConfig="@xml/network_security_config"`.
 
 ## Remediation
 

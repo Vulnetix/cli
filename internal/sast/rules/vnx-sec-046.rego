@@ -1,11 +1,12 @@
 package vulnetix.rules.vnx_sec_046
 
+import data.vulnetix.lib.secrets
 import rego.v1
 
 metadata := {
 	"id": "VNX-SEC-046",
 	"name": "Square access token",
-	"description": "A Square access token (EAAA or sq0atp- prefix) was found in source code. Square tokens grant access to payments, customer data, and inventory APIs.",
+	"description": "Reports a Square access token written into a file: a production or sandbox access token (EAAA followed by 56 to 64 base64url characters) and a legacy OAuth access token (sq0atp- followed by 22 to 43 characters), each standing alone rather than inside a longer base64 run. The token grants access to the seller's payments, customers and inventory. The snippet is redacted. Not reported: EAAA inside a longer base64 blob (images, certificates, wasm), placeholders (xxxx, EXAMPLE, REPLACE), low-entropy values, tokens read from the environment, and test, fixture and vendored paths. The generated VNX-SEC-328, VNX-SEC-330 and VNX-SEC-377 report the same token families.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-046/",
 	"languages": [],
 	"severity": "critical",
@@ -19,40 +20,33 @@ metadata := {
 	"tags": ["secrets", "square", "payments", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`EAAA[\w-]{22,60}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "Square access token found; revoke the token in the Square developer dashboard",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+_patterns := {
+	"Square access token found; revoke the token in the Square developer dashboard": `(?:^|[^A-Za-z0-9+/_-])(EAAA[A-Za-z0-9_-]{56,64})(?:[^A-Za-z0-9+/=_-]|$)`,
+	"Square OAuth access token found; revoke the token in the Square developer dashboard": `(?:^|[^A-Za-z0-9+/_-])(sq0atp-[A-Za-z0-9_-]{22,43})(?:[^A-Za-z0-9+/=_-]|$)`,
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	regex.match(`EAAA|sq0atp-`, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`sq0atp-[\w-]{22,60}`, line)
+	regex.match(`EAAA|sq0atp-`, line)
+	some message, p in _patterns
+	m := regex.find_all_string_submatch_n(p, line, 1)
+	count(m) > 0
+	token := m[0][1]
+	regex.match(`[0-9]`, token)
+	regex.match(`[a-z]`, token)
+	not secrets.is_example_token(token)
+	secrets.high_entropy(token, 3.5)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Square OAuth access token found; revoke the token in the Square developer dashboard",
+		"message": message,
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

@@ -1,11 +1,22 @@
 ---
 title: "VNX-SEC-055 – New Relic API Key"
-description: "Detects New Relic API keys (NRJS-, NRII-, NRAK- prefix) hardcoded in source code."
+description: "Reports New Relic user (NRAK-), insert (NRII-), ingest license (…NRAL) and browser (NRJS-) keys as whole tokens; the browser key inside the public NREUM loader snippet and placeholders are not reported."
 ---
 
 ## Overview
 
-This rule detects new relic api key matching the `NRJS-, NRII-, NRAK-` pattern hardcoded anywhere in source files. Detects New Relic API keys (NRJS-, NRII-, NRAK- prefix) hardcoded in source code.
+This rule reports a New Relic credential as a whole token: a user API key (`NRAK-` and 27 characters), an insert key (`NRII-` and 27 to 32 characters), an ingest license key (36 characters ending in `NRAL`), or a browser key (`NRJS-` and 19 hex characters) held in configuration. The browser key inside the `NREUM` loader snippet is public by design and is not reported, nor are bare prefixes, placeholders, template or environment references, and test paths.
+
+### What Gets Flagged
+
+```python
+NEW_RELIC_API_KEY = "NRAK-<27 characters>"
+```
+
+```yaml
+common: &default_settings
+  license_key: '<36 characters>NRAL'
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

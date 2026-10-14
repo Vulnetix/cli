@@ -1,0 +1,6 @@
+FROM debian:bookworm-slim AS base
+FROM ubuntu:noble AS tools
+FROM redis:7-alpine AS cache
+FROM node:20-alpine AS web
+FROM python:3.12-slim-bookworm
+COPY --from=tools /usr/bin/jq /usr/bin/jq

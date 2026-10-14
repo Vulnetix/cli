@@ -1,6 +1,6 @@
 ---
 title: "VNX-LLM-005 – LangChain Arbitrary Code Execution Tool"
-description: "Detects LangChain tools that allow arbitrary code or shell command execution by LLM agents, which can escalate prompt injection attacks to full remote code execution on the host."
+description: "Reports LangChain code and shell execution capabilities given to an agent (PythonREPLTool, PythonAstREPLTool, ShellTool, BashProcess, create_python_agent, LLMMathChain, PALChain, load_tools python_repl/terminal, allow_dangerous_code=True)."
 ---
 
 ## Overview
@@ -23,24 +23,29 @@ This attack does not require any vulnerability in the application code — only 
 
 ## What Gets Flagged
 
+Instantiating `PythonREPLTool`, `PythonAstREPLTool`, `PythonREPL`, `ShellTool` or `BashProcess`, calling `create_python_agent()`, building `LLMMathChain` or `PALChain`, `load_tools()` naming `"python_repl"` or `"terminal"`, and `allow_dangerous_code=True`.
+
 ```python
-# FLAGGED: Python REPL tool exposed to agent
-from langchain.tools import PythonREPLTool
+# FLAGGED: Python REPL tool exposed to an agent
 tools = [PythonREPLTool()]
-agent = initialize_agent(tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION)
-
-# FLAGGED: Bash execution tool
-from langchain.tools import BashProcess
-bash_tool = BashProcess()
-
-# FLAGGED: Python AST REPL
-from langchain_experimental.tools import PythonAstREPLTool
-repl = PythonAstREPLTool()
-
-# FLAGGED: Python agent factory
-from langchain_experimental.agents import create_python_agent
-agent = create_python_agent(llm, tool=PythonREPLTool(), verbose=True)
 ```
+
+```python
+# FLAGGED: shell tools
+shell = ShellTool()
+extra = load_tools(["terminal", "llm-math"], llm=llm)
+```
+
+```python
+# FLAGGED: dataframe agent allowed to run generated code
+agent = create_pandas_dataframe_agent(
+    llm,
+    df,
+    allow_dangerous_code=True,
+)
+```
+
+Not flagged: imports alone, safe tools such as search or Wikipedia, `load_tools()` with other tool names, `allow_dangerous_code=False`, and the class names in comments or strings.
 
 ## Remediation
 

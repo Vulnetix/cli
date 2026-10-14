@@ -1,0 +1,1 @@
+Service tokens start with hvs. and batch tokens with hvb.; hvs.short is not one.

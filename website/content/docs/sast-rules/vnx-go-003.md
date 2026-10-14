@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-003 – SQL Injection via fmt.Sprintf"
-description: "Detect Go database queries built with fmt.Sprintf or string concatenation, which allow SQL injection when any part of the query string originates from user input."
+description: "Reports database/sql, sqlx, pgx and GORM query calls whose SQL is built with fmt.Sprintf or concatenation so a value lands where a bind parameter belongs (inside quotes, after a comparison, IN/VALUES/LIMIT), or that embed a request value anywhere. Parameterised queries, %d, server-chosen identifiers, placeholder lists and quoted identifiers are not reported."
 ---
 
 ## Overview
@@ -19,7 +19,7 @@ OWASP ASVS v4.0 requirement **V5.3.4** requires that all database queries use pa
 
 ## What Gets Flagged
 
-The rule matches any `.go` line where a `database/sql` query method or GORM's `Raw` is called with a `fmt.Sprintf`-formatted argument. It covers both the standard library and the common ORM pattern.
+The rule fires when a `database/sql`, sqlx, pgx or GORM call (`Query`, `QueryRow`, `Exec`, `Prepare` and their `Context` forms, `Raw`, `Queryx`, `MustExec`, `NamedExec`, sqlx `Select`/`Get`, GORM `Where`/`Or`/`Not`/`Having`/`Joins`/`Order`/`Group`) receives SQL built with `fmt.Sprintf` or `+` so that a value lands where a bind parameter belongs: inside quotes, after `=`/`LIKE`, in `IN (...)`, `VALUES (...)` or `LIMIT`/`OFFSET`. A request value is reported in any position, including a table or `ORDER BY` slot. The SQL may be built inline, in a variable a few lines up (multi-line raw strings and `+=` clauses included) or across several lines of the call. Parameterised queries (`$1`, `?`, `@name`), `%d`, server-chosen identifiers, `strings.Repeat("?,", n)` placeholder lists and `pq.QuoteIdentifier` values are not reported.
 
 ```go
 // FLAGGED: user input interpolated directly into SQL query

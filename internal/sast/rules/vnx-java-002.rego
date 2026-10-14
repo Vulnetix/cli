@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_java_002
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-JAVA-002",
 	"name": "Spring actuator endpoints exposed",
-	"description": "Exposing all Spring Boot actuator endpoints (e.g. management.endpoints.web.exposure.include=*) can leak heap dumps, environment variables, and enable remote shutdown.",
+	"description": "Reports Spring Boot configuration (application/bootstrap[-profile].properties|yml|yaml) that exposes sensitive actuator endpoints over HTTP: management.endpoints.web.exposure.include set to * or naming env, heapdump, threaddump, shutdown, jolokia, configprops, httptrace, logfile or restart (properties, flat YAML keys, nested YAML, inline and block YAML lists), management.endpoint.shutdown.enabled=true, and the Spring Boot 1.x switches management.security.enabled=false and endpoints.sensitive=false. These leak heap dumps, environment variables and credentials, or allow remote shutdown. Not reported: an include of harmless endpoints (health, info, metrics, prometheus), exclude lists, JMX exposure, commented lines, test resources, and projects whose Java code secures actuator endpoints with EndpointRequest (Spring Security).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-002/",
 	"languages": ["java"],
 	"severity": "medium",
@@ -19,26 +21,124 @@ metadata := {
 	"tags": ["spring", "config", "actuator", "information-disclosure"],
 }
 
-_is_app_props(path) if endswith(path, "application.properties")
-_is_app_props(path) if endswith(path, "application.yml")
-_is_app_props(path) if endswith(path, "application.yaml")
-_is_app_props(path) if endswith(path, "application-prod.properties")
-_is_app_props(path) if endswith(path, "application-prod.yml")
+_is_config(path) if regex.match(`(^|/)(application|bootstrap)(-[\w.-]+)?\.(properties|ya?ml)$`, path)
+
+_sensitive := `(?i)(^|[\s,\["'])(\*|env|heapdump|threaddump|shutdown|jolokia|configprops|httptrace|logfile|restart)($|[\s,\]"'])`
+
+# Actuator endpoints guarded by Spring Security somewhere in the project.
+_secured if {
+	some p, c in input.file_contents
+	endswith(p, ".java")
+	contains(c, "EndpointRequest.to")
+}
+
+_indent(line) := count(line) - count(trim_left(line, " \t"))
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_app_props(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	_is_config(path)
+	not helpers.is_test_path(path)
+	regex.match(`(?i)exposure|shutdown|management\.security|endpoints\.sensitive|security:|sensitive:`, content)
+	not _secured
+	lines := split(content, "\n")
 	some i, line in lines
-	contains(line, "management.endpoints.web.exposure.include")
-	regex.match(`.*=\s*\*`, line)
+	not helpers.is_comment_line(line)
+	not startswith(trim_space(line), "!")
+	_exposes(lines, i, line)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "All actuator endpoints exposed; restrict to health,info or use Spring Security",
+		"message": "Sensitive Spring Boot actuator endpoints are exposed over HTTP; expose only health and info, and protect the rest with Spring Security or a separate management port",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# management.endpoints.web.exposure.include=* (properties or flat YAML key)
+_exposes(_, _, line) if {
+	m := regex.find_all_string_submatch_n(`^\s*management\.endpoints\.web\.exposure\.include\s*[=:]\s*(.*)$`, line, 1)
+	count(m) > 0
+	regex.match(_sensitive, trim_space(m[0][1]))
+}
+
+# nested YAML: exposure:\n  include: "*"
+_exposes(lines, i, line) if {
+	m := regex.find_all_string_submatch_n(`^(\s+)include\s*:\s*(.*)$`, line, 1)
+	count(m) > 0
+	_under_web_exposure(lines, i)
+	_yaml_value_sensitive(lines, i, trim_space(m[0][2]))
+}
+
+_exposes(_, _, line) if regex.match(`^\s*management\.endpoint\.shutdown\.enabled\s*[=:]\s*["']?true`, line)
+
+_exposes(lines, i, line) if {
+	regex.match(`^\s+enabled\s*:\s*["']?true`, line)
+	j := _parent(lines, i)
+	regex.match(`^\s*shutdown\s*:\s*$`, lines[j])
+	k := _parent(lines, j)
+	regex.match(`^\s*endpoint\s*:\s*$`, lines[k])
+}
+
+# Spring Boot 1.x: actuator authentication switched off.
+_exposes(_, _, line) if regex.match(`^\s*(management\.security\.enabled|endpoints\.sensitive)\s*[=:]\s*["']?false`, line)
+
+_exposes(lines, i, line) if {
+	regex.match(`^\s+enabled\s*:\s*["']?false`, line)
+	j := _parent(lines, i)
+	regex.match(`^\s*security\s*:\s*$`, lines[j])
+	k := _parent(lines, j)
+	regex.match(`^management\s*:\s*$`, lines[k])
+}
+
+_yaml_value_sensitive(_, _, v) if {
+	v != ""
+	regex.match(_sensitive, v)
+}
+
+# block list:  include:\n  - health\n  - heapdump
+_yaml_value_sensitive(lines, i, "") if {
+	ii := _indent(lines[i])
+	some k in numbers.range(i + 1, min([count(lines) - 1, i + 15]))
+	_in_list(lines, i, k, ii)
+	m := regex.find_all_string_submatch_n(`^\s*-\s*(.*)$`, lines[k], 1)
+	count(m) > 0
+	regex.match(_sensitive, trim_space(m[0][1]))
+}
+
+_in_list(lines, i, k, ii) if {
+	not _list_ended(lines, i, k, ii)
+}
+
+_list_ended(lines, i, k, ii) if {
+	some m in numbers.range(i + 1, k)
+	trim_space(lines[m]) != ""
+	not regex.match(`^\s*-`, lines[m])
+	_indent(lines[m]) <= ii
+}
+
+# The nearest non-blank line above i with a smaller indent.
+_parent(lines, i) := j if {
+	ii := _indent(lines[i])
+	cands := [k |
+		some k in numbers.range(max([0, i - 12]), i - 1)
+		trim_space(lines[k]) != ""
+		not helpers.is_comment_line(lines[k])
+		_indent(lines[k]) < ii
+	]
+	count(cands) > 0
+	j := cands[count(cands) - 1]
+}
+
+_under_web_exposure(lines, i) if {
+	j := _parent(lines, i)
+	regex.match(`^\s*(web\.)?exposure\s*:\s*$`, lines[j])
+	not _jmx(lines, j)
+}
+
+_jmx(lines, j) if {
+	regex.match(`^\s*exposure\s*:\s*$`, lines[j])
+	k := _parent(lines, j)
+	regex.match(`^\s*jmx\s*:\s*$`, lines[k])
 }

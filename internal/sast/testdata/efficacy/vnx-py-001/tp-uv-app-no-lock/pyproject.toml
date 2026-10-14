@@ -1,0 +1,11 @@
+[project]
+name = "ingest-worker"
+version = "1.2.0"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+    "pydantic>=2",
+]
+
+~>[tool.uv]
+dev-dependencies = ["pytest>=8"]

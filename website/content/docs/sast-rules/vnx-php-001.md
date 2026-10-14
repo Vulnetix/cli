@@ -1,11 +1,11 @@
 ---
 title: "VNX-PHP-001 – Missing composer.lock"
-description: "Detect PHP projects that have a composer.json but no composer.lock, leaving dependency resolution non-deterministic and the supply chain open to substitution attacks."
+description: "Detect an application's composer.json that requires Composer packages but has no composer.lock committed beside it, so every install re-resolves version ranges."
 ---
 
 ## Overview
 
-This rule fires when a directory contains a `composer.json` manifest but no `composer.lock` file. The lock file pins every dependency — direct and transitive — to an exact version, download URL, and cryptographic hash. Without it, `composer install` on a fresh checkout resolves floating version ranges (`^1.2`, `~3.0`) against whatever the Packagist registry returns at that moment, so two builds from the same source tree can install entirely different code.
+This rule fires when an application's `composer.json` requires Composer packages but no `composer.lock` is committed beside it. The lock file pins every dependency — direct and transitive — to an exact version, download URL, and cryptographic hash. Without it, `composer install` on a fresh checkout resolves floating version ranges (`^1.2`, `~3.0`) against whatever the Packagist registry returns at that moment, so two builds from the same source tree can install entirely different code.
 
 **Severity:** High | **CWE:** [CWE-829 – Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html) | **CAPEC:** [CAPEC-185](https://capec.mitre.org/data/definitions/185.html) | **ATT&CK:** [T1195.001](https://attack.mitre.org/techniques/T1195/001/)
 
@@ -21,18 +21,19 @@ Real-world impact from compromised Packagist packages has included exfiltration 
 
 ## What Gets Flagged
 
-The rule fires when a directory is registered as containing PHP source files but `composer.lock` is absent from that directory. Common causes:
+An application manifest (`"type": "project"`, or no `"name"`) that requires at least one `vendor/package` in `require` or `require-dev`, with no `composer.lock` in the same directory. The finding is reported on `composer.json`, line 1.
 
-- `composer.json` was committed without running `composer install` first
-- `composer.lock` was excluded via `.gitignore` (correct for published libraries, never correct for applications)
-- A developer ran `composer update` and discarded the resulting lock file
+```json
+{
+    "name": "acme/storefront",
+    "type": "project",
+    "require": {
+        "laravel/framework": "^11.0"
+    }
+}
+```
 
-```
-// FLAGGED: project directory has composer.json but no composer.lock
-// $ ls
-// composer.json   src/   vendor/
-// (composer.lock is missing — dependencies are resolved non-deterministically)
-```
+Not flagged: a manifest with a `composer.lock` beside it; a library or other published package (a missing `type` means `library`, and Composer leaves a library's lock file optional); a manifest that requires only platform packages (`php`, `ext-*`); manifests under `vendor/`, test, fixture, example or demo directories. A `composer.lock` excluded by `.gitignore` counts as missing, because it is not committed.
 
 ## Remediation
 

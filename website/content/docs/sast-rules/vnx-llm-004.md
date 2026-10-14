@@ -1,13 +1,13 @@
 ---
 title: "VNX-LLM-004 – User Input Directly in LLM System Prompt"
-description: "Detects user-controlled input interpolated directly into LLM system prompts via f-strings or string concatenation, enabling prompt injection attacks that override system instructions or leak confidential context."
+description: "Reports user input read from an HTTP request, or a variable named as user data, interpolated into an LLM system prompt (system role, system= argument, SystemMessage, PromptTemplate.from_template, a system prompt builder)."
 ---
 
 ## Overview
 
 Large language model APIs separate instructions from user content using a role-based message structure: a `system` role message defines the model's behaviour and constraints, while a `user` role message contains the end-user's input. When user-controlled data is interpolated into the system prompt — using Python f-strings, string concatenation, or LangChain `PromptTemplate.from_template()` with an f-string — an attacker can inject instructions that override the system prompt's intended behaviour, leak its contents, or manipulate the model into performing unintended actions. This is a form of CWE-77 (Improper Neutralisation of Special Elements used in a Command).
 
-This rule flags three patterns: system role message dicts where the content value appears to be constructed with an f-string or concatenated with a user/request/input/query variable; Anthropic `system=` keyword arguments constructed with an f-string; and LangChain `PromptTemplate.from_template()` calls with an f-string argument. All three patterns indicate that the boundary between instructions and user content has been collapsed.
+This rule flags a value read from an HTTP request, or a variable named as user data, interpolated into a system prompt: a `role: system` message, an Anthropic or Vercel AI SDK `system` argument, a LangChain `SystemMessage` or `PromptTemplate.from_template(f"...")`, or a line inside a function or variable named as a system prompt. Each collapses the boundary between instructions and user content.
 
 The system prompt often contains confidential instructions — persona definitions, business rules, tool configurations, or sensitive context about the application's internal workings. Once an attacker can inject into the system prompt, they can direct the model to reveal these instructions or to ignore all prior constraints entirely.
 
@@ -23,23 +23,26 @@ Real-world prompt injection attacks have been demonstrated against deployed prod
 
 ## What Gets Flagged
 
+User input read from an HTTP request, or a variable named as user data (`user_name`, `userName`, `user_profile`, `user_input`, ...), interpolated into a system prompt: a `role: system` message, Anthropic/Vercel AI SDK `system=`/`system:`, LangChain `SystemMessage`, `("system", ...)` tuples, `PromptTemplate.from_template(f"...")`, or a line inside a function or variable named as a system prompt.
+
 ```python
-# FLAGGED: user input interpolated into system role message
-messages = [
-    {"role": "system", "content": f"You are a helpful assistant. The user's name is {user_input}."},
-    {"role": "user", "content": user_message}
-]
-
-# FLAGGED: Anthropic system prompt with f-string
-response = client.messages.create(
-    model="claude-3-opus-20240229",
-    system=f"Answer questions about {user_context}. Be concise.",
-    messages=[{"role": "user", "content": prompt}]
-)
-
-# FLAGGED: LangChain PromptTemplate with f-string
-template = PromptTemplate.from_template(f"You are a {role} assistant. Answer: {{question}}")
+# FLAGGED: request value in the system role
+nickname = request.args["nickname"]
+messages=[{"role": "system", "content": f"You are a concierge. Address the customer as {nickname}."}]
 ```
+
+```python
+# FLAGGED: Anthropic system prompt with a user profile
+system=f"Answer as a support agent. Customer profile: {user_profile}",
+```
+
+```typescript
+// FLAGGED: user name in a system prompt builder
+export function buildSystemPrompt (userName?: string) {
+  const greeting = userName ? `\nThe customer you are chatting with is ${userName}.` : '';
+```
+
+Not flagged: a static system prompt, server-side values such as the date or a tool list in it, and LangChain template variables filled at invoke time.
 
 ## Remediation
 

@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-002 – Command Injection via exec.Command"
-description: "Detect Go code that passes fmt.Sprintf-formatted strings to exec.Command, enabling command injection when any part of the format string is user-controlled."
+description: "Reports exec.Command/CommandContext running a shell with -c (or /C, -Command) and a script built with fmt.Sprintf or concatenation, or read from the HTTP request, and a program name that is itself formatted or request-supplied. Constant scripts, positional parameters, shell-quoted values and formatted arguments to a fixed program are not reported."
 ---
 
 ## Overview
@@ -19,7 +19,12 @@ OWASP ASVS v4.0 requirement **V5.2.2** requires that unstructured data be saniti
 
 ## What Gets Flagged
 
-The rule fires on any `.go` file where `exec.Command` and `fmt.Sprintf` appear on the same line. The most common pattern is building a shell command string with user-supplied values and passing it to `exec.Command("sh", "-c", ...)` or similar.
+The rule fires when `exec.Command` or `exec.CommandContext` starts a shell (`sh`, `bash`, `zsh`, `cmd`, `powershell`, `pwsh`...) with `-c`, `/C` or `-Command` and the script is built with `fmt.Sprintf` or `+`, read from the request, or held in a variable assigned from one of those a few lines up. A call broken over several lines is read as one. It also fires when the program name itself is formatted or request-supplied. A formatted value passed as its own argument to a fixed program (`exec.Command("git", "log", fmt.Sprintf(...))`) is not reported: no shell parses it. Nor is a value passed as a positional parameter (`sh -c 'grep "$1" f' sh value`) or quoted with `shellescape.Quote`.
+
+```go
+// FLAGGED: concatenated script
+cmd := exec.Command("sh", "-c", "ping -c 2 "+endpoint)
+```
 
 ```go
 // FLAGGED: user input folded into a shell command via fmt.Sprintf

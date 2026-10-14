@@ -1,12 +1,12 @@
 ---
 title: "VNX-GO-008 – Go Weak PRNG for Security"
-description: "Detect Go code that imports math/rand for use in security-sensitive contexts such as token generation, password creation, or session ID assignment, where a cryptographically secure PRNG is required."
+description: "Reports a math/rand or math/rand/v2 call (Read, Intn, Int63, Uint64, IntN...) whose line, or enclosing function name, says the value is a token, password, secret, nonce, salt, OTP, CSRF value, session id, key or reset code. crypto/rand, jitter, backoff, sampling, shuffling and test code are not reported."
 category: sast
 ---
 
 ## Overview
 
-This rule flags Go files that import `math/rand`. While `math/rand` is appropriate for non-security uses such as shuffling a playlist or randomizing test data, it is a pseudo-random number generator seeded deterministically and its output sequence can be predicted or reconstructed by an attacker. Any security-sensitive value — session tokens, password reset links, CSRF nonces, API keys, or one-time codes — that is generated with `math/rand` is potentially guessable. This maps to [CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)](https://cwe.mitre.org/data/definitions/338.html).
+This rule flags `math/rand` values used as secrets. While `math/rand` is appropriate for non-security uses such as shuffling a playlist or randomizing test data, it is a pseudo-random number generator seeded deterministically and its output sequence can be predicted or reconstructed by an attacker. Any security-sensitive value — session tokens, password reset links, CSRF nonces, API keys, or one-time codes — that is generated with `math/rand` is potentially guessable. This maps to [CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)](https://cwe.mitre.org/data/definitions/338.html).
 
 **Severity:** Medium | **CWE:** [CWE-338 – Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)](https://cwe.mitre.org/data/definitions/338.html)
 
@@ -16,20 +16,23 @@ The output of `math/rand` is fully determined by its seed. In Go 1.20 and earlie
 
 ## What Gets Flagged
 
-The rule fires on any `.go` file that imports the `math/rand` package. This is a conservative signal: the import does not by itself confirm that the random values are used for security, but it means the code should be reviewed to confirm `crypto/rand` is used wherever security matters.
+The rule fires on a call to `math/rand` or `math/rand/v2` (`Read`, `Int`, `Intn`/`IntN`, `Int31`/`Int63` and their `n` forms, `Uint32`/`Uint64`, `N`, `Float64`, `Perm`, `Shuffle`), under the package's import alias or on a generator made with `rand.New` in the same file, when the line or the enclosing function's name says the value is a token, password, secret, nonce, salt, OTP, CSRF value, session id, API or signing key, reset or verification code, or credential. The import alone is not reported.
 
 ```go
-// FLAGGED: math/rand imported; values from this package must not be used for security purposes
-import (
-    "math/rand"
-    "fmt"
-)
+// FLAGGED: a one-time code from math/rand/v2
+otp := fmt.Sprintf("%06d", mrand.IntN(1000000))
 
-func generateToken() string {
-    // This token is predictable — do not use for authentication
-    return fmt.Sprintf("%d", rand.Int63())
+// FLAGGED: inside a function named for a password
+func GenerateTemporaryPassword(n int) string {
+    out := make([]byte, n)
+    for i := range out {
+        out[i] = charset[rand.Intn(len(charset))]
+    }
+    return string(out)
 }
 ```
+
+Not reported: `crypto/rand` calls, `math/rand` used for timing (jitter, backoff, `time.Duration`), sampling, load spreading or shuffling in functions not named for a secret, `rand.Seed`, test code, comments and strings.
 
 ## Remediation
 

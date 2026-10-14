@@ -1,0 +1,12 @@
+#!/bin/bash
+DB_PASSWORD="changeme"
+API_KEY="your-api-key-here"
+SECRET_KEY="<insert-secret>"
+AUTH_TOKEN="xxxxxxxxxxxxxxxx"
+CLIENT_SECRET="REPLACE_ME"
+PRIVATE_KEY="/etc/ssl/private/server.key"
+TOKEN="./token.txt"
+PASSWORD=""
+GITHUB_TOKEN="GITHUB_TOKEN"
+DB_PASS="password"
+API_KEY=dummy

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_title">Atlas</string>
+~>    <string name="weatherApiKey">@@sample:[a-f0-9]{32}@@</string>
+</resources>

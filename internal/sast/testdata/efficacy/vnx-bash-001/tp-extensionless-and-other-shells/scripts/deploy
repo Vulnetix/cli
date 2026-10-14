@@ -1,0 +1,6 @@
+#!/bin/sh
+# Deployment entrypoint run by the release job.
+set -e
+
+echo "deploying $1"
+~>eval "$DEPLOY_HOOK"

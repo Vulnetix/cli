@@ -1,0 +1,4 @@
+package ids
+
+const opaqueBlob = "ZAKIAQWERTYUIOPASDFGHJK7"
+const deviceID = "AKIAQWERTYUIOPASDFGHJKLZXC"

@@ -1,11 +1,11 @@
 ---
 title: "VNX-PY-006 – Django DEBUG=True in Production"
-description: "Detect Django settings files that have DEBUG set to True, which exposes detailed error tracebacks, SQL queries, and application internals to any visitor."
+description: "Detect Django deployment settings modules that set DEBUG = True or default DEBUG to on when the environment variable is unset, exposing tracebacks, settings and SQL to any visitor."
 ---
 
 ## Overview
 
-This rule flags `DEBUG = True` in Django settings files (`settings.py`, `settings/base.py`, `settings/production.py`, `settings/prod.py`). When Django's debug mode is enabled it renders a full HTML error page for every unhandled exception, including the complete Python traceback, local variable values at every stack frame, the full list of Django settings, and the SQL queries that ran during the request. This information gives an attacker a detailed map of your application's internals without needing any special access. This maps to [CWE-489: Active Debug Code](https://cwe.mitre.org/data/definitions/489.html).
+This rule flags `DEBUG = True` (or an environment read that defaults to on) in Django deployment settings modules (`settings.py`, `settings/production.py` and other non-development modules of a `settings/` package). When Django's debug mode is enabled it renders a full HTML error page for every unhandled exception, including the complete Python traceback, local variable values at every stack frame, the full list of Django settings, and the SQL queries that ran during the request. This information gives an attacker a detailed map of your application's internals without needing any special access. This maps to [CWE-489: Active Debug Code](https://cwe.mitre.org/data/definitions/489.html).
 
 **Severity:** Medium | **CWE:** [CWE-489 – Active Debug Code](https://cwe.mitre.org/data/definitions/489.html)
 
@@ -23,18 +23,23 @@ Additionally, `DEBUG = True` causes Django to keep an in-memory list of every SQ
 
 ## What Gets Flagged
 
-Any line matching `DEBUG = True` (with optional surrounding whitespace) in a Django settings file.
+A top-level `DEBUG = True`, or `DEBUG` read from the environment with a default of on, in a Django settings module: `settings.py` (which must look like Django), `settings_<name>.py`/`<name>_settings.py`, or any module of a `settings/` package.
+
+Not flagged: development, local, test and CI modules (`settings/dev.py`, `local.py`, `settings_test.py`), a `base.py` whose sibling production module sets `DEBUG = False`, `DEBUG = True` inside an `if` block, environment reads that default to `False`, `DEBUG_TOOLBAR`/`TEMPLATE_DEBUG`, test paths, and a `settings.py` that is not Django's.
 
 ```python
 # FLAGGED: settings.py
 DEBUG = True
 
-# FLAGGED: with leading whitespace
-    DEBUG = True
-
-# FLAGGED: production settings file still has debug on
+# FLAGGED: production settings module still has debug on
 # settings/production.py
+from .base import *
 DEBUG = True
+
+# FLAGGED: debug is on whenever the variable is unset
+DEBUG = os.environ.get("DJANGO_DEBUG", True)
+DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG = env.bool("DEBUG", default=True)
 ```
 
 ## Remediation

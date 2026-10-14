@@ -1,0 +1,4 @@
+dev:
+  db: postgres://postgres:postgres@db:5432/app
+  mongo: mongodb://user:password@mongo:27017/app
+  mysql: mysql://root:changeme@mysql:3306/app

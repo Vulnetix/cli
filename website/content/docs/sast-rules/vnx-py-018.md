@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-018 – Insecure Temporary File Creation via tempfile.mktemp()"
-description: "Detect Python code that uses tempfile.mktemp(), which is vulnerable to a TOCTOU race condition allowing an attacker to intercept the temporary file path before creation."
+description: "Detect Python code that generates a temporary file name without creating the file: tempfile.mktemp() (module aliases and from-imports included) and Python 2 os.tempnam()/os.tmpnam(). mkstemp, NamedTemporaryFile, mkdtemp and pytest's tmp_path_factory.mktemp() are not reported."
 ---
 
 ## Overview
@@ -40,9 +40,18 @@ def build_report(content: str) -> str:
     with open(path, "w") as f:
         f.write(content)
     return path
+
+# FLAGGED: from-import and module alias
+from tempfile import mktemp
+import tempfile as tf
+out = mktemp()
+log = tf.mktemp(".log")
+
+# NOT FLAGGED: pytest creates the directory
+tmpdir = tmp_path_factory.mktemp("certs")
 ```
 
-The rule applies only to `.py` files.
+The rule applies only to `.py` files. Methods named `mktemp` on other objects and project functions named `mktemp` are not reported.
 
 ## Remediation
 

@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-013 – Go Zip/Tar Slip via Archive Entry Name"
-description: "Detect Go code that joins an archive entry header.Name into a file path via filepath.Join() without validating the result stays within the target directory."
+description: "Detect Go code that extracts a zip or tar entry to a path built from the entry's name (or writes its Linkname as a symlink) without checking the result stays inside the destination directory."
 ---
 
 ## Overview
 
-This rule flags Go code where `filepath.Join` receives an archive entry name (`header.Name`) without path traversal validation. A malicious archive with entries containing `../` sequences can write files to arbitrary filesystem locations when extracted, including overwriting executables, configuration files, or cron jobs. This maps to [CWE-22: Improper Limitation of a Pathname to a Restricted Directory](https://cwe.mitre.org/data/definitions/22.html).
+This rule flags Go code that writes a zip or tar entry to a path built from the entry's name without a containment check. A malicious archive with entries containing `../` sequences can write files to arbitrary filesystem locations when extracted, including overwriting executables, configuration files, or cron jobs. This maps to [CWE-22: Improper Limitation of a Pathname to a Restricted Directory](https://cwe.mitre.org/data/definitions/22.html).
 
 **Severity:** High | **CWE:** [CWE-22 – Path Traversal](https://cwe.mitre.org/data/definitions/22.html) | **OWASP ASVS:** [V12.5 – File Download](https://owasp.org/www-project-application-security-verification-standard/)
 
@@ -21,22 +21,23 @@ OWASP ASVS v4.0 requirement **V12.5.2** requires that only explicitly allowed fi
 
 ## What Gets Flagged
 
-The rule fires when `filepath.Join` appears on the same line as an archive entry name reference (`header.Name` or `Header.Name`).
+The rule reports the line where an archive entry's name enters a destination path that is then written. Entries are a `*zip.File` from `range r.File` (or a `*zip.File` parameter) and a `*tar.Header` from `tr.Next()`; the name is `.Name` (or `.FileHeader.Name`), directly or through a variable assigned from it. The path is built with `filepath.Join`, `path.Join` or string concatenation and passed to `os.Create`, `OpenFile`, `Mkdir`/`MkdirAll`, `WriteFile`, `Symlink`, `Link`, `Rename` or `Chmod`. A tar entry's `Linkname` passed to `os.Symlink`/`os.Link` is reported too.
 
 ```go
-// FLAGGED: no traversal check on zip entry name
-for _, f := range zipReader.File {
-    path := filepath.Join(destDir, f.Name) // Zip Slip!
-    outFile, _ := os.Create(path)
+for _, f := range zr.File {
+    path := filepath.Join(dest, f.Name) // FLAGGED
+    os.MkdirAll(path, 0o755)
 }
 
-// FLAGGED: tar entry name joined without validation
 for {
-    header, _ := tarReader.Next()
-    path := filepath.Join(destDir, header.Name) // traversal possible
-    os.MkdirAll(path, 0755)
+    hdr, err := tr.Next()
+    // ...
+    target := filepath.Join(dst, hdr.Name) // FLAGGED
+    os.Symlink(hdr.Linkname, target)       // FLAGGED: link target escapes too
 }
 ```
+
+Not reported when the function checks containment: `strings.HasPrefix` of the result against the destination, `filepath.Rel`, `filepath.IsLocal`, `fs.ValidPath`, a `".."` test, `filepath.Base` of the entry name, a rooted clean (`filepath.Clean("/"+name)`), `securejoin.SecureJoin`, `os.OpenRoot`, or a helper named for the check (sanitize, within, safe join, insecure, traversal, zip slip, sub-path, `checkPath`, `validateDest`, `verifyEntry`, `ensureInside`). A `HasPrefix` against a string literal (`strings.HasPrefix(f.Name, "__MACOSX/")`), `filepath.Clean` of the bare name and `filepath.Base` of the archive's own path are not containment checks, so they do not suppress the finding. A joined path that is only printed, compared or used as a map key, code that builds an archive (`header.Name = ...`) and comments are not reported either.
 
 ## Remediation
 

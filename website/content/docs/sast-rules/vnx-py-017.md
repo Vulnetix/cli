@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-017 – MD5 or SHA1 Used as Password Hash"
-description: "Detect Python code that uses hashlib.md5() or hashlib.sha1() to hash passwords — both algorithms are cryptographically broken and unsuitable for password storage."
+description: "Detect Python code that hashes a password with MD5 or SHA-1 (hashlib.md5/sha1, hashlib.new('md5'|'sha1'), from-imported md5/sha1, PyCryptodome MD5/SHA1.new, or .update(password) on such a hasher). MD5 or SHA-1 of data that is not a password, and calls with usedforsecurity=False, are not reported."
 ---
 
 ## Overview
@@ -47,7 +47,21 @@ def legacy_hash(password: str) -> str:
     return h.hexdigest()
 ```
 
-The rule applies only to `.py` files.
+```python
+from hashlib import md5
+
+# FLAGGED: a request field read two lines up
+raw = request.POST.get("pass")
+stored = md5(raw.encode()).hexdigest()
+
+# NOT FLAGGED: MD5 of data that is not a password
+key = hashlib.md5(url.encode()).hexdigest()
+
+# NOT FLAGGED: HTTP digest auth, declared non-security use
+hashlib.md5(a1.encode(), usedforsecurity=False).hexdigest()
+```
+
+The rule applies only to `.py` files. A password hashed by a project helper defined elsewhere is a cross-function gap; VNX-CRYPTO-007 covers the same weakness across more algorithms and languages.
 
 ## Remediation
 

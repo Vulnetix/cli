@@ -1,0 +1,6 @@
+~>[package]
+name = "netprobe"
+version = "0.2.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- <string name="api_key">a1b2c3d4e5f6a7b8c9d0</string> moved to local.properties -->
+    <!--
+    <string name="db_password">Tr0ub4dor-Horse-2024</string>
+    -->
+    <string name="app_name">Courier</string>
+</resources>

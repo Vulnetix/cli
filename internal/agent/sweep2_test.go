@@ -26,7 +26,7 @@ func TestChangeGuard_ReadsARenamedFile(t *testing.T) {
 	gitIn(t, root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "seed")
 
 	gitIn(t, root, "mv", "a.sh", "b.sh")
-	write(t, root, "b.sh", "echo hi\n# 1\n# 2\n# 3\n# 4\nKEY=AKIAIOSFODNN7EXAMPLE\n")
+	write(t, root, "b.sh", "echo hi\n# 1\n# 2\n# 3\n# 4\nKEY=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "-A")
 
 	got := Runner{Policy: DefaultPolicy(), Root: root}.
@@ -49,7 +49,7 @@ func TestChangeGuard_SaysSoWhenItStopsAtTheCap(t *testing.T) {
 	for i := 0; i < changeGuardMaxFiles; i++ {
 		write(t, root, fmt.Sprintf("f%04d.txt", i), "x\n")
 	}
-	write(t, root, "zzz.sh", "KEY=AKIAIOSFODNN7EXAMPLE\n")
+	write(t, root, "zzz.sh", "KEY=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "-A")
 
 	got := Runner{Policy: DefaultPolicy(), Root: root}.
@@ -70,7 +70,7 @@ func TestChangeGuard_CommitAllFromASubdirectory(t *testing.T) {
 	write(t, root, "pkg/sub/app.py", "v1\n")
 	gitIn(t, root, "add", "-A")
 	gitIn(t, root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "seed")
-	write(t, root, "pkg/sub/app.py", "KEY=AKIAIOSFODNN7EXAMPLE\n") // modified, unstaged
+	write(t, root, "pkg/sub/app.py", "KEY=AKIAQ2W3E4R5T6Y7U2I3\n") // modified, unstaged
 
 	sub := filepath.Join(root, "pkg", "sub")
 	got := Runner{Policy: DefaultPolicy(), Root: sub}.
@@ -83,7 +83,7 @@ func TestChangeGuard_CommitAllFromASubdirectory(t *testing.T) {
 // `git -C dir commit` from an unrelated cwd operates on dir.
 func TestChangeGuard_HonoursDashC(t *testing.T) {
 	root := gitRepo(t)
-	write(t, root, "s.sh", "KEY=AKIAIOSFODNN7EXAMPLE\n")
+	write(t, root, "s.sh", "KEY=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "-A")
 
 	elsewhere := t.TempDir()

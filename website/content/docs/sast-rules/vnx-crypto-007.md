@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-007 – Weak Password Hashing (Insufficient Iterations or Missing KDF)"
-description: "Detects passwords hashed with MD5, SHA-1, SHA-256, or similar general-purpose algorithms instead of a proper key derivation function, making stored passwords recoverable through brute-force or rainbow-table attacks."
+description: "Reports a password-named value hashed with a fast general-purpose hash (MD5, SHA-1, SHA-2, SHA-3, BLAKE2) in Python, Node.js, Java, PHP and Ruby, and password KDFs with too low a work factor: PBKDF2 under 10,000 iterations and bcrypt cost under 10. Non-password hashing, the Have I Been Pwned SHA-1 range lookup, helpers defined elsewhere and test files are not reported."
 ---
 
 ## Overview
@@ -33,6 +33,19 @@ byte[] hash = md.digest(password.getBytes());
 // FLAGGED: SHA-1 applied to password in Node.js
 const hash = crypto.createHash('sha1').update(password).digest('hex');
 ```
+
+```php
+// FLAGGED: MD5 of a password in PHP
+$pass_new = md5($pass_new);
+```
+
+```python
+# FLAGGED: PBKDF2 with too few iterations, bcrypt with too low a cost
+hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 1000)
+bcrypt.hashpw(password, bcrypt.gensalt(rounds=4))
+```
+
+Not flagged: bcrypt, scrypt and argon2 at normal cost, PBKDF2 with 10,000 or more iterations, hashing values that are not passwords (cache keys, request bodies, reset tokens), the SHA-1 prefix lookup against the Have I Been Pwned range API, comments, strings and test files. A password hashed through a project helper defined in another function (`security.hash(password)`) is not followed.
 
 ## Remediation
 

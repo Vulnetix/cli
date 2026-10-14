@@ -1,6 +1,6 @@
 ---
 title: "VNX-ANDROID-007 – Android Weak Cryptography Using AES in ECB Mode"
-description: "Detects Cipher.getInstance() calls that specify AES/ECB or plain 'AES' (which defaults to ECB mode on Android), a deterministic cipher mode that leaks data patterns and does not provide semantic security."
+description: "Detects Java and Kotlin Cipher.getInstance() calls that select AES in ECB mode: an AES/ECB transformation, bare \"AES\" or KeyProperties.KEY_ALGORITHM_AES (the provider default is ECB), a KeyProperties concatenation or template with BLOCK_MODE_ECB, or a constant holding one of those."
 ---
 
 ## Overview
@@ -20,20 +20,23 @@ The correct choices for symmetric encryption on Android are AES-GCM (authenticat
 ## What Gets Flagged
 
 ```java
-// FLAGGED: bare "AES" defaults to ECB mode on Android
-Cipher cipher = Cipher.getInstance("AES");
-cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-
 // FLAGGED: ECB mode explicitly specified
 Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+
+// FLAGGED: bare "AES" defaults to ECB
+Cipher cipher = Cipher.getInstance("AES");
+
+// FLAGGED: built from KeyProperties
+Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/" + KeyProperties.BLOCK_MODE_ECB + "/" + KeyProperties.ENCRYPTION_PADDING_PKCS7);
 ```
 
 ```kotlin
-// FLAGGED: Kotlin equivalent — still ECB
-val cipher = Cipher.getInstance("AES/ECB/NoPadding")
-cipher.init(Cipher.ENCRYPT_MODE, key)
+// FLAGGED: a constant declared in a companion object below the call
+val cipher = Cipher.getInstance(TRANSFORMATION)
+companion object { private const val TRANSFORMATION = "AES/ECB/PKCS5Padding" }
 ```
+
+Not flagged: `AES/GCM/NoPadding`, `AES/CBC/PKCS5Padding`, `RSA/ECB/OAEPWithSHA-256AndMGF1Padding`, `KeyGenerator.getInstance("AES")`, or a transformation passed in as a parameter.
 
 ## Remediation
 

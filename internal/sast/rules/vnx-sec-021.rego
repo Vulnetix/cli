@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_sec_021
 
 import rego.v1
 
+import data.vulnetix.lib.secrets
+
 metadata := {
 	"id": "VNX-SEC-021",
 	"name": "Twilio API credentials",
-	"description": "Twilio API credentials (Account SID or Auth Token) were found in source code. These grant access to Twilio communication services for SMS, voice, and video.",
+	"description": "Reports a Twilio secret written into a file: (1) a 32-character auth token or API key secret assigned to a name that says what it is (TWILIO_AUTH_TOKEN, authToken, auth_token, api_secret, apiKeySecret) in a file that mentions Twilio or holds an Account SID, and (2) a Twilio client built from literals, an Account SID or API key SID (AC/SK followed by 32 hex characters) passed beside a 32-character secret literal on the same line (Client(\"AC...\", \"<token>\"), twilio('AC...', '<token>')). The secret must not be a placeholder and must have the entropy of a real token; the snippet is redacted. Not reported: an Account SID or API key SID on its own (an identifier, not a credential), secrets read from the environment or a secrets manager, auth_token names outside a Twilio context, and test, fixture, vendored and generated paths. Overlaps the generated rule VNX-SEC-937 (Twilio IoT key SID).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-021/",
 	"languages": [],
 	"severity": "critical",
@@ -19,40 +21,55 @@ metadata := {
 	"tags": ["secrets", "twilio", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+_named_re := `(?i)(?:auth_?token|api_?(?:key_?)?secret|twilio_?(?:secret|token))["']?\s*(?:=>|[:=])\s*["'\x60]?([A-Za-z0-9]{32})(?:[^A-Za-z0-9]|$)`
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`SK[a-f0-9]{32}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "Twilio API key found; rotate and use environment variables or a secrets manager",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+_sid_re := `\b(?:AC|SK)[0-9a-f]{32}\b`
+
+_literal_re := `["'\x60]([A-Za-z0-9]{32})["'\x60]`
+
+_good(tok) if {
+	regex.match(`[0-9]`, tok)
+	regex.match(`[a-zA-Z]`, tok)
+	not secrets.is_example_token(tok)
+	secrets.high_entropy(tok, 3.2)
+}
+
+_twilio_file(content) if contains(content, "wilio")
+
+_twilio_file(content) if contains(content, "WILIO")
+
+_twilio_file(content) if {
+	contains(content, "AC")
+	regex.match(_sid_re, content)
+}
+
+_secret(line) if {
+	some m in regex.find_all_string_submatch_n(_named_re, line, -1)
+	_good(m[1])
+}
+
+_secret(line) if {
+	regex.match(_sid_re, line)
+	some m in regex.find_all_string_submatch_n(_literal_re, line, -1)
+	tok := m[1]
+	_good(tok)
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	_twilio_file(content)
+
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`AC[a-f0-9]{32}`, line)
+	_secret(line)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Twilio Account SID found; use environment variables or a secrets manager",
+		"message": "Twilio auth token or API key secret found; rotate it in the Twilio console, then load it from the environment or a secrets manager",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

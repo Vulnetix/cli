@@ -1,0 +1,7 @@
+!!! 5
+%html
+  %body
+    != yield_content :sidebar
+    != render "shared/footer"
+    != yield
+    %p!= t(".greeting_html")

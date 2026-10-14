@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-025 – Potential open redirect via HTTP redirect"
-description: "Detects HTTP redirects that use user-controlled input without validation, which can lead to open redirect vulnerabilities."
+description: "Detects a redirect (http.Redirect, gin/echo/fiber Redirect, a Location header) whose target is a query, form or route parameter, directly or through one variable built from it, with no allowlist or host check first."
 ---
 
 ## Overview
@@ -19,35 +19,26 @@ These vulnerabilities are often overlooked but can be highly effective in social
 
 ## What Gets Flagged
 
-The rule flags HTTP redirect functions that use request parameters, form data, headers, or context values as the redirect destination:
+A redirect whose target the requester chooses: a query, form or route parameter that reaches `http.Redirect`, a framework `Redirect`, or a `Location` header, directly or through one variable built from it.
 
 ```go
-// FLAGGED: Redirect using form data without validation
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-    // ... authentication logic ...
-    redirectURL := r.FormValue("redirect")
-    http.Redirect(w, r, redirectURL, http.StatusFound) // User-controlled redirect
-}
+// FLAGGED: ?next= is sent straight back as the redirect target
+next := r.URL.Query().Get("next")
+http.Redirect(w, r, next, http.StatusFound)
 
-// FLAGGED: Redirect using query parameters
-func oauthCallback(w http.ResponseWriter, r *http.Request) {
-    state := r.URL.Query().Get("state")
-    redirectURL := fmt.Sprintf("/app?state=%s", state)
-    http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect) // Potential open redirect
-}
+// FLAGGED: gin, with the value inline
+c.Redirect(http.StatusFound, c.Query("return_to"))
 
-// FLAGGED: Redirect using header values
-func proxyHandler(w http.ResponseWriter, r *http.Request) {
-    target := r.Header.Get("X-Redirect-URL")
-    http.Redirect(w, r, target, http.StatusSeeOther) // User-controlled redirect
-}
+// FLAGGED: a host built from the parameter
+host := r.URL.Query().Get("tenant")
+u := fmt.Sprintf("https://%s/home", host)
+http.Redirect(w, r, u, http.StatusFound)
 
-// FLAGGED: Redirect using context values
-func apiHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-    redirectURL := ctx.Value("redirectURL").(string)
-    http.Redirect(w, r, redirectURL, http.StatusFound) // From context
-}
+// FLAGGED: a Location header
+w.Header().Set("Location", r.URL.Query().Get("RelayState"))
 ```
+
+Not flagged: a target checked first (`strings.HasPrefix`, a map or switch allowlist, `url.Parse` followed by a `Host`/`IsAbs` test, a helper named `isSafeRedirect`), a value placed after a fixed path (`"/users/" + id`) or a fixed `https://host/`, values passed through `url.QueryEscape`, constant targets, and the `Referer`/`Host` headers.
 
 ## Remediation
 

@@ -1,11 +1,11 @@
 ---
 title: "VNX-JWT-003 – JWT Signing with Hardcoded Secret"
-description: "Detects jwt.sign() or jwt.encode() using a hardcoded string literal as the signing secret, allowing anyone with source code access to forge valid tokens."
+description: "A JWT signing or verification key is a string literal: passed straight to jwt.sign/verify, express-jwt, jwt.encode/decode, JWT.encode/decode, JWT::encode, new Key(), jjwt signWith/setSigningKey, Algorithm.HMAC256, SignedString([]byte(...)) or SymmetricSecurityKey, assigned to a variable used as the key, or assigned to a JWT-named setting in code, .properties or YAML."
 ---
 
 ## Overview
 
-This rule detects `jwt.sign()` and `jwt.encode()` calls where the signing secret is a hardcoded string literal passed directly as an argument, as well as variable assignments like `JWT_SECRET = "some-literal-string"` that are not loaded from the environment. A hardcoded secret committed to version control gives every developer, contractor, or attacker who accesses your code the ability to mint valid JWTs with any claims they choose. This maps to CWE-798 (Use of Hard-coded Credentials).
+This rule detects a JWT key written into the source: a literal passed directly as the key to jsonwebtoken `jwt.sign()`/`jwt.verify()`, express-jwt `{ secret }`, PyJWT `jwt.encode()`/`jwt.decode()`, ruby-jwt, firebase/php-jwt (`JWT::encode`, `new Key(...)`), jjwt `signWith`/`setSigningKey`, Auth0 `Algorithm.HMAC256/384/512`, `Keys.hmacShaKeyFor`, golang-jwt `SignedString([]byte("..."))` and .NET `new SymmetricSecurityKey(Encoding.UTF8.GetBytes("..."))`; a variable assigned a literal in the same file and then passed as the key; and a JWT-named setting (`JWT_SECRET`, `JWT_SECRET_KEY`, `jwtSecret`, `jwtKey`, `app.config["JWT_SECRET_KEY"]`, `jwt.secret=` in `.properties`, `jwt_secret:` in YAML) assigned a literal. Keys read from the environment or configuration, placeholders (`changeme`, `<...>`, `${...}`), non-secret settings such as `JWT_ALGORITHM`, and test files are not reported. A hardcoded secret committed to version control gives every developer, contractor, or attacker who accesses your code the ability to mint valid JWTs with any claims they choose. This maps to CWE-798 (Use of Hard-coded Credentials).
 
 **Severity:** High | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 
@@ -30,7 +30,24 @@ token = jwt.encode({"sub": user_id}, "hardcoded-secret-key-value", algorithm="HS
 ```javascript
 // FLAGGED: JWT secret variable assigned a string literal
 const JWT_SECRET = "production-jwt-secret-do-not-share";
+
+// FLAGGED: the assignment, because signingKey is then used as the key
+const signingKey = 'kZ8#dev-signing-key';
+jwt.sign({ sub: user.id }, signingKey, { expiresIn: '15m' });
 ```
+
+```java
+// FLAGGED
+.signWith(SignatureAlgorithm.HS512, "victory-key")
+private final Algorithm algorithm = Algorithm.HMAC256("auth0-hmac-key");
+```
+
+```go
+// FLAGGED
+return t.SignedString([]byte("inline-secret"))
+```
+
+Not flagged: `process.env.JWT_SECRET`, `os.environ["JWT_SECRET"]`, `@Value("${jwt.secret}")`, `config["Jwt:Key"]`, `JWT_SECRET_KEY = "changeme"`, `jwt_secret: ${JWT_SECRET}` and literals in test files.
 
 ## Remediation
 

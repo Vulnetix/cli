@@ -1,0 +1,5 @@
+CACHE = "rediss://cache-user:s3cret@cache.prod.acme.io:6380/0"
+BROKER = "amqps://orders:orderpw@mq.internal.acme.io:5671/"
+LDAP = "ldaps://dc01.corp.acme.com:636"
+FILES = "sftp://deploy@files.acme.io/releases"
+FTPS = "ftps://files.acme.io/releases"

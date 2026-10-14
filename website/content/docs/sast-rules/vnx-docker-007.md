@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-007 – Dockerfile Missing HEALTHCHECK Instruction"
-description: "Detects runtime Dockerfiles that define a CMD or ENTRYPOINT but omit a HEALTHCHECK instruction, preventing container orchestrators from detecting unhealthy application states."
+description: "Reports a Dockerfile whose final stage runs a service (EXPOSE or a server CMD/ENTRYPOINT, possibly inherited from an earlier stage) but declares no HEALTHCHECK."
 ---
 
 ## Overview
@@ -23,24 +23,27 @@ This also matters for security incident response: a compromised container that h
 
 ## What Gets Flagged
 
+The rule judges the image's final stage. It counts as a service when it, or an earlier stage it is built `FROM`, has an `EXPOSE` or a `CMD`/`ENTRYPOINT` that starts a server (nginx, httpd, php-fpm, gunicorn, uvicorn, puma, node, `npm start`, java, dotnet, redis-server, postgres, supervisord and similar). The finding is on the final `FROM` line.
+
 ```dockerfile
-# FLAGGED: CMD present but no HEALTHCHECK instruction in the file
-FROM node:20-slim
-WORKDIR /app
-COPY . .
-RUN npm ci --omit=dev
-CMD ["node", "server.js"]
+# FLAGGED: a service with no HEALTHCHECK
+FROM python:3.12-slim
+COPY . /srv
+USER 10001
+EXPOSE 8000
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "orders.wsgi:app"]
 ```
 
 ```dockerfile
-# FLAGGED: ENTRYPOINT defined, no HEALTHCHECK
-FROM golang:1.22-alpine AS build
-RUN go build -o /app .
+FROM node:20.15-bookworm AS build
+HEALTHCHECK CMD ["node", "-e", "process.exit(0)"]
 
-FROM alpine:3.19
-COPY --from=build /app /app
-ENTRYPOINT ["/app"]
+# FLAGGED: HEALTHCHECK does not carry over from the builder stage
+FROM node:20.15-bookworm-slim AS runtime
+CMD ["node", "dist/server.js"]
 ```
+
+Not reported: a final stage with a `HEALTHCHECK` (`HEALTHCHECK NONE` is an explicit decision), one that inherits a `HEALTHCHECK` from an earlier stage, base, toolchain, CLI and job images that run no service, `HEALTHCHECK` text in comments or heredocs, test and `.devcontainer` images. A `HEALTHCHECK` defined by an external base image is not visible to the rule.
 
 ## Remediation
 

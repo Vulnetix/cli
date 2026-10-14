@@ -1,13 +1,13 @@
 ---
 title: "VNX-JAVA-024 – Java XML Entity Expansion (Billion Laughs)"
-description: "Detects DocumentBuilderFactory and SAXParserFactory usage without DOCTYPE declarations disabled, leaving the application vulnerable to XML entity expansion denial-of-service attacks."
+description: "Detects DocumentBuilderFactory, SAXParserFactory, dom4j SAXReader, JDOM SAXBuilder and XMLInputFactory instances that never disable DOCTYPE declarations (or enable secure processing, or turn off SUPPORT_DTD), leaving the application open to XML entity expansion denial-of-service attacks."
 ---
 
 ## Overview
 
 The XML specification allows document authors to define entities — symbolic names for repeated text — within a DOCTYPE declaration. When these entity definitions reference each other recursively and the XML parser eagerly expands them, memory and CPU consumption grow exponentially. A single kilobyte of malicious XML can expand to gigabytes of in-memory data before the parser exhausts the JVM heap, causing an out-of-memory crash. This attack, known as the Billion Laughs attack or XML bomb, is described by CWE-776 (Improper Restriction of Recursive Entity References in DTDs).
 
-This rule detects `DocumentBuilderFactory.newInstance()` and `SAXParserFactory.newInstance()` calls in files that do not also contain the `disallow-doctype-decl` feature string or `setExpandEntityReferences(false)`. The absence of these protective features means the parser will process DOCTYPE declarations in untrusted input, enabling the attack.
+This rule detects `DocumentBuilderFactory`, `SAXParserFactory`, dom4j `SAXReader`, JDOM `SAXBuilder` and `XMLInputFactory` instances that are never configured, on the same variable, with `disallow-doctype-decl` (or `FEATURE_SECURE_PROCESSING`) set to true, or for StAX with `SUPPORT_DTD` set to false. `setExpandEntityReferences(false)`, disabling external entities and `ACCESS_EXTERNAL_DTD` do not stop internal entity expansion, so they do not count. Without these, the parser processes DOCTYPE declarations in untrusted input, enabling the attack.
 
 Beyond entity expansion, the same lack of DOCTYPE hardening leaves the parser vulnerable to XML External Entity (XXE) attacks (CWE-611), where entity references point to file:// URIs or SSRF-capable http:// URIs that can read local files or probe internal services.
 
@@ -33,6 +33,14 @@ Document doc = db.parse(new InputSource(userSuppliedInputStream));
 SAXParserFactory spf = SAXParserFactory.newInstance();
 SAXParser parser = spf.newSAXParser();
 parser.parse(inputStream, handler);
+
+// FLAGGED: StAX factory still supports DTDs (ACCESS_EXTERNAL_DTD only blocks external ones)
+var xif = XMLInputFactory.newInstance();
+xif.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+
+// NOT FLAGGED: DOCTYPE disallowed / DTD support off
+dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 ```
 
 ## Remediation

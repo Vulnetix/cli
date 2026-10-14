@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="feature_offline">true</bool>
+~>    <string name="sentry_api_token">@@sample:[a-f0-9]{64}@@</string>
+</resources>

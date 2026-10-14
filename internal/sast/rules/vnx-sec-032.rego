@@ -1,11 +1,13 @@
 package vulnetix.rules.vnx_sec_032
 
 import rego.v1
+import data.vulnetix.helpers
+import data.vulnetix.lib.secrets
 
 metadata := {
 	"id": "VNX-SEC-032",
 	"name": "PGP private key block hardcoded",
-	"description": "A PGP/GPG private key block is present in source code. Private keys committed to version control are permanently exposed in history even if subsequently removed. This key should be revoked on keyservers immediately, a new key pair generated, and the private key stored only in a secrets manager or secure keyring.",
+	"description": "Reports the armour header of a PGP/GPG private key block (-----BEGIN PGP PRIVATE KEY BLOCK-----) when key material follows it: a base64 line of at least 40 characters within the next eight lines (armoured files, YAML block scalars, quoted multi-line .env values), or on the same line after escaped newlines (JSON and single-line strings). A header used as a string constant or prefix check in code, documentation with a placeholder body, PGP public key blocks, and test and fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-032/",
 	"languages": ["generic"],
 	"severity": "critical",
@@ -19,24 +21,45 @@ metadata := {
 	"tags": ["secret", "pgp", "private-key", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
+_header := "-----BEGIN PGP PRIVATE KEY BLOCK-----"
+
+# Header followed on the same line by escaped newlines and key material.
+_inline_re := `-----BEGIN PGP PRIVATE KEY BLOCK-----(?:\\r)?\\n(?:(?:\\r)?\\n|[A-Za-z-]+: [^\\]*(?:\\r)?\\n)*[A-Za-z0-9+/]{40,}`
+
+# Header that opens a block of its own (optionally indented, quoted or
+# assigned, as in KEY="-----BEGIN ...).
+_own_line_re := `^\s*(?:[A-Za-z_][A-Za-z0-9_.-]*\s*[:=]\s*)?["'|>]?\s*-----BEGIN PGP PRIVATE KEY BLOCK-----\s*$`
+
+_body_re := `^\s*["']?[A-Za-z0-9+/]{40,}={0,2}\s*$`
+
+_has_body(lines, i) if {
+	some j in numbers.range(i + 1, min([count(lines) - 1, i + 8]))
+	regex.match(_body_re, lines[j])
+}
+
+_reportable(lines, i, line) if regex.match(_inline_re, line)
+
+_reportable(lines, i, line) if {
+	regex.match(_own_line_re, line)
+	_has_body(lines, i)
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
+	contains(content, _header)
+	lines := split(content, "\n")
 	some i, line in lines
-	contains(line, "-----BEGIN PGP PRIVATE KEY BLOCK-----")
+	contains(line, _header)
+	_reportable(lines, i, line)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "PGP private key block detected in source — revoke on keyservers, generate a new key pair, and never commit private keys",
+		"message": "PGP private key block detected in source; revoke on keyservers, generate a new key pair, and never commit private keys",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

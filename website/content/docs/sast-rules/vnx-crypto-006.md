@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-006 – Weak RSA Key Size"
-description: "Detects RSA key generation using key sizes below 2048 bits (512, 768, or 1024 bits) in Python, Go, and Java, where the keys can be factored by modern hardware."
+description: "Reports RSA key generation with a modulus below 2048 bits, given literally or through a constant in the same file, in Python (cryptography, PyCryptodome, python-rsa, pyOpenSSL), Go (rsa.GenerateKey), Java (RSA KeyPairGenerator.initialize, RSAKeyGenParameterSpec) and Node.js (generateKeyPair modulusLength, node-forge, node-rsa). Sizes from configuration, EC/DSA/symmetric keys and test files are not reported."
 ---
 
 ## Overview
@@ -17,7 +17,7 @@ In practice, if your application generates RSA key pairs for TLS certificates, S
 
 ## What Gets Flagged
 
-The rule uses a regex to match key generation calls that include a small bit size (512, 768, or 1024) in Python, Go, and Java:
+The rule reads the key size argument of an RSA key-generation call (a number, or a constant assigned a number in the same file) and reports it when it is below 2048:
 
 ```python
 # FLAGGED: 1024-bit RSA key generation
@@ -36,6 +36,15 @@ privateKey, _ := rsa.GenerateKey(rand.Reader, 1024)
 KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
 kpg.initialize(1024);
 ```
+
+```javascript
+// FLAGGED: Node.js 1024-bit RSA key pair
+crypto.generateKeyPairSync('rsa', {
+  modulusLength: 1024,
+});
+```
+
+Not flagged: 2048 bits and above, a size passed in from a parameter or configuration, EC, DSA, DH and AES key sizes, `initialize()` on a generator that is not RSA, the call in a comment or string, and test files.
 
 ## Remediation
 

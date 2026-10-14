@@ -1,0 +1,1 @@
+Incoming webhooks live under https://hooks.slack.com/services/T024BE7LD/B01ABCDEF/ and need the secret.

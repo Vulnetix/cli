@@ -1,0 +1,9 @@
+name: deploy
+on: push
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+~>      - run: doctl auth init --access-token dop_v1_@@sample:[a-f0-9]{64}@@
+      - run: doctl apps create-deployment "$APP_ID"

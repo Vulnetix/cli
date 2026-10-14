@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.example.chat">
+    <application android:label="Chat">
+        <activity android:name=".SettingsActivity" android:exported="false" />
+        <service
+            android:name=".MessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.chat.PUSH" />
+            </intent-filter>
+        </service>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+        <activity
+            android:name="com.thirdparty.sdk.DebugActivity"
+            android:exported="true"
+            tools:node="remove" />
+        <receiver
+            android:name=".LegacyReceiver"
+            android:enabled="false"
+            android:exported="true" />
+        <activity android:name=".AboutActivity" />
+    </application>
+</manifest>

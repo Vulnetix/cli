@@ -1,11 +1,12 @@
 package vulnetix.rules.vnx_sec_037
 
 import rego.v1
+import data.vulnetix.lib.secrets
 
 metadata := {
 	"id": "VNX-SEC-037",
 	"name": "HashiCorp Vault token",
-	"description": "A HashiCorp Vault batch token (hvb.) or service token (hvs.) was found in source code. Vault tokens grant access to secrets stored in Vault and must be tightly scoped and short-lived.",
+	"description": "Reports a HashiCorp Vault token: a standalone hvs. service token (24 or more base62 characters, so root and namespaced tokens are included), an hvb. batch token (138 to 300 characters), or a legacy s. service token (24 characters) only where it is assigned to a Vault token setting (VAULT_TOKEN=, vault_token:, X-Vault-Token:, token = inside a vault block). A bare s.-prefixed word, placeholders and test or fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-037/",
 	"languages": [],
 	"severity": "critical",
@@ -19,57 +20,49 @@ metadata := {
 	"tags": ["secrets", "vault", "hashicorp", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+_modern := `\b(hvs\.[A-Za-z0-9_-]{24,}|hvb\.[A-Za-z0-9_-]{138,300})(?:[^A-Za-z0-9_-]|$)`
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`hvb\.[\w-]{138,300}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "HashiCorp Vault batch token found; revoke the token in Vault and rotate any leaked secrets",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+# Legacy tokens ("s." + 24 base62) are only distinguishable by their setting.
+_legacy := `(?i)(?:vault[a-z0-9_.-]*token|x-vault-token)["']?\s*(?::=|=>|[:=])\s*["']?(s\.[A-Za-z0-9]{24})(?:[^A-Za-z0-9_-]|$)`
+
+_kind(tok) := "service" if startswith(tok, "hvs.")
+_kind(tok) := "batch" if startswith(tok, "hvb.")
+_kind(tok) := "legacy service" if startswith(tok, "s.")
+
+_hit(line) := m[0][1] if {
+	regex.match(`hv[sb]\.`, line)
+	m := regex.find_all_string_submatch_n(_modern, line, 1)
+	count(m) > 0
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`hvs\.[\w-]{90,120}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "HashiCorp Vault service token found; revoke the token in Vault and rotate any leaked secrets",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+_hit(line) := m[0][1] if {
+	not regex.match(`hv[sb]\.`, line)
+	contains(lower(line), "vault")
+	m := regex.find_all_string_submatch_n(_legacy, line, 1)
+	count(m) > 0
 }
 
+_gate(content) if contains(content, "hvs.")
+_gate(content) if contains(content, "hvb.")
+_gate(content) if contains(content, "vault")
+_gate(content) if contains(content, "Vault")
+_gate(content) if contains(content, "VAULT")
+
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	_gate(content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`s\.[a-z0-9]{24}`, line)
+	tok := _hit(line)
+	not secrets.is_example_token(tok)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "HashiCorp Vault legacy service token found; revoke the token and migrate to hvs./hvb. format",
+		"message": sprintf("HashiCorp Vault %s token found; revoke it with 'vault token revoke' and rotate the secrets its policy could read", [_kind(tok)]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

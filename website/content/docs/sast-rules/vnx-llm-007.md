@@ -1,6 +1,6 @@
 ---
 title: "VNX-LLM-007 – torch.load() Without weights_only=True"
-description: "Detects torch.load() calls without the weights_only=True parameter, which allows arbitrary code execution when loading untrusted or attacker-supplied PyTorch model files via Python's pickle protocol."
+description: "Reports torch.load() calls, including multi-line calls and aliases, that do not pass weights_only=True or pass weights_only=False, since torch.load unpickles the file and can execute code from an untrusted checkpoint."
 ---
 
 ## Overview
@@ -23,16 +23,27 @@ This attack vector is particularly concerning in MLOps pipelines where models ar
 
 ## What Gets Flagged
 
+A `torch.load()` call (also through `import torch as th`) whose arguments, including continuation lines of a multi-line call, do not pass `weights_only=True`, or pass `weights_only=False`.
+
 ```python
-# FLAGGED: torch.load() without weights_only parameter
-model = torch.load("model.pth")
-
-# FLAGGED: torch.load() with map_location but no weights_only
-model.load_state_dict(torch.load("checkpoint.pt", map_location="cpu"))
-
-# FLAGGED: loading from a path variable
-state = torch.load(model_path)
+# FLAGGED: no weights_only
+model = torch.load(path)
 ```
+
+```python
+# FLAGGED: multi-line call with map_location only
+ckpt = th.load(
+    ckpt_file,
+    map_location=device,
+)
+```
+
+```python
+# FLAGGED: explicit opt-out
+return torch.load(path, map_location="cpu", weights_only=False)
+```
+
+Not flagged: `weights_only=True` (on any line of the call), `torch.jit.load()`, safetensors loaders, `json.load()` and other `.load()` receivers, and the call written in a comment or docstring.
 
 ## Remediation
 

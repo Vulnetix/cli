@@ -1,11 +1,11 @@
 ---
-title: "VNX-CS-003 – C# XXE via XmlDocument with XmlResolver Enabled"
-description: "Detects XML parsing configurations in C# that enable external entity resolution or DTD processing, exposing applications to XML External Entity (XXE) injection attacks."
+title: "VNX-CS-003 – C# XXE: XML Parser Resolves External Entities"
+description: "Detects C# XML parsers given an XmlUrlResolver, DTD processing enabled without XmlResolver = null on frameworks where the default resolver fetches entities, and XmlDocument/XmlTextReader parses that are unsafe by default on .NET Framework 4.5.1 and older."
 ---
 
 ## Overview
 
-This rule detects three unsafe XML parsing configurations in C# code that collectively permit XML External Entity (XXE) injection: setting `XmlResolver` to a `XmlUrlResolver` instance, setting `DtdProcessing` to `Parse`, and setting `ProhibitDtd` to `false`. Any of these configurations allows an XML parser to fetch external resources referenced from within a DTD (Document Type Definition) embedded in the input document.
+This rule reports the XML parser configurations in C# code that permit XML External Entity (XXE) injection. An `XmlResolver` set to an `XmlUrlResolver` (inline or through a variable) is always reported on `XmlDocument` and `XmlTextReader`, and on `XmlReaderSettings` when the same settings also enable DTDs. `DtdProcessing = DtdProcessing.Parse` and `ProhibitDtd = false` are reported when no `XmlResolver = null` sits beside them, unless every project file in the scan targets .NET Framework 4.5.2+ or .NET (Core), where the default resolver is null. When a project targets .NET Framework 4.5.1 or older (`TargetFrameworkVersion` v2.0 to v4.5.1, or `net20` to `net451`), `XmlDocument.Load`/`LoadXml` and `new XmlTextReader(...)` on non-constant input are also reported, because those parsers resolve external entities by default there. Documents loaded from string constants, `DtdProcessing.Prohibit`/`Ignore` and `ProhibitDtd = true` are not reported.
 
 XXE vulnerabilities arise because the XML standard includes a mechanism — external entities — that instructs the parser to fetch a URI and substitute its contents into the document before processing. When that URI points to a local file path like `file:///etc/passwd`, the contents of that file appear in the parsed document and can be read by the application, then returned to the attacker in an error message or response body. When the URI points to an internal HTTP endpoint, the same mechanism enables Server-Side Request Forgery (SSRF).
 
@@ -29,14 +29,22 @@ var doc = new XmlDocument();
 doc.XmlResolver = new XmlUrlResolver();   // allows file:// and http:// fetches
 doc.Load(userInputStream);
 
-// FLAGGED: DtdProcessing.Parse enables full DTD including external entities
+// FLAGGED (unless every project targets .NET Framework 4.5.2+ or .NET): DTD parsing with the default resolver
 var settings = new XmlReaderSettings();
 settings.DtdProcessing = DtdProcessing.Parse;
 var reader = XmlReader.Create(userInputStream, settings);
 
-// FLAGGED: ProhibitDtd = false on XmlTextReader (legacy API)
+// FLAGGED (same condition): ProhibitDtd = false on XmlTextReader (legacy API)
 var reader = new XmlTextReader(userInputStream);
 reader.ProhibitDtd = false;
+
+// FLAGGED when a project targets .NET Framework 4.5.1 or older: unsafe default resolver
+XmlDocument doc = new XmlDocument();
+doc.Load(context.Request.InputStream);
+
+// NOT FLAGGED: resolver disabled before loading
+var safe = new XmlDocument { XmlResolver = null };
+safe.Load(input);
 ```
 
 ## Remediation

@@ -1,11 +1,11 @@
 ---
 title: "VNX-NODE-006 – Prototype Pollution via Merge"
-description: "Detects deep-merge operations (lodash _.merge, _.defaultsDeep, Object.assign) applied to user-controlled input, which can inject properties into Object.prototype and cause denial of service or remote code execution."
+description: "Reports lodash deep merge/set, deepmerge-style modules, $.extend(true, ...) and objectPath/dotProp.set called with request data (directly or via a nearby variable), which can write Object.prototype."
 ---
 
 ## Overview
 
-This rule detects deep-merge and deep-assign operations — `_.merge()`, `_.defaultsDeep()`, `_.set()`, `lodash.merge()`, and `Object.assign({}, req.body/req.query)` — applied to user-controlled input such as `req.body` or `req.query`. If the user input contains a key like `__proto__` or `constructor`, the merge operation walks the prototype chain and injects properties into `Object.prototype` itself, polluting every object in the process. This is CWE-915 (Improperly Controlled Modification of Dynamically-Determined Object Attributes).
+This rule detects deep-merge and deep-assign operations — `_.merge()`, `_.defaultsDeep()`, `_.set()`, `deepmerge()` and `$.extend(true, ...)` — applied to user-controlled input such as `req.body` or `req.query`. If the user input contains a key like `__proto__` or `constructor`, the merge operation walks the prototype chain and injects properties into `Object.prototype` itself, polluting every object in the process. This is CWE-915 (Improperly Controlled Modification of Dynamically-Determined Object Attributes).
 
 **Severity:** High | **CWE:** [CWE-915 – Improperly Controlled Modification of Dynamically-Determined Object Attributes](https://cwe.mitre.org/data/definitions/915.html)
 
@@ -17,21 +17,25 @@ In more severe cases, polluting properties used by template engines, module load
 
 ## What Gets Flagged
 
-The rule matches lines containing any of: `_.merge(`, `_.defaultsDeep(`, `_.set(`, `lodash.merge(`, `merge(target, req.body`, `merge(target, req.query`, or `Object.assign({}, req.body`.
+A deep merge or path assignment with an argument from the request (`req.body`, `req.query`, `req.params`, `ctx.request.body`, `event.body`, `location.hash`...), directly or through a variable assigned from one in the 15 lines above:
 
 ```javascript
-// FLAGGED: lodash merge with user-controlled body
-const _ = require('lodash');
-app.post('/settings', (req, res) => {
-  _.merge(defaultConfig, req.body);
-  res.json(defaultConfig);
-});
+// FLAGGED
+_.merge(config, req.body);
 
-// FLAGGED: Object.assign spreading request body
-const merged = Object.assign({}, req.body, internalDefaults);
+// FLAGGED: two-line form
+const prefs = req.body.preferences;
+return _.defaultsDeep(user.settings, prefs);
+
+// FLAGGED: path assignment
+lodash.set(doc, req.query.path, req.query.value);
+
+// FLAGGED: imported deep-merge functions
+import deepmerge from "deepmerge";
+return deepmerge(defaults, req.body);
 ```
 
-An attacker sends: `{ "__proto__": { "admin": true } }` and every object in the application now has `.admin === true`.
+Not flagged: merges of constants or configuration files, `Object.assign({}, req.body)` and spread (shallow copies do not reach the prototype), arguments filtered through `_.pick(...)`, code that checks for `__proto__`/`constructor` keys in the 10 lines before the call, `_.get`, and `merge` methods of other objects (Immutable maps, wysihtml). Hand-written recursive merge functions are not analysed.
 
 ## Remediation
 

@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-010 – Node.js Path Traversal"
-description: "Detects user input from req.params or req.query used to construct file paths with fs.readFile, createReadStream, or path.join, enabling directory traversal attacks."
+description: "Reports an fs/fs.promises/fs-extra call or res.sendFile/res.download whose path argument comes from req.query/params/body/url or Koa ctx, directly or through a variable assigned from one (path.join included). Paths reduced with path.basename, checked with startsWith or an anchored regex, and sendFile with a root option are not reported."
 ---
 
 ## Overview
@@ -17,24 +17,22 @@ The attack is simple: instead of requesting `/files/report.pdf`, an attacker sen
 
 ## What Gets Flagged
 
-The rule matches lines where any of the path-construction or file-access indicators directly accept `req.params` or `req.query` as an argument.
+The path (first argument) of a file-system read, write, stream, list, stat or delete, or of `res.sendFile`/`res.download`, must come from the request, on the same line or through a variable assigned from it a few lines above.
 
 ```javascript
-// FLAGGED: readFile with user-supplied filename
-app.get('/download/:filename', (req, res) => {
-  fs.readFile(req.params.filename, (err, data) => {
-    res.send(data);
-  });
-});
+// FLAGGED
+fs.readFile(req.query.file, 'utf8', cb);
+const body = fs.readFileSync('./uploads/' + req.params.name);
+res.sendFile(path.join(__dirname, 'docs', req.params.name));
+fs.readFile('./public' + req.url, cb);   // plain http server
 
-// FLAGGED: path.join with user query parameter
-app.get('/files', (req, res) => {
-  const filePath = path.join('/var/uploads', req.query.path);
-  res.sendFile(filePath);
-});
+// FLAGGED: two lines
+const name = req.query.name;
+const target = path.join(UPLOAD_DIR, name);
+fs.createReadStream(target).pipe(res);
 ```
 
-An attacker requests `/files?path=../../../../etc/shadow` and the server reads the password hash file.
+Not flagged: `path.basename(req.query.file)`, a resolved path checked with `startsWith(BASE + path.sep)`, a name matched against `/^[a-z0-9-]+$/`, `res.sendFile(req.params.name, { root: PUBLIC_DIR })`, and request values written as file content (`fs.appendFileSync('/var/log/app.log', req.body.message)`).
 
 ## Remediation
 

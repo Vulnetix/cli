@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-021 – Weak or Deprecated SSL/TLS Protocol Version"
-description: "Detect Python code that references deprecated SSL/TLS protocol constants (SSLv2, SSLv3, TLSv1, TLSv1.1), which have documented cryptographic weaknesses and are rejected by modern servers."
+description: "Detect Python code that selects or allows SSLv2, SSLv3, TLS 1.0 or TLS 1.1: ssl PROTOCOL_* and pyOpenSSL *_METHOD constants, minimum_version/maximum_version set to an old TLSVersion, and options &= ~OP_NO_*. PROTOCOL_SSLv23/TLS, TLSv1_2 constants, OP_NO_* disabling and comparisons are not reported."
 ---
 
 ## Overview
@@ -42,11 +42,19 @@ context = ssl.SSLContext(ssl.PROTOCOL_SSLv2)
 from OpenSSL.SSL import TLSv1_METHOD, Context
 ctx = Context(TLSv1_METHOD)
 
-# FLAGGED: via string matching on TLSv1_METHOD
-ctx = Context(ssl.SSLv3_METHOD)
+# FLAGGED: a weak version bound, and re-enabling SSLv3
+ctx.minimum_version = ssl.TLSVersion.TLSv1
+ctx.options &= ~ssl.OP_NO_SSLv3
+
+# NOT FLAGGED: negotiating constants, disabling old protocols, a guard
+ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+ctx.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+if ctx.protocol == ssl.PROTOCOL_TLSv1:
+    raise ValueError("TLS 1.0 is not allowed")
 ```
 
-The rule applies only to `.py` files and matches all eight deprecated constant names.
+The rule applies only to `.py` files. Import lines, comparisons and the names inside strings (`hasattr(ssl, "PROTOCOL_TLSv1")`) are not reported.
 
 ## Remediation
 

@@ -1,0 +1,6 @@
+{
+  "artifact": "storage-cli-1.4.0.tar.gz",
+  "algorithm": "ed25519",
+  "signature": "@@sample:[A-Za-z0-9+/]{86}@@==",
+  "sha512": "@@sample:[A-Za-z0-9+/]{86}@@=="
+}

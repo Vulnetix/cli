@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-021 – Java Sensitive Data Logged"
-description: "Detects logger calls that include variables or strings containing passwords, tokens, secrets, or API keys, which exposes credentials in log files and monitoring systems."
+description: "Detects SLF4J, Log4j, java.util.logging and android.util.Log calls whose arguments pass a password, token, secret, API key or credential value (not just the word in the message text), exposing it in log files and monitoring systems."
 ---
 
 ## Overview

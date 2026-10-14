@@ -2,10 +2,13 @@ package vulnetix.rules.vnx_sec_011
 
 import rego.v1
 
+import data.vulnetix.helpers
+import data.vulnetix.lib.secrets
+
 metadata := {
 	"id": "VNX-SEC-011",
 	"name": "Hardcoded JWT token",
-	"description": "A hardcoded JSON Web Token was found in source code. JWTs often contain session data and claims; committing them exposes authentication material in version history.",
+	"description": "A signed JSON Web Token is written into a file outside tests: three base64url segments whose header and payload decode to JSON objects, the header naming a signing algorithm other than none and the signature at least 16 characters long, in any file type. A committed bearer token authenticates as its subject until it expires, and its claims are readable by anyone with the repository. Not reported: tokens whose exp claim is already in the past, the public jwt.io sample token (sub 1234567890, John Doe), Supabase anon keys (role anon, public by design; VNX-SEC-493 reports them), unsigned alg none tokens, strings that only look like a JWT but do not decode, test, spec, fixture and mock paths, lock files, minified bundles and prose files (Markdown, reStructuredText, AsciiDoc, plain text). Provider-specific JWT rules (VNX-SEC-211, VNX-SEC-482, VNX-SEC-492 and others) report the same token with a provider-specific message.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-011/",
 	"languages": [],
 	"severity": "high",
@@ -19,24 +22,52 @@ metadata := {
 	"tags": ["secrets", "jwt", "token", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".md")
+_skip(path) if secrets.skip_path(path)
+
+_skip(path) if helpers.is_test_path(path)
+
+_skip(path) if regex.match(`(?i)\.(md|markdown|rst|adoc|txt)$`, path)
+
+# Header and payload are JSON objects, so both open with eyJ ("{\"").
+_token_re := `(?:^|[^A-Za-z0-9_\-])(eyJ[A-Za-z0-9_\-]{8,}\.eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{16,})`
+
+# The jwt.io sample token, quoted in documentation and tutorials everywhere.
+_sample(payload) if {
+	payload.sub == "1234567890"
+	payload.name == "John Doe"
+}
+
+# Supabase anon keys ship to browsers by design.
+_public(payload) if payload.role == "anon"
+
+_expired(payload) if {
+	is_number(payload.exp)
+	payload.exp * 1000000000 < time.now_ns()
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
+	contains(content, "eyJ")
 	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}`, line)
+	contains(line, ".eyJ")
+	some m in regex.find_all_string_submatch_n(_token_re, line, -1)
+	token := m[1]
+	[header, payload, _] := io.jwt.decode(token)
+	is_string(header.alg)
+	lower(header.alg) != "none"
+	is_object(payload)
+	not _sample(payload)
+	not _public(payload)
+	not _expired(payload)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Hardcoded JWT found; use environment variables or a secrets manager for tokens",
+		"message": "Signed JWT committed to the repository; revoke or rotate the signing key so the token stops being accepted, and load tokens from the environment or a secrets manager",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

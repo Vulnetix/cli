@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-024 – Missing input validation on HTTP request parameters"
-description: "Detects direct usage of HTTP request parameters without apparent validation, which can lead to injection and business logic bypass vulnerabilities."
+description: "Detects an HTTP request parameter reaching a command, SQL query text, file path, outbound request, redirect or raw response in the same function, inline or through one or two assignments, with no conversion, escaping, allowlist or validation on the way. Bind arguments and values only logged or compared are not reported."
 ---
 
 ## Overview
@@ -19,37 +19,28 @@ Common attacks that result from missing input validation include SQL injection, 
 
 ## What Gets Flagged
 
-The rule flags direct usage of common HTTP request parameter extraction methods in Go source files:
+Reading a request parameter is not a finding; the rule reports the sink the
+parameter reaches.
 
 ```go
-// FLAGGED: Direct use of form data without validation
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-    username := r.FormValue("username")
-    password := r.FormValue("password")
-    // Used directly in database query or authentication
-    authenticate(username, password) // Potential SQL injection
-}
+// FLAGGED: a query parameter into a command, through one intermediate variable
+host := r.URL.Query().Get("host")
+script := "ping -c 1 " + host
+out, err := exec.Command("sh", "-c", script).CombinedOutput()
 
-// FLAGGED: Direct use of query parameters
-func searchHandler(w http.ResponseWriter, r *http.Request) {
-    query := r.URL.Query().Get("q")
-    // Used directly in search or command execution
-    exec.Command("grep", query).Run() // Potential command injection
-}
+// FLAGGED: a router parameter into SQL text and a file path
+id := chi.URLParam(r, "id")
+rows, err := db.Query("SELECT * FROM users WHERE id = " + id)
+name := mux.Vars(r)["name"]
+f, err := os.Open(filepath.Join("/srv/files", name))
 
-// FLAGGED: Direct use of header values
-func proxyHandler(w http.ResponseWriter, r *http.Request) {
-    target := r.Header.Get("X-Target-URL")
-    // Used directly in HTTP request
-    http.Get(target) // Potential SSRF or open redirect
-}
+// FLAGGED: a header into an outbound request, inline
+req, _ := http.NewRequest(http.MethodGet, r.Header.Get("X-Upstream"), nil)
 
-// FLAGGED: Direct use of context values
-func apiHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-    userID := ctx.Value("userID")
-    // Used directly in database access
-    db.Query("SELECT * FROM orders WHERE user_id = ?", userID)
-}
+// NOT FLAGGED: a bind argument, a checked value, a converted value
+db.Query("SELECT id FROM users WHERE name = $1", name)
+if !hostRE.MatchString(host) { return }
+id, err := strconv.Atoi(r.URL.Query().Get("id"))
 ```
 
 ## Remediation

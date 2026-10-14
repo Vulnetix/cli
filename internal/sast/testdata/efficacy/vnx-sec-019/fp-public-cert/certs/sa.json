@@ -1,0 +1,4 @@
+{
+  "type": "service_account",
+  "public_key": "-----BEGIN PUBLIC KEY-----\n@@sample:[A-Za-z0-9+/]{64}@@\\n@@sample:[A-Za-z0-9+/]{64}@@\n-----END PUBLIC KEY-----\n"
+}

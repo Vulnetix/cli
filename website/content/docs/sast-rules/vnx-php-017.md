@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-017 – PHP LDAP injection via user-controlled filter"
-description: "Detects ldap_search() called with a filter string that concatenates user-controlled superglobal values, enabling LDAP filter manipulation that can bypass authentication or exfiltrate directory data."
+description: "Detects ldap_search(), ldap_list() or ldap_read() receiving a request value (superglobal or Laravel/Symfony request accessor, inline or through a variable assigned a few lines above) in its filter or base DN without ldap_escape() or validation."
 ---
 
 ## Overview
@@ -30,6 +30,15 @@ $result = ldap_search($conn, $baseDn, $filter);
 
 // FLAGGED: GET param in filter string
 $search = ldap_search($ldap, 'dc=example,dc=com', '(cn=' . $_GET['name'] . ')');
+
+// FLAGGED: request value interpolated two hops before ldap_list()
+$name = $_GET['name'];
+$filter = "(&(objectClass=inetOrgPerson)(cn=$name))";
+$result = ldap_list($conn, 'ou=people,dc=corp,dc=local', $filter);
+
+// NOT FLAGGED: escaped, or validated with preg_match()/ctype_*() first
+$user = ldap_escape($_POST['username'], '', LDAP_ESCAPE_FILTER);
+$sr = ldap_search($ds, $base, "(uid=$user)");
 ```
 
 Attacker payload for authentication bypass:

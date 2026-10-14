@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-020 – Use of template.HTML with potential user input"
-description: "Detects usage of template.HTML function that may mark user input as safe, potentially leading to Cross-Site Scripting (XSS) vulnerabilities."
+description: "Detects template.HTML, HTMLAttr, JS, CSS, URL and Srcset conversions applied to request data, markup built with Sprintf or concatenation, a function parameter, or a variable assigned from one of those. Constant markup, sanitised or escaped values and executed template output are not reported."
 ---
 
 ## Overview
@@ -19,21 +19,26 @@ XSS vulnerabilities can lead to session hijacking, credential theft, defacement,
 
 ## What Gets Flagged
 
-The rule flags any usage of `template.HTML` in Go source files, regardless of the input source. While some uses may be safe (e.g., hardcoded strings), the rule errs on the side of caution since determining whether input is truly trusted requires complex data flow analysis.
+The rule reports a trusted-content conversion (`template.HTML`, `HTMLAttr`,
+`JS`, `JSStr`, `CSS`, `URL`, `Srcset`) whose argument is request data, markup
+built from a variable, a function parameter, or a variable assigned from one
+of those. Constant markup and sanitised values are not reported.
 
 ```go
-// FLAGGED: template.HTML used with request data
-func handler(w http.ResponseWriter, r *http.Request) {
-    userInput := r.URL.Query().Get("comment")
-    tmpl, _ := template.New("page").Parse("<div>{{.}}</div>")
-    tmpl.Execute(w, template.HTML(userInput)) // User input marked as safe
-}
+// FLAGGED: a request value marked safe
+bio := r.FormValue("bio")
+data["Bio"] = template.HTML(bio)
 
-// FLAGGED: template.HTML used with form data
-func profileHandler(w http.ResponseWriter, r *http.Request) {
-    bio := r.FormValue("bio")
-    tmpl.Execute(w, template.HTML(bio))
-}
+// FLAGGED: markup formatted from the request, two lines away
+notFound := fmt.Sprintf("<b><i>%s</i></b> was not found", term)
+data["Message"] = template.HTML(notFound)
+
+// FLAGGED: a helper that marks whatever its caller passes as safe
+"raw": func(s string) template.HTML { return template.HTML(s) },
+
+// NOT FLAGGED: developer-written markup, or sanitised user markup
+data["Banner"] = template.HTML(`<span class="beta">Beta</span>`)
+data["Body"] = template.HTML(policy.Sanitize(body))
 ```
 
 ## Remediation

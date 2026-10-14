@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-004 – Broken or Obsolete Cipher"
-description: "Detects use of DES, 3DES, RC4, and Blowfish — cryptographically broken or deprecated symmetric ciphers — across Python, Node.js, Go, Java, Ruby, and PHP."
+description: "Reports construction of DES, Triple DES, RC4, RC2, Blowfish, CAST5 or IDEA ciphers in Python, Node.js, Go, Java, Ruby and PHP (PyCryptodome/cryptography, createCipheriv names, crypto/des and crypto/rc4, Cipher.getInstance transformations, OpenSSL::Cipher, openssl_encrypt and mcrypt). TLS cipher-suite deny-lists, names in lists or comparisons, block-size constants, lookalike names, comments, strings and test files are not reported."
 ---
 
 ## Overview
@@ -51,6 +51,8 @@ cipher, _ := rc4.NewCipher(key)
 // FLAGGED: Node.js DES-CBC
 const cipher = crypto.createCipheriv('des-cbc', key, iv);
 ```
+
+Not flagged: AES and ChaCha20, TLS cipher-suite names in a deny-list (`TLS_RSA_WITH_3DES_EDE_CBC_SHA` in a list of suites to disable), a cipher name in a list or comparison, constants such as `des.BlockSize`, the import alone, names that merely contain the letters (`description`, `rc4Count`), comments, strings, documentation and test files.
 
 ## Remediation
 

@@ -1,59 +1,53 @@
 ---
-title: "VNX-1052 – Excessive Resource Usage"
-description: "Detects sleep and delay functions across Go, Java, Node.js, and Python that may indicate uncontrolled blocking, unbounded delays, or denial-of-service vectors."
+title: "VNX-1052 – Hard-coded Endpoint in Datastore Client Initialization"
+description: "Detects database, cache and message-broker clients in Go, Java, JavaScript/TypeScript, PHP and Python initialised with a hard-coded non-loopback IP address or host name."
 ---
 
 ## Overview
 
-VNX-1052 is an auto-generated broad-pattern rule that searches for sleep and delay primitives across Go, Java, Node.js, and Python source files. The rule targets `time.Sleep` in Go, `Thread.sleep` in Java, `setTimeout` in Node.js, and `time.sleep` in Python. These are associated with [CWE-1052](https://cwe.mitre.org/data/definitions/1052.html) in the rule metadata.
+VNX-1052 reports a database, cache or broker client that is initialised with a **hard-coded network endpoint**: a non-loopback IP address or a real host name written as a literal ([CWE-1052](https://cwe.mitre.org/data/definitions/1052.html), a hard-coded literal used in initialization). It recognises:
 
-Note: CWE-1052 in MITRE's catalog covers "Excessive Use of Hard-Coded Literals in Initialization." The resource concern this rule addresses — uncontrolled blocking delays — maps more precisely to [CWE-400: Uncontrolled Resource Consumption](https://cwe.mitre.org/data/definitions/400.html). The CWE mapping is a known limitation of this auto-generated rule.
+- a connection URI that starts a string literal: `mysql://`, `postgres://`, `mongodb://`, `redis://`, `amqp://`, `jdbc:<driver>://`, `jdbc:oracle:thin:@`;
+- a key=value DSN with `host=` or `server=` (PDO `mysql:host=...`, libpq `host=...`);
+- a `host`/`addr`/`server` field or keyword argument inside a client constructor (`redis.Options{Addr: ...}`, `psycopg2.connect(host=...)`, `mysql.createPool({ host: ... })`);
+- the host as the first argument of `new Jedis`, `new MongoClient`, `new mysqli`, `mysqli_connect`, `redis.Redis`, `grpc.Dial`.
 
-Sleep functions are widely used for legitimate purposes (rate limiting, polling backoff, animation). Findings must be reviewed in context to determine whether the sleep duration or scheduling is controlled by user input, or whether blocking calls can exhaust thread or goroutine pools.
-
-**Severity:** Medium | **CWE:** [CWE-1052](https://cwe.mitre.org/data/definitions/1052.html) | **OWASP:** [A04:2021 – Insecure Design](https://owasp.org/Top10/A04_2021-Insecure_Design/)
+**Severity:** Low | **CWE:** [CWE-1052](https://cwe.mitre.org/data/definitions/1052.html)
 
 ## Why This Matters
 
-When sleep durations are derived from user-supplied input, an attacker can trigger arbitrarily long blocking operations. In thread-per-request server models, a small number of requests that each sleep for a long duration can exhaust the thread pool and deny service to legitimate users.
-
-Even with fixed sleep durations, busy-wait patterns and synchronous blocking in event loops (Node.js) or goroutine-heavy servers (Go) can degrade performance significantly under load. Identifying all blocking delay usage enables an architectural review of whether async alternatives are appropriate.
+An endpoint written into the code cannot change without a release, ships the internal network layout to everyone who can read the source, and is usually where the credentials sit next to it. Configuration that differs between environments belongs in configuration.
 
 ## What Gets Flagged
 
-The rule scans Go, Java, Node.js, and Python source files for sleep and delay patterns:
-
-```python
-# FLAGGED: Python sleep with user-controlled duration
-import time
-time.sleep(int(request.args.get('delay', 1)))
-```
-
 ```go
-// FLAGGED: Go time.Sleep in request handler
-func handler(w http.ResponseWriter, r *http.Request) {
-    time.Sleep(5 * time.Second)
-}
+rdb := redis.NewClient(&redis.Options{
+	Addr: "10.20.0.7:6379", // FLAGGED
+})
+sql.Open("postgres", "host=db-primary.acme-corp.net port=5432 user=app") // FLAGGED
 ```
 
-```javascript
-// FLAGGED: Node.js setTimeout used synchronously in async path
-await new Promise(resolve => setTimeout(resolve, userDelay));
+```java
+DriverManager.getConnection("jdbc:mysql://10.0.4.12:3306/orders", user, secret); // FLAGGED
+new Jedis("cache01.prod.acme.io", 6379); // FLAGGED
 ```
+
+```php
+new PDO('mysql:host=10.0.0.21;dbname=shop', $user, $pass); // FLAGGED
+```
+
+## What Is Not Flagged
+
+- `localhost`, `127.x`, `0.0.0.0`, `::1` and placeholder domains (`example.com`, `.test`, `.invalid`, `.local`).
+- A literal on a line that reads the environment or configuration, where it is only a fallback: `process.env.DB_HOST || 'db.acme.net'`, `os.environ.get("DATABASE_URL", "postgres://...")`.
+- Single-label service names (`host="db"`), a URI inside a longer log message, comments, test files, and host-like values outside a client constructor.
+
+Credentials inside connection strings are reported by the connection-string rules (VNX-SEC-008, VNX-SEC-061).
 
 ## Remediation
 
-1. Never derive sleep durations from user-supplied input. Use fixed, configuration-controlled delays.
-2. Enforce a maximum delay cap if configurable delays are necessary, and validate that user-supplied values do not exceed it.
-3. Prefer non-blocking async patterns over thread-blocking sleeps in server contexts:
-   - **Node.js**: use `setTimeout`/`setInterval` with callbacks rather than blocking the event loop.
-   - **Go**: use `time.After` or `context.WithTimeout` rather than sleeping in a goroutine that holds shared resources.
-4. Implement exponential backoff with jitter and a maximum cap for retry loops rather than fixed sleeps.
-5. Monitor request latency distributions to detect abnormal spikes caused by unintended blocking.
+Read the endpoint from configuration or the environment (`os.Getenv("REDIS_ADDR")`, `process.env.DATABASE_URL`, Spring `spring.datasource.url`) and keep per-environment values out of the source tree.
 
 ## References
 
-- [CWE-400: Uncontrolled Resource Consumption](https://cwe.mitre.org/data/definitions/400.html)
 - [CWE-1052: Excessive Use of Hard-Coded Literals in Initialization](https://cwe.mitre.org/data/definitions/1052.html)
-- [OWASP Denial of Service Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html)
-- [AWS Well-Architected: Retry with Jitter and Backoff](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/)
