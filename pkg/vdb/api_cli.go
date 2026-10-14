@@ -1948,3 +1948,19 @@ type CliPackageInsightsResponse struct {
 func (c *Client) CliPackageInsights(env CliEnv, req CliPackageInsightsRequest) (*CliResponse[CliPackageInsightsResponse], error) {
 	return cliPostWithEnv[CliPackageInsightsResponse](c, "cli.package-insights", env, req)
 }
+
+// CliLicensesRequest names packages by the key their Dependency row uses: the
+// package's purl, or name@version when it has none.
+type CliLicensesRequest struct {
+	Keys []string `json:"keys"`
+}
+
+// CliLicensesData maps each key the API has a stored licence for to it.
+type CliLicensesData struct {
+	Licenses map[string]string `json:"licenses"`
+}
+
+// CliLicenses asks for the licences earlier scans resolved (POST /v2/cli.licenses).
+func (c *Client) CliLicenses(ctx context.Context, env CliEnv, req CliLicensesRequest) (*CliResponse[CliLicensesData], error) {
+	return cliPostWithEnvContext[CliLicensesData](ctx, c, "cli.licenses", env, req)
+}
