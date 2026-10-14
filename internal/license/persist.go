@@ -14,12 +14,16 @@ import (
 // (37 Hackage requests for a 37-package Haskell project, every time). What they
 // answer is a property of a published release, so the answers persist on disk
 // beside the VDB response cache, and a licence found is reused for a week.
-// Only licences are stored, never misses: the fetchers return "" for a timeout
-// as well as for a release with no licence, and remembering a timeout would
-// hide the licence for as long as it was remembered.
+// A miss is stored only when the source said so definitively (storeMiss; today
+// only GitHub, whose gh calls distinguish a 404 from a timeout) and is reused
+// for a day; elsewhere the fetchers return "" for a timeout as well as for a
+// release with no licence, and remembering a timeout would hide the licence.
 // VULNETIX_NO_LICENSE_CACHE disables the store.
 
-const licenseTTL = 7 * 24 * time.Hour
+const (
+	licenseTTL     = 7 * 24 * time.Hour
+	licenseMissTTL = 24 * time.Hour
+)
 
 // licenseStoreDir is where answers persist; empty disables the store. A var
 // so tests can point it at a temporary directory.
@@ -38,6 +42,7 @@ func defaultLicenseStoreDir() string {
 
 type storedLicense struct {
 	License string `json:"license"`
+	Miss    bool   `json:"miss,omitempty"`
 	At      int64  `json:"at"` // unix seconds
 }
 
@@ -72,8 +77,11 @@ func storeLicense(source, key, lic string) {
 	if licenseStoreDir == "" || lic == "" {
 		return
 	}
-	path := licenseStorePath(source, key)
-	raw, err := json.Marshal(storedLicense{License: lic, At: time.Now().Unix()})
+	writeStoredLicense(licenseStorePath(source, key), storedLicense{License: lic, At: time.Now().Unix()})
+}
+
+func writeStoredLicense(path string, s storedLicense) {
+	raw, err := json.Marshal(s)
 	if err != nil || os.MkdirAll(filepath.Dir(path), 0o700) != nil {
 		return
 	}
@@ -97,4 +105,25 @@ func storedOrFetch(source, key string, fetch func() string) string {
 	lic := fetch()
 	storeLicense(source, key, lic)
 	return lic
+}
+
+// storeMiss records that source definitively has no licence for key.
+func storeMiss(source, key string) {
+	if licenseStoreDir == "" {
+		return
+	}
+	writeStoredLicense(licenseStorePath(source, key+"\x00miss"), storedLicense{Miss: true, At: time.Now().Unix()})
+}
+
+// loadStoredMiss reports a definitive miss for key from source within a day.
+func loadStoredMiss(source, key string) bool {
+	if licenseStoreDir == "" {
+		return false
+	}
+	raw, err := os.ReadFile(licenseStorePath(source, key+"\x00miss"))
+	if err != nil {
+		return false
+	}
+	var s storedLicense
+	return json.Unmarshal(raw, &s) == nil && s.Miss && time.Since(time.Unix(s.At, 0)) <= licenseMissTTL
 }
