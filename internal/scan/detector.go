@@ -100,7 +100,9 @@ var ManifestFiles = map[string]ManifestInfo{
 	"packages.lock.json": {Type: "packages.lock.json", Ecosystem: "nuget", Language: "c#", IsLock: true},
 	"packages.config":    {Type: "packages.config", Ecosystem: "nuget", Language: "c#", IsLock: false},
 	"paket.dependencies": {Type: "paket.dependencies", Ecosystem: "nuget", Language: "c#", IsLock: false},
-	"paket.lock":         {Type: "paket.lock", Ecosystem: "nuget", Language: "c#", IsLock: true},
+	// Central package management: the exact versions live here, not in the project files.
+	"Directory.Packages.props": {Type: "Directory.Packages.props", Ecosystem: "nuget", Language: "c#", IsLock: false},
+	"paket.lock":               {Type: "paket.lock", Ecosystem: "nuget", Language: "c#", IsLock: true},
 	// ── Swift ─────────────────────────────────────────────────────────────
 	"Package.swift":    {Type: "Package.swift", Ecosystem: "swift", Language: "swift", IsLock: false},
 	"Package.resolved": {Type: "Package.resolved", Ecosystem: "swift", Language: "swift", IsLock: true},
@@ -328,11 +330,12 @@ var SupportedManifestTypes = map[string]bool{
 	"composer.json": true,
 	"composer.lock": true,
 	// .NET / NuGet
-	"packages.lock.json": true,
-	"packages.config":    true,
-	"paket.dependencies": true,
-	"paket.lock":         true,
-	"*.csproj":           true,
+	"packages.lock.json":       true,
+	"packages.config":          true,
+	"paket.dependencies":       true,
+	"paket.lock":               true,
+	"Directory.Packages.props": true,
+	"*.csproj":                 true,
 	// Clojure (Leiningen / tools.deps / Babashka)
 	"project.clj": true,
 	"deps.edn":    true,

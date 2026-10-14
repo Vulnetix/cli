@@ -38,3 +38,23 @@ func TestGateDropsManifestRangesWhenALockfileSuppliesTheVersions(t *testing.T) {
 		}
 	}
 }
+
+// A .csproj under central package management carries no version, and its pins live in a
+// Directory.Packages.props above it. It is not an unrestored project.
+func TestNugetProjectBesideCentralPackagesIsNotUnrestored(t *testing.T) {
+	root := t.TempDir()
+	sub := filepath.Join(root, "src", "App")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{filepath.Join(root, "Directory.Packages.props"), filepath.Join(sub, "App.csproj")} {
+		if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, drop, err := ApplyBuildOrLockGate("nuget", "*.csproj", filepath.Join(sub, "App.csproj"), "src/App/App.csproj", true,
+		[]ScopedPackage{{Name: "Serilog"}})
+	if err != nil || drop {
+		t.Fatalf("a project under central package management must not be reported unrestored: err=%v drop=%v", err, drop)
+	}
+}

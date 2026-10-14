@@ -10,8 +10,10 @@ import (
 
 func init() {
 	gateRegistry["nuget"] = gateSpec{
-		gated:       func(t string) bool { return t == "*.csproj" || t == "paket.dependencies" },
-		lockPresent: func(dir string) bool { return anySiblingExists(dir, []string{"packages.lock.json", "paket.lock"}) },
+		gated: func(t string) bool { return t == "*.csproj" || t == "paket.dependencies" },
+		lockPresent: func(dir string) bool {
+			return anySiblingExists(dir, []string{"packages.lock.json", "paket.lock"}) || centralPackagesAbove(dir)
+		},
 		fullyPinned: allVersionsPinned, // PackageReference versions are usually exact
 		resolve:     ResolveNugetFromInstalled,
 	}
@@ -99,4 +101,21 @@ func lookupNugetGlobal(globalRoot string, declared []ScopedPackage) map[string]i
 		out[nugetKey(p.Name)] = installedDep{Name: p.Name, Version: ver, Dir: dir}
 	}
 	return out
+}
+
+// centralPackagesAbove reports a Directory.Packages.props in dir or any parent. With
+// central package management the project files carry no version: the pins are read from
+// that file, so a project beside it is not "unrestored" and needs no lock file.
+func centralPackagesAbove(dir string) bool {
+	for i := 0; i < 12; i++ {
+		if anySiblingExists(dir, []string{"Directory.Packages.props"}) {
+			return true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return false
+		}
+		dir = parent
+	}
+	return false
 }
