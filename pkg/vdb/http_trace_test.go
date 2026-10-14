@@ -26,7 +26,7 @@ func TestHTTPTraceLineCarriesNoSecrets(t *testing.T) {
 	resp.Body.Close()
 
 	line := out.String()
-	if !regexp.MustCompile(`^\[http#\d+\] \+ *\d+ms +\d+ms 418 POST 127\.0\.0\.1:\d+/v2/cli\.sca\n$`).MatchString(line) {
+	if !regexp.MustCompile(`^\[http#\d+\] \+ *\d+ms +\d+ms 418 POST 127\.0\.0\.1:\d+/v2/cli\.sca net=\d+ms\n$`).MatchString(line) {
 		t.Fatalf("unexpected trace line %q", line)
 	}
 	if strings.Contains(line, "s3cret") {
