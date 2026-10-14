@@ -45,10 +45,25 @@ func TestSaveAndLoadCredentials(t *testing.T) {
 }
 
 func TestRemoveCredentials(t *testing.T) {
-	// Just verify it doesn't panic
-	err := RemoveCredentials()
-	// This may or may not error depending on filesystem state; always ok
-	_ = err
+	// RemoveCredentials deletes the home and project credential files and their
+	// keychain secrets. Run against the real ones, this test logged the developer
+	// out of every `vulnetix` on the machine, so every location it can reach is
+	// a temporary one.
+	keyring.MockInit()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv(CredentialsDirEnv, filepath.Join(home, ".vulnetix"))
+	t.Chdir(t.TempDir())
+
+	if err := SaveCredentials(&Credentials{OrgID: "org", APIKey: "key", Method: DirectAPIKey}, StoreHome); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if err := RemoveCredentials(); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".vulnetix", "credentials.json")); !os.IsNotExist(err) {
+		t.Fatalf("credentials file still present after RemoveCredentials (stat err %v)", err)
+	}
 }
 
 func TestLoadCredentials_FromEnv(t *testing.T) {
