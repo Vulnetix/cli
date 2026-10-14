@@ -590,6 +590,11 @@ func runScanWithFeatures(ctx context.Context, cmd *cobra.Command, noSAST, noSCA,
 
 	// ── 1. Collect git context early for display ───────────────────────
 	gitCtx := gitctx.Collect(scanPath)
+	// The backend suppression rules depend only on the repo and branch, so their
+	// fetch overlaps the local scan rather than following it.
+	if !noSCA || !noSAST || !noLicenses {
+		prefetchRemoteSuppressions(gitCtx)
+	}
 
 	fmt.Fprintf(os.Stderr, "Scanning %s (depth: %d)...\n", scanPath, depth)
 	if gitCtx != nil {

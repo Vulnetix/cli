@@ -470,3 +470,24 @@ func TestPartialFixWithNoVersionToMoveToIsNoFix(t *testing.T) {
 		t.Errorf("a concrete version keeps it partial: %+v", got)
 	}
 }
+
+// A lookup that failed after retries leaves the answer incomplete. "Nothing found"
+// must not read as "clean": that is the one claim a user would act on.
+func TestIncompleteLookupIsNeverReportedClean(t *testing.T) {
+	r := Report{Meta: Meta{ScannedPackages: 40, Unchecked: []string{"pkg:pypi/a@1", "pkg:pypi/b@2"}}}
+	plain := RenderPlain(r, Options{Command: "scan"}, nil)
+	if strings.Contains(plain, "CLEAN") || !strings.Contains(plain, "INCOMPLETE") {
+		t.Fatalf("plain view must say INCOMPLETE, got:\n%s", plain)
+	}
+	if !strings.Contains(plain, "2 packages") {
+		t.Errorf("the count of unchecked packages is missing:\n%s", plain)
+	}
+	js, err := RenderJSON(r)
+	if err != nil || !strings.Contains(string(js), `"unchecked"`) {
+		t.Fatalf("JSON meta must list the unchecked packages: %v\n%s", err, js)
+	}
+	clean := RenderPlain(Report{Meta: Meta{ScannedPackages: 40}}, Options{Command: "scan"}, nil)
+	if !strings.Contains(clean, "CLEAN") {
+		t.Errorf("a complete lookup with no findings is still clean:\n%s", clean)
+	}
+}

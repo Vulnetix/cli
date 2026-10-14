@@ -365,6 +365,8 @@ func Execute() error {
 	// Cobra's default template prefixes "vulnetix version ".
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	err := rootCmd.Execute()
+	// No command may exit with background requests in flight.
+	waitBackground()
 	if err == nil {
 		return nil
 	}

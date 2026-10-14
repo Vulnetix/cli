@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	cyclonedx "github.com/Vulnetix/vdb-cyclonedx"
@@ -47,30 +48,73 @@ func buildScanSuppressionSet(mem *memory.Memory, git *gitctx.GitContext) *suppre
 		rules = append(rules, suppress.FromMemory(mem.ActiveSuppressions(now))...)
 	}
 
-	if client := newCliClient(); client != nil {
-		req := vdbSuppressGetReq(git)
-		if resp, err := client.CliSuppressionsGet(envForCliWithGit(git), req); err == nil && resp != nil {
-			for _, s := range resp.Data.Suppressions {
-				rules = append(rules, suppress.Rule{
-					UUID:               s.UUID,
-					RuleID:             s.RuleID,
-					Category:           s.Category,
-					Type:               s.SuppressionType,
-					Reason:             s.Reason,
-					TargetValue:        s.TargetValue,
-					FilePath:           s.FilePath,
-					LineNumber:         s.LineNumber,
-					LineRange:          s.LineRange,
-					RepositoryFullName: s.RepositoryFullName,
-					Branch:             s.BranchName,
-					ExpiresAt:          s.ExpiresAt,
-					IsActive:           s.IsActive,
-				})
-			}
-		}
-	}
+	rules = append(rules, remoteSuppressionRules(git)...)
 
 	return suppress.NewSet(rules, now)
+}
+
+// remoteSuppressions holds one fetch of the backend's active rules per repo and
+// branch for the life of the process. A scan consults them from several places
+// (SCA, SAST, malscan, licences) and each used to ask again; the rules are
+// prefetched as soon as the git context is known (prefetchRemoteSuppressions)
+// so the request overlaps the local scan instead of following it.
+var (
+	remoteSuppressionsMu sync.Mutex
+	remoteSuppressions   = map[string]*future[[]suppress.Rule]{}
+)
+
+// prefetchRemoteSuppressions starts the backend fetch for git's repo and branch.
+func prefetchRemoteSuppressions(git *gitctx.GitContext) {
+	remoteSuppressionFuture(git)
+}
+
+func remoteSuppressionFuture(git *gitctx.GitContext) *future[[]suppress.Rule] {
+	client := newCliClient()
+	if client == nil {
+		return nil
+	}
+	req := vdbSuppressGetReq(git)
+	key := strings.Join([]string{client.BaseURL, client.OrgID, req.RepositoryFullName, req.BranchName}, "\x00")
+	remoteSuppressionsMu.Lock()
+	defer remoteSuppressionsMu.Unlock()
+	if f, ok := remoteSuppressions[key]; ok {
+		return f
+	}
+	f := startFuture(func() []suppress.Rule { return fetchRemoteSuppressionRules(client, git, req) })
+	remoteSuppressions[key] = f
+	return f
+}
+
+// remoteSuppressionRules returns the backend's active rules for git's repo and
+// branch (best-effort: none when the backend cannot be reached).
+func remoteSuppressionRules(git *gitctx.GitContext) []suppress.Rule {
+	return remoteSuppressionFuture(git).get()
+}
+
+func fetchRemoteSuppressionRules(client *vdb.Client, git *gitctx.GitContext, req vdb.CliSuppressionsGetRequest) []suppress.Rule {
+	resp, err := client.CliSuppressionsGet(envForCliWithGit(git), req)
+	if err != nil || resp == nil {
+		return nil
+	}
+	rules := make([]suppress.Rule, 0, len(resp.Data.Suppressions))
+	for _, s := range resp.Data.Suppressions {
+		rules = append(rules, suppress.Rule{
+			UUID:               s.UUID,
+			RuleID:             s.RuleID,
+			Category:           s.Category,
+			Type:               s.SuppressionType,
+			Reason:             s.Reason,
+			TargetValue:        s.TargetValue,
+			FilePath:           s.FilePath,
+			LineNumber:         s.LineNumber,
+			LineRange:          s.LineRange,
+			RepositoryFullName: s.RepositoryFullName,
+			Branch:             s.BranchName,
+			ExpiresAt:          s.ExpiresAt,
+			IsActive:           s.IsActive,
+		})
+	}
+	return rules
 }
 
 // scanSuppressionSetLoad loads local memory + remote rules into a matcher,

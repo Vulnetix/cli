@@ -1285,3 +1285,11 @@ Non-authenticated scans (no credentials, or the community fallback) have no orga
 | `1` | A gate was breached (`--severity`, `--block-eol`, `--block-malware`, `--block-unpinned`, `--exploits`, `--version-lag`, `--cooldown`), or a fatal error occurred — including a file requested with `-o <path>` that could not be written |
 | `2` | A local argument or configuration error, caught before any scanning started |
 | `3` | With `--jail`: the policy ran but could not reach a verdict, because some rules have no current scan coverage. Not a pass and not a breach |
+
+## When the advisory lookup is incomplete
+
+If the lookup fails for some packages even after retries, the report says so instead
+of presenting the rest as the whole answer. With no findings the headline reads
+`INCOMPLETE` rather than `CLEAN`; with findings it adds "N not checked"; the default
+view notes that the list may be incomplete; and `-o json` lists the packages under
+`meta.unchecked`. Re-run the scan. Exit codes are unchanged.

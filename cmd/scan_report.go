@@ -35,6 +35,10 @@ var activeSurface scanopts.Surface
 // decides whether a defence lookup asks for rule details or only counts.
 var lastSCATier string
 
+// lastSCAUnchecked are the packages the last SCA round-trip could not look up after
+// retries. The report says so instead of presenting the rest as the whole answer.
+var lastSCAUnchecked []string
+
 // lastSCATierGated is every feature the server said it withheld on this plan,
 // across the SCA batches. It is what separates "no fix exists" from "this plan
 // was not told".
@@ -62,6 +66,7 @@ func buildScanReport(ctx context.Context, in scanReportInput) report.Report {
 		ScannedPackages: len(countUniqueMap(in.AllPackages)),
 		Kinds:           scannerKinds(in.Opts),
 		VEXSuppressed:   in.VEXHidden,
+		Unchecked:       append([]string(nil), lastSCAUnchecked...),
 	}
 	for _, g := range in.Groups {
 		meta.Manifests += len(g.Files)
@@ -348,9 +353,11 @@ func resolveUnverifiedFindings(enriched []scan.EnrichedVuln, w io.Writer) {
 	client := newEnrichmentClient()
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
+	// Each lookup is one round trip to the API, and a project commonly needs a
+	// dozen or two; 8 at a time made that two or three serial waves.
 	st := scan.ResolveUnverified(ctx, enriched, func(_ context.Context, id, pkg, eco string) (map[string]any, error) {
 		return client.V2Affected(id, vdb.V2QueryParams{PackageName: pkg, Ecosystem: eco, Limit: 100})
-	}, 8)
+	}, 24)
 	if st.Failed > 0 {
 		fmt.Fprintf(w, "  note: %d version check(s) could not be completed (API error or time budget); those findings keep the verdict they arrived with. Run the scan again to retry.\n", st.Failed)
 	}
