@@ -11,8 +11,10 @@ import (
 	"time"
 )
 
+// depsDevBaseURL is a var so tests can point it at a local server.
+var depsDevBaseURL = "https://api.deps.dev/v3"
+
 const (
-	depsDevBaseURL = "https://api.deps.dev/v3"
 	depsDevTimeout = 10 * time.Second
 	// deps.dev answers each version in one round trip and serves many at once; at 5
 	// a 200-crate Cargo project waited on 40 serial waves of them.
@@ -87,8 +89,19 @@ func FetchLicenseFromDepsDev(name, version, ecosystem string) string {
 		return cached.(string)
 	}
 
-	// Try version endpoint first.
-	lic := storedOrFetch("depsdev", cacheKey, func() string { return fetchVersionLicense(system, name, version) })
+	// Try version endpoint first. A version deps.dev answers 404 for (a private
+	// package, the project itself) is remembered for a day like a licence is for a
+	// week; any other failure is asked again next run.
+	lic, ok := loadStoredLicense("depsdev", cacheKey)
+	if !ok && !loadStoredMiss("depsdev", cacheKey) {
+		var notFound bool
+		lic, notFound = fetchVersionLicenseChecked(system, name, version)
+		if lic != "" {
+			storeLicense("depsdev", cacheKey, lic)
+		} else if notFound {
+			storeMiss("depsdev", cacheKey)
+		}
+	}
 
 	// For Go modules, if version lookup fails, try the project endpoint
 	// (the module might be a GitHub repo).
@@ -102,8 +115,10 @@ func FetchLicenseFromDepsDev(name, version, ecosystem string) string {
 	return lic
 }
 
-// fetchVersionLicense calls /v3/systems/{system}/packages/{name}/versions/{version}.
-func fetchVersionLicense(system, name, version string) string {
+// fetchVersionLicenseChecked calls /v3/systems/{system}/packages/{name}/versions/{version}.
+// It also reports whether deps.dev answered 404, the one empty answer that is
+// definitive.
+func fetchVersionLicenseChecked(system, name, version string) (string, bool) {
 	u := fmt.Sprintf("%s/systems/%s/packages/%s/versions/%s",
 		depsDevBaseURL,
 		url.PathEscape(system),
@@ -111,33 +126,34 @@ func fetchVersionLicense(system, name, version string) string {
 		url.PathEscape(version))
 
 	resp, err := getHTTPClient().Get(u)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		if resp != nil {
-			resp.Body.Close()
-		}
-		return ""
+	if err != nil {
+		return "", false
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return "", resp.StatusCode == http.StatusNotFound
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return ""
+		return "", false
 	}
 
 	var data depsDevVersionResp
 	if err := json.Unmarshal(body, &data); err != nil {
-		return ""
+		return "", false
 	}
 
 	if len(data.Licenses) > 0 && data.Licenses[0] != "" {
 		lic := data.Licenses[0]
 		// deps.dev returns "non-standard" for custom/unrecognized licenses.
 		if strings.EqualFold(lic, "non-standard") {
-			return lic // preserve as-is, don't normalize
+			return lic, false // preserve as-is, don't normalize
 		}
-		return NormalizeSPDX(lic)
+		return NormalizeSPDX(lic), false
 	}
-	return ""
+	return "", false
 }
 
 // fetchProjectLicense calls /v3/projects/{projectKey} for GitHub repositories.
