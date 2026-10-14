@@ -55,3 +55,34 @@ func TestStoredLicensesAreKeptLocallyForTheNextScan(t *testing.T) {
 		t.Fatalf("asked the API %d times; the second scan should answer from the local store", calls)
 	}
 }
+
+func TestStoredLicensesRememberWhatTheAPIDoesNotKnow(t *testing.T) {
+	calls := 0
+	StoredLicenses = func(pkgs []PackageLicense) map[int]string {
+		calls++
+		return map[int]string{}
+	}
+	defer func() { StoredLicenses = nil }()
+	for i := 0; i < 2; i++ {
+		pkgs := []PackageLicense{{PackageName: "nowhere", PackageVersion: "0.1", Ecosystem: "zig", LicenseSpdxID: "UNKNOWN"}}
+		applyStoredLicenses(pkgs)
+		if pkgs[0].LicenseSpdxID != "UNKNOWN" {
+			t.Fatalf("run %d: %+v", i, pkgs[0])
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("asked the API %d times; a package it did not know should not be asked again the same day", calls)
+	}
+}
+
+func TestStoredLicensesRememberNothingWhenTheAPIFails(t *testing.T) {
+	calls := 0
+	StoredLicenses = func(pkgs []PackageLicense) map[int]string { calls++; return nil }
+	defer func() { StoredLicenses = nil }()
+	for i := 0; i < 2; i++ {
+		applyStoredLicenses([]PackageLicense{{PackageName: "flaky", PackageVersion: "1", Ecosystem: "npm", LicenseSpdxID: "UNKNOWN"}})
+	}
+	if calls != 2 {
+		t.Fatalf("asked %d times; a failed lookup must be retried next scan", calls)
+	}
+}

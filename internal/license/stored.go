@@ -33,18 +33,26 @@ func applyStoredLicenses(packages []PackageLicense) {
 			set(&packages[i], lic)
 			continue
 		}
+		if loadStoredMiss("vulnetix", storedLicenseKey(p)) {
+			continue // the API had none a day ago; the later stages' own stores answer
+		}
 		idx = append(idx, i)
 		unknown = append(unknown, p)
 	}
 	if len(unknown) == 0 {
 		return
 	}
-	for j, lic := range StoredLicenses(unknown) {
-		if j < 0 || j >= len(idx) || lic == "" {
-			continue
+	found := StoredLicenses(unknown)
+	if found == nil {
+		return // no answer at all (no API, an error): remember nothing
+	}
+	for j, i := range idx {
+		if lic := found[j]; lic != "" {
+			set(&packages[i], lic)
+			storeLicense("vulnetix", storedLicenseKey(packages[i]), lic)
+		} else {
+			storeMiss("vulnetix", storedLicenseKey(packages[i]))
 		}
-		set(&packages[idx[j]], lic)
-		storeLicense("vulnetix", storedLicenseKey(packages[idx[j]]), lic)
 	}
 }
 
