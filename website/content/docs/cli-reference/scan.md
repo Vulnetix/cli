@@ -267,7 +267,7 @@ The flags the [output section](#reading-the-output) lists as superseded (`--seve
 | `--filter` | stringArray | - | Show only findings matching **all** of: `kev`, `exploited`, `reachable`, `fixable`, `nofix`, `defended`, `unprotected`, `direct`, `transitive` |
 | `--min-severity` | string | - | Hide anything below `low`, `medium`, `high` or `critical`. Changes what is shown, never the exit code |
 | `--sort` | string | `threat` | Order within a group: `threat`, `severity` or `package` |
-| `--show` | stringArray | - | Add `paths`, `files`, `clean`, `scores` or `defences` to the output |
+| `--show` | stringArray | - | Add `paths`, `files`, `clean`, `scores`, `defences` or `tests` to the output (`tests` ranks high-severity code findings in test files with the rest instead of listing them under IN TESTS) |
 | `--hide` | stringArray | - | Remove `fixes`, `exploits`, `defences` or `not-affected` from the output |
 | `-v, --verbose` | count | `0` | `-v` adds per-advisory version checks and scores; `-vv` adds match evidence and every severity source |
 | `-q, --quiet` | bool | `false` | Findings only: one line when there are findings, nothing when the scan is clean |

@@ -1,18 +1,17 @@
  ✖ SAST 4 findings in 2 files          2 need action · 2 can wait
-   1427 of 1899 rules
+   2 rules need action · 1427 of 1899 rules ran
 
- config/prod.env
-  7     ● CRITICAL  VNX-SEC-001
-               AWS access key ID found; rotate the key
+ NEEDS ACTION · 2 rules · 2 places · production code
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● CRITICAL  VNX-SEC-001   AWS access key ID found                              config/prod.env:7
 
- src/app.py
-  5     ● HIGH      VNX-PY-004
-               yaml.load() without SafeLoader; use yaml.safe_load() or pass Loader=SafeLoader
-               5    │     data = yaml.load(doc)
-  4     ● LOW       VNX-1117  ×2
-               Function without docstring summary
-               4    │ def run(cmd, doc):
+ ● HIGH      VNX-PY-004    yaml.load() without SafeLoader                            src/app.py:5
+
+ CAN WAIT · 1 rule · 2 places · medium and low
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● LOW       VNX-1117      Function without docstring summary                         2 in 1 file
 
  NEXT
-   vulnetix scan --explain VNX-SEC-001
-   vulnetix scan -v    the matched code
+   vulnetix scan --explain VNX-SEC-001  the rule, why it matters, and the matched code
+   vulnetix scan --explain VNX-PY-004   the next rule to look at
+   vulnetix scan -v                     one snippet per rule, and every file it fired in

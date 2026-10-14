@@ -27,7 +27,7 @@ const (
 var (
 	Views       = []string{ViewAuto, ViewPackages, ViewFindings, ViewTree, ViewTable, ViewPlain, ViewJSON}
 	FilterNames = []string{"kev", "exploited", "reachable", "fixable", "nofix", "defended", "unprotected", "direct", "transitive"}
-	ShowParts   = []string{"paths", "files", "clean", "scores", "defences"}
+	ShowParts   = []string{"paths", "files", "clean", "scores", "defences", "tests"}
 	HideParts   = []string{"fixes", "exploits", "defences", "not-affected"}
 	SortKeys    = []string{"threat", "severity", "package"}
 )

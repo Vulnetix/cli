@@ -155,7 +155,20 @@ func LoadAllModules(
 		}
 	}
 
-	// Load external rule repos.
+	// Load external rule repos. The packs are reported in one line rather than
+	// one per pack: seven "Imported" lines before the result was noise.
+	var packs []string
+	imported := 0
+	defer func() {
+		if len(packs) == 0 {
+			return
+		}
+		if len(packs) == 1 {
+			fmt.Fprintf(w, "Imported %d rules from %s\n", imported, packs[0])
+			return
+		}
+		fmt.Fprintf(w, "Imported %d rules from %d packs (%s +%d more)\n", imported, len(packs), packs[0], len(packs)-1)
+	}()
 	for _, ref := range ruleRefs {
 		cacheDir, err := FetchRuleRepo(registry, ref, w)
 		if err != nil {
@@ -187,7 +200,14 @@ func LoadAllModules(
 			fmt.Fprintf(w, "Warning: walking rules in %s/%s: %v\n", ref.Org, ref.Repo, err)
 			continue
 		}
-		fmt.Fprintf(w, "Imported %d rules from %s/%s\n", n, ref.Org, ref.Repo)
+		if n == 0 {
+			// An empty pack is almost always a layout mistake (no rules/ dir);
+			// it keeps its own line so it is not lost in the total.
+			fmt.Fprintf(w, "Imported 0 rules from %s/%s\n", ref.Org, ref.Repo)
+			continue
+		}
+		packs = append(packs, ref.Org+"/"+ref.Repo)
+		imported += n
 	}
 
 	return modules, nil
