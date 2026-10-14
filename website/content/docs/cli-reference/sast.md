@@ -126,8 +126,10 @@ severity exactly as before.
 `--explain <rule-id>` shows the rule's description and CWE, then every place it fired:
 production code first, grouped by file with three matched lines each (all of them at
 `-v`), then test code. `--explain <file-path>` explains each rule that fired in that
-file. The same layout is used by [`secrets`](../secrets/), [`iac`](../iac/) and
-[`containers`](../containers/); a secret's value is never printed.
+file. [`secrets`](../secrets/), [`iac`](../iac/), [`containers`](../containers/) and
+[`malscan`](../malscan/) keep this frame (a verdict line, groups that say what to do, a
+NEXT block of commands that exist) but group by the thing you fix: a credential, a
+resource, an image, a package.
 
 ## Test-suite detection
 

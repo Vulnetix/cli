@@ -1,0 +1,14 @@
+ ✔ MALWARE none found in 1,248 packages          18,402 files · 412,118 known-bad indicators
+
+ CHECKED
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+   npm     node_modules             612 packages  8,210 files
+   go      vendor                   401 packages  9,880 files
+   python  .venv/lib/site-packages  235 packages  312 files
+
+ NOT CHECKED
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+   home caches   ~/.npm, ~/go/pkg/mod and the other caches, which your tools install from next time
+
+ NEXT
+   vulnetix malscan --include-home  also check ~/.npm, ~/go/pkg/mod and the other caches

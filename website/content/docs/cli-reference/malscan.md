@@ -220,6 +220,42 @@ Targets are resolved per ecosystem. Project-local install directories are always
 
 Only directories that exist on disk are scanned, and a shared `vendor/` is attributed to a single ecosystem by the manifest present at the root, so it is never scanned twice.
 
+## Reading the output
+
+The report is organised by **package**, because malware lives in a dependency and the
+package is what you remove. Each finding is attributed to the installed package it was found
+in (the last `node_modules/<name>`, a `site-packages/<name>`, a Go module path) and grouped
+under it.
+
+```text
+ ✖ MALWARE in 1 package          1 malicious · 1 suspicious · 1,246 clean
+   npm 612 · go 401 · python 235 packages · 18,402 files · 412,118 known-bad indicators
+
+ MALICIOUS · 1 package · remove it before anything installs again
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ ● CRITICAL  npm  event-stream-helper                                                node_modules
+             runs code on install       package.json:8   "postinstall": "node lib/setup.js"
+             contacts a known-bad host  lib/setup.js:41  fetch('https://cdn-update[.]top/s')
+```
+
+| Group | What is in it |
+|-------|---------------|
+| **MALICIOUS** | A package with at least one *evidence*-grade finding: a known-bad hash or indicator, or an install script the detectors condemn. Followed by the steps in order: remove it, rotate the credentials its install script could read, search logs for the defanged hosts. |
+| **SUSPICIOUS** | A package with only *trigger* or *context* findings. Worth a look, not proof. |
+| **CHECKED** | Each install directory, with the packages and files inspected in it. |
+| **NOT CHECKED** | What was not looked at, and why. |
+
+Indicators are **defanged** (`cdn-update[.]top`) so a terminal or chat client will not turn
+them into links. Several rules often fire on one line; they are one row unless `-v`.
+
+**A scan that checked nothing is never clean.** With no installed dependencies under the path,
+empty install directories, or zero known-bad indicators loaded (feeds not fetched; not
+`--no-ioc-feeds`, which is a choice), the headline reads `INCOMPLETE` and NOT CHECKED says
+what to do: `--fetch-definitions` for the indicators, `--include-home` for the caches. The
+exit code is unchanged. Under `-q` an incomplete scan still prints one line.
+
+The terminal view does not change the SARIF file, the upload or the exit code.
+
 ## Output files
 
 | File | When | Contents |

@@ -132,6 +132,38 @@ vulnetix containers --container-rootfs ./rootfs
 vulnetix containers --container-archive ./image.tar
 ```
 
+## Reading the output
+
+The report is organised by **image**: each Dockerfile (named by its last `FROM`, the image
+that ships) and each Compose service or Kubernetes workload gets one card. A card lists the
+checks that failed, worst first, each with a one-line fix for the built-in rules; a rule from
+an external pack prints no fix line rather than a vague one.
+
+```text
+ ✖ CONTAINERS 2 images · 4 problems          1 needs action · 3 can wait · 1 in tests
+   5 findings · 1 folded as the same problem · 180 rules ran
+
+ docker-compose.yml   service api                                                  1 needs action
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+  ✖ CRITICAL  Privileged container      privileged: tr…  :18    VNX-DOCKER-005
+              fix: remove privileged; add only the capabilities it needs under cap_add
+
+ BINARIES · 14 ELF files · 1,204 files scanned
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+             3 without PIE · 2 without full RELRO · 1 with an executable stack
+```
+
+Findings from different packs on the same line with the same weakness fold into one problem
+that lists every rule (`-v` folds nothing), exactly as in [`iac`](../iac/#reading-the-output).
+The headline counts problems; a card's tag says how many need action or can wait. Test files
+are listed under IN TESTS, and `--show tests` ranks them with the rest.
+
+**BINARIES** summarises the ELF pass below the report: how many files are ELF, how many lack
+each hardening feature, and the five with the most serious weaknesses (all of them at `-v`).
+It is a description of what is on disk, not a verdict: packages found inside the binaries
+travel in the SBOM, and malware raises its finding through [`malscan`](../malscan/). The
+section is printed after the report, not inside it, because the pass runs after the scan.
+
 ## Output Files
 
 | Path | Description |

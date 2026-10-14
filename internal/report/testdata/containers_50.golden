@@ -1,0 +1,39 @@
+ ✖ CONTAINERS 2 images · 4 problems
+   1 needs action · 3 can wait · 1 in tests
+
+ docker-compose.yml
+   1 needs action
+ ────────────────────────────────────────────────
+  ✖ CRITICAL
+    Privileged container
+    :18 VNX-DOCKER-005
+    fix: remove privileged; add only the
+         capabilities it needs under cap_add
+
+ Dockerfile
+   3 can wait
+ ────────────────────────────────────────────────
+  ✖ MEDIUM
+    Final stage runs as root
+    :1 VNX-DOCKER-001 · EMBARK-DOCKER-01
+    fix: add USER 65532:65532 after the last RUN
+  ✖ MEDIUM
+    Base image not pinned
+    :25 VNX-DOCKER-002
+    fix: pin a version tag, and a digest for a
+         reproducible build
+  ✖ LOW
+    OS packages not pinned
+    :7 VNX-DOCKER-008
+    fix: pin each package, for example apk add
+         curl=8.5.0-r0
+
+ IN TESTS
+ ────────────────────────────────────────────────
+   internal/sast/containerfile_te…  1 finding
+
+ NEXT
+   vulnetix containers --explain docker-compose.yml
+   vulnetix containers --explain Dockerfile
+   vulnetix containers -v
+   vulnetix containers --show tests

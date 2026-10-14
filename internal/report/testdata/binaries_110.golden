@@ -1,0 +1,9 @@
+
+ BINARIES · 4 ELF files · 1,204 files scanned
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+             1 setuid · 1 with an executable stack · 1 without PIE · 2 without full RELRO · 1 without a
+             stack canary
+             dist/tools/legacy-helper   executable stack · no stack canary · from legacy 1.2
+             usr/bin/su                 setuid · no RELRO
+             dist/vulnetix_linux_amd64  no PIE · partial RELRO
+             1 file could not be read · -v lists them

@@ -88,6 +88,41 @@ vulnetix iac --results-only
 vulnetix iac --exclude ".terraform/**"
 ```
 
+## Reading the output
+
+The report is organised by **resource**, the thing you change in the file:
+`aws_s3_bucket.logs`, `Deployment/api`, `module.net`. The resource is read from the file
+after the scan: the nearest `resource`/`data`/`module` block above the line in Terraform,
+`kind/metadata.name` for the YAML document in Kubernetes, the service in a Compose file.
+A file with no such notion is listed under its path.
+
+```text
+ ✖ IAC 7 problems on 3 resources in 4 files          4 need action · 3 can wait · 1 in tests
+   9 findings · 2 folded as the same problem · 774 of 2865 rules ran
+
+ NEEDS ACTION · 4 problems on 3 resources
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+ aws_s3_bucket.logs  infra/storage.tf:12                                               2 problems
+  ● HIGH      No server-side encryption        :12    TRIVY-S3-ENC
+  ● HIGH      Bucket is publicly readable      :15    VNX-TF-001 · KICS-S3-ACL · REGULA-S3-1
+```
+
+**Folding.** Several rule packs often flag the same line. Two findings are one problem
+when they sit on the same line, on the same resource, and name the same weakness (the same
+CWE set); the row lists every rule that raised it. Findings with no CWE never fold, and a
+different weakness on the same line stays its own problem. `-v` folds nothing.
+
+| Group | What is in it |
+|-------|---------------|
+| **NEEDS ACTION** | Resources with critical or high problems in production code. |
+| **CAN WAIT** | Medium and low problems, one row per problem, with how many resources it is on. Seven are shown unless `-v`. |
+| **IN TESTS** | Critical and high problems in test code, as files with a count. `--show tests` ranks them. |
+| **VENDORED** | The same for `third_party/`, `vendor/` and similar trees. |
+
+Folding and grouping change only the terminal view; SARIF, JSON, uploads and gates see every
+finding at its own severity. `--explain <file-path>` shows every problem in a file with its
+lines, and `--explain <rule-id>` the rule and every place it fires.
+
 ## Output Files
 
 | Path | Description |

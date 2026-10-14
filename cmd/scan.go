@@ -2599,7 +2599,7 @@ func runLocalScan(
 	// --explain falls through to the rule engine's findings when no dependency
 	// matched, so one flag explains either kind of finding.
 	if explainOnly && !explained && sastReport != nil {
-		explained = printCodeExplain(sastReport, analysisLabel, activeSurface)
+		explained = printCodeExplain(sastReport, analysisLabel, rootPath, activeSurface)
 	}
 	if explainOnly && !explained {
 		fmt.Fprintf(os.Stderr, "Nothing to explain: no finding matches %q. Use an advisory id, a rule id, a package name, name@version or a file path.\n", activeSurface.Explain)
@@ -2614,7 +2614,7 @@ func runLocalScan(
 			}
 			sast.PrintPrettySummaryWithTitle(sastReport, resultsOnly, analysisTitle)
 		} else {
-			printCodeReport(sastReport, analysisLabel, activeSurface, resultsOnly)
+			printCodeReport(sastReport, analysisLabel, rootPath, activeSurface, resultsOnly)
 		}
 	}
 

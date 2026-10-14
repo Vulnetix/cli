@@ -161,3 +161,52 @@ func containsStage(stages []string, want string) bool {
 	}
 	return false
 }
+
+func TestPackageUnder(t *testing.T) {
+	base := filepath.Join("/p", "node_modules")
+	for _, c := range []struct{ path, slug, want string }{
+		{"/p/node_modules/left-pad/index.js", "npm", "left-pad"},
+		{"/p/node_modules/@scope/pkg/lib/a.js", "npm", "@scope/pkg"},
+		{"/p/node_modules/a/node_modules/b/index.js", "npm", "b"},
+		{"/p/node_modules/.pnpm/left-pad@1.3.0/node_modules/left-pad/x.js", "npm", "left-pad"},
+		{"/p/node_modules", "npm", ""},
+		{"/elsewhere/x.js", "npm", ""},
+	} {
+		if got := packageUnder(base, c.path, c.slug); got != c.want {
+			t.Errorf("%s: got %q want %q", c.path, got, c.want)
+		}
+	}
+	if got := packageUnder("/p/vendor", "/p/vendor/github.com/acme/lib/x.go", "go"); got != "github.com/acme/lib" {
+		t.Errorf("go module: got %q", got)
+	}
+}
+
+// The terminal report groups by package, so every finding has to say which
+// package it came from, and the scan has to say how much it looked at.
+func TestMalscanReportAttributesPackages(t *testing.T) {
+	res, err := runMalscanEngine(malscanOptions{Root: fixtureRoot(t), IOCFeeds: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkgs := map[string]bool{}
+	for _, f := range res.Findings {
+		if f.Package == "" || f.Location != "node_modules" {
+			t.Errorf("finding %s has no package/location: %q %q", f.RuleID, f.Package, f.Location)
+		}
+		pkgs[f.Package] = true
+	}
+	if !pkgs["evil-pkg"] || !pkgs["exfil-pkg"] {
+		t.Errorf("expected both packages attributed, got %v", pkgs)
+	}
+	if len(res.Checked) == 0 || res.Checked[0].Packages != 2 {
+		t.Errorf("expected 2 packages checked, got %+v", res.Checked)
+	}
+	if res.FeedsEnabled {
+		t.Error("FeedsEnabled should mirror IOCFeeds")
+	}
+
+	m := malscanReportFrom(res)
+	if len(m.Targets) != len(res.Checked) || len(m.Findings) != len(res.Findings) {
+		t.Errorf("mapping lost rows: %+v", m)
+	}
+}

@@ -310,7 +310,7 @@ func codeReportFrom(sr *sast.SASTReport, label string) report.CodeReport {
 
 // printCodeReport draws the rule engine's findings in the same grammar as the
 // dependency report. A clean run prints nothing under -q or --results-only.
-func printCodeReport(sr *sast.SASTReport, label string, s scanopts.Surface, resultsOnly bool) {
+func printCodeReport(sr *sast.SASTReport, label, root string, s scanopts.Surface, resultsOnly bool) {
 	if sr == nil {
 		return
 	}
@@ -322,8 +322,10 @@ func printCodeReport(sr *sast.SASTReport, label string, s scanopts.Surface, resu
 	cr := codeReportFrom(sr, label)
 	switch report.ResolveView(o, t, inCI()) {
 	case report.ViewPlain:
+		// One line per finding: it reads neither history nor resources.
 		fmt.Fprint(os.Stdout, "\n"+report.RenderCodePlain(cr, o, t))
 	default:
+		enrichCodeReport(&cr, root)
 		fmt.Fprint(os.Stdout, "\n"+report.RenderCode(cr, o, t))
 	}
 	if os.Getenv("GITHUB_ACTIONS") == "true" {
@@ -333,8 +335,10 @@ func printCodeReport(sr *sast.SASTReport, label string, s scanopts.Surface, resu
 
 // printCodeExplain explains the findings a --explain query names among the rule
 // engine's results. It reports whether anything matched.
-func printCodeExplain(sr *sast.SASTReport, label string, s scanopts.Surface) bool {
-	out, ok := report.RenderCodeExplain(codeReportFrom(sr, label), s.Explain, s.Display, reportTerminal(s))
+func printCodeExplain(sr *sast.SASTReport, label, root string, s scanopts.Surface) bool {
+	cr := codeReportFrom(sr, label)
+	enrichCodeReport(&cr, root)
+	out, ok := report.RenderCodeExplain(cr, s.Explain, s.Display, reportTerminal(s))
 	if ok {
 		fmt.Fprint(os.Stdout, out)
 	}

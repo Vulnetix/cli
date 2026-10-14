@@ -1,97 +1,68 @@
 package cmd
 
 // Pretty terminal rendering for `malscan` — the default output when no -o format
-// is given. Mirrors the table style used by aibom/scan.
+// is given. The drawing is internal/report's, like every other scanner's; this
+// file only maps the scan's result onto it.
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/report"
 )
 
-func renderMalscanPretty(res *malscanResult) {
-	t := display.NewTerminal()
-	var b strings.Builder
-
-	b.WriteString(display.Header(t, "Malware Scan"))
-	b.WriteByte('\n')
-	fmt.Fprintf(&b, "  %d target(s) scanned, %d file(s) inspected, %d known-bad indicator(s) loaded\n\n",
-		len(res.Targets), res.FilesScanned, res.IndicatorCount)
-
-	if len(res.Targets) > 0 {
-		rows := make([][]string, 0, len(res.Targets))
-		for _, tg := range res.Targets {
-			scope := "project"
-			if tg.UserScoped {
-				scope = "home"
-			}
-			rows = append(rows, []string{tg.Ecosystem, tg.EngineSlug, scope, tg.Label})
+func malscanReportFrom(res *malscanResult) report.MalscanReport {
+	m := report.MalscanReport{
+		Indicators:   res.IndicatorCount,
+		FeedsEnabled: res.FeedsEnabled,
+		IncludeHome:  res.IncludeHome,
+		Warnings:     res.Warnings,
+	}
+	// The feeds name ecosystems by package manager (npm, pypi, go); findings carry
+	// the human label (javascript), so the report speaks the first throughout.
+	slug := map[string]string{}
+	for _, c := range res.Checked {
+		slug[c.Target.Ecosystem] = c.Target.EngineSlug
+	}
+	name := func(label string) string {
+		if s := slug[label]; s != "" {
+			return s
 		}
-		b.WriteString(display.Header(t, "Scan Targets"))
-		b.WriteByte('\n')
-		b.WriteString(display.Table(t, []display.Column{
-			{Header: "Ecosystem"}, {Header: "Feed"}, {Header: "Scope"}, {Header: "Location"},
-		}, rows))
-		b.WriteString("\n\n")
+		return label
 	}
-
-	if len(res.Findings) > 0 {
-		b.WriteString(display.Header(t, "Findings"))
-		b.WriteByte('\n')
-		rows := make([][]string, 0, len(res.Findings))
-		for _, f := range res.Findings {
-			loc := f.File
-			if f.StartLine > 0 {
-				loc = fmt.Sprintf("%s:%d", f.File, f.StartLine)
-			}
-			rows = append(rows, []string{f.Severity, f.RuleID, f.Class, f.Ecosystem, loc})
-		}
-		b.WriteString(display.Table(t, []display.Column{
-			{Header: "Severity"}, {Header: "Rule"}, {Header: "Class"}, {Header: "Ecosystem"}, {Header: "Location"},
-		}, rows))
-		b.WriteString("\n\n")
+	for _, c := range res.Checked {
+		m.Targets = append(m.Targets, report.MalscanTarget{
+			Ecosystem: name(c.Target.Ecosystem), Label: c.Target.Label, UserScoped: c.Target.UserScoped,
+			Packages: c.Packages, Files: c.Files,
+		})
 	}
-
-	if len(res.IOCs) > 0 {
-		b.WriteString(display.Header(t, "Indicators of Compromise"))
-		b.WriteByte('\n')
-		rows := make([][]string, 0, len(res.IOCs))
-		for _, i := range res.IOCs {
-			sample := ""
-			if i.Sample != nil {
-				sample = i.Sample.SHA256[:min(12, len(i.Sample.SHA256))]
-			}
-			rows = append(rows, []string{i.Type, truncateCmd(i.Value, 48), i.Ecosystem, i.FilePath, sample})
-		}
-		b.WriteString(display.Table(t, []display.Column{
-			{Header: "Type"}, {Header: "Value"}, {Header: "Ecosystem"}, {Header: "File"}, {Header: "Sample"},
-		}, rows))
-		b.WriteString("\n\n")
+	for _, f := range res.Findings {
+		m.Findings = append(m.Findings, report.MalscanFinding{
+			Ecosystem: name(f.Ecosystem), Package: f.Package, Location: f.Location,
+			Title: findingTitle(f), RuleID: f.RuleID, File: f.File, Line: f.StartLine, Snippet: f.Snippet,
+			Severity: f.Severity, Class: f.Class, IOCType: f.IOCType, IOCValue: f.IOCValue,
+		})
 	}
-
-	if len(res.Findings) == 0 {
-		b.WriteString("  No malware detected.\n\n")
-	} else {
-		fmt.Fprintf(&b, "  %s detected — see .vulnetix/malscan.sarif for full evidence.\n\n",
-			pluralise("malware finding", len(res.Findings)))
-	}
-
-	if len(res.Warnings) > 0 && verbose {
-		b.WriteString(display.Header(t, "Warnings"))
-		b.WriteByte('\n')
-		for _, w := range res.Warnings {
-			fmt.Fprintf(&b, "  • %s\n", w)
-		}
-		b.WriteByte('\n')
-	}
-
-	fmt.Print(b.String())
+	return m
 }
 
-func truncateCmd(s string, max int) string {
-	if len(s) <= max {
-		return s
+func renderMalscanPretty(res *malscanResult) {
+	o := report.Options{Command: "malscan"}
+	if verbose {
+		o.Verbosity = 1
 	}
-	return s[:max] + "…"
+	fmt.Fprint(os.Stdout, report.RenderMalscan(malscanReportFrom(res), o, display.NewTerminal()))
+}
+
+// findingTitle is what a row says is wrong. The rule's description reads as a
+// sentence ("Download-and-execute in install script"); the category is only a
+// bucket ("install"), so it is the fallback.
+func findingTitle(f malscanFinding) string {
+	if d := strings.TrimSpace(f.Description); d != "" && f.RuleID != "IOC-STIX-MATCH" {
+		first, _, _ := strings.Cut(d, "\n")
+		return first
+	}
+	return f.Title
 }

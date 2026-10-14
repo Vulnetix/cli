@@ -173,6 +173,11 @@ type malscanFinding struct {
 	Fingerprint string
 	IOCType     string
 	IOCValue    string
+
+	// Package is the installed package the file belongs to, and Location the
+	// install directory it sits in. Both are for the terminal report only.
+	Package  string
+	Location string
 }
 
 // malscanResult aggregates everything one scan produced.
@@ -186,6 +191,19 @@ type malscanResult struct {
 	IndicatorCount int
 	Malicious      bool
 	MaliciousNote  string // short summary for the gate message
+
+	// What was looked at, for the terminal report: a scan that looked at nothing
+	// must not read as clean.
+	Checked      []malscanChecked
+	FeedsEnabled bool
+	IncludeHome  bool
+}
+
+// malscanChecked is one install directory and how much of it was inspected.
+type malscanChecked struct {
+	Target   ecosystems.Target
+	Packages int
+	Files    int
 }
 
 func runMalscanCmd(cmd *cobra.Command, args []string) error {
@@ -431,7 +449,7 @@ func runMalscanEngine(opts malscanOptions) (*malscanResult, error) {
 		// capability overrides resolve from the caller's catalog dir.
 		_ = os.Setenv("MALSCAN_CONFIG_DIR", opts.ConfigDir)
 	}
-	res := &malscanResult{Host: malscanHost()}
+	res := &malscanResult{Host: malscanHost(), FeedsEnabled: opts.IOCFeeds, IncludeHome: opts.IncludeHome}
 	reportMalscanProgress(opts, "Discovering dependency install targets")
 	res.Targets = ecosystems.Resolve(opts.Root, opts.IncludeHome)
 	if len(res.Targets) == 0 {
@@ -444,6 +462,8 @@ func runMalscanEngine(opts malscanOptions) (*malscanResult, error) {
 	for i, target := range res.Targets {
 		reportMalscanProgress(opts, fmt.Sprintf("Scanning target %d/%d: %s %s", i+1, len(res.Targets), target.Ecosystem, target.Label))
 		caps := capabilitiesFor(target.EngineSlug)
+		checked := malscanChecked{Target: target}
+		filesBefore := res.FilesScanned
 
 		// 1) STIX IOC filesystem scan (network-backed feeds).
 		if opts.IOCFeeds {
@@ -457,12 +477,15 @@ func runMalscanEngine(opts malscanOptions) (*malscanResult, error) {
 			reportMalscanProgress(opts, fmt.Sprintf("Scanning manifests %d/%d: %s", i+1, len(res.Targets), target.Label))
 			used := scanTargetManifests(target, caps, opts.Root, res, maliciousLabels, manifestBudget)
 			manifestBudget -= used
+			checked.Packages = used
 			if manifestBudget <= 0 {
 				res.Warnings = append(res.Warnings, fmt.Sprintf(
 					"manifest detector cap (%d) reached — some installed packages were not pattern-analysed (iocscan still covered all files)",
 					malscanMaxManifests))
 			}
 		}
+		checked.Files = res.FilesScanned - filesBefore
+		res.Checked = append(res.Checked, checked)
 	}
 
 	res.Malicious = len(maliciousLabels) > 0
@@ -537,6 +560,8 @@ func scanTargetIOC(target ecosystems.Target, opts malscanOptions, res *malscanRe
 			Fingerprint: fingerprint("IOC-STIX-MATCH", rel, ev.IndicatorValue, strconv.Itoa(ev.LineNumber)),
 			IOCType:     string(ev.IndicatorType),
 			IOCValue:    ev.IndicatorValue,
+			Package:     packageUnder(target.Path, ev.FilePath, target.EngineSlug),
+			Location:    target.Label,
 		})
 		res.IOCs = append(res.IOCs, malscanIOC{
 			Type:       string(ev.IndicatorType),
