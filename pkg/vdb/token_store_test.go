@@ -156,7 +156,7 @@ func TestAffectedCacheIsScopedToTheCredential(t *testing.T) {
 			return
 		}
 		hits.Add(1)
-		_, _ = w.Write([]byte(`{"affected":[]}`))
+		_, _ = w.Write([]byte(`{"affected":[],"total":0}`))
 	}))
 	defer srv.Close()
 	dc, err := cache.NewDiskCacheAt(t.TempDir())

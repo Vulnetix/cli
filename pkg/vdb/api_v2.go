@@ -100,7 +100,8 @@ const affectedCacheTTL = 10 * time.Minute
 // Ruby or Python project), one round trip each.
 func (c *Client) V2AffectedCached(id string, p V2QueryParams) (map[string]interface{}, error) {
 	path := fmt.Sprintf("/vuln/%s/affected%s", url.PathEscape(id), v2QueryString(p))
-	respBody, err := c.DoRequestCached("GET", path, nil, affectedCacheTTL)
+	// An empty answer (no affected rows for this package) is an answer too.
+	respBody, err := c.doRequestCached("GET", path, nil, affectedCacheTTL, true)
 	if err != nil {
 		return nil, err
 	}

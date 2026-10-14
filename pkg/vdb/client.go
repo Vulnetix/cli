@@ -686,6 +686,13 @@ func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusC
 // DoRequestCached performs an authenticated, cached GET request.
 // For non-GET or when cache is disabled, it falls through to DoRequest.
 func (c *Client) DoRequestCached(method, path string, body interface{}, ttl time.Duration) ([]byte, error) {
+	return c.doRequestCached(method, path, body, ttl, false)
+}
+
+// doRequestCached is DoRequestCached; cacheEmpty also stores a "total": 0
+// answer, for endpoints where an empty result is the answer rather than a
+// symptom of a stale search index.
+func (c *Client) doRequestCached(method, path string, body interface{}, ttl time.Duration, cacheEmpty bool) ([]byte, error) {
 	// Only cache GETs with a working cache
 	if method != "GET" || c.Cache == nil || c.NoCache {
 		return c.DoRequest(method, path, body)
@@ -753,7 +760,7 @@ func (c *Client) DoRequestCached(method, path string, body interface{}, ttl time
 
 	// Never cache semantically empty responses (e.g. search with total: 0)
 	// so they can't poison the local cache when the CDN returns stale data.
-	if !isEmptyResponse(respBody) {
+	if cacheEmpty || !isEmptyResponse(respBody) {
 		entry := &cache.Entry{
 			Body:         respBody,
 			ETag:         headers.Get("ETag"),
