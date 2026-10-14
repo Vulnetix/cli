@@ -356,7 +356,7 @@ func resolveUnverifiedFindings(enriched []scan.EnrichedVuln, w io.Writer) {
 	// Each lookup is one round trip to the API, and a project commonly needs a
 	// dozen or two; 8 at a time made that two or three serial waves.
 	st := scan.ResolveUnverified(ctx, enriched, func(_ context.Context, id, pkg, eco string) (map[string]any, error) {
-		return client.V2Affected(id, vdb.V2QueryParams{PackageName: pkg, Ecosystem: eco, Limit: 100})
+		return client.V2AffectedCached(id, vdb.V2QueryParams{PackageName: pkg, Ecosystem: eco, Limit: 100})
 	}, 24)
 	if st.Failed > 0 {
 		fmt.Fprintf(w, "  note: %d version check(s) could not be completed (API error or time budget); those findings keep the verdict they arrived with. Run the scan again to retry.\n", st.Failed)

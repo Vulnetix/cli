@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // V2QueryParams holds common context-filter query parameters for V2 endpoints.
@@ -87,6 +88,29 @@ func doV2Get(c *Client, path string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
+	return result, nil
+}
+
+// affectedCacheTTL is how long an advisory's affected record is reused from the
+// local cache: the server keeps the same answers for the same time.
+const affectedCacheTTL = 10 * time.Minute
+
+// V2AffectedCached is V2Affected served from the local response cache for up to
+// affectedCacheTTL. A scan asks for the same advisories every run (dozens for a
+// Ruby or Python project), one round trip each.
+func (c *Client) V2AffectedCached(id string, p V2QueryParams) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/vuln/%s/affected%s", url.PathEscape(id), v2QueryString(p))
+	respBody, err := c.DoRequestCached("GET", path, nil, affectedCacheTTL)
+	if err != nil {
+		return nil, err
+	}
+	if pl, locked := decodePlanLocked(respBody); locked {
+		return nil, pl
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
 	return result, nil
 }
 

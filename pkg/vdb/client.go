@@ -691,7 +691,9 @@ func (c *Client) DoRequestCached(method, path string, body interface{}, ttl time
 		return c.DoRequest(method, path, body)
 	}
 
-	key := cache.CacheKey(c.APIVersion, path)
+	// Scoped to the credential: the API strips fields by plan, so an answer cached
+	// for one organisation (or for community access) must not serve another.
+	key := cache.CacheKey(c.APIVersion+"\x00"+c.tokenKey()+"\x00", path)
 
 	// Check cache (unless forced refresh)
 	if !c.RefreshCache {

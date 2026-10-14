@@ -18,9 +18,9 @@ import (
 //	[http#5] +  2241ms   3836ms 200 POST api.vdb.vulnetix.com/v2/cli.sca
 
 var (
-	traceStart          = time.Now()
-	traceSeq            atomic.Int64
-	traceOut  io.Writer = os.Stderr
+	traceStart = time.Now()
+	traceSeq   atomic.Int64
+	traceOut   io.Writer = os.Stderr
 )
 
 func httpTraceEnabled() bool { return os.Getenv("VULNETIX_HTTP_TRACE") != "" }

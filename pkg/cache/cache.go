@@ -57,6 +57,14 @@ func NewDiskCache(cliVersion string) (*DiskCache, error) {
 	return &DiskCache{dir: dir}, nil
 }
 
+// NewDiskCacheAt creates a disk cache rooted at dir (tests and tools).
+func NewDiskCacheAt(dir string) (*DiskCache, error) {
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return nil, fmt.Errorf("cache: mkdir %s: %w", dir, err)
+	}
+	return &DiskCache{dir: dir}, nil
+}
+
 // CacheBaseDir returns the parent directory of all versioned cache dirs (~/.vulnetix/cache/vdb).
 func CacheBaseDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
