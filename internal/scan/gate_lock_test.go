@@ -58,3 +58,23 @@ func TestNugetProjectBesideCentralPackagesIsNotUnrestored(t *testing.T) {
 		t.Fatalf("a project under central package management must not be reported unrestored: err=%v drop=%v", err, drop)
 	}
 }
+
+// Package.swift `from: "1.24.0"` is a minimum, so without a Package.resolved the manifest
+// cannot be scanned at an exact version; an `exact:` pin can.
+func TestSwiftFromRangeNeedsPackageResolved(t *testing.T) {
+	dir := t.TempDir()
+	m := filepath.Join(dir, "Package.swift")
+	if err := os.WriteFile(m, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, drop, err := ApplyBuildOrLockGate("swift", "Package.swift", m, "Package.swift", true,
+		[]ScopedPackage{{Name: "swift-nio", Version: "2.101.3", VersionSpec: ">=2.101.3"}})
+	if err == nil && !drop {
+		t.Fatal("a from: range with no Package.resolved must not be scanned as an exact version")
+	}
+	got, drop, err := ApplyBuildOrLockGate("swift", "Package.swift", m, "Package.swift", true,
+		[]ScopedPackage{{Name: "swift-log", Version: "1.6.0", VersionSpec: "1.6.0"}})
+	if err != nil || drop || len(got) != 1 {
+		t.Fatalf("an exact: pin is scannable, got %v drop=%v err=%v", got, drop, err)
+	}
+}
