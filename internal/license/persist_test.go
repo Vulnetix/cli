@@ -60,3 +60,14 @@ func TestStoredLicenseExpires(t *testing.T) {
 		t.Fatalf("an expired answer was reused: %q", got)
 	}
 }
+
+func TestRegistryScopeIsNeverAGitHubOwner(t *testing.T) {
+	for _, name := range []string{"@std/path", "@types/node", "@cliffy/command"} {
+		if o, r := resolveOwnerRepo(name, "jsr"); o != "" || r != "" {
+			t.Errorf("%s resolved to GitHub %s/%s; a leading @ is a registry scope", name, o, r)
+		}
+	}
+	if o, r := resolveOwnerRepo("kemalcr/kemal", "crystal"); o != "kemalcr" || r != "kemal" {
+		t.Errorf("owner/repo no longer resolves: %s/%s", o, r)
+	}
+}

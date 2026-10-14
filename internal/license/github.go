@@ -53,9 +53,12 @@ func resolveOwnerRepo(name, ecosystem string) (string, string) {
 		}
 	}
 
-	// Generic: if it looks like owner/repo (exactly two segments, no dots).
+	// Generic: if it looks like owner/repo (exactly two segments, no dots). A
+	// leading @ is a registry scope (npm @types/node, JSR @std/path), never a
+	// GitHub owner, which cannot contain @; asking GitHub about one cost a dozen
+	// gh round trips that could only 404.
 	parts := strings.SplitN(name, "/", 3)
-	if len(parts) == 2 && parts[0] != "" && parts[1] != "" && !strings.Contains(parts[0], ".") {
+	if len(parts) == 2 && parts[0] != "" && parts[1] != "" && !strings.Contains(parts[0], ".") && !strings.HasPrefix(parts[0], "@") {
 		return parts[0], parts[1]
 	}
 
@@ -164,26 +167,45 @@ var licenseFileCandidates = []string{
 	"License", "License.txt",
 }
 
+// ghCLILicenseFileContent fetches every candidate at once (each is its own gh
+// process and round trip; one after another they took seconds) and returns the
+// licence of the first candidate, in list order, that classifies, which is the
+// one the sequential loop returned.
 func ghCLILicenseFileContent(owner, repo string) string {
-	for _, name := range licenseFileCandidates {
-		cmd := exec.Command("gh", "api", fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, name), "--jq", ".content")
-		out, err := cmd.Output()
-		if err != nil {
-			continue
-		}
-		content := strings.TrimSpace(string(out))
-		if content == "" || content == "null" {
-			continue
-		}
-		decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(content, "\n", ""))
-		if err != nil {
-			continue
-		}
-		if lic := classifyWithSPDXHeader(string(decoded)); lic != "" {
+	found := make([]string, len(licenseFileCandidates))
+	var wg sync.WaitGroup
+	for i, name := range licenseFileCandidates {
+		wg.Add(1)
+		go func(i int, name string) {
+			defer wg.Done()
+			found[i] = ghCLIClassifyFile(owner, repo, name)
+		}(i, name)
+	}
+	wg.Wait()
+	for _, lic := range found {
+		if lic != "" {
 			return lic
 		}
 	}
 	return ""
+}
+
+// ghCLIClassifyFile returns the licence classified from one repo-root file, or "".
+func ghCLIClassifyFile(owner, repo, name string) string {
+	cmd := exec.Command("gh", "api", fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, name), "--jq", ".content")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	content := strings.TrimSpace(string(out))
+	if content == "" || content == "null" {
+		return ""
+	}
+	decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(content, "\n", ""))
+	if err != nil {
+		return ""
+	}
+	return classifyWithSPDXHeader(string(decoded))
 }
 
 // ── Strategy 4: Discover license files via directory listing ─────────────
