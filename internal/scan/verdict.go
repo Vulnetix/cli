@@ -142,6 +142,16 @@ func EvaluateVerdict(ev EnrichedVuln) VerdictResult {
 			res.Confidence = "low"
 			res.Basis = "conflict"
 			res.Detail = fmt.Sprintf("%s is outside %s, but the source flagged it as affected. The two disagree, so it is not ruled out.", installed, res.Range)
+		case newerThanEveryExactVersion(*rangeSet, iv):
+			// The only thing the advisory states is a list of specific releases, and the
+			// install is newer than all of them. A list like that is often a sample, not
+			// the whole affected span: cve.org's own record for CVE-2024-6783 is
+			// 2.0.0 through 2.7.16, and a copy that kept only "2.0.0" cleared 2.7.16, the
+			// last affected release. It is not ruled out; the advisory's record settles it.
+			res.Verdict = VerdictUnverified
+			res.Confidence = "low"
+			res.Basis = "conflict"
+			res.Detail = fmt.Sprintf("The advisory lists only %s, and %s is newer. A list of specific releases may be a sample of the affected span, so this is not ruled out.", res.Range, installed)
 		default:
 			res.Verdict = VerdictNotAffected
 			res.Confidence = "high"
@@ -282,4 +292,20 @@ func onlyEquals(rs versions.RangeSet) bool {
 		}
 	}
 	return n > 0
+}
+
+// newerThanEveryExactVersion reports a range made only of exact versions, every one
+// of which the installed version is newer than.
+func newerThanEveryExactVersion(rs versions.RangeSet, installed versions.Version) bool {
+	if !onlyEquals(rs) {
+		return false
+	}
+	for _, r := range rs.Ranges {
+		for _, c := range r.Constraints {
+			if c.Version.Wildcard || versions.Compare(installed, c.Version) <= 0 {
+				return false
+			}
+		}
+	}
+	return true
 }
