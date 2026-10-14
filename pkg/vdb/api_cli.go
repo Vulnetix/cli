@@ -985,9 +985,19 @@ func cliPostWithEnvContext[T any](ctx context.Context, c *Client, route string, 
 		req.URL.RawQuery = q.Encode()
 	}
 
+	req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(bodyBytes)), nil }
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to execute request: %w", route, err)
+	}
+	// A cached token the server no longer accepts: exchange again, once.
+	authRetried := false
+	if c.retryUnauthorized(req, resp.StatusCode, &authRetried) {
+		resp.Body.Close()
+		req.Body, _ = req.GetBody()
+		if resp, err = c.HTTPClient.Do(req); err != nil {
+			return nil, fmt.Errorf("%s: failed to execute request: %w", route, err)
+		}
 	}
 	defer resp.Body.Close()
 	c.metaMu.Lock()
