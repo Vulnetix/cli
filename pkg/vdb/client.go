@@ -569,6 +569,11 @@ func (c *Client) doRequestWithHeaders(method, path string, body interface{}, hea
 // it is the difference between a request that fits and a request that does not: an analyze report
 // of 12 MB goes over the wire in well under one.
 func (c *Client) DoRequestGzip(method, path string, body interface{}) ([]byte, error) {
+	return c.doRequestGzipWithHeaders(method, path, body, nil)
+}
+
+// doRequestGzipWithHeaders is DoRequestGzip with extra request headers.
+func (c *Client) doRequestGzipWithHeaders(method, path string, body interface{}, headers map[string]string) ([]byte, error) {
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
@@ -593,6 +598,9 @@ func (c *Client) DoRequestGzip(method, path string, body interface{}) ([]byte, e
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 
 	// A retry re-reads the body, so it has to be re-readable.
 	req.GetBody = func() (io.ReadCloser, error) {

@@ -83,12 +83,15 @@ func postScannerGraphInsights(rootPath, toolName string, gitCtx *gitctx.GitConte
 
 	// The graph is read from the tree now; only the upload is background work.
 	goBackground(w, func(w io.Writer) {
-		resp, err := client.CliInsights(env, req)
+		resp, err := client.CliInsightsDeferred(env, req)
 		if err != nil {
 			if verbose {
 				fmt.Fprintf(w, "  graph insights upload skipped: %v\n", err)
 			}
 			return
+		}
+		if verbose && resp != nil && resp.Data.Deferred {
+			fmt.Fprintln(w, "  graph insights accepted, stored after the answer")
 		}
 		if verbose && resp != nil && resp.Data.Insights != nil {
 			s := resp.Data.Insights

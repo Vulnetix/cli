@@ -1881,6 +1881,9 @@ type CliInsightsResponse struct {
 	// Skipped names a reason nothing was stored that is not a failure — "community". Absent
 	// Insights with no Skipped is a failure, whatever the status code says.
 	Skipped string `json:"skipped,omitempty"`
+
+	// Deferred: the API took the report to store after its answer (CliInsightsDeferred).
+	Deferred bool `json:"deferred,omitempty"`
 }
 
 // CliInsights submits one analyze run. The body is gzipped: a report is the whole shape of a
@@ -1989,4 +1992,15 @@ func cliPostDeferred[T any](c *Client, route string, env CliEnv, payload any) (*
 		return nil, fmt.Errorf("%s: %w", route, err)
 	}
 	return decodeCliResponse[T](raw)
+}
+
+// CliInsightsDeferred is CliInsights for a caller that does not read the
+// answer (a scan's graph-insights upload): the API answers at once and stores
+// the report after the response. An API that predates deferral answers in full.
+func (c *Client) CliInsightsDeferred(env CliEnv, req CliInsightsRequest) (*CliResponse[CliInsightsResponse], error) {
+	raw, err := c.doRequestGzipWithHeaders("POST", "/cli.insights", cliRequestEnvelope{Env: env, Payload: req}, map[string]string{"X-Vulnetix-Deferred": "1"})
+	if err != nil {
+		return nil, fmt.Errorf("cli.insights: %w", err)
+	}
+	return decodeCliResponse[CliInsightsResponse](raw)
 }
