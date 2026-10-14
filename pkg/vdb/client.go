@@ -72,6 +72,7 @@ type Client struct {
 	FallbackCreds *auth.Credentials // community creds to use when quota exhausted; nil = disabled
 	UsingFallback bool              // true after client switched to fallback (readable by cmd layer)
 	token         *TokenCache
+	tokenFor      string // tokenKey the cached token was issued for
 	tokenMutex    sync.RWMutex
 }
 
@@ -152,8 +153,8 @@ func (e *CliAPIError) Error() string {
 // Corporate-proxy users would otherwise see VDB calls bypass the proxy entirely.
 var sharedTransport = &http.Transport{
 	Proxy:               http.ProxyFromEnvironment,
-	MaxIdleConns:        20,
-	MaxIdleConnsPerHost: 10,
+	MaxIdleConns:        64,
+	MaxIdleConnsPerHost: 32, // a scan fans out up to 24 advisory lookups at once
 	IdleConnTimeout:     90 * time.Second,
 }
 
@@ -192,8 +193,9 @@ func NewClientFromCredentials(creds *auth.Credentials) *Client {
 // GetToken retrieves a valid JWT token (from cache or by requesting a new one)
 func (c *Client) GetToken() (string, error) {
 	// Check if we have a valid cached token with read lock
+	key := c.tokenKey()
 	c.tokenMutex.RLock()
-	if c.token != nil && time.Now().Before(c.token.ExpiresAt.Add(-3*time.Minute)) {
+	if c.tokenFor == key && tokenUsable(c.token) {
 		token := c.token.Token
 		c.tokenMutex.RUnlock()
 		return token, nil
@@ -205,12 +207,24 @@ func (c *Client) GetToken() (string, error) {
 	defer c.tokenMutex.Unlock()
 
 	// Double-check after acquiring write lock (another goroutine may have refreshed)
-	if c.token != nil && time.Now().Before(c.token.ExpiresAt.Add(-3*time.Minute)) {
+	if c.tokenFor == key && tokenUsable(c.token) {
 		return c.token.Token, nil
 	}
 
+	// Another client with the same credentials (this process or a recent one)
+	// may already hold a token.
+	if t := loadSharedToken(key); t != nil {
+		c.token, c.tokenFor = t, key
+		return t.Token, nil
+	}
+
 	// Request a new token
-	return c.requestNewTokenLocked()
+	token, err := c.requestNewTokenLocked()
+	if err == nil {
+		c.tokenFor = key
+		storeSharedToken(key, c.token)
+	}
+	return token, err
 }
 
 // requestNewTokenLocked requests a new JWT token using AWS SigV4 authentication
@@ -401,6 +415,7 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 	var lastErr error
 	var lastHeaders http.Header
 	skipBackoff := false
+	authRetried := false
 
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		if attempt > 0 {
@@ -445,6 +460,18 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 		resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response: %w", err)
+		}
+
+		// A cached token the server no longer accepts: exchange again, once.
+		if c.retryUnauthorized(req, resp.StatusCode, &authRetried) {
+			if req.GetBody != nil {
+				if nb, bErr := req.GetBody(); bErr == nil {
+					req.Body = nb
+				}
+			}
+			skipBackoff = true
+			attempt--
+			continue
 		}
 
 		// Quota-exhausted fallback: switch to community and retry immediately (before normal retry logic).
@@ -572,6 +599,7 @@ func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusC
 	var lastErr error
 	var lastHeaders http.Header
 	skipBackoff := false
+	authRetried := false
 
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		if attempt > 0 {
@@ -614,6 +642,18 @@ func (c *Client) doRequestWithRetryFull(req *http.Request) (body []byte, statusC
 		resp.Body.Close()
 		if readErr != nil {
 			return nil, 0, nil, fmt.Errorf("failed to read response: %w", readErr)
+		}
+
+		// A cached token the server no longer accepts: exchange again, once.
+		if c.retryUnauthorized(req, resp.StatusCode, &authRetried) {
+			if req.GetBody != nil {
+				if nb, bErr := req.GetBody(); bErr == nil {
+					req.Body = nb
+				}
+			}
+			skipBackoff = true
+			attempt--
+			continue
 		}
 
 		// Quota-exhausted fallback: switch to community and retry immediately (before normal retry logic).
