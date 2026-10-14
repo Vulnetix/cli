@@ -84,6 +84,12 @@ func FetchLicenseFromDepsDev(name, version, ecosystem string) string {
 		return ""
 	}
 
+	// deps.dev names every Maven package group:artifact, so a bare artifact name
+	// (a BUCK or sbt manifest that gives none) is a 404 by construction.
+	if system == "MAVEN" && !strings.Contains(name, ":") {
+		return ""
+	}
+
 	cacheKey := ecosystem + ":" + name + ":" + version
 	if cached, ok := depsDevCache.Load(cacheKey); ok {
 		return cached.(string)
