@@ -1,10 +1,13 @@
 package vdb
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -15,7 +18,11 @@ import (
 // trace can be shared without leaking credentials. A scan is mostly round
 // trips, and this is how to see which ones a slow scan waited on.
 //
-//	[http#5] +  2241ms   3836ms 200 POST api.vdb.vulnetix.com/v2/cli.sca
+//	[http#5] +  2241ms   3836ms 200 POST api.vdb.vulnetix.com/v2/cli.sca net=0ms
+//
+// net= is the part of the duration spent setting up the connection (DNS, TCP
+// connect, TLS handshake; 0 on a reused connection), so a slow network can
+// be told apart from a slow server.
 
 var (
 	traceStart = time.Now()
@@ -30,12 +37,34 @@ type tracingRT struct{ next http.RoundTripper }
 func (t tracingRT) RoundTrip(r *http.Request) (*http.Response, error) {
 	n := traceSeq.Add(1)
 	s := time.Now()
+	var mu sync.Mutex
+	var netDur time.Duration
+	var dnsS, connS, tlsS time.Time
+	add := func(from time.Time) {
+		if !from.IsZero() {
+			mu.Lock()
+			netDur += time.Since(from)
+			mu.Unlock()
+		}
+	}
+	ct := &httptrace.ClientTrace{
+		DNSStart:          func(httptrace.DNSStartInfo) { dnsS = time.Now() },
+		DNSDone:           func(httptrace.DNSDoneInfo) { add(dnsS) },
+		ConnectStart:      func(string, string) { mu.Lock(); connS = time.Now(); mu.Unlock() },
+		ConnectDone:       func(string, string, error) { mu.Lock(); c := connS; mu.Unlock(); add(c) },
+		TLSHandshakeStart: func() { tlsS = time.Now() },
+		TLSHandshakeDone:  func(tls.ConnectionState, error) { add(tlsS) },
+	}
+	r = r.WithContext(httptrace.WithClientTrace(r.Context(), ct))
 	resp, err := t.next.RoundTrip(r)
 	code := 0
 	if resp != nil {
 		code = resp.StatusCode
 	}
-	fmt.Fprintf(traceOut, "[http#%d] +%6dms %6dms %d %s %s%s\n", n, s.Sub(traceStart).Milliseconds(), time.Since(s).Milliseconds(), code, r.Method, r.URL.Host, r.URL.Path)
+	mu.Lock()
+	nd := netDur
+	mu.Unlock()
+	fmt.Fprintf(traceOut, "[http#%d] +%6dms %6dms %d %s %s%s net=%dms\n", n, s.Sub(traceStart).Milliseconds(), time.Since(s).Milliseconds(), code, r.Method, r.URL.Host, r.URL.Path, nd.Milliseconds())
 	return resp, err
 }
 

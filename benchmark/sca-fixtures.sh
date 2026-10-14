@@ -31,9 +31,24 @@ if [ "${1:-}" = "--compare" ]; then
     fi
   done
   echo "parity: $same identical, $diff differ"
+  # Network stalls: connection setup (DNS, TCP, TLS; the trace's net=) beyond
+  # 500ms, with overlapping setups of concurrent requests counted once. The
+  # adjusted total takes them out of both sides, so a slow link on one run does
+  # not decide the comparison. Traces without net= count no stall.
+  stall() {
+    grep -h '^\[http#' "$1" 2>/dev/null | sed -nE 's/^\[http#[0-9]+\] \+ *([0-9]+)ms .* net=([0-9]+)ms$/\1 \2/p' |
+      awk '$2>500{print $1+500, $1+$2}' | sort -n |
+      awk '{if($1>e){t+=e-s; s=$1; e=$2} else if($2>e) e=$2} END{t+=e-s; print t+0}'
+  }
+  sa=0; sb=0
+  for fp in "$A"/*.fp; do
+    f=$(basename "$fp" .fp); [ -f "$B/$f.fp" ] || continue
+    sa=$((sa + $(stall "$A/$f.err"))); sb=$((sb + $(stall "$B/$f.err")))
+  done
   join -t $'\t' <(tail -n +2 "$A/timings.tsv" | LC_ALL=C sort -k1,1) <(tail -n +2 "$B/timings.tsv" | LC_ALL=C sort -k1,1) |
-    awk -F'\t' '{a+=$2; b+=$7; printf "%-28s %7d ms -> %7d ms  (%5.1f%%)  http %s -> %s\n", $1, $2, $7, ($2-$7)*100/$2, $6, $11}
-                END{printf "TOTAL %d ms -> %d ms  (%.1f%% faster)\n", a, b, (a-b)*100/a}'
+    awk -F'\t' -v sa="$sa" -v sb="$sb" '{a+=$2; b+=$7; printf "%-28s %7d ms -> %7d ms  (%5.1f%%)  http %s -> %s\n", $1, $2, $7, ($2-$7)*100/$2, $6, $11}
+                END{printf "TOTAL %d ms -> %d ms  (%.1f%% faster)\n", a, b, (a-b)*100/a;
+                    printf "NETWORK STALLS %d ms -> %d ms; ADJUSTED %d ms -> %d ms  (%.1f%% faster)\n", sa, sb, a-sa, b-sb, ((a-sa)-(b-sb))*100/(a-sa)}'
   exit 0
 fi
 
