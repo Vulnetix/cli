@@ -21,10 +21,19 @@ var (
 
 func isGHCLIAvailable() bool {
 	ghCLIOnce.Do(func() {
-		cmd := exec.Command("gh", "auth", "status")
-		cmd.Stdout = io.Discard
-		cmd.Stderr = io.Discard
-		ghCLIAvailable = cmd.Run() == nil
+		// `gh auth token` answers from gh's own config or keyring; `gh auth
+		// status` also checks the token against api.github.com, a second on the
+		// critical path of a first scan. A token GitHub no longer accepts makes the
+		// gh lookups below fail, and FetchLicenseFromGitHub then falls back to the
+		// PAT as it does when gh is unavailable. A gh older than `auth token`
+		// (2.17) is asked `auth status` as before.
+		run := func(args ...string) bool {
+			cmd := exec.Command("gh", args...)
+			cmd.Stdout = io.Discard
+			cmd.Stderr = io.Discard
+			return cmd.Run() == nil
+		}
+		ghCLIAvailable = run("auth", "token") || run("auth", "status")
 	})
 	return ghCLIAvailable
 }
