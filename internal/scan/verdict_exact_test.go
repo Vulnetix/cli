@@ -40,3 +40,30 @@ func TestExactVersionRuleLeavesTheOtherCasesAlone(t *testing.T) {
 		t.Errorf("outside a bounded range = %q, want not affected", v)
 	}
 }
+
+// A range that ends at a development build ("< 1.85.0-dev.0.20260825072537") appears,
+// under semver, to contain every 1.84.x release, but a commit in a development cycle
+// cannot be placed against the releases cut from it. OSV's record for CVE-2026-84445
+// excludes grpc 1.84.0, and four repos reported it as affected.
+func TestReleaseInsideARangeEndedByADevBuildIsNotCalledAffected(t *testing.T) {
+	ev := EnrichedVuln{
+		VulnFinding:   VulnFinding{CveID: "CVE-2026-84445", PackageName: "google.golang.org/grpc", PackageVer: "1.84.0", Ecosystem: "golang"},
+		AffectedRange: ">=1.84.0-dev, <1.85.0-dev.0.20260825072537",
+	}
+	v := EvaluateVerdict(ev)
+	if v.Verdict != VerdictUnverified || v.Basis != "range-not-comparable" {
+		t.Fatalf("verdict = %q basis %q, want unverified/range-not-comparable", v.Verdict, v.Basis)
+	}
+	// An ordinary bounded range is untouched.
+	ev.AffectedRange = ">=1.0.0, <2.0.0"
+	ev.PackageVer = "1.5.0"
+	if got := EvaluateVerdict(ev).Verdict; got != VerdictAffected {
+		t.Errorf("a plain bounded range = %q, want affected", got)
+	}
+	// An install that is itself a pre-release is judged by the normal rules.
+	ev.AffectedRange = ">=1.84.0-dev, <1.85.0-dev.0.20260825072537"
+	ev.PackageVer = "1.84.1-dev.0.20260825000000"
+	if got := EvaluateVerdict(ev).Verdict; got == VerdictUnverified {
+		t.Errorf("a pre-release install should not be routed through the release rule, got %q", got)
+	}
+}

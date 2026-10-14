@@ -2,6 +2,7 @@ package scan
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/vulnetix/cli/v3/internal/versions"
@@ -127,6 +128,17 @@ func EvaluateVerdict(ev EnrichedVuln) VerdictResult {
 		contained := rangeSet.Contains(iv, policy)
 		res.AnyUpgradeClears = contained && onlyEquals(*rangeSet)
 		switch {
+		case contained && stableInsideDevBound(*rangeSet, iv):
+			// The range ends at a development build ("< 1.85.0-dev.0.20260825072537"), and
+			// the install is a release. Semver puts every 1.84.x release below that bound, so
+			// the range appears to contain it; but a commit in a development cycle cannot be
+			// placed against the releases cut from it. OSV's own record for CVE-2026-84445
+			// excludes grpc 1.84.0, and four repos carried it as affected. It is not ruled
+			// in or out.
+			res.Verdict = VerdictUnverified
+			res.Confidence = "low"
+			res.Basis = "range-not-comparable"
+			res.Detail = fmt.Sprintf("The advisory's range %s ends at a development build, which cannot be placed against release %s.", res.Range, installed)
 		case contained:
 			res.Verdict = VerdictAffected
 			res.Confidence = "high"
@@ -308,4 +320,24 @@ func newerThanEveryExactVersion(rs versions.RangeSet, installed versions.Version
 		}
 	}
 	return true
+}
+
+// devBuildRe matches a pre-release that carries a build timestamp, the shape of a
+// Go pseudo-version or a development snapshot: "1.85.0-dev.0.20260825072537".
+var devBuildRe = regexp.MustCompile(`-.*\d{12,14}`)
+
+// stableInsideDevBound reports a release (no pre-release part) that a range contains
+// only because the range is bounded above by a development build.
+func stableInsideDevBound(rs versions.RangeSet, installed versions.Version) bool {
+	if installed.Prerelease != "" || installed.IsPseudo {
+		return false
+	}
+	for _, r := range rs.Ranges {
+		for _, c := range r.Constraints {
+			if (c.Op == versions.OpLt || c.Op == versions.OpLte) && devBuildRe.MatchString(c.Version.Original) {
+				return true
+			}
+		}
+	}
+	return false
 }
