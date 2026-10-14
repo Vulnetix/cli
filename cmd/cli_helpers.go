@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vulnetix/cli/v3/internal/ghactx"
@@ -48,7 +49,7 @@ func envForCliWithGit(git *gitctx.GitContext) vdb.CliEnv {
 	}
 	if git == nil {
 		if cwd, _ := os.Getwd(); cwd != "" {
-			git = gitctx.Collect(cwd)
+			git = cwdGitContext(cwd)
 		}
 	}
 	if git != nil {
@@ -386,4 +387,16 @@ func cliAnswerPending(data map[string]any, key string) bool {
 	}
 	bag, ok := data[key].(map[string]any)
 	return !ok || len(bag) == 0
+}
+
+// cwdGitContexts holds the git context of each working directory envForCli has
+// read, once per process. A scan sends several cli.* requests (suppressions,
+// licences, ...), often at once, and each used to run git status over the
+// whole working directory again; nothing a command does between them changes
+// the repository.
+var cwdGitContexts sync.Map // dir -> func() *gitctx.GitContext
+
+func cwdGitContext(dir string) *gitctx.GitContext {
+	f, _ := cwdGitContexts.LoadOrStore(dir, sync.OnceValue(func() *gitctx.GitContext { return gitctx.Collect(dir) }))
+	return f.(func() *gitctx.GitContext)()
 }
