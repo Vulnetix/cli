@@ -1,0 +1,6 @@
+<nav class="navbar">
+  <% if current_user %>
+~>    <span class="name"><%= current_user.first_name.html_safe %></span>
+~>    <div class="bio"><%= @profile.bio.html_safe %></div>
+  <% end %>
+</nav>

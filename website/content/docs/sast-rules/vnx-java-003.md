@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-003 – SQL Injection via String Concatenation"
-description: "Detects JDBC and JPA queries built by concatenating user-controlled input into a SQL string instead of using PreparedStatement with parameterized placeholders."
+description: "Reports JDBC, JdbcTemplate, Hibernate native and Android SQLite queries whose SQL text is concatenated or formatted from run-time values instead of bound through ? placeholders."
 ---
 
 ## Overview
@@ -17,22 +17,24 @@ Automated exploitation tools such as SQLMap can fully compromise a vulnerable ap
 
 ## What Gets Flagged
 
-The rule matches `.java` files containing `createStatement()`, `executeQuery("`, or `executeUpdate("` — all of which imply a literal SQL string or a string assembled at runtime — as well as `JdbcTemplate` or `EntityManager` query calls where the first argument ends with a `+` concatenation.
+The rule reports the SQL argument of JDBC (`executeQuery`, `executeUpdate`, `execute`, `addBatch`, `prepareStatement`, `prepareCall`), Spring `JdbcTemplate` (`query*`, `update`, `batchUpdate`, `execute`), Hibernate `createSQLQuery` and Android `rawQuery`/`execSQL` calls when it is concatenated or formatted with a non-constant value, reads a request value, or is a variable assigned that way within the 40 lines above (multi-line assignments and `sql += ...` included).
 
 ```java
 // FLAGGED: user input concatenated into a raw Statement
-String username = request.getParameter("username");
-Statement stmt = conn.createStatement();
-ResultSet rs = stmt.executeQuery("SELECT * FROM users WHERE name='" + username + "'");
+ResultSet rs = stmt.executeQuery("SELECT * FROM users WHERE name = '" + name + "'");
 
-// FLAGGED: JdbcTemplate with concatenated WHERE clause
-String role = request.getParameter("role");
-jdbcTemplate.query("SELECT * FROM accounts WHERE role='" + role + "'", rowMapper);
+// FLAGGED: query assembled over several lines, executed below
+String query =
+    "SELECT * FROM employees WHERE last_name = '"
+        + lastName
+        + "'";
+ResultSet results = statement.executeQuery(query);
 
-// FLAGGED: JPA EntityManager with concatenated filter
-String id = request.getParameter("id");
-entityManager.execute("DELETE FROM sessions WHERE token='" + id + "'");
+// FLAGGED: Android SQLite
+db.execSQL("DELETE FROM notes WHERE _id = " + id);
 ```
+
+Not flagged: `?` placeholders with bound values, constant queries or concatenation of literals and `UPPER_CASE` constants, a query that arrives as a plain method parameter, `execute()` on HTTP clients and executors, comments and string literals. JPQL/HQL `createQuery` is covered by VNX-JAVA-015.
 
 ## Remediation
 

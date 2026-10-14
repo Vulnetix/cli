@@ -1,0 +1,4 @@
+agent:
+~>  token: glagent-@@sample:[A-Za-z0-9_-]{50}@@
+oauth:
+~>  client_secret: gloas-@@sample:[A-Za-z0-9]{64}@@

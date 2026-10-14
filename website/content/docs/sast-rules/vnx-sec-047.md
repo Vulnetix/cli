@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-047 – Shopify Access Token"
-description: "Detects Shopify access tokens (shpat_, shpca_, shppa_, shpss_ prefix) hardcoded in source code."
+description: "Reports Shopify tokens (shpat_, shpca_, shppa_, shpss_ followed by exactly 32 hex characters) written into files."
 ---
 
 ## Overview
 
-This rule detects shopify access token matching the `shpat_, shpca_, shppa_, shpss_` pattern hardcoded anywhere in source files. Detects Shopify access tokens (shpat_, shpca_, shppa_, shpss_ prefix) hardcoded in source code.
+This rule reports a Shopify Admin API access token (`shpat_`), custom app access token (`shpca_`), private app password (`shppa_`) or shared secret (`shpss_`), each followed by exactly 32 hexadecimal characters and standing alone. The prefix inside a longer identifier (`myshpat_...`), a body of the wrong length, placeholders (`shpat_xxxx...`, `shpat_000...`), environment lookups and test, fixture and vendored paths are not reported, and the snippet is redacted.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

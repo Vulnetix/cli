@@ -1,0 +1,5 @@
+services:
+  api:
+    environment:
+      DATABASE_URL: postgresql://postgres:@@sample:[A-Za-z0-9]{16}@@@localhost:5432/app
+      CACHE_URL: redis://default:@@sample:[A-Za-z0-9]{16}@@@127.0.0.1:6379

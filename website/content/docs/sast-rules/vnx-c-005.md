@@ -1,11 +1,11 @@
 ---
 title: "VNX-C-005 – Integer Overflow in malloc/calloc Size Arithmetic"
-description: "Detects calls to malloc(), realloc(), valloc(), and aligned_alloc() where the size argument contains arithmetic operations (multiplication or addition) without prior overflow validation, which can produce an undersized allocation and a subsequent heap buffer overflow."
+description: "Reports a C or C++ allocation (malloc, realloc, calloc, aligned_alloc and common wrappers) whose size multiplies or adds a count parsed or received in the 30 lines above (atoi/strtol family, ntohl, getenv, scanf/fread/read/recv out-arguments) with no overflow check. Checked or clamped counts, 8- and 16-bit counts, plain calloc(n, size), and sizes from constants or internal lengths are not reported."
 ---
 
 ## Overview
 
-This rule flags C and C++ source files (`.c`, `.h`, `.cpp`, `.cc`, `.cxx`) where `malloc()`, `valloc()`, `realloc()`, or `aligned_alloc()` is called with a size argument that contains an arithmetic expression involving `+` or `*`. The check excludes commented lines. The concern is that integer arithmetic in C uses the type's natural overflow semantics: if the result wraps around (overflows), the allocator receives a much smaller number than intended and allocates far less memory than the code assumes.
+This rule reports a C or C++ allocation whose size can wrap: `malloc`, `xmalloc`, `g_malloc`, `kmalloc`, `kzalloc`, `valloc`, `realloc`, `xrealloc`, `g_realloc`, `calloc`, `aligned_alloc` or `memalign` (including `std::` forms) whose size, or the variable it was computed into a few lines above, combines with `*` or `+` a count that came from outside the program in the 30 lines above: a value parsed by `atoi`/`strtol`/`strtoul` and friends or `std::stoi`, converted by `ntohl`/`be32toh`, read from `getenv`, or filled through an `&out` argument of `scanf`/`fscanf`/`sscanf`/`fread`/`read`/`recv`. A parse call written directly in the size is reported too. When the product or sum wraps, the allocator returns a buffer smaller than the code that fills it assumes. The rule does not report a count compared with `<`/`>` or checked against `SIZE_MAX`, `__builtin_mul_overflow` or `ckd_mul` (or reassigned) before the allocation, an 8- or 16-bit count (promoted before the arithmetic), `calloc(n, size)` with plain arguments, `reallocarray`, and sizes made from constants, `sizeof` or internal lengths such as `strlen(s) + 1`. Counts that arrive through struct fields, parameters or other files are out of scope.
 
 This vulnerability most commonly arises when computing the size of an array of structures: `malloc(count * sizeof(struct foo))`. If `count` is attacker-controlled and large, the multiplication can overflow a `size_t` or `int`, wrapping to a small value. The allocator returns a small buffer, but the code subsequently writes `count` elements into it, overflowing the heap allocation. The same issue applies to `realloc()` calls that grow a buffer based on arithmetic involving incoming data lengths.
 
@@ -22,16 +22,27 @@ The subtlety that makes this vulnerability persistent is that the code looks cor
 ## What Gets Flagged
 
 ```c
-// FLAGGED: multiplication in malloc size without overflow check
-size_t count = get_user_count();
-struct Record *records = malloc(count * sizeof(struct Record));
+// FLAGGED: record count from the wire multiplied by the element size
+uint32_t count = ntohl(*(const uint32_t *)pkt);
+struct record *recs = malloc(count * sizeof(struct record));
 
-// FLAGGED: addition in malloc size
-char *buf = malloc(prefix_len + user_data_len);
+// FLAGGED: 32-bit length + 1 wraps to 0
+uint32_t len = ntohl(*(const uint32_t *)pkt);
+char *name = malloc(len + 1);
 
-// FLAGGED: arithmetic in realloc
-buf = realloc(buf, current_size + new_chunk_size);
+// FLAGGED: size computed into a variable first
+int width = atoi(argv[1]);
+int height = atoi(argv[2]);
+size_t bytes = width * height * sizeof(int);
+int *cells = malloc(bytes);
+
+// FLAGGED: count filled by fread, then realloc
+if (fread(&extra, sizeof extra, 1, f) != 1)
+    return -1;
+v->items = realloc(v->items, (v->len + extra) * sizeof(double));
 ```
+
+Not flagged: `if (count > SIZE_MAX / sizeof(struct item)) return NULL;` before the `malloc`, `calloc(n, sizeof(long))`, `malloc(SLOTS * sizeof(struct slot))`, `malloc(strlen(s) + 1)` and a `uint16_t` length read with `ntohs`.
 
 ## Remediation
 

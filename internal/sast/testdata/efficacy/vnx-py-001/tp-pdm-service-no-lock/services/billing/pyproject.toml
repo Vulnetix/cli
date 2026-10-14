@@ -1,0 +1,11 @@
+[project]
+name = "billing"
+version = "0.1.0"
+dependencies = ["stripe>=8", "flask>=3"]
+requires-python = ">=3.10"
+
+~>[tool.pdm]
+distribution = false
+
+[tool.pdm.dev-dependencies]
+test = ["pytest"]

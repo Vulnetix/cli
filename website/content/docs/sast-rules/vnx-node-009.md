@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-009 – Node.js Server-Side Request Forgery"
-description: "Detects user input from req.query, req.body, or req.params used to construct server-side HTTP requests with fetch, axios, or http.get, enabling SSRF attacks against internal services."
+description: "Reports a server-side HTTP request (fetch, axios, http(s).get/request, got, needle, superagent, undici, request, or curl/wget run as a subprocess) whose destination URL or host comes from req.query/body/params/headers/cookies or Koa ctx, directly or through a variable assigned from one. Fixed-host URLs and allowlisted destinations are not reported."
 ---
 
 ## Overview
@@ -17,24 +17,25 @@ Beyond cloud metadata, SSRF enables attackers to port-scan your internal network
 
 ## What Gets Flagged
 
-The rule matches lines containing direct user-input injection into HTTP client calls: `fetch(req.query`, `fetch(req.body`, `fetch(req.params`, `axios.get(req.query`, `axios.get(req.body`, `axios.post(req.query`, `axios(req.query`, `http.get(req.query`, `got(req.query`, or `request(req.query`.
+The destination of the request (the first argument, or the `url`/`host`/`hostname`/`baseURL` member of an options object) must come from the incoming request, on the same line or through a variable assigned from it a few lines above.
 
 ```javascript
-// FLAGGED: user URL passed to fetch
-app.get('/proxy', async (req, res) => {
-  const response = await fetch(req.query.url);
-  const data = await response.text();
-  res.send(data);
-});
+// FLAGGED: the URL is the client's
+const page = await fetch(req.query.url);
+await axios.post(req.body.callback, { ok: true });
+const r = await got(`http://${req.params.host}/health`);
 
-// FLAGGED: user-controlled URL in axios
-app.post('/webhook-test', async (req, res) => {
-  const result = await axios.get(req.body.endpoint);
-  res.json(result.data);
-});
+// FLAGGED: two lines, through an intermediate assignment
+const host = req.query.host;
+const target = 'https://' + host + ':8443/status';
+const reply = await fetch(target, { method: 'GET' });
+
+// FLAGGED: options object and a curl subprocess
+http.get({ host: req.query.host, path: '/latest/meta-data/' }, cb);
+spawnSync('curl', ['-s', endpoint]);   // endpoint = req.body.endpoint
 ```
 
-An attacker sends `?url=http://169.254.169.254/latest/meta-data/` and receives AWS credentials in the response.
+Not flagged: a URL whose host is fixed (`API_BASE + '/items/' + req.params.id`, `` `${config.apiUrl}/users/${id}` ``), request values sent only as headers, params or a body, a destination checked against an allowlist (`ALLOWED_HOSTS.has(target.hostname)`), and methods named `fetch` on other objects (`cache.fetch(key)`).
 
 ## Remediation
 

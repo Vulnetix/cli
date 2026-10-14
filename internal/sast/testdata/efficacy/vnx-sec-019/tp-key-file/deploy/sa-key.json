@@ -1,0 +1,8 @@
+{
+  "type": "service_account",
+  "project_id": "acme-prod-4821",
+  "private_key_id": "@@sample:[0-9a-f]{40}@@",
+~>  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC@@sample:[A-Za-z0-9+/]{64}@@\n@@sample:[A-Za-z0-9+/]{64}@@\n@@sample:[A-Za-z0-9+/]{64}@@\n-----END PRIVATE KEY-----\n",
+  "client_email": "deployer@acme-prod-4821.iam.gserviceaccount.com",
+  "client_id": "104857392018475620193"
+}

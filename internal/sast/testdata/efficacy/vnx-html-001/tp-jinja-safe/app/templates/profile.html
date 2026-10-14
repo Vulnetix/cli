@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ user.display_name }}</h1>
+~><div class="bio">{{ user.bio|safe }}</div>
+<ul>
+{% for c in comments %}
+~>  <li>{{c.body | safe}}</li>
+{% endfor %}
+</ul>
+~><article>{{- post.content|markdown|safe -}}</article>
+~><p>{{ tags|safeseq|join(", ") }}</p>
+{% endblock %}

@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-004 – Ruby SQL Injection"
-description: "Detect ActiveRecord queries built with string interpolation in where(), find_by_sql(), and execute(), enabling SQL injection attacks that can leak data, bypass authentication, or destroy the database."
+description: "Reports ActiveRecord query methods (where, order, select, group, pluck, find_by_sql, execute, select_all, ...) given SQL that interpolates, concatenates or formats request input, a variable assigned from it, or a parameter of the enclosing method or scope lambda; placeholders, hash conditions and to_i/quote values are not reported."
 ---
 
 ## Overview
@@ -19,24 +19,26 @@ Because ActiveRecord generates real SQL under the hood, the `string(form)` of `w
 
 ## What Gets Flagged
 
-The rule matches `.rb` files where query calls receive a double- or single-quoted string argument (indicating a raw SQL string that may be combined with user data), or where the query call contains `#{` (string interpolation directly in the query).
+The rule reports a query method whose SQL string (first argument) inserts request input, a variable assigned from it a few lines above, or a parameter of the enclosing method or scope lambda; a raw `params[...]` used as the SQL fragment; and a variable holding such a string built above.
 
 ```ruby
-# FLAGGED: string interpolation directly in where()
-User.where("name = '#{params[:name]}'")
+# FLAGGED
+user = User.where("id = '#{params[:user][:id]}'")[0]
+@orders = Order.where("status = '" + params[:status] + "'")
+@products = Product.order(params[:sort])
+scope :hits_by_ip, ->(ip, col = "*") { select("#{col}").where(ip_address: ip) }
+sql = "SELECT * FROM reports WHERE region = '#{region}'"   # region: method parameter
+find_by_sql(sql)
 
-# FLAGGED: find_by_sql with interpolated string
-User.find_by_sql("SELECT * FROM users WHERE email = '#{email}'")
-
-# FLAGGED: execute() with user-controlled data
-ActiveRecord::Base.connection.execute("DELETE FROM sessions WHERE user_id = #{current_user_id}")
-
-# FLAGGED: string-form where() — may be combined with user data
-User.where("admin = 1 AND username = '#{username}'")
-
-# FLAGGED: interpolated condition in connection.execute
-connection.execute("UPDATE users SET role = 'admin' WHERE id = #{params[:id]}")
+# NOT flagged: placeholders, hash conditions, values made safe
+User.where("email = ?", params[:email])
+User.where(admin: true, team_id: params[:team_id])
+User.where("name LIKE :q", q: "%#{params[:q]}%")
+where("id = #{params[:id].to_i}")
+where("name = #{connection.quote(name)}")
 ```
+
+SQL written in a heredoc (`find_by_sql(<<~SQL)`) and migrations under `db/migrate/` are not inspected.
 
 ## Remediation
 

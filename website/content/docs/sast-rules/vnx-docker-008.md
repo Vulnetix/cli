@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-008 – Dockerfile Package Manager Install Without Version Pinning"
-description: "Detects apt-get install, apk add, or yum install instructions in Dockerfiles that do not pin package versions, making builds non-reproducible and introducing supply chain risk."
+description: "Reports apt-get/apt, apk, yum/dnf/microdnf and zypper install commands in a Dockerfile RUN step that leave at least one package without a pinned version."
 ---
 
 ## Overview
@@ -21,13 +21,25 @@ Beyond active attacks, unversioned installs mean that a security scan of an imag
 
 ## What Gets Flagged
 
-```dockerfile
-# FLAGGED: apt-get install without version pins
-RUN apt-get update && apt-get install -y curl wget openssl
+The rule reports each OS package install command in a `RUN` step (after `&&`, on a continuation line, inside a `RUN` heredoc or `ONBUILD RUN`) when at least one named package has no version. Options that take a value (`-o Dpkg::Options::=...`, `-t release`, `--virtual name`) are understood, so an `=` inside an option is not a pin.
 
-# FLAGGED: apk add without version pins
-RUN apk add --no-cache git ca-certificates
+```dockerfile
+# FLAGGED
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+RUN apk add --no-cache curl
+RUN apk --no-cache add git=2.45.2-r0 openssh-client     # openssh-client is unpinned
+RUN dnf -y install python3-pip java-17-openjdk-headless
+RUN zypper --non-interactive install curl
 ```
+
+```dockerfile
+# SAFE: every package pinned
+RUN apt-get install -y --no-install-recommends curl=7.88.1-10+deb12u7
+RUN apk add --no-cache curl=8.9.1-r1
+RUN microdnf install -y nginx-1.20.1
+```
+
+Not reported: commands whose every package is pinned, local package files, package lists held in a variable or produced by `$(...)`/`xargs`, `update`/`upgrade`/`remove`, `rpm -i`, language package managers (pip, npm, gem), install text in comments, labels and `COPY` heredocs, test and `.devcontainer` images.
 
 ## Remediation
 

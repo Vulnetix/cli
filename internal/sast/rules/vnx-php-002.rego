@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-PHP-002",
 	"name": "Dangerous function in PHP",
-	"description": "Functions like eval(), exec(), system(), passthru(), and shell_exec() execute arbitrary commands. If any argument is user-controlled, this enables remote code execution.",
+	"description": "A PHP command or code execution sink (exec(), system(), passthru(), shell_exec(), popen(), proc_open(), pcntl_exec(), the backtick operator, or eval()) receives a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, $_FILES, client-controlled $_SERVER keys), php://input, getallheaders(), filter_input() or a Laravel/Symfony request accessor, either inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable). Not reported: an argument passed through escapeshellarg(), escapeshellcmd(), intval(), an (int)/(float) cast or a numeric filter_var() filter, a variable checked with in_array(), preg_match(), ctype_*(), is_numeric() or filter_var() before the call, constant commands, function parameters and other values whose origin is not visible in the file (no cross-function dataflow), methods named exec/system on an object or class, declarations, and the names in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-002/",
 	"languages": ["php"],
 	"severity": "high",
@@ -19,21 +19,145 @@ metadata := {
 	"tags": ["command-injection", "code-injection", "dangerous-function"],
 }
 
-_is_php(path) if endswith(path, ".php")
+# A call of the global function, not $obj->exec(), Foo::system() or $exec(.
+_sink_re := `(^|[^\w$>:\\])\\?(eval|exec|system|passthru|shell_exec|popen|proc_open|pcntl_exec)\s*\(`
+
+# The backtick shell operator around an interpolated PHP variable.
+_backtick_re := "(=|\\becho|\\bprint|\\breturn|\\()\\s*`[^`]*\\$[A-Za-z_][^`]*`"
+
+_gate_re := "(?m)(\\b(eval|exec|system|passthru|shell_exec|popen|proc_open|pcntl_exec)\\s*\\(|`[^`\\n]*\\$[A-Za-z_])"
+
+_line_re := trim_prefix(_gate_re, "(?m)")
+
+_sanitiser_re := `\b(escapeshellarg|escapeshellcmd|intval|floatval|absint)\s*\((?:[^()]|\([^()]*\))*\)|\((int|integer|float)\)\s*\$\w+(\s*\[[^\]]*\])*|\bfilter_var\s*\((?:[^()]|\([^()]*\))*FILTER_(VALIDATE_(INT|FLOAT|IP)|SANITIZE_NUMBER_\w+)[^)]*\)`
+
+# Checks that pin the value to a known set before the call.
+_validators := `in_array|array_key_exists|preg_match|ctype_\w+|is_numeric|filter_var`
+
+# The upload's tmp_name, size and error are set by PHP, not the client.
+_clean(s) := regex.replace(regex.replace(s, _sanitiser_re, ""), `\$_FILES\s*\[[^\]]*\]\s*\[\s*["'](tmp_name|size|error)["']\s*\]`, "")
+
+_strip_sq(s) := regex.replace(s, `(^|[^\[\s])(\s*)'(?:[^'\\]|\\.)*'`, "${1}${2}''")
+
+_code_line(line) if {
+	t := trim_space(line)
+	not startswith(t, "//")
+	not startswith(t, "#")
+	not startswith(t, "*")
+	not startswith(t, "/*")
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_php(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	endswith(path, ".php")
+	regex.match(_gate_re, content)
+	regex.match(_source_re, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`\b(eval|exec|system|passthru|shell_exec|popen|proc_open)\s*\(`, line)
+	regex.match(_line_re, line)
+	_code_line(line)
+	some expr in _sink_exprs(lines, i, line)
+	not regex.match(`\bfunction\s+&?\w+\s*\(`, line)
+	_reaches(lines, i, expr)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Dangerous function call; avoid exec/system/passthru/shell_exec or sanitize inputs with escapeshellarg()",
+		"message": "A request value reaches a command or code execution function; pass each argument through escapeshellarg(), validate it against an allowlist, or avoid the shell (and never eval() request data)",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# Both kinds of string literal blanked: where a sink call may sit.
+_no_strings(s) := regex.replace(s, `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`, `""`)
+
+_sink_exprs(lines, i, line) := {e |
+	code := _no_strings(line)
+	regex.match(_sink_re, code)
+	locs := regex.find_all_string_submatch_n(_sink_re, code, 1)
+	e := _call_text(lines, i, substring(line, indexof(line, locs[0][0]), -1))
+} | {e |
+	some e in regex.find_n(_backtick_re, line, 1)
+}
+
+# The sink's own text: from the match to the end of the call, following up to
+# two continuation lines while the parentheses are unbalanced.
+_call_text(lines, i, first) := _extend(lines, i, first)
+
+_extend(_, _, s) := s if count(regex.find_n(`\(`, s, -1)) <= count(regex.find_n(`\)`, s, -1))
+
+_extend(lines, i, s) := t if {
+	count(regex.find_n(`\(`, s, -1)) > count(regex.find_n(`\)`, s, -1))
+	more := [lines[k] | some k in numbers.range(i + 1, min([count(lines) - 1, i + 2]))]
+	t := concat("\n", array.concat([s], more))
+}
+
+# ── Local one-file taint tracking for PHP ────────────────────────────────
+# A request value: a superglobal, the raw body, a request header, or the
+# Laravel/Symfony request accessors. $_SERVER keys the client controls only.
+_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(`
+
+# Variables an expression reads, ignoring $this and superglobals.
+_vars(s) := {v |
+	some m in regex.find_all_string_submatch_n(`\$([A-Za-z_]\w*)`, _strip_sq(s), -1)
+	v := m[1]
+	not startswith(v, "_")
+	v != "this"
+}
+
+_rhs(line) := regex.replace(line, `^\s*\$\w+\s*\.?=`, "")
+
+_reads(s, v) if regex.match(concat("", [`\$`, v, `\b`]), _strip_sq(s))
+
+# Where $v at line i got its value: the nearest assignment in the 30 lines
+# above whose (sanitiser-free) right-hand side does not read $v itself.
+# In-place rewrites ($f = str_replace("../", "", $f)) keep the origin; an
+# in-place sanitiser ($f = basename($f)) becomes the origin and clears it.
+_origin(lines, i, v) := j if {
+	re := concat("", [`^\s*\$`, v, `\s*\.?=[^=>]`])
+	cands := [k |
+		some k in numbers.range(max([0, i - 30]), i - 1)
+		k < i
+		regex.match(re, lines[k])
+		not _reads(_clean(_rhs(lines[k])), v)
+	]
+	count(cands) > 0
+	j := max(cands)
+}
+
+# $v at line i holds a request value: its origin reads one, or reads a
+# variable whose own origin does (one hop), with no sanitiser on the way.
+_tainted(lines, i, v) if {
+	j := _origin(lines, i, v)
+	regex.match(_source_re, _clean(_rhs(lines[j])))
+}
+
+_tainted(lines, i, v) if {
+	j := _origin(lines, i, v)
+	rhs := _clean(_rhs(lines[j]))
+	not regex.match(_source_re, rhs)
+	some w in _vars(rhs)
+	k := _origin(lines, j, w)
+	regex.match(_source_re, _clean(_rhs(lines[k])))
+}
+
+# The value was checked against an allowlist or a strict pattern between
+# its origin and the sink.
+_validated(lines, i, v) if {
+	j := _origin(lines, i, v)
+	re := concat("", [`\b(`, _validators, `)\s*\([^;]*\$`, v, `\b|\bisset\s*\(\s*\$\w+\s*\[\s*\$`, v, `\s*\]`])
+	some k in numbers.range(j, i - 1)
+	regex.match(re, lines[k])
+}
+
+# The expression reaches the sink unsanitised: a request value inline, or a
+# tainted variable that was not validated on the way.
+_reaches(_, _, expr) if regex.match(_source_re, _clean(expr))
+
+_reaches(lines, i, expr) if {
+	some v in _vars(_clean(expr))
+	_tainted(lines, i, v)
+	not _validated(lines, i, v)
 }

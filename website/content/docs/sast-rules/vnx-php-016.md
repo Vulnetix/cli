@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-016 – PHP weak hash function (md5/sha1)"
-description: "Detects md5() or sha1() used in contexts suggesting password or credential hashing, where these cryptographically broken algorithms are unsuitable for protecting secrets."
+description: "Detects passwords hashed with MD5 or SHA-1: md5(), sha1(), hash('md5'|'sha1', ...) or MD5-crypt whose argument names a password, or whose result is stored under a password name. MD5/SHA-1 of cache keys, checksums and other non-credential data is left to VNX-327 and VNX-CRYPTO-001/002."
 ---
 
 ## Overview
@@ -28,10 +28,17 @@ PHP provides `password_hash()` and `password_verify()` as purpose-built function
 $hashedPassword = md5($password);
 $storedHash = md5($_POST['passwd']);
 
-// FLAGGED: sha1 with credential-related variable names
-$secretHash = sha1($secret);
-$hash = sha1($credential . $salt);
+// FLAGGED: legacy login code re-hashing the submitted password
+$pass = md5( $pass );
+$pass_new = md5($pass_new);
+
+// FLAGGED: hash() with a weak algorithm, and the result stored as a password
+$h = hash('sha1', $userPassword . $salt);
+$user->password = md5($input['secret']);
+return ['password' => md5($input['p'])];
 ```
+
+Not flagged: `password_hash()`/`password_verify()`, `md5($body)` ETags, `sha1($key)` cache paths, `md5_file()` checksums, the SHA-1 prefix sent to the Have I Been Pwned range API, `hash('sha256', $password)` (a fast hash, but outside this rule), and lookalike names such as `$bypass`.
 
 ## Remediation
 

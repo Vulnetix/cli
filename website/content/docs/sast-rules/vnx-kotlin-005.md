@@ -1,13 +1,15 @@
 ---
 title: "VNX-KOTLIN-005 – Kotlin MD5 or SHA-1 Used as Cryptographic Hash"
-description: "Detects MessageDigest.getInstance() calls with MD5 or SHA-1 in Kotlin, both of which are cryptographically broken and should be replaced with SHA-256 or stronger algorithms."
+description: "Detects MD5, SHA-1, MD2 and MD4 hashing in Kotlin through MessageDigest, Signature, Apache Commons DigestUtils, Guava Hashing and (for credentials) Okio, excluding HMAC, SHA1PRNG and the WebSocket handshake digest."
 ---
 
 ## Overview
 
 MD5 and SHA-1 are legacy hash algorithms that are no longer considered cryptographically secure. MD5 has known practical collision attacks — two different inputs that produce the same hash — which have been demonstrated in real-world certificate forgery. SHA-1 was theoretically broken in 2005 and practically broken by Google's SHAttered attack in 2017, which produced the first real SHA-1 collision. Using either algorithm for security-sensitive purposes (digital signatures, certificate fingerprints, data integrity verification, or password hashing) provides a false sense of security. This is CWE-328 (Use of Weak Hash).
 
-This rule flags two patterns in Kotlin files: `MessageDigest.getInstance("MD5")`, `MessageDigest.getInstance("SHA-1")`, and `MessageDigest.getInstance("SHA1")` calls, and Apache Commons `DigestUtils` MD5 or SHA-1 helper methods (`md5`, `md5Hex`, `getMd5Digest`, `sha1`, `sha1Hex`). Both the standard JDK API and the Commons wrapper are covered.
+This rule flags Kotlin code (`.kt`, `.kts`) that computes a broken hash through a hash API: `MessageDigest.getInstance("MD5" | "SHA-1" | "SHA1" | "SHA" | "MD2" | "MD4")` in any case, with or without a provider, also through a constant the file assigns once or a commons-codec `MessageDigestAlgorithms.MD5` / `SHA_1` / `MD2` constant; `Signature.getInstance("SHA1withRSA" | "MD5withRSA" | ...)`; Apache Commons Codec `DigestUtils.md5` / `md5Hex` / `sha1` / `sha1Hex` / `sha` / `shaHex` / `md2` / `md2Hex` / `getMd5Digest` / `getSha1Digest`, `DigestUtils(MD5 | SHA_1)` and statically imported `md5Hex()` / `sha1Hex()`; Guava `Hashing.md5()` / `sha1()`; and Okio `ByteString` / `Buffer` `.md5()` / `.sha1()` or `HashingSink` / `HashingSource` when the hashed value is named as a password, secret, token, credential or PIN.
+
+It does not report SHA-256 and stronger, HMAC constructions (`HmacSHA1`, `HmacUtils`, `Hashing.hmacMd5`, Okio `hmacSha1`), `SHA1PRNG`, OAEP padding names, Okio digests used as cache keys, file names or certificate fingerprints, the SHA-1 that RFC 6455 mandates for `Sec-WebSocket-Accept`, an algorithm variable whose value is not fixed in the file, enum entries and string lists of algorithm names, test sources, comments and string literals.
 
 The appropriate replacement depends on the use case: SHA-256 or SHA-3 for general integrity verification and checksums, and bcrypt, scrypt, or Argon2 for password hashing (which requires a slow, memory-hard function, not a general-purpose hash).
 
@@ -36,6 +38,22 @@ val hex = DigestUtils.md5Hex(inputStream)
 
 // FLAGGED: SHA-1 via Apache Commons DigestUtils
 val hash = DigestUtils.sha1Hex(content)
+
+// FLAGGED: weak signature algorithm and Guava hashing
+val signer = Signature.getInstance("SHA1withRSA")
+Hashing.md5().hashString(body, StandardCharsets.UTF_8)
+
+// FLAGGED: Okio digest of a credential
+fun storedPassword(password: String) = password.encodeUtf8().md5().hex()
+```
+
+Not flagged:
+
+```kotlin
+Mac.getInstance("HmacSHA1")                     // HMAC, not a bare digest
+SecureRandom.getInstance("SHA1PRNG")
+MessageDigest.getInstance("SHA-1")              // when computing Sec-WebSocket-Accept
+url.encodeUtf8().md5().hex()                    // Okio cache key
 ```
 
 ## Remediation

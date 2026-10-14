@@ -1,62 +1,68 @@
 ---
-title: "VNX-1043 – Non-Thread-Safe Lock"
-description: "Detects synchronisation and threading primitives in Go, Java, and Python that may indicate concurrency issues, including non-thread-safe lock usage or race conditions."
+title: "VNX-1043 – Data Element Aggregating an Excessively Large Number of Non-Primitive Elements"
+description: "Reports a Java class, Go struct, Python class or TypeScript class/interface that declares more than 10 instance fields of non-primitive type, on its declaration line."
 ---
 
 ## Overview
 
-VNX-1043 is an auto-generated broad-pattern rule that searches for concurrency and synchronisation primitives in Go, Java, and Python source files. The rule targets `Mutex` in Go, `synchronized` in Java, and `threading` in Python. These are associated with [CWE-1043](https://cwe.mitre.org/data/definitions/1043.html) in the rule metadata.
+VNX-1043 applies the CISQ maintainability measure behind [CWE-1043](https://cwe.mitre.org/data/definitions/1043.html): a data element that aggregates too many other objects. It counts the instance fields declared directly in the body of each type and reports the declaration when more than 10 of them are of a non-primitive type.
 
-Note: CWE-1043 in MITRE's catalog covers "Data Element Aggregating an Excessively Large Number of Non-Primitive Elements," which does not correspond to the rule's intent. The rule is functionally a concurrency audit tool, better mapped to [CWE-362: Concurrent Execution using Shared Resource with Improper Synchronization (Race Condition)](https://cwe.mitre.org/data/definitions/362.html). The CWE mapping is a known limitation of this auto-generated rule.
+What is counted:
 
-Findings indicate the presence of multi-threaded or concurrent code that requires careful review. The flagged APIs are standard and correct when used properly, but incorrect usage — missing lock acquisitions, lock inversion, or shared state accessed outside a critical section — creates race conditions that are difficult to detect through testing.
+- **Java**: instance fields of a `class` (not `static` fields, constants or records).
+- **Go**: fields of a `struct` type, including grouped names (`a, b *T`) and embedded types.
+- **Python**: annotated class-level fields (dataclasses, pydantic, attrs or any class), not `ClassVar`.
+- **TypeScript**: fields of a `class`, an `interface` or an object `type` alias.
 
-**Severity:** Medium | **CWE:** [CWE-1043](https://cwe.mitre.org/data/definitions/1043.html) | **OWASP:** [A04:2021 – Insecure Design](https://owasp.org/Top10/A04_2021-Insecure_Design/)
+A field is non-primitive when its type names anything other than a primitive or value type: numbers, booleans, strings, bytes, dates, times, durations, UUIDs, `BigDecimal`, the boxed types, `error` and `any`/`unknown`. So `List<Order>`, `map[string]*Session`, `Optional[Cart]` and `Role[]` count, while `List<String>`, `[]byte`, `dict[str, str]` and `'light' | 'dark'` do not.
+
+Not reported: fields of a nested class (they count toward the nested class), method parameters, enums, plain JavaScript, generated code (`Code generated ... DO NOT EDIT`, `@Generated`), test code and comments. CISQ suggests 5 as the threshold; this rule uses 10 so that it reports only the outliers.
+
+**Severity:** Low | **CWE:** [CWE-1043](https://cwe.mitre.org/data/definitions/1043.html)
 
 ## Why This Matters
 
-Race conditions in security-sensitive code — authentication checks, session management, privilege validation — can be exploited to bypass controls. A classic time-of-check to time-of-use (TOCTOU) race allows an attacker to interpose between a permission check and the subsequent action, gaining access they were denied.
-
-Even in non-security contexts, concurrency bugs cause data corruption, silent data loss, and application crashes that undermine reliability and integrity guarantees that security controls depend upon.
+An object that holds a dozen other objects is hard to review. Each one is something it might serialise into a response, write to a log, keep alive in a cache or hand to another component. When a type grows to that size, nobody checks every field before the type is returned from an API, and data that was never meant to leave the server leaves with it.
 
 ## What Gets Flagged
 
-The rule scans Go, Java, and Python source files for synchronisation patterns:
-
-```go
-// FLAGGED: Go Mutex usage
-var mu sync.Mutex
-mu.Lock()
-balance = balance + amount  // verify all shared-state accesses are within critical section
-mu.Unlock()
-```
-
 ```java
-// FLAGGED: Java synchronized block
-synchronized (this) {
-    if (user.isAdmin()) {
-        performPrivilegedAction();
-    }
+public class OrderContext {                 // FLAGGED: 12 non-primitive fields
+    private final Customer customer;
+    private Address billingAddress;
+    private List<OrderLine> lines;
+    private Map<String, Discount> discounts;
+    // ... eight more object fields
 }
 ```
 
-```python
-# FLAGGED: Python threading
-import threading
-lock = threading.Lock()
+```go
+type Server struct {                         // FLAGGED
+	cfg      *Config
+	sessions map[string]*Session
+	inbound, outbound chan *Message
+	*Logger
+	// ...
+}
+```
+
+## What Is Not Flagged
+
+```java
+public class Customer {
+    private Long id;
+    private String email;        // strings, boxed numbers and dates are primitive here
+    private Address address;
+}
 ```
 
 ## Remediation
 
-1. Audit every flagged location to confirm that all accesses to shared mutable state are performed within the lock's critical section.
-2. In Go, prefer `defer mu.Unlock()` immediately after `mu.Lock()` to prevent lock leaks on early returns or panics.
-3. Avoid acquiring multiple locks in inconsistent order across goroutines or threads — establish a fixed lock ordering to prevent deadlocks.
-4. Use Go's race detector (`go test -race`) or Java's thread sanitiser tooling to identify races at test time.
-5. Prefer immutable data structures and message-passing concurrency (Go channels, Java `java.util.concurrent` queues) over shared mutable state where possible.
+1. Group related fields into their own types (an `Addresses` value with billing and shipping, a `Payment` with method and invoice).
+2. Keep request-scoped context separate from long-lived dependencies.
+3. Return purpose-built response types from APIs instead of the aggregate itself.
 
 ## References
 
-- [CWE-362: Race Condition](https://cwe.mitre.org/data/definitions/362.html)
-- [CWE-667: Improper Locking](https://cwe.mitre.org/data/definitions/667.html)
-- [OWASP Race Conditions](https://owasp.org/www-community/vulnerabilities/Race_Conditions)
-- [Go Data Race Detector](https://go.dev/doc/articles/race_detector)
+- [CWE-1043: Data Element Aggregating an Excessively Large Number of Non-Primitive Elements](https://cwe.mitre.org/data/definitions/1043.html)
+- [CISQ Automated Source Code Maintainability Measure](https://www.it-cisq.org/standards/code-quality-standards/)

@@ -1,0 +1,3 @@
+trigger:
+  script:
+    - curl -X POST -F token=$CI_JOB_TOKEN -F ref=main "$CI_API_V4_URL/projects/42/trigger/pipeline"

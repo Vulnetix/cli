@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-023 – PHP anonymous LDAP bind without password"
-description: "Detects ldap_bind() called without a password, with NULL, or with an empty string, enabling anonymous LDAP access that exposes directory data without authentication."
+description: "Detects anonymous or unauthenticated ldap_bind()/ldap_bind_ext() calls (no password, null DN, null or empty password) and logins that pass a request password to ldap_bind() without first rejecting an empty value."
 ---
 
 ## Overview
@@ -33,6 +33,11 @@ ldap_bind($conn, $userDn, null);
 
 // FLAGGED: password from user input could be empty, bypassing auth
 ldap_bind($conn, 'cn=' . $_POST['username'] . ',dc=example,dc=com', $_POST['password']);
+
+// NOT FLAGGED: empty password rejected first, or a service-account secret
+if (empty($pass)) { exit; }
+ldap_bind($ds, $dn, $pass);
+ldap_bind($ds, getenv('LDAP_BIND_DN'), getenv('LDAP_BIND_PASSWORD'));
 ```
 
 ## Remediation

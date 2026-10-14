@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+~>OLD=1; IFS=" "; set -- $LIST
+echo "$@"

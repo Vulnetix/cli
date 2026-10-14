@@ -1,11 +1,11 @@
 ---
 title: "VNX-CS-007 – C# Path Traversal via Path.Combine with User Input"
-description: "Detects uses of Path.Combine in C# where the arguments include user-supplied input from HTTP request sources, without prior canonicalisation or validation that the resulting path stays within the intended base directory."
+description: "Detects C# Path.Combine/Path.Join, MapPath and file-system APIs (File, Directory, FileStream, StreamReader, PhysicalFile, TransmitFile, SaveAs) whose path argument contains HTTP request data, an uploaded file name or a controller action parameter, without Path.GetFileName or a GetFullPath/StartsWith containment check."
 ---
 
 ## Overview
 
-This rule scans C# files (`.cs`) for calls to `Path.Combine` that appear within a five-line window containing common ASP.NET user-input sources: `Request.`, `HttpContext.`, `queryString`, `FormData`, `RouteData`, `.Query[`, `.Form[`, or `.Params[`. The rule excludes cases where `Path.GetFileName` or `GetFullPath` is already present in the same window, as those indicate an existing validation step.
+This rule reports `Path.Combine`/`Path.Join` and `MapPath` (any argument), `File.Copy`/`Move`/`Replace`, and the path argument of `File.Read*`/`Write*`/`Append*`/`Open*`/`Create`/`Delete`, `Directory` enumeration and deletion, `new FileStream`/`StreamReader`/`StreamWriter`/`FileInfo`/`DirectoryInfo`, `PhysicalFile`, `Results.File` and `Response.TransmitFile`/`WriteFile`/`SaveAs`, when that argument contains request data: `Request.Query`/`QueryString`/`Form`/`Params`/`Cookies`/`Headers`/`Path`, `Request[...]`, `RouteData.Values`, a WebForms `TextBox.Text`, an uploaded file's `FileName`, a string parameter of a controller action, a `[FromQuery]`/`[FromRoute]`/`[FromForm]` parameter or a minimal-API lambda parameter, inline or through a variable assigned up to 15 lines above. A flow is reported once, at its first sink. Values passed through `Path.GetFileName`, a path resolved with `GetFullPath` and checked with `StartsWith`, values checked by `Regex.IsMatch` or an allowlist, `Guid`/`int` parameters, request data written as file content, and parameters of non-controller methods are not reported.
 
 `Path.Combine` in .NET concatenates path segments but does not validate the result. If a user-supplied segment contains `../` sequences (or their URL-encoded equivalents `%2e%2e%2f`), the resolved path escapes the intended base directory. An attacker can use this to read arbitrary files readable by the web application process, write files to unintended locations, or overwrite critical system files if the process has sufficient privilege.
 
@@ -29,10 +29,16 @@ string filename = Request.Query["file"];
 string fullPath = Path.Combine(uploadDir, filename);
 return File(System.IO.File.ReadAllBytes(fullPath), "application/octet-stream");
 
-// FLAGGED: Path.Combine with form data
-string userFile = Request.Form["filename"];
-var path = Path.Combine(baseDirectory, userFile);
-System.IO.File.Delete(path);
+// FLAGGED: controller action parameter
+public IActionResult Download(string name)
+{
+    var path = Path.Combine(_root, name);
+    return PhysicalFile(path, "application/pdf");
+}
+
+// FLAGGED: WebForms MapPath and an uploaded file's own name
+FileInfo fi = new FileInfo(Server.MapPath(Request["image"]));
+var dest = Path.Combine(root, "uploads", file.FileName);
 ```
 
 ## Remediation

@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-019 – PHP insecure cipher mode (AES-CBC)"
-description: "Detects openssl_encrypt() or openssl_decrypt() called with an AES-CBC cipher mode, which is unauthenticated and vulnerable to padding oracle and bit-flipping attacks."
+description: "Detects openssl_encrypt()/openssl_decrypt() with an AES/ARIA/Camellia CBC method (literal, variable, class constant or define()) and mcrypt CBC calls in files that compute no HMAC, leaving ciphertext open to bit flipping and padding oracles."
 ---
 
 ## Overview
@@ -27,9 +27,14 @@ Switching to AES-GCM eliminates both attack classes and is supported natively by
 // FLAGGED: AES-CBC used with openssl_encrypt()
 $ciphertext = openssl_encrypt($plaintext, 'aes-256-cbc', $key, 0, $iv);
 
-// FLAGGED: AES-CBC cipher string as configuration value
+// FLAGGED: AES-CBC through a variable or a define() (the call line is reported)
 $cipher = 'aes-128-cbc';
 $encrypted = openssl_encrypt($data, $cipher, $key, OPENSSL_RAW_DATA, $iv);
+define('ALGO', 'aes-128-cbc');
+$e = openssl_decrypt($ciphertext, ALGO, KEY, OPENSSL_RAW_DATA, $iv);
+
+// NOT FLAGGED: AEAD, or CBC with encrypt-then-MAC (hash_hmac() in the file)
+$ct = openssl_encrypt($data, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
 ```
 
 ## Remediation

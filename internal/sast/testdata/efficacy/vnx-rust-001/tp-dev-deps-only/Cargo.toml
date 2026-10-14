@@ -1,0 +1,9 @@
+~>[package]
+name = "parser"
+version = "0.1.0"
+
+[lib]
+path = "lib.rs"
+
+[dev-dependencies]
+proptest = "1.4"

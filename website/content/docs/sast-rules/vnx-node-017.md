@@ -1,13 +1,13 @@
 ---
 title: "VNX-NODE-017 – Deserialization of Untrusted Data via node-serialize or serialize-to-js"
-description: "Detects use of node-serialize or serialize-to-js to deserialize user-controlled data, which allows remote code execution via embedded JavaScript IIFE expressions."
+description: "Reports node-serialize unserialize() and serialize-to-js deserialize() called with a non-constant value; both evaluate JavaScript embedded in the payload. Not reported: serialize(), constant arguments, other libraries' deserialize(), comments and strings."
 ---
 
 ## Overview
 
 This rule detects imports of the `node-serialize` or `serialize-to-js` packages and calls to their `unserialize()` or `deserialize()` methods with user-controlled request data. Both libraries support a dangerous feature: they will execute any JavaScript expression wrapped in an Immediately Invoked Function Expression (IIFE) that appears in the serialized payload. This means that an attacker who can supply the input to `unserialize()` can embed arbitrary JavaScript — such as a reverse shell command — inside the payload, and that code will run synchronously on the server when deserialization occurs.
 
-The rule matches any file that imports `node-serialize`, any `serialize-to-js` `deserialize()` call, and any call pattern where `.unserialize()` or `.deserialize()` receives data directly from `req.body`, `req.query`, or `req.params`. This covers the most common attack surface: API endpoints that accept and deserialize user-supplied data.
+The rule resolves which names are bound to either module (`require`, default or namespace `import`, `import x = require`, or `unserialize`/`deserialize` imported by name, including an `as` alias) and reports a call through one of them, or `require('node-serialize').unserialize(...)` inline, whose argument is not a string literal. The argument may sit on the next line. A `deserialize()` from bson, avsc or any other library, a class method of the same name, `serialize()` (the writing side) and calls named in comments or string literals are not reported.
 
 The underlying weakness is that these libraries conflate data and code. Unlike `JSON.parse()`, which operates on a strict grammar with no executable constructs, these libraries extend the format to support JavaScript functions — and functions are code. Any deserialization library that can execute code must never be used with untrusted input.
 
@@ -26,19 +26,20 @@ The CVE-2017-5941 advisory for `node-serialize` was published eight years ago, y
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: importing node-serialize — any unserialize() call on this object is dangerous
 const serialize = require('node-serialize');
-const obj = serialize.unserialize(req.body.data);
+const raw = Buffer.from(req.cookies.profile, 'base64').toString();
+const profile = serialize.unserialize(raw);           // FLAGGED
 
-// FLAGGED: serialize-to-js deserialize() with request data
-const serialize = require('serialize-to-js');
-const result = serialize.deserialize(req.body.payload);
+import { unserialize } from 'node-serialize';
+const draft = unserialize(req.query.draft);            // FLAGGED
 
-// FLAGGED: unserialize/deserialize called with request-derived data
-app.post('/load', (req, res) => {
-  const data = obj.unserialize(req.body.state); // direct request data
-  res.json(data);
-});
+import { deserialize } from 'serialize-to-js';
+const cart = deserialize(body);                        // FLAGGED
+
+// Not flagged
+const defaults = serialize.unserialize('{"theme":"dark"}'); // constant
+res.cookie('state', serialize.serialize(state));            // writing side
+const { deserialize: bson } = require('bson');               // other library
 ```
 
 Proof-of-concept payload for `node-serialize`:

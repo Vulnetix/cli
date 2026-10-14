@@ -1,0 +1,3 @@
+trigger_downstream:
+  script:
+~>    - curl -X POST -F token=glptt-@@sample:[0-9a-f]{40}@@ -F ref=main https://gitlab.com/api/v4/projects/42/trigger/pipeline

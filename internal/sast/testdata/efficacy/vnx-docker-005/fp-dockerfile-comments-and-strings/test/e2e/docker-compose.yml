@@ -1,0 +1,4 @@
+services:
+  dind:
+    image: docker:27.1-dind
+    privileged: true

@@ -1,0 +1,1 @@
+Personal access tokens start with glpat-, for example glpat-abc123.

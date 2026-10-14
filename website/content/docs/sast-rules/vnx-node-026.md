@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-026 – Child process spawn with shell:true enables command injection"
-description: "Detects Node.js spawn() or spawnSync() calls that use {shell:true}, which routes execution through a shell interpreter and enables injection of shell metacharacters from user-controlled arguments."
+description: "Reports spawn(), spawnSync(), execFile(), execFileSync() and execa() calls that enable a shell (shell: true or a shell path) while the command or an argument is not a constant, so shell metacharacters in that value run as commands."
 ---
 
 ## Overview
@@ -24,17 +24,24 @@ CI/CD pipelines, developer tooling, and build systems are the highest-risk areas
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: shell:true routes through /bin/sh — metacharacters are interpreted
 const { spawn } = require('child_process');
-const proc = spawn('git', ['clone', userInput], { shell: true });
 
-// FLAGGED: spawnSync with shell:true
-const result = spawnSync('ls', [req.query.dir], { shell: true, encoding: 'utf8' });
+// FLAGGED: a request value reaches a shell
+const file = req.body.file;
+spawn('convert', [file, 'out.png'], { shell: true });
 
-// FLAGGED: child_process with shell:true in options
-const child_process = require('child_process');
-child_process.spawn('npm', ['run', req.body.script], { shell: true });
+// FLAGGED: options across lines, command from a parameter
+cp.spawn(command, {
+  cwd,
+  shell: true,
+});
+
+// FLAGGED: a shell path counts as a shell; template interpolation is not constant
+childProcess.execFileSync('grep', ['-r', pattern, dir], { shell: '/bin/bash' });
+await execa(`git checkout ${branch}`, { shell: true });
 ```
+
+Not flagged: `shell: false` or no shell option, `shell: process.platform === 'win32'`, and a call whose command and arguments are all literals or constants (`spawnSync('npm run build', { shell: true })`). `exec()`/`execSync()` always use a shell and are covered by VNX-NODE-003.
 
 ## Remediation
 

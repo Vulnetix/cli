@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-005 – PHP Server-Side Request Forgery"
-description: "Detect PHP code that passes user-supplied input directly to file_get_contents(), fopen(), or curl_setopt(CURLOPT_URL), enabling SSRF attacks against internal services and cloud metadata endpoints."
+description: "Detect file_get_contents(), fopen(), curl_init(), curl_setopt(CURLOPT_URL), get_headers(), fsockopen(), Laravel Http and Guzzle client calls whose URL is decided by a request value, enabling SSRF."
 ---
 
 ## Overview
@@ -19,24 +19,22 @@ The `CURLOPT_FOLLOWLOCATION` option multiplies the risk: if curl is configured t
 
 ## What Gets Flagged
 
-The rule matches lines where `file_get_contents()`, `fopen()`, or `CURLOPT_URL` receive a value directly from a superglobal.
+A server-side fetch whose URL starts with a request value, or follows only a scheme such as `http://`, inline or through a variable assigned from one a few lines above.
 
 ```php
-// FLAGGED: file_get_contents with GET parameter
-$url = $_GET['url'];
-$data = file_get_contents($url);
+// FLAGGED
+$html = file_get_contents($_GET["url"]);
 
-// FLAGGED: fopen with POST data
-$handle = fopen($_POST['source'], 'r');
+$endpoint = trim($_GET["endpoint"]);
+curl_setopt($ch, CURLOPT_URL, $endpoint);
 
-// FLAGGED: curl with user-supplied URL
-curl_setopt($ch, CURLOPT_URL, $_GET['endpoint']);
+$data = file_get_contents("http://" . $_GET["h"] . "/status");
 
-// FLAGGED: request parameter used in curl
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $_REQUEST['target']);
-curl_exec($ch);
+$hook = $request->input("webhook_url");
+Http::timeout(5)->post($hook, ["ping" => true]);
 ```
+
+Not flagged: a URL whose literal prefix fixes the host (`"https://api.example.com/users/" . $id`) or a local directory (`__DIR__ . "/templates/" . $name`, which is path traversal rather than SSRF); a value checked with `in_array()`, `parse_url()` or `preg_match()` first; `php://input` and other constant URLs; `$_FILES` temporary paths; `->get()` on collections, caches and other non-client receivers; values whose origin is not visible in the file.
 
 ## Remediation
 

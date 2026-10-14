@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-018 – PHP sensitive debug output disclosure"
-description: "Detects var_dump(), print_r(), or var_export() called with sensitive PHP superglobals ($_SESSION, $_SERVER, $_ENV), exposing session tokens, credentials, and server configuration in the HTTP response."
+description: "Detects var_dump(), print_r(), var_export(), debug_zval_dump(), dump() or dd() writing a whole $_SESSION, $_SERVER, $_ENV, $_COOKIE, $GLOBALS or getenv() to the response, including echoed return-mode print_r()/var_export(); single elements, logging and tests are not reported."
 ---
 
 ## Overview
@@ -32,6 +32,14 @@ print_r($_SERVER);
 
 // FLAGGED: environment variables (may contain secrets) exported
 var_export($_ENV);
+
+// FLAGGED: return-mode dump that is echoed, and Laravel dd()
+echo '<pre>' . print_r($_SERVER, true) . '</pre>';
+dd($_SERVER);
+
+// NOT FLAGGED: written to the log, or a single element
+error_log(print_r($_SERVER, true));
+var_dump($_SESSION['cart_count']);
 ```
 
 ## Remediation

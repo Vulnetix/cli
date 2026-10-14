@@ -1,11 +1,12 @@
 package vulnetix.rules.vnx_sec_040
 
 import rego.v1
+import data.vulnetix.lib.secrets
 
 metadata := {
 	"id": "VNX-SEC-040",
 	"name": "GitLab pipeline trigger / deploy / runner token",
-	"description": "A GitLab pipeline trigger, deploy, runner registration, runner authentication, or Kubernetes agent token was found in source code. These tokens grant automated access to GitLab CI infrastructure.",
+	"description": "Reports a GitLab infrastructure token by its documented prefix and body shape: pipeline trigger (glptt- + 40 hex), deploy (gldt-), runner authentication (glrt-), runner registration (GR1348941), Kubernetes agent (glagent-), CI job (glcbt-), OAuth application secret (gloas-), incoming mail (glimt-), feature-flag client (glffct-), feed (glft-) and SCIM (glsoat-) tokens. A prefix without a token body of the right length, placeholders and test or fixture paths are not reported; glpat- access tokens are VNX-SEC-039.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-040/",
 	"languages": [],
 	"severity": "critical",
@@ -19,39 +20,48 @@ metadata := {
 	"tags": ["secrets", "gitlab", "ci", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-
-_gl_tokens := [
-	# GitLab pipeline trigger, deploy, runner, agent, CI, OAuth, mail, FF, feed, SCIM, runner registration
-	"glptt-",
-	"gldt-",
-	"glrt-",
-	"glagent-",
-	"glcbt-",
-	"gloas-",
-	"glimt-",
-	"glffct-",
-	"glft-",
-	"glsoat-",
-	"GR1348941"
+_tokens := [
+	["pipeline trigger", "glptt-", `\b(glptt-[0-9a-f]{40})\b`],
+	["deploy", "gldt-", `\b(gldt-[0-9A-Za-z_-]{20,})`],
+	["runner authentication", "glrt-", `\b(glrt-[0-9A-Za-z_-]{20,})`],
+	["runner registration", "GR1348941", `\b(GR1348941[0-9A-Za-z_-]{20,})`],
+	["Kubernetes agent", "glagent-", `\b(glagent-[0-9A-Za-z_-]{50,})`],
+	["CI job", "glcbt-", `\b(glcbt-[0-9A-Za-z]{1,5}_[0-9A-Za-z_-]{20,})`],
+	["OAuth application secret", "gloas-", `\b(gloas-[0-9A-Za-z_-]{64})\b`],
+	["incoming mail", "glimt-", `\b(glimt-[0-9A-Za-z_-]{25})\b`],
+	["feature-flag client", "glffct-", `\b(glffct-[0-9A-Za-z_-]{20,})`],
+	["feed", "glft-", `\b(glft-[0-9A-Za-z_-]{20,})`],
+	["SCIM", "glsoat-", `\b(glsoat-[0-9A-Za-z_-]{20,})`],
 ]
 
+# A token body is random base64url; "glft-icon-container-wrapper" is a CSS class.
+_wordlike(tok) if regex.match(`^(?:gl[a-z]+-|GR1348941)[a-z_-]+$`, tok)
+
+_gate(content) if {
+	some t in _tokens
+	contains(content, t[1])
+}
+
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	_gate(content)
+	lines := split(content, "\n")
 	some i, line in lines
-	some prefix in _gl_tokens
-	contains(line, prefix)
+	some t in _tokens
+	contains(line, t[1])
+	m := regex.find_all_string_submatch_n(t[2], line, 1)
+	count(m) > 0
+	token := m[0][1]
+	not _wordlike(token)
+	not secrets.is_example_token(token)
 	finding := {
 		"rule_id": metadata.id,
-		"message": sprintf("GitLab infrastructure token (%s) found; revoke the token in GitLab admin/pipeline settings", [prefix]),
+		"message": sprintf("GitLab %s token found; revoke it in GitLab and load it from a masked CI/CD variable", [t[0]]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

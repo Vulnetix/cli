@@ -1,11 +1,12 @@
 package vulnetix.rules.vnx_sec_055
 
 import rego.v1
+import data.vulnetix.lib.secrets
 
 metadata := {
 	"id": "VNX-SEC-055",
 	"name": "New Relic API key",
-	"description": "A New Relic API key (NRJS-, NRII-, NRAK- prefix) was found in source code. New Relic keys grant access to application performance data, browser monitoring, and insert APIs.",
+	"description": "Reports a New Relic credential as a whole token in any file: a user API key (NRAK- and 27 characters), an insert key (NRII- and 27 to 32 characters), an ingest license key (36 characters ending in NRAL), or a browser key (NRJS- and 19 hex characters) held in configuration. User keys query and change account data through NerdGraph; insert and license keys write telemetry. Not reported: the browser key inside the NREUM loader snippet (licenseKey in loader_config is public by design), prefixes on their own, placeholder bodies, template or environment references, and test, fixture or vendored paths.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-055/",
 	"languages": [],
 	"severity": "critical",
@@ -19,57 +20,54 @@ metadata := {
 	"tags": ["secrets", "newrelic", "monitoring", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+_tokens := [
+	{
+		"marker": "NRAK-",
+		"re": `(?:^|[^A-Za-z0-9_-])NRAK-([A-Za-z0-9]{27})(?:[^A-Za-z0-9_-]|$)`,
+		"msg": "New Relic user API key found; delete it in New Relic (API keys) and load the replacement from a secret store",
+	},
+	{
+		"marker": "NRII-",
+		"re": `(?:^|[^A-Za-z0-9_-])NRII-([A-Za-z0-9_-]{27,32})(?:[^A-Za-z0-9_-]|$)`,
+		"msg": "New Relic insert key found; delete it in New Relic (API keys) and load the replacement from a secret store",
+	},
+	{
+		"marker": "NRAL",
+		"re": `(?:^|[^A-Za-z0-9_-])([A-Za-z0-9]{36})NRAL(?:[^A-Za-z0-9_-]|$)`,
+		"msg": "New Relic ingest license key found; rotate it in New Relic (API keys) and set it through NEW_RELIC_LICENSE_KEY from a secret store",
+	},
+	{
+		"marker": "NRJS-",
+		"re": `(?:^|[^A-Za-z0-9_-])NRJS-([a-f0-9]{19})(?:[^A-Za-z0-9_-]|$)`,
+		"msg": "New Relic browser key found outside the browser agent snippet; rotate it in New Relic (API keys) if it is used server-side",
+	},
+]
+
+# The browser agent loader embeds the NRJS key in every page on purpose.
+_public_loader(line) if regex.match(`NREUM|loader_config|licenseKey`, line)
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	some t in _tokens
+	contains(content, t.marker)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`NRJS-[a-f0-9]{19}`, line)
+	contains(line, t.marker)
+	m := regex.find_all_string_submatch_n(t.re, line, 1)
+	count(m) > 0
+	body := m[0][1]
+	not secrets.is_example_token(body)
+	not _loader_key(t.marker, line)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "New Relic browser API token found; revoke the token in the New Relic dashboard",
+		"message": t.msg,
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`NRII-[a-z0-9-]{32}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "New Relic insert key found; revoke the key in the New Relic dashboard",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
-
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`NRAK-[a-z0-9]{27}`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "New Relic user API key found; revoke the key in the New Relic dashboard",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
+_loader_key("NRJS-", line) if _public_loader(line)

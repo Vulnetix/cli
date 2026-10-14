@@ -1,13 +1,13 @@
 ---
 title: "VNX-JAVA-025 – Java Hardcoded Password or Credential"
-description: "Detects passwords, credentials, and database connection strings hardcoded as string literals in Java source code, which can be extracted from source or compiled binaries and are difficult to rotate."
+description: "Detects passwords written into Java production source as string literals: password-named fields and variables, DriverManager.getConnection, setPassword, Properties keys, credential constructors, KeyStore passwords and backdoor equals() checks. Placeholders, property keys, labels and test code are not reported."
 ---
 
 ## Overview
 
 Hardcoded credentials are among the most commonly exploited vulnerability patterns in enterprise Java applications. When a password, API key, or database connection string is written as a string literal in source code — `String password = "Sup3rS3cr3t!"` or `DriverManager.getConnection("jdbc:mysql://db/app", "admin", "admin123")` — it becomes permanently embedded in the version control history, compiled into the class file, and visible to anyone with access to the source repository or the JAR. This is CWE-259 (Use of Hard-coded Password).
 
-This rule flags two patterns: variable assignments where the left-hand side name matches `password`, `passwd`, or `pwd` and the right-hand side is a non-trivial string literal (excluding lines that use `getParameter`, `getenv`, `@Value`, or comments), and `DriverManager.getConnection()` calls with all three arguments as string literals. Both patterns indicate credentials that are not externalized and therefore cannot be rotated without a code change.
+This rule flags a string literal used as a password: a variable, field or constant whose name ends in `password`, `passwd`, `pwd` or `passphrase`; `DriverManager.getConnection()` with a literal user and password (also when the call is split over lines); `setPassword("...")` and builder `.password("...")`; `Properties.put`/`setProperty` of a `*password` key; `new PasswordAuthentication(...)` and `new UsernamePasswordCredentials(...)`; `KeyStore.load`/`getKey` with `"...".toCharArray()`; and a password compared with `equals()` against a literal. It does not report values from `System.getenv`, `@Value` or a request, empty strings, placeholders such as `${...}` or `********`, values that are an environment-variable name, a property key, a URL path or a label, names that only contain the word (`PASSWORD_FIELD`), comments, or test code.
 
 Hardcoded credentials are particularly dangerous in microservice architectures where dozens of services may share a single database credential. Rotating a hardcoded credential requires rebuilding and redeploying every service that contains it.
 
@@ -24,16 +24,24 @@ A 2023 GitGuardian report found hardcoded credentials in over 10 million public 
 ## What Gets Flagged
 
 ```java
-// FLAGGED: password assigned as a string literal
-private static final String password = "Sup3rS3cr3t!";
+// FLAGGED: password constant
+private static final String DEFAULT_PASSWORD = "Adm1nSecret!";
 
 // FLAGGED: database credentials hardcoded in getConnection
-Connection conn = DriverManager.getConnection(
-    "jdbc:mysql://db.internal/app", "dbadmin", "dbpassword123");
+return DriverManager.getConnection(
+        "jdbc:mysql://replica.internal:3306/app", "readonly", "r3adonly!");
 
-// FLAGGED: credential in constructor
-new BasicCredentialsProvider().setCredentials(
-    AuthScope.ANY, new UsernamePasswordCredentials("user", "hardcoded_pass"));
+// FLAGGED: data source, credential constructor and keystore
+ds.setPassword("pg-pass-991");
+return new UsernamePasswordCredentials("api", "apiP@ss1");
+ks.load(in, "k3ystore-pass".toCharArray());
+
+// FLAGGED: backdoor comparison
+return "letmein-42".equals(password);
+
+// NOT FLAGGED: names, labels and placeholders
+private static final String PASSWORD_FIELD = "password";
+private String placeholderPassword = "${ADMIN_PASSWORD}";
 ```
 
 ## Remediation

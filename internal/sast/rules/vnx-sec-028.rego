@@ -1,11 +1,13 @@
 package vulnetix.rules.vnx_sec_028
 
 import rego.v1
+import data.vulnetix.helpers
+import data.vulnetix.lib.secrets
 
 metadata := {
 	"id": "VNX-SEC-028",
 	"name": "npm access token hardcoded",
-	"description": "An npm access token (npm_ prefix) appears hardcoded in source code. This token can be used to publish packages, access private registries, and modify organization settings depending on its scope. Revoke the token at npmjs.com/settings and use environment variables or CI secrets instead.",
+	"description": "Reports an npm access token: npm_ followed by exactly 36 letters or digits, delimited on both sides, in any file (.npmrc, .yarnrc.yml, workflows, Dockerfiles, scripts), and a legacy UUID token written literally as _authToken or npmAuthToken in .npmrc or .yarnrc.yml. ${NPM_TOKEN}-style references, npm_config_*/npm_package_* environment names and other identifiers, placeholders and low-entropy values, and test and fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-028/",
 	"languages": ["generic"],
 	"severity": "high",
@@ -19,24 +21,58 @@ metadata := {
 	"tags": ["secret", "npm", "registry", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
+_token_re := `(?:^|[^A-Za-z0-9_])(npm_[A-Za-z0-9]{36})(?:[^A-Za-z0-9_]|$)`
+
+_legacy_re := `(?i)(?:_authToken|npmAuthToken)\s*[=:]\s*["']?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:["'\s]|$)`
+
+_identifier(body) if regex.match(`^(?:[A-Z]?[a-z]+)+$`, body)
+
+_npm_config(path) if endswith(path, ".npmrc")
+
+_npm_config(path) if endswith(path, ".yarnrc.yml")
+
+_candidate(path, content) if contains(content, "npm_")
+
+_candidate(path, content) if {
+	_npm_config(path)
+	regex.match(`(?i)(_authToken|npmAuthToken)`, content)
+}
+
+_hit(path, line) if {
+	contains(line, "npm_")
+	m := regex.find_all_string_submatch_n(_token_re, line, -1)
+	some hit in m
+	token := hit[1]
+	body := substring(token, 4, -1)
+	not _identifier(body)
+	not secrets.is_example_token(token)
+	secrets.high_entropy(body, 4.0)
+}
+
+_hit(path, line) if {
+	_npm_config(path)
+	m := regex.find_all_string_submatch_n(_legacy_re, line, 1)
+	count(m) > 0
+	token := m[0][1]
+	not secrets.is_example_token(token)
+	secrets.high_entropy(token, 3.0)
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
+	_candidate(path, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`npm_[0-9A-Za-z]{36}`, line)
+	_hit(path, line)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "npm access token detected — revoke at npmjs.com/settings and store in CI secrets or environment variables instead",
+		"message": "npm access token detected; revoke at npmjs.com/settings and store in CI secrets or environment variables instead",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

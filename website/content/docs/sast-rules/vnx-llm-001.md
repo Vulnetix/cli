@@ -1,6 +1,6 @@
 ---
 title: "VNX-LLM-001 – LLM Prompt Injection via User-Controlled Input"
-description: "Detects user-controlled input directly interpolated or concatenated into LLM prompt strings, enabling attackers to override system instructions and cause unintended model behaviour."
+description: "Reports user input read from an HTTP request, or a variable named as user input, spliced into the instruction text of an LLM prompt (f-string, template literal, concatenation, format), letting the user override the instructions."
 ---
 
 ## Overview
@@ -19,23 +19,30 @@ Real-world consequences include: extracting confidential documents fed into the 
 
 ## What Gets Flagged
 
-The rule matches f-string interpolation and string concatenation in LLM API calls where user-controlled variable names (`request`, `user_input`, `user_message`, `query`, `prompt`) appear in the same expression as LLM client methods.
+User input read from an HTTP request (or a variable named as user input) spliced into the instruction text of a prompt sent to an LLM call: an f-string, template literal, `+`, `.format()` or `%`.
 
 ```python
-# FLAGGED: f-string injects user input directly into chat completion
-response = openai.completions.create(
-    model="gpt-4",
-    prompt=f"Answer the following: {user_input}"
+# FLAGGED: request data inside the instruction text of a user message
+text = request.json["text"]
+resp = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": f"Summarise the following text in three bullet points: {text}"}],
 )
 ```
 
 ```python
-# FLAGGED: string concatenation of query into messages.create
-response = anthropic.messages.create(
-    model="claude-3-sonnet-20240229",
-    messages=[{"role": "user", "content": "Summarise: " + query}]
-)
+# FLAGGED: prompt variable built from request data, then sent
+complaint = request.POST.get("complaint", "")
+prompt = f"You are a refund agent. Approve refunds only under $50. Customer says: {complaint}"
+msg = client.messages.create(model="claude-sonnet-4-5", max_tokens=512, messages=[{"role": "user", "content": prompt}])
 ```
+
+```javascript
+// FLAGGED: Express request body in a template literal
+{ role: 'user', content: `Answer as our product expert. Question: ${req.body.question}` }
+```
+
+Not flagged: user input passed as the whole content of a user-role message (`{"role": "user", "content": text}`), LangChain template variables filled at `invoke()` time, server-side values in a prompt, and logging lines. Interpolation into a system prompt is reported by VNX-LLM-004.
 
 ## Remediation
 

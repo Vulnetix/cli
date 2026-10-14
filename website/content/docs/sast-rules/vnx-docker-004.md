@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-004 – Dockerfile ADD with Remote URL"
-description: "Detects Dockerfile ADD instructions that download content from HTTP or HTTPS URLs, bypassing integrity verification and creating a supply chain attack vector."
+description: "Reports a Dockerfile ADD that downloads an http(s) URL or a git repository with no --checksum, in every ADD form; git sources pinned to a full commit are not reported."
 ---
 
 ## Overview
@@ -23,15 +23,20 @@ The Docker documentation itself discourages using `ADD` with URLs, explicitly re
 
 ## What Gets Flagged
 
-The rule matches any `ADD` instruction where the source argument begins with `http://` or `https://`:
+The rule reports `ADD` instructions whose source is remote (`http://`, `https://`, `git://`, `ssh://` or `git@host:`) and that carry no `--checksum=`. Flags before the source, lowercase instructions, the JSON form, a source on a continuation line and `ONBUILD ADD` are all handled.
 
 ```dockerfile
-# FLAGGED: ADD fetching binary from remote URL — no integrity check
-ADD https://example.com/myapp-v1.2.tar.gz /opt/myapp/
-
-# FLAGGED: ADD fetching installer script — trivially tamperable
-ADD https://get.example.com/install.sh /tmp/install.sh
+# FLAGGED
+ADD https://github.com/example/tool/releases/download/v1.4.0/tool-linux-amd64 /usr/local/bin/tool
+ADD --chmod=755 http://downloads.example.com/agent/install.sh /opt/agent/install.sh
+ADD ["https://example.com/config/app.yaml", "/etc/app/app.yaml"]
+ADD https://github.com/example/plugins.git#main /src/plugins
+ADD --link \
+    https://storage.example.com/models/classifier-v3.onnx \
+    /models/classifier.onnx
 ```
+
+Not reported: `ADD --checksum=sha256:...`, a git source pinned to a 40-character commit, local sources (VNX-DOCKER-006), a source held in a variable, `RUN curl`/`wget` downloads, `ADD` text in comments, labels, strings and heredocs, test and `.devcontainer` images.
 
 ## Remediation
 

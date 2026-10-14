@@ -1,11 +1,11 @@
 ---
 title: "VNX-PY-005 – Weak PRNG for Security Operations"
-description: "Detect use of the random module in security-sensitive contexts (passwords, tokens, nonces, salts, sessions), where a cryptographically secure PRNG from the secrets module is required."
+description: "Detect values from Python's random module assigned to, passed as or returned from security-named values (passwords, tokens, nonces, salts, OTPs, session ids), where the secrets module is required."
 ---
 
 ## Overview
 
-This rule flags calls to functions from Python's `random` module (`random.randint`, `random.choice`, `random.random`, `random.uniform`, `random.randrange`) in source files that also contain security-sensitive keywords such as `password`, `token`, `secret`, `nonce`, `salt`, `otp`, or `session`. The `random` module uses the Mersenne Twister algorithm (MT19937), which is a high-quality statistical PRNG but is explicitly documented as not suitable for security purposes. An attacker who observes enough outputs from a Mersenne Twister can reconstruct its internal 624-integer state and predict all future outputs. This maps to [CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator](https://cwe.mitre.org/data/definitions/338.html).
+This rule flags calls to functions from Python's `random` module (`random.randint`, `random.choice`, `random.random`, `random.uniform`, `random.randrange`) when the value they produce is stored in, passed as, or returned from something named as a secret (`password`, `token`, `secret`, `nonce`, `salt`, `otp`, `session_id` and similar). The `random` module uses the Mersenne Twister algorithm (MT19937), which is a high-quality statistical PRNG but is explicitly documented as not suitable for security purposes. An attacker who observes enough outputs from a Mersenne Twister can reconstruct its internal 624-integer state and predict all future outputs. This maps to [CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator](https://cwe.mitre.org/data/definitions/338.html).
 
 **Severity:** Medium | **CWE:** [CWE-338 – Use of Cryptographically Weak Pseudo-Random Number Generator](https://cwe.mitre.org/data/definitions/338.html)
 
@@ -17,7 +17,9 @@ For a concrete example: if a password reset token is generated with `''.join(ran
 
 ## What Gets Flagged
 
-The rule fires when a `.py` file contains both a `random` module call and a security-relevant keyword, indicating that the weak PRNG is likely being used to generate a security-sensitive value.
+The rule fires on a `random` module call (through the module, an `import random as r` alias or a name imported with `from random import randint`) whose result is assigned to, passed as a keyword to, or stored under a dict key with a security name (password, token, secret, nonce, salt, otp, session id, api key, csrf, reset/verification code, pin), or that is returned or assigned inside a function with such a name.
+
+Not flagged: `secrets`, `random.SystemRandom()`, numpy's random module, random values with no security name (sampling, colours, shuffling), jitter such as `time.sleep(random.uniform(0, 1))` inside a token function, test files, and mentions in comments or strings.
 
 ```python
 # FLAGGED: weak token generation

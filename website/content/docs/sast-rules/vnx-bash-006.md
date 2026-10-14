@@ -1,11 +1,11 @@
 ---
 title: "VNX-BASH-006 – Global IFS Reassignment in Shell Script"
-description: "Detects global reassignment of the IFS (Internal Field Separator) variable in Bash scripts, which alters word-splitting behaviour for all subsequent commands and can cause security-sensitive parsing to behave unexpectedly."
+description: "Reports an IFS change that escapes the code that needed it: a function that sets IFS without local IFS or a restore, a script-level IFS change never restored, export IFS, and IFS taken from a positional parameter or OPTARG."
 ---
 
 ## Overview
 
-This rule flags lines in Bash, shell, and BATS test files (`.sh`, `.bash`, `.bats`) where the `IFS` variable is assigned at script scope — for example `IFS=","` or `IFS=$'\n'` — without the `local` keyword restricting the change to a function. Lines that are commented out and assignments that already use `local IFS` are excluded from flagging.
+This rule reports an `IFS` change that escapes the code that needed it, in Bash scripts (`.sh`, `.bash` and extensionless files with a sh/bash/dash/ksh shebang): `IFS` assigned as a statement (`IFS=,` or `IFS=':'; read ...`) inside a function that never declares `local IFS` and never restores it before the function ends; `IFS` assigned at script level and not restored in the next 300 lines (no `IFS=$saved`, `IFS=$' \t\n'` or `unset IFS`); `export IFS`, which hands the separator to every child process; and `IFS` taken from a positional parameter or `OPTARG`. Not reported: a command-prefix assignment (`while IFS= read -r line`, `IFS=, read -r a b`), `IFS` set inside a subshell or command substitution, `local IFS`, an assignment that is later restored, the restore line itself, the strict-mode `IFS=$'\n\t'`, variables merely named like `IFS`, comments, strings, test paths and `.bats` files.
 
 `IFS` controls the characters the shell uses to split unquoted variable expansions and the output of command substitutions into separate words. When `IFS` is changed globally, every subsequent expansion in the script is affected, even in parts of the code that have no awareness of the change. This creates a non-local, order-dependent side effect that is difficult to reason about and easy to misuse.
 
@@ -24,18 +24,26 @@ A particularly dangerous pattern is a script that processes a list with a custom
 ## What Gets Flagged
 
 ```bash
-# FLAGGED: global IFS reassignment at script scope
-IFS=","
-for field in $csv_line; do
-    process "$field"
-done
+split_fields() {
+  IFS=,                 # FLAGGED: never restored, the caller's splitting changes
+  set -- $1
+}
 
-# FLAGGED: IFS changed globally, rest of script affected
-IFS=$'\n'
-paths=$(find /tmp -name "*.log")
-for p in $paths; do
-    rm "$p"
-done
+IFS=$'\n'               # FLAGGED: script-level change, never restored
+for f in $(find /var/log/app -name '*.log'); do gzip "$f"; done
+
+export IFS=';'          # FLAGGED: every child process inherits it
+IFS="$1"                # FLAGGED: the caller chooses the separator
+```
+
+Not flagged:
+
+```bash
+join_by() { local IFS="$1"; shift; echo "$*"; }
+while IFS= read -r line; do echo "$line"; done < input.txt
+joined=$(IFS=,; echo "${items[*]}")
+OLDIFS="$IFS"; IFS=,; read -ra fields <<< "$CSV_LINE"; IFS="$OLDIFS"
+set -euo pipefail; IFS=$'\n\t'
 ```
 
 ## Remediation

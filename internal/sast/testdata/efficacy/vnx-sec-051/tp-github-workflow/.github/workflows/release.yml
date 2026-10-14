@@ -1,0 +1,9 @@
+name: release
+on: push
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+~>      GEM_HOST_API_KEY: "rubygems_@@sample:[a-f0-9]{48}@@"
+    steps:
+      - run: gem push pkg/*.gem

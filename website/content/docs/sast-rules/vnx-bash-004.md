@@ -1,11 +1,11 @@
 ---
 title: "VNX-BASH-004 – Unquoted Variable Used in Command or Test"
-description: "Detects shell variables used inside single-bracket [ ] test expressions without double-quotes, making them vulnerable to word splitting, glob expansion, and argument injection."
+description: "Reports an unquoted expansion of a value the script's caller controls (a script-level positional parameter, or a variable assigned from one, from read or from OPTARG) used as a command argument or a [ ] / test operand, where word splitting and globbing turn it into extra arguments."
 ---
 
 ## Overview
 
-This rule flags lines in Bash or shell scripts (`.sh`, `.bash`) where a variable reference `$VAR` appears inside a single-bracket `[ ]` test expression without surrounding double-quotes. The rule specifically targets the older POSIX `[ ]` test construct rather than the Bash-extended `[[ ]]`, which handles word splitting internally. Lines that are commented out or that use `[[ ]]` are excluded.
+This rule flags an unquoted expansion of a value the caller of the script controls, in shell scripts (`.sh`, `.bash`, `.ksh` and extensionless files with a sh/bash/dash/ksh shebang). The value is a script-level positional parameter (`$1`, `${2}`, `${1:-x}`, `$@`, `$*`) or a variable assigned from one, from `read`, from `OPTARG` or by `for x in "$@"` within the 80 lines above. It is reported where the shell splits and globs it: as an argument of a command, or as an operand of `[ ]` or `test`. Not reported: double-quoted expansions (including multi-line strings and quoted awk programs), `[[ ]]`, arithmetic, assignments, `case` words, special parameters (`$#`, `$?`, `$$`, `$!`), a function's own positional parameters, variables the script sets itself, `echo`/`printf`/`exit`/`return`/`shift` lines, here-document bodies, test paths and `.bats` files, and zsh scripts (zsh does not split unquoted parameters).
 
 When a variable is unquoted inside `[ ]`, the shell performs word splitting on its value before passing it to the test command. A variable containing a space becomes two separate tokens, causing the test to receive the wrong number of arguments and behave unexpectedly or throw a syntax error. A value containing glob characters such as `*` or `?` triggers filename expansion, potentially matching unintended files from the working directory.
 
@@ -24,18 +24,26 @@ ATT&CK technique T1059.004 covers Unix shell abuse, and CAPEC-88 describes argum
 ## What Gets Flagged
 
 ```bash
-# FLAGGED: $username unquoted inside [ ] test
-if [ $username = "admin" ]; then
-    grant_access
-fi
+target_dir=$1
+rm -rf $target_dir              # FLAGGED: "a b" deletes ./a and ./b
+cp $2 /var/backups/             # FLAGGED: positional parameter used unquoted
+for f in "$@"; do mv $f /srv/archive/; done   # FLAGGED
 
-# FLAGGED: $file_path unquoted, glob expansion risk
-if [ -f $file_path ]; then
-    process_file
-fi
+read -r -p "Log directory: " logdir
+find $logdir -name "*.log" -delete   # FLAGGED: read input split into arguments
 
-# FLAGGED: unquoted $status in equality check
-[ $status == "ok" ] && deploy
+name=$1
+if [ -n $name ]; then ...         # FLAGGED: always true when $name is empty
+```
+
+Not flagged:
+
+```bash
+rm -rf "$target_dir"
+if [[ -n $target && $target == release ]]; then ...
+case $target in release) ;; esac
+RSYNC_OPTS="-a --delete"; rsync $RSYNC_OPTS src dst   # set by the script itself
+copy() { cp $1 /opt/; }            # a function's own argument
 ```
 
 ## Remediation

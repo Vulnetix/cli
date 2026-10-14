@@ -1,11 +1,12 @@
 package vulnetix.rules.vnx_java_021
 
 import rego.v1
+import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-JAVA-021",
 	"name": "Java sensitive data logged (password, token, secret, key)",
-	"description": "A call to a logger method (log.debug, log.info, log.warn, log.error, Logger.log) includes a variable or string that contains a password, token, secret, or key. Logging sensitive data exposes it in log files, monitoring systems, and SIEM tools.",
+	"description": "A logging call passes the value of a password, token, secret, API key, private key or credential as an argument, writing it to log files and whatever ships them. Reported: SLF4J/Log4j/Logback/commons-logging (log, logger, LOG, LOGGER, *Log, *Logger receivers: trace/debug/info/warn/error/fatal), java.util.logging (severe/warning/info/fine/finer/finest/config/log) and android.util.Log (v/d/i/w/e/wtf) calls whose arguments, outside string literals and across continuation lines, name such a variable, field or getter (password, pwd, passphrase, secret, clientSecret, token, accessToken, apiKey, privateKey, credentials, getPassword()). Not reported: the words only in the message text (\"Password reset requested for {}\"), metadata about the value (token.length(), password != null, tokenExpiry, tokenType, passwordPolicy, secretDirectory, nextPageToken), values passed through mask/redact/hash/digest helpers, non-logger receivers such as catalog.info(), and comments or string literals. Values logged through an intermediate variable with an unrelated name are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-021/",
 	"languages": ["java"],
 	"severity": "medium",
@@ -19,18 +20,65 @@ metadata := {
 	"tags": ["logging", "secrets", "cwe-532", "java"],
 }
 
-_is_java(path) if endswith(path, ".java")
+_logger_call := `(?:\b(?:log|logger|_log|_logger|LOG|LOGGER|Log)|\b[a-z]\w*(?:Log|Logger)|\b[A-Z_]+_(?:LOG|LOGGER))\s*\.\s*(?:trace|debug|info|warn|warning|error|fatal|severe|fine|finer|finest|config|log|v|d|i|w|e|wtf)\s*\((.*)$`
+
+_sensitive := `(?i)(passw(or)?d|passwd|^pwd$|pwd$|passphrase|secret|token|api_?key|auth_?key|access_?key|private_?key|signing_?key|credential)`
+
+# Identifiers that name something about the value, not the value.
+_benign := `(?i)((length|len|count|size|type|types|expir\w*|expires\w*|ttl|policy|url|uri|endpoint|name|id|ids|enabled|valid|validity|required|strength|hint|field|header|param|params|dir|directory|path|file|filename|label|prompt|regex|pattern|format|mode|provider|service|manager|store|repository|repo|utils?|helper|factory|config|properties|holder|class|exception|error|status|version|index|limit|timeout|age|generator|validator|encoder|hash|hashed|digest|fingerprint|present|set|exists)$|^(page|next|continuation|cancel\w*|sync|resume|lexer|is|has|on)[A-Z_]?\w*$|^(is|has)\w+)`
+
+_masked := `(?i)(mask|redact|obfuscat|sanitiz|hash|digest|fingerprint|truncat|\bsha\d*|\bmd5|bcrypt|argon|scrypt|hmac|\*{3})`
+
+_strip_strings(l) := regex.replace(l, `"(?:[^"\\]|\\.)*"`, `""`)
+
+# Metadata reads: token.length(), password != null, creds.isEmpty().
+_strip_metadata(s) := regex.replace(
+	regex.replace(s, `[\w.]+\s*\.\s*(length|size|isEmpty|isBlank|isPresent|hashCode|getClass|getType|getExpiration\w*|getExpires\w*)\s*\(\s*\)`, "0"),
+	`[\w.]+\s*[!=]=\s*null|null\s*[!=]=\s*[\w.]+`, "0",
+)
+
+_stmt(lines, i) := s if {
+	end := min([count(lines) - 1, i + 5])
+	ends := [k | some k in numbers.range(i, end); contains(lines[k], ";")]
+	last := _first_or(ends, end)
+	s := concat(" ", [regex.replace(lines[k], `//[^"]*$`, "") | some k in numbers.range(i, last); not _comment_cont(lines, i, k)])
+}
+
+_comment_cont(lines, i, k) if {
+	k > i
+	helpers.is_comment_line(lines[k])
+}
+
+_first_or(arr, _) := arr[0] if count(arr) > 0
+
+_first_or(arr, d) := d if count(arr) == 0
+
+_sensitive_ident(args) if {
+	some m in regex.find_all_string_submatch_n(`[A-Za-z_]\w*`, args, -1)
+	id := m[0]
+	regex.match(_sensitive, id)
+	not regex.match(_benign, id)
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_java(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	endswith(path, ".java")
+	regex.match(`(?i)passw|pwd|secret|token|api_?key|auth_?key|access_?key|private_?key|signing_?key|credential|passphrase`, content)
+	regex.match(`(?i)log`, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`\b(log|logger|LOG|LOGGER)\s*\.\s*(debug|info|warn|error|trace|fatal)\s*\(`, line)
-	regex.match(`(?i)(password|passwd|secret|token|apikey|api_key|authkey|auth_key|credential|private_?key)`, line)
+	contains(lower(line), "log")
+	not helpers.is_comment_line(line)
+	code := _strip_strings(line)
+	regex.match(_logger_call, code)
+	stmt := _strip_strings(_stmt(lines, i))
+	some m in regex.find_all_string_submatch_n(_logger_call, stmt, 1)
+	args := m[1]
+	not regex.match(_masked, args)
+	_sensitive_ident(_strip_metadata(args))
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Logger call includes a password, token, or secret; never log sensitive credentials — redact or omit them before logging",
+		"message": "Logger call writes a password, token, secret or key value to the log; log that the value was present or a masked form, never the value itself",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

@@ -1,11 +1,11 @@
 ---
-title: "VNX-BASH-002 – curl or wget Output Piped Directly to Shell Interpreter"
-description: "Detects shell scripts that pipe the output of curl or wget directly to bash, sh, zsh, ksh, or dash, executing remote code without any integrity verification and creating a supply-chain attack surface."
+title: "VNX-BASH-002 – Downloaded Script Executed Without an Integrity Check"
+description: "Reports a shell script that runs code it has just downloaded with curl or wget without verifying it: piped into an interpreter, passed to one as a command or process substitution, or saved and run with no checksum or signature check in between."
 ---
 
 ## Overview
 
-This rule matches lines in Bash and shell scripts where `curl` or `wget` is followed by a pipe (`|`) leading to a shell interpreter (`bash`, `sh`, `zsh`, `ksh`, or `dash`). Both variants are covered: `curl <url> | bash` and `wget -O - <url> | bash`. Lines that are commented out are excluded.
+This rule reports a shell script that runs code it has just downloaded with `curl` or `wget` without verifying it: the download piped into an interpreter (`| bash`, `| sudo -E bash -s --`, `| VAR=x sh -`, `| /bin/sh`, `| python3 -`, `| perl`, `| ruby`, `| node`, `| php`), including a pipeline continued over several lines; passed to one as a command or process substitution (`bash -c "$(curl ...)"`, `bash <(curl ...)`, `source <(wget -qO- ...)`); or saved to a file that the next lines run with no `sha256sum`/`shasum`/`gpg`/`cosign`/`minisign`/`openssl dgst` check in between. Not reported: a download piped to a non-interpreter (`tar`, `jq`, `gpg --dearmor`, `sha256sum`, `tee`), a verified download, a binary or archive that is downloaded but not run here, local files piped to a shell, and the command inside a string, `echo`, comment or usage here-document. Dockerfile `RUN` lines and CI workflow files are not covered by this rule.
 
 This pattern downloads content from a remote URL and immediately executes it in the current shell session. There is no opportunity to inspect the script, verify its cryptographic signature, or check its hash against a known-good value. Any compromise of the remote server, CDN, DNS record, or network path (MITM) results in arbitrary command execution on the host running the script. This vulnerability maps to CWE-494 (Download of Code Without Integrity Check) and CWE-829 (Inclusion of Functionality from Untrusted Control Sphere).
 
@@ -22,14 +22,19 @@ CAPEC-310 (Scanning for Vulnerable Software) and T1059.004 (Unix Shell) are rele
 ## What Gets Flagged
 
 ```bash
-# FLAGGED: curl piped to bash — executes remote code immediately
-curl -sSL https://get.example.com/install.sh | bash
+curl -fsSL https://get.example.com/install.sh | bash                    # FLAGGED
+curl -sSL https://sh.example.dev | sudo -E bash -s -- --channel stable  # FLAGGED
+wget -qO- https://install.example.net/agent.sh | /bin/bash              # FLAGGED
+bash <(curl -fsSL https://get.example.com/install.sh)                   # FLAGGED
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/example/setup/main/install.sh)"  # FLAGGED
+```
 
-# FLAGGED: wget variant piped to sh
-wget -qO- https://install.example.com/setup.sh | sh
+Not flagged:
 
-# FLAGGED: curl piped to zsh
-curl https://raw.githubusercontent.com/example/tool/main/install.sh | zsh
+```bash
+curl -fsSL https://example.com/tool.tar.gz | tar -xz
+curl -fsSLo install.sh https://example.com/install.sh
+echo "${EXPECTED_SHA256}  install.sh" | sha256sum -c - && bash install.sh
 ```
 
 ## Remediation

@@ -1,0 +1,4 @@
+[[runners]]
+  name = "build-01"
+  url = "https://gitlab.acme.io"
+~>  token = "glrt-@@sample:[A-Za-z0-9_-]{24}@@"

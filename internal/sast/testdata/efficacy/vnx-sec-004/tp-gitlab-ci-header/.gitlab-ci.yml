@@ -1,0 +1,3 @@
+release:
+  script:
+~>    - 'curl --header "PRIVATE-TOKEN: @@sample:glpat-[A-Za-z0-9_-]{20}@@" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases"'

@@ -1,0 +1,4 @@
+mail:
+  provider: sendgrid
+~>  apiKey: "@@sample:SG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43}@@"
+  from: no-reply@shop.invalid

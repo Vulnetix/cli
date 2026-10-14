@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-030 – Google OAuth Client Secret Hardcoded"
-description: "Detect Google OAuth 2.0 client secrets (GOCSPX- prefix) hardcoded in source code, which enable application impersonation and OAuth token theft when combined with the corresponding client ID."
+description: "Detect Google OAuth client secrets (GOCSPX- followed by 28 characters, or a legacy 24-character client_secret beside a *.apps.googleusercontent.com client id) hardcoded in any file."
 ---
 
 ## Overview
@@ -23,17 +23,17 @@ Even without user-facing attacks, a leaked client secret enables an attacker to 
 
 ## What Gets Flagged
 
-The rule matches any file (excluding lock files, checksums, and minified assets) containing a string that begins with `GOCSPX-` followed by 28 characters.
+The rule reports `GOCSPX-` followed by exactly 28 base64url characters, delimited on both sides, and a legacy 24-character `client_secret` value in a file that also holds a Google client id:
 
-```json
-// FLAGGED: client secret in a credentials.json file committed to git
-{
-  "web": {
-    "client_id": "123456789-abcdefgh.apps.googleusercontent.com",
-    "client_secret": "GOCSPX-aBcDeFgHiJkLmNoPqRsTuVwXyZ0"
-  }
-}
+```text
+# FLAGGED
+"client_secret": "GOCSPX-<28 characters>"             (client_secret.json)
+GOOGLE_CLIENT_SECRET=GOCSPX-<28 characters>
+clientSecret: 'GOCSPX-<28 characters>',              (passport GoogleStrategy)
+"client_secret": "<24 characters>"                    (legacy, with "...apps.googleusercontent.com" in the file)
 ```
+
+Not flagged: `GOCSPX-xxxx...` placeholders, `process.env.GOOGLE_CLIENT_SECRET`, the bare `GOCSPX-` prefix, client secrets of other OAuth providers, and test or fixture paths.
 
 ## Remediation
 

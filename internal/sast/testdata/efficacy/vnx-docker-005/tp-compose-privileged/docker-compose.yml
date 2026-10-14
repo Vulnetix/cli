@@ -1,0 +1,14 @@
+services:
+  dind:
+    image: docker:27.1-dind
+~>    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+  monitor:
+    image: ghcr.io/example/node-monitor:1.2.0
+~>    privileged: True   # needs raw access to /dev
+    pid: host
+  app:
+    image: ghcr.io/example/app:1.2.0
+    ports:
+      - "8080:8080"

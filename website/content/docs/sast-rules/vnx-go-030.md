@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-030 – Missing Secure flag on cookie"
-description: "Detects http.Cookie creation without the Secure attribute set to true, which allows session cookies to be transmitted over unencrypted HTTP connections."
+description: "Detects a cookie sent to the browser without Secure: an http.Cookie, fiber.Cookie or gorilla sessions.Options literal with Secure absent or false, gin SetCookie with secure=false, csrf.Secure(false), or a gorilla cookie store whose Options are never set."
 ---
 
 ## Overview
@@ -19,26 +19,27 @@ Passive interception on open Wi-Fi networks, HTTP downgrade attacks such as SSLs
 
 ## What Gets Flagged
 
-The rule flags `http.Cookie` struct literals where the `Secure` field is absent or explicitly set to `false`:
+A cookie the server sends without the `Secure` attribute.
 
 ```go
-// FLAGGED: Secure field not set (defaults to false)
-cookie := &http.Cookie{
-    Name:     "session_id",
-    Value:    sessionToken,
+// FLAGGED: Secure field not set
+cookie := http.Cookie{
+    Name:     name,
+    Value:    value,
     HttpOnly: true,
-    Path:     "/",
 }
-http.SetCookie(w, cookie)
+http.SetCookie(w, &cookie)
 
-// FLAGGED: Secure explicitly disabled
-http.SetCookie(w, &http.Cookie{
-    Name:     "auth_token",
-    Value:    token,
-    Secure:   false,
-    HttpOnly: true,
-})
+// FLAGGED: gin, sixth argument is secure
+c.SetCookie("session", token, 3600, "/", "", false, true)
+
+// FLAGGED: new(http.Cookie) sent without .Secure being set
+cookie := new(http.Cookie)
+cookie.Name = "token"
+c.SetCookie(cookie)
 ```
+
+Not flagged: `Secure` set to `true` or any expression (`r.TLS != nil`, a config value), deletion cookies (negative `MaxAge`, epoch `Expires`), cookies a client sends (`req.AddCookie`, a jar), test files.
 
 ## Remediation
 

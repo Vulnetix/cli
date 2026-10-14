@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-031 – Missing signature validation on JWT"
-description: "Detects JWT parsing that does not verify the token's cryptographic signature, allowing attackers to forge arbitrary claims."
+description: "Detects JWT claims used without signature verification in Go: alg none accepted via UnsafeAllowNoneSignatureType, jwx WithVerify(false), ParseUnverified/ParseInsecure/UnsafeClaimsWithoutVerification in request handlers with no later verification, and parse errors that are discarded without a token.Valid check."
 ---
 
 ## Overview
 
-This rule flags Go code that calls `jwt.Parse` or `jwt.Decode` without providing a key function that validates the signing method and returns the appropriate verification key. Without signature validation, an attacker can craft a JWT with any claims they choose — including elevated roles or different user identities — and the application will accept it as authentic. This maps to [CWE-347: Improper Verification of Cryptographic Signature](https://cwe.mitre.org/data/definitions/347.html).
+This rule flags Go code that uses a JWT's claims without verifying its signature: a key function that accepts `alg: none`, verification switched off, an unverified parse in a request handler that is never followed by verification, or a parse error that is discarded with no `token.Valid` check. Without signature validation, an attacker can craft a JWT with any claims they choose — including elevated roles or different user identities — and the application will accept it as authentic. This maps to [CWE-347: Improper Verification of Cryptographic Signature](https://cwe.mitre.org/data/definitions/347.html).
 
 The most well-known exploit of this class is the `alg: none` attack, where an attacker strips the signature and sets the algorithm field to `"none"`. Libraries that accept whatever algorithm the token header specifies will then skip signature verification entirely. Even libraries that reject `alg: none` by default may be misused when the key function is omitted or returns without error unconditionally.
 
@@ -19,27 +19,29 @@ This attack requires no special capability — only the ability to decode a JWT 
 
 ## What Gets Flagged
 
-The rule flags `jwt.Parse` or `jwt.Decode` calls without a key function that checks the signing method:
+Code that trusts a token's claims without verifying its signature.
 
 ```go
-// FLAGGED: Parse with no key function — signature never verified
-import "github.com/golang-jwt/jwt/v5"
+// FLAGGED: the key function accepts unsigned alg "none" tokens
+tok, err := jwt.Parse(raw, func(t *jwt.Token) (any, error) {
+    return jwt.UnsafeAllowNoneSignatureType, nil
+})
 
-func getUser(tokenString string) (*Claims, error) {
-    token, err := jwt.Parse(tokenString, nil)
-    if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-        return extractClaims(claims), nil
-    }
-    return nil, err
-}
+// FLAGGED: unverified parse in a request handler, never verified afterwards
+if _, _, err := jwt.NewParser().ParseUnverified(bearer, claims); err != nil {
 
-// FLAGGED: key function does not check signing method
-func parseToken(tokenStr string) (*jwt.Token, error) {
-    return jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-        return []byte("secret"), nil // algorithm not verified
-    })
-}
+// FLAGGED: the error is discarded and token.Valid never checked;
+// jwt.Parse returns the token even when the signature fails
+token, _ := jwt.Parse(bearer, keyFunc)
+claims := token.Claims.(jwt.MapClaims)
+
+// FLAGGED: go-jose and jwx
+tok.UnsafeClaimsWithoutVerification(&c)
+tok.Claims(providerKey, &c)               // error (the signature check) dropped
+jwt.Parse(payload, jwt.WithVerify(false))
 ```
+
+Not flagged: signing with `SigningMethodNone`, an unverified parse used to pick the key and followed by `jwt.ParseWithClaims` or `tok.Claims(key, ...)` in the same function, unverified parsing in tools that do not serve requests, a parse whose error or `token.Valid` is checked, and test files. A key function that skips the signing-method check is not reported on its own: golang-jwt v4+ rejects a key of the wrong type, so it is not a bypass.
 
 ## Remediation
 

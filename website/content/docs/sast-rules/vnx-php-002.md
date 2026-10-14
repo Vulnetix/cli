@@ -1,11 +1,11 @@
 ---
 title: "VNX-PHP-002 – Dangerous Function in PHP"
-description: "Detect calls to eval(), exec(), system(), passthru(), shell_exec(), popen(), and proc_open() which execute OS commands or arbitrary PHP code and can lead to remote code execution when arguments are user-controlled."
+description: "Detect a request value ($_GET, $_POST, $_COOKIE, php://input, Laravel request accessors) reaching exec(), system(), passthru(), shell_exec(), popen(), proc_open(), pcntl_exec(), the backtick operator or eval() without escapeshellarg() or validation."
 ---
 
 ## Overview
 
-This rule flags any `.php` file that calls one of PHP's command-execution or code-evaluation functions: `eval()`, `exec()`, `system()`, `passthru()`, `shell_exec()`, `popen()`, and `proc_open()`. When the argument to any of these functions includes attacker-controlled data, the result is remote code execution (RCE) on the server.
+This rule flags a request value (a superglobal, `php://input` or a framework request accessor) that reaches one of PHP's command-execution or code-evaluation functions: `eval()`, `exec()`, `system()`, `passthru()`, `shell_exec()`, `popen()`, `proc_open()`, `pcntl_exec()` or the backtick operator. When the argument to any of these functions includes attacker-controlled data, the result is remote code execution (RCE) on the server.
 
 **Severity:** High | **CWE:** [CWE-78 – Improper Neutralization of Special Elements used in an OS Command](https://cwe.mitre.org/data/definitions/78.html) | **CAPEC:** [CAPEC-88](https://capec.mitre.org/data/definitions/88.html) | **ATT&CK:** [T1059](https://attack.mitre.org/techniques/T1059/)
 
@@ -26,29 +26,26 @@ When an attacker controls the argument to one of these functions, they gain the 
 
 ## What Gets Flagged
 
-Any `.php` line that contains one of the dangerous function names followed by `(`.
+A command or code execution sink whose argument holds a request value, inline or through a variable assigned from one a few lines above (directly or via one intermediate variable).
 
 ```php
-// FLAGGED: unsanitized user input passed to system()
-$cmd = $_GET['tool'];
-system($cmd);
+// FLAGGED: two-line flow
+$host = $_POST["host"];
+$out = shell_exec("ping -c 3 " . $host);
 
-// FLAGGED: exec() with concatenated user input
-exec('ls -la ' . $_POST['dir'], $output);
+// FLAGGED: inline superglobals
+system($_GET["cmd"]);
+exec("ls -la " . $_REQUEST["dir"], $lines, $rc);
 
-// FLAGGED: eval() on user-supplied data
-eval($_POST['code']);
+// FLAGGED: Laravel request accessor
+shell_exec("tar czf /tmp/out.tgz " . $request->query("path"));
 
-// FLAGGED: shell_exec() with interpolated variable
-$file = $_REQUEST['filename'];
-$result = shell_exec("cat $file");
-
-// FLAGGED: passthru() with user value
-passthru('/usr/bin/convert ' . $_GET['src'] . ' output.png');
-
-// FLAGGED: proc_open with user-controlled command
-proc_open($_POST['cmd'], $descriptors, $pipes);
+// FLAGGED: eval and the backtick operator
+eval("\$result = " . $_GET["expr"] . ";");
+$listing = `ls -l $file`;   // $file = $_GET["file"]
 ```
+
+Not flagged: arguments passed through `escapeshellarg()`, `escapeshellcmd()`, `intval()` or an `(int)` cast; a variable checked with `in_array()`, `preg_match()`, `filter_var()` or `is_numeric()` first; constant commands; function parameters and other values whose origin is not visible in the file; `$pdo->exec()` and other methods named `exec`/`system`; the names in comments and strings.
 
 ## Remediation
 

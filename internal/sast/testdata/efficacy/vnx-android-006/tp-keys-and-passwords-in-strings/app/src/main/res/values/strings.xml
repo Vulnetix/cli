@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Courier</string>
+    <string name="hint_password">Password</string>
+~>    <string name="backend_api_key" translatable="false">@@sample:[A-Za-z0-9]{32}@@</string>
+~>    <string name="stripe_secret_key" translatable="false">@@sample:sk_live_[A-Za-z0-9]{24}@@</string>
+~>    <string name="db_password">Tr0ub4dor-Horse-2024</string>
+~>    <string name="oauthClientSecret">@@sample:[A-Za-z0-9_\-]{40}@@</string>
+~>    <string name = "mapsApiKey">@@sample:AIza[0-9A-Za-z_\-]{35}@@</string>
+</resources>

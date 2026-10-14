@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-048 – OpenAI Project / Service / Admin Key"
-description: "Detects OpenAI project, service-account, and admin keys hardcoded in source code."
+description: "Reports OpenAI project, service-account and admin keys (sk-proj-, sk-svcacct-, sk-admin- with a body of 40+ characters) written into files."
 ---
 
 ## Overview
 
-This rule detects openai project / service / admin key matching the `sk-proj-, sk-svcacct-, sk-admin-` pattern hardcoded anywhere in source files. Detects OpenAI project, service-account, and admin keys hardcoded in source code.
+This rule reports an OpenAI project, service-account or admin key: `sk-proj-`, `sk-svcacct-` or `sk-admin-` followed by at least 40 base64url characters, not inside a longer identifier (`task-proj-...`, `desk-admin-...`). Truncated keys (`sk-proj-...`, `sk-proj-Ab3dEf`), placeholders (`sk-proj-xxxx...`, `sk-proj-your-key-...`), low-entropy values, environment lookups and test, fixture and vendored paths are not reported, and the snippet is redacted. Classic `sk-...T3BlbkFJ...` keys are VNX-SEC-251.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

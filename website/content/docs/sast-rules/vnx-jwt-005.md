@@ -1,11 +1,11 @@
 ---
 title: "VNX-JWT-005 – Sensitive Credential Data Stored in JWT Payload"
-description: "Detects JWT payloads that contain a 'password' or 'secret' key, which are readable by anyone who holds the token since JWT payloads are only base64-encoded, not encrypted."
+description: "A password, password hash, secret, API key, SSN or card number is put into JWT claims: in the payload of jwt.sign / SignJWT, jwt.encode, JWT.encode, JWT::encode or jwt.NewWithClaims, in a payload variable built just above, in a jjwt .claim() / Auth0 .withClaim(), or as a json-tagged field of a Go struct embedding jwt.RegisteredClaims."
 ---
 
 ## Overview
 
-This rule detects `jwt.encode()` (Python) or `jwt.sign()` (Node.js) calls where the payload object contains a `"password"` key, as well as patterns where a `"password"` key appears in an object literal in the same file as a JWT encode or sign call. JWT payloads are base64url-encoded JSON objects — they are not encrypted. Anyone who holds a JWT token can decode the payload without any key material by simply base64-decoding the second segment of the token. Storing passwords, secrets, API keys, or other sensitive credentials in a JWT claim means those credentials are visible to any party that receives the token: the user's browser, any intermediary proxy, log aggregators, and any system that inspects the Authorization header. This maps to CWE-522 (Insufficiently Protected Credentials).
+This rule detects sensitive keys (`password`, `passwordHash`, `secret`, `client_secret`, `api_key`, `ssn`, `credit_card`, `card_number`, `cvv` and spellings of them) placed into a token: in the payload literal of jsonwebtoken `jwt.sign()` or jose `new SignJWT()` (including the `{ password }` shorthand), PyJWT `jwt.encode()`, ruby-jwt `JWT.encode()`, firebase/php-jwt `JWT::encode()` and golang-jwt `jwt.NewWithClaims()`; in a payload variable defined or extended (`payload["password"] = ...`) within 20 lines above the call; in a jjwt `.claim("password", ...)` or Auth0 `.withClaim(...)`; and as a json-tagged field of a Go claims struct that embeds `jwt.RegisteredClaims`. Lookalike keys (`passwordChangedAt`, `hasPassword`), login forms and request bodies that never reach a token are not reported; signing a whole user record is not detected. JWT payloads are base64url-encoded JSON objects — they are not encrypted. Anyone who holds a JWT token can decode the payload without any key material by simply base64-decoding the second segment of the token. Storing passwords, secrets, API keys, or other sensitive credentials in a JWT claim means those credentials are visible to any party that receives the token: the user's browser, any intermediary proxy, log aggregators, and any system that inspects the Authorization header. This maps to CWE-522 (Insufficiently Protected Credentials).
 
 JWT tokens are often stored in browser local storage, cookies, or mobile app storage. They are transmitted in HTTP headers, logged by access log systems, and stored in analytics pipelines. A token containing a password field leaks that password to every system that processes the request, potentially for the full lifetime of the token.
 
@@ -37,6 +37,19 @@ const token = jwt.sign(
   secretKey,
   { expiresIn: "1h" }
 );
+```
+
+```java
+// FLAGGED
+.claim("password", user.getPassword())
+```
+
+```go
+// FLAGGED: a claims struct carrying the password
+type Claims struct {
+	Password string `json:"password"`
+	jwt.RegisteredClaims
+}
 ```
 
 ## Remediation

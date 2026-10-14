@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-041 – Use of deprecated TLS version"
-description: "Detect Go TLS configuration that sets MinVersion or MaxVersion to tls.VersionTLS10 or tls.VersionTLS11, enabling negotiation of deprecated protocol versions that are vulnerable to known attacks."
+description: "Detect Go crypto/tls configuration that sets MinVersion or MaxVersion to SSL 3.0, TLS 1.0 or TLS 1.1 (by constant, raw protocol number or a local variable holding one), enabling negotiation of deprecated protocol versions."
 ---
 
 ## Overview
 
-This rule flags `tls.Config` struct literals or assignments where `MinVersion`, `MaxVersion`, or `Version` is set to `tls.VersionTLS10` or `tls.VersionTLS11`. Both TLS 1.0 and TLS 1.1 have been formally deprecated by the IETF (RFC 8996, March 2021) and are prohibited by PCI-DSS since June 2018. Allowing these versions permits negotiation of ciphersuites and protocol features that are vulnerable to POODLE, BEAST, CRIME, and other well-documented attacks. This maps to [CWE-326: Inadequate Encryption Strength](https://cwe.mitre.org/data/definitions/326.html).
+This rule flags `tls.Config` struct literals or assignments where `MinVersion` or `MaxVersion` is set to `tls.VersionSSL30`, `tls.VersionTLS10` or `tls.VersionTLS11` (under any import alias, optionally wrapped in `uint16()`), to the raw protocol numbers `0x0300` to `0x0302`, or to a local variable or constant assigned one of those values a few lines above. Comparisons such as `state.Version == tls.VersionTLS10`, `switch` cases, version-name maps, comments, string literals and `_test.go` files are not reported, and a version read from configuration at runtime is not followed. Both TLS 1.0 and TLS 1.1 have been formally deprecated by the IETF (RFC 8996, March 2021) and are prohibited by PCI-DSS since June 2018. Allowing these versions permits negotiation of ciphersuites and protocol features that are vulnerable to POODLE, BEAST, CRIME, and other well-documented attacks. This maps to [CWE-326: Inadequate Encryption Strength](https://cwe.mitre.org/data/definitions/326.html).
 
 Go's `crypto/tls` package defaults to `tls.VersionTLS12` as `MinVersion` since Go 1.18, but explicitly setting the minimum to an older version overrides this safe default and creates a regression that may go unnoticed in code review.
 
@@ -41,6 +41,13 @@ func legacyClientConfig() *tls.Config {
     return &tls.Config{
         MaxVersion: tls.VersionTLS11,
     }
+}
+
+// FLAGGED: the weak value travels through a local variable
+func listen(addr string) (net.Listener, error) {
+    minVer := uint16(tls.VersionTLS10)
+    conf := &tls.Config{MinVersion: minVer}
+    return tls.Listen("tcp", addr, conf)
 }
 ```
 

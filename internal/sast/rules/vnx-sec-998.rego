@@ -26,16 +26,17 @@ _pattern := `(?i)deribit[a-z0-9_]*(?:client[_-]?id|api[_-]?key|key)\s*[:=]\s*['"
 _keywords := ["deribit", "client"]
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	secrets.has_keyword(content, _keywords)
+	lines := split(content, "\n")
 	some i, line in lines
 	secrets.has_keyword(line, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]
 	not secrets.is_example_token(token)
-	secrets.high_entropy(token, 3.5)
+	secrets.high_entropy(token, 2.7)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Deribit client ID found; revoke the API credential in the Deribit account API console",

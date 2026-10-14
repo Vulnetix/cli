@@ -1,11 +1,11 @@
 ---
 title: "VNX-PHP-003 – PHP File Inclusion with Variable Path"
-description: "Detect PHP include/require statements that use user-controlled or variable paths, enabling Local File Inclusion (LFI) and potentially Remote File Inclusion (RFI) leading to arbitrary code execution."
+description: "Detect include, require, include_once and require_once statements whose path contains a request value, inline or through a variable assigned from one, enabling Local and Remote File Inclusion."
 ---
 
 ## Overview
 
-This rule flags PHP `include`, `require`, `include_once`, and `require_once` statements where the path argument is derived from user-supplied superglobals (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`) or from a variable concatenation that could be influenced by external input. Allowing user-controlled values to determine which file PHP loads is a Local File Inclusion (LFI) vulnerability; if the server permits URL wrappers in include paths, it escalates to Remote File Inclusion (RFI) and full remote code execution.
+This rule flags PHP `include`, `require`, `include_once`, and `require_once` statements where the path argument is derived from user-supplied superglobals (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`), inline or through a variable assigned from one a few lines above. Allowing user-controlled values to determine which file PHP loads is a Local File Inclusion (LFI) vulnerability; if the server permits URL wrappers in include paths, it escalates to Remote File Inclusion (RFI) and full remote code execution.
 
 **Severity:** Critical | **CWE:** [CWE-98 – Improper Control of Filename for Include/Require Statement](https://cwe.mitre.org/data/definitions/98.html) | **CAPEC:** [CAPEC-193](https://capec.mitre.org/data/definitions/193.html) | **ATT&CK:** [T1059](https://attack.mitre.org/techniques/T1059/)
 
@@ -29,20 +29,21 @@ If `allow_url_include` is enabled (non-default but common on legacy hosts), the 
 
 ## What Gets Flagged
 
+An inclusion statement (with or without parentheses) whose path holds a request value, inline or through a variable assigned from one a few lines above. In-place filters such as `str_replace("../", "", $file)` do not clear the value.
+
 ```php
-// FLAGGED: include path directly from GET parameter
-include($_GET['page']);
+// FLAGGED
+$page = $_GET["page"];
+include($page);
 
-// FLAGGED: require with POST data
-require($_POST['template'] . '.php');
+include "templates/" . $_GET["tpl"] . ".php";
+require "views/{$_POST["view"]}.php";
 
-// FLAGGED: variable path built from user input and concatenated
-$section = $_REQUEST['section'];
-include('pages/' . $section);
-
-// FLAGGED: include_once with cookie value
-include_once($_COOKIE['theme'] . '/style.php');
+$file = str_replace(array("../", "..\\"), "", $_GET["file"]);
+include( $file );
 ```
+
+Not flagged: a path passed through `basename()` or `intval()`; a value checked with `in_array()`, `isset($map[$v])` or `preg_match()` before the include; constant and `__DIR__`-relative paths; variables set in another file or passed as a parameter (a documented gap: there is no cross-file dataflow); the keywords in comments and strings.
 
 ## Remediation
 

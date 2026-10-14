@@ -1,0 +1,1 @@
+data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA@@sample:[A-Za-z0-9+/]{40}@@ABSK@@sample:[A-Za-z0-9+/]{150}@@==

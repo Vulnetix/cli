@@ -1,11 +1,13 @@
 package vulnetix.rules.vnx_sec_027
 
 import rego.v1
+import data.vulnetix.helpers
+import data.vulnetix.lib.secrets
 
 metadata := {
 	"id": "VNX-SEC-027",
 	"name": "Hugging Face API token hardcoded",
-	"description": "A Hugging Face API token (hf_ prefix) appears hardcoded in source code. This token provides access to private model repositories, datasets, and inference API endpoints. Revoke the token at huggingface.co/settings/tokens and store in environment variables.",
+	"description": "Reports a Hugging Face user access token: hf_ followed by 34 to 40 letters or digits, delimited on both sides (so a longer snake_case identifier is not one), in any file including notebooks and .env files. Placeholders and low-entropy values, CamelCase identifiers that merely start with hf_ (hf_TokenizerFastLoader...), regular expressions for the token, environment lookups, and test and fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-027/",
 	"languages": ["generic"],
 	"severity": "high",
@@ -19,24 +21,35 @@ metadata := {
 	"tags": ["secret", "huggingface", "ai", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
+_token_re := `(?:^|[^A-Za-z0-9_])(hf_[A-Za-z0-9]{34,40})(?:[^A-Za-z0-9_]|$)`
+
+# An identifier spelled as CamelCase words ("hf_TokenizerFastLoader...") is
+# code, not a random token: a random 34-character string almost never avoids
+# two capitals in a row.
+_identifier(body) if regex.match(`^(?:[A-Z][a-z0-9]+)+$`, body)
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	not helpers.is_test_path(path)
+	contains(content, "hf_")
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`hf_[A-Za-z0-9]{34,}`, line)
+	contains(line, "hf_")
+	m := regex.find_all_string_submatch_n(_token_re, line, -1)
+	some hit in m
+	token := hit[1]
+	body := substring(token, 3, -1)
+	not _identifier(body)
+	not secrets.is_example_token(token)
+	secrets.high_entropy(body, 4.0)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Hugging Face API token detected — revoke at huggingface.co/settings/tokens and store in environment variables instead",
+		"message": "Hugging Face API token detected; revoke at huggingface.co/settings/tokens and store in environment variables instead",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

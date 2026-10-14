@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-022 – PHP open redirect via non-literal redirect destination"
-description: "Detects header('Location:') or framework redirect calls with user-controlled or non-literal URLs, enabling open redirect attacks that facilitate phishing and credential theft."
+description: "Detects header('Location: ...'), Laravel redirect()/Redirect::to()/away(), Symfony redirect()/RedirectResponse and wp_redirect() whose destination starts with a request value, inline or via a nearby variable, unless a literal prefix pins the host or path or the value is validated."
 ---
 
 ## Overview
@@ -28,11 +28,16 @@ Applications that implement "return to previous page after login" functionality 
 header('Location: ' . $_GET['redirect']);
 exit;
 
-// FLAGGED: framework redirect called with non-literal variable
-$this->redirect($returnUrl);  // $returnUrl derived from user input
+// FLAGGED: Symfony redirect with a query parameter
+return $this->redirect($request->query->get('target'));
 
-// FLAGGED: Laravel Redirect::to() with variable destination
-return Redirect::to($_POST['next']);
+// FLAGGED: Laravel redirect through a variable read from the request
+$return = $request->query('return');
+return redirect()->to($return);
+
+// NOT FLAGGED: a pinned path prefix, a route name, or an allowlisted value
+header('Location: /login?next=' . urlencode($_GET['next']));
+return redirect()->route('home');
 ```
 
 ## Remediation

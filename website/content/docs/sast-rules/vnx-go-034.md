@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-034 – OAuth redirect URI without validation against allowlist"
-description: "Detect Go HTTP handlers that pass user-controlled redirect URI values directly to http.Redirect without validating against an explicit allowlist, enabling open redirect attacks in OAuth flows."
+description: "Detects Go OAuth flows that redirect to, or configure, a redirect_uri taken from the request without comparing it against the client's registered redirect URIs."
 ---
 
 ## Overview
@@ -19,39 +19,25 @@ Beyond OAuth, unvalidated redirects undermine phishing defenses. Users are train
 
 ## What Gets Flagged
 
-The rule fires when `http.Redirect` or `Redirect(` receives a value derived from request input with no allowlist guard visible on the same or immediately preceding lines.
+An OAuth redirect URI read from the request and used without comparing it with the client's registered URIs:
 
 ```go
-// FLAGGED: redirect destination taken directly from query parameter
-func oauthCallback(w http.ResponseWriter, r *http.Request) {
-    redirectURI := r.URL.Query().Get("redirect_uri")
-    // No allowlist check — attacker controls the destination
-    http.Redirect(w, r, redirectURI, http.StatusFound)
-}
+// FLAGGED: authorization endpoint sends the code wherever redirect_uri says
+redirectURI := q.Get("redirect_uri")
+http.Redirect(w, r, redirectURI+"?code="+code+"&state="+state, http.StatusFound)
 
-// FLAGGED: post form value forwarded without validation
-func loginRedirect(w http.ResponseWriter, r *http.Request) {
-    next := r.PostFormValue("next")
-    http.Redirect(w, r, next, http.StatusSeeOther)
-}
+// FLAGGED: implicit grant, inline
+http.Redirect(w, r, r.FormValue("redirect_uri")+"#access_token="+tok, http.StatusFound)
+
+// FLAGGED: oauth2 client configured from the request
+conf := &oauth2.Config{RedirectURL: r.FormValue("redirect_uri")}
+u := cfg.AuthCodeURL(state, oauth2.SetAuthURLParam("redirect_uri", r.PostFormValue("redirect_uri")))
+
+// FLAGGED: gin / echo
+c.Redirect(http.StatusFound, c.Query("redirect_uri") + "?code=" + code)
 ```
 
-```go
-// SAFE: redirect URI validated against an explicit allowlist
-var allowedRedirects = map[string]bool{
-    "https://app.example.com/callback": true,
-    "https://beta.example.com/callback": true,
-}
-
-func oauthCallback(w http.ResponseWriter, r *http.Request) {
-    redirectURI := r.URL.Query().Get("redirect_uri")
-    if !allowedRedirects[redirectURI] {
-        http.Error(w, "invalid redirect_uri", http.StatusBadRequest)
-        return
-    }
-    http.Redirect(w, r, redirectURI, http.StatusFound)
-}
-```
+Not flagged: a value checked first (`slices.Contains(client.RedirectURIs, redirectURI)`, `ru != registered`), constant or configured redirect URLs, comments and strings. Open redirects through other parameter names (`next`, `url`) are reported by VNX-GO-005 and VNX-GO-025.
 
 ## Remediation
 

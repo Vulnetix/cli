@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-001 – Missing Python Lock File"
-description: "Detect Python projects that have a manifest (pyproject.toml or Pipfile) without a corresponding lock file, leaving them exposed to non-deterministic dependency resolution and supply chain attacks."
+description: "Detect a Pipfile without Pipfile.lock, and a pyproject.toml managed by Poetry, PDM or uv that declares dependencies but has no lock file, leaving every install to re-resolve version ranges."
 ---
 
 ## Overview
@@ -17,14 +17,21 @@ Even without a malicious actor, non-deterministic resolution means your CI/CD pi
 
 ## What Gets Flagged
 
-The rule fires when the scanner finds a Python project directory that contains `pyproject.toml` but lacks `uv.lock`, `poetry.lock`, or `Pipfile.lock`. It also fires when a directory has a `Pipfile` but no `Pipfile.lock`.
+The rule fires on a `Pipfile` with no `Pipfile.lock` beside it (reported on its `[packages]` header), and on a `pyproject.toml` that configures a locking dependency manager (`[tool.poetry]`, `[tool.pdm]` or `[tool.uv]`), declares at least one dependency besides `python`, and has no `uv.lock`, `poetry.lock`, `pdm.lock`, `Pipfile.lock` or `pylock.toml` in its directory. A `uv.lock` in an enclosing directory counts, so uv workspace members are not reported.
+
+Not flagged: a setuptools, flit or hatch `pyproject.toml` with no locking tool configured (a library publishes ranges by design), a project with no dependencies, `requirements.txt`, and test fixtures.
+
+```toml
+# FLAGGED: pyproject.toml, no poetry.lock next to it
+[tool.poetry]
+name = "orders-api"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.110"
+```
 
 ```
-# FLAGGED: pyproject.toml present, no uv.lock / poetry.lock / Pipfile.lock
-$ ls
-pyproject.toml   src/   tests/
-# (no lock file)
-
 # FLAGGED: Pipfile present, no Pipfile.lock
 $ ls
 Pipfile   app.py

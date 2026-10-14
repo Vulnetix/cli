@@ -1,0 +1,8 @@
+{
+  "name": "playbook-api",
+  "version": "1.4.0",
+  "dependencies": {
+    "express": "^4.19.2",
+    "js-yaml": "^4.1.0"
+  }
+}

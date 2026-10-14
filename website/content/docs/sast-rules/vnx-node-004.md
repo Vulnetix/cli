@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-004 – Express App Without Helmet"
-description: "Detects Express applications that do not use helmet middleware, leaving them without critical HTTP security headers such as CSP, HSTS, and X-Frame-Options."
+description: "Reports an Express app created with express() when nothing in the same npm package applies helmet(), lusca or explicit security headers."
 ---
 
 ## Overview
@@ -17,18 +17,25 @@ These are all issues that bypass server-side controls entirely; they are enforce
 
 ## What Gets Flagged
 
-The rule flags any source file that calls `express()` but does not reference the string `helmet` anywhere in the same file.
+The first `express()` application created in a file that imports `express`, when no file in the same package (the files under the nearest directory with a `package.json`) applies security headers:
 
 ```javascript
-// FLAGGED: Express app with no helmet
 const express = require('express');
+// FLAGGED: no helmet() or security-header middleware anywhere in the package
 const app = express();
-
-app.use(express.json());
-
-app.get('/', (req, res) => res.send('Hello'));
 app.listen(3000);
 ```
+
+A helmet setup that is commented out (`// app.use(helmet())`, or inside `/* ... */`) does not count.
+
+Not flagged:
+
+- `app.use(helmet())`, `helmet.frameguard()` and other helmet middlewares, in this file or another module of the package;
+- `lusca`, or middleware that sets `Content-Security-Policy`, `X-Frame-Options`, `Strict-Transport-Security` or `X-Content-Type-Options` itself;
+- `express.Router()`, `express.json()` and other `express.*` factories;
+- test, example, sample, demo and benchmark code.
+
+In a monorepo each package is judged on its own: helmet in `services/billing` does not cover `services/users`.
 
 ## Remediation
 

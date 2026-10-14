@@ -1,0 +1,9 @@
+[tool.poetry]
+name = "orders-api"
+version = "0.4.0"
+description = "Order intake service"
+authors = ["Platform Team <platform@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.110"

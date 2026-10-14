@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-036 – Use of ECB block mode"
-description: "Detect Go cryptographic code that implements or references Electronic Codebook (ECB) block cipher mode, which leaks data patterns and must not be used to protect sensitive data."
+description: "Detects Go code that uses ECB mode: NewECBEncrypter/NewECBDecrypter, or a cipher.Block encrypting successive slices in a loop with no chaining."
 ---
 
 ## Overview
@@ -19,51 +19,24 @@ In practice, an adversary with access to ECB-encrypted ciphertexts can perform c
 
 ## What Gets Flagged
 
-The rule fires on ECB mode references and on manual block-at-a-time patterns that replicate ECB semantics.
+ECB through a library, or ECB written by hand:
 
 ```go
-// FLAGGED: manual ECB implementation — each block encrypted independently
-func ecbEncrypt(key, plaintext []byte) []byte {
-    block, _ := aes.NewCipher(key)
-    bs := block.BlockSize()
-    ciphertext := make([]byte, len(plaintext))
-    for i := 0; i < len(plaintext); i += bs {
-        // No IV, no chaining — this is ECB mode
-        block.Encrypt(ciphertext[i:i+bs], plaintext[i:i+bs])
-    }
-    return ciphertext
+// FLAGGED: crypt2go ecb package
+mode := ecb.NewECBEncrypter(block)
+
+// FLAGGED: each block encrypted independently in a loop
+for i := 0; i < len(src); i += bs {
+    block.Encrypt(dst[i:i+bs], src[i:i+bs])
 }
 
-// FLAGGED: third-party ECB wrapper
-import ecb "github.com/example/ecb-mode"
-
-func encryptData(key, data []byte) []byte {
-    block, _ := aes.NewCipher(key)
-    enc := ecb.NewECBEncrypter(block)
-    out := make([]byte, len(data))
-    enc.CryptBlocks(out, data)
-    return out
+// FLAGGED: 3DES, same shape
+for off := 0; off < len(p); off += c.BlockSize() {
+    c.Encrypt(out[off:], p[off:])
 }
 ```
 
-```go
-// SAFE: AES-GCM with authenticated encryption and nonce
-func encrypt(key, plaintext []byte) ([]byte, error) {
-    block, err := aes.NewCipher(key)
-    if err != nil {
-        return nil, err
-    }
-    gcm, err := cipher.NewGCM(block)
-    if err != nil {
-        return nil, err
-    }
-    nonce := make([]byte, gcm.NonceSize())
-    if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-        return nil, err
-    }
-    return gcm.Seal(nonce, nonce, plaintext, nil), nil
-}
-```
+Not flagged: `cipher.NewGCM`, `cipher.NewCBCEncrypter` and the other `crypto/cipher` modes, hand-written CBC/CTR loops that XOR each block, a single-block `Encrypt` outside a loop (CMAC subkeys, key wrapping), `ECB` in identifiers, error messages, strings or comments, and test files.
 
 ## Remediation
 

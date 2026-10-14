@@ -1,0 +1,4 @@
+{
+    "type": "project",
+    "require": { "twig/twig": "^3.8" }
+}

@@ -1,58 +1,73 @@
 ---
-title: "VNX-1054 – GUI Input without Validation"
-description: "Detects user input collection patterns across Go, Java, Node.js, PHP, and Python that may lack input validation, enabling injection, XSS, or other data-integrity attacks."
+title: "VNX-1054 – Commented-out code"
+description: "Detects blocks of comment lines that read as code (statements, control flow, calls) rather than prose, in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby."
 ---
 
 ## Overview
 
-VNX-1054 is an auto-generated broad-pattern rule that searches for user input collection primitives across Go, Java, Node.js, PHP, and Python source files. The rule targets `fmt.Scanf` in Go, `JOptionPane` in Java, `prompt` in Node.js, `$_GET` in PHP, and `input()` in Python. These are associated with [CWE-1054](https://cwe.mitre.org/data/definitions/1054.html) in the rule metadata.
+VNX-1054 reports a block of comments that is really disabled code. Disabled code can hold old credentials, bypassed security checks or deprecated algorithms that a developer might re-enable by uncommenting it.
 
-Note: CWE-1054 in MITRE's catalog covers "Invokable Control Element not Accessible." The vulnerability concern this rule addresses — missing input validation — maps to [CWE-20: Improper Input Validation](https://cwe.mitre.org/data/definitions/20.html). The CWE mapping is a known limitation of this auto-generated rule.
+A comment is reported only when **at least three consecutive comment lines look like code**: they end the way a statement ends (`{`, `}`, `;`, `)`), start with a keyword (`if`, `for`, `return`, `def`, `import`...) or contain an assignment or call, and they do not read as a sentence. Prose that happens to begin with `for`, `if` or `token` is not commented-out code and is not reported. Godoc samples (a tab after `//`) are documentation and are skipped, and so is a code-like line indented deeper than the prose of the same comment block: that is a usage example in a doc comment (RDoc, godoc, Javadoc), not disabled code. Test files and library code copied into `static/`, `assets/` or `public/` trees are skipped too. One finding is reported per block, at its first code-like line.
 
-All flagged patterns represent points where data crosses a trust boundary from user-controlled to application-controlled. Every flagged location should be reviewed to confirm that input is validated, typed, and bounded before use.
-
-**Severity:** Medium | **CWE:** [CWE-1054](https://cwe.mitre.org/data/definitions/1054.html) | **OWASP:** [A03:2021 – Injection](https://owasp.org/Top10/A03_2021-Injection/)
-
-## Why This Matters
-
-Unvalidated input is the root cause of the majority of injection vulnerability classes: SQL injection, command injection, XSS, path traversal, and template injection all stem from data taken from the user being used in a sensitive context without verification that it conforms to expectations.
-
-PHP's `$_GET` superglobal is a particularly high-signal indicator because it directly exposes HTTP request parameters. Any use of `$_GET` values in database queries, HTML output, file paths, or shell commands without sanitisation is a potential injection vulnerability.
+**Severity:** Low | **CWE:** [CWE-1054](https://cwe.mitre.org/data/definitions/1054.html)
 
 ## What Gets Flagged
 
-The rule scans Go, Java, Node.js, PHP, and Python source files for user input collection patterns:
+```go
+// FLAGGED: a disabled branch left behind
+// if err != nil {
+//     return err
+// }
+// x := compute(y)
+```
 
 ```python
-# FLAGGED: Python input() in a networked context
-user_id = input("Enter user ID: ")
-query = f"SELECT * FROM users WHERE id = {user_id}"
+# FLAGGED: a disabled loop
+# for item in items:
+#     total += item.price
+#     print(total)
 ```
 
-```php
-// FLAGGED: PHP $_GET used directly
-$name = $_GET['name'];
-echo "Hello, $name";  // XSS if not escaped
+```java
+// TODO put this back once the SSO migration is done
+// FLAGGED: a disabled authorisation check
+// if (!request.user().hasRole("ADMIN")) {
+//     return Response.forbidden();
+// }
 ```
+
+```ruby
+# FLAGGED: disabled filters
+# before_action :authenticate_user!
+# before_action :require_admin, only: [:destroy]
+# if current_user.locked?
+#   redirect_to root_path
+# end
+```
+
+## What Is Not Flagged
 
 ```go
-// FLAGGED: Go fmt.Scanf reading user input
-var filename string
-fmt.Scanf("%s", &filename)
-os.Open(filename)  // path traversal risk if unvalidated
+// for a one-shot command where the only thing that matters is total wall time.
+// token expiry is checked on every request and cached for the process lifetime.
+
+// A single commented-out line:
+// x := 1
+```
+
+```ruby
+# A settings store that reads values from the environment first and the
+# YAML file second, so a deployment can override any key.
+#
+#   settings = Acme::Settings.new("config/app.yml")
+#   settings[:timeout] = 30
+#   settings.fetch(:region) # => "eu-west-1"
 ```
 
 ## Remediation
 
-1. Validate all input immediately at the point of collection against a strict type and format specification (length, character set, range).
-2. For PHP `$_GET` values: use `filter_input(INPUT_GET, 'param', FILTER_SANITIZE_*)` or validate against an allowlist before any use.
-3. Never pass unvalidated input directly to database queries, shell commands, file paths, or HTML output — apply the appropriate contextual encoding or parameterisation at the point of use.
-4. In Python CLI tools that parse user input for use in system operations, convert to the expected type immediately and handle conversion errors explicitly.
-5. Use an input validation framework or library appropriate to your language rather than ad-hoc string checks.
+Delete the code. Version control keeps the history; a comment keeps only the risk.
 
 ## References
 
-- [CWE-20: Improper Input Validation](https://cwe.mitre.org/data/definitions/20.html)
-- [OWASP Input Validation Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html)
-- [OWASP PHP Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/PHP_Configuration_Cheat_Sheet.html)
-- [OWASP XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
+- [CWE-1054](https://cwe.mitre.org/data/definitions/1054.html)

@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-017 – Go SQL Injection via fmt.Sprintf in Database Call"
-description: "Detects database/sql queries constructed with fmt.Sprintf or string concatenation before being passed to db.Exec, db.Query, or related methods, enabling SQL injection when any interpolated value is user-controlled."
+description: "Detects fmt.Sprintf SQL that puts a string verb where SQL expects a literal (quoted, or after a comparison) and is run by Exec/Query/QueryRow/Prepare, sqlx or GORM Raw, inline or through a variable; other verb positions only when fed a request value. Integer verbs, placeholder builders, quoted or converted values and self-built fragments are not reported."
 ---
 
 ## Overview

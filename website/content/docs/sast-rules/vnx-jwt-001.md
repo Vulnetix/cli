@@ -1,11 +1,11 @@
 ---
 title: "VNX-JWT-001 – JWT Signature Verification Disabled"
-description: "JWT decode is called with signature verification disabled, or the 'none' algorithm is permitted in the allowed-algorithms list, allowing any forged or tampered token to be accepted as valid."
+description: "A JWT is accepted without its signature being checked: verify_signature False or verify=False (Python), jsonwebtoken decode() of a request token in a file that never verifies, jwt-simple noVerify, golang-jwt ParseUnverified alone, jjwt parse() after setSigningKey, Auth0 JWT.decode() alone, ruby-jwt JWT.decode(t, k, false), and .NET RequireSignedTokens = false or a pass-through SignatureValidator."
 ---
 
 ## Overview
 
-JWT decode is called with `verify_signature=False`, `verify=False`, or the `"none"` algorithm is included in the permitted algorithms list. This completely disables cryptographic authentication of tokens, allowing an attacker to forge arbitrary tokens with any payload — including elevated privilege claims — and have them accepted as valid without any key material.
+A token is decoded and trusted without its signature being verified: PyJWT/python-jose `options={"verify_signature": False}` or `verify=False`, jsonwebtoken `jwt.decode()` used on a request token in a file that never calls `jwt.verify()`, jwt-simple `decode(token, key, true)`, golang-jwt `ParseUnverified()` in a file that never calls `Parse`/`ParseWithClaims`, jjwt `Jwts.parser().setSigningKey(k).parse(t)` (which accepts an unsigned token), Auth0 `JWT.decode()` with no `JWT.require()` verifier, ruby-jwt `JWT.decode(token, key, false)`, and .NET `RequireSignedTokens = false` or a `SignatureValidator` that returns a new token unchecked. Accepting the `none` algorithm is reported separately by [VNX-JWT-004](../vnx-jwt-004/). This completely disables cryptographic authentication of tokens, allowing an attacker to forge arbitrary tokens with any payload — including elevated privilege claims — and have them accepted as valid without any key material.
 
 **Severity:** Critical | **CWE:** [CWE-347 – Improper Verification of Cryptographic Signature](https://cwe.mitre.org/data/definitions/347.html) | **CAPEC:** [CAPEC-196 – Session Credential Falsification through Forging](https://capec.mitre.org/data/definitions/196.html)
 
@@ -56,14 +56,36 @@ payload = jwt.decode(token, options={"verify_signature": False})
 # FLAGGED: verify=False in older PyJWT API
 payload = jwt.decode(token, secret, verify=False)
 
-# FLAGGED: 'none' included in the allowed algorithms list
-payload = jwt.decode(token, secret, algorithms=["HS256", "none"])
+# FLAGGED: bare decode imported from PyJWT
+return decode(token, options={"verify_signature": False, "verify_exp": False})
 ```
 
 ```javascript
-// FLAGGED: algorithms list contains 'none' (jsonwebtoken <=8.x)
-const payload = jwt.verify(token, secret, { algorithms: ["HS256", "none"] });
+// FLAGGED: decode() never checks the signature, and this file never calls jwt.verify()
+const token = req.headers.authorization.split(' ')[1];
+const user = jwt.decode(token);
+
+// FLAGGED: jwt-simple with noVerify = true
+return jwt.decode(raw, process.env.SESSION_SECRET, true);
 ```
+
+```java
+// FLAGGED: jjwt parse() accepts an unsigned token even with a signing key set
+Jwt jwt = Jwts.parser().setSigningKey(key).parse(token);
+```
+
+```go
+// FLAGGED: claims read without verification, and nothing in the file verifies
+_, _, err := jwt.NewParser().ParseUnverified(raw, claims)
+```
+
+```csharp
+// FLAGGED
+RequireSignedTokens = false,
+SignatureValidator = (token, parameters) => new JwtSecurityToken(token),
+```
+
+Not flagged: `options={"verify_exp": False}` (the signature is still checked), decoding the header to pick a key and then calling `jwt.verify()`, a browser-side `jwt.decode()` of a token read from storage, jjwt `parseClaimsJws()` / `parseSignedClaims()` and the 0.12 `verifyWith()` builder.
 
 ## Remediation
 

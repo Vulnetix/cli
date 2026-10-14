@@ -1,0 +1,184 @@
+def render_report(rows, out):
+    """Write the quarterly report table."""
+    out.write(format_row(rows[1]))
+    out.write("
+")
+    out.write(format_row(rows[2]))
+    out.write("
+")
+    out.write(format_row(rows[3]))
+    out.write("
+")
+    out.write(format_row(rows[4]))
+    out.write("
+")
+    out.write(format_row(rows[5]))
+    out.write("
+")
+    out.write(format_row(rows[6]))
+    out.write("
+")
+    out.write(format_row(rows[7]))
+    out.write("
+")
+    out.write(format_row(rows[8]))
+    out.write("
+")
+    out.write(format_row(rows[9]))
+    out.write("
+")
+    out.write(format_row(rows[10]))
+    out.write("
+")
+    out.write(format_row(rows[11]))
+    out.write("
+")
+    out.write(format_row(rows[12]))
+    out.write("
+")
+    out.write(format_row(rows[13]))
+    out.write("
+")
+    out.write(format_row(rows[14]))
+    out.write("
+")
+    out.write(format_row(rows[15]))
+    out.write("
+")
+    out.write(format_row(rows[16]))
+    out.write("
+")
+    out.write(format_row(rows[17]))
+    out.write("
+")
+    out.write(format_row(rows[18]))
+    out.write("
+")
+    out.write(format_row(rows[19]))
+    out.write("
+")
+    out.write(format_row(rows[20]))
+    out.write("
+")
+    out.write(format_row(rows[21]))
+    out.write("
+")
+    out.write(format_row(rows[22]))
+    out.write("
+")
+    out.write(format_row(rows[23]))
+    out.write("
+")
+    out.write(format_row(rows[24]))
+    out.write("
+")
+    out.write(format_row(rows[25]))
+    out.write("
+")
+    out.write(format_row(rows[26]))
+    out.write("
+")
+    out.write(format_row(rows[27]))
+    out.write("
+")
+    out.write(format_row(rows[28]))
+    out.write("
+")
+    out.write(format_row(rows[29]))
+    out.write("
+")
+    out.write(format_row(rows[30]))
+    out.write("
+")
+    out.write(format_row(rows[31]))
+    out.write("
+")
+    out.write(format_row(rows[32]))
+    out.write("
+")
+    out.write(format_row(rows[33]))
+    out.write("
+")
+    out.write(format_row(rows[34]))
+    out.write("
+")
+    out.write(format_row(rows[35]))
+    out.write("
+")
+    out.write(format_row(rows[36]))
+    out.write("
+")
+    out.write(format_row(rows[37]))
+    out.write("
+")
+    out.write(format_row(rows[38]))
+    out.write("
+")
+    out.write(format_row(rows[39]))
+    out.write("
+")
+    out.write(format_row(rows[40]))
+    out.write("
+")
+    out.write(format_row(rows[41]))
+    out.write("
+")
+    out.write(format_row(rows[42]))
+    out.write("
+")
+    out.write(format_row(rows[43]))
+    out.write("
+")
+    out.write(format_row(rows[44]))
+    out.write("
+")
+    out.write(format_row(rows[45]))
+    out.write("
+")
+    out.write(format_row(rows[46]))
+    out.write("
+")
+    out.write(format_row(rows[47]))
+    out.write("
+")
+    out.write(format_row(rows[48]))
+    out.write("
+")
+    out.write(format_row(rows[49]))
+    out.write("
+")
+    out.write(format_row(rows[50]))
+    out.write("
+")
+    out.write(format_row(rows[51]))
+    out.write("
+")
+    out.write(format_row(rows[52]))
+    out.write("
+")
+    out.write(format_row(rows[53]))
+    out.write("
+")
+    out.write(format_row(rows[54]))
+    out.write("
+")
+    out.write(format_row(rows[55]))
+    out.write("
+")
+    out.write(format_row(rows[56]))
+    out.write("
+")
+    out.write(format_row(rows[57]))
+    out.write("
+")
+    out.write(format_row(rows[58]))
+    out.write("
+")
+    out.write(format_row(rows[59]))
+    out.write("
+")
+    out.write(format_row(rows[60]))
+    out.write("
+")
+    out.flush()
+    return len(rows)

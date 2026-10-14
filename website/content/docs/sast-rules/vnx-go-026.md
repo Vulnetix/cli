@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-026 – Missing file type validation on upload"
-description: "Detects file upload handling without apparent file type validation, which can lead to malicious file upload vulnerabilities."
+description: "Detects an uploaded multipart file saved to disk under the client's own file name (FileHeader.Filename) by a handler that never checks the file's extension or content type."
 ---
 
 ## Overview
@@ -23,47 +23,20 @@ These vulnerabilities can lead to remote code execution, data theft, server comp
 
 ## What Gets Flagged
 
-The rule flags file upload handling patterns that use Go's multipart form parsing without apparent file type validation:
+A handler that receives an uploaded file and saves it under the name the client sent, with no check anywhere in the handler of what kind of file it is.
 
 ```go
-// FLAGGED: File upload without type validation
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
-    if err := r.ParseMultipartForm(10 << 20); err != nil {
-        http.Error(w, "Unable to parse form", http.StatusBadRequest)
-        return
-    }
-    
-    file, handler, err := r.FormFile("upload")
-    if err != nil {
-        http.Error(w, "Invalid file", http.StatusBadRequest)
-        return
-    }
-    defer file.Close()
-    
-    // File saved without checking its type
-    dst, err := os.Create(filepath.Join("./uploads", handler.Filename))
-    if err != nil {
-        http.Error(w, "Unable to save file", http.StatusInternalServerError)
-        return
-    }
-    defer dst.Close()
-    
-    io.Copy(dst, file) // File saved as-is without validation
-}
+// FLAGGED: the client picks the extension (shell.php, index.html)
+file, handler, err := r.FormFile("upload")
+dst, err := os.Create(filepath.Join("./public/uploads", handler.Filename))
+io.Copy(dst, file)
 
-// FLAGGED: Using UploadedFile without validation
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
-    uploadedFile, handler, err := r.FormFile("upload")
-    if err != nil {
-        http.Error(w, "Invalid file", http.StatusBadRequest)
-        return
-    }
-    defer uploadedFile.Close()
-    
-    // No file type checking before processing or saving
-    processUploadedFile(uploadedFile, handler.Filename)
-}
+// FLAGGED: gin
+f, _ := c.FormFile("avatar")
+c.SaveUploadedFile(f, "uploads/"+f.Filename)
 ```
+
+Not flagged: handlers that check `filepath.Ext`, `strings.HasSuffix`, `http.DetectContentType`, the part's `Content-Type`, `image.DecodeConfig` or call a helper such as `validateUpload`; files saved under a server-generated name; uploads parsed in memory; clients building a multipart request.
 
 ## Remediation
 

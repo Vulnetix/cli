@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-018 – JWT Decoded Without Signature Verification"
-description: "Detects use of jwt.decode() instead of jwt.verify(), and JWT configurations that accept the 'none' algorithm, both of which allow forged tokens to be accepted as valid."
+description: "Reports jsonwebtoken decode() in a file that never calls verify(), and a jsonwebtoken algorithms list containing 'none'. Not reported: decode-then-verify, a token the server issued itself, the browser jwt-decode package, jwt-simple, tests and comments."
 ---
 
 ## Overview
@@ -23,23 +23,22 @@ Bug bounty programmes regularly receive high-severity reports for `jwt.decode()`
 
 ## What Gets Flagged
 
+The rule only looks at files that import or require `jsonwebtoken`, and resolves the names bound to it (`jwt`, `jsonwebtoken`, a namespace import, `decode` imported by name or `as` an alias). A `decode()` is reported when the file's code never calls `verify()` and the token is not a variable assigned, a few lines above, from something other than the request (a token the server issued and stored itself). Test files, comments and string literals are skipped. VNX-JWT-001 and VNX-JWT-004 cover overlapping ground across more languages.
+
 ```javascript
-// FLAGGED: jwt.decode() does not verify the signature
-const decoded = jwt.decode(req.headers.authorization.split(' ')[1]);
-if (decoded.role === 'admin') {
-  return res.json({ admin: true });
-}
+const jwt = require('jsonwebtoken');
+const token = req.headers.authorization.replace(/^Bearer\s+/i, '');
+const claims = jwt.decode(token);                                  // FLAGGED (file never verifies)
 
-// FLAGGED: JWT configured to accept 'none' algorithm
-const payload = jwt.verify(token, secret, { algorithms: ['HS256', 'none'] });
+import { decode as readToken } from 'jsonwebtoken';
+const payload = readToken(token);                                  // FLAGGED
 
-// FLAGGED: accepting none allows signature stripping
-app.use((req, res, next) => {
-  const token = req.headers['x-auth-token'];
-  const user = jwt.decode(token); // no verification at all
-  req.user = user;
-  next();
-});
+jwt.verify(token, key, { algorithms: ['RS256', 'none'] }, cb);     // FLAGGED: 'none'
+
+// Not flagged
+const { header } = jwt.decode(token, { complete: true });          // header only...
+return jwt.verify(token, keys[header.kid], { algorithms: ['RS256'] }); // ...then verified
+const shown = jwtDecode(token);                                    // browser jwt-decode package
 ```
 
 ## Remediation

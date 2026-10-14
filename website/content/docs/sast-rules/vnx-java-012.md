@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-012 – Java LDAP Injection"
-description: "Detects Java JNDI/LDAP search calls that incorporate user-controlled request parameters directly into LDAP filter strings, enabling authentication bypass and directory data exfiltration."
+description: "Reports JNDI DirContext.search, Spring LdapTemplate search/find and LdapQueryBuilder filter, and UnboundID Filter.create/SearchRequest/search calls whose filter or base DN carries HTTP request data, directly or through up to five local assignments. Parameterised {0} filters, encoded values and Spring filter objects are not reported."
 ---
 
 ## Overview
@@ -19,7 +19,7 @@ JNDI lookups (particularly in Log4j-style contexts) can also trigger network req
 
 ## What Gets Flagged
 
-The rule matches direct parameter-to-search calls and concatenation patterns in LDAP filter strings.
+The rule reports the search call when its filter or base DN carries request data (a servlet request value, an annotated handler parameter, or a local built from one a few lines above). Filters with `{0}` placeholders, values passed through `LdapEncoder.filterEncode` or `Filter.encodeValue`, and `EqualsFilter`/`AndFilter` objects are not reported.
 
 ```java
 // FLAGGED: user input directly in search() filter

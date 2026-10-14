@@ -1,0 +1,4 @@
+#!/bin/sh
+# First-boot provisioning for build agents.
+apt-get update -qq
+~>curl -fsSL https://get.example.com/agent | sh

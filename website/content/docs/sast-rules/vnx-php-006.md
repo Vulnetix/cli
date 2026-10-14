@@ -1,11 +1,11 @@
 ---
 title: "VNX-PHP-006 – PHP Object Injection via unserialize()"
-description: "Detect calls to unserialize() or maybe_unserialize() on user-controlled data, enabling PHP object injection attacks that can lead to arbitrary code execution, file deletion, or authentication bypass."
+description: "Detect unserialize() and maybe_unserialize() on a request value (superglobals, php://input, request accessors, also wrapped in base64_decode() and similar) without an allowed_classes restriction."
 ---
 
 ## Overview
 
-This rule flags calls to `unserialize()` and `maybe_unserialize()` (a WordPress helper) where the input comes from user-controlled superglobals (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`), and also flags any bare `unserialize()` call in the codebase as a high-risk pattern worth reviewing. PHP's serialization format can encode arbitrary object graphs; when `unserialize()` processes attacker-supplied data, it instantiates PHP objects and calls their `__wakeup()` and `__destruct()` magic methods during the deserialization process — before any application logic has a chance to validate the result. This maps to [CWE-502: Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html).
+This rule flags calls to `unserialize()` and `maybe_unserialize()` (a WordPress helper) where the input comes from user-controlled superglobals (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`), inline or through a variable assigned from one, unless `allowed_classes` restricts object creation. PHP's serialization format can encode arbitrary object graphs; when `unserialize()` processes attacker-supplied data, it instantiates PHP objects and calls their `__wakeup()` and `__destruct()` magic methods during the deserialization process — before any application logic has a chance to validate the result. This maps to [CWE-502: Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html).
 
 **Severity:** Critical | **CWE:** [CWE-502 – Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html)
 
@@ -17,24 +17,20 @@ Ready-made gadget chains exist for virtually every major PHP framework and CMS. 
 
 ## What Gets Flagged
 
-The rule matches lines where `unserialize()` or `maybe_unserialize()` receive direct superglobal input, and also matches any `unserialize(` call as a broader pattern.
+A call whose deserialised value is a request value, inline (optionally wrapped in a decoding function) or through a variable assigned from one a few lines above, with no `allowed_classes` option that disables or restricts object creation.
 
 ```php
-// FLAGGED: unserialize with GET parameter — direct POI vector
-$data = unserialize($_GET['data']);
+// FLAGGED
+$cart = unserialize($_COOKIE["cart"]);
+$prefs = unserialize(base64_decode($_COOKIE["prefs"]));
 
-// FLAGGED: unserialize with POST data
-$obj = unserialize($_POST['payload']);
+$payload = $_POST["data"];
+$obj = unserialize($payload);
 
-// FLAGGED: cookie-based deserialization — common attack vector
-$prefs = unserialize($_COOKIE['preferences']);
-
-// FLAGGED: WordPress maybe_unserialize with user input
-$value = maybe_unserialize($_REQUEST['option']);
-
-// FLAGGED: bare unserialize — any call is worth reviewing
-$result = unserialize($data_from_db);
+$settings = maybe_unserialize( stripslashes( $_POST["settings"] ) );
 ```
+
+Not flagged: `unserialize($x, ["allowed_classes" => false])` or an explicit class list; a value authenticated with `hash_equals()` first; a request value used only as a lookup key (`unserialize($redis->get("session:" . $_COOKIE["sid"]))`); cache, queue and file payloads the application wrote itself; methods named `unserialize`; `json_decode()`.
 
 ## Remediation
 

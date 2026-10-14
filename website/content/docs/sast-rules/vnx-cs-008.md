@@ -1,11 +1,11 @@
 ---
 title: "VNX-CS-008 – C# SSRF via WebClient or HttpClient with User-Supplied URL"
-description: "Detects C# code where WebClient, HttpClient, HttpWebRequest, or WebRequest HTTP methods are invoked with a non-literal URL argument, enabling Server-Side Request Forgery when the URL contains attacker-controlled input."
+description: "Detects C# HttpClient, WebClient, WebRequest.Create, HttpRequestMessage, RestClient and BaseAddress/RequestUri URLs whose scheme and host come from HTTP request data or a controller action parameter, with no host allowlist check."
 ---
 
 ## Overview
 
-This rule scans C# files (`.cs`) for calls to HTTP client methods — `OpenRead`, `OpenReadAsync`, `DownloadString`, `DownloadStringAsync`, `DownloadData`, `DownloadDataAsync`, `UploadString`, `UploadData`, `GetAsync`, `PostAsync`, `SendAsync`, `GetStringAsync` — where the URL argument is a variable rather than a string literal, and where the surrounding ten-line context references `WebClient`, `HttpClient`, `WebRequest`, or `HttpWebRequest`. A non-literal argument indicates the URL is constructed dynamically and may incorporate user-supplied values.
+This rule reports the URL argument of an `HttpClient` method (`GetAsync`, `GetStringAsync`, `PostAsync`, `GetFromJsonAsync`...) or a `WebClient` method (`DownloadString`, `DownloadFile`, `OpenRead`, `UploadString`...) on a receiver declared or created as an `HttpClient`/`WebClient`, `WebRequest.Create`, `new HttpRequestMessage(method, url)`, `new RestClient(url)`, and `BaseAddress`/`RequestUri` assignments, when the URL **begins** with request data (`Request.Query`, `Request.Form`, `Request[...]`, a `TextBox.Text`, a string action parameter, a `[FromQuery]` or minimal-API parameter): the value alone, wrapped in `new Uri(...)`, after only a scheme (`"http://" + host`), or through a variable built that way. Request data that only fills the path or query of a URL with a literal host (`"/api/items/" + id`) is not reported, nor are configuration URLs, URLs checked against a host allowlist or an `IsAllowed`/`IsValid` method, non-HTTP receivers such as `IDistributedCache.GetAsync`, and parameters of non-controller methods.
 
 Server-Side Request Forgery (SSRF) occurs when a server-side component makes an HTTP request to a URL that is fully or partially controlled by an external party. The request originates from the server rather than from the client's browser, so it carries the server's network identity and access credentials. This allows attackers to reach internal services, cloud metadata endpoints, and other resources that are not directly accessible from the internet.
 
@@ -27,10 +27,18 @@ string targetUrl = Request.Query["url"];
 using var client = new HttpClient();
 var response = await client.GetAsync(targetUrl);  // SSRF: user controls target
 
-// FLAGGED: WebClient.DownloadString with dynamic URL
-string imageUrl = userProfile.AvatarUrl;
-var webClient = new WebClient();
-string content = webClient.DownloadString(imageUrl);
+// FLAGGED: WebClient.DownloadString with a query-string URL
+string feed = Request.QueryString["feed"];
+using (var wc = new WebClient())
+{
+    litFeed.Text = wc.DownloadString(feed);
+}
+
+// FLAGGED: the host is interpolated after the scheme
+var res = await http.GetAsync($"http://{host}/status");
+
+// NOT FLAGGED: the host is fixed, the value only fills the path
+var res = await _client.GetAsync($"/api/catalog-items/{id}");
 ```
 
 ## Remediation

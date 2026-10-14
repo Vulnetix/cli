@@ -1,11 +1,22 @@
 ---
 title: "VNX-SEC-050 – Google Gemini / Vertex AI / PaLM API Key"
-description: "Detects Google Gemini, Vertex AI, and PaLM API keys (AIza prefix) hardcoded in source code."
+description: "Reports a Google API key (AIza + 35 characters) on or within eight lines of a Gemini, PaLM, Vertex AI or Google GenAI SDK reference; AIza keys with no generative-AI context are left to the generic GCP key rules."
 ---
 
 ## Overview
 
-This rule detects google gemini / vertex ai / palm api key matching the `AIza...` pattern hardcoded anywhere in source files. Detects Google Gemini, Vertex AI, and PaLM API keys (AIza prefix) hardcoded in source code.
+This rule reports a Google API key (`AIza` followed by 35 characters) used for the generative AI APIs. The key must be on a line, or within eight lines of one, that names Gemini, PaLM, Vertex AI, the `generativelanguage.googleapis.com` endpoint, or a Google GenAI SDK (`google.generativeai`, `google-genai`, `@google/generative-ai`, `generative-ai-go`). AIza keys without that context (Maps, Firebase web config, generic GCP keys) are covered by VNX-SEC-005 and VNX-SEC-170. Keys read from the environment, placeholder bodies and test paths are not reported.
+
+### What Gets Flagged
+
+```python
+import google.generativeai as genai
+genai.configure(api_key="AIza<35 characters>")
+```
+
+```sh
+GEMINI_API_KEY=AIza<35 characters>
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

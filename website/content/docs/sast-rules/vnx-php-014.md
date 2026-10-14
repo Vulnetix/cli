@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-014 – PHP Session Fixation via User-Controlled Session ID"
-description: "Detects session_id() called with user-controlled input from PHP superglobals, enabling session fixation attacks where an attacker pre-sets the session ID before a victim authenticates."
+description: "Detects session IDs a client can choose: session_id() given a $_GET/$_POST/$_REQUEST/$_COOKIE value (directly or via a variable read from one), and ini_set() enabling session.use_trans_sid or disabling session.use_only_cookies or session.use_strict_mode. A getter call or a generated ID is not reported."
 ---
 
 ## Overview
@@ -23,7 +23,7 @@ The attack is especially prevalent in older PHP applications that accepted sessi
 
 ## What Gets Flagged
 
-The rule matches lines in `.php` files where `session_id(` and a superglobal (`$_GET[`, `$_POST[`, `$_REQUEST[`, or `$_COOKIE[`) appear on the same line.
+The rule matches `session_id()` called with a superglobal element (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`, including `$_COOKIE[session_name()]`) or with a variable assigned from one within the 15 lines above, and `ini_set()` calls that turn on `session.use_trans_sid` or turn off `session.use_only_cookies` or `session.use_strict_mode`. Not flagged: `session_id()` as a getter, `session_id(session_create_id())` or another generated value, and the settings set to their safe values. A login that never calls `session_regenerate_id()` cannot be judged line by line and is not reported.
 
 ```php
 // FLAGGED: session ID taken directly from query parameter
@@ -43,6 +43,10 @@ session_start();
 // FLAGGED: session ID from $_REQUEST (could be GET or POST)
 session_id($_REQUEST['id']);
 session_start();
+
+// FLAGGED: IDs accepted from the URL, or uninitialised IDs accepted
+ini_set('session.use_trans_sid', '1');
+ini_set('session.use_strict_mode', false);
 ```
 
 ## Remediation

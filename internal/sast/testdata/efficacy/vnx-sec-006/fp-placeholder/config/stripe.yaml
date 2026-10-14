@@ -1,0 +1,3 @@
+stripe:
+  secret_key: @@sample:sk[_]live[_]xxxxxxxxxxxxxxxxxxxxxxxx@@
+  test_key: @@sample:sk[_]test[_]000000000000000000000000@@

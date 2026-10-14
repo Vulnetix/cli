@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-004 – PHP Open Redirect"
-description: "Detect PHP redirect calls that pass user-supplied input directly to header('Location: ...'), enabling attackers to redirect users to malicious external sites for phishing and credential theft."
+description: "Detect header('Location: ...'), wp_redirect(), redirect(), Redirect::to(), RedirectResponse and withHeader('Location') whose destination is decided by a request value, enabling open redirects."
 ---
 
 ## Overview
@@ -17,25 +17,24 @@ The risk extends beyond phishing. OAuth 2.0 authorization flows that use a `redi
 
 ## What Gets Flagged
 
-The rule matches lines where `header("Location: ")` or `header('Location: ')` is concatenated with a value from `$_GET`, `$_POST`, or `$_REQUEST`, as well as direct calls to `redirect()` with those superglobals.
+A redirect whose destination starts with a request value, or follows only a scheme or a bare `/`, inline or through a variable assigned from one a few lines above.
 
 ```php
-// FLAGGED: redirect target from GET parameter — no validation
-header("Location: " . $_GET['next']);
-exit;
+// FLAGGED
+header("Location: " . $_GET["url"]);
+header("Location: {$_POST["dest"]}", true, 302);
 
-// FLAGGED: redirect with POST data
-header('Location: ' . $_POST['return_url']);
-exit;
+$back = $_SERVER["HTTP_REFERER"];
+header("Location: $back");
 
-// FLAGGED: framework redirect with raw request data
-redirect($_REQUEST['url']);
+$host = $_GET["host"];
+header("Location: https://" . $host . "/welcome");
 
-// FLAGGED: combined form — vulnerable even with 'exit' present
-$dest = $_GET['redirect'];
-header("Location: " . $dest);
-exit;
+return redirect()->away($request->query("fallback"));
+wp_redirect( $_POST["redirect_to"] );
 ```
+
+Not flagged: a destination whose literal prefix already fixes a host or path (`"Location: /login?next=" . $x`, `"https://shop.example.com/item/" . $sku`, `"info.php?id=" . $id`); a value checked with `in_array()`, `parse_url()` or `preg_match()` first (a `strpos()` substring test does not count); `wp_safe_redirect()`, `redirect()->route()`, `redirect()->back()`; values whose origin is not visible in the file.
 
 ## Remediation
 

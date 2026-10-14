@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-035 – Missing HttpOnly flag on cookie"
-description: "Detect Go http.Cookie struct literals where HttpOnly is not set to true, leaving session cookies accessible to JavaScript and vulnerable to cross-site scripting theft."
+description: "Detects Go cookies sent to the browser without HttpOnly (http.Cookie, fiber.Cookie, gorilla sessions Options, gin SetCookie, default cookie stores), excluding deletion, CSRF double-submit and client-side cookies."
 ---
 
 ## Overview
@@ -19,44 +19,28 @@ This pattern is actively exploited in the wild. Browser extensions, injected thi
 
 ## What Gets Flagged
 
-The rule fires on any `http.Cookie{...}` literal that lacks `HttpOnly: true`, including cookies used for session identifiers, CSRF tokens stored in cookies, and authentication tokens.
+A cookie sent to the browser without `HttpOnly`, or with it turned off:
 
 ```go
-// FLAGGED: HttpOnly not set — cookie is readable by JavaScript
-func setSessionCookie(w http.ResponseWriter, sessionID string) {
-    cookie := &http.Cookie{
-        Name:   "session",
-        Value:  sessionID,
-        Path:   "/",
-        Secure: true,
-        // HttpOnly omitted — accessible to document.cookie
-    }
-    http.SetCookie(w, cookie)
-}
+// FLAGGED: no HttpOnly field
+http.SetCookie(w, &http.Cookie{Name: "session", Value: sid, Secure: true})
 
-// FLAGGED: explicit false is equally flagged
-func setAuthCookie(w http.ResponseWriter, token string) {
-    http.SetCookie(w, &http.Cookie{
-        Name:     "auth_token",
-        Value:    token,
-        HttpOnly: false,
-    })
-}
+// FLAGGED: literal assigned, then sent
+cookie := http.Cookie{Name: "Uid", Value: uid}
+http.SetCookie(w, &cookie)
+
+// FLAGGED: explicitly off (net/http, fiber, gin positional, assignment)
+http.SetCookie(w, &http.Cookie{Name: "sid", Value: sid, HttpOnly: false})
+c.Cookie(&fiber.Cookie{Name: "sid", Value: v, HTTPOnly: false})
+c.SetCookie("session", tok, 3600, "/", "", true, false)
+ck.HttpOnly = false
+
+// FLAGGED: session options without HttpOnly, or a store whose Options are never set
+store.Options = &sessions.Options{Path: "/", MaxAge: 86400, Secure: true}
+var store = sessions.NewCookieStore(key)
 ```
 
-```go
-// SAFE: HttpOnly explicitly enabled
-func setSessionCookie(w http.ResponseWriter, sessionID string) {
-    http.SetCookie(w, &http.Cookie{
-        Name:     "session",
-        Value:    sessionID,
-        Path:     "/",
-        Secure:   true,
-        HttpOnly: true,
-        SameSite: http.SameSiteLaxMode,
-    })
-}
-```
+Not flagged: `HttpOnly: true` or any expression, deletion cookies (`MaxAge: -1`, `Expires: time.Unix(0, 0)`), CSRF/XSRF double-submit cookies (the page's script must read them), cookies a client sends (`req.AddCookie`, cookie jars), test files.
 
 ## Remediation
 

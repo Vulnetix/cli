@@ -1,0 +1,4 @@
+[[runners]]
+  name = "build-1"
+  url = "https://gitlab.com"
+~>  token = "glrt-@@sample:[A-Za-z0-9_]{20}@@"

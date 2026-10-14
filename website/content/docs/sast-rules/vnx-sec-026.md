@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-026 – DigitalOcean Personal Access Token Hardcoded"
-description: "Detect DigitalOcean personal access tokens (dop_v1_ prefix) hardcoded in source code, which provide full API access to Droplets, databases, and Kubernetes clusters in the associated account."
+description: "Detect DigitalOcean personal access tokens (dop_v1_ followed by exactly 64 hex characters) hardcoded in any file, ignoring placeholders, the bare prefix and test paths."
 ---
 
 ## Overview
@@ -23,15 +23,16 @@ Because git history is permanent until actively rewritten, a token committed eve
 
 ## What Gets Flagged
 
-The rule matches any file (excluding lock files, checksums, and minified assets) containing a string that matches `dop_v1_` followed by 64 hexadecimal characters.
+The rule reports `dop_v1_` followed by exactly 64 lowercase hex characters, delimited on both sides, in any file:
 
-```bash
-# FLAGGED: DigitalOcean token hardcoded in a deployment script
-DIGITALOCEAN_TOKEN=dop_v1_EXAMPLE_REDACTED
-
-# FLAGGED: token in application configuration
-do_token = "dop_v1_EXAMPLE_REDACTED"
+```text
+# FLAGGED
+DIGITALOCEAN_TOKEN=dop_v1_<64 hex>
+provider "digitalocean" { token = "dop_v1_<64 hex>" }
+- run: doctl auth init --access-token dop_v1_<64 hex>
 ```
+
+Not flagged: placeholders such as `dop_v1_000...` or `dop_v1_<your-token-here>`, `var.do_token` and `${{ secrets.* }}` references, the bare `dop_v1_` prefix or a regular expression for it, and test or fixture paths. OAuth (`doo_v1_`) tokens are reported by VNX-SEC-035.
 
 ## Remediation
 

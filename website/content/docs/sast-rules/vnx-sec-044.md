@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-044 – Microsoft Teams Webhook URL"
-description: "Detects Microsoft Teams incoming webhook URLs hardcoded in source code."
+description: "Reports complete Microsoft Teams incoming webhook URLs (webhook.office.com/webhookb2 and legacy outlook.office.com/webhook) written into files."
 ---
 
 ## Overview
 
-This rule detects Microsoft Teams incoming webhook URLs in the form `https://*.webhook.office.com/webhookb2/...`. These URLs grant the ability to post messages to a Teams channel and are commonly leaked in CI logs and public config files.
+This rule reports a complete Microsoft Teams incoming webhook URL: `https://<tenant>.webhook.office.com/webhookb2/<group-guid>@<tenant-guid>/IncomingWebhook/<32-hex>/<guid>` and the legacy `https://outlook.office.com/webhook/...` and `outlook.office365.com` forms. Truncated URLs, placeholder GUIDs (all zeros, `xxxxxxxx-...`), URLs read from the environment, Power Automate workflow URLs and test, fixture and vendored paths are not reported, and the snippet is redacted. These URLs grant the ability to post messages to a Teams channel and are commonly leaked in CI logs and public config files.
 
 **Severity:** High | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

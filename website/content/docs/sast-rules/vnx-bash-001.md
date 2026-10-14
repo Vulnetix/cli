@@ -1,11 +1,11 @@
 ---
-title: "VNX-BASH-001 – eval with Potentially User-Controlled Input"
-description: "Detects eval calls that use a variable, command substitution, or concatenation rather than a static string literal, enabling arbitrary shell command injection if any part of the evaluated string originates from external input."
+title: "VNX-BASH-001 – eval or sh -c of a Dynamically Built String"
+description: "Reports a shell eval, or a bash/sh/zsh/ksh/dash -c command string, whose text contains a variable, positional parameter, dynamic command substitution or the output of a download or decoder, so the shell re-parses data as code."
 ---
 
 ## Overview
 
-This rule flags any use of `eval` in Bash or shell scripts where the argument contains a `$` variable reference or a backtick command substitution. It excludes commented-out lines and lines that consist solely of a static string literal with no variable interpolation.
+This rule reports an `eval` statement, and a `bash`/`sh`/`zsh`/`ksh`/`dash -c` command string, whose text contains an expansion the shell re-parses as code: a variable or positional parameter (`$cmd`, `${x}`, `$1`, `$@`), a command substitution whose own command line is dynamic, or the output of a download or decoder (`$(curl ...)`, `$(wget ...)`, `$(... | base64 -d)`). Variables assigned only constant strings in the same file count as constant, and the indirect-reference idiom `eval "x=\$$name"` is reported when the name comes from a positional parameter or `read`. Not reported: static or single-quoted strings, escaped `\$`, `eval "$(tool init)"` of a local tool's own output, getopt's `eval set -- "$opts"`, `sh -c 'script' _ "$arg"` (the value is passed as an argument), eval inside a string, comment or usage here-document, and generated `gradlew`/`mvnw` wrappers.
 
 `eval` causes the shell to re-parse and execute its argument as a new shell command. When any portion of the string passed to `eval` originates from user input, an environment variable set by an untrusted source, a file path, or the output of an external command, an attacker who controls that portion can inject arbitrary shell commands that execute with the script's full privileges.
 
@@ -29,22 +29,20 @@ ATT&CK technique T1059.004 (Command and Scripting Interpreter: Unix Shell) cover
 ## What Gets Flagged
 
 ```bash
-# FLAGGED: variable interpolated into eval
-eval "$user_command"
-
-# FLAGGED: command substitution result passed to eval (backtick form)
-eval `get_config_value "cmd"`
-
-# FLAGGED: concatenation with an environment variable
-eval "docker run $IMAGE_NAME"
-
-# FLAGGED: eval combining multiple variables
-eval "$BUILD_CMD --target $TARGET"
+eval "$(curl -fsSL https://config.example.internal/env/production)"   # FLAGGED
+eval "$(echo "$REMOTE_SNIPPET" | base64 -d)"                          # FLAGGED
+bash -c "$TASK_COMMAND"                                               # FLAGGED
+sh -c "cd $target && make install"                                    # FLAGGED
+[ -n "$hook" ] && eval "$hook"                                        # FLAGGED
 ```
 
+Not flagged:
+
 ```bash
-# NOT flagged: eval with a purely static string (no variables or substitutions)
-eval "set -euo pipefail"
+eval "set -euo pipefail"              # static string
+eval "$(direnv hook bash)"            # a local tool's own shell setup
+eval set -- "$(getopt -o hv -- "$@")" # getopt quotes its output for eval
+sh -c 'cp "$1" /backup/' _ "$file"    # value passed as an argument, not code
 ```
 
 ## Remediation

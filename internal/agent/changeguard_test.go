@@ -151,7 +151,7 @@ func quote(s string) string {
 // A staged AWS key is the case the guard exists for.
 func TestChangeGuard_BlocksAStagedCredential(t *testing.T) {
 	root := gitRepo(t)
-	write(t, root, "deploy.sh", "#!/bin/sh\nexport AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n")
+	write(t, root, "deploy.sh", "#!/bin/sh\nexport AWS_ACCESS_KEY_ID=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "deploy.sh")
 
 	r := Runner{Policy: DefaultPolicy(), Root: root}
@@ -191,7 +191,7 @@ func TestChangeGuard_SilentOnACleanCommit(t *testing.T) {
 // re-reporting it on every commit is how a guard gets switched off.
 func TestChangeGuard_IgnoresAnUnstagedPreexistingSecret(t *testing.T) {
 	root := gitRepo(t)
-	write(t, root, "old.sh", "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n")
+	write(t, root, "old.sh", "AWS_ACCESS_KEY_ID=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "old.sh")
 	gitIn(t, root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "existing")
 
@@ -216,7 +216,7 @@ func TestChangeGuard_ReadsTheWorkingTreeForCommitAll(t *testing.T) {
 	gitIn(t, root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "init")
 
 	// Modified but deliberately not staged.
-	write(t, root, "app.py", "KEY = 'AKIAIOSFODNN7EXAMPLE'\n")
+	write(t, root, "app.py", "KEY = 'AKIAQ2W3E4R5T6Y7U2I3'\n")
 
 	r := Runner{Policy: DefaultPolicy(), Root: root}
 
@@ -259,7 +259,7 @@ func TestChangeGuard_SilentWhenItCannotLook(t *testing.T) {
 // one that drops it entirely gets nothing.
 func TestChangeGuard_HonoursThePolicy(t *testing.T) {
 	root := gitRepo(t)
-	write(t, root, "deploy.sh", "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n")
+	write(t, root, "deploy.sh", "AWS_ACCESS_KEY_ID=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "deploy.sh")
 
 	warn := DefaultPolicy()
@@ -288,7 +288,7 @@ func TestChangeGuard_HonoursThePolicy(t *testing.T) {
 // encode as a deny both hosts understand.
 func TestChangeGuard_EncodesAsADeny(t *testing.T) {
 	root := gitRepo(t)
-	write(t, root, "deploy.sh", "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n")
+	write(t, root, "deploy.sh", "AWS_ACCESS_KEY_ID=AKIAQ2W3E4R5T6Y7U2I3\n")
 	gitIn(t, root, "add", "deploy.sh")
 
 	got := Runner{Policy: DefaultPolicy(), Root: root}.

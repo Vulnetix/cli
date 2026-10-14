@@ -1,0 +1,3 @@
+#!/bin/bash
+release=$1
+~>ln -sfn /opt/app/releases/$release /opt/app/current

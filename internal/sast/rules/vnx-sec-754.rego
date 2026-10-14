@@ -26,16 +26,17 @@ _pattern := `(?i)bamboo[_-]?hr[a-z0-9_]*(?:api)?[_-]?key\s*[:=]\s*['"]?([a-f0-9]
 _keywords := ["bamboohr", "key"]
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	secrets.has_keyword(content, _keywords)
+	lines := split(content, "\n")
 	some i, line in lines
 	secrets.has_keyword(line, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]
 	not secrets.is_example_token(token)
-	secrets.high_entropy(token, 4)
+	secrets.high_entropy(token, 3.8)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "BambooHR API key found; reset it in BambooHR under your account API Keys",

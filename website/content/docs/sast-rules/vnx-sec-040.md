@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-040 – GitLab Pipeline / Deploy / Runner / Agent Token"
-description: "Detects GitLab infrastructure tokens (glptt-, gldt-, glrt-, glagent-, glcbt-, gloas-, glimt-, glffct-, glft-, glsoat-, GR1348941) hardcoded in source code."
+description: "Reports a GitLab infrastructure token by its documented prefix and body shape: pipeline trigger (glptt- + 40 hex), deploy (gldt-), runner authentication (glrt-), runner registration (GR1348941), Kubernetes agent (glagent-), CI job (glcbt-), OAuth application secret (gloas-), incoming mail (glimt-), feature-flag client (glffct-), feed (glft-) and SCIM (glsoat-) tokens. A prefix without a token body of the right length, placeholders and test or fixture paths are not reported; glpat- access tokens are VNX-SEC-039."
 ---
 
 ## Overview
@@ -12,6 +12,24 @@ This rule detects GitLab infrastructure tokens for pipeline triggers, deploy tok
 ## Why This Matters
 
 Each of these tokens grants a specific kind of automated access. A leaked runner authentication token (glrt-) lets the attacker register their own runner and execute arbitrary code inside your CI jobs. A leaked Kubernetes agent token (glagent-) gives the attacker a foothold in your cluster.
+
+## What Gets Flagged
+
+Flagged (prefix plus a token body of the documented shape):
+
+```yaml
+script:
+  - curl -X POST -F token=glptt-<40 hex> -F ref=main https://gitlab.com/api/v4/projects/42/trigger/pipeline
+```
+
+```toml
+[[runners]]
+  token = "glrt-<20+ characters>"
+```
+
+Also `gldt-` deploy, `GR1348941` runner registration, `glagent-` agent, `glcbt-` CI job, `gloas-` OAuth secret, `glimt-` incoming mail, `glffct-` feature-flag, `glft-` feed and `glsoat-` SCIM tokens.
+
+Not flagged: a prefix named in prose, a CSS class such as `.glft-icon-container-wrapper`, `$CI_JOB_TOKEN`, placeholders, and test or fixture files.
 
 ## Remediation
 

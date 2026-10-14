@@ -1,0 +1,26 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.example.shop'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.example.shop"
+        minSdk 24
+        targetSdk 34
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            applicationIdSuffix ".debug"
+        }
+        release {
+            minifyEnabled true
+~>            debuggable true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}

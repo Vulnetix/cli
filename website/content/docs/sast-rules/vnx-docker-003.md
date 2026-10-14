@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-003 – Secret in Dockerfile ARG or ENV"
-description: "Detects Dockerfile ARG and ENV instructions whose names suggest credentials (PASSWORD, SECRET, TOKEN, KEY, CREDENTIAL, API_KEY) and include an assigned value, baking secrets into image layers."
+description: "Reports credential-named Dockerfile ARG and ENV instructions: ENV with a literal secret or one copied from a build arg, and any credential ARG, which persist in the image config or build history."
 ---
 
 ## Overview
@@ -23,23 +23,19 @@ CAPEC-191 (Read Sensitive Constants Within an Executable) captures the inspectio
 
 ## What Gets Flagged
 
-The rule matches `ARG` or `ENV` lines where the variable name contains a credential keyword and the line includes a value assignment (`=`):
+The variable name must say it holds a credential (`PASSWORD`, `PASSWD`, `PASSPHRASE`, `SECRET`, `TOKEN`, `APIKEY`, `CREDENTIAL(S)`, `PRIVATEKEY`, a `PASS`/`PW`/`_PWD` word, or a name ending in `_KEY`). Reported: `ENV` with a literal value (in the `KEY=value` form, the legacy `KEY value` form, several pairs on one line and on continuation lines), `ENV` that copies a build arg into the image, and any credential-named `ARG`. The snippet is redacted.
 
 ```dockerfile
-# FLAGGED: API key baked into image layer
-ENV API_KEY=sk-prod-EXAMPLE_REDACTED
-
-# FLAGGED: database password as build argument with a default value
-ARG DATABASE_PASSWORD=supersecret
-
-# FLAGGED: secret token embedded in ENV
-ENV GITHUB_TOKEN=ghp_abcdefghijklmn
-
-# FLAGGED: generic credential
-ENV AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+# FLAGGED
+ENV POSTGRES_PASSWORD=Sup3rS3cret-prod
+ENV DB_PASS hunter2-reporting
+ENV APP_ENV=production \
+    DATABASE_PASSWORD=pr0d-db-pa55
+ARG NPM_TOKEN
+ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
 ```
 
-Variable name declarations without values (e.g., `ARG DATABASE_PASSWORD` — no `=`) are not flagged, as they do not bake a value into the layer.
+Not reported: names that point at or describe a secret (`*_FILE`, `*_PATH`, `*_URL`, `*_NAME`, `*_ID`, `*_TTL`, `*_ENABLED` and similar), public material (`GPG_KEY`, `PUBLIC_*`), lookalikes (`TOKENIZERS_PARALLELISM`, `KEYCLOAK_VERSION`), `ENV` values that are empty, booleans, short numbers, paths, plain URLs or placeholders, `RUN --mount=type=secret`, and text in comments, `RUN` commands or labels.
 
 ## Remediation
 

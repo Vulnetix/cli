@@ -1,0 +1,5 @@
+#!/bin/sh
+# Rebuilds the public asset directory.
+~>cd /srv/app/public
+rm -rf assets
+npm run build

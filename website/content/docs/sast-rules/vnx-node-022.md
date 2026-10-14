@@ -1,11 +1,11 @@
 ---
 title: "VNX-NODE-022 – Shell injection via shelljs exec()"
-description: "Detects shelljs exec() or shell.exec() called with a variable argument that may contain user-controlled data, enabling shell metacharacter injection and arbitrary command execution."
+description: "Reports shelljs exec() whose command carries an Express/Koa/Lambda request value, directly or through variables assigned from one. Not reported: constant or program-built commands (release scripts), other shelljs commands, RegExp.exec, child_process (VNX-NODE-003), comments and strings."
 ---
 
 ## Overview
 
-This rule detects two patterns involving the `shelljs` library: any import of `shelljs` (as a warning prompting review), and any call to `.exec()` or `.execSync()` where the argument is a variable derived from request data or is otherwise non-literal. The `shelljs` library provides a Unix shell interface from Node.js, and its `exec()` function passes the command string directly to `/bin/sh`, which interprets shell metacharacters.
+This rule reports a `shelljs` `exec()` call (through a name bound to the module, or `exec` imported by name or `as` an alias) whose command, on the call's line or the next two, contains a request value (`req.query/body/params/headers/cookies`, `ctx.request/query/params`, `event.body/queryStringParameters/pathParameters/headers`), a variable assigned from one within the previous 15 lines, or a variable built from such a variable. Importing shelljs, running constant commands, and commands built only from program data (a release script tagging `pkg.version`) are not findings. The `shelljs` library provides a Unix shell interface from Node.js, and its `exec()` function passes the command string directly to `/bin/sh`, which interprets shell metacharacters.
 
 Unlike Node.js built-in `child_process.execFile()`, which accepts a command and arguments separately, `shelljs.exec()` accepts a single string that is evaluated by the shell. This means any unescaped user input in the string — semicolons, backticks, pipe characters, `$()` substitution — is interpreted as shell syntax rather than data.
 
@@ -24,17 +24,20 @@ The danger is compounded by the fact that escaping shell arguments correctly is 
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED (warning): shelljs imported — review all exec() calls
 const shell = require('shelljs');
 
-// FLAGGED: exec() called with request-derived variable
-app.post('/run', (req, res) => {
-  const result = shell.exec('git clone ' + req.body.repoUrl);
-  res.json({ output: result.stdout });
-});
+// FLAGGED: request value concatenated into the command
+const out = shell.exec('ping -c 1 ' + req.query.host, { silent: true });
 
-// FLAGGED: execSync with template literal containing user data
-const output = shell.execSync(`ls ${req.query.path}`);
+// FLAGGED: two-line form through a template literal
+const branch = req.params.branch;
+const cmd = `git checkout ${branch}`;
+sh.exec(cmd);
+
+// Not flagged
+shell.exec('npm run build');
+shell.exec(`git tag v${pkg.version}`);   // program data, not caller input
+execFile('ping', ['-c', '1', host], cb); // no shell
 ```
 
 ## Remediation

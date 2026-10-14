@@ -1,0 +1,15 @@
+FROM registry.access.redhat.com/ubi9/ubi:9.4
+~>RUN yum install -y httpd && yum clean all
+~>RUN dnf -y install python3-pip java-17-openjdk-headless
+~>RUN microdnf install -y nginx && microdnf clean all
+
+FROM registry.suse.com/bci/bci-base:15.6
+~>RUN zypper --non-interactive install curl
+
+FROM ubuntu:24.04
+RUN <<EOF
+set -eux
+~>apt-get update && apt-get install -y gnupg
+rm -rf /var/lib/apt/lists/*
+EOF
+~>ONBUILD RUN apt-get update && apt-get install -y make

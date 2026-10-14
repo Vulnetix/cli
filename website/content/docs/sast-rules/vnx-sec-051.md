@@ -1,11 +1,22 @@
 ---
 title: "VNX-SEC-051 – RubyGems API Token"
-description: "Detects RubyGems API tokens (rubygems_ prefix) hardcoded in source code."
+description: "Reports a RubyGems.org API key (rubygems_ + exactly 48 hex characters) in any file; bare prefixes, longer identifiers, placeholders and CI secret references are not reported."
 ---
 
 ## Overview
 
-This rule detects rubygems api token matching the `rubygems_...` pattern hardcoded anywhere in source files. Detects RubyGems API tokens (rubygems_ prefix) hardcoded in source code.
+This rule reports a RubyGems.org API key, `rubygems_` followed by exactly 48 lower-case hex characters as a whole token, wherever it appears: `~/.gem/credentials`, `GEM_HOST_API_KEY` in a workflow, a Rakefile or a shell script. Not reported: the bare prefix, shorter or longer hex runs, placeholder bodies, `${{ secrets.X }}` references, and test, fixture or vendored paths.
+
+### What Gets Flagged
+
+```yaml
+:rubygems_api_key: rubygems_<48 hex characters>
+```
+
+```yaml
+env:
+  GEM_HOST_API_KEY: "rubygems_<48 hex characters>"
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

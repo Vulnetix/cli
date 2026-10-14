@@ -1,13 +1,13 @@
 ---
 title: "VNX-GO-037 – Missing security headers in HTTP response"
-description: "Detect Go HTTP handlers that write responses via WriteHeader, Header().Set, or http.ResponseWriter without setting essential browser security headers such as X-Frame-Options, X-Content-Type-Options, and Content-Security-Policy."
+description: "Detects Go web applications that serve HTML pages, templates or static files while no production Go file sets browser security headers directly or through middleware. Reported once per file."
 ---
 
 ## Overview
 
-This rule flags Go HTTP handler functions that interact with `http.ResponseWriter` — by calling `WriteHeader`, `Header().Set`, `w.Write`, or `w.Header()` — without setting one or more of the following critical security headers: `X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Strict-Transport-Security`, or `Content-Security-Policy`. These headers instruct browsers to enforce security policies that cannot be applied server-side, and their absence exposes users to a class of attacks that are entirely preventable at zero functional cost. This maps to [CWE-693: Protection Mechanism Failure](https://cwe.mitre.org/data/definitions/693.html).
+This rule flags Go web applications that serve pages to browsers (an html/template `Execute` into the response writer, a `text/html` Content-Type, gin/echo `c.HTML`, fiber `c.Render`, `http.FileServer`/`http.ServeFile`, or markup written with `fmt.Fprint(w, "<...")`) while no production Go file sets `X-Frame-Options`, `X-Content-Type-Options`, `Strict-Transport-Security`, `Content-Security-Policy`, `Referrer-Policy`, `Permissions-Policy` or the Cross-Origin policies. These headers instruct browsers to enforce protections that cannot be applied server-side. This maps to [CWE-693: Protection Mechanism Failure](https://cwe.mitre.org/data/definitions/693.html).
 
-The rule targets handlers that appear to produce HTML or API responses — indicated by `Content-Type: text/html` or generic response writing — where the absence of these headers is most impactful.
+The rule reports once per file, at the first line that serves a page, and only in a project that declares `func main` (a library or framework that only provides a renderer does not choose its users' headers). It stays silent when any non-test Go file in the project mentions a security header or a security-headers middleware (`unrolled/secure`, `gin-contrib/secure`, `middleware.Secure`), because a header set in middleware protects handlers in every other file. JSON and status-only responses, test servers and mocks are not reported.
 
 **Severity:** Medium | **CWE:** [CWE-693 – Protection Mechanism Failure](https://cwe.mitre.org/data/definitions/693.html) | **OWASP:** [A05:2021 – Security Misconfiguration](https://owasp.org/Top10/A05_2021-Security_Misconfiguration/)
 
@@ -19,43 +19,21 @@ Browser security headers form a second line of defence against injection and UI-
 
 ## What Gets Flagged
 
-The rule fires on handler functions that write HTTP responses without a security header middleware or explicit header-setting calls.
+In a project with a `func main`, the first line of each file that serves a browser-rendered page, when no production Go file sets a security header or uses a security-headers middleware:
 
 ```go
-// FLAGGED: handler writes HTML response with no security headers
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    // No X-Frame-Options, X-Content-Type-Options, or CSP set
-    fmt.Fprintf(w, "<html><body>Welcome</body></html>")
-}
+// FLAGGED: template rendered into the response
+if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
 
-// FLAGGED: API handler missing security headers
-func apiHandler(w http.ResponseWriter, r *http.Request) {
-    w.WriteHeader(http.StatusOK)
-    w.Write([]byte(`{"status":"ok"}`))
-}
+// FLAGGED: gin / fiber pages and static files
+c.HTML(http.StatusOK, "index.tmpl", gin.H{"title": "Home"})
+return http.StripPrefix("/static/", http.FileServer(http.Dir("public")))
+
+// FLAGGED: markup written directly
+fmt.Fprintf(w, "<html><body>Hello %s</body></html>", name(r))
 ```
 
-```go
-// SAFE: security headers applied via middleware wrapping all handlers
-func securityHeaders(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("X-Frame-Options", "DENY")
-        w.Header().Set("X-Content-Type-Options", "nosniff")
-        w.Header().Set("X-XSS-Protection", "1; mode=block")
-        w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
-        w.Header().Set("Content-Security-Policy", "default-src 'self'")
-        w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-        next.ServeHTTP(w, r)
-    })
-}
-
-func main() {
-    mux := http.NewServeMux()
-    mux.HandleFunc("/", homeHandler)
-    http.ListenAndServe(":8080", securityHeaders(mux))
-}
-```
+Not flagged: JSON and status-only responses, a project where any file mentions `X-Frame-Options`, `Content-Security-Policy` (and the other headers) or uses `gin-contrib/secure`, `unrolled/secure` or `middleware.Secure`, libraries without a `main` (a renderer does not choose its users' headers), test servers, comments and strings.
 
 ## Remediation
 

@@ -1,0 +1,2 @@
+vault:
+~>  token: hvb.AAAAAQ@@sample:[A-Za-z0-9_-]{160}@@

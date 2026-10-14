@@ -1,0 +1,12 @@
+<html>
+<head>
+  <style>
+~>    body { font-size: <%= raw cookies[:font] %> !important; }
+  </style>
+</head>
+<body>
+~>  <div class="banner"><%== @announcement.body %></div>
+~>  <p><%= raw(params[:message]) %></p>
+  <%= yield %>
+</body>
+</html>

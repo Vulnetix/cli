@@ -1,11 +1,11 @@
 ---
 title: "VNX-JAVA-028 – SQL injection via string concatenation in Java"
-description: "Detects JDBC execute/executeQuery/executeUpdate calls that construct SQL queries using string concatenation, making them vulnerable to SQL injection."
+description: "Detects JDBC Statement/Connection and Spring JdbcTemplate calls whose SQL is built from a SQL literal and a non-constant value by concatenation, +=, concat(), String.format or StringBuilder.append, inline or in a variable assigned above the call. Parameterised queries and constant-only SQL are not reported."
 ---
 
 ## Overview
 
-This rule detects calls to JDBC methods `.execute()`, `.executeQuery()`, and `.executeUpdate()` where the SQL string argument is constructed via string concatenation (`+`), `.concat()`, or `String.format()`. When user-supplied data is embedded directly into a SQL query string without parameterization, an attacker can manipulate the query's structure — altering its logic, extracting unauthorized data, modifying records, or executing administrative commands depending on the database user's privileges. This is classified as CWE-89 (Improper Neutralization of Special Elements used in an SQL Command).
+This rule detects JDBC (`execute`, `executeQuery`, `executeUpdate`, `executeLargeUpdate`, `addBatch`, `prepareStatement`, `prepareCall`) and Spring `JdbcTemplate` (`query*`, `update`, `batchUpdate`) calls whose SQL argument contains a SQL string literal joined with a non-constant value through `+`, `+=`, `.concat()`, `String.format("...%s")` or `StringBuilder.append()`, either inline (also across line breaks) or in a variable built within the 40 lines above the call. SQL made only of literals and UPPER_CASE constants, `?` placeholders with bound arguments, and non-SQL `execute()` calls (HTTP clients, executors) are not reported. The rule does not follow values across methods and does not decide whether the joined value is attacker-controlled. When user-supplied data is embedded directly into a SQL query string without parameterization, an attacker can manipulate the query's structure — altering its logic, extracting unauthorized data, modifying records, or executing administrative commands depending on the database user's privileges. This is classified as CWE-89 (Improper Neutralization of Special Elements used in an SQL Command).
 
 SQL injection remains one of the most prevalent and impactful vulnerabilities in web applications. Despite decades of awareness, string-concatenated queries continue to appear in Java codebases due to developer convenience, copied legacy patterns, and dynamic query generation for reporting or search features. Even a single injectable parameter in an otherwise safe codebase can expose the entire database.
 
@@ -28,8 +28,17 @@ ResultSet rs = stmt.executeQuery(query);
 String sql = String.format("DELETE FROM sessions WHERE user_id = %s", userId);
 stmt.executeUpdate(sql);
 
-// FLAGGED: .concat() in execute call
+// FLAGGED: concatenation inside the call
 stmt.execute("UPDATE accounts SET balance = " + amount + " WHERE id = " + id);
+
+// FLAGGED: JdbcTemplate and StringBuilder
+return jdbcTemplate.queryForList("SELECT * FROM sales WHERE region = '" + region + "'");
+StringBuilder sb = new StringBuilder("UPDATE stock SET qty = qty + 1 WHERE sku = '");
+sb.append(sku).append("'");
+return jdbcTemplate.update(sb.toString());
+
+// NOT FLAGGED: constants only
+st.execute("CREATE TABLE IF NOT EXISTS " + TABLE + " (" + COLUMNS + ")");
 ```
 
 ## Remediation

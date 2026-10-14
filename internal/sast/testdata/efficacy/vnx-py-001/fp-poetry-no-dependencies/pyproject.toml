@@ -1,0 +1,8 @@
+[tool.poetry]
+name = "scripts"
+version = "0.1.0"
+description = "Standalone helper scripts"
+authors = ["Ops <ops@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.12"

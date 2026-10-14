@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-031 – Mailgun API Key Hardcoded"
-description: "Detect Mailgun API keys hardcoded in source code — identified by the key- prefix pattern combined with Mailgun-related variable names — which allow sending email on behalf of your domain and accessing account logs."
+description: "Detect Mailgun private API keys (key- plus 32 characters, or the 32-8-8 hex form) hardcoded in files that name Mailgun, ignoring pubkey- validation keys and unrelated key- values."
 ---
 
 ## Overview
@@ -23,15 +23,17 @@ A hardcoded API key in a repository is particularly dangerous if the repository 
 
 ## What Gets Flagged
 
-The rule matches any file (excluding lock files, checksums, and minified assets) that contains both a `key-` followed by 32 alphanumeric characters and a Mailgun-related term on the same line.
+The rule reports a legacy `key-` key (32 lowercase letters or digits) in a file that mentions Mailgun or an `MG_API_KEY`-style name, and the current `<32 hex>-<8 hex>-<8 hex>` form when Mailgun is named within three lines:
 
-```python
-# FLAGGED: Mailgun API key hardcoded in application code
-MAILGUN_API_KEY = "key-aBcDeFgHiJkLmNoPqRsTuVwXyZ012345"
-
-# FLAGGED: key inline in a Mailgun client call
-client = mailgun.Client(api_key="key-aBcDeFgHiJkLmNoPqRsTuVwXyZ012345")
+```text
+# FLAGGED
+auth=("api", "key-<32 characters>"),                  (requests.post to api.mailgun.net)
+MAILGUN_API_KEY=key-<32 characters>
+$mg = Mailgun::create('key-<32 characters>');
+"MAILGUN_API_KEY": "<32 hex>-<8 hex>-<8 hex>",
 ```
+
+Not flagged: `pubkey-` public validation keys, `key-` values in files with no Mailgun context (licence keys), the 32-8-8 hex shape far from any Mailgun name, placeholders, environment references, and test or fixture paths.
 
 ## Remediation
 

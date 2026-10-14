@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-013 – Java XPath Injection"
-description: "Detects Java code that constructs XPath expressions from user input via xpath.evaluate() or xpath.compile() with request parameters or string concatenation, enabling XML data extraction and authentication bypass."
+description: "Reports XPath.evaluate/compile, dom4j selectNodes/selectSingleNode and Jaxen XPath constructors whose expression carries HTTP request data, or concatenates a String method parameter into a quoted value, directly or through a local built a few lines above. Variable-resolver expressions, encoded values and constants are not reported."
 ---
 
 ## Overview
@@ -19,7 +19,7 @@ XPath injection is not as widely known as SQL injection, which means it is more 
 
 ## What Gets Flagged
 
-The rule matches `.java` files where `xpath.evaluate()` or `xpath.compile()` is called with either a request parameter as an argument, or with a `+` concatenation in the expression string.
+The rule reports the call whose expression (first) argument carries request data, a servlet request value, an annotated handler parameter or a local built from one, or concatenates a `String` parameter of the enclosing method between quotes (`'" + name + "'`). Expressions using `$variables` with an `XPathVariableResolver`, values encoded with `encodeForXPath` or parsed as numbers, and request data used as the document being queried are not reported.
 
 ```java
 // FLAGGED: user input passed directly to evaluate()

@@ -1,59 +1,67 @@
 ---
-title: "VNX-1045 – File Upload without Type Restriction"
-description: "Detects file save and upload API calls across Go, Java, Node.js, PHP, and Python that may lack content-type validation, enabling upload of dangerous file types."
+title: "VNX-1045 – Parent Class with Virtual Destructor and Child Without Virtual Destructor"
+description: "Reports a C++ child class whose own destructor is declared without virtual, override or final although a parent in its base list declares a virtual destructor."
 ---
 
 ## Overview
 
-VNX-1045 is an auto-generated broad-pattern rule that searches for file persistence and upload patterns across Go, Java, Node.js, PHP, and Python source files. The rule targets `.save` in Python, `upload` in Node.js, `CreateFile` in Go, `File.createTempFile` in Java, and `move_uploaded_file` in PHP. These are associated with [CWE-1045](https://cwe.mitre.org/data/definitions/1045.html) in the rule metadata.
+VNX-1045 reports [CWE-1045](https://cwe.mitre.org/data/definitions/1045.html) in C++. The case is a class that derives from a parent whose destructor is declared `virtual`, and that declares its own destructor without `virtual`, `override` or `final`.
 
-Applications that accept file uploads without validating file type or content may allow attackers to upload executable code — web shells, scripts, or binaries — that can be subsequently executed or delivered to other users. All flagged locations should be reviewed to confirm that content-type allowlisting and file content inspection are in place.
+The finding is on the child's in-class destructor declaration: `~Child();`, `~Child() = default;`, `~Child() noexcept;` or an inline body. The parent can be named with any access specifier, with or without a namespace or template arguments, and can be declared in any C++ file of the scanned tree, including with `virtual` on the line above the destructor.
 
-Because this rule matches common upload-related function names broadly, it has a higher false-positive rate on codebases that perform any kind of file persistence. Manual review of each finding is required.
+Not reported:
 
-**Severity:** Medium | **CWE:** [CWE-1045](https://cwe.mitre.org/data/definitions/1045.html) | **OWASP:** [A04:2021 – Insecure Design](https://owasp.org/Top10/A04_2021-Insecure_Design/)
+- A child destructor marked `virtual`, `override` or `final`.
+- A child with no user-declared destructor. The implicit destructor is virtual and needs no annotation.
+- A parent whose destructor is not virtual. That is a different and more dangerous weakness (CWE-1079 and CWE-1087), judged by VNX-1079 and VNX-1087.
+- A parent defined outside the scanned tree.
+- Out-of-class definitions (`Child::~Child() {}`), base lists that span lines, test code and comments.
+
+**Severity:** Medium | **CWE:** [CWE-1045](https://cwe.mitre.org/data/definitions/1045.html)
 
 ## Why This Matters
 
-Unrestricted file upload is one of the most impactful vulnerability classes in web applications. An attacker who can upload a PHP web shell, a Python WSGI script, or a JAR file to a location served by the application gains arbitrary code execution on the server. Even if the uploaded file cannot be directly executed, it may be delivered to other users as a malicious download.
-
-File extension checks and MIME type headers provided by the client are trivially bypassed. Effective type validation requires inspecting the file's actual content (magic bytes) and enforcing a strict allowlist of permitted formats.
+C++ makes the child's destructor virtual anyway, so today the code is correct. The problem is that the declaration reads as non-virtual. A reviewer cannot tell from the child alone whether `delete base_ptr` runs it. If the parent's `virtual` is ever removed, for example in a refactor that turns the parent into a plain value type, every child silently loses its virtual destructor. Deleting through a parent pointer then skips the child's cleanup, which leaks memory and handles or leaves half-destroyed state behind. `override` turns that silent change into a compile error.
 
 ## What Gets Flagged
 
-The rule scans Go, Java, Node.js, PHP, and Python source files for file upload and save patterns:
+```cpp
+class Codec {
+public:
+    virtual ~Codec() = default;
+};
 
-```python
-# FLAGGED: Django model save without type check
-def handle_upload(request):
-    uploaded = request.FILES['document']
-    instance.file.save(uploaded.name, uploaded)
+class GzipCodec : public Codec {
+public:
+    ~GzipCodec();                  // FLAGGED
+};
+
+class Socket : private NonCopyable, public Stream<char> {
+public:
+    ~Socket() = default;           // FLAGGED: Stream<T> declares virtual ~Stream()
+};
 ```
 
-```javascript
-// FLAGGED: Node.js upload handler
-app.post('/upload', upload.single('file'), (req, res) => {
-    // file saved by multer — type restriction not visible at this line
-});
-```
+## What Is Not Flagged
 
-```php
-// FLAGGED: PHP move_uploaded_file
-$ext = pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);
-move_uploaded_file($_FILES['file']['tmp_name'], "uploads/$filename");
+```cpp
+class GzipCodec : public Codec {
+public:
+    ~GzipCodec() override;
+};
+
+class LzCodec : public Codec {     // no user-declared destructor
+    int encode() override;
+};
 ```
 
 ## Remediation
 
-1. Maintain a strict allowlist of permitted file extensions and reject any upload that does not match.
-2. Validate file content using magic byte inspection rather than relying on client-supplied MIME type or file extension alone.
-3. Store uploaded files outside the web root, or in a location that is not served by the application server with execute permissions.
-4. Rename all uploaded files to a server-generated name to prevent directory traversal and web shell naming tricks.
-5. Serve uploaded files through a dedicated endpoint that sets an appropriate `Content-Disposition: attachment` header rather than allowing inline execution.
+1. Declare the child's destructor `override` (`~GzipCodec() override;`), or `virtual` if your style guide prefers it.
+2. Turn on `-Winconsistent-missing-destructor-override` (Clang) or clang-tidy's `modernize-use-override` to enforce it.
+3. If the child needs no cleanup, remove the user-declared destructor and rely on the implicit one.
 
 ## References
 
-- [CWE-434: Unrestricted Upload of File with Dangerous Type](https://cwe.mitre.org/data/definitions/434.html)
-- [CWE-22: Improper Limitation of a Pathname to a Restricted Directory](https://cwe.mitre.org/data/definitions/22.html)
-- [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)
-- [CAPEC-1: Accessing/Intercepting/Modifying HTTP Cookies](https://capec.mitre.org/data/definitions/1.html)
+- [CWE-1045: Parent Class with a Virtual Destructor and a Child Class without a Virtual Destructor](https://cwe.mitre.org/data/definitions/1045.html)
+- [C++ Core Guidelines C.128: Virtual functions should specify exactly one of virtual, override, or final](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#c128-virtual-functions-should-specify-exactly-one-of-virtual-override-or-final)

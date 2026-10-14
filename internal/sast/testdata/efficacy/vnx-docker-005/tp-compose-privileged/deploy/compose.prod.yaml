@@ -1,0 +1,6 @@
+services:
+  vpn:
+    image: ghcr.io/example/wireguard:1.0.20210914
+~>    privileged: "true"
+    cap_add:
+      - NET_ADMIN

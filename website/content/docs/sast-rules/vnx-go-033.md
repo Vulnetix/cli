@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-033 – JWT missing audience validation"
-description: "Detects JWT parsing that does not verify the audience claim, allowing tokens issued for one service to be replayed against other services."
+description: "Detects Go JWT verification (golang-jwt Parse/ParseWithClaims/NewParser, jwx Parse, go-jose ParseSigned) with no audience check in its arguments or its file, and go-oidc configs with SkipClientIDCheck: true."
 ---
 
 ## Overview
@@ -19,32 +19,30 @@ This attack is subtle because it requires no token forgery — only token replay
 
 ## What Gets Flagged
 
-The rule flags JWT parsing that does not include audience validation:
+A JWT verification whose own arguments carry no `jwt.WithAudience`, in a file where nothing else checks the audience, and an OIDC verifier with the client-ID check turned off:
 
 ```go
-// FLAGGED: audience never checked
-import "github.com/golang-jwt/jwt/v5"
+// FLAGGED: issuer checked, audience not
+tok, err := jwt.Parse(raw, keyFunc, jwt.WithIssuer("https://id.example.com"))
 
-func parseToken(tokenStr string) (*jwt.Token, error) {
-    return jwt.Parse(tokenStr, keyFunc)
-    // aud claim is never inspected
-}
+// FLAGGED: v4 ParseWithClaims with no VerifyAudience anywhere in the file
+_, err := jwt.ParseWithClaims(
+    raw,
+    claims,
+    keyFunc,
+)
 
-// FLAGGED: claims struct has no Audience field, no aud check
-type Claims struct {
-    UserID string `json:"user_id"`
-    jwt.RegisteredClaims
-}
+// FLAGGED: a parser built without WithAudience
+var parser = jwt.NewParser(jwt.WithValidMethods([]string{"RS256"}))
 
-func unsafeParseToken(tokenStr string) (*Claims, error) {
-    token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, keyFunc)
-    if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-        // Audience never verified — any valid token accepted
-        return claims, nil
-    }
-    return nil, err
-}
+// FLAGGED: go-jose token validated against an Expected with no audience
+tok, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.ES256})
+
+// FLAGGED: go-oidc skips the aud check
+provider.Verifier(&oidc.Config{SkipClientIDCheck: true})
 ```
+
+Not flagged: `jwt.Parse(raw, kf, jwt.WithAudience("api.example.com"))`, a file that calls `claims.VerifyAudience(aud, true)` or validates `jwt.Expected{AnyAudience: ...}`, a wrapper that forwards its caller's `opts...`, test files, comments and strings. An audience check made in a different file is not seen.
 
 ## Remediation
 

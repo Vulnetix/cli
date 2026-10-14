@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-003 – AES in ECB Mode"
-description: "Detects use of AES in ECB (Electronic Codebook) mode, which leaks data patterns and is semantically insecure, across Python, Node.js, Go, Java, Ruby, and PHP."
+description: "Reports block ciphers set up in ECB mode in Python, Node.js, Go, Java, Ruby and PHP: MODE_ECB, modes.ECB(), '*-ecb' cipher names, Java '*/ECB/*' or bare \"AES\" transformations (literal, variable or getProperty default), NewECBEncrypter and hand-written per-block Encrypt loops. Other modes, guards against ECB, single-block operations, overridden property defaults, comments and test vectors are not reported."
 ---
 
 ## Overview
@@ -17,7 +17,7 @@ In practice, an attacker observing ECB-encrypted ciphertext can determine which 
 
 ## What Gets Flagged
 
-The rule matches ECB mode identifiers in source files across all supported languages:
+The rule reports cipher constructions that select ECB mode, by name or by default:
 
 ```python
 # FLAGGED: PyCryptodome AES-ECB
@@ -36,9 +36,18 @@ const cipher = forge.cipher.createCipher('AES-ECB', key);
 ```
 
 ```go
-// FLAGGED: Go custom ECB via cipher.NewECBEncrypter (community library)
-// any code referencing AESMode.ecb or aes-128-ecb
+// FLAGGED: Go ECB written by hand, one block at a time
+for i := 0; i < len(plaintext); i += bs {
+	block.Encrypt(out[i:i+bs], plaintext[i:i+bs])
+}
 ```
+
+```php
+// FLAGGED: PHP openssl with an ECB method
+$e = openssl_encrypt($plaintext, 'aes-128-ecb', $key, OPENSSL_RAW_DATA);
+```
+
+Not flagged: GCM, CBC, CTR and other modes; a comparison against `MODE_ECB` (a guard); `KeyGenerator`/`SecretKeySpec` with `"AES"`; a single-block `Encrypt` outside a loop (CMAC subkeys, key wrapping); a Java `getProperty` default that the project's own `.properties` overrides with a non-ECB transformation; comments, strings, documentation and test files.
 
 ## Remediation
 

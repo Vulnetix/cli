@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-010 – OpenSSL Certificate Verification Disabled (VERIFY_NONE)"
-description: "Detect use of OpenSSL::SSL::VERIFY_NONE in Ruby code, which disables TLS certificate chain validation and exposes all connections to man-in-the-middle interception."
+description: "Reports Ruby code that sets or passes OpenSSL::SSL::VERIFY_NONE (or verify_mode = 0), disabling TLS certificate verification; comparisons, none-mode option tables, comments, strings and test files are not reported."
 ---
 
 ## Overview
@@ -23,23 +23,23 @@ The Ruby ecosystem makes `VERIFY_PEER` the correct and default option for a reas
 
 ## What Gets Flagged
 
-The rule matches `.rb` files containing the string `VERIFY_NONE`.
+The rule reports a `.rb` line (outside test and spec files) that assigns or passes `OpenSSL::SSL::VERIFY_NONE`, qualified or bare, or sets `verify_mode` to `0`.
 
 ```ruby
-# FLAGGED: disables all certificate validation
-http = Net::HTTP.new("api.example.com", 443)
-http.use_ssl = true
+# FLAGGED: assigned to verify_mode
 http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-
-# FLAGGED: disabled via SSLContext
-ctx = OpenSSL::SSL::SSLContext.new
 ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
-socket = OpenSSL::SSL::SSLSocket.new(tcp_socket, ctx)
 
-# FLAGGED: disabled in Faraday / HTTP client configuration
-conn = Faraday.new(ssl: { verify: false }) # often paired with VERIFY_NONE
-ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+# FLAGGED: passed as a client option
+Net::HTTP.start(uri.host, uri.port, use_ssl: true, verify_mode: OpenSSL::SSL::VERIFY_NONE)
+ctx.set_params(:verify_mode => OpenSSL::SSL::VERIFY_NONE)
+Faraday.new(url: base, ssl: { verify_mode: OpenSSL::SSL::VERIFY_NONE })
+
+# FLAGGED: the global override
+OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 ```
+
+Not flagged: `VERIFY_PEER`, a comparison such as `http.verify_mode == OpenSSL::SSL::VERIFY_NONE` or `defined?(OpenSSL::SSL::VERIFY_NONE)`, an option table entry like `"none" => OpenSSL::SSL::VERIFY_NONE`, comments, strings and test files. Options that disable verification without the constant (`ssl: { verify: false }`, HTTParty `verify: false`) are outside this rule.
 
 ## Remediation
 

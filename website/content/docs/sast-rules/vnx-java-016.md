@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-016 – Java Weak PRNG (java.util.Random) Used for Security-Sensitive Value"
-description: "Detect use of java.util.Random or Math.random() where a cryptographically secure random number generator is required — such as for tokens, session IDs, nonces, passwords, or cryptographic keys."
+description: "Reports values drawn from java.util.Random, ThreadLocalRandom, Math.random or RandomStringUtils that are used as tokens, session IDs, nonces, passwords, salts, OTPs or keys. SecureRandom and non-secret uses such as jitter, shuffling and sampling are not reported."
 ---
 
 ## Overview
@@ -41,8 +41,8 @@ String sessionId = String.valueOf((int)(Math.random() * Integer.MAX_VALUE));
 
 // FLAGGED: new Random() seeded with current time (still predictable)
 Random rng = new Random(System.currentTimeMillis());
-byte[] key = new byte[32];
-rng.nextBytes(key);
+byte[] apiKey = new byte[32];
+rng.nextBytes(apiKey);
 ```
 
 ## Remediation

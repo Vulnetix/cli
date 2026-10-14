@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-029 – Missing HttpOnly flag on cookie"
-description: "Detects Express cookie() or res.cookie() calls that do not set the httpOnly option, exposing cookies to JavaScript access and session hijacking via XSS."
+description: "Reports session and credential cookies set from Node.js without HttpOnly: res.cookie()/cookie.serialize() calls lacking httpOnly: true, Set-Cookie header literals without the attribute, and any cookie options with httpOnly: false."
 ---
 
 ## Overview
@@ -20,18 +20,24 @@ The `HttpOnly` flag has been supported by all major browsers since Internet Expl
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: session cookie set without httpOnly
-res.cookie('sessionId', token, {
+// FLAGGED: a token cookie with no options (Express defaults to script-readable)
+res.cookie('token', token);
+
+// FLAGGED: options across lines without httpOnly
+res.cookie('access_token', accessToken, {
   secure: true,
   sameSite: 'strict',
 });
 
-// FLAGGED: no options object at all
-res.cookie('auth', jwt);
+// FLAGGED: the httpOnly: false line, for any cookie
+response.cookie('sid', sid, { httpOnly: false, secure: true });
 
-// FLAGGED: httpOnly explicitly false
-res.cookie('userId', userId, { httpOnly: false, secure: true });
+// FLAGGED: Set-Cookie header and cookie.serialize without HttpOnly
+res.setHeader('Set-Cookie', `sessionId=${sessionId}; Path=/; Secure`);
+cookie.serialize('auth', jwt, { path: '/', secure: true });
 ```
+
+Not flagged: options with `httpOnly: true` (inline or in an options object defined in the file), non-sensitive cookies (`theme`, `lang`), CSRF/XSRF token cookies the page must read, Koa `ctx.cookies.set()` (HttpOnly by default), cookies being cleared, and test files.
 
 ## Remediation
 

@@ -5,9 +5,11 @@ description: "Detect Rust integer arithmetic on size, count, offset, or length v
 
 ## Overview
 
-This rule flags Rust source files where arithmetic operators (`+`, `-`, `*`) are applied to variables commonly associated with sizes, lengths, offsets, or counts — such as `len`, `size`, `count`, `offset`, `index`, `total`, `sum`, or `capacity` — without using Rust's explicit overflow-handling methods (`checked_add`, `checked_sub`, `checked_mul`, `saturating_add`, `wrapping_add`, etc.).
+This rule flags Rust arithmetic (`+`, `-`, `*`, `<<`) applied to a value that was just decoded from outside the program: parsed as an integer (`parse::<u32>()`, `let n: usize = s.parse()`, `from_str_radix`) or read from bytes (`from_be_bytes`, `from_le_bytes`, `read_u32` and its siblings). A decoded length plus a header, or a size product, is how an undersized allocation or a bypassed bounds check happens.
 
-Rust's integer arithmetic behaves differently between build profiles. In debug builds, overflow causes a panic, providing immediate feedback during development. In release builds (the default for production), overflow wraps around silently according to two's complement arithmetic. This means code that appears to work correctly during development and testing can silently produce wrong values in production when inputs are at or near integer boundaries.
+Rust's integer arithmetic behaves differently between build profiles. In debug builds, overflow causes a panic, providing immediate feedback during development. In release builds (the default for production), overflow wraps around silently according to two's complement arithmetic.
+
+Not reported: arithmetic on values that did not come from a decode, floats and strings, a value compared against a limit or clamped with `min`/`clamp` before the arithmetic, `checked_*`/`saturating_*`/`wrapping_*`/`overflowing_*` calls, and comments and string literals. Arithmetic on a decode in the same expression (`s.parse::<u32>().unwrap_or(0) + offset`) is reported on that line.
 
 This rule corresponds to [CWE-190: Integer Overflow or Wraparound](https://cwe.mitre.org/data/definitions/190.html).
 

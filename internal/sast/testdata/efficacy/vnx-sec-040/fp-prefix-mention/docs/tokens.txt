@@ -1,0 +1,2 @@
+Trigger tokens start with glptt-, deploy tokens with gldt- and runner tokens with glrt-.
+A trigger token glptt-NOTHEXNOTHEXNOTHEXNOTHEXNOTHEXNOTHEX12 is malformed.

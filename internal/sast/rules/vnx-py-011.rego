@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_py_011
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-PY-011",
 	"name": "Python SQL injection",
-	"description": "Raw SQL queries built with string formatting or concatenation in Python (Django raw/extra, SQLAlchemy text/execute, psycopg2/sqlite3 execute with f-strings or format) are vulnerable to SQL injection.",
+	"description": "SQL text is built from a non-constant value with an f-string, % formatting, str.format() or + concatenation and passed to a database API, so the value can change the statement (SQL injection). Reported: the first argument of cursor/connection/session .execute(), .executemany(), .executescript(), .mogrify(), Django Model.objects.raw(), QuerySet.extra(), RawSQL() and SQLAlchemy text() (when the file uses sqlalchemy) is such an expression, including on continuation lines of a multi-line call; or is a variable assigned or extended (+=) by such an expression up to 25 lines above. The string must look like SQL (a keyword such as SELECT/WHERE/ORDER BY or a comparison), except when a variable named like a query (sql, query, stmt) is itself formatted in the call. Not reported: parameterised calls (placeholders in a literal with the values passed separately, including a % or + inside the parameter tuple), f-strings without interpolation, interpolation of ALL_CAPS constants only, placeholder lists built with ','.join('?' ...) or a variable named placeholders, constant concatenation, non-SQL text passed to an unrelated .execute()/.raw(), and the pattern inside strings and comments. Queries assembled in another function, or through more than one intermediate variable, are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-011/",
 	"languages": ["python"],
 	"severity": "critical",
@@ -19,59 +21,158 @@ metadata := {
 	"tags": ["sql-injection", "django", "sqlalchemy", "database"],
 }
 
-_is_py(path) if endswith(path, ".py")
+# ── String handling ─────────────────────────────────────────────────────
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+_str_re := `[rRbBuU]{0,2}(?:"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')`
 
-_sql_injection_indicators := {
-	".raw(\"",
-	".raw(f\"",
-	".raw('",
-	".raw(f'",
-	".extra(where=[\"",
-	".extra(where=['",
-	"execute(f\"",
-	"execute(f'",
-	"execute(\"SELECT",
-	"execute(\"INSERT",
-	"execute(\"UPDATE",
-	"execute(\"DELETE",
-	"cursor.execute(\"%s\"",
-	"text(f\"",
-	"text(f'",
+# An f-string literal (any quoting) containing at least one interpolation.
+_fstr_re := `(?:^|[^\w])[rR]?[fF][rR]?(?:"""[^{]*?\{[\s\S]*?"""|'''[^{]*?\{[\s\S]*?'''|"(?:[^"\\\n{]|\\.)*\{(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n{]|\\.)*\{(?:[^'\\\n]|\\.)*')`
+
+# Literals become tokens: FSTR for an interpolating f-string, QSTR for the rest.
+_blank(s) := regex.replace(regex.replace(s, _fstr_re, " FSTR "), _str_re, " QSTR ")
+
+# Strings blanked (any kind) and trailing comments dropped, for finding the call.
+_code(line) := regex.replace(regex.replace(line, _str_re, " QSTR "), `#.*$`, "")
+
+# The first argument of a call: strings, bracketed groups (two levels) and any
+# character that is not a top-level comma or the closing parenthesis.
+_arg_re := `^(?:[rRbBuUfF]{0,2}(?:"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)|\[(?:[^\[\]]|\[[^\[\]]*\])*\]|\{[^{}]*\}|[^,()\[\]{}"'])*`
+
+_first_arg(after) := m[0] if {
+	m := regex.find_n(_arg_re, after, 1)
+	count(m) > 0
+}
+
+# ── Is the expression built from a value? ───────────────────────────────
+
+_dyn_shape(b) if contains(b, "FSTR")
+
+_dyn_shape(b) if regex.match(`QSTR\s*%`, b)
+
+_dyn_shape(b) if regex.match(`[\w\)\]]\s*%\s*[\w(\[]`, b)
+
+_dyn_shape(b) if regex.match(`\.format\s*\(`, b)
+
+_dyn_shape(b) if contains(b, "+")
+
+# Names the expression reads: identifiers outside literals (callees and
+# keyword-argument names excluded) and the names interpolated in f-strings.
+_outside_ids(b) := {m[1] |
+	cleaned := regex.replace(regex.replace(b, `QSTR|FSTR`, " "), `([A-Za-z_]\w*)\s*=[^=]`, " ")
+	some m in regex.find_all_string_submatch_n(`([A-Za-z_]\w*)(\s*\()?`, cleaned, -1)
+	m[2] == ""
+}
+
+_interp_ids(raw) := {m[1] |
+	some f in regex.find_all_string_submatch_n(_fstr_re, raw, -1)
+	some inner in regex.find_all_string_submatch_n(`\{([^{}]*)\}`, f[0], -1)
+	some m in regex.find_all_string_submatch_n(`([A-Za-z_]\w*)(\s*\()?`, regex.replace(inner[1], `![rsa]$|:[^}]*$`, ""), -1)
+	m[2] == ""
+}
+
+_benign_id(x) if regex.match(`^[A-Z][A-Z0-9_]*$`, x)
+
+_benign_id(x) if regex.match(`(?i)placeholder|qmark|^marks$|^QSTR$|^FSTR$`, x)
+
+_benign_id(x) if x in {"self", "cls", "None", "True", "False", "if", "else", "for", "in", "and", "or", "not"}
+
+_unsafe_ids(raw, b) := {x |
+	some x in _outside_ids(b) | _interp_ids(raw)
+	not _benign_id(x)
+}
+
+_placeholders(raw) if regex.match(`\.join\(\s*[\[(]?\s*["'](?:\?|%s|:\w+)["']|["'](?:\?|%s)["']\s*\]?\s*\*\s*len\(`, raw)
+
+_dynamic(raw) if {
+	b := _blank(raw)
+	_dyn_shape(b)
+	count(_unsafe_ids(raw, b)) > 0
+	not _placeholders(raw)
+}
+
+_sqlish(raw) if regex.match(`(?i)\b(?:select|insert|update|delete|from|where|values|create|drop|alter|pragma|truncate|grant|revoke|show|describe|union|order\s+by|group\s+by|limit|join|like|set|exec)\b|\s=\s*['"%{]|=\s*'|=\s*%`, raw)
+
+# query % args, sql.format(...), stmt + where: the formatted name says it is SQL.
+_sqlish(raw) if regex.match(`(?i)^\s*\w*(?:sql|query|stmt|statement)\w*\s*(?:%|\.format\s*\(|\+)`, raw)
+
+# ── Sinks ───────────────────────────────────────────────────────────────
+
+_sink_re(content) := `(?:\.(?:execute|executemany|executescript|mogrify|raw|extra)|(?:^|[^\w.])RawSQL|(?:^|[^\w])text)\s*\(` if contains(content, "sqlalchemy")
+
+_sink_re(content) := `(?:\.(?:execute|executemany|executescript|mogrify|raw|extra)|(?:^|[^\w.])RawSQL)\s*\(` if not contains(content, "sqlalchemy")
+
+# The raw text after the sink's opening parenthesis, through up to 6 lines.
+_after(lines, i, sink) := pieces[1] if {
+	joined := concat("\n", [lines[k] | some k in numbers.range(i, min([count(lines) - 1, i + 6]))])
+	pieces := regex.split(sink, joined)
+	count(pieces) > 1
+}
+
+_bal(s) := count(regex.find_all_string_submatch_n(`\(`, s, -1)) - count(regex.find_all_string_submatch_n(`\)`, s, -1))
+
+# The right-hand side of an assignment on line j, with continuation lines while
+# a parenthesis stays open (at most 4).
+_rhs(lines, j, first) := first if _bal(_code(first)) <= 0
+
+_rhs(lines, j, first) := txt if {
+	_bal(_code(first)) > 0
+	last := min([count(lines) - 1, j + 4])
+	txt := concat("\n", array.concat([first], [lines[k] | some k in numbers.range(j + 1, last)]))
+}
+
+# The bare variable passed to the sink was built dynamically a few lines up.
+_built_above(lines, i, v) if {
+	some j in numbers.range(max([0, i - 25]), i - 1)
+	line := lines[j]
+	contains(line, v)
+	not helpers.is_comment_line(line)
+	m := regex.find_all_string_submatch_n(concat("", [`^\s*`, v, `\s*(\+?=)\s*([^=][\s\S]*)$`]), line, 1)
+	count(m) > 0
+	rhs := _rhs(lines, j, m[0][2])
+	_assign_dynamic(m[0][1], rhs)
+}
+
+# v = <dynamic SQL>; v += <anything that is not a constant>
+_assign_dynamic("=", rhs) if {
+	_dynamic(rhs)
+	_sqlish(rhs)
+}
+
+_assign_dynamic("+=", rhs) if {
+	count(_unsafe_ids(rhs, _blank(rhs))) > 0
+	not _placeholders(rhs)
+}
+
+_reported(_, arg) if {
+	_dynamic(arg)
+	_sqlish(arg)
+}
+
+_reported(lines, arg) if {
+	m := regex.find_all_string_submatch_n(`^\s*([A-Za-z_]\w*)\s*$`, arg, 1)
+	count(m) > 0
+	v := m[0][1]
+	not _benign_id(v)
+	some i in [lines.i]
+	_built_above(lines.lines, i, v)
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_py(path)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	endswith(path, ".py")
+	regex.match(`(?:execute\w*|mogrify|raw|extra|RawSQL|text)\s*\(`, content)
+	sink := _sink_re(content)
+	lines := split(content, "\n")
 	some i, line in lines
-	some indicator in _sql_injection_indicators
-	contains(line, indicator)
+	regex.match(`(?:execute|mogrify|raw|extra|RawSQL|text)`, line)
+	not helpers.is_comment_line(line)
+	regex.match(sink, _code(line))
+	after := _after(lines, i, sink)
+	arg := _first_arg(after)
+	_reported({"lines": lines, "i": i}, arg)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "SQL query built with string formatting; use parameterized queries instead",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
-
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_py(path)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`execute\(.*(%s|%d|\.format\()`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "SQL query built with string formatting; use parameterized queries instead",
+		"message": "SQL statement built with an f-string, % formatting, .format() or concatenation from a variable; pass the values as query parameters (cursor.execute(sql, params), text() with bound :names) instead of formatting them into the SQL",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

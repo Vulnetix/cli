@@ -1,0 +1,8 @@
+services:
+  app:
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - BROKER_URL=amqp://rabbitmq:5672
+      - LOCAL_CACHE=redis://localhost:6379/0
+      - DEV_LDAP=ldap://127.0.0.1:389
+      - DEV_MQ=amqp://guest:guest@localhost:5672/

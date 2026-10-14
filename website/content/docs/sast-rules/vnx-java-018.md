@@ -1,11 +1,11 @@
 ---
 title: "VNX-JAVA-018 – Java RSA cipher without OAEP padding"
-description: "Detects RSA encryption using PKCS#1 v1.5 padding or no padding, both of which are vulnerable to Bleichenbacher-style padding oracle attacks. Use RSA/ECB/OAEPWithSHA-256AndMGF1Padding instead."
+description: "Detects javax.crypto.Cipher instances created for RSA with PKCS#1 v1.5 padding or no padding (including the bare \"RSA\" transformation, which defaults to PKCS1Padding), inline or through a constant, which are vulnerable to Bleichenbacher-style padding oracle attacks. Use RSA/ECB/OAEPWithSHA-256AndMGF1Padding instead."
 ---
 
 ## Overview
 
-This rule flags calls to `Cipher.getInstance()` that specify an RSA transformation string containing `PKCS1Padding`, `NoPadding`, or the shorthand `RSA/ECB/PKCS1`. These padding schemes are cryptographically weak and expose applications to a class of attack known as the Bleichenbacher padding oracle attack (also called the "million message attack"). The vulnerability is tracked as CWE-780 (Use of RSA Algorithm without OAEP).
+This rule flags calls to `Cipher.getInstance()` whose transformation is `RSA/<mode>/PKCS1Padding`, `RSA/<mode>/NoPadding` or the bare `"RSA"` (which the SunJCE provider resolves to `RSA/ECB/PKCS1Padding`), written inline or through a String constant in the same file. These padding schemes are cryptographically weak and expose applications to a class of attack known as the Bleichenbacher padding oracle attack (also called the "million message attack"). The vulnerability is tracked as CWE-780 (Use of RSA Algorithm without OAEP).
 
 PKCS#1 v1.5 padding prepends a structured sequence of bytes to the plaintext before encryption. The structure is deterministic enough that a server decrypting a modified ciphertext and responding differently based on whether the padding is valid leaks a single bit of information per query. Bleichenbacher showed in 1998 that an attacker who can distinguish "valid padding" from "invalid padding" — even through indirect means such as differing error messages, timing variations, or TLS alert types — can decrypt any RSA ciphertext with approximately one million adaptive chosen-ciphertext queries. Despite being over two decades old, this attack remains practical and has been rediscovered repeatedly in TLS implementations (ROBOT attack, 2017).
 
@@ -32,6 +32,13 @@ byte[] plaintext = cipher.doFinal(ciphertext);
 // FLAGGED: no padding is textbook RSA — fully malleable
 Cipher cipher = Cipher.getInstance("RSA/NONE/NoPadding");
 cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+
+// FLAGGED: bare "RSA" resolves to RSA/ECB/PKCS1Padding in SunJCE
+Cipher cipher = Cipher.getInstance("RSA");
+
+// NOT FLAGGED: OAEP, and RSA signatures/key generation
+Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+Signature.getInstance("SHA256withRSA");
 ```
 
 ## Remediation

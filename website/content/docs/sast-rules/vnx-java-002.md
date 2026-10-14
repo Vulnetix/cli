@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-002 – Spring Actuator Endpoints Exposed"
-description: "Detects Spring Boot configuration that exposes all actuator endpoints via management.endpoints.web.exposure.include=*, leaking heap dumps, environment variables, and enabling remote shutdown."
+description: "Reports Spring Boot configuration that exposes all or sensitive actuator endpoints over HTTP (include=*, env, heapdump, shutdown, jolokia...), enables shutdown, or disables Boot 1.x actuator security."
 ---
 
 ## Overview
@@ -17,11 +17,15 @@ The `/actuator/env` endpoint lists every environment variable, system property, 
 
 ## What Gets Flagged
 
-The rule matches any Spring Boot properties or YAML file where the actuator exposure line is set to `*`.
+The rule reads `application*.properties|yml|yaml` and `bootstrap*` files outside test resources. It reports a web exposure include of `*` or of a sensitive endpoint (`env`, `heapdump`, `threaddump`, `shutdown`, `jolokia`, `configprops`, `httptrace`, `logfile`, `restart`), an enabled `shutdown` endpoint, and the Spring Boot 1.x switches `management.security.enabled=false` and `endpoints.sensitive=false`. It does not report `health,info,metrics`, exclude lists, JMX exposure, or a project whose Java code secures actuator endpoints with `EndpointRequest`.
 
 ```properties
 # FLAGGED: wildcard exposes every actuator endpoint
 management.endpoints.web.exposure.include=*
+
+# FLAGGED: sensitive endpoints named explicitly
+management.endpoints.web.exposure.include=health,info,env,heapdump
+management.endpoint.shutdown.enabled=true
 ```
 
 ```yaml

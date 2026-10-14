@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-027 – Hugging Face API Token Hardcoded"
-description: "Detect Hugging Face API tokens (hf_ prefix) hardcoded in source code, which provide access to private model repositories, datasets, and the inference API."
+description: "Detect Hugging Face user access tokens (hf_ followed by 34 to 40 letters or digits) hardcoded in code, notebooks and config, ignoring placeholders, hf_-prefixed CamelCase identifiers and test paths."
 ---
 
 ## Overview
@@ -23,16 +23,17 @@ Hugging Face tokens are also scoped at creation time. A token created with `writ
 
 ## What Gets Flagged
 
-The rule matches any file (excluding lock files, checksums, and minified assets) containing a string that begins with `hf_` followed by at least 34 alphanumeric characters.
+The rule reports `hf_` followed by 34 to 40 letters or digits, delimited on both sides, with the entropy of a random token:
 
-```python
-# FLAGGED: token hardcoded in a training script
-from huggingface_hub import login
-login(token="hf_EXAMPLE_REDACTED")
-
-# FLAGGED: token in environment setup
-HF_TOKEN = "hf_EXAMPLE_REDACTED"
+```text
+# FLAGGED
+login(token="hf_<34 random characters>")
+HF_TOKEN=hf_<34 random characters>
+const hf = new HfInference(`hf_<34 random characters>`);
+"os.environ['HUGGING_FACE_HUB_TOKEN'] = 'hf_<34 random characters>'\n"   (inside a .ipynb)
 ```
+
+Not flagged: `hf_xxxx...` and `hf_<YOUR_TOKEN>` placeholders, identifiers such as `hf_TokenizerFastLoaderForSequenceModels`, `os.environ["HF_TOKEN"]`, a regular expression for the token, and test or fixture paths.
 
 ## Remediation
 

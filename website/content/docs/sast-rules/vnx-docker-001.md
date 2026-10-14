@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-001 – Dockerfile Missing USER Directive"
-description: "Detects Dockerfiles that do not include a USER directive, causing containers to run as root and significantly expanding the blast radius of any container compromise."
+description: "Reports a Dockerfile whose final stage runs as root: no USER in the stage that becomes the image (USER does not carry across FROM), or a last USER of root, 0 or ContainerAdministrator."
 ---
 
 ## Overview
@@ -25,18 +25,29 @@ The principle of least privilege applies inside containers just as it does on ba
 
 ## What Gets Flagged
 
-The rule checks every file with a `.dockerfile` extension or named `Dockerfile`. If the file contains a `FROM` instruction but no `USER` instruction (checked case-insensitively with a regex), a finding is raised for the whole file.
+The rule judges the stage that becomes the image (the last `FROM`). It reports the last `FROM` line when that stage sets no `USER` and inherits none, and the `USER` line when the stage's last `USER` is `root`, `0`, `0:0` or the Windows `ContainerAdministrator` (case-insensitive). A `USER` set only in a builder stage does not carry over, so it does not help.
 
 ```dockerfile
-# FLAGGED: no USER directive — container runs as root by default
-FROM ubuntu:22.04
+FROM golang:1.22-bookworm AS build
+USER builder
+RUN go build -o /tmp/out/api ./cmd/api
 
-RUN apt-get update && apt-get install -y python3
-
-COPY app.py /app/app.py
-
-CMD ["python3", "/app/app.py"]
+# FLAGGED: the runtime stage starts fresh and runs as root
+FROM debian:bookworm-slim
+COPY --from=build /tmp/out/api /usr/local/bin/api
+ENTRYPOINT ["/usr/local/bin/api"]
 ```
+
+```dockerfile
+FROM node:20.15-bookworm-slim
+USER node
+RUN npm ci --omit=dev
+# FLAGGED: the last USER of the final stage is root
+USER root
+CMD ["node", "server.js"]
+```
+
+Not reported: a final stage whose last `USER` is any other name, uid or variable; a final stage built `FROM` an earlier stage (up to two levels) that set a non-root `USER`; base images that are non-root by default (`:nonroot`/`rootless` tags, Chainguard images other than `-dev`, Bitnami images); `USER` text in comments and heredocs; `.devcontainer` and test images. A user chosen at deploy time (Compose `user:`, Kubernetes `runAsUser`) is not visible to the rule.
 
 ## Remediation
 

@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-008 – Java Server-Side Request Forgery (SSRF)"
-description: "Detects Java code that constructs HTTP URLs from user-controlled request parameters and uses them for server-side requests, enabling SSRF attacks against internal services and cloud metadata endpoints."
+description: "Reports Java outbound requests (URL, RestTemplate, WebClient, HttpClient, OkHttp, Jsoup, Socket) whose URL or host is a request value or a variable assigned from one, unless a fixed host prefixes it or a guard checks it."
 ---
 
 ## Overview
@@ -17,20 +17,18 @@ Beyond cloud metadata, SSRF can be used to reach internal microservices that tru
 
 ## What Gets Flagged
 
-The rule matches lines where `request.getParameter` feeds directly into URL construction or connection APIs.
+The rule reports `new URL()`, RestTemplate `getForObject`/`getForEntity`/`exchange`..., `WebClient.create()`/`baseUrl()`/`uri()`, `HttpRequest.newBuilder()`, Apache `new HttpGet(...)`, OkHttp `Request.Builder().url()`, `Jsoup.connect()` and `new Socket(host, ...)` when the URL or host reads the request, is a `@RequestParam`/`@PathVariable`/`@RequestHeader`/`@RequestBody` parameter, or is a variable assigned from one through up to two intermediate assignments within the 40 lines above. It does not report a URL with a fixed scheme and host in front (`"https://catalog.example/items/" + id`), a value checked by a host allowlist or `startsWith` guard first, configured URLs, or a URL handed in as a plain method parameter. Building a `URI` alone is not a request and is not reported.
 
 ```java
 // FLAGGED: user-supplied URL passed to new URL()
 String target = request.getParameter("url");
-URL url = new URL(target);
-HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+HttpURLConnection conn = (HttpURLConnection) new URL(target).openConnection();
 
-// FLAGGED: URI.create from user input
-URI uri = URI.create(request.getParameter("endpoint"));
+// FLAGGED: host from a header
+URL api = new URL("http://" + host + ":8080/status");
 
-// FLAGGED: RestTemplate with user-controlled URL
-String api = request.getParameter("api");
-new RestTemplate().getForObject(request.getParameter("api"), String.class);
+// FLAGGED: RestTemplate with a @RequestParam URL
+return restTemplate.getForObject(url, String.class);
 
 // FLAGGED: WebClient with user-controlled base URL
 WebClient.create(request.getParameter("service")).get().retrieve().bodyToMono(String.class);

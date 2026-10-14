@@ -1,12 +1,12 @@
 ---
 title: "VNX-ANDROID-002 – Android WebView JavaScript Enabled"
-description: "Detects insecure WebView configuration in Android apps including enabled JavaScript, file access, and addJavascriptInterface calls that expose apps to XSS and remote code execution."
+description: "Detects a JavaScript-enabled Android WebView (Java/Kotlin) that loads a URL or HTML from an Intent, deep link, Fragment arguments, external storage or a cleartext http:// address, a JavaScript bridge added in such a file, and file:// pages given universal or file access."
 category: sast
 ---
 
 ## Overview
 
-This rule detects dangerous WebView configuration calls in Android Java code. Enabling JavaScript (`setJavaScriptEnabled(true)`), bridging native Java objects into the WebView (`addJavascriptInterface`), or relaxing file-system access controls (`setAllowFileAccess`, `setAllowUniversalAccessFromFileURLs`, `setAllowFileAccessFromFileURLs`) creates pathways for cross-site scripting (XSS) and remote code execution. These patterns are captured by CWE-79 (Improper Neutralization of Input During Web Page Generation).
+This rule reports Android WebViews (Java and Kotlin) that run script an attacker controls. Enabling JavaScript is not a finding on its own. The rule reports a `loadUrl`, `loadData`, `loadDataWithBaseURL` or `postUrl` call in a file that enables JavaScript when the URL or HTML comes from the launching Intent or a deep link (`getIntent()`, `getStringExtra`, `getData`, `getQueryParameter`, Fragment arguments), from external storage, or is a cleartext `http://` address, either directly or through a variable assigned from such a source up to 15 lines above. It also reports `addJavascriptInterface` in a file with such a load, and `setAllowUniversalAccessFromFileURLs(true)` / `setAllowFileAccessFromFileURLs(true)`. A URL checked between the read and the load (`startsWith`, host or scheme comparison, an allow-list or validator) is not reported, nor are `https://` and `file:///android_asset/` literals, `http://localhost`, comments and strings. Flows through other methods or files are not followed. These patterns are captured by CWE-79 (Improper Neutralization of Input During Web Page Generation).
 
 **Severity:** High | **CWE:** [CWE-79 – Improper Neutralization of Input During Web Page Generation (XSS)](https://cwe.mitre.org/data/definitions/79.html)
 
@@ -18,18 +18,27 @@ Enabling universal file access (`setAllowUniversalAccessFromFileURLs`) allows a 
 
 ## What Gets Flagged
 
-The rule matches any of the five indicator method calls in any non-minified source file:
-
 ```java
-// FLAGGED: JavaScript enabled in WebView
+// FLAGGED: a URL from the launching Intent loaded into a JavaScript-enabled WebView
 webView.getSettings().setJavaScriptEnabled(true);
+String target = getIntent().getStringExtra("url");
+webView.loadUrl(target);
 
-// FLAGGED: native object bridged into JavaScript context
-webView.addJavascriptInterface(new JsBridge(this), "AndroidBridge");
+// FLAGGED: a statement file on external storage
+webView.loadUrl("file://" + Environment.getExternalStorageDirectory() + "/statement.html");
 
-// FLAGGED: file:// access permitted cross-origin
+// FLAGGED: file:// pages may read any origin
 webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
 ```
+
+```kotlin
+// FLAGGED: a deep-link parameter
+settings.javaScriptEnabled = true
+val page = intent.data?.getQueryParameter("page")
+webView.loadUrl(page!!)
+```
+
+Not flagged: `setJavaScriptEnabled(true)` with only `https://` or `file:///android_asset/` loads, or an intent URL checked with `Uri.parse(u).host == "help.example.com"` before the load.
 
 ## Remediation
 

@@ -1,11 +1,11 @@
 ---
 title: "VNX-JWT-002 – JWT Token Signed Without Expiration"
-description: "Detects jwt.sign() or jwt.encode() calls missing an expiration claim, producing tokens that remain valid indefinitely and cannot be invalidated after compromise."
+description: "A JWT is issued with no expiry: jwt.sign / new SignJWT (JS/TS), jwt.encode (Python), Jwts.builder() / JWT.create() (Java), jwt.NewWithClaims (Go), JWT.encode (Ruby) and JWT::encode (PHP) where neither the call nor a payload, claims or options variable defined just above sets exp, expiresIn, setExpiration, withExpiresAt or ExpiresAt."
 ---
 
 ## Overview
 
-This rule detects `jwt.sign()` (Node.js/jsonwebtoken) and `jwt.encode()` (Python/PyJWT) calls where no `expiresIn` option or `exp` claim is present. A JWT without expiration is valid forever — from the moment it is issued until the signing secret is rotated or the token is explicitly blocklisted (which requires server-side state, defeating much of the purpose of JWTs). This maps to CWE-613 (Insufficient Session Expiration).
+This rule detects token-issuing calls (jsonwebtoken `jwt.sign()` and jose `new SignJWT()`, PyJWT `jwt.encode()`, jjwt `Jwts.builder()` and Auth0 `JWT.create()`, golang-jwt `jwt.NewWithClaims()`, ruby-jwt `JWT.encode()`, firebase/php-jwt `JWT::encode()`) where neither the call itself nor a payload, claims or options variable it uses (assigned within 25 lines above) sets an expiry. Test files are not reported, and a payload built in another function or file is a documented gap. A JWT without expiration is valid forever — from the moment it is issued until the signing secret is rotated or the token is explicitly blocklisted (which requires server-side state, defeating much of the purpose of JWTs). This maps to CWE-613 (Insufficient Session Expiration).
 
 **Severity:** Medium | **CWE:** [CWE-613 – Insufficient Session Expiration](https://cwe.mitre.org/data/definitions/613.html)
 
@@ -26,6 +26,21 @@ const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SEC
 # FLAGGED: jwt.encode() without exp claim
 token = jwt.encode({"sub": user_id, "role": "admin"}, SECRET_KEY, algorithm="HS256")
 ```
+
+```java
+// FLAGGED: builder chain with no setExpiration()
+return Jwts.builder()
+    .setSubject(user)
+    .signWith(SignatureAlgorithm.HS512, key)
+    .compact();
+```
+
+```go
+// FLAGGED: MapClaims with no "exp"
+t := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": userID})
+```
+
+Not flagged: `{ expiresIn: '15m' }`, an `exp` key in the payload literal, `payload["exp"] = ...` before the call, an options constant carrying `expiresIn`, `RegisteredClaims{ExpiresAt: ...}`, and test files.
 
 ## Remediation
 

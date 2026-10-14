@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-034 – Alibaba Cloud Access Key"
-description: "Detects hardcoded Alibaba Cloud access key IDs (LTAI prefix) which grant full access to the holder's Alibaba Cloud RAM permissions."
+description: "Reports an Alibaba Cloud RAM AccessKey ID: a standalone token of LTAI followed by 12 or 20 letters and digits (the 16- and 24-character ID formats), in either case. A token made of letters only in a single case, placeholder values and test or fixture paths are not reported; the AccessKey secret is covered by VNX-SEC-161 and STS keys by VNX-SEC-145."
 ---
 
 ## Overview
@@ -15,13 +15,14 @@ Alibaba Cloud hosts a large share of Asia-Pacific e-commerce workloads. A leaked
 
 ## What Gets Flagged
 
+Flagged (a standalone `LTAI` ID of 16 or 24 characters, mixed letters and digits):
+
 ```python
-# FLAGGED
-aliyun_client = OssClient(
-    access_key_id="LTAI5t7D9cXfK3mZ8nQ2bJ4e",
-    access_key_secret="bVc7Yt1QwErTyUiOpAsDfGhJkLzXcVbNm",
-)
+config = Config(access_key_id="LTAI5t<18 letters and digits>",
+                access_key_secret=os.environ["ALIYUN_SECRET"])
 ```
+
+Not flagged: `os.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")`, `LTAIxxxxxxxxxxxxxxxxxxxx`, a word such as `LTAIWANESEMARK`, `LTAI` inside a longer identifier, and test or fixture files. The AccessKey secret is VNX-SEC-161.
 
 ## Remediation
 

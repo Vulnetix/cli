@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+~>    <string translatable="false" name="partner_api_token" tools:ignore="MissingTranslation">@@sample:[A-Za-z0-9]{36}@@</string>
+~>    <string name="encryptionKey">@@sample:[A-Za-z0-9+/]{43}=@@</string>
+    <string name="encryption_key_alias">atlas_master_key</string>
+</resources>

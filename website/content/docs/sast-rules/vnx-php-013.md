@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-013 – PHP XXE via LIBXML_NOENT or LIBXML_DTDLOAD flag"
-description: "Detects simplexml_load_string() or simplexml_load_file() called with LIBXML_NOENT or LIBXML_DTDLOAD flags, which enable XML external entity expansion and can expose arbitrary server files."
+description: "Detects XML parsing configured for entity expansion: simplexml_load_*(), new SimpleXMLElement(), DOMDocument load/loadXML and XMLReader open/xml with LIBXML_NOENT or LIBXML_DTDLOAD (inline, across lines or via a flags variable), substituteEntities/resolveExternals set to true, XMLReader SUBST_ENTITIES/LOADDTD enabled, and libxml_disable_entity_loader(false)."
 ---
 
 ## Overview
@@ -29,7 +29,22 @@ $xml = simplexml_load_string($userInput, 'SimpleXMLElement', LIBXML_NOENT);
 
 // FLAGGED: LIBXML_DTDLOAD enables external DTD, which can declare entities
 $doc = simplexml_load_file($uploadedFile, 'SimpleXMLElement', LIBXML_DTDLOAD);
+
+// FLAGGED: DOMDocument with the flags on the following lines
+$dom->loadXML(
+    $body,
+    LIBXML_NOENT | LIBXML_DTDLOAD
+);
+
+// FLAGGED: flags in a variable, and the equivalent DOM properties
+$opts = LIBXML_NOENT | LIBXML_NONET;
+simplexml_load_string($data, 'SimpleXMLElement', $opts);
+$dom->substituteEntities = true;
+$reader->setParserProperty(XMLReader::SUBST_ENTITIES, true);
+libxml_disable_entity_loader(false);
 ```
+
+Not flagged: default parsing, `LIBXML_NONET`/`LIBXML_NOCDATA`, a flag cleared with `~LIBXML_NOENT`, the properties set to `false`, and the constant named in a string or comment.
 
 A malicious XML payload:
 

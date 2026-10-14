@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-004 – XML External Entity (XXE) Injection"
-description: "Detects Java XML parsers instantiated without XXE protection features, enabling attackers to read arbitrary server files, trigger SSRF, or cause denial of service via entity expansion."
+description: "Reports Java XML parser factories (DOM, SAX, StAX, dom4j, JDOM, and Transformer/Schema factories that load sources) created without disabling DTDs or external entities, and settings that re-enable them."
 ---
 
 ## Overview
@@ -17,19 +17,25 @@ Beyond file disclosure, an attacker can use `http://` entities to make the serve
 
 ## What Gets Flagged
 
-The rule matches `.java` files that instantiate any of the five XML parser factories but do not contain any of the three protective configuration strings: `disallow-doctype-decl`, `FEATURE_SECURE_PROCESSING`, or `external-general-entities`.
+The rule reports the line that creates a `DocumentBuilderFactory`, `SAXParserFactory`, `XMLInputFactory`, `XMLReaderFactory.createXMLReader()`, dom4j `SAXReader` or JDOM `SAXBuilder` (and a `TransformerFactory` or `SchemaFactory` in a file that loads a `StreamSource` or compiles a schema) when that factory variable is not hardened within the 40 lines after it is created. Hardening only inside an `if`/`else` branch does not count. A factory passed to a helper in a file that applies hardening does count. A `setFeature`/`setProperty` line that explicitly re-enables DTDs or external entities is also reported.
 
 ```java
 // FLAGGED: DocumentBuilderFactory without external entity protection
 DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-DocumentBuilder db = dbf.newDocumentBuilder();
-Document doc = db.parse(inputStream);  // reads attacker-controlled XML
+dbf.setNamespaceAware(true);
+return dbf.newDocumentBuilder().parse(body);
 
-// FLAGGED: SAXParserFactory without protection
-SAXParserFactory spf = SAXParserFactory.newInstance();
-SAXParser parser = spf.newSAXParser();
-parser.parse(request.getInputStream(), handler);
+// FLAGGED: hardening only applies on one branch
+var xif = XMLInputFactory.newInstance();
+if (strict) {
+    xif.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+}
+
+// FLAGGED: entities switched back on
+factory.setFeature("http://xml.org/sax/features/external-general-entities", true);
 ```
+
+Not flagged: a `TransformerFactory` that only serialises an in-memory DOM, a factory that sets `disallow-doctype-decl`, `ACCESS_EXTERNAL_DTD` to `""`, `FEATURE_SECURE_PROCESSING`, or `SUPPORT_DTD` false, factory names in comments and strings.
 
 ## Remediation
 

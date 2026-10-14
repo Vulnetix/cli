@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-028 – Missing Content-Security-Policy header"
-description: "Detects Node.js HTTP response header calls that do not include a Content-Security-Policy header, leaving browsers without a defense-in-depth control against XSS."
+description: "Reports the express() app or HTML-serving http.createServer handler of a Node.js project that sends HTML but sets no Content-Security-Policy anywhere (no helmet(), CSP middleware, header or meta tag), and helmet configured with contentSecurityPolicy: false."
 ---
 
 ## Overview
@@ -20,22 +20,24 @@ Regulators and security auditors (PCI-DSS, SOC 2 assessors) increasingly flag mi
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: writeHead with no CSP header
-res.writeHead(200, {
-  'Content-Type': 'text/html',
-  'X-Frame-Options': 'DENY',
-});
+// FLAGGED: the express() line, when the project renders or serves HTML
+// and no file sets a Content-Security-Policy
+const app = express();
+app.use(express.static(path.join(__dirname, 'public')));
 
-// FLAGGED: setHeader call loop with no CSP set
-res.setHeader('Content-Type', 'text/html');
-res.setHeader('Cache-Control', 'no-store');
+// FLAGGED: helmet with CSP switched off
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 
-// FLAGGED: Express res.header without CSP
-app.get('/', (req, res) => {
-  res.header('X-Powered-By', 'MyApp');
-  res.send(html);
+// FLAGGED: a plain http server answering with text/html
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(renderPage(req.url));
 });
 ```
+
+This is a project-level judgement. Not flagged: projects that call `helmet()` (which sends a default CSP), `helmet.contentSecurityPolicy(...)`, another CSP middleware, or set a `Content-Security-Policy` header or `<meta http-equiv>` tag in any file; JSON-only APIs; test and example files. Commented-out middleware is not a mitigation.
 
 ## Remediation
 

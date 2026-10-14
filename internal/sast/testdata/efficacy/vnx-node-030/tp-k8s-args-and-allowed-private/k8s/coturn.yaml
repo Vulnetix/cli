@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coturn
+spec:
+  template:
+    spec:
+      containers:
+        - name: coturn
+          image: coturn/coturn:4.6.2
+          args:
+            - "--lt-cred-mech"
+~>            - "--allow-loopback-peers"
+~>            - "--allowed-peer-ip=10.0.0.0-10.255.255.255"
+            - "--denied-peer-ip=192.168.0.0-192.168.255.255"

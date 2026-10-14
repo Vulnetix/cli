@@ -1,11 +1,11 @@
 ---
-title: "VNX-CS-004 – C# Insecure Deserialization via BinaryFormatter or SoapFormatter"
-description: "Detects use of BinaryFormatter, SoapFormatter, NetDataContractSerializer, LosFormatter, ObjectStateFormatter, and JavaScriptSerializer, which deserialise arbitrary .NET object graphs and can execute attacker-controlled code."
+title: "VNX-CS-004 – C# Insecure Deserialization: Type-Embedding Formatter or Serializer Setting"
+description: "Detects C# deserialisation through BinaryFormatter, SoapFormatter, NetDataContractSerializer, LosFormatter and ObjectStateFormatter, Json.NET TypeNameHandling without a SerializationBinder, JavaScriptSerializer with a type resolver, and serializers whose root type comes from Type.GetType on data."
 ---
 
 ## Overview
 
-This rule detects instantiation or use of .NET serialisation formatters that deserialise arbitrary type graphs: `BinaryFormatter`, `SoapFormatter`, `NetDataContractSerializer`, `LosFormatter`, `ObjectStateFormatter`, and `JavaScriptSerializer`. These formatters can reconstruct any .NET type present in the loaded assemblies — including types with constructors or property setters that execute code — purely from a byte stream or string provided as input.
+This rule reports the line where data is deserialised by an API that lets the payload choose which .NET types to instantiate: a `Deserialize`, `UnsafeDeserialize` or `ReadObject` call on a `BinaryFormatter`, `SoapFormatter`, `NetDataContractSerializer`, `LosFormatter` or `ObjectStateFormatter` (inline, or through a variable, field or parameter, including one typed `IFormatter`); a Json.NET `TypeNameHandling` of `All`, `Auto`, `Objects` or `Arrays` with no `SerializationBinder` beside it, when the settings are global (`SerializerSettings`, `JsonConvert.DefaultSettings`) or the file deserialises; `new JavaScriptSerializer(resolver)` with a type resolver such as `SimpleTypeResolver`; and an `XmlSerializer` or `DataContractSerializer` built from `Type.GetType` on a non-constant name. A formatter used only to `Serialize`, `JavaScriptSerializer` without a resolver, `TypeNameHandling.None`, settings only used for writing, and `typeof(T)` serializers are not reported. These formatters can reconstruct any .NET type present in the loaded assemblies, including types with constructors or property setters that execute code, purely from a byte stream or string provided as input.
 
 The core danger is that deserialisation with these types is effectively a code-execution primitive when given attacker-controlled input. An attacker does not need to find a custom gadget; the .NET runtime class library contains well-documented gadget chains (such as those involving `ObjectDataProvider`, `WindowsIdentity`, or `TypeConfuseDelegate`) that can chain together to call arbitrary methods, including `Process.Start` or `Assembly.Load`. These chains are publicly documented and reliably exploitable across many .NET Framework and .NET Core versions.
 
@@ -24,7 +24,7 @@ Insecure deserialization has been in the OWASP Top 10 since 2017 and has produce
 ## What Gets Flagged
 
 ```csharp
-// FLAGGED: BinaryFormatter instantiation
+// FLAGGED: the Deserialize call on a BinaryFormatter (constructing one to Serialize is not reported)
 var formatter = new BinaryFormatter();
 var obj = formatter.Deserialize(stream);
 
@@ -35,6 +35,16 @@ object result = sf.Deserialize(Request.InputStream);
 // FLAGGED: NetDataContractSerializer
 var serializer = new NetDataContractSerializer();
 var data = serializer.Deserialize(inputStream);
+
+// FLAGGED: Json.NET reads $type from the payload
+var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+
+// FLAGGED: JavaScriptSerializer honouring __type
+var js = new JavaScriptSerializer(new SimpleTypeResolver());
+
+// NOT FLAGGED: no type resolver, fixed root type
+var dto = new JavaScriptSerializer().Deserialize<Order>(body);
+var xs = new XmlSerializer(typeof(Order));
 ```
 
 ## Remediation

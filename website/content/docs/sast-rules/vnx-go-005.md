@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-005 – Go Open Redirect"
-description: "Detect Go HTTP handlers that pass user-controlled query parameters or form values directly to http.Redirect, enabling open redirect attacks used in phishing campaigns."
+description: "Reports http.Redirect, gin/echo/fiber Redirect and hand-written Location headers whose destination starts with a request value, directly, through a variable, or behind a prefix that does not pin the host (\"//\", \"https://\", a bare \"/\"). Fixed hosts or paths, validated destinations and configuration values are not reported."
 ---
 
 ## Overview
@@ -15,7 +15,7 @@ Open redirects are exploited almost exclusively in phishing attacks (MITRE ATT&C
 
 ## What Gets Flagged
 
-The rule fires when `http.Redirect` is called with the redirect URL taken directly from `r.URL.Query()`, `r.FormValue()`, or `r.URL.Path`, without any validation step between reading the input and calling the redirect.
+The rule fires when the destination of `http.Redirect`, gin/echo `c.Redirect(code, url)`, fiber `c.Redirect(url)` or a `Location` header starts with a request value (`r.URL.Query().Get`, `r.FormValue`, gin `c.Query`, echo `c.QueryParam`, `mux.Vars`, `chi.URLParam`, `r.PathValue`...). The value may be inline, in a variable assigned from it a few lines up, or behind a prefix that leaves the host open (`"//"+v`, `"https://"+v`, `"/"+v`). It does not fire for a fixed path or host (`"/items?id="+v`), a destination checked in between (`url.Parse` with a host test, `strings.HasPrefix`, an allowlist, `isLocalURL`), the request's own `r.URL.Path`, or configuration values.
 
 ```go
 // FLAGGED: user-supplied "next" parameter redirected without validation

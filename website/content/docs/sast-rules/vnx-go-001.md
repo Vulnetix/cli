@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-001 – Missing go.sum"
-description: "Detect Go projects that are missing a go.sum lockfile, leaving them vulnerable to software supply chain attacks via tampered or substituted modules."
+description: "Reports a go.mod that requires a remote module but has no go.sum beside it, or whose go.sum is excluded by a .gitignore, once per go.mod on its first require directive. Standard-library-only modules, all-local replacements and testdata/fixture modules are not reported."
 ---
 
 ## Overview
@@ -19,14 +19,18 @@ OWASP ASVS v4.0 requirement **V14.2.1** requires that all components are up to d
 
 ## What Gets Flagged
 
-The rule fires when a directory contains Go source files (registered as a Go project directory) but the file `go.sum` is absent from that same directory. This typically means the project was initialized with `go mod init` but `go mod tidy` was never run, or `go.sum` was deliberately excluded from version control via `.gitignore`.
+The rule reads each `go.mod`. It reports the module's first `require` directive when the module requires at least one module fetched from outside the repository and either no `go.sum` sits in the same directory or a `.gitignore` between the repository root and the module excludes `go.sum`.
 
 ```go
-// FLAGGED: project directory has go.mod but no go.sum
-// $ ls
-// go.mod   main.go
-// (go.sum is missing)
+// FLAGGED: go.mod requires a remote module and the directory has no go.sum
+module example.com/releasebot
+
+go 1.22
+
+require github.com/google/go-github/v62 v62.0.0 // reported here
 ```
+
+Not reported: a module with a committed `go.sum`, a module with no `require` directive, a module whose every requirement is replaced by a local directory (`replace example.com/x => ../x`), and a `go.mod` under `testdata/`, `fixtures/` or test directories.
 
 ## Remediation
 

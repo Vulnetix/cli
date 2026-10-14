@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- targetSdkVersion 28: an intent-filter without android:exported exports the component. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.legacy">
+    <application android:label="Legacy">
+        <activity android:name=".HomeActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+~>        <service android:name=".CommandService">
+            <intent-filter>
+                <action android:name="com.example.legacy.action.RUN_COMMAND" />
+            </intent-filter>
+        </service>
+~>        <receiver
+            android:name=".ResetReceiver"
+            android:exported="true" >
+            <intent-filter>
+                <action android:name="com.example.legacy.RESET_PIN" >
+                </action>
+            </intent-filter>
+        </receiver>
+~>        <activity android:name=".AdminActivity">
+            <intent-filter>
+                <action android:name="com.example.legacy.OPEN_ADMIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

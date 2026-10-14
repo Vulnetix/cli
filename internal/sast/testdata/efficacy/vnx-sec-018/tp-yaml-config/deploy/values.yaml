@@ -1,0 +1,4 @@
+llm:
+  provider: openai
+~>  apiKey: sk-admin-@@sample:[A-Za-z0-9_-]{60}@@
+~>  hfToken: "hf_@@sample:[A-Za-z0-9]{34}@@"

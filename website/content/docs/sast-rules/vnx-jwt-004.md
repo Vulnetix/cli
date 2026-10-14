@@ -1,11 +1,11 @@
 ---
 title: "VNX-JWT-004 – JWT Algorithm Explicitly Set to 'none'"
-description: "Detects JWT encode or decode calls that use the 'none' algorithm, which disables cryptographic signing and allows any party to forge valid tokens."
+description: "A JWT is signed with, or a verifier accepts, the 'none' algorithm: an algorithm/algorithms option naming 'none' or PyJWT algorithm=None (Python, JS/TS, Ruby), jose UnsecuredJWT, Auth0 Algorithm.none(), jjwt Jwts.parser().unsecured(), and golang-jwt SigningMethodNone or UnsafeAllowNoneSignatureType."
 ---
 
 ## Overview
 
-This rule detects JWT operations — `jwt.encode()` in Python, `jwt.sign()` in Node.js, or `algorithms=['none']` in decode/verify calls — that explicitly specify the `none` algorithm. The `none` algorithm is defined in RFC 7519 as an unsecured JWT: the signature section of the token is empty and no cryptographic verification is performed. Any party who holds such a token (or manufactures one from scratch) can present it as valid. Libraries that accept `none` as a permitted algorithm during verification allow an attacker to forge arbitrary token payloads and be accepted as authenticated. This maps to CWE-327 (Use of a Broken or Risky Cryptographic Algorithm).
+This rule detects JWT operations that explicitly use or accept the `none` algorithm: an `algorithm`/`algorithms` option whose value is or contains `'none'` (any case, including a list split over lines) or PyJWT `jwt.encode(..., algorithm=None)` in Python, JavaScript/TypeScript and Ruby files that use a JWT library; ruby-jwt `JWT.encode(payload, nil, 'none')`; jose `new UnsecuredJWT()` / `UnsecuredJWT.decode()`; Auth0 `Algorithm.none()` and jjwt `Jwts.parser().unsecured()`; and golang-jwt `SigningMethodNone` used to sign and `UnsafeAllowNoneSignatureType`. Code that compares a token's `alg` with `'none'` to reject it is not reported. The `none` algorithm is defined in RFC 7519 as an unsecured JWT: the signature section of the token is empty and no cryptographic verification is performed. Any party who holds such a token (or manufactures one from scratch) can present it as valid. Libraries that accept `none` as a permitted algorithm during verification allow an attacker to forge arbitrary token payloads and be accepted as authenticated. This maps to CWE-327 (Use of a Broken or Risky Cryptographic Algorithm).
 
 The `none` algorithm was originally included in the JWT specification to support use cases where JWTs are transmitted over already-authenticated channels and a signature would be redundant. In practice, its inclusion in production authentication flows is almost always a mistake or a deliberate attack. Several high-profile CVEs have been filed against JWT libraries that accepted `none` by default or allowed it to be specified in the token header.
 
@@ -33,8 +33,19 @@ payload = jwt.decode(token, key, algorithms=["none"])
 // FLAGGED: jwt.sign with algorithm: 'none'
 const token = jwt.sign({ sub: userId }, secret, { algorithm: "none" });
 
-// FLAGGED: jwt.verify with algorithm set to 'none'
-const payload = jwt.verify(token, secret, { algorithm: "none" });
+// FLAGGED: verifier accepts 'none' alongside a real algorithm
+const payload = jwt.verify(token, key, { algorithms: ["RS256", "none"] });
+```
+
+```go
+// FLAGGED
+t := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{"sub": user})
+return jwt.UnsafeAllowNoneSignatureType, nil
+```
+
+```java
+// FLAGGED
+private final Algorithm algorithm = Algorithm.none();
 ```
 
 ## Remediation

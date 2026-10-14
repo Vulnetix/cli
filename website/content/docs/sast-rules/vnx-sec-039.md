@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-039 – GitLab Personal Access Token (Legacy)"
-description: "Detects legacy GitLab personal access tokens (glpat- prefix) hardcoded in source code."
+description: "Reports a GitLab personal, project or group access token: a standalone glpat- token followed by 20 or more base64url characters (the legacy 20-character form and the longer routable form). Placeholders and test or fixture paths are not reported; other GitLab token types are VNX-SEC-040."
 ---
 
 ## Overview
@@ -12,6 +12,20 @@ This rule detects GitLab personal access tokens matching the `glpat-[\w-]{20}` p
 ## Why This Matters
 
 A leaked GitLab PAT can be used to exfiltrate source code, push malicious commits to private repos, and access the GitLab container and package registries, which often hold production Docker images. GitLab Enterprise audit logs will show the token's IP and user-agent for every API call.
+
+## What Gets Flagged
+
+Flagged (legacy 20-character and routable `glpat-` tokens):
+
+```python
+gl = gitlab.Gitlab("https://gitlab.com", private_token="glpat-<20 characters>")
+```
+
+```bash
+git clone https://oauth2:glpat-<20 characters>@gitlab.com/acme/app.git
+```
+
+Not flagged: `os.environ["GITLAB_TOKEN"]`, `glpat-xxxxxxxxxxxxxxxxxxxx`, `glpat-<your-access-token>`, a truncated example such as `glpat-abc123`, and test or fixture files.
 
 ## Remediation
 

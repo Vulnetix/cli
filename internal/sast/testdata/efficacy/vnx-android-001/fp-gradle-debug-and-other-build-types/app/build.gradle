@@ -1,0 +1,20 @@
+android {
+    signingConfigs {
+        release {
+            storeFile file("release.keystore")
+        }
+    }
+    buildTypes {
+        debug {
+            debuggable true
+        }
+        release {
+            debuggable false
+            minifyEnabled true
+        }
+        benchmark {
+            initWith release
+            signingConfig signingConfigs.debug
+        }
+    }
+}

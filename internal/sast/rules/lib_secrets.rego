@@ -21,11 +21,14 @@ _skip_suffix := [
 	".lock", ".sum", ".min.js", ".min.css", ".min.html", ".min.json",
 	".map", ".svg", ".snap", ".pb.go", ".woff", ".woff2", ".ttf", ".eot",
 	"_test.go", ".spec.ts", ".spec.js", ".test.ts", ".test.js",
+	".spec.tsx", ".spec.jsx", ".test.tsx", ".test.jsx",
+	"Test.java", "Tests.java", "Test.kt", "Tests.kt", "_test.py", "_spec.rb",
 ]
 
 _skip_substr := [
 	"/testdata/", "/fixtures/", "/node_modules/", "/vendor/",
 	"/.terraform/", "/dist/", "/build/", "/__snapshots__/",
+	"/__tests__/", "/src/test/",
 ]
 
 skip_path(p) if {
@@ -33,9 +36,14 @@ skip_path(p) if {
 	endswith(p, s)
 }
 
+# Paths are relative to the scan root, so a directory at the top of the tree
+# ("testdata/certs/key.pem") has no leading slash: anchor with one before
+# matching, or every root-level testdata/, fixtures/, dist/ and build/ is
+# scanned as production code.
 skip_path(p) if {
+	anchored := concat("", ["/", p])
 	some s in _skip_substr
-	contains(p, s)
+	contains(anchored, s)
 }
 
 # --- keyword prefilter ------------------------------------------------------
@@ -48,10 +56,13 @@ has_keyword(line, kws) if {
 }
 
 # --- placeholder / stopword allowlist ---------------------------------------
+# Runs of one character ("xxxxxx", "000000") are not stopwords: they are judged
+# by their share of the token below, so a long real token that contains one
+# (every Twitter/X app bearer token opens with twenty-odd "A"s) still reports.
 _stopwords := [
 	"example", "examplekey", "placeholder", "redacted", "your-", "<your",
 	"changeme", "change-me", "dummy", "sample", "testkey", "test-key",
-	"xxxxxx", "000000", "aaaaaa", "111111", "deadbeef", "abcdef",
+	"deadbeef", "abcdef",
 	"1234567890", "notreal", "fakekey", "fake-key", "lorem", "foobar",
 	"insert", "replace", "todo", "n/a", "none",
 ]
@@ -67,9 +78,33 @@ is_placeholder(tok) if {
 # RE2 (used by OPA regex.match) has no backreferences, so common single-char
 # placeholder runs are enumerated explicitly. Real high-entropy tokens are also
 # caught by the entropy gate; this covers fixed-prefix rules that skip entropy.
-is_placeholder(tok) if regex.match(`(?i)(x{6,}|a{6,}|0{6,}|1{6,}|z{6,}|\.{4,}|-{4,}|_{4,})`, tok)
+# A filler character (x, a, 0, 1, z) in a run is a placeholder when it makes up
+# 40% of the token's letters and digits ("AKIAXXXXXXXXXXXXXXXX", "ghp_000000…",
+# "access-sandbox-xxxxxxxx-xxxx-…"). A run inside a long real
+# token is not: every Twitter/X app bearer token begins with twenty-odd "A"s,
+# and testing for any run of six made that rule unable to fire.
+is_placeholder(tok) if {
+	regex.match(`(?i)(x{6,}|a{6,}|0{6,}|1{6,}|z{6,})`, tok)
+	low := lower(tok)
+	alnum := count(regex.replace(low, `[^a-z0-9]`, ""))
+	alnum > 0
+	some c in ["x", "a", "0", "1", "z"]
+	(count(split(low, c)) - 1) * 10 >= alnum * 4
+}
 
-is_placeholder(tok) if regex.match(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`, tok)
+# Punctuation runs ("....", "----", "____") are placeholders in a token body,
+# but PEM blocks are armoured with "-----BEGIN … -----" and SSH2 keys with
+# "---- BEGIN … ----": testing the armour made every private-key rule unable
+# to fire. Strip it first.
+is_placeholder(tok) if {
+	body := regex.replace(tok, `-{4,5} ?(BEGIN|END)[A-Z0-9 ]*?-{4,5}`, "")
+	regex.match(`(\.{4,}|-{4,}|_{4,})`, body)
+}
+
+# Example UUIDs, not every UUID. Matching any UUID here silenced every rule
+# whose credential is a UUID (Postmark, Scaleway, Railway, Codecov, Heroku
+# legacy keys): a real key of that shape was always "a placeholder".
+is_placeholder(tok) if regex.match(`(?i)^(0{8}-0{4}-0{4}-0{4}-0{12}|1{8}-1{4}-1{4}-1{4}-1{12}|f{8}-f{4}-f{4}-f{4}-f{12}|123e4567-e89b-12d3-a456-426614174000|12345678-1234-1234-1234-123456789012|12345678-1234-5678-1234-567812345678|00112233-4455-6677-8899-aabbccddeeff|01234567-89ab-cdef-0123-456789abcdef)$`, tok)
 
 # AWS and similar tools mint deterministic example tokens ending in EXAMPLE.
 is_example_token(tok) if is_placeholder(tok)

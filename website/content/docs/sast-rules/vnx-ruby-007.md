@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-007 – YAML.load() Insecure Deserialization"
-description: "Detect Ruby code that calls YAML.load() on untrusted input, enabling remote code execution through arbitrary Ruby object deserialization."
+description: "Reports YAML.load, Psych.load, YAML.unsafe_load, load_stream, load_documents, load_file and unsafe_load_file when request input, an upload, a Base64-decoded blob or an HTTP body reaches them; safe_load, permitted_classes and the application's own files are not reported."
 ---
 
 ## Overview
@@ -23,30 +23,23 @@ The attack requires no authentication in endpoints that process YAML from untrus
 
 ## What Gets Flagged
 
+The rule reports the call when the YAML (or, for `load_file`, the path) comes from request input, an upload, a Base64-decoded blob or an HTTP or message body, on the call line or through a variable assigned from it a few lines above.
+
 ```ruby
-require 'yaml'
+# FLAGGED
+settings = YAML.load(request.body.read)
+source = params[:template]
+@template = YAML.unsafe_load(source)
+data = YAML.load_file(upload.tempfile)      # upload = params[:file]
+YAML.load(res.body)                         # res = Net::HTTP.get_response(uri)
 
-# FLAGGED: YAML.load() with user-supplied input
-def parse_config(request_body)
-  YAML.load(request_body)
-end
-
-# FLAGGED: YAML.load() on file upload contents
-def import_settings(uploaded_file)
-  config = YAML.load(uploaded_file.read)
-  apply_config(config)
-end
-
-# FLAGGED: YAML.load() on database-stored value
-def load_user_preferences(user)
-  YAML.load(user.preferences_yaml)
-end
-
-# FLAGGED: implicit YAML.load in older Rails (params[:data] deserialized)
-payload = YAML.load(params[:yaml_data])
+# NOT flagged: safe loaders and the application's own files
+YAML.safe_load(request.body.read)
+YAML.load(params[:more], permitted_classes: [Symbol])
+FEATURES = YAML.load_file(Rails.root.join("config", "features.yml"))
 ```
 
-The rule applies only to `.rb` files and does not flag lines that already contain `safe_load` or `safe: true`.
+Marshal, Oj and `JSON.load` are reported by [VNX-RUBY-003](../vnx-ruby-003/).
 
 ## Remediation
 

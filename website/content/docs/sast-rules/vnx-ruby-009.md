@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-009 – Dynamic Method Dispatch via send with User-Controlled Method Name"
-description: "Detect calls to Object#send, public_send, or __send__ where the method name is derived from params or request data, allowing attackers to invoke arbitrary methods including dangerous system-level calls."
+description: "Reports send, public_send, __send__ and try calls whose method name comes from params, request or cookies data, directly or through a variable assigned nearby, unless an allowlist check guards it."
 ---
 
 ## Overview
@@ -23,18 +23,22 @@ Even `public_send` — which restricts dispatch to public methods — provides a
 
 ## What Gets Flagged
 
-The rule matches `.rb` files where `send`, `public_send`, or `__send__` receives a first argument taken directly from `params` or `request`.
+The rule reports a `send`, `public_send`, `__send__` (with or without a receiver or parentheses) or `try` call in a `.rb` file whose first argument, the method name, comes from `params`, `request.params`/`query_parameters`/`headers` or `cookies`: directly, inside an interpolated or concatenated string, or through a variable assigned from that input within the 15 lines above.
 
 ```ruby
 # FLAGGED: method name sourced from params
-model.send(params[:action])
+@widget.send(params[:operation])
+widget.__send__ params[:other]
 
-# FLAGGED: public_send with request data
-@resource.public_send(request.params[:method])
+# FLAGGED: two-line flow; respond_to? is not a guard
+name = params[:probe]
+result = HealthProbe.new.send(name) if HealthProbe.new.respond_to?(name)
 
-# FLAGGED: __send__ with params hash value
-obj.__send__(params[:field], value)
+# FLAGGED: name built from input
+profile.send("#{params[:field]}=", params[:value])
 ```
+
+Not flagged: a symbol method name with input only in later arguments (`send(:update, params[:account])`), a name checked by `ALLOWED.include?(name)` (or `in?`, `==`) above or on the same line, a constant-table lookup (`FORMATS.fetch(params[:format])`), `send_file`/`send_data`, `socket.send(data, 0)`, comments and string literals.
 
 ## Remediation
 

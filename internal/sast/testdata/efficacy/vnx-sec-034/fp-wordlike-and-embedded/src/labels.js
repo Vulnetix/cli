@@ -1,0 +1,3 @@
+const A = "LTAIWANESEMARK";
+const B = "DEFAULTAI5tQWERTYuiop12345678";
+const C = "LTAI5tAbCdEf12345GhIjKlMnOpQr99";

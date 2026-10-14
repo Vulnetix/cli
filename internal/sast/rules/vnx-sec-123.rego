@@ -22,13 +22,14 @@ metadata := {
 	"tags": ["secrets", "azure", "cloud"],
 }
 
-_pattern := `(?i)(?:azure|aad|client)[a-z0-9_]*(?:client[_-]?secret|secret)\s*[:=]\s*['"]?([A-Za-z0-9_.~-]{34,40})['"]?`
-_keywords := ["azure", "aad", "client", "secret"]
+_pattern := `(?i)(?:azure|aad|entra|msal)[a-z0-9_]*(?:client[_-]?secret|secret)\s*[:=]\s*['"]?([A-Za-z0-9_.~-]{34,40})['"]?`
+_keywords := ["azure", "aad", "entra", "msal"]
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	not secrets.skip_path(path)
-	lines := split(input.file_contents[path], "\n")
+	secrets.has_keyword(content, _keywords)
+	lines := split(content, "\n")
 	some i, line in lines
 	secrets.has_keyword(line, _keywords)
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)

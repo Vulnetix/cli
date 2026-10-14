@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-024 – postMessage without origin validation (CSWSH/XSS)"
-description: "Detects window.addEventListener('message') handlers that do not validate event.origin, and postMessage calls that use the wildcard target origin '*', allowing cross-origin message injection."
+description: "Reports window 'message' handlers (inline or a named function in the same file) that never read event.origin or event.source, and postMessage(data, '*') to another window. Not reported: worker, WebSocket and port listeners, posts to the page's own window, explicit target origins, comments and strings."
 ---
 
 ## Overview
@@ -30,9 +30,25 @@ window.addEventListener('message', function(event) {
   document.getElementById('output').innerHTML = event.data.html;
 });
 
-// FLAGGED: postMessage with wildcard target origin
+// FLAGGED: arrow handler and onmessage assignment without a sender check
+window.addEventListener("message", (e) => { window.location.href = e.data.url })
+window.onmessage = (ev) => { localStorage.setItem('session', JSON.stringify(ev.data)) }
+
+// FLAGGED: postMessage to another window with wildcard target origin
+window.opener.postMessage({ type: 'login', token }, '*');
 iframe.contentWindow.postMessage({ token: authToken }, '*');
+
+// Not flagged
+window.addEventListener('message', (e) => {
+  if (!ALLOWED_ORIGINS.includes(e.origin)) return;
+  render(e.data);
+});
+worker.addEventListener('message', (e) => console.log(e.data)); // a Worker, not a window
+window.postMessage('zero-timeout', '*');                         // the page's own window
+parent.postMessage({ ready: true }, 'https://app.example.com');
 ```
+
+The rule looks at JavaScript, TypeScript and inline scripts in HTML, Vue and Svelte files. A listener whose handler is a named function the file does not define is not reported, because its body cannot be read.
 
 ## Remediation
 

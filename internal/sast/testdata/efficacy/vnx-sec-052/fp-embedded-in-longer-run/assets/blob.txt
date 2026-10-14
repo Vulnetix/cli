@@ -1,0 +1,1 @@
+dGhpcyBpcyBub3QgYSBrZXk9AKCp@@sample:[A-Za-z0-9]{69}@@

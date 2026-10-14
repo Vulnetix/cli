@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-008 – Flask Debug Mode Enabled"
-description: "Detect Flask applications started with debug=True, which enables the Werkzeug interactive debugger and allows remote code execution through the debugger console."
+description: "Detect the Werkzeug interactive debugger switched on in Flask code (app.run(debug=True), app.debug = True, config DEBUG = True, run_simple(use_debugger=True), DebuggedApplication(evalex=True)), which allows remote code execution through the debugger console."
 ---
 
 ## Overview
@@ -24,9 +24,18 @@ Beyond the PIN bypass, even if the PIN were unbreakable, having the debugger pre
 
 ## What Gets Flagged
 
-Any line where `.run(` is called with `debug=True` anywhere in the argument list.
+In a file that imports `flask` or `werkzeug` (test files excluded): `run(..., debug=True)` on the Flask application object (a name assigned from `Flask(...)` or `SocketIO(...)`, `app`, `application`, or `create_app()`), including a call broken over several lines; `app.debug = True`; `app.config["DEBUG"] = True` and `app.config.update(DEBUG=True)`; `run_simple(..., use_debugger=True)`; and `DebuggedApplication(..., evalex=True)`.
+
+Not flagged: debug driven by an environment variable or set to `False`, `run(debug=True)` on other objects (`task.run`, `uvicorn.run`), class attributes named `debug`, and mentions in comments or strings.
 
 ```python
+# FLAGGED: the attribute and the config key
+api.debug = True
+api.config["DEBUG"] = True
+
+# FLAGGED: the Werkzeug debugger directly
+wsgi_app = DebuggedApplication(app, evalex=True)
+
 # FLAGGED: direct debug=True
 app.run(debug=True)
 

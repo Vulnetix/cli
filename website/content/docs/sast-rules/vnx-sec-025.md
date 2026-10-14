@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-025 – Azure Storage Account Key Hardcoded"
-description: "Detect Azure Storage Account keys hardcoded in source code — base64-encoded strings of approximately 88 characters associated with Azure Storage key variable names — which provide full read/write access to all storage resources in the account."
+description: "Detect Azure Storage account keys (88-character base64 values) hardcoded next to a storage-key name, an AccountKey= connection-string segment, the az --account-key flag or a shared-key credential constructor, without flagging the public Azurite key or unrelated base64 hashes."
 ---
 
 ## Overview
@@ -23,15 +23,25 @@ Keys committed to version control are particularly dangerous because they persis
 
 ## What Gets Flagged
 
-The rule matches any file (excluding lock files, checksums, and minified assets) that contains both a pattern matching an Azure storage key variable name and a base64-encoded string matching Azure's 88-character key format.
+The rule reports an 88-character base64 value (86 characters plus `==`) only when the line, or the lines just above it in a multi-line call, says it is a storage key:
 
-```python
-# FLAGGED: Azure storage key hardcoded in application config
-AZURE_STORAGE_ACCOUNT_KEY = "dGhpcyBpcyBhIGZha2Uga2V5IGZvciBkZW1vIHB1cnBvc2VzIG9ubHkgYW5kIG5vdCByZWFsISE="
+```text
+# FLAGGED: connection string segment
+"Storage": "DefaultEndpointsProtocol=https;AccountName=contosodata;AccountKey=<88-char key>;EndpointSuffix=core.windows.net"
 
-# FLAGGED: connection string with embedded key
-connection_string = "DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=EXAMPLE_REDACTED;EndpointSuffix=core.windows.net"
+# FLAGGED: named variable, Terraform local, az CLI flag
+AZURE_STORAGE_KEY=<88-char key>
+storage_account_access_key = "<88-char key>"
+az storage blob upload-batch --account-name contosodata --account-key '<88-char key>' ...
+
+# FLAGGED: shared-key credential, also when the key is on its own line
+credential = StorageSharedKeyCredential(
+    "contosodata",
+    "<88-char key>",
+)
 ```
+
+Not flagged: the published Azurite/emulator key for `devstoreaccount1`, placeholder or low-entropy values, `os.environ[...]` and `{AZURE_STORAGE_KEY}` references, `sha512-` integrity hashes and signatures without storage-key context, and test or fixture paths.
 
 ## Remediation
 

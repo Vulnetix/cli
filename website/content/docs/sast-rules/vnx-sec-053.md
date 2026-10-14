@@ -1,11 +1,21 @@
 ---
-title: "VNX-SEC-053 – SonarQube API Token"
-description: "Detects SonarQube API tokens (squ_, sqp_, sqa_ prefix) hardcoded in source code."
+title: "VNX-SEC-053 – SonarQube / SonarCloud Token"
+description: "Reports a SonarQube or SonarCloud token (squ_, sqp_ or sqa_ + exactly 40 hex characters) in any file; identifiers that only share the prefix, placeholders and CI secret references are not reported."
 ---
 
 ## Overview
 
-This rule detects sonarqube api token matching the `squ_, sqp_, sqa_` pattern hardcoded anywhere in source files. Detects SonarQube API tokens (squ_, sqp_, sqa_ prefix) hardcoded in source code.
+This rule reports a SonarQube or SonarCloud token as a whole token: a user token (`squ_`), a project analysis token (`sqp_`) or a global analysis token (`sqa_`), each followed by exactly 40 lower-case hex characters. Identifiers that only start with those prefixes, placeholder bodies, CI secret references and test paths are not reported. Snyk tokens are reported by VNX-SEC-1020 and VNX-SEC-1021.
+
+### What Gets Flagged
+
+```properties
+sonar.token=squ_<40 hex characters>
+```
+
+```sh
+mvn sonar:sonar -Dsonar.login='sqa_<40 hex characters>'
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

@@ -1,0 +1,3 @@
+common: &default_settings
+~>  license_key: '@@sample:[a-f0-9]{36}@@NRAL'
+  app_name: billing-service

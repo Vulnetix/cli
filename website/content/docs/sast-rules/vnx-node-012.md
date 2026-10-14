@@ -1,11 +1,11 @@
 ---
 title: "VNX-NODE-012 – Client-Side XSS via innerHTML or v-html"
-description: "Detects client-side XSS sinks including innerHTML, outerHTML, document.write, jQuery .html(), and Vue v-html that inject raw HTML from dynamic content."
+description: "Reports raw HTML written into the DOM (innerHTML/outerHTML, insertAdjacentHTML, document.write, jQuery .html(), Vue v-html, React dangerouslySetInnerHTML, Svelte {@html}) from a DOM source such as location or URLSearchParams, from markup spliced together with a non-literal, or from response data. Sanitised values and constants are not reported."
 ---
 
 ## Overview
 
-This rule detects a broader set of DOM-based XSS sinks beyond React's `dangerouslySetInnerHTML`: `.innerHTML =`, `.outerHTML =`, `document.write()`, `document.writeln()`, Vue's `v-html` directive, and jQuery's `.html()` method. All of these inject raw HTML into the live DOM. When the content is dynamic — fetched from an API, derived from URL parameters, read from `localStorage`, or received from a WebSocket — an attacker who can influence that content can inject `<script>` tags or inline event handlers that execute in the victim's browser. This is CWE-79 (Improper Neutralization of Input During Web Page Generation — Cross-site Scripting).
+This rule detects a broader set of DOM-based XSS sinks beyond React's `dangerouslySetInnerHTML`: `.innerHTML =`, `.outerHTML =`, `document.write()`, `document.writeln()`, Vue's `v-html` directive, and jQuery's `.html()` method. All of these inject raw HTML into the live DOM. The rule reports a sink when its value reads a DOM source, splices a non-literal into markup, or is response data; VNX-NODE-005 and VNX-NODE-027 report every non-constant innerHTML. When the content is dynamic — fetched from an API, derived from URL parameters, read from `localStorage`, or received from a WebSocket — an attacker who can influence that content can inject `<script>` tags or inline event handlers that execute in the victim's browser. This is CWE-79 (Improper Neutralization of Input During Web Page Generation — Cross-site Scripting).
 
 **Severity:** High | **CWE:** [CWE-79 – Improper Neutralization of Input During Web Page Generation (XSS)](https://cwe.mitre.org/data/definitions/79.html)
 
@@ -17,25 +17,27 @@ DOM-based XSS is particularly subtle because the malicious payload never reaches
 
 ## What Gets Flagged
 
-The rule matches any line containing `.innerHTML =`, `.innerHTML=`, `.outerHTML =`, `.outerHTML=`, `document.write(`, `document.writeln(`, `v-html=`, `dangerouslySetInnerHTML`, or the jQuery pattern `$(...).html(`.
+The value written as HTML must read a DOM source, build markup by splicing in a non-literal, or be a property of response data. For the framework raw-HTML bindings any non-constant expression is reported.
 
 ```javascript
-// FLAGGED: innerHTML from API response
-fetch('/api/user-bio').then(r => r.text()).then(bio => {
-  document.getElementById('bio').innerHTML = bio;
-});
+// FLAGGED: DOM sources
+out.innerHTML = location.hash.slice(1);
+const q = new URLSearchParams(window.location.search).get('q');
+results.innerHTML = 'You searched for ' + q;
+document.write("<p>Came from " + document.referrer + "</p>");
 
-// FLAGGED: document.write with dynamic content
-document.write('<div>' + location.hash.substring(1) + '</div>');
-
-// FLAGGED: jQuery .html() with dynamic value
-$('#notification').html(apiResponse.message);
+// FLAGGED: markup built from data
+$('#alert').html('<p class="warn">' + res.message + '</p>');
+list.innerHTML += `<li>${todo.title}</li>`;
 ```
 
 ```html
-<!-- FLAGGED: Vue v-html with dynamic data -->
-<div v-html="userBio"></div>
+<!-- FLAGGED: raw HTML bindings -->
+<div v-html="post.content"></div>
+<div dangerouslySetInnerHTML={{ __html: comment.body }} />
 ```
+
+Not flagged: `DOMPurify.sanitize(...)` or an escape helper around the value, string literals and ternaries between literals, `el.innerHTML = other.innerHTML`, the `.html()` getter, and `textContent`.
 
 ## Remediation
 

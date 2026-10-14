@@ -1,6 +1,6 @@
 ---
 title: "VNX-JAVA-005 – Insecure Deserialization"
-description: "Detects use of ObjectInputStream.readObject(), XMLDecoder, XStream, and Jackson default typing, all of which can execute arbitrary code when deserializing attacker-controlled data via gadget chains."
+description: "Reports unfiltered ObjectInputStream.readObject(), XMLDecoder, XStream.fromXML() without a type allowlist, permissive Jackson default typing and SerializationUtils.deserialize(), which can run gadget chains on attacker-controlled bytes."
 ---
 
 ## Overview
@@ -17,12 +17,12 @@ The impact is typically unauthenticated remote code execution with the JVM's OS-
 
 ## What Gets Flagged
 
-The rule matches any `.java` file containing one of the high-risk identifiers.
+The rule reports the `readObject()`/`readUnshared()` call on an `ObjectInputStream` created in the 40 lines above with no `setObjectInputFilter` on it (and no JVM-wide `setSerialFilter`/`jdk.serialFilter` in the project), `new XMLDecoder(...)`, `xstream.fromXML()` in a file that never restricts XStream types, Jackson `enableDefaultTyping()` and `activateDefaultTyping(LaissezFaireSubTypeValidator...)`, and `SerializationUtils.deserialize()`. It does not report the in-memory deep-copy idiom (bytes the same code just serialised), `ValidatingObjectInputStream` and other look-ahead subclasses, a custom `readObject(ObjectInputStream in)` method, or Jackson typing with a restrictive validator.
 
 ```java
 // FLAGGED: ObjectInputStream without filter
-ObjectInputStream ois = new ObjectInputStream(request.getInputStream());
-Object obj = ois.readObject();  // gadget chain execution possible
+ObjectInputStream in = new ObjectInputStream(request.getInputStream());
+Object state = in.readObject();  // gadget chain execution possible
 
 // FLAGGED: XMLDecoder deserializes arbitrary Java objects
 XMLDecoder decoder = new XMLDecoder(request.getInputStream());

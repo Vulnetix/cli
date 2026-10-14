@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-032 – PGP Private Key Block Hardcoded"
-description: "Detect PGP/GPG private key blocks committed to source code, which permanently expose the private key in git history and require immediate revocation and replacement."
+description: "Detect PGP/GPG private key blocks committed to a repository: the BEGIN PGP PRIVATE KEY BLOCK header followed by armoured key material, not the header used as a constant or in documentation."
 ---
 
 ## Overview
@@ -23,16 +23,20 @@ The git history problem makes this particularly severe: rewriting history to rem
 
 ## What Gets Flagged
 
-The rule matches any file (excluding lock files, checksums, and minified assets) that contains the literal string `-----BEGIN PGP PRIVATE KEY BLOCK-----`.
+The rule reports the `-----BEGIN PGP PRIVATE KEY BLOCK-----` header when key material follows it, either a base64 line within the next eight lines or escaped newlines and base64 on the same line:
 
-```
-# FLAGGED: PGP private key block in any source file
+```text
+# FLAGGED: armoured file, YAML block scalar, quoted .env value
 -----BEGIN PGP PRIVATE KEY BLOCK-----
 
-lQIGBGR...
-(key data)
------END PGP PRIVATE KEY BLOCK-----
+lQ<base64 key material>
+...
+
+# FLAGGED: single-line JSON string
+"armored": "-----BEGIN PGP PRIVATE KEY BLOCK-----\n\nlQ<base64 key material>\n..."
 ```
+
+Not flagged: the header as a string constant or a `HasPrefix` check in code, documentation whose block body is a placeholder, PGP public key blocks, and test or fixture paths.
 
 ## Remediation
 

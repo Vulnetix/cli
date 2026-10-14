@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-010 – Go Weak Cipher Usage"
-description: "Detect Go code that imports or uses DES, Triple DES, or RC4 ciphers, which are cryptographically broken and must not be used to protect sensitive data."
+description: "Detect Go code that constructs DES, Triple DES, RC4, Blowfish, CAST5, TEA or XTEA ciphers, or enables RC4/3DES TLS cipher suites or 3DES/arcfour SSH ciphers, which are broken or deprecated for protecting data."
 ---
 
 ## Overview
 
-This rule flags Go code that uses the `crypto/des` or `crypto/rc4` packages, or calls `des.NewCipher`, `des.NewTripleDESCipher`, or `rc4.NewCipher`. DES has a 56-bit effective key length that can be brute-forced in hours with commodity hardware. Triple DES (3DES) was deprecated by NIST in 2017 and is prohibited after 2023 due to the Sweet32 birthday attack. RC4 has serious statistical biases that can leak plaintext, especially in protocols where the same key is reused. Any data encrypted with these algorithms must be treated as potentially exposed. This maps to [CWE-327: Use of a Broken or Risky Cryptographic Algorithm](https://cwe.mitre.org/data/definitions/327.html).
+This rule flags Go code that calls `des.NewCipher`, `des.NewTripleDESCipher`, `rc4.NewCipher` or one of the deprecated `golang.org/x/crypto` 64-bit-block ciphers, or lists an RC4/3DES suite in `tls.Config.CipherSuites` or a 3DES/arcfour cipher in an `x/crypto/ssh` `Ciphers` list. DES has a 56-bit effective key length that can be brute-forced in hours with commodity hardware. Triple DES (3DES) was deprecated by NIST in 2017 and is prohibited after 2023 due to the Sweet32 birthday attack. RC4 has serious statistical biases that can leak plaintext, especially in protocols where the same key is reused. Any data encrypted with these algorithms must be treated as potentially exposed. This maps to [CWE-327: Use of a Broken or Risky Cryptographic Algorithm](https://cwe.mitre.org/data/definitions/327.html).
 
 **Severity:** High | **CWE:** [CWE-327 – Use of a Broken or Risky Cryptographic Algorithm](https://cwe.mitre.org/data/definitions/327.html)
 
@@ -15,35 +15,30 @@ Cryptographic algorithm selection is a long-lived decision — data encrypted to
 
 ## What Gets Flagged
 
-The rule fires on any `.go` file where the following identifiers appear: importing `"crypto/des"` or `"crypto/rc4"`, or calling `des.NewCipher(`, `des.NewTripleDESCipher(`, or `rc4.NewCipher(`.
+The rule reports the line that constructs a weak cipher: `des.NewCipher`, `des.NewTripleDESCipher`, `rc4.NewCipher`, and the deprecated 64-bit-block ciphers from `golang.org/x/crypto` (`blowfish`, `cast5`, `tea`, `xtea`). A constructor passed as a value (a table of selectable ciphers) counts, and an aliased import is resolved. It also reports an RC4 or 3DES TLS suite (`tls.TLS_*_RC4_128_*`, `tls.TLS_*_3DES_EDE_CBC_*`) placed in a `tls.Config` `CipherSuites` list, and a legacy SSH cipher (`"3des-cbc"`, `"arcfour"`, `"arcfour128"`, `"arcfour256"`) placed in an `x/crypto/ssh` `Ciphers` list, which re-enables a cipher the package leaves off by default. The list can be written inline or held in a variable the field is set from.
 
 ```go
-// FLAGGED: DES cipher in use — key space is too small for modern threats
-import "crypto/des"
+import legacydes "crypto/des"
 
-func encryptLegacy(key, plaintext []byte) ([]byte, error) {
-    block, err := des.NewCipher(key) // 56-bit key, brute-forceable
-    if err != nil {
-        return nil, err
-    }
-    // ...
+func wrapKey(kek []byte) (cipher.Block, error) {
+    return legacydes.NewTripleDESCipher(kek) // FLAGGED: 3DES
 }
+
+var blockCiphers = map[string]func([]byte) (cipher.Block, error){
+    "aes":  aes.NewCipher,
+    "3des": des.NewTripleDESCipher, // FLAGGED: still selectable
+}
+
+cfg := &tls.Config{
+    CipherSuites: []uint16{
+        tls.TLS_RSA_WITH_RC4_128_SHA, // FLAGGED
+    },
+}
+
+sshCfg.Ciphers = append(sshCfg.Ciphers, "aes128-ctr", "3des-cbc") // FLAGGED
 ```
 
-```go
-// FLAGGED: RC4 cipher in use — known statistical biases leak plaintext
-import "crypto/rc4"
-
-func encryptStream(key, plaintext []byte) ([]byte, error) {
-    cipher, err := rc4.NewCipher(key)
-    if err != nil {
-        return nil, err
-    }
-    out := make([]byte, len(plaintext))
-    cipher.XORKeyStream(out, plaintext)
-    return out, nil
-}
-```
+Not reported: the import on its own, constants such as `des.BlockSize` and `des.KeySizeError`, `blowfish.NewSaltedCipher` (the bcrypt key schedule, a password-hashing primitive), a TLS suite or SSH cipher named in a deny-list or a comparison, comments and string literals, and test files (known-answer tests protect no data).
 
 ## Remediation
 

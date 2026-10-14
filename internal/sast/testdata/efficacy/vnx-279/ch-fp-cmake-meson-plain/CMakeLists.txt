@@ -1,0 +1,9 @@
+cmake_minimum_required(VERSION 3.16)
+project(tool C)
+
+add_executable(tool tool.c)
+
+install(TARGETS tool DESTINATION bin PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+install(DIRECTORY share/ DESTINATION share/tool DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE SETGID)
+# install(TARGETS tool PERMISSIONS SETUID) was removed in 2.0
+message(STATUS "SETUID helpers are not built")

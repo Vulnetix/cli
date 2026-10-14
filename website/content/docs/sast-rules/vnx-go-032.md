@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-032 – JWT missing expiration validation"
-description: "Detects JWT parsing that does not verify the token's expiration claim, allowing expired or non-expiring tokens to be accepted indefinitely."
+description: "Detects JWT expiry that is never enforced in Go: claims validation turned off (WithoutClaimsValidation, SkipClaimsValidation, jwx WithValidate(false)), go-jose Claims with no Validate call, and tokens issued from a claims literal with no exp/ExpiresAt/Expiry."
 ---
 
 ## Overview
 
-This rule flags Go code that parses JWTs without checking the `exp` (expiration) claim — either by omitting `RegisteredClaims.ExpiresAt` from the claims struct, calling `jwt.Parse` or `jwt.Decode` and not validating `token.Valid`, or explicitly skipping expiration checks via parser options. When expiration is not validated, stolen or compromised tokens remain valid indefinitely, eliminating the time-bounded security guarantee that JWTs are designed to provide. This maps to [CWE-613: Insufficient Session Expiration](https://cwe.mitre.org/data/definitions/613.html).
+This rule flags Go code that never enforces a JWT's expiry: claims validation switched off by a parser option, go-jose claims that are never passed to `Validate`, or a token issued from a claims literal with no `exp`. When expiration is not validated, stolen or compromised tokens remain valid indefinitely, eliminating the time-bounded security guarantee that JWTs are designed to provide. This maps to [CWE-613: Insufficient Session Expiration](https://cwe.mitre.org/data/definitions/613.html).
 
 Session expiration is one of the fundamental controls in authentication system design. Short-lived tokens limit the window of opportunity for an attacker who has obtained a token through XSS, network interception, or a compromised log file. Skipping expiration validation removes this protection entirely, turning a JWT into a permanent credential that cannot be revoked without additional infrastructure.
 
@@ -19,30 +19,25 @@ This is especially significant in microservice architectures where JWTs are pass
 
 ## What Gets Flagged
 
-The rule flags JWT parsing that does not validate the expiration claim:
+Verification that skips the expiry check, and tokens issued with no expiry at all.
 
 ```go
-// FLAGGED: token.Valid not checked, exp claim ignored
-import "github.com/golang-jwt/jwt/v5"
+// FLAGGED: claims validation (exp, nbf, iat) switched off
+var parser = jwt.NewParser(jwt.WithoutClaimsValidation())
+p := &jwt.Parser{SkipClaimsValidation: true}
+jwt.Parse(raw, jwt.WithKey(jwa.RS256, pub), jwt.WithValidate(false))
 
-func getClaimsUnsafe(tokenStr string) jwt.MapClaims {
-    token, _ := jwt.Parse(tokenStr, keyFunc)
-    claims, _ := token.Claims.(jwt.MapClaims)
-    return claims // Valid never checked
-}
+// FLAGGED: go-jose checks only the signature in Claims; nothing calls Validate
+if err := tok.Claims(providerKey, out); err != nil {
 
-// FLAGGED: custom claims struct without ExpiresAt, no expiry validation
-type MyClaims struct {
-    UserID string `json:"user_id"`
-    // RegisteredClaims omitted — no exp field
-}
-
-func parseNoExpiry(tokenStr string) (*MyClaims, error) {
-    token, err := jwt.ParseWithClaims(tokenStr, &MyClaims{}, keyFunc)
-    claims, _ := token.Claims.(*MyClaims)
-    return claims, err
-}
+// FLAGGED: issued without exp, so it never expires
+return jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+    "sub": userID,
+    "iat": time.Now().Unix(),
+}).SignedString(secret)
 ```
+
+Not flagged: claims built by a helper or passed in as a parameter (the expiry may be set there), default golang-jwt parsing (v4+ checks `exp` when present), `WithExpirationRequired`, `WithValidate(true)`, go-jose claims followed by `ValidateWithLeeway`, and test files. golang-jwt accepts a token with no `exp` unless `jwt.WithExpirationRequired()` is set; that default is not reported.
 
 ## Remediation
 

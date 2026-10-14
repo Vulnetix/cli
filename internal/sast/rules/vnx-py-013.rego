@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_py_013
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-PY-013",
 	"name": "Python ML/AI insecure deserialization",
-	"description": "Loading ML model files with pickle-based deserializers (torch.load, joblib.load, pandas.read_pickle, numpy.load with allow_pickle) can execute arbitrary code embedded in the model file.",
+	"description": "A model, dataset or cached object is loaded with a pickle-based deserializer, which runs code embedded in the file: whoever can write or substitute the file (a downloaded checkpoint, a shared bucket, a user upload, a cookie) gets code execution. Reported: pickle/cPickle/_pickle .load(), .loads() and .Unpickler(), dill and cloudpickle .load()/.loads(), joblib.load(), pandas.read_pickle(), numpy.load(..., allow_pickle=True), torch.load() without weights_only=True (or with weights_only=False), and Keras load_model(..., safe_mode=False), including module aliases (import pickle as pkl, import pandas as pd) and arguments on continuation lines. Not reported: numpy.load without allow_pickle=True, torch.load(weights_only=True), torch.jit.load, safetensors, json, the dump/dumps writers, read_csv, load_model with the default safe mode, a round trip of an object the process just serialized (pickle.loads(pickle.dumps(x))), methods of other objects whose names merely contain pickle or load, and the pattern inside strings and comments. Whether the file is trusted is not judged; plain pickle and torch.load are also reported by VNX-PY-003 and VNX-LLM-007.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-013/",
 	"languages": ["python"],
 	"severity": "critical",
@@ -19,77 +21,114 @@ metadata := {
 	"tags": ["deserialization", "ml", "pytorch", "pickle", "supply-chain"],
 }
 
-_is_py(path) if endswith(path, ".py")
+_strip(line) := regex.replace(
+	regex.replace(line, `"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'`, `""`),
+	`#.*$`,
+	"",
+)
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+_kind := {
+	"pickle": "pickle", "cPickle": "pickle", "_pickle": "pickle", "dill": "pickle", "cloudpickle": "pickle",
+	"joblib": "joblib", "pandas": "pandas", "numpy": "numpy", "torch": "torch",
+}
 
-_ml_deser_indicators := {
-	"torch.load(",
-	"joblib.load(",
-	"pandas.read_pickle(",
-	"pd.read_pickle(",
-	"pickle.load(",
-	"pickle.loads(",
-	"cPickle.load(",
-	"cPickle.loads(",
-	"shelve.open(",
-	"dill.load(",
-	"dill.loads(",
+_defaults := {
+	["pickle", "pickle"], ["cPickle", "pickle"], ["_pickle", "pickle"], ["dill", "pickle"],
+	["cloudpickle", "pickle"], ["joblib", "joblib"], ["pandas", "pandas"], ["pd", "pandas"],
+	["numpy", "numpy"], ["np", "numpy"], ["torch", "torch"],
+}
+
+# [name, kind] for every import alias of a module this rule knows.
+_aliases(content) := {[m[2], k] |
+	some m in regex.find_all_string_submatch_n(`(?m)^\s*import\s+([\w\.]+)\s+as\s+(\w+)`, content, -1)
+	base := regex.replace(m[1], `^.*\.`, "")
+	k := _kind[base]
+}
+
+_bal(s) := count(regex.find_all_string_submatch_n(`\(`, s, -1)) - count(regex.find_all_string_submatch_n(`\)`, s, -1))
+
+# The line plus continuation lines up to the closing parenthesis (at most 8).
+_call_text(lines, i) := txt if {
+	head := _strip(lines[i])
+	_bal(head) <= 0
+	txt := head
+}
+
+_call_text(lines, i) := txt if {
+	head := _strip(lines[i])
+	_bal(head) > 0
+	last := min([count(lines) - 1, i + 8])
+	ends := [j |
+		some j in numbers.range(i + 1, last)
+		_bal(concat("\n", [_strip(lines[k]) | some k in numbers.range(i, j)])) <= 0
+	]
+	end := min(array.concat([last], ends))
+	txt := concat("\n", [_strip(lines[k]) | some k in numbers.range(i, end)])
+}
+
+_unsafe("pickle", method, _) if method in {"load", "loads", "Unpickler"}
+
+_unsafe("joblib", "load", _) := true
+
+_unsafe("pandas", "read_pickle", _) := true
+
+_unsafe("numpy", "load", txt) if regex.match(`\ballow_pickle\s*=\s*True\b`, txt)
+
+_unsafe("torch", "load", txt) if not regex.match(`\bweights_only\s*=\s*(?:True\b|[A-Za-z_][\w\.]*)`, txt)
+
+_unsafe("torch", "load", txt) if regex.match(`\bweights_only\s*=\s*False\b`, txt)
+
+_label("pickle") := "pickle-family deserializer"
+
+_label("joblib") := "joblib.load()"
+
+_label("pandas") := "pandas.read_pickle()"
+
+_label("numpy") := "numpy.load(allow_pickle=True)"
+
+_label("torch") := "torch.load() without weights_only=True"
+
+_finding(path, i, line, what) := {
+	"rule_id": metadata.id,
+	"message": sprintf("Insecure deserialization: %s executes code embedded in the file it loads; load weights and data with a non-executable format (safetensors, ONNX, numpy without allow_pickle, torch.load(weights_only=True), JSON/Parquet) or verify the file's integrity first", [what]),
+	"artifact_uri": path,
+	"severity": metadata.severity,
+	"level": metadata.level,
+	"start_line": i + 1,
+	"snippet": line,
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_py(path)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	endswith(path, ".py")
+	regex.match(`\.(?:loads?|Unpickler|read_pickle)\s*\(`, content)
+	names := _defaults | _aliases(content)
+	lines := split(content, "\n")
 	some i, line in lines
-	some indicator in _ml_deser_indicators
-	contains(line, indicator)
-	finding := {
-		"rule_id": metadata.id,
-		"message": sprintf("Insecure deserialization via %s; use safe loading methods (e.g., torch.load with weights_only=True, safetensors)", [indicator]),
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+	regex.match(`\.(?:loads?|Unpickler|read_pickle)\s*\(`, line)
+	not helpers.is_comment_line(line)
+	code := _strip(line)
+	some m in regex.find_all_string_submatch_n(`(?:^|[^\w.])([A-Za-z_]\w*)\.(loads?|Unpickler|read_pickle)\s*\(`, code, -1)
+	some pair in names
+	pair[0] == m[1]
+	txt := _call_text(lines, i)
+	not _round_trip(txt)
+	_unsafe(pair[1], m[2], txt)
+	finding := _finding(path, i, line, _label(pair[1]))
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_py(path)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	endswith(path, ".py")
+	contains(content, "safe_mode")
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`numpy\.load\(.*allow_pickle\s*=\s*True`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "numpy.load with allow_pickle=True enables arbitrary code execution; use allow_pickle=False or numpy-specific formats",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+	contains(line, "load_model")
+	not helpers.is_comment_line(line)
+	regex.match(`(?:^|[^\w])load_model\s*\(`, _strip(line))
+	regex.match(`\bsafe_mode\s*=\s*False\b`, _call_text(lines, i))
+	finding := _finding(path, i, line, "Keras load_model(safe_mode=False)")
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	_is_py(path)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`np\.load\(.*allow_pickle\s*=\s*True`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "numpy.load with allow_pickle=True enables arbitrary code execution; use allow_pickle=False or numpy-specific formats",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
-}
+# pickle.loads(pickle.dumps(x)) deep-copies an object this process created.
+_round_trip(txt) if regex.match(`\.loads?\s*\(\s*[\w\.]*\.dumps?\s*\(`, txt)

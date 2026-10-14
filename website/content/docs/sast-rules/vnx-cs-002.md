@@ -1,11 +1,11 @@
 ---
-title: "VNX-CS-002 – C# Command Injection via Process.Start with User Input"
-description: "Detects calls to System.Diagnostics.Process.Start or ProcessStartInfo.FileName/Arguments assignments that incorporate user-controlled input through string concatenation or interpolation."
+title: "VNX-CS-002 – C# Command Injection: Request Data or a Dynamic Shell Command Reaches Process.Start"
+description: "Detects C# Process.Start, ProcessStartInfo FileName/Arguments and PowerShell AddScript calls that receive HTTP request data or action parameters, and shells (cmd, sh, bash, PowerShell) given a command line built from non-constant values."
 ---
 
 ## Overview
 
-This rule identifies C# code that passes user-controlled values into OS process invocations without sanitisation. The patterns detected are: a `Process.Start(...)` call on the same line as a string concatenation (`+`), `string.Format()`, or an interpolated string (`$"..."`); and assignments to `ProcessStartInfo.FileName` or `ProcessStartInfo.Arguments` that follow the same patterns.
+This rule identifies C# code that passes attacker-influenced text into an OS process. It reports `Process.Start(...)`, `new ProcessStartInfo(...)`, a `FileName` or `Arguments` assignment on a `ProcessStartInfo` (a variable, `p.StartInfo`, or an object initializer) and PowerShell `AddScript(...)` when the value contains HTTP request data (`Request.Query`, `Request.Form`, `Request["..."]`, a WebForms `TextBox.Text`, a string parameter of a public controller or PageModel action, a `[FromQuery]`-style parameter, or a minimal-API lambda parameter), read inline or a few lines above. It also reports a shell (`cmd.exe`, `sh`, `bash`, `powershell`) given a command line built by concatenation, interpolation or `string.Format` with a non-constant value, and `AddScript` given script text built that way. Constant commands, `ArgumentList.Add`, dynamic arguments to a fixed non-shell program with no request data in sight, numeric action parameters and input validated with `Regex.IsMatch`, `TryParse` or an allowlist are not reported.
 
 When user input is embedded in the filename or arguments of a shell command, an attacker can break out of the intended command structure and execute arbitrary code on the host. Unlike SQL injection, command injection gives the attacker direct access to the operating system rather than just the database, making it one of the most severe vulnerability classes (CWE-78, CAPEC-88, MITRE ATT&CK T1059).
 
@@ -24,16 +24,23 @@ Even when user input is passed as an argument rather than a filename, command in
 ## What Gets Flagged
 
 ```csharp
-// FLAGGED: filename constructed with user input
-Process.Start("convert " + userInput + ".png output.jpg");
+// FLAGGED: a shell given a command built from a value
+Process.Start("cmd.exe", "/c magick convert " + inputFile + " out.png");
+
+// FLAGGED: request data reaches the arguments
+string domain = Request.Query["domain"];
+var psi = new ProcessStartInfo("nslookup", domain);
 
 // FLAGGED: interpolated string passed as arguments
 var psi = new ProcessStartInfo();
 psi.FileName = "bash";
 psi.Arguments = $"-c \"cat {userProvidedPath}\"";
 
-// FLAGGED: string.Format in FileName assignment
-psi.FileName = string.Format("/usr/bin/tool {0}", request.QueryString["cmd"]);
+// FLAGGED: PowerShell script text built from a value
+ps.AddScript("Get-ADUser -Identity " + user);
+
+// NOT FLAGGED: fixed program, arguments passed as a list
+psi.ArgumentList.Add(branch);
 ```
 
 ## Remediation

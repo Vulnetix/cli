@@ -1,0 +1,10 @@
+#!/bin/bash
+MAX_TOKENS=4096
+PASSWORD_FILE="/run/secrets/db_password"
+TOKEN_URL="https://auth.example.com/oauth/token"
+SECRET_NAME="prod/app/db"
+API_KEY_HEADER="X-Api-Key"
+PASSWORD_MIN_LENGTH=12
+TOKEN_TTL=3600
+USE_TOKEN=true
+GPG_PASSPHRASE_ENV="SIGNING_PASSPHRASE"

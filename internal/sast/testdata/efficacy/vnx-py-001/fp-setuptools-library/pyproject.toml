@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tinyhttp"
+description = "A small HTTP helper library."
+requires-python = ">=3.10"
+dependencies = [
+    "idna>=2.5,<4",
+    "urllib3>=1.26,<3",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra"

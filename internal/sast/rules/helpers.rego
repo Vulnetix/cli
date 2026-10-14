@@ -174,3 +174,47 @@ reaches(lines, j, i, ident) if {
 	v := assigned_ident(mid)
 	regex.match(concat("", [`\b`, v, `\b`]), lines[i])
 }
+
+# ── Test and fixture paths ───────────────────────────────────────────────
+# Rules about hardening a running service (response headers, lock discipline,
+# discarded errors, throwaway credentials) describe production behaviour. A
+# test server, a mock and a fixture are not that surface, and reporting them
+# buried the findings that were.
+
+is_test_path(path) if endswith(path, "_test.go")
+
+is_test_path(path) if regex.match(`(^|/)(testdata|tests?|__tests__|spec|specs|fixtures?|mocks?|e2e)/`, path)
+
+is_test_path(path) if regex.match(`(^|/)test_[^/]*\.py$`, path)
+
+is_test_path(path) if regex.match(`_test\.(py|rb|rs|c|cc|cpp)$`, path)
+
+is_test_path(path) if regex.match(`\.(test|spec)\.(js|jsx|ts|tsx|mjs|cjs)$`, path)
+
+is_test_path(path) if regex.match(`_spec\.rb$`, path)
+
+is_test_path(path) if regex.match(`(Test|Tests|IT)\.java$`, path)
+
+# ── Taint that survives multiple assignment ──────────────────────────────
+# assigned_ident above takes the identifier left of the first `=`. For Go's
+# `n, err := strconv.Atoi(s)` that is the blank or the error, never `n`.
+# assigned_first takes the first name on the left, which is the value.
+
+assigned_first(line) := v if {
+	m := regex.find_all_string_submatch_n(`^\s*(?:var\s+|let\s+|const\s+|final\s+|[A-Za-z_][\w<>\[\]\*\.]*\s+)?([A-Za-z_]\w*)\s*(?:,\s*[A-Za-z_]\w*\s*)*(?::=|=)[^=]`, line, 1)
+	count(m) > 0
+	v := m[0][1]
+	v != "_"
+}
+
+# tainted_names returns the variables assigned from `source_re` in the `before`
+# lines above index i. Unlike tainted_vars it does not require the sink line to
+# be checked here: callers test the specific argument they care about.
+tainted_names(lines, i, before, source_re) := {v |
+	i > 0
+	some j in numbers.range(max([0, i - before]), i - 1)
+	prev := lines[j]
+	not is_comment_line(prev)
+	regex.match(source_re, prev)
+	v := assigned_first(prev)
+}

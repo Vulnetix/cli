@@ -3,6 +3,8 @@ package vulnetix.rules.vnx_757
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-757",
 	"name": "CWE-757",
@@ -40,8 +42,9 @@ findings contains finding if {
 	lines := split(input.file_contents[path], "\n")
 	some i, line in lines
 	not _is_comment_line(line)
-	some _pat in {"SSLv2", "SSLv3", "TLSv1", "TLSv1_0", "TLSv1_1", "TLS_RSA_"}
-	contains(line, _pat)
+	not helpers.is_test_path(path)
+	some _pat, re in _obsolete
+	regex.match(re, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("Obsolete TLS/cipher %s — enforce TLS 1.2+ with modern ciphersuites", [_pat]),
@@ -51,4 +54,18 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# Version tokens, not substrings: "TLSv1" is inside "TLSv1.2" and "TLSv1_3", which
+# are the versions this rule asks for. A bare TLSv1 is the 1.0 protocol; a dot or
+# underscore after it continues the name of another version.
+_obsolete := {
+	"SSLv2": `\bSSLv2\b`,
+	"SSLv3": `\bSSLv3\b`,
+	"TLSv1": `\bTLSv1([^.\w]|$)`,
+	"TLSv1.0": `\bTLSv1[._]0\b`,
+	"TLSv1.1": `\bTLSv1[._]1\b`,
+	"tls.VersionTLS10/11": `\bVersionTLS1[01]\b`,
+	"tls.VersionSSL30": `\bVersionSSL30\b`,
+	"TLS_RSA_": `\bTLS_RSA_\w+`,
 }

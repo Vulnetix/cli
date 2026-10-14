@@ -1,0 +1,3 @@
+jwt_secret: ${JWT_SECRET}
+jwt_key: "{{ .Values.jwt.key }}"
+jwt_secret_ref: vault:secret/data/jwt

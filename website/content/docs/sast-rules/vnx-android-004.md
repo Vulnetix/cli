@@ -1,11 +1,11 @@
 ---
 title: "VNX-ANDROID-004 – Android SharedPreferences Used for Sensitive Data Storage"
-description: "Detects calls to SharedPreferences.putString() that store password, token, secret, or key values in the plaintext SharedPreferences XML store, exposing credentials to root access, backups, and memory forensics."
+description: "Detects a password, token, secret, API or private key, PIN or session id written with putString() to a plain (not Encrypted) SharedPreferences editor in Java or Kotlin, where the key or value names the credential and the value is not encrypted or hashed first."
 ---
 
 ## Overview
 
-This rule identifies Java and Kotlin code that calls `putString()` within a `SharedPreferences` editing context where the key or value being stored carries a name suggesting it holds sensitive data: passwords, tokens, secrets, API keys, private keys, auth tokens, access tokens, or session identifiers. The rule inspects a 15-line window around each `putString()` call to confirm that a `SharedPreferences` object is in scope.
+This rule reports Java and Kotlin `putString()` calls on a recognisable `SharedPreferences.Editor` (`prefs.edit().putString(...)`, also chained over lines; an editor variable assigned from `.edit()` or declared `SharedPreferences.Editor`; a receiver-less `putString` inside a Kotlin `edit { }` block) when the key or value expression names a credential: password, token, secret, API or private key, PIN, session id. It does not report `EncryptedSharedPreferences`, values passed through an encrypt, cipher, hash or HMAC call (on the line or assigned a few lines above), constant values used to clear or label, keys that only describe a credential (`token_type`, `password_hint`, `remember_password`), push and FCM registration tokens, `Bundle` and `Intent` extras, comments and strings.
 
 `SharedPreferences` stores data as a plaintext XML file under the app's private data directory (e.g., `/data/data/com.example.app/shared_prefs/`). While `MODE_PRIVATE` prevents other apps from reading the file directly, the data remains fully visible on rooted devices, is included in unencrypted `adb backup` archives, and can be recovered through memory forensics or device backup services. This vulnerability maps to CWE-312 (Cleartext Storage of Sensitive Information).
 
@@ -22,18 +22,24 @@ OWASP MASTG test MASTG-TEST-0001 (Testing Local Data Storage for Sensitive Data)
 ## What Gets Flagged
 
 ```java
-// FLAGGED: storing a token directly in SharedPreferences
-SharedPreferences prefs = getSharedPreferences("auth", MODE_PRIVATE);
+// FLAGGED: an auth token through an editor variable
 SharedPreferences.Editor editor = prefs.edit();
-editor.putString("authToken", token);
-editor.apply();
+editor.putString("auth_token", token);
+
+// FLAGGED: a password through the default preferences chain
+PreferenceManager.getDefaultSharedPreferences(this).edit()
+        .putString(KEY_PASSWORD, password)
+        .apply();
 ```
 
 ```kotlin
-// FLAGGED: storing a password in SharedPreferences
-val prefs = getSharedPreferences("user", Context.MODE_PRIVATE)
-prefs.edit().putString("password", userPassword).apply()
+// FLAGGED: inside the KTX edit { } block
+prefs.edit {
+    putString("refresh_token", tokens.refreshToken)
+}
 ```
+
+Not flagged: the same call on preferences created by `EncryptedSharedPreferences.create(...)`, `putString("password_hint", hint)`, `putString("auth_token", null)`, or `putString("pin", hash(pin))`.
 
 ## Remediation
 

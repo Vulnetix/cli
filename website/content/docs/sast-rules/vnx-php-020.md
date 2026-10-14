@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-020 – PHP curl SSL certificate verification disabled"
-description: "Detects CURLOPT_SSL_VERIFYPEER or CURLOPT_SSL_VERIFYHOST set to false or 0 in PHP curl requests, which disables TLS certificate validation and enables man-in-the-middle attacks."
+description: "Detects disabled TLS verification in PHP HTTP clients: CURLOPT_SSL_VERIFYPEER/VERIFYHOST set to false, 0 or '', Guzzle 'verify' => false, Laravel Http::withoutVerifying() and stream context 'verify_peer' => false, outside tests."
 ---
 
 ## Overview
@@ -35,6 +35,15 @@ curl_setopt_array($ch, [
     CURLOPT_SSL_VERIFYPEER => false,
     CURLOPT_SSL_VERIFYHOST => 0,
 ]);
+
+// FLAGGED: Guzzle, Laravel HTTP client and stream contexts
+$client = new Client(['base_uri' => $base, 'verify' => false]);
+Http::withoutVerifying()->post($url);
+stream_context_create(['ssl' => ['verify_peer' => false]]);
+
+// NOT FLAGGED: verification on, or driven by configuration
+curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $this->verifyTls);
 ```
 
 ## Remediation

@@ -1,12 +1,13 @@
 package vulnetix.rules.vnx_rust_006
 
 import rego.v1
+
 import data.vulnetix.helpers
 
 metadata := {
 	"id": "VNX-RUST-006",
 	"name": "Integer truncation or sign-change cast after parsing",
-	"description": "A value parsed as i64/u64 or isize/usize is immediately cast to a narrower or sign-changed integer type (e.g., as u8, as i32). Without prior range validation this silently truncates the value, potentially causing logic errors, authentication bypasses, or memory safety issues.",
+	"description": "An integer parsed or decoded from runtime data (str::parse::<T>() or let n: T = s.parse(), T::from_str_radix, T::from_str, T::from_be_bytes / from_le_bytes / from_ne_bytes, byteorder read_u32::<E>() and friends) is converted with a lossy `as` cast: to a narrower integer type (u64 as u16, i64 as i32), from signed to unsigned (i64 as usize, where a negative value becomes huge, e.g. vec![0; n as usize]), or from unsigned to a signed type of the same or smaller width (u64 as i64). The cast is reported on the same line as the parse or on a later line within 15 lines that casts the bound variable, unless a range check on that variable comes between: a comparison (n > u16::MAX), n.min(..)/n.max(..)/n.clamp(..), (a..=b).contains(&n), or a checked TryFrom/try_into conversion. `as` silently truncates or reinterprets the bits, so an out-of-range input becomes a different, attacker-chosen value (CWE-681, CWE-190). Not reported: widening casts (u32 as i64, u8 as u32), casts to floating point, casts of values that were not parsed or decoded (lengths, counters, constants), comments and string literals. Values that flow through a function call or a struct field are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-006/",
 	"languages": ["rust"],
 	"severity": "medium",
@@ -20,90 +21,120 @@ metadata := {
 	"tags": ["rust", "integer-truncation", "type-cast", "numeric-safety"],
 }
 
-_skip(path) if endswith(path, ".lock")
+_int := `[iu](?:8|16|32|64|128|size)`
 
-# Rust splits the parse and the cast across two statements — `let n: usize =
-# s.parse()...` then `n as u8` — so requiring both on one line detected almost
-# nothing. These predicates link the cast back to the declaration of the value
-# being cast, whether that declaration is a `let` binding or a fn parameter.
-_wide_parse_re := `\.parse\s*::\s*<\s*(i64|u64|i128|u128|isize|usize)\s*>`
-
-_wide_decl_re := `\.parse\s*::\s*<\s*(i64|u64|i128|u128|isize|usize)\s*>|:\s*(i64|u64|i128|u128|isize|usize)\s*=`
-
-_narrow_cast_re := `\bas\s+(u8|i8|u16|i16|u32|i32)\b`
-
-_narrowing_parse(lines, i) if {
-	regex.match(_wide_parse_re, lines[i])
-	regex.match(_narrow_cast_re, lines[i])
+_width := {
+	"u8": 8, "i8": 8, "u16": 16, "i16": 16, "u32": 32, "i32": 32,
+	"u64": 64, "i64": 64, "u128": 128, "i128": 128, "usize": 64, "isize": 64,
 }
 
-_narrowing_parse(lines, i) if {
-	regex.match(_narrow_cast_re, lines[i])
-	helpers.has_tainted_var(lines, i, 8, _wide_decl_re)
+_signed(t) if startswith(t, "i")
+
+_lossy(s, t) if _width[t] < _width[s]
+
+_lossy(s, t) if {
+	_signed(s)
+	not _signed(t)
 }
 
-# Only the genuinely lossy unsigned→signed pairs. u32 as i64 is a widening
-# conversion and must not be reported.
-_lossy_signed_cast(_, tgt) if tgt in {"i8", "i16", "i32"}
-
-_lossy_signed_cast(src, tgt) if {
-	tgt == "i64"
-	src in {"usize", "u64"}
+_lossy(s, t) if {
+	not _signed(s)
+	_signed(t)
+	_width[t] <= _width[s]
 }
 
-# Original same-line form (the unsigned type is named on the cast line itself)
-# plus the declared-type form below.
-_unsigned_signed(lines, i) if {
-	regex.match(`\b(usize|u64|u32)\b`, lines[i])
-	regex.match(`\bas\s+(i8|i16|i32|i64)\b`, lines[i])
-}
+# The code part of a line: string literals emptied, trailing // comment cut.
+_code(line) := regex.replace(regex.replace(line, `"(?:[^"\\]|\\.)*"`, `""`), `//.*$`, "")
 
-_unsigned_signed(lines, i) if _unsigned_to_signed(lines, i)
+_source_any_re := `\.parse\s*(?:::\s*<[^>]*>)?\s*\(|::from_str_radix\s*\(|::from_str\s*\(|::from_(?:be|le|ne)_bytes\s*\(|\.read_[iu](?:8|16|32|64|128)\b`
 
-_unsigned_to_signed(lines, i) if {
-	m := regex.find_all_string_submatch_n(`([A-Za-z_][A-Za-z0-9_]*)\s+as\s+(i8|i16|i32|i64)\b`, lines[i], 1)
+# The integer type a parse/decode expression produces, when it names one.
+_rhs_type(rhs) := t if {
+	m := regex.find_all_string_submatch_n(concat("", [`\.parse\s*::\s*<\s*(`, _int, `)\s*>`]), rhs, 1)
 	count(m) > 0
-	start := max([0, i - 12])
-	some j in numbers.range(start, i)
-	not regex.match(`^\s*//`, lines[j])
-	dm := regex.find_all_string_submatch_n(concat("", [`\b`, m[0][1], `\s*:\s*(usize|u64|u32)\b`]), lines[j], 1)
-	count(dm) > 0
-	_lossy_signed_cast(dm[0][1], m[0][2])
+	t := m[0][1]
+} else := t if {
+	m := regex.find_all_string_submatch_n(concat("", [`\b(`, _int, `)::from_(?:str_radix|str|be_bytes|le_bytes|ne_bytes)\b`]), rhs, 1)
+	count(m) > 0
+	t := m[0][1]
+} else := t if {
+	m := regex.find_all_string_submatch_n(`\.read_([iu](?:8|16|32|64|128))\b`, rhs, 1)
+	count(m) > 0
+	t := m[0][1]
 }
 
-# Detect .parse::<i64>() or .parse::<u64>() followed on the same line (or nearby) by `as u8/i8/u16/i16/u32/i32`
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	endswith(path, ".rs")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	# parse() result cast to narrower type on same line
-	_narrowing_parse(lines, i)
-	not regex.match(`^\s*//`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "Parsing to a wide integer then immediately casting to a narrower type silently truncates; validate the value is within the target type's range before casting, or use TryFrom/TryInto for checked conversion",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+# [name, type] bound by a let from a parse/decode on line `code`.
+_binding(code) := [m[1], t] if {
+	m := regex.find_all_string_submatch_n(concat("", [`^\s*let\s+(?:mut\s+)?([a-z_]\w*)\s*(?::\s*(`, _int, `))?\s*=\s*(.*)$`]), code, 1)[0]
+	regex.match(_source_any_re, m[3])
+	t := _binding_type(m)
 }
 
-# Detect usize/u64 cast to i32/i16/i8 (sign change + possible truncation)
+_binding_type(m) := _rhs_type(m[3])
+
+_binding_type(m) := m[2] if {
+	not _rhs_type(m[3])
+	m[2] != ""
+}
+
+_guard(code, v) if regex.match(concat("", [
+	`\b`, v, `\s*(?:[<>]=?|==)|(?:[<>]=?)\s*`, v, `\b|\b`, v, `\s*\.\s*(?:min|max|clamp|try_into)\s*\(|contains\s*\(\s*&\s*`, v, `\b|try_from\s*\(\s*`, v, `\b`,
+]), code)
+
+_cast_types(code, v) := {t |
+	some m in regex.find_all_string_submatch_n(concat("", [`(?:^|[^.\w])`, v, `\s*\)?\s+as\s+(`, _int, `)\b`]), code, -1)
+	t := m[1]
+}
+
+_parse_cast_re := concat("", [
+	`(?:\.parse\s*::\s*<\s*(`, _int, `)\s*>\s*\(\s*\)|\b(`, _int, `)::from_(?:str_radix|str|be_bytes|le_bytes|ne_bytes)\s*\([^;]*?\))`,
+	`(?:\s*\?|\s*\.\s*(?:unwrap|expect|unwrap_or|unwrap_or_default)\s*\([^()]*\))?\s*\)?\s+as\s+(`, _int, `)\b`,
+])
+
+_report(lines, i, code) if {
+	some m in regex.find_all_string_submatch_n(_parse_cast_re, code, -1)
+	src := concat("", [m[1], m[2]])
+	_lossy(src, m[3])
+}
+
+_report(lines, i, code) if {
+	i > 0
+	some j in numbers.range(max([0, i - 15]), i - 1)
+	not helpers.is_comment_line(lines[j])
+	b := _binding(_code(lines[j]))
+	some t in _cast_types(code, b[0])
+	_lossy(b[1], t)
+	not _guarded(lines, j, i, b[0])
+	not _rebound(lines, j, i, b[0])
+}
+
+_guarded(lines, j, i, v) if {
+	some k in numbers.range(j + 1, i)
+	_guard(_code(lines[k]), v)
+}
+
+# A later let rebinds the name from something else (shadowing).
+_rebound(lines, j, i, v) if {
+	j + 1 <= i - 1
+	some k in numbers.range(j + 1, i - 1)
+	regex.match(concat("", [`^\s*let\s+(?:mut\s+)?`, v, `\b`]), lines[k])
+}
+
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
+	some path, content in input.file_contents
 	endswith(path, ".rs")
-	lines := split(input.file_contents[path], "\n")
+	regex.match(concat("", [`\bas\s+`, _int, `\b`]), content)
+	regex.match(_source_any_re, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	_unsigned_signed(lines, i)
-	not regex.match(`^\s*//`, line)
+	contains(line, " as ")
+	not helpers.is_comment_line(line)
+	code := _code(line)
+	regex.match(concat("", [`\bas\s+`, _int, `\b`]), code)
+	_report(lines, i, code)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Casting an unsigned integer to a signed type may produce a negative value if the high bit is set; use i64::try_from(value).map_err(...) for checked conversion",
+		"message": "A parsed or decoded integer is converted with a lossy `as` cast (narrowing or sign change) without a range check; out-of-range input silently becomes a different value. Use u16::try_from(n) / n.try_into() and handle the error, or check the range first",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

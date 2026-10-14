@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-028 – Use of weak cryptographic hash for password hashing"
-description: "Detects use of MD5 or SHA-1 for password hashing, which are cryptographically broken algorithms unsuitable for storing credentials."
+description: "Detects a password hashed with a fast unsalted digest (md5, sha1, sha256, sha512 Sum or a hasher written with it, or an MD5/SHA helper) instead of bcrypt, scrypt, Argon2id or PBKDF2."
 ---
 
 ## Overview
 
-This rule flags code that uses `crypto/md5` or `crypto/sha1` — via `md5.New`, `sha1.New`, `md5.Sum`, or `sha1.Sum` — in proximity to variables named `password`, `passwd`, or similar. MD5 and SHA-1 are general-purpose hash functions designed for speed, not for password storage. They can be reversed using precomputed rainbow tables or brute-forced at billions of hashes per second on commodity GPU hardware, making any password database hashed with them trivially crackable. This maps to [CWE-327: Use of a Broken or Risky Cryptographic Algorithm](https://cwe.mitre.org/data/definitions/327.html).
+This rule flags a password passed to a fast general-purpose digest (`md5`, `sha1`, `sha256` or `sha512`, through `Sum`, a hasher's `Write`, or a helper named for the digest). MD5 and SHA-1 are general-purpose hash functions designed for speed, not for password storage. They can be reversed using precomputed rainbow tables or brute-forced at billions of hashes per second on commodity GPU hardware, making any password database hashed with them trivially crackable. This maps to [CWE-327: Use of a Broken or Risky Cryptographic Algorithm](https://cwe.mitre.org/data/definitions/327.html).
 
 Password hashing is a fundamentally different problem from data integrity hashing. A good password hashing algorithm is deliberately slow and incorporates a per-user salt to defeat precomputation attacks. MD5 and SHA-1 have neither of these properties and have additionally been shown to have serious collision vulnerabilities, making them unsuitable for any security-sensitive purpose.
 
@@ -19,27 +19,21 @@ OWASP explicitly lists MD5 and SHA-1 as prohibited for password storage in its P
 
 ## What Gets Flagged
 
-The rule flags MD5 or SHA-1 usage that appears alongside password-related variables or context:
+A value that names a password passed to a general-purpose digest: `md5.Sum`, `sha1.Sum`, `sha256.Sum256`, `sha512.Sum512`, a hasher from `md5.New()`/`sha256.New()` written with it, or a helper named for the digest.
 
 ```go
-// FLAGGED: MD5 used to hash a password
-import "crypto/md5"
+// FLAGGED
+sum := md5.Sum([]byte(password))
 
-func hashPassword(password string) string {
-    hash := md5.Sum([]byte(password))
-    return hex.EncodeToString(hash[:])
-}
+// FLAGGED: a hasher written with the password
+h := sha256.New()
+h.Write([]byte(user + ":" + passwd))
 
-// FLAGGED: SHA-1 hasher created near password variable
-import "crypto/sha1"
-
-func storeUser(passwd string) {
-    h := sha1.New()
-    h.Write([]byte(passwd))
-    storedHash := hex.EncodeToString(h.Sum(nil))
-    saveToDatabase(storedHash)
-}
+// FLAGGED: helper named for the hash
+pass := Md5Sum(r.FormValue("password"))
 ```
+
+Not flagged: bcrypt, scrypt, argon2, pbkdf2 and HMAC; digests of file contents, API keys or reset tokens; protocol-mandated digests (HTTP Digest, MySQL scramble, CRAM/NTLM); test files.
 
 ## Remediation
 

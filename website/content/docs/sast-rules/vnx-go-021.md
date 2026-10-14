@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-021 – Potential XSS via fmt.Fprintf with HTML tags"
-description: "Detects usage of fmt.Fprintf to output HTML tags combined with variables, which can lead to Cross-Site Scripting (XSS) if variables contain user-controlled data."
+description: "Detects HTML written to an http.ResponseWriter (fmt.Fprintf/Fprint/Fprintln, io.WriteString, w.Write, gin c.Data, echo c.HTML) with a non-constant value spliced into the markup unescaped. Escaped and numeric values, constants, plain-text or JSON handlers and writes to builders or files are not reported."
 ---
 
 ## Overview
@@ -19,23 +19,26 @@ XSS vulnerabilities can lead to session hijacking, credential theft, defacement,
 
 ## What Gets Flagged
 
-The rule flags any usage of `fmt.Fprintf` that contains HTML tags (both opening `<` and closing `>`) in Go source files.
+The rule reports HTML markup written to an `http.ResponseWriter` (or gin/echo's
+response) with a non-constant value spliced in unescaped. Stored values count:
+an item read from a database is as dangerous as a query parameter.
 
 ```go
-// FLAGGED: fmt.Fprintf with HTML tags and user input
-func handler(w http.ResponseWriter, r *http.Request) {
-    userInput := r.URL.Query().Get("name")
-    fmt.Fprintf(w, "<h1>Hello %s</h1>", userInput) // User input not escaped
-}
+// FLAGGED: a request value in markup
+name := r.URL.Query().Get("name")
+fmt.Fprintf(w, "<p>Hello, %s!</p>", name)
 
-// FLAGGED: fmt.Fprintf with HTML tags
-func listItems(w http.ResponseWriter, items []string) {
-    fmt.Fprintf(w, "<ul>")
-    for _, item := range items {
-        fmt.Fprintf(w, "<li>%s</li>", item) // Potential XSS if item is user-controlled
-    }
-    fmt.Fprintf(w, "</ul>")
-}
+// FLAGGED: concatenation through Fprint, io.WriteString and w.Write
+fmt.Fprint(w, "<div class=\"banner\">"+msg+"</div>")
+w.Write([]byte("<h2>Results for " + q + "</h2>"))
+
+// FLAGGED: echo c.HTML built from the request
+return c.HTML(http.StatusOK, "<p>Hello "+name+"</p>")
+
+// NOT FLAGGED: escaped, numeric, constant, or not a browser response
+fmt.Fprintf(w, "<p>Hello, %s!</p>", html.EscapeString(name))
+fmt.Fprintf(w, "<p>%d items</p>", n)
+fmt.Fprintf(&b, "<tr><td>%s</td></tr>\n", r.ID)
 ```
 
 ## Remediation

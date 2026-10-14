@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-006 – Go Server-Side Request Forgery"
-description: "Detect Go HTTP handlers that use user-controlled input to construct outbound HTTP requests, enabling server-side request forgery attacks against internal services and cloud metadata endpoints."
+description: "Reports outbound HTTP requests, reverse proxies and net/tls dials whose URL or address starts with a request value (query, form, path parameter or a decoded JSON body field), directly, via url.Parse or a variable, or behind a prefix that does not pin the host. Fixed hosts, configured destinations, allowlisted values and guarded dialers are not reported."
 ---
 
 ## Overview
@@ -15,7 +15,7 @@ In cloud environments, SSRF is a critical vulnerability class because virtually 
 
 ## What Gets Flagged
 
-The rule fires when `http.Get`, `http.Post`, or `http.NewRequest` is called with a URL argument taken directly from `r.FormValue()` or `r.URL.Query()`.
+The rule fires when `http.Get`/`Head`/`Post`/`PostForm`, `http.NewRequest(WithContext)`, a client's `Get`/`Post`, resty `R().Get`, `httputil.NewSingleHostReverseProxy` or `net.Dial`/`tls.Dial` receives a destination that starts with a request value: a query, form, header or path parameter, or a field of a struct decoded from the request body. The value may be inline, parsed with `url.Parse`, held in a variable assigned a few lines up, or follow a prefix that leaves the host open (`"http://"+v`, `fmt.Sprintf("http://%s/...", v)`). It does not fire for a fixed scheme and host followed by a path (`"https://api.github.com/repos/"+v`), configured destinations, a value checked against an allowlist or host comparison, a client whose dialer rejects private addresses, or cache and database `Get` calls.
 
 ```go
 // FLAGGED: user-supplied URL fetched server-side

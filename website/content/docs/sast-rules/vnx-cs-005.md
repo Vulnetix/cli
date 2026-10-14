@@ -1,11 +1,11 @@
 ---
-title: "VNX-CS-005 – C# Missing ValidateAntiForgeryToken on State-Changing MVC Actions"
-description: "Detects ASP.NET MVC controller actions decorated with [HttpPost], [HttpPut], [HttpDelete], or [HttpPatch] that lack the [ValidateAntiForgeryToken] attribute, leaving them vulnerable to Cross-Site Request Forgery."
+title: "VNX-CS-005 – C# MVC Action Accepting Cross-Site Form Posts Without Anti-Forgery Validation"
+description: "Detects ASP.NET MVC and ASP.NET Core MVC controller actions reachable by a cross-site form ([HttpPost], [AcceptVerbs(HttpVerbs.Post)], and PUT/DELETE/PATCH where method override applies) with no anti-forgery validation on the action, the controller, a base controller or a global filter."
 ---
 
 ## Overview
 
-This rule identifies ASP.NET MVC controller action methods that perform state-changing HTTP operations — `[HttpPost]`, `[HttpPut]`, `[HttpDelete]`, or `[HttpPatch]` — without the `[ValidateAntiForgeryToken]` attribute in the surrounding context. The rule also checks for `[AutoValidateAntiforgeryToken]` at the controller level and `[IgnoreAntiforgeryToken]` (which suppresses the check intentionally), and `Consumes(` attributes used for API endpoints with explicit content-type negotiation.
+This rule reports the `[HttpPost]` (or `[AcceptVerbs(HttpVerbs.Post)]`) attribute of an action in a class deriving from `Controller` when neither the action's own attribute block nor the controller carries `[ValidateAntiForgeryToken]`, `[AutoValidateAntiforgeryToken]` or `[IgnoreAntiforgeryToken]`. `[HttpPut]`, `[HttpDelete]` and `[HttpPatch]` are reported only where a cross-site form can reach them: in ASP.NET MVC 5, which honours `X-HTTP-Method-Override`, or in a project that calls `UseHttpMethodOverride`. A global `AutoValidateAntiforgeryTokenAttribute` filter, a base controller carrying the attribute, `[ApiController]`, `ControllerBase` and Web API 2 `ApiController` classes, actions limited to JSON by `[Consumes("application/json")]` or a `[FromBody]` parameter, and test code are not reported. A comment such as `// TODO: add [ValidateAntiForgeryToken]` does not count as the mitigation.
 
 Cross-Site Request Forgery (CSRF) exploits the fact that browsers automatically attach cookies — including session cookies — to all requests sent to a domain, regardless of which site triggered the request. A malicious page on a different origin can silently submit forms or fire AJAX requests to a victim's authenticated session on a target site, causing state changes the user did not intend.
 
@@ -32,7 +32,7 @@ public ActionResult TransferFunds(TransferViewModel model)
     return RedirectToAction("Index");
 }
 
-// FLAGGED: [HttpDelete] action without token validation
+// FLAGGED in ASP.NET MVC 5 (or with UseHttpMethodOverride): [HttpDelete] without token validation
 [HttpDelete]
 public IActionResult DeleteUser(int id)
 {

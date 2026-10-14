@@ -1,11 +1,11 @@
 ---
-title: "VNX-GO-011 – Go gob Deserialization from HTTP Request Body"
-description: "Detect Go code that decodes gob data directly from an HTTP request body, which can cause denial of service or trigger unexpected behaviour in complex types."
+title: "VNX-GO-011 – Go gob Deserialization of a Request Body or Accepted Connection"
+description: "Detect Go code that decodes gob data from an HTTP request body (net/http, gin, echo, fiber, fasthttp) or an accepted network connection, directly or through a variable, which lets a client exhaust memory and stack."
 ---
 
 ## Overview
 
-This rule flags Go code where `gob.NewDecoder` receives an HTTP request body (`r.Body`, `req.Body`, `request.Body`) as its input. The `encoding/gob` format is designed for inter-process communication between trusted Go programs — it was never intended to parse data from untrusted network sources. Gob can instantiate any exported Go type registered via `gob.Register()`, and malformed or maliciously crafted gob streams can trigger excessive memory allocation, stack overflows during recursive type decoding, or unexpected behaviour when complex interface types are hydrated. This maps to [CWE-502: Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html).
+This rule flags Go code where `gob.NewDecoder` reads an HTTP request body or an accepted network connection, directly or through a variable assigned from it. The `encoding/gob` format is designed for inter-process communication between trusted Go programs — it was never intended to parse data from untrusted network sources. Gob can instantiate any exported Go type registered via `gob.Register()`, and malformed or maliciously crafted gob streams can trigger excessive memory allocation, stack overflows during recursive type decoding, or unexpected behaviour when complex interface types are hydrated. This maps to [CWE-502: Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html).
 
 **Severity:** Medium | **CWE:** [CWE-502 – Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html) | **OWASP ASVS:** [V5.5 – Deserialization Prevention](https://owasp.org/www-project-application-security-verification-standard/)
 
@@ -21,21 +21,25 @@ Neither `go vet` nor `staticcheck` detect this pattern directly — it requires 
 
 ## What Gets Flagged
 
-The rule fires when `gob.NewDecoder` appears on the same line as an HTTP request body reference (`r.Body`, `req.Body`, `request.Body`).
+The rule reports `gob.NewDecoder` when its reader is client-controlled: an HTTP request body (`*http.Request.Body` under any parameter name, gin's `c.Request.Body`, echo's `c.Request().Body`, fiber's `c.Body()`, fasthttp's `ctx.PostBody()`) or a connection returned by `Listener.Accept`, either directly or through a variable assigned from it in the same function.
 
 ```go
-// FLAGGED: gob decoding directly from untrusted HTTP request body
-func handler(w http.ResponseWriter, r *http.Request) {
-    var msg Message
-    gob.NewDecoder(r.Body).Decode(&msg) // DoS via crafted gob payload
+func SubmitJob(w http.ResponseWriter, r *http.Request) {
+    var job Job
+    gob.NewDecoder(r.Body).Decode(&job) // FLAGGED
 }
 
-// FLAGGED: storing decoder from request body
-func handler(w http.ResponseWriter, r *http.Request) {
-    dec := gob.NewDecoder(r.Body)
-    dec.Decode(&payload) // no size limit, no type safety
+func Replay(w http.ResponseWriter, req *http.Request) {
+    raw, _ := io.ReadAll(req.Body)
+    rd := bytes.NewReader(raw)
+    gob.NewDecoder(rd).Decode(&s) // FLAGGED: two assignments from the body
 }
+
+conn, _ := ln.Accept()
+gob.NewDecoder(conn).Decode(&cmd) // FLAGGED: accepted connection
 ```
+
+A `http.MaxBytesReader` around the body is still reported: the gob package is documented as not hardened against adversarial input, and crafted streams exhaust stack and memory well inside a size cap. Not reported: `json.NewDecoder`, `gob.NewEncoder`, gob decoding of a local file, an in-memory value, an outbound client's response body or a dialled connection, and comments or strings. A `net/rpc` server (gob internally) and a connection passed in from another function are not followed.
 
 ## Remediation
 

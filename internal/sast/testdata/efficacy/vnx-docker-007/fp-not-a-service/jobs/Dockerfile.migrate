@@ -1,0 +1,3 @@
+FROM alpine:3.20
+COPY migrate.sh /migrate.sh
+CMD ["sh", "/migrate.sh"]

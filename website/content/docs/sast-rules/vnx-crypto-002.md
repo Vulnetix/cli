@@ -1,6 +1,6 @@
 ---
 title: "VNX-CRYPTO-002 – SHA-1 Usage Detected"
-description: "Detects use of the SHA-1 hash algorithm across Python, Node.js, Go, Java, Ruby, and PHP, flagging code that relies on a cryptographically broken hash function."
+description: "Reports SHA-1 computed through a hash or signature API in Python, Node.js, Go, Java, Ruby and PHP (hashlib.sha1, createHash('sha1'), sha1.Sum, x509.SHA1WithRSA, MessageDigest.getInstance(\"SHA-1\"), Digest::SHA1, sha1()), with imports and aliases resolved. HMAC-SHA1, PBKDF2-HMAC-SHA1, the WebSocket accept key, usedforsecurity=False, names merely containing sha1, comments, strings and test files are not reported."
 category: sast
 ---
 
@@ -41,6 +41,13 @@ MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
 import "crypto/sha1"
 checksum := sha1.Sum(data)
 ```
+
+```ruby
+# FLAGGED: Ruby SHA-1
+digest = OpenSSL::Digest::SHA1.hexdigest("#{salt}:#{id}")
+```
+
+Not flagged: HMAC-SHA1 and PBKDF2-HMAC-SHA1 (`hmac.new(k, m, hashlib.sha1)`, `createHmac('sha1')`, `hash_hmac('sha1', ...)`), the RFC 6455 WebSocket accept key, the Have I Been Pwned range lookup, Python calls with `usedforsecurity=False`, a hash constructor passed by reference (`digestmod=hashlib.sha1`), a field or column merely named `sha1`, the import alone, comments, strings, documentation and test files.
 
 ## Remediation
 

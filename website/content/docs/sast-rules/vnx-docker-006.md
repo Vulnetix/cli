@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-006 – Dockerfile Uses ADD Instead of COPY for Local Files"
-description: "Detects ADD instructions used to copy local files or directories, where the simpler and more explicit COPY instruction should be used instead."
+description: "Reports a Dockerfile ADD that copies local files or directories that are not archives, where COPY does the same without ADD's implicit tar extraction."
 ---
 
 ## Overview
@@ -23,16 +23,18 @@ CAPEC-185 (Malicious Software Update) and MITRE ATT&CK T1195.002 (Compromise Sof
 
 ## What Gets Flagged
 
+The rule reports `ADD` instructions whose sources are local and not archives, in every form: flags, the JSON form, globs, continuation lines and `ONBUILD ADD`.
+
 ```dockerfile
-# FLAGGED: ADD used to copy a local binary — use COPY instead
-ADD myapp /usr/local/bin/myapp
-
-# FLAGGED: ADD used to copy a directory — implicit tar extraction risk
-ADD ./config/ /etc/myapp/
-
-# FLAGGED: ADD used to copy a local archive — will be silently extracted
-ADD myapp-v1.2.tar.gz /opt/myapp/
+# FLAGGED
+ADD Gemfile Gemfile.lock /app/
+ADD --chown=app:app . /app
+ADD ["config/puma.rb", "/app/config/puma.rb"]
+ADD target/*.jar /opt/app/
+ONBUILD ADD . /usr/src/app
 ```
+
+Not reported: `ADD` whose local sources are all archives meant to be unpacked (`.tar`, `.tar.gz`, `.tgz`, `.tar.xz`, `.tar.zst` and similar), remote URL and git sources (VNX-DOCKER-004), a source held in a variable, heredoc sources, `COPY`, and `ADD` text in comments, labels, strings and heredocs, test and `.devcontainer` images.
 
 ## Remediation
 

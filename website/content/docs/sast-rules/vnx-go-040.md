@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-040 – Logging of sensitive data"
-description: "Detect Go code that passes sensitive values such as passwords, secrets, tokens, or credentials directly to log output functions, which persists plaintext secrets in log files, SIEM systems, and log aggregation pipelines."
+description: "Detects Go logging calls (log, slog, zap, logrus, zerolog, any logger) whose arguments carry a password, token, secret, API key, private key, card number or Authorization header."
 ---
 
 ## Overview
 
-This rule flags calls to standard library and popular logging package functions — `log.Print`, `log.Println`, `log.Printf`, `log.Fatal`, `log.Fatalf`, and their equivalents in `logrus`, `zap`, `zerolog`, and generic `logger.` invocations — where the arguments or format string include sensitive identifiers such as `password`, `passwd`, `secret`, `key`, `token`, `auth`, `credential`, `ssn`, `credit`, `card`, or `cvv`. Logging sensitive data exposes it to anyone with access to the log infrastructure, which typically includes far more people and systems than those authorised to handle the underlying credentials. This maps to [CWE-532: Insertion of Sensitive Information into Log File](https://cwe.mitre.org/data/definitions/532.html).
+This rule flags calls to the standard `log` package, `log/slog`, `zap`, `logrus`, `zerolog`, `klog`/`glog` and any logger variable whose arguments (not the message text) carry a secret: a variable or field named for a password, passphrase, secret, token, API key, private key, credentials, card number, CVV or SSN, the request's `Authorization`/`Cookie` header, or a structured field keyed by such a name. Values passed through `redact`, `mask`, `len` or a hash, comparisons such as `apiKey != ""`, and lookalike names (`nextPageToken`, `tokenCount`, `secretName`) are not reported. Logging sensitive data exposes it to anyone with access to the log infrastructure. This maps to [CWE-532: Insertion of Sensitive Information into Log File](https://cwe.mitre.org/data/definitions/532.html).
 
 Sensitive data in logs is a persistent, silent risk: unlike a live API response, log data accumulates in files, is shipped to centralised aggregation platforms, archived to cold storage, and often retained for months or years.
 
@@ -19,48 +19,27 @@ Beyond internal exposure, compliance frameworks including PCI-DSS (Requirement 3
 
 ## What Gets Flagged
 
-The rule fires when a logging call's arguments contain variable names or string literals matching sensitive data patterns.
+A logging call whose arguments (not its message text) carry a secret:
 
 ```go
-// FLAGGED: password logged in error path
-func authenticate(username, password string) error {
-    user, err := db.FindUser(username)
-    if err != nil {
-        log.Printf("authentication failed for %s with password %s", username, password)
-        return err
-    }
-    return nil
-}
+// FLAGGED: standard log
+log.Printf("login attempt user=%s password=%s", user, password)
+log.Fatalf("cannot authenticate %s with %s", req.Username, req.Password)
+log.Printf("request auth header: %s", r.Header.Get("Authorization"))
 
-// FLAGGED: API token included in logrus debug output
-func fetchData(token string) {
-    logrus.Debugf("fetching data with auth token: %s", token)
-    // ...
-}
+// FLAGGED: structured loggers keyed by a secret name
+logger.Info("connecting", zap.String("api_key", apiKey))
+slog.Info("login", "user", c.user, "password", pw)
+logrus.WithField("token", c.cfg.Token).Info("refreshing")
+log.Debug().Str("secret", c.signingSecret).Msg("loaded")
 
-// FLAGGED: credit card number logged on error
-func processPayment(cardNumber, cvv string) {
-    log.Println("payment failed for card", cardNumber, "cvv", cvv)
-}
+// FLAGGED: call broken across lines
+logger.Infof("config loaded: dsn=%s token=%s",
+    cfg.DSN,
+    cfg.APIToken)
 ```
 
-```go
-// SAFE: log the event without the sensitive value
-func authenticate(username, password string) error {
-    user, err := db.FindUser(username)
-    if err != nil {
-        // Log that authentication failed, not what the password was
-        log.Printf("authentication failed for user %q: %v", username, err)
-        return err
-    }
-    return nil
-}
-
-// SAFE: log a redacted placeholder or masked value
-func fetchData(token string) {
-    logrus.WithField("token_prefix", token[:8]+"****").Debug("fetching data")
-}
-```
+Not flagged: `log.Printf("password reset requested for %s", email)`, `ErrInvalidToken`, `len(password)`, `redact(token)`, `mask(cardNumber)`, `zap.String("password", "[REDACTED]")`, `"hasAPIKey", apiKey != ""`, and lookalikes such as `nextPageToken`, `tokenCount`, `passwordPolicy`, `secretName`, `keyID`.
 
 ## Remediation
 

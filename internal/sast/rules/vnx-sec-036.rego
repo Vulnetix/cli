@@ -1,11 +1,12 @@
 package vulnetix.rules.vnx_sec_036
 
 import rego.v1
+import data.vulnetix.lib.secrets
 
 metadata := {
 	"id": "VNX-SEC-036",
 	"name": "Heroku API key",
-	"description": "A Heroku API key or platform API OAuth token was found in source code. Heroku keys grant full account access including the ability to deploy applications, modify add-ons, and read database contents.",
+	"description": "Reports a Heroku platform API key: a standalone v2 key (HRKU-AA followed by 58 characters), or a legacy UUID-format key assigned to a name that contains heroku and key, token or secret (HEROKU_API_KEY=..., heroku_api_token: ...). A bare UUID without that context, placeholder or example UUIDs and test or fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-036/",
 	"languages": [],
 	"severity": "critical",
@@ -19,23 +20,43 @@ metadata := {
 	"tags": ["secrets", "heroku", "credentials"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+_v2 := `\b(HRKU-AA[0-9A-Za-z_-]{58})(?:[^0-9A-Za-z_-]|$)`
+
+_legacy := `(?i)heroku[a-z0-9_.-]*(?:key|token|secret|pass(?:word)?)["']?\s*(?::=|=>|[:=])\s*["']?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b`
+
+_hit(line) := [m[0][1], "v2"] if {
+	contains(line, "HRKU-AA")
+	m := regex.find_all_string_submatch_n(_v2, line, 1)
+	count(m) > 0
+}
+
+_hit(line) := [m[0][1], "legacy"] if {
+	not contains(line, "HRKU-AA")
+	contains(lower(line), "heroku")
+	m := regex.find_all_string_submatch_n(_legacy, line, 1)
+	count(m) > 0
+}
+
+_gate(content) if contains(content, "HRKU-AA")
+_gate(content) if contains(content, "heroku")
+_gate(content) if contains(content, "Heroku")
+_gate(content) if contains(content, "HEROKU")
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	not secrets.skip_path(path)
+	_gate(content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`HRKU-AA[0-9a-zA-Z_-]{58}`, line)
+	h := _hit(line)
+	not secrets.is_example_token(h[0])
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Heroku API key (v2) found; revoke the key and use environment variables or a secrets manager",
+		"message": sprintf("Heroku API key (%s format) found; revoke it with 'heroku authorizations:revoke' and load it from the environment", [h[1]]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": secrets.redact(line),
 	}
 }

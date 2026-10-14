@@ -1,11 +1,11 @@
 ---
 title: "VNX-BASH-005 – Hardcoded Secret or Password in Shell Script"
-description: "Detects shell variable assignments where the variable name indicates a secret, password, token, or API key and the value is a non-empty string literal rather than a runtime reference."
+description: "Reports a literal credential in a shell script or .env file: an assignment to a PASSWORD/SECRET/TOKEN/API_KEY-style name, a literal after a credential flag (--password, mysql -p, sshpass -p, curl -u), or a user:password pair in a connection URL. Placeholders, runtime references and single-word local defaults are not reported."
 ---
 
 ## Overview
 
-This rule scans Bash scripts (`.sh`, `.bash`) and environment files (`.env`) for variable assignments where the variable name matches common credential patterns — `PASSWORD`, `PASSWD`, `SECRET`, `TOKEN`, `API_KEY`, `APIKEY`, `PRIVATE_KEY`, `AUTH_TOKEN`, `ACCESS_KEY`, `DB_PASS`, and similar — and the assigned value is a quoted string literal of four or more characters. Lines that are commented out or that use variable expansion (`${...}`) as the value are excluded, since those patterns indicate a legitimate runtime reference.
+This rule reports a literal credential written into a shell script (`.sh`, `.bash`, `.bats`, `.ksh`, `.zsh`, extensionless files with a shell shebang) or a `.env`/`.envrc` file: an assignment (`NAME=value`, `export`/`local`/`readonly`/`declare NAME=value`, quoted or bare) whose name ends in `PASSWORD`, `PASSWD`, `_PASS`, `SECRET`, `SECRET_KEY`, `TOKEN`, `API_KEY`, `APIKEY`, `PRIVATE_KEY` or `ACCESS_KEY` in any case; a literal passed to a credential flag (`--password`, `--token`, `--api-key`, `--client-secret`, `mysql -pVALUE`, `sshpass -p`, `curl -u user:VALUE`); and a `user:password@` pair inside a connection URL. The value is masked in the reported snippet. Not reported: values that reference a variable or command (`"$(cat /run/secrets/x)"`, `$GH_TOKEN`), empty values, placeholders (`changeme`, `your-...`, `<...>`, `xxxx`, `REPLACE_ME`, `dummy`), single-word local defaults shorter than 16 characters (`postgres`), paths, URLs and environment-variable names held in the variable, numbers and booleans, names that only contain a keyword (`PASSWORD_FILE`, `TOKEN_URL`, `MAX_TOKENS`), `--password-stdin`, comments, `echo` text, here-document bodies, test paths, and `.env.example`/`.sample` files.
 
 Hardcoded credentials embedded directly in script files are visible to anyone with read access to the repository, build artifact, container image, or deployed filesystem. They cannot be rotated without a code change and a new deployment, and they appear in every copy of the codebase including forks, cached CI artefacts, and version control history. Even after the secret is removed from the file, it remains readable in `git log` unless the entire history is rewritten.
 
@@ -22,17 +22,22 @@ Beyond the immediate credential exposure, hardcoded secrets tend to be long-live
 ## What Gets Flagged
 
 ```bash
-# FLAGGED: plaintext password assigned to PASSWORD variable
-PASSWORD='supersecret123'
+DB_PASSWORD="Pr0d-Backup!2024"                          # FLAGGED
+export API_KEY='k3y-9f8a7b6c5d4e3f2a1b0c'               # FLAGGED
+password=hunter2hunter                                  # FLAGGED: bare value
+mysql -u root -pS3cureRootPw app < schema.sql           # FLAGGED
+sshpass -p 'Deploy#Pass77' ssh deploy@web01 uptime      # FLAGGED
+psql "postgresql://app:Sup3rS3cret@db.internal:5432/app"  # FLAGGED
+```
 
-# FLAGGED: API key hardcoded in script
-API_KEY="sk-prod-EXAMPLE_REDACTED"
+Not flagged:
 
-# FLAGGED: token embedded in .env file
-AUTH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.real"
-
-# FLAGGED: database password hardcoded
-DB_PASSWORD="Passw0rd!"
+```bash
+DB_PASSWORD="$(cat /run/secrets/db_password)"
+API_KEY="${API_KEY:?API_KEY must be set}"
+PASSWORD_FILE="/run/secrets/db_password"
+echo "$TOKEN" | docker login -u ci --password-stdin registry.example.com
+export PGPASSWORD=postgres        # single-word local default
 ```
 
 ## Remediation

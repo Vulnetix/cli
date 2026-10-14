@@ -1,6 +1,6 @@
 ---
 title: "VNX-HTML-001 – Use of Jinja2 |safe filter"
-description: "Detects use of the |safe filter in Jinja2/HTML templates which bypasses auto-escaping and can lead to XSS."
+description: "Reports Jinja2, Django and Nunjucks templates that mark an output expression |safe or |safeseq, or switch autoescape off, unless the value is a literal, already escaped/JSON-encoded, or a CSRF token or form field."
 ---
 
 ## Overview
@@ -28,7 +28,12 @@ The `|safe` filter is one of the most common sources of XSS in Python web applic
 
 {# FLAGGED: database content marked safe without sanitization #}
 <article>{{ post.body | safe }}</article>
+
+{# FLAGGED: auto-escaping switched off for a block #}
+{% autoescape off %}{{ post.summary }}{% endautoescape %}
 ```
+
+Not flagged: `{{ "<br>"|safe }}`, `{{ state|tojson|safe }}`, `{{ note|escape|safe }}`, `{{ csrf_token|safe }}`, `{{ form.username|safe }}`, filters such as `|safe_title`, `|safe` in prose or script text outside `{{ }}`, and templates under test directories.
 
 ## Remediation
 

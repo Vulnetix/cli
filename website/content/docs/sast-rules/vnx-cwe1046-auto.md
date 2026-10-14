@@ -1,57 +1,64 @@
 ---
-title: "VNX-1046 – Open Redirect to Untrusted Site"
-description: "Detects HTTP redirect functions across Go, Java, Node.js, PHP, and Python that may forward users to attacker-controlled URLs when redirect targets are derived from unvalidated input."
+title: "VNX-1046 – Creation of Immutable Text Using String Concatenation"
+description: "Reports a Java or C# String accumulated with += or s = s + ... inside a for, foreach or while loop, where the variable is a String local declared before the loop."
 ---
 
 ## Overview
 
-VNX-1046 is an auto-generated broad-pattern rule that searches for HTTP redirect operations across Go, Java, Node.js, PHP, and Python source files. The rule targets `http.Redirect` in Go, `sendRedirect` in Java, `res.redirect` in Node.js, `header` (with `Location:`) in PHP, and `redirect` in Python (Flask/Django). These are associated with [CWE-1046](https://cwe.mitre.org/data/definitions/1046.html) in the rule metadata.
+VNX-1046 reports [CWE-1046: Creation of Immutable Text Using String Concatenation](https://cwe.mitre.org/data/definitions/1046.html) in Java and C#. The finding is an `s += ...` or `s = s + ...` statement inside the body of a `for`, `foreach` or `while` loop, where `s` is a local declared as `String`/`string` (or a C# `var` initialised with a string literal) before the loop. Braced bodies, Allman-style braces, a single unbraced statement and a statement on the loop's own line are all covered.
 
-Note: CWE-1046 in MITRE's catalog covers "Creation of Immutable Text Using String Concatenation." The security concern this rule actually detects — open redirects — maps to [CWE-601: URL Redirection to Untrusted Site ('Open Redirect')](https://cwe.mitre.org/data/definitions/601.html). The CWE mapping is a known limitation of this auto-generated rule.
+Not reported: `StringBuilder`, `StringBuffer` and `StringJoiner` appends, `String.join` and `Collectors.joining`, concatenation after the loop ends, numeric `+=` on `int`/`long`/`double` variables, a String declared inside the loop body (rebuilt each iteration rather than accumulated), fields and variables declared more than 100 lines above, Kotlin and other JVM languages, test code, comments and strings.
 
-All flagged patterns are normal redirect APIs; findings must be reviewed to determine whether the redirect target is validated against an allowlist before use.
-
-**Severity:** Medium | **CWE:** [CWE-1046](https://cwe.mitre.org/data/definitions/1046.html) | **OWASP:** [A01:2021 – Broken Access Control](https://owasp.org/Top10/A01_2021-Broken_Access_Control/)
+**Severity:** Low | **CWE:** [CWE-1046](https://cwe.mitre.org/data/definitions/1046.html)
 
 ## Why This Matters
 
-Open redirects are exploited as a link-laundering primitive in phishing campaigns. An attacker constructs a URL to a trusted domain (e.g., `https://yourapp.com/login?next=https://evil.com`) that redirects the victim to a malicious site. Because the initial URL belongs to a legitimate domain, security tools, email filters, and users are less likely to flag it as suspicious.
-
-Open redirects also assist OAuth phishing attacks where the redirect URL parameter is manipulated to intercept authorisation codes or access tokens.
+Strings in Java and C# are immutable. Every `+=` allocates a new string and copies the whole text built so far into it, so building a string of n pieces in a loop costs time proportional to n squared. When the loop count comes from a request (rows returned, items posted, lines uploaded), the request controls how much CPU the server spends. Every intermediate copy also stays on the heap until it is collected. When the text is a password, a token or key material, that leaves many copies of the secret in memory, where a heap dump or a memory-disclosure bug can find them.
 
 ## What Gets Flagged
 
-The rule scans Go, Java, Node.js, PHP, and Python source files for redirect patterns:
-
-```python
-# FLAGGED: Flask redirect with user-supplied URL
-from flask import redirect, request
-return redirect(request.args.get('next'))
+```java
+String csv = "";
+for (Column column : columns) {
+    csv += column.getName() + ",";            // FLAGGED
+}
 ```
 
-```javascript
-// FLAGGED: Express redirect with query param
-app.get('/login', (req, res) => {
-    res.redirect(req.query.returnUrl);
-});
+```java
+String hex = "";
+for (byte b : digest) hex += String.format("%02x", b);   // FLAGGED
 ```
 
-```php
-// FLAGGED: PHP Location header from input
-header('Location: ' . $_GET['redirect']);
-exit;
+```csharp
+string list = "";
+foreach (var id in ids)
+{
+    list += id + ",";                          // FLAGGED
+}
+```
+
+## What Is Not Flagged
+
+```java
+StringBuilder csv = new StringBuilder();
+for (Column column : columns) {
+    csv.append(column.getName()).append(',');
+}
+
+for (Order order : orders) {
+    String line = order.getId() + ": ";        // a new String each iteration
+    line += order.getAmount();
+}
 ```
 
 ## Remediation
 
-1. Never redirect to a URL taken directly from user-supplied input (query parameters, form fields, headers).
-2. Implement an allowlist of permitted redirect destinations and validate the target against it before redirecting.
-3. If relative redirects are sufficient (e.g., post-login navigation within the same application), strip any scheme or authority from the target and treat it as a path only.
-4. Use indirect redirect maps: store valid destinations server-side keyed by an opaque token, and accept only the token from user input.
-5. For OAuth flows, register exact redirect URIs and reject any redirect that is not an exact match.
+1. Accumulate into a `StringBuilder` (Java and C#) and call `toString()`/`ToString()` once.
+2. Use `String.join`, `Collectors.joining` or `string.Join` when joining a collection.
+3. For secrets, use a `char[]` or `byte[]` buffer that you can overwrite when done, not a String.
 
 ## References
 
-- [CWE-601: URL Redirection to Untrusted Site](https://cwe.mitre.org/data/definitions/601.html)
-- [OWASP Unvalidated Redirects and Forwards Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html)
-- [OWASP Testing Guide – OTG-CLIENT-004](https://owasp.org/www-project-web-security-testing-guide/)
+- [CWE-1046: Creation of Immutable Text Using String Concatenation](https://cwe.mitre.org/data/definitions/1046.html)
+- [Java SE: StringBuilder](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/StringBuilder.html)
+- [.NET: StringBuilder](https://learn.microsoft.com/en-us/dotnet/api/system.text.stringbuilder)

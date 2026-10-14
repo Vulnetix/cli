@@ -1,0 +1,4 @@
+<%# never call @note.body.html_safe here %>
+<p>Use raw output only for trusted markup.</p>
+<p><%= @note.body %></p>
+<% if @note.body.html_safe? %><em>pre-rendered</em><% end %>

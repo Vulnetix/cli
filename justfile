@@ -122,6 +122,7 @@ install:
 # Regenerate secret-detection rules + docs from the catalog (single source of truth)
 gen-secrets:
     go run ./internal/sast/secretsgen .
+    go run ./internal/sast/cwssgen
     just fmt
 
 

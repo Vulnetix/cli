@@ -1,11 +1,11 @@
 ---
-title: "VNX-BASH-003 – Missing set -euo pipefail in Bash Script"
-description: "Detects Bash scripts with a valid shebang that do not contain 'set -euo pipefail' or equivalent error-handling options, causing silent failure propagation and undefined-variable bugs."
+title: "VNX-BASH-003 – Failure Ignored in a Script Without set -e / set -u"
+description: "In a shell script that does not enable errexit, reports an unchecked cd followed by a relative-path delete, an integrity check whose result nothing reads, and (without nounset) rm -r of a path built from a variable that can be empty."
 ---
 
 ## Overview
 
-This rule flags Bash and shell scripts that have a `#!/usr/bin/env bash` or `#!/bin/sh` shebang line but do not contain a `set -e` (or equivalent combined form such as `set -euo pipefail`) directive. The check applies only to files ending in `.sh` or `.bash` and skips any script that already enables errexit via any `set` invocation that includes the `-e` flag.
+In an executable shell script (one with a sh/bash/dash/ksh/zsh shebang) that does not enable errexit (`set -e`, `set -o errexit`, a `-e` shebang flag or an `ERR` trap), this rule reports the three places where a silently ignored failure does damage: a bare `cd` or `pushd` that nothing checks (no `|| exit`, `&&`, `if` or `$?` test) followed within ten lines by a delete with a relative path (`rm ./*`, `rm -rf build`, `find . -delete`, `git clean -f`, `git reset --hard`); an integrity check (`sha256sum -c`, `gpg --verify`, `cosign verify`, `minisign -V`, `openssl dgst -verify`) run as a bare statement whose result nothing reads; and, when nounset is also off, `rm -r "$VAR/..."` where `VAR` can be empty (an unchecked positional parameter, an environment variable the script never sets, or a command-substitution result) with no `${VAR:?}`, default or `-z`/`-n` test. Not reported: scripts that enable errexit (and nounset, for the `rm` case), checked `cd` and checks, `cd` followed by non-destructive commands or absolute paths, a check that is the last command or a function's return value, sourced libraries without a shebang, test paths and `.bats` files. The mere absence of `set -euo pipefail` is not reported.
 
 Without `set -e`, a script continues executing even when a command fails with a non-zero exit code. A failed `cp`, `curl`, or database migration command will be silently ignored and subsequent steps will operate on incomplete or incorrect state. Without `set -u`, any typo in a variable name expands to the empty string rather than producing an error, so `rm -rf "$MY_DIR/"` becomes `rm -rf "/"` if `MY_DIR` is unset. Without `pipefail`, a failing command early in a pipeline (`curl ... | jq ...`) is invisible because the pipeline exit code is taken from the last command only.
 
@@ -22,21 +22,26 @@ The `pipefail` option is especially important when scripts parse the output of e
 ## What Gets Flagged
 
 ```bash
-# FLAGGED: real script (has shebang) but no set -euo pipefail
-#!/usr/bin/env bash
+#!/bin/bash
+cd "$BUILD_DIR"                 # FLAGGED: if cd fails, the rm runs here
+rm -rf ./*
 
-DEPLOY_DIR="/opt/app"
-cp -r ./dist "$DEPLOY_DIR"    # if this fails, script continues anyway
-chown -R www-data "$DEPLOY_DIR"
-systemctl restart app
+sha256sum -c app.tar.gz.sha256  # FLAGGED: a failed check is ignored
+tar -xzf app.tar.gz -C /opt/app
+
+rm -rf "${CACHE_DIR}/"*         # FLAGGED: CACHE_DIR unset means rm -rf /*
 ```
 
+Not flagged:
+
 ```bash
-# FLAGGED: using sh shebang, still no error handling
-#!/bin/sh
-wget https://example.com/package.tar.gz
-tar xzf package.tar.gz
-./install.sh
+#!/bin/bash
+set -euo pipefail
+cd "$BUILD_DIR"
+rm -rf ./*
+
+cd "$BUILD_DIR" || exit 1
+rm -rf "${CACHE_DIR:?}/"*
 ```
 
 ## Remediation

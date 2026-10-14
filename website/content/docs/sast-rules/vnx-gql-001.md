@@ -1,6 +1,6 @@
 ---
 title: "VNX-GQL-001 – GraphQL Introspection Enabled in Production"
-description: "Detects Apollo Server configured with introspection: true or express-graphql with graphiql: true, exposing the full API schema to unauthenticated attackers."
+description: "Reports GraphQL servers that hard-code introspection, GraphiQL or Playground on (introspection: true, graphiql: true, playground: true in JavaScript/TypeScript; graphiql=True or introspection=True in Python GraphQL views), exposing the full schema."
 ---
 
 ## Overview
@@ -42,6 +42,14 @@ app.use('/graphql', graphqlHTTP({
   graphiql: true,        // <-- flagged
 }));
 ```
+
+```python
+# FLAGGED: GraphiQL on a flask-graphql / graphene view, and Strawberry
+view_func=GraphQLView.as_view("graphiql", schema=schema, graphiql=True)
+graphql_app = GraphQLRouter(schema, graphiql=True)
+```
+
+Not flagged: `introspection: isDev`, `graphiql: process.env.NODE_ENV === 'development'`, `graphiql=DEBUG`, the same key in a file that builds no GraphQL server, and test files.
 
 ## Remediation
 

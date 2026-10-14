@@ -1,6 +1,6 @@
 ---
 title: "VNX-GQL-003 – GraphQL Query String Injection via String Concatenation"
-description: "Detects GraphQL operation documents built by concatenating or interpolating user-controlled input into the query string, allowing attackers to inject arbitrary fields, aliases, or directives."
+description: "Reports GraphQL operation documents (JavaScript/TypeScript and Python) built by interpolating or concatenating request data, directly or through a variable assigned from the request, instead of passing it in the variables map."
 ---
 
 ## Overview
@@ -9,7 +9,7 @@ This rule detects GraphQL operation strings that are built by concatenating or i
 
 GraphQL, like SQL, has a strict query language syntax. When user input is embedded directly into an operation string rather than passed as a bound variable, the attacker controls the **structure** of the operation — not just its data values. The safe pattern is to use **static operation documents** with a separate variables map: the operation text is a compile-time constant, and all user-supplied values are passed as typed, named variables that the GraphQL runtime handles as data rather than syntax.
 
-**Severity:** High | **CWE:** [CWE-89 – Improper Neutralization of Special Elements Used in an SQL Command](https://cwe.mitre.org/data/definitions/89.html) | **CAPEC:** [CAPEC-66 – SQL Injection](https://capec.mitre.org/data/definitions/66.html)
+**Severity:** High | **CWE:** [CWE-943 – Improper Neutralization of Special Elements in Data Query Logic](https://cwe.mitre.org/data/definitions/943.html) | **CAPEC:** [CAPEC-66 – SQL Injection](https://capec.mitre.org/data/definitions/66.html)
 
 **OWASP ASVS v4:** V5.3.4 — Verify that data selection or database queries (e.g. SQL, HQL, ORM, NoSQL) use parameterized queries, ORMs, entity frameworks, or are otherwise protected from injection attacks.
 
@@ -48,12 +48,22 @@ const query = `query { user(id: "${req.body.userId}") { name email } }`;
 
 // FLAGGED: string concatenation building operation from request param
 const op = "mutation { createPost(title: '" + req.body.title + "') { id } }";
+
+// FLAGGED: value destructured from the request a line earlier
+const { fields, userId: uid } = req.body;
+const doc = `query Profile { user(id: "${uid}") { ${fields} } }`;
 ```
 
 ```python
 # FLAGGED: Python f-string building operation from user input
 query = f'query {{ user(name: "{request.args.get("name")}") {{ id }} }}'
+
+# FLAGGED: %-formatting with a request value
+email = request.POST.get("email")
+query = 'query { user(email: "%s") { id } }' % email
 ```
+
+Not flagged: values passed in the variables map (`variables: { id: req.params.id }`, `variable_values=`), constant or fragment interpolation (`${PRODUCT_FIELDS}`), values converted with `parseInt`/`Number`/`JSON.stringify`, and SQL or other non-GraphQL templates.
 
 ## Remediation
 
@@ -154,6 +164,6 @@ class Query(graphene.ObjectType):
 - [Praetorian – Identifying SQL Injections in a GraphQL API](https://www.praetorian.com/blog/identifying-sql-injections-in-a-graphql-api/)
 - [GraphQL Specification – Variables](https://spec.graphql.org/October2021/#sec-Language.Variables)
 - [Apollo Client – Operation Best Practices](https://www.apollographql.com/docs/react/data/operation-best-practices/)
-- [CWE-89: Improper Neutralization of Special Elements](https://cwe.mitre.org/data/definitions/89.html)
+- [CWE-943: Improper Neutralization of Special Elements in Data Query Logic](https://cwe.mitre.org/data/definitions/943.html)
 - [CAPEC-66: SQL Injection](https://capec.mitre.org/data/definitions/66.html)
 - [MITRE ATT&CK T1190 – Exploit Public-Facing Application](https://attack.mitre.org/techniques/T1190/)

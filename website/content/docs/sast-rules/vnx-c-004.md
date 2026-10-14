@@ -1,11 +1,11 @@
 ---
 title: "VNX-C-004 – Use-After-Free: Pointer Used After free()"
-description: "Detects patterns where a pointer is freed with free() and then referenced on the immediately following non-blank, non-comment line without being reassigned to NULL or a new allocation, indicating a use-after-free bug."
+description: "Reports a C, C++ or Objective-C pointer used after free(), g_free, kfree, OPENSSL_free or delete: a dereference, a call that takes it or a return of it within 15 lines on the same path, before it is reassigned and before the path leaves, plus a for loop that advances through the pointer its body frees. Nulled or reassigned pointers, comparisons, other branches, saved next pointers, macros and comments are not reported."
 ---
 
 ## Overview
 
-This rule detects a common use-after-free pattern in C and C++ files (`.c`, `.h`, `.cpp`, `.cc`, `.cxx`) by looking for a `free(ptr)` call on one line immediately followed by a reference to the same identifier on the next non-comment line, where the next line does not reassign the pointer and does not call `free()` on it again. The check is a windowed two-line pattern; it catches the most common case of a pointer being used directly after being freed.
+This rule finds a release (`free(p)`, `g_free`, `kfree`, `vfree`, `kvfree`, `OPENSSL_free`, `std::free`, C++ `delete`/`delete[]`) of a variable or member expression (`p`, `ctx->buf`) and reports the first later line, within 15 lines and on the same path, that dereferences it (`p->x`, `p[i]`, `*p`), passes it to a call (`memcpy(p, ...)`, `printf("%s", p)`) or returns it. The search stops at a reassignment (`p = NULL`, `p = malloc(n)`, `get(&p)`), at `return`/`break`/`continue`/`goto`/`exit`/`throw`, at an `else` or `case` label and at the end of the function, so a use on another branch is not reported. It also reports a `for` loop whose step reads through the pointer its body frees (`for (p = head; p; p = p->next) free(p);`). Comparisons (`if (p)`, `p != NULL`), `sizeof(p)`, `#define` macros, string literals and comments are not uses. Aliases (`q = p; free(p); q->x`) and uses in other functions are out of scope.
 
 Use-after-free occurs when a program frees a heap-allocated object and then accesses memory through the now-dangling pointer. After `free()` returns the memory to the allocator, the contents of that memory are undefined — the allocator may have modified them, a subsequent allocation may have reused the memory with different contents, or the memory may have been returned to the OS. Reading through a freed pointer yields unpredictable or attacker-influenced data; writing through one corrupts the heap.
 
@@ -22,18 +22,33 @@ The pattern is also a common source of security-relevant logic bugs even when no
 ## What Gets Flagged
 
 ```c
-// FLAGGED: buffer freed then used on the next line
-free(buffer);
-memcpy(dest, buffer, len);   // use-after-free
+// FLAGGED: node freed, then its next field read
+free(top);
+*head = top->next;
 
-// FLAGGED: node freed then field accessed
-free(node);
-next = node->next;           // use-after-free
+// FLAGGED: freed string logged
+free(name);
+fprintf(stderr, "closing %s\n", name);
 
-// FLAGGED: pointer freed then passed to function
-free(ctx);
-crypto_finish(ctx);          // use-after-free
+// FLAGGED: conditional free, unconditional use
+if (err) {
+    free(c);
+}
+return c->fd;
+
+// FLAGGED: loop step reads the node the body freed
+for (it = head; it != NULL; it = it->next) {
+    free(it);
+}
 ```
+
+```cpp
+// FLAGGED: C++ delete then member access
+delete entry;
+return entry->len > 0 ? 1 : 0;
+```
+
+Not flagged: `free(b->data); b->data = NULL;`, `free(p); p = malloc(n);`, a free followed by `return` or `goto out`, and the saved-next idiom `next = cur->next; free(cur); cur = next;`.
 
 ## Remediation
 

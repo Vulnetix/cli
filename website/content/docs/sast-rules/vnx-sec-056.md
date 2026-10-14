@@ -1,11 +1,22 @@
 ---
 title: "VNX-SEC-056 – Sentry Auth Token"
-description: "Detects Sentry user and org auth tokens (sntrys_ and sntryu_ prefix) hardcoded in source code."
+description: "Reports Sentry user (sntryu_ + 64 hex), organisation (sntrys_eyJ…) and legacy 64-hex auth tokens assigned to SENTRY_AUTH_TOKEN or .sentryclirc; DSNs, bare prefixes and placeholders are not reported."
 ---
 
 ## Overview
 
-This rule detects sentry auth token matching the `sntrys_..., sntryu_...` pattern hardcoded anywhere in source files. Detects Sentry user and org auth tokens (sntrys_ and sntryu_ prefix) hardcoded in source code.
+This rule reports a Sentry auth token as a whole token: a user auth token (`sntryu_` and 64 hex characters), an organisation auth token (`sntrys_` followed by its base64 JSON claims, `eyJ…`, and the secret part), or a legacy 64-hex token assigned to `SENTRY_AUTH_TOKEN` or to `token` in `.sentryclirc`. The DSN (a public ingest identifier), bare prefixes, placeholders such as `sntrys_YOUR_TOKEN_HERE`, environment references and test paths are not reported.
+
+### What Gets Flagged
+
+```ini
+[auth]
+token = sntryu_<64 hex characters>
+```
+
+```ts
+sentryVitePlugin({ org: "acme", project: "web", authToken: "sntrys_eyJ<claims>_<secret>" })
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

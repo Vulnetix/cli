@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-011 – PHP SQL injection via string concatenation"
-description: "Detects user-controlled input from PHP superglobals concatenated directly into SQL queries passed to mysql_query(), mysqli_query(), or pg_query(), enabling SQL injection attacks."
+description: "Detects request input concatenated or interpolated into SQL text passed to mysql(i)_query(), pg_query(), PDO/mysqli/SQLite3 query/exec/prepare and Laravel DB::select/whereRaw-style calls, inline, through a variable or through a query string built from one. Bound parameters, escaped or integer-cast values, digit-validated values and single-quoted literals are not reported."
 ---
 
 ## Overview
@@ -34,7 +34,18 @@ $res = mysqli_query($conn, "SELECT * FROM accounts WHERE name = '$username'");
 
 // FLAGGED: GET param in pg_query()
 $pg = pg_query($db, "SELECT * FROM orders WHERE ref = '" . $_GET['ref'] . "'");
+
+// FLAGGED: the query string is built from the input first (two hops)
+$id = $_REQUEST['id'];
+$query = "SELECT first_name FROM users WHERE user_id = '$id';";
+$result = mysqli_query($GLOBALS["db"], $query);
+
+// FLAGGED: PDO and Laravel raw SQL
+$stmt = $pdo->query("SELECT * FROM users WHERE name = '$name'");
+return Order::whereRaw('customer = ' . $request->get('customer'))->get();
 ```
+
+Not flagged: `prepare()` with placeholders and `execute()`/`bind_param()`, `pg_query_params()`, `DB::select('... ?', [$value])`, values passed through `(int)`, `intval()`, `mysqli_real_escape_string()` or `->quote()`, values checked with `ctype_digit()`/`is_numeric()` or a digits-only `preg_match()`, and `$_GET` inside a single-quoted literal (PHP does not interpolate it). Escaping that is useless because the value is not quoted in the SQL is not distinguished.
 
 ## Remediation
 

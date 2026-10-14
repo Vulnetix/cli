@@ -1,11 +1,11 @@
 ---
 title: "VNX-NODE-016 – ReDoS via User-Controlled Regular Expression"
-description: "Detect Node.js code that passes user-controlled input to the RegExp constructor or string match/search methods, enabling Regular Expression Denial of Service (ReDoS) attacks."
+description: "Reports new RegExp()/RegExp() or String.match/matchAll compiling a pattern taken from req.query/body/params/headers or Koa ctx, directly or through a variable or concatenation built from one. Escaped input, RE2 and regex literals are not reported."
 ---
 
 ## Overview
 
-This rule detects cases where user-supplied HTTP request data (`req.query`, `req.body`, `req.params`) is passed directly to `new RegExp()`, `String.prototype.match()`, or `String.prototype.search()`. Because Node.js runs on a single-threaded event loop, a single malicious regex pattern with catastrophic backtracking can freeze the entire server for seconds to minutes, denying service to all other requests. This is CWE-1333 (Inefficient Regular Expression Complexity).
+This rule detects cases where user-supplied HTTP request data (`req.query`, `req.body`, `req.params`) reaches `new RegExp()`, `RegExp()`, `String.prototype.match()` or `String.prototype.matchAll()`, directly or through a variable assigned from it a few lines above (`.search()` is not reported: too many search clients share the name). Because Node.js runs on a single-threaded event loop, a single malicious regex pattern with catastrophic backtracking can freeze the entire server for seconds to minutes, denying service to all other requests. This is CWE-1333 (Inefficient Regular Expression Complexity).
 
 **Severity:** High | **CWE:** [CWE-1333 – Inefficient Regular Expression Complexity](https://cwe.mitre.org/data/definitions/1333.html) | **CAPEC:** [CAPEC-197 – Exponential Data Expansion](https://capec.mitre.org/data/definitions/197.html)
 
@@ -21,27 +21,21 @@ Real-world examples include vulnerabilities in `moment.js`, `minimatch`, `expres
 
 ## What Gets Flagged
 
-The rule matches lines where `new RegExp(` is combined with a `req.query`, `req.body`, or `req.params` reference, and lines where `.match()` or `.search()` is called with a request-derived argument.
+The pattern must come from the request, on the same line or through a variable assigned from it a few lines above.
 
 ```javascript
-// FLAGGED: RegExp constructor with query parameter
-app.get('/search', (req, res) => {
-  const pattern = new RegExp(req.query.filter); // attacker controls the regex
-  const results = data.filter(item => pattern.test(item.name));
-  res.json(results);
-});
+// FLAGGED
+const re = new RegExp(req.query.pattern);
+const ok = RegExp(req.body.rule, 'i').test(req.body.value);
+res.json(text.match(req.query.q) || []);
 
-// FLAGGED: String.match with user-supplied pattern
-app.post('/validate', (req, res) => {
-  const ok = inputString.match(req.body.pattern);
-  res.json({ valid: !!ok });
-});
-
-// FLAGGED: String.search with request params
-const idx = text.search(req.params.term);
+// FLAGGED: two lines and template literals
+const term = req.query.search;
+const re = new RegExp(term, 'gi');
+const pattern = new RegExp(`^${req.params.name}$`, 'i');
 ```
 
-Payload: `GET /search?filter=(a%2B)%2B$` with a string of 30 `a` characters followed by `b` causes the server event loop to stall.
+Not flagged: `new RegExp(escapeRegExp(req.query.q))`, input escaped with `.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')` first, `new RE2(req.query.pattern)`, regex literals (`req.query.id.match(/^\d+$/)`), and `replace`/`split`/`includes`, which match a string argument literally.
 
 ## Remediation
 

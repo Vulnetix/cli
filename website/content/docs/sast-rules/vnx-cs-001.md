@@ -1,6 +1,6 @@
 ---
-title: "VNX-CS-001 – C# SQL Injection via String Concatenation in SqlCommand"
-description: "Detects SQL queries constructed by concatenating or interpolating user-supplied input into SqlCommand, OleDbCommand, OdbcCommand, or OracleCommand instead of using parameterised queries."
+title: "VNX-CS-001 – C# SQL Injection: Query Text Built by Concatenation, Interpolation or string.Format"
+description: "Detects C# SQL statements whose text is built from non-constant values (concatenation, interpolation, string.Format, StringBuilder) and executed through ADO.NET commands and data adapters, CommandText, EF Core raw SQL, Dapper or LINQ to SQL."
 ---
 
 ## Overview
@@ -9,7 +9,7 @@ This rule flags C# code that builds SQL query strings by concatenating or interp
 
 SQL injection remains one of the most consistently exploited vulnerability classes (CWE-89, CAPEC-66). The root cause is always the same: the application conflates the structure of a SQL command with its data by mixing them into a single string, then sending that string to the database engine. Parameterised queries fix this by separating the command structure (which is compiled once) from the data values (which are bound later and never interpreted as SQL).
 
-The rule checks two patterns: a `new SqlCommand(...)` (or equivalent) call on the same line as a concatenation or interpolation expression, and a `CommandText = ...` assignment that includes a `+` operator, `string.Format`, or an interpolated string literal.
+The rule reports the line that executes the query: an ADO.NET command or data adapter constructor (`SqlCommand`, `SqlDataAdapter` and the OleDb, Odbc, Oracle, MySql, Npgsql, Sqlite, SqlCe and DB2 equivalents), a `CommandText` assignment, EF Core `FromSqlRaw`/`ExecuteSqlRaw`/`SqlQueryRaw` (and `FromSql`/`ExecuteSqlCommand`/`SqlQuery` with concatenation), Dapper `Query`/`Execute` methods and LINQ to SQL `ExecuteQuery`. The query text counts as dynamic when it uses `+` with a non-constant operand, an interpolated string with a non-constant hole, `string.Format`, or a `StringBuilder` filled that way, whether inline, split across lines, or built in a variable up to 30 lines above the call. Concatenated `const` and `static readonly` fields, ALL_CAPS constants, `nameof()`, placeholder lists built from `"@p" + i`, `FromSqlInterpolated` and `FormattableString` queries are not reported. A query string that arrives as a method parameter is not followed back to its caller.
 
 > **ASP.NET Core default:** Parameterised queries are NOT enforced by default. ADO.NET, Dapper, and raw `SqlCommand` usage all allow string-concatenated queries without any framework-level warning. Entity Framework Core uses parameterised queries by default for LINQ queries, but raw SQL methods (`FromSqlRaw`, `ExecuteSqlRaw`) do not.
 
@@ -40,6 +40,13 @@ cmd.CommandText = string.Format("UPDATE Products SET Price = {0} WHERE Id = {1}"
 
 // FLAGGED: OleDbCommand with concatenation
 var oleCmd = new OleDbCommand("SELECT * FROM Customers WHERE Id = " + customerId, oleConn);
+
+// FLAGGED: EF Core raw SQL and Dapper with interpolation
+return _db.Users.FromSqlRaw($"SELECT * FROM Users WHERE Name = '{name}'").ToArray();
+return _conn.Execute($"UPDATE Accounts SET Closed = 1 WHERE Id = '{accountId}'");
+
+// NOT FLAGGED: constant table name and a bound parameter
+cmd.CommandText = "UPDATE " + USER_TB_NAME + " SET LastSeen = $now WHERE Username = $username";
 ```
 
 ## Remediation

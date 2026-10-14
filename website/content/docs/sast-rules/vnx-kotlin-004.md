@@ -1,13 +1,15 @@
 ---
 title: "VNX-KOTLIN-004 – Kotlin Unencrypted Plain Socket"
-description: "Detects plain java.net.Socket and ServerSocket usage in Kotlin without TLS, transmitting data in cleartext that can be intercepted and modified by network attackers."
+description: "Detects Kotlin plain TCP sockets (java.net.Socket, ServerSocket, NIO channels, SocketFactory.getDefault(), Ktor raw sockets) opened to or listening on a non-loopback address in a file that never applies TLS."
 ---
 
 ## Overview
 
 Using `java.net.Socket` or `java.net.ServerSocket` directly for network communication sends and receives data as cleartext bytes. Any network device between the client and server — a router, a proxy, a Wi-Fi access point, or any system with access to the network path — can read or modify the data stream without detection. This is CWE-319 (Cleartext Transmission of Sensitive Information).
 
-This rule flags Kotlin code (`.kt`, `.kts` files) where a variable is assigned a new `Socket(...)` or `ServerSocket(...)` instance on a line that does not contain `SSL` and is not a comment. The absence of `SSL` in the class name indicates that the standard unencrypted socket API is being used rather than the `SSLSocket` or `SSLServerSocket` subclasses that TLS requires.
+This rule flags Kotlin code (`.kt`, `.kts`) that opens a plain TCP socket to, or listens for, a non-loopback peer in a file that never applies TLS. It recognises `Socket(host, port, ...)` constructors, an unconnected `Socket()` or `SocketChannel.open()` later connected with `connect(InetSocketAddress(host, port))`, `SocketFactory.getDefault().createSocket(host, port)`, `SocketChannel.open(InetSocketAddress(host, port))`, `ServerSocket(port[, backlog[, address]])`, a `ServerSocket()` or `ServerSocketChannel` bound with `bind(InetSocketAddress(...))`, and Ktor raw sockets `aSocket(selector).tcp().connect(...)` / `.bind(...)`.
+
+It does not report loopback peers and bind addresses (`localhost`, `127.x`, `::1`, `InetAddress.getLoopbackAddress()`, `getLocalHost()`, the Android emulator host `10.0.2.2`); files that apply TLS anywhere (`SSLSocketFactory`, `SSLServerSocketFactory`, `SSLContext`, `SSLSocket`, `SSLEngine`, `startHandshake`, Ktor `.tls()`, Netty `SslHandler`), which covers STARTTLS upgrades and proxies that wrap the raw socket; unconnected `Socket()` / `Socket(proxy)` objects and `Socket` subclasses; `LocalSocket`, Bluetooth, WebSocket and UDP `DatagramSocket`; test sources; comments and string literals. It does not judge whether the data sent is sensitive.
 
 Plain sockets are appropriate only for communication that is already encrypted at a higher layer (e.g., inside an established SSH tunnel) or for local loopback connections where network interception is not a threat. Any socket that traverses a network that could be accessed by an adversary must use TLS.
 
@@ -32,6 +34,18 @@ writer.println("GET /data HTTP/1.0")
 // FLAGGED: plain ServerSocket for inbound connections
 val server = ServerSocket(9090)
 val client = server.accept()
+
+// FLAGGED: NIO channel and Ktor raw socket
+val channel = SocketChannel.open(InetSocketAddress(upstream, 6000))
+val conn = aSocket(selector).tcp().connect(host, 9002)
+```
+
+Not flagged:
+
+```kotlin
+Socket("127.0.0.1", 6379)                              // loopback peer
+ServerSocket(0, 50, InetAddress.getLoopbackAddress())  // loopback bind
+(SSLSocketFactory.getDefault() as SSLSocketFactory).createSocket(host, 443)
 ```
 
 ## Remediation

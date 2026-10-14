@@ -1,16 +1,11 @@
 ---
 title: "VNX-C-002 – Format String Injection via Non-Literal Format Argument"
-description: "Detects calls to printf, fprintf, sprintf, syslog, and related format-string functions where the format argument is not a string literal. An attacker who controls the format string can read from or write to arbitrary memory via %n and other format specifiers."
+description: "Reports C and C++ printf-family calls whose format argument is not a string literal: a string printed as the format with nothing after it (printf(buf), fprintf(fp, msg), syslog(LOG_ERR, msg), snprintf(buf, n, s), BSD warn/err), and a format taken from argv, getenv or input read in the 25 lines above. Literal, macro and gettext formats, variadic wrappers and comments are not reported."
 ---
 
 ## Overview
 
-This rule flags calls to format-string functions in C and C++ files (`.c`, `.h`, `.cpp`, `.cc`, `.cxx`) where the format argument is not a string literal. Two families are checked:
-
-- **First-argument format:** `printf`, `wprintf`, `vprintf`, `vwprintf`, `printk` — flagged when the opening `(` is not immediately followed by a `"`.
-- **Second-argument format:** `fprintf`, `sprintf`, `vsprintf`, `asprintf`, `vasprintf`, `dprintf`, `vdprintf`, `wsprintf`, `syslog`, `vsyslog` — flagged when the second argument position does not start with a `"`.
-
-Lines that begin with a C comment marker (`//` or `/*`) are excluded. The detection is intentionally conservative: it flags any call where the format position is not a string literal, regardless of where the value originated.
+This rule reports a printf-family call whose format argument is not a string literal, in two shapes. First, the non-literal is the only thing after the format position, so a string is printed as a format: `printf(buf)`, `fprintf(fp, msg)`, `syslog(LOG_ERR, msg)`, `snprintf(buf, n, s)`, `dprintf`, `wprintf`, `swprintf`, `wsprintf`, `printk`, and BSD `warn`/`warnx`/`err`/`errx` in files that include `<err.h>`. This is the shape `-Wformat-security` warns about. Second, the format, with further arguments, is `argv[...]` or `getenv(...)` directly, or a variable assigned from `getenv`/`argv` or filled by `fgets`/`read`/`recv`/`fread`/`getline`/`scanf` in the 25 lines above (including `asprintf`, `vprintf`, `vfprintf`, `vsnprintf`, `vsyslog` and the other v-forms). It does not report literal formats (adjacent literals, macro prefixes such as `KERN_INFO "..."`, literal ternaries, gettext `_("...")`), upper-case macro formats, a variable initialised from a literal or a literal table in the same file, a format that is a parameter of the enclosing variadic wrapper, macro definitions, prototypes, methods named `printf`, string literals and comments.
 
 A format string vulnerability occurs when attacker-controlled data is used as the format string itself. The `printf` family parses the format string for specifiers (`%s`, `%d`, `%x`, `%n`, etc.) and pulls corresponding arguments off the call stack. If the attacker controls the format string, they can read arbitrary stack values using `%x` or `%s`, or write the count of bytes printed to an attacker-chosen address using `%n` — enabling arbitrary memory writes with no overflow required.
 
@@ -35,21 +30,25 @@ Even where `%n` is disabled by the platform's libc (Microsoft's CRT disables it 
 ## What Gets Flagged
 
 ```c
-// FLAGGED: user_msg is passed directly as the format string — attacker controls %n
-char user_msg[256];
-fgets(user_msg, sizeof(user_msg), stdin);
+// FLAGGED: a received or composed string printed as the format
+syslog(LOG_ERR, peer_message);
+fprintf(out, peer_message);
+snprintf(line, sizeof(line), "client %d: %s\n", id, reason);
+printf(line);
+
+// FLAGGED: format read from input, argv or the environment
+if (fgets(user_msg, sizeof(user_msg), stdin) == NULL)
+    return 1;
 printf(user_msg);
+fprintf(stderr, argv[1], user);
+const char *log_format = getenv("LOG_FORMAT");
+vfprintf(stderr, log_format, ap);
 
-// FLAGGED: log_buffer from network passed to syslog as format string
-// An attacker who controls log_buffer can exploit %n to write to arbitrary memory
-syslog(LOG_ERR, log_buffer);
-
-// FLAGGED: error_message variable used as format argument to fprintf
-fprintf(stderr, error_message);
-
-// FLAGGED: sprintf with a variable as the format — even if it looks "internal"
-sprintf(output, dynamic_format, value);
+// FLAGGED: Windows variant with a caller-supplied format
+wsprintfA(text, caption);
 ```
+
+Not flagged: `printf("%s", msg)`, `printf(COLOR "done\n")`, `printf(_("Saved %d files"), n)`, a format variable initialised from a literal table in the same file, and a variadic wrapper that forwards its own `fmt` parameter with `va_list`.
 
 ## Remediation
 

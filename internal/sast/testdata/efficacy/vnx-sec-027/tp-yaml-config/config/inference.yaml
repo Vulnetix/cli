@@ -1,0 +1,4 @@
+endpoint: https://api-inference.huggingface.co/models/acme/classifier
+auth:
+~>  bearer: hf_@@sample:[A-Za-z]{34}@@
+timeout: 30

@@ -1,0 +1,6 @@
+~>{
+  "name": "site-builder",
+  "devDependencies": {
+    "vite": "^5.2.0"
+  }
+}

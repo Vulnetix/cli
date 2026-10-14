@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-038 – HashiCorp Terraform Cloud Token"
-description: "Detects HashiCorp Terraform Cloud API tokens (atlasv1 format) hardcoded in source code."
+description: "Reports a Terraform Cloud / Terraform Enterprise API token: a standalone token of 14 letters and digits, .atlasv1., and 60 or more base64url characters, in any file including .tfvars and .terraformrc. Placeholders and test or fixture paths are not reported."
 ---
 
 ## Overview
@@ -12,6 +12,18 @@ This rule detects Terraform Cloud API tokens matching `<14 chars>.atlasv1.<60-70
 ## Why This Matters
 
 A leaked TFC token can trigger a speculative apply that destroys production infrastructure. The attacker can also modify workspace variables (which often contain database credentials) and read state, which frequently contains unredacted secret values.
+
+## What Gets Flagged
+
+Flagged (in any file, including `.tfvars` and `.terraformrc`):
+
+```hcl
+credentials "app.terraform.io" {
+  token = "<14 characters>.atlasv1.<60+ characters>"
+}
+```
+
+Not flagged: `token = var.tfe_token`, placeholders, a truncated body, and test or fixture files.
 
 ## Remediation
 

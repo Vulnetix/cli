@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-020 – tarfile.extractall() Without Path Validation (Zip Slip)"
-description: "Detect Python code that calls tarfile.extractall() without a members filter or path validation, leaving the application vulnerable to zip-slip path traversal attacks."
+description: "Detect Python code that extracts a tar archive (TarFile.extractall()/extract()) with no filter= (or filter='fully_trusted'), no filtering members= and no member path check above it. filter='data', a validating members function, a global extraction_filter and zipfile extraction are not reported."
 ---
 
 ## Overview
@@ -40,9 +40,17 @@ def process_package(pkg_path: str) -> None:
 # FLAGGED: extractall() called on the object directly
 def unpack(tar: tarfile.TarFile, output: str) -> None:
     tar.extractall(output)  # No filter= and no members=
+
+# FLAGGED: an explicit opt-out, and members= that filters nothing
+tar.extractall(root, filter="fully_trusted")
+tar.extractall(root, members=tar.getmembers())
+
+# NOT FLAGGED
+tar.extractall(dest, filter="data")
+zipfile.ZipFile(path).extractall(dest)  # zipfile sanitises member names
 ```
 
-The rule applies only to `.py` files. It does **not** flag calls that already include `filter=` or `members=`.
+The rule applies only to `.py` files. It does not flag calls with a safe `filter=`, a `members=` from a filtering function, extraction preceded by a member loop that checks resolved paths, or files that set `TarFile.extraction_filter`.
 
 ## Remediation
 

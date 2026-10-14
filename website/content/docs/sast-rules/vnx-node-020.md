@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-020 – Deprecated crypto.createCipher/createDecipher Without IV"
-description: "Detects use of the deprecated crypto.createCipher() and crypto.createDecipher() functions that derive the initialization vector deterministically, breaking encryption security for stream and counter modes."
+description: "Reports Node crypto.createCipher()/createDecipher() through crypto or any name bound to the crypto module, inline require('crypto') or a named import. Not reported: createCipheriv/createDecipheriv, node-forge's createCipher, same-named methods, comments and strings."
 ---
 
 ## Overview
@@ -31,9 +31,18 @@ encrypted += cipher.final('hex');
 
 // FLAGGED: createDecipher — same problem for decryption
 const decipher = crypto.createDecipher('aes-256-cbc', password);
-let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
-decrypted += decipher.final('utf8');
+
+// FLAGGED: named import with an alias, and the inline form
+import { createDecipher as legacyDecipher } from 'node:crypto';
+const d = legacyDecipher('aes192', key);
+require('crypto').createCipher('aes-128-ctr', key);
+
+// Not flagged
+crypto.createCipheriv('aes-256-gcm', key, crypto.randomBytes(12));
+forge.cipher.createCipher('AES-CBC', key); // node-forge takes the IV in start()
 ```
+
+The rule resolves `crypto`, any name bound to `crypto`/`node:crypto` by `require` or `import`, and `createCipher`/`createDecipher` imported by name. Methods or functions of the same name that the program defines, other libraries, comments and string literals are not reported.
 
 ## Remediation
 

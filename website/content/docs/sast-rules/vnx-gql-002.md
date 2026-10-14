@@ -1,6 +1,6 @@
 ---
 title: "VNX-GQL-002 – GraphQL Query Batching or No Depth Limit (DoS)"
-description: "Detects Apollo Server configured with allowBatchedHttpRequests: true, which allows attackers to send many operations in a single request and bypass rate limiting controls."
+description: "Reports unbounded GraphQL operation batching switched on with a literal true: Apollo allowBatchedHttpRequests, graphql-yoga batching, Mercurius allowBatchedQueries, or batch=True on a Python GraphQLView."
 ---
 
 ## Overview
@@ -55,7 +55,18 @@ const server = new ApolloServer({
   resolvers,
   allowBatchedHttpRequests: true,  // <-- flagged
 });
+
+// FLAGGED: graphql-yoga and Mercurius
+const yoga = createYoga({ schema, batching: true });
+app.register(mercurius, { schema, resolvers, allowBatchedQueries: true });
 ```
+
+```python
+# FLAGGED: batch=True on a GraphQLView (or a subclass's) as_view()
+app.add_url_rule('/graphql', view_func=GraphQLView.as_view('graphql', schema=schema, batch=True))
+```
+
+Not flagged: `false` or an environment-derived value, bounded batching (`batching: { limit: 5 }`), `batching: true` on a non-GraphQL object, and test files. A missing depth or complexity limit is not reported: it cannot be judged from one file.
 
 ## Remediation
 

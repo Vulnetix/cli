@@ -1,0 +1,8 @@
+<form method="post">
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token|safe }}">
+  {{ form.username|safe }}
+  {{ form.password | safe }}
+  {% for field in form %}
+    <dd>{{ field(**kwargs)|safe }}</dd>
+  {% endfor %}
+</form>

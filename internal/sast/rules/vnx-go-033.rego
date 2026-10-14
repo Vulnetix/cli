@@ -2,51 +2,87 @@ package vulnetix.rules.vnx_go_033
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
-    "id": "VNX-GO-033",
-    "name": "JWT missing audience validation",
-    "description": "Using JWT tokens without validating the audience (aud) claim can lead to token being used for an unintended service.",
-    "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-033/",
-    "languages": ["go"],
-    "severity": "medium",
-    "level": "warning",
-    "kind": "sast",
-    "cwe": [347],
-    "capec": ["CAPEC-64"],
-    "attack_technique": ["T1059.007"],
-    "cvssv4": "",
-    "cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:H/EX:M/EC:N/P:C",
-    "tags": ["jwt", "token", "audience", "authentication"],
+	"id": "VNX-GO-033",
+	"name": "JWT missing audience validation",
+	"description": "A Go service verifies a JWT without checking its audience (aud) claim, so a token issued by the same identity provider for a different service is accepted. Reported: a golang-jwt jwt.Parse/ParseWithClaims call or jwt.NewParser/jwt.Parser construction whose own arguments carry no jwt.WithAudience option, a lestrrat jwx jwt.Parse/ParseString/ParseRequest call likewise, and a go-jose jwt.ParseSigned/ParseSignedAndEncrypted call, each only when nothing else in the same file checks the audience (WithAudience, VerifyAudience, GetAudience, jwt.Expected{AnyAudience/Audience}, a read of .Audience or claims[\"aud\"]); and a go-oidc oidc.Config with SkipClientIDCheck: true, which turns the audience check off. Not reported: a wrapper that forwards its caller's parser options (opts...), a method on a parser variable (the construction is judged instead), jwt.ParseUnverified (no signature check at all, a different weakness), test files, comments and string literals. Audience checks performed in another file are not seen.",
+	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-033/",
+	"languages": ["go"],
+	"severity": "medium",
+	"level": "warning",
+	"kind": "sast",
+	"cwe": [347],
+	"capec": ["CAPEC-64"],
+	"attack_technique": ["T1059.007"],
+	"cvssv4": "",
+	"cwss": "CWSS:1.0/TI:M/AP:A/AL:A/IC:N/FC:LT/RP:N/RL:A/AV:I/AS:N/IN:A/SC:A/BI:M/DI:H/EX:M/EC:N/P:C",
+	"tags": ["jwt", "token", "audience", "authentication"],
 }
 
-_is_go(path) if endswith(path, ".go")
+# String literals blanked, a trailing // comment removed.
+_code(line) := regex.replace(regex.replace(line, "\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`", `""`), `//.*$`, "")
 
-_has_jwt_parse(line) if contains(line, "jwt.Parse")
-_has_jwt_parse(line) if contains(line, "jwt.Decode")
-_has_jwt_parse(line) if contains(line, "jwt.DecodeSegment")
+_verify_re := `\bjwt\.(?:Parse|ParseWithClaims|ParseString|ParseRequest|ParseSigned|ParseSignedAndEncrypted|NewParser)\(|&jwt\.Parser\{|new\(jwt\.Parser\)`
 
-_has_audience_validation(line) if contains(line, "VerifyAudience")
-_has_audience_validation(line) if contains(line, "ValidateAudience")
-_has_audience_validation(line) if contains(line, "Claims.Audience")
-_has_audience_validation(line) if contains(line, "StandardClaims.Audience")
-_has_audience_validation(line) if contains(line, "RegisteredClaims.Audience")
+_aud_re := `WithAudience\(|VerifyAudience\(|GetAudience\(|AnyAudience|\bAudience\s*:|\.Audience\b|\[\s*"aud"\s*\]`
+
+_depth(s) := count(indexof_n(s, "(")) - count(indexof_n(s, ")"))
+
+# The call's text, from the call to the line where its parentheses close
+# (at most 15 lines).
+_call(lines, i, first) := first if _depth(first) <= 0
+
+_call(lines, i, first) := txt if {
+	_depth(first) > 0
+	end := min([count(lines) - 1, i + 15])
+	end >= i + 1
+	ks := [k |
+		some k in numbers.range(i + 1, end)
+		_depth(concat("\n", array.concat([first], [_code(lines[j]) | some j in numbers.range(i + 1, k)]))) <= 0
+	]
+	txt := concat("\n", array.concat([first], [_code(lines[j]) | some j in numbers.range(i + 1, _last(ks, end))]))
+}
+
+_last(ks, end) := ks[0] if count(ks) > 0
+
+_last(ks, end) := end if count(ks) == 0
+
+_msg := "JWT is verified without checking its audience (aud) claim: a token minted for another service by the same issuer is accepted. Pass jwt.WithAudience(...) (or validate the aud claim)"
+
+_msg_oidc := "oidc.Config sets SkipClientIDCheck: true, so the ID token's audience is never checked; set ClientID instead"
+
+_hit(_, _, code, _) := _msg_oidc if regex.match(`\bSkipClientIDCheck\s*:\s*true\b`, code)
+
+_hit(lines, i, code, aud_in_file) := _msg if {
+	not aud_in_file
+	ms := regex.find_all_string_submatch_n(_verify_re, code, 1)
+	count(ms) > 0
+	txt := _call(lines, i, substring(code, indexof(code, ms[0][0]), -1))
+	not contains(txt, "WithAudience(")
+	not regex.match(`\w\.\.\.\s*\)`, txt)
+}
 
 findings contains finding if {
-    some path in object.keys(input.file_contents)
-    _is_go(path)
-    lines := split(input.file_contents[path], "\n")
-    some i, line in lines
-    # Look for JWT parsing/usage without checking audience
-    _has_jwt_parse(line)
-    # Check if there's no audience validation
-    not _has_audience_validation(line)
-    finding := {
-        "rule_id": metadata.id,
-        "message": "JWT token used without apparent audience validation; consider validating the token audience",
-        "artifact_uri": path,
-        "severity": metadata.severity,
-        "level": metadata.level,
-        "start_line": i + 1,
-        "snippet": line,
-    }
+	some path, content in input.file_contents
+	endswith(path, ".go")
+	regex.match(`jwt\.(?:Parse|NewParser)|jwt\.Parser|SkipClientIDCheck`, content)
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
+	aud_in_file := regex.match(_aud_re, helpers.code_text(lines))
+	some i, line in lines
+	regex.match(`jwt\.|SkipClientIDCheck`, line)
+	not helpers.is_comment_line(line)
+	code := _code(line)
+	some msg in {m | m := _hit(lines, i, code, aud_in_file)}
+	finding := {
+		"rule_id": metadata.id,
+		"message": msg,
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
 }

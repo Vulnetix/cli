@@ -1,0 +1,10 @@
+name: sonar
+on: push
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sonar-scanner
+        env:
+~>          SONAR_TOKEN: sqp_@@sample:[a-f0-9]{40}@@

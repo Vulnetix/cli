@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-027 – Assignment to innerHTML without sanitization"
-description: "Detects direct assignment to .innerHTML in JavaScript files, which can introduce DOM-based XSS when the assigned value originates from user-controlled input."
+description: "Reports innerHTML/outerHTML assignments (= or +=) in JavaScript, TypeScript and inline page scripts whose value is not a constant and is not passed through DOMPurify or an escape/sanitize helper."
 ---
 
 ## Overview
@@ -20,16 +20,20 @@ In Node.js SSR (server-side rendering) contexts — for example, React/Vue/Angul
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: user input from URL assigned directly to innerHTML
-const name = new URLSearchParams(location.search).get('name');
+// FLAGGED: URL parameter concatenated into markup
+const name = new URLSearchParams(window.location.search).get('name');
 document.getElementById('greeting').innerHTML = 'Hello, ' + name;
 
-// FLAGGED: server-provided data injected into DOM without sanitization
-element.innerHTML = apiResponse.htmlContent;
+// FLAGGED: template literal interpolation, postMessage data
+box.innerHTML = `<p class="c">${comment.body}</p>`;
+document.body.innerHTML = event.data;
 
-// FLAGGED: template string with user data
-container.innerHTML = `<p>${req.body.comment}</p>`;
+// FLAGGED: appending and replacing with dynamic values
+li.innerHTML += entry.message;
+banner.outerHTML = '<div class="banner">' + text + '</div>';
 ```
+
+Not flagged: literal markup (`el.innerHTML = '<span class="spinner"></span>'`), a ternary between literals, a `const` holding a literal, `DOMPurify.sanitize(...)` or an `escapeHtml(...)` value, comparisons such as `el.innerHTML === x`, and third-party library copies (vendor/, libs/, dist/, jQuery and other library files). VNX-NODE-005 and VNX-NODE-012 report every innerHTML sink; this rule reports only the dynamic, unsanitised ones.
 
 ## Remediation
 

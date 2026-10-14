@@ -1,0 +1,6 @@
+{
+  "Credentials": {
+~>    "AccessKeyId": "@@sample:ASIA[A-Z2-7]{16}@@",
+    "Expiration": "2026-01-01T00:00:00Z"
+  }
+}

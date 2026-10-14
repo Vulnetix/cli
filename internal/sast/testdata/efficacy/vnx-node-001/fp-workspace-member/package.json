@@ -1,0 +1,6 @@
+{
+  "name": "mono",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "devDependencies": { "typescript": "^5.4.0" }
+}

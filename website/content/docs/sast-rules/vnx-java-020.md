@@ -1,11 +1,11 @@
 ---
 title: "VNX-JAVA-020 – Java static IV reuse in block cipher"
-description: "Detects hardcoded or static initialization vectors (IVs) passed to IvParameterSpec in Java cipher operations. Reusing the same IV with the same key undermines the security of CBC, CTR, and GCM modes."
+description: "Detects fixed initialization vectors and GCM nonces in Java: IvParameterSpec and GCMParameterSpec built from a literal, a constant byte array or string, or a zero-filled buffer that is never randomised. Reusing the same IV with the same key undermines the security of CBC, CTR, and GCM modes."
 ---
 
 ## Overview
 
-This rule detects two patterns indicating IV reuse: `IvParameterSpec` constructed from a string literal (e.g., `new IvParameterSpec("1234567890123456".getBytes())`), and static or final byte arrays named `IV` initialised with an inline array literal (e.g., `static final byte[] IV = {0x00, 0x01, ...}`). Both patterns produce a fixed IV that is the same across every invocation of the cipher, which breaks the security properties of all standard block cipher modes. The vulnerability is classified as CWE-329 (Generation of Predictable IV with CBC Mode).
+This rule detects `IvParameterSpec` and `GCMParameterSpec` built from a fixed value: a string literal (e.g., `new IvParameterSpec("1234567890123456".getBytes())`), a byte-array literal, a constant or field initialised with one (e.g., `static final byte[] IV = {0x00, 0x01, ...}`), or a zero-filled `new byte[n]` that is never filled by `SecureRandom.nextBytes()`. Each produces a fixed IV that is the same across every invocation of the cipher, which breaks the security properties of all standard block cipher modes. The vulnerability is classified as CWE-329 (Generation of Predictable IV with CBC Mode).
 
 An initialization vector is designed to introduce randomness into the first block of encryption so that encrypting the same plaintext twice with the same key produces different ciphertexts. When the IV is constant, this randomization is eliminated. In CBC mode, two messages that share a common prefix produce identical ciphertext until the first differing block, leaking information about the plaintext. In CTR and GCM modes, IV reuse is catastrophically worse: it allows an attacker to XOR two ciphertexts and recover the XOR of the plaintexts directly, and in GCM it also invalidates the authentication tag, enabling undetected forgery.
 
@@ -32,6 +32,16 @@ private static final byte[] IV = {
 
 Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
 cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(IV));
+
+// FLAGGED: all-zero IV and a GCM nonce that is never randomised
+c.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(new byte[16]));
+private static final byte[] NONCE = new byte[12];
+c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, NONCE));
+
+// NOT FLAGGED: fresh IV per message, or IV read back from the ciphertext
+byte[] iv = new byte[12];
+RNG.nextBytes(iv);
+c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
 ```
 
 ## Remediation

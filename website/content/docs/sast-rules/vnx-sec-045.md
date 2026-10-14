@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-045 – Discord Bot Token"
-description: "Detects Discord bot tokens hardcoded in source code."
+description: "Reports Discord bot tokens whose first segment is the base64 of a numeric Discord snowflake id, written into files."
 ---
 
 ## Overview
 
-This rule detects Discord bot tokens in the form `<base64-id>.<7-char>.<38-char>`. Discord bot tokens grant the ability to act on behalf of the bot — read every DM the bot receives, post messages to channels the bot is in, and modify server settings the bot has permissions for.
+This rule reports a Discord bot token: three dot-separated base64url segments, `<base64 bot id>.<6-character timestamp>.<27- or 38-character HMAC>`. The first segment must be the base64 encoding of a 17 to 20 digit snowflake id, which fixes the possible character at every position (`MT...`, `OD...`, `Nz...`), so JWTs, hashes and other dotted base64 strings are not reported. Placeholders, environment lookups and test, fixture and vendored paths are not reported either, and the snippet is redacted. Discord bot tokens grant the ability to act on behalf of the bot — read every DM the bot receives, post messages to channels the bot is in, and modify server settings the bot has permissions for.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

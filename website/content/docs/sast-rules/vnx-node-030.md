@@ -1,11 +1,11 @@
 ---
 title: "VNX-NODE-030 – TURN server allowing reserved IP addresses"
-description: "Detects WebRTC TURN server IP filtering logic in Node.js that may permit connections to reserved or private IP ranges, enabling SSRF via WebRTC relay."
+description: "Reports TURN relays that forward to loopback, private or link-local peers: node-turn servers, coturn allow-loopback-peers or private allowed-peer-ip settings, and turnserver.conf files with no denied-peer-ip."
 ---
 
 ## Overview
 
-This rule detects IP filtering logic in JavaScript files associated with WebRTC TURN server implementations where reserved IP address literals (`127.0.0.1`, `localhost`, `10.x.x.x`, `192.168.x.x`, `172.16–31.x.x`, `0.0.0.0`) appear in conditions or configuration that governs which relay targets are permitted. A TURN (Traversal Using Relays around NAT) server proxies WebRTC media and data traffic between peers; if it can be induced to relay connections to internal network addresses, it becomes a powerful Server-Side Request Forgery (SSRF) pivot. This is classified as CWE-200 (Exposure of Sensitive Information to an Unauthorized Actor).
+This rule detects TURN relays configured to forward traffic to reserved addresses: a `node-turn` server, which has no peer-address deny list; a coturn `allow-loopback-peers` setting or an `allowed-peer-ip` that opens a loopback, RFC 1918 or link-local range; and a `turnserver.conf` that sets no `denied-peer-ip` at all (coturn relays to private and link-local peers by default). A TURN (Traversal Using Relays around NAT) server proxies WebRTC media and data traffic between peers; if it can be induced to relay connections to internal network addresses, it becomes a powerful Server-Side Request Forgery (SSRF) pivot. This is classified as CWE-200 (Exposure of Sensitive Information to an Unauthorized Actor).
 
 TURN servers that do not enforce a blocklist of reserved IP ranges can be abused by any authenticated WebRTC client to probe and relay traffic to internal hosts — including the host itself (localhost), private cloud services, Kubernetes API servers, and instance metadata endpoints. The attack leverages the TURN protocol's relay semantics: the client asks the TURN server to allocate a relay address and then sends data to an arbitrary peer IP, causing the server to originate outbound connections from its own network interface.
 
@@ -20,23 +20,28 @@ Unlike traditional SSRF that requires an HTTP endpoint, TURN-based SSRF also wor
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: allowlist logic that may pass reserved IPs
-function isAllowedPeer(ip) {
-  // Missing: no check for 127.x, 10.x, 192.168.x, 172.16-31.x
-  return ip !== '0.0.0.0';
-}
-
-// FLAGGED: TURN relay target checked only against localhost literal
-if (peerAddress !== 'localhost' && peerAddress !== '127.0.0.1') {
-  turn.relay(peerAddress, port); // still permits 10.x, 192.168.x, etc.
-}
-
-// FLAGGED: configuration object with no reserved-IP filter
-const turnConfig = {
-  listeningIps: ['0.0.0.0'],
-  // no peerIpFilter or blocklist configured
-};
+// FLAGGED: a node-turn server (the library has no peer-address deny list)
+const Turn = require('node-turn');
+const server = new Turn({ authMech: 'long-term', listeningPort: 3478 });
 ```
+
+```ini
+# FLAGGED in turnserver.conf: loopback peers explicitly allowed
+allow-loopback-peers
+
+# FLAGGED: a turnserver.conf with no denied-peer-ip line at all
+# (reported once, on its first setting)
+listening-port=3478
+```
+
+```yaml
+# FLAGGED in a manifest: coturn arguments opening reserved ranges
+args:
+  - "--allow-loopback-peers"
+  - "--allowed-peer-ip=10.0.0.0-10.255.255.255"
+```
+
+Not flagged: browser ICE configuration (`iceServers`), generic IP comparisons in application code, a coturn configuration that denies the reserved ranges, commented-out settings, and unrelated classes named `Turn`. The rule runs in JavaScript/TypeScript projects.
 
 ## Remediation
 

@@ -1,6 +1,6 @@
 ---
 title: "VNX-DOCKER-002 – Dockerfile FROM :latest Tag"
-description: "Detects Dockerfile FROM instructions that use the :latest tag or no tag at all, making builds non-reproducible and vulnerable to silent supply chain compromise."
+description: "Reports a FROM or COPY --from that names an external image by :latest, a floating tag (alpine, slim, lts, stable) or no tag, with no @sha256 digest, including images resolved through an ARG default."
 ---
 
 ## Overview
@@ -21,24 +21,21 @@ Beyond security, unpinned base images cause operational failures: a breaking cha
 
 ## What Gets Flagged
 
-The rule flags any `FROM` line that either explicitly uses `:latest` or contains no `:tag` or `@sha256:` specifier. `FROM scratch` is intentionally excluded — scratch is the conventional empty base and the lack of a tag is meaningful.
+The rule reports `FROM` instructions, and `COPY --from=` instructions that pull an external image, whose reference has no digest and either no tag or a floating tag (`latest`, `lts`, `stable`, `alpine`, `slim` and combinations such as `lts-alpine`). A `FROM ${BASE}` is resolved through its `ARG` default.
 
 ```dockerfile
-# FLAGGED: explicit :latest tag
+# FLAGGED
 FROM node:latest
+FROM --platform=linux/amd64 python AS deps
+FROM registry.internal.example:5000/platform/base-image   # a port is not a tag
+FROM nginx:alpine-slim
+COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-# FLAGGED: no tag at all (resolves to :latest implicitly)
-FROM ubuntu
-
-# FLAGGED: multi-stage build with untagged base
-FROM python AS builder
-
-# NOT FLAGGED: digest pin is immutable
-FROM ubuntu@sha256:72297848456d5d37d1262630108ab308d3e9ec7ed3c...
-
-# NOT FLAGGED: intentional empty base
-FROM scratch
+ARG BASE_IMAGE=eclipse-temurin:latest
+FROM $BASE_IMAGE
 ```
+
+Not reported: a version tag (including `node:${NODE_VERSION}`), any digest-pinned reference, `scratch`, references to earlier stages (`FROM build`, `COPY --from=build`, `COPY --from=0`), an image `ARG` with no default, `FROM` text in comments, strings and heredocs, test and `.devcontainer` images.
 
 ## Remediation
 

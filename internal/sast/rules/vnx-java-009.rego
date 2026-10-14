@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_java_009
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-JAVA-009",
 	"name": "Java path traversal",
-	"description": "Constructing file paths from user input (request.getParameter) without validation enables path traversal attacks, allowing attackers to read or write arbitrary files on the server.",
+	"description": "A file path is built from HTTP request data and opened: new File/FileInputStream/FileOutputStream/FileReader/FileWriter/RandomAccessFile, Paths.get, Path.of, Path.resolve/resolveSibling, Files.readAllBytes/readAllLines/readString/lines/newInputStream/newOutputStream/newBufferedReader/newBufferedWriter/delete/deleteIfExists/createFile/createDirectories, or Spring's FileSystemResource/ResourceUtils.getFile, where an argument is a servlet request value (getParameter and its wrappers, getParameterValues/getParameterMap, getHeader/getHeaders, getQueryString, getPathInfo, getRequestURI, getCookies and a cookie's getValue, MultipartFile.getOriginalFilename, Part.getSubmittedFileName), a Spring or JAX-RS annotated handler parameter (@RequestParam, @PathVariable, @RequestHeader, @CookieValue, @RequestBody, @ModelAttribute, @QueryParam, @PathParam, @FormParam, @HeaderParam), or a local assigned from one up to five assignments (or a for-each over one) earlier within 40 lines. A call or assignment that continues on the next lines is read to the end of its statement. Not reported: a value checked against traversal (startsWith on the resolved or canonical path, contains(\"..\"), matches(...), an allowlist contains(...)), reduced to a bare file name (FilenameUtils.getName, getFileName()) or converted to a number (Integer.parseInt, Long.parseLong), request bodies and streams written as file content rather than used as the path, headers of an HTTP client response, the same path reported again when it is opened after the line that built it, constant paths, and sink names inside string literals or comments. Flows into another method or another file are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-009/",
 	"languages": ["java"],
 	"severity": "high",
@@ -19,48 +21,184 @@ metadata := {
 	"tags": ["path-traversal", "file-access", "lfi"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+# ── Request taint (local) ────────────────────────────────────────────────
 
-_path_traversal_indicators := {
-	"new File(request.getParameter",
-	"new File(req.getParameter",
-	"new FileInputStream(request.getParameter",
-	"new FileReader(request.getParameter",
-	"Paths.get(request.getParameter",
-	"Files.readAllBytes(Paths.get(request",
+# Request values that name a path. Request bodies as streams are content,
+# not a path, and are left out on purpose.
+_src_re := `\.(?:get\w*Parameter|getParameterValues|getParameterMap|getParameterNames|getHeader|getHeaders|getHeaderNames|getQueryString|getPathInfo|getRequestURI|getServletPath|getCookies|getOriginalFilename|getSubmittedFileName)\s*\(|\b\w*[Cc]ookie\.getValue\s*\(`
+
+# Headers of an HTTP client's response and servlet init/type parameters are
+# not request data.
+_not_src_re := `(?i)\b\w*resp\w*(?:\(\))?\s*\.\s*getHeaders?\s*\(|\.get(?:Init|Type|Generic|Context)\w*Parameter\w*\s*\(`
+
+_is_src(s) if {
+	regex.match(_src_re, s)
+	regex.match(_src_re, regex.replace(s, _not_src_re, ""))
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	endswith(path, ".java")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	some indicator in _path_traversal_indicators
-	contains(line, indicator)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "User input used in file path; validate and canonicalize the path to prevent directory traversal",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
+_ann_re := `@(?:RequestParam|PathVariable|RequestHeader|CookieValue|RequestBody|ModelAttribute|QueryParam|PathParam|FormParam|HeaderParam|CookieParam|MatrixParam)\b(?:\s*\([^)]*\))?\s+(?:final\s+)?([\w.]+)(?:<[^>]*>)?(?:\[\])?\s+(\w+)`
+
+_gate_re := `(?m)(\.(?:get\w*Parameter|getParameterValues|getParameterMap|getParameterNames|getHeader|getHeaders|getHeaderNames|getQueryString|getPathInfo|getRequestURI|getServletPath|getCookies|getOriginalFilename|getSubmittedFileName)\s*\(|@(?:RequestParam|PathVariable|RequestHeader|CookieValue|RequestBody|ModelAttribute|QueryParam|PathParam|FormParam|HeaderParam|CookieParam|MatrixParam)\b)`
+
+# A transformation that removes the traversal: a bare file name, a number, a
+# generated identifier.
+_sanitizer_re := `FilenameUtils\.getName\s*\(|\.getFileName\s*\(\s*\)|Integer\.parseInt\s*\(|Integer\.valueOf\s*\(|Long\.parseLong\s*\(|Long\.valueOf\s*\(|UUID\.|encodeForURL|\.replaceAll\s*\(\s*"\[\^`
+
+_window := 40
+
+# The name a statement assigns, after an optional `if (...)` or `else` on the
+# same line: `if (values != null) param = values[0];`.
+_assigned(line) := v if {
+	s := regex.replace(line, `^\s*(?:\}\s*)?(?:else\s+)?(?:if\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*)?`, "")
+	m := regex.find_all_string_submatch_n(`^\s*(?:final\s+)?(?:[\w.]+(?:<[^=;]*>)?(?:\[\])*\s+)?(\w+)\s*(?:\+=|=(?:[^=]|$))`, s, 1)
+	count(m) > 0
+	v := m[0][1]
+	not v in {"if", "return", "else", "case", "this"}
+}
+
+# An assignment's whole statement, to its `;`, at most six lines, so that
+# `bar =\n    new String(decode(param))` is read as one.
+_assign_text(lines, j) := lines[j] if regex.match(`;\s*$`, lines[j])
+
+_assign_text(lines, j) := concat(" ", [lines[k] | some k in numbers.range(j, e)]) if {
+	not regex.match(`;\s*$`, lines[j])
+	last := min([count(lines) - 1, j + 6])
+	ends := [k | some k in numbers.range(j, last); regex.match(`;\s*$`, lines[k])]
+	e := min(array.concat(ends, [last]))
+}
+
+# [name, statement text] for every assignment in the window above line i.
+_assigns(lines, i) := [[v, _assign_text(lines, j)] |
+	some j in numbers.range(max([0, i - _window]), i - 1)
+	not helpers.is_comment_line(lines[j])
+	v := _assigned(lines[j])
+]
+
+# An annotated parameter of a stream or multipart type is content; its
+# getOriginalFilename() is caught as a source call instead.
+_ann_names(line) := {m[2] |
+	some m in regex.find_all_string_submatch_n(_ann_re, line, -1)
+	not m[1] in {"MultipartFile", "InputStream", "Part", "byte", "Resource"}
+}
+
+_seeds(lines, i, assigns) := {a[0] |
+	some a in assigns
+	_is_src(a[1])
+	not regex.match(_sanitizer_re, a[1])
+} | {v |
+	some j in numbers.range(max([0, i - _window]), i - 1)
+	contains(lines[j], "@")
+	not helpers.is_comment_line(lines[j])
+	some v in _ann_names(lines[j])
+}
+
+# for (Cookie c : cookies) carries the taint of cookies to c.
+_foreach_re := `\bfor\s*\(\s*(?:final\s+)?[\w.<>\[\]]+\s+(\w+)\s*:\s*(\w+)\s*\)`
+
+_foreach(lines, i) := [[m[1], m[2]] |
+	some j in numbers.range(max([0, i - _window]), i - 1)
+	contains(lines[j], "for")
+	some m in regex.find_all_string_submatch_n(_foreach_re, lines[j], 1)
+]
+
+_hop(_, _, t) := t if count(t) == 0
+
+_hop(assigns, fe, t) := (t | {a[0] |
+	some a in assigns
+	regex.match(re, a[1])
+	not regex.match(_sanitizer_re, a[1])
+}) | {p[0] | some p in fe; p[1] in t} if {
+	count(t) > 0
+	re := concat("", [`\b(?:`, concat("|", t), `)\b`])
+}
+
+# Names holding request data at line i: assigned from a source, an annotated
+# handler parameter, or up to five assignments away from one.
+_tainted(lines, i) := t if {
+	assigns := _assigns(lines, i)
+	fe := _foreach(lines, i)
+	t1 := _hop(assigns, fe, _hop(assigns, fe, _seeds(lines, i, assigns)))
+	t := _hop(assigns, fe, _hop(assigns, fe, _hop(assigns, fe, t1)))
+}
+
+# ── Statement and argument text ──────────────────────────────────────────
+
+_blank(s) := regex.replace(s, `"(?:\\.|[^"\\])*"`, `""`)
+
+_stmt(lines, i) := concat(" ", [_blank(lines[k]) | some k in numbers.range(i, e)]) if {
+	last := min([count(lines) - 1, i + 3])
+	ends := [k | some k in numbers.range(i, last); regex.match(`[;{]\s*$`, lines[k])]
+	e := min(array.concat(ends, [last]))
+}
+
+_sink_re := `\bnew\s+(?:java\.io\.)?(?:File|FileInputStream|FileOutputStream|FileReader|FileWriter|RandomAccessFile)\s*\(|\bnew\s+(?:[\w.]+\.)?FileSystemResource\s*\(|\b(?:Paths\.get|Path\.of|ResourceUtils\.getFile)\s*\(|\.(?:resolve|resolveSibling)\s*\(|\bFiles\.(?:readAllBytes|readAllLines|readString|lines|newInputStream|newOutputStream|newBufferedReader|newBufferedWriter|delete|deleteIfExists|createFile|createDirectories|createDirectory)\s*\(`
+
+# The argument list of the first sink call in the statement, balanced to two
+# levels of nesting; the rest of the statement when it does not close.
+_sink_args(stmt) := [a |
+	some m in regex.find_all_string_submatch_n(concat("", ["(?:", _sink_re, ")(.*)"]), stmt, -1)
+	a := _balanced(m[1])
+]
+
+_balanced(tail) := m[0][1] if {
+	m := regex.find_all_string_submatch_n(`^((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)`, tail, 1)
+	count(m) > 0
+} else := tail
+
+_reaches(args, _) if _is_src(args)
+
+_reaches(args, t) if {
+	count(t) > 0
+	regex.match(concat("", [`\b(?:`, concat("|", t), `)\b`]), args)
+}
+
+_refs(args, t) := {v | some v in t; regex.match(concat("", [`\b`, v, `\b`]), args)}
+
+# A check on the value, or on the path built from it, before or just after
+# the sink.
+_guard_tail := `(?:\s*\.\s*\w+\s*\([^()]*\))*\s*\.\s*(?:startsWith\s*\(|contains\s*\(\s*"\.\."|indexOf\s*\(\s*"\.\."|matches\s*\()`
+
+_guarded(lines, i, names) if {
+	some v in names
+	some j in numbers.range(max([0, i - _window]), min([count(lines) - 1, i + 8]))
+	g := lines[j]
+	contains(g, v)
+	not helpers.is_comment_line(g)
+	regex.match(concat("", [`\b`, v, `\b`, _guard_tail, `|(?:contains|containsKey|isValid\w*|validate\w*|isSafe\w*)\s*\(\s*`, v, `\s*\)`]), g)
+}
+
+# Every tainted name in the call was produced by an earlier sink statement,
+# which is already reported.
+_derived_from_sink(lines, i, refs) if {
+	count(refs) > 0
+	every v in refs {
+		some j in numbers.range(max([0, i - _window]), i - 1)
+		_assigned(lines[j]) == v
+		regex.match(_sink_re, _blank(lines[j]))
 	}
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
+	some path, content in input.file_contents
 	endswith(path, ".java")
-	lines := split(input.file_contents[path], "\n")
+	regex.match(_gate_re, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`new\s+File\(.*getParameter`, line)
+	regex.match(_sink_re, line)
+	not helpers.is_comment_line(line)
+	regex.match(_sink_re, _blank(line))
+	stmt := _stmt(lines, i)
+	t := _tainted(lines, i)
+	some args in _sink_args(stmt)
+	not regex.match(_sanitizer_re, args)
+	_reaches(args, t)
+	refs := _refs(args, t)
+	names := refs | {v | v := _assigned(line)}
+	not _guarded(lines, i, names)
+	not _derived_from_sink(lines, i, refs)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "User input used in file path; validate and canonicalize the path to prevent directory traversal",
+		"message": "File path built from HTTP request data; resolve it against a fixed base directory, normalise it and check that the result still starts with the base, or reduce it to a bare file name, before opening it",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

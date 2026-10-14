@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-008 – Node.js Open Redirect"
-description: "Detects user input from req.query, req.params, or req.body passed directly to res.redirect(), enabling phishing attacks via open redirect."
+description: "Reports redirects (res.redirect, ctx.redirect, reply.redirect, res.location, Location headers, window.location) whose target starts with request-controlled data and is not validated."
 ---
 
 ## Overview
@@ -17,22 +17,26 @@ Open redirects are also used as a redirect step in OAuth flows. An attacker who 
 
 ## What Gets Flagged
 
-The rule matches lines containing `res.redirect(req.query`, `res.redirect(req.params`, `res.redirect(req.body`, `res.redirect(request.query`, or `redirect(req.query`.
+A redirect whose target **begins** with request data, directly or through a variable assigned from it a few lines above:
 
 ```javascript
-// FLAGGED: redirect destination from query parameter
-app.get('/login', (req, res) => {
-  // ... authenticate user ...
-  res.redirect(req.query.next);
-});
+// FLAGGED
+return res.redirect(req.query.url);
+res.redirect(302, req.body.returnTo);
+ctx.redirect(ctx.query.redirect);          // Koa
+reply.redirect(request.query.to);          // Fastify
+res.writeHead(302, { Location: req.query.to });
 
-// FLAGGED: redirect from route param
-app.get('/go/:url', (req, res) => {
-  res.redirect(req.params.url);
-});
+// FLAGGED: two-line form
+const next = req.query.next || "/";
+return res.redirect(next);
+
+// FLAGGED: browser code
+const back = new URLSearchParams(location.search).get('return');
+window.location.href = back;
 ```
 
-An attacker sends `GET /login?next=https://evil.com` and the server complies.
+Not flagged: constant targets, a path prefix followed by user data (`'/users/' + req.params.id`, which stays on the same site), `res.redirect(req.get('Referrer') || '/')`, environment-derived targets, a redirect preceded within 10 lines by an allow-list, origin/host comparison, `startsWith('/')` or validation check, test code, comments and strings.
 
 ## Remediation
 

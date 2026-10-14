@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-016 – Integer Downcast After strconv.Atoi/ParseInt/ParseUint"
-description: "Detects integer values parsed with strconv.Atoi, ParseInt, or ParseUint that are immediately cast to a narrower integer type without range validation, risking silent truncation or sign flip."
+description: "Detects values parsed with strconv.Atoi, ParseInt or ParseUint that are later converted, in the same function and without a range check, to a type that cannot hold the parsed range: truncation, sign flip or unsigned-to-signed overflow."
 ---
 
 ## Overview
 
-This rule detects code that parses an integer using `strconv.Atoi()`, `strconv.ParseInt()`, or `strconv.ParseUint()` and then immediately casts the result to a narrower integer type (`int8`, `int16`, `int32`, `uint8`, `uint16`, or `uint32`) on the same line or the immediately following line, without any intervening range validation. Silent truncation or sign change during the cast can produce completely different values than the input intended — for example, parsing the string `"300"` into an `int` and then casting to `uint8` silently produces `44` due to modular wrapping. This maps to CWE-681 (Incorrect Conversion Between Numeric Types) and CWE-190 (Integer Overflow or Wraparound).
+This rule detects code that parses an integer using `strconv.Atoi()`, `strconv.ParseInt()`, or `strconv.ParseUint()` and later in the same function converts the result to a type that cannot hold the parsed range (a narrower integer, an unsigned type for a signed value, or a signed type of the same size for an unsigned value), without any intervening range validation. Silent truncation or sign change during the cast can produce completely different values than the input intended — for example, parsing the string `"300"` into an `int` and then casting to `uint8` silently produces `44` due to modular wrapping. This maps to CWE-681 (Incorrect Conversion Between Numeric Types) and CWE-190 (Integer Overflow or Wraparound).
 
 In security-sensitive contexts this class of bug has historically been exploited for authentication bypasses (where a user ID wraps to an admin ID), length confusion in buffer sizing (leading to heap overflows), and off-by-one errors in access controls. Go's type system does not provide any runtime error on an out-of-range integer cast — the truncation is silent and the resulting value is silently incorrect.
 
@@ -19,14 +19,31 @@ CAPEC-92 (Forced Integer Overflow) documents this technique. A concrete example:
 
 ## What Gets Flagged
 
-```go
-// FLAGGED: Atoi result cast to int32 on the same line
-size := int32(n)  // where n came from strconv.Atoi on the same/previous line
+The rule follows the parsed variable through the rest of the function (up to 40 lines) and reports a conversion that cannot hold the parsed range. The range comes from the parser: `Atoi` is a signed 64-bit `int`, and `ParseInt`/`ParseUint` take theirs from the `bitSize` argument (0 means 64). Targets are the narrow integer types, `os.FileMode`/`fs.FileMode` (`uint32`) and types the file declares over them (`type Port uint16`).
 
-// FLAGGED: ParseInt result narrowed to int16 without validation
-val, _ := strconv.ParseInt(r.FormValue("count"), 10, 64)
-count := int16(val) // truncation if val > 32767
+```go
+n, err := strconv.Atoi(r.URL.Query().Get("limit"))
+// ...
+Limit: int32(n), // FLAGGED: truncation
+
+seq, _ := strconv.ParseInt(fields[0], 10, 64)
+f.Seq = int16(seq) // FLAGGED: truncation
+
+mb, _ := strconv.ParseUint(maxBytes, 10, 64)
+limit := int64(mb) // FLAGGED: values above MaxInt64 become negative
+
+off, _ := strconv.ParseInt(offset, 10, 64)
+start := uint64(off) // FLAGGED: negatives become huge
+
+if n, err := strconv.Atoi(v); err == nil && n > 0 {
+    return int32(n) // FLAGGED: n > 0 is not an upper bound
+}
+
+m, _ := strconv.ParseInt(mode, 8, 64)
+os.Chmod(path, os.FileMode(m)) // FLAGGED: FileMode is uint32
 ```
+
+Not reported: a `bitSize` no wider than the target (`strconv.ParseUint(port, 10, 16)` into `uint16` is already range-checked), widening conversions (`int64`, `float64`, `time.Duration`), a comparison of the variable against a bound other than 0 or 1 before the conversion (`math.MaxUint16`, `65535`, `1<<16-1` and `0xffff` all count; any comparison, for a sign change), a clamp or validation call that takes it, deliberate byte extraction (`uint8(v >> 8), uint8(v)`, `byte(v)&mask`), `int(...)` of a 64-bit parse, and comments or strings.
 
 ## Remediation
 

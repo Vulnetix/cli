@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head><title>Embed</title></head>
+<body>
+<div id="out"></div>
+<script>
+~>  window.addEventListener('message', function (e) {
+    document.getElementById('out').innerHTML = e.data;
+  });
+</script>
+</body>
+</html>

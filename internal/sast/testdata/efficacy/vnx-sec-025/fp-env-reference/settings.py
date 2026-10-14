@@ -1,0 +1,5 @@
+import os
+
+AZURE_STORAGE_ACCOUNT = os.environ["AZURE_STORAGE_ACCOUNT"]
+AZURE_STORAGE_KEY = os.environ["AZURE_STORAGE_KEY"]
+CONNECTION = f"DefaultEndpointsProtocol=https;AccountName={AZURE_STORAGE_ACCOUNT};AccountKey={AZURE_STORAGE_KEY}"

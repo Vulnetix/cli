@@ -1,58 +1,80 @@
 ---
-title: "VNX-1044 – File Upload without Size Limit"
-description: "Detects file read and upload API calls across Go, Java, Node.js, PHP, and Python that may lack upload size restrictions, enabling denial-of-service via resource exhaustion."
+title: "VNX-1044 – Architecture with Number of Horizontal Layers Outside of Expected Range"
+description: "Reports the concrete case of too few layers: an HTTP controller, view, route handler or servlet that executes SQL against the database itself, once per file, in Java, Python and JavaScript/TypeScript."
 ---
 
 ## Overview
 
-VNX-1044 is an auto-generated broad-pattern rule that searches for file read and upload operations across Go, Java, Node.js, PHP, and Python source files. The rule targets `os.Open` in Go, `FileInputStream` in Java, `fs.readFile` in Node.js, `move_uploaded_file` in PHP, and `open` in Python. These are associated with [CWE-1044](https://cwe.mitre.org/data/definitions/1044.html) in the rule metadata.
+[CWE-1044](https://cwe.mitre.org/data/definitions/1044.html) is about an architecture with too many or too few horizontal layers. A layer count cannot be seen in one file, so VNX-1044 reports the case that can: the presentation layer talking to the database directly, with no data-access layer in between. It reports once per file, on the first such call.
 
-Note: CWE-1044 in MITRE's catalog covers "Architecture with Number of Horizontal Layers Outside of Expected Range." The security concern this rule actually addresses — unbounded file upload or read operations — maps more precisely to [CWE-400: Uncontrolled Resource Consumption](https://cwe.mitre.org/data/definitions/400.html) and [CWE-434: Unrestricted Upload of File with Dangerous Type](https://cwe.mitre.org/data/definitions/434.html). The CWE mapping is a known limitation of this auto-generated rule.
+What counts as the presentation layer:
 
-All flagged patterns represent standard file I/O APIs; findings must be reviewed in context to determine whether upload size limits are enforced before the file operation is reached.
+- **Java**: a Spring `@Controller`/`@RestController`, a JAX-RS `@Path` resource, an `HttpServlet`, or a `*Controller`/`*Servlet` class.
+- **Python**: a Django, Flask or FastAPI view or route module (`views.py`, `routes.py`, `views/` or `routes/` directories), or a module with `@app.route`, `@bp.route`, `@router.get` or `@api_view` handlers.
+- **JavaScript/TypeScript**: a module in `routes/` or `controllers/`, or one that registers `app.get`/`router.post`-style handlers.
 
-**Severity:** Medium | **CWE:** [CWE-1044](https://cwe.mitre.org/data/definitions/1044.html) | **OWASP:** [A04:2021 – Insecure Design](https://owasp.org/Top10/A04_2021-Insecure_Design/)
+What counts as executing SQL:
+
+- **Java**: `createStatement`, `prepareStatement`, `prepareCall`, `jdbcTemplate.query*`/`update`/`execute`, `createNativeQuery`, or `execute*` with a SQL literal.
+- **Python**: `cursor`/`connection`/`db`/`session` `.execute*`, `get_db().execute`, `Model.objects.raw`, `pandas.read_sql`.
+- **JavaScript/TypeScript**: `sequelize.query`, `knex.raw`, Prisma `$queryRaw`/`$executeRaw`, and `db`/`pool`/`connection`/`client` `.query`/`execute`/`run`/`all`/`get` with SQL text.
+
+Parameterised and concatenated queries are both reported, because the defect is where the query lives, not how it is built. The injection rules judge how it is built.
+
+Not reported: SQL in repository, DAO, model or service files; ORM query builders and repository methods called from a controller; SQL text that is only logged or quoted; test code, migrations and comments.
+
+**Severity:** Low | **CWE:** [CWE-1044](https://cwe.mitre.org/data/definitions/1044.html)
 
 ## Why This Matters
 
-Applications that accept file uploads without enforcing size limits are vulnerable to denial-of-service attacks where an attacker submits extremely large files to exhaust disk space, memory, or processing time. Even internal tools that only accept uploads from authenticated users can be compromised if a legitimate account is taken over.
-
-Unrestricted reads from user-controlled paths can also enable path traversal attacks where an attacker escapes the intended directory by supplying paths containing `../` sequences.
+When request handling and query building sit in the same function, every handler writes its own SQL, so every handler can get it wrong. Injectable string building, a missing `WHERE owner_id = ?` authorisation filter or an unbounded `SELECT *` gets copied from one handler to the next. A data-access layer puts those queries in one place, where they can be reviewed and tested once.
 
 ## What Gets Flagged
 
-The rule scans Go, Java, Node.js, PHP, and Python source files for file access patterns:
+```python
+@bp.route("/orders/<int:order_id>")
+def show(order_id):
+    cur = get_db().cursor()
+    cur.execute("SELECT id, total FROM orders WHERE id = %s", (order_id,))   # FLAGGED
+```
+
+```typescript
+// routes/search.ts
+models.sequelize.query(`SELECT * FROM Products WHERE name LIKE '%${criteria}%'`)   // FLAGGED
+```
+
+```java
+@RestController
+public class ReportController {
+    public List<Map<String, Object>> sales() {
+        return jdbcTemplate.queryForList("SELECT region, SUM(total) FROM orders GROUP BY region");   // FLAGGED
+    }
+}
+```
+
+## What Is Not Flagged
+
+```java
+@Repository
+public class OrderRepository {
+    public List<Map<String, Object>> salesByRegion() {
+        return jdbcTemplate.queryForList("SELECT region, SUM(total) FROM orders GROUP BY region");
+    }
+}
+```
 
 ```python
-# FLAGGED: Python open without size check
-def handle_upload(filename):
-    with open(filename, 'rb') as f:
-        data = f.read()
-```
-
-```javascript
-// FLAGGED: Node.js fs.readFile on user-provided path
-app.post('/upload', (req, res) => {
-    fs.readFile(req.body.path, (err, data) => { ... });
-});
-```
-
-```php
-// FLAGGED: PHP move_uploaded_file without size validation
-move_uploaded_file($_FILES['file']['tmp_name'], $destination);
+def cheap(request):
+    items = Product.objects.filter(price__lt=10)   # ORM call from a view
 ```
 
 ## Remediation
 
-1. Enforce maximum file size limits at the framework or web server level before the request body is read (e.g., `Content-Length` checking, `client_max_body_size` in Nginx).
-2. In PHP, check `$_FILES['file']['size']` against an allowable maximum before calling `move_uploaded_file`.
-3. In Node.js, use middleware such as `multer` with `limits: { fileSize: MAX_BYTES }`.
-4. In Go, wrap the request body with `http.MaxBytesReader` before reading: `r.Body = http.MaxBytesReader(w, r.Body, maxBytes)`.
-5. Validate and sanitise file paths to prevent path traversal — resolve the canonical path and confirm it remains within the intended directory.
+1. Move the query into a repository, DAO or service function, and call that from the controller.
+2. Give the data-access function a narrow signature (`find_order_for_user(user_id, order_id)`) so the authorisation filter is part of the query.
+3. Use parameterised queries or the ORM inside the data-access layer.
 
 ## References
 
-- [CWE-400: Uncontrolled Resource Consumption](https://cwe.mitre.org/data/definitions/400.html)
-- [CWE-434: Unrestricted Upload of File with Dangerous Type](https://cwe.mitre.org/data/definitions/434.html)
-- [CWE-22: Path Traversal](https://cwe.mitre.org/data/definitions/22.html)
-- [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)
+- [CWE-1044: Architecture with Number of Horizontal Layers Outside of Expected Range](https://cwe.mitre.org/data/definitions/1044.html)
+- [OWASP SQL Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html)

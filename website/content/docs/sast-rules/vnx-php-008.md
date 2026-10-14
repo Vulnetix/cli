@@ -1,11 +1,11 @@
 ---
 title: "VNX-PHP-008 – PHP phpinfo() Exposure"
-description: "Detect calls to phpinfo() in PHP source files, which disclose detailed server configuration, installed modules, environment variables, and file system paths useful for reconnaissance."
+description: "Detect calls to phpinfo() in production PHP code, which disclose the PHP build, configuration, file paths, environment variables and request headers."
 ---
 
 ## Overview
 
-This rule flags calls to `phpinfo()` anywhere in PHP source files. `phpinfo()` outputs a comprehensive HTML page summarising the PHP runtime environment. While indispensable during local development, any reachable `phpinfo()` output in a production environment hands an attacker a detailed reconnaissance report about your server without requiring any vulnerability to exploit. This maps to [CWE-200: Exposure of Sensitive Information to an Unauthorized Actor](https://cwe.mitre.org/data/definitions/200.html).
+This rule flags calls to `phpinfo()` in production PHP code (tests, CLI-guarded and debug-guarded calls excepted). `phpinfo()` outputs a comprehensive HTML page summarising the PHP runtime environment. While indispensable during local development, any reachable `phpinfo()` output in a production environment hands an attacker a detailed reconnaissance report about your server without requiring any vulnerability to exploit. This maps to [CWE-200: Exposure of Sensitive Information to an Unauthorized Actor](https://cwe.mitre.org/data/definitions/200.html).
 
 **Severity:** Medium | **CWE:** [CWE-200 – Exposure of Sensitive Information to an Unauthorized Actor](https://cwe.mitre.org/data/definitions/200.html)
 
@@ -25,20 +25,16 @@ With this information an attacker can precisely target exploit payloads to the e
 
 ## What Gets Flagged
 
-The rule matches any `.php` file containing a call to `phpinfo(` (followed by any arguments or none).
+A call to the `phpinfo()` function, with any argument, in code that is not a test or fixture.
 
 ```php
-// FLAGGED: standalone phpinfo file often named info.php or phpinfo.php
-<?php phpinfo(); ?>
-
-// FLAGGED: phpinfo embedded in a diagnostic route
-if ($_GET['debug'] === 'info') {
-    phpinfo();
-}
-
-// FLAGGED: phpinfo with section flag — still discloses sensitive data
-phpinfo(INFO_ENVIRONMENT);
+// FLAGGED
+phpinfo();
+<?php phpinfo(INFO_GENERAL | INFO_MODULES); ?>
+\phpinfo( INFO_ENVIRONMENT );
 ```
+
+Not flagged: a call guarded within the five lines above by a CLI check (`php_sapi_name() === "cli"`) or a debug/local condition (`APP_DEBUG`, `WP_DEBUG`, `app()->isLocal()`); methods named `phpinfo`; `"phpinfo"` as a string value or menu label; test code; comments.
 
 ## Remediation
 

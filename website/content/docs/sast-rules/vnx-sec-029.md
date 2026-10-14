@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-029 – PyPI Upload Token Hardcoded"
-description: "Detect PyPI upload tokens (pypi-AgEIcHlwaS5vcmc prefix) hardcoded in source code, which allow publishing packages to PyPI and can enable supply chain attacks if compromised."
+description: "Detect PyPI and TestPyPI API tokens (pypi-AgEIcHlwaS5vcmc or pypi-AgENdGVzdC5weXBpLm9yZw followed by the macaroon body) hardcoded in .pypirc, workflows, Makefiles and scripts."
 ---
 
 ## Overview
@@ -23,17 +23,16 @@ PyPI tokens are also particularly dangerous because, unlike some credentials, th
 
 ## What Gets Flagged
 
-The rule matches any file (excluding lock files, checksums, and minified assets) containing a string matching the PyPI Macaroon token prefix followed by a sufficient-length suffix.
+The rule reports the PyPI macaroon prefix (`pypi-AgEIcHlwaS5vcmc`, or `pypi-AgENdGVzdC5weXBpLm9yZw` for test.pypi.org) followed by at least 50 base64url characters with the entropy of a real token:
 
-```ini
-# FLAGGED: token hardcoded in .pypirc
-[pypi]
-  username = __token__
-  password = pypi-EXAMPLE_REDACTED
-
-# FLAGGED: token in a CI environment file
-TWINE_PASSWORD=pypi-EXAMPLE_REDACTED
+```text
+# FLAGGED
+password = pypi-AgEIcHlwaS5vcmc<token body>           (.pypirc)
+TWINE_PASSWORD: "pypi-AgEIcHlwaS5vcmc<token body>"    (workflow env)
+poetry config pypi-token.pypi pypi-AgEIcHlwaS5vcmc<token body>
 ```
+
+Not flagged: the bare prefix used as a constant, `pypi-AgEIcHlwaS5vcmcxxxx...` placeholders, `${{ secrets.PYPI_API_TOKEN }}`, and test or fixture paths.
 
 ## Remediation
 

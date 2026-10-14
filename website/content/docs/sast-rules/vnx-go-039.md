@@ -1,11 +1,11 @@
 ---
 title: "VNX-GO-039 – Missing rate limiting on login endpoint"
-description: "Detect Go HTTP handler functions named after login or sign-in operations that do not apply rate limiting, throttling, or lockout mechanisms, leaving authentication endpoints open to brute-force and credential-stuffing attacks."
+description: "Detects Go HTTP login handlers (declared Login/SignIn/Authenticate handlers or inline login routes) when nothing in the project's production Go code rate-limits requests."
 ---
 
 ## Overview
 
-This rule flags Go HTTP handler functions whose names contain `Login`, `login`, `SignIn`, or `signin` but whose implementation does not reference any rate limiting, throttling, or lockout pattern — specifically the absence of identifiers such as `rate`, `throttle`, `limiter`, `RateLimit`, `rateLimit`, or `Throttle` within the handler. Authentication endpoints without rate limiting are directly exploitable by automated credential-stuffing and brute-force tools that can attempt thousands of password guesses per second. This maps to [CWE-307: Improper Restriction of Excessive Authentication Attempts](https://cwe.mitre.org/data/definitions/307.html).
+This rule flags Go HTTP handler functions whose **name** is the login path (`Login`, `handleLogin`, `SignIn`, `Authenticate`) and that take an `http.ResponseWriter` or a framework context (`*gin.Context`, `echo.Context`, `*fiber.Ctx`), when no production Go file in the project references rate limiting, throttling or a limiter (`rate.NewLimiter`, `tollbooth`, `httprate`, a `limiter` or `throttle` identifier). A limiter configured in middleware in another file protects the handler, so the check is project-wide. A method on a type that happens to be called `Login`, a parser, a CLI command and test files are not login handlers and are not reported.
 
 Credential stuffing — the automated testing of username/password pairs from data breaches — is one of the most common attack techniques against web applications, responsible for billions of fraudulent login attempts daily.
 
@@ -19,49 +19,18 @@ The consequences range from account takeover and financial fraud to regulatory e
 
 ## What Gets Flagged
 
-The rule fires on handler functions that appear to implement login or sign-in logic without referencing any rate limiting mechanism.
+A login handler, by declaration or as an inline route, in a project with no rate limiting anywhere in its production Go code:
 
 ```go
-// FLAGGED: login handler with no rate limiting
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-    username := r.FormValue("username")
-    password := r.FormValue("password")
-
-    user, err := db.FindByUsername(username)
-    if err != nil || !checkPassword(user.PasswordHash, password) {
-        http.Error(w, "invalid credentials", http.StatusUnauthorized)
-        return
-    }
-    issueSessionToken(w, user)
-}
-
-// FLAGGED: sign-in route handler, no throttle applied
-func signInHandler(w http.ResponseWriter, r *http.Request) {
-    var creds struct {
-        Email    string `json:"email"`
-        Password string `json:"password"`
-    }
-    json.NewDecoder(r.Body).Decode(&creds)
-    authenticate(w, creds.Email, creds.Password)
-}
+// FLAGGED
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+func SignIn(c *gin.Context) {
+func Login(c echo.Context) error {
+func (h *Handler) Authenticate(w http.ResponseWriter,
+r.POST("/api/login", func(c *gin.Context) {
 ```
 
-```go
-// SAFE: login handler wrapped with rate limiter middleware
-import "golang.org/x/time/rate"
-
-var loginLimiter = rate.NewLimiter(rate.Every(time.Second), 5) // 5 req/s burst
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-    if !loginLimiter.Allow() {
-        http.Error(w, "too many requests", http.StatusTooManyRequests)
-        return
-    }
-    username := r.FormValue("username")
-    password := r.FormValue("password")
-    // ... authentication logic ...
-}
-```
+Not flagged: any project that references a limiter (`rate.NewLimiter`, `httprate`, `tollbooth`, a `limiter` or `throttle`), methods and functions that are not HTTP handlers (`func (c *Client) Login(ctx, user, pass)`, `ParseLogin`, CLI commands), test files, comments and strings.
 
 ## Remediation
 

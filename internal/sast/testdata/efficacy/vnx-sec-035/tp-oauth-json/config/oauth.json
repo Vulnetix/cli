@@ -1,0 +1,4 @@
+{
+~>  "access_token": "doo_v1_@@sample:[a-f0-9]{64}@@",
+~>  "refresh_token": "dor_v1_@@sample:[a-f0-9]{64}@@"
+}

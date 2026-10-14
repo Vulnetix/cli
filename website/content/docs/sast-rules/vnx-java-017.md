@@ -1,11 +1,11 @@
 ---
 title: "VNX-JAVA-017 – Java HTTP Response Splitting via Unsanitised Header Value"
-description: "Detect Java servlet and Spring code that passes user-controlled request parameters directly to addHeader(), setHeader(), or sendRedirect() without stripping CR and LF characters, enabling HTTP response splitting and header injection attacks."
+description: "Detects Java code that passes a request parameter, header, query string or path info (or a Spring @RequestParam, @PathVariable, @RequestHeader or @CookieValue argument) to HttpServletResponse.setHeader(), addHeader() or sendRedirect() without stripping CR and LF, enabling HTTP response splitting and header injection."
 ---
 
 ## Overview
 
-This rule flags Java servlet and Spring handler code where a value sourced from user input — via `getParameter()`, `getHeader()`, `getQueryString()`, `getPathInfo()`, or `getAttribute()` — is passed to `response.addHeader()`, `response.setHeader()`, or `response.sendRedirect()` without stripping carriage-return (`\r`, `%0d`) and line-feed (`\n`, `%0a`) characters. This maps to [CWE-113: Improper Neutralization of CRLF Sequences in HTTP Headers](https://cwe.mitre.org/data/definitions/113.html).
+This rule flags Java servlet and Spring handler code where a value sourced from user input — via `getParameter()`, `getHeader()`, `getQueryString()`, `getPathInfo()`, or a Spring `@RequestParam`/`@PathVariable`/`@RequestHeader`/`@CookieValue` argument — is passed to `response.addHeader()`, `response.setHeader()`, or `response.sendRedirect()` without stripping carriage-return (`\r`, `%0d`) and line-feed (`\n`, `%0a`) characters. This maps to [CWE-113: Improper Neutralization of CRLF Sequences in HTTP Headers](https://cwe.mitre.org/data/definitions/113.html).
 
 **Severity:** High | **CWE:** [CWE-113 – HTTP Response Splitting](https://cwe.mitre.org/data/definitions/113.html)
 

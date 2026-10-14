@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-027 – Potential path traversal via file path construction"
-description: "Detects file path construction using user input without proper validation, which can lead to path traversal vulnerabilities."
+description: "Detects a file opened, written, removed or served (os, ioutil, http.ServeFile, gin/echo/fiber file helpers) with a path built from a request value that was not reduced with filepath.Base, IsLocal, Rel or a prefix check first."
 ---
 
 ## Overview
@@ -21,41 +21,19 @@ Path traversal vulnerabilities occur when user input is used to construct file p
 
 ## What Gets Flagged
 
-The rule flags file path construction patterns that use user input from HTTP requests without proper validation:
+A file operation whose path contains a request value, inline, through its variable, or through one path built from it with `filepath.Join`, `fmt.Sprintf` or concatenation.
 
 ```go
-// FLAGGED: Path construction with user input without validation
-func serveFile(w http.ResponseWriter, r *http.Request) {
-    userPath := r.URL.Path[len("/files/"):] // Get path after /files/
-    fullPath := filepath.Join("./uploads", userPath) // User input used directly
-    http.ServeFile(w, r, fullPath) // Potential path traversal
-}
+// FLAGGED: ?name=../../etc/passwd
+name := r.URL.Query().Get("name")
+p := fmt.Sprintf("./configs/%s.json", name)
+data, err := os.ReadFile(p)
 
-// FLAGGED: Using FormValue in path construction
-func downloadHandler(w http.ResponseWriter, r *http.Request) {
-    filename := r.FormValue("file")
-    path := filepath.Join("./docs", filename) // User input in path
-    data, err := os.ReadFile(path) // Could read arbitrary files
-    // ...
-}
-
-// FLAGGED: Using Header values in path
-func getConfig(w http.ResponseWriter, r *http.Request) {
-    configName := r.Header.Get("X-Config-Name")
-    path := fmt.Sprintf("./configs/%s.json", configName)
-    // User input directly in format string
-    data, err := os.ReadFile(path)
-}
-
-// FLAGGED: Path concatenation with user input
-func copyFile(w http.ResponseWriter, r *http.Request) {
-    src := r.FormValue("source")
-    dst := r.FormValue("destination")
-    sourcePath := "./data/" + src // String concatenation
-    destPath := "./backup/" + dst
-    // Copy file operation
-}
+// FLAGGED: a route parameter served directly
+c.File(filepath.Join("uploads", c.Param("file")))
 ```
+
+Not flagged: values reduced first (`filepath.Base`, `filepath.IsLocal`, `filepath.Rel`, `strings.HasPrefix` on the joined path, a `..` test, `SecureJoin`, `filepath.Clean("/"+v)`), numeric IDs, files opened through `os.Root`, `r.URL.Path` given to `http.ServeFile`, and operator input (`os.Args`, environment). A bare `filepath.Clean` of a relative value is not treated as a check, because it keeps a leading `../`.
 
 ## Remediation
 

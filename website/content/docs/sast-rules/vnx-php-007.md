@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-007 – PHP extract() on Superglobal"
-description: "Detect calls to extract() on PHP superglobals ($_GET, $_POST, $_REQUEST, $_COOKIE, $_SERVER, $_FILES), which import user-controlled data as local variables and can silently overwrite security-critical variables."
+description: "Detect request data imported as local variables: extract() of superglobals or request data, parse_str()/mb_parse_str() without a result array, $$key assignment in a foreach over a superglobal, and import_request_variables()."
 ---
 
 ## Overview
@@ -25,27 +25,20 @@ The attack is equally effective against variables that influence SQL queries, fi
 
 ## What Gets Flagged
 
-The rule matches lines where `extract()` is called with any PHP superglobal as its argument.
+Any construct that turns request fields into variables of the current scope.
 
 ```php
-// FLAGGED: extract() on GET data — can overwrite any local variable
-extract($_GET);
-
-// FLAGGED: extract() on POST data
+// FLAGGED
 extract($_POST);
-
-// FLAGGED: extract() on REQUEST data
-extract($_REQUEST);
-
-// FLAGGED: extract() on cookie data
-extract($_COOKIE);
-
-// FLAGGED: extract() on server variables
-extract($_SERVER);
-
-// FLAGGED: extract() on uploaded file data
-extract($_FILES);
+extract($_REQUEST, EXTR_SKIP);          // still lets the client define unset variables
+extract($request->all());
+parse_str($_SERVER["QUERY_STRING"]);    // no result array
+foreach ($_POST as $key => $value) {
+    $$key = $value;
+}
 ```
+
+Not flagged: `extract($_POST, EXTR_PREFIX_ALL, "form")`; `parse_str($qs, $params)` with a result array; `extract($data)` of view data, database rows or parameters whose origin is not visible in the file; `$zip->extract()` and other methods; the names in comments and strings.
 
 ## Remediation
 

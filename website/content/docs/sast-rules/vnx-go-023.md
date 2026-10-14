@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-023 – SQL injection via string concatenation"
-description: "Detects SQL query construction using string concatenation with user input, which can lead to SQL injection vulnerabilities."
+description: "Detects SQL text where a value is concatenated in a literal position (after a quote or a comparison) and the statement is run by a database call or is a complete statement; other positions only when the value is request data. Bind-parameter numbers, converted or quoted values and self-built fragments are not reported."
 ---
 
 ## Overview
@@ -19,28 +19,25 @@ This is one of the most critical web application security risks and can lead to 
 
 ## What Gets Flagged
 
-The rule flags SQL query construction patterns that use string concatenation with quote characters and plus signs, which is a common indicator of SQL injection vulnerabilities:
+The rule reports a value concatenated where SQL expects a literal (after a
+quote or a comparison) in a statement that is run or is complete. The
+`fmt.Sprintf` form of the same defect is VNX-GO-017's.
 
 ```go
-// FLAGGED: SQL query built with string concatenation
-func getUser(db *sql.DB, userID string) error {
-    query := "SELECT * FROM users WHERE id = " + userID // User ID concatenated directly
-    return db.QueryRow(query).Scan(&user)
-}
+// FLAGGED: a value after a comparison, run through a variable
+query := "SELECT * FROM users WHERE id = " + userID
+return db.QueryRow(query).Scan(&user)
 
-// FLAGGED: SQL query with multiple concatenated parts
-func searchProducts(db *sql.DB, category string) error {
-    query := "SELECT * FROM products WHERE category = '" + category + "' AND price < " + maxPrice
-    // Both category and maxPrice are user-controlled
-    return db.Query(query)
-}
+// FLAGGED: a value inside quotes, inline in the call
+rows, err := db.QueryContext(ctx, "SELECT * FROM products WHERE category = '"+category+"'")
 
-// FLAGGED: Using fmt.Sprintf for SQL (similar risk)
-func updateUser(db *sql.DB, id string, name string) error {
-    query := fmt.Sprintf("UPDATE users SET name = '%s' WHERE id = %s", name, id)
-    // Both parameters inserted directly into query
-    return db.Exec(query)
-}
+// FLAGGED: ORDER BY from the request
+sort := r.URL.Query().Get("sort")
+rows, err := db.Query("SELECT id FROM items ORDER BY " + sort)
+
+// NOT FLAGGED: bind parameters and self-built clauses
+db.Query("SELECT id FROM t WHERE a = $" + strconv.Itoa(n), v)
+q := "SELECT id FROM t" + " WHERE " + strings.Join(clauses, " AND ")
 ```
 
 ## Remediation

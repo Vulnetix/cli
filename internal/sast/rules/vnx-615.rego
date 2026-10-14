@@ -17,7 +17,7 @@ metadata := {
 	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "CWSS:1.0/TI:L/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
-	"tags": ["information-exposure-comments", "cwe-615"],
+	"tags": ["comments", "information-exposure-comments", "cwe-615"],
 }
 
 _skip(path) if endswith(path, ".lock")

@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-004 – yaml.load() Without SafeLoader"
-description: "Detect calls to yaml.load() that omit a safe Loader argument, allowing YAML documents to execute arbitrary Python code during parsing."
+description: "Detect yaml.unsafe_load() and yaml.load() calls with no Loader or with Loader/UnsafeLoader/CLoader, which let a YAML document construct arbitrary Python objects."
 ---
 
 ## Overview
@@ -23,18 +23,23 @@ When passed to `yaml.load()` without a safe loader, this YAML calls `subprocess.
 
 ## What Gets Flagged
 
-The rule flags any `yaml.load(` call that does not include `Loader=`, `SafeLoader`, `CSafeLoader`, or `BaseLoader` on the same line, and is not already using `safe_load`.
+The rule flags `yaml.unsafe_load()`/`unsafe_load_all()`, and `yaml.load()`/`load_all()` whose loader (the `Loader=` keyword or the second positional argument, read across a call split over several lines) is `Loader`, `UnsafeLoader`, `CLoader` or `CUnsafeLoader`, or is missing.
+
+Not flagged: `safe_load`, `SafeLoader`, `CSafeLoader`, `BaseLoader`, `FullLoader`/`full_load` (code-execution-free since PyYAML 5.4), custom loader classes, ruamel.yaml and other objects' `.load()` methods, and mentions in comments or strings.
 
 ```python
-# FLAGGED: no Loader argument — uses full loader by default (PyYAML < 6.0)
+# FLAGGED: no Loader argument
 data = yaml.load(stream)
 
-# FLAGGED: Loader not specified even with variable input
-data = yaml.load(request.body)
+# FLAGGED: the unsafe loader, by keyword or position
+job = yaml.load(body, Loader=yaml.Loader)
+data = yaml.load(file, yaml.Loader)
 
-# FLAGGED: loading from a file without a safe loader
-with open("config.yaml") as f:
-    config = yaml.load(f)
+# FLAGGED: a call split over lines
+payload = yaml.load(
+    request.data,
+    Loader=yaml.UnsafeLoader,
+)
 ```
 
 ## Remediation

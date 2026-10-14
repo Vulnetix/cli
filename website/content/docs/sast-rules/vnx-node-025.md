@@ -1,15 +1,13 @@
 ---
 title: "VNX-NODE-025 – Insecure express-session or cookie-session configuration"
-description: "Detects express-session or cookie-session configured with secure:false or httpOnly:false cookie flags, which allow session tokens to be transmitted over HTTP or accessed by client-side JavaScript."
+description: "Reports express-session or cookie-session options that set secure: false or httpOnly: false, and express-session configurations that never set cookie.secure, so the session id travels over plain HTTP or is readable by page scripts."
 ---
 
 ## Overview
 
-This rule detects `express-session` and `cookie-session` middleware configurations that weaken session cookie security by setting `secure: false`, `httpOnly: false`, or `resave: true`. These settings control how browsers transmit and expose session cookies and represent the first line of defence against session hijacking attacks.
+This rule detects `express-session` and `cookie-session` middleware configurations that weaken session cookie security by setting `secure: false` or `httpOnly: false`, and `express-session` configurations that never set `cookie.secure` (it defaults to `false`). The options may be inline or in an object assigned in the same file; `secure: process.env.NODE_ENV === 'production'`, `secure: 'auto'` and a later `sess.cookie.secure = true` all count as set. `cookie-session` without an explicit `secure` is not reported, because it marks the cookie Secure on HTTPS requests itself. Test and example files are skipped. These settings control how browsers transmit and expose session cookies and represent the first line of defence against session hijacking attacks.
 
 The `secure` flag instructs browsers to transmit the cookie only over HTTPS connections. When it is absent or set to `false`, the session cookie is sent with every HTTP request, including over unencrypted connections on coffee shop Wi-Fi, corporate proxies, or any network where traffic is intercepted. The `httpOnly` flag prevents JavaScript running in the page from reading the cookie via `document.cookie`, which limits the damage from XSS attacks — without it, a single reflected or stored XSS vulnerability gives an attacker immediate access to the victim's session token.
-
-The `resave: true` flag, while not a direct security vulnerability, causes unnecessary session writes that increase session store load and can create race conditions in concurrent request scenarios.
 
 **Severity:** Medium | **CWE:** [CWE-614 – Sensitive Cookie in HTTPS Session Without 'Secure' Attribute](https://cwe.mitre.org/data/definitions/614.html)
 
@@ -24,21 +22,23 @@ The combination of `secure: false` and `httpOnly: false` is particularly dangero
 ## What Gets Flagged
 
 ```javascript
-// FLAGGED: secure:false — cookie transmitted over plain HTTP
+const session = require('express-session');
+const cookieSession = require('cookie-session');
+
+// FLAGGED: the secure:false line
 app.use(session({
   secret: process.env.SESSION_SECRET,
-  cookie: { secure: false, httpOnly: true },
+  cookie: {
+    httpOnly: true,
+    secure: false, // TODO: enable once TLS is in front
+  },
 }));
 
-// FLAGGED: httpOnly:false — cookie readable by JavaScript
-app.use(cookieSession({
-  name: 'session',
-  keys: [process.env.COOKIE_KEY],
-  cookie: { httpOnly: false },
-}));
+// FLAGGED: the session( line; express-session defaults cookie.secure to false
+app.use(session({ secret: process.env.SECRET, resave: false, saveUninitialized: false }));
 
-// FLAGGED (low): resave:true causes unnecessary session writes
-app.use(session({ secret: 'abc', resave: true, saveUninitialized: false }));
+// FLAGGED: httpOnly:false makes the cookie readable by page scripts
+app.use(cookieSession({ name: 'session', keys: [process.env.KEY_A], httpOnly: false }));
 ```
 
 ## Remediation

@@ -1,0 +1,5 @@
+package vulnetix.rules.example
+
+_pattern := `(-----BEGIN RSA PRIVATE KEY-----)`
+
+{"token_pattern": "(-----BEGIN RSA PRIVATE KEY-----[\\s\\S]{64,}?-----END RSA PRIVATE KEY-----)"}

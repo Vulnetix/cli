@@ -1,0 +1,17 @@
+services:
+  app:
+    image: ghcr.io/example/app:1.2.0
+    privileged: false
+    # privileged: true   (only for local debugging)
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      PRIVILEGED_MODE: "true"
+      privileged: "true"
+    labels:
+      - "com.example.privileged=true"
+  worker:
+    image: ghcr.io/example/worker:1.2.0
+    privileged: ${WORKER_PRIVILEGED:-false}

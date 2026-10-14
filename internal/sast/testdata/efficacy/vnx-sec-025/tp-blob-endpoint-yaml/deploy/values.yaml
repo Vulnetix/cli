@@ -1,0 +1,3 @@
+storage:
+~>  connectionString: "BlobEndpoint=https://contosodata.blob.core.windows.net/;AccountName=contosodata;AccountKey=@@sample:[A-Za-z0-9+/]{86}@@=="
+  container: uploads

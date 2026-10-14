@@ -1,0 +1,7 @@
+[Unit]
+Description=Example application
+
+[Service]
+User=app
+UMask=0027
+ExecStart=/usr/local/bin/app

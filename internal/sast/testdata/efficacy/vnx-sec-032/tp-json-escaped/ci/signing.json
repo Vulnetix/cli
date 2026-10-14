@@ -1,0 +1,4 @@
+{
+  "key_id": "0xA1B2C3D4E5F60718",
+~>  "armored": "-----BEGIN PGP PRIVATE KEY BLOCK-----\n\nlQ@@sample:[A-Za-z0-9+/]{62}@@\n@@sample:[A-Za-z0-9+/]{64}@@\n-----END PGP PRIVATE KEY BLOCK-----\n"
+}

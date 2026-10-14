@@ -1,0 +1,2 @@
+production:
+~>  url: "sqlserver://sa:@@sample:[A-Za-z0-9]{16}@@@sql01.corp.acme.com:1433?database=erp"

@@ -2,10 +2,12 @@ package vulnetix.rules.vnx_gql_004
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-GQL-004",
 	"name": "GraphQL field suggestion disclosure enabled",
-	"description": "GraphQL field suggestion (also called schema suggestion or did-you-mean) is enabled, revealing internal schema structure to attackers through error messages like 'Did you mean field X?'. This leaks private field names that are not exposed through introspection. Disable suggestions in production by setting the suggestions option to false in Apollo Server or equivalent.",
+	"description": "A JavaScript/TypeScript GraphQL server is constructed (new ApolloServer(...), createYoga(...), GraphQLModule.forRoot(...), graphqlHTTP(...), register(mercurius, ...)) in a project that nowhere suppresses graphql-js field suggestions. These servers return validation errors such as 'Cannot query field \"pasword\". Did you mean \"password\"?' by default, which lets an attacker enumerate the schema even with introspection disabled. A project counts as mitigated when any of its files sets hideSchemaDetailsFromClientErrors: true (Apollo Server), uses GraphQL Armor (ApolloArmor, EnvelopArmor, blockFieldSuggestions), a disable-suggestions plugin, or a formatError/maskError that rewrites 'Did you mean' messages. Reported once per constructor call; test files, comments and string literals are not reported. Servers in other languages are not covered.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-gql-004/",
 	"languages": ["javascript", "typescript"],
 	"severity": "low",
@@ -19,41 +21,43 @@ metadata := {
 	"tags": ["graphql", "information-disclosure", "schema"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
+_is_js(path) if regex.match(`\.(js|jsx|mjs|cjs|ts|tsx|mts|cts)$`, path)
 
-# Apollo Server with no explicit suggestions: false — only flag when in a server config context
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`new ApolloServer\s*\(`, line)
-	not regex.match(`suggestions\s*:\s*false`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "GraphQL field suggestions are not explicitly disabled; error messages may leak private schema field names — set suggestions: false in ApolloServer config for production",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+_gate(content) if contains(content, "ApolloServer")
+
+_gate(content) if contains(content, "createYoga")
+
+_gate(content) if contains(content, "GraphQLModule")
+
+_gate(content) if contains(content, "graphqlHTTP")
+
+_gate(content) if contains(content, "mercurius")
+
+# The constructor call itself, not an import, a type or the name in a string.
+_ctor := `(^|[^"'\x60\w.])(new\s+ApolloServer\s*\(|createYoga\s*(<[^>]*>)?\s*\(|GraphQLModule\.forRoot(Async)?\s*(<[^>]*>)?\s*\(|graphqlHTTP\s*\()|\.register\(\s*mercurius\b`
+
+_mitigation := `hideSchemaDetailsFromClientErrors\s*:\s*true|blockFieldSuggestion|graphql-armor|ApolloArmor|EnvelopArmor|[Dd]isableSuggestions|Did you mean|didYouMean|suggestions\s*:\s*false`
+
+# A mitigation anywhere in the project protects every server in it.
+_mitigated if {
+	some path, content in input.file_contents
+	_is_js(path)
+	regex.match(_mitigation, content)
 }
 
-# graphql-yoga or other servers with hideSchemaIssues / maskedErrors not set
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	_is_js(path)
+	not helpers.is_test_path(path)
+	_gate(content)
+	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`createYoga\s*\(|GraphQLServer\s*\(`, line)
-	not regex.match(`maskedErrors\s*:\s*true`, line)
+	regex.match(_ctor, line)
+	not helpers.is_comment_line(line)
+	not _mitigated
 	finding := {
 		"rule_id": metadata.id,
-		"message": "GraphQL server created without maskedErrors: true; error messages may leak schema field names — enable maskedErrors in production to hide internal schema details",
+		"message": "GraphQL server leaks schema field names through 'Did you mean ...?' validation errors; disable field suggestions in production (Apollo hideSchemaDetailsFromClientErrors: true, or GraphQL Armor blockFieldSuggestions)",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-003 – Insecure Deserialization in Ruby"
-description: "Detect use of Marshal.load(), Marshal.restore(), YAML.load(), and YAML.unsafe_load() in Ruby source files, which can execute arbitrary code when deserializing attacker-controlled data."
+description: "Reports Marshal.load/restore, Oj.load in object mode, Oj.object_load, JSON.load and JSON.parse with create_additions when request input, a Base64-decoded blob, an HTTP body or a socket read reaches them; local files and round trips are not reported."
 ---
 
 ## Overview
@@ -19,20 +19,22 @@ The Ruby on Rails framework has historically been vulnerable to deserialization 
 
 ## What Gets Flagged
 
-The rule matches `.rb` files containing any of the four dangerous deserialization calls.
+The rule reports `Marshal.load`/`Marshal.restore`, `Oj.load` in object mode, `Oj.object_load`, `JSON.load` and `JSON.parse(..., create_additions: true)` when the data comes from outside the process: request input, a Base64-decoded blob, an HTTP or message body, or a socket, on the call line or through a variable assigned from it a few lines above. `YAML.load` is reported by [VNX-RUBY-007](../vnx-ruby-007/).
 
 ```ruby
-# FLAGGED: Marshal.load on data from any source
-data = Marshal.load(params[:payload])
+# FLAGGED
+@prefs = Marshal.load(Base64.decode64(cookies[:prefs]))
+blob = params[:cart]
+cart = Marshal.load(Base64.strict_decode64(blob))
+Marshal.restore(response.body)
+records = Oj.load(request.body.read)
+event = JSON.load(body)                     # body = req.body.read
 
-# FLAGGED: Marshal.restore (alias for Marshal.load)
-obj = Marshal.restore(Base64.decode64(cookie_value))
-
-# FLAGGED: YAML.load without safe class restrictions (Psych < 4 default)
-config = YAML.load(request.body.read)
-
-# FLAGGED: YAML.unsafe_load explicitly opts into object instantiation
-YAML.unsafe_load(File.read('user_supplied_config.yml'))
+# NOT flagged: local data, the process's own dump, safe modes
+Marshal.load(File.binread(path))
+Marshal.load(Marshal.dump(obj))
+Oj.load(request.body.read, mode: :strict)
+JSON.parse(request.body.read)
 ```
 
 ## Remediation

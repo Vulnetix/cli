@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-PHP-006",
 	"name": "PHP object injection via unserialize",
-	"description": "Using unserialize() on user-controlled data enables PHP object injection, allowing attackers to execute arbitrary code through crafted serialized objects.",
+	"description": "unserialize() or WordPress maybe_unserialize() is called on a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys), php://input, filter_input() or a Laravel/Symfony request accessor, inline (also wrapped in base64_decode(), urldecode() or similar) or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable), without an allowed_classes option that disables or restricts object creation. A crafted payload instantiates arbitrary classes and runs their magic methods (__wakeup, __destruct), which gadget chains turn into code execution. Not reported: unserialize() with ['allowed_classes' => false] or an explicit class list, json_decode(), data whose origin is not visible in the file (cache, queue and session payloads the application wrote itself, function parameters; no cross-function dataflow), methods named unserialize on an object, and the call in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-006/",
 	"languages": ["php"],
 	"severity": "critical",
@@ -19,32 +19,48 @@ metadata := {
 	"tags": ["deserialization", "object-injection", "php"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
+_sink_re := `(^|[^\w$>:\\])\\?(maybe_)?unserialize\s*\(`
 
-_unserialize_indicators := {
-	"unserialize($_GET",
-	"unserialize($_POST",
-	"unserialize($_REQUEST",
-	"unserialize($_COOKIE",
-	"maybe_unserialize($_GET",
-	"maybe_unserialize($_POST",
-	"maybe_unserialize($_REQUEST",
-	"maybe_unserialize($_COOKIE",
+_gate_re := `unserialize`
+
+# Checks that pin the value to a known shape before the call (an HMAC
+# comparison authenticates it as the application's own data).
+_validators := `in_array|array_key_exists|preg_match|hash_equals`
+
+_clean(s) := s
+
+_strip_sq(s) := regex.replace(s, `(^|[^\[\s])(\s*)'(?:[^'\\]|\\.)*'`, "${1}${2}''")
+
+_no_strings(s) := regex.replace(s, `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`, `""`)
+
+_code_line(line) if {
+	t := trim_space(line)
+	not startswith(t, "//")
+	not startswith(t, "#")
+	not startswith(t, "*")
+	not startswith(t, "/*")
 }
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
+	some path, content in input.file_contents
 	endswith(path, ".php")
-	lines := split(input.file_contents[path], "\n")
+	contains(content, _gate_re)
+	regex.match(_source_re, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	some indicator in _unserialize_indicators
-	contains(line, indicator)
+	contains(line, "unserialize")
+	_code_line(line)
+	code := _no_strings(line)
+	regex.match(_sink_re, code)
+	not regex.match(`\bfunction\s+&?\w+\s*\(`, code)
+	locs := regex.find_n(_sink_re, code, 1)
+	call := _extend(lines, i, substring(line, indexof(line, trim_left(locs[0], " \t=(.,;!")), -1))
+	not _restricted(call)
+	value := _peel(substring(call, indexof(call, "(") + 1, -1))
+	_reaches(lines, i, _value_head(value))
 	finding := {
 		"rule_id": metadata.id,
-		"message": "User input passed to unserialize(); use json_decode() or set allowed_classes to false",
+		"message": "A request value reaches unserialize() (PHP object injection); use json_decode(), or pass ['allowed_classes' => false]",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
@@ -53,20 +69,99 @@ findings contains finding if {
 	}
 }
 
-findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	endswith(path, ".php")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	regex.match(`\bunserialize\s*\(`, line)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "unserialize() can execute arbitrary code; prefer json_decode() or set allowed_classes parameter",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+# Decoding wrappers pass the attacker's bytes through unchanged in meaning.
+_wrapper_re := `^\s*\\?(base64_decode|urldecode|rawurldecode|stripslashes|stripcslashes|gzuncompress|gzinflate|gzdecode|hex2bin|str_rot13|trim|html_entity_decode|htmlspecialchars_decode|strval)\s*\(`
+
+_peel(s) := t if {
+	m1 := regex.replace(s, _wrapper_re, "")
+	m2 := regex.replace(m1, _wrapper_re, "")
+	t := regex.replace(m2, _wrapper_re, "")
+}
+
+# The value being deserialised: the leading superglobal, request call or
+# variable, not a key used to look something up ($redis->get("s:" . $_COOKIE[...])).
+_value_head(v) := h if {
+	m := regex.find_n(`^\s*(\$_[A-Z]+(\s*\[[^\]]*\])*|\$request\s*->[^;]*|\w+::\w+\s*\([^;]*|request\s*\([^;]*|file_get_contents\s*\(\s*["']php://input["']|filter_input\s*\([^)]*|getallheaders\s*\(\s*\)(\s*\[[^\]]*\])*|\$\w+(\s*\[[^\]]*\])*)`, v, 1)
+	count(m) > 0
+	h := m[0]
+}
+
+# allowed_classes => false, or an explicit list of classes.
+_restricted(call) if regex.match(`["']allowed_classes["']\s*=>\s*(false|\[|array\s*\()`, call)
+
+# Follow up to two continuation lines while the parentheses are unbalanced.
+_extend(_, _, s) := s if count(regex.find_n(`\(`, s, -1)) <= count(regex.find_n(`\)`, s, -1))
+
+_extend(lines, i, s) := t if {
+	count(regex.find_n(`\(`, s, -1)) > count(regex.find_n(`\)`, s, -1))
+	more := [lines[k] | some k in numbers.range(i + 1, min([count(lines) - 1, i + 2]))]
+	t := concat("\n", array.concat([s], more))
+}
+
+# ── Local one-file taint tracking for PHP ────────────────────────────────
+# A request value: a superglobal, the raw body, a request header, or the
+# Laravel/Symfony request accessors. $_SERVER keys the client controls only.
+_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(`
+
+# Variables an expression reads, ignoring $this and superglobals.
+_vars(s) := {v |
+	some m in regex.find_all_string_submatch_n(`\$([A-Za-z_]\w*)`, _strip_sq(s), -1)
+	v := m[1]
+	not startswith(v, "_")
+	v != "this"
+}
+
+_rhs(line) := regex.replace(line, `^\s*\$\w+\s*\.?=`, "")
+
+_reads(s, v) if regex.match(concat("", [`\$`, v, `\b`]), _strip_sq(s))
+
+# Where $v at line i got its value: the nearest assignment in the 30 lines
+# above whose (sanitiser-free) right-hand side does not read $v itself.
+# In-place rewrites ($f = str_replace("../", "", $f)) keep the origin; an
+# in-place sanitiser ($f = basename($f)) becomes the origin and clears it.
+_origin(lines, i, v) := j if {
+	re := concat("", [`^\s*\$`, v, `\s*\.?=[^=>]`])
+	cands := [k |
+		some k in numbers.range(max([0, i - 30]), i - 1)
+		k < i
+		regex.match(re, lines[k])
+		not _reads(_clean(_rhs(lines[k])), v)
+	]
+	count(cands) > 0
+	j := max(cands)
+}
+
+# $v at line i holds a request value: its origin reads one, or reads a
+# variable whose own origin does (one hop), with no sanitiser on the way.
+_tainted(lines, i, v) if {
+	j := _origin(lines, i, v)
+	regex.match(_source_re, _clean(_rhs(lines[j])))
+}
+
+_tainted(lines, i, v) if {
+	j := _origin(lines, i, v)
+	rhs := _clean(_rhs(lines[j]))
+	not regex.match(_source_re, rhs)
+	some w in _vars(rhs)
+	k := _origin(lines, j, w)
+	regex.match(_source_re, _clean(_rhs(lines[k])))
+}
+
+# The value was checked against an allowlist or a strict pattern between
+# its origin and the sink.
+_validated(lines, i, v) if {
+	j := _origin(lines, i, v)
+	re := concat("", [`\b(`, _validators, `)\s*\([^;]*\$`, v, `\b|\bisset\s*\(\s*\$\w+\s*\[\s*\$`, v, `\s*\]`])
+	some k in numbers.range(j, i - 1)
+	regex.match(re, lines[k])
+}
+
+# The expression reaches the sink unsanitised: a request value inline, or a
+# tainted variable that was not validated on the way.
+_reaches(_, _, expr) if regex.match(_source_re, _clean(expr))
+
+_reaches(lines, i, expr) if {
+	some v in _vars(_clean(expr))
+	_tainted(lines, i, v)
+	not _validated(lines, i, v)
 }

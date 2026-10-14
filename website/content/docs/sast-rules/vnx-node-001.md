@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-001 – Missing npm Lock File"
-description: "No package-lock.json, yarn.lock, or pnpm-lock.yaml found alongside package.json, enabling dependency confusion and supply chain attacks."
+description: "A package.json that declares dependencies has no committed lock file (package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock) in its directory or a workspace root, so installs re-resolve floating ranges."
 ---
 
 ## Overview
@@ -21,15 +21,20 @@ OWASP ASVS v4 requirement **V10.3.2** states: "Verify that the application only 
 
 ## What Gets Flagged
 
-The rule fires when a directory is identified as a Node.js project (it appears in `dirs_by_language["node"]`) but none of the three standard lock files exist alongside `package.json`.
+The rule reports a `package.json` (line 1) that declares at least one entry in `dependencies`, `devDependencies` or `optionalDependencies` when no lock file (`package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`) exists in the same directory or in any ancestor directory.
 
 ```
-my-service/
-  package.json       ← project root detected
-  src/
-  ...
-  # FLAGGED: no package-lock.json, yarn.lock, or pnpm-lock.yaml present
+services/api/
+  package.json       <- FLAGGED: {"dependencies": {"fastify": "^4.26.0"}}, no lock file here or above
 ```
+
+Not flagged:
+
+- a workspace member (`packages/core/package.json`) when the workspace root holds the lock file;
+- a `package.json` with no dependencies (`"dependencies": {}`, scripts only);
+- manifests under `test/`, `fixtures/`, `mocks/`, `examples/`, `samples/` or `demos/`.
+
+A lock file listed in `.gitignore` is treated as absent, because it is not committed.
 
 ## Scanner Behavior Without a Lock File
 

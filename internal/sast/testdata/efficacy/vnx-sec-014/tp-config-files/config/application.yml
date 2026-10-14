@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/app
+    username: app
+~>    password: Spr1ngB00t-db

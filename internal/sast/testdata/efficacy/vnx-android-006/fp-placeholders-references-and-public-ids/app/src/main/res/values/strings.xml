@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="maps_api_key">YOUR_API_KEY_HERE</string>
+    <string name="api_key">@string/injected_api_key</string>
+    <string name="build_api_key">${MAPS_API_KEY}</string>
+    <string name="client_secret"></string>
+    <string name="token_url">https://auth.example.com/oauth/token</string>
+    <string name="secret_key">changeme</string>
+    <string name="api_secret">xxxxxxxxxxxxxxxxxxxx</string>
+    <string name="facebook_client_token">@@sample:[a-f0-9]{32}@@</string>
+    <string name="google_api_key" translatable="false">@@sample:AIza[0-9A-Za-z_\-]{35}@@</string>
+    <string name="default_web_client_id">1234567890-abcdefg.apps.googleusercontent.com</string>
+    <string name="session_token_format">Bearer %1$s</string>
+</resources>
