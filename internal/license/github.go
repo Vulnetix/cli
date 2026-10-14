@@ -378,7 +378,9 @@ func BatchFetchGitHubLicenses(packages []PackageLicense, onProgress func(resolve
 		}
 	}
 
-	sem := make(chan struct{}, 3)
+	// Each lookup is one or more `gh api` calls (a process and a round trip
+	// each), so a project of GitHub-hosted packages waited on them three at a time.
+	sem := make(chan struct{}, 8)
 	var wg sync.WaitGroup
 	var resolved int
 	var mu sync.Mutex
@@ -391,7 +393,7 @@ func BatchFetchGitHubLicenses(packages []PackageLicense, onProgress func(resolve
 			defer func() { <-sem }()
 
 			parts := strings.SplitN(ownerRepo, "/", 2)
-			lic := resolveRepoLicense(parts[0], parts[1])
+			lic := storedOrFetch("github", ownerRepo, func() string { return resolveRepoLicense(parts[0], parts[1]) })
 
 			if lic != "" {
 				dedupResults.Store(ownerRepo, lic)

@@ -86,7 +86,7 @@ func FetchLicenseFromDepsDev(name, version, ecosystem string) string {
 	}
 
 	// Try version endpoint first.
-	lic := fetchVersionLicense(system, name, version)
+	lic := storedOrFetch("depsdev", cacheKey, func() string { return fetchVersionLicense(system, name, version) })
 
 	// For Go modules, if version lookup fails, try the project endpoint
 	// (the module might be a GitHub repo).
@@ -151,6 +151,15 @@ func fetchProjectLicense(name string) string {
 		return cached.(string)
 	}
 
+	lic := storedOrFetch("depsdev-project", projectKey, func() string { return fetchProjectLicenseRemote(projectKey) })
+	if lic != "" {
+		depsDevCache.Store(cacheKey, lic)
+	}
+	return lic
+}
+
+// fetchProjectLicenseRemote asks deps.dev for a GitHub project's licence.
+func fetchProjectLicenseRemote(projectKey string) string {
 	u := fmt.Sprintf("%s/projects/%s", depsDevBaseURL, url.PathEscape(projectKey))
 
 	resp, err := getHTTPClient().Get(u)
@@ -175,9 +184,6 @@ func fetchProjectLicense(name string) string {
 	lic := ""
 	if data.License != "" {
 		lic = NormalizeSPDX(data.License)
-	}
-	if lic != "" {
-		depsDevCache.Store(cacheKey, lic)
 	}
 	return lic
 }
