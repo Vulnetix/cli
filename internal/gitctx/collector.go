@@ -1,10 +1,14 @@
 package gitctx
 
 import (
+	"bytes"
+	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -142,8 +146,9 @@ func Collect(scanPath string) *GitContext {
 
 	// Dirty state
 	if wt != nil {
-		status, err := wt.Status()
-		if err == nil {
+		if dirty, ok := gitStatusDirty(ctx.RepoRootPath); ok {
+			ctx.IsDirty = dirty
+		} else if status, err := wt.Status(); err == nil {
 			ctx.IsDirty = !status.IsClean()
 		}
 	}
@@ -165,3 +170,24 @@ var errStopIter = &stopIter{}
 type stopIter struct{}
 
 func (e *stopIter) Error() string { return "stop" }
+
+// gitStatusDirty asks the git binary whether the worktree at root has changes
+// (tracked or untracked, honouring ignore rules). go-git's Status hashes its way
+// through the whole tree in Go and took over a second on a mid-sized repository;
+// git answers from the index's stat cache. ok is false when git is not
+// installed or fails, and the caller falls back to go-git.
+func gitStatusDirty(root string) (dirty, ok bool) {
+	if root == "" {
+		return false, false
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		return false, false
+	}
+	cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(cctx, "git", "-C", root, "status", "--porcelain", "--untracked-files=normal").Output()
+	if err != nil {
+		return false, false
+	}
+	return len(bytes.TrimSpace(out)) > 0, true
+}
