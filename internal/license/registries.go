@@ -105,7 +105,9 @@ func BatchFetchRegistryLicenses(packages []PackageLicense, onProgress func(resol
 		}
 	}
 
-	sem := make(chan struct{}, 5)
+	// One registry round trip per package; 16 at a time keeps a 40-package project
+	// to a few waves without hammering any single registry.
+	sem := make(chan struct{}, 16)
 	var wg sync.WaitGroup
 	var resolved int
 	var mu sync.Mutex

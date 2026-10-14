@@ -14,7 +14,9 @@ import (
 const (
 	depsDevBaseURL = "https://api.deps.dev/v3"
 	depsDevTimeout = 10 * time.Second
-	depsDevMaxConc = 5
+	// deps.dev answers each version in one round trip and serves many at once; at 5
+	// a 200-crate Cargo project waited on 40 serial waves of them.
+	depsDevMaxConc = 32
 )
 
 // depsDevVersionResp is the minimal response from /v3/systems/{eco}/packages/{name}/versions/{ver}.
