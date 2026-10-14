@@ -511,6 +511,11 @@ func (c *Client) doRequestWithRetry(req *http.Request) ([]byte, error) {
 
 // DoRequest performs an authenticated API request with retry for transient errors.
 func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error) {
+	return c.doRequestWithHeaders(method, path, body, nil)
+}
+
+// doRequestWithHeaders is DoRequest with extra request headers.
+func (c *Client) doRequestWithHeaders(method, path string, body interface{}, headers map[string]string) ([]byte, error) {
 	// Marshal body once before retry loop
 	var bodyReader io.Reader
 	if body != nil {
@@ -531,6 +536,9 @@ func (c *Client) DoRequest(method, path string, body interface{}) ([]byte, error
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 	if c.NoCache || c.RefreshCache {
 		req.Header.Set("Cache-Control", "no-cache")
 	}

@@ -64,7 +64,7 @@ var (
 )
 
 const (
-	minChunkSize = 1  // a job at this size can no longer be split on failure
+	minChunkSize = 1 // a job at this size can no longer be split on failure
 	// PURLs per batch; halved adaptively on transient failure. Discovery chunks
 	// wait for the primary one (they append to its snapshot), so every extra chunk
 	// is another round trip on the critical path; 25 dated from when one batch
@@ -770,7 +770,7 @@ func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vd
 	// work, so later changes to the findings cannot race with it.
 	snapshotUuid := snapshot.Uuid
 	goBackground(w, func(w io.Writer) {
-		resp, err := client.CliSCAReachability(env, vdb.CliSCAReachabilityRequest{
+		resp, err := client.CliSCAReachabilityDeferred(env, vdb.CliSCAReachabilityRequest{
 			IngestionSnapshotUuid: snapshotUuid,
 			Results:               payloads,
 		})
@@ -780,7 +780,9 @@ func postReachabilityToSnapshot(client *vdb.Client, env vdb.CliEnv, snapshot *vd
 			}
 			return
 		}
-		if verbose {
+		if verbose && resp.Data.Deferred {
+			fmt.Fprintf(w, "  reachability accepted: %d result(s), saved after the answer\n", len(payloads))
+		} else if verbose {
 			fmt.Fprintf(w, "  reachability persisted: %d (sbom=%s, vex=%s)\n", resp.Data.Persisted, resp.Data.SBOMUrl, resp.Data.VEXUrl)
 		}
 	})
@@ -1739,7 +1741,7 @@ func reportScanFinalization(snapshotUuid string, breaches []GateBreach, controlF
 		exitCode = 1
 	}
 	env := buildCliEnv(gitCtx, sysInfo)
-	resp, err := client.CliFinalize(env, vdb.CliFinalizeRequest{
+	resp, err := client.CliFinalizeDeferred(env, vdb.CliFinalizeRequest{
 		IngestionSnapshotUuid: snapshotUuid,
 		ExitCode:              exitCode,
 		BreakBuild:            len(breaches) > 0,
@@ -1753,6 +1755,6 @@ func reportScanFinalization(snapshotUuid string, breaches []GateBreach, controlF
 		return
 	}
 	if verbose {
-		fmt.Fprintf(os.Stderr, "  finalize: persisted=%v (exitCode=%d, gates=%d)\n", resp.Data.Persisted, exitCode, len(gates))
+		fmt.Fprintf(os.Stderr, "  finalize: persisted=%v deferred=%v (exitCode=%d, gates=%d)\n", resp.Data.Persisted, resp.Data.Deferred, exitCode, len(gates))
 	}
 }
