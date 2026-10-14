@@ -1,6 +1,7 @@
 package license
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -112,8 +113,7 @@ func FetchLicenseFromGitHub(name, ecosystem string) string {
 // ── Strategy 1: Repo API .license field ──────────────────────────────────
 
 func ghCLIRepoLicense(owner, repo string) string {
-	cmd := exec.Command("gh", "api", fmt.Sprintf("repos/%s/%s", owner, repo), "--jq", ".license.spdx_id")
-	out, err := cmd.Output()
+	out, err := ghAPI(owner, repo, fmt.Sprintf("repos/%s/%s", owner, repo), "--jq", ".license.spdx_id")
 	if err != nil {
 		return ""
 	}
@@ -127,8 +127,7 @@ func ghCLIRepoLicense(owner, repo string) string {
 // ── Strategy 2: Dedicated /license endpoint ──────────────────────────────
 
 func ghCLIDedicatedLicense(owner, repo string) string {
-	cmd := exec.Command("gh", "api", fmt.Sprintf("repos/%s/%s/license", owner, repo), "--jq", ".license.spdx_id")
-	out, err := cmd.Output()
+	out, err := ghAPI(owner, repo, fmt.Sprintf("repos/%s/%s/license", owner, repo), "--jq", ".license.spdx_id")
 	if err != nil {
 		return ""
 	}
@@ -141,8 +140,7 @@ func ghCLIDedicatedLicense(owner, repo string) string {
 }
 
 func ghCLIDedicatedLicenseContent(owner, repo string) string {
-	cmd := exec.Command("gh", "api", fmt.Sprintf("repos/%s/%s/license", owner, repo), "--jq", ".content")
-	out, err := cmd.Output()
+	out, err := ghAPI(owner, repo, fmt.Sprintf("repos/%s/%s/license", owner, repo), "--jq", ".content")
 	if err != nil {
 		return ""
 	}
@@ -192,8 +190,7 @@ func ghCLILicenseFileContent(owner, repo string) string {
 
 // ghCLIClassifyFile returns the licence classified from one repo-root file, or "".
 func ghCLIClassifyFile(owner, repo, name string) string {
-	cmd := exec.Command("gh", "api", fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, name), "--jq", ".content")
-	out, err := cmd.Output()
+	out, err := ghAPI(owner, repo, fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, name), "--jq", ".content")
 	if err != nil {
 		return ""
 	}
@@ -211,9 +208,8 @@ func ghCLIClassifyFile(owner, repo, name string) string {
 // ── Strategy 4: Discover license files via directory listing ─────────────
 
 func ghCLIDiscoverLicenseFiles(owner, repo string) string {
-	cmd := exec.Command("gh", "api", fmt.Sprintf("repos/%s/%s/contents/", owner, repo),
+	out, err := ghAPI(owner, repo, fmt.Sprintf("repos/%s/%s/contents/", owner, repo),
 		"--jq", `[.[] | select(.name | test("(?i)(^licen|^copying)")) | .name] | .[]`)
-	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
@@ -228,8 +224,7 @@ func ghCLIDiscoverLicenseFiles(owner, repo string) string {
 			continue
 		}
 		// Fetch this specific file's content.
-		cmd2 := exec.Command("gh", "api", fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, name), "--jq", ".content")
-		out2, err := cmd2.Output()
+		out2, err := ghAPI(owner, repo, fmt.Sprintf("repos/%s/%s/contents/%s", owner, repo, name), "--jq", ".content")
 		if err != nil {
 			continue
 		}
@@ -415,7 +410,7 @@ func BatchFetchGitHubLicenses(packages []PackageLicense, onProgress func(resolve
 			defer func() { <-sem }()
 
 			parts := strings.SplitN(ownerRepo, "/", 2)
-			lic := storedOrFetch("github", ownerRepo, func() string { return resolveRepoLicense(parts[0], parts[1]) })
+			lic := resolveRepoLicense(parts[0], parts[1])
 
 			if lic != "" {
 				dedupResults.Store(ownerRepo, lic)
@@ -443,8 +438,29 @@ func BatchFetchGitHubLicenses(packages []PackageLicense, onProgress func(resolve
 	}
 }
 
-// resolveRepoLicense tries all strategies to find a license for owner/repo.
+// resolveRepoLicense returns owner/repo's licence, from the licence store when it
+// holds an answer: a licence for a week, or a definitive miss (see
+// resolveRepoLicenseChecked) for a day. Every GitHub lookup in this package goes
+// through it, whichever ecosystem led there.
 func resolveRepoLicense(owner, repo string) string {
+	key := owner + "/" + repo
+	if lic, ok := loadStoredLicense("github", key); ok {
+		return lic
+	}
+	if loadStoredMiss("github", key) {
+		return ""
+	}
+	lic, definitiveMiss := resolveRepoLicenseChecked(owner, repo)
+	if lic != "" {
+		storeLicense("github", key, lic)
+	} else if definitiveMiss {
+		storeMiss("github", key)
+	}
+	return lic
+}
+
+// lookupRepoLicense tries every strategy to find owner/repo's licence, with no store.
+func lookupRepoLicense(owner, repo string) string {
 	if isGHCLIAvailable() {
 		// Strategy 1: repo API.
 		if lic := ghCLIRepoLicense(owner, repo); lic != "" {
@@ -474,4 +490,35 @@ func resolveRepoLicense(owner, repo string) string {
 	}
 
 	return ""
+}
+
+// ghIndefinite records the repos for which some gh call failed for a reason
+// other than the thing not existing (HTTP 404): a timeout, auth, rate limit.
+// A miss for such a repo says nothing about the repo and is never stored.
+var ghIndefinite sync.Map // "owner/repo" -> true
+
+// ghAPI runs `gh api args...` for owner/repo and returns its stdout.
+func ghAPI(owner, repo string, args ...string) ([]byte, error) {
+	cmd := exec.Command("gh", append([]string{"api"}, args...)...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil && !strings.Contains(stderr.String(), "HTTP 404") {
+		ghIndefinite.Store(owner+"/"+repo, true)
+	}
+	return out, err
+}
+
+// resolveRepoLicenseChecked is resolveRepoLicense that also reports whether a
+// miss is definitive: every lookup went through gh and each one either answered
+// or said 404. A miss through the PAT path, or with gh unavailable, is not.
+func resolveRepoLicenseChecked(owner, repo string) (lic string, definitiveMiss bool) {
+	key := owner + "/" + repo
+	ghIndefinite.Delete(key)
+	lic = lookupRepoLicense(owner, repo)
+	if lic != "" {
+		return lic, false
+	}
+	_, indefinite := ghIndefinite.Load(key)
+	return "", isGHCLIAvailable() && findGitHubPAT() == "" && !indefinite
 }
