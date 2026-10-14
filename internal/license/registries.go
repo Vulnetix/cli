@@ -131,7 +131,7 @@ func BatchFetchRegistryLicenses(packages []PackageLicense, onProgress func(resol
 				return
 			}
 
-			lic := FetchFromEcosystemRegistry(p)
+			lic := storedOrFetch("registry", cacheKey, func() string { return FetchFromEcosystemRegistry(p) })
 			registryCache.Store(cacheKey, lic)
 			if lic != "" {
 				dedupResults.Store(k, lic)
