@@ -696,6 +696,11 @@ func main() {
 			}
 		}
 		target := filepath.Join(dir, r.Path)
+		// A previous scan leaves .vulnetix/sbom.cdx.json behind, and a scan carries the
+		// components its findings reference over from it. Left in place, components from
+		// an earlier build of the tool (a Gemfile range read as a version) would be
+		// measured as if this build had produced them.
+		_ = os.RemoveAll(filepath.Join(target, ".vulnetix"))
 		outFile := filepath.Join(*work, r.Name+".report.json")
 		_ = os.Remove(outFile)
 		depth := r.Depth
