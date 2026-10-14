@@ -168,7 +168,7 @@ func NewClient(orgID, secretKey string) *Client {
 		AuthMethod: auth.SigV4,
 		HTTPClient: &http.Client{
 			Timeout:   30 * time.Second,
-			Transport: sharedTransport,
+			Transport: traceTransport(sharedTransport),
 		},
 	}
 }
@@ -185,7 +185,7 @@ func NewClientFromCredentials(creds *auth.Credentials) *Client {
 		Token:      creds.Token,
 		HTTPClient: &http.Client{
 			Timeout:   30 * time.Second,
-			Transport: sharedTransport,
+			Transport: traceTransport(sharedTransport),
 		},
 	}
 }
