@@ -40,3 +40,22 @@ func TestDepsDevNotFoundIsRememberedButFailuresAreNot(t *testing.T) {
 		t.Fatalf("a 404 was asked %d times in three lookups, want once", hits.Load())
 	}
 }
+
+func TestDepsDevIsNotAskedForAMavenNameWithoutAGroup(t *testing.T) {
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		_, _ = w.Write([]byte(`{"licenses":["Apache-2.0"]}`))
+	}))
+	defer srv.Close()
+	old := depsDevBaseURL
+	depsDevBaseURL = srv.URL
+	defer func() { depsDevBaseURL = old }()
+
+	if lic := FetchLicenseFromDepsDev("gson", "2.11.0", "maven"); lic != "" || len(paths) != 0 {
+		t.Fatalf("bare artifact: lic=%q, requests %v; deps.dev has no Maven package without a group", lic, paths)
+	}
+	if lic := FetchLicenseFromDepsDev("com.google.code.gson:gson", "2.11.0", "maven"); lic != "Apache-2.0" || len(paths) != 1 {
+		t.Fatalf("group:artifact: lic=%q, requests %v", lic, paths)
+	}
+}
