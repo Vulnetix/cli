@@ -100,6 +100,9 @@ func DetectLicenses(packages []scan.ScopedPackage, groups []scan.ManifestGroup) 
 		result = append(result, pl)
 	}
 
+	// 5b. Licences earlier scans resolved, in one request to the API.
+	applyStoredLicenses(result)
+
 	// 6. Batch-resolve remaining UNKNOWNs via ecosystem-native registry APIs.
 	BatchFetchRegistryLicenses(result, nil)
 

@@ -1101,6 +1101,7 @@ func runLocalScan(
 
 		if len(allPackages) > 0 {
 			rep.Stage(fmt.Sprintf("Resolving package licenses for %d package(s)", len(allPackages)))
+			license.StoredLicenses = lookupStoredLicenses
 			licensedPackages = license.DetectLicenses(allPackages, manifestGroups)
 			for _, lp := range licensedPackages {
 				if lp.LicenseSpdxID != "" && lp.LicenseSpdxID != "UNKNOWN" {
