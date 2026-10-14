@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vulnetix/cli/v3/pkg/auth"
+	"github.com/vulnetix/cli/v3/pkg/cache"
 )
 
 func TestMain(m *testing.M) {
@@ -144,5 +145,41 @@ func TestRejectedCachedTokenIsExchangedOnce(t *testing.T) {
 		if got := ts.exchanges.Load() - before; got != 1 {
 			t.Fatalf("re-exchanged %d times, want 1", got)
 		}
+	}
+}
+
+func TestAffectedCacheIsScopedToTheCredential(t *testing.T) {
+	var hits atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/auth/token" {
+			_ = json.NewEncoder(w).Encode(TokenResponse{Token: "tok", Exp: time.Now().Add(time.Hour).Unix()})
+			return
+		}
+		hits.Add(1)
+		_, _ = w.Write([]byte(`{"affected":[]}`))
+	}))
+	defer srv.Close()
+	dc, err := cache.NewDiskCacheAt(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := func(secret string) *Client {
+		c := sigv4Client(srv.URL, secret)
+		c.Cache = dc
+		return c
+	}
+	for i := 0; i < 3; i++ {
+		if _, err := client("secret-a").V2AffectedCached("CVE-1", V2QueryParams{PackageName: "x"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if hits.Load() != 1 {
+		t.Fatalf("three lookups by one credential reached the server %d times, want 1", hits.Load())
+	}
+	if _, err := client("secret-b").V2AffectedCached("CVE-1", V2QueryParams{PackageName: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	if hits.Load() != 2 {
+		t.Fatal("another credential was served the first credential's cached answer")
 	}
 }
