@@ -117,6 +117,50 @@ vulnetix secrets --output secrets.sarif
 vulnetix secrets --results-only
 ```
 
+## Reading the output
+
+The report is organised by **credential**, because a credential is what you rotate:
+the same key written in three files is one row, and rotating it once fixes all three.
+Two keys are the same when the line holds the same most-random-looking token; the token
+is hashed in memory to decide that and is never printed or stored.
+
+```text
+ ✖ SECRETS 5 credentials in 7 places          2 to rotate · 1 not committed · 1 can wait · 1 in tests
+   1090 rules ran · one value in several files counts once · values are never printed
+
+ ROTATE NOW · 2 credentials · committed to production code
+ ──────────────────────────────────────────────────────────────────────────────────────────────
+ ● CRITICAL  AWS access key ID       VNX-SEC-001  .env.example:3
+             committed in a1b2c3d, 41 days ago   also in deploy/prod.tfvars:14 +1 more
+
+ NOT COMMITTED · 1 credential · remove it now and it never reaches the history
+ ──────────────────────────────────────────────────────────────────────────────────────────────
+ ● HIGH      Slack webhook URL       VNX-SEC-042  internal/notify/slack.go:31
+```
+
+| Group | What is in it |
+|-------|---------------|
+| **ROTATE NOW** | Critical and high credentials that are in git history, or whose history could not be read. |
+| **NOT COMMITTED** | Critical and high credentials only in the working tree (an untracked file, or a line not committed yet). Removing them now means they never reach the history. |
+| **CAN WAIT** | Medium and low confidence matches, such as generic high-entropy strings. |
+| **IN TESTS** | Credentials in [test code](../sast/#test-suite-detection), listed and not ranked. `--show tests` ranks them. |
+| **VENDORED** | Credentials under `third_party/`, `vendor/`, `node_modules/` and similar. |
+
+How it got there comes from `git blame` on each line, run once after the scan and limited
+to 200 findings. A copy found only in a past commit (the scan reads history) is reported
+as *removed from the tree, still in history*: the file no longer holds it, but it is still
+exposed. When the directory is not a git repository nothing is asked, and the credential
+lands in ROTATE NOW without a history note, because an unknown history is not a clean one.
+
+`--explain <rule-id>` (or a file path) gives the rotation steps in order — revoke at the
+provider, check its access logs from the commit date, issue a replacement, remove the
+copies — and then each place with its status (`committed a1b2c3d · 2026-09-03`,
+`in git history`, or `not committed`). It never prints the value or the line it is on:
+the match span is not recorded, and a wrong guess at it would print the secret.
+
+These groups change only the terminal view. SARIF, JSON, uploads, annotations and gates
+see every finding at its own severity.
+
 ## Output Files
 
 | Path | Description |

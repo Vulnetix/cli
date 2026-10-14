@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vulnetix/cli/v3/internal/display"
 	"github.com/vulnetix/cli/v3/internal/scaview"
@@ -28,6 +29,22 @@ type CodeFinding struct {
 	HelpURI     string
 	CWE         []int
 	TestSuite   bool
+
+	// Resource is the thing the finding sits in: "aws_s3_bucket.logs",
+	// "Deployment/api", "service api". ResourceLine is where it starts. The
+	// caller reads both from the file; they are empty where a file has no such
+	// notion.
+	Resource     string
+	ResourceLine int
+
+	// Where a secret entered the history, from git blame. Blamed is false when
+	// nothing could be asked (not a git tree), so "unknown" is never "clean".
+	Blamed bool
+	// InHistory marks a copy found in a past commit, not in the working tree.
+	InHistory   bool
+	Committed   bool
+	Commit      string
+	CommittedAt time.Time
 }
 
 // CodeReport is the engine's result, ready to draw.
@@ -200,6 +217,14 @@ func ruleTitle(f CodeFinding) string {
 // RenderCode draws code findings in the packages view's grammar: a verdict
 // line, then the rules grouped by what to do, then the next commands.
 func RenderCode(r CodeReport, o Options, t *display.Terminal) string {
+	switch codeFlavour(r) {
+	case flavourSecrets:
+		return renderSecrets(r, o, t)
+	case flavourIaC:
+		return renderResources(r, o, t, false)
+	case flavourContainers:
+		return renderResources(r, o, t, true)
+	}
 	s := NewStyle(t, o)
 	v := buildCodeView(r, o)
 	total := v.total()
@@ -770,9 +795,13 @@ func RenderCodeExplain(r CodeReport, query string, o Options, t *display.Termina
 	})
 	var b strings.Builder
 	for _, id := range order {
+		if byRule[id][0].Kind == "secrets" {
+			b.WriteString(explainSecret(byRule[id], o, s))
+			continue
+		}
 		b.WriteString(explainRule(byRule[id], o, s))
 	}
-	b.WriteString(explainNext(order[0], len(byRule[order[0]]), o, s))
+	b.WriteString(explainNext(order[0], byRule[order[0]][0].Kind, len(byRule[order[0]]), o, s))
 	return b.String(), true
 }
 
@@ -900,12 +929,16 @@ func explainPlaces(places []CodeFinding, files []ruleFile, o Options, s *Style) 
 	return b.String()
 }
 
-func explainNext(id string, n int, o Options, s *Style) string {
+func explainNext(id, kind string, n int, o Options, s *Style) string {
 	cmd := codeCommand(o)
 	type step struct{ cmd, why string }
 	var steps []step
 	if o.Verbosity == 0 && n > 1 {
-		steps = append(steps, step{cmd + " --explain " + id + " -v", "every place, with its code"})
+		why := "every place, with its code"
+		if kind == "secrets" {
+			why = "every place, with how it got there"
+		}
+		steps = append(steps, step{cmd + " --explain " + id + " -v", why})
 	}
 	steps = append(steps, step{cmd, "back to every rule"})
 	var b strings.Builder

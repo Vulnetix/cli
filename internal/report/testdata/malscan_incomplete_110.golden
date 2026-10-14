@@ -1,0 +1,12 @@
+ ! MALWARE INCOMPLETE · nothing was checked          0 packages · 0 files · 0 indicators
+   This is not a clean result: there was nothing to compare, or nothing to inspect.
+
+ NOT CHECKED
+ ────────────────────────────────────────────────────────────────────────────────────────────────
+   dependencies  none installed under this path, so there was nothing to inspect
+   indicators    no known-bad indicator definitions are loaded to compare against
+   home caches   ~/.npm, ~/go/pkg/mod and the other caches, which your tools install from next time
+
+ NEXT
+   vulnetix malscan --fetch-definitions  download the indicator feeds once; later scans reuse them
+   vulnetix malscan --include-home       also check ~/.npm, ~/go/pkg/mod and the other caches

@@ -1,0 +1,45 @@
+ ✖ IAC 7 problems on 3 resources in 4 files
+   4 need action · 3 can wait · 1 in tests
+
+ NEEDS ACTION
+ ────────────────────────────────────────────────
+ Deployment/api
+   1 problem
+  ● CRITICAL
+    Container runs privileged
+    :24 VNX-DOCKER-005
+
+ aws_s3_bucket.logs
+   2 problems
+  ● HIGH
+    No server-side encryption
+    :12 TRIVY-S3-ENC
+  ● HIGH
+    Bucket is publicly readable
+    :15 VNX-TF-001 · KICS-S3-ACL · REGULA-S3-1
+
+ aws_db_instance.main
+   1 problem
+  ● HIGH
+    Database is publicly accessible
+    :9 VNX-TF-003
+
+ CAN WAIT
+ ────────────────────────────────────────────────
+ ● MEDIUM
+   Resource has no owner or env tag
+   2 resources
+ ● LOW
+   Bucket versioning disabled
+   aws_s3_bucket.logs
+
+ IN TESTS
+ ────────────────────────────────────────────────
+   infra/testdata/x.tf  1 finding
+
+ NEXT
+   vulnetix iac --explain k8s/api.yaml
+   vulnetix iac --explain infra/storage.tf
+   vulnetix iac --explain VNX-DOCKER-005
+   vulnetix iac -v
+   vulnetix iac --show tests

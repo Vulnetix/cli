@@ -133,6 +133,10 @@ func processPackageManifest(p pkgManifest, spec manifestSpec, caps map[string]bo
 	}
 	rel := relToRoot(root, p.primary)
 	name := filepath.Base(p.dir)
+	pkgName := packageUnder(target.Path, p.dir, target.EngineSlug)
+	if pkgName == "" {
+		pkgName = name
+	}
 
 	var installContent strings.Builder
 	if spec.npmScripts {
@@ -180,6 +184,7 @@ func processPackageManifest(p pkgManifest, spec manifestSpec, caps map[string]bo
 	anyEvidence := false
 	for _, f := range findings {
 		mf := detectFindingToMalscan(f, target.Ecosystem, rel, primaryContent)
+		mf.Package, mf.Location = pkgName, target.Label
 		res.Findings = append(res.Findings, mf)
 		if f.Class == detect.ClassEvidence {
 			anyEvidence = true
@@ -366,3 +371,37 @@ func sha256Hex(data []byte) string {
 func goos() string       { return runtime.GOOS }
 func goarch() string     { return runtime.GOARCH }
 func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
+
+// packageUnder names the installed package a path belongs to, for the terminal
+// report. Install trees nest differently: npm puts a package at the last
+// node_modules/<name> (or <@scope>/<name>), pnpm at .pnpm/<name@version>, and a
+// Go module cache or vendor tree at <host>/<org>/<repo>. "" when the path is
+// the install directory itself or outside it.
+func packageUnder(base, path, slug string) string {
+	rel, err := filepath.Rel(base, path)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return ""
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if i := lastIndex(parts, "node_modules"); i >= 0 && i+1 < len(parts) {
+		parts = parts[i+1:]
+	}
+	switch {
+	case parts[0] == ".pnpm" && len(parts) > 1:
+		return parts[1]
+	case strings.HasPrefix(parts[0], "@") && len(parts) > 1:
+		return parts[0] + "/" + parts[1]
+	case slug == "go" && strings.Contains(parts[0], ".") && len(parts) >= 3:
+		return strings.Join(parts[:3], "/")
+	}
+	return parts[0]
+}
+
+func lastIndex(parts []string, want string) int {
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] == want {
+			return i
+		}
+	}
+	return -1
+}

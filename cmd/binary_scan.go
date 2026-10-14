@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vulnetix/cli/v3/internal/binpkg"
 	"github.com/vulnetix/cli/v3/internal/cdx"
+	"github.com/vulnetix/cli/v3/internal/display"
+	"github.com/vulnetix/cli/v3/internal/report"
 	"github.com/vulnetix/cli/v3/internal/scan"
 	"github.com/vulnetix/cli/v3/pkg/vdb"
 )
@@ -360,115 +362,33 @@ func cliBinaryToEntry(b scan.BinaryResult) vdb.CliBinaryAnalyzeEntry {
 }
 
 func printBinaryScanResults(result *scan.ScanResult) {
-	fmt.Printf("\n%s\n", bold("Binary Scan Results"))
-	fmt.Printf("  Path:         %s\n", result.Path)
-	fmt.Printf("  Total files:  %d\n", result.Total)
-	fmt.Printf("  ELF binaries: %d\n", result.ELFCount)
-
-	if len(result.Errors) > 0 {
-		fmt.Printf("  Errors:       %d\n", len(result.Errors))
-	}
-
-	if len(result.Binaries) == 0 {
-		return
-	}
-
-	// Summary counts.
-	var setuidCount, noPIE, noRELRO, noCanary int
+	sum := report.BinarySummary{Files: result.Total, Errors: result.Errors}
 	for _, b := range result.Binaries {
-		for _, w := range b.Weaknesses {
-			switch w {
-			case "setuid":
-				setuidCount++
-			case "no-pie":
-				noPIE++
-			case "no-relro", "partial-relro":
-				noRELRO++
-			case "no-stack-canary":
-				noCanary++
-			}
-		}
-	}
-
-	fmt.Printf("\n%s\n", bold("Weakness Summary"))
-	if setuidCount > 0 {
-		fmt.Printf("  %s binaries with setuid:     %d\n", redText(fmt.Sprintf("%d", setuidCount)), setuidCount)
-	}
-	fmt.Printf("  No PIE:                      %d\n", noPIE)
-	fmt.Printf("  No/partial RELRO:            %d\n", noRELRO)
-	fmt.Printf("  No stack canary:             %d\n", noCanary)
-	fmt.Printf("  World-writable:              %d\n", countWeakness(result, "world-writable"))
-	fmt.Printf("  NX disabled:                 %d\n", countWeakness(result, "nx-disabled"))
-	fmt.Printf("  Setgid:                      %d\n", countWeakness(result, "setgid"))
-
-	// Detailed table.
-	fmt.Printf("\n%s\n", bold("Binary Details"))
-	fmt.Println("  " + dim("PATH                                                 TYPE     ARCH         WEAKNESSES"))
-	for _, b := range result.Binaries {
-		weaknesses := stringsJoin(b.Weaknesses, ",")
-		if weaknesses == "" {
-			weaknesses = "-"
-		}
-		fmt.Printf("  %-52s %-8s %-12s %s\n",
-			truncate(b.Path, 52),
-			b.ELFType,
-			b.ELFArch,
-			dim(weaknesses),
-		)
+		row := report.BinaryRow{Path: b.Path, Weaknesses: b.Weaknesses}
 		if b.Hashlookup != nil && b.Hashlookup.PackageName != "" {
-			pkg := b.Hashlookup.PackageName
+			row.Package = b.Hashlookup.PackageName
 			if b.Hashlookup.PackageVersion != "" {
-				pkg += "@" + b.Hashlookup.PackageVersion
-			}
-			fmt.Printf("    ↳ %s\n", greenText("package: "+pkg))
-		}
-	}
-
-	if len(result.Errors) > 0 {
-		fmt.Printf("\n%s\n", bold("Errors"))
-		for _, e := range result.Errors {
-			fmt.Printf("  %s\n", dim(e))
-		}
-	}
-}
-
-func countWeakness(result *scan.ScanResult, name string) int {
-	n := 0
-	for _, b := range result.Binaries {
-		for _, w := range b.Weaknesses {
-			if w == name {
-				n++
+				row.Package += " " + b.Hashlookup.PackageVersion
 			}
 		}
+		sum.Rows = append(sum.Rows, row)
 	}
-	return n
+	o := report.Options{Command: "containers"}
+	if verbose {
+		o.Verbosity = 1
+	}
+	fmt.Fprint(os.Stdout, report.RenderBinaries(sum, o, display.NewTerminal()))
 }
 
 // Simple terminal formatting helpers (avoiding external deps for now).
-func bold(s string) string      { return "\033[1m" + s + "\033[0m" }
-func dim(s string) string       { return "\033[2m" + s + "\033[0m" }
-func redText(s string) string   { return "\033[31m" + s + "\033[0m" }
-func greenText(s string) string { return "\033[32m" + s + "\033[0m" }
+func bold(s string) string { return "\033[1m" + s + "\033[0m" }
+func dim(s string) string  { return "\033[2m" + s + "\033[0m" }
 
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
 	return s[:n-1] + "…"
-}
-
-func stringsJoin(ss []string, sep string) string {
-	if ss == nil {
-		return ""
-	}
-	result := ""
-	for i, s := range ss {
-		if i > 0 {
-			result += sep
-		}
-		result += s
-	}
-	return result
 }
 
 // lastContainerSnapshotUuid carries the snapshot the container scan just

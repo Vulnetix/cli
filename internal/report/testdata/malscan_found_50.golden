@@ -1,0 +1,41 @@
+ ✖ MALWARE in 1 package
+   1 malicious · 1 suspicious · 1,246 clean
+
+ MALICIOUS
+ ────────────────────────────────────────────────
+ ● CRITICAL
+   npm  event-stream-helper
+   runs code on install
+   package.json:8 "postinstall": "node lib/setup…
+   contacts a known-bad host
+   lib/setup.js:41 fetch('https://cdn-update[.]t…
+
+ WHAT TO DO, IN THIS ORDER
+   1  Remove event-stream-helper from your
+      manifests and reinstall from a clean
+      lockfile. If it is a dependency of
+      something else, drop or pin that.
+   2  Its install script may have run on every
+      machine that installed it. Rotate the
+      credentials those machines could read:
+      package registry and git tokens, cloud
+      keys, CI secrets.
+   3  Search proxy and CI logs for
+      cdn-update[.]top to find which machines
+      reached it.
+
+ SUSPICIOUS
+ ────────────────────────────────────────────────
+ ● MEDIUM
+   pypi  colorama-ext
+   base64 decoded into exec()
+   setup.py:12 exec(base64.b64decode(x))
+
+ NOT CHECKED
+ ────────────────────────────────────────────────
+   home caches   ~/.npm, ~/go/pkg/mod and the other caches, which your tools install from next time
+
+ NEXT
+   vulnetix malscan -o sarif
+   vulnetix sca --block-malware
+   vulnetix malscan --include-home
