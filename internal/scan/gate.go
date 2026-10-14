@@ -60,7 +60,10 @@ func ApplyBuildOrLockGate(eco, manifestType, manifestPath, relPath string, confi
 		return pkgs, false, nil // already scannable at exact versions
 	}
 	if spec.lockPresent != nil && spec.lockPresent(filepath.Dir(manifestPath)) {
-		return pkgs, false, nil // a sibling lock will be scanned
+		// A sibling lock will be scanned, and it holds the installed versions. A range
+		// in the manifest (`~> 1.2`, `^7`) is not a version: kept, it was queried as if
+		// it were one, and thor 1.2 was reported vulnerable while the lock pins 1.5.0.
+		return dropUnpinned(pkgs), false, nil
 	}
 	out, rerr := spec.resolve(manifestPath, relPath, pkgs, confident)
 	if rerr != nil {
@@ -98,4 +101,18 @@ func anySiblingExists(dir string, names []string) bool {
 		}
 	}
 	return false
+}
+
+// dropUnpinned removes the packages that carry a version taken from a range. A
+// package with no version at all is left as it was: nothing compares it to an
+// advisory range, so it cannot be mistaken for an installed release.
+func dropUnpinned(pkgs []ScopedPackage) []ScopedPackage {
+	out := make([]ScopedPackage, 0, len(pkgs))
+	for _, p := range pkgs {
+		if p.Version != "" && !IsVersionSpecPinned(p.VersionSpec) {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
 }
