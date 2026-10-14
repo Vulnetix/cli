@@ -24,3 +24,14 @@ func TestBuildLocalPurlEncodesTheNpmScope(t *testing.T) {
 		}
 	}
 }
+
+// A Swift package is host/owner/repo; the purl's namespace is host/owner. One escaped
+// name left it without the namespace the spec and OSV require.
+func TestBuildLocalPurlGivesSwiftPackagesANamespace(t *testing.T) {
+	if got := BuildLocalPurl("github.com/apple/swift-nio", "2.40.0", "swift"); got != "pkg:swift/github.com/apple/swift-nio@2.40.0" {
+		t.Errorf("got %q", got)
+	}
+	if got := BuildLocalPurl("github.com/apple/swift-nio", "", "swift"); got != "pkg:swift/github.com/apple/swift-nio" {
+		t.Errorf("got %q", got)
+	}
+}

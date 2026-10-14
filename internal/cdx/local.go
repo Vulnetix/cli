@@ -472,6 +472,18 @@ func buildLocalPurl(name, version, ecosystem string) string {
 		}
 	}
 
+	// Swift packages are host/owner/repo: the namespace is host/owner and the name is the
+	// repo, pkg:swift/github.com/apple/swift-nio@2.40.0. Escaping the whole path into one
+	// name left the purl without the namespace the spec (and OSV) require.
+	if purlType == "swift" && strings.Contains(name, "/") {
+		i := strings.LastIndex(name, "/")
+		ns, base := name[:i], name[i+1:]
+		if version != "" {
+			return fmt.Sprintf("pkg:swift/%s/%s@%s", ns, url.PathEscape(base), url.PathEscape(version))
+		}
+		return fmt.Sprintf("pkg:swift/%s/%s", ns, url.PathEscape(base))
+	}
+
 	// Maven group:artifact → pkg:maven/group/artifact
 	if purlType == "maven" && strings.Contains(name, ":") {
 		parts := strings.SplitN(name, ":", 2)
