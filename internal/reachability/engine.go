@@ -13,8 +13,9 @@ import (
 // is safe for concurrent use; parsers are not shared but are pooled per
 // language.
 type Engine struct {
-	mu    sync.Mutex
-	pools map[treesitter.LanguageID]*parserPool
+	mu      sync.Mutex
+	pools   map[treesitter.LanguageID]*parserPool
+	queries map[string]compiledQuery
 }
 
 // NewEngine returns a fresh engine.
@@ -57,23 +58,53 @@ type QueryMatch struct {
 
 // Run parses source as the given language and executes queryText against
 // it, returning every top-level match.
-func (e *Engine) Run(ctx context.Context, id treesitter.LanguageID, source []byte, queryText string) (matches []QueryMatch, err error) {
-	// go-tree-sitter compiles every #match? / #not-match? pattern with
-	// regexp.MustCompile while filtering matches, so a query whose regex does not compile
-	// panics instead of failing. Queries come from the server, and one bad pattern used to
-	// crash the whole scan (exit status 2). It costs that query only.
-	defer func() {
-		if r := recover(); r != nil {
-			matches, err = nil, fmt.Errorf("query failed: %v", r)
+func (e *Engine) Run(ctx context.Context, id treesitter.LanguageID, source []byte, queryText string) ([]QueryMatch, error) {
+	matches, errs := e.RunAll(ctx, id, source, []string{queryText})
+	return matches[0], errs[0]
+}
+
+// RunAll runs every query in queryTexts against one parse of source, returning
+// each query's matches and error in the same order.
+//
+// A scan runs a hundred-odd queries against each file. Running them one Run at
+// a time parsed the file and compiled the query again for every one; the tree
+// is the same for every query and a compiled query is the same for every file,
+// so the file is parsed once here and each query is compiled once per engine.
+// Each query still fails on its own: a bad pattern costs that query only.
+func (e *Engine) RunAll(ctx context.Context, id treesitter.LanguageID, source []byte, queryTexts []string) ([][]QueryMatch, []error) {
+	matches := make([][]QueryMatch, len(queryTexts))
+	errs := make([]error, len(queryTexts))
+	fail := func(err error) ([][]QueryMatch, []error) {
+		for i := range errs {
+			matches[i], errs[i] = nil, err
 		}
-	}()
+		return matches, errs
+	}
 	pp := e.poolFor(id)
 	if pp == nil {
-		return nil, fmt.Errorf("unsupported language %q", id)
+		return fail(fmt.Errorf("unsupported language %q", id))
 	}
-	parser := pp.pool.Get().(*sitter.Parser)
+	tree, release, err := e.parse(ctx, pp, source)
+	if err != nil {
+		return fail(err)
+	}
+	defer release()
+	for i, text := range queryTexts {
+		matches[i], errs[i] = e.exec(pp, tree, source, text)
+	}
+	return matches, errs
+}
 
-	tree, err := parser.ParseCtx(ctx, nil, source)
+// parse parses source with a pooled parser. release closes the tree and then
+// returns the parser to the pool, in that order, as Run always did.
+func (e *Engine) parse(ctx context.Context, pp *parserPool, source []byte) (tree *sitter.Tree, release func(), err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			tree, release, err = nil, nil, fmt.Errorf("parse failed: %v", r)
+		}
+	}()
+	parser := pp.pool.Get().(*sitter.Parser)
+	tree, err = parser.ParseCtx(ctx, nil, source)
 	if err != nil {
 		// A halted parse (cancellation or operation limit) leaves the parser
 		// holding its half-built state, and tree-sitter resumes it on the
@@ -82,28 +113,65 @@ func (e *Engine) Run(ctx context.Context, id treesitter.LanguageID, source []byt
 		// panics in Node.Content. A cancellation racing a completed parse can
 		// also leave go-tree-sitter's cancel flag set. Discard the parser.
 		parser.Close()
-		return nil, fmt.Errorf("parse failed: %w", err)
+		return nil, nil, fmt.Errorf("parse failed: %w", err)
 	}
-	defer pp.pool.Put(parser)
-	defer tree.Close()
 
 	// Belt and braces: never run predicates over a tree that does not
 	// describe this source.
 	if int(tree.RootNode().EndByte()) > len(source) {
-		return nil, fmt.Errorf("parse failed: tree spans %d bytes, source has %d", tree.RootNode().EndByte(), len(source))
+		span := tree.RootNode().EndByte()
+		tree.Close()
+		pp.pool.Put(parser)
+		return nil, nil, fmt.Errorf("parse failed: tree spans %d bytes, source has %d", span, len(source))
 	}
+	return tree, func() { tree.Close(); pp.pool.Put(parser) }, nil
+}
 
-	q, err := sitter.NewQuery([]byte(queryText), pp.lang)
-	if err != nil {
-		return nil, fmt.Errorf("query compile failed: %w", err)
+// compiledQuery is a query compiled once per engine, or the error compiling it
+// gave. A compiled query is read-only, so concurrent cursors may share it.
+type compiledQuery struct {
+	q   *sitter.Query
+	err error
+}
+
+func (e *Engine) compile(pp *parserPool, text string) (*sitter.Query, error) {
+	key := fmt.Sprintf("%p\x00%s", pp, text)
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.queries == nil {
+		e.queries = map[string]compiledQuery{}
 	}
-	defer q.Close()
+	if c, ok := e.queries[key]; ok {
+		return c.q, c.err
+	}
+	q, err := sitter.NewQuery([]byte(text), pp.lang)
+	if err != nil {
+		err = fmt.Errorf("query compile failed: %w", err)
+	}
+	e.queries[key] = compiledQuery{q: q, err: err}
+	return q, err
+}
+
+// exec runs one query over a parsed tree.
+func (e *Engine) exec(pp *parserPool, tree *sitter.Tree, source []byte, text string) (out []QueryMatch, err error) {
+	// go-tree-sitter compiles every #match? / #not-match? pattern with
+	// regexp.MustCompile while filtering matches, so a query whose regex does not compile
+	// panics instead of failing. Queries come from the server, and one bad pattern used to
+	// crash the whole scan (exit status 2). It costs that query only.
+	defer func() {
+		if r := recover(); r != nil {
+			out, err = nil, fmt.Errorf("query failed: %v", r)
+		}
+	}()
+	q, err := e.compile(pp, text)
+	if err != nil {
+		return nil, err
+	}
 
 	qc := sitter.NewQueryCursor()
 	defer qc.Close()
 	qc.Exec(q, tree.RootNode())
 
-	var out []QueryMatch
 	for {
 		m, ok := qc.NextMatch()
 		if !ok {

@@ -260,8 +260,13 @@ func runFileQueries(ctx context.Context, engine *Engine, path string, lang trees
 	}
 	var matches []Match
 	var executed []string
-	for _, q := range qs {
-		ms, err := engine.Run(ctx, lang, src, q.QueryText)
+	texts := make([]string, len(qs))
+	for i, q := range qs {
+		texts[i] = q.QueryText
+	}
+	all, errs := engine.RunAll(ctx, lang, src, texts)
+	for i, q := range qs {
+		ms, err := all[i], errs[i]
 		if err != nil {
 			// Bad query for this grammar version; keep scanning.
 			continue
