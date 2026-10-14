@@ -240,8 +240,15 @@ jobs:
         env:
           GOTMPDIR: ${{ runner.temp }}
         run: |
-          sleep 30
-          go install github.com/vulnetix/cli/v3@latest
+          # The proxy learns of a new tag some time after it is pushed, and
+          # @latest can resolve to an old major meanwhile. Ask for this tag, and
+          # retry while the proxy catches up.
+          VERSION=${{ needs.release.outputs.version }}
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            go install github.com/vulnetix/cli/v3@${VERSION} && break
+            [ "$i" = 10 ] && exit 1
+            sleep 30
+          done
           vulnetix --help || echo "Binary not found in PATH"
 
       - name: Test specific version install
