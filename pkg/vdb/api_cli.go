@@ -476,11 +476,14 @@ type CliControlFlag struct {
 // CliFinalizeResponse is the success body.
 type CliFinalizeResponse struct {
 	Persisted bool `json:"persisted"`
+	// Deferred: the API recorded the request to be saved after its answer.
+	Deferred bool `json:"deferred,omitempty"`
 }
 
 // CliSCAReachabilityResponse is the success body.
 type CliSCAReachabilityResponse struct {
 	Persisted   int    `json:"persisted"`
+	Deferred    bool   `json:"deferred,omitempty"`
 	SBOMUrl     string `json:"sbomUrl,omitempty"`
 	VEXUrl      string `json:"vexUrl,omitempty"`
 	OpenVexUuid string `json:"openVexUuid,omitempty"`
@@ -1963,4 +1966,27 @@ type CliLicensesData struct {
 // CliLicenses asks for the licences earlier scans resolved (POST /v2/cli.licenses).
 func (c *Client) CliLicenses(ctx context.Context, env CliEnv, req CliLicensesRequest) (*CliResponse[CliLicensesData], error) {
 	return cliPostWithEnvContext[CliLicensesData](ctx, c, "cli.licenses", env, req)
+}
+
+// CliSCAReachabilityDeferred is CliSCAReachability for a caller that does not
+// read the answer: the API answers at once ({"deferred": true}, no counts or
+// URLs) and records the results after the response. An API that predates
+// deferral answers in full.
+func (c *Client) CliSCAReachabilityDeferred(env CliEnv, req CliSCAReachabilityRequest) (*CliResponse[CliSCAReachabilityResponse], error) {
+	return cliPostDeferred[CliSCAReachabilityResponse](c, "cli.sca-reachability", env, req)
+}
+
+// CliFinalizeDeferred is CliFinalize answered at once, recorded after the
+// response (see CliSCAReachabilityDeferred).
+func (c *Client) CliFinalizeDeferred(env CliEnv, req CliFinalizeRequest) (*CliResponse[CliFinalizeResponse], error) {
+	return cliPostDeferred[CliFinalizeResponse](c, "cli.finalize", env, req)
+}
+
+// cliPostDeferred is cliPostWithEnv carrying X-Vulnetix-Deferred.
+func cliPostDeferred[T any](c *Client, route string, env CliEnv, payload any) (*CliResponse[T], error) {
+	raw, err := c.doRequestWithHeaders("POST", "/"+route, cliRequestEnvelope{Env: env, Payload: payload}, map[string]string{"X-Vulnetix-Deferred": "1"})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", route, err)
+	}
+	return decodeCliResponse[T](raw)
 }
