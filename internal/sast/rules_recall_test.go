@@ -2,6 +2,7 @@ package sast
 
 import (
 	"io"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,6 +18,9 @@ import (
 func TestFixtureAppRecall(t *testing.T) {
 	if testing.Short() {
 		t.Skip("evaluates the full embedded ruleset")
+	}
+	if _, err := os.Stat("../../testdata/vulnetix-fixture-app/src/vuln.go"); err != nil {
+		t.Skip("the fixture app is a private submodule and is not checked out")
 	}
 	all, err := LoadAllModules(DefaultRulesFS, false, nil, "", io.Discard)
 	require.NoError(t, err)
