@@ -36,3 +36,22 @@ func TestStoredLicensesFillOnlyUnknownPackages(t *testing.T) {
 		t.Fatalf("a package the API does not know was changed: %+v", pkgs[2])
 	}
 }
+
+func TestStoredLicensesAreKeptLocallyForTheNextScan(t *testing.T) {
+	calls := 0
+	StoredLicenses = func(pkgs []PackageLicense) map[int]string {
+		calls++
+		return map[int]string{0: "BSD-2-Clause"}
+	}
+	defer func() { StoredLicenses = nil }()
+	for i := 0; i < 2; i++ {
+		pkgs := []PackageLicense{{PackageName: "kept-locally", PackageVersion: "1.0", Ecosystem: "npm", LicenseSpdxID: "UNKNOWN"}}
+		applyStoredLicenses(pkgs)
+		if pkgs[0].LicenseSpdxID != "BSD-2-Clause" {
+			t.Fatalf("run %d: %+v", i, pkgs[0])
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("asked the API %d times; the second scan should answer from the local store", calls)
+	}
+}
