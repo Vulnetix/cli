@@ -13,6 +13,7 @@
 //	sasteff check -base D -clean f -vuln f stem   cases, corpus hits and cost, original vs current
 //	sasteff compare -base D -snapshot f           every rule, original vs current: findings, cost, outliers
 //	sasteff bench -snapshot f -labels P=csv stem   score against OWASP Benchmark labels
+//	sasteff cofire -snapshot f[,f...]              rule pairs that report the same lines
 //
 // Every command reads rules from -rules (default internal/sast/rules) on disk,
 // so an edited rule is measured without rebuilding. Run from the repository
@@ -61,6 +62,8 @@ func main() {
 		os.Exit(runCheck(args))
 	case "compare":
 		os.Exit(runCompare(args))
+	case "cofire":
+		os.Exit(runCofire(args))
 	default:
 		usage()
 	}
