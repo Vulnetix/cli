@@ -3,6 +3,7 @@ package reachability
 import (
 	"context"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/vulnetix/cli/v3/internal/treesitter"
@@ -39,5 +40,36 @@ func main() {
 	}
 	if len(all[0]) == 0 || len(all[1]) != 1 || errs[2] == nil || errs[3] == nil {
 		t.Fatalf("fixture drifted: %v %v", all, errs)
+	}
+}
+
+// Files run at once share one engine, so the same queries compile concurrently;
+// each must compile once and every file must see the same results.
+func TestRunAllConcurrentFilesShareCompiledQueries(t *testing.T) {
+	src := []byte("package main\n\nfunc main() { println(\"hi\") }\n")
+	queries := []string{
+		`(call_expression function: (identifier) @fn (#eq? @fn "println")) @call`,
+		`(function_declaration name: (identifier) @name)`,
+		`(this is not a valid query`,
+	}
+	ctx := context.Background()
+	want, wantErrs := NewEngine().RunAll(ctx, treesitter.LangGo, src, queries)
+	e := NewEngine()
+	var wg sync.WaitGroup
+	for range 16 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got, errs := e.RunAll(ctx, treesitter.LangGo, src, queries)
+			for i := range queries {
+				if !reflect.DeepEqual(got[i], want[i]) || (errs[i] == nil) != (wantErrs[i] == nil) {
+					t.Errorf("query %d: got %+v (%v), want %+v (%v)", i, got[i], errs[i], want[i], wantErrs[i])
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	if len(e.queries) != len(queries) {
+		t.Fatalf("compiled %d queries, want %d", len(e.queries), len(queries))
 	}
 }

@@ -3,6 +3,7 @@ package reachability
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"sync"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -15,7 +16,7 @@ import (
 type Engine struct {
 	mu      sync.Mutex
 	pools   map[treesitter.LanguageID]*parserPool
-	queries map[string]compiledQuery
+	queries map[string]*compiledQuery
 }
 
 // NewEngine returns a fresh engine.
@@ -89,6 +90,7 @@ func (e *Engine) RunAll(ctx context.Context, id treesitter.LanguageID, source []
 		return fail(err)
 	}
 	defer release()
+	e.precompile(pp, queryTexts)
 	for i, text := range queryTexts {
 		matches[i], errs[i] = e.exec(pp, tree, source, text)
 	}
@@ -130,26 +132,66 @@ func (e *Engine) parse(ctx context.Context, pp *parserPool, source []byte) (tree
 // compiledQuery is a query compiled once per engine, or the error compiling it
 // gave. A compiled query is read-only, so concurrent cursors may share it.
 type compiledQuery struct {
-	q   *sitter.Query
-	err error
+	once sync.Once
+	q    *sitter.Query
+	err  error
 }
 
+// compile returns text compiled for pp's language, compiling it on first use.
+// Compiles of different queries run at once: the engine's lock only covers the
+// map, and each entry compiles once however many callers ask for it.
 func (e *Engine) compile(pp *parserPool, text string) (*sitter.Query, error) {
 	key := fmt.Sprintf("%p\x00%s", pp, text)
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	if e.queries == nil {
-		e.queries = map[string]compiledQuery{}
+		e.queries = map[string]*compiledQuery{}
 	}
-	if c, ok := e.queries[key]; ok {
-		return c.q, c.err
+	c, ok := e.queries[key]
+	if !ok {
+		c = &compiledQuery{}
+		e.queries[key] = c
 	}
-	q, err := sitter.NewQuery([]byte(text), pp.lang)
-	if err != nil {
-		err = fmt.Errorf("query compile failed: %w", err)
+	e.mu.Unlock()
+	c.once.Do(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				c.q, c.err = nil, fmt.Errorf("query compile failed: %v", r)
+			}
+		}()
+		q, err := sitter.NewQuery([]byte(text), pp.lang)
+		if err != nil {
+			err = fmt.Errorf("query compile failed: %w", err)
+		}
+		c.q, c.err = q, err
+	})
+	return c.q, c.err
+}
+
+// precompile compiles queryTexts across the CPUs before they run. A query
+// compile is CPU-bound and, for a large grammar such as Ruby's, costs tens of
+// milliseconds, so a scan's hundred-odd queries compiled one after another
+// held a single-file scan for seconds. Each query still compiles once.
+func (e *Engine) precompile(pp *parserPool, queryTexts []string) {
+	workers := min(runtime.GOMAXPROCS(0), len(queryTexts))
+	if workers < 2 {
+		return
 	}
-	e.queries[key] = compiledQuery{q: q, err: err}
-	return q, err
+	next := make(chan string)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for text := range next {
+				_, _ = e.compile(pp, text)
+			}
+		}()
+	}
+	for _, text := range queryTexts {
+		next <- text
+	}
+	close(next)
+	wg.Wait()
 }
 
 // exec runs one query over a parsed tree.
