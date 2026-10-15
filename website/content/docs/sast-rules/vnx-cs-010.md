@@ -14,7 +14,7 @@ Deliberately not reported:
 
 - A password read from configuration, the environment or a variable: `string.Format("...Password={0}", ...)`, `$"...Password={pwd}"`, `"...Password=" + pwd`, `builder.Password = _config["Db:Password"]`.
 - An empty value (`Password=;`), Integrated Security and managed-identity strings.
-- Placeholders: `<password>`, `[password]`, `myPassword`, `YOUR_PASSWORD`, `***`, `#{DbPassword}#`, `$(SqlPassword)`, `%DB_PASS%`, `__DB_PASSWORD__`, `@p`.
+- Placeholders: `<password>`, `[password]`, `myPassword`, `YOUR_PASSWORD`, `***`, `#{DbPassword}#`, `$(SqlPassword)`, `%DB_PASS%`, `__DB_PASSWORD__`, `$DB_PASSWORD`, `REPLACE_ME`, `TODO`, `@p`.
 - SQL text that compares or sets a `Password` column, and code that redacts or inspects a connection string.
 - Comments, test projects (`tests/`, `*.Tests/`, `*.IntegrationTests/`, `*Tests.cs`), and configuration files such as `appsettings.json` and `Web.config`, which other rules cover.
 - URI-form connection strings (`postgres://user:pass@host`) are reported by VNX-SEC-008, Azure `AccountKey`/`SharedAccessKey` values by the generated secret rules, and a plain `string password = "..."` by VNX-259. A connection string spread over the lines of one multi-line verbatim literal is not seen.

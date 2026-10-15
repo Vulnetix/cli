@@ -1,0 +1,9 @@
+<settings>
+  <servers>
+    <server>
+      <id>internal</id>
+      <username>deployer</username>
+      <password>{@@sample:C[O]QL[C]E6[D]U6[G]tc[S]5P[=]@@}</password>
+    </server>
+  </servers>
+</settings>

@@ -1,0 +1,5 @@
+services:
+  api:
+    environment:
+      MONGO_URL: mongodb://root:example@mongo:27017/
+      MONGO_LOCAL: mongodb://app:Qw9eR4tY7uI2@127.0.0.1:27017/app

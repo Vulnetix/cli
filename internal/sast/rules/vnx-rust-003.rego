@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUST-003",
 	"name": "Rust unsafe code without a safety justification",
-	"description": "An unsafe block or expression (unsafe { ... }, including let x = unsafe { ... } and match unsafe { ... }), an unsafe fn declaration (any visibility, const/async/extern \"C\" qualifiers) or an unsafe impl (Send, Sync or another unsafe trait) has no safety justification: neither a trailing comment on the same line nor the comment block directly above it (doc comments and attributes included) says why it is sound (SAFETY:, # Safety, safe, sound, invariant, guarantee, undefined behaviour). Unsafe Rust opts out of the compiler's memory-safety checks, and an undocumented unsafe region is one whose invariants nobody has written down, which is where buffer overflows and use-after-free enter Rust code. Not reported: unsafe regions that carry such a comment (the clippy undocumented_unsafe_blocks / missing_safety_doc convention), the word unsafe in a string literal, a comment, an identifier or a lint attribute such as #![forbid(unsafe_code)]. The rule does not judge whether the justification is correct.",
+	"description": "An unsafe block or expression (unsafe { ... }, including let x = unsafe { ... } and match unsafe { ... }), an unsafe fn declaration (any visibility, const/async/extern \"C\" qualifiers) or an unsafe impl (Send, Sync or another unsafe trait) has no safety justification: neither a trailing comment on the same line, nor the comment block directly above it (doc comments and attributes included) or above the statement it continues (`let slice =` on one line, `unsafe { ... };` on the next), nor a comment on the first line inside an `unsafe {` block says why it is sound (SAFETY:, # Safety, safe, sound, invariant, guarantee, undefined behaviour). Unsafe Rust opts out of the compiler's memory-safety checks, and an undocumented unsafe region is one whose invariants nobody has written down, which is where buffer overflows and use-after-free enter Rust code. Not reported: unsafe regions that carry such a comment (the clippy undocumented_unsafe_blocks / missing_safety_doc convention), the word unsafe in a string literal (including the lines of a multi-line raw string r#\"...\"#, as code generators write), a comment, an identifier or a lint attribute such as #![forbid(unsafe_code)]. The rule does not judge whether the justification is correct.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-003/",
 	"languages": ["rust"],
 	"severity": "medium",
@@ -51,8 +51,54 @@ _justified(lines, i) if {
 	regex.match(_justify_re, concat("//", array.slice(parts, 1, count(parts))))
 }
 
-# The contiguous comment/attribute block directly above (up to 25 lines).
+_justified(lines, i) if _justified_above(lines, i)
+
+# The unsafe region is part of a statement that starts up to three lines
+# higher (`let slice =` / `foo(` on the line above), and that statement
+# carries the comment.
 _justified(lines, i) if {
+	i > 0
+	some j in numbers.range(max([0, i - 3]), i - 1)
+	not _statement_break(lines, j, i)
+	_justified_above(lines, j)
+}
+
+# The block opens with the comment as its first line (`unsafe {` then
+# `// SAFETY: ...`), the other placement codebases use.
+_justified(lines, i) if {
+	regex.match(`\bunsafe\s*\{\s*$`, _code(lines[i]))
+	i + 1 < count(lines)
+	helpers.is_comment_line(lines[i + 1])
+	regex.match(_justify_re, lines[i + 1])
+}
+
+_statement_break(lines, j, i) if {
+	some k in numbers.range(j, i - 1)
+	helpers.is_comment_line(lines[k])
+}
+
+_statement_break(lines, j, i) if {
+	some k in numbers.range(j, i - 1)
+	regex.match(`(?:^\s*|[;{}])\s*$`, _code(lines[k]))
+}
+
+# The line sits inside a multi-line raw string literal (r#"..."#) opened
+# above, as code generators and templates write: it is text, not code.
+_in_raw_string(lines, i) if {
+	not contains(lines[i], "\"#")
+	some j in numbers.range(max([0, i - 40]), i - 1)
+	regex.match(`\br#+"[^"]*$`, lines[j])
+	not _raw_closed(lines, j, i)
+}
+
+_raw_closed(lines, j, i) if {
+	j + 1 <= i - 1
+	some k in numbers.range(j + 1, i - 1)
+	contains(lines[k], "\"#")
+}
+
+# The contiguous comment/attribute block directly above (up to 25 lines).
+_justified_above(lines, i) if {
 	i > 0
 	some j in numbers.range(max([0, i - 25]), i - 1)
 	helpers.is_comment_line(lines[j])
@@ -83,6 +129,7 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	k := _kind(_code(line))
 	not _justified(lines, i)
+	not _in_raw_string(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": _message(k),

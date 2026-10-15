@@ -1,0 +1,4 @@
+<configuration>
+  <logger name="org.apache.kafka" level="OFF"/>
+  <root level="INFO"/>
+</configuration>

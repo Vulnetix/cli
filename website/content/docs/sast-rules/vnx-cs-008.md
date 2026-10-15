@@ -1,6 +1,6 @@
 ---
 title: "VNX-CS-008 – C# SSRF via WebClient or HttpClient with User-Supplied URL"
-description: "Detects C# HttpClient, WebClient, WebRequest.Create, HttpRequestMessage, RestClient and BaseAddress/RequestUri URLs whose scheme and host come from HTTP request data or a controller action parameter, with no host allowlist check."
+description: "Detects C# HttpClient, WebClient, WebRequest.Create, HttpRequestMessage, RestClient, Flurl and BaseAddress/RequestUri URLs whose scheme and host come from HTTP request data or a controller action parameter, with no host allowlist check."
 ---
 
 ## Overview
@@ -36,6 +36,9 @@ using (var wc = new WebClient())
 
 // FLAGGED: the host is interpolated after the scheme
 var res = await http.GetAsync($"http://{host}/status");
+
+// FLAGGED: Flurl sends to the string it is called on
+var result = await callbackUrl.WithHeader("X-Test", "1").PostJsonAsync(body);
 
 // NOT FLAGGED: the host is fixed, the value only fills the path
 var res = await _client.GetAsync($"/api/catalog-items/{id}");

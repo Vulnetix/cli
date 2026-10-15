@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-011 – Hardcoded JWT Token"
-description: "Detects hardcoded JSON Web Tokens in source code, which expose authentication material and session claims in version history."
+description: "Detects a signed JSON Web Token that decodes (JSON header and payload, alg other than none, not expired) in any file outside tests and prose; the jwt.io sample token, Supabase anon keys and the Supabase local demo keys are not reported."
 ---
 
 ## Overview
 
-This rule detects JSON Web Tokens (JWTs) matching the pattern `eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}` in source files. JWTs are Base64url-encoded tokens with three dot-separated parts: a header (starts with `eyJ`), a payload, and a signature. They are widely used for authentication and session management. Hardcoding a JWT in source code exposes the token and all its claims — including user identity, roles, and permissions — in version history where it may remain accessible indefinitely.
+This rule detects signed JSON Web Tokens: three base64url segments whose header and payload decode to JSON objects, whose header names a signing algorithm other than `none`, and whose `exp` claim (if any) is still in the future. Tokens in test, spec, fixture and mock paths, in Markdown and other prose files, the public jwt.io sample token (`sub` 1234567890, John Doe), and Supabase anon keys (`role: anon`, public by design) are not reported. JWTs are Base64url-encoded tokens with three dot-separated parts: a header (starts with `eyJ`), a payload, and a signature. They are widely used for authentication and session management. Hardcoding a JWT in source code exposes the token and all its claims — including user identity, roles, and permissions — in version history where it may remain accessible indefinitely.
 
 **Severity:** High | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 
@@ -20,14 +20,8 @@ Hardcoded JWTs commonly appear in test fixtures, where developers create tokens 
 ## What Gets Flagged
 
 ```python
-# FLAGGED: JWT hardcoded as a test or default token
-import jwt
-
-# Hardcoded long-lived admin token
-ADMIN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkFkbWluIiwicm9sZSI6ImFkbWluIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-
-def verify_token(token):
-    return jwt.decode(token, options={"verify_signature": False})
+# FLAGGED: a long-lived service token committed as a default
+SERVICE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyZXBvcnQtd29ya2VyIiwicm9sZSI6InNlcnZpY2UifQ.<signature>"
 ```
 
 ```javascript

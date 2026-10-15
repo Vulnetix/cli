@@ -42,8 +42,8 @@ router.post('/documents', upload.single('file'), async (req, res, next) => {
 
 - The same work split into helpers that each call fewer than 40 things (`validate`, `price`, `persist`, `notifyParties`).
 - A long function that repeats a few calls (`out.write(format_row(...))` sixty times).
-- SQL functions inside a query string (`COUNT(`, `COALESCE(`), and calls in comments.
-- Test files, vendored or minified code, front-end libraries in `static/js/libs` and similar, and AMD `define([...], function () {...})` module wrappers.
+- SQL functions inside a query string or a PHP/Ruby heredoc (`COUNT(`, `COALESCE(`), and calls in comments.
+- Test files, vendored or minified code, front-end libraries in `static/js/libs` and similar, AMD `define([...], function () {...})` module wrappers and whole-page DOM-ready wrappers (`$(document).ready(function () {...})`, `DOMContentLoaded` listeners).
 
 ## Remediation
 

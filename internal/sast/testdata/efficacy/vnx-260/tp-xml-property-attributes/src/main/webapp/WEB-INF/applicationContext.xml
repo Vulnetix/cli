@@ -1,0 +1,10 @@
+<beans>
+  <bean id="dataSource" class="@@sample:o[r]g[.][a]pa[c]he[.]co[m]mo[n]s[.][d]bc[p]2[.][B]as[i]cD[a]ta[S]ou[r]ce@@">
+    <property name="username" value="app"/>
+~>    <property name="password" value="Spr1ng-DS-pass"/>
+  </bean>
+  <util:properties id="mail">
+~>    <entry key="mail.password" value="Mail!Relay77"/>
+~>    <prop key="smtp.password">Mail!Relay77</prop>
+  </util:properties>
+</beans>

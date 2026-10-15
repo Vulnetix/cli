@@ -1,0 +1,7 @@
+{
+  "name": "sandbox",
+  "dependencies": {
+~>    "vm2": "^3.9.19",
+~>    "node-serialize": "0.0.4"
+  }
+}

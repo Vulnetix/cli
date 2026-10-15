@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body>
+~><button onclick='new ActiveXObject("WScript.Shell").Run("notepad.exe")'>Open editor</button>
+<script type="text/javascript">
+  function saveLog(text) {
+~>    var fs = new ActiveXObject( 'Scripting.FileSystemObject' );
+    var f = fs.CreateTextFile("C:\\logs\\out.txt", true);
+    f.WriteLine(text);
+  }
+</script>
+</body>
+</html>

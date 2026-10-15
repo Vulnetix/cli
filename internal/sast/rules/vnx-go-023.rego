@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-023",
 	"name": "SQL injection via string concatenation",
-	"description": "A value is concatenated onto SQL text where SQL expects a literal: after an opening single quote (name = '\" + name + \"', LIKE '%\" + term + \"%', IN ('\" + strings.Join(ids, \"','\") + \"')) or straight after a comparison (id = \" + id). Reported when the concatenation is inside the query argument of a database call (Exec, Query, QueryRow, Prepare and their Context variants, sqlx, GORM Raw); when the statement is assigned (:=, =, +=) to a variable a later line of the function passes to such a call; or when it is a complete statement (SELECT ... FROM, INSERT INTO, UPDATE ... SET, DELETE FROM) assigned or returned. Statements split over several lines with + and raw strings that span lines are read whole, and the finding is on the line of the concatenation. A value in any other position (ORDER BY \" + col, FROM \" + table) is reported only when it is an HTTP request value or a variable assigned from one. Not reported: fragments the function built itself (\" WHERE \" + strings.Join(clauses, \" AND \"), a constant column list, a FROM clause), bind-parameter numbers ($\" + strconv.Itoa(n)), values converted or quoted for SQL (strconv, QuoteLiteral), concatenations in messages, URLs, log lines and command arguments that are never run as a query, string literals, comments and test files.",
+	"description": "A value is concatenated onto SQL text where SQL expects a literal: after an opening single quote (name = '\" + name + \"', LIKE '%\" + term + \"%', IN ('\" + strings.Join(ids, \"','\") + \"')) or straight after a comparison (id = \" + id). Reported when the concatenation is inside the query argument of a database call (Exec, Query, QueryRow, Prepare and their Context variants, sqlx, GORM Raw and the string-condition builders Where, Having, Joins, Order, Group); when the statement is assigned (:=, =, +=) to a variable a later line of the function passes to such a call; or when it is a complete statement (SELECT ... FROM, INSERT INTO, UPDATE ... SET, DELETE FROM) assigned or returned. Statements split over several lines with + and raw strings that span lines are read whole, and the finding is on the line of the concatenation. A value in any other position (ORDER BY \" + col, FROM \" + table) is reported only when it is an HTTP request value or a variable assigned from one. Not reported: fragments the function built itself (\" WHERE \" + strings.Join(clauses, \" AND \"), a constant column list, a FROM clause), bind-parameter numbers ($\" + strconv.Itoa(n)), values converted or quoted for SQL (strconv, QuoteLiteral), concatenations in messages, URLs, log lines and command arguments that are never run as a query, string literals, comments and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-023/",
 	"languages": ["go"],
 	"severity": "high",
@@ -21,7 +21,7 @@ metadata := {
 	"tags": ["sql-injection", "database", "query"],
 }
 
-_db_strong := `Exec|ExecContext|Query|QueryContext|QueryRow|QueryRowContext|Prepare|PrepareContext|Queryx|QueryxContext|QueryRowx|QueryRowxContext|MustExec|MustExecContext|NamedExec|NamedExecContext|NamedQuery|NamedQueryContext|Raw`
+_db_strong := `Exec|ExecContext|Query|QueryContext|QueryRow|QueryRowContext|Prepare|PrepareContext|Queryx|QueryxContext|QueryRowx|QueryRowxContext|MustExec|MustExecContext|NamedExec|NamedExecContext|NamedQuery|NamedQueryContext|Raw|Where|Having|Joins|Order|Group`
 
 _db_weak := `Select|SelectContext|Get|GetContext`
 
@@ -41,7 +41,7 @@ _sql_kw := `(?i)\b(?:select|insert|update|delete|from|where|set|values|join|orde
 
 _sql_stmt := `(?i)\b(?:select\b[\s\S]+\bfrom|insert\s+into|update\s+\S+\s+set|delete\s+from|merge\s+into|replace\s+into)\b`
 
-_req_src := `\b(?:r|req|request)\.(?:FormValue|PostFormValue|PathValue)\(|\b(?:r|req|request)\.(?:URL\.(?:Query\(|RawQuery|Path)|Header\.Get\()|\bmux\.Vars\(|\bchi\.URLParam\(|\b(?:c|ctx|g|e)\.(?:Query|DefaultQuery|Param|Params|PostForm|DefaultPostForm|FormValue|QueryParam|GetHeader)\(|\.ByName\(`
+_req_src := `\b(?:r|req|request|(?:c|ctx)\.Request)\.(?:FormValue|PostFormValue|PathValue)\(|\b(?:r|req|request|(?:c|ctx)\.Request)\.(?:URL\.(?:Query\(|RawQuery|Path)|Header\.Get\()|\bmux\.Vars\(|\bchi\.URLParam\(|\b(?:c|ctx|g|e)\.(?:Query|DefaultQuery|Param|Params|PostForm|DefaultPostForm|FormValue|QueryParam|GetHeader)\(|\.ByName\(`
 
 _strip_str(s) := regex.replace(s, `"(?:[^"\\\n]|\\.)*"|\x60[^\x60]*\x60`, `""`)
 
@@ -224,7 +224,7 @@ findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".go")
 	regex.match(`(?m)["\x60]\s*\+`, content)
-	regex.match(`(?i)\b(?:select|insert|update|delete)\b`, content)
+	regex.match(`(?i)\b(?:select|insert|update|delete)\b|\.(?:Where|Having|Joins|Order|Group)\(`, content)
 	not helpers.is_test_path(path)
 	lines := split(content, "\n")
 	starts := [j | some j, l in lines; startswith(l, "func ")]

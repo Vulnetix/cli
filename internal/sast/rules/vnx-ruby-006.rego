@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUBY-006",
 	"name": "Ruby mass assignment",
-	"description": "Request parameters reach ActiveRecord attribute assignment without a strong-parameters allowlist: create/create!/update/update!/update_attributes/assign_attributes/attributes=/first_or_create/first_or_initialize/find_or_create_by/find_or_initialize_by/insert_all/upsert(_all) or Model.new given params, params[...], request.params, params.to_unsafe_h or a .permit! result, directly or through a variable assigned from one (up to two assignments, so a reject/merge on the raw hash still counts) in the 15 lines above; every .permit! call; and a .permit(...) list that admits a privilege attribute (admin, is_admin, role, role_id, roles, superuser, super_admin, permissions) outside an admin controller. Not reported: values filtered by params.require(...).permit(...) or .slice, a single scalar param (update(name: params[:name])), Model.new(params) with the whole bare params hash (form and service objects), Hash#update on option hashes, OpenStruct/Struct.new, comments and strings. Rails 4+ raises ForbiddenAttributesError for unpermitted ActionController::Parameters, so findings on raw params matter most for Sinatra, Rails 3 and apps that set permit_all_parameters.",
+	"description": "Request parameters reach ActiveRecord attribute assignment without a strong-parameters allowlist: create/create!/update/update!/update_attributes/assign_attributes/attributes=/first_or_create/first_or_initialize/find_or_create_by/find_or_initialize_by/insert_all/upsert(_all) or Model.new given params, params[...], request.params, params.to_unsafe_h or a .permit! result, directly or through a variable assigned from one (up to two assignments, so a reject/merge on the raw hash still counts) in the 15 lines above; every .permit! call; and a .permit(...) list that admits a privilege attribute (admin, is_admin, role, role_id, roles, role_ids, superuser, super_admin, site_admin, permissions, as a symbol or as a nested key such as permissions: []) outside an admin controller, including a list spread over the lines after permit( (reported on the attribute's line). Not reported: values filtered by params.require(...).permit(...) or .slice, a single scalar param (update(name: params[:name])), Model.new(params) with the whole bare params hash (form and service objects), Hash#update on option hashes, OpenStruct/Struct.new, comments and strings. Rails 4+ raises ForbiddenAttributesError for unpermitted ActionController::Parameters, so findings on raw params matter most for Sinatra, Rails 3 and apps that set permit_all_parameters.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-006/",
 	"languages": ["ruby"],
 	"severity": "high",
@@ -90,7 +90,34 @@ _unfiltered(lines, i, args) if {
 	m[0][1] in _tainted(lines, i)
 }
 
-_privileged_re := `:(?:admin|is_admin|role|role_id|roles|role_ids|superuser|super_admin|site_admin|permissions)\b`
+_priv_names := `admin|is_admin|role|role_id|roles|role_ids|superuser|super_admin|site_admin|permissions|permission_ids`
+
+# :admin as a symbol, or permissions: [] / roles: [] as a nested permit key.
+_privileged_re := concat("", [`:(?:`, _priv_names, `)\b|(?:^|[\s,(])(?:`, _priv_names, `):\s`])
+
+# A permit( list left open on its line continues on the next lines; each
+# privilege attribute is reported on its own line.
+findings contains finding if {
+	some path, content in input.file_contents
+	endswith(path, ".rb")
+	not _admin_path(path)
+	contains(content, ".permit(")
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, ".permit(")
+	not helpers.is_comment_line(line)
+	code := _code(line)
+	regex.match(`\.permit\([^)]*$`, code)
+	_outside_string(code, ".permit(")
+	some k in numbers.range(1, 12)
+	j := i + k
+	j < count(lines)
+	l := _code(lines[j])
+	regex.match(_privileged_re, l)
+	not helpers.is_comment_line(lines[j])
+	count([n | some n in numbers.range(i + 1, j); n < j; contains(_code(lines[n]), ")")]) == 0
+	finding := _finding(path, j, lines[j], "Strong parameters permit a privilege attribute (admin/role/permissions) from the request, letting users grant themselves rights; set it only from an authorised admin action")
+}
 
 _admin_path(path) if regex.match(`(?:^|/)admin/|admin\w*_controller\.rb$`, path)
 
@@ -121,7 +148,7 @@ findings contains finding if {
 	_gate(content)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`(?:create|update|assign_attributes|attributes|first_or|find_or|insert_all|upsert|build|\.new)\b`, line)
+	regex.match(`create|update|assign_attributes|attributes|first_or_|find_or_|insert_all|upsert|build|\.new\b`, line)
 	not helpers.is_comment_line(line)
 	code := _code(line)
 	some m in regex.find_all_string_submatch_n(_call_re, code, -1)

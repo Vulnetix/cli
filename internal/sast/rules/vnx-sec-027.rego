@@ -7,7 +7,7 @@ import data.vulnetix.lib.secrets
 metadata := {
 	"id": "VNX-SEC-027",
 	"name": "Hugging Face API token hardcoded",
-	"description": "Reports a Hugging Face user access token: hf_ followed by 34 to 40 letters or digits, delimited on both sides (so a longer snake_case identifier is not one), in any file including notebooks and .env files. Placeholders and low-entropy values, CamelCase identifiers that merely start with hf_ (hf_TokenizerFastLoader...), regular expressions for the token, environment lookups, and test and fixture paths are not reported.",
+	"description": "Reports a Hugging Face user access token: hf_ followed by 34 to 40 letters or digits, delimited on both sides (so a longer snake_case identifier is not one), in any file including notebooks and .env files. Placeholders and low-entropy values, CamelCase and lowerCamelCase identifiers that merely start with hf_ (hf_TokenizerFastLoader..., hf_parseModelCard...), regular expressions for the token, environment lookups, and test and fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-027/",
 	"languages": ["generic"],
 	"severity": "high",
@@ -27,6 +27,9 @@ _token_re := `(?:^|[^A-Za-z0-9_])(hf_[A-Za-z0-9]{34,40})(?:[^A-Za-z0-9_]|$)`
 # code, not a random token: a random 34-character string almost never avoids
 # two capitals in a row.
 _identifier(body) if regex.match(`^(?:[A-Z][a-z0-9]+)+$`, body)
+
+# lowerCamelCase (hf_parseModelCardFrontMatter...) is code as well.
+_identifier(body) if regex.match(`^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]+)+$`, body)
 
 findings contains finding if {
 	some path, content in input.file_contents

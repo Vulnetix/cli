@@ -1,0 +1,7 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android">
+    <EditText
+        android:id="@+id/password"
+        android:inputType="textPassword"
+        android:password="true"
+        android:hint="@string/password" />
+</LinearLayout>

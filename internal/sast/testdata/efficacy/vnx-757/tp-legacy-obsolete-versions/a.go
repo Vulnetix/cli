@@ -1,6 +1,7 @@
 package a
 
 ~>var cfg = &tls.Config{MinVersion: tls.VersionTLS10}
-~>const proto = "SSLv3"
-~>const old = "TLSv1"
-~>const older = "TLSv1.1"
+~>const sslProtocol = "SSLv3"
+~>const minProtocol = "TLSv1"
+~>const tlsVersion = "TLSv1.1"
+const label = "TLSv1"

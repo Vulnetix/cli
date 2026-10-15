@@ -1,0 +1,6 @@
+management:
+  endpoint:
+    shutdown:
+~>      enabled: true
+    health:
+      enabled: true

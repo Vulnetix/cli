@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-022 – PHP open redirect via non-literal redirect destination"
-description: "Detects header('Location: ...'), Laravel redirect()/Redirect::to()/away(), Symfony redirect()/RedirectResponse and wp_redirect() whose destination starts with a request value, inline or via a nearby variable, unless a literal prefix pins the host or path or the value is validated."
+description: "Detects header('Location: ...') (also multi-line or via sprintf), Laravel redirect()/Redirect::to()/away(), Symfony redirect()/RedirectResponse and wp_redirect() whose destination starts with a request value, inline or via a nearby variable, unless a literal prefix pins the host or path or the value is validated."
 ---
 
 ## Overview

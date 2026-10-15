@@ -1,0 +1,7 @@
+PASSWORD_RESET_TIMEOUT = "259200"
+PASSWORD_HASH_ROUNDS = "100000"
+otp_code = "123456"
+pin = "0000"
+bypass = "1234"
+compass_heading = "2700"
+password_min_length = "12"

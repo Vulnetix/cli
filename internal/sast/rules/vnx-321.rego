@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-321",
 	"name": "Hard-coded cryptographic key",
-	"description": "A variable or field named as a cryptographic key (secret_key, api_key, private_key, encryption_key, signing_key, hmac_key, aes_key, master_key) is assigned a literal that looks like key material: at least 16 characters with no spaces, not a placeholder or an environment lookup. A variable that merely ends in 'key' (a map key, a cache key, a loop variable named key) is not a cryptographic key, and its value is not a secret.",
+	"description": "A cryptographic key is written into the source, so anyone with the code can decrypt or forge what it protects. Reported, in Python, JavaScript/TypeScript, Java and Go: a variable, constant, field or config key named as a cryptographic key (secret_key, private_key, encryption_key, signing_key, hmac_key, aes_key, des_key, master_key, crypto_key, cipher_key, enc_key, jwt_secret) assigned a literal that looks like key material (at least 16 characters, no spaces unless it is an inline PEM private key, not a placeholder or an environment lookup), including config subscripts such as app.config[\"SECRET_KEY\"]; a literal of 8 or more characters assigned to any variable that one of the key APIs below consumes as its key within 15 lines (key = b\"...\" then AES.new(key, ...), byte[] keyBytes = \"...\".getBytes() then new SecretKeySpec(keyBytes, ...)); and a string or byte literal passed straight to a key API, including JWT HMAC secrets (jwt.sign/encode/verify/decode with a literal secret, Algorithm.HMAC256(\"...\")): pycryptodome AES/DES/ARC4 .new(), cryptography Fernet/AESGCM/ChaCha20Poly1305/algorithms.AES, hmac.new, Node crypto.createCipheriv/createDecipheriv/createHmac and CryptoJS AES/DES/TripleDES/Rabbit/RC4/Hmac*, Java new SecretKeySpec(\"...\".getBytes(), ...) and byte-array literals, Go aes.NewCipher/des.NewCipher/hmac.New with []byte(\"...\"). Not reported: names that merely end in key (map keys, cache keys, loop variables), API keys and passwords (credentials, covered by the secret rules), placeholders (changeme, your-..., example, xxxx, ${...}), environment and config lookups, short non-key strings assigned to key names, test files and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-321/",
 	"languages": ["go", "java", "node", "python"],
 	"severity": "high",
@@ -22,43 +22,132 @@ metadata := {
 	"tags": ["crypto", "hardcoded-key", "cwe-321"],
 }
 
-_skip(path) if endswith(path, ".lock")
+_exts := {".py", ".java", ".js", ".ts", ".go", ".mjs", ".cjs", ".jsx", ".tsx"}
 
-_skip(path) if endswith(path, ".sum")
-
-_skip(path) if endswith(path, ".min.js")
-
-_skip(path) if endswith(path, ".min.css")
-
-_skip(path) if endswith(path, ".min.html")
+_ext_ok(path) if {
+	some e in _exts
+	endswith(path, e)
+	not endswith(path, ".min.js")
+}
 
 # The name says it is a cryptographic key, as a whole identifier segment.
-_key_name := `(?i)\b(?:\w*[_\.\-])?(?:secret_?key|api_?key|private_?key|encryption_?key|signing_?key|hmac_?key|aes_?key|master_?key|crypto_?key|jwt_?secret|cipher_?key)\b["']?\s*(?::=|=|:)\s*(?:b|r|u)?["'\x60]([^"'\x60]*)["'\x60]`
+_key_name := `(?i)\b(?:\w*[_\.\-])?(?:secret_?key|private_?key|encryption_?key|signing_?key|sign_?key|hmac_?key|aes_?key|des_?key|master_?key|crypto_?key|cipher_?key|enc_?key|jwt_?secret)\b["']?\]?\s*(?::=|=|:)\s*(?:\[\]byte\(\s*)?(?:b|r|u)?["'\x60]([^"'\x60]*)["'\x60]`
+
+# A literal handed straight to a key API.
+_key_api := [
+	`\b(?:AES|DES|DES3|ARC4|Blowfish|ChaCha20|Salsa20)\.new\(\s*b?["']([^"']+)["']`,
+	`\b(?:Fernet|AESGCM|AESCCM|AESSIV|ChaCha20Poly1305|algorithms\.AES|algorithms\.TripleDES)\(\s*b?["']([^"']+)["']`,
+	`\bhmac\.new\(\s*b?["']([^"']+)["']`,
+	"\\bcreate(?:Cipheriv|Decipheriv)\\(\\s*['\"`][^'\"`]+['\"`]\\s*,\\s*(?:Buffer\\.from\\(\\s*)?['\"`]([^'\"`]+)['\"`]",
+	"\\bcreateHmac\\(\\s*['\"`][^'\"`]+['\"`]\\s*,\\s*['\"`]([^'\"`]+)['\"`]",
+	"\\bCryptoJS\\.(?:AES|DES|TripleDES|Rabbit|RC4|RC4Drop)\\.(?:encrypt|decrypt)\\([^,]+,\\s*['\"`]([^'\"`]+)['\"`]",
+	"\\bCryptoJS\\.Hmac\\w+\\([^,]+,\\s*['\"`]([^'\"`]+)['\"`]",
+	`\bnew\s+SecretKeySpec\(\s*"([^"]+)"\s*\.getBytes`,
+	`\bnew\s+SecretKeySpec\(\s*new\s+byte\s*\[\s*\]\s*\{(\s*\(?\s*(?:byte\)\s*)?-?(?:0x)?[0-9A-Fa-f]+[^}]*)\}`,
+	"\\b(?:aes|des)\\.New(?:TripleDES)?Cipher\\(\\s*\\[\\]byte\\(\\s*[\"`]([^\"`]+)[\"`]",
+	"\\bhmac\\.New\\([^,]+,\\s*\\[\\]byte\\(\\s*[\"`]([^\"`]+)[\"`]",
+	"\\bjwt\\.(?:sign|encode|verify|decode)\\(\\s*(?:\\{[^}]*\\}|[^,()]+(?:\\([^()]*\\))?)\\s*,\\s*b?['\"`]([^'\"`]+)['\"`]",
+	`\bAlgorithm\.HMAC(?:256|384|512)\(\s*"([^"]+)"`,
+]
+
+# The same APIs taking the key from a variable, as a prefix before the name.
+_key_sink_prefix := [
+	`\bnew\s+SecretKeySpec\(\s*`,
+	`\b(?:AES|DES|DES3|ARC4|Blowfish|ChaCha20|Salsa20)\.new\(\s*`,
+	`\b(?:Fernet|AESGCM|AESCCM|AESSIV|ChaCha20Poly1305|algorithms\.AES|algorithms\.TripleDES)\(\s*`,
+	`\bhmac\.new\(\s*`,
+	`\bcreate(?:Cipheriv|Decipheriv)\(\s*[^,]+,\s*(?:Buffer\.from\(\s*)?`,
+	`\bcreateHmac\(\s*[^,]+,\s*`,
+	`\b(?:aes|des)\.New(?:TripleDES)?Cipher\(\s*`,
+	`\bhmac\.New\([^,]+,\s*`,
+	`\bCryptoJS\.(?:AES|DES|TripleDES|Rabbit|RC4|RC4Drop)\.(?:encrypt|decrypt)\([^,]+,\s*`,
+	`\bjwt\.(?:sign|encode|verify|decode)\(\s*(?:\{[^}]*\}|[^,()]+(?:\([^()]*\))?)\s*,\s*`,
+	`\bAlgorithm\.HMAC(?:256|384|512)\(\s*`,
+]
+
+# name = "literal" (optionally []byte(...), Buffer.from(...), b"...", .getBytes()).
+_lit_assign := "^\\s*(?:[\\w\\[\\]<>.]+\\s+)*?([A-Za-z_]\\w*)\\s*(?::\\s*[\\w\\[\\]]+)?\\s*(?::=|=)\\s*(?:\\[\\]byte\\(\\s*|Buffer\\.from\\(\\s*)?(?:b|r|u)?['\"`]([^'\"`]{8,})['\"`]"
+
+# A literal assigned to a variable that a key API consumes within 15 lines.
+findings contains finding if {
+	some path, content in input.file_contents
+	_ext_ok(path)
+	not helpers.is_test_path(path)
+	_api_gate(content)
+	lines := split(content, "\n")
+	some j, line in lines
+	regex.match("=\\s*(?:\\[\\]byte\\(\\s*|Buffer\\.from\\(\\s*)?(?:b|r|u)?['\"`][^'\"`]{8,}['\"`]", line)
+	not helpers.is_comment_line(line)
+	m := regex.find_all_string_submatch_n(_lit_assign, line, 1)
+	count(m) > 0
+	v := m[0][1]
+	not _placeholder(m[0][2])
+	some k in numbers.range(j + 1, min([count(lines) - 1, j + 15]))
+	_api_gate(lines[k])
+	some p in _key_sink_prefix
+	regex.match(concat("", [p, v, `\b`]), lines[k])
+	finding := _finding(path, j, line)
+}
 
 # Not key material: placeholders, templates, lookups.
 _placeholder(v) if regex.match(`(?i)(changeme|change_me|your[_\-]|example|placeholder|xxxx|todo|dummy|sample|<|>|\$\{|\{\{|%[sdv]|process\.env|os\.environ|getenv)`, v)
 
+# Key material has no spaces, except an inline PEM private key.
+_key_shaped(v) if not contains(v, " ")
+
+_key_shaped(v) if regex.match(`^-----BEGIN [A-Z ]*PRIVATE KEY-----`, v)
+
+_api_lits := [".new(", "Fernet(", "AESGCM(", "AESCCM(", "AESSIV(", "Poly1305(", "algorithms.", "Cipheriv(", "createHmac(", "CryptoJS.", "SecretKeySpec(", "NewCipher(", "NewTripleDESCipher(", "hmac.New(", "jwt.sign(", "jwt.encode(", "jwt.verify(", "jwt.decode(", "Algorithm.HMAC"]
+
+_api_gate(s) if {
+	some x in _api_lits
+	contains(s, x)
+}
+
+_finding(path, i, line) := {
+	"rule_id": metadata.id,
+	"message": "Hard-coded cryptographic key: load it from a secrets manager or KMS and rotate the exposed one",
+	"artifact_uri": path,
+	"severity": metadata.severity,
+	"level": metadata.level,
+	"start_line": i + 1,
+	"snippet": line,
+}
+
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
+	some path, content in input.file_contents
+	_ext_ok(path)
 	not helpers.is_test_path(path)
-	some _ext in {".py", ".java", ".js", ".ts", ".go", ".mjs", ".jsx", ".tsx"}
-	endswith(path, _ext)
-	lines := split(input.file_contents[path], "\n")
+	# Case-sensitive gate: a case-insensitive alternation over every file is
+	# what made this rule slow.
+	regex.match(`(?:[Kk]ey|KEY|[Ss]ecret|SECRET)["']?\]?\s*(?::=|=|:)`, content)
+	lines := split(content, "\n")
 	some i, line in lines
+	regex.match(`(?:[Kk]ey|KEY|[Ss]ecret|SECRET)`, line)
+	regex.match(`(?i)(secret_?key|private_?key|encryption_?key|sign(ing)?_?key|hmac_?key|aes_?key|des_?key|master_?key|crypto_?key|cipher_?key|enc_?key|jwt_?secret)`, line)
 	not helpers.is_comment_line(line)
 	some hit in regex.find_all_string_submatch_n(_key_name, line, 3)
 	value := hit[1]
 	count(value) >= 16
-	not contains(value, " ")
+	_key_shaped(value)
 	not _placeholder(value)
-	finding := {
-		"rule_id": metadata.id,
-		"message": "Hard-coded cryptographic key — rotate into a secrets manager",
-		"artifact_uri": path,
-		"severity": metadata.severity,
-		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
-	}
+	finding := _finding(path, i, line)
+}
+
+findings contains finding if {
+	some path, content in input.file_contents
+	_ext_ok(path)
+	not helpers.is_test_path(path)
+	_api_gate(content)
+	lines := split(content, "\n")
+	some i, line in lines
+	_api_gate(line)
+	not helpers.is_comment_line(line)
+	some re in _key_api
+	some hit in regex.find_all_string_submatch_n(re, line, 2)
+	value := hit[1]
+	trim_space(value) != ""
+	not _placeholder(value)
+	not regex.match(`^\s*['"\x60]`, value)
+	finding := _finding(path, i, line)
 }

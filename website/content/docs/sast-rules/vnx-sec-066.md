@@ -1,11 +1,29 @@
 ---
 title: "VNX-SEC-066 – HTTP Bearer Authentication Header"
-description: "Detects HTTP Bearer authorization headers with non-trivial tokens."
+description: "Detects literal HTTP Bearer tokens: a \"Bearer <token>\" value of 20+ high-entropy characters written into code, scripts or request files."
 ---
 
 ## Overview
 
-This rule detects http bearer authentication header matching the `Authorization: Bearer ...` pattern hardcoded anywhere in source files. Detects HTTP Bearer authorization headers with non-trivial tokens.
+This rule reports the string `Bearer <token>` (an `Authorization` header in a `.http` file or YAML, a `curl -H` argument, a headers dict or object, a `Header.Set` call, a template literal, a constant, or the two-argument .NET `new AuthenticationHeaderValue("Bearer", "...")`) when the token is at least 20 characters, contains a digit or is a JWT, and has high entropy. The token is masked in the snippet.
+
+It does not report headers built from variables (`"Bearer " + token`, `${TOKEN}`, `$(gcloud auth print-access-token)`, `{{ .Values.token }}`), low-entropy or placeholder values (`invalid_token_format`, `YOUR_ACCESS_TOKEN`, the jwt.io sample token), comment lines, Markdown/reStructuredText/AsciiDoc, and test, fixture, vendored and generated files.
+
+## What Gets Flagged
+
+```sh
+curl -s -H 'Authorization: Bearer <40 random characters>' https://ci.acme-corp.io/api/v4/trigger
+```
+
+```python
+session.headers.update({"Authorization": "Bearer <32 random characters>"})
+```
+
+Not flagged:
+
+```sh
+curl -H "Authorization: Bearer ${GITLAB_TOKEN}" https://gitlab.acme-corp.io/api/v4/projects
+```
 
 **Severity:** High | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

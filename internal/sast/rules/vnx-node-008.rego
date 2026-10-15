@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-008",
 	"name": "Node.js open redirect",
-	"description": "A redirect whose target begins with request-controlled data: res/response.redirect([status,] url) (Express), ctx.redirect (Koa), reply.redirect (Fastify), h.redirect (hapi), res.location(url), a Location header set with res.writeHead(30x, { Location }) or res.setHeader/set/header('Location', url), and in browser code an assignment to window.location/location.href or location.assign/replace(url). The target is reported when it starts with req.query/params/body/cookies/headers, req.param(), ctx.query/params/request.query/body, request.query/params/body/payload, URLSearchParams(...).get() or location.search/hash, directly, as the first ${...} of a template literal, or through a variable assigned from one in the previous 15 lines (two hops for a URLSearchParams object). Not reported: constant targets, a path prefix followed by user data ('/users/' + id, `/pets/${id}`), which stays on the same site, Referer-based 'back' redirects, environment-derived targets, and a redirect preceded within 10 lines by an allow-list, origin/host comparison, startsWith('/') or validation check, test code (an open redirect in a test server is not reachable), plus comments and string literals.",
+	"description": "A redirect whose target begins with request-controlled data: res/response.redirect([status,] url) (Express), ctx.redirect (Koa), reply.redirect (Fastify), h.redirect (hapi), NextResponse.redirect and Response.redirect, res.location(url), a Location header set with res.writeHead(30x, { Location }) or res.setHeader/set/header('Location', url), and in browser code an assignment to window.location/location.href or location.assign/replace(url). The target is reported when it starts with req.query/params/body/cookies/headers, req.param(), ctx.query/params/request.query/body, request.query/params/body/payload, URLSearchParams(...).get() or location.search/hash, directly, through decodeURIComponent/decodeURI/unescape/String, after a bare \"/\" prefix (\"/\" + value or `/${value}`, which makes a protocol-relative //host URL), as the first ${...} of a template literal, or through a variable assigned from one in the previous 15 lines (two hops for a URLSearchParams object). Not reported: constant targets, a path prefix followed by user data ('/users/' + id, `/pets/${id}`), which stays on the same site, Referer-based 'back' redirects, environment-derived targets, and a redirect preceded within 10 lines by an allow-list, origin/host comparison, startsWith('/') or validation check, test code (an open redirect in a test server is not reachable), plus comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-008/",
 	"languages": ["node"],
 	"severity": "medium",
@@ -26,7 +26,7 @@ _is_js(path) if regex.match(`\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts)$`, path)
 _file_gate := `redirect|Location|location`
 
 _sinks := [
-	`(?:^|[^\w$.])(?:res|response|reply|ctx|h)\.redirect\s*\(\s*(?:\d{3}\s*,\s*)?(.*)$`,
+	`(?:^|[^\w$.])(?:res|response|reply|ctx|h|NextResponse|Response)\.redirect\s*\(\s*(?:\d{3}\s*,\s*)?(.*)$`,
 	`(?:^|[^\w$.])(?:res|response)\.location\s*\(\s*(.*)$`,
 	`\.writeHead\s*\(\s*30\d\s*,\s*\{\s*['"]?Location['"]?\s*:\s*(.*)$`,
 	`\.(?:setHeader|set|header)\s*\(\s*['"]Location['"]\s*,\s*(.*)$`,
@@ -34,9 +34,16 @@ _sinks := [
 	`(?:^|[^\w$.])(?:window\.)?location\.(?:assign|replace)\s*\(\s*(.*)$`,
 ]
 
-_src := `(?:req\.(?:query|params|body|cookies|headers|param\s*\()|request\.(?:query|params|body|payload)|ctx\.(?:query|params|request\.(?:query|body))|new\s+URLSearchParams\s*\(|(?:\w+\.)?searchParams\.get\s*\(|(?:(?:window|document)\.)?location\.(?:search|hash))`
+_src := `(?:req\.(?:query|params|body|cookies|headers|param\s*\()|(?:url\.)?parse\s*\(\s*req\.url\s*,\s*true\s*\)\.query|request\.(?:query|params|body|payload)|ctx\.(?:query|params|request\.(?:query|body))|new\s+URLSearchParams\s*\(|(?:[\w$]+\.)*searchParams\.get\s*\(|(?:(?:window|document)\.)?location\.(?:search|hash))`
 
-_starts_with_src := concat("", [`^\s*(?:\(\s*)*(?:`, _src, `|\x60\$\{\s*`, _src, `)`])
+# Decoding or string conversion of a source is still the source.
+_wrap := `(?:(?:\(|(?:decodeURIComponent|decodeURI|unescape|String)\s*\()\s*)*`
+
+_starts_with_src := concat("", [`^\s*`, _wrap, `(?:`, _src, `|\x60\$\{\s*`, _wrap, _src, `)`])
+
+# "/" + value and `/${value}` are not a same-site path: a value starting with
+# "/" (or "\") makes a protocol-relative //evil.example URL.
+_slash_prefix := `^\s*(?:['"]/['"]\s*\+\s*|\x60/\$\{\s*)`
 
 # String literals collapse to "" so a sink spelled inside one disappears.
 _strip(line) := regex.replace(line, `'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"`, `""`)
@@ -78,14 +85,26 @@ findings contains finding if {
 _tainted(_, _, target) if regex.match(_starts_with_src, target)
 
 _tainted(lines, i, target) if {
-	m := regex.find_all_string_submatch_n(`^\s*([A-Za-z_$][\w$]*)\s*(?:[,);|}]|\bas\b|$)`, target, 1)
+	m := regex.find_all_string_submatch_n(`^\s*([A-Za-z_$][\w$]*)!?\s*(?:[,);|}]|\bas\b|$)`, target, 1)
+	count(m) > 0
+	m[0][1] in _tainted_names(lines, i)
+}
+
+_tainted(_, _, target) if {
+	regex.match(_slash_prefix, target)
+	regex.match(_starts_with_src, regex.replace(target, _slash_prefix, ""))
+}
+
+_tainted(lines, i, target) if {
+	regex.match(_slash_prefix, target)
+	m := regex.find_all_string_submatch_n(`^([A-Za-z_$][\w$]*)\s*(?:[,);}+]|$)`, regex.replace(target, _slash_prefix, ""), 1)
 	count(m) > 0
 	m[0][1] in _tainted_names(lines, i)
 }
 
 # Names assigned, within 15 lines above, a value that starts with a request
 # source; then names assigned from <tainted>.get(...) of those.
-_tainted_names(lines, i) := t1 | t2 if {
+_tainted_names(lines, i) := (t1 | t2) | t3 if {
 	start := max([0, i - 15])
 	assigns := [[n, rhs] |
 		some j in numbers.range(start, i - 1)
@@ -103,7 +122,26 @@ _tainted_names(lines, i) := t1 | t2 if {
 		some t in t1
 		regex.match(concat("", [`^\s*`, t, `\.get\s*\(`]), a[1])
 	}
+
+	# Destructured from a source: const { next, returnTo: back = "/" } = req.query
+	t3 := {n |
+		some j in numbers.range(start, i - 1)
+		i > 0
+		l := lines[j]
+		contains(l, "{")
+		d := regex.find_all_string_submatch_n(`^\s*(?:const|let|var)\s*\{([^}]*)\}\s*=\s*(.*)$`, l, 1)
+		count(d) > 0
+		regex.match(_starts_with_src, d[0][2])
+		some item in split(d[0][1], ",")
+		p := regex.find_all_string_submatch_n(`^\s*[\w$]+\s*(?::\s*([\w$]+))?`, item, 1)
+		count(p) > 0
+		n := _bound_name(item, p[0])
+	}
 }
+
+_bound_name(_, p) := p[1] if p[1] != ""
+
+_bound_name(item, p) := trim_space(regex.replace(regex.replace(item, `=.*$`, ""), `\s`, "")) if p[1] == ""
 
 _guarded(lines, i) if regex.match(_guard_re, helpers.code_window(lines, i, 10, 0))
 

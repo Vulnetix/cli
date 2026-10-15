@@ -1,0 +1,4 @@
+# PASS_MAX_DAYS 99999 was the distribution default
+PASS_MAX_DAYS   90
+PASS_MIN_DAYS   365
+PASS_WARN_AGE   365

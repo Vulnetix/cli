@@ -1,0 +1,5 @@
+~>{
+  "name": "release-script",
+  "private": true,
+  "dependencies": { "semver": "^7.6.0", "execa": "^8.0.1" }
+}

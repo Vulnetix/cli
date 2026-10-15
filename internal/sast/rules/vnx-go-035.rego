@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-035",
 	"name": "Missing HttpOnly flag on cookie",
-	"description": "A cookie the server sends to the browser is not marked HttpOnly, so any script running in the page (an XSS payload included) can read it from document.cookie. Reported: an http.Cookie, fiber.Cookie or gorilla sessions.Options literal with no HttpOnly/HTTPOnly field or with it set to false that is passed to http.SetCookie/c.SetCookie/c.Cookie, returned to a caller, or assigned to a variable that is (session.Options = &sessions.Options{...} configures every session cookie); a new(http.Cookie) that is sent without .HttpOnly being set; gin c.SetCookie(name, value, maxAge, path, domain, secure, false); csrf.HttpOnly(false); x.HttpOnly = false; and sessions.NewCookieStore/NewFilesystemStore in a project that never sets the store's Options (their default leaves HttpOnly off). Not reported: HttpOnly set to true or to any expression (a config value), a deletion cookie (MaxAge negative, Expires at the Unix epoch), a CSRF/XSRF double-submit token cookie (it must be readable by the page's script), cookies a client sends (req.AddCookie, a cookie jar), test files, comments and strings.",
+	"description": "A cookie the server sends to the browser is not marked HttpOnly, so any script running in the page (an XSS payload included) can read it from document.cookie. Reported: an http.Cookie, fiber.Cookie or gorilla sessions.Options literal with no HttpOnly/HTTPOnly field or with it set to false that is passed to http.SetCookie/c.SetCookie/c.Cookie, returned to a caller, or assigned to a variable that is (session.Options = &sessions.Options{...} configures every session cookie); a new(http.Cookie) that is sent without .HttpOnly being set; gin c.SetCookie(name, value, maxAge, path, domain, secure, false), on one line or with its arguments wrapped over up to 10 lines; csrf.HttpOnly(false); x.HttpOnly = false; and sessions.NewCookieStore/NewFilesystemStore in a project that never sets the store's Options (their default leaves HttpOnly off). Not reported: HttpOnly set to true or to any expression (a config value), a deletion cookie (MaxAge negative, Expires at the Unix epoch), a CSRF/XSRF double-submit token cookie (it must be readable by the page's script), cookies a client sends (req.AddCookie, a cookie jar), test files, comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-035/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -146,10 +146,29 @@ _hit(lines, i, line, code) := _msg_missing if {
 }
 
 # gin c.SetCookie(name, value, maxAge, path, domain, secure, httpOnly).
-_hit(_, _, line, code) := _msg_false if {
+_hit(lines, i, line, code) := _msg_false if {
 	contains(code, "SetCookie(")
-	regex.match(`\.SetCookie\(\s*(?:(?:[^,()]|\([^()]*\))+,){6}\s*false\s*\)`, line)
-	not regex.match(`\.SetCookie\(\s*"(?i:[^"]*(?:csrf|xsrf)[^"]*)"`, line)
+	txt := _gin_call(lines, i, line)
+	regex.match(`\.SetCookie\(\s*(?:(?:[^,()]|\((?:[^()]|\([^()]*\))*\))+,){6}\s*false\s*,?\s*\)`, txt)
+	not regex.match(`\.SetCookie\(\s*"(?i:[^"]*(?:csrf|xsrf)[^"]*)"`, txt)
+}
+
+_pdepth(s) := count(indexof_n(s, "(")) - count(indexof_n(s, ")"))
+
+# The SetCookie call joined onto one line when its arguments are wrapped
+# (at most 10 lines).
+_gin_call(_, _, line) := line if _pdepth(_code(line)) <= 0
+
+_gin_call(lines, i, line) := txt if {
+	_pdepth(_code(line)) > 0
+	end := min([count(lines) - 1, i + 10])
+	end >= i + 1
+	ks := [k |
+		some k in numbers.range(i + 1, end)
+		_pdepth(concat(" ", [_code(lines[j]) | some j in numbers.range(i, k)])) <= 0
+	]
+	count(ks) > 0
+	txt := concat(" ", [lines[j] | some j in numbers.range(i, ks[0])])
 }
 
 _hit(_, _, _, code) := _msg_false if regex.match(`\bcsrf\.HttpOnly\(\s*false\s*\)`, code)

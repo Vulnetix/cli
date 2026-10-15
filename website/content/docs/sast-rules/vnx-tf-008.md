@@ -1,11 +1,11 @@
 ---
 title: "VNX-TF-008 – Terraform AWS Provider with Hardcoded Static Credentials"
-description: "Detect hardcoded AWS access_key and secret_key values in Terraform provider blocks, which expose long-lived IAM credentials to anyone who can read the source code or its git history."
+description: "Detect literal AWS access key ids (AKIA/ASIA) and 40-character secret keys hardcoded in Terraform provider blocks, s3 backends, .tfvars files, function environment maps and ECS name/value environment entries, which expose IAM credentials to anyone who can read the repository or its history."
 ---
 
 ## Overview
 
-This rule flags Terraform `.tf` files where an AWS provider block contains `access_key` or `secret_key` attributes set to literal string values (non-empty strings that do not use variable references or Terraform expressions). AWS provider credentials hardcoded directly in Terraform files are committed to version control and exposed to everyone who has read access to the repository.
+This rule flags Terraform `.tf`, `.tofu` and `.tfvars` files where `access_key`, `aws_access_key`, `aws_access_key_id` or `AWS_ACCESS_KEY_ID` is assigned a quoted `AKIA`/`ASIA` key id, or `secret_key`, `aws_secret_key`, `aws_secret_access_key` or `AWS_SECRET_ACCESS_KEY` is assigned a quoted 40-character secret. Values from variables, data sources or interpolation, empty strings, placeholders (runs of `X`, values in one case with no digit) and comments are not reported. AWS credentials hardcoded directly in Terraform files are committed to version control and exposed to everyone who has read access to the repository.
 
 Unlike environment-injected credentials or IAM instance roles, hardcoded credentials in `.tf` files are static: they do not rotate, they do not expire automatically, and they persist in git history indefinitely. An attacker who obtains these credentials can authenticate to AWS from anywhere on the internet, using the full permissions of the associated IAM user.
 
@@ -23,16 +23,18 @@ Compromised Terraform provider credentials are particularly high-value because t
 
 ## What Gets Flagged
 
-The rule matches `.tf` files where `access_key` or `secret_key` attributes are set to literal string values (not Terraform variables or local references).
-
 ```hcl
-# FLAGGED: hardcoded static credentials in provider block
 provider "aws" {
-  region     = "us-east-1"
-  access_key = "AKIAIOSFODNN7EXAMPLE"
-  secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  region     = "us-west-2"
+  access_key = "AKIA................"   # FLAGGED: literal key id
+  secret_key = "........................................"   # FLAGGED
 }
+
+# terraform.tfvars
+aws_access_key = "AKIA................"   # FLAGGED
 ```
+
+Not flagged: `access_key = var.aws_access_key`, `profile = "deploy"`, or `aws_access_key = "AKIAXXXXXXXXXXXXXXXX"` (a placeholder).
 
 ## Remediation
 

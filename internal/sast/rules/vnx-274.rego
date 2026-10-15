@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-274",
 	"name": "Improper Handling of Insufficient Privileges",
-	"description": "A privilege change is checked, but the branch that sees it fail only logs (or does nothing) and then falls through, so the program carries on as if it had the identity or the jail it asked for. Reported in C and C++ for an if on the failure of setuid, setgid, seteuid, setegid, setreuid, setregid, setresuid, setresgid, setgroups, initgroups or chroot (directly, or through a result variable assigned on the line above) and on the failure of ImpersonateNamedPipeClient, ImpersonateLoggedOnUser, ImpersonateSelf, ImpersonateAnonymousToken or SetThreadToken, whose body has no return, exit, abort, goto, err()/errx(), glibc error() with a nonzero status, break, continue or fatal/die-style call; in Python for os.setuid/os.setgid/os.seteuid/os.setegid/os.setreuid/os.setresuid/os.setgroups/os.initgroups/os.chroot inside a try whose except clause for OSError, PermissionError, Exception or a bare except neither raises, returns nor exits, or inside contextlib.suppress(OSError/PermissionError); in Go for an `if err != nil` after syscall/unix Setuid, Setgid, Setresuid, Setgroups, Chroot and similar whose body neither returns, panics, nor calls os.Exit or log.Fatal; and in PHP for an if on the failure of posix_setuid, posix_setgid, posix_seteuid, posix_setegid or posix_initgroups (!posix_setuid(...), === false) whose body neither throws, returns, exits nor dies. Not reported: an unchecked call (VNX-273), a check on success (`== 0`), a raise back to root (seteuid(0)) whose failure leaves the program less privileged, and handlers that stop.",
+	"description": "A privilege change is checked, but the branch that sees it fail only logs (or does nothing) and then falls through, so the program carries on as if it had the identity or the jail it asked for. Reported in C and C++ for an if on the failure of setuid, setgid, seteuid, setegid, setreuid, setregid, setresuid, setresgid, setgroups, initgroups or chroot (directly, or through a result variable assigned on the line above) and on the failure of ImpersonateNamedPipeClient, ImpersonateLoggedOnUser, ImpersonateSelf, ImpersonateAnonymousToken or SetThreadToken, whose body has no return, exit, abort, std::terminate(), a fatal raise(SIGKILL/SIGABRT), goto, err()/errx(), glibc error() with a nonzero status, break, continue or fatal/die-style call (words inside the log message, such as 'return code', do not count); in Python for os.setuid/os.setgid/os.seteuid/os.setegid/os.setreuid/os.setresuid/os.setgroups/os.initgroups/os.chroot (also called bare after `from os import`) inside a try whose except clause for OSError, PermissionError, Exception or a bare except neither raises, returns nor exits, or inside contextlib.suppress(OSError/PermissionError); in Go for an `if err != nil` after syscall/unix Setuid, Setgid, Setresuid, Setgroups, Chroot and similar whose body neither returns, panics, nor calls os.Exit, syscall.Exit or log.Fatal; and in PHP for an if on the failure of posix_setuid, posix_setgid, posix_seteuid, posix_setegid or posix_initgroups (!posix_setuid(...), !@posix_setuid(...), === false, or Yoda `false === posix_setuid(...)`) whose body neither throws, returns, exits nor dies. Not reported: an unchecked call (VNX-273), a check on success (`== 0`), a raise back to root (seteuid(0)) whose failure leaves the program less privileged, and handlers that stop.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-274/",
 	"languages": ["c", "cpp", "python", "go", "php"],
 	"severity": "low",
@@ -95,10 +95,16 @@ _tail(line) := regex.replace(line, `^\s*(\}\s*)?(else\s+)?if\s*\((?:[^()]|\((?:[
 # glibc's error()/error_at_line() exit when their status argument is not 0.
 _c_stop := `\b(return|goto|break|continue|throw|exit|_exit|_Exit|quick_exit|abort|err|errx|verr|verrx|longjmp|siglongjmp|pthread_exit|ExitProcess|ExitThread|TerminateProcess)\b|\berror(_at_line)?\s*\(\s*(EXIT_\w+|[1-9]\d*)\s*,|(?i)\b\w*(fatal|die|panic|abort|bail|exit)\w*\s*\(`
 
+# A message that says "return code" or "will exit" stops nothing, so string
+# contents are blanked before the body is searched.
 _c_falls_through(lines, i) if {
-	body := concat("\n", [_tail(lines[i]), _block(lines, i)])
+	body := _c_code(concat("\n", [_tail(lines[i]), _block(lines, i)]))
 	not regex.match(_c_stop, body)
+	not regex.match(_c_kill, body)
 }
+
+# std::terminate(), and a signal the process sends itself to die.
+_c_kill := `\b(std::)?terminate\s*\(\s*\)|\b(std::)?raise\s*\(\s*SIG(KILL|ABRT|TERM|SEGV)\b|\bkill\s*\([^;]*,\s*SIG(KILL|ABRT|TERM)\b`
 
 # The failure is tested on the call itself…
 _c_failure_check(lines, i, line) if _posix_fails(line, _c_call(_posix))
@@ -151,9 +157,28 @@ findings contains finding if {
 
 # ── Python ───────────────────────────────────────────────────────────────
 
-_py_call := `\bos\.(set(e|re|res)?[ug]id|setgroups|initgroups|chroot)\s*\(`
+_py_names := `(set(e|re|res)?[ug]id|setgroups|initgroups|chroot)`
 
-_py_elevation(line) if regex.match(`\bos\.sete?[ug]id\s*\(\s*0\s*\)`, line)
+_py_call := concat("", [`\bos\.`, _py_names, `\s*\(`])
+
+_py_is_call(line, _) if regex.match(_py_call, line)
+
+# `from os import setgid, setuid` and then a bare `setuid(uid)`.
+_py_is_call(line, imported) if {
+	some m in regex.find_all_string_submatch_n(concat("", [`(?:^|[^\w.])`, _py_names, `\s*\(`]), line, -1)
+	m[1] in imported
+}
+
+_py_imported(lines) := {n |
+	some l in lines
+	contains(l, "import")
+	some m in regex.find_all_string_submatch_n(`^\s*from\s+os\s+import\s+\(?([^#\n]*)`, l, 1)
+	some part in split(m[1], ",")
+	n := trim(trim_space(part), "()")
+	regex.match(concat("", [`^`, _py_names, `$`]), n)
+}
+
+_py_elevation(line) if regex.match(`(\bos\.|(^|[^\w.]))sete?[ug]id\s*\(\s*0\s*\)`, line)
 
 _py_catches := `^\s*except\s*(:|\(?[^:]*\b(OSError|PermissionError|IOError|EnvironmentError|Exception|BaseException)\b)`
 
@@ -193,7 +218,7 @@ _py_swallowed(lines, i) if {
 	h < stop
 	regex.match(_py_catches, lines[h])
 	body := concat("\n", [regex.replace(lines[h], `^[^:]*:`, ""), _block(lines, h)])
-	not regex.match(_py_stop, body)
+	not regex.match(_py_stop, _c_code(body))
 }
 
 _py_clause(l, tind) if {
@@ -209,10 +234,12 @@ _py_swallowed(lines, i) if {
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".py")
-	_has_any(content, {"os.set", "os.initgroups", "os.chroot"})
+	_has_any(content, {"os.set", "os.initgroups", "os.chroot", "from os import"})
 	lines := split(content, "\n")
+	imported := _py_imported(lines)
 	some i, line in lines
-	regex.match(_py_call, line)
+	_has_any(line, {"set", "initgroups", "chroot"})
+	_py_is_call(line, imported)
 	not helpers.is_comment_line(line)
 	not _py_elevation(line)
 	_py_swallowed(lines, i)
@@ -230,11 +257,14 @@ findings contains finding if {
 # ── PHP ──────────────────────────────────────────────────────────────────
 
 # posix_setuid() & co. return false on failure and raise nothing.
-_php_call := `\\?posix_(set(e)?[ug]id|initgroups)\s*\(`
+_php_call := `@?\s*\\?posix_(set(e)?[ug]id|initgroups)\s*\(`
 
 _php_fails(cond) if regex.match(concat("", [`!\s*`, _php_call]), cond)
 
 _php_fails(cond) if regex.match(concat("", [_php_call, `(?:[^()]|\([^()]*\))*\)\s*===?\s*false\b`]), cond)
+
+# Yoda order, as Symfony's coding standard writes it: `false === posix_setuid(...)`.
+_php_fails(cond) if regex.match(concat("", [`(?i)\bfalse\s*===?\s*`, _php_call]), cond)
 
 _php_elevation(cond) if regex.match(`posix_sete?[ug]id\s*\(\s*0\s*\)`, cond)
 
@@ -252,7 +282,7 @@ findings contains finding if {
 	code := _c_code(line)
 	_php_fails(code)
 	not _php_elevation(code)
-	not regex.match(_php_stop, concat("\n", [_tail(code), _block(lines, i)]))
+	not regex.match(_php_stop, _c_code(concat("\n", [_tail(code), _block(lines, i)])))
 	finding := {
 		"rule_id": metadata.id,
 		"message": "The privilege change is checked but its failure is only logged: execution falls through and the program carries on with the identity it meant to leave. Stop on failure: throw, exit or return",
@@ -270,7 +300,7 @@ _go_call := `\b(syscall|unix)\.(Set(e|re|res)?[ug]id|Setgroups|Chroot)\s*\(`
 
 _go_elevation(line) if regex.match(`\b(syscall|unix)\.Sete?[ug]id\s*\(\s*0\s*\)`, line)
 
-_go_stop := `\b(return|panic|break|continue|goto)\b|\bos\.Exit\s*\(|\.(Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)\s*\(|\bruntime\.Goexit\s*\(`
+_go_stop := `\b(return|panic|break|continue|goto)\b|\b(os|syscall|unix)\.Exit\s*\(|\.(Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)\s*\(|\bruntime\.Goexit\s*\(`
 
 # `if err := unix.Setuid(u); err != nil {`
 _go_failure_check(lines, i, line) if {

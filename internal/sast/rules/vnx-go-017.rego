@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-017",
 	"name": "Go SQL injection via fmt.Sprintf in db.Exec or db.Query",
-	"description": "SQL text is built with fmt.Sprintf and a string verb (%s, %v) puts a value where SQL expects a literal: inside single quotes ('%s', LIKE '%%%s%%', VALUES ('%s')) or straight after a comparison (id = %s, owner = \"%s\"). Reported when that Sprintf is the query argument of a database call (Exec, Query, QueryRow, Prepare and their Context variants, sqlx Queryx/Select/Get/MustExec/NamedExec, GORM Raw), even with the call broken across lines; when its result is assigned (:=, =, +=) to a variable a later line of the function passes to such a call; or when it is a complete statement (SELECT ... FROM, INSERT INTO, UPDATE ... SET, DELETE FROM) assigned or returned. A verb in any other position (WHERE %s, ORDER BY %s, FROM %s, IN (%s)) is reported only when its argument is an HTTP request value or a variable assigned from one. Multi-line raw-string and +-joined formats are read whole. Not reported: integer verbs (%d), bind-parameter builders (fmt.Sprintf(\"$%d\", n), ILIKE %s with a placeholder variable such as ph), fragments the function assembled itself (WHERE %s with a joined clause list, a constant column list, DDL over fixed identifiers), arguments quoted or converted for SQL (pq.QuoteLiteral, QuoteIdentifier, strconv), numeric parameters, Sprintf calls inside append or another call, connection strings and messages that are not run as a query, format strings held in a variable, string literals, comments and test files.",
+	"description": "SQL text is built with fmt.Sprintf and a string verb (%s, %v) puts a value where SQL expects a literal: inside single quotes ('%s', LIKE '%%%s%%', VALUES ('%s')) or straight after a comparison (id = %s, owner = \"%s\"). Reported when that Sprintf is the query argument of a database call (Exec, Query, QueryRow, Prepare and their Context variants, sqlx Queryx/Select/Get/MustExec/NamedExec, GORM Raw and the string-condition builders Where, Having, Joins, Order, Group), even with the call broken across lines; when its result is assigned (:=, =, +=) to a variable a later line of the function passes to such a call; or when it is a complete statement (SELECT ... FROM, INSERT INTO, UPDATE ... SET, DELETE FROM) assigned or returned. A verb in any other position (WHERE %s, ORDER BY %s, FROM %s, IN (%s)) is reported only when its argument is an HTTP request value or a variable assigned from one. Multi-line raw-string and +-joined formats are read whole. Not reported: integer verbs (%d), bind-parameter builders (fmt.Sprintf(\"$%d\", n), ILIKE %s with a placeholder variable such as ph), fragments the function assembled itself (WHERE %s with a joined clause list, a constant column list, DDL over fixed identifiers), arguments quoted or converted for SQL (pq.QuoteLiteral, QuoteIdentifier, strconv), numeric parameters, Sprintf calls inside append or another call, connection strings, URLs and messages that are not run as a query, format strings held in a variable, string literals, comments and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-017/",
 	"languages": ["go"],
 	"severity": "high",
@@ -23,7 +23,7 @@ metadata := {
 
 # Database methods whose argument is SQL text. Select/Get are also ordinary
 # method names, so a call to them needs SQL in the format as well.
-_db_strong := `Exec|ExecContext|Query|QueryContext|QueryRow|QueryRowContext|Prepare|PrepareContext|Queryx|QueryxContext|QueryRowx|QueryRowxContext|MustExec|MustExecContext|NamedExec|NamedExecContext|NamedQuery|NamedQueryContext|Raw`
+_db_strong := `Exec|ExecContext|Query|QueryContext|QueryRow|QueryRowContext|Prepare|PrepareContext|Queryx|QueryxContext|QueryRowx|QueryRowxContext|MustExec|MustExecContext|NamedExec|NamedExecContext|NamedQuery|NamedQueryContext|Raw|Where|Having|Joins|Order|Group`
 
 _db_weak := `Select|SelectContext|Get|GetContext`
 
@@ -45,7 +45,7 @@ _sql_stmt := `(?i)\b(?:select\b[\s\S]+\bfrom|insert\s+into|update\s+\S+\s+set|de
 
 # Values a requester chooses. A call's parentheses may have been collapsed to
 # "@" when an argument list is split, so either form is accepted.
-_req_src := `\b(?:r|req|request)\.(?:FormValue|PostFormValue|PathValue)[(@]|\b(?:r|req|request)\.(?:URL\.(?:Query[(@]|RawQuery|Path)|Header\.Get[(@])|\bmux\.Vars[(@]|\bchi\.URLParam[(@]|\b(?:c|ctx|g|e)\.(?:Query|DefaultQuery|Param|Params|PostForm|DefaultPostForm|FormValue|QueryParam|GetHeader)[(@]|\.ByName[(@]`
+_req_src := `\b(?:r|req|request|(?:c|ctx)\.Request)\.(?:FormValue|PostFormValue|PathValue)[(@]|\b(?:r|req|request|(?:c|ctx)\.Request)\.(?:URL\.(?:Query[(@]|RawQuery|Path)|Header\.Get[(@])|\bmux\.Vars[(@]|\bchi\.URLParam[(@]|\b(?:c|ctx|g|e)\.(?:Query|DefaultQuery|Param|Params|PostForm|DefaultPostForm|FormValue|QueryParam|GetHeader)[(@]|\.ByName[(@]`
 
 _strip_str(s) := regex.replace(s, `"(?:[^"\\]|\\.)*"|\x60[^\x60]*\x60`, `""`)
 
@@ -183,6 +183,9 @@ _assigned(line) := v if {
 	v != "_"
 }
 
+# A URL or path being formatted, not SQL text.
+_url_format(f) if regex.match(`://|^%[sv]/|^/[\w%]|\?[\w\[\]]+=`, f)
+
 _returned(line) if regex.match(`^\s*return\s+fmt\.Sprintf\(`, line)
 
 # The assigned variable is the query argument of a database call later in the
@@ -255,6 +258,7 @@ findings contains finding if {
 	count(m) > 0
 	fmt_text := _norm_fmt(m[0][1])
 	regex.match(`%[-+# 0-9.]*[sv]`, fmt_text)
+	not _url_format(fmt_text)
 	kind := _context(lines, i, line, fmt_text, starts)
 	verbs := regex.find_n(_verb_re, fmt_text, -1)
 	pieces := regex.split(_verb_re, fmt_text)

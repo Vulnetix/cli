@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1054",
 	"name": "Invokable Control Element with Excessive Volume of Commented-out Code",
-	"description": "A block of line comments in Go, Java, JavaScript/TypeScript, PHP, Python or Ruby that is disabled code rather than prose: at least three of its lines read as code (a statement terminator with a keyword, assignment or call; a Python block opener ending in ':'; a closing brace; a bare return/break/raise; an unterminated assignment; in Ruby a bare 'end', a condition on a method call, or a DSL call with a symbol such as before_action :authenticate_user!). Disabled code can hold old credentials, bypassed security checks or deprecated algorithms that a developer might re-enable. One finding per block, at its first code-like line. Not reported: prose (six lower-case words in a row, or a line that is not code-like), a single commented-out line, usage examples in documentation comments (a code-like line indented deeper than the prose of the same block, as in RDoc, godoc and Javadoc), godoc preformatted lines (a tab after //), block comments (/* */), test files, and library code under node_modules/vendor/dist or JavaScript copied into static/assets/public trees.",
+	"description": "A block of line comments in Go, Java, JavaScript/TypeScript, PHP, Python or Ruby that is disabled code rather than prose: at least three of its lines read as code (a statement terminator with a keyword, assignment or call; a Python block opener ending in ':'; a closing brace; a bare return/break/raise; an unterminated assignment; in Ruby a bare 'end', a condition on a method call, or a DSL call with a symbol such as before_action :authenticate_user!). Disabled code can hold old credentials, bypassed security checks or deprecated algorithms that a developer might re-enable. One finding per block, at its first code-like line. Not reported: prose (six lower-case words in a row, or a line that is not code-like), a single commented-out line, usage examples in documentation comments (a code-like line indented deeper than the prose of the same block, as in RDoc, godoc and Javadoc, unless a block opener ending in ':' or '{' sits at the prose's own indent, which is a note above disabled code), godoc preformatted lines (a tab straight after //; '// ' followed by tab indentation is editor-commented gofmt code and is inspected), PHP 8 #[Attribute] lines (PHP '#' comments are otherwise read like '//'), block comments (/* */), test files, and library code under node_modules/vendor/dist or JavaScript copied into static/assets/public trees.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1054/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "low",
@@ -57,7 +57,19 @@ _comment_text(line, "#") := t if {
 	count(m) > 0
 	t := trim_space(m[0][1])
 	not startswith(t, "!")
+	not regex.match(`^\s*#\[`, line)
 }
+
+# Code commented out by an editor in gofmt'd source: `// ` then the original
+# tab indentation. (godoc preformatted text is `//` then a tab, no space.)
+_comment_text(line, "//") := t if {
+	m := regex.find_all_string_submatch_n(`^\s*//+ (\t+\S.*)$`, line, 1)
+	count(m) > 0
+	t := trim_space(m[0][1])
+}
+
+# PHP also has `#` line comments (but `#[Attr]` is a PHP 8 attribute)
+_markers := array.concat([[ext, m] | some ext, m in _marker], [[".php", "#"]])
 
 # A comment line reads as code when it ends the way a statement ends and
 # starts or contains the way one does. Prose ends in a full stop or runs on
@@ -73,7 +85,10 @@ _code_like(t) if {
 	not regex.match(`\b[a-z]{2,} [a-z]{2,} [a-z]{2,} [a-z]{2,} [a-z]{2,} [a-z]{2,}\b`, t)
 }
 
+# The string test first: most lines are not comments, and the regexes in
+# _comment_text are the rule's main cost.
 _is_comment(lines, j, marker) if {
+	startswith(trim_left(lines[j], " \t"), marker)
 	_comment_text(lines[j], marker)
 }
 
@@ -129,8 +144,20 @@ _has_prose(lines, block, marker, base) if {
 	regex.match(`[A-Za-z]{2,}[,']?\s+[A-Za-z]{2,}\s+[A-Za-z]{2,}`, t)
 }
 
-_prose(lines, block, marker, base) := true if {
+# A note above disabled code ("# Old check, kept until X:") is prose too, but
+# then a block opener (def ...:, if ... {) sits at the prose's own indent: the
+# deeper lines are its body, not a usage example.
+_anchored(lines, block, marker, base) if {
+	some j in block
+	_inner(lines[j]) == base
+	t := _comment_text(lines[j], marker)
+	_code_like(t)
+	regex.match(`[:{]\s*$`, t)
+}
+
+_doc_example(lines, block, marker, base) := true if {
 	_has_prose(lines, block, marker, base)
+	not _anchored(lines, block, marker, base)
 } else := false
 
 _counts(false, _, _)
@@ -141,8 +168,9 @@ findings contains finding if {
 	some path, content in input.file_contents
 	not _skip(path)
 	not helpers.is_test_path(path)
-	some ext, marker in _marker
-	endswith(path, ext)
+	some pair in _markers
+	endswith(path, pair[0])
+	marker := pair[1]
 	lines := split(content, "\n")
 	some i, line in lines
 	_is_comment(lines, i, marker)
@@ -151,7 +179,7 @@ findings contains finding if {
 	e := _block_end(lines, i, marker)
 	block := numbers.range(i, e - 1)
 	base := min([_inner(lines[j]) | some j in block; _comment_text(lines[j], marker) != ""])
-	prose := _prose(lines, block, marker, base)
+	prose := _doc_example(lines, block, marker, base)
 	code_lines := [j |
 		some j in block
 		_code_like(_comment_text(lines[j], marker))

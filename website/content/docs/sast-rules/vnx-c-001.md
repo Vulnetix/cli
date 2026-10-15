@@ -1,6 +1,6 @@
 ---
 title: "VNX-C-001 – Use of Unbounded String Copy Function (strcpy/strcat/gets)"
-description: "Reports C and C++ copies of unknown length into a buffer without a size: gets() and _getws() always; strcpy, stpcpy, strcat and their wide, multibyte, TCHAR and lstrcpy/lstrcat forms when the source is not a literal or macro; sprintf/wsprintf with an unbounded %s and vsprintf; scanf-family %s or %[ without a field width. Bounded APIs, measured or size-checked copies, literal sources, declarations and comments are not reported."
+description: "Reports C and C++ copies of unknown length into a buffer without a size: gets() and _getws() always; strcpy, stpcpy, strcat and their wide, multibyte, TCHAR and lstrcpy/lstrcat forms when the source is not a literal or macro; sprintf/wsprintf with an unbounded %s and vsprintf; scanf-family %s or %[ without a field width. Bounded APIs, measured or size-checked copies, literal sources (including const arrays initialised from a literal), declarations and comments are not reported."
 ---
 
 ## Overview

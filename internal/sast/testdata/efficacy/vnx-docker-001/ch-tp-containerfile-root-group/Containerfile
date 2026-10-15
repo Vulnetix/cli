@@ -1,0 +1,5 @@
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.4
+RUN microdnf install -y nginx && microdnf clean all
+~>USER   root:root
+EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]

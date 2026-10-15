@@ -1,13 +1,13 @@
 ---
 title: "VNX-1046 – Creation of Immutable Text Using String Concatenation"
-description: "Reports a Java or C# String accumulated with += or s = s + ... inside a for, foreach or while loop, where the variable is a String local declared before the loop."
+description: "Reports a Java or C# String accumulated with +=, s = s + ... or s = s.concat(...) inside a for, foreach, while or do loop, where the variable is a String local declared before the loop."
 ---
 
 ## Overview
 
-VNX-1046 reports [CWE-1046: Creation of Immutable Text Using String Concatenation](https://cwe.mitre.org/data/definitions/1046.html) in Java and C#. The finding is an `s += ...` or `s = s + ...` statement inside the body of a `for`, `foreach` or `while` loop, where `s` is a local declared as `String`/`string` (or a C# `var` initialised with a string literal) before the loop. Braced bodies, Allman-style braces, a single unbraced statement and a statement on the loop's own line are all covered.
+VNX-1046 reports [CWE-1046: Creation of Immutable Text Using String Concatenation](https://cwe.mitre.org/data/definitions/1046.html) in Java and C#. The finding is an `s += ...`, `s = s + ...` or Java `s = s.concat(...)` statement inside the body of a `for`, `foreach`, `while` or `do` loop, where `s` is a local declared as `String`/`string` (or a C# `var` initialised with a string literal or `string.Empty`) before the loop. Braced bodies, Allman-style braces, a single unbraced statement and a statement on the loop's own line are all covered.
 
-Not reported: `StringBuilder`, `StringBuffer` and `StringJoiner` appends, `String.join` and `Collectors.joining`, concatenation after the loop ends, numeric `+=` on `int`/`long`/`double` variables, a String declared inside the loop body (rebuilt each iteration rather than accumulated), fields and variables declared more than 100 lines above, Kotlin and other JVM languages, test code, comments and strings.
+Not reported: `StringBuilder`, `StringBuffer` and `StringJoiner` appends, `String.join` and `Collectors.joining`, concatenation after the loop ends, numeric `+=` on `int`/`long`/`double` variables (including a name that an earlier method declared as a String), a String declared inside the loop body (rebuilt each iteration rather than accumulated), fields and variables declared more than 100 lines above, Kotlin and other JVM languages, test code, comments and strings.
 
 **Severity:** Low | **CWE:** [CWE-1046](https://cwe.mitre.org/data/definitions/1046.html)
 

@@ -1,0 +1,5 @@
+DEBUG = False
+
+~>AUTH_PASSWORD_VALIDATORS = []
+
+LANGUAGE_CODE = "en-us"

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="3.0">
+  <persistence-unit name="app">
+    <jta-data-source>java:jboss/datasources/AppDS</jta-data-source>
+    <properties>
+      <property name="jakarta.persistence.jdbc.password" value="#{env.DB_PASSWORD}"/>
+      <property name="hibernate.connection.password" value="{aes}AEJX9w4kzPq"/>
+      <property name="hibernate.password.encoder" value="bcrypt"/>
+      <property name="passwordAttribute" value="userPassword"/>
+    </properties>
+  </persistence-unit>
+</persistence>

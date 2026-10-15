@@ -38,6 +38,10 @@ val client = server.accept()
 // FLAGGED: NIO channel and Ktor raw socket
 val channel = SocketChannel.open(InetSocketAddress(upstream, 6000))
 val conn = aSocket(selector).tcp().connect(host, 9002)
+
+// FLAGGED: a default (plain) SocketFactory held in a property
+private val factory: SocketFactory = SocketFactory.getDefault()
+val printer = factory.createSocket(host, 9100)
 ```
 
 Not flagged:
@@ -46,6 +50,7 @@ Not flagged:
 Socket("127.0.0.1", 6379)                              // loopback peer
 ServerSocket(0, 50, InetAddress.getLoopbackAddress())  // loopback bind
 (SSLSocketFactory.getDefault() as SSLSocketFactory).createSocket(host, 443)
+Socket().use { it.connect(InetSocketAddress("8.8.8.8", 53), 1500) }  // reachability probe, no data sent
 ```
 
 ## Remediation

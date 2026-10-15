@@ -1,0 +1,5 @@
+{
+  "email": "ops@acme.io",
+  "signInAddress": "acme.1password.com",
+~>  "secretKey": "@@sample:A3-[A-HJ-NP-Z]{2}[2-9]{2}[A-HJ-NP-Z2-9]{2}-[A-HJ-NP-Z2-9]{6}-[A-HJ-NP-Z2-9]{5}-[A-HJ-NP-Z2-9]{5}-[A-HJ-NP-Z2-9]{5}-[A-HJ-NP-Z2-9]{5}@@"
+}

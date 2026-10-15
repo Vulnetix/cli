@@ -1,0 +1,2 @@
+Put your identity in keys.txt, it looks like:
+@@sample:A[G]E[-][S]EC[R]ET[-]KE[Y][-]1[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]X@@

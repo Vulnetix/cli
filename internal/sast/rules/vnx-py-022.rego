@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
     "id": "VNX-PY-022",
     "name": "SQL injection via string concatenation in Python",
-    "description": "A SQL statement is built from a variable by string concatenation (+), %-formatting, str.format() or an f-string and passed to a DB-API cursor/connection execute(), executemany() or executescript(), a Django Model.objects.raw() or pandas read_sql()/read_sql_query(), in a .py file: either in the call's own first argument (a call broken across lines is read to its closing parenthesis, triple-quoted strings included) or through a variable whose nearest assignment in the 20 lines above builds such a string (an `sql += \" AND x = '\" + v + \"'\"` after a SQL assignment counts). The string must contain SQL (SELECT, INSERT INTO, UPDATE ... SET, DELETE FROM, WHERE, FROM, VALUES, DROP/CREATE/ALTER TABLE, UNION). Use driver placeholders (?, %s, %(name)s) with a parameters argument. Not reported: parameterised calls, including a %s inside the literal followed by a parameters tuple; strings whose interpolated parts are all UPPER_CASE constants; placeholder lists built with ','.join('?' ...); execute() of a string with no SQL (a shell runner's execute); and the calls in comments or string literals. Whether the interpolated variable is attacker-controlled is not judged, and a query built in another function is not traced. VNX-PY-011 reports overlapping shapes.",
+    "description": "A SQL statement is built from a variable by string concatenation (+), %-formatting, str.format() or an f-string and passed to a DB-API cursor/connection execute(), executemany() or executescript(), a Django Model.objects.raw() or pandas read_sql()/read_sql_query(), in a .py file: either in the call's own first argument (a call broken across lines is read to its closing parenthesis, triple-quoted strings included) or through a variable whose nearest assignment in the 20 lines above builds such a string (an `sql += \" AND x = '\" + v + \"'\"` after a SQL assignment counts), or a variable holding a SQL string literal formatted inside the call (`cur.execute(sql % name)`, `cur.execute(tmpl.format(a))`). The string must contain SQL (SELECT, INSERT INTO, UPDATE ... SET, DELETE FROM, WHERE, FROM, VALUES, DROP/CREATE/ALTER TABLE, UNION). Use driver placeholders (?, %s, %(name)s) with a parameters argument. Not reported: parameterised calls, including a %s inside the literal followed by a parameters tuple; strings whose interpolated parts are all UPPER_CASE constants; placeholder lists built with ','.join('?' ...); execute() of a string with no SQL (a shell runner's execute); and the calls in comments or string literals. Whether the interpolated variable is attacker-controlled is not judged, and a query built in another function is not traced. VNX-PY-011 reports overlapping shapes.",
     "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-022/",
     "languages": ["python"],
     "severity": "high",
@@ -185,3 +185,45 @@ findings contains finding if {
 _reported(lines, i, rest, safe) if _direct(lines, i, rest, safe)
 
 _reported(lines, i, rest, safe) if _via_var(lines, i, rest, safe)
+
+_reported(lines, i, rest, safe) if _via_fmt(lines, i, rest, safe)
+
+# A SQL template held in a variable and formatted inside the call:
+# sql = "... '%s'" ; cur.execute(sql % name) / cur.execute(tmpl.format(a)).
+_via_fmt(lines, i, raw_rest, safe) if {
+	a := regex.find_all_string_submatch_n(`^\s*([A-Za-z_]\w*)\s*(%|\.format\s*\()\s*(.*)$`, _code(raw_rest), 1)
+	count(a) > 0
+	v := a[0][1]
+	operands := _fmt_operands(a[0][2], a[0][3])
+	ids := _ids(operands) - safe
+	some id in ids
+	not regex.match(`^[A-Z][A-Z0-9_]*$`, id)
+	_sql_template(lines, i, v)
+}
+
+# For %, the operand up to the parameters comma: `sql % name, params`.
+_fmt_operands("%", rest) := m[0][1] if {
+	m := regex.find_all_string_submatch_n(`^(\([^()]*(?:\([^()]*\)[^()]*)*\)|[\w.]+(?:\([^()]*\))?)`, rest, 1)
+	count(m) > 0
+}
+
+_fmt_operands(op, rest) := m[0][1] if {
+	op != "%"
+	m := regex.find_all_string_submatch_n(`^([^()]*(?:\([^()]*\)[^()]*)*)\)`, rest, 1)
+	count(m) > 0
+}
+
+# The variable's nearest assignment above (module level included) is a SQL
+# string literal.
+_sql_template(lines, i, v) if {
+	assign_re := concat("", [`^\s*`, v, `\s*=\s*[rRbBuU]?(?:"|')(.*)$`])
+	idx := [j |
+		some j in numbers.range(max([0, i - 20]), i - 1)
+		regex.match(concat("", [`^\s*`, v, `\s*=[^=]`]), lines[j])
+	]
+	count(idx) > 0
+	j := max(idx)
+	m := regex.find_all_string_submatch_n(assign_re, lines[j], 1)
+	count(m) > 0
+	regex.match(_sql_re, _span(lines, j, m[0][1], 0))
+}

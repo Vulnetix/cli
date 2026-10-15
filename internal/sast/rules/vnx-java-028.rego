@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
     "id": "VNX-JAVA-028",
     "name": "SQL injection via string concatenation in Java",
-    "description": "A JDBC or Spring JdbcTemplate call (Statement execute/executeQuery/executeUpdate/executeLargeUpdate/addBatch, Connection prepareStatement/prepareCall, JdbcTemplate query/queryForList/queryForObject/queryForMap/queryForRowSet/update/batchUpdate) receives SQL text that was built from a SQL string literal and a non-constant value: concatenated with +, appended with +=, String.concat(), String.format() with %s, or StringBuilder.append(). The SQL may be built inline in the call (including a call split over several lines) or in a variable assigned up to 40 lines above it. Not reported: parameterised queries (? placeholders with bound arguments), SQL built only from literals and UPPER_CASE constants, non-SQL execute() calls (HTTP clients, executors) whose text carries no SQL, the pattern inside a string literal or a comment. The rule does not follow values across methods or files and does not judge whether the concatenated value is attacker-controlled.",
+    "description": "A JDBC or Spring JdbcTemplate call (Statement execute/executeQuery/executeUpdate/executeLargeUpdate/addBatch, Connection prepareStatement/prepareCall, JdbcTemplate query/queryForList/queryForObject/queryForMap/queryForRowSet/update/batchUpdate, Android SQLiteDatabase rawQuery/execSQL) receives SQL text that was built from a SQL string literal (or text block) and a non-constant value: concatenated with +, appended with +=, String.concat(), String.format() or .formatted() with %s, or StringBuilder.append(). The SQL may be built inline in the call (including a call split over several lines) or in a variable assigned up to 40 lines above it, read from its nearest plain assignment onward (sql = sql + \"...\" and sql += \"...\" with literals do not count as dynamic). Not reported: parameterised queries (? placeholders with bound arguments), SQL built only from literals and UPPER_CASE constants, non-SQL execute() calls (HTTP clients, executors) whose text carries no SQL, the pattern inside a string literal or a comment. The rule does not follow values across methods or files and does not judge whether the concatenated value is attacker-controlled.",
     "help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-028/",
     "languages": ["java"],
     "severity": "high",
@@ -21,7 +21,7 @@ metadata := {
     "tags": ["sql-injection", "database", "query"],
 }
 
-_sink_names := `executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|query|queryForList|queryForObject|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|update|batchUpdate`
+_sink_names := `executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|query|queryForList|queryForObject|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|update|batchUpdate|rawQuery|execSQL`
 
 _sink_re := concat("", [`\.(?:`, _sink_names, `)\s*\(`])
 
@@ -32,7 +32,7 @@ _str_re := `"(?:[^"\\\n]|\\.)*"`
 # A string literal that carries SQL.
 _sql_lit_re := `(?i)"[^"]*(?:\b(?:select\s|insert\s+into|update\s+\w+\s+set|delete\s+from|merge\s+into|(?:create|drop)\s+(?:table|schema|user|index|view|database)|alter\s+table|truncate\s|from\s|where\s|values\s*\(|order\s+by|group\s+by|set\s+schema)|\{\s*call\b)`
 
-_file_gate := `(?i)"[^"\n]*\b(select|insert|update|delete|create|drop|alter|truncate|merge|call|schema|from|where|values)\b`
+_file_gate := `(?i)"[^"\n]*\b(select|insert|update|delete|create|drop|alter|truncate|merge|call|schema|from|where|values)\b|"""`
 
 _is_const(name) if {
     parts := split(name, ".")
@@ -53,7 +53,7 @@ _dynamic_operand(stripped) if {
 }
 
 _dynamic_operand(stripped) if {
-    some m in regex.find_all_string_submatch_n(`\.(?:concat|append)\(\s*([A-Za-z_][\w.]*)`, stripped, -1)
+    some m in regex.find_all_string_submatch_n(`\.(?:concat|append|formatted)\(\s*([A-Za-z_][\w.]*)`, stripped, -1)
     not _is_const(m[1])
 }
 
@@ -77,8 +77,26 @@ _stmt(lines, i) := s if {
 }
 
 # All the statements in the 40 lines above i that build variable v.
+# The nearest plain assignment `v = ...` above i (not `v += ...` or
+# `v = v + ...`): statements before it built an earlier value of v.
+_last_assign(lines, i, v) := max(ks) if {
+    ks := [k |
+        some k in numbers.range(max([0, i - 40]), i - 1)
+        l := lines[k]
+        contains(l, v)
+        regex.match(concat("", [`(?:^|[^\w.])`, v, `\s*=(?:[^=]|$)`]), l)
+        not regex.match(concat("", [`(?:^|[^\w.])`, v, `\s*=\s*`, v, `\b`]), l)
+        not helpers.is_comment_line(l)
+    ]
+    count(ks) > 0
+}
+
+_from(lines, i, v) := k if {
+    k := _last_assign(lines, i, v)
+} else := max([0, i - 40])
+
 _builds(lines, i, v) := concat("\n", [s |
-    some k in numbers.range(max([0, i - 40]), i - 1)
+    some k in numbers.range(_from(lines, i, v), i - 1)
     l := lines[k]
     contains(l, v)
     not helpers.is_comment_line(l)
@@ -100,7 +118,9 @@ _vulnerable(lines, i, arg) if {
     count(m) > 0
     v := m[0][1]
     not _is_const(v)
-    _dynamic_sql(_builds(lines, i, v))
+    # `sql = sql + " ORDER BY name"` and `sql += "..."` extend the variable
+    # with itself: the self-reference is not a dynamic operand.
+    _dynamic_sql(regex.replace(_builds(lines, i, v), concat("", [`\b`, v, `\b`]), "SELFVAR"))
 }
 
 findings contains finding if {

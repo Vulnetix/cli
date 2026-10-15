@@ -1,6 +1,6 @@
 ---
 title: "VNX-KOTLIN-002 – Kotlin RSA Key Smaller Than 2048 Bits"
-description: "Detects RSA, DSA and Diffie-Hellman key pairs generated with fewer than 2048 bits in Kotlin: KeyPairGenerator.initialize(), RSAKeyGenParameterSpec, Android keystore setKeySize() and Bouncy Castle RSAKeyGenerationParameters."
+description: "Detects RSA, DSA and Diffie-Hellman key pairs and DSA/DH domain parameters generated with fewer than 2048 bits in Kotlin: KeyPairGenerator.initialize(), AlgorithmParameterGenerator.init(), RSAKeyGenParameterSpec, Android keystore setKeySize() and Bouncy Castle RSAKeyGenerationParameters."
 ---
 
 ## Overview
@@ -48,6 +48,10 @@ KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN)
 // FLAGGED: DSA and Diffie-Hellman below 2048 bits
 val dh = KeyPairGenerator.getInstance("DH")
 dh.initialize(512)
+
+// FLAGGED: DH or DSA domain parameters below 2048 bits
+val paramGen = AlgorithmParameterGenerator.getInstance("DH")
+paramGen.init(1024)
 ```
 
 Not flagged:

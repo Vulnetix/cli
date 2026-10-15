@@ -65,6 +65,14 @@ _dangerous_setting(line) := "allow-loopback-peers lets the relay reach services 
 	regex.match(`(?:^|[\s"'\-])allow-loopback-peers\b(?:\s*=\s*(?:true|1|yes))?\s*["',]?\s*$`, line)
 }
 
+# The command-line flag as one element of an inline argument list
+# (command: ["-n", "--allow-loopback-peers"]) or of a command string
+# (turnserver -n --allow-loopback-peers --realm=x).
+_dangerous_setting(line) := "allow-loopback-peers lets the relay reach services on the TURN host itself" if {
+	not regex.match(`(?:^|[\s"'\-])allow-loopback-peers\b(?:\s*=\s*(?:true|1|yes))?\s*["',]?\s*$`, line)
+	regex.match(`(?:^|[\s"'\[,])--allow-loopback-peers(?:=(?:true|1|yes))?(?:["'\],]|\s+-|\s*$)`, line)
+}
+
 _dangerous_setting(line) := "allowed-peer-ip opens a reserved address range to relaying" if {
 	m := regex.find_all_string_submatch_n(`(?:^|[\s"'\-])allowed-peer-ip\s*=\s*([0-9a-fA-F:.]+)`, line, 1)
 	count(m) > 0

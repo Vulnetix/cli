@@ -44,7 +44,7 @@ _required(content) := {m |
 	some hit in regex.find_all_string_submatch_n(`(?m)^[ \t]*require[ \t]+([^\s()/][^\s()]*)[ \t]+v\S+`, content, -1)
 	m := hit[1]
 } | {m |
-	some block in regex.find_all_string_submatch_n(`(?ms)^[ \t]*require[ \t]*\([ \t]*(?://[^\n]*)?\n(.*?)^[ \t]*\)`, content, -1)
+	some block in regex.find_all_string_submatch_n(`(?ms)^[ \t]*require[ \t]*\([ \t\r]*(?://[^\n]*)?\n(.*?)^[ \t]*\)`, content, -1)
 	some hit in regex.find_all_string_submatch_n(`(?m)^[ \t]*([^\s/][^\s]*)[ \t]+v\S+`, block[1], -1)
 	m := hit[1]
 }
@@ -54,7 +54,7 @@ _local_replaced(content) := {m |
 	some hit in regex.find_all_string_submatch_n(`(?m)^[ \t]*replace[ \t]+(\S+)(?:[ \t]+v\S+)?[ \t]*=>[ \t]*(?:\.\.?/|/)`, content, -1)
 	m := hit[1]
 } | {m |
-	some block in regex.find_all_string_submatch_n(`(?ms)^[ \t]*replace[ \t]*\([ \t]*(?://[^\n]*)?\n(.*?)^[ \t]*\)`, content, -1)
+	some block in regex.find_all_string_submatch_n(`(?ms)^[ \t]*replace[ \t]*\([ \t\r]*(?://[^\n]*)?\n(.*?)^[ \t]*\)`, content, -1)
 	some hit in regex.find_all_string_submatch_n(`(?m)^[ \t]*([^\s/]\S*)(?:[ \t]+v\S+)?[ \t]*=>[ \t]*(?:\.\.?/|/)`, block[1], -1)
 	m := hit[1]
 }
@@ -98,6 +98,21 @@ _ignores(text, gdir, dir) if {
 	gdir == dir
 	regex.match(`(?m)^[ \t]*/go\.sum[ \t]*$`, text)
 }
+
+# A pattern naming the module's go.sum by its path from the .gitignore's
+# directory (services/api/go.sum or /services/api/go.sum).
+_ignores(text, gdir, dir) if {
+	gdir != dir
+	rel := _rel(gdir, dir)
+	want := concat("/", [rel, "go.sum"])
+	contains(text, want)
+	some l in split(text, "\n")
+	trim_prefix(trim_space(l), "/") == want
+}
+
+_rel("", d) := d
+
+_rel(g, d) := substring(d, count(g) + 1, -1) if g != ""
 
 _unpinned(dir) if not input.file_set[_sum_path(dir)]
 

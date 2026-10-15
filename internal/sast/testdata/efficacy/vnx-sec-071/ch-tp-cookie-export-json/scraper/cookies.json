@@ -1,0 +1,13 @@
+[
+  {
+    "domain": "gitlab.acme.io",
+    "expirationDate": 1767225600,
+    "hostOnly": true,
+    "httpOnly": true,
+    "name": "_gitlab_session",
+    "path": "/",
+    "sameSite": "lax",
+    "secure": true,
+~>    "value": "@@sample:[0-9a-f]{32}@@"
+  }
+]

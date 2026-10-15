@@ -3,10 +3,12 @@ package vulnetix.rules.vnx_1106
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-1106",
 	"name": "Insufficient Use of Symbolic Constants",
-	"description": "Detects source patterns associated with CWE-1106 (Insufficient Use of Symbolic Constants). Each finding should be manually reviewed for exploitability in context.",
+	"description": "A Java source file repeats the same non-trivial numeric literal (three or more digits, or a hexadecimal literal of three or more digits, such as 15000, 5242880, 413 or 0xCAFEBABE) in three or more separate statements instead of naming it once as a constant. Timeouts, size limits, status codes and magic values written out at each use drift apart when one copy is changed and the others are not, which is how a limit enforced in one place is forgotten in another. Reported: every statement that repeats the literal. Not reported: a literal used once or twice, a literal on a final/static final constant declaration (the symbolic constant itself), serialVersionUID, annotation arguments, lines that are tables of three or more numbers (array initialisers, lookup tables), round and bit-width values (powers of ten, 128 to 65536 and their masks 255/0xFF/0xFFFF/0xFFFFFFFF), decimals, numbers inside strings, Java text blocks and comments, generated sources (a generator header before the first type declaration, or @Generated), and test files. Literals that are each used only once are not judged: a single magic number is a style choice this line-oriented rule cannot weigh.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1106/",
 	"languages": ["java"],
 	"severity": "low",
@@ -17,38 +19,92 @@ metadata := {
 	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "CWSS:1.0/TI:L/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
-	"tags": ["insufficient-use-of-encapsulation", "cwe-1106"],
+	"tags": ["maintainability", "magic-number", "java", "cwe-1106"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
-_skip(path) if endswith(path, ".min.html")
+_lit_re := `(?:^|[^\w.$])((?:0[xX][0-9a-fA-F_]{3,}|[1-9][0-9_]{2,})[lL]?)(?:[^\w.]|$)`
 
-_is_comment_line(line) if startswith(trim_space(line), "//")
-_is_comment_line(line) if startswith(trim_space(line), "*")
-_is_comment_line(line) if startswith(trim_space(line), "/*")
-_is_comment_line(line) if startswith(trim_space(line), "#")
-_is_comment_line(line) if startswith(trim_space(line), "--")
+_trivial := {
+	"100", "1000", "10000", "100000", "1000000", "10000000", "100000000", "1000000000",
+	"128", "256", "512", "1024", "2048", "4096", "8192", "16384", "32768", "65536",
+	"255", "511", "1023", "4095", "65535", "0xff", "0xfff", "0xffff", "0xffffff", "0xffffffff",
+	"0xffffffffffffffff", "0x7fffffff", "0x80000000", "0x100", "0x1000", "0x10000",
+	"127", "32767", "2147483647",
+}
+
+_code(line) := regex.replace(regex.replace(regex.replace(line, `"(?:[^"\\]|\\.)*"`, `""`), `'(?:[^'\\]|\\.)*'`, `''`), `//.*$|/\*.*?\*/`, "")
+
+_norm(lit) := regex.replace(regex.replace(lower(lit), `_`, ""), `l$`, "")
+
+# Lines that define a constant, carry an annotation, or are part of a
+# declaration header the literal belongs to by design.
+_skip_line(c) if regex.match(`\bfinal\b`, c)
+
+_skip_line(c) if regex.match(`^\s*@`, c)
+
+_skip_line(c) if contains(c, "serialVersionUID")
+
+_skip_line(c) if regex.match(`^\s*(?:package|import)\s`, c)
+
+_lits(c) := {n |
+	some m in regex.find_all_string_submatch_n(_lit_re, c, -1)
+	n := _norm(m[1])
+	not n in _trivial
+}
+
+# A table row: three or more numeric literals on one line.
+_table(c) if count(regex.find_all_string_submatch_n(`(?:^|[^\w.])-?(?:0[xX][0-9a-fA-F]+|\d+)[lLfFdD]?\s*(?:,|\}|$)`, c, -1)) >= 3
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
+	some path, content in input.file_contents
 	endswith(path, ".java")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	not _is_comment_line(line)
-	contains(line, "Class")
-	some _pat in {"public "}
-	contains(line, _pat)
+	not helpers.is_test_path(path)
+	not _generated(content)
+	regex.match(`[^\w.$](?:[1-9][0-9_]{2,}|0[xX][0-9a-fA-F_]{3,})`, content)
+	lines := split(content, "\n")
+	fences := [j | some j, l in lines; contains(l, `"""`)]
+	occ := [[i, n] |
+		some i, l in lines
+		regex.match(`[1-9][0-9_]{2,}|0[xX][0-9a-fA-F_]{3,}`, l)
+		not helpers.is_comment_line(l)
+		not _in_text_block(fences, i)
+		c := _code(l)
+		not _skip_line(c)
+		not _table(c)
+		some n in _lits(c)
+	]
+	count(occ) >= 3
+	some o in occ
+	uses := {i | some p in occ; p[1] == o[1]; i := p[0]}
+	count(uses) >= 3
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Public field — should be private with accessor",
+		"message": sprintf("Numeric literal %s is repeated in %d statements of this file; define it once as a named constant (static final) so every use changes together", [o[1], count(uses)]),
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
-		"start_line": i + 1,
-		"snippet": line,
+		"start_line": o[0] + 1,
+		"snippet": lines[o[0]],
 	}
+}
+
+# Generated sources (protoc, Android BuildConfig, annotation processors) are
+# rewritten by their generator, never edited, so their literals are not a
+# maintenance burden on anyone.
+_generated(content) if regex.match(`(?i)(?:@generated\b|generated by|automatically generated|auto-?generated (?:file|code|source|class)|do not (?:edit|modify))`, _header(content))
+
+# The file's text before its first type declaration (at most 40 lines), so an
+# IDE's "TODO Auto-generated method stub" inside a method does not count.
+_header(content) := concat("\n", array.slice(ls, 0, n)) if {
+	ls := array.slice(split(substring(content, 0, 3000), "\n"), 0, 40)
+	ds := [j | some j, l in ls; regex.match(`^\s*(?:(?:public|protected|private|abstract|final|static|sealed)\s+)*(?:class|interface|enum|record|@interface)\s+\w`, l)]
+	n := min(array.concat(ds, [count(ls)]))
+}
+
+_generated(content) if regex.match(`(?m)^\s*@(?:javax\.annotation\.(?:processing\.)?)?Generated\b`, content)
+
+# Inside a Java text block (""" ... """): SQL, JSON or templates, not code.
+_in_text_block(fences, i) if {
+	count(fences) > 0
+	count([j | some j in fences; j < i]) % 2 == 1
 }

@@ -1,6 +1,6 @@
 ---
 title: "VNX-CS-001 – C# SQL Injection: Query Text Built by Concatenation, Interpolation or string.Format"
-description: "Detects C# SQL statements whose text is built from non-constant values (concatenation, interpolation, string.Format, StringBuilder) and executed through ADO.NET commands and data adapters, CommandText, EF Core raw SQL, Dapper or LINQ to SQL."
+description: "Detects C# SQL statements whose text is built from non-constant values (concatenation, interpolation, string.Format, StringBuilder) and executed through ADO.NET commands and data adapters, CommandText, EF Core raw SQL, Dapper, LINQ to SQL or NHibernate."
 ---
 
 ## Overview

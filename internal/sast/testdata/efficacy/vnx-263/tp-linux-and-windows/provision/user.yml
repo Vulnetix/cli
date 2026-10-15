@@ -1,0 +1,3 @@
+- ansible.builtin.user:
+    name: deploy
+~>    password_expire_max: 365

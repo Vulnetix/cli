@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee" version="6.0">
+  <context-param>
+    <param-name>passwordPolicy</param-name>
+    <param-value>strict</param-value>
+  </context-param>
+  <context-param>
+    <param-name>password-min-length</param-name>
+    <param-value>12</param-value>
+  </context-param>
+  <servlet>
+    <servlet-name>reset</servlet-name>
+    <servlet-class>com.shop.ResetPasswordServlet</servlet-class>
+  </servlet>
+</web-app>

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-019",
 	"name": "Paramiko implicit host key trust",
-	"description": "A paramiko SSH client is told to accept a server host key it does not know, in a .py file. Reported: set_missing_host_key_policy() given AutoAddPolicy or WarningPolicy (instance or class, through any module alias or from-import, with the argument on the call line or the next line), or given a variable assigned from one in the 15 lines above; a policy assigned straight to client._policy; and a MissingHostKeyPolicy subclass whose missing_host_key() body is only pass, return, return None/True or an ellipsis, which accepts every key. Accepting an unknown key lets anyone on the network path impersonate the server and read the credentials and commands sent to it (CWE-322). Use RejectPolicy with load_system_host_keys()/load_host_keys(), or a policy that checks the key against a pinned fingerprint. Not reported: RejectPolicy, a missing_host_key() that inspects the key or raises, imports of the policy names, isinstance checks, and the names in comments or string literals.",
+	"description": "A paramiko SSH client is told to accept a server host key it does not know, in a .py file. Reported: set_missing_host_key_policy() given AutoAddPolicy or WarningPolicy (instance or class, through any module alias or from-import, with the argument on the call line or the next line), or given a variable assigned from one in the 15 lines above; a policy assigned straight to client._policy; and a missing_host_key() method (one-line or multi-line signature) whose body never raises and does not delegate to another policy's missing_host_key(), which accepts every key (pass, return, or logging and adding the key). Accepting an unknown key lets anyone on the network path impersonate the server and read the credentials and commands sent to it (CWE-322). Use RejectPolicy with load_system_host_keys()/load_host_keys(), or a policy that checks the key against a pinned fingerprint. Not reported: RejectPolicy, a missing_host_key() that raises (for example when the key does not match a pin) or delegates to RejectPolicy, imports of the policy names, isinstance checks, and the names in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-019/",
 	"languages": ["python"],
 	"severity": "high",
@@ -106,10 +106,12 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`^\s*def\s+missing_host_key\s*\(`, line)
-	j := helpers.next_code_index(lines, i, 6)
-	regex.match(`^\s*(?:pass|return(?:\s+(?:None|True))?|\.\.\.)\s*(?:#.*)?$`, lines[j])
-	k := _after(lines, j)
-	not _body_continues(line, lines, k)
+	body := _def_body(lines, i, line)
+	count(body) > 0
+	text := concat("\n", [_code(l) | some l in body])
+	# A key is accepted unless the method raises; delegating to another
+	# policy's missing_host_key (RejectPolicy, a fallback) may raise.
+	not regex.match(`\braise\b|missing_host_key\s*\(`, text)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "missing_host_key() accepts every unknown SSH host key, allowing man-in-the-middle; reject keys that do not match a pinned fingerprint",
@@ -123,12 +125,43 @@ findings contains finding if {
 
 _indent(line) := count(line) - count(trim_left(line, " \t"))
 
-_after(lines, j) := k if k := helpers.next_code_index(lines, j, 6)
-
-_after(lines, j) := -1 if not helpers.next_code_index(lines, j, 6)
-
-# The method body goes on after the bare statement (a pass before real code).
-_body_continues(def_line, lines, k) if {
-	k >= 0
-	_indent(lines[k]) > _indent(def_line)
+# A one-line method (def missing_host_key(...): pass) is its own body.
+_def_body(_, _, line) := [m[0][1]] if {
+	m := regex.find_all_string_submatch_n(`\)\s*(?:->\s*[\w.\[\]]+\s*)?:\s*(\S.*)$`, _code(line), 1)
+	count(m) > 0
 }
+
+_def_body(lines, i, line) := _body(lines, s, _indent(line)) if {
+	not regex.match(`\)\s*(?:->\s*[\w.\[\]]+\s*)?:\s*\S`, _code(line))
+	# a signature broken over lines ends at the line with `):`
+	sig := [k |
+		some k in numbers.range(i, min([count(lines) - 1, i + 6]))
+		regex.match(`\)\s*(?:->\s*[\w.\[\]]+\s*)?:\s*$`, _code(lines[k]))
+	]
+	count(sig) > 0
+	s := sig[0]
+}
+
+# The method body: the code lines after line s that are indented deeper than
+# the def, up to the first dedent (at most 40 lines).
+_body(lines, s, ind) := [lines[k] |
+	some k in numbers.range(s + 1, e - 1)
+	trim_space(lines[k]) != ""
+	not startswith(trim_space(lines[k]), "#")
+] if {
+	n := count(lines)
+	last := min([n - 1, s + 40])
+	s + 1 <= last
+	ends := [k |
+		some k in numbers.range(s + 1, last)
+		trim_space(lines[k]) != ""
+		not startswith(trim_space(lines[k]), "#")
+		_indent(lines[k]) <= ind
+	]
+	e := _first_or(ends, last + 1)
+	e > s + 1
+}
+
+_first_or(xs, _) := xs[0] if count(xs) > 0
+
+_first_or(xs, d) := d if count(xs) == 0

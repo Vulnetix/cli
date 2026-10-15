@@ -1,0 +1,2 @@
+ADMIN_PASSWORD = "123456"
+OPS_PASSWORD = "qwerty"

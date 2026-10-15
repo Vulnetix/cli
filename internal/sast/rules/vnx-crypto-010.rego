@@ -7,9 +7,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CRYPTO-010",
 	"name": "Hardcoded IV, nonce, or salt in cryptographic operation",
-	"description": "A constant is passed as the IV, nonce or salt argument of a cipher, AEAD or password KDF call: a string or byte literal, a literal byte array, or a zero-filled buffer (bytes(16), Buffer.alloc(16), new Uint8Array(12), make([]byte, n), new byte[16], [0u8; 12], {0}), either written in the call or held in a variable whose nearest assignment above is that constant and which is not filled between the assignment and the call. Sinks: Python pycryptodome AES/DES/Blowfish .new(), cryptography modes.CBC/CTR/GCM/CFB/OFB/XTS, AESGCM/AESCCM/ChaCha20Poly1305 encrypt/decrypt, iv=/nonce=/salt= keywords, hashlib.pbkdf2_hmac, PBKDF2/scrypt/PBKDF2HMAC/Scrypt/argon2 hash_secret, bcrypt.hashpw; JavaScript/TypeScript createCipheriv/createDecipheriv, pbkdf2(Sync)/scrypt(Sync), WebCrypto and CryptoJS iv:/salt: parameters, CryptoJS.PBKDF2; Go cipher.NewCBCEncrypter/NewCBCDecrypter/NewCTR/NewOFB/NewCFB*, AEAD Seal/Open, secretbox/box Seal/Open, pbkdf2/scrypt/argon2 Key; Java/Kotlin IvParameterSpec, GCMParameterSpec, PBEKeySpec, PBEParameterSpec, ChaCha20ParameterSpec, BCrypt.hashpw; C/C++/Objective-C EVP_EncryptInit/DecryptInit/CipherInit(_ex), AES_cbc/cfb/ofb_encrypt, PKCS5_PBKDF2_HMAC, mbedtls_aes_crypt_cbc, mbedtls_gcm_crypt_and_tag, crypto_secretbox_easy, CCCrypt/CCCryptorCreate; Rust Nonce::from_slice, Nonce::assume_unique_for_key, CBC/CTR/CFB/OFB ::new and new_from_slices, pbkdf2/pbkdf2_hmac, ring pbkdf2::derive, Argon2 hash_password_into. A direct constant is reported on the call line (or on the iv:/nonce:/salt: line); a constant held in a variable is reported on its assignment. Not reported: IVs and salts from a CSPRNG, read from the ciphertext, or filled in place (rand.Read, io.ReadFull, randomFillSync, getRandomValues, nextBytes, RAND_bytes, fill_bytes) before use; values from configuration or other objects (config.iv), function parameters with no constant assignment in the file, HKDF salts (a constant HKDF salt is permitted by RFC 5869), NULL IVs, calls inside comments or string literals, and test files (known-answer test vectors use fixed IVs by design). Flows through more than one variable, through helper functions, or across files are not followed.",
+	"description": "A constant is passed as the IV, nonce or salt argument of a cipher, AEAD or password KDF call: a string or byte literal, a literal byte array, or a zero-filled buffer (bytes(16), Buffer.alloc(16), new Uint8Array(12), make([]byte, n), new byte[16], [0u8; 12], {0}), either written in the call or held in a variable whose nearest assignment above is that constant and which is not filled between the assignment and the call. Sinks: Python pycryptodome AES/DES/Blowfish .new(), cryptography modes.CBC/CTR/GCM/CFB/OFB/XTS, AESGCM/AESCCM/ChaCha20Poly1305 encrypt/decrypt, iv=/nonce=/salt= keywords, hashlib.pbkdf2_hmac, PBKDF2/scrypt/PBKDF2HMAC/Scrypt/argon2 hash_secret, bcrypt.hashpw; JavaScript/TypeScript createCipheriv/createDecipheriv, pbkdf2(Sync)/scrypt(Sync), WebCrypto and CryptoJS iv:/salt: parameters, CryptoJS.PBKDF2; Go cipher.NewCBCEncrypter/NewCBCDecrypter/NewCTR/NewOFB/NewCFB*, AEAD Seal/Open, secretbox/box Seal/Open, pbkdf2/scrypt/argon2 Key; Java/Kotlin IvParameterSpec, GCMParameterSpec, PBEKeySpec, PBEParameterSpec, ChaCha20ParameterSpec, BCrypt.hashpw; C/C++/Objective-C EVP_EncryptInit/DecryptInit/CipherInit(_ex), AES_cbc/cfb/ofb_encrypt, PKCS5_PBKDF2_HMAC, mbedtls_aes_crypt_cbc, mbedtls_gcm_crypt_and_tag, crypto_secretbox_easy, CCCrypt/CCCryptorCreate; Rust Nonce::from_slice, Nonce::assume_unique_for_key, CBC/CTR/CFB/OFB ::new and new_from_slices, pbkdf2/pbkdf2_hmac, ring pbkdf2::derive, Argon2 hash_password_into; C# Rfc2898DeriveBytes (constructor and Pbkdf2), CreateEncryptor/CreateDecryptor(key, iv), the .IV property, AesGcm/AesCcm/ChaCha20Poly1305 Encrypt/Decrypt; PHP openssl_encrypt/openssl_decrypt, hash_pbkdf2, openssl_pbkdf2, sodium_crypto_secretbox, sodium_crypto_aead_*, sodium_crypto_pwhash; Ruby cipher.iv =, OpenSSL::PKCS5.pbkdf2_hmac, OpenSSL::KDF salt:. C# Encoding.*.GetBytes(literal) and Convert.FromBase64String(literal), PHP str_repeat/hex2bin/base64_decode of a literal count as constants. A direct constant is reported on the call line (or on the iv:/nonce:/salt: line); a constant held in a variable is reported on its assignment. Not reported: IVs and salts from a CSPRNG, read from the ciphertext, or filled in place (rand.Read, io.ReadFull, randomFillSync, getRandomValues, nextBytes, RAND_bytes, fill_bytes) before use; values from configuration or other objects (config.iv), function parameters with no constant assignment in the file, HKDF salts (a constant HKDF salt is permitted by RFC 5869), NULL IVs, calls inside comments or string literals, and test files (known-answer test vectors use fixed IVs by design). Flows through more than one variable, through helper functions, or across files are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-crypto-010/",
-	"languages": ["python", "javascript", "typescript", "go", "java", "kotlin", "c", "cpp", "rust"],
+	"languages": ["python", "javascript", "typescript", "go", "java", "kotlin", "c", "cpp", "rust", "csharp", "php", "ruby"],
 	"severity": "high",
 	"level": "error",
 	"kind": "sast",
@@ -34,6 +34,12 @@ _lang(path) := "jvm" if regex.match(`\.(?:java|kt|kts)$`, path)
 _lang(path) := "c" if regex.match(`\.(?:c|h|cc|cpp|cxx|hh|hpp|hxx|m|mm)$`, path)
 
 _lang(path) := "rs" if endswith(path, ".rs")
+
+_lang(path) := "cs" if endswith(path, ".cs")
+
+_lang(path) := "php" if endswith(path, ".php")
+
+_lang(path) := "rb" if endswith(path, ".rb")
 
 # ── Argument grammar ─────────────────────────────────────────────────────
 # One call argument: string literals, plain characters and one level of
@@ -93,6 +99,25 @@ _sinks := {
 		{"file": ["pbkdf2::derive"], "lsub": ["pbkdf2::derive("], "line": `\bpbkdf2::derive\(`, "re": _sub(`\bpbkdf2::derive\(\s*@A,\s*@A,\s*(@A)`)},
 		{"file": ["hash_password_into"], "lsub": ["hash_password_into("], "line": `\.hash_password_into\(`, "re": _sub(`\.hash_password_into\(\s*@A,\s*(@A)`)},
 	],
+	"cs": [
+		{"file": ["Rfc2898DeriveBytes"], "lsub": ["Rfc2898DeriveBytes"], "line": `\bRfc2898DeriveBytes(?:\.Pbkdf2)?\(`, "re": _sub(`\bRfc2898DeriveBytes(?:\.Pbkdf2)?\(\s*@A,\s*(@A)`)},
+		{"file": ["CreateEncryptor", "CreateDecryptor"], "lsub": ["CreateEncryptor(", "CreateDecryptor("], "line": `\.Create(?:En|De)cryptor\(`, "re": _sub(`\.Create(?:En|De)cryptor\(\s*@A,\s*(@A)\s*\)`)},
+		{"file": [".IV"], "lsub": [".IV"], "line": `\.IV\s*=[^=]`, "re": `\.IV\s*=\s*([^;]+?)\s*;`},
+		{"file": ["AesGcm", "AesCcm", "ChaCha20Poly1305"], "lsub": ["crypt("], "line": `(?i:gcm|ccm|chacha)\w*\.(?:En|De)crypt\(`, "re": _sub(`(?i:gcm|ccm|chacha)\w*\.(?:En|De)crypt\(\s*(@A)\s*,`)},
+	],
+	"php": [
+		{"file": ["openssl_"], "lsub": ["crypt("], "line": `\bopenssl_(?:en|de)crypt\(`, "re": _sub(`\bopenssl_(?:en|de)crypt\(\s*@A,\s*@A,\s*@A,\s*@A,\s*(@A)`)},
+		{"file": ["hash_pbkdf2"], "lsub": ["hash_pbkdf2("], "line": `\bhash_pbkdf2\(`, "re": _sub(`\bhash_pbkdf2\(\s*@A,\s*@A,\s*(@A)`)},
+		{"file": ["openssl_pbkdf2"], "lsub": ["openssl_pbkdf2("], "line": `\bopenssl_pbkdf2\(`, "re": _sub(`\bopenssl_pbkdf2\(\s*@A,\s*(@A)`)},
+		{"file": ["sodium_crypto_secretbox"], "lsub": ["sodium_crypto_secretbox"], "line": `\bsodium_crypto_secretbox(?:_open)?\(`, "re": _sub(`\bsodium_crypto_secretbox(?:_open)?\(\s*@A,\s*(@A)`)},
+		{"file": ["sodium_crypto_aead_"], "lsub": ["sodium_crypto_aead_"], "line": `\bsodium_crypto_aead_\w+_(?:en|de)crypt\(`, "re": _sub(`\bsodium_crypto_aead_\w+_(?:en|de)crypt\(\s*@A,\s*@A,\s*(@A)`)},
+		{"file": ["sodium_crypto_pwhash"], "lsub": ["sodium_crypto_pwhash("], "line": `\bsodium_crypto_pwhash\(`, "re": _sub(`\bsodium_crypto_pwhash\(\s*@A,\s*@A,\s*(@A)`)},
+	],
+	"rb": [
+		{"file": [".iv"], "lsub": [".iv"], "line": `\.iv\s*=[^=]`, "re": `\.iv\s*=\s*((?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s"'#;])+(?:\s*\*\s*\d+)?)`},
+		{"file": ["pbkdf2_hmac"], "lsub": ["pbkdf2_hmac"], "line": `\bOpenSSL::PKCS5\.pbkdf2_hmac(?:_sha1)?\(`, "re": _sub(`\bOpenSSL::PKCS5\.pbkdf2_hmac(?:_sha1)?\(\s*@A,\s*(@A)`)},
+		{"file": ["OpenSSL::KDF"], "lsub": ["salt:"], "line": `\bOpenSSL::KDF\.(?:pbkdf2_hmac|scrypt)\(`, "re": _sub(`\bOpenSSL::KDF\.(?:pbkdf2_hmac|scrypt)\(\s*@A,\s*(?:\w+:\s*@A,\s*)*salt:\s*(@A)`)},
+	],
 }
 
 # Keyword / object-member parameters: `nonce=b"..."` (Python),
@@ -119,8 +144,10 @@ _blank(line) := regex.replace(regex.replace(line, `"(?:[^"\\]|\\.)*"`, `""`), `'
 
 _code(line, "py") := regex.replace(line, `\s#[^"']*$`, "")
 
+_code(line, "rb") := regex.replace(line, `\s#[^"'{]*$`, "")
+
 _code(line, lang) := c if {
-	lang != "py"
+	not lang in {"py", "rb"}
 	a := regex.replace(line, `/\*.*?\*/`, " ")
 	c := regex.replace(a, concat("", [`\s//[^"'`, "`", `]*$`]), "")
 }
@@ -141,6 +168,7 @@ _hard_res := [
 	`^\{[^{}]*\d[^{}]*\}$`,
 	`^new\s+byte\s*\[\s*\]\s*\{[^{}]*\}$`,
 	`^byteArrayOf\([^;]*\)$`,
+	`^str_repeat\(\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|chr\(\s*\d+\s*\))\s*,\s*\d+\s*\)$`,
 	`^\[\]byte\{[^{}]*\d[^{}]*\}$`,
 	`^(?:new\s+)?Uint8Array(?:\.from)?\(\s*\[[^\]]*\d[^\]]*\]\s*\)$`,
 	`^(?:bytes|bytearray)\(\s*\[[^\]]*\d[^\]]*\]\s*\)$`,
@@ -169,7 +197,7 @@ _norm(a) := n if {
 }
 
 # One wrapper that turns a literal into bytes.
-_wrap := `^(?:Buffer\.from|\[\]byte|bytes\.fromhex|bytearray\.fromhex|(?:binascii\.)?unhexlify|base64\.b64decode|Hex\.decode(?:Hex)?|DatatypeConverter\.parseHexBinary|Base64\.getDecoder\(\)\.decode|Base64\.decode|CryptoJS\.enc\.\w+\.parse|(?:new\s+)?TextEncoder\(\)\.encode|GenericArray::from_slice|X?Nonce::from_slice|Uint8Array\.from|forge\.util\.(?:hexToBytes|decode64)|bytes)\(\s*&?\s*((?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^,'"])+?)\s*(?:,\s*[^,()]*)?\)$`
+_wrap := `^(?:Buffer\.from|\[\]byte|bytes\.fromhex|bytearray\.fromhex|(?:binascii\.)?unhexlify|base64\.b64decode|Hex\.decode(?:Hex)?|DatatypeConverter\.parseHexBinary|Base64\.getDecoder\(\)\.decode|Base64\.decode|CryptoJS\.enc\.\w+\.parse|(?:new\s+)?TextEncoder\(\)\.encode|GenericArray::from_slice|X?Nonce::from_slice|Uint8Array\.from|forge\.util\.(?:hexToBytes|decode64)|Encoding\.\w+\.GetBytes|Convert\.From(?:Base64|Hex)String|hex2bin|base64_decode|bytes)\(\s*&?\s*((?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^,'"])+?)\s*(?:,\s*[^,()]*)?\)$`
 
 _peel(n) := _norm(m[0][1]) if {
 	m := regex.find_all_string_submatch_n(_wrap, n, 1)
@@ -193,7 +221,7 @@ _const(n) if _zero(n)
 
 _const(n) if _hard(_peel(n))
 
-_ident_re := `^(?:(?:self|this|cls)\s*\.\s*)?([A-Za-z_]\w*)(?:\s*\.\s*(?:getBytes|encode|toByteArray|as_bytes|c_str|data|buffer)\s*\([^()]*\))?$`
+_ident_re := `^(?:(?:self|this|cls)\s*\.\s*|\$this\s*->\s*|(?:self|static)::\$?|\$)?([A-Za-z_]\w*)(?:\s*\.\s*(?:getBytes|encode|toByteArray|as_bytes|c_str|data|buffer)\s*\([^()]*\))?$`
 
 _not_ident := {"None", "null", "NULL", "nil", "undefined", "true", "false", "nullptr", "self", "this"}
 

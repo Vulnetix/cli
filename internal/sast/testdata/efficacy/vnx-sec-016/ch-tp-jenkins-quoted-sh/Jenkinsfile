@@ -1,0 +1,12 @@
+pipeline {
+  agent any
+  stages {
+    stage('Fetch') {
+      steps {
+~>        sh 'curl -fsSLk https://artifacts.internal/build.tar.gz -o build.tar.gz'
+~>        sh "wget --no-check-certificate -q https://mirror.internal/${params.PKG}"
+        sh 'tar xzf build.tar.gz'
+      }
+    }
+  }
+}

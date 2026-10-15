@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-LLM-007",
 	"name": "torch.load() without weights_only=True (ML model deserialization)",
-	"description": "Reports a Python call to torch.load() (also through an `import torch as <alias>`) whose argument list, including arguments on continuation lines of a multi-line call, does not pass weights_only=True, or passes weights_only=False explicitly. torch.load() unpickles the file, so loading an untrusted or attacker-supplied checkpoint executes arbitrary code; weights_only=True restricts it to tensors and primitive containers, and the safetensors format avoids pickle altogether. Not reported: calls passing weights_only=True or a non-literal weights_only value, torch.jit.load() and safetensors loaders, lookalike receivers (mytorch.load, json.load), and the call written inside a string literal, docstring or comment.",
+	"description": "Reports a Python call to torch.load() (also through an `import torch as <alias>`, or as a bare `load(...)`/alias after `from torch import load [as name]`) whose argument list, including arguments on continuation lines of a multi-line call, does not pass weights_only=True, or passes weights_only=False explicitly. torch.load() unpickles the file, so loading an untrusted or attacker-supplied checkpoint executes arbitrary code; weights_only=True restricts it to tensors and primitive containers, and the safetensors format avoids pickle altogether. Not reported: calls passing weights_only=True or a non-literal weights_only value, torch.jit.load() and safetensors loaders, lookalike receivers (mytorch.load, json.load), and the call written inside a string literal, docstring or comment.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-llm-007/",
 	"languages": ["python"],
 	"severity": "high",
@@ -76,6 +76,53 @@ findings contains finding if {
 	count(m) > 0
 	txt := _call_text(lines, i, indexof(code, m[0][1]))
 	_unsafe(txt)
+	not _in_docstring(lines, i)
+	finding := _finding(path, i, line)
+}
+
+# `from torch import load` (or `load as restore`): the bare name is torch.load.
+_from_import_names(content) := {n |
+	some m in regex.find_all_string_submatch_n(`(?m)^\s*from\s+torch\s+import\s+\(?([^\n#)]+)`, content, -1)
+	some part in split(m[1], ",")
+	words := regex.split(`\s+`, trim_space(part))
+	words[0] == "load"
+	n := _imported_as(words)
+}
+
+_imported_as(words) := words[2] if {
+	count(words) == 3
+	words[1] == "as"
+}
+
+_imported_as(words) := "load" if count(words) == 1
+
+findings contains finding if {
+	some path, content in input.file_contents
+	endswith(path, ".py")
+	regex.match(`(?m)^\s*from\s+torch\s+import\s+[^\n]*\bload\b`, content)
+	some name in _from_import_names(content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, name)
+	not helpers.is_comment_line(line)
+	code := _strip(line)
+	m := regex.find_all_string_submatch_n(concat("", [`(?:^|[^\w\.])(`, name, `\s*\()`]), code, 1)
+	count(m) > 0
+	not regex.match(`^\s*(def|class)\s`, code)
+	txt := _call_text(lines, i, indexof(code, m[0][1]))
+	_unsafe(txt)
+	not _in_docstring(lines, i)
+	finding := _finding(path, i, line)
+}
+
+# A line inside a triple-quoted string (a docstring) is prose.
+_in_docstring(lines, i) if {
+	before := concat("\n", array.slice(lines, 0, i))
+	n := count(regex.find_all_string_submatch_n(`"""|'''`, before, -1))
+	n % 2 == 1
+}
+
+_finding(path, i, line) := finding if {
 	finding := {
 		"rule_id": metadata.id,
 		"message": "torch.load() without weights_only=True unpickles the file and can execute arbitrary code from an untrusted checkpoint; pass weights_only=True or load safetensors",

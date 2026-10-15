@@ -1,0 +1,4 @@
+framework:
+    secret: '%env(APP_SECRET)%'
+~>    csrf_protection: { enabled: false }
+    http_method_override: false

@@ -1,6 +1,6 @@
 ---
 title: "VNX-JWT-006 – JWT Missing Audience or Issuer Verification"
-description: "Audience or issuer validation is switched off (verify_aud/verify_iss False in Python, ValidateAudience/ValidateIssuer = false in C#), or a token is verified against an identity provider's shared JWKS with no audience check in the file (jsonwebtoken, jose, express-jwt, Auth0 java-jwt, golang-jwt)."
+description: "Audience or issuer validation is switched off (verify_aud/verify_iss False in Python, ValidateAudience/ValidateIssuer = false in C#), or a token is verified against an identity provider's shared JWKS with no audience check in the file (jsonwebtoken, jose, express-jwt, Auth0 java-jwt, Spring Security NimbusJwtDecoder/JwtDecoders, golang-jwt)."
 ---
 
 ## Overview

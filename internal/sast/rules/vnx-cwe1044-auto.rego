@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1044",
 	"name": "Architecture with Number of Horizontal Layers Outside of Expected Range",
-	"description": "A layer count is not visible in one file, so this rule reports the concrete case of too few layers: the presentation layer (an HTTP controller, view, route handler or servlet) executing SQL against the database itself, with no data-access layer in between. That mixes request handling with query construction, which is where injectable queries and missing authorisation filters are introduced. Reported once per file, on the first such call: in Java, a file that is a Spring @Controller/@RestController, a JAX-RS @Path resource, an HttpServlet or a *Controller/*Servlet class and that calls createStatement/prepareStatement/prepareCall, jdbcTemplate.query*/update/execute or createNativeQuery, or executes a SQL literal; in Python, a Django/Flask/FastAPI view or route module (views.py, routes.py, views/ or routes/ directories, or @app.route/@bp.route/@router/@api_view handlers) that calls cursor/connection/db/session .execute*, get_db().execute, Model.objects.raw or pandas read_sql; in JavaScript/TypeScript, a route or controller module (routes/ or controllers/ directories, or app/router.get/post/... handlers) that calls sequelize.query, knex.raw, Prisma $queryRaw/$executeRaw, or db/pool/connection/client .query/execute/run/all/get with SQL text. Parameterised and concatenated queries are both reported, because the defect is where the query is, not how it is built (the injection rules judge that). Not reported: SQL in repository, DAO, model or service files, ORM query builders and repository methods called from a controller, SQL text that is only logged or quoted, test code, migrations and comments.",
+	"description": "A layer count is not visible in one file, so this rule reports the concrete case of too few layers: the presentation layer (an HTTP controller, view, route handler or servlet) executing SQL against the database itself, with no data-access layer in between. That mixes request handling with query construction, which is where injectable queries and missing authorisation filters are introduced. Reported once per file, on the first such call: in Java, a file that is a Spring @Controller/@RestController, a JAX-RS @Path resource, an HttpServlet or a *Controller/*Servlet class and that calls createStatement/prepareStatement/prepareCall, a JDBC template or client (jdbcTemplate, namedParameterJdbcTemplate, jdbcClient ...) .query*/update/execute, or createNativeQuery, or executes a SQL literal; in Python, a Django/Flask/FastAPI view or route module (views.py, routes.py, views/ or routes/ directories, or @app.route/@bp.route/@router/@api_view handlers) that calls cursor/connection/db/session .execute*, get_db().execute, Model.objects.raw, pandas read_sql, or databases/asyncpg db/database/conn/pool .fetch_all/fetch_one/fetch/fetchrow/fetchval with SQL text; in JavaScript/TypeScript, a route or controller module (routes/ or controllers/ directories, *.controller.ts, a NestJS @Controller, or app/router.get/post/... handlers) that calls sequelize.query, knex.raw, Prisma $queryRaw/$executeRaw, or db/pool/connection/client/dataSource/manager/queryRunner .query/execute/run/all/get with SQL text (also a template literal opened on the call line with the SQL on the next line). A SQL keyword must be followed by whitespace, so a cache key such as 'select:' + id is not SQL. Parameterised and concatenated queries are both reported, because the defect is where the query is, not how it is built (the injection rules judge that). Not reported: SQL in repository, DAO, model or service files, ORM query builders and repository methods called from a controller, SQL text that is only logged or quoted, test code, migrations and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1044/",
 	"languages": ["java", "python", "node"],
 	"severity": "low",
@@ -52,20 +52,26 @@ _presentation(_, content, "py") if regex.match(`(?m)^\s*@(?:\w+\.)?(?:route|get|
 
 _presentation(path, _, "js") if regex.match(`(?:^|/)(?:routes?|controllers?)(?:/|\.[jt]sx?$)|[Cc]ontroller\.[jt]sx?$`, path)
 
+_presentation(_, content, "js") if contains(content, "@Controller(")
+
 _presentation(_, content, "js") if regex.match(`\b(?:app|router)\.(?:get|post|put|patch|delete|all)\s*\(\s*['"\x60/]`, content)
 
 # ── SQL executed directly ────────────────────────────────────────────────
 
 _needles := {
-	"java": {"Statement(", "prepareCall(", "jdbcTemplate.", "createNativeQuery(", "execute"},
-	"py": {"execute", ".raw(", "read_sql"},
+	"java": {"Statement(", "prepareCall(", "jdbc", "Jdbc", "createNativeQuery(", "execute"},
+	"py": {"execute", ".raw(", "read_sql", ".fetch", ".iterate("},
 	"js": {".query", ".raw(", "queryRaw", "executeRaw", ".execute(", ".run(", ".all(", ".get(", ".each(", ".exec("},
 }
 
-_sql_text := `['"\x60]\s*(?i:select|insert|update|delete|merge|with|create|drop|alter|truncate|replace|pragma)\b`
+# A keyword followed by whitespace or the end of the line: 'select:' + id
+# is a cache key, not SQL.
+_sql_text := `['"\x60]\s*(?i:select|insert|update|delete|merge|with|create|drop|alter|truncate|replace|pragma)(?:\s|$)`
+
+_sql_line := `^\s*(?i:select|insert|update|delete|merge|with|create|drop|alter|truncate|replace|pragma)(?:\s|$)`
 
 _call_re := {
-	"java": `\.(?:createStatement|prepareStatement|prepareCall)\s*\(|\bjdbcTemplate\.(?:query\w*|update|batchUpdate|execute)\s*\(|\.createNativeQuery\s*\(`,
+	"java": `\.(?:createStatement|prepareStatement|prepareCall)\s*\(|\b\w*[jJ]dbc\w*\.(?:query\w*|update|batchUpdate|execute|sql)\s*\(|\.createNativeQuery\s*\(`,
 	"py": `\b(?:cur|curs|cursor|c|conn|con|connection|db|database|session|engine)\.(?:execute|executemany|executescript)\s*\(|\bget_db\(\)\.(?:execute|executemany|executescript)\s*\(|\.objects\.raw\s*\(|\b(?:pd|pandas)\.read_sql(?:_query)?\s*\(`,
 	"js": `\bsequelize\.query\s*\(|\bknex\.raw\s*\(|\.\$(?:queryRaw|executeRaw)(?:Unsafe)?\s*[(\x60]`,
 }
@@ -73,7 +79,8 @@ _call_re := {
 # Calls that are SQL only when their first argument is SQL text.
 _text_head := {
 	"java": `\.(?:execute|executeQuery|executeUpdate|executeLargeUpdate)\s*\(`,
-	"js": `\b(?:db|pool|conn|connection|client|database|sql|sqlite|mysql|pg)\.(?:query|execute|run|all|get|each|exec)\s*\(`,
+	"js": `\b(?:db|pool|conn|connection|client|database|sql|sqlite|mysql|pg|dataSource|manager|entityManager|queryRunner)\.(?:query|execute|run|all|get|each|exec)\s*\(`,
+	"py": `\b(?:db|database|conn|con|connection|pool)\.(?:fetch_all|fetch_one|fetch_val|fetch|fetchrow|fetchval|iterate)\s*\(`,
 }
 
 # String contents are blanked before a call is matched, so a call quoted in
@@ -91,6 +98,14 @@ _sink(lines, line, i, lang) if {
 	regex.match(concat("", [_text_head[lang], `\s*$`]), _blank(line))
 	j := helpers.next_code_index(lines, i, 2)
 	regex.match(concat("", [`^\s*`, _sql_text]), lines[j])
+}
+
+# A template literal or string opened at the end of the call line, the SQL
+# starting on the next line.
+_sink(lines, line, i, lang) if {
+	regex.match(concat("", [_text_head[lang], "\\s*[\\x60\"']{1,3}\\s*$"]), line)
+	j := helpers.next_code_index(lines, i, 2)
+	regex.match(_sql_line, lines[j])
 }
 
 _has_any(s, needles) if {

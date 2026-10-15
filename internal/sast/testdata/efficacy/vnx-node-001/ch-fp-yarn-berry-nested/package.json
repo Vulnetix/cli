@@ -1,0 +1,6 @@
+{
+  "name": "acme",
+  "private": true,
+  "workspaces": { "packages": ["apps/*"] },
+  "packageManager": "yarn@4.1.1"
+}

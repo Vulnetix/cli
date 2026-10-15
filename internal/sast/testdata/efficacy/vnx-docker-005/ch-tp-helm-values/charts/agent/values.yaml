@@ -1,0 +1,7 @@
+image:
+  repository: ghcr.io/example/agent
+  tag: 3.2.1
+
+securityContext:
+~>  privileged: true
+  runAsUser: 0

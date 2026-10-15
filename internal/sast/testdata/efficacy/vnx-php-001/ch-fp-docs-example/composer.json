@@ -1,0 +1,4 @@
+{
+    "name": "acme/sdk",
+    "require": { "guzzlehttp/guzzle": "^7.8" }
+}

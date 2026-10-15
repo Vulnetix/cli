@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-032",
 	"name": "JWT missing expiration validation",
-	"description": "A JWT's expiry is never enforced, so a leaked token works for ever. Reported on the verifying side: golang-jwt jwt.WithoutClaimsValidation() and the v3/v4 Parser field SkipClaimsValidation: true (exp, nbf and iat are then not checked), lestrrat-go/jwx jwt.WithValidate(false), and a go-jose tok.Claims(key, &c) whose function never calls Validate/ValidateWithLeeway (go-jose verifies only the signature in Claims; expiry is checked by Validate). Reported on the issuing side: golang-jwt jwt.NewWithClaims with a claims composite literal (inline, or a variable assigned one in the same function) and jwt.New followed by token.Claims.(jwt.MapClaims) edits, and go-jose jwt.Signed(...) with a jwt.Claims or map literal, when the function sets no \"exp\", ExpiresAt or Expiry. Not reported: claims built by a helper or passed in as a parameter (the expiry may be set there), default parsing (golang-jwt v4+ checks exp when present), WithExpirationRequired/WithLeeway/WithValidate(true), test files, comments and strings. Tokens that omit exp are accepted by golang-jwt unless WithExpirationRequired is set; that default is not reported.",
+	"description": "A JWT's expiry is never enforced, so a leaked token works for ever. Reported on the verifying side: golang-jwt jwt.WithoutClaimsValidation() and the v3/v4 Parser field SkipClaimsValidation: true (exp, nbf and iat are then not checked), lestrrat-go/jwx jwt.WithValidate(false), and a go-jose tok.Claims(key, &c) whose function never calls Validate/ValidateWithLeeway (go-jose verifies only the signature in Claims; expiry is checked by Validate). Reported on the issuing side: golang-jwt jwt.NewWithClaims with a claims composite literal (inline, or a variable assigned one in the same function) and jwt.New followed by token.Claims.(jwt.MapClaims) edits, go-jose jwt.Signed(...) with a jwt.Claims or map literal, and a lestrrat-go/jwx jwt.NewBuilder() chain with no Expiration(...), when the function sets no \"exp\", ExpiresAt or Expiry. Not reported: claims built by a helper or passed in as a parameter (the expiry may be set there), default parsing (golang-jwt v4+ checks exp when present), WithExpirationRequired/WithLeeway/WithValidate(true), test files, comments and strings. Tokens that omit exp are accepted by golang-jwt unless WithExpirationRequired is set; that default is not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-032/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -21,7 +21,7 @@ metadata := {
 	"tags": ["jwt", "token", "expiration", "authentication"],
 }
 
-_needles := ["WithoutClaimsValidation", "SkipClaimsValidation", "WithValidate(", "NewWithClaims(", "jwt.New(", ".Claims(", "Signed("]
+_needles := ["WithoutClaimsValidation", "NewBuilder(", "SkipClaimsValidation", "WithValidate(", "NewWithClaims(", "jwt.New(", ".Claims(", "Signed("]
 
 _gate(content) if {
 	contains(content, "jwt")
@@ -104,6 +104,15 @@ _kind(lines, i, content, code) := "the token is issued without an Expiry claim, 
 	not regex.match(_exp_re, txt)
 }
 
+# lestrrat-go/jwx: jwt.NewBuilder() chain that never calls Expiration.
+_kind(lines, i, content, code) := "the token is built without an exp claim (no .Expiration(...) on the jwx builder), so it never expires" if {
+	contains(content, "lestrrat-go/jwx")
+	regex.match(`\bjwt\.NewBuilder\(\s*\)`, code)
+	txt := _fn_text(lines, i)
+	not regex.match(`\bExpiration\(|ExpirationKey`, txt)
+	not regex.match(_exp_re, txt)
+}
+
 # Inside a /* ... */ block whose lines carry no leading '*'.
 _in_block_comment(lines, i) if {
 	i > 0
@@ -126,7 +135,7 @@ findings contains finding if {
 	_gate(content)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`ClaimsValidation|WithValidate|NewWithClaims|jwt\.New\(|\.Claims\(|Signed\(`, line)
+	regex.match(`ClaimsValidation|WithValidate|NewWithClaims|NewBuilder\(|jwt\.New\(|\.Claims\(|Signed\(`, line)
 	not helpers.is_comment_line(line)
 	not startswith(line, "func ")
 	code := _code(line)

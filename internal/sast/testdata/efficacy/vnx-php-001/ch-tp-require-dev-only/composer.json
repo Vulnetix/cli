@@ -1,0 +1,9 @@
+~>{
+    "autoload": {
+        "psr-4": { "Site\\": "src/" }
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.11",
+        "squizlabs/php_codesniffer": "^3.10"
+    }
+}

@@ -1,0 +1,8 @@
+{% for site in sites %}
+  <a href="{{ site.url }}">https://{{ site.host }}</a>
+  <a href="{{ url_for('profile') }}">www.example.org/profile</a>
+{% endfor %}
+<a href="https://shop.example.com/sale">Click here for the sale</a>
+<a href="https://shop.example.com/sale"><img src="banner.png" alt="Sale"></a>
+<!-- <a href="https://evil.example/">https://bank.example/</a> -->
+<p>Type https://bank.example into the address bar yourself.</p>

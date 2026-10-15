@@ -1,0 +1,4 @@
+dependencies {
+    implementation '@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-api:2.23.1'
+    implementation 'org.slf4j:log4j-over-slf4j:2.0.13'
+}

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-018",
 	"name": "PHP sensitive debug output disclosure",
-	"description": "A debug dump writes a whole sensitive superglobal to the response: var_dump(), print_r(), var_export(), debug_zval_dump() or the Laravel/Symfony dump()/dd() helpers called with $_SESSION, $_SERVER, $_ENV, $_COOKIE, $GLOBALS or getenv() with no argument as one of their direct arguments (also across line breaks), or print_r()/var_export() in return mode (second argument true) whose result is echoed, printed or emitted with <?= or die()/exit(). Session tokens, cookies, server paths and every environment secret then reach the browser. Not reported: a single element ($_SESSION['cart'], getenv('APP_ENV')), the return-mode result passed to error_log(), a logger or a file, a method named dump() on an object ($dumper->dump()), lookalike variables ($_SESSION_DEFAULTS), test files, comments and string literals.",
+	"description": "A debug dump writes a whole sensitive superglobal to the response: var_dump(), print_r(), var_export(), debug_zval_dump() or the Laravel/Symfony dump()/dd() helpers called with $_SESSION, $_SERVER, $_ENV, $_COOKIE, $GLOBALS or getenv() with no argument as one of their direct arguments (also across line breaks), or print_r()/var_export() in return mode (second argument true) whose result is echoed, printed or emitted with <?= or die()/exit(), directly or through a variable assigned the result and echoed in the next 15 lines. Session tokens, cookies, server paths and every environment secret then reach the browser. Not reported: a single element ($_SESSION['cart'], getenv('APP_ENV')), the return-mode result passed to error_log(), a logger or a file, a method named dump() on an object ($dumper->dump()), lookalike variables ($_SESSION_DEFAULTS), test files, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-018/",
 	"languages": ["php"],
 	"severity": "medium",
@@ -21,7 +21,7 @@ metadata := {
 	"tags": ["information-disclosure", "debug", "php"],
 }
 
-_call_re := `(^|[^\w$>:\\])(var_dump|print_r|var_export|debug_zval_dump|dump|dd)\s*\(`
+_call_re := `(^|[^\w$>:\\]|[^\w\\]\\)(var_dump|print_r|var_export|debug_zval_dump|dump|dd)\s*\(`
 
 # A whole sensitive array (or the full environment) as a direct argument of
 # the dump call: no nested call between the dump's parenthesis and it.
@@ -75,4 +75,47 @@ _writes_output(call, _) if not regex.match(_return_mode_re, call)
 _writes_output(call, code) if {
 	regex.match(_return_mode_re, call)
 	regex.match(_output_re, code)
+}
+
+# Two-line form: $out = print_r($_SESSION, true); ... echo $out;
+_dump_var(line) := v if {
+	code := _no_strings(line)
+	m := regex.find_all_string_submatch_n(`^\s*\$([A-Za-z_]\w*)\s*=\s*\\?((?:print_r|var_export)\s*\(.*)$`, code, 1)[0]
+	regex.match(_whole_re, m[2])
+	regex.match(_return_mode_re, m[2])
+	v := m[1]
+}
+
+findings contains finding if {
+	some path, content in input.file_contents
+	endswith(path, ".php")
+	regex.match(`(print_r|var_export)\s*\([^;]*,\s*(true|TRUE|1)\s*\)`, content)
+	regex.match(`\$(_SESSION|_SERVER|_ENV|_COOKIE|GLOBALS)\b|getenv\s*\(\s*\)`, content)
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
+	some j, aline in lines
+	regex.match(`(print_r|var_export)\s*\(`, aline)
+	not helpers.is_comment_line(aline)
+	v := _dump_var(aline)
+	some i in numbers.range(j + 1, min([count(lines) - 1, j + 15]))
+	line := lines[i]
+	not helpers.is_comment_line(line)
+	code := _no_strings(line)
+	regex.match(concat("", [`((^|[^\w$>:])(echo|print|die|exit)\b|<\?=)[^;]*\$`, v, `\b`]), code)
+	not _reassigned(lines, j + 1, i, v)
+	finding := {
+		"rule_id": metadata.id,
+		"message": "Debug output of a whole $_SESSION/$_SERVER/$_ENV/$_COOKIE/$GLOBALS array (or getenv()) is sent to the response, exposing session tokens, cookies and environment secrets; remove the dump from production code",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+_reassigned(lines, from, to, v) if {
+	to > from
+	some k in numbers.range(from, to - 1)
+	regex.match(concat("", [`^\s*\$`, v, `\s*=[^=]`]), lines[k])
 }

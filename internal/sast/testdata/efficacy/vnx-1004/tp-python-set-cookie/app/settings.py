@@ -1,0 +1,2 @@
+DEBUG = False
+~>SESSION_COOKIE_HTTPONLY = False

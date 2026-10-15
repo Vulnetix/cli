@@ -1,0 +1,6 @@
+<form method="post" action="/admin/products/{{ product.id }}">
+  <input type="hidden" name="_method" value="PUT">
+  <input type="hidden" name="product_id" value="{{ product.id }}">
+  <label>Price <input type="number" name="price" value="{{ product.price }}"></label>
+  <button>Save</button>
+</form>

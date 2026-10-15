@@ -1,0 +1,9 @@
+spec:
+  containers:
+    - name: api
+      image: registry.acme-corp.io/platform/api:1.4.2@sha256:@@sample:9[f]86[d]08[1]88[4]c7[d]65[9]a2[f]ea[a]0c[5]5a[d]01[5]a3[b]f4[f]1b[2]b0[b]82[2]cd[1]5d[6]c1[5]b0[f]00[a]08@@
+      env:
+        - name: CALLBACK
+          value: https://hooks.acme-corp.io:8443@callbacks
+        - name: CDN
+          value: https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js

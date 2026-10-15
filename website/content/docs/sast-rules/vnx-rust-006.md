@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUST-006 – Integer Truncation or Sign-Change Cast After Parsing"
-description: "Detect Rust code that parses a value into a wide integer type (i64, u64, isize, usize) then immediately casts it to a narrower or sign-changed type without range validation, risking silent value truncation or sign inversion."
+description: "Reports a lossy `as` cast (narrowing, signed to unsigned, or unsigned to signed of the same width) of an integer just parsed or decoded from runtime data (parse::<T>(), from_str_radix, from_be_bytes, read_u32); widening casts, casts of values that were not decoded, and range-checked values are not reported."
 ---
 
 ## Overview
@@ -23,18 +23,20 @@ Sign-change casts introduce a different class of bug: a user-supplied offset tha
 
 ## What Gets Flagged
 
-The rule matches `.rs` files (excluding comments) where `.parse::<wide_type>()` is followed on the same line by an `as narrower_type` cast, or where an unsigned type is cast to a signed type.
+A lossy cast of a parsed or decoded integer, on the same line or on a later line through the variable it was bound to:
 
 ```rust
-// FLAGGED: parse to u64 then truncate to u8 on the same line
-let port = s.parse::<u64>().unwrap() as u8;
+s.parse::<u64>().unwrap() as u8                         // FLAGGED: narrowing
+u32::from_str_radix(hex, 16).unwrap_or(0) as u8          // FLAGGED
 
-// FLAGGED: parse to i64 then narrow to i32
-let offset: i32 = input.parse::<i64>().unwrap() as i32;
+let n: i64 = raw.parse().unwrap_or(0);
+vec![0u8; n as usize]                                   // FLAGGED: a negative n becomes huge
 
-// FLAGGED: unsigned to signed — may produce a negative value
-let signed_len = buffer.len() as i32; // len() returns usize
+let len = u64::from_be_bytes(*buf);
+let short_len = len as u16;                             // FLAGGED
 ```
+
+Not flagged: widening casts (`u32 as i64`), casts to floating point, casts of values that were not decoded (`buffer.len() as u32`), a value compared against a limit or converted with `try_from` before the cast, comments and string literals.
 
 ## Remediation
 

@@ -90,13 +90,13 @@ _destructured(lines, i, src) := {v |
 # One further hop through an assignment that uses a tainted name, unless that
 # assignment picks the value from a fixed list ([...].includes(x) ? x : y).
 _tainted(lines, i, src) := t if {
-	t1 := _direct(lines, i, src) | _destructured(lines, i, src)
+	t1 := (_direct(lines, i, src) | _destructured(lines, i, src)) | _prop_assigned(lines, i, src)
 	t2 := {v |
 		count(t1) > 0
 		some j in numbers.range(max([0, i - 25]), i - 1)
 		l := lines[j]
 		not helpers.is_comment_line(l)
-		_refs(l, t1)
+		_refs(_neutralised(l), t1)
 		v := helpers.assigned_first(l)
 		not regex.match(`\]\s*\.includes\s*\(`, l)
 	}
@@ -111,9 +111,24 @@ _direct(lines, i, src) := {v |
 	some j in numbers.range(max([0, i - 25]), i - 1)
 	l := lines[j]
 	not helpers.is_comment_line(l)
-	regex.match(src, l)
+	regex.match(src, _neutralised(l))
 	not regex.match(_lookup_re, l)
 	v := helpers.assigned_first(l)
+}
+
+# A filter built member by member (if (req.query.status) filter.status =
+# req.query.status): the object named on the left is tainted.
+_prop_assigned(lines, i, src) := {v |
+	i > 0
+	some j in numbers.range(max([0, i - 25]), i - 1)
+	l := lines[j]
+	not helpers.is_comment_line(l)
+	regex.match(src, l)
+	m := regex.find_all_string_submatch_n(`(?:^|[\s;{)])([A-Za-z_$][\w$]*)(?:\.[\w$]+|\[[^\]]+\])+\s*=\s*([^=].*)$`, l, 1)
+	count(m) > 0
+	regex.match(src, _neutralised(m[0][2]))
+	v := m[0][1]
+	not v in {"req", "request", "ctx", "res", "response", "this", "module", "exports"}
 }
 
 _lookup_re := `=\s*(?:await\s+)?[\w.$?]+\.(?:get|findOne|findByPk|findById|findUnique|verify|decode|has)\(\s*(?:req|request|ctx)\b`

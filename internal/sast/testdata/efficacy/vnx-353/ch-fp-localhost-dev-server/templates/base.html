@@ -1,0 +1,15 @@
+{% load static %}
+<!doctype html>
+<html>
+<head>
+  <title>{% block title %}Shop{% endblock %}</title>
+  {% if debug %}
+  <script type="module" src="http://localhost:5173/@vite/client"></script>
+  <script type="module" src="http://127.0.0.1:5173/src/main.ts"></script>
+  {% else %}
+  <script type="module" src="{% static 'dist/main.js' %}"></script>
+  {% endif %}
+  <link rel="stylesheet" href="{% static 'dist/main.css' %}">
+</head>
+<body>{% block content %}{% endblock %}</body>
+</html>

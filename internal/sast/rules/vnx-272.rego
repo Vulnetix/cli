@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-272",
 	"name": "Least Privilege Violation",
-	"description": "Root privilege that a privileged operation needed is kept after the operation. Two shapes are reported in C, C++, Python and Go: a chroot (chroot(), os.chroot() or chroot() imported from os, syscall.Chroot()/unix.Chroot(), or a Chroot field of a SysProcAttr literal for a child process, inline or on its own line) in a project that never drops its identity afterwards (no setuid/setgid/setresuid/setgroups/initgroups call, no drop_privileges/drop_root/lower_euid-style wrapper, no SysProcAttr Credential, set in the literal or assigned afterwards), so everything the jailed process does still runs as root; and a temporary return to root (seteuid(0), setegid(0), setreuid(-1, 0), setresuid(-1, 0, -1), os.seteuid(0)) that no later call in the file lowers again, directly or through such a wrapper. Not reported: a drop anywhere in the project's code for that language (a privsep module counts), an elevation inside a function whose name says it regains privileges (the caller lowers them), a Chroot field of any other struct (a configuration value), test code, and the names in comments or string literals. Whether the privileged section is longer than it needs to be is not decidable line by line and is not judged.",
+	"description": "Root privilege that a privileged operation needed is kept after the operation. Two shapes are reported in C, C++, Python and Go: a chroot (chroot() or ::chroot(), os.chroot(), chroot() imported from os or called on an `import os as` alias, syscall.Chroot()/unix.Chroot(), or a Chroot field of a SysProcAttr literal for a child process, inline or on its own line) in a project that never drops its identity afterwards (no setuid/setgid/setresuid/setgroups/initgroups call, no drop_privileges/drop_root/lower_euid/priv_drop/switch_user-style wrapper, no SysProcAttr Credential, set in the literal or assigned afterwards), so everything the jailed process does still runs as root; and a return to root (seteuid(0), setegid(0), setuid(0) and setgid(0) in a setuid-root helper, setreuid(-1, 0), setresuid(-1, 0, -1), os.seteuid(0), os.setuid(0)) that no later call in the file lowers again, directly or through such a wrapper. Not reported: a drop anywhere in the project's code for that language (a privsep module counts), a check that root can no longer be regained after a drop (`if (setuid(0) != -1) abort();`, `if (!seteuid(0))`, a Python try whose else clause raises), an elevation inside a function whose name says it regains privileges (the caller lowers them), a Chroot field of any other struct (a configuration value), test code, and the names in comments or string literals. Whether the privileged section is longer than it needs to be is not decidable line by line and is not judged.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-272/",
 	"languages": ["c", "cpp", "python", "go"],
 	"severity": "medium",
@@ -38,8 +38,8 @@ _lang(path) := "go" if endswith(path, ".go")
 _chroot_needle := {"c": "chroot", "py": "chroot", "go": "Chroot"}
 
 _elevate_needles := {
-	"c": {"seteuid", "setegid", "setreuid", "setregid", "setresuid", "setresgid"},
-	"py": {"sete"},
+	"c": {"setuid", "setgid", "seteuid", "setegid", "setreuid", "setregid", "setresuid", "setresgid"},
+	"py": {"setuid", "setgid", "sete"},
 }
 
 _has_any(s, needles) if {
@@ -47,11 +47,36 @@ _has_any(s, needles) if {
 	contains(s, n)
 }
 
-# Substrings every drop call or wrapper contains, to skip files cheaply.
-_drop_needles := {
-	"c": {"setuid", "setgid", "seteuid", "setegid", "setre", "setres", "setgroups", "initgroups", "setusercontext", "cap_set_proc", "capng_change_id", "priv", "Priv", "PRIV", "drop", "Drop", "DROP", "lower", "Lower", "_user", "_User", "_USER", "set_uid"},
-	"py": {"setuid", "setgid", "seteuid", "setegid", "setre", "setres", "setgroups", "initgroups", "priv", "Priv", "PRIV", "drop", "Drop", "DROP", "lower", "Lower", "_user", "_User", "_USER", "set_uid"},
-	"go": {"Set", "Credential", "priv", "Priv", "PRIV", "drop", "Drop", "DROP", "lower", "Lower", "_user", "_User", "_USER", "set_uid"},
+# A line worth the drop regex: a direct identity call, or a word that names
+# a drop next to one that names what is dropped (drop_privileges, lowerEuid).
+# "lower" alone is every strings.ToLower; "priv" alone is every "private".
+_direct_needles := {
+	"c": {"setuid", "setgid", "seteuid", "setegid", "setre", "setres", "setgroups", "initgroups", "setusercontext", "cap_set_proc", "capng_change_id"},
+	"py": {"setuid", "setgid", "seteuid", "setegid", "setre", "setres", "setgroups", "initgroups"},
+	"go": {"syscall.Set", "unix.Set", "Credential"},
+}
+
+_file_may_drop(content, lang) if _has_any(content, _direct_needles[lang])
+
+_file_may_drop(content, _) if _has_any(lower(content), _wrapper_needles)
+
+# Lower-cased spellings of the wrapper names the drop regex accepts.
+_wrapper_needles := {
+	"drop_priv", "droppriv", "drop_root", "droproot", "drop_uid", "dropuid", "drop_euid", "dropeuid",
+	"drop_gid", "dropgid", "drop_egid", "dropegid", "drop_perm", "dropperm", "lower_priv", "lowerpriv",
+	"lower_root", "lowerroot", "lower_uid", "loweruid", "lower_euid", "lowereuid", "lower_gid", "lowergid",
+	"lower_egid", "loweregid", "lower_perm", "lowerperm", "revoke_priv", "revokepriv", "revoke_root", "revokeroot",
+	"relinquish", "shed_priv", "shedpriv", "shed_root", "shedroot", "priv_drop", "privdrop", "privsep_drop", "privs_drop",
+	"privileges_drop", "priv_lower", "privlower", "permanently_set_uid", "become_user", "switch_to_user", "change_to_user",
+	"switch_user", "change_user",
+}
+
+_drop_candidate(line, lang) if _has_any(line, _direct_needles[lang])
+
+_drop_candidate(line, _) if {
+	l := lower(line)
+	_has_any(l, {"drop", "lower", "revoke", "relinquish", "shed", "_user", "set_uid"})
+	_has_any(l, {"priv", "root", "uid", "gid", "perm", "_user"})
 }
 
 # String literals are blanked so `printf("chroot(%s)")` is not a call.
@@ -72,6 +97,14 @@ _chroot_call(lines, i, "c", c) if regex.match(_chroot_re.c, c)
 _chroot_call(lines, i, "go", c) if regex.match(_chroot_re.go, c)
 
 _chroot_call(lines, i, "py", c) if regex.match(_chroot_re.py, c)
+
+# `import os as _os` then `_os.chroot(...)`.
+_chroot_call(lines, i, "py", c) if {
+	regex.match(`\b\w+\.chroot\s*\(`, c)
+	some l in lines
+	some m in regex.find_all_string_submatch_n(`^\s*import\s+os\s+as\s+(\w+)\s*(#.*)?$`, l, 1)
+	regex.match(concat("", [`(^|[^\w.])`, m[1], `\.chroot\s*\(`]), c)
+}
 
 _chroot_call(lines, i, "py", c) if {
 	regex.match(`(^|[^\w.])chroot\s*\(`, c)
@@ -106,11 +139,11 @@ _declaration(line) if regex.match(`^\s*(#\s*define|extern\s|int\s+chroot\s*\()`,
 
 # Any identity change, or a wrapper whose name says it drops privileges.
 # drop_privileges(), lower_privs(), drop_root(), lower_euid(), dropRoot()...
-_drop_wrapper := `(?i)\b\w*(drop|lower|revoke|relinquish|shed)_?(priv|root|e?[ug]id|perm)\w*\s*\(|\bpermanently_set_uid\s*\(|(?i)\b(become|switch_to|change_to)_user\s*\(`
+_drop_wrapper := `(?i)\b\w*(drop|lower|revoke|relinquish|shed)_?(priv|root|e?[ug]id|perm)\w*\s*\(|(?i)\b\w*priv\w*?_?(drop|lower|revoke|shed)\w*\s*\(|\bpermanently_set_uid\s*\(|(?i)\b(become|switch_to|change_to|switch|change)_user\s*\(`
 
 _drop_re := {
 	"c": concat("|", [`(^|[^\w.>])(set(e|re|res)?[ug]id|setgroups|initgroups|setusercontext|cap_set_proc|capng_change_id)\s*\(`, _drop_wrapper]),
-	"py": concat("|", [`(^|[^\w.])(os\.)?(set(e|re|res)?[ug]id|setgroups|initgroups)\s*\(`, _drop_wrapper]),
+	"py": concat("|", [`(^|[^\w.])(\w+\.)?(set(e|re|res)?[ug]id|setgroups|initgroups)\s*\(`, _drop_wrapper]),
 	"go": concat("|", [`\b(syscall|unix)\.(Set(e|re|res)?[ug]id|Setgroups)\s*\(|\bCredential\s*:|\bsyscall\.Credential\s*\{|\.Credential\s*=`, _drop_wrapper]),
 }
 
@@ -120,9 +153,9 @@ _project_drops(lang) if {
 	some path, content in input.file_contents
 	_lang(path) == lang
 	not helpers.is_test_path(path)
-	_has_any(content, _drop_needles[lang])
+	_file_may_drop(content, lang)
 	some line in split(content, "\n")
-	_has_any(line, _drop_needles[lang])
+	_drop_candidate(line, lang)
 	not helpers.is_comment_line(line)
 	c := _code(line)
 	regex.match(_drop_re[lang], c)
@@ -155,8 +188,20 @@ findings contains finding if {
 # ── Elevation that is never lowered ──────────────────────────────────────
 
 _elevate_re := {
-	"c": `(^|[^\w.>])(sete[ug]id\s*\(\s*0\s*\)|setre[ug]id\s*\(\s*-1\s*,\s*0\s*\)|setres[ug]id\s*\(\s*-1\s*,\s*0\s*,\s*-1\s*\))`,
-	"py": `(^|[^\w.])(os\.)?sete[ug]id\s*\(\s*0\s*\)`,
+	"c": `(^|[^\w.>])(sete?[ug]id\s*\(\s*0\s*\)|setre[ug]id\s*\(\s*-1\s*,\s*0\s*\)|setres[ug]id\s*\(\s*-1\s*,\s*0\s*,\s*-1\s*\))`,
+	"py": `(^|[^\w.])(os\.)?sete?[ug]id\s*\(\s*0\s*\)`,
+}
+
+# The call checks that root can NOT be regained after a drop: success is the
+# error (`if (setuid(0) != -1) abort();`, `if (!seteuid(0))`), or, in Python,
+# the try's else clause raises.
+_verifies(lines, i, _) if regex.match(`set\w*id\s*\([^()]*\)\s*(!=\s*-\s*1|==\s*0\b|>=\s*0\b)|!\s*\(?\s*(::)?set\w*id\s*\(`, lines[i])
+
+_verifies(lines, i, "py") if {
+	some j in numbers.range(i + 1, min([count(lines) - 1, i + 6]))
+	regex.match(`^\s*else\s*:\s*(#.*)?$`, lines[j])
+	some k in numbers.range(j + 1, min([count(lines) - 1, j + 2]))
+	regex.match(`\braise\b|\bsys\.exit\s*\(|\bos\._exit\s*\(|\babort\s*\(`, lines[k])
 }
 
 # A later identity change that is not itself another elevation.
@@ -191,6 +236,7 @@ findings contains finding if {
 	_has_any(line, _elevate_needles[lang])
 	not helpers.is_comment_line(line)
 	regex.match(_elevate_re[lang], _code(line))
+	not _verifies(lines, i, lang)
 	not _lowered_after(lines, i, lang)
 	not _in_regain_wrapper(lines, i, lang)
 	finding := {

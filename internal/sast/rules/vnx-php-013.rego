@@ -31,6 +31,8 @@ _gate(content) if contains(content, "entity_loader")
 
 _gate(content) if contains(content, "LOADDTD")
 
+_gate(content) if contains(content, "SUBST_ENTITIES")
+
 _call_re := `(?i)\b(simplexml_load_string|simplexml_load_file)\s*\(|\bnew\s+\\?SimpleXMLElement\s*\(|->(loadXML|load|loadHTML|loadHTMLFile|open|xml)\s*\(|\bXMLReader::(open|xml)\s*\(`
 
 _flag_re := `\bLIBXML_(NOENT|DTDLOAD)\b`
@@ -73,7 +75,7 @@ _enables(lines, i) if {
 	regex.match(_flag_re, _code(prev))
 }
 
-_enables(lines, i) if regex.match(`->\s*(substituteEntities|resolveExternals)\s*=\s*(true|1)\b`, _code(lines[i]))
+_enables(lines, i) if regex.match(`->\s*(substituteEntities|resolveExternals)\s*=\s*((?i:true)|1)\b`, _code(lines[i]))
 
 _enables(lines, i) if regex.match(`(?i)setParserProperty\s*\(\s*\\?XMLReader::(SUBST_ENTITIES|LOADDTD)\s*,\s*(true|1)\b`, _code(lines[i]))
 

@@ -33,7 +33,7 @@ The `|safe` filter is one of the most common sources of XSS in Python web applic
 {% autoescape off %}{{ post.summary }}{% endautoescape %}
 ```
 
-Not flagged: `{{ "<br>"|safe }}`, `{{ state|tojson|safe }}`, `{{ note|escape|safe }}`, `{{ csrf_token|safe }}`, `{{ form.username|safe }}`, filters such as `|safe_title`, `|safe` in prose or script text outside `{{ }}`, and templates under test directories.
+Not flagged: `{{ "<br>"|safe }}`, `{{ state|tojson|safe }}`, `{{ note|escape|safe }}`, `{{ comment.body|bleach|safe }}`, `{{ csrf_token|safe }}`, `{{ form.username|safe }}`, filters such as `|safe_title`, `|safe` in prose or script text outside `{{ }}`, and templates under test directories.
 
 ## Remediation
 

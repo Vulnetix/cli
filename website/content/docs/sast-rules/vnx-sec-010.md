@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-010 – Package Registry Token"
-description: "Detects hardcoded npm access tokens (npm_ prefix) and PyPI upload tokens in source code, which grant publish access to package registries and enable supply chain attacks."
+description: "Detects npm access tokens (npm_ + 36 characters), PyPI and TestPyPI API tokens, literal auth tokens in .npmrc and .yarnrc.yml (npmAuthToken, npmAuthIdent) and literal .pypirc passwords, in any file outside tests; environment references and npm_config_* identifiers are not reported."
 ---
 
 ## Overview
 
-This rule detects npm access tokens matching `npm_[0-9a-zA-Z]{36}` and PyPI upload tokens matching `pypi-AgEIcHlwaS5vcmc[0-9A-Za-z\-_]{50,}` in source files. These tokens authenticate publish operations to package registries. A compromised publish token allows an attacker to release a malicious version of any package the token owner controls, potentially affecting every downstream user of that package — a textbook supply chain attack mapped to MITRE ATT&CK T1195.002.
+This rule detects npm access tokens matching `npm_[0-9a-zA-Z]{36}` and PyPI upload tokens matching `pypi-AgEIcHlwaS5vcmc[0-9A-Za-z\-_]{50,}` (and the TestPyPI `pypi-AgENdGVzdC5weXBpLm9yZw` form) in any file, plus a literal `_authToken=` / `_auth=` / `_password=` value in `.npmrc` , `npmAuthToken:` or `npmAuthIdent:` in `.yarnrc.yml`, and a literal `password =` in `.pypirc`. Values read from the environment (`${NPM_TOKEN}`), placeholders, identifiers such as `npm_config_registry`, and test, fixture and vendored paths are not reported. These tokens authenticate publish operations to package registries. A compromised publish token allows an attacker to release a malicious version of any package the token owner controls, potentially affecting every downstream user of that package — a textbook supply chain attack mapped to MITRE ATT&CK T1195.002.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

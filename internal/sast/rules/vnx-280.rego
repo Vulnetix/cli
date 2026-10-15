@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-280",
 	"name": "Improper Handling of Insufficient Permissions or Privileges ",
-	"description": "The program is refused access to, or control over, a resource and carries on as if it had it. Two concrete shapes are reported. First, a call that restricts a file to its owner (chmod/fchmod/fchmodat to 0600, 0400, 0700 or S_IRUSR|S_IWUSR in C and C++; os.chmod/Path.chmod to 0o600-style modes in Python; os.Chmod/File.Chmod to 0600-style modes in Go) whose failure is ignored: a bare statement with the result discarded, an if on its failure that only logs, an except OSError/PermissionError that passes or logs, contextlib.suppress, or a Go error that is only logged. When the process may not change the mode (the file belongs to someone else) the secret it then writes stays readable. Second, a refused directory or path that is replaced by a broader one: a failed chdir into a home or jail directory that falls back to chdir(\"/\") (C, C++), and an except PermissionError/OSError that falls back to /tmp, tempfile.gettempdir() or os.chdir(\"/\") (Python). Not reported: failures that return, exit, raise or abort; ordinary modes such as 0644 or 0755 whose failure exposes nothing; tempfile.mkdtemp() fallbacks, which are private; test code; and access()-style permission probes, which are a race (TOCTOU), not this weakness.",
+	"description": "The program is refused access to, or control over, a resource and carries on as if it had it. Two concrete shapes are reported. First, a call that restricts a file to its owner (chmod/fchmod/fchmodat to 0600, 0400, 0700 or S_IRUSR|S_IWUSR in C and C++; os.chmod/Path.chmod to 0o600-style modes in Python; os.Chmod/File.Chmod to 0600-style modes in Go) whose failure is ignored: a bare statement with the result discarded, an if on its failure that only logs, an except OSError/PermissionError that passes or logs, contextlib.suppress, or a Go error that is only logged. When the process may not change the mode (the file belongs to someone else) the secret it then writes stays readable. Second, a refused directory or path that is replaced by a broader one: a failed chdir into a home or jail directory that falls back to chdir(\"/\") (C, C++), an if on EACCES/EPERM that assigns or returns a /tmp path (C, C++), an if on os.IsPermission/fs.ErrPermission that assigns or returns os.TempDir() or a /tmp path (Go), and an except PermissionError/OSError that falls back to /tmp, tempfile.gettempdir() or os.chdir(\"/\") (Python). Not reported: failures that return, exit, raise or abort; a restrictive chmod made only so the owner can remove the entry a line or two later (rmdir, unlink, os.RemoveAll); a /tmp path that a handler only logs, prints or deletes, or a handler that re-raises; ordinary modes such as 0644 or 0755 whose failure exposes nothing; tempfile.mkdtemp() fallbacks, which are private; test code; and access()-style permission probes, which are a race (TOCTOU), not this weakness.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-280/",
 	"languages": ["c", "cpp", "python", "go"],
 	"severity": "low",
@@ -118,6 +118,7 @@ findings contains finding if {
 	not _consumed(stmt)
 	not _continuation(lines, i)
 	not _errno_checked(lines, i)
+	not _deleted_after(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": _chmod_msg,
@@ -307,9 +308,14 @@ findings contains finding if {
 	lines := split(content, "\n")
 	some h, line in lines
 	regex.match(`^\s*except\s*\(?[^:]*\b(PermissionError|OSError|IOError|EnvironmentError)\b`, line)
-	some k in array.concat([h], _block_idx(lines, h))
+	idx := _block_idx(lines, h)
+	# A handler that re-raises or exits falls back to nothing.
+	not regex.match(`\braise\b|\bsys\.exit\s*\(|\bos\._exit\s*\(`, concat("\n", [lines[k] | some k in idx]))
+	some k in array.concat([h], idx)
 	target := object.get({"t": regex.replace(lines[k], `^\s*except[^:]*:`, "")}, "t", "")
 	regex.match(_py_fallback, target)
+	# A path named in a message or cleaned up is not where the program goes.
+	not regex.match(`^\s*(print\s*\(|[\w.]*(log|logger|logging|warnings|LOG|LOGGER)\.\w+\s*\(|(shutil\.rmtree|os\.(remove|unlink|rmdir))\s*\()`, target)
 	finding := {
 		"rule_id": metadata.id,
 		"message": _fallback_msg,
@@ -381,6 +387,7 @@ findings contains finding if {
 	contains(line, "Chmod")
 	not helpers.is_comment_line(line)
 	_go_unchecked(lines, i, line)
+	not _deleted_after(lines, i)
 	finding := {
 		"rule_id": metadata.id,
 		"message": _chmod_msg,
@@ -389,5 +396,59 @@ findings contains finding if {
 		"level": metadata.level,
 		"start_line": i + 1,
 		"snippet": line,
+	}
+}
+
+# A restrictive mode set only so the owner can remove the entry
+# (`chmod(dir, 0700); rmdir(dir);`, `os.Chmod(dir, 0o700); os.RemoveAll(dir)`)
+# protects nothing that is written later.
+_deleted_after(lines, i) if {
+	some k in numbers.range(i + 1, min([count(lines) - 1, i + 3]))
+	regex.match(`\b(rmdir|unlink|unlinkat|remove|nftw|RemoveAll|Remove|rmtree)\s*\(`, lines[k])
+}
+
+# ── C / Go: a permission error answered with a shared path ───────────────
+
+_perm_cond := {
+	"c": `\b(EACCES|EPERM)\b`,
+	"go": `\bos\.IsPermission\s*\(|\b(fs|os)\.ErrPermission\b|\b(syscall|unix)\.(EACCES|EPERM)\b`,
+}
+
+_shared_target := {
+	"c": `^\s*(return\s+"/tmp[^"]*"|[\w.\->\[\]*]+\s*=\s*"/tmp(/[^"]*)?"\s*;)`,
+	"go": `^\s*(return\s+(os\.TempDir\(\)|filepath\.Join\(\s*(os\.TempDir\(\)|"/tmp")|"/tmp)|[\w.]+\s*:?=\s*(os\.TempDir\(\)|filepath\.Join\(\s*(os\.TempDir\(\)|"/tmp")|"/tmp(/[^"]*)?"))`,
+}
+
+# The branch line itself carries a one-line body after its condition.
+_fb_text(lines, i, i) := _tail(lines[i])
+
+_fb_text(lines, i, k) := lines[k] if k != i
+
+_fb_lang(path) := "c" if _is_c(path)
+
+_fb_lang(path) := "go" if endswith(path, ".go")
+
+findings contains finding if {
+	some path, content in input.file_contents
+	lang := _fb_lang(path)
+	_has_any(content, {"/tmp", "TempDir"})
+	_has_any(content, {"EACCES", "EPERM", "IsPermission", "ErrPermission"})
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
+	some i, line in lines
+	_has_any(line, {"EACCES", "EPERM", "IsPermission", "ErrPermission"})
+	regex.match(`^\s*(\}\s*)?(else\s+)?if\b`, line)
+	not helpers.is_comment_line(line)
+	regex.match(_perm_cond[lang], line)
+	some k in array.concat([i], _block_idx(lines, i))
+	regex.match(_shared_target[lang], _fb_text(lines, i, k))
+	finding := {
+		"rule_id": metadata.id,
+		"message": _fallback_msg,
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": k + 1,
+		"snippet": lines[k],
 	}
 }

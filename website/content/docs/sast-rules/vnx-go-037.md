@@ -28,6 +28,7 @@ if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
 // FLAGGED: gin / fiber pages and static files
 c.HTML(http.StatusOK, "index.tmpl", gin.H{"title": "Home"})
 return http.StripPrefix("/static/", http.FileServer(http.Dir("public")))
+app.Static("/", "./public")
 
 // FLAGGED: markup written directly
 fmt.Fprintf(w, "<html><body>Hello %s</body></html>", name(r))

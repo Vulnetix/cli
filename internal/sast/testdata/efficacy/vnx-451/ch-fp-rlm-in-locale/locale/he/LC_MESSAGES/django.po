@@ -1,0 +1,5 @@
+msgid "Order total: %(amount)s"
+msgstr "סכום ההזמנה: ‏%(amount)s"
+
+msgid "Welcome back"
+msgstr "ברוך שובך"

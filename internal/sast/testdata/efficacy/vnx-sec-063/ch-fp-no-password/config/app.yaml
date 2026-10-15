@@ -1,0 +1,3 @@
+mongo:
+  uri: mongodb://@@sample:m[o]ng[o][-]0[.]ac[m]e[.][i]nt[e]rn[a]l@@:27017,@@sample:m[o]ng[o][-]1[.]ac[m]e[.][i]nt[e]rn[a]l@@:27017/app?replicaSet=rs0
+  uri2: mongodb+srv://@@sample:c[l]us[t]er[0][.]q[1]w2[e][.]m[o]ng[o]db[.]ne[t]@@/app

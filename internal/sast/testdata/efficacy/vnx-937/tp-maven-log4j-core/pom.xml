@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>orders</artifactId>
+  <version>1.4.0</version>
+
+  <dependencies>
+    <dependency>
+      <groupId>@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@</groupId>
+      <artifactId>log4j-core</artifactId>
+~>      <version>2.14.1</version>
+    </dependency>
+    <dependency>
+      <groupId>@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@</groupId>
+      <artifactId>log4j-api</artifactId>
+      <version>2.14.1</version>
+    </dependency>
+  </dependencies>
+</project>

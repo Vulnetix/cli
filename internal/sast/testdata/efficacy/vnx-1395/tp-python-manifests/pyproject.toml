@@ -1,0 +1,6 @@
+[project]
+name = "worker"
+dependencies = [
+~>    "PyYAML<5.4",
+    "httpx>=0.27",
+]

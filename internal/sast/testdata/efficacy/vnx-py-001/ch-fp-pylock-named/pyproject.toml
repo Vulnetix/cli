@@ -1,0 +1,7 @@
+[project]
+name = "reports"
+version = "0.1.0"
+dependencies = ["pandas>=2"]
+
+[tool.uv]
+package = false

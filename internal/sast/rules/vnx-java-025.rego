@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-025",
 	"name": "Java hardcoded password or credential in source code",
-	"description": "A password is written into Java production source as a string literal: a variable, field or constant whose name ends in password, passwd, pwd or passphrase assigned a literal; DriverManager.getConnection() given a literal user and a literal password; setPassword(\"...\") or a builder .password(\"...\"); a Properties put/setProperty of a *password key with a literal value; new PasswordAuthentication/UsernamePasswordCredentials with a literal password; KeyStore load/getKey with \"...\".toCharArray(); and a password variable compared with equals() against a literal (a backdoor check). Not reported: values read from System.getenv/getProperty, @Value or a request, empty strings, placeholders (${...}, ********, changeme), values that are an environment-variable name, a property key, a URL path, a field label or message (letters and separators only, or containing spaces), names that only contain the word (PASSWORD_FIELD, passwordPattern), comments, and test code.",
+	"description": "A password is written into Java production source as a string literal: a variable, field or constant whose name ends in password, passwd, pwd or passphrase assigned a literal (including this.field = \"...\" and \"...\".toCharArray()); DriverManager.getConnection() given a literal user and a literal password; setPassword(\"...\") or a builder .password(\"...\"); a Properties put/setProperty of a *password key with a literal value; new PasswordAuthentication/UsernamePasswordCredentials with a literal password; KeyStore load/getKey with \"...\".toCharArray(); and a password variable compared with equals() against a literal (a backdoor check). Not reported: values read from System.getenv/getProperty, @Value or a request, empty strings, placeholders (${...}, ********, changeme), values that are an environment-variable name, a property key, a URL path, a field label or message (letters and separators only, or containing spaces), names that only contain the word (PASSWORD_FIELD, passwordPattern), comments, and test code.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-025/",
 	"languages": ["java"],
 	"severity": "critical",
@@ -24,7 +24,7 @@ metadata := {
 _lit := `"((?:[^"\\]|\\.)*)"`
 
 # name = "literal";  (declaration, field, constant, var, or plain assignment)
-_assign_re := concat("", [`^\s*(?:(?:private|public|protected|static|final|var|String|char\[\])\s+)*(\w*(?i:password|passwd|pwd|passphrase))\s*=\s*`, _lit, `\s*;`])
+_assign_re := concat("", [`^\s*(?:(?:private|public|protected|static|final|var|String|char\[\])\s+)*(?:this\.)?(\w*(?i:password|passwd|pwd|passphrase))\s*=\s*`, _lit, `\s*(?:\.toCharArray\(\)\s*)?;`])
 
 # x.setPassword("lit") / builder .password("lit")
 _setter_re := concat("", [`\.(?:setPassword|password)\(\s*`, _lit, `\s*\)`])

@@ -9,7 +9,7 @@ VNX-1021 reports [CWE-1021: Improper Restriction of Rendered UI Layers or Frames
 
 What is reported:
 
-- **Spring Security**: `frameOptions().disable()` and `headers().disable()`, in their chained, lambda and method-reference forms, including the two-line `.frameOptions()` / `.disable()` chain.
+- **Spring Security**: `frameOptions().disable()` and `headers().disable()`, in their chained, lambda and method-reference forms, including the chain split over two lines (`.frameOptions()` or `http.headers()`, then `.disable()`).
 - **X-Frame-Options set to `ALLOWALL`, `ALLOW-FROM` or `ALLOW`**, in Java, JavaScript/TypeScript, Python, PHP, Ruby, Go, C# and `Web.config`. Current browsers ignore `ALLOW-FROM`, so it protects nothing.
 - **The header removed** (`removeHeader`, `header_remove`, `del`, `Del`, `Remove`, `delete`, `<remove name=...>`), unless the same file sets a restrictive CSP `frame-ancestors` instead.
 - **A CSP `frame-ancestors` directive** whose sources include `*`, `https:` or `http:`.

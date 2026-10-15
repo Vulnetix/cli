@@ -1,0 +1,11 @@
+on: pull_request
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "PR #${{ github.event.pull_request.number }} at ${{ github.sha }}"
+      - run: |
+          git checkout ${{ github.event.pull_request.head.sha }}
+          echo "repo ${{ github.repository }} by ${{ github.actor }}"
+          echo "base ${{ github.event.pull_request.base.ref }} ${{ github.ref_name }}"
+          echo "labels ${{ github.event.pull_request.labels }}"

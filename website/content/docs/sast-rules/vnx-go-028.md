@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-028 – Use of weak cryptographic hash for password hashing"
-description: "Detects a password hashed with a fast unsalted digest (md5, sha1, sha256, sha512 Sum or a hasher written with it, or an MD5/SHA helper) instead of bcrypt, scrypt, Argon2id or PBKDF2."
+description: "Detects a password hashed with a fast unsalted digest (md5, sha1, sha256, sha512 Sum or a hasher written with it, an MD5/SHA helper, or a digest stored in a password-named field) instead of bcrypt, scrypt, Argon2id or PBKDF2."
 ---
 
 ## Overview

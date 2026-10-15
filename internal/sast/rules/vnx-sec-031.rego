@@ -64,6 +64,7 @@ findings contains finding if {
 	not secrets.skip_path(path)
 	not helpers.is_test_path(path)
 	_file_ctx(content)
+	regex.match(_ctx_re, content)
 	regex.match(`(key-[0-9a-z]{32}|[0-9a-f]{32}-[0-9a-f]{8}-[0-9a-f]{8})`, content)
 	lines := split(content, "\n")
 	some i, line in lines

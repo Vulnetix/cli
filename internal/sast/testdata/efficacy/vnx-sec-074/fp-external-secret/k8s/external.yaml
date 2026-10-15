@@ -1,0 +1,14 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: billing-api
+spec:
+  secretStoreRef:
+    name: aws-secrets
+    kind: ClusterSecretStore
+  target:
+    name: billing-api
+  data:
+    - secretKey: password
+      remoteRef:
+        key: prod/billing/password

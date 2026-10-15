@@ -1,0 +1,6 @@
+source 'https://rubygems.org'
+
+gem 'kt-paperclip', '~> 7.2'
+gem 'mini_racer'
+gem 'sassc-rails'
+# gem 'therubyracer'

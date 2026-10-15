@@ -1,11 +1,30 @@
 ---
 title: "VNX-SEC-065 – HTTP Basic Authentication Header"
-description: "Detects HTTP Basic authorization headers with base64-encoded credentials."
+description: "Detects literal HTTP Basic credentials: a \"Basic <base64>\" header value that decodes to a real user:password pair."
 ---
 
 ## Overview
 
-This rule detects http basic authentication header matching the `Authorization: Basic ...` pattern hardcoded anywhere in source files. Detects HTTP Basic authorization headers with base64-encoded credentials.
+This rule reports the string `Basic <base64>` (an `Authorization` header in a `.http` file, a `curl -H` argument, a headers dict or object, a `Header.Set` call, a constant, or the two-argument .NET `new AuthenticationHeaderValue("Basic", "...")`) when the base64 decodes to a printable `user:password` pair with a non-empty password. The decoded password is never printed.
+
+It does not report headers built from variables (`"Basic " + token`, f-strings, `${VAR}`, `$(...)`), text that does not decode to a credential (`Basic authentication`, `Basic realm`), default or placeholder pairs (`admin:password`, `user:pass`, a password equal to the user), comment lines, Markdown/reStructuredText/AsciiDoc, and test, fixture, vendored and generated files.
+
+## What Gets Flagged
+
+```python
+HEADERS = {"Authorization": "Basic c3ZjLWRlcGxveTpUcTh2TDJtWnA5V3g="}   # svc-deploy:Tq8vL2mZp9Wx
+```
+
+```go
+req.Header.Set("Authorization", "Basic c3ZjLWRlcGxveTpUcTh2TDJtWnA5V3g=")
+```
+
+Not flagged:
+
+```python
+headers = {"Authorization": "Basic " + token}
+DEFAULT = {"Authorization": "Basic YWRtaW46cGFzc3dvcmQ="}   # admin:password
+```
 
 **Severity:** High | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

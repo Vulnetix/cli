@@ -1,0 +1,5 @@
+Windows Registry Editor Version 5.00
+
+; Remove the safe-for-scripting category from the legacy viewer control.
+[-HKEY_CLASSES_ROOT\CLSID\{@@sample:3[F]1A[8]C2[B][-]7[D]4E[-]4B[6]A[-][9]E2[1][-]5[C]0D[7]A3[B]9F[1]0@@}\Implemented Categories\{@@sample:7[D]D9[5]80[1][-]9[8]82[-]11[C]F[-][9]FA[9][-]0[0]AA[0]06[C]42[C]4@@}]
+[-HKEY_CLASSES_ROOT\CLSID\{@@sample:3[F]1A[8]C2[B][-]7[D]4E[-]4B[6]A[-][9]E2[1][-]5[C]0D[7]A3[B]9F[1]0@@}\Implemented Categories\{@@sample:7[D]D9[5]80[2][-]9[8]82[-]11[C]F[-][9]FA[9][-]0[0]AA[0]06[C]42[C]4@@}]

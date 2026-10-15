@@ -6,7 +6,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-017",
 	"name": "Java HTTP response splitting via unsanitised header value",
-	"description": "A value read from the HTTP request reaches HttpServletResponse.setHeader(), addHeader() or sendRedirect() without CR/LF neutralisation, so an attacker who can put \\r\\n into it can inject headers or split the response. Reported: the request read inline in the call (request.getParameter/getParameterValues/getHeader/getHeaders/getQueryString/getPathInfo), a variable assigned from one of those up to 20 lines above, one intermediate assignment or concatenation of such a variable, and Spring handler parameters bound by @RequestParam, @PathVariable, @RequestHeader or @CookieValue; calls broken across lines are read to their semicolon. The header call must be on a response receiver (response, resp, res, httpResponse, getResponse()). Not reported: a value passed through replace/replaceAll, URLEncoder.encode, an OWASP/ESAPI/commons encoder, a sanitize/validate/escape helper, a numeric parse or a matches()/Pattern check on the way; constants and server-side values (getContextPath, getAttribute); outbound HTTP client headers (OkHttp/Apache builders); the pattern in comments and string literals. Flows through fields, collections or other methods are not followed.",
+	"description": "A value read from the HTTP request reaches HttpServletResponse.setHeader(), addHeader() or sendRedirect() without CR/LF neutralisation, so an attacker who can put \\r\\n into it can inject headers or split the response. Reported: the request read inline in the call (request.getParameter/getParameterValues/getHeader/getHeaders/getQueryString/getPathInfo), a variable assigned from one of those up to 20 lines above, one intermediate assignment or concatenation of such a variable, and Spring handler parameters bound by @RequestParam, @PathVariable, @RequestHeader or @CookieValue; calls broken across lines are read to their semicolon. The header call must be on a response receiver (response, resp, res, httpResponse, getResponse()). Not reported: a value passed through replace/replaceAll, URLEncoder.encode, an OWASP/ESAPI/commons encoder, a sanitize/validate/escape helper, a numeric parse, a matches()/Pattern check or an allowlist lookup (ALLOWED.contains(v), equals(v)) on the way; constants and server-side values (getContextPath, getAttribute); outbound HTTP client headers (OkHttp/Apache builders); the pattern in comments and string literals. Flows through fields, collections or other methods are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-017/",
 	"languages": ["java"],
 	"severity": "high",
@@ -50,6 +50,15 @@ _sanitised_near(lines, i, v) if {
 	not helpers.is_comment_line(l)
 	regex.match(concat("", [`\b`, v, `\b`]), l)
 	regex.match(_sanitiser, l)
+}
+
+# An allowlist lookup on the value: ALLOWED_ORIGINS.contains(origin),
+# "inline".equals(mode).
+_sanitised_near(lines, i, v) if {
+	some j in numbers.range(max([0, i - 20]), i - 1)
+	l := lines[j]
+	not helpers.is_comment_line(l)
+	regex.match(concat("", [`\.\s*(contains|containsKey|equals|equalsIgnoreCase)\s*\(\s*`, v, `\s*\)`]), l)
 }
 
 _spring_names(lines, i) := {v |

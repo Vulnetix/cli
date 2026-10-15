@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-007 – PHP extract() on Superglobal"
-description: "Detect request data imported as local variables: extract() of superglobals or request data, parse_str()/mb_parse_str() without a result array, $$key assignment in a foreach over a superglobal, and import_request_variables()."
+description: "Detect request data imported as local variables: extract() of superglobals or request data, parse_str()/mb_parse_str() without a result array, $$key or $GLOBALS[$key] assignment in a foreach over a superglobal, and import_request_variables()."
 ---
 
 ## Overview

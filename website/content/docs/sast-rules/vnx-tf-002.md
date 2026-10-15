@@ -1,13 +1,13 @@
 ---
 title: "VNX-TF-002 – Terraform AWS Security Group with Unrestricted Ingress (0.0.0.0/0)"
-description: "Detect AWS security group ingress rules allowing traffic from any source (0.0.0.0/0 or ::/0) in Terraform, which exposes services to internet-wide scanning, brute-force, and exploitation attempts."
+description: "Detect AWS security group ingress in Terraform that admits any address (0.0.0.0/0 or ::/0) through inline ingress blocks (block or attribute form), aws_security_group_rule, aws_vpc_security_group_ingress_rule or the terraform-aws-modules security-group module, except a listener on exactly port 80 or 443."
 ---
 
 ## Overview
 
-This rule flags Terraform `.tf` files where a security group ingress rule specifies `cidr_blocks = ["0.0.0.0/0"]` or `ipv6_cidr_blocks = ["::/0"]`. These CIDR blocks represent the entire IPv4 or IPv6 internet respectively, meaning the security group rule permits connections from any source address on the internet.
+This rule flags Terraform `.tf` files where `cidr_blocks` or `ipv6_cidr_blocks` contains `"0.0.0.0/0"` or `"::/0"` (on one line or in a list spread over several) inside an `ingress` block of `aws_security_group` or an `aws_security_group_rule` with `type = "ingress"`, and where `cidr_ipv4`/`cidr_ipv6` is `0.0.0.0/0`/`::/0` in an `aws_vpc_security_group_ingress_rule`. Egress, routes and network ACLs are not reported, nor are restricted or variable CIDRs, and ingress limited to exactly port 80 or exactly port 443 is treated as a public web listener that is open by design.
 
-The rule confirms the context is an ingress block by checking for the `ingress` keyword in the surrounding lines. AWS security groups act as virtual firewalls for EC2 instances, RDS databases, Lambda functions, EKS clusters, and other resources. An overly permissive ingress rule on any of these resources eliminates one of the most important layers of defense against unauthorized access.
+The rule reads the enclosing block of each CIDR attribute rather than searching nearby lines for the word `ingress`, so an `egress` block next to an `ingress` block is not reported. AWS security groups act as virtual firewalls for EC2 instances, RDS databases, Lambda functions, EKS clusters, and other resources. An overly permissive ingress rule on any of these resources eliminates one of the most important layers of defense against unauthorized access.
 
 This rule corresponds to [CWE-1220: Insufficient Granularity of Access Control](https://cwe.mitre.org/data/definitions/1220.html).
 
@@ -23,29 +23,33 @@ Even for services that are intended to be publicly accessible (web servers on po
 
 ## What Gets Flagged
 
-The rule matches `.tf` files where a CIDR block of `0.0.0.0/0` or `::/0` appears within an `ingress` block context.
-
 ```hcl
-# FLAGGED: SSH open to the entire internet
 resource "aws_security_group" "bastion" {
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]       # FLAGGED: SSH open to the internet
   }
 }
 
-# FLAGGED: database port open to IPv6 internet
-resource "aws_security_group" "database" {
-  ingress {
-    from_port        = 5432
-    to_port          = 5432
-    protocol         = "tcp"
-    ipv6_cidr_blocks = ["::/0"]
-  }
+resource "aws_security_group_rule" "db_in" {
+  type        = "ingress"
+  from_port   = 5432
+  to_port     = 5432
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]         # FLAGGED
+}
+
+resource "aws_vpc_security_group_ingress_rule" "all_v6" {
+  cidr_ipv6   = "::/0"                # FLAGGED
+  ip_protocol = "-1"
 }
 ```
+
+The `terraform-aws-modules/security-group` module is checked too: `ingress_cidr_blocks = ["0.0.0.0/0"]` with `ingress_rules = ["ssh-tcp"]`, and `cidr_blocks = "0.0.0.0/0"` in an `ingress_with_cidr_blocks` object on a port other than 80 or 443.
+
+Not flagged: `egress` blocks, `aws_route` destinations, `cidr_blocks = ["10.0.0.0/8"]`, or an ALB ingress with `from_port = 443` and `to_port = 443`.
 
 ## Remediation
 

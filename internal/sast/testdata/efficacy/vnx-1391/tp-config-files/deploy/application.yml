@@ -1,0 +1,4 @@
+spring:
+  datasource:
+    username: app
+~>    password: 123456

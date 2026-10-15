@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CS-003",
 	"name": "C# XXE: XML parser resolves external entities",
-	"description": "An XML parser is configured, or left at a default, that resolves external entities, so a document can read local files or make the server fetch URLs (XXE). Reported: an XmlResolver set to an XmlUrlResolver (inline, or a variable holding one) on XmlDocument, XmlTextReader or any other parser, and on XmlReaderSettings when that settings object also enables DTDs; DtdProcessing = DtdProcessing.Parse and ProhibitDtd = false with no XmlResolver = null beside them, unless every project file in the scan targets .NET Framework 4.5.2+ or .NET Core/.NET (where the default resolver is null and only the URL resolver line is a finding); and, when a project file targets .NET Framework 4.5.1 or older (TargetFrameworkVersion v2.0-v4.5.1, or net20-net451), XmlDocument.Load/LoadXml and new XmlTextReader(...) on non-constant input without XmlResolver = null or DtdProcessing.Prohibit/Ignore, because those parsers resolve external entities by default there. Not reported: XmlResolver = null, DtdProcessing.Prohibit or Ignore, ProhibitDtd = true, an XmlUrlResolver on XmlReaderSettings whose DTD processing stays prohibited, documents loaded from string constants, comparisons, and the names in comments or string literals.",
+	"description": "An XML parser is configured, or left at a default, that resolves external entities, so a document can read local files or make the server fetch URLs (XXE). Reported: an XmlResolver set to an XmlUrlResolver (inline, or a variable holding one) on XmlDocument, XmlTextReader or any other parser, and on XmlReaderSettings when that settings object also enables DTDs; DtdProcessing = DtdProcessing.Parse and ProhibitDtd = false with no XmlResolver = null beside them, unless every project file in the scan targets .NET Framework 4.5.2+ or .NET Core/.NET (where the default resolver is null and only the URL resolver line is a finding); and, when a project file targets .NET Framework 4.5.1 or older (TargetFrameworkVersion v2.0-v4.5.1, or net20-net451) or a web.config's compilation/httpRuntime targetFramework is 4.5.1 or older (a Web Site project has no project file), XmlDocument.Load/LoadXml and new XmlTextReader(...) on non-constant input without XmlResolver = null or DtdProcessing.Prohibit/Ignore, because those parsers resolve external entities by default there. Not reported: XmlResolver = null, DtdProcessing.Prohibit or Ignore, ProhibitDtd = true, an XmlUrlResolver on XmlReaderSettings whose DTD processing stays prohibited, documents loaded from string constants, comparisons, and the names in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-cs-003/",
 	"languages": ["csharp"],
 	"severity": "high",
@@ -45,6 +45,14 @@ _legacy_fx if {
 	regex.match(_legacy_re, c)
 }
 
+# An ASP.NET Web Site project has no project file: its framework is the
+# targetFramework of <compilation> or <httpRuntime> in web.config.
+_legacy_fx if {
+	some p, c in input.file_contents
+	regex.match(`(?i)(^|/)web\.config$`, p)
+	regex.match(`(?i)<(compilation|httpRuntime)\b[^>]*\btargetFramework\s*=\s*"(?:[123]\.\d|4\.0|4\.5|4\.5\.1)"`, c)
+}
+
 _modern_only if {
 	some p, c in input.file_contents
 	_project_file(p)
@@ -61,11 +69,14 @@ _settings_vars(content) := {m[1] |
 }
 
 _resolver_vars(content) := {m[1] |
-	some m in regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*=\s*new\s+(?:System\.Xml\.)?XmlUrlResolver\s*\(`, content, -1)
+	some m in regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*=\s*new\s+(?:System\.Xml\.)?XmlUrlResolver\s*[({]`, content, -1)
 }
 
 _doc_vars(content) := {m[1] |
 	some m in regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\s*=\s*new\s+(?:System\.Xml\.)?XmlDocument\s*[({]`, content, -1)
+} | {m[1] |
+	# XmlDocument doc = new(); (target-typed new)
+	some m in regex.find_all_string_submatch_n(`\bXmlDocument\s+([A-Za-z_]\w*)\s*=\s*new\s*[({]`, content, -1)
 }
 
 _in_settings_initializer(lines, i) if {
@@ -84,13 +95,13 @@ _dtd_on_re := `\bDtdProcessing\s*=\s*(?:System\.Xml\.)?DtdProcessing\.Parse\b|\b
 
 _resolver_null_re := `\bXmlResolver\s*=\s*null\b`
 
-_resolver_url_re := `\bXmlResolver\s*=\s*new\s+(?:System\.Xml\.)?XmlUrlResolver\s*\(`
+_resolver_url_re := `\bXmlResolver\s*=\s*new\s+(?:System\.Xml\.)?XmlUrlResolver\s*[({]`
 
 # ── XmlUrlResolver assigned ──────────────────────────────────────────────
 
 _resolver_assign := `(?:^|[^\w.])(?:([A-Za-z_][\w.]*)\.)?XmlResolver\s*=\s*([^=;,}]*)`
 
-_url_resolver(rhs, _) if regex.match(`^\s*new\s+(?:System\.Xml\.)?XmlUrlResolver\s*\(`, rhs)
+_url_resolver(rhs, _) if regex.match(`^\s*new\s+(?:System\.Xml\.)?XmlUrlResolver\s*[({]`, rhs)
 
 _url_resolver(rhs, rvars) if {
 	v := trim_space(rhs)
@@ -145,7 +156,7 @@ _legacy_default(lines, content, i, code, dvars) if {
 	m := regex.find_all_string_submatch_n(`\b([A-Za-z_]\w*)\.Load(?:Xml)?\s*\(([^)]*)\)`, code, 1)[0]
 	m[1] in dvars
 	_non_literal(content, regex.replace(lines[i], `^.*?\.Load(?:Xml)?\s*\(\s*([^)]*)\).*$`, "$1"))
-	not regex.match(concat("", [`\b`, m[1], `\s*\.\s*XmlResolver\s*=\s*null\b|\b`, m[1], `\s*=\s*new\s+(?:System\.Xml\.)?XmlDocument\s*\{[^}]*XmlResolver\s*=\s*null`]), helpers.code_window(lines, i, 10, 0))
+	not regex.match(concat("", [`\b`, m[1], `\s*\.\s*XmlResolver\s*=\s*null\b|\b`, m[1], `\s*=\s*new\s*(?:(?:System\.Xml\.)?XmlDocument)?\s*(?:\(\s*\))?\s*\{[^}]*XmlResolver\s*=\s*null`]), helpers.code_window(lines, i, 10, 0))
 }
 
 _legacy_default(lines, content, i, code, _) if {

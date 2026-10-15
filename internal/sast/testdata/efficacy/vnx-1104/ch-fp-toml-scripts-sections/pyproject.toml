@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "stylekit"
+version = "2.1.0"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pycodestyle = "^2.11"
+
+[tool.poetry.scripts]
+pep8 = "stylekit.cli:pep8_compat"
+nose = "stylekit.cli:nose_shim"
+
+[tool.coverage.run]
+distribute = "parallel"

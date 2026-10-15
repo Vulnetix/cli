@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUST-005 – panic!() or unwrap()/expect() in a Result-Returning Function"
-description: "Detect use of panic!(), .unwrap(), or .expect() inside functions that declare a Result return type, where callers expect errors to be returned rather than the process aborted."
+description: "Reports panic!(), and .unwrap()/.expect() on a fallible I/O, parse, decode, database or await result, in the body of the function that directly encloses them when it returns Result (including io::Result, anyhow::Result and crate aliases); lock().unwrap(), literal parses, other return types and test code are not reported."
 ---
 
 ## Overview
@@ -23,25 +23,25 @@ Beyond denial of service, unexpected panics can also leave resources (file handl
 
 ## What Gets Flagged
 
-The rule matches `.rs` files (excluding test modules) that both declare a `Result`-returning function and contain `panic!()`, `.unwrap()`, or `.expect(` calls.
+Each `panic!`, and each `.unwrap()` / `.expect(...)` applied directly to a fallible operation (I/O, an awaited future, parsing or deserialising, a database call, `env::var`, `try_into`), is judged by the function that directly encloses it, whose signature may span several lines:
 
 ```rust
-// FLAGGED: unwrap() inside a Result-returning function aborts on None/Err
-fn parse_config(path: &str) -> Result<Config, ConfigError> {
-    let content = std::fs::read_to_string(path).unwrap(); // crashes on error
-    let cfg: Config = serde_json::from_str(&content).unwrap();
+pub fn load(path: &Path) -> Result<Config, ConfigError> {
+    let text = std::fs::read_to_string(path).map_err(ConfigError::Io)?;
+    let cfg: Config = toml::from_str(&text).unwrap();          // FLAGGED
     Ok(cfg)
 }
 
-// FLAGGED: panic! inside Result function
-fn get_user(id: u64) -> Result<User, DbError> {
-    let row = db.query_one(id);
-    if row.is_none() {
-        panic!("user not found"); // caller cannot catch this
+pub fn save(path: &Path, body: &[u8]) -> io::Result<()> {
+    let mut f = std::fs::File::create(path).expect("create output"); // FLAGGED
+
+fn process(data: &[u8]) -> anyhow::Result<()> {
+    if data.is_empty() {
+        panic!("empty input");                                  // FLAGGED
     }
-    Ok(row.unwrap())
-}
 ```
+
+Not flagged: functions returning `Option`, `fmt::Result` or a plain value, `self.inner.lock().unwrap()` (the poisoning convention), `Regex::new("^[a-z]+$").unwrap()` (a constant), and `#[cfg(test)]` modules, `#[test]` functions, `tests/`, `examples/`, `benches/` and `build.rs`.
 
 ## Remediation
 

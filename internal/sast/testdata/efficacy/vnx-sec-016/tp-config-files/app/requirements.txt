@@ -1,0 +1,2 @@
+~>--trusted-host pypi.example.com
+requests==2.32.3

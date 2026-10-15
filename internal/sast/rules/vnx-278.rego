@@ -8,9 +8,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-278",
 	"name": "Insecure Preserved Inherited Permissions",
-	"description": "Files are extracted from an archive with the permissions (and in some cases the owner) the archive carries, so a world-writable, setuid or attacker-owned entry keeps those properties on disk without anyone deciding it should. Reported: libarchive extraction with ARCHIVE_EXTRACT_PERM, ARCHIVE_EXTRACT_OWNER or ARCHIVE_EXTRACT_ACL set unconditionally, including in a #define'd flag set (C, C++); Python tarfile extract()/extractall() with no filter argument, filter=None or filter=\"fully_trusted\" (before Python 3.14 the default keeps every mode bit, including setuid and group/other write), on a name or attribute (self.archive) bound to tarfile.open(), and shutil.unpack_archive() without a filter; Go archive/tar and archive/zip extractors that create or chmod files with the entry's own mode (os.FileMode(hdr.Mode), hdr.FileInfo().Mode(), info.Mode() after info := hdr.FileInfo(), a zip entry's f.Mode(), directly or through a variable) or chown them to the entry's Uid/Gid. Not reported: the flags set only under a user option (an if/else/case/switch on the same or the previous line or around the block, ?:, as with tar -p), a flag tested with & rather than set, a tarfile filter of \"data\" or \"tar\" or a module-wide extraction_filter, zipfile and zip archives given to unpack_archive (which do not restore modes), a mode masked with a constant (&0o755, &^0o022), test code, and the names in comments or strings. Path traversal in the same calls is a separate weakness and is not judged here.",
+	"description": "Files are extracted from an archive with the permissions (and in some cases the owner) the archive carries, so a world-writable, setuid or attacker-owned entry keeps those properties on disk without anyone deciding it should. Reported: libarchive extraction with ARCHIVE_EXTRACT_PERM, ARCHIVE_EXTRACT_OWNER or ARCHIVE_EXTRACT_ACL set unconditionally, including in a #define'd flag set (C, C++); Python tarfile extract()/extractall() with no filter argument, filter=None or filter=\"fully_trusted\" (before Python 3.14 the default keeps every mode bit, including setuid and group/other write), on a name or attribute (self.archive) bound to tarfile.open() (also through an `import tarfile as` alias) or a parameter annotated tarfile.TarFile, and shutil.unpack_archive() without a filter; Go archive/tar and archive/zip extractors that create or chmod files with the entry's own mode (os.FileMode(hdr.Mode), hdr.FileInfo().Mode(), info.Mode() after info := hdr.FileInfo(), a zip entry's f.Mode(), directly or through a variable) or chown them to the entry's Uid/Gid; and the Rust tar crate's Archive::set_preserve_permissions(true) and set_preserve_ownerships(true). Not reported: the flags set only under a user option (an if/else/case/switch on the same or the previous line or around the block, ?:, as with tar -p), a flag tested with & rather than set, a tarfile filter of \"data\" or \"tar\" or a module-wide extraction_filter, zipfile and zip archives given to unpack_archive (which do not restore modes), a mode masked with a constant (&0o755, &^0o022, also on the mode variable before the call), the tar crate's defaults and set_preserve_*(false), test code, and the names in comments or strings. Path traversal in the same calls is a separate weakness and is not judged here.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-278/",
-	"languages": ["c", "cpp", "python", "go"],
+	"languages": ["c", "cpp", "python", "go", "rust"],
 	"severity": "low",
 	"level": "note",
 	"kind": "sast",
@@ -116,16 +116,31 @@ findings contains finding if {
 
 # ── Python: tarfile and shutil.unpack_archive ────────────────────────────
 
+# The names the tarfile module goes by in this file: `tarfile`, and the alias
+# of `import tarfile as tf`.
+_tar_mods(lines) := {"tarfile"} | {m[1] |
+	some l in lines
+	contains(l, "import tarfile as")
+	some m in regex.find_all_string_submatch_n(`^\s*import\s+tarfile\s+as\s+(\w+)`, l, 1)
+}
+
+_mod_alt(lines) := concat("|", sort(_tar_mods(lines)))
+
 # Names bound to a tarfile object anywhere in the file.
-_tar_names(lines) := {m[1] |
+_tar_names(lines, alt) := {m[1] |
 	some line in lines
-	some m in regex.find_all_string_submatch_n(`\b(?:tarfile\.)?(?:open|TarFile(?:\.open)?)\s*\([^\n]*?\)\s+as\s+(\w+)`, line, -1)
-	regex.match(`\btarfile\.(open|TarFile)|\bTarFile\.open`, line)
+	some m in regex.find_all_string_submatch_n(concat("", [`\b(?:(?:`, alt, `)\.)?(?:open|TarFile(?:\.open)?)\s*\([^\n]*?\)\s+as\s+(\w+)`]), line, -1)
+	regex.match(concat("", [`\b(?:`, alt, `)\.(open|TarFile)|\bTarFile\.open`]), line)
 } | {m[1] |
 	# `tar = tarfile.open(...)` and `self.archive = tarfile.open(...)`
 	some line in lines
-	some m in regex.find_all_string_submatch_n(`^\s*(?:(?:self|cls)\.)?(\w+)\s*=\s*(?:tarfile\.)?(?:open|TarFile(?:\.open)?)\s*\(`, line, 1)
-	regex.match(`\btarfile\.(open|TarFile)|\bTarFile\.open`, line)
+	some m in regex.find_all_string_submatch_n(concat("", [`^\s*(?:(?:self|cls)\.)?(\w+)\s*=\s*(?:(?:`, alt, `)\.)?(?:open|TarFile(?:\.open)?)\s*\(`]), line, 1)
+	regex.match(concat("", [`\b(?:`, alt, `)\.(open|TarFile)|\bTarFile\.open`]), line)
+} | {m[1] |
+	# A parameter annotated as one: `def install(bundle: tarfile.TarFile, ...)`.
+	some line in lines
+	contains(line, "TarFile")
+	some m in regex.find_all_string_submatch_n(concat("", [`\b(\w+)\s*:\s*["']?(?:(?:`, alt, `)\.)?TarFile\b`]), line, -1)
 }
 
 # The call's argument text up to its closing parenthesis (at most six lines).
@@ -182,7 +197,7 @@ findings contains finding if {
 	not helpers.is_test_path(path)
 	not _module_filter(content)
 	lines := split(content, "\n")
-	names := _tar_names(lines)
+	names := _tar_names(lines, _mod_alt(lines))
 	some i, line in lines
 	_has_any(line, {".extract", "unpack_archive"})
 	regex.match(`\.extract(all)?\s*\(|unpack_archive\s*\(`, line)
@@ -240,6 +255,13 @@ _go_mode_vars(lines, i, src) := {v |
 	regex.match(src, lines[j])
 	not _go_masked(lines[j])
 	v := helpers.assigned_first(lines[j])
+	# `mode &= 0o755` / `mode &^= 0o022` between the assignment and the call.
+	not _go_remasked(lines, j, i, v)
+}
+
+_go_remasked(lines, j, i, v) if {
+	some k in numbers.range(j + 1, i - 1)
+	regex.match(concat("", [`(^|[^\w.])`, v, `\s*&\^?=\s*\(?\s*0[oO]?[0-7]+`]), lines[k])
 }
 
 _go_preserves(lines, i, args, src) if {
@@ -284,6 +306,31 @@ findings contains finding if {
 	_has_any(line, {"Chown", "Lchown"})
 	regex.match(`\bos\.(Chown|Lchown)\s*\([^,]*,\s*[\w.]+\.Uid\b`, line)
 	not helpers.is_comment_line(line)
+	finding := {
+		"rule_id": metadata.id,
+		"message": _msg,
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+# ── Rust: the tar crate ──────────────────────────────────────────────────
+
+# Archive::set_preserve_permissions(true) keeps every mode bit of the entry
+# (setuid included); set_preserve_ownerships(true) chowns to the entry's owner.
+findings contains finding if {
+	some path, content in input.file_contents
+	endswith(path, ".rs")
+	contains(content, "set_preserve_")
+	not helpers.is_test_path(path)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "set_preserve_")
+	not helpers.is_comment_line(line)
+	regex.match(`\.set_preserve_(permissions|ownerships)\s*\(\s*true\s*\)`, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": _msg,

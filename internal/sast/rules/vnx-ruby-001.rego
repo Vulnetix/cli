@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUBY-001",
 	"name": "Missing Gemfile.lock",
-	"description": "A directory holds an application Gemfile but no committed Gemfile.lock beside it, so every bundle install resolves the floating version ranges afresh and a newly published or compromised gem version enters the build unreviewed. Reported once per Gemfile, on its first line. Not reported: a gem library (a *.gemspec beside the Gemfile or a gemspec directive in it), whose consumers resolve its dependencies from their own lock; Gemfiles under test, spec or fixture directories; vendored gems under vendor/ or node_modules/.",
+	"description": "A directory holds an application Gemfile but no committed Gemfile.lock beside it (or Bundler's alternative gems.rb without gems.locked), so every bundle install resolves the floating version ranges afresh and a newly published or compromised gem version enters the build unreviewed. Reported once per Gemfile, on its first line. Not reported: a gem library (a *.gemspec beside the Gemfile or a gemspec directive in it), whose consumers resolve its dependencies from their own lock; Gemfiles under test, spec or fixture directories; vendored gems under vendor/ or node_modules/.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-001/",
 	"languages": ["ruby"],
 	"severity": "high",
@@ -38,6 +38,32 @@ findings contains finding if {
 		"start_line": 1,
 	}
 }
+
+# Bundler's alternative names: gems.rb is locked by gems.locked. A directory
+# holding only gems.rb is not in dirs_by_language, so walk the file set.
+findings contains finding if {
+	some f, _ in input.file_set
+	endswith(f, "gems.rb")
+	_base(f) == "gems.rb"
+	dir := _parent(f)
+	not input.file_set[_dir_path(dir, "gems.locked")]
+	not input.file_set[_dir_path(dir, "Gemfile.lock")]
+	not helpers.is_test_path(f)
+	not regex.match(`(^|/)(vendor|node_modules)/`, f)
+	not _library(dir, f)
+	finding := {
+		"rule_id": metadata.id,
+		"message": "gems.rb has no committed gems.locked; run bundle lock and commit the lock file so every install resolves the same gem versions",
+		"artifact_uri": f,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": 1,
+	}
+}
+
+_base(f) := f if not contains(f, "/")
+
+_base(f) := regex.replace(f, `^.*/`, "") if contains(f, "/")
 
 # A gem library: its own lock does not reach the applications that depend on it.
 _library(_, gemfile) if {

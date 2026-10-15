@@ -1,43 +1,50 @@
 ---
 title: "VNX-59 – Improper Link Resolution Before File Access ('Link Following')"
-description: "Detects Detects source patterns associated with CWE-59 (Improper Link Resolution Before File Access ('Link Following')). Each finding should be manually reviewed for exploitability in context."
+description: "A fixed file name in a shared temporary directory is written or chmod'ed without O_EXCL/O_NOFOLLOW, a path is checked with access()/lstat() and then opened by name, or os.Readlink is given a request or command-line path."
 ---
 
 ## Overview
 
-VNX-59 maps to [CWE-59: Improper Link Resolution Before File Access ('Link Following')](https://cwe.mitre.org/data/definitions/59.html). Detects source patterns associated with CWE-59 (Improper Link Resolution Before File Access ('Link Following')). Each finding should be manually reviewed for exploitability in context.
+VNX-59 maps to [CWE-59: Improper Link Resolution Before File Access ('Link Following')](https://cwe.mitre.org/data/definitions/59.html). It reports writes through a path that another local user can plant a symbolic link at, and the check-then-open race that lets a link be swapped in.
 
 **Severity:** High | **CWE:** [CWE-59](https://cwe.mitre.org/data/definitions/59.html) | **Languages:** c, cpp, go, python
 
 ## Why This Matters
 
-This weakness class (Improper Link Resolution Before File Access ('Link Following')) creates a concrete exploit surface: the rule searches for the concrete source-level patterns most commonly associated with CWE-59 and surfaces them for review. Each finding should be evaluated in context — the rule catches the pattern, not the context.
+Anyone on the host can create `/tmp/appd.pid` before your program does, as a symbolic link to `~victim/.bashrc` or `/etc/cron.d/x`. A plain `fopen(..., "w")`, `os.Create` or `chmod` then follows the link and truncates, overwrites or re-permissions the target with your program's privileges. `access()` followed by `open()` has the same problem: the file checked is not necessarily the file opened.
 
 ## What Gets Flagged
 
 ```c
-// FLAGGED: contains 'open(' pattern
-open(
-```
-
-```go
-// FLAGGED: contains 'os.Readlink(' pattern
-os.Readlink(
+int fd = open("/tmp/appd.pid", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+FILE *f = fopen("/tmp/appd.log", "a");
+snprintf(path, sizeof(path), "/var/tmp/appd-%d.state", id);
+FILE *out = fopen(path, "w");
+if (access(path, W_OK) == 0) { return open(path, O_WRONLY | O_APPEND); }
 ```
 
 ```python
-// FLAGGED: contains 'os.readlink(' pattern
-os.readlink(
+with open("/tmp/report.csv", "w") as fh: ...
+path = os.path.join(tempfile.gettempdir(), "cache.db")
+with open(path, "wb") as fh: ...
+os.chmod("/tmp/app.sock", 0o777)
 ```
+
+```go
+f, err := os.Create("/tmp/agent.pid")
+lock := filepath.Join(os.TempDir(), "agent.lock")
+return os.Create(lock)
+```
+
+Not flagged: `mkstemp`, `NamedTemporaryFile`, `os.CreateTemp`, `os.MkdirTemp` names, opens with `O_EXCL` or `O_NOFOLLOW`, Python mode `"x"`, reads, writes outside shared temporary directories, test code, and the same text in comments or strings.
 
 ## Remediation
 
-1. Review each flagged line and determine whether the pattern represents a real instance of CWE-59 or a false positive.
-2. Replace the flagged construct with a documented safe alternative appropriate to your language and framework.
-3. For confirmed false positives, add a `# vulnetix-ignore: VNX-59` comment on the line.
-4. Ensure equivalent test coverage exists to prevent regression.
+1. Let the system choose a unique name: `mkstemp()`, `tempfile.NamedTemporaryFile`/`mkstemp`, `os.CreateTemp`.
+2. If the name must be fixed, put it in a directory only your user can write (`$XDG_RUNTIME_DIR`, a 0700 directory from `mkdtemp`), and open with `O_CREAT | O_EXCL | O_NOFOLLOW`.
+3. Replace `access()` + `open()` with `open()` (`O_NOFOLLOW`) followed by `fstat()` on the descriptor.
 
 ## References
 
-- [CWE-59: Improper Link Resolution Before File Access ('Link Following')](https://cwe.mitre.org/data/definitions/59.html)
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [CWE-59: Improper Link Resolution Before File Access](https://cwe.mitre.org/data/definitions/59.html)
+- [CWE-377: Insecure Temporary File](https://cwe.mitre.org/data/definitions/377.html)

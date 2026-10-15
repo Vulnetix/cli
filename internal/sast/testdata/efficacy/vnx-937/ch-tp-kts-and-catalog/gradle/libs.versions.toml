@@ -1,0 +1,6 @@
+[versions]
+kotlin = "1.9.22"
+
+[libraries]
+~>commons-text = { module = "org.apache.commons:commons-text", version = "1.9" }
+jackson = { module = "com.fasterxml.jackson.core:jackson-databind", version = "2.15.2" }

@@ -1,0 +1,5 @@
+services:
+  api:
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/app
+      OTHER_URL: postgres://app:password@db:5432/app

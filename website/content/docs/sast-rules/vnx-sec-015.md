@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-015 – JWT Algorithm None Attack"
-description: "Detects JWT configurations that allow the 'none' algorithm, which completely disables signature verification and allows arbitrary token forgery."
+description: "Detects JWTs issued unsigned or accepted without signature verification: the none algorithm, verify_signature False, unsigned-parse APIs (jjwt parse and unsecured(), PlainJWT, UnsecuredJWT, jwx WithVerify(false)) and disabled signature requirements."
 ---
 
 ## Overview
 
-This rule detects JWT library configurations that accept or specify `algorithm='none'` (or equivalent), including library-specific constants like `Algorithm.NONE` and `SignatureAlgorithm.NONE`. When a JWT is configured with the `none` algorithm, the signature section of the token is omitted or set to an empty string, and if the library accepts this, it verifies the token without checking any signature. This means an attacker can craft a token with arbitrary claims — any user ID, any role, any permission — and the application will accept it as valid.
+This rule reports a JWT issued unsigned or accepted without signature verification: `'none'` among the allowed or signing algorithms (`algorithms=["none"]`, `algorithms: ['HS256', 'none']`, `algorithm: 'none'`), PyJWT `algorithm=None`, a `{"alg": "none"}` header literal, PyJWT/python-jose `options={"verify_signature": False}` or `verify=False`, Ruby `JWT.decode(token, key, false)`, jjwt `SignatureAlgorithm.NONE`, the generic `Jwts.parser()...parse(token)` and `parseClaimsJwt`/`parseUnsecuredClaims`, auth0 `Algorithm.none()`, Nimbus `PlainJWT`, golang-jwt `SigningMethodNone`/`UnsafeAllowNoneSignatureType`, jose `UnsecuredJWT`, ASP.NET `RequireSignedTokens = false` or a `SignatureValidator` that returns the token unchecked, and PHP `JWT::decode` allowing `'none'` or lcobucci `Signer\None`. It does not report specific algorithms, `parseClaimsJws`/`parseSignedClaims`, comparisons that reject `alg: none`, TLS `verify=False`, prose strings, tests and documentation. When a JWT is configured with the `none` algorithm, the signature section of the token is omitted or set to an empty string, and if the library accepts this, it verifies the token without checking any signature. This means an attacker can craft a token with arbitrary claims — any user ID, any role, any permission — and the application will accept it as valid.
 
 **Severity:** Critical | **CWE:** [CWE-345 – Insufficient Verification of Data Authenticity](https://cwe.mitre.org/data/definitions/345.html), [CWE-327 – Use of a Broken or Risky Cryptographic Algorithm](https://cwe.mitre.org/data/definitions/327.html)
 
@@ -45,6 +45,18 @@ String jwt = Jwts.builder()
 ```javascript
 // FLAGGED: jsonwebtoken (Node.js)
 const decoded = jwt.verify(token, '', { algorithms: ['none'] });
+```
+
+```java
+// FLAGGED: jjwt's generic parse() accepts an unsigned token
+Jwt jwt = Jwts.parser().setSigningKey(KEY).parse(token);
+// SAFE: parseClaimsJws() requires a signature
+Claims c = Jwts.parser().setSigningKey(KEY).parseClaimsJws(token).getBody();
+```
+
+```ruby
+# FLAGGED: third argument false skips verification
+JWT.decode(token, nil, false)
 ```
 
 ```python

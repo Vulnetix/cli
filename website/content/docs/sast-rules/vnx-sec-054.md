@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-054 – Datadog API / APP Key"
-description: "Reports a Datadog API key (32 hex) or application key (40 hex) assigned to a Datadog key name, or to a generic api_key/app_key in Datadog configuration; bare hex strings, the public RUM client token and variable references are not reported."
+description: "Reports a Datadog API key (32 hex) or application key (40 hex) assigned to a Datadog key name, or to a generic api_key/app_key/apiKeyAuth (including map entries and the Go client Key wrapper) in Datadog configuration; bare hex strings, the public RUM client token and variable references are not reported."
 ---
 
 ## Overview

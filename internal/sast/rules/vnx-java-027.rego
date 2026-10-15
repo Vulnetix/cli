@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-027",
 	"name": "Java Spring security headers disabled or absent (clickjacking, CSP)",
-	"description": "Spring Security configuration switches off its default protective response headers: headers().disable() (every header), frameOptions().disable() (X-Frame-Options, clickjacking), httpStrictTransportSecurity().disable() (HSTS) or contentTypeOptions().disable() (X-Content-Type-Options: nosniff), in the chained DSL (including a chain split over several lines), the lambda DSL (headers(h -> h.disable()), frameOptions(f -> { f.disable(); })) and the method-reference form (headers(AbstractHttpConfigurer::disable), frameOptions(FrameOptionsConfig::disable)). Not reported: frameOptions().sameOrigin()/deny(), xssProtection().disable() (the X-XSS-Protection header is deprecated and turning it off is current advice), csrf/cors/httpBasic/formLogin disable() calls, headers().defaultsDisabled() followed by explicit headers, test code, comments and string literals. Missing headers in frameworks other than Spring Security are not judged here.",
+	"description": "Spring Security configuration (a Java file that uses HttpSecurity, SecurityFilterChain, HeadersConfigurer or org.springframework.security) switches off its default protective response headers: headers().disable() (every header), frameOptions().disable() (X-Frame-Options, clickjacking), httpStrictTransportSecurity().disable() (HSTS) or contentTypeOptions().disable() (X-Content-Type-Options: nosniff), in the chained DSL (including a chain split over several lines), the lambda DSL (headers(h -> h.disable()), frameOptions(f -> { f.disable(); })) and the method-reference form (headers(AbstractHttpConfigurer::disable), frameOptions(FrameOptionsConfig::disable)). Not reported: frameOptions().sameOrigin()/deny(), xssProtection().disable() (the X-XSS-Protection header is deprecated and turning it off is current advice), csrf/cors/httpBasic/formLogin disable() calls, headers().defaultsDisabled() followed by explicit headers, test code, comments and string literals. Missing headers in frameworks other than Spring Security are not judged here.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-027/",
 	"languages": ["java"],
 	"severity": "medium",
@@ -41,6 +41,7 @@ findings contains finding if {
 	endswith(path, ".java")
 	not helpers.is_test_path(path)
 	contains(content, "disable")
+	regex.match(`HttpSecurity|springframework\.security|HeadersConfigurer|SecurityFilterChain`, content)
 	regex.match(`(?m)(headers|frameOptions|httpStrictTransportSecurity|contentTypeOptions)\(`, content)
 	lines := split(content, "\n")
 	some i, line in lines

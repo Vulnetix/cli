@@ -1,0 +1,8 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web:2.7.18'
+    testImplementation 'junit:junit:4.13.2'
+}

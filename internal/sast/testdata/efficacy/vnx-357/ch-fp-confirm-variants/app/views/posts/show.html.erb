@@ -1,0 +1,10 @@
+<%= link_to "Delete", @post, method: :delete, data: { confirm: "Are you sure?" } %>
+<%= button_to "Delete", @post, method: :delete, form: { data: { turbo_confirm: "Really delete?" } } %>
+<%= link_to "Archive", archive_post_path(@post), method: :patch %>
+<%= link_to "Delete",
+      @post,
+      data: {
+        turbo_method: :delete,
+        turbo_confirm: "Delete this post?"
+      } %>
+<a href="/posts/1" data-method="delete" data-confirm="Sure?">Delete</a>

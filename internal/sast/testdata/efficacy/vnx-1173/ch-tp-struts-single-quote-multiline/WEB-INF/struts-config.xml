@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<struts-config>
+  <form-beans>
+    <form-bean name="transferForm" type="com.bank.web.TransferForm"/>
+  </form-beans>
+  <action-mappings>
+    <action path="/transfer"
+            type="com.bank.web.TransferAction"
+            name="transferForm"
+            scope="request"
+~>            validate='false'
+            input="/transfer.jsp">
+      <forward name="ok" path="/done.jsp"/>
+    </action>
+    <action path="/login" type="com.bank.web.LoginAction" name="loginForm" validate="true"/>
+  </action-mappings>
+</struts-config>

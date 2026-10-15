@@ -1,0 +1,2 @@
+Emergency kit for the shared vault:
+~>A3-@@sample:[A-Z0-9]{6}@@-@@sample:[A-Z0-9]{11}@@-@@sample:[A-Z0-9]{5}@@-@@sample:[A-Z0-9]{5}@@-@@sample:[A-Z0-9]{5}@@

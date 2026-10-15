@@ -19,7 +19,7 @@ For a concrete example: if a password reset token is generated with `''.join(ran
 
 The rule fires on a `random` module call (through the module, an `import random as r` alias or a name imported with `from random import randint`) whose result is assigned to, passed as a keyword to, or stored under a dict key with a security name (password, token, secret, nonce, salt, otp, session id, api key, csrf, reset/verification code, pin), or that is returned or assigned inside a function with such a name.
 
-Not flagged: `secrets`, `random.SystemRandom()`, numpy's random module, random values with no security name (sampling, colours, shuffling), jitter such as `time.sleep(random.uniform(0, 1))` inside a token function, test files, and mentions in comments or strings.
+Not flagged: `secrets`, `random.SystemRandom()`, numpy's random module, random values with no security name (sampling, colours, shuffling, language-model token counts such as `max_tokens`), jitter such as `time.sleep(random.uniform(0, 1))` inside a token function, test files, and mentions in comments or strings.
 
 ```python
 # FLAGGED: weak token generation

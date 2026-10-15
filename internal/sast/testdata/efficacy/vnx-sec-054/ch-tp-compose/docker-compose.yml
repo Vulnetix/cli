@@ -1,0 +1,6 @@
+services:
+  agent:
+    image: gcr.io/datadoghq/agent:7
+    environment:
+~>      - DD_API_KEY=@@sample:[0-9a-f]{32}@@
+      - DD_SITE=datadoghq.eu

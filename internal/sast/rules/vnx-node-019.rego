@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-019",
 	"name": "Hardcoded JWT or session secret",
-	"description": "A string literal is the key that signs or verifies JWTs, session cookies or HMACs, so anyone with the source can forge them and the key cannot be rotated without a release. Reported, in JavaScript and TypeScript: the key argument of jwt.sign()/jwt.verify() (also across line breaks), secret/secretOrKey/secretOrPrivateKey given a literal (or an array of literals) inside express-session, cookie-session, express-jwt, koa-jwt, @fastify/jwt, NestJS JwtModule.register or a passport-jwt Strategy, cookieParser('...'), the key argument of crypto.createHmac(alg, '...'), a const/let/var holding a literal that one of those calls then uses as its key (reported at the assignment), and a config property or variable named for the purpose (jwtSecret, sessionSecret, cookieSecret, tokenSecret, authSecret, signingSecret, JWT_KEY) set to a literal. Not reported: keys from process.env or a config lookup, the literal fallback in process.env.X || '...', an empty string, a TOTP or per-user secret, a literal algorithm name, test files, examples/ directories, comments and calls written inside a string literal. Overlaps VNX-JWT-003 (jwt.sign/encode with a literal key).",
+	"description": "A string literal is the key that signs or verifies JWTs, session cookies or HMACs, so anyone with the source can forge them and the key cannot be rotated without a release. Reported, in JavaScript and TypeScript: the key argument of jwt.sign()/jwt.verify() (also across line breaks), secret/secretOrKey/secretOrPrivateKey given a literal (or an array of literals) inside express-session, cookie-session, express-jwt, koa-jwt, @fastify/jwt, NestJS JwtModule.register or a passport-jwt Strategy, cookieParser('...'), Koa signed-cookie keys (app.keys = ['...']) and cookie-session keys: ['...'], the key argument of crypto.createHmac(alg, '...'), a const/let/var holding a literal that one of those calls then uses as its key (reported at the assignment), and a config property or variable named for the purpose (jwtSecret, sessionSecret, cookieSecret, tokenSecret, authSecret, signingSecret, JWT_KEY) set to a literal. Not reported: keys from process.env or a config lookup, the literal fallback in process.env.X || '...', an empty string, a TOTP or per-user secret, a literal algorithm name, test files, examples/ directories, comments and calls written inside a string literal. Overlaps VNX-JWT-003 (jwt.sign/encode with a literal key).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-019/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
@@ -197,4 +197,31 @@ findings contains f if {
 	regex.match(_named_re, _norm(line))
 	not _const_key(line, _key_idents(lines))
 	f := _finding(path, i, line, "A JWT/session signing secret is hard-coded; move it to an environment variable or a secrets manager")
+}
+
+# Koa signed-cookie keys (app.keys = ['...']) and cookie-session keys: ['...'].
+findings contains f if {
+	some path, content in input.file_contents
+	_is_js(path)
+	not _skip_path(path)
+	regex.match(`(?m)\.keys\s*=\s*\[|\bkeys\s*:\s*\[`, content)
+	regex.match(`['"](?:koa|cookie-session)['"]`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "keys")
+	not helpers.is_comment_line(line)
+	_keys_literal(lines, i, _norm(line))
+	f := _finding(path, i, line, "Signed-cookie keys are hard-coded; anyone with the source can forge session cookies. Load them from process.env or a secrets manager")
+}
+
+_keys_literal(_, _, n) if regex.match(`\b[A-Za-z_$][\w$]*\s*\.\s*keys\s*=\s*\[\s*'x'`, n)
+
+_keys_literal(lines, i, n) if {
+	regex.match(`\bkeys\s*:\s*\[\s*'x'`, n)
+	upto := regex.replace(_norm(helpers.code_window(lines, i, 8, 0)), `\bkeys\s*:[^\n]*$`, "")
+	parts := regex.split(`\b(?:cookieSession|session)\s*\(`, upto)
+	count(parts) > 1
+
+	# The call is still open at this line.
+	not contains(parts[count(parts) - 1], ")")
 }

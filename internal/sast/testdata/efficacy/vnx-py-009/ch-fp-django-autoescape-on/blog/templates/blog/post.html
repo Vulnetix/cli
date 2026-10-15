@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+{% autoescape on %}
+<article>{{ post.body }}</article>
+{% endautoescape %}
+<p>Set autoescape=False only for plain-text mail.</p>
+{% endblock %}

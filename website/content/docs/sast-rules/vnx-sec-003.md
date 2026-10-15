@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-003 – AWS Secret Access Key"
-description: "Detects hardcoded AWS secret access keys in source code, which combined with an access key ID grant full programmatic access to AWS services."
+description: "Reports a hard-coded, high-entropy 40-character AWS secret access key assigned to an AWS secret-key name, a Terraform AWS secret_key, Go's NewStaticCredentials, or an SDK credentials constructor (Java, .NET, Ruby, PHP), excluding the documented example key, placeholders, hex digests, environment references and test files."
 category: secrets
 ---
 
@@ -18,24 +18,34 @@ Unlike a password that might be rotated periodically, AWS keys remain valid unti
 
 ## What Gets Flagged
 
-Variable assignments where the key name indicates an AWS secret and the value is a 40-character alphanumeric string.
+A 40-character base64 value with high entropy, where AWS says it is a secret access key:
 
-```python
-# FLAGGED: hardcoded AWS secret access key
-import boto3
-
-session = boto3.Session(
-    aws_access_key_id='AKIAIOSFODNN7EXAMPLE',
-    aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
-)
-```
+- assigned to `aws_secret_access_key`, `AWS_SECRET_ACCESS_KEY`, `secret_access_key`, `secretAccessKey`, `SecretAccessKey`, `aws_secret_key` or `aws_secret` in code, JSON/YAML, `.env`, shell `export` or the `~/.aws/credentials` format;
+- the `secret_key` argument of a Terraform/HCL file that configures AWS;
+- the second argument of Go's `credentials.NewStaticCredentials` / `NewStaticCredentialsProvider`;
+- a quoted secret passed to an SDK credentials constructor (`new BasicAWSCredentials(id, "...")` in Java and .NET, `AwsBasicCredentials.create`, Ruby `Aws::Credentials.new`, PHP `Credentials`), including when the argument is on one of the next three lines;
+- the `'secret'` entry of a PHP SDK `'credentials' => [...]` array.
 
 ```ini
-# FLAGGED: in a config file
+# FLAGGED: shared credentials file
 [default]
-aws_access_key_id = AKIAIOSFODNN7EXAMPLE
-aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+aws_secret_access_key = <40-character secret>
 ```
+
+```go
+// FLAGGED: static credentials in Go
+creds := credentials.NewStaticCredentials(keyID, "<40-character secret>", "")
+```
+
+Not flagged:
+
+- AWS's documented example key (ending `EXAMPLEKEY`) and placeholders.
+- 40-character hex digests (a SHA-1 is not a secret key).
+- Environment and CI-secret references (`os.environ[...]`, `${{ secrets.AWS_SECRET_ACCESS_KEY }}`).
+- A generic `SECRET_KEY` (Django's, for example) outside an AWS Terraform file.
+- Test, fixture, vendored and generated files.
+
+The paired access key ID is VNX-SEC-001.
 
 ## Remediation
 

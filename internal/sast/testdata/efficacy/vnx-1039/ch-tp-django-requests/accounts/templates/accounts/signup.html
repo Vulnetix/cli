@@ -1,0 +1,8 @@
+<script src="https://www.google.com/recaptcha/api.js?render={{ RECAPTCHA_SITE_KEY }}"></script>
+<script>
+  grecaptcha.ready(function () {
+    grecaptcha.execute('{{ RECAPTCHA_SITE_KEY }}', { action: 'signup' }).then(function (t) {
+      document.getElementById('g-token').value = t;
+    });
+  });
+</script>

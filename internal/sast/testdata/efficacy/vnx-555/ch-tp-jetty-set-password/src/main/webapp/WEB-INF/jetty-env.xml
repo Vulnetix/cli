@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "https://www.eclipse.org/jetty/configure_10_0.dtd">
+<Configure id="wac" class="org.eclipse.jetty.webapp.WebAppContext">
+  <New id="ds" class="org.eclipse.jetty.plus.jndi.Resource">
+    <Arg>jdbc/ShopDS</Arg>
+    <Arg>
+      <New class="org.postgresql.ds.PGSimpleDataSource">
+        <Set name="serverName">db</Set>
+        <Set name="user">shop</Set>
+~>        <Set name="password">JettyDbPw42</Set>
+      </New>
+    </Arg>
+  </New>
+</Configure>

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-013",
 	"name": "Python ML/AI insecure deserialization",
-	"description": "A model, dataset or cached object is loaded with a pickle-based deserializer, which runs code embedded in the file: whoever can write or substitute the file (a downloaded checkpoint, a shared bucket, a user upload, a cookie) gets code execution. Reported: pickle/cPickle/_pickle .load(), .loads() and .Unpickler(), dill and cloudpickle .load()/.loads(), joblib.load(), pandas.read_pickle(), numpy.load(..., allow_pickle=True), torch.load() without weights_only=True (or with weights_only=False), and Keras load_model(..., safe_mode=False), including module aliases (import pickle as pkl, import pandas as pd) and arguments on continuation lines. Not reported: numpy.load without allow_pickle=True, torch.load(weights_only=True), torch.jit.load, safetensors, json, the dump/dumps writers, read_csv, load_model with the default safe mode, a round trip of an object the process just serialized (pickle.loads(pickle.dumps(x))), methods of other objects whose names merely contain pickle or load, and the pattern inside strings and comments. Whether the file is trusted is not judged; plain pickle and torch.load are also reported by VNX-PY-003 and VNX-LLM-007.",
+	"description": "A model, dataset or cached object is loaded with a pickle-based deserializer, which runs code embedded in the file: whoever can write or substitute the file (a downloaded checkpoint, a shared bucket, a user upload, a cookie) gets code execution. Reported: pickle/cPickle/_pickle .load(), .loads() and .Unpickler(), dill and cloudpickle .load()/.loads(), joblib.load(), pandas.read_pickle(), numpy.load(..., allow_pickle=True), torch.load() without weights_only=True (or with weights_only=False), and Keras load_model(..., safe_mode=False), including module aliases (import pickle as pkl, import pandas as pd), functions imported by name (from pickle import loads as unpickle, from joblib import load) and arguments on continuation lines. Not reported: numpy.load without allow_pickle=True, torch.load(weights_only=True), torch.jit.load, safetensors, json, the dump/dumps writers, read_csv, load_model with the default safe mode, a round trip of an object the process just serialized (pickle.loads(pickle.dumps(x))), methods of other objects whose names merely contain pickle or load, and the pattern inside strings and comments. Whether the file is trusted is not judged; plain pickle and torch.load are also reported by VNX-PY-003 and VNX-LLM-007.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-013/",
 	"languages": ["python"],
 	"severity": "critical",
@@ -132,3 +132,41 @@ findings contains finding if {
 
 # pickle.loads(pickle.dumps(x)) deep-copies an object this process created.
 _round_trip(txt) if regex.match(`\.loads?\s*\(\s*[\w\.]*\.dumps?\s*\(`, txt)
+
+# [local name, kind, method] for every deserializer imported by name:
+# from pickle import loads as unpickle, from joblib import load.
+_from_imports(content) := {[local, k, orig] |
+	some m in regex.find_all_string_submatch_n(`(?m)^\s*from\s+(pickle|cPickle|_pickle|dill|cloudpickle|joblib|pandas|torch)\s+import\s+\(?([^\n#)]+)`, content, -1)
+	k := _kind[m[1]]
+	some part in split(m[2], ",")
+	pm := regex.find_all_string_submatch_n(`^\s*(\w+)(?:\s+as\s+(\w+))?\s*$`, part, 1)
+	count(pm) > 0
+	orig := pm[0][1]
+	orig in {"load", "loads", "Unpickler", "read_pickle"}
+	local := _local_name(pm[0])
+}
+
+_local_name(pm) := pm[2] if pm[2] != ""
+
+_local_name(pm) := pm[1] if pm[2] == ""
+
+findings contains finding if {
+	some path, content in input.file_contents
+	endswith(path, ".py")
+	regex.match(`(?m)^\s*from\s+(?:pickle|cPickle|_pickle|dill|cloudpickle|joblib|pandas|torch)\s+import\s`, content)
+	imported := _from_imports(content)
+	count(imported) > 0
+	lines := split(content, "\n")
+	some i, line in lines
+	not helpers.is_comment_line(line)
+	not regex.match(`^\s*(?:from|import)\s`, line)
+	code := _strip(line)
+	some entry in imported
+	contains(code, entry[0])
+	regex.match(concat("", [`(?:^|[^\w.])`, entry[0], `\s*\(`]), code)
+	not regex.match(concat("", [`^\s*(?:async\s+)?def\s+`, entry[0], `\b`]), code)
+	txt := _call_text(lines, i)
+	not _round_trip(txt)
+	_unsafe(entry[1], entry[2], txt)
+	finding := _finding(path, i, line, _label(entry[1]))
+}

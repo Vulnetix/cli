@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-012",
 	"name": "Java LDAP injection",
-	"description": "An LDAP search filter or base DN is built from HTTP request data: JNDI DirContext/InitialDirContext/LdapContext.search, Spring LDAP LdapTemplate/LdapOperations search/searchForObject/searchForContext/find/findOne and LdapQueryBuilder filter(...), and UnboundID Filter.create, new SearchRequest(...) and LDAPConnection.search/searchForEntry. Reported when an argument of the call is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies, the request body), a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier within 40 lines (a filter built by concatenation or String.format a few lines above); a call that continues on the next lines is read to the end of its statement. Not reported: parameterised filters ({0} placeholders with the values passed as filter arguments), values encoded with LdapEncoder.filterEncode/nameEncode, UnboundID Filter.encodeValue/createEqualityFilter, ESAPI encodeForLDAP/encodeForDN or Rdn.escapeValue, Spring filter objects (EqualsFilter, AndFilter, LikeFilter) that encode their values, constant filters, Java stream filter(...) lambdas, and sink names in comments or string literals. Flows into another method or file are not followed.",
+	"description": "An LDAP search filter or base DN is built from HTTP request data: JNDI DirContext/InitialDirContext/LdapContext.search, Spring LDAP LdapTemplate/LdapOperations search/searchForObject/searchForContext/find/findOne and LdapQueryBuilder filter(...), and UnboundID Filter.create, new SearchRequest(...) and LDAPConnection.search/searchForEntry. Reported when an argument of the call is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies, the request body), a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier within 40 lines (a filter built by concatenation or String.format a few lines above); and, for directory-lookup helpers such as authenticate(String username, ...), when a String parameter of the enclosing public/protected/private method is concatenated into a filter or DN value (\"(uid=\" + username + \")\", String.format(\"(mail=%s)\", email)), directly or through such a local. A multi-line call is reported once, on its first line; a call that continues on the next lines is read to the end of its statement. Not reported: parameterised filters ({0} placeholders with the values passed as filter arguments), values encoded with LdapEncoder.filterEncode/nameEncode, UnboundID Filter.encodeValue/createEqualityFilter, ESAPI encodeForLDAP/encodeForDN or Rdn.escapeValue, Spring filter objects (EqualsFilter, AndFilter, LikeFilter) that encode their values, constant filters, Java stream filter(...) lambdas, and sink names in comments or string literals. Flows into another method or file are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-012/",
 	"languages": ["java"],
 	"severity": "high",
@@ -27,6 +27,7 @@ _sinks := [
 	[`DirContext|LdapContext|javax\.naming`, `\.search\s*\(`],
 	[`LdapTemplate|LdapOperations`, `\.(?:search|searchForObject|searchForContext|find|findOne)\s*\(`],
 	[`LdapQueryBuilder`, `\.filter\s*\(`],
+	[`HardcodedFilter`, `\bnew\s+HardcodedFilter\s*\(`],
 	[`com\.unboundid`, `\bFilter\.create\s*\(|\bnew\s+SearchRequest\s*\(|\.search(?:ForEntry)?\s*\(`],
 ]
 
@@ -46,7 +47,7 @@ _is_src(s) if {
 _ann_re := `@(?:RequestParam|PathVariable|RequestHeader|CookieValue|RequestBody|ModelAttribute|QueryParam|PathParam|FormParam|HeaderParam|CookieParam|MatrixParam)\b(?:\s*\([^)]*\))?\s+(?:final\s+)?([\w.]+)(?:<[^>]*>)?(?:\[\])?\s+(\w+)`
 
 # Encoders and filter objects that escape the value they are given.
-_sanitizer_re := `LdapEncoder\.\w+\s*\(|Filter\.encodeValue\s*\(|Filter\.create(?:Equality|Substring|GreaterOrEqual|LessOrEqual|Present|Approximate)\w*\s*\(|encodeForLDAP|encodeForDN|Rdn\.escapeValue|new\s+(?:Equals|Like|Present|Not|Whitespace|GreaterThanOrEquals|LessThanOrEquals|Hardcoded)Filter\s*\(|Integer\.parseInt\s*\(|Long\.parseLong\s*\(`
+_sanitizer_re := `LdapEncoder\.\w+\s*\(|Filter\.encodeValue\s*\(|Filter\.create(?:Equality|Substring|GreaterOrEqual|LessOrEqual|Present|Approximate)\w*\s*\(|encodeForLDAP|encodeForDN|Rdn\.escapeValue|new\s+(?:Equals|Like|Present|Not|Whitespace|GreaterThanOrEquals|LessThanOrEquals)Filter\s*\(|Integer\.parseInt\s*\(|Long\.parseLong\s*\(|(?i:\bescape\w*(?:ldap|filter|dn)\w*\s*\(|\bldap\w*(?:escape|encode)\w*\s*\()`
 
 _window := 40
 
@@ -142,21 +143,13 @@ _parameterised(raw) if regex.match(`"[^"]*\{\d+\}[^"]*"`, raw)
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".java")
-	some s in _sinks
-	regex.match(s[0], content)
-	regex.match(_gate_re, content)
+	_file_gate(content)
+	sinks :=[x | some x in _sinks; regex.match(x[0], content)]
+	count(sinks) > 0
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(s[1], line)
-	not helpers.is_comment_line(line)
-	regex.match(s[1], _blank(line))
-	raw := _raw_stmt(lines, i)
-	not _parameterised(raw)
-	t := _tainted(lines, i)
-	some args in _args(_blank(raw), s[1])
-	not regex.match(`^\s*\(?\s*\w*\s*(?:,\s*\w+\s*)*\)?\s*->|^\s*[\w.]+::`, args)
-	not regex.match(_sanitizer_re, args)
-	_reaches(args, t)
+	_hit(lines, i, line, sinks)
+	not _continuation_of_hit(lines, i, sinks)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "LDAP filter or DN built from request data; use a parameterised filter ({0} placeholders with filter arguments), Spring LDAP filter objects or LdapQueryBuilder with parameters, or encode the value with LdapEncoder.filterEncode / Filter.encodeValue",
@@ -167,3 +160,80 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+_hit(lines, i, line, sinks) if {
+	some s in sinks
+	regex.match(s[1], line)
+	not helpers.is_comment_line(line)
+	regex.match(s[1], _blank(line))
+	raw := _raw_stmt(lines, i)
+	not _parameterised(raw)
+	t := _tainted(lines, i)
+	some args in _args(_blank(raw), s[1])
+	not regex.match(`^\s*\(?\s*\w*\s*(?:,\s*\w+\s*)*\)?\s*->|^\s*[\w.]+::`, args)
+	not regex.match(_sanitizer_re, args)
+	_reaches(_strip_encoded(args), t)
+}
+
+_file_gate(content) if regex.match(_gate_re, content)
+
+_file_gate(content) if regex.match(`=\s*"\s*\+|=%s`, content)
+
+# Directory-lookup helpers: a String parameter of the enclosing method
+# concatenated into a filter or DN value ("(uid=" + username + ")",
+# String.format("(mail=%s)", email)), directly or through a local built a
+# few lines above. authenticate(String username, ...) is the usual shape.
+_hit(lines, i, line, sinks) if {
+	some s in sinks
+	regex.match(s[1], line)
+	not helpers.is_comment_line(line)
+	regex.match(s[1], _blank(line))
+	raw := _raw_stmt(lines, i)
+	not _parameterised(raw)
+	ps := _string_params(lines, i)
+	count(ps) > 0
+	some args in _args(_blank(raw), s[1])
+	not regex.match(`^\s*\(?\s*\w*\s*(?:,\s*\w+\s*)*\)?\s*->|^\s*[\w.]+::`, args)
+	txt := concat(" ", array.concat([raw], [a[1] |
+		some a in _assigns(lines, i)
+		regex.match(concat("", [`\b`, a[0], `\b`]), args)
+	]))
+	some v in _filter_concats(txt)
+	v in ps
+}
+
+_filter_concats(s) := {m[1] |
+	some m in regex.find_all_string_submatch_n(`=\s*"\s*\+\s*(\w+)\s*(?:\+|\))`, s, -1)
+} | {id |
+	some m in regex.find_all_string_submatch_n(`\b(?:String\.format|formatted)\s*\(\s*"[^"]*=%s[^"]*"\s*,\s*([^;]*)`, s, -1)
+	some x in regex.find_all_string_submatch_n(`\b([a-z_]\w*)\b`, m[1], -1)
+	id := x[1]
+}
+
+_method_re := `^\s*(?:@\w+\s+)*(?:(?:public|protected|private|static|final|synchronized)\s+)+[\w.<>\[\], ?]+\s+\w+\s*\(([^)]*)`
+
+# String parameters of the nearest method declared above line i.
+_string_params(lines, i) := ps if {
+	decls := [j |
+		some j in numbers.range(max([0, i - 60]), i)
+		regex.match(_method_re, lines[j])
+	]
+	count(decls) > 0
+	d := max(decls)
+	m := regex.find_all_string_submatch_n(_method_re, lines[d], 1)
+	ps := {p[1] | some p in regex.find_all_string_submatch_n(`(?:final\s+)?(?:@\w+(?:\([^)]*\))?\s+)*String\s+(\w+)`, m[0][1], -1)}
+}
+
+# ldap.search(\n query().filter("(cn=" + name + ")"), mapper) is one
+# statement and is reported once, on the line where it starts.
+_continuation_of_hit(lines, i, sinks) if {
+	i > 0
+	some k in numbers.range(max([0, i - 3]), i - 1)
+	every m in numbers.range(k, i - 1) {
+		not regex.match(`[;{}]\s*$`, lines[m])
+	}
+	_hit(lines, k, lines[k], sinks)
+}
+
+# LdapQueryBuilder criteria encode their value: where("uid").is(uid).
+_strip_encoded(args) := regex.replace(args, `\.\s*(?:is|like|gte|lte|whitespaceWildcardsLike)\s*\(\s*[\w.]+(?:\(\s*\))?\s*\)`, ".is()")

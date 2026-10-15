@@ -6,7 +6,7 @@ import data.vulnetix.lib.secrets
 metadata := {
 	"id": "VNX-SEC-056",
 	"name": "Sentry auth token",
-	"description": "Reports a Sentry auth token as a whole token in any file: a user auth token (sntryu_ and 64 hex characters), an organisation auth token (sntrys_ followed by its base64 JSON claims, eyJ..., and the secret part), or a legacy 64-hex auth token assigned to SENTRY_AUTH_TOKEN / sentry_auth_token / [auth] token in .sentryclirc. These tokens upload releases and source maps and read issues, whose events can carry user data. Not reported: the DSN (a public ingest identifier), the bare prefixes, placeholder bodies (sntrys_YOUR_TOKEN_HERE), environment references, and test, fixture or vendored paths.",
+	"description": "Reports a Sentry auth token as a whole token in any file: a user auth token (sntryu_ and 64 hex characters), an organisation auth token (sntrys_ followed by its base64 JSON claims, eyJ..., and the secret part), or a legacy 64-hex auth token assigned to SENTRY_AUTH_TOKEN / sentry_auth_token / [auth] token in .sentryclirc, or passed to sentry-cli --auth-token. These tokens upload releases and source maps and read issues, whose events can carry user data. Not reported: the DSN (a public ingest identifier), the bare prefixes, placeholder bodies (sntrys_YOUR_TOKEN_HERE), environment references, and test, fixture or vendored paths.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-056/",
 	"languages": [],
 	"severity": "critical",
@@ -38,6 +38,12 @@ _tokens := [
 		"suffix": "",
 		"re": `(?i)sentry[_-]?auth[_-]?token["']?\s*[:=]\s*["']?([a-f0-9]{64})(?:[^A-Za-z0-9]|$)`,
 		"msg": "Sentry auth token found; revoke it in Sentry (Auth Tokens) and pass the replacement through a CI secret",
+	},
+	{
+		"markers": ["--auth-token"],
+		"suffix": "",
+		"re": `\bsentry-cli\b.*--auth-token(?:=|\s+)["']?([a-f0-9]{64})(?:[^A-Za-z0-9]|$)`,
+		"msg": "Sentry auth token passed to sentry-cli on the command line; revoke it in Sentry (Auth Tokens) and set SENTRY_AUTH_TOKEN from a CI secret",
 	},
 	{
 		"markers": ["token"],

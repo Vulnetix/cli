@@ -1,11 +1,11 @@
 ---
-title: "VNX-RUBY-008 – Open3.pipeline with Dynamic Command"
-description: "Detect calls to Open3.pipeline, pipeline_r, pipeline_rw, pipeline_w, or pipeline_start with non-literal command arguments, which can allow an attacker to inject arbitrary OS commands when user-controlled data reaches these calls."
+title: "VNX-RUBY-008 – Open3 shell command built from request input"
+description: "Reports Open3 pipeline, popen and capture calls in their single-string (shell) form when the command string interpolates, concatenates or formats request input, or is request input itself, including the sh -c argument form. Other argument-list forms, constants and Shellwords-escaped input are not reported."
 ---
 
 ## Overview
 
-This rule flags any call to `Open3.pipeline`, `Open3.pipeline_r`, `Open3.pipeline_rw`, `Open3.pipeline_w`, or `Open3.pipeline_start` in Ruby source files. These methods set up pipelines of external processes and accept shell commands as arguments. When the command or any component of the pipeline is constructed using user-supplied input — whether from request parameters, environment variables, or database values — an attacker who controls that input can terminate the intended command and inject additional shell instructions.
+This rule flags calls to the `Open3` pipeline family (`pipeline`, `pipeline_r`, `pipeline_rw`, `pipeline_w`, `pipeline_start`) and to `popen3`, `popen2`, `popen2e`, `capture2`, `capture2e` and `capture3` when a shell command string is built from request input. Given a single string, these methods hand it to the shell. When the command or any component of the pipeline is constructed using user-supplied input — whether from request parameters, environment variables, or database values — an attacker who controls that input can terminate the intended command and inject additional shell instructions.
 
 The Open3 pipeline family is particularly risky compared to simpler subprocess APIs because each element in the pipeline is passed to the shell for interpretation. A single vulnerable call can spawn multiple malicious processes, redirect output to attacker-controlled locations, and leave behind backdoors while the application continues to function normally, making the compromise difficult to detect.
 
@@ -23,20 +23,22 @@ Even when application input is partially validated, shell metacharacter injectio
 
 ## What Gets Flagged
 
-The rule matches `.rb` files that contain any call to the `Open3.pipeline*` family of methods.
+The rule reports an Open3 call in its single-string (shell) form whose command string interpolates, concatenates or formats request input (`params`, `request.*`, cookies, Rack env keys, an upload's `original_filename`), directly or through a variable assigned from it a few lines above. Argument-list and array forms, constant commands and input passed through `Shellwords.escape` are not reported.
 
 ```ruby
-# FLAGGED: pipeline_r with a dynamic command string
-filename = params[:file]
-Open3.pipeline_r("cat #{filename}", "wc -l") do |first, last, _|
-  puts last.read
-end
+# FLAGGED: interpolated request input in a pipeline
+Open3.pipeline_r("cat #{params[:file]}", "wc -l") do |last, _threads|
 
-# FLAGGED: pipeline with user-supplied arguments
-Open3.pipeline("convert #{params[:input]} output.png")
+# FLAGGED: two-line flow into capture3, concatenation
+host = params[:host]
+stdout, stderr, st = Open3.capture3("nslookup " + host)
 
-# FLAGGED: pipeline_start with dynamic shell command
-Open3.pipeline_start("grep #{search_term} /var/log/app.log", "tail -n 20")
+# FLAGGED: the command is the parameter itself, or formatted from it
+Open3.popen2e(params[:cmd]) { |i, o, t| o.read }
+Open3.popen2(format("unzip %s", params[:zip])) { |i, o, t| o.read }
+
+# NOT FLAGGED: argument list, no shell
+Open3.capture2("convert", params[:f])
 ```
 
 ## Remediation

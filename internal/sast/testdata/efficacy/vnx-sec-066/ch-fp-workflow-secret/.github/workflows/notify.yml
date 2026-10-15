@@ -1,0 +1,9 @@
+name: notify
+on: [push]
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -sS -H "Authorization: Bearer ${{ secrets.WEBHOOK_TOKEN }}" https://hooks.acme.io/ping
+          curl -sS -H "Authorization: Bearer $(gcloud auth print-access-token)" https://run.acme.io/

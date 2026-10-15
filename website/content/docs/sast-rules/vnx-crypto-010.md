@@ -1,13 +1,13 @@
 ---
 title: "VNX-CRYPTO-010 – Hardcoded IV, Nonce, or Salt in Cryptographic Operation"
-description: "Detects a constant IV, nonce or salt (a string or byte literal, a literal byte array, or a zero-filled buffer) passed to a cipher, AEAD or password KDF call in Python, JavaScript/TypeScript, Go, Java/Kotlin, C/C++/Objective-C and Rust, directly or through a variable assigned that constant. Random, ciphertext-derived and in-place-filled IVs are not reported."
+description: "Detects a constant IV, nonce or salt (a string or byte literal, a literal byte array, or a zero-filled buffer) passed to a cipher, AEAD or password KDF call in Python, JavaScript/TypeScript, Go, Java/Kotlin, C/C++/Objective-C, Rust, C#, PHP and Ruby, directly or through a variable assigned that constant. Random, ciphertext-derived and in-place-filled IVs are not reported."
 ---
 
 ## Overview
 
 This rule reports a constant used as the IV, nonce or salt argument of a cipher, AEAD or password-KDF call. A constant is a string or byte literal, a literal byte array (`{0x00, 0x01, ...}`, `[]byte{...}`, `byteArrayOf(...)`), a literal wrapped in a conversion (`"...".getBytes()`, `Buffer.from("...", "hex")`, `bytes.fromhex("...")`, `CryptoJS.enc.Utf8.parse("...")`), or a zero-filled buffer (`bytes(16)`, `Buffer.alloc(16)`, `new Uint8Array(12)`, `make([]byte, n)`, `var nonce [12]byte`, `new byte[16]`, `ByteArray(16)`, `[0u8; 12]`, `memset(iv, 0, ...)`). It is reported on the call line when it is written in the call, and on the assignment when a variable carries it: the variable's nearest assignment above the call is the constant, and nothing fills it in between.
 
-The calls are: Python pycryptodome `AES/DES/Blowfish.new`, cryptography `modes.CBC/CTR/GCM/CFB/OFB/XTS`, `AESGCM`/`AESCCM`/`ChaCha20Poly1305` `encrypt`/`decrypt`, the `iv=`/`nonce=`/`salt=` keywords of those and of `PBKDF2HMAC`/`Scrypt`, `hashlib.pbkdf2_hmac`, `PBKDF2`/`scrypt`, argon2 `hash_secret`, `bcrypt.hashpw`; Node `createCipheriv`/`createDecipheriv`, `pbkdf2(Sync)`/`scrypt(Sync)`, WebCrypto and CryptoJS `iv:`/`salt:` parameters, `CryptoJS.PBKDF2`; Go `cipher.NewCBCEncrypter`/`NewCBCDecrypter`/`NewCTR`/`NewOFB`/`NewCFB*`, AEAD `Seal`/`Open`, `secretbox`/`box` `Seal`/`Open`, `pbkdf2`/`scrypt`/`argon2` `Key`; Java and Kotlin `IvParameterSpec`, `GCMParameterSpec`, `PBEKeySpec`, `PBEParameterSpec`, `ChaCha20ParameterSpec`, `BCrypt.hashpw`; C, C++ and Objective-C `EVP_EncryptInit`/`DecryptInit`/`CipherInit` (and `_ex`), `AES_cbc_encrypt` and friends, `PKCS5_PBKDF2_HMAC`, `mbedtls_aes_crypt_cbc`, `mbedtls_gcm_crypt_and_tag`, `crypto_secretbox_easy`, `CCCrypt`; Rust `Nonce::from_slice`, ring `Nonce::assume_unique_for_key`, CBC/CTR/CFB/OFB `::new` and `new_from_slices`, `pbkdf2_hmac`, `pbkdf2::derive` and Argon2 `hash_password_into`.
+The calls are: Python pycryptodome `AES/DES/Blowfish.new`, cryptography `modes.CBC/CTR/GCM/CFB/OFB/XTS`, `AESGCM`/`AESCCM`/`ChaCha20Poly1305` `encrypt`/`decrypt`, the `iv=`/`nonce=`/`salt=` keywords of those and of `PBKDF2HMAC`/`Scrypt`, `hashlib.pbkdf2_hmac`, `PBKDF2`/`scrypt`, argon2 `hash_secret`, `bcrypt.hashpw`; Node `createCipheriv`/`createDecipheriv`, `pbkdf2(Sync)`/`scrypt(Sync)`, WebCrypto and CryptoJS `iv:`/`salt:` parameters, `CryptoJS.PBKDF2`; Go `cipher.NewCBCEncrypter`/`NewCBCDecrypter`/`NewCTR`/`NewOFB`/`NewCFB*`, AEAD `Seal`/`Open`, `secretbox`/`box` `Seal`/`Open`, `pbkdf2`/`scrypt`/`argon2` `Key`; Java and Kotlin `IvParameterSpec`, `GCMParameterSpec`, `PBEKeySpec`, `PBEParameterSpec`, `ChaCha20ParameterSpec`, `BCrypt.hashpw`; C, C++ and Objective-C `EVP_EncryptInit`/`DecryptInit`/`CipherInit` (and `_ex`), `AES_cbc_encrypt` and friends, `PKCS5_PBKDF2_HMAC`, `mbedtls_aes_crypt_cbc`, `mbedtls_gcm_crypt_and_tag`, `crypto_secretbox_easy`, `CCCrypt`; Rust `Nonce::from_slice`, ring `Nonce::assume_unique_for_key`, CBC/CTR/CFB/OFB `::new` and `new_from_slices`, `pbkdf2_hmac`, `pbkdf2::derive` and Argon2 `hash_password_into`; C# `Rfc2898DeriveBytes` (constructor and `Pbkdf2`), `CreateEncryptor`/`CreateDecryptor(key, iv)`, the `.IV` property and `AesGcm`/`AesCcm`/`ChaCha20Poly1305` `Encrypt`/`Decrypt`; PHP `openssl_encrypt`/`openssl_decrypt`, `hash_pbkdf2`, `openssl_pbkdf2` and the libsodium `sodium_crypto_secretbox`, `sodium_crypto_aead_*` and `sodium_crypto_pwhash` calls; Ruby `cipher.iv =`, `OpenSSL::PKCS5.pbkdf2_hmac` and `OpenSSL::KDF` `salt:`.
 
 Not reported: values from a CSPRNG, read from the ciphertext, or filled in place before use (`rand.Read`, `io.ReadFull`, `randomFillSync`, `getRandomValues`, `nextBytes`, `RAND_bytes`, `fill_bytes`); values from configuration objects (`config.iv`) or from function parameters with no constant assignment in the file; HKDF salts (RFC 5869 allows a constant one); `NULL` IVs; calls in comments, docstrings and string literals; and test files, where known-answer vectors use fixed IVs by design. Flows through more than one variable, through helper functions or across files are not followed.
 
@@ -64,6 +64,18 @@ PKCS5_PBKDF2_HMAC(pw, (int)strlen(pw), (const unsigned char *)"saltsalt", 8, 100
 ```rust
 // FLAGGED: a fixed nonce
 let nonce = Nonce::from_slice(b"unique nonce");
+```
+
+```csharp
+// FLAGGED: a constant salt field; a zero IV
+private static readonly byte[] Salt = Encoding.ASCII.GetBytes("pepper-2019-v1");
+aes.IV = new byte[16];
+```
+
+```php
+// FLAGGED: a literal IV and a literal salt
+openssl_encrypt($plain, 'aes-256-cbc', self::KEY, 0, '1234567890123456');
+hash_pbkdf2('sha256', $pw, 'site-wide-salt', 100000, 64);
 ```
 
 ```javascript

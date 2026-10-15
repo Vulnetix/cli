@@ -6,9 +6,9 @@ import rego.v1
 metadata := {
 	"id": "VNX-1113",
 	"name": "Inappropriate Comment Style",
-	"description": "Detects source patterns associated with CWE-1113 (Inappropriate Comment Style). Each finding should be manually reviewed for exploitability in context.",
+	"description": "A '/* ... */' block comment opened inside another block comment, in a language where block comments do not nest (C, C++, Java, JavaScript/TypeScript, Go, C#, PHP). The first '*/' closes both, so text the author believed was commented out (typically code disabled by wrapping it, inner comment and all, in '/* ... */') is compiled, and the outer '*/' is left stray. Reported at the nested '/*' line. Not reported: block comments that close before the next one opens, '/*' in the middle of a line (globs such as 'a/*.c', strings), Rust, Swift, Kotlin and Scala, whose block comments nest legally, and openers more than 50 lines apart.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1113/",
-	"languages": ["python"],
+	"languages": ["c", "cpp", "java", "javascript", "go", "csharp", "php"],
 	"severity": "low",
 	"level": "note",
 	"kind": "sast",
@@ -17,37 +17,68 @@ metadata := {
 	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "CWSS:1.0/TI:L/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:L/DI:H/EX:L/EC:N/P:L",
-	"tags": ["comments", "inappropriate-comment", "cwe-1113"],
+	"tags": ["comments", "inappropriate-comment", "nested-comment", "cwe-1113"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
-_skip(path) if endswith(path, ".min.html")
+_ext(path) if regex.match(`\.(c|h|cc|cpp|cxx|hpp|hh|java|js|jsx|mjs|cjs|ts|tsx|mts|cts|go|cs|php)$`, path)
 
-_is_comment_line(line) if startswith(trim_space(line), "//")
-_is_comment_line(line) if startswith(trim_space(line), "*")
-_is_comment_line(line) if startswith(trim_space(line), "/*")
-_is_comment_line(line) if startswith(trim_space(line), "#")
-_is_comment_line(line) if startswith(trim_space(line), "--")
+_window := 50
+
+# Comment delimiters are located by byte offset (openers as 2*o, closers as
+# 2*c+1) and sorted, so two openers with no closer between them are adjacent.
+_events(content) := sort(array.concat(
+	[x | some o in indexof_n(content, "/*"); x := 2 * o],
+	[x | some c in indexof_n(content, "*/"); x := (2 * c) + 1],
+))
+
+# the delimiter at offset o is the first thing on its line
+_line_start(content, o) if {
+	s := max([0, o - 200])
+	regex.match(`(?:^|\n)[ \t]*$`, substring(content, s, o - s))
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	endswith(path, ".py")
-	lines := split(input.file_contents[path], "\n")
-	some i, line in lines
-	not _is_comment_line(line)
-	some _pat in {"# HACK", "# XXX"}
-	contains(line, _pat)
+	some path, content in input.file_contents
+	_ext(path)
+	contains(content, "/*")
+	# whole-file gate: a line-start opener, text without "*/", then a line-start opener
+	regex.match(`/\*(?:[^*]|\*+[^*/])*\n[^\n]*/\*`, content)
+	ev := _events(content)
+	some p, e in ev
+	p > 0
+	e % 2 == 0
+	prev := ev[p - 1]
+	prev % 2 == 0
+	outer := prev / 2
+	inner := e / 2
+	inner > outer + 1
+	_inner_opener(content, inner)
+	_line_start(content, outer)
+	span := count(indexof_n(substring(content, outer, inner - outer), "\n"))
+	span >= 1
+	span <= _window
+	idx := count(indexof_n(substring(content, 0, inner), "\n"))
+	line := split(content, "\n")[idx]
 	finding := {
 		"rule_id": metadata.id,
-		"message": "HACK/XXX comment style",
+		"message": "Block comment opened inside another block comment; block comments do not nest, so its '*/' ends the outer comment and the text after it is compiled",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,
-		"start_line": i + 1,
+		"start_line": idx + 1,
 		"snippet": line,
 	}
+}
+
+_inner_opener(content, o) if _line_start(content, o)
+
+# a trailing comment on a commented-out code line: 'x = 1;   /* note */'
+_inner_opener(content, o) if {
+	s := max([0, o - 200])
+	before := substring(content, s, o - s)
+	m := regex.find_all_string_submatch_n(`(?:^|\n)([^\n]*[;{})][ \t]+)$`, before, 1)
+	count(m) > 0
+	count(indexof_n(m[0][1], `"`)) % 2 == 0
+	count(indexof_n(m[0][1], "`")) == 0
+	regex.match(`^/\*[ \t*][^\n]*\*/`, substring(content, o, 200))
 }

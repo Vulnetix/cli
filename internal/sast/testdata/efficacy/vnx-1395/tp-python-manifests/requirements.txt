@@ -1,0 +1,4 @@
+Django==4.2.11
+~>PyYAML==5.1
+~>jinja2<=2.10
+requests>=2.31

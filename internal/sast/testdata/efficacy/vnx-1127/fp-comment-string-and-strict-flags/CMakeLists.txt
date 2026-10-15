@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.16)
+project(app C)
+add_compile_options(-Wall -Wextra -Wpedantic)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wformat=2 -Wwrite-strings")
+add_executable(app main.c)

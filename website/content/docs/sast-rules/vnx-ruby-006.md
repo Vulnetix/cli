@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-006 – Ruby Mass Assignment"
-description: "Detect ActiveRecord create, update, new, update_attributes, and assign_attributes calls that receive unfiltered params directly, enabling mass assignment attacks where attackers set protected attributes like admin flags and roles."
+description: "Reports request parameters reaching ActiveRecord create/update/new/assign_attributes/find_or_create_by and similar calls without a strong-parameters allowlist, every params.permit! call, and permit lists (single- or multi-line) that admit admin, role or permissions attributes outside admin controllers."
 ---
 
 ## Overview
@@ -19,24 +19,24 @@ The consequences range from horizontal privilege escalation (setting `confirmed 
 
 ## What Gets Flagged
 
-The rule matches `.rb` files containing ActiveRecord write method calls that receive `params` or `params[...]` directly.
+The rule reports, in `.rb` files:
+
+- an attribute-assigning call (`create`, `update`, `update_attributes`, `assign_attributes`, `attributes=`, `find_or_create_by`, `first_or_create`, `insert_all`, `upsert`, `build`, `Model.new`) given `params[...]`, `request.params`, `params.to_unsafe_h` or a `.permit!` result, directly or through a variable assigned from one in the 15 lines above;
+- every `.permit!` call;
+- a `.permit(...)` list containing `:admin`, `:role`, `:role_id`, `:roles`, `:superuser` or `:permissions` outside an admin controller.
 
 ```ruby
-# FLAGGED: create with raw params — any attribute can be set
-User.create(params)
+@post = Post.create(params[:post])                   # FLAGGED
 
-# FLAGGED: new with params slice — if the slice is controlled by the user
-@user = User.new(params[:user])
+attrs = params[:account]
+attrs = attrs.merge(owner_id: current_user.id)
+@account = Account.new(attrs)                        # FLAGGED: two-step flow
 
-# FLAGGED: update with raw params
-@post.update(params)
-
-# FLAGGED: update_attributes with params slice
-@profile.update_attributes(params[:profile])
-
-# FLAGGED: assign_attributes with raw params
-@account.assign_attributes(params[:account])
+params.require(:setting).permit!                     # FLAGGED
+params.require(:user).permit(:name, :email, :admin)  # FLAGGED: privilege attribute
 ```
+
+Not flagged: `params.require(:x).permit(...)` or `.slice(...)` results, a single scalar (`update(name: params[:name])`), `SearchForm.new(params)` with the bare hash (form objects), `options.update(params)` on hashes, `OpenStruct`/`Struct.new`, and privilege attributes permitted under `app/controllers/admin/`.
 
 ## Remediation
 

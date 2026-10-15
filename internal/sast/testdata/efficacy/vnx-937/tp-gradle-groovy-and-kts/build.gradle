@@ -1,0 +1,9 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+~>    implementation '@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-core:2.11.2'
+~>    runtimeOnly group: 'commons-collections', name: 'commons-collections', version: '3.2.1'
+    implementation "@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-api:2.11.2"
+}

@@ -1,0 +1,23 @@
+apiVersion: @@sample:r[b]ac[.]au[t]ho[r]iz[a]ti[o]n[.][k]8s[.]io@@/v1
+kind: Role
+metadata:
+  name: secret-reader
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deployer
+secrets:
+  - name: deployer-token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: deployer-token
+  annotations:
+    kubernetes.io/service-account.name: deployer
+type: kubernetes.io/service-account-token

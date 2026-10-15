@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-023 – GitHub Actions Expression Injection"
-description: "Detect GitHub Actions workflows that inject untrusted event data (PR title, branch name, comment body) directly into run: commands, enabling shell command injection in CI/CD pipelines."
+description: "Reports attacker-controlled github.event data (PR title/body/head ref, issue and comment bodies, commit messages and authors, toJSON of the event) expanded with ${{ }} inside a run: or script: block of a workflow or composite action. env: indirection, with: inputs, if: conditions and safe contexts are not reported."
 ---
 
 ## Overview
@@ -46,7 +46,7 @@ GitHub Actions expression injection is a supply chain attack vector with severe 
 - run: git checkout ${{ github.head_ref }}
 ```
 
-The rule applies only to files within `.github/workflows/`.
+The rule applies to workflow files under `.github/workflows/` and to composite actions (`action.yml`, `action.yaml`). Any `script:` block counts as well as `run:` (`actions/github-script`, `appleboy/ssh-action`). Not flagged: the value passed through `env:` and read as `"$TITLE"`, `with:` inputs, `if:` conditions, and safe contexts such as `github.event.pull_request.number`.
 
 ## Remediation
 

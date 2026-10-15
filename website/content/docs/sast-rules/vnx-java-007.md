@@ -17,7 +17,7 @@ Open redirects are also used as an intermediate step in OAuth phishing attacks, 
 
 ## What Gets Flagged
 
-The rule reports `sendRedirect()`, a `"redirect:" + value` view name, `new RedirectView()` and a `Location` header (`setHeader`/`addHeader`, `HttpHeaders.LOCATION`, `ResponseEntity.location(URI.create(...))`) whose target reads the request, is a `@RequestParam`/`@PathVariable`/`@RequestHeader` parameter, or is a variable assigned from one (directly or through one step such as `URLDecoder.decode`) within the 40 lines above. It does not report a target that starts with a fixed local path (`"/account?id=" + id`) or fixed absolute URL, a lookup in a map of allowed destinations, a value checked by an `if` guard (`startsWith`, allowlist `contains`, `isSafe`...) before the redirect, or values from configuration.
+The rule reports `sendRedirect()`, a `"redirect:" + value` view name, `new RedirectView()` and a `Location` header (`setHeader`/`addHeader`, `HttpHeaders.LOCATION`, `ResponseEntity.location(URI.create(...))`) whose target reads the request, is a `@RequestParam`/`@PathVariable`/`@RequestHeader` parameter, or is a variable assigned from one (directly or through one step such as `URLDecoder.decode`) within the 40 lines above. It does not report a target that starts with a fixed local path (`"/account?id=" + id`) or fixed absolute URL, a lookup in a map of allowed destinations, a value checked by an `if` guard (`startsWith`, allowlist `contains`, `isSafe`...) before the redirect, on the value itself or on a `URI` parsed from it, or values from configuration.
 
 ```java
 // FLAGGED: user-controlled URL sent directly to sendRedirect

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1025",
 	"name": "Comparison Using Wrong Factors",
-	"description": "A comparison that examines the wrong property of its operands, so it can succeed or fail regardless of the values the author meant to compare. Reported: in Java, == or != between object references where a value comparison was meant (a String literal operand, a String-returning call such as getParameter/getHeader/trim/toString, a variable declared String a few dozen lines above, or two variables declared Integer/Long/BigDecimal and other boxed types), and classes compared by name (getClass().getName()/getSimpleName() with equals or ==); in Python, `is`/`is not` against a str, bytes, number, list, dict or empty-tuple literal in an if/elif/while/assert/return statement, and type(x).__name__ or x.__class__.__name__ compared with ==/!=; in JavaScript/TypeScript, ==/=== against a fresh [] or {} literal (always a different object), x.constructor.name compared with ==/===, and typeof compared with a string typeof never returns ('array', 'null', 'date', ...); in Go, err.Error() text compared with ==/!= instead of errors.Is (directly or through a variable assigned err.Error() a few lines above), and reflect.TypeOf(x).Name()/String() or fmt.Sprintf(\"%T\") compared with ==; in PHP, loose ==/!= with an md5/sha1/hash/hash_hmac/crypt result (\"0e...\" hashes compare as numbers), strcmp/strcasecmp(...) == 0 (NULL == 0 when an argument is an array), and get_class() compared with a string literal. Not reported: comparisons with null/None/True/False, enums, primitives and char literals, equals()/Objects.equals/MessageDigest.isEqual/hash_equals/password_verify/errors.Is/instanceof/isinstance, strict === in PHP, a.intern() == b.intern(), get_class() against ::class or __CLASS__, timing-unsafe comparison of secrets (a different weakness), test code, comments and the pattern inside string literals.",
+	"description": "A comparison that examines the wrong property of its operands, so it can succeed or fail regardless of the values the author meant to compare. Reported: in Java, == or != between object references where a value comparison was meant (a String literal operand, a String-returning call such as getParameter/getHeader/trim/toString, a variable declared String a few dozen lines above, or two variables declared Integer/Long/BigDecimal and other boxed types), and classes compared by name (getClass().getName()/getSimpleName() with equals or ==); in Python, `is`/`is not` against a str, bytes, number, list, dict or empty-tuple literal in an if/elif/while/assert/return statement (also the first line of a condition that wraps) or an assignment, and type(x).__name__ or x.__class__.__name__ compared with ==/!=; in JavaScript/TypeScript, ==/=== against a fresh [] or {} literal (always a different object), x.constructor.name compared with ==/===, and typeof compared with a string typeof never returns ('array', 'null', 'date', ...); in Go, err.Error() text compared with ==/!= with a non-empty literal or another error's text instead of errors.Is (directly or through a variable assigned err.Error() a few lines above), and switch err.Error() {, and reflect.TypeOf(x).Name()/String() or fmt.Sprintf(\"%T\") compared with ==; in PHP, loose ==/!= with an md5/sha1/hash/hash_hmac/crypt result, directly or through a variable assigned one a few lines above (\"0e...\" hashes compare as numbers), strcmp/strcasecmp(...) == 0 and !strcmp(...) (NULL == 0 when an argument is an array), and get_class() compared with a string literal. Not reported: err.Error() != \"\" (an emptiness test), comparisons with null/None/True/False, enums, primitives and char literals, equals()/Objects.equals/MessageDigest.isEqual/hash_equals/password_verify/errors.Is/instanceof/isinstance, strict === in PHP, a.intern() == b.intern(), get_class() against ::class or __CLASS__, timing-unsafe comparison of secrets (a different weakness), test code, comments and the pattern inside string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1025/",
 	"languages": ["java", "python", "node", "go", "php"],
 	"severity": "low",
@@ -64,7 +64,10 @@ _cand(line, "java") if {
 
 _cand(line, "java") if contains(line, "getClass()")
 
-_cand(line, "py") if contains(line, " is ")
+_cand(line, "py") if {
+	contains(line, " is ")
+	regex.match(`^\s*(?:(?:if|elif|while|assert|return)\b|[\w.]+\s*=[^=])`, line)
+}
 
 _cand(line, "py") if {
 	contains(line, "__name__")
@@ -98,7 +101,7 @@ _code(line, "py") := regex.replace(_blank(line, "py"), `\s#.*$`, "")
 
 _blank(line, "js") := regex.replace(line, "\"(\\\\.|[^\"\\\\])*\"|'(\\\\.|[^'\\\\])*'|`[^`$]*`", "@S@")
 
-_blank(line, "go") := regex.replace(line, "\"(\\\\.|[^\"\\\\])*\"|`[^`]*`", "@S@")
+_blank(line, "go") := regex.replace(replace(line, `""`, "@E@"),"\"(\\\\.|[^\"\\\\])*\"|`[^`]*`", "@S@")
 
 _blank(line, lang) := regex.replace(line, `"(\\.|[^"\\])*"|'(\\.|[^'\\])*'`, "@S@") if lang in {"py", "php"}
 
@@ -188,7 +191,7 @@ _py_literal_is := `\bis\s+(?:not\s+)?(?:@S@|[bfru]{1,2}@S@|-?\d|\[|\{|\(\s*\))`
 
 _bad(_, code, "py", _, _) if {
 	regex.match(_py_literal_is, code)
-	regex.match(`^\s*(?:(?:if|elif|while)\b.*:\s*$|(?:assert|return)\b)`, code)
+	regex.match(`^\s*(?:(?:if|elif|while|assert|return)\b|[\w.]+\s*=[^=])`, code)
 }
 
 _bad(_, code, "py", _, _) if regex.match(`(?:\b__class__|\btype\s*\([^()]*\))\s*\.\s*__(?:qual)?name__\s*[!=]=|[!=]=\s*[\w.]*(?:\b__class__|\btype\s*\([^()]*\))\s*\.\s*__(?:qual)?name__`, code)
@@ -207,6 +210,14 @@ _bad(_, code, "go", _, _) if regex.match(`\.Error\(\)\s*[!=]=\s*(?:@S@|[\w.]+\.E
 
 _bad(_, code, "go", _, _) if regex.match(`(?:reflect\.TypeOf\([^()]*\)|\.Type\(\))\.(?:Name|String)\(\)\s*[!=]=|[!=]=\s*reflect\.TypeOf\([^()]*\)\.(?:Name|String)\(\)`, code)
 
+# A switch on the error's text, with string cases.
+_bad(_, code, "go", _, _) if regex.match(`^\s*switch\s+[\w.]+\.Error\(\)\s*\{`, code)
+
+_cand(line, "go") if {
+	contains(line, "switch")
+	contains(line, ".Error()")
+}
+
 _bad(line, _, "go", _, _) if regex.match(`fmt\.Sprintf\(\s*"%T"\s*,[^()]*\)\s*[!=]=|[!=]=\s*fmt\.Sprintf\(\s*"%T"`, line)
 
 # ── PHP ──────────────────────────────────────────────────────────────────
@@ -218,6 +229,11 @@ _bad(_, code, "php", _, _) if regex.match(concat("", [_php_hash, `\s*(?:==|!=)\s
 _bad(_, code, "php", _, _) if regex.match(concat("", [`(?:^|[^=!<>])(?:==|!=)\s*`, _php_hash]), code)
 
 _bad(_, code, "php", _, _) if regex.match(`\bstr(?:case)?cmp\s*\((?:[^()]|\([^()]*\))*\)\s*(?:==|!=)\s*0\b|(?:^|[^=!<>])\b0\s*(?:==|!=)\s*str(?:case)?cmp\s*\(`, code)
+
+_cand(line, "php") if contains(line, "cmp(")
+
+# !strcmp(a, b) is true when strcmp returns NULL for an array argument.
+_bad(_, code, "php", _, _) if regex.match(`(?:^|[^\w$>:])!\s*str(?:case)?cmp\s*\(`, code)
 
 _bad(_, code, "php", _, _) if regex.match(`\bget_class\s*\([^()]*\)\s*[!=]==?\s*@S@|@S@\s*[!=]==?\s*get_class\s*\(`, code)
 
@@ -259,6 +275,7 @@ _gate_res := {
 		`==\s*[\w.]+\.Error\(\)`,
 		`!=\s*[\w.]+\.Error\(\)`,
 		`\.Type\(\)\.(?:Name|String)\(\)\s*[!=]=`,
+		`switch\s+[\w.]+\.Error\(\)\s*\{`,
 		`reflect\.TypeOf\(`,
 		`"%T"`,
 	],
@@ -270,6 +287,7 @@ _gate_res := {
 		`crypt\s*\([^\n]*[!=]=`,
 		`strcmp\s*\([^\n]*[!=]=\s*0`,
 		`strcasecmp\s*\([^\n]*[!=]=\s*0`,
+		`!\s*str(?:case)?cmp\s*\(`,
 		`get_class\s*\([^()\n]*\)\s*[!=]==?\s*["']`,
 		`==[^\n]*?(?:md5|sha1|hash|hash_hmac|crypt|strcmp|strcasecmp|get_class)\s*\(`,
 		`!=[^\n]*?(?:md5|sha1|hash|hash_hmac|crypt|strcmp|strcasecmp|get_class)\s*\(`,
@@ -418,4 +436,30 @@ _java_decl_names(content) := {m[1] |
 	some t in _java_decl_types
 	contains(content, concat("", [t, " "]))
 	some m in regex.find_all_string_submatch_n(concat("", [t, `\s+([A-Za-z_]\w*)\s*[=;,)]`]), content, -1)
+}
+
+# PHP: a variable assigned a hash a few lines above, then compared loosely.
+_php_hash_assign := `^\s*\$(\w+)\s*=\s*(?:md5|sha1|hash|hash_hmac|crypt)\s*\(`
+
+findings contains finding if {
+	some path, content in input.file_contents
+	_lang(path) == "php"
+	_has_any(content, {"md5(", "sha1(", "hash(", "hash_hmac(", "crypt("})
+	regex.match(`=\s*(?:md5|sha1|hash|hash_hmac|crypt)\s*\(`, content)
+	not _is_test(path)
+	lines := split(content, "\n")
+	hvars := {[m[1], j] |
+		some j, l in lines
+		contains(l, "(")
+		some m in regex.find_all_string_submatch_n(_php_hash_assign, l, 1)
+	}
+	some hv in hvars
+	some i in numbers.range(hv[1] + 1, min([count(lines) - 1, hv[1] + 8]))
+	line := lines[i]
+	_has_cmp(line)
+	contains(line, hv[0])
+	not helpers.is_comment_line(line)
+	code := _code(line, "php")
+	regex.match(concat("", [`\$`, hv[0], `\b\s*(?:==|!=)\s*[^=]|(?:^|[^=!<>])(?:==|!=)\s*\$`, hv[0], `\b`]), code)
+	finding := _finding(path, i, line)
 }

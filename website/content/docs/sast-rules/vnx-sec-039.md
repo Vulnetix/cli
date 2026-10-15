@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-039 – GitLab Personal Access Token (Legacy)"
-description: "Reports a GitLab personal, project or group access token: a standalone glpat- token followed by 20 or more base64url characters (the legacy 20-character form and the longer routable form). Placeholders and test or fixture paths are not reported; other GitLab token types are VNX-SEC-040."
+description: "Reports a GitLab personal, project or group access token: a standalone glpat- token followed by 20 or more base64url characters (the legacy 20-character form and the longer routable form). Placeholders, a body of lower-case words such as glpat-personal-access-token-here, and test or fixture paths are not reported; other GitLab token types are VNX-SEC-040."
 ---
 
 ## Overview

@@ -22,9 +22,21 @@ metadata := {
 
 _pattern := `(?:^|[^A-Za-z0-9_])(shp(?:at|ca|pa|ss)_[a-fA-F0-9]{32})(?:[^A-Za-z0-9_]|$)`
 
+# lib secrets.skip_path knows *_test.py but not pytest's other spelling,
+# test_*.py (or conftest.py), so a pytest module was scanned as production.
+_pytest_file(path) if {
+	parts := split(path, "/")
+	base := parts[count(parts) - 1]
+	startswith(base, "test_")
+	endswith(base, ".py")
+}
+
+_pytest_file(path) if endswith(concat("", ["/", path]), "/conftest.py")
+
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
+	not _pytest_file(path)
 	contains(content, "shp")
 	regex.match(`shp(?:at|ca|pa|ss)_`, content)
 	lines := split(content, "\n")

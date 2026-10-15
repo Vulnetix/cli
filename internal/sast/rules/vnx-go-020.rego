@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-020",
 	"name": "Use of template.HTML with potential user input",
-	"description": "An html/template trusted-content conversion (template.HTML, HTMLAttr, JS, JSStr, CSS, URL, Srcset), which switches off contextual escaping for its value, is applied to something that is not the developer's own constant markup. Reported when the argument is an HTTP request value (r.FormValue, r.URL.Query().Get, r.Header.Get, mux.Vars, chi.URLParam, gin/echo c.Query/c.Param/c.PostForm/c.FormValue); markup assembled with fmt.Sprintf (with a %s/%v verb or a non-literal format) or + concatenation of a variable; a parameter of the enclosing function or func literal (a raw-HTML helper or FuncMap entry marks whatever every caller passes as safe); or a variable assigned in the function from any of those (term := r.FormValue(...); msg := fmt.Sprintf(\"<b>%s</b>\", term); template.HTML(msg)). Not reported: string literals and concatenations of literals, package constants and variables, values passed through an HTML sanitiser or escaper (bluemonday Sanitize, html.EscapeString, template.HTMLEscapeString) directly or via a variable, the output of executing a template (buf.String()), struct fields read without concatenation (their origin is not visible on the line), the type used in declarations, assertions and signatures, string literals mentioning the call, and comments.",
+	"description": "An html/template trusted-content conversion (template.HTML, HTMLAttr, JS, JSStr, CSS, URL, Srcset), which switches off contextual escaping for its value, is applied to something that is not the developer's own constant markup. Reported when the argument is an HTTP request value (r.FormValue, r.URL.Query().Get, r.Header.Get, mux.Vars, chi.URLParam, gin/echo c.Query/c.Param/c.PostForm/c.FormValue); markup assembled with fmt.Sprintf (with a %s/%v verb or a non-literal format) or + concatenation of a variable; a parameter of the enclosing function or func literal (a raw-HTML helper or FuncMap entry marks whatever every caller passes as safe); or a variable assigned in the function from any of those, including through a non-sanitising transformation of a request value such as a markdown renderer (rendered := blackfriday.Run([]byte(src))) (term := r.FormValue(...); msg := fmt.Sprintf(\"<b>%s</b>\", term); template.HTML(msg)). Not reported: string literals and concatenations of literals or of numeric conversions (strconv.Itoa, len), package constants and variables, values passed through an HTML sanitiser or escaper (bluemonday Sanitize, html.EscapeString, template.HTMLEscapeString) directly or via a variable, the output of executing a template (buf.String()), struct fields read without concatenation (their origin is not visible on the line), the type used in declarations, assertions and signatures, string literals mentioning the call, and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-020/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -23,7 +23,7 @@ metadata := {
 
 _conv_re := `\btemplate\.(?:HTML|HTMLAttr|JS|JSStr|CSS|URL|Srcset)\((.*)$`
 
-_source_re := `\b(?:r|req|request)\.(?:(?:FormValue|PostFormValue|PathValue|URL\.RawQuery|URL\.Path|Form\.Get|PostForm\.Get|Header\.Get|Referer|UserAgent|Cookie)\b|URL\.Query\(\))|\b(?:c|ctx)\.(?:Query|DefaultQuery|PostForm|DefaultPostForm|Param|Params|FormValue|QueryParam|GetHeader|Cookie)\(|\bmux\.Vars\(|\bchi\.URLParam\(|\.ByName\(|ReadAll\(\s*(?:r|req|request)\.Body`
+_source_re := `\b(?:r|req|request|(?:c|ctx)\.Request)\.(?:(?:FormValue|PostFormValue|PathValue|URL\.RawQuery|URL\.Path|Form\.Get|PostForm\.Get|Header\.Get|Referer|UserAgent|Cookie)\b|URL\.Query\(\))|\b(?:c|ctx)\.(?:Query|DefaultQuery|PostForm|DefaultPostForm|Param|Params|FormValue|QueryParam|GetHeader|Cookie)\(|\bmux\.Vars\(|\bchi\.URLParam\(|\.ByName\(|ReadAll\(\s*(?:r|req|request)\.Body`
 
 _safe_re := `(?i)sanitiz|escape|bluemonday|QuoteLiteral`
 
@@ -64,7 +64,10 @@ _direct_bad(code, raw) if {
 	regex.match(`Sprintf\(\s*(?:[A-Za-z_]|""\s*,\s*[^)\s])`, code)
 }
 
-_direct_bad(code, _) if regex.match(`\+\s*[A-Za-z_]|[A-Za-z_][\w\.\)\]]*\s*\+`, code)
+_direct_bad(code, _) if regex.match(`\+\s*[A-Za-z_]|[A-Za-z_][\w\.\)\]]*\s*\+`, _numbers_out(code))
+
+# Numeric conversions concatenated into markup cannot carry markup.
+_numbers_out(code) := regex.replace(code, `\bstrconv\.(?:Itoa|FormatInt|FormatUint|FormatFloat|FormatBool)\([^()]*\)|\blen\([^()]*\)`, `""`)
 
 # fmt.Sprintf("<b>%d</b>", n): only integer verbs in a literal format.
 _int_only_sprintf(raw) if regex.match(`Sprintf\(\s*"(?:[^"%\\]|\\.|%%|%[0-9]*d)*"`, raw)
@@ -120,6 +123,26 @@ _bad_var(lines, fs, i, v) if {
 	w := _root(pair[0])
 	w != v
 	_bad_ident(lines, fs, i, w)
+}
+
+# v := render(x) where x was read from the request: a transformation that is
+# not a sanitiser or a numeric conversion (a markdown renderer, ToUpper,
+# []byte) keeps the markup the requester chose.
+_bad_var(lines, fs, i, v) if {
+	rhs := _rhs(lines, fs, i, v)
+	not _assigned_safe(rhs)
+	some pair in rhs
+	not regex.match(`\bstrconv\.|\blen\(|\b(?:u?int(?:8|16|32|64)?|float(?:32|64)|bool)\(`, pair[0])
+	some w in regex.find_n(`\b[A-Za-z_]\w*\b`, pair[0], -1)
+	w != v
+	_request_var(lines, fs, i, w)
+}
+
+_request_var(lines, fs, i, w) if {
+	rhs := _rhs(lines, fs, i, w)
+	not _assigned_safe(rhs)
+	some pair in rhs
+	regex.match(_source_re, pair[0])
 }
 
 _assigned_safe(rhs) if {

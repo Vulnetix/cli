@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-018 – AI Provider API Key"
-description: "Detects hardcoded Anthropic (sk-ant-), OpenAI (sk-proj-), and Hugging Face (hf_) API keys in source code, which grant access to paid AI services."
+description: "Reports hardcoded Anthropic (sk-ant-), OpenAI project/service-account/admin (sk-proj-, sk-svcacct-, sk-admin-) and Hugging Face (hf_) API keys of full length and real-key entropy. Placeholders, environment lookups, prefix checks and test paths are not reported."
 ---
 
 ## Overview

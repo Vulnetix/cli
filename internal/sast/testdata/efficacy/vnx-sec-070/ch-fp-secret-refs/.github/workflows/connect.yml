@@ -1,0 +1,10 @@
+name: connect
+on: [push]
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    env:
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+      DB_PASSWORD: op://prod/db/password
+    steps:
+      - run: op whoami

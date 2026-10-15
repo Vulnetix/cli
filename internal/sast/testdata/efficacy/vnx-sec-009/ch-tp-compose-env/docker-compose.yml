@@ -1,0 +1,7 @@
+services:
+  worker:
+    image: acme/worker:1.4
+    environment:
+      - DATABASE_URL=postgres://db/app
+~>      - SENDGRID_API_KEY=@@sample:SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}@@
+      - LOG_LEVEL=info

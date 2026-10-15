@@ -1,0 +1,14 @@
+<server xmlns="urn:jboss:domain:20.0">
+  <subsystem xmlns="urn:wildfly:elytron:18.0">
+    <credential-stores>
+      <credential-store name="cs" location="cs.jceks">
+        <credential-reference clear-text="${env.CREDSTORE_PASSWORD}"/>
+      </credential-store>
+    </credential-stores>
+    <key-stores>
+      <key-store name="ks">
+        <credential-reference store="cs" alias="ks-pass"/>
+      </key-store>
+    </key-stores>
+  </subsystem>
+</server>

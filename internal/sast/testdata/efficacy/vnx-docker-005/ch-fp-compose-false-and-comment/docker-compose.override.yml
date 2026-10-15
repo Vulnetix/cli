@@ -1,0 +1,7 @@
+services:
+  web:
+    image: nginx:1.27.0
+    # privileged: true   needed only for local profiling
+    privileged: false
+    labels:
+      privileged: "true"

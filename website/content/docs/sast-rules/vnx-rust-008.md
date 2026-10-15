@@ -1,13 +1,13 @@
 ---
 title: "VNX-RUST-008 – Path Traversal in Actix-web or Axum File-Serving Handler"
-description: "Detect Rust web handlers that join a base directory with a user-supplied path parameter without verifying that the resolved path stays within the base directory, enabling attackers to read arbitrary server files."
+description: "Reports an axum or actix-web request value (Path/Query/Json/Form extractor, web::Path, match_info) that reaches .join, Path::new, File::open, std/tokio fs calls or NamedFile::open in the same handler; canonicalize+starts_with, '..' rejection, file_name() and integer extractors are not reported."
 ---
 
 ## Overview
 
 This rule flags Rust web handlers (using Actix-web or Axum) that construct a filesystem path by joining a base directory with a value extracted from a URL path parameter, without subsequently calling `canonicalize()` and verifying that the result is a child of the expected base directory. When a user-supplied path component is joined directly, an attacker can embed `../` sequences to escape the intended directory and request arbitrary files from the server's filesystem.
 
-The rule detects this pattern by checking for path-construction calls (`PathBuf::new`, `.join()`, `path::Path::new`) within a code window that also references Actix-web or Axum path extraction APIs (`Path(`, `axum::extract::Path`, `params.get(`, etc.), and that does not already contain a `canonicalize()` call or a `starts_with()` check to confine the path.
+The rule follows a value taken from the request (a `Path(name)`, `Path((a, b))`, `Query(q)`, `Json` or `Form` extractor, a `web::Path<...>` / `web::Query<...>` parameter, or `HttpRequest::match_info()`), directly or through one `let` binding, into a path or file operation in the same handler: `.join(...)`, `Path::new`, `PathBuf::from`, `File::open`/`create`, `std::fs` or `tokio::fs` calls, `NamedFile::open`, `ServeFile::new` or `OpenOptions`. It does not report a handler that canonicalizes and checks `starts_with`, rejects `".."`, keeps only `file_name()`, checks `Component::ParentDir`, or calls a sanitize/safe_join helper, nor integer, bool or `Uuid` extractors. Flows through more than one intermediate binding or across functions are not followed.
 
 This rule corresponds to [CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')](https://cwe.mitre.org/data/definitions/22.html).
 
@@ -23,7 +23,7 @@ In microservice architectures, the file server may run alongside services whose 
 
 ## What Gets Flagged
 
-The rule detects `.rs` files where path-joining operations appear within approximately 15 lines of Actix-web or Axum path parameter extraction, without a subsequent canonicalization and prefix check.
+The finding is reported on the line where the request value reaches the path or file operation.
 
 ```rust
 // FLAGGED: user path joined directly, no canonicalization
@@ -34,6 +34,13 @@ async fn serve_file(Path(filename): Path<String>) -> impl Responder {
         Ok(data) => HttpResponse::Ok().body(data),
         Err(_) => HttpResponse::NotFound().finish(),
     }
+}
+
+// FLAGGED: inline format argument names the file
+async fn logs(service: web::Path<String>) -> HttpResponse {
+    let service = service.into_inner();
+    let body = std::fs::read_to_string(format!("/var/log/app/{service}.log"));
+    ...
 }
 
 // FLAGGED: Axum handler with unvalidated path join

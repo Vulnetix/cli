@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-019 – GCP Service Account Key"
-description: "Detects Google Cloud service account key JSON files committed to source code, which grant broad GCP resource access and should never be stored in version control."
+description: "Reports a committed Google Cloud service account key: a private_key PEM with a real body near type service_account, in JSON, escaped JSON, YAML, TOML or an object literal. Code that only reads or type-checks a key file, placeholder keys and test paths are not reported."
 ---
 
 ## Overview
@@ -23,7 +23,7 @@ Google Cloud's own best practices recommend against service account keys entirel
   "type": "service_account",
   "project_id": "my-project-123456",
   "private_key_id": "abc123",
-  "private_key": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBg<...real base64 body...>\n-----END PRIVATE KEY-----\n",
   "client_email": "my-service-account@my-project.iam.gserviceaccount.com",
   "client_id": "123456789",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -31,15 +31,14 @@ Google Cloud's own best practices recommend against service account keys entirel
 }
 ```
 
-```python
-# FLAGGED: path to service account key file hardcoded
-from google.oauth2 import service_account
-
-credentials = service_account.Credentials.from_service_account_file(
-    'service-account-key.json',
-    scopes=['https://www.googleapis.com/auth/cloud-platform']
-)
+```toml
+# FLAGGED: the same key in .streamlit/secrets.toml
+[connections.gsheets]
+type = "service_account"
+private_key = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBg<...real base64 body...>\n-----END PRIVATE KEY-----\n"
 ```
+
+The same document is also flagged when it is embedded as an escaped string in an environment file, Terraform or source code, as a Python or JavaScript object literal, or as YAML (inline or a `private_key: |` block). Not flagged: a key file whose `private_key` is empty, `"..."` or `${VAR}`, code that only reads a key file (`from_service_account_file("key.json")`) or compares against `"service_account"`, and test, fixture, vendored and generated paths.
 
 ## Remediation
 

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-KOTLIN-005",
 	"name": "Kotlin MD5 or SHA-1 used as cryptographic hash",
-	"description": "A broken hash (MD5, SHA-1, or the older MD2/MD4) is computed through a hash API. MD5 and SHA-1 have practical collision attacks and, being fast, are trivially brute-forced when they protect passwords; use SHA-256/SHA-3 for integrity and signatures and bcrypt/scrypt/Argon2 for passwords. Reported in Kotlin (.kt, .kts): MessageDigest.getInstance(\"MD5\"/\"SHA-1\"/\"SHA1\"/\"SHA\"/\"MD2\"/\"MD4\", any case, with or without a provider, wrapped or not), the same through a constant the file assigns once or a commons-codec MessageDigestAlgorithms.MD5/SHA_1/MD2 constant; Signature.getInstance(\"SHA1withRSA\"/\"MD5withRSA\"/...); Apache Commons Codec DigestUtils.md5/md5Hex/sha1/sha1Hex/sha/shaHex/md2/md2Hex/getMd5Digest/getSha1Digest, new DigestUtils(MD5/SHA_1) and statically imported md5Hex()/sha1Hex(); Guava Hashing.md5()/sha1(); and Okio ByteString/Buffer .md5()/.sha1() or HashingSink/HashingSource md5/sha1 when the hashed value is named as a password, secret, token, credential or PIN. Not reported: SHA-256 and stronger, HMAC constructions (HmacSHA1, HmacUtils, Hashing.hmacMd5, Okio hmacSha1), SHA1PRNG, OAEP padding names, Okio digests used as cache keys, file names or certificate fingerprints, the SHA-1 that RFC 6455 mandates for Sec-WebSocket-Accept, an algorithm variable whose value is not fixed in the file, enum entries and string lists of algorithm names, test code, and the calls in comments or string literals.",
+	"description": "A broken hash (MD5, SHA-1, or the older MD2/MD4) is computed through a hash API. MD5 and SHA-1 have practical collision attacks and, being fast, are trivially brute-forced when they protect passwords; use SHA-256/SHA-3 for integrity and signatures and bcrypt/scrypt/Argon2 for passwords. Reported in Kotlin (.kt, .kts): MessageDigest.getInstance(\"MD5\"/\"SHA-1\"/\"SHA1\"/\"SHA\"/\"MD2\"/\"MD4\", any case, with or without a provider, wrapped or not, including MessageDigest on one line and .getInstance(...) on the next), the same through a constant the file assigns once or a commons-codec MessageDigestAlgorithms.MD5/SHA_1/MD2 constant; Signature.getInstance(\"SHA1withRSA\"/\"MD5withRSA\"/...); Apache Commons Codec DigestUtils.md5/md5Hex/sha1/sha1Hex/sha/shaHex/md2/md2Hex/getMd5Digest/getSha1Digest, new DigestUtils(MD5/SHA_1) and statically imported md5Hex()/sha1Hex(); Guava Hashing.md5()/sha1(); Spring Security MessageDigestPasswordEncoder(\"MD5\"/\"SHA-1\"/...), Md4PasswordEncoder and LdapShaPasswordEncoder; and Okio ByteString/Buffer .md5()/.sha1() or HashingSink/HashingSource md5/sha1 when the hashed value is named as a password, secret, token, credential or PIN. Not reported: SHA-256 and stronger, HMAC constructions (HmacSHA1, HmacUtils, Hashing.hmacMd5, Okio hmacSha1), SHA1PRNG, OAEP padding names, Okio digests used as cache keys, file names or certificate fingerprints, the SHA-1 that RFC 6455 mandates for Sec-WebSocket-Accept, an MD5 within a few lines of a Content-MD5 header (a transfer checksum the protocol fixes), an algorithm variable whose value is not fixed in the file, enum entries and string lists of algorithm names, test code, and the calls in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-kotlin-005/",
 	"languages": ["kotlin"],
 	"severity": "medium",
@@ -93,7 +93,37 @@ _weak(lines, i, code, content) if {
 	_weak_arg(m[0][1], content)
 	not _websocket(lines, i)
 	not _app_signature(lines, i)
+	not _content_md5(lines, i)
 }
+
+# MessageDigest
+#     .getInstance("SHA-1")
+_weak(lines, i, code, content) if {
+	i > 0
+	regex.match(`^\s*\.\s*getInstance\s*\(`, code)
+	regex.match(`\bMessageDigest\s*$`, _code(lines[i - 1]))
+	m := regex.find_all_string_submatch_n(`^\s*\.\s*getInstance\s*\(\s*("[^"]*"|[\w.]+)\s*[,)]`, _joined(lines, i), 1)
+	count(m) > 0
+	_weak_arg(m[0][1], content)
+	not _websocket(lines, i)
+	not _content_md5(lines, i)
+}
+
+# The Content-MD5 header (HTTP, S3-style object stores) is defined as MD5 of
+# the body: a transfer checksum the protocol fixes, not a choice.
+_content_md5(lines, i) if {
+	regex.match(`(?i)md5`, concat(" ", array.slice(lines, i, i + 2)))
+	w := concat("\n", array.slice(lines, max([0, i - 8]), i + 9))
+	regex.match(`(?i)content-?md5`, w)
+}
+
+# Spring Security password encoders built on MD4/MD5/SHA-1
+_weak(lines, i, code, _) if {
+	regex.match(`\bMessageDigestPasswordEncoder\s*\(\s*""`, code)
+	regex.match(`\bMessageDigestPasswordEncoder\s*\(\s*"(?i:MD2|MD4|MD5|SHA|SHA-?1)"`, lines[i])
+}
+
+_weak(_, _, code, _) if regex.match(`(?:^|[^\w.])(?:[a-z]\w*\.)*(Md4PasswordEncoder|LdapShaPasswordEncoder)\s*\(`, code)
 
 # Signature.getInstance("SHA1withRSA") used to sign. Verifying a signature
 # someone else produced (store receipts, legacy partners) is not a choice of
@@ -122,7 +152,10 @@ _verify_only(lines, i) if {
 }
 
 # Commons Codec and Spring DigestUtils
-_weak(_, _, code, _) if regex.match(`\bDigestUtils\s*\.\s*(md2|md2Hex|md5|md5Hex|sha|shaHex|sha1|sha1Hex|getMd2Digest|getMd5Digest|getShaDigest|getSha1Digest|md5Digest|md5DigestAsHex|appendMd5DigestAsHex)\s*\(`, code)
+_weak(lines, i, code, _) if {
+	regex.match(`\bDigestUtils\s*\.\s*(md2|md2Hex|md5|md5Hex|sha|shaHex|sha1|sha1Hex|getMd2Digest|getMd5Digest|getShaDigest|getSha1Digest|md5Digest|md5DigestAsHex|appendMd5DigestAsHex)\s*\(`, code)
+	not _content_md5(lines, i)
+}
 
 # Bouncy Castle lightweight digests, except as the PRF of an HMAC, PBKDF2,
 # HKDF or OAEP/MGF1 construction
@@ -166,7 +199,7 @@ _imported(content) := {m[1] |
 findings contains finding if {
 	some path, content in input.file_contents
 	_is_kotlin(path)
-	regex.match(`(?i)md[245]|sha[-_]?1|"sha"`, content)
+	regex.match(`(?i)md[245]|sha[-_]?1|"sha"|ShaPasswordEncoder`, content)
 	not _is_test(path)
 	not _build_script(path)
 	lines := split(content, "\n")

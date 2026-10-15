@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  template:
+    spec:
+      containers:
+        - name: worker
+          image: acme/worker:1.4.2
+          envFrom:
+            - secretRef:
+                name: worker-env
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: worker-env
+stringData:
+  QUEUE_NAME: jobs
+~>  DATABASE_URL: "postgres://worker:Nq4Wz8Lr2Tx@db.acme-corp.io:5432/jobs"
+~>  SLACK_TOKEN: '@@sample:s[l]k[-][9]d8[f]7a[6]b5[c]4e[3]f2[a]1b[0]c@@'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-config
+data:
+  api_key_header: X-Api-Key
+  log_level: info

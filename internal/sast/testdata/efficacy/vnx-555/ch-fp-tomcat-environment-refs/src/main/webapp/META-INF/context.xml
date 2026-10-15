@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context reloadable="false">
+    <Environment name="mail/smtpPassword" type="java.lang.String" value="${SMTP_PASSWORD}" override="false"/>
+    <Parameter name="passwordPolicy" value="strict" override="false"/>
+    <Parameter name="ldapBindPassword" value="" override="false"/>
+</Context>

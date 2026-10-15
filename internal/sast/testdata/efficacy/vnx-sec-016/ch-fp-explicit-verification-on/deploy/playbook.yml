@@ -1,0 +1,11 @@
+- hosts: web
+  vars:
+    verify_tls: true
+  tasks:
+    - name: Fetch artefact
+      ansible.builtin.get_url:
+        url: https://artifacts.internal/web.tar.gz
+        dest: /opt/web.tar.gz
+        validate_certs: "{{ verify_tls }}"
+    - name: Deploy chart
+      ansible.builtin.command: helm upgrade web ./chart --insecure-skip-tls-verify=false

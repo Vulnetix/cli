@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-025",
 	"name": "Potential open redirect via HTTP redirect",
-	"description": "A redirect target is taken from the request: a query, form or route parameter (r.URL.Query().Get, r.FormValue, r.PostFormValue, r.Form.Get, mux.Vars, r.PathValue, httprouter ps.ByName, gin c.Query/DefaultQuery/PostForm/Param, echo c.QueryParam/FormValue, fiber c.Query/Params) reaches http.Redirect, a framework Redirect (gin/echo c.Redirect(code, url), fiber c.Redirect(url)) or a Location header, directly, through the variable it was assigned to, or through one variable built from it (\"/\" + v, fmt.Sprintf(\"https://%s/...\", v), a host without a trailing slash). Not reported: a target checked first (strings.HasPrefix, a switch or map allowlist, url.Parse followed by a Host/IsAbs/Scheme test, a helper whose name says safe/valid/allowed/trusted/sanitize), a value placed after a fixed path segment or a fixed scheme://host/ (\"/users/\" + v, \"https://docs.example.com/\" + v), a value passed through url.QueryEscape/PathEscape, constant targets, the request Host or Referer header (not attacker-chosen in a victim's browser), comments and string literals. Cross-function flows are not followed.",
+	"description": "A redirect target is taken from the request: a query, form or route parameter (r.URL.Query().Get, r.FormValue, r.PostFormValue, r.Form.Get, mux.Vars, chi.URLParam, r.PathValue, httprouter ps.ByName, gin c.Query/DefaultQuery/PostForm/Param, echo c.QueryParam/FormValue, fiber c.Query/Params) reaches http.Redirect, a framework Redirect (gin/echo c.Redirect(code, url), fiber c.Redirect(url)) or a Location header, directly, through the variable it was assigned to, or through one variable built from it (\"/\" + v, fmt.Sprintf(\"https://%s/...\", v), a host without a trailing slash). Not reported: a target checked first (strings.HasPrefix, a switch or map allowlist, url.Parse followed by a Host/IsAbs/Scheme test, a helper whose name says safe/valid/allowed/trusted/sanitize), a value placed after a fixed path segment or a fixed scheme://host/ (\"/users/\" + v, \"https://docs.example.com/\" + v), a value passed through url.QueryEscape/PathEscape, constant targets, the request Host or Referer header (not attacker-chosen in a victim's browser), comments and string literals. Cross-function flows are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-025/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -22,9 +22,9 @@ metadata := {
 }
 
 # A value the requester chooses in a link they send a victim.
-_source := `\b(?:r|req|request|rq|httpReq)\.(?:FormValue|PostFormValue)\(|\.URL\.Query\(\)|\b(?:r|req|request|rq)\.(?:Form|PostForm)\.Get\(|\bmux\.Vars\(|\.PathValue\(|\bps\.ByName\(|\b(?:c|ctx|e|g|context|this|self)\.(?:Query|DefaultQuery|GetQuery|PostForm|DefaultPostForm|GetPostForm|Param|Params|QueryParam|FormValue|GetString)\(`
+_source := `\b(?:r|req|request|rq|httpReq)\.(?:FormValue|PostFormValue)\(|\.URL\.Query\(\)|\b(?:r|req|request|rq)\.(?:Form|PostForm)\.Get\(|\bmux\.Vars\(|\bchi\.URLParam\(|\.PathValue\(|\bps\.ByName\(|\b(?:c|ctx|e|g|context|this|self)\.(?:Query|DefaultQuery|GetQuery|PostForm|DefaultPostForm|GetPostForm|Param|Params|QueryParam|FormValue|GetString)\(`
 
-_source_needles := ["FormValue", "URL.Query", "Form.Get", "mux.Vars", "PathValue", "ByName(", "Query(", "Param(", "Params(", "PostForm", "QueryParam", "GetString("]
+_source_needles := ["FormValue", "URL.Query", "Form.Get", "mux.Vars", "URLParam(","PathValue", "ByName(", "Query(", "Param(", "Params(", "PostForm", "QueryParam", "GetString("]
 
 _gate(content) if {
 	some n in _source_needles
@@ -104,8 +104,13 @@ _tainted(lines, i, lo) := {v |
 	l := lines[k]
 	not helpers.is_comment_line(l)
 	regex.match(_source, l)
+	not _lookup_key(l)
 	v := helpers.assigned_first(l)
 }
+
+# dest, ok := allowed[r.URL.Query().Get("to")]: the request value is only
+# the key of a lookup; the target is the table's value.
+_lookup_key(l) if regex.match(`^\s*[A-Za-z_][\w\.]*\[`, _rhs(l))
 
 # One propagation step: a variable assigned from an expression that names a
 # tainted variable, unless the expression keeps the target on this site.

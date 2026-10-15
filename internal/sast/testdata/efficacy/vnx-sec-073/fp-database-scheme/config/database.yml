@@ -1,0 +1,4 @@
+production:
+  url: postgres://app:Xy7Lm2Qp9Rz@db.acme-corp.io:5432/app
+  cache: redis://:Ty6Nb4Wq8Km@@@sample:c[a]ch[e][.]a[c]me[-]co[r]p[.][i]o@@:6379/0
+  queue: amqp://worker:Rm3Kv8Pz5Lq@mq.acme-corp.io:5672/

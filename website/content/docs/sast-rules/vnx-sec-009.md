@@ -1,11 +1,11 @@
 ---
 title: "VNX-SEC-009 – SendGrid API Key"
-description: "Detects hardcoded SendGrid API keys (SG. prefix) in source code, which grant access to email sending services and can be abused for phishing or spam."
+description: "Detects a full SendGrid API key (SG.<22>.<43>, delimited and high-entropy) in any file outside tests, fixtures, lock files and minified bundles; placeholder and wrong-length lookalikes are not reported."
 ---
 
 ## Overview
 
-This rule detects SendGrid API keys matching the pattern `SG.[0-9A-Za-z\-_]{22}.[0-9A-Za-z\-_]{43}` in source files. SendGrid API keys authenticate requests to the SendGrid email delivery API, which can send transactional emails, marketing campaigns, or bulk messages at scale. Depending on the permissions granted to the key, an attacker with access to it can send emails impersonating your domain, access your contact lists, read previously sent message data, and damage your sending reputation.
+This rule detects SendGrid API keys matching the pattern `SG.[0-9A-Za-z\-_]{22}.[0-9A-Za-z\-_]{43}` in any file, standing on its own rather than inside a longer token. Placeholder and low-entropy keys (`SG.xxxx...`), lock files, minified bundles and test, fixture and vendored paths are not reported. SendGrid API keys authenticate requests to the SendGrid email delivery API, which can send transactional emails, marketing campaigns, or bulk messages at scale. Depending on the permissions granted to the key, an attacker with access to it can send emails impersonating your domain, access your contact lists, read previously sent message data, and damage your sending reputation.
 
 **Severity:** High | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

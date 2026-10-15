@@ -1,6 +1,6 @@
 ---
 title: "VNX-NODE-001 – Missing npm Lock File"
-description: "A package.json that declares dependencies has no committed lock file (package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock) in its directory or a workspace root, so installs re-resolve floating ranges."
+description: "A package.json that declares dependencies has no committed lock file (package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock, deno.lock) in its directory or a workspace root, so installs re-resolve floating ranges."
 ---
 
 ## Overview
@@ -21,7 +21,7 @@ OWASP ASVS v4 requirement **V10.3.2** states: "Verify that the application only 
 
 ## What Gets Flagged
 
-The rule reports a `package.json` (line 1) that declares at least one entry in `dependencies`, `devDependencies` or `optionalDependencies` when no lock file (`package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`) exists in the same directory or in any ancestor directory.
+The rule reports a `package.json` (line 1) that declares at least one entry in `dependencies`, `devDependencies` or `optionalDependencies` when no lock file (`package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`, `deno.lock`) exists in the same directory or in an ancestor directory that is a workspace root (`"workspaces"`, `pnpm-workspace.yaml` or `lerna.json`).
 
 ```
 services/api/
@@ -31,6 +31,7 @@ services/api/
 Not flagged:
 
 - a workspace member (`packages/core/package.json`) when the workspace root holds the lock file;
+- a project in a Rush monorepo (`rush.json`) whose lock file lives under `common/config/rush/`;
 - a `package.json` with no dependencies (`"dependencies": {}`, scripts only);
 - manifests under `test/`, `fixtures/`, `mocks/`, `examples/`, `samples/` or `demos/`.
 

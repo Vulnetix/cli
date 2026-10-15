@@ -1,11 +1,11 @@
 ---
 title: "VNX-TF-003 – Terraform AWS RDS Instance Publicly Accessible"
-description: "Detect AWS RDS database instances configured with publicly_accessible = true in Terraform, which exposes the database endpoint directly to the internet."
+description: "Detect AWS database instances in Terraform (aws_db_instance, aws_rds_cluster_instance, aws_redshift_cluster, aws_redshiftserverless_workgroup, aws_dms_replication_instance or an RDS module) configured with publicly_accessible = true."
 ---
 
 ## Overview
 
-This rule flags Terraform `.tf` files where an `aws_db_instance`, `aws_rds_cluster`, or `aws_db_cluster` resource has `publicly_accessible = true`. When this setting is enabled, AWS assigns a publicly routable DNS endpoint to the database instance, making it reachable from any IP address on the internet (subject to security group rules).
+This rule flags Terraform `.tf` files where `publicly_accessible = true` appears anywhere inside an `aws_db_instance`, `aws_rds_cluster_instance`, `aws_redshift_cluster` or `aws_dms_replication_instance` resource, or a module whose source names rds, redshift or dms. When this setting is enabled, AWS assigns a publicly routable DNS endpoint to the database, making it reachable from any IP address on the internet (subject to security group rules). A value taken from a variable, other resource types and comments are not reported.
 
 Database instances contain an application's most sensitive data: user records, transaction history, session information, and application state. Direct internet exposure of a database endpoint dramatically increases the risk of unauthorized access through credential brute-forcing, exploitation of database engine vulnerabilities, and attacks against the authentication protocol itself.
 
@@ -23,24 +23,26 @@ Even when strong passwords are used, a publicly accessible database endpoint pro
 
 ## What Gets Flagged
 
-The rule matches `.tf` files where `publicly_accessible = true` appears within the context of an RDS resource block.
-
 ```hcl
-# FLAGGED: RDS instance accessible from the internet
-resource "aws_db_instance" "app_db" {
-  engine               = "postgres"
-  instance_class       = "db.t3.medium"
-  publicly_accessible  = true
-  username             = "dbadmin"
-  password             = var.db_password
+resource "aws_db_instance" "main" {
+  identifier          = "app-db"
+  engine              = "postgres"
+  instance_class      = "db.t3.micro"
+  publicly_accessible = true          # FLAGGED
 }
 
-# FLAGGED: Aurora cluster with public endpoint
-resource "aws_rds_cluster" "aurora" {
-  cluster_identifier   = "aurora-cluster"
-  publicly_accessible  = true
+resource "aws_redshift_cluster" "analytics" {
+  cluster_identifier  = "analytics"
+  publicly_accessible = true          # FLAGGED
+}
+
+module "orders_db" {
+  source              = "terraform-aws-modules/rds/aws"
+  publicly_accessible = true          # FLAGGED
 }
 ```
+
+Not flagged: `publicly_accessible = false`, `publicly_accessible = var.public`, or a commented-out line.
 
 ## Remediation
 

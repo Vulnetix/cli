@@ -1,11 +1,29 @@
 ---
 title: "VNX-SEC-071 – GitLab Session Cookie"
-description: "Detects GitLab _gitlab_session= cookie values hardcoded in source code."
+description: "Detects captured GitLab session cookie values (_gitlab_session with a 32-hex session id) in any file."
 ---
 
 ## Overview
 
-This rule detects gitlab session cookie matching the `_gitlab_session=...` pattern hardcoded anywhere in source files. Detects GitLab _gitlab_session= cookie values hardcoded in source code.
+This rule reports `_gitlab_session` followed by `=` (a `Cookie` header, `document.cookie`, a curl argument) by a quoted or symbol key and `:`/`=`/`=>` (a cookies dict, hash or object), by a call argument pair (`cookies.set("_gitlab_session", "...")`) or by a tab (Netscape `cookies.txt`); or a cookie object whose `"name"` is `_gitlab_session` with its `"value"` on the same line or up to 12 lines below, as browser cookie exports write it; and then a 32-character lowercase hexadecimal session id. The value is masked in the snippet.
+
+It does not report the cookie name on its own (Rails `session_store key: "_gitlab_session"`), a value read from a variable or the environment, placeholder values (all zeros, `xxxx...`), and generated, vendored and test-suffixed files.
+
+## What Gets Flagged
+
+```sh
+curl -s -H "Cookie: _gitlab_session=<32 hex>" https://gitlab.acme-corp.io/api/v4/projects
+```
+
+```python
+cookies = {"_gitlab_session": "<32 hex>"}
+```
+
+Not flagged:
+
+```python
+cookies = {"_gitlab_session": os.environ["GITLAB_SESSION"]}
+```
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 

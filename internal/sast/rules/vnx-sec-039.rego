@@ -6,7 +6,7 @@ import data.vulnetix.lib.secrets
 metadata := {
 	"id": "VNX-SEC-039",
 	"name": "GitLab personal access token (legacy)",
-	"description": "Reports a GitLab personal, project or group access token: a standalone glpat- token followed by 20 or more base64url characters (the legacy 20-character form and the longer routable form). Placeholders and test or fixture paths are not reported; other GitLab token types are VNX-SEC-040.",
+	"description": "Reports a GitLab personal, project or group access token: a standalone glpat- token followed by 20 or more base64url characters (the legacy 20-character form and the longer routable form). Placeholders, a body of lower-case words such as glpat-personal-access-token-here, and test or fixture paths are not reported; other GitLab token types are VNX-SEC-040.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-039/",
 	"languages": [],
 	"severity": "critical",
@@ -22,6 +22,10 @@ metadata := {
 
 _pattern := `\b(glpat-[A-Za-z0-9_-]{20,}(?:\.[0-9a-z]{2}\.[0-9a-z]{9})?)(?:[^A-Za-z0-9_-]|$)`
 
+# A body of lower-case words joined by - or _ is a description in an example
+# file ("glpat-personal-access-token-here"), not 20 random characters.
+_wordlike(tok) if regex.match(`^glpat-[a-z]+(?:[-_][a-z]+)+$`, tok)
+
 findings contains finding if {
 	some path, content in input.file_contents
 	not secrets.skip_path(path)
@@ -32,6 +36,7 @@ findings contains finding if {
 	m := regex.find_all_string_submatch_n(_pattern, line, 1)
 	count(m) > 0
 	token := m[0][1]
+	not _wordlike(token)
 	not secrets.is_example_token(token)
 	finding := {
 		"rule_id": metadata.id,

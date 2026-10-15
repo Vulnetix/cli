@@ -1,0 +1,9 @@
+- name: Download release
+  ansible.builtin.get_url:
+    url: https://artifacts.internal/web.tar.gz
+    dest: /opt/web.tar.gz
+~>    validate_certs: no
+- name: Call health endpoint
+  ansible.builtin.uri:
+    url: https://web.internal/health
+~>    validate_certs: false

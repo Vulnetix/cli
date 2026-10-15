@@ -119,17 +119,73 @@ _calls contains [i, opts, pkg] if {
 
 _flag_re := `\b(secure|httpOnly)\s*:\s*false\b`
 
+# First line of `const <id> = {` in the file.
+_obj_def(lines, id) := s if {
+	defs := [j |
+		some j, l in lines
+		contains(l, id)
+		regex.match(concat("", [`^\s*(?:export\s+)?(?:const|let|var)\s+`, id, `\b[^=]*=\s*\{`]), l)
+	]
+	count(defs) > 0
+	s := defs[0]
+}
+
+# Identifier given as the cookie options (cookie: cookieOptions).
+_cookie_ref(lines, s, e) := id if {
+	ids := [m[0][1] |
+		some k in numbers.range(s, e)
+		not helpers.is_comment_line(lines[k])
+		m := regex.find_all_string_submatch_n(`\bcookie\s*:\s*([A-Za-z_$][\w$]*)\s*(?:,|\}|$)`, lines[k], 1)
+		count(m) > 0
+	]
+	count(ids) > 0
+	id := ids[0]
+}
+
+# The ranges whose flags describe the session cookie: the options object and
+# a cookie options object it names in this file.
+_ranges(lines, c) := [[c[1][0], c[1][1]]] if not _cookie_ref(lines, c[1][0], c[1][1])
+
+_ranges(lines, c) := [[c[1][0], c[1][1]], [d, _obj_end(lines, d)]] if {
+	id := _cookie_ref(lines, c[1][0], c[1][1])
+	d := _obj_def(lines, id)
+}
+
+_ranges(lines, c) := [[c[1][0], c[1][1]]] if {
+	id := _cookie_ref(lines, c[1][0], c[1][1])
+	not _obj_def(lines, id)
+}
+
+# The cookie options are an identifier: settled when its object sets secure,
+# and unknown (so not reported) when it is not defined in this file.
+_cookie_secure_known(lines, c) if {
+	id := _cookie_ref(lines, c[1][0], c[1][1])
+	not _obj_def(lines, id)
+}
+
+_cookie_secure_known(lines, c) if {
+	id := _cookie_ref(lines, c[1][0], c[1][1])
+	d := _obj_def(lines, id)
+	_sets_secure(lines, d, _obj_end(lines, d))
+}
+
+_cookie_secure_known(lines, c) if {
+	id := _cookie_ref(lines, c[1][0], c[1][1])
+	regex.match(concat("", [`\b`, id, `\.secure\s*=\s*[^=\s]`]), concat("\n", lines))
+}
+
 findings contains finding if {
 	some c in _calls
 	path := c[2][0]
 	lines := split(input.file_contents[path], "\n")
-	some k in numbers.range(c[1][0], c[1][1])
+	some r in _ranges(lines, c)
+	some k in numbers.range(r[0], r[1])
 	line := lines[k]
 	contains(line, "false")
 	not helpers.is_comment_line(line)
 	m := regex.find_all_string_submatch_n(_flag_re, line, 1)
 	count(m) > 0
-	not _in_block_comment(lines, c[1][0], k)
+	not _in_block_comment(lines, r[0], k)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("Session cookie configured with %s: false; set %s: true so the session id is only sent over HTTPS and cannot be read by page scripts", [m[0][1], m[0][1]]),
@@ -144,7 +200,7 @@ findings contains finding if {
 _sets_secure(lines, s, e) if {
 	some k in numbers.range(s, e)
 	not helpers.is_comment_line(lines[k])
-	regex.match(`\bsecure\s*:`, lines[k])
+	regex.match(`\bsecure\s*:|[{,]\s*secure\s*(?:[,}]|$)|\.\.\.[A-Za-z_$]`, lines[k])
 	not _in_block_comment(lines, s, k)
 }
 
@@ -165,6 +221,7 @@ findings contains finding if {
 	content := input.file_contents[path]
 	lines := split(content, "\n")
 	not _sets_secure(lines, c[1][0], c[1][1])
+	not _cookie_secure_known(lines, c)
 	not _secure_assigned(content, c[1][2])
 	finding := {
 		"rule_id": metadata.id,

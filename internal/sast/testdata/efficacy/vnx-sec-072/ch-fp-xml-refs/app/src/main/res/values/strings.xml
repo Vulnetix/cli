@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="password_hint">Enter your password here</string>
+    <string name="api_key_label">API key</string>
+    <string name="@@sample:t[o]ke[n][_]e[r]ro[r][_]m[e]ss[a]ge[_]v2@@">@@sample:T[o]ke[n]Ex[p]ir[e]d2[F]ac[t]or[A]ut[h]Re[q]ui[r]ed@@</string>
+</resources>

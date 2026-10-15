@@ -1,0 +1,8 @@
+<a href="{{ post.source_url }}" target="_blank" rel="noopener">source</a>
+<a href="https://docs.example.org/" target="_blank">docs</a>
+<a href="https://twitter.com/intent/tweet?text={{ caption }}" target="_blank">tweet</a>
+<a href="{% url 'api_data' %}" target="_blank">api</a>
+<a href="{{ url_for('report', id=r.id) }}" target="_blank">report</a>
+<a th:href="@{/WebWolf}" target="_blank">WebWolf</a>
+<form action="/csrf/flag" method="POST" target="_blank"></form>
+<!-- <a href="{{ x }}" target="_blank">old</a> -->

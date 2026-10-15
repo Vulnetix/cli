@@ -1,0 +1,11 @@
+name: deploy
+on: push
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+~>      GIT_SSL_NO_VERIFY: "true"
+    steps:
+~>      - run: curl -sk https://deploy.example.com/hook -d "sha=${{ github.sha }}"
+      - run: |
+~>          curl --insecure -X POST https://deploy.example.com/release

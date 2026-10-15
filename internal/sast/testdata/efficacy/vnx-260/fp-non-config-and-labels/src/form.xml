@@ -1,0 +1,5 @@
+<form>
+  <field name="password" label="Password" type="password"/>
+  <passwordPolicy>strong</passwordPolicy>
+  <string name="password_hint">Enter your password</string>
+</form>

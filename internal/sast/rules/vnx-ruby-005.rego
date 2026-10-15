@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUBY-005",
 	"name": "Ruby XSS via html_safe or raw",
-	"description": "Rails output escaping is switched off for a value that is not a fixed string: .html_safe called on a model attribute, a variable, a method result or an interpolated string; raw(...) / raw x, <%== x %> in ERB and != x in Haml given the same. An interpolated string literal is reported when one of its #{...} parts is not known safe. Not reported: string literals without interpolation (or whose interpolations are only ids, to_i values, counts, path/url helpers, h()/sanitize() results or constants), a local assigned only from such a literal, values from sanitize/strip_tags/h/html_escape/escape_javascript/json_escape, translations (t/I18n.t), Rails tag and link helpers, render/partial/yield/content_for/capture output, safe_join, CONSTANTS, the html_safe? predicate, comments. Whether a reported value can actually hold user-controlled markup is not proven: a stored attribute rendered with html_safe is reported because that is how stored XSS is written.",
+	"description": "Rails output escaping is switched off for a value that is not a fixed string: .html_safe called on a model attribute, a variable, a method result or an interpolated string; raw(...) / raw x, <%== x %> in ERB, != x in Haml and == x in Slim given the same. An interpolated string literal is reported when one of its #{...} parts is not known safe. Not reported: string literals without interpolation (or whose interpolations are only ids, to_i values, counts, path/url helpers, h()/sanitize() results or constants), a local assigned only from such a literal, values from sanitize/strip_tags/h/html_escape/escape_javascript/json_escape, translations (t/I18n.t), Rails tag and link helpers, render/partial/yield/content_for/capture output, safe_join, CONSTANTS, the html_safe? predicate, the word raw inside a Ruby string literal, comments. Whether a reported value can actually hold user-controlled markup is not proven: a stored attribute rendered with html_safe is reported because that is how stored XSS is written.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-005/",
 	"languages": ["ruby"],
 	"severity": "high",
@@ -80,9 +80,11 @@ _exprs(path, code) := {e |
 	e := m[1]
 } | {e |
 	some m in regex.find_all_string_submatch_n(_raw_paren_re, code, -1)
+	_raw_ok(path, code, m[0])
 	e := m[1]
 } | {e |
 	some m in regex.find_all_string_submatch_n(_raw_bare_re, code, -1)
+	_raw_ok(path, code, m[0])
 	e := m[1]
 } | {e |
 	some m in regex.find_all_string_submatch_n(_erb_raw_re, code, -1)
@@ -91,7 +93,25 @@ _exprs(path, code) := {e |
 	endswith(path, ".haml")
 	some m in regex.find_all_string_submatch_n(_haml_raw_re, code, -1)
 	e := m[1]
+} | {e |
+	endswith(path, ".slim")
+	some m in regex.find_all_string_submatch_n(_slim_raw_re, code, -1)
+	e := m[1]
 }
+
+# In Ruby source, `raw (` inside a string literal (a log message) is text.
+_raw_ok(path, _, _) if not endswith(path, ".rb")
+
+_raw_ok(path, code, tok) if {
+	endswith(path, ".rb")
+	prefix := substring(code, 0, indexof(code, tok) + indexof(tok, "raw"))
+	stripped := regex.replace(prefix, `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`, "")
+	not contains(stripped, `"`)
+	not contains(stripped, "'")
+}
+
+# Slim's unescaped output: `== expr`, alone or after a tag (`p.body == x`).
+_slim_raw_re := `^\s*(?:[a-z][\w-]*)?(?:[.#][\w-]+)*\s*==\s*(.+)$`
 
 # A Ruby line's text outside a trailing comment; ERB lines are kept whole.
 _code(path, line) := regex.replace(line, `\s#[^{].*$`, "") if endswith(path, ".rb")
@@ -104,7 +124,7 @@ findings contains finding if {
 	_gate(path, content)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`\.html_safe|\braw[\s(]|<%==|^\s*(?:[%.#][\w.#-]*(?:\{[^}]*\})?)?\s*!=`, line)
+	regex.match(`\.html_safe|\braw[\s(]|<%==|^\s*(?:[%.#][\w.#-]*(?:\{[^}]*\})?)?\s*!=|^\s*[\w.#-]*\s*==`, line)
 	not helpers.is_comment_line(line)
 	not regex.match(`^\s*<%#`, line)
 	code := _code(path, line)
@@ -122,7 +142,13 @@ findings contains finding if {
 }
 
 _gate(path, content) if {
+	endswith(path, ".slim")
+	regex.match(`(?m)\.html_safe|\braw[\s(]|^\s*(?:[a-z][\w-]*)?(?:[.#][\w-]+)*\s*==`, content)
+}
+
+_gate(path, content) if {
 	not endswith(path, ".haml")
+	not endswith(path, ".slim")
 	regex.match(`\.html_safe|\braw[\s(]|<%==`, content)
 }
 

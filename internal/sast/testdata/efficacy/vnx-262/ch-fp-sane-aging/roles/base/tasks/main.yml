@@ -1,0 +1,8 @@
+- name: Create app user
+  ansible.builtin.user:
+    name: app
+    password_expire_max: 90
+    password_expire_min: 1
+
+- name: Age the CI account
+  ansible.builtin.command: chage --maxdays 60 ci

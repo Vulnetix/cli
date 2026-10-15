@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-022",
 	"name": "PHP open redirect via non-literal redirect destination",
-	"description": "A redirect destination comes from the request: header('Location: ...') (any case, with or without a space before the parenthesis, concatenated or interpolated), Laravel redirect($x), redirect()->to()/away(), Redirect::to()/away(), Symfony $this->redirect() and new RedirectResponse() (also split across lines), wp_redirect() or withHeader('Location', ...), where the destination starts with a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys such as HTTP_REFERER), filter_input() or a Laravel/Symfony request accessor, inline or through a variable assigned from one in the 25 lines above (directly or via one intermediate variable). The browser then follows an attacker-chosen URL, which makes phishing links look like they belong to the site. Not reported: literal destinations, a destination whose literal prefix already fixes the host or a path ('/login?next=' . $x, 'https://example.com/cb?state=' . $x), a value checked with in_array(), array_key_exists(), preg_match() or parse_url() or replaced by a constant (switch/allowlist) before the redirect, redirect()->route()/back(), configuration values, values whose origin is not visible in the file, and calls in comments or string literals. A strpos() substring check is not treated as validation. This overlaps VNX-PHP-004, which covers the same weakness.",
+	"description": "A redirect destination comes from the request: header('Location: ...') (any case, with or without a space before the parenthesis, concatenated or interpolated, with the value on the line after header(, or header(sprintf('Location: %s', $x))), Laravel redirect($x), redirect()->to()/away(), Redirect::to()/away(), Symfony $this->redirect() and new RedirectResponse() (also split across lines), wp_redirect() or withHeader('Location', ...), where the destination starts with a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys such as HTTP_REFERER), filter_input() or a Laravel/Symfony request accessor, inline or through a variable assigned from one in the 25 lines above (directly or via one intermediate variable). The browser then follows an attacker-chosen URL, which makes phishing links look like they belong to the site. Not reported: literal destinations, a destination whose literal prefix already fixes the host or a path ('/login?next=' . $x, 'https://example.com/cb?state=' . $x), a value checked with in_array(), array_key_exists(), preg_match() or parse_url() or replaced by a constant (switch/allowlist) before the redirect, redirect()->route()/back(), configuration values, values whose origin is not visible in the file, and calls in comments or string literals. A strpos() substring check is not treated as validation. This overlaps VNX-PHP-004, which covers the same weakness.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-022/",
 	"languages": ["php"],
 	"severity": "medium",
@@ -27,7 +27,7 @@ _header_code_re := `(?i)(^|[^\w$>:\\])header\s*\(`
 
 _call_re := `(?:^|[^\w$:\\])(?:wp_redirect|Redirect::(?:to|away)|redirect\(\s*\)\s*->\s*(?:to|away)|redirect|new\s+\\?(?:\w+\\)*RedirectResponse)\s*\(\s*|->\s*withHeader\s*\(\s*["']Location["']\s*,\s*`
 
-_gate_re := `(?i)(header\s*\(\s*["']\s*location|redirect|withHeader)`
+_gate_re := `(?im)(header\s*\(\s*(["']\s*location|sprintf|$)|redirect|withHeader)`
 
 _validators := `in_array|array_key_exists|preg_match|parse_url`
 
@@ -90,13 +90,23 @@ _stmt(lines, i) := s if {
 }
 
 # After `Location:` inside the header literal, reopened with its own quote.
-_destinations(line, stmt) := _hdr_dests(line) | _call_dests(line, stmt)
+_destinations(line, stmt) := _hdr_dests(line, stmt) | _call_dests(line, stmt)
 
-_hdr_dests(line) := {d |
+_hdr_dests(line, stmt) := {d |
 	regex.match(_header_code_re, _no_strings(line))
-	some m in regex.find_all_string_submatch_n(_header_re, line, 1)
-	d := concat("", [m[1], substring(line, indexof(line, m[0]) + count(m[0]), -1)])
+	some m in regex.find_all_string_submatch_n(_header_re, stmt, 1)
+	indexof(stmt, m[0]) < count(line)
+	d := concat("", [m[1], substring(stmt, indexof(stmt, m[0]) + count(m[0]), -1)])
+} | {d |
+	# header(sprintf('Location: %s', $dest)): the destination is the first
+	# value argument when the format starts with the placeholder.
+	regex.match(_header_code_re, _no_strings(line))
+	some m in regex.find_n(_header_sprintf_re, stmt, 1)
+	indexof(stmt, m) < count(line)
+	d := substring(stmt, indexof(stmt, m) + count(m), -1)
 }
+
+_header_sprintf_re := `(?i)(?:^|[^\w$>:\\])header\s*\(\s*sprintf\s*\(\s*(?:'\s*location\s*:\s*%s'|"\s*location\s*:\s*%s")\s*,\s*`
 
 _call_dests(line, stmt) := {d |
 	code := _no_strings(line)
@@ -148,7 +158,7 @@ findings contains finding if {
 	regex.match(_gate_re, content)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`(?i)location|redirect`, line)
+	regex.match(`(?i)location|redirect|header\s*\(\s*$`, line)
 	not helpers.is_comment_line(line)
 	some dest in _destinations(line, _stmt(lines, i))
 	not _pinned(dest)

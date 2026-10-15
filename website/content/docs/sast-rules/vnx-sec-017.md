@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-017 – Plaintext Protocol URL"
-description: "Detects unencrypted protocol URLs (redis://, amqp://, ftp://, telnet://, ldap://) in source code, which transmit data and credentials in cleartext over the network."
+description: "Reports redis://, amqp://, ftp://, telnet:// and ldap:// connection URLs that point at a remote host or carry a password, which send credentials and data in cleartext. Loopback, placeholder and credential-free compose service hosts, TLS schemes, comments and tests are not reported."
 ---
 
 ## Overview
@@ -28,29 +28,29 @@ Specific protocol risks:
 # FLAGGED: plaintext Redis connection
 import redis
 
-r = redis.from_url("redis://user:password@redis.example.com:6379/0")
+r = redis.from_url("redis://user:password@cache.acmecorp.net:6379/0")
 ```
 
 ```python
 # FLAGGED: plaintext AMQP (RabbitMQ) connection
 import pika
 
-params = pika.URLParameters("amqp://guest:guest@rabbitmq.example.com:5672/")
+params = pika.URLParameters("amqp://guest:guest@rabbit.acmecorp.net:5672/")
 connection = pika.BlockingConnection(params)
 ```
 
 ```yaml
 # FLAGGED: LDAP without TLS in config
 auth:
-  ldap_url: "ldap://ldap.corp.example.com:389"
+  ldap_url: "ldap://ldap.corp.acmecorp.io:389"
 ```
 
 ```bash
 # FLAGGED: FTP in a CI script
-ftp://deploy:secret@files.example.com/releases/app.tar.gz
+ftp://deploy:secret@files.acmecorp.net/releases/app.tar.gz
 ```
 
-Note: lock files (`.lock`, `.sum`) and minified assets (`.min.js`) are excluded from analysis.
+Not flagged: the TLS schemes (`rediss://`, `amqps://`, `ftps://`, `sftp://`, `ldaps://`), loopback hosts, a single-label compose service name with no credentials (`redis://redis:6379`), placeholder hosts (`example.com`, `${HOST}`), a URL in a trailing `#` or `//` comment, comment lines, Markdown and text files, lock and minified files, and test paths.
 
 ## Remediation
 

@@ -1,0 +1,8 @@
+<script src="https://www.google.com/recaptcha/api.js?render=6LcExampleSiteKey"></script>
+<script>
+  grecaptcha.ready(function () {
+    grecaptcha.execute('6LcExampleSiteKey', { action: 'signup' }).then(function (t) {
+      document.getElementById('g-recaptcha-response').value = t;
+    });
+  });
+</script>

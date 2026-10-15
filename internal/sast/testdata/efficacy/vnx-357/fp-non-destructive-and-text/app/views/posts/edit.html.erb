@@ -1,0 +1,5 @@
+<%= link_to 'Back', posts_path %>
+<%= link_to 'Edit', edit_post_path(@post), method: :get %>
+<%= button_to "Publish", publish_post_path(@post), method: :patch %>
+<p>Use link_to with method: :delete to remove a post.</p>
+<%# link_to 'Destroy', post, method: :delete %>

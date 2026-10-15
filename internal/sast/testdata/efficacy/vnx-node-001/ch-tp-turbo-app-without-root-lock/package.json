@@ -1,0 +1,8 @@
+~>{
+  "name": "platform",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "devDependencies": {
+    "turbo": "^2.1.0"
+  }
+}

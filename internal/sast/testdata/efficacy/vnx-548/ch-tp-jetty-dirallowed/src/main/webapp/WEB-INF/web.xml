@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee" version="5.0">
+  <servlet>
+    <servlet-name>default</servlet-name>
+    <servlet-class>@@sample:o[r]g[.][e]cl[i]ps[e][.]j[e]tt[y][.]e[e]10[.]se[r]vl[e]t[.][D]ef[a]ul[t]Se[r]vl[e]t@@</servlet-class>
+    <init-param>
+      <param-name>dirAllowed</param-name>
+~>      <param-value>true</param-value>
+    </init-param>
+  </servlet>
+</web-app>

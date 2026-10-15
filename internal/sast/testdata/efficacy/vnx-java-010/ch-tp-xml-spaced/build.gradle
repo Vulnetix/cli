@@ -1,0 +1,7 @@
+plugins {
+    id 'war'
+}
+
+dependencies {
+    implementation 'org.springframework.security:spring-security-config:5.8.9'
+}

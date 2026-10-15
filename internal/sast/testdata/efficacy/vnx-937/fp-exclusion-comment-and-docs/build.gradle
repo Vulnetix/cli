@@ -1,0 +1,4 @@
+dependencies {
+    // implementation 'org.apache.logging.log4j:log4j-core:2.14.1'
+    implementation '@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-core:2.17.2'
+}

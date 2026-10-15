@@ -39,6 +39,10 @@ s.store.Save(r.Context(), acct)
 // FLAGGED: io.ReadAll + json.Unmarshal, then Mongo InsertOne
 _ = json.Unmarshal(body, &u)
 coll.InsertOne(r.Context(), u)
+
+// FLAGGED: the whole bound value as a Mongo $set
+if err := c.ShouldBind(&item); err != nil { ... }
+s.items.UpdateOne(c, bson.M{"_id": id}, bson.M{"$set": item})
 ```
 
 Not flagged: a request DTO whose fields are copied (`db.Create(&User{Name: in.Name})`), a write restricted with `Select(...)` or `Omit(...)`, a bound value that is only read, decoding `resp.Body` from an outgoing call, test files, comments and strings.

@@ -1,0 +1,5 @@
+services:
+  app:
+    environment:
+      DATABASE_URL: mysql://root:root@mysql:3306/app
+      DATABASE_URL2: mysql://app:secret@mysql:3306/app

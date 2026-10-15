@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-022 – SQL injection via string concatenation in Python"
-description: "Detects Python cursor.execute() and cursor.executescript() calls that construct SQL queries using string concatenation, % formatting, or .format(), leaving them vulnerable to SQL injection."
+description: "Reports a SQL statement built from a variable by concatenation, %-formatting, str.format() or an f-string and passed to execute(), executemany(), executescript(), Django objects.raw() or pandas read_sql(), directly, through a variable assigned in the 20 lines above, or as a SQL template variable formatted inside the call (cur.execute(sql % name))."
 ---
 
 ## Overview
@@ -34,7 +34,13 @@ cursor.execute("SELECT * FROM {} WHERE active = 1".format(table))
 
 # FLAGGED: executescript with user input
 cursor.executescript("UPDATE prefs SET value='" + value + "' WHERE key='theme'")
+
+# FLAGGED: f-string query held in a variable, then passed to Django raw()
+sql = f"SELECT * FROM shop_product WHERE name = '{name}'"
+products = Product.objects.raw(sql)
 ```
+
+Not flagged: placeholders with a parameters argument (`cursor.execute("... WHERE id = %s", (uid,))`), strings whose interpolated parts are all UPPER_CASE constants, and placeholder lists built with `",".join("?" * len(ids))`.
 
 ## Remediation
 
@@ -72,7 +78,9 @@ from sqlalchemy.orm import Session
 with Session(engine) as session:
     user = session.get(User, user_id)
 
-# SAFE: SQLAlchemy Core with bound parameters (dynamic table via allowlist)
+# SAFE BUT STILL REPORTED: the allowlist check is not something this
+# line-oriented rule can see; review and suppress the finding
+# SQLAlchemy Core with bound parameters (dynamic table via allowlist)
 ALLOWED_TABLES = {'users', 'products', 'orders'}
 table_name = request.json.get('table')
 if table_name not in ALLOWED_TABLES:

@@ -1,13 +1,32 @@
 ---
 title: "VNX-SEC-060 – Airtable Personal Access Token"
-description: "Detects Airtable personal access tokens hardcoded in source code."
+description: "Reports a hard-coded Airtable personal access token (pat + 14 alphanumerics + . + 64 hex) or a legacy key-prefixed API key when Airtable is named on that line or up to three code lines above it, but not placeholders, ordinary key-prefixed identifiers or tokens read from the environment."
 ---
 
 ## Overview
 
-This rule detects airtable personal access token matching the `pat...<64 hex>` pattern hardcoded anywhere in source files. Detects Airtable personal access tokens hardcoded in source code.
+This rule reports an Airtable credential written into a file: a personal access token (`pat` + 14 alphanumerics + `.` + 64 hex) anywhere, and a legacy API key (`key` + 14 alphanumerics) only when Airtable (`airtable`, `AIRTABLE_API_KEY`, `Airrecord`) is named on that line or up to three code lines above it, because `key` followed by letters is an ordinary identifier. Each must stand alone and have enough entropy to be real. The snippet is redacted.
+
+It does not report placeholder or low-entropy bodies, `key`-prefixed names on lines without Airtable context, tokens read from the environment, or test, fixture and vendored paths.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
+
+## What Gets Flagged
+
+```python
+# FLAGGED: personal access token passed to pyairtable
+api = Api('pat<14 alphanumerics>.<64 hex>')
+```
+
+```ruby
+# FLAGGED: legacy API key on an Airrecord line
+Airrecord.api_key = "key<14 alphanumerics>"
+```
+
+```python
+# NOT FLAGGED: an ordinary identifier that starts with "key"
+cache_key = "keyAbc123Def456Gh"
+```
 
 ## Why This Matters
 

@@ -1,0 +1,1 @@
+@@sample:[A-Za-z0-9]{20}@@.atlasv1.@@sample:[A-Za-z0-9]{67}@@

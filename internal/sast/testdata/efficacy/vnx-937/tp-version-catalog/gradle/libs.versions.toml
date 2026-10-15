@@ -1,0 +1,7 @@
+[versions]
+kotlin = "1.9.22"
+
+[libraries]
+~>log4j-core = { module = "@@sample:o[r]g[.][a]pa[c]he[.]lo[g]gi[n]g[.][l]og[4]j@@:log4j-core", version = "2.14.0" }
+~>commons-text = "org.apache.commons:commons-text:1.6"
+junit = { module = "org.junit.jupiter:junit-jupiter", version = "5.10.0" }

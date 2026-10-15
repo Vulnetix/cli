@@ -1,0 +1,2 @@
+Number = int | float | complex | Decimal | Fraction | np.int8 | np.int16 | np.int32 | np.int64 | np.uint8 | np.uint16 | np.uint32 | np.uint64 | np.float16 | np.float32 | np.float64 | None
+FLAGS = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_APPEND | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_SYNC | os.O_DSYNC | os.O_NONBLOCK | os.O_NOCTTY | os.O_DIRECT | os.O_NOATIME | os.O_PATH | os.O_TMPFILE | os.O_ASYNC | os.O_LARGEFILE

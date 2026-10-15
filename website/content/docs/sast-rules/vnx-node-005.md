@@ -28,13 +28,14 @@ list.innerHTML += "<li>" + text + "</li>";
 // FLAGGED: other HTML sinks
 node.outerHTML = html;
 container.insertAdjacentHTML('beforeend', `<div>${message}</div>`);
+node["innerHTML"] = msg;
 document.write("<a href='" + ref + "'>back</a>");
 
 // FLAGGED: React prop, also when split over lines
 <div dangerouslySetInnerHTML={{ __html: body }} />
 ```
 
-Not flagged: string literals without interpolation (`el.innerHTML = ''`), ALL_CAPS constants (`el.innerHTML = SPINNER_SVG`), copying another element's `innerHTML`, values passed through `DOMPurify.sanitize`, `sanitize-html` or an escape/encode helper, reads and comparisons of `innerHTML`, `textContent`/`innerText`, comments and strings, minified and vendored files (`vendor/`, `libs/`, `plugins/`, `jquery*.js`).
+Not flagged: string literals without interpolation (`el.innerHTML = ''`), `null`, number and boolean literals, ALL_CAPS constants (`el.innerHTML = SPINNER_SVG`), copying another element's `innerHTML`, values passed through `DOMPurify.sanitize`, `sanitize-html` or an escape/encode helper, reads and comparisons of `innerHTML`, `textContent`/`innerText`, comments and strings, minified and vendored files (`vendor/`, `libs/`, `plugins/`, `jquery*.js`).
 
 ## Remediation
 

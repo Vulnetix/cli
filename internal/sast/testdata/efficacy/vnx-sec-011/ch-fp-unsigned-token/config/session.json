@@ -1,0 +1,4 @@
+{
+  "anonymousToken": "@@sample:e[y]JhbGciOiJub25lIiwidHlwIjoiSldUIn0[.]eyJzdWIiOiI0MiIsInJvbGUiOiJhZG1pbiIsImV4cCI6NDEwMjQ0NDgwMH0[.]wmUk[-]yHz4N9sDuOIR0NX3[-]Z45NYAkrwWWxpO8Tq8AXU@@",
+  "jwksUri": "https://auth.acme.io/.well-known/jwks.json"
+}

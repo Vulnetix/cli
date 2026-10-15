@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.16)
+project(engine CXX)
+
+add_library(engine src/engine.cpp)
+if(MSVC)
+  target_compile_definitions(engine PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  add_compile_options(/W4 /WX /wd4244 /wd4100)
+else()
+  add_compile_options(-Wall -Wextra -Werror -Wno-unused-parameter -Wno-format-truncation)
+endif()
+set_target_properties(engine PROPERTIES COMPILE_FLAGS "-Wshadow")
+# set_target_properties(engine PROPERTIES COMPILE_FLAGS "-w")
+message(STATUS "Never add -w or _CRT_SECURE_NO_WARNINGS here")

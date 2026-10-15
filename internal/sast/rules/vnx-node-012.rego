@@ -94,8 +94,18 @@ _exprs(v) := concat(" ", array.concat(
 	[m[1] | some m in regex.find_all_string_submatch_n(`\$\{([^}]*)\}`, v, -1)],
 ))
 
-# No identifier in any expression part: the value is constant.
-_constant(v) if not regex.match(`[A-Za-z_$]`, _exprs(v))
+# No identifier in any expression part, other than an UPPER_CASE constant
+# (LOGO_SVG): the value is constant.
+_constant(v) if not regex.match(`[A-Za-z_$]`, regex.replace(_exprs(v), `\b[A-Z][A-Z0-9_]*[A-Z0-9]\b`, ""))
+
+# Sanitiser and encoder calls replaced by an empty literal, so a value that
+# encodes one part (encodeURIComponent(q)) and splices the raw value into
+# another is still seen. unescape() decodes and is not one of them.
+_strip(v) := regex.replace(
+	regex.replace(v, `\bunescape\s*\(`, "decodeURIComponent("),
+	`(?i)[\w$.]*(?:sanitize|purify|escape|encode|xss)[\w$]*\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)`,
+	"''",
+)
 
 # cond ? 'literal' : 'literal' writes one of two constants.
 _literal_choice(v) if regex.match("^[^?]+\\?\\s*(?:'[^']*'|\"[^\"]*\"|`[^`$]*`)\\s*:\\s*(?:'[^']*'|\"[^\"]*\"|`[^`$]*`)\\s*;?\\s*$", v)
@@ -227,7 +237,7 @@ findings contains finding if {
 	regex.match(_file_gate, line)
 	not helpers.is_comment_line(line)
 	some pair in _values(line, lines, i)
-	v := pair[0]
+	v := _strip(pair[0])
 	trim_space(v) != ""
 	not regex.match(_sanitized, v)
 	not _literal_choice(v)

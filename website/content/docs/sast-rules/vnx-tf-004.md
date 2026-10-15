@@ -1,11 +1,11 @@
 ---
 title: "VNX-TF-004 – Terraform IAM Policy with Wildcard Action (*)"
-description: "Detect AWS IAM policies in Terraform that grant wildcard actions (*) without a corresponding Deny statement, violating the principle of least privilege and enabling privilege escalation."
+description: "Detect IAM policy statements in Terraform that allow every action (Action \"*\" in jsonencode, heredoc or one-line escaped JSON policies, actions = [\"*\"] in aws_iam_policy_document or an Azure custom role), skipping statements whose own Effect is Deny."
 ---
 
 ## Overview
 
-This rule flags Terraform `.tf` files where an IAM policy resource — `aws_iam_role_policy`, `aws_iam_policy`, `aws_iam_user_policy`, `aws_iam_group_policy`, or `aws_iam_policy_document` — grants `Action = "*"` or `actions = ["*"]` without a corresponding `Effect = "Deny"` statement. A wildcard action in an Allow statement grants the principal permission to perform every AWS API action across all services.
+This rule flags Terraform `.tf` files where a policy statement allows `"*"` as its action: `Action = "*"` or a list containing `"*"` in a `jsonencode()` policy, `"Action": "*"` or `["*"]` (also over several lines) in a heredoc JSON policy, `actions = ["*"]` in a `data "aws_iam_policy_document"` statement, or `actions = ["*"]` in the permissions of an `azurerm_role_definition`. The effect is read from the statement itself, so a Deny statement (for example a region or MFA guard) is not reported even when an Allow statement sits beside it. Service-scoped wildcards such as `"s3:*"` are not reported.
 
 Least-privilege IAM policies are the foundational access control mechanism in AWS. When a policy grants `Action = "*"`, the associated role, user, or group can perform any operation on any resource in the account that is not blocked by a Service Control Policy (SCP) — including creating new IAM users, modifying security group rules, exfiltrating data from S3, or deleting production resources.
 
@@ -23,30 +23,26 @@ The risk extends beyond direct exploitation: over-permissive roles make the blas
 
 ## What Gets Flagged
 
-The rule matches `.tf` files where `Action = "*"` or `actions = ["*"]` appears in an IAM policy context without a Deny effect.
-
 ```hcl
-# FLAGGED: wildcard Action grants all AWS API permissions
-resource "aws_iam_role_policy" "app_policy" {
-  role = aws_iam_role.app.id
+resource "aws_iam_policy" "admin" {
   policy = jsonencode({
-    Version = "2012-10-17"
     Statement = [{
       Effect   = "Allow"
-      Action   = "*"
+      Action   = "*"                  # FLAGGED
       Resource = "*"
     }]
   })
 }
 
-# FLAGGED: wildcard in policy document data source
-data "aws_iam_policy_document" "lambda" {
+data "aws_iam_policy_document" "admin" {
   statement {
-    actions   = ["*"]
+    actions   = ["*"]                 # FLAGGED: effect defaults to Allow
     resources = ["*"]
   }
 }
 ```
+
+Not flagged: a statement with `effect = "Deny"` and `actions = ["*"]`, or `Action = ["logs:CreateLogStream", "logs:PutLogEvents"]`.
 
 ## Remediation
 

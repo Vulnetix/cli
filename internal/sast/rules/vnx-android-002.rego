@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-ANDROID-002",
 	"name": "Android WebView runs JavaScript from untrusted content",
-	"description": "A WebView with JavaScript enabled (setJavaScriptEnabled(true) or Kotlin javaScriptEnabled = true in the same file) is made to run content an attacker controls. Reported, in Java and Kotlin: a loadUrl/loadData/loadDataWithBaseURL/postUrl call whose URL or HTML comes from the launching Intent or a deep link (getIntent(), intent.getStringExtra/getData/data/extras, getQueryParameter, Fragment arguments), from external storage (getExternalStorageDirectory/getExternalFilesDir, world-writable on older devices), or is a cleartext http:// URL that the network can rewrite, directly in the call or through a variable assigned from such a source up to 15 lines above; addJavascriptInterface in a file that has such a load, since the bridge is then callable by that content; and setAllowUniversalAccessFromFileURLs(true) / setAllowFileAccessFromFileURLs(true) (allowUniversalAccessFromFileURLs / allowFileAccessFromFileURLs = true), which let a file:// page read any origin or any local file. Not reported: JavaScript enabled on its own, loads of https:// or file:///android_asset/ literals and BuildConfig/constant URLs, an intent URL checked first (startsWith, host/scheme comparison, an allow-list, a validator) between the read and the load, loads with JavaScript disabled, Custom Tabs and non-WebView loaders in files that enable no JavaScript, http://localhost, the default setAllowFileAccess, comments and strings. Flows through other methods or files are not followed.",
+	"description": "A WebView with JavaScript enabled (setJavaScriptEnabled(true) or Kotlin javaScriptEnabled = true in the same file) is made to run content an attacker controls. Reported, in Java and Kotlin: a loadUrl/loadData/loadDataWithBaseURL/postUrl/evaluateJavascript call whose URL, HTML or script comes from the launching Intent or a deep link (getIntent(), intent.getStringExtra/getData/data/extras, getQueryParameter, Fragment getArguments/requireArguments), from external storage (getExternalStorageDirectory/getExternalFilesDir, world-writable on older devices), or is a cleartext http:// URL that the network can rewrite, directly in the call or through a variable assigned from such a source up to 15 lines above; addJavascriptInterface in a file that has such a load, since the bridge is then callable by that content; and setAllowUniversalAccessFromFileURLs(true) / setAllowFileAccessFromFileURLs(true) (allowUniversalAccessFromFileURLs / allowFileAccessFromFileURLs = true), which let a file:// page read any origin or any local file. Not reported: JavaScript enabled on its own, loads of https:// or file:///android_asset/ literals and BuildConfig/constant URLs, an intent URL checked first (startsWith, host/scheme comparison, an allow-list, a validator) between the read and the load, loads with JavaScript disabled, Custom Tabs and non-WebView loaders in files that enable no JavaScript, http://localhost, the default setAllowFileAccess, comments and strings. Flows through other methods or files are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-android-002/",
 	"languages": ["java", "kotlin"],
 	"severity": "high",
@@ -37,7 +37,7 @@ _js_enabled(lines) if {
 
 # ── Untrusted content ────────────────────────────────────────────────────
 
-_source_re := `getIntent\s*\(\s*\)|\bintent\s*[?!]*\s*\.\s*(getStringExtra|getCharSequenceExtra|getData|data|getDataString|dataString|getExtras|extras|getBundleExtra)\b|\.getStringExtra\s*\(|\.getQueryParameter\s*\(|\b(getArguments\s*\(\s*\)|arguments)\s*[?!]*\s*\.\s*getString\s*\(|getExternalStorageDirectory\s*\(|getExternalStoragePublicDirectory\s*\(|getExternalFilesDir\s*\(|getExternalCacheDir\s*\(|\bexternalCacheDir\b`
+_source_re := `getIntent\s*\(\s*\)|\bintent\s*[?!]*\s*\.\s*(getStringExtra|getCharSequenceExtra|getData|data|getDataString|dataString|getExtras|extras|getBundleExtra)\b|\.getStringExtra\s*\(|\.getQueryParameter\s*\(|\b(getArguments\s*\(\s*\)|requireArguments\s*\(\s*\)|arguments)\s*[?!]*\s*\.\s*getString\s*\(|getExternalStorageDirectory\s*\(|getExternalStoragePublicDirectory\s*\(|getExternalFilesDir\s*\(|getExternalCacheDir\s*\(|\bexternalCacheDir\b`
 
 _untrusted(text) if regex.match(_source_re, _code(text))
 
@@ -46,15 +46,19 @@ _untrusted(text) if {
 	not regex.match(`"http://(localhost|127\.0\.0\.1|10\.0\.2\.2|\[::1\])([:/"]|$)`, text)
 }
 
-_sink_re := `(^|[^\w])(loadUrl|loadData|loadDataWithBaseURL|postUrl)\s*\(`
+_sink_word(s) if contains(s, "load")
+
+_sink_word(s) if contains(s, "evaluateJavascript")
+
+_sink_re :=`(^|[^\w])(loadUrl|loadData|loadDataWithBaseURL|postUrl|evaluateJavascript)\s*\(`
 
 # A declaration of a method with that name is not a call.
-_declaration(line) if regex.match(`\b(fun|void|public|private|protected|override)\b[^=]*\b(loadUrl|loadData|loadDataWithBaseURL|postUrl)\s*\(`, line)
+_declaration(line) if regex.match(`\b(fun|void|public|private|protected|override)\b[^=]*\b(loadUrl|loadData|loadDataWithBaseURL|postUrl|evaluateJavascript)\s*\(`, line)
 
 # The argument text of the load call on line i (it may span lines).
 _sink_args(lines, i) := ms[0][3] if {
 	text := concat(" ", array.slice(lines, i, min([count(lines), i + 9])))
-	ms := regex.find_all_string_submatch_n(`(^|[^\w])(loadUrl|loadData|loadDataWithBaseURL|postUrl)\s*\(((?:[^()]|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))*)\)`, text, 1)
+	ms := regex.find_all_string_submatch_n(`(^|[^\w])(loadUrl|loadData|loadDataWithBaseURL|postUrl|evaluateJavascript)\s*\(((?:[^()]|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))*)\)`, text, 1)
 	count(ms) > 0
 }
 
@@ -76,7 +80,7 @@ _guarded(lines, j, i, v) if {
 
 _is_sink(lines, i) if {
 	line := lines[i]
-	contains(line, "load")
+	_sink_word(line)
 	not helpers.is_comment_line(line)
 	not _declaration(line)
 	regex.match(_sink_re, _code(line))
@@ -106,11 +110,11 @@ findings contains finding if {
 	some path, content in input.file_contents
 	_lang(path)
 	contains(content, "avaScriptEnabled")
-	contains(content, "load")
+	_sink_word(content)
 	lines := split(content, "\n")
 	_js_enabled(lines)
 	some i, line in lines
-	contains(line, "load")
+	_sink_word(line)
 	_untrusted_load(lines, i)
 	finding := {
 		"rule_id": metadata.id,
@@ -135,7 +139,7 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	regex.match(`\baddJavascriptInterface\s*\(`, _code(line))
 	some k, l in lines
-	contains(l, "load")
+	_sink_word(l)
 	_untrusted_load(lines, k)
 	finding := {
 		"rule_id": metadata.id,

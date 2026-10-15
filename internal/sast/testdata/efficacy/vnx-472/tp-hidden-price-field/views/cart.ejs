@@ -1,0 +1,9 @@
+<form action="/checkout" method="post">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <input type="hidden" name="productId" value="<%= item.id %>">
+~>  <input type="hidden" name="price" value="<%= item.price %>">
+~>  <input name="discount" type='hidden' value="<%= coupon.rate %>" />
+~>  <input type="hidden" name="userId" value="<%= user._id %>">
+  <input type="number" name="quantity" value="1">
+  <button>Buy</button>
+</form>

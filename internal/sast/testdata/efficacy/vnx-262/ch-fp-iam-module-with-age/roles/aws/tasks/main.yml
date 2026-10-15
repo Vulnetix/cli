@@ -1,0 +1,11 @@
+- name: Account password policy
+  community.aws.iam_password_policy:
+    state: present
+    min_pw_length: 14
+    pw_max_age: 90
+    pw_reuse_prevent: 24
+    pw_expire: false
+- name: Linux aging
+  ansible.builtin.user:
+    name: deploy
+    password_expire_max: 60

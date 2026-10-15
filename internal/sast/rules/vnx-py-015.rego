@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-015",
 	"name": "Python ReDoS via user-controlled regular expression",
-	"description": "A value read from the request (Flask request.args/form/values/json, Django request.GET/POST, or a route parameter) is compiled or matched as the regular expression pattern of re or regex (compile, match, search, fullmatch, findall, finditer, sub, subn, split), directly or through one or two assignments. An attacker can supply a pattern with catastrophic backtracking to cause denial of service. Not reported: a pattern passed through re.escape(), a fixed or configured pattern, user text used only as the subject being searched, argparse and settings values, and comments or strings that merely mention the call.",
+	"description": "A value read from the request (Flask request.args/form/values/json, Django request.GET/POST, or a route parameter named in a Flask <name> or FastAPI {name} path) is compiled or matched as the regular expression pattern of re or regex (compile, match, search, fullmatch, findall, finditer, sub, subn, split), directly or through one or two assignments. An attacker can supply a pattern with catastrophic backtracking to cause denial of service. Not reported: a pattern passed through re.escape() (in the call or when the variable was assigned), a fixed or configured pattern, user text used only as the subject being searched, argparse and settings values, and comments or strings that merely mention the call.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-015/",
 	"languages": ["python"],
 	"severity": "high",
@@ -56,7 +56,7 @@ _in_string(prefix) if count(split(prefix, "'")) % 2 == 0
 
 # Names holding request data: assigned from a request source, derived from one
 # such name by one more assignment, or a route parameter of the handler above.
-_tainted(lines, i) := (direct | derived) | route if {
+_tainted(lines, i) := ((direct | derived) - escaped) | route if {
 	direct := helpers.tainted_names(lines, i, 25, _source)
 	derived := {v |
 		i > 0
@@ -70,9 +70,22 @@ _tainted(lines, i) := (direct | derived) | route if {
 	route := {p |
 		i > 0
 		some j in numbers.range(max([0, i - 25]), i - 1)
-		some m in regex.find_all_string_submatch_n(`@\w+\.(?:route|get|post|put|delete|api_route)\s*\(.*<(?:\w+:)?(\w+)>`, lines[j], -1)
-		p := m[1]
+		regex.match(`^\s*@\w+\.(?:route|get|post|put|patch|delete|api_route)\s*\(`, lines[j])
+		some m in regex.find_all_string_submatch_n(`<(?:\w+:)?(\w+)>|\{(\w+)(?::[^}]*)?\}`, lines[j], -1)
+		p := concat("", [m[1], m[2]])
 	}
+	escaped := {v |
+		some v in direct | derived
+		_escaped_assign(lines, i, v)
+	}
+}
+
+# v was assigned through re.escape(): v = re.escape(request.args["q"]).
+_escaped_assign(lines, i, v) if {
+	i > 0
+	some j in numbers.range(max([0, i - 25]), i - 1)
+	contains(lines[j], "escape(")
+	helpers.assigned_first(lines[j]) == v
 }
 
 _arg_tainted(arg, _) if regex.match(_source, arg)
@@ -82,13 +95,28 @@ _arg_tainted(arg, names) if {
 	regex.match(concat("", [`\b`, n, `\b`]), arg)
 }
 
+_has_source(content) if contains(content, "request")
+
+_has_source(content) if contains(content, "route")
+
+_has_source(content) if contains(content, "get_json")
+
+_has_source(content) if regex.match(`@\w+\.(?:get|post|put|patch|delete|api_route)\s*\(`, content)
+
+# A cheap per-line test before the capturing sink expression.
+_gate_re(mods) := concat("", [`\b(?:`, concat("|", [m | some m in mods]), `)\.(?:compile|match|search|fullmatch|findall|finditer|sub|subn|split)\s*\(`])
+
 findings contains finding if {
-	some path in object.keys(input.file_contents)
+	some path, content in input.file_contents
 	_is_py(path)
-	content := input.file_contents[path]
+	_has_source(content)
+	regex.match(`(?m)\.(?:compile|match|search|fullmatch|findall|finditer|sub|subn|split)\s*\(`, content)
+	mods := _modules(content)
+	re_sink := _sink_re(mods)
+	re_gate := _gate_re(mods)
 	lines := split(content, "\n")
-	re_sink := _sink_re(_modules(content))
 	some i, line in lines
+	regex.match(re_gate, line)
 	not helpers.is_comment_line(line)
 	m := regex.find_all_string_submatch_n(re_sink, line, 1)
 	count(m) > 0

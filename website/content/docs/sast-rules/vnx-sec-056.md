@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-056 – Sentry Auth Token"
-description: "Reports Sentry user (sntryu_ + 64 hex), organisation (sntrys_eyJ…) and legacy 64-hex auth tokens assigned to SENTRY_AUTH_TOKEN or .sentryclirc; DSNs, bare prefixes and placeholders are not reported."
+description: "Reports Sentry user (sntryu_ + 64 hex), organisation (sntrys_eyJ…) and legacy 64-hex auth tokens assigned to SENTRY_AUTH_TOKEN, .sentryclirc or sentry-cli --auth-token; DSNs, bare prefixes and placeholders are not reported."
 ---
 
 ## Overview

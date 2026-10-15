@@ -1,0 +1,4 @@
+{
+    "type": "project",
+    "require": { "acme/sdk": "^2.0" }
+}

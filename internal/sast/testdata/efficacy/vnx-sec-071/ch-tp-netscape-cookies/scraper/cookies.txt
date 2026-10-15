@@ -1,0 +1,2 @@
+# Netscape HTTP Cookie File
+~>gitlab.acme.io	FALSE	/	TRUE	0	_gitlab_session	@@sample:[0-9a-f]{32}@@

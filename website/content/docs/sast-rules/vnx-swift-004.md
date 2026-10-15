@@ -1,17 +1,19 @@
 ---
 title: "VNX-SWIFT-004 – Swift TLS Certificate Validation Disabled in URLSession or Alamofire"
-description: "Detects patterns that bypass TLS certificate validation in URLSession delegate callbacks and Alamofire trust policies, making the app vulnerable to man-in-the-middle attacks."
+description: "Detects Swift code that accepts a server certificate without validating it: URLCredential(trust:) built without evaluating or pinning the trust, Alamofire DisabledTrustEvaluator/.disableEvaluation, kCFStreamSSLValidatesCertificateChain false, setAllowsAnyHTTPSCertificate, Starscream disableSSLCertValidation/allowSelfSigned, and a Network.framework verify block that always completes true."
 ---
 
 ## Overview
 
-This rule detects three distinct code patterns in Swift files that each indicate TLS certificate validation has been bypassed:
+This rule reports Swift code that accepts a TLS server certificate without validating it:
 
-1. Use of `URLCredential(trust:)` — constructing a credential that unconditionally trusts the server's certificate chain.
-2. Calling `completionHandler(.useCredential, ...)` inside a `didReceive challenge` delegate method without inspecting `serverTrust` — accepting a credential in an authentication challenge without performing certificate evaluation.
-3. Setting `disableEvaluation`, `DisableTrustEvaluation`, or `.disabled` within a block that references `ServerTrustPolicy`, `ServerTrustEvaluating`, or `TrustEvaluation` — disabling Alamofire's server trust evaluation.
+1. `URLCredential(trust:)` built in a function that never evaluates or pins the trust before it (no `SecTrustEvaluateWithError`/`SecTrustEvaluate`, `evaluator.evaluate(...)`, certificate or public-key comparison, or call to a validate/verify/check/pin helper). This is how a `URLSession` or `NSURLConnection` auth-challenge delegate trusts every certificate. A host-name comparison is not validation.
+2. Alamofire `DisabledTrustEvaluator()` / `DisabledEvaluator()` and the Alamofire 4 `ServerTrustPolicy` `.disableEvaluation`.
+3. `kCFStreamSSLValidatesCertificateChain` set to false on a stream.
+4. `NSURLRequest.setAllowsAnyHTTPSCertificate(true, forHost:)`.
+5. A `sec_protocol_options_set_verify_block` whose block completes with `true` without evaluating the trust.
 
-All three patterns result in the application accepting any certificate presented by the server, including self-signed, expired, and attacker-controlled certificates.
+It does not report `URLCredential(trust:)` after the trust was evaluated or pinned, `URLCredential(user:password:)`, `.performDefaultHandling`, pinned or default Alamofire evaluators, the evaluator class declarations, string literals, comments and test files.
 
 This maps to [CWE-295: Improper Certificate Validation](https://cwe.mitre.org/data/definitions/295.html).
 
@@ -32,8 +34,8 @@ Certificate pinning — associating the server's specific public key with the ap
 func urlSession(_ session: URLSession,
                 didReceive challenge: URLAuthenticationChallenge,
                 completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-    let credential = URLCredential(trust: challenge.protectionSpace.serverTrust!)
-    completionHandler(.useCredential, credential) // FLAGGED
+    let credential = URLCredential(trust: challenge.protectionSpace.serverTrust!) // FLAGGED
+    completionHandler(.useCredential, credential)
 }
 
 // FLAGGED: completion handler accepts credential without verifying serverTrust
@@ -43,6 +45,10 @@ func urlSession(_ session: URLSession,
                 completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
     completionHandler(.useCredential, URLCredential(trust: challenge.protectionSpace.serverTrust!))
 }
+
+// FLAGGED: Starscream WebSocket accepting any or self-signed certificates
+socket.disableSSLCertValidation = true
+let pinner = FoundationSecurity(allowSelfSigned: true)
 
 // FLAGGED: Alamofire server trust evaluation disabled
 let manager = Session(serverTrustManager: ServerTrustManager(evaluators: [

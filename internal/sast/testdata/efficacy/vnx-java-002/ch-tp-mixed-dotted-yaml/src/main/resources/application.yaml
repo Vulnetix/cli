@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: inventory
+management:
+  endpoint.health.show-details: always
+~>  endpoints.web.exposure.include: "*"
+---
+spring.config.activate.on-profile: local
+management:
+  endpoints:
+    web.exposure:
+~>      include: health,threaddump

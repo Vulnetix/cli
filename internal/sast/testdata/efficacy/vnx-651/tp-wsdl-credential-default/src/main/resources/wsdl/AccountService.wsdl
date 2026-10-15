@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="AccountService"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="http://acme.example/account"
+    targetNamespace="http://acme.example/account">
+  <wsdl:types>
+    <xs:schema targetNamespace="http://acme.example/account">
+      <xs:element name="LookupRequest">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="accountId" type="xs:string"/>
+~>            <xs:element name="adminPassword" type="xs:string" default="Winter2024!"/>
+~>            <xs:element name="apiKey" type="xs:string" fixed="k3y-7f1c9a0e44"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+  </wsdl:types>
+  <wsdl:service name="AccountService">
+    <wsdl:port name="AccountPort" binding="tns:AccountBinding">
+~>      <soap:address location="http://svc_admin:S3cretPass@10.0.4.12:8080/account"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

@@ -1,13 +1,32 @@
 ---
 title: "VNX-SEC-058 – Notion API Token"
-description: "Detects Notion API tokens (ntn_ prefix) hardcoded in source code."
+description: "Reports a hard-coded Notion integration token (ntn_ + 11 digits + 35 alphanumerics, or a legacy secret_ token in a file that names Notion), but not bare prefixes, placeholders or tokens read from the environment."
 ---
 
 ## Overview
 
-This rule detects notion api token matching the `ntn_...` pattern hardcoded anywhere in source files. Detects Notion API tokens (ntn_ prefix) hardcoded in source code.
+This rule reports a Notion integration token written into a file: the current format `ntn_` + 11 digits + 35 alphanumerics anywhere, and the legacy internal-integration format `secret_` + 43 alphanumerics only when the file mentions Notion, because `secret_` alone is too common a prefix. Each token must stand alone and have enough entropy to be real. The snippet is redacted.
+
+It does not report bare prefixes in a prefix check, placeholder or low-entropy bodies, `secret_` identifiers in files unrelated to Notion, tokens read from the environment, or test, fixture and vendored paths.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
+
+## What Gets Flagged
+
+```javascript
+// FLAGGED: token passed to the SDK
+const notion = new Client({ auth: "ntn_<11 digits><35 alphanumerics>" });
+```
+
+```python
+# FLAGGED: legacy internal-integration secret in a Notion client
+notion = Client(auth="secret_<43 alphanumerics>")
+```
+
+```typescript
+// NOT FLAGGED: read from the environment
+export const notion = new Client({ auth: process.env.NOTION_TOKEN });
+```
 
 ## Why This Matters
 

@@ -1,0 +1,3 @@
+# pycrypto is unmaintained; we moved to pycryptodome
+# nose==1.3.7
+pycryptodome==3.20.0

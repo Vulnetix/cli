@@ -1,0 +1,2 @@
+production:
+~>  url: rediss://:@@sample:[A-Za-z0-9]{20}@@@cache.acme.internal:6380/0

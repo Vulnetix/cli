@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-CS-009",
 	"name": "C# use of weak cryptographic algorithm (MD5, SHA-1, DES, 3DES, RC2, RC4)",
-	"description": "C# code creates or invokes a broken or deprecated cryptographic primitive: MD5 or SHA-1 through MD5/SHA1.Create(), .HashData(), .HashDataAsync() or .TryHashData() (also split across two lines, fully qualified, or through a using alias), the MD5CryptoServiceProvider/MD5Cng/SHA1Managed/SHA1CryptoServiceProvider/SHA1Cng classes, IncrementalHash.CreateHash or CryptographicOperations.HashData with HashAlgorithmName.MD5/SHA1, or an RSA/ECDSA SignData/SignHash/VerifyData/VerifyHash call or CertificateRequest using SHA-1 or MD5; DES, 3DES or RC2 through DES/TripleDES/RC2.Create() or their CryptoServiceProvider/Cng classes; the algorithm requested by name (HashAlgorithm.Create(\"MD5\"), SymmetricAlgorithm.Create(\"DES\"), CryptoConfig.CreateFromName/MapNameToOID, formatter.SetHashAlgorithm(\"SHA1\")); an XML signature whose SignatureMethod or DigestMethod is set to an RSA/DSA-SHA1 or SHA-1 URL; PBKDF1 through PasswordDeriveBytes; and BouncyCastle MD5Digest/MD4Digest/MD2Digest/Sha1Digest, DesEngine/DesEdeEngine/RC2Engine/RC4Engine and DigestUtilities/CipherUtilities/SignerUtilities lookups of those algorithms. Not reported: HMAC constructions (HMACSHA1, HMACMD5, IncrementalHash.CreateHMAC, used by TOTP and other protocols that do not need collision resistance), RSA-OAEP with SHA-1, PBKDF2 (Rfc2898DeriveBytes), a HashAlgorithmName compared rather than used, an algorithm named only as an enum, property or string, a hash whose surrounding code shows a protocol-fixed non-security use (WebSocket accept key, Gravatar, ETag, Content-MD5, name-based GUID), code under an explicit CA5350/CA5351/CA5373 suppression, comments, string literals and test projects.",
+	"description": "C# code creates or invokes a broken or deprecated cryptographic primitive: MD5 or SHA-1 through MD5/SHA1.Create(), .HashData(), .HashDataAsync() or .TryHashData() (also split across two lines, fully qualified, or through a using alias), the MD5CryptoServiceProvider/MD5Cng/SHA1Managed/SHA1CryptoServiceProvider/SHA1Cng classes, IncrementalHash.CreateHash or CryptographicOperations.HashData with HashAlgorithmName.MD5/SHA1, or an RSA/ECDSA SignData/SignHash/VerifyData/VerifyHash call or CertificateRequest using SHA-1 or MD5 (the HashAlgorithmName inline, on its own line of a multi-line call, or through a variable or field the file assigns from HashAlgorithmName.SHA1/MD5), and the .NET Framework SignData/VerifyData/SignHash/VerifyHash overloads naming \"SHA1\" or \"MD5\" as a string; DES, 3DES or RC2 through DES/TripleDES/RC2.Create() or their CryptoServiceProvider/Cng classes; the algorithm requested by name (HashAlgorithm.Create(\"MD5\"), SymmetricAlgorithm.Create(\"DES\"), CryptoConfig.CreateFromName/MapNameToOID, formatter.SetHashAlgorithm(\"SHA1\")); an XML signature whose SignatureMethod or DigestMethod is set to an RSA/DSA-SHA1 or SHA-1 URL; PBKDF1 through PasswordDeriveBytes; and BouncyCastle MD5Digest/MD4Digest/MD2Digest/Sha1Digest, DesEngine/DesEdeEngine/RC2Engine/RC4Engine and DigestUtilities/CipherUtilities/SignerUtilities lookups of those algorithms. Not reported: HMAC constructions (HMACSHA1, HMACMD5, IncrementalHash.CreateHMAC, used by TOTP and other protocols that do not need collision resistance), RSA-OAEP with SHA-1, PBKDF2 (Rfc2898DeriveBytes), a HashAlgorithmName compared rather than used, an algorithm named only as an enum, property or string, a hash whose surrounding code shows a protocol-fixed non-security use (WebSocket accept key, Gravatar, ETag, Content-MD5, name-based GUID), code under an explicit CA5350/CA5351/CA5373 suppression, comments, string literals and test projects.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-cs-009/",
 	"languages": ["csharp"],
 	"severity": "high",
@@ -124,7 +124,7 @@ _aliases(content) := {[a[1], a[2]] |
 _all_classes := object.union(_ctor_classes, _static_classes)
 
 # Every algorithm the code on line i creates or invokes.
-_labels(lines, i, code, raw, aliases) := (((((_ctor_labels(code) | _static_labels(lines, i, code)) | _named_labels(code, raw)) | _han_labels(lines, i, code)) | _xmldsig_labels(code)) | _alias_labels(code, aliases))
+_labels(lines, i, code, raw, aliases, hvars) := ((((((_ctor_labels(code) | _static_labels(lines, i, code)) | _named_labels(code, raw)) | _han_labels(lines, i, code)) | _xmldsig_labels(code)) | _alias_labels(code, aliases)) | _han_var_labels(code, hvars)) | _legacy_sign_labels(code, raw)
 
 _ctor_labels(code) := {_ctor_classes[m[1]] |
 	contains(code, "new")
@@ -154,6 +154,35 @@ _han_labels(lines, i, code) := {_han_label(m[1]) |
 	contains(code, "HashAlgorithmName")
 	some m in regex.find_all_string_submatch_n(_han_re, code, -1)
 	_sign_context(lines, i, code)
+}
+
+# HashAlgorithmName.MD5/SHA1 assigned to a variable or field in the file
+# (var alg = HashAlgorithmName.SHA1;) and that name passed as an argument to a
+# hash or sign call:  name -> label.
+_han_vars(content) := {m[1]: _han_label(m[2]) |
+	contains(content, "HashAlgorithmName")
+	some m in regex.find_all_string_submatch_n(`([A-Za-z_]\w*)\s*=\s*HashAlgorithmName\.(MD5|SHA1)\s*;`, content, -1)
+}
+
+# .NET Framework RSACryptoServiceProvider/DSA overloads that take the hash
+# algorithm as a string: rsa.SignData(data, "SHA1"), VerifyData(data, "MD5", sig).
+_legacy_sign_re := `\.(?:SignData|VerifyData|SignHash|VerifyHash)\s*\([^;]*?,\s*"(?i:(sha-?1|sha|md5))"\s*[,)]`
+
+_legacy_sign_labels(code, raw) := {l |
+	regex.match(`\.(?:SignData|VerifyData|SignHash|VerifyHash)\s*\(`, code)
+	some m in regex.find_all_string_submatch_n(_legacy_sign_re, raw, -1)
+	l := _legacy_sign_label(lower(m[1]))
+}
+
+_legacy_sign_label("md5") := "MD5"
+
+_legacy_sign_label(n) := "SHA-1" if n != "md5"
+
+_han_var_labels(code, hvars) := {l |
+	count(hvars) > 0
+	regex.match(_sign_call_re, code)
+	some v, l in hvars
+	regex.match(concat("", [`[(,]\s*`, v, `\s*[,)]`]), code)
 }
 
 _xmldsig_labels(code) := {"SHA-1" | regex.match(_xmldsig_re, code)}
@@ -240,12 +269,13 @@ findings contains finding if {
 	regex.match(_gate_re, content)
 	not _is_test(path)
 	aliases := _aliases(content)
+	hvars := _han_vars(content)
 	lines := split(content, "\n")
 	some i, line in lines
-	_line_gate(line, aliases)
+	_line_gate(line, aliases, hvars)
 	not helpers.is_comment_line(line)
 	code := _code(line)
-	labels := _labels(lines, i, code, line, aliases)
+	labels := _labels(lines, i, code, line, aliases, hvars)
 	count(labels) > 0
 	not _non_security_use(lines, i, labels)
 	not _suppressed(lines, i)
@@ -260,9 +290,14 @@ findings contains finding if {
 	}
 }
 
-_line_gate(line, _) if regex.match(_gate_re, line)
+_line_gate(line, _, _) if regex.match(_gate_re, line)
 
-_line_gate(line, aliases) if {
+_line_gate(line, aliases, _) if {
 	some pair in aliases
 	contains(line, pair[0])
+}
+
+_line_gate(line, _, hvars) if {
+	some v, _ in hvars
+	contains(line, v)
 }

@@ -1,0 +1,4 @@
+telegram:
+  token: 123456789:@@sample:A[A]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]@@
+  other: 1234567890:@@sample:A[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]AA[A]@@
+  doc: "<bot-id>:<secret>"

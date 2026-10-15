@@ -1,0 +1,1 @@
+{ "name": "admin", "dependencies": { "express": "^4.19.2", "helmet": "^7.1.0" } }

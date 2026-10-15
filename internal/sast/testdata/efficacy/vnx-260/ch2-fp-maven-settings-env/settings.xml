@@ -1,0 +1,13 @@
+<settings>
+  <servers>
+    <server>
+      <id>internal-releases</id>
+      <username>${env.DEPLOY_USER}</username>
+      <password>${env.DEPLOY_PASSWORD}</password>
+    </server>
+    <server>
+      <id>mirror</id>
+      <password>{@@sample:C[O]QL[C]E6[D]U6[G]tc[S]5P[=]@@}</password>
+    </server>
+  </servers>
+</settings>

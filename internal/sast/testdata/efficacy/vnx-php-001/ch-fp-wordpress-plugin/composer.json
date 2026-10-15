@@ -1,0 +1,7 @@
+{
+    "name": "acme/seo-toolkit",
+    "type": "wordpress-plugin",
+    "require": {
+        "composer/installers": "^2.3"
+    }
+}

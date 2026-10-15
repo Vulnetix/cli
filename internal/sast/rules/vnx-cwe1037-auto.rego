@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1037",
 	"name": "Processor Optimization Removal of Security-critical Code",
-	"description": "Key material, passwords or other secrets are wiped with memset/std::memset, bzero, ZeroMemory or RtlZeroMemory immediately before the memory is released, so the wipe is a dead store that an optimizer is allowed to delete, leaving the secret in freed heap or stack memory. Processor-level removal of security code (speculative execution) has no line-level signature; this rule reports the concrete optimizer case, the compiler dead-store elimination of a buffer clear (CWE-14). Reported in C and C++: a zeroing call (fill value 0, '\\0' or 0x00) whose buffer is named as a secret (key, password, passwd, passphrase, pwd, pin, otp, secret, seed, token, cred/credential, plaintext, master; camelCase and prefixes such as szPassword or session_key included) and whose next statements, before any read of the buffer, free it (free, OPENSSL_free, g_free, kfree, HeapFree, LocalFree, delete ...) or, for a local array, struct or std::array declared in the function, return or close its scope. Not reported: explicit_bzero, memset_s, SecureZeroMemory, RtlSecureZeroMemory, OPENSSL_cleanse, sodium_memzero and other guaranteed wipes; a clear followed by a read of the buffer or a compiler barrier that names it (initialisation, asm volatile); a clear of caller-owned memory (a pointer parameter or a struct member that outlives the function); buffers not named as secrets; non-zero fill patterns; test code, comments and strings.",
+	"description": "Key material, passwords or other secrets are wiped with memset/std::memset, bzero, ZeroMemory or RtlZeroMemory immediately before the memory is released, so the wipe is a dead store that an optimizer is allowed to delete, leaving the secret in freed heap or stack memory. Processor-level removal of security code (speculative execution) has no line-level signature; this rule reports the concrete optimizer case, the compiler dead-store elimination of a buffer clear (CWE-14). Reported in C and C++: a zeroing call (fill value 0, '\\0' or 0x00; a call wrapped over lines is read as one) whose buffer is named as a secret (key, password, passwd, passphrase, pwd, pin, otp, secret, seed, token, cred/credential, plaintext, master; camelCase and prefixes such as szPassword or session_key included) and whose next statements, before any read of the buffer, free it (free, OPENSSL_free, g_free, kfree, HeapFree, LocalFree, delete ...) or, for a local array, struct or std::array declared in the function, return or close its scope. Not reported: explicit_bzero, memset_s, SecureZeroMemory, RtlSecureZeroMemory, OPENSSL_cleanse, sodium_memzero and other guaranteed wipes; a clear followed by a read of the buffer or a compiler barrier that names it (initialisation, asm volatile); a clear of caller-owned memory (a pointer parameter or a struct member that outlives the function); buffers not named as secrets; non-zero fill patterns; test code, comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1037/",
 	"languages": ["c", "cpp"],
 	"severity": "medium",
@@ -163,11 +163,12 @@ findings contains finding if {
 	some i, line in lines
 	_has_any(line, _zero_needles)
 	not helpers.is_comment_line(line)
-	code := regex.replace(line, `"(\\.|[^"\\])*"`, `""`)
+	ce := _call_end(lines, i)
+	# A call wrapped over lines is read as one.
+	code := regex.replace(concat(" ", array.slice(lines, i, ce + 1)), `"(\\.|[^"\\])*"`, `""`)
 	expr := _buffer(code)
 	_secret(expr)
 	base := _base(expr)
-	ce := _call_end(lines, i)
 	t := _next_event(lines, ce, base)
 	_dead(lines, t, base)
 	_local_ok(lines, i, t, base)

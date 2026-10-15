@@ -1,0 +1,4 @@
+Options -Indexes +FollowSymLinks
+DirectoryIndex index.html index.php
+IndexOptions FancyIndexing
+# Options +Indexes

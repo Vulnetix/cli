@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUST-003 – Rust Unsafe Block or Function"
-description: "Detect Rust code using unsafe blocks or unsafe function declarations that bypass the compiler's memory safety guarantees."
+description: "Reports unsafe blocks and expressions, unsafe fn declarations and unsafe impls that carry no safety justification (a // SAFETY: comment or a # Safety doc section); documented unsafe and the word unsafe in strings, comments and lint attributes are not reported."
 ---
 
 ## Overview
@@ -22,31 +22,45 @@ Unsafe Rust is not inherently wrong — the standard library itself uses it exte
 
 ## What Gets Flagged
 
-**Unsafe blocks:**
+Unsafe regions with no safety justification on the same line or in the comment block directly above (attributes and doc comments in between are skipped):
 
 ```rust
-// Flagged: unsafe block
+let size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };   // FLAGGED
+
+// copy the bytes over                                      (not a justification)
+unsafe {                                                    // FLAGGED
+    std::ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), src.len());
+}
+
+/// Writes `count` bytes of `value` starting at `ptr`.     (no # Safety section)
+pub unsafe fn fill(ptr: *mut u8, value: u8, count: usize) { // FLAGGED
+
+unsafe impl Send for Handle {}                              // FLAGGED
+```
+
+Not flagged:
+
+```rust
+// SAFETY: `ptr` comes from `data` and index 0 is in bounds (len checked above).
+unsafe { *ptr.add(0) = 0; }
+
+/// # Safety
+/// `ptr` must be valid for `count` writes.
+pub unsafe fn fill(ptr: *mut u8, value: u8, count: usize) { ... }
+
+// SAFETY: the caller hands over a pointer to len initialised bytes.
+let slice =
+    unsafe { std::slice::from_raw_parts(ptr, len) };
+
 unsafe {
-    let ptr = &mut data as *mut [u8];
-    (*ptr)[0] = 0xFF;
+    // SAFETY: dst is a valid, exclusively borrowed slice of dst.len() bytes.
+    std::ptr::write_bytes(dst.as_mut_ptr(), byte, dst.len());
 }
+
+#![forbid(unsafe_code)]
 ```
 
-**Unsafe function declarations:**
-
-```rust
-// Flagged: unsafe fn
-unsafe fn read_volatile_register(addr: *const u32) -> u32 {
-    core::ptr::read_volatile(addr)
-}
-
-// Flagged: pub unsafe fn
-pub unsafe fn set_memory(ptr: *mut u8, value: u8, count: usize) {
-    core::ptr::write_bytes(ptr, value, count);
-}
-```
-
-The rule applies only to `.rs` files.
+The rule does not judge whether a justification is correct, only that one is written.
 
 ## Remediation
 

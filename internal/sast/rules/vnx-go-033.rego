@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-033",
 	"name": "JWT missing audience validation",
-	"description": "A Go service verifies a JWT without checking its audience (aud) claim, so a token issued by the same identity provider for a different service is accepted. Reported: a golang-jwt jwt.Parse/ParseWithClaims call or jwt.NewParser/jwt.Parser construction whose own arguments carry no jwt.WithAudience option, a lestrrat jwx jwt.Parse/ParseString/ParseRequest call likewise, and a go-jose jwt.ParseSigned/ParseSignedAndEncrypted call, each only when nothing else in the same file checks the audience (WithAudience, VerifyAudience, GetAudience, jwt.Expected{AnyAudience/Audience}, a read of .Audience or claims[\"aud\"]); and a go-oidc oidc.Config with SkipClientIDCheck: true, which turns the audience check off. Not reported: a wrapper that forwards its caller's parser options (opts...), a method on a parser variable (the construction is judged instead), jwt.ParseUnverified (no signature check at all, a different weakness), test files, comments and string literals. Audience checks performed in another file are not seen.",
+	"description": "A Go service verifies a JWT without checking its audience (aud) claim, so a token issued by the same identity provider for a different service is accepted. Reported: a golang-jwt jwt.Parse/ParseWithClaims call or jwt.NewParser/jwt.Parser construction whose own arguments carry no jwt.WithAudience option, a lestrrat jwx jwt.Parse/ParseString/ParseRequest call likewise, and a go-jose jwt.ParseSigned/ParseSignedAndEncrypted call, each only when nothing else in the same file checks the audience (WithAudience, VerifyAudience, GetAudience, jwt.Expected{AnyAudience/Audience}, a read of .Audience, .Aud or claims[\"aud\"]); and a go-oidc oidc.Config with SkipClientIDCheck: true, which turns the audience check off. Not reported: a wrapper that forwards its caller's parser options (opts...), a method on a parser variable (the construction is judged instead), jwt.ParseUnverified, including jwt.NewParser().ParseUnverified (no signature check at all, a different weakness), test files, comments and string literals. Audience checks performed in another file are not seen.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-033/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -24,9 +24,15 @@ metadata := {
 # String literals blanked, a trailing // comment removed.
 _code(line) := regex.replace(regex.replace(line, "\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`", `""`), `//.*$`, "")
 
-_verify_re := `\bjwt\.(?:Parse|ParseWithClaims|ParseString|ParseRequest|ParseSigned|ParseSignedAndEncrypted|NewParser)\(|&jwt\.Parser\{|new\(jwt\.Parser\)`
+# The JWT packages' import aliases in this file ("jwt" always), so
+# `jwtlib "github.com/golang-jwt/jwt/v5"` is followed as well.
+_import_re := `(?m)^\s*(?:import\s+)?(\w+)\s+"(?:github\.com/(?:golang-jwt/jwt|dgrijalva/jwt-go|form3tech-oss/jwt-go|lestrrat-go/jwx(?:/v\d+)?/jwt|go-jose/go-jose/v\d+/jwt|square/go-jose/jwt)|gopkg\.in/(?:square/)?go-jose\.v\d/jwt|gopkg\.in/go-jose/go-jose\.v\d/jwt)[^"]*"`
 
-_aud_re := `WithAudience\(|VerifyAudience\(|GetAudience\(|AnyAudience|\bAudience\s*:|\.Audience\b|\[\s*"aud"\s*\]`
+_aliases(content) := {a | some m in regex.find_all_string_submatch_n(_import_re, content, -1); a := m[1]; a != "_"} | {"jwt"}
+
+_verify_re(pfx) := sprintf(`\b(?:%s)\.(?:Parse|ParseWithClaims|ParseString|ParseRequest|ParseSigned|ParseSignedAndEncrypted|NewParser)\(|&(?:%s)\.Parser\{|new\((?:%s)\.Parser\)`, [pfx, pfx, pfx])
+
+_aud_re := `WithAudience\(|VerifyAudience\(|GetAudience\(|AnyAudience|\bAudience\s*:|\.(?:Audience|Aud)\b|\[\s*"aud"\s*\]`
 
 _depth(s) := count(indexof_n(s, "(")) - count(indexof_n(s, ")"))
 
@@ -53,29 +59,39 @@ _msg := "JWT is verified without checking its audience (aud) claim: a token mint
 
 _msg_oidc := "oidc.Config sets SkipClientIDCheck: true, so the ID token's audience is never checked; set ClientID instead"
 
-_hit(_, _, code, _) := _msg_oidc if regex.match(`\bSkipClientIDCheck\s*:\s*true\b`, code)
+_hit(_, _, code, _, _) := _msg_oidc if regex.match(`\bSkipClientIDCheck\s*:\s*true\b`, code)
 
-_hit(lines, i, code, aud_in_file) := _msg if {
+_hit(lines, i, code, aud_in_file, pfx) := _msg if {
 	not aud_in_file
-	ms := regex.find_all_string_submatch_n(_verify_re, code, 1)
+	not contains(code, "ParseUnverified(")
+	ms := regex.find_all_string_submatch_n(_verify_re(pfx), code, 1)
 	count(ms) > 0
 	txt := _call(lines, i, substring(code, indexof(code, ms[0][0]), -1))
 	not contains(txt, "WithAudience(")
 	not regex.match(`\w\.\.\.\s*\)`, txt)
 }
 
+_gate(content) if regex.match(`jwt\.(?:Parse|NewParser)|jwt\.Parser|SkipClientIDCheck`, content)
+
+_gate(content) if {
+	contains(content, "jwt")
+	regex.match(_import_re, content)
+}
+
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".go")
-	regex.match(`jwt\.(?:Parse|NewParser)|jwt\.Parser|SkipClientIDCheck`, content)
+	_gate(content)
 	not helpers.is_test_path(path)
 	lines := split(content, "\n")
 	aud_in_file := regex.match(_aud_re, helpers.code_text(lines))
+	pfx := concat("|", sort(_aliases(content)))
+	line_re := sprintf(`\b(?:%s)\.|SkipClientIDCheck`, [pfx])
 	some i, line in lines
-	regex.match(`jwt\.|SkipClientIDCheck`, line)
+	regex.match(line_re, line)
 	not helpers.is_comment_line(line)
 	code := _code(line)
-	some msg in {m | m := _hit(lines, i, code, aud_in_file)}
+	some msg in {m | m := _hit(lines, i, code, aud_in_file, pfx)}
 	finding := {
 		"rule_id": metadata.id,
 		"message": msg,

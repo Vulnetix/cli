@@ -1,0 +1,5 @@
+server:
+  port: 8443
+  error:
+~>    include-stacktrace: always
+    include-message: never

@@ -1,0 +1,11 @@
+CREATE INDEX o1 ON "order" (a);
+CREATE INDEX o2 ON "order" (b);
+CREATE INDEX o3 ON "order" (c);
+CREATE INDEX o4 ON "order" (d);
+CREATE INDEX o5 ON "order" (e);
+CREATE INDEX s1 ON orders (a);
+CREATE INDEX s2 ON orders (b);
+CREATE INDEX s3 ON orders (c);
+CREATE INDEX s4 ON orders (d);
+CREATE INDEX s5 ON order_items (a);
+CREATE INDEX s6 ON order_items (b);

@@ -7,7 +7,7 @@ description: "Reports a C++ child class whose own destructor is declared without
 
 VNX-1045 reports [CWE-1045](https://cwe.mitre.org/data/definitions/1045.html) in C++. The case is a class that derives from a parent whose destructor is declared `virtual`, and that declares its own destructor without `virtual`, `override` or `final`.
 
-The finding is on the child's in-class destructor declaration: `~Child();`, `~Child() = default;`, `~Child() noexcept;` or an inline body. The parent can be named with any access specifier, with or without a namespace or template arguments, and can be declared in any C++ file of the scanned tree, including with `virtual` on the line above the destructor.
+The finding is on the child's in-class destructor declaration: `~Child();`, `~Child() = default;`, `~Child() noexcept;` or an inline body. The parent can be named with any access specifier, with or without a namespace or template arguments, in a base list on the class line or wrapped onto the following lines (`class Child\n    : public Base {`), and can be declared in any C++ file of the scanned tree with a destructor marked `virtual` (including on the line above), `override` or `final`, so a grandchild of a virtual base is judged too.
 
 Not reported:
 
@@ -15,7 +15,7 @@ Not reported:
 - A child with no user-declared destructor. The implicit destructor is virtual and needs no annotation.
 - A parent whose destructor is not virtual. That is a different and more dangerous weakness (CWE-1079 and CWE-1087), judged by VNX-1079 and VNX-1087.
 - A parent defined outside the scanned tree.
-- Out-of-class definitions (`Child::~Child() {}`), base lists that span lines, test code and comments.
+- Out-of-class definitions (`Child::~Child() {}`), test code and comments.
 
 **Severity:** Medium | **CWE:** [CWE-1045](https://cwe.mitre.org/data/definitions/1045.html)
 

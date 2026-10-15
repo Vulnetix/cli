@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-016",
 	"name": "Java weak PRNG (java.util.Random) used for security-sensitive value",
-	"description": "A value drawn from a non-cryptographic generator is used as a secret: new java.util.Random().nextX(), a Random field or local created with new Random(...) and drawn with next*/ints/longs/doubles, ThreadLocalRandom.current().nextX(), Math.random() or Apache Commons RandomStringUtils.random*/randomAlphanumeric/randomNumeric (static methods built on java.util.Random). Reported when the draw is used for a token, nonce, password, salt, OTP/PIN, CSRF token, remember-me or session identifier, API/secret key or IV: the draw's own statement names such an identifier, the draw is stored straight into a Cookie, a session attribute or value, or a response header, the variable it assigns (or the buffer nextBytes fills) flows within the next six lines, directly or through one more assignment, into such an identifier or store, or the draw (or a weak Random handed to a helper) is returned from a method named for a secret (newSessionId, generateToken, createPasswordReset). Not reported: java.security.SecureRandom (including a SecureRandom held in a Random-typed variable) and RandomStringUtils.secure()/secureStrong(), randomness for jitter, shuffling, sampling, load balancing, colours and other non-secret uses, test code, and the pattern in comments or string literals.",
+	"description": "A value drawn from a non-cryptographic generator is used as a secret: new java.util.Random().nextX(), a Random field or local created with new Random(...) and drawn with next*/ints/longs/doubles, ThreadLocalRandom.current().nextX(), Math.random() or Apache Commons RandomStringUtils.random*/randomAlphanumeric/randomNumeric (static methods built on java.util.Random). Reported when the draw is used for a token, nonce, password, salt, OTP/PIN, CSRF token, remember-me or session identifier, API/secret key or IV: the draw's own statement names such an identifier, the draw is stored straight into a Cookie, a session attribute or value, or a response header, the variable it assigns (or the buffer nextBytes fills) flows within the next six lines, directly or through one more assignment, into such an identifier or store, or the draw (or a weak Random handed to a helper) is returned from a method named for a secret (newSessionId, generateToken, createPasswordReset). Not reported: java.security.SecureRandom (including a SecureRandom held in a Random-typed variable) and RandomStringUtils.secure()/secureStrong(), randomness for jitter (including names for a property of a secret's handling rather than the secret: tokenExpirySeconds, sessionTtl, a method named tokenRefillJitterMs), shuffling, sampling, load balancing, colours and other non-secret uses, test code, and the pattern in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-016/",
 	"languages": ["java"],
 	"severity": "high",
@@ -54,7 +54,17 @@ _method_re := `^\s*(?:@\w+\s+)*(?:(?:public|protected|private|static|final|synch
 
 _gen_method_re := `(?i)(?:token|nonce|secret|password|passwd|salt|otp|pin|session\w*id|sessid|apikey|api_key|csrf|xsrf|resetcode|reset_code|verificationcode|key)`
 
-_security_use(_, _, code) if regex.match(_sensitive_re, code)
+# A method named for a property of the secret's handling rather than the
+# secret itself: tokenRefillJitterMs, sessionTtl, keyIndex.
+_not_gen_method_re := `(?i)(?:jitter|delay|ttl|timeout|backoff|bucket|refill|count|size|length|index|interval|expir|lifetime|limit|duration|period|millis|seconds|\w+Ms$)`
+
+# The draw line names a secret. A collection the draw only indexes
+# (tokens.get(random.nextInt(n))) is a pick from it, not a secret.
+_security_use(_, _, code) if regex.match(_sensitive_re, regex.replace(regex.replace(code, `\b\w+\s*\.\s*(?:get|size|length|remove)\s*\(|\b\w+\s*\[|\b\w+\s*\.\s*length\b`, "_._("), _property_re, "_"))
+
+# Names for a property of a secret's handling, not the secret: tokenTtl,
+# sessionTimeoutMs, tokenExpirySeconds.
+_property_re := `\b\w*?(?i:ttl|expir\w*|timeout\w*|jitter\w*|delay\w*|backoff\w*|seconds|millis|interval\w*|duration\w*|lifetime\w*)\b`
 
 # Stored straight into a cookie, the session or a header.
 _security_use(_, _, code) if regex.match(_sink_re, code)
@@ -75,7 +85,7 @@ _security_use(lines, i, code) if {
 	some k in numbers.range(i + 1, end)
 	regex.match(re1, _blank(lines[k]))
 	not helpers.is_comment_line(lines[k])
-	regex.match(concat("|", [_sensitive_re, _sink_re]), _with_lhs(lines, k))
+	regex.match(concat("|", [_sensitive_re, _sink_re]), regex.replace(_with_lhs(lines, k), _property_re, "_"))
 }
 
 # Line k with the line above it when that line is the left-hand side of a
@@ -87,6 +97,8 @@ _with_lhs(lines, k) := concat(" ", [_blank(lines[k - 1]), _blank(lines[k])]) if 
 
 _security_use(lines, i, code) if {
 	_returned(lines, i, code)
+	# picking an element of an existing list is not generating a secret
+	not regex.match(`\.\s*get\s*\([^;]*\bnext(?:Int|Long)\s*\(`, code)
 	decls := [j |
 		some j in numbers.range(max([0, i - 15]), i - 1)
 		regex.match(_method_re, lines[j])
@@ -94,12 +106,18 @@ _security_use(lines, i, code) if {
 	count(decls) > 0
 	m := regex.find_all_string_submatch_n(_method_re, lines[max(decls)], 1)
 	regex.match(_gen_method_re, m[0][1])
+	not regex.match(_not_gen_method_re, m[0][1])
 }
 
-# The variable that holds the drawn value: the one assigned, or the buffer
-# nextBytes(buf) fills.
+# The variable that holds the drawn value: the one assigned, the buffer
+# nextBytes(buf) fills, a builder the draw is appended to (sb.append(...)) or
+# an array element it is stored in (buf[i] = ...).
 _produced(code) := {v | v := _assigned(code)} | {m[1] |
 	some m in regex.find_all_string_submatch_n(`\.\s*nextBytes\s*\(\s*(\w+)\s*\)`, code, 1)
+} | {m[1] |
+	some m in regex.find_all_string_submatch_n(`^\s*(\w+)\s*\.\s*append\s*\(`, code, 1)
+} | {m[1] |
+	some m in regex.find_all_string_submatch_n(`^\s*(\w+)\s*\[[^\]]*\]\s*=[^=]`, code, 1)
 }
 
 # The drawn value is what the method returns.

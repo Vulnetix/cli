@@ -33,6 +33,10 @@ slog.Info("login", "user", c.user, "password", pw)
 logrus.WithField("token", c.cfg.Token).Info("refreshing")
 log.Debug().Str("secret", c.signingSecret).Msg("loaded")
 
+// FLAGGED: a logger reached through a getter or wrapper
+c.Logger().Infof("exchanged code for %s", accessToken)
+lg.Sugar().Debugf("calling upstream with key %s", apiKey)
+
 // FLAGGED: call broken across lines
 logger.Infof("config loaded: dsn=%s token=%s",
     cfg.DSN,

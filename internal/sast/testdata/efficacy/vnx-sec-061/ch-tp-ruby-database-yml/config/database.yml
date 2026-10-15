@@ -1,0 +1,3 @@
+production:
+  adapter: postgresql
+~>  url: postgres://shop:@@sample:[A-Za-z0-9]{20}@@@@@sample:s[h]op[-]db[.]cl[u]st[e]r[-][c]1x[y]z[.][u]s[-][e]as[t][-]1[.]rd[s][.]a[m]az[o]na[w]s[.][c]om@@:5432/shop_production

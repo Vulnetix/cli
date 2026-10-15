@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+<head><title>Widget</title></head>
+<body>
+<div id="out"></div>
+<script>
+~>  window.onmessage = function (e) {
+    document.getElementById('out').innerHTML = e.data.html;
+  };
+~>  $(window).on('message', function (e) {
+    var msg = e.originalEvent.data;
+    eval(msg.code);
+  });
+</script>
+</body>
+</html>

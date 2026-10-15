@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-005",
 	"name": "innerHTML or dangerouslySetInnerHTML usage",
-	"description": "HTML is written into the DOM from a value that is not a constant: an assignment (= or +=) to .innerHTML or .outerHTML, insertAdjacentHTML(position, html), document.write/writeln(html), or a React dangerouslySetInnerHTML={{ __html: value }} (also across line breaks), where the value is a variable, a call, concatenation or a template literal with ${...} interpolation (including one spanning several lines). If any part of it is user-controlled this is cross-site scripting. Not reported: string literals without interpolation, ALL_CAPS constants, copying another element's innerHTML, values passed through DOMPurify.sanitize, sanitize-html or an escape/encode function, reads and comparisons of innerHTML, textContent/innerText, comments and string literals, minified files. Overlaps VNX-NODE-012 and VNX-NODE-027, which match the same sinks less strictly.",
+	"description": "HTML is written into the DOM from a value that is not a constant: an assignment (= or +=) to .innerHTML or .outerHTML (also el[\"innerHTML\"]), insertAdjacentHTML(position, html) (also with its arguments on the following lines), document.write/writeln(html), or a React dangerouslySetInnerHTML={{ __html: value }} (also across line breaks), where the value is a variable, a call, concatenation or a template literal with ${...} interpolation (including one spanning several lines). If any part of it is user-controlled this is cross-site scripting. Not reported: string literals without interpolation, null/number/boolean literals, ALL_CAPS constants, copying another element's innerHTML, values passed through DOMPurify.sanitize, sanitize-html or an escape/encode function, reads and comparisons of innerHTML, textContent/innerText, comments and string literals, minified files. Overlaps VNX-NODE-012 and VNX-NODE-027, which match the same sinks less strictly.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-005/",
 	"languages": ["node"],
 	"severity": "medium",
@@ -33,10 +33,11 @@ _strip(line) := regex.replace(
 )
 
 _sinks := [
-	{"re": `\.(?:inner|outer)HTML\s*\+?=(?:[^=](.*))?$`, "what": "innerHTML/outerHTML assignment"},
-	{"re": `\.insertAdjacentHTML\s*\(\s*""\s*,(.*)$`, "what": "insertAdjacentHTML()"},
-	{"re": `(?:^|[^\w$.])document\.write(?:ln)?\s*\((.*)$`, "what": "document.write()"},
-	{"re": `dangerouslySetInnerHTML\s*[=:]\s*\{\s*\{?\s*(.*)$`, "what": "dangerouslySetInnerHTML"},
+	{"re": `\.(?:inner|outer)HTML\s*\+?=(?:[^=](.*))?$`, "what": "innerHTML/outerHTML assignment", "split": false},
+	{"re": `\.insertAdjacentHTML\s*\(\s*""\s*,(.*)$`, "what": "insertAdjacentHTML()", "split": false},
+	{"re": `\.insertAdjacentHTML\s*\(\s*()$`, "what": "insertAdjacentHTML()", "split": true},
+	{"re": `(?:^|[^\w$.])document\.write(?:ln)?\s*\((.*)$`, "what": "document.write()", "split": false},
+	{"re": `dangerouslySetInnerHTML\s*[=:]\s*\{\s*\{?\s*(.*)$`, "what": "dangerouslySetInnerHTML", "split": false},
 ]
 
 _sanitizer_re := `(?i)sanitiz|purify|escape|encode|\bxss\s*\(|\bhe\.`
@@ -52,13 +53,14 @@ findings contains finding if {
 	regex.match(_file_gate, line)
 	count(line) <= 400
 	not helpers.is_comment_line(line)
-	s := _strip(line)
+	s := _strip(_norm(line))
 	some sink in _sinks
 	m := regex.find_all_string_submatch_n(sink.re, s, 1)
 	count(m) > 0
-	v := _value(lines, i, m[0][1])
+	v := _sink_value(lines, i, sink, m[0][1])
 	_dynamic(v)
 	not regex.match(_sanitizer_re, v)
+	not _tpl_sanitized(line, v)
 	finding := {
 		"rule_id": metadata.id,
 		"message": sprintf("%s with a non-constant value can lead to XSS; set textContent, or sanitize the HTML with DOMPurify.sanitize() first", [sink.what]),
@@ -68,6 +70,23 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+# el["innerHTML"] = x is el.innerHTML = x.
+_norm(line) := regex.replace(line, `\[\s*['"]((?:inner|outer)HTML)['"]\s*\]`, ".$1") if contains(line, "HTML")
+
+_norm(line) := line if not contains(line, "HTML")
+
+_sink_value(lines, i, sink, rest) := _value(lines, i, rest) if not sink.split
+
+# insertAdjacentHTML( broken after its parenthesis: the position is on the
+# next line, and the HTML follows it there or on the line after.
+_sink_value(lines, i, sink, _) := v if {
+	sink.split
+	i + 1 < count(lines)
+	pm := regex.find_all_string_submatch_n(`^\s*""\s*,(.*)$`, _strip(lines[i + 1]), 1)
+	count(pm) > 0
+	v := _value(lines, i + 1, pm[0][1])
 }
 
 # The value written, with the __html: key of a React prop removed. A call
@@ -107,7 +126,19 @@ _dynamic(v) if {
 	head := regex.replace(v, `\}\}.*$|;.*$`, "")
 	not regex.match(`^\s*\(?\s*(?:[\w$]+\.)*[A-Z][A-Z0-9_]*\s*\)?\s*[,)]?\s*$`, head)
 	not regex.match(`^\s*[\w$.\[\]()"]+\.(?:inner|outer)HTML\s*$`, head)
+	not regex.match(`^\s*(?:null|undefined|true|false|-?\d+(?:\.\d+)?)\s*[,)]?\s*$`, head)
 	regex.match(`[\w$]`, regex.replace(head, `""`, ""))
+}
+
+# A one-line template literal whose every ${...} interpolation is passed
+# through an escape/encode/sanitize function writes no raw value.
+_tpl_sanitized(line, v) if {
+	regex.match(`^\s*tpl_x\s*\)?\s*;?\s*$`, v)
+	interps := regex.find_all_string_submatch_n(`\$\{([^}]*)\}`, line, -1)
+	count(interps) > 0
+	every x in interps {
+		regex.match(`^\s*(?:[\w$]+\.)*[\w$]*(?i:sanitiz|purify|escape|encode)[\w$]*\s*\(`, x[1])
+	}
 }
 
 # Vendored third-party libraries (jQuery, editors, plugins) are not the

@@ -1,0 +1,7 @@
+@model LoginViewModel
+@using (Html.BeginForm("Login", "Account"))
+{
+    @Html.TextBoxFor(m => m.Email)
+    @Html.PasswordFor(m => m.Password, new { @class = "form-control" })
+    @Html.TextBoxFor(m => m.PasswordHint)
+}

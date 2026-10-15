@@ -1,0 +1,11 @@
+[NetDev]
+Name=wg0
+Kind=wireguard
+
+[WireGuard]
+~>PrivateKey=@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@
+ListenPort=51820
+
+[WireGuardPeer]
+~>PresharedKey=@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@
+AllowedIPs=10.9.0.0/24

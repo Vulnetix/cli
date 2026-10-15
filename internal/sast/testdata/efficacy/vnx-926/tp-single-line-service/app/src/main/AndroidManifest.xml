@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.player">
+    <application>
+~>        <service android:name=".PlaybackService" android:exported="true"/>
+        <service android:name=".DownloadService" android:exported="false"/>
+    </application>
+</manifest>

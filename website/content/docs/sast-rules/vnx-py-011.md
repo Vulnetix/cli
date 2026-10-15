@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-011 – Python SQL Injection"
-description: "Detect SQL queries built with string formatting or concatenation in Python code, which are vulnerable to SQL injection attacks that can expose or destroy database contents."
+description: "Detect SQL text built with an f-string, % formatting, .format() or + from a variable and passed to execute(), asyncpg fetch(), pandas read_sql(), Django raw()/extra()/RawSQL or SQLAlchemy text(), directly or through a variable assigned a few lines above."
 ---
 
 ## Overview

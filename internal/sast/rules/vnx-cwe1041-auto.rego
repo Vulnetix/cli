@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1041",
 	"name": "Use of Redundant Code",
-	"description": "Code that repeats a check it has just made, the copy-paste shape that leaves one copy updated and the other stale, or a branch that can never run. Reported in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby: an else if / elseif / elif / elsif whose condition repeats, character for character, a condition earlier in the same if chain (that branch is dead: the earlier branch always wins); a condition joined by && / || / and / or whose two adjacent operands are the same expression (user.isAdmin() || user.isAdmin()); and a security check statement (a call named check..., verify..., validate..., require..., ensure..., enforce..., authorize/authorise..., authenticate..., protect..., guard...) repeated identically on the next code line. Not reported: the same condition in a separate if statement or a nested chain, operands that differ only in an argument, a check called twice with different arguments, checks passed as arguments (route middleware lists), conditions spanning lines, redundancy across functions or files, minified JavaScript, test code, comments and string literals.",
+	"description": "Code that repeats a check it has just made, the copy-paste shape that leaves one copy updated and the other stale, or a branch that can never run. Reported in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby: an else if / elseif / elif / elsif whose condition repeats, character for character, a condition earlier in the same if chain, with braces on the same line or Allman-style (that branch is dead: the earlier branch always wins); a condition joined by && / || / and / or whose two adjacent operands are the same expression (user.isAdmin() || user.isAdmin()); and a security check statement (a call named check..., verify..., validate..., require..., ensure..., enforce..., authorize/authorise..., authenticate..., protect..., guard...) repeated identically on the next code line. Not reported: the same condition in a separate if statement or a nested chain, operands that differ only in an argument, operands that read or draw a new value each time they run (in.read() == 0 && in.read() == 0, next(it), random()), a check called twice with different arguments, checks passed as arguments (route middleware lists), conditions spanning lines, redundancy across functions or files, minified JavaScript, test code, comments and string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1041/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "low",
@@ -53,7 +53,7 @@ _norm(s) := regex.replace(s, `\s+`, "")
 # ── Shape 1: an else-if that repeats a condition of its own chain ────────
 
 _else_re := {
-	"c": `^\s*\}\s*(?:else\s*if|elseif)\s*\((.*)\)\s*[{:]?\s*$`,
+	"c": `^\s*(?:\}\s*)?(?:else\s*if|elseif)\s*\((.*)\)\s*[{:]?\s*$`,
 	"go": `^\s*\}\s*else\s+if\s+(.+?)\s*\{\s*$`,
 	"py": `^\s*elif\s+(.+?)\s*:\s*$`,
 	"rb": `^\s*elsif\s+(.+?)(?:\s+then)?\s*$`,
@@ -68,7 +68,7 @@ _member_re := {
 
 # A same-indent line that keeps the chain open.
 _cont_re := {
-	"c": `^\s*\}\s*else(?:if)?\b`,
+	"c": `^\s*(?:\}\s*)?else(?:if)?\b`,
 	"go": `^\s*\}\s*else\b`,
 	"py": `^\s*elif\b`,
 	"rb": `^\s*elsif\b`,
@@ -98,6 +98,12 @@ _inside_chain(line, ind, _) if _indent(line) > ind
 _inside_chain(line, ind, lang) if {
 	_indent(line) == ind
 	regex.match(_cont_re[lang], line)
+}
+
+# Allman braces: a brace alone on a line at the chain's indent.
+_inside_chain(line, ind, "c") if {
+	_indent(line) == ind
+	trim_space(line) in {"{", "}"}
 }
 
 findings contains finding if {
@@ -137,7 +143,9 @@ _bool_needles := {
 	"rb": {"&&", "||", " and ", " or "},
 }
 
-_strip_strings(line) := regex.replace(line, "\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`", "S")
+_lits(s) := [m[0] | some m in regex.find_all_string_submatch_n("\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`", s, -1)]
+
+_strip_strings(line) :=regex.replace(line, "\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`", "S")
 
 # The file is split on the operator itself, not into lines, so only the
 # text either side of each && / || is examined; the line is looked up
@@ -164,8 +172,12 @@ findings contains finding if {
 	contains(_last_line(parts[p]), trim_left(trim_space(w), "!"))
 	some a in regex.find_all_string_submatch_n(_trail_re, _last_line(parts[p]), 1)
 	some b in regex.find_all_string_submatch_n(_lead_re, _first_line(parts[p + 1]), 1)
-	x := _norm(a[1])
-	x == _norm(b[1])
+	x := trim_right(_norm(a[1]), ":")
+	x == trim_right(_norm(b[1]), ":")
+	# _norm drops whitespace inside string literals too, so "extra ==" and
+	# "extra==" would compare equal; the literals must match exactly.
+	_lits(a[1]) == _lits(b[1])
+	not regex.match(_consuming, x)
 	regex.match(`[A-Za-z_]`, x)
 	not x in {"true", "false", "null", "nil", "None", "True", "False", "undefined"}
 	k := count(indexof_n(concat(opn, array.slice(parts, 0, p + 1)), "\n"))
@@ -177,6 +189,10 @@ findings contains finding if {
 	not _continues(lines, k)
 	finding := _finding(path, k, line, "Both operands of this && / || are the same expression, so the second test is redundant; it was probably meant to test something else. Fix or remove the duplicated operand")
 }
+
+# A call that consumes input or draws a new value each time it runs: the
+# same text on both sides of the operator tests two different values.
+_consuming := `(?i)(?:^|[.>:!])(?:read\w*|next\w*|get|pop|shift|poll|take|scan\w*|getc|fgetc|getchar|rand\w*|random\w*|uuid\w*)\(`
 
 # ── Shape 3: a security check repeated on the next code line ─────────────
 

@@ -1,0 +1,4 @@
+integrations:
+  crm:
+~>    token: pat@@sample:[A-Za-z0-9]{14}@@.@@sample:[a-f0-9]{64}@@
+    base: appQ2w3e4r5t6y7u8

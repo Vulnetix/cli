@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-011",
 	"name": "Java expression language injection",
-	"description": "HTTP request data is evaluated as an expression: Spring SpEL (ExpressionParser.parseExpression/parseRaw), OGNL (Ognl.getValue/setValue/parseExpression, OgnlUtil.getValue/setValue/compile/callMethod, Struts ValueStack.findValue/findString), Jakarta/Java EE EL (ExpressionFactory.createValueExpression/createMethodExpression, ELProcessor.eval/getValue/setValue), javax.script ScriptEngine.eval, MVEL.eval/compileExpression/executeExpression and JEXL createExpression/createScript, or a Bean Validation message template (ConstraintValidatorContext.buildConstraintViolationWithTemplate) built from the value being validated. Reported when an argument of the call is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies, the request body), a Spring or JAX-RS annotated handler parameter, the validated value of isValid, or a local assigned from one up to five assignments earlier within 40 lines; a call that continues on the next lines is read to the end of its statement. Not reported: constant or bundled expressions, request data passed as a variable binding (engine.put, SpEL root objects) rather than as the expression, SpEL evaluated with a SimpleEvaluationContext nearby, Hibernate message parameters (addMessageParameter), creating a parser or engine without evaluating request data, and sink names in comments or string literals. Flows into another method or file are not followed.",
+	"description": "HTTP request data is evaluated as an expression: Spring SpEL (ExpressionParser.parseExpression/parseRaw), OGNL (Ognl.getValue/setValue/parseExpression, OgnlUtil.getValue/setValue/compile/callMethod, Struts ValueStack.findValue/findString), Jakarta/Java EE EL (ExpressionFactory.createValueExpression/createMethodExpression, ELProcessor.eval/getValue/setValue), javax.script ScriptEngine.eval, MVEL.eval/compileExpression/executeExpression and JEXL createExpression/createScript, or a Bean Validation message template (ConstraintValidatorContext.buildConstraintViolationWithTemplate) built from the value being validated. Reported when the expression argument of the call (the first; the second too for createValueExpression/createMethodExpression, whose first is the ELContext) is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies, the request body), a Spring or JAX-RS annotated handler parameter, the validated value of isValid, or a local assigned from one up to five assignments earlier within 40 lines; a call that continues on the next lines is read to the end of its statement. Not reported: constant or bundled expressions, request data passed as a variable binding (engine.put, eval(script, bindings), SpEL root objects, the context or root argument of Ognl.getValue(\"fixed.path\", ctx, root)) rather than as the expression, SpEL evaluated with a SimpleEvaluationContext nearby, Hibernate message parameters (addMessageParameter), creating a parser or engine without evaluating request data, and sink names in comments or string literals. Flows into another method or file are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-011/",
 	"languages": ["java"],
 	"severity": "critical",
@@ -23,17 +23,33 @@ metadata := {
 
 # ── Sinks, each enabled by a type the file names ─────────────────────────
 
+# [type the file must name, call, how many leading arguments hold the
+# expression]. Only those are checked: Ognl.getValue("user.name", ctx, root)
+# with request data as the root evaluates a fixed expression.
 _sinks := [
-	["ExpressionParser", `\.parse(?:Expression|Raw)\s*\(`],
-	["Ognl", `\bOgnl\.(?:getValue|setValue|parseExpression)\s*\(|\b\w*[Oo]gnlUtil\w*\.(?:getValue|setValue|compile|callMethod)\s*\(`],
-	["ValueStack", `\.find(?:Value|String)\s*\(`],
-	["ExpressionFactory", `\.create(?:Value|Method)Expression\s*\(`],
-	["ELProcessor", `\.(?:eval|getValue|setValue)\s*\(`],
-	["ScriptEngine", `\.eval\s*\(`],
-	["MVEL", `\bMVEL\.(?:eval|evalToString|compileExpression|executeExpression)\s*\(`],
-	["Jexl", `\.create(?:Expression|Script)\s*\(`],
-	["buildConstraintViolationWithTemplate", `\.buildConstraintViolationWithTemplate\s*\(`],
+	["ExpressionParser", `\.parse(?:Expression|Raw)\s*\(`, 1],
+	["Ognl", `\bOgnl\.(?:getValue|setValue|parseExpression)\s*\(|\b\w*[Oo]gnlUtil\w*\.(?:getValue|setValue|compile|callMethod)\s*\(`, 1],
+	["ValueStack", `\.find(?:Value|String)\s*\(`, 1],
+	["ExpressionFactory", `\.create(?:Value|Method)Expression\s*\(`, 2],
+	["ELProcessor", `\.(?:eval|getValue|setValue)\s*\(`, 1],
+	["ScriptEngine", `\.eval\s*\(`, 1],
+	["MVEL", `\bMVEL\.(?:eval|evalToString|compileExpression|executeExpression)\s*\(`, 1],
+	["Jexl", `\.create(?:Expression|Script)\s*\(`, 1],
+	["buildConstraintViolationWithTemplate", `\.buildConstraintViolationWithTemplate\s*\(`, 1],
 ]
+
+_arg_re := `(?:[^(),]|\((?:[^()]|\([^()]*\))*\))*`
+
+# The first n top-level arguments of an argument list.
+_lead(args, 1) := m[0][1] if {
+	m := regex.find_all_string_submatch_n(concat("", ["^(", _arg_re, ")"]), args, 1)
+	count(m) > 0
+} else := args
+
+_lead(args, 2) := m[0][1] if {
+	m := regex.find_all_string_submatch_n(concat("", ["^(", _arg_re, "(?:,", _arg_re, ")?)"]), args, 1)
+	count(m) > 0
+} else := args
 
 _gate_re := `(?m)(\.(?:get\w*Parameter|getParameterValues|getParameterMap|getParameterNames|getHeader|getHeaders|getHeaderNames|getQueryString|getPathInfo|getRequestURI|getCookies|getInputStream|getReader)\s*\(|@(?:RequestParam|PathVariable|RequestHeader|CookieValue|RequestBody|ModelAttribute|QueryParam|PathParam|FormParam|HeaderParam|CookieParam|MatrixParam)\b|ConstraintValidatorContext)`
 
@@ -165,9 +181,11 @@ findings contains finding if {
 	regex.match(s[1], _blank(line))
 	stmt := _stmt(lines, i)
 	t := _tainted(lines, i)
-	some args in _args(stmt, s[1])
+	some all_args in _args(stmt, s[1])
+	args := _lead(all_args, s[2])
 	_reaches(args, t)
 	not _simple_context(lines, i)
+	not _echo(lines, i, args, t)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Request data evaluated as an expression (SpEL, OGNL, EL, script or validation template); never evaluate client input as code. Bind it as a variable or root object of a fixed expression, or use SimpleEvaluationContext for SpEL",
@@ -177,4 +195,24 @@ findings contains finding if {
 		"start_line": i + 1,
 		"snippet": line,
 	}
+}
+
+_any_sink_re := concat("|", [s[1] | some s in _sinks])
+
+_refs(args, t) := {v | some v in t; regex.match(concat("", [`\b`, v, `\b`]), args)}
+
+# A compiled expression evaluated later (compileExpression then
+# executeExpression) is the flow already reported where it was compiled.
+_derived_from_sink(lines, i, refs) if {
+	count(refs) > 0
+	every v in refs {
+		some j in numbers.range(max([0, i - _window]), i - 1)
+		_assigned(lines[j]) == v
+		regex.match(_any_sink_re, _blank(lines[j]))
+	}
+}
+
+_echo(lines, i, args, t) if {
+	not _is_src(args)
+	_derived_from_sink(lines, i, _refs(args, t))
 }

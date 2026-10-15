@@ -1,11 +1,11 @@
 ---
 title: "VNX-CS-002 – C# Command Injection: Request Data or a Dynamic Shell Command Reaches Process.Start"
-description: "Detects C# Process.Start, ProcessStartInfo FileName/Arguments and PowerShell AddScript calls that receive HTTP request data or action parameters, and shells (cmd, sh, bash, PowerShell) given a command line built from non-constant values."
+description: "Detects C# Process.Start, ProcessStartInfo FileName/Arguments and PowerShell AddScript calls that receive HTTP request data or action parameters, and shells (cmd, sh, bash, PowerShell) given a command line built from non-constant values, including through ArgumentList after -c or /c and CliWrap WithArguments."
 ---
 
 ## Overview
 
-This rule identifies C# code that passes attacker-influenced text into an OS process. It reports `Process.Start(...)`, `new ProcessStartInfo(...)`, a `FileName` or `Arguments` assignment on a `ProcessStartInfo` (a variable, `p.StartInfo`, or an object initializer) and PowerShell `AddScript(...)` when the value contains HTTP request data (`Request.Query`, `Request.Form`, `Request["..."]`, a WebForms `TextBox.Text`, a string parameter of a public controller or PageModel action, a `[FromQuery]`-style parameter, or a minimal-API lambda parameter), read inline or a few lines above. It also reports a shell (`cmd.exe`, `sh`, `bash`, `powershell`) given a command line built by concatenation, interpolation or `string.Format` with a non-constant value, and `AddScript` given script text built that way. Constant commands, `ArgumentList.Add`, dynamic arguments to a fixed non-shell program with no request data in sight, numeric action parameters and input validated with `Regex.IsMatch`, `TryParse` or an allowlist are not reported.
+This rule identifies C# code that passes attacker-influenced text into an OS process. It reports `Process.Start(...)`, `new ProcessStartInfo(...)`, a `FileName` or `Arguments` assignment on a `ProcessStartInfo` (a variable, `p.StartInfo`, or an object initializer) and PowerShell `AddScript(...)` when the value contains HTTP request data (`Request.Query`, `Request.Form`, `Request["..."]`, a WebForms `TextBox.Text`, a string parameter of a public controller or PageModel action, a `[FromQuery]`-style parameter, or a minimal-API lambda parameter), read inline or a few lines above. It also reports a shell (`cmd.exe`, `sh`, `bash`, `powershell`) given a command line built by concatenation, interpolation or `string.Format` with a non-constant value, and `AddScript` given script text built that way. A non-constant `ArgumentList.Add` right after a shell's `-c` or `/c` operand is reported too (the shell still parses that operand), as is CliWrap's `Cli.Wrap("sh").WithArguments(...)` with a built command string. Constant commands, `ArgumentList.Add` to a non-shell program, dynamic arguments to a fixed non-shell program with no request data in sight, numeric action parameters and input validated with `Regex.IsMatch`, `TryParse` or an allowlist are not reported.
 
 When user input is embedded in the filename or arguments of a shell command, an attacker can break out of the intended command structure and execute arbitrary code on the host. Unlike SQL injection, command injection gives the attacker direct access to the operating system rather than just the database, making it one of the most severe vulnerability classes (CWE-78, CAPEC-88, MITRE ATT&CK T1059).
 
@@ -38,6 +38,10 @@ psi.Arguments = $"-c \"cat {userProvidedPath}\"";
 
 // FLAGGED: PowerShell script text built from a value
 ps.AddScript("Get-ADUser -Identity " + user);
+
+// FLAGGED: ArgumentList does not help when the shell parses the operand
+psi.ArgumentList.Add("-c");
+psi.ArgumentList.Add(hookCommand);
 
 // NOT FLAGGED: fixed program, arguments passed as a list
 psi.ArgumentList.Add(branch);

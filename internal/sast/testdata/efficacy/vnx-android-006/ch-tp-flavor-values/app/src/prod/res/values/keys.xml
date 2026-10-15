@@ -1,0 +1,4 @@
+<resources>
+~>    <string name="payment_private_key">@@sample:[A-Za-z0-9+/]{48}@@</string>
+    <string name="payment_env">production</string>
+</resources>

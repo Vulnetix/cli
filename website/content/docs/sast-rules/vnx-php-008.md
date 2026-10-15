@@ -34,7 +34,7 @@ phpinfo();
 \phpinfo( INFO_ENVIRONMENT );
 ```
 
-Not flagged: a call guarded within the five lines above by a CLI check (`php_sapi_name() === "cli"`) or a debug/local condition (`APP_DEBUG`, `WP_DEBUG`, `app()->isLocal()`); methods named `phpinfo`; `"phpinfo"` as a string value or menu label; test code; comments.
+Not flagged: a call guarded within the five lines above by a CLI check (`php_sapi_name() === "cli"`), a loopback-client check, or a debug/local condition (`APP_DEBUG`, `WP_DEBUG`, `app()->isLocal()`); a call after an early bail such as `if (PHP_SAPI !== "cli") { exit(1); }`; methods named `phpinfo`; `"phpinfo"` as a string value, menu label or text inside a heredoc; test code; comments. A `PHP_SAPI !== "cli"` condition that wraps the call itself is still flagged.
 
 ## Remediation
 

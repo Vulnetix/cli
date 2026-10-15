@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-050 – Google Gemini / Vertex AI / PaLM API Key"
-description: "Reports a Google API key (AIza + 35 characters) on or within eight lines of a Gemini, PaLM, Vertex AI or Google GenAI SDK reference; AIza keys with no generative-AI context are left to the generic GCP key rules."
+description: "Reports a Google API key (AIza + 35 characters) on or within eight lines of a Gemini, PaLM, Vertex AI or Google GenAI SDK reference; Firebase web config keys and AIza keys with no generative-AI context are left to the generic GCP key rules."
 ---
 
 ## Overview

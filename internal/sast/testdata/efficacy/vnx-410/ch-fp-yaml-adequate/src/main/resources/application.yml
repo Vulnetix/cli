@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 12
+      minimum-idle: 2
+server:
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 2
+app:
+  retry:
+    max: 2
+  threads:
+    max: 1

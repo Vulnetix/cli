@@ -8,9 +8,9 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-279",
 	"name": "Incorrect Execution-Assigned Permissions",
-	"description": "While it runs, a program (or its install step) sets the setuid bit on a file, so whoever executes that file afterwards does so with the file owner's identity, usually root. This is the most concrete form of permissions assigned at run time that nobody asked for, and it is what this rule reports: chmod/fchmod/fchmodat/lchmod and std::filesystem::permissions with a 04xxx-07xxx mode, S_ISUID or perms::set_uid in C and C++; os.chmod/os.fchmod/Path.chmod with 0o4xxx or stat.S_ISUID in Python; os.Chmod/File.Chmod with os.ModeSetuid and syscall/unix Chmod with a setuid mode in Go; `chmod u+s`/`+s`/`4755`, `install -m 4755` and `COPY --chmod=4755` in shell scripts and Dockerfiles; and the same chmod command run through system/exec/subprocess. A mode held in a variable assigned such a literal just above counts. Not reported: setgid alone (g+s, 02775), which on a directory is the normal way to share a group; clearing the bit (& ~S_ISUID, &^ os.ModeSetuid, u-s, a-s); testing for it; sticky or ordinary modes; Go os.Chmod with a 0o4755 literal, which does not set the bit (os.ModeSetuid does); test code; and the pattern in comments or strings.",
+	"description": "While it runs, a program (or its install step) sets the setuid bit on a file, so whoever executes that file afterwards does so with the file owner's identity, usually root. This is the most concrete form of permissions assigned at run time that nobody asked for, and it is what this rule reports: chmod/fchmod/fchmodat/lchmod and std::filesystem::permissions with a 04xxx-07xxx mode, S_ISUID or perms::set_uid in C and C++; os.chmod/os.fchmod/Path.chmod with 0o4xxx or stat.S_ISUID in Python; os.Chmod/File.Chmod with os.ModeSetuid and syscall/unix Chmod with a setuid mode in Go; chmod() with 04xxx in PHP; fs.chmod/chmodSync with 0o4xxx or '4755' in JavaScript and TypeScript; File.chmod/FileUtils.chmod with 04xxx or 'u+s' in Ruby; fs::Permissions::from_mode/set_mode with 0o4xxx in Rust; mode: '4755' or u+s in Ansible file/copy tasks; `chmod u+s`/`+s`/`4755`, `install -m 4755` and `COPY --chmod=4755` in shell scripts and Dockerfiles; and the same chmod command run through system/exec/subprocess. A mode held in a variable assigned such a literal just above counts. Not reported: setgid alone (g+s, 02775), which on a directory is the normal way to share a group; clearing the bit (& ~S_ISUID, & ~04000, & !0o4000, &^ os.ModeSetuid, u-s, a-s); testing for it; sticky or ordinary modes; Go os.Chmod with a 0o4755 literal, which does not set the bit (os.ModeSetuid does); test code; and the pattern in comments or strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-279/",
-	"languages": ["c", "cpp", "python", "go", "bash", "docker"],
+	"languages": ["c", "cpp", "python", "go", "php", "javascript", "ruby", "rust", "bash", "docker", "yaml"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
@@ -45,6 +45,20 @@ _lang(path) := "c" if {
 _lang(path) := "py" if endswith(path, ".py")
 
 _lang(path) := "go" if endswith(path, ".go")
+
+_lang(path) := "php" if endswith(path, ".php")
+
+_lang(path) := "js" if {
+	some ext in {".js", ".mjs", ".cjs", ".ts", ".mts", ".cts"}
+	endswith(path, ext)
+}
+
+_lang(path) := "ruby" if {
+	some ext in {".rb", ".rake"}
+	endswith(path, ext)
+}
+
+_lang(path) := "rs" if endswith(path, ".rs")
 
 _shell(path) if {
 	some ext in {".sh", ".bash", ".zsh", ".ksh", ".bats"}
@@ -81,15 +95,25 @@ _checks := {
 		[`\.Chmod\s*\(`, `\b(os|fs)\.ModeSetuid\b`],
 		[`\b(syscall|unix)\.(Chmod|Fchmod|Fchmodat)\s*\(`, concat("|", [_suid_octal, `\b(syscall|unix)\.S_ISUID\b`])],
 	},
+	"php": {[`(^|[^\w>:$])@?chmod\s*\(|->chmod\s*\(`, concat("|", [_suid_octal, `\bSUIDMODE\b`])]},
+	"js": {[`\b(chmod|chmodSync|fchmod|fchmodSync|lchmod|lchmodSync)\s*\(`, concat("|", [_suid_octal, `\bSUIDMODE\b`])]},
+	"ruby": {[`\b(File|FileUtils)\.l?chmod(_R)?\b|\.chmod\s*\(`, concat("|", [_suid_octal, `\bSUIDMODE\b`])]},
+	# Rust: PermissionsExt::from_mode / set_mode, which fs::set_permissions applies.
+	"rs": {[`\b(from_mode|set_mode)\s*\(`, _suid_octal]},
 }
 
 # Substring gates, per file and per line: cheaper than a regular expression.
-_needles := {"c": {"chmod", "permissions"}, "py": {"chmod"}, "go": {"Chmod", "chmod"}}
+_needles := {"c": {"chmod", "permissions"}, "py": {"chmod"}, "go": {"Chmod", "chmod"}, "php": {"chmod"}, "js": {"chmod"}, "ruby": {"chmod"}, "rs": {"from_mode", "set_mode"}}
 
 # The bit is being cleared, not set.
-_clears(args) if regex.match(`~\s*\(?[^)]*S_ISUID|&\^\s*\(?\s*[^)]*ModeSetuid|perm_options::remove`, args)
+_clears(args) if regex.match(`[~!]\s*\(?\s*0[oO]?[0-7]*[4-7][0-7]{3}\b|~\s*\(?[^)]*S_ISUID|&\^\s*\(?\s*[^)]*ModeSetuid|perm_options::remove`, args)
 
-_strip(line) := regex.replace(line, `"(\\.|[^"\\])*"|'(\\.|[^'\\])*'`, `""`)
+# A mode written as a string (Ruby FileUtils.chmod("u+s", f), Node
+# fs.chmodSync(f, "4755")) is kept as a marker before strings are blanked.
+_strip(line) := regex.replace(
+	regex.replace(line, `["'](0?[4-7][0-7]{3}|([ugoa]*[ua][ugoa]*)?[+=][rwxXt]*s[rwxXt]*)["']`, "SUIDMODE"),
+	"\"(\\\\.|[^\"\\\\])*\"|'(\\\\.|[^'\\\\])*'|`[^`]*`", `""`,
+)
 
 _suid_assign := `=\s*0[oO]?[4-7][0-7]{3}\s*;?\s*(#.*|//.*)?$`
 
@@ -182,7 +206,7 @@ findings contains finding if {
 
 _shell_mode := `0?[4-7][0-7]{3}|([ugoa]*[ua][ugoa]*)?[+=][rwxXt]*s[rwxXt]*`
 
-_exec_re := "\\b(system|popen|_popen|exec\\w*|spawn\\w*|run|call|check_call|check_output|Popen|getoutput|getstatusoutput|Command|CommandContext)\\s*\\("
+_exec_re := "\\b(system|popen|_popen|exec\\w*|spawn\\w*|run|call|check_call|check_output|Popen|getoutput|getstatusoutput|Command|CommandContext|shell_exec|passthru|proc_open|execSync|spawnSync)\\s*\\("
 
 _cmd_re := concat("", [
 	"[\"'`](sudo\\s+)?chmod\\s+(-[A-Za-z]+\\s+)*(", _shell_mode, ")([\"'`\\s]|$)",
@@ -319,6 +343,42 @@ findings contains finding if {
 	_has_any(line, {"chmod", "install"})
 	not helpers.is_comment_line(line)
 	_sh_suid(line)
+	finding := {
+		"rule_id": metadata.id,
+		"message": _msg,
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+# ── Ansible tasks ────────────────────────────────────────────────────────
+
+_yaml(path) if endswith(path, ".yml")
+
+_yaml(path) if endswith(path, ".yaml")
+
+_ansible(content) if contains(content, "ansible.builtin.")
+
+_ansible(content) if regex.match(`(?m)^\s*-?\s*(file|copy|template|unarchive|get_url|assemble|synchronize)\s*:(\s*$|\s+\w+=)`, content)
+
+# `mode: '4755'`, `mode: u+s`, and the k=v form `mode=4755`.
+_ansible_modes(line) := {m[1] | some m in regex.find_all_string_submatch_n(`^\s*mode\s*:\s*["']?([^"'\s#]+)["']?\s*(#.*)?$`, line, 1)} | {m[1] | some m in regex.find_all_string_submatch_n(`(?:^|\s)mode=["']?([^"'\s]+)`, line, -1)}
+
+findings contains finding if {
+	some path, content in input.file_contents
+	_yaml(path)
+	contains(content, "mode")
+	not _is_test(path)
+	_ansible(content)
+	lines := split(content, "\n")
+	some i, line in lines
+	contains(line, "mode")
+	not helpers.is_comment_line(line)
+	some tok in _ansible_modes(line)
+	_suid_shell_mode(tok)
 	finding := {
 		"rule_id": metadata.id,
 		"message": _msg,

@@ -1,0 +1,2 @@
+export VAULT_TOKEN=@@sample:h[v]s[.][x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx[x]xx@@
+export VAULT_TOKEN=@@sample:s[.]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]XX[X]@@

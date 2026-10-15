@@ -53,7 +53,7 @@ _lit_sinks := {
 		`\bjwt\.(?:encode|decode)\s*\(\s*(?:\{(?:[^{}]|\{[^{}]*\})*\}|[^,{}]+?)\s*,\s*['"]([^'"]+)['"]`,
 		`\bjwt\.(?:encode|decode)\s*\((?:[^()]|\([^()]*\))*?\bkey\s*=\s*['"]([^'"]+)['"]`,
 	],
-	"rb": [`\bJWT\.(?:encode|decode)\s*\(\s*(?:\{(?:[^{}]|\{[^{}]*\})*\}|[^,{}]+?)\s*,\s*['"]([^'"]+)['"]`],
+	"rb": [`\bJWT\.(?:encode|decode)(?:\s*\(\s*|\s+)(?:\{(?:[^{}]|\{[^{}]*\})*\}|[^,{}]+?)\s*,\s*['"]([^'"]+)['"]`],
 	"php": [
 		`\bJWT::(?:encode|decode)\s*\(\s*(?:\[(?:[^\[\]]|\[[^\[\]]*\])*\]|[^,\[\]]+?)\s*,\s*['"]([^'"]+)['"]`,
 		`\bnew\s+Key\s*\(\s*['"]([^'"]+)['"]`,
@@ -72,10 +72,15 @@ _lit_sinks := {
 _ident_sinks := {
 	"js": [`\b(?:jwt|jsonwebtoken|JWT)\.(?:sign|verify)\s*\(\s*(?:\{(?:[^{}]|\{[^{}]*\})*\}|[^,{}]+?)\s*,\s*([A-Za-z_$][\w$]*)\s*[,)]`],
 	"py": [`\bjwt\.(?:encode|decode)\s*\(\s*(?:\{(?:[^{}]|\{[^{}]*\})*\}|[^,{}]+?)\s*,\s*(?:key\s*=\s*)?([A-Za-z_]\w*)\s*[,)]`],
-	"rb": [`\bJWT\.(?:encode|decode)\s*\(\s*(?:\{(?:[^{}]|\{[^{}]*\})*\}|[^,{}]+?)\s*,\s*([A-Za-z_]\w*)\s*[,)]`],
+	"rb": [`\bJWT\.(?:encode|decode)(?:\s*\(\s*|\s+)(?:\{(?:[^{}]|\{[^{}]*\})*\}|[^,{}]+?)\s*,\s*([A-Za-z_]\w*)\s*[,)]`],
 	"php": [`\bJWT::(?:encode|decode)\s*\(\s*(?:\[(?:[^\[\]]|\[[^\[\]]*\])*\]|[^,\[\]]+?)\s*,\s*(?:new\s+Key\s*\(\s*)?\$(\w+)\s*[,)]`],
-	"java": [`\.(?:signWith\s*\([^;()]*,|setSigningKey\s*\()\s*([A-Za-z_]\w*)\s*\)`],
+	"java": [
+		`\.(?:signWith\s*\([^;()]*,|setSigningKey\s*\()\s*([A-Za-z_]\w*)\s*\)`,
+		`\bAlgorithm\.HMAC(?:256|384|512)\s*\(\s*([A-Za-z_]\w*)(?:\.getBytes\s*\([^()]*\))?\s*\)`,
+		`\bKeys\.hmacShaKeyFor\s*\(\s*([A-Za-z_]\w*)(?:\.getBytes\s*\([^()]*\))?\s*\)`,
+	],
 	"go": [`\.SignedString\s*\(\s*([A-Za-z_]\w*)\s*\)`],
+	"cs": [`\bnew\s+SymmetricSecurityKey\s*\(\s*Encoding\.\w+\.GetBytes\s*\(\s*([A-Za-z_]\w*)\s*\)`],
 }
 
 # Literal anchors: a file (and a line) must carry one before any regex runs.
@@ -178,7 +183,8 @@ findings contains f if {
 	count(m) > 0
 	not _odd_quotes(m[0][1])
 	ident := m[0][2]
-	assign_re := concat("", [`^\s*(?:(?:export|const|let|var|final|static|private|public|protected|val|readonly)\s+)*(?:[\w<>\[\]]+\s+)?\$?`, ident, `\s*:?=\s*(?:\[\]byte\s*\(\s*)?["'\x60]([^"'\x60]+)["'\x60]\s*\)?\s*;?\s*$`])
+	# the literal may be wrapped in []byte(...) or an encoding call
+	assign_re := concat("", [`^\s*(?:(?:export|const|let|var|final|static|private|public|protected|internal|val|readonly)\s+)*(?:[\w<>\[\]]+\s+)?\$?`, ident, `\s*:?=\s*(?:\[\]byte\s*\(\s*|TextCodec\.BASE64\.encode\s*\(\s*|Base64\.getEncoder\(\)\.encodeToString\s*\(\s*)?["'\x60]([^"'\x60]+)["'\x60](?:\.getBytes\s*\([^()]*\))?\s*\)?\s*;?\s*$`])
 	some j, l in lines
 	contains(l, ident)
 	am := regex.find_all_string_submatch_n(assign_re, l, 1)

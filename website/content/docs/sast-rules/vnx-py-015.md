@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-015 – Python ReDoS via User-Controlled Regex"
-description: "Detect Python code that passes user-controlled input directly to re.compile, re.match, or re.search, enabling Regular Expression Denial of Service (ReDoS) attacks."
+description: "Detect request data (Flask, Django, DRF or a Flask/FastAPI route parameter) used as the pattern of re or regex compile, match, search, findall, sub or split without re.escape(), which lets an attacker submit a catastrophically backtracking pattern (ReDoS)."
 ---
 
 ## Overview

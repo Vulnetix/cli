@@ -1,0 +1,4 @@
+{
+  "name": "billing-web",
+  "dependencies": { "react": "^18.3.1" }
+}

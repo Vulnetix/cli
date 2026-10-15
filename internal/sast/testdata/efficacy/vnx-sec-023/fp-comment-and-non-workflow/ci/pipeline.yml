@@ -1,0 +1,3 @@
+# A different CI system's file; ${{ }} has no meaning here.
+steps:
+  - run: echo "${{ github.event.pull_request.title }}"

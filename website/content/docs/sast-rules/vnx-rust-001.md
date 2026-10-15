@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUST-001 – Missing Cargo.lock"
-description: "Detects Rust projects that have a Cargo.toml but no Cargo.lock file, allowing non-deterministic dependency resolution that enables supply chain attacks."
+description: "Reports a Cargo.toml that declares dependencies but has no Cargo.lock in its own or any ancestor directory; workspace members covered by the root lock, manifests with empty dependency tables, and test/fixture/example manifests are not reported."
 ---
 
 ## Overview
@@ -19,16 +19,16 @@ The Cargo team's official guidance is that all binary crates (applications) shou
 
 ## What Gets Flagged
 
-The rule checks every directory identified as containing a Rust project (via `dirs_by_language["rust"]`). For each such directory, it constructs the expected `Cargo.lock` path and raises a finding if that file is absent from the file set.
+The finding is reported on the `Cargo.toml` of a crate that declares at least one dependency (`[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`, `[workspace.dependencies]`, `[target.*.dependencies]` or a `[dependencies.<name>]` table) when no `Cargo.lock` exists in that directory or any ancestor:
 
 ```
-# FLAGGED: project structure missing Cargo.lock
-my-rust-app/
-├── Cargo.toml       ← present
-├── src/
-│   └── main.rs
-└── (no Cargo.lock)  ← FLAGGED
+services/worker/
+├── Cargo.toml       ← FLAGGED: [dependencies] tokio = "1"
+├── src/main.rs
+└── (no Cargo.lock here or in services/ or the repository root)
 ```
+
+Not flagged: a workspace member such as `crates/core/Cargo.toml` when the workspace root has a `Cargo.lock`, a manifest whose dependency tables are empty, and manifests under `tests/`, `fixtures/`, `examples/` or mock directories.
 
 ## Remediation
 

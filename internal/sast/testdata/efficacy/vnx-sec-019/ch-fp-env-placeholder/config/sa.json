@@ -1,0 +1,6 @@
+{
+  "type": "service_account",
+  "project_id": "acme-prod-311",
+  "private_key": "${GCP_PRIVATE_KEY}",
+  "client_email": "uploader@@@sample:a[c]me[-]pr[o]d[-][3]11[.]ia[m][.]g[s]er[v]ic[e]ac[c]ou[n]t[.][c]om@@"
+}

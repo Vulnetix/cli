@@ -34,9 +34,11 @@ ADD https://github.com/example/plugins.git#main /src/plugins
 ADD --link \
     https://storage.example.com/models/classifier-v3.onnx \
     /models/classifier.onnx
+ARG TINI_URL=https://github.com/krallin/tini/releases/download/v0.19.0/tini
+ADD ${TINI_URL} /tini
 ```
 
-Not reported: `ADD --checksum=sha256:...`, a git source pinned to a 40-character commit, local sources (VNX-DOCKER-006), a source held in a variable, `RUN curl`/`wget` downloads, `ADD` text in comments, labels, strings and heredocs, test and `.devcontainer` images.
+Not reported: `ADD --checksum=sha256:...`, a git source pinned to a 40-character commit, local sources (VNX-DOCKER-006), a source held in a variable with no `ARG` default, `RUN curl`/`wget` downloads, `ADD` text in comments, labels, strings and heredocs, test and `.devcontainer` images.
 
 ## Remediation
 

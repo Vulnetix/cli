@@ -1,0 +1,8 @@
+services:
+  dind:
+    image: docker:27.1-dind
+~>    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+  app:
+    image: ghcr.io/example/app:1.0.0

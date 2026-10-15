@@ -1,0 +1,8 @@
+{
+  "name": "shop",
+  "version": "1.0.0",
+  "scripts": {
+~>    "start": "node --inspect-brk=0.0.0.0 server.js",
+    "build": "tsc -p ."
+  }
+}

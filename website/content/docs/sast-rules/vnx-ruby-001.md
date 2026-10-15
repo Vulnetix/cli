@@ -1,6 +1,6 @@
 ---
 title: "VNX-RUBY-001 – Missing Gemfile.lock"
-description: "Reports an application Gemfile with no Gemfile.lock beside it, so every bundle install resolves floating ranges afresh; gem libraries (gemspec), test fixtures and vendored gems are not reported."
+description: "Reports an application Gemfile with no Gemfile.lock beside it (or a gems.rb with no gems.locked), so every bundle install resolves floating ranges afresh; gem libraries (gemspec), test fixtures and vendored gems are not reported."
 ---
 
 ## Overview

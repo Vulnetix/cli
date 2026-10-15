@@ -1,0 +1,4 @@
+INSTALLED_APPS = ["django.contrib.auth", "axes"]
+AXES_FAILURE_LIMIT = 3
+~>AXES_COOLOFF_TIME = None
+AXES_RESET_ON_SUCCESS = True

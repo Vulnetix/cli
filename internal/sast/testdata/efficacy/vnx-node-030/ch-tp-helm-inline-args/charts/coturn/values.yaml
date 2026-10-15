@@ -1,0 +1,6 @@
+image:
+  repository: coturn/coturn
+  tag: "4.6"
+coturn:
+~>  extraArgs: ["-n", "--log-file=stdout", "--allow-loopback-peers", "--realm=example.org"]
+  command: turnserver -n --realm=example.org

@@ -21,7 +21,7 @@ metadata := {
 	"tags": ["path-traversal", "zip-slip", "java"],
 }
 
-_archive_re := `\b(?:Zip|Jar|Tar|TarArchive|ZipArchive|Archive|SevenZArchive|ArArchive|CpioArchive|ArjArchive|DumpArchive)Entry\b`
+_archive_re := `\b(?:(?:Zip|Jar|Tar|TarArchive|ZipArchive|Archive|SevenZArchive|ArArchive|CpioArchive|ArjArchive|DumpArchive)Entry|ZipFile|JarFile)\b`
 
 # Entry variables of the file.
 _entry_decl_re := `\b(?:Zip|Jar|Tar|TarArchive|ZipArchive|Archive|SevenZArchive|ArArchive|CpioArchive|ArjArchive|DumpArchive)Entry(?:<[^>]*>)?\s+(\w+)\s*[=;:,)]`
@@ -36,11 +36,11 @@ _entry_vars(lines) := {m[1] |
 	some l in lines
 	regex.match(`getNext\w*Entry|nextElement`, l)
 	some m in regex.find_all_string_submatch_n(_entry_assign_re, l, -1)
-}
+} | _lambda_entry_vars(lines)
 
 _sink_re := `\bnew\s+(?:java\.io\.)?(?:File|FileOutputStream|FileWriter|RandomAccessFile)\s*\(|\b(?:Paths\.get|Path\.of)\s*\(|\.(?:resolve|resolveSibling)\s*\(|\bFiles\.(?:newOutputStream|newBufferedWriter|copy|write|writeString|createFile|createDirectories|createDirectory)\s*\(`
 
-_sanitizer_re := `FilenameUtils\.getName\s*\(|\.getFileName\s*\(\s*\)`
+_sanitizer_re := `FilenameUtils\.getName\s*\(|\.getFileName\s*\(\s*\)|\bnew\s+File\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*\.\s*getName\s*\(\s*\)`
 
 _blank(s) := regex.replace(s, `"(?:\\.|[^"\\])*"`, `""`)
 
@@ -138,6 +138,7 @@ findings contains finding if {
 	_uses_name(args, nre, t)
 	not _derived_from_sink(lines, i, args, nre)
 	not _guarded(lines, i)
+	not regex.match(_bare_name_after_re, stmt)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Archive entry name used in an output path without a containment check (zip slip); resolve and normalise the path, then verify it still starts with the extraction directory before writing",
@@ -148,3 +149,25 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+# The path object is only built to take its last component:
+# new File(e.getName()).getName(), Paths.get(e.getName()).getFileName().
+_bare_name_after_re := `(?:\b(?:Paths\.get|Path\.of)\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*\.\s*getFileName|\bnew\s+File\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*\.\s*getName)\s*\(\s*\)`
+
+# zipFile.stream().forEach(e -> ...): the lambda parameter is an entry when
+# the stream comes from a ZipFile/JarFile local or field of the file.
+_zipfile_vars(lines) := {m[1] |
+	some l in lines
+	regex.match(`\b(?:ZipFile|JarFile)\b`, l)
+	some m in regex.find_all_string_submatch_n(`\b(?:ZipFile|JarFile)\s+(\w+)\s*[=;)]`, l, -1)
+}
+
+_lambda_entry_vars(lines) := set() if count(_zipfile_vars(lines)) == 0
+
+_lambda_entry_vars(lines) := {m[1] |
+	zf := _zipfile_vars(lines)
+	re := concat("", [`\b(?:`, concat("|", zf), `)\s*\.\s*stream\s*\(\s*\)[^;]*\.\s*forEach\s*\(\s*\(?\s*(\w+)\s*\)?\s*->`])
+	some l in lines
+	contains(l, "forEach")
+	some m in regex.find_all_string_submatch_n(re, l, 1)
+} if count(_zipfile_vars(lines)) > 0

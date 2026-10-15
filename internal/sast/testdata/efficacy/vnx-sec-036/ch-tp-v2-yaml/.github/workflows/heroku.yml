@@ -1,0 +1,4 @@
+      - uses: akhileshns/heroku-deploy@v3.13.15
+        with:
+~>          heroku_api_key: "@@sample:HRKU-AA[0-9A-Za-z_-]{58}@@"
+          heroku_app_name: shop

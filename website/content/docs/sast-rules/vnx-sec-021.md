@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-021 – Twilio API Credentials"
-description: "Detects hardcoded Twilio API keys (SK prefix) and Account SIDs (AC prefix) in source code, which grant access to SMS, voice, and video communication services."
+description: "Detects a hardcoded Twilio auth token or API key secret: a 32-character secret assigned to a Twilio-named variable in a Twilio context, or passed beside an Account SID or API key SID to a Twilio client. A SID on its own is an identifier and is not reported."
 ---
 
 ## Overview
@@ -20,29 +20,21 @@ There are documented cases of attackers stealing Twilio credentials from source 
 ## What Gets Flagged
 
 ```python
-# FLAGGED: Twilio credentials hardcoded
-from twilio.rest import Client
+# Flagged: a 32-character auth token assigned to a name that says what it is
+TWILIO_AUTH_TOKEN = "<32 random letters and digits>"
 
-account_sid = 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-auth_token = 'your_auth_token_here'
-client = Client(account_sid, auth_token)
-
-message = client.messages.create(
-    body='Your verification code is 123456',
-    from_='+15017122661',
-    to='+15558675310'
-)
+# Flagged: a client built from a SID and a secret literal on the same line
+client = Client("AC<32 hex>", "<32-character auth token>")
 ```
 
-```python
-# FLAGGED: Twilio API key hardcoded
-from twilio.rest import Client
-
-client = Client(
-    'SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  # API key SID
-    'your_api_key_secret'                  # API key secret
-)
+```javascript
+// Flagged: the Node client, same shape
+const client = twilio('AC<32 hex>', '<32-character auth token>');
 ```
+
+Not flagged: an Account SID or API key SID alone, `os.environ["TWILIO_AUTH_TOKEN"]`,
+placeholders such as `your_auth_token_here`, an `auth_token` in a file with no
+Twilio context, and test or fixture paths.
 
 ## Remediation
 

@@ -1,11 +1,11 @@
 ---
 title: "VNX-PHP-011 – PHP SQL injection via string concatenation"
-description: "Detects request input concatenated or interpolated into SQL text passed to mysql(i)_query(), pg_query(), PDO/mysqli/SQLite3 query/exec/prepare and Laravel DB::select/whereRaw-style calls, inline, through a variable or through a query string built from one. Bound parameters, escaped or integer-cast values, digit-validated values and single-quoted literals are not reported."
+description: "Detects request input concatenated or interpolated into SQL text passed to mysql(i)_query(), pg_query(), PDO/mysqli/SQLite3 query/exec/prepare, WordPress $wpdb->get_results()/get_row()/get_var() and Laravel DB::select/whereRaw-style calls, inline, through a variable or through a query string built from one. Bound parameters, escaped or integer-cast values, digit-validated values and single-quoted literals are not reported."
 ---
 
 ## Overview
 
-This rule detects SQL queries constructed by concatenating values from PHP superglobals (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`) directly into the query string passed to `mysql_query()`, `mysqli_query()`, or `pg_query()`. When user-supplied data is embedded in a SQL string without parameterisation, the database cannot distinguish between SQL syntax and data, allowing attackers to alter query structure.
+This rule detects SQL queries constructed by concatenating request input (superglobals, client-controlled `$_SERVER` headers, Laravel `$request` values) into the query string passed to `mysql_query()`, `mysqli_query()`, `pg_query()`, PDO/mysqli/SQLite3 methods, `$wpdb` or Laravel raw-SQL builders. When user-supplied data is embedded in a SQL string without parameterisation, the database cannot distinguish between SQL syntax and data, allowing attackers to alter query structure.
 
 String concatenation into SQL is the canonical form of SQL injection and remains one of the most prevalent vulnerabilities in PHP codebases. It arises when developers treat SQL as a template string rather than a structured query with typed parameters. Functions like `mysql_real_escape_string()` reduce risk but are error-prone — they must be applied consistently and correctly to every value, and bypass techniques exist for character-set edge cases.
 
@@ -43,6 +43,10 @@ $result = mysqli_query($GLOBALS["db"], $query);
 // FLAGGED: PDO and Laravel raw SQL
 $stmt = $pdo->query("SELECT * FROM users WHERE name = '$name'");
 return Order::whereRaw('customer = ' . $request->get('customer'))->get();
+
+// FLAGGED: WordPress $wpdb without prepare(), and a client header
+$row = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}reports WHERE id = $id");
+mysqli_query($conn, "INSERT INTO log (ip) VALUES ('" . $_SERVER['HTTP_X_FORWARDED_FOR'] . "')");
 ```
 
 Not flagged: `prepare()` with placeholders and `execute()`/`bind_param()`, `pg_query_params()`, `DB::select('... ?', [$value])`, values passed through `(int)`, `intval()`, `mysqli_real_escape_string()` or `->quote()`, values checked with `ctype_digit()`/`is_numeric()` or a digits-only `preg_match()`, and `$_GET` inside a single-quoted literal (PHP does not interpolate it). Escaping that is useless because the value is not quoted in the SQL is not distinguished.

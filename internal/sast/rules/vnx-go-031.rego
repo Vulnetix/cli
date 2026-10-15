@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-031",
 	"name": "Missing signature validation on JWT",
-	"description": "A JWT's claims are used without its signature being verified. Reported: jwt.UnsafeAllowNoneSignatureType returned from a key function or held in a variable (golang-jwt / dgrijalva jwt-go then accept alg \"none\" tokens, which carry no signature); lestrrat-go/jwx jwt.WithVerify(false); golang-jwt ParseUnverified, jwx jwt.ParseInsecure and go-jose UnsafeClaimsWithoutVerification / UnsafePayloadWithoutVerification in a file that handles requests (net/http, gin, echo, fiber, gRPC metadata, an Authorization or Bearer header) when the same function never verifies the token with jwt.Parse, ParseWithClaims, a go-jose Claims(key, ...) or a Verify call; jwt.Parse/ParseWithClaims whose error is discarded (tok, _ := jwt.Parse(...)) and whose token's Claims are read with no token.Valid check (the token is returned even when the signature fails); and a go-jose tok.Claims(key, &c) call whose error is dropped. Not reported: signing with SigningMethodNone (SignedString(jwt.UnsafeAllowNoneSignatureType)), unverified parsing to pick a key that is followed by verification, unverified parsing in tools that do not serve requests, a parse whose error or token.Valid is checked, key functions that skip the signing-method check (golang-jwt v4+ rejects a key of the wrong type, so that alone is not a bypass), test files, comments and strings.",
+	"description": "A JWT's claims are used without its signature being verified. Reported: jwt.UnsafeAllowNoneSignatureType returned from a key function or held in a variable (golang-jwt / dgrijalva jwt-go then accept alg \"none\" tokens, which carry no signature); lestrrat-go/jwx jwt.WithVerify(false); golang-jwt ParseUnverified, jwx jwt.ParseInsecure and go-jose UnsafeClaimsWithoutVerification / UnsafePayloadWithoutVerification and lestrrat-go/jwx jws.Parse (which only decodes) in a file that handles requests (net/http, gin, echo, fiber, gRPC metadata, an Authorization or Bearer header) when the same function never verifies the token with jwt.Parse, ParseWithClaims, a go-jose Claims(key, ...) or a Verify call; jwt.Parse/ParseWithClaims whose error is discarded (tok, _ := jwt.Parse(...)) and whose token's Claims are read with no token.Valid check (the token is returned even when the signature fails); ParseWithClaims whose token and error are both discarded, or whose claims variable is then read with no error or token.Valid check (the claims are filled in either way); and a go-jose tok.Claims(key, &c) call whose error is dropped. Not reported: signing with SigningMethodNone (SignedString(jwt.UnsafeAllowNoneSignatureType)), unverified parsing to pick a key that is followed by verification, unverified parsing in tools that do not serve requests, a parse whose error or token.Valid is checked, key functions that skip the signing-method check (golang-jwt v4+ rejects a key of the wrong type, so that alone is not a bypass), test files, comments and strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-031/",
 	"languages": ["go"],
 	"severity": "high",
@@ -24,7 +24,7 @@ metadata := {
 _needles := ["UnsafeAllowNoneSignatureType", "ParseUnverified", "ParseInsecure", "WithoutVerification", "WithVerify(false)", "Parse(", "ParseWithClaims(", ".Claims("]
 
 _gate(content) if {
-	contains(content, "jwt")
+	regex.match(`jwt|jws|jose`, content)
 	some n in _needles
 	contains(content, n)
 }
@@ -97,6 +97,36 @@ _kind(lines, i, content, code) := "the parse error is discarded and token.Valid 
 	after := concat("\n", [lines[k] | some k in numbers.range(i + 1, end)])
 	regex.match(concat("", [`\b`, tok, `\.Claims\b`]), after)
 	not regex.match(concat("", [`\b`, tok, `\.Valid\b`]), after)
+}
+
+# 4b. ParseWithClaims into a claims value whose result and error are both
+# dropped: the claims are filled in even when the signature fails.
+_kind(_, _, content, code) := "the token and error from ParseWithClaims are both discarded, but the claims it fills in are used: they are filled in even when the signature does not verify" if {
+	not _go_jose(content)
+	regex.match(`^\s*(?:_\s*,\s*)?_\s*:?=\s*[\w\.\(\)]*\bParseWithClaims\(`, code)
+}
+
+# ...or the token is kept, the error dropped, and the claims variable read
+# with no token.Valid check.
+_kind(lines, i, content, code) := "the parse error is discarded and token.Valid is never checked: ParseWithClaims fills in the claims even when the signature does not verify" if {
+	not _go_jose(content)
+	ms := regex.find_all_string_submatch_n(`^\s*(\w+)\s*,\s*_\s*:?=\s*[\w\.\(\)]*\bParseWithClaims\([^,]+,\s*&(\w+)\s*,`, code, 1)
+	count(ms) > 0
+	tok := ms[0][1]
+	tok != "_"
+	cv := ms[0][2]
+	end := min([count(lines) - 1, _fn_hi(lines, i), i + 30])
+	after := concat("\n", [lines[k] | some k in numbers.range(i + 1, end)])
+	regex.match(concat("", [`\b`, cv, `\.\w`]), after)
+	not regex.match(concat("", [`\b`, tok, `\.Valid\b`]), after)
+	not regex.match(concat("", [`\b`, tok, `\.Claims\b`]), after)
+}
+
+# 3b. jwx jws.Parse only decodes the message; jws.Verify checks it.
+_kind(lines, i, content, code) := "jws.Parse decodes the message without verifying its signature and nothing in this function verifies it; its payload is attacker-chosen" if {
+	regex.match(`\bjws\.Parse(?:String|Reader)?\(`, code)
+	_serves_requests(content)
+	not regex.match(_verify_re, _fn_text(lines, i))
 }
 
 # 5. go-jose signature check whose error is dropped.

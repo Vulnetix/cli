@@ -1,0 +1,6 @@
+<project>
+  <properties>
+    <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+~>    <sonar.login>sqp_@@sample:[0-9a-f]{40}@@</sonar.login>
+  </properties>
+</project>

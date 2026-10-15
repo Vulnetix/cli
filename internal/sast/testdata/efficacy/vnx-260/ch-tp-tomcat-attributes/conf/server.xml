@@ -1,0 +1,6 @@
+<Server port="8005" shutdown="SHUTDOWN">
+  <Service name="Catalina">
+    <Connector port="8443" protocol="@@sample:o[r]g[.][a]pa[c]he[.]co[y]ot[e][.]h[t]tp[1]1[.][H]tt[p]11[N]io[P]ro[t]oc[o]l@@" SSLEnabled="true"
+~>               keystoreFile="conf/keystore.jks" keystorePass="Kst0reP4ss"/>
+  </Service>
+</Server>

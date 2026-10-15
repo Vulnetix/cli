@@ -1,11 +1,13 @@
 ---
 title: "VNX-SWIFT-001 – Swift Hardcoded API Key or Secret in Source"
-description: "Detects API keys, secret tokens, and private keys hardcoded as string literals in Swift source files, which can be extracted from the binary or source and cannot be rotated without a code change."
+description: "Detects passwords, API keys, client secrets, tokens and private keys given as string literals in Swift declarations, assignments, argument labels, dictionaries and HTTP header values, password comparisons with a literal, and Bearer/Basic Authorization literals; placeholders, lookup keys, identifier and path constants, interpolated strings and test files are not reported."
 ---
 
 ## Overview
 
-This rule detects string literals in Swift source files that match patterns for common credential types: API keys, client secrets, private keys, access tokens, auth tokens, bearer tokens, passwords, and other secrets. The rule looks for assignment expressions where the left-hand side is a recognised credential name and the right-hand side is a non-trivial string literal of sufficient length. Only non-comment lines are evaluated, so documentation examples are ignored.
+This rule reports a Swift string literal that holds a credential: a `let`/`var` declaration (with or without a type annotation and modifiers), a property assignment, a call argument label (`apiKey: "…"`, `password: "…"`) or a dictionary key whose name ends with password, passwd, pwd, passphrase, secret, apiKey, token, privateKey, credential(s) or an encryption/signing/HMAC/master key, and a `"Bearer …"`/`"Basic …"`/`"Token …"` header literal with a credential of 16 or more characters. The value must be at least six characters.
+
+It does not report placeholders (`YOUR_API_KEY_HERE`, `<client-secret>`, `****`, `$(CLIENT_SECRET)`), interpolated or empty strings, lookup keys rather than values (`"access_token"`, `"user_password"`, `"com.example.app.token"`, `"API_KEY"`, `"X-Client-Secret"`), prose with spaces, URLs, names that only describe a credential (`passwordKey`, `passwordHint`, `tokenStorageKey`), `CodingKeys` cases, values read at runtime, comments and test files.
 
 Hardcoding secrets directly in source code creates a credential that is permanently tied to the codebase. Anyone who gains access to the repository, the compiled `.ipa` archive, or a decompiled version of the binary can extract the value verbatim. Unlike a rotated environment variable or a Keychain-backed credential, a hardcoded secret cannot be invalidated without shipping a new binary and removing the old one from circulation.
 
@@ -27,18 +29,26 @@ Rotating a hardcoded credential requires a code change, a review cycle, a new bu
 
 ```swift
 // FLAGGED: API key assigned directly as a string literal
-let apiKey = "AIzaSy_EXAMPLE_REDACTED"
+private let apiKey = "k3Jd9sLq02MZpXa7Vt4c"
 
-// FLAGGED: access token hardcoded at module scope
-private let accessToken: String = "sk-live-EXAMPLE_REDACTED"
+// FLAGGED: client secret with a type annotation
+static let clientSecret: String = "c9f1e2a7b3d84c6f9e0a1b2c3d4e5f60"
 
-// FLAGGED: password stored as a constant
-let adminPassword = "Sup3rS3cr3t!"
+// FLAGGED: SDK key passed as an argument label
+Analytics.startSession(apiKey: "Q7RM2HP62885AQXFKZDX", options: .default)
 
-// FLAGGED: client secret in an OAuth configuration struct
-struct OAuthConfig {
-    let clientSecret = "a1b2c3d4e5f6a1b2c3d4e5f6"
-}
+// FLAGGED: password in a request dictionary
+let body: [String: Any] = ["username": "sync-bot", "password": "Pa55w0rd!2023"]
+
+// FLAGGED: a header-style key and a password compared with a literal
+request.setValue("Qm9vdHN0cmFwS2V5MjAyNA77", forHTTPHeaderField: "X-Api-Key")
+if passwordTextField.text == "Sup3r#Adm1n" { showHome() }
+
+// NOT FLAGGED: lookup keys, identifiers, paths and placeholders
+static let passwordKey = "user_password"
+static let showPassword = "showPasswordSegue"
+static let token = "/oauth2/token"
+let apiKey = "YOUR_API_KEY_HERE"
 ```
 
 ## Remediation

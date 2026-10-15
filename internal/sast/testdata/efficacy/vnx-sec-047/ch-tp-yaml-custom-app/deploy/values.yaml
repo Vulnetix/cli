@@ -1,0 +1,3 @@
+shopify:
+  store: acme.myshopify.com
+~>  token: @@sample:shpca_[0-9a-f]{32}@@

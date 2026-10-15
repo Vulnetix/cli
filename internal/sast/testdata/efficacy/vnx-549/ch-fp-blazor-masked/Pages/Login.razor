@@ -1,0 +1,7 @@
+@page "/login"
+
+<EditForm Model="model" OnValidSubmit="SignIn">
+    <InputText @bind-Value="model.UserName" />
+    <InputText type="password" @bind-Value="model.Password" />
+    <InputText @bind-Value="model.PasswordHint" />
+</EditForm>

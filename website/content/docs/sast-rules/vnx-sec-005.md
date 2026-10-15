@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-005 – GCP API Key"
-description: "Detects hardcoded Google Cloud Platform API keys (AIza prefix) in source code, which can be used to access billable GCP services and exfiltrate data."
+description: "Reports a hard-coded Google Cloud, Maps or Firebase API key (AIza plus 35 URL-safe base64 characters) in any file, excluding placeholders, longer tokens, prefix checks, environment references and test files."
 ---
 
 ## Overview
@@ -17,24 +17,25 @@ Because GCP API keys do not expire and are not tied to a user identity, detectin
 
 ## What Gets Flagged
 
-Any source line containing a string matching `AIza` followed by 35 alphanumeric, hyphen, or underscore characters.
+A standalone 39-character token, `AIza` followed by 35 URL-safe base64 characters, in any file: script URLs (`?key=AIza...`), Android string resources, Firebase web configuration, Java constants, request parameters and `.env` files.
 
-```python
-# FLAGGED: hardcoded GCP API key
-import googlemaps
-
-gmaps = googlemaps.Client(key='AIzaSy_EXAMPLE_REDACTED')
-result = gmaps.geocode('Sydney, Australia')
+```xml
+<!-- FLAGGED: key in an Android string resource -->
+<string name="google_maps_key">AIza<35 characters></string>
 ```
 
 ```javascript
-// FLAGGED: key embedded in JavaScript
-const apiKey = 'AIzaSy_EXAMPLE_REDACTED';
-const map = new google.maps.Map(document.getElementById('map'), {
-  zoom: 10,
-  center: { lat: -33.8688, lng: 151.2195 }
-});
+// FLAGGED: Firebase web config
+const firebaseConfig = { apiKey: "AIza<35 characters>", projectId: "shop-prod" };
 ```
+
+Firebase web keys are designed to ship to browsers, but an unrestricted key still bills the project, so they are reported; restrict the key by API and HTTP referrer.
+
+Not flagged:
+
+- Placeholder runs (`AIzaXXXXXXXX...`) and the `AIza` prefix inside a longer token.
+- Prefix checks (`key.startsWith("AIza")`) and environment references.
+- Test, fixture, vendored and generated files.
 
 ## Remediation
 

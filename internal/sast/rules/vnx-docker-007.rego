@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-DOCKER-007",
 	"name": "Service image without a HEALTHCHECK",
-	"description": "The image's final stage runs a long-lived service but declares no HEALTHCHECK, so Docker, Compose and Swarm can only tell whether the process exists, not whether it still answers: a deadlocked or wedged service stays in rotation. A stage counts as a service when it, or an earlier stage it is built FROM, has an EXPOSE instruction or a CMD/ENTRYPOINT that starts a server (nginx, httpd/apache2, php-fpm, gunicorn, uvicorn, uwsgi, hypercorn, daphne, runserver, flask run, rails server, puma, unicorn, node, npm/yarn/pnpm start, java, catalina.sh, dotnet, redis-server, mongod, postgres, mysqld, caddy, traefik, haproxy, envoy, supervisord and similar). The finding is on the final FROM line. Not reported: a final stage with a HEALTHCHECK (HEALTHCHECK NONE is an explicit decision, for example when Kubernetes probes are used), one that inherits a HEALTHCHECK from an earlier stage (up to two levels), base and toolchain images with no service, one-shot CLI and job images, a HEALTHCHECK only in a builder stage (it does not carry over, so that is reported), HEALTHCHECK text in comments or heredocs, test and .devcontainer images, and files that only mention Dockerfiles. A HEALTHCHECK defined by an external base image is not visible here.",
+	"description": "The image's final stage runs a long-lived service but declares no HEALTHCHECK, so Docker, Compose and Swarm can only tell whether the process exists, not whether it still answers: a deadlocked or wedged service stays in rotation. A stage counts as a service when it, or an earlier stage it is built FROM, has an EXPOSE instruction or a CMD/ENTRYPOINT that starts a server (nginx, httpd/apache2, php-fpm, gunicorn, uvicorn, uwsgi, hypercorn, daphne, runserver, flask run, rails server, puma, unicorn, node, npm/yarn/pnpm start, java, catalina.sh, dotnet, redis-server, mongod, postgres, mysqld, caddy, traefik, haproxy, envoy, supervisord and similar). The finding is on the final FROM line. Not reported: a final stage with a HEALTHCHECK (HEALTHCHECK NONE is an explicit decision, for example when Kubernetes probes are used), one that inherits a HEALTHCHECK from an earlier stage (up to two levels), base and toolchain images with no service, one-shot CLI and job images (including node/java/dotnet started on a cli, migrate, seed, job, cron, backup or scripts/ entry point with no EXPOSE), a HEALTHCHECK only in a builder stage (it does not carry over, so that is reported), HEALTHCHECK text in comments or heredocs, test and .devcontainer images, and files that only mention Dockerfiles. A HEALTHCHECK defined by an external base image is not visible here.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-docker-007/",
 	"languages": ["docker"],
 	"severity": "low",
@@ -132,7 +132,19 @@ _service(lines, froms, k, hd) if {
 
 _service(lines, froms, k, hd) if {
 	some q in _chain(lines, froms, k)
-	_stage_has(lines, froms, q, hd, _server_re)
+	e := _stage_end(lines, froms, q)
+	froms[q] + 1 <= e
+	some j in numbers.range(froms[q] + 1, e)
+	regex.match(_server_re, lines[j])
+	_instr(lines, j, hd)
+	not _one_shot(lines[j])
+}
+
+# a generic runtime (node, java, dotnet, python) started on a CLI, migration,
+# seed, backup or cron entry point is a job, not a service
+_one_shot(line) if {
+	not regex.match(`(?i)\b(nginx|httpd|apache2|php-fpm|gunicorn|uvicorn|uwsgi|hypercorn|daphne|runserver|puma|unicorn|caddy|traefik|haproxy|envoy|supervisord|server|serve|start)\b`, line)
+	regex.match(`(?i)(\bcli\b|\bmigrat|\bseed|\bjobs?\b|\bcron|\bbackup|\bscripts/)`, line)
 }
 
 _has_healthcheck(lines, froms, k, hd) if {

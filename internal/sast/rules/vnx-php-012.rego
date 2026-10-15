@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-012",
 	"name": "PHP reflected XSS via echo/print of user input",
-	"description": "Request input is written into the response without HTML encoding. Reported: echo, print, <?= ?>, printf()/vprintf() and die()/exit() whose output contains a $_GET/$_POST/$_REQUEST/$_COOKIE/$_SERVER element, or a variable assigned from one within the 30 lines above (through any function that is not an encoder, such as trim() or str_replace()); and an HTML fragment (a string literal containing a tag) assigned or appended (.=) to a variable together with such a value, which is how a page buffer like $html is built before it is printed. Not reported: values passed through htmlspecialchars(), htmlentities(), strip_tags(), intval()/(int)/floatval(), json_encode(), urlencode()/rawurlencode(), esc_html()/esc_attr() or e(); isset()/empty()/count() tests of input; user input inside a single-quoted literal (not interpolated); constant output; and the statement inside a comment or a string. A value that travels through a second variable before it is echoed, stored XSS read back from a database, and template engines (Blade, Twig) are not tracked.",
+	"description": "Request input is written into the response without HTML encoding. Reported: echo, print, <?= ?>, printf()/vprintf() and die()/exit() whose output contains a $_GET/$_POST/$_REQUEST/$_COOKIE/$_SERVER element, or a variable assigned from one within the 30 lines above (through any function that is not an encoder, such as trim() or str_replace()); and an HTML fragment (a string literal containing a tag) assigned or appended (.=) to a variable together with such a value, which is how a page buffer like $html is built before it is printed; and a heredoc (<<<HTML, not a nowdoc <<<'X') echoed, printed or assigned whose body, up to 30 lines, interpolates such a value (reported on the line that opens it). Not reported: values passed through htmlspecialchars(), htmlentities(), strip_tags(), intval()/(int)/floatval(), json_encode(), urlencode()/rawurlencode(), esc_html()/esc_attr() or e(); isset()/empty()/count() tests of input; user input inside a single-quoted literal (not interpolated); constant output; and the statement inside a comment or a string. A value that travels through a second variable before it is echoed, stored XSS read back from a database, and template engines (Blade, Twig) are not tracked.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-012/",
 	"languages": ["php"],
 	"severity": "high",
@@ -128,15 +128,44 @@ _joined(_, lit) if {
 	contains(lit, "$")
 }
 
+# A heredoc (which interpolates, unlike a nowdoc <<<'X') echoed, printed or
+# assigned: its body, up to the closing identifier and at most 30 lines, is
+# the output. The finding is on the line that opens it.
+_heredoc_re := `(?i)(?:(?:^|[;{}:]|<\?php)\s*(?:echo|print)|^\s*\$\w+(?:\s*\[[^\]]*\])*\s*\.?=)\s*<<<\s*"?([A-Za-z_]\w*)"?\s*$`
+
+_heredoc_reflected(lines, i, tainted) if {
+	m := regex.find_all_string_submatch_n(_heredoc_re, lines[i], 1)
+	tag := m[0][1]
+	last := min([count(lines) - 1, i + 30])
+	ends := [k |
+		some k in numbers.range(i + 1, last)
+		regex.match(concat("", [`^\s*`, tag, `\b`]), lines[k])
+	]
+	count(ends) > 0
+	body := concat("\n", array.slice(lines, i + 1, ends[0]))
+	_user(regex.replace(regex.replace(body, _encoder_re, "0"), `\[\s*'(\w+)'\s*\]`, "[$1]"), tainted)
+}
+
+_reflected_at(lines, i, line) if _reflected(line, _tainted(lines, i))
+
+_reflected_at(lines, i, line) if {
+	contains(line, "<<<")
+	_heredoc_reflected(lines, i, _tainted(lines, i))
+}
+
+_php_file(path) if endswith(path, ".php")
+
+_php_file(path) if endswith(path, ".phtml")
+
 findings contains finding if {
 	some path, content in input.file_contents
-	endswith(path, ".php")
+	_php_file(path)
 	regex.match(_source_re, content)
 	lines := split(content, "\n")
 	some i, line in lines
 	regex.match(`(?i)echo|print|<\?=|die|exit|=`, line)
 	not helpers.is_comment_line(line)
-	_reflected(line, _tainted(lines, i))
+	_reflected_at(lines, i, line)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Reflected XSS: request input is written into the page without HTML encoding; wrap it in htmlspecialchars($v, ENT_QUOTES, 'UTF-8')",

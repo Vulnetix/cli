@@ -1,6 +1,6 @@
 ---
 title: "VNX-CS-004 – C# Insecure Deserialization: Type-Embedding Formatter or Serializer Setting"
-description: "Detects C# deserialisation through BinaryFormatter, SoapFormatter, NetDataContractSerializer, LosFormatter and ObjectStateFormatter, Json.NET TypeNameHandling without a SerializationBinder, JavaScriptSerializer with a type resolver, and serializers whose root type comes from Type.GetType on data."
+description: "Detects C# deserialisation through BinaryFormatter, SoapFormatter, NetDataContractSerializer, LosFormatter and ObjectStateFormatter, Json.NET TypeNameHandling without a SerializationBinder, JavaScriptSerializer with a type resolver, MessagePack typeless deserialisation, and serializers whose root type comes from Type.GetType on data."
 ---
 
 ## Overview
@@ -41,6 +41,9 @@ var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.
 
 // FLAGGED: JavaScriptSerializer honouring __type
 var js = new JavaScriptSerializer(new SimpleTypeResolver());
+
+// FLAGGED: MessagePack typeless API reads a type name from the payload
+return MessagePackSerializer.Typeless.Deserialize(payload);
 
 // NOT FLAGGED: no type resolver, fixed root type
 var dto = new JavaScriptSerializer().Deserialize<Order>(body);

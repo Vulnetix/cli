@@ -27,7 +27,7 @@ findings contains finding if {
 	some path, content in input.file_contents
 	contains(content, "AIza")
 	not secrets.skip_path(path)
-	not helpers.is_test_path(path)
+	not _test_path(path)
 	lines := split(content, "\n")
 	some i, line in lines
 	contains(line, "AIza")
@@ -45,3 +45,9 @@ findings contains finding if {
 		"snippet": secrets.redact(line),
 	}
 }
+
+# Test code beyond helpers.is_test_path: Jest __mocks__ directories and Xcode
+# test targets (AppTests/, FooTests.swift), which hold fake credentials.
+_test_path(path) if helpers.is_test_path(path)
+
+_test_path(path) if regex.match(`(^|/)(__mocks__|[A-Za-z0-9_]*Tests)/|Tests?\.swift$`, path)

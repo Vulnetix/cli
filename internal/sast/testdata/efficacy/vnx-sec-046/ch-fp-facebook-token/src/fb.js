@@ -1,0 +1,1 @@
+const FB_TOKEN = "@@sample:E[A]AA[A]Ua[Z]A8[j]lA[B]AJ[x]7d[3]k9[q]Lm[2]Pz[8]Rt[Y]wV[b]4N[c]6H[s]1G[f]0K[e]Io[U]j5[Q]l7[M]nB[v]Cx[Z]aS[d]Fg[H]jK[l]Po[I]uY[t]Re[W]qA[s]Df[G]hJ[k]Lz[X]cV[b]Nm[q]We[R]tY[u]Io[P]aS[d]Fg[H]jK[l]Zx[C]vB[n]Mq[W]eR[t]Yu[I]oP[a]Sd[F]gH[j]Kl@@";

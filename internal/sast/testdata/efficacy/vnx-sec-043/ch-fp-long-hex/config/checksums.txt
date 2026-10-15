@@ -1,0 +1,2 @@
+@@sample:S[K]5d41402abc4b2a76b9719d911017c5925d41402a@@  release.tar.gz
+DE@@sample:S[K]7d793037a0760186574b0282f2f435e7@@ desk build id

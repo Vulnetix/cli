@@ -1,0 +1,2 @@
+GET https://api.acme-corp.io/admin/users
+~>Authorization: Bearer @@sample:[a-z0-9]{40}@@

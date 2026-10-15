@@ -1,0 +1,11 @@
+{
+  "name": "internal-tool",
+  "version": "1.0.0",
+  "dependencies": {
+~>    "ua-parser-js": "0.7.29",
+~>    "event-stream": "3.3.6"
+  },
+  "devDependencies": {
+~>    "minimist": "1.2.0"
+  }
+}

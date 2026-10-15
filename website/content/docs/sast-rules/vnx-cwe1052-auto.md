@@ -7,10 +7,11 @@ description: "Detects database, cache and message-broker clients in Go, Java, Ja
 
 VNX-1052 reports a database, cache or broker client that is initialised with a **hard-coded network endpoint**: a non-loopback IP address or a real host name written as a literal ([CWE-1052](https://cwe.mitre.org/data/definitions/1052.html), a hard-coded literal used in initialization). It recognises:
 
-- a connection URI that starts a string literal: `mysql://`, `postgres://`, `mongodb://`, `redis://`, `amqp://`, `jdbc:<driver>://`, `jdbc:oracle:thin:@`;
+- a connection URI that starts a string literal: `mysql://`, `postgres://`, `mongodb://`, `redis://`, `amqp://`, `jdbc:<driver>://`, `jdbc:oracle:thin:@`, including SQLAlchemy driver schemes such as `postgresql+psycopg2://`;
+- a go-sql-driver/mysql DSN, `user@tcp(host:port)/db`;
 - a key=value DSN with `host=` or `server=` (PDO `mysql:host=...`, libpq `host=...`);
-- a `host`/`addr`/`server` field or keyword argument inside a client constructor (`redis.Options{Addr: ...}`, `psycopg2.connect(host=...)`, `mysql.createPool({ host: ... })`);
-- the host as the first argument of `new Jedis`, `new MongoClient`, `new mysqli`, `mysqli_connect`, `redis.Redis`, `grpc.Dial`.
+- a `host`/`addr`/`server` field or keyword argument inside a client constructor (`redis.Options{Addr: ...}`, `psycopg2.connect(host=...)`, `mysql.createPool({ host: ... })`, `pika.ConnectionParameters(host=...)`, a BullMQ `connection: { host: ... }`);
+- the host as the first argument of `new Jedis`, `new MongoClient`, `new mysqli`, `mysqli_connect`, `redis.Redis`, `pika.ConnectionParameters`, phpredis `->connect`/`->pconnect` and Memcached `->addServer`; the second argument of ioredis `new Redis(6379, host)`; an IP literal dialled with `grpc.Dial`.
 
 **Severity:** Low | **CWE:** [CWE-1052](https://cwe.mitre.org/data/definitions/1052.html)
 
@@ -40,7 +41,8 @@ new PDO('mysql:host=10.0.0.21;dbname=shop', $user, $pass); // FLAGGED
 
 - `localhost`, `127.x`, `0.0.0.0`, `::1` and placeholder domains (`example.com`, `.test`, `.invalid`, `.local`).
 - A literal on a line that reads the environment or configuration, where it is only a fallback: `process.env.DB_HOST || 'db.acme.net'`, `os.environ.get("DATABASE_URL", "postgres://...")`.
-- Single-label service names (`host="db"`), a URI inside a longer log message, comments, test files, and host-like values outside a client constructor.
+- Single-label service names (`host="db"`), a URI inside a longer log message or help text, comments, test files, and host-like values outside a client constructor.
+- Plain socket and HTTP endpoints: `net.Dial("udp", "8.8.8.8:80")` (the outbound-address idiom), a gRPC dial to a public API host name (`pubsub.googleapis.com:443`), `requests.get("https://...")`, and `sqlite:///` file paths.
 
 Credentials inside connection strings are reported by the connection-string rules (VNX-SEC-008, VNX-SEC-061).
 

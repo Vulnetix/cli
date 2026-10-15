@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-JAVA-013",
 	"name": "Java XPath injection",
-	"description": "An XPath expression is built from untrusted text and compiled or evaluated: javax.xml.xpath XPath.evaluate/compile (any receiver, in a file that uses XPath), dom4j selectNodes/selectSingleNode/createXPath and Jaxen new DOMXPath/Dom4jXPath/JDOMXPath. Reported when the expression argument (the first argument) is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies), a Spring or JAX-RS annotated handler parameter, or a local assigned from one up to five assignments earlier within 40 lines; and, for repository-style code, when the expression concatenates a String parameter of the enclosing public/protected/private method into a quoted value ('\" + name + \"'), directly or through a local built a few lines above. A call that continues on the next lines is read to the end of its statement. Not reported: expressions that bind values through an XPathVariableResolver ($var), values encoded with ESAPI encodeForXPath or converted to a number, constant expressions, element names concatenated outside quotes, request data used as the document being queried rather than as the expression, Pattern.compile, and sink names in comments or string literals. Flows into another method or file are not followed.",
+	"description": "An XPath expression is built from untrusted text and compiled or evaluated: javax.xml.xpath XPath.evaluate/compile (any receiver, in a file that uses XPath), dom4j selectNodes/selectSingleNode/createXPath and Jaxen new DOMXPath/Dom4jXPath/JDOMXPath. Reported when the expression argument (the first argument) is a servlet request value (getParameter and its wrappers, getHeader, getQueryString, getCookies), a Spring or JAX-RS annotated handler parameter, a for-each variable over a request value (for (Cookie c : req.getCookies())), or a local assigned from one up to five assignments earlier within 40 lines; and, for repository-style code, when the expression concatenates a String parameter of the enclosing public/protected/private method into a quoted value ('\" + name + \"'), directly or through a local built a few lines above. A call that continues on the next lines is read to the end of its statement. Not reported: expressions that bind values through an XPathVariableResolver ($var), values encoded with ESAPI encodeForXPath or converted to a number, constant expressions, element names concatenated outside quotes, request data used as the document being queried rather than as the expression, Pattern.compile, and sink names in comments or string literals. Flows into another method or file are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-java-013/",
 	"languages": ["java"],
 	"severity": "high",
@@ -82,7 +82,15 @@ _seeds(lines, i, assigns) := {a[0] |
 	contains(lines[j], "@")
 	not helpers.is_comment_line(lines[j])
 	some v in _ann_names(lines[j])
+} | {m[1] |
+	# for (Cookie c : req.getCookies()) makes c request data.
+	some j in numbers.range(max([0, i - _window]), i - 1)
+	contains(lines[j], "for")
+	some m in regex.find_all_string_submatch_n(_foreach_src_re, lines[j], 1)
+	_is_src(m[2])
 }
+
+_foreach_src_re := `\bfor\s*\(\s*(?:final\s+)?[\w.<>\[\]]+\s+(\w+)\s*:\s*([^;]*\))\s*\)`
 
 _foreach_re := `\bfor\s*\(\s*(?:final\s+)?[\w.<>\[\]]+\s+(\w+)\s*:\s*(\w+)\s*\)`
 
@@ -181,9 +189,10 @@ _param_concat(lines, i, raw_first, assigns) if {
 	v in ps
 }
 
-_vulnerable(_, _, arg, _, _, t) if {
+_vulnerable(lines, i, arg, _, _, t) if {
 	not regex.match(_sanitizer_re, arg)
 	_reaches(arg, t)
+	not _validated(lines, i, arg, t)
 }
 
 _vulnerable(lines, i, _, raw_first, assigns, _) if _param_concat(lines, i, raw_first, assigns)
@@ -213,5 +222,18 @@ findings contains finding if {
 		"level": metadata.level,
 		"start_line": i + 1,
 		"snippet": line,
+	}
+}
+
+# The value was checked against a pattern or an allowlist a few lines above:
+# if (!id.matches("[0-9]+")) throw ...; ALLOWED.contains(field).
+_validated(lines, i, arg, t) if {
+	refs := {v | some v in t; regex.match(concat("", [`\b`, v, `\b`]), arg)}
+	count(refs) > 0
+	every v in refs {
+		some j in numbers.range(max([0, i - 15]), i - 1)
+		contains(lines[j], v)
+		not helpers.is_comment_line(lines[j])
+		regex.match(concat("", [`\b`, v, `\s*\.\s*matches\s*\(|\bmatcher\s*\(\s*`, v, `\s*\)\s*\.\s*matches\s*\(|\bPattern\s*\.\s*matches\s*\([^;]*\b`, v, `\b|\.\s*contains(?:Key)?\s*\(\s*`, v, `\s*\)`]), lines[j])
 	}
 }

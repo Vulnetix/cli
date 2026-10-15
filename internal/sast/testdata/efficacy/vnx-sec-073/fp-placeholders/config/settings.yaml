@@ -1,0 +1,7 @@
+mirrors:
+  primary: https://user:password@example.com/simple/
+  docs: https://<user>:<password>@registry.acme-corp.io/
+  default: https://username:changeme@nexus.acme-corp.io/
+  masked: https://admin:***@nexus.acme-corp.io/
+  same: https://deploy:deploy@nexus.acme-corp.io/
+  generic: https://ci:xxxxxxxxxxxx@host/

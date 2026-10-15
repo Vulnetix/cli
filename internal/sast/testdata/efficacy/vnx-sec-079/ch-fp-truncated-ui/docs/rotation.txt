@@ -1,0 +1,2 @@
+Tokens are shown once, for example @@sample:g[i]th[u]b[_][p]at[_]11[A]BC[D]E2[Q]0a[B]cD[e]Fg[H]iJ[k]L[_]@@... and
+then only by their prefix @@sample:g[i]th[u]b[_][p]at[_]11[A]BC[D]E2[Q]@@ in the settings list.

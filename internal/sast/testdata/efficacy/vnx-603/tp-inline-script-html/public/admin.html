@@ -1,0 +1,14 @@
+<html>
+<body>
+<input id="password" type="password">
+<script>
+  function check() {
+    const password = document.getElementById('password').value;
+~>    if (password == "letmein") {
+~>      localStorage.setItem('authenticated', '1');
+      location.href = 'admin-panel.html';
+    }
+  }
+</script>
+</body>
+</html>

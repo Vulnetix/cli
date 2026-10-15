@@ -1,6 +1,6 @@
 ---
 title: "VNX-BASH-005 – Hardcoded Secret or Password in Shell Script"
-description: "Reports a literal credential in a shell script or .env file: an assignment to a PASSWORD/SECRET/TOKEN/API_KEY-style name, a literal after a credential flag (--password, mysql -p, sshpass -p, curl -u), or a user:password pair in a connection URL. Placeholders, runtime references and single-word local defaults are not reported."
+description: "Reports a literal credential in a shell script or .env file: an assignment or command-prefix assignment to a PASSWORD/SECRET/TOKEN/API_KEY-style name, a literal Authorization/X-Api-Key header token, a literal after a credential flag (--password, mysql -p, sshpass -p, curl -u, docker login -p, redis-cli -a), or a user:password pair in a connection URL. Placeholders, runtime references and single-word local defaults are not reported."
 ---
 
 ## Overview
@@ -28,6 +28,9 @@ password=hunter2hunter                                  # FLAGGED: bare value
 mysql -u root -pS3cureRootPw app < schema.sql           # FLAGGED
 sshpass -p 'Deploy#Pass77' ssh deploy@web01 uptime      # FLAGGED
 psql "postgresql://app:Sup3rS3cret@db.internal:5432/app"  # FLAGGED
+PGPASSWORD='Hy7Tq2Lx9Pm4' psql -h db -U app             # FLAGGED: command prefix
+docker login -u bot -p Fh92KdxQe7Lm registry.example.com # FLAGGED
+curl -H "Authorization: Bearer <literal token>" ...      # FLAGGED when the token is literal
 ```
 
 Not flagged:

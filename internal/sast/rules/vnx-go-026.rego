@@ -64,6 +64,23 @@ _names_client(lines, fs, i, args) if {
 	regex.match(_word(v), args)
 }
 
+# One more hop: target := path.Join(dir, name), where name holds the client
+# name.
+_names_client(lines, fs, i, args) if {
+	nv := _name_vars(lines, fs, i)
+	count(nv) > 0
+	i - 1 >= fs
+	some k in numbers.range(fs, i - 1)
+	l := lines[k]
+	contains(l, "=")
+	not helpers.is_comment_line(l)
+	some v in nv
+	regex.match(_word(v), substring(l, indexof(l, "=") + 1, -1))
+	d := helpers.assigned_first(l)
+	d != v
+	regex.match(_word(d), args)
+}
+
 _has_upload(lines, fs, i) if {
 	some k in numbers.range(fs, i)
 	regex.match(_upload_re, _code(lines[k]))

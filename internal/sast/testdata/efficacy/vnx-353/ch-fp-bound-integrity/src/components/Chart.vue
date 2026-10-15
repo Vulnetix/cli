@@ -1,0 +1,10 @@
+<template>
+  <div>
+    <component
+      :is="'script'"
+      src="https://cdn.example-charts.io/charts-4.2.0.min.js"
+      :integrity="chartSri"
+      crossorigin="anonymous"
+    />
+  </div>
+</template>

@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-C-001",
 	"name": "Unbounded copy into a buffer (strcpy, strcat, gets, sprintf %s, scanf %s)",
-	"description": "Reports C and C++ calls that copy data of unknown length into a buffer without a size: gets() and _getws() (always); strcpy, stpcpy, strcat, wcscpy, wcpcpy, wcscat, _mbscpy, _mbscat, _tcscpy, _tcscat and lstrcpy/lstrcat (A/W) when the source is not a string literal or an upper-case macro constant; sprintf and wsprintf whose literal format has a %s conversion with no precision, and vsprintf; scanf, fscanf, sscanf and their wide/v forms whose literal format has a %s, %ls or %[ conversion with no field width. Not reported: the bounded APIs (strlcpy, strncpy, snprintf, fgets, gets_s, the _s functions), %.Ns, %Ns, %ms and %*s conversions, a copy whose source length was measured (strlen/wcslen/strnlen of it) or whose destination size was compared in an if/while/assert in the 15 lines above (which covers the malloc(strlen(s) + 1) idiom), a copy between two fields of the same name (dst->errstr from src->errstr), declarations and prototypes, #define redefinitions, method calls named like these functions, string literals and comments.",
+	"description": "Reports C and C++ calls that copy data of unknown length into a buffer without a size: gets() and _getws() (always); strcpy, stpcpy, strcat, wcscpy, wcpcpy, wcscat, _mbscpy, _mbscat, _tcscpy, _tcscat and lstrcpy/lstrcat (A/W) when the source is not a string literal, an upper-case macro constant, or a const array or const pointer initialised from a literal in the same file; sprintf and wsprintf whose literal format has a %s conversion with no precision, and vsprintf; scanf, fscanf, sscanf and their wide/v forms whose literal format has a %s, %ls or %[ conversion with no field width. Not reported: the bounded APIs (strlcpy, strncpy, snprintf, fgets, gets_s, the _s functions), %.Ns, %Ns, %ms and %*s conversions, a copy whose source length was measured (strlen/wcslen/strnlen of it) or whose destination size was compared in an if/while/assert in the 15 lines above (which covers the malloc(strlen(s) + 1) idiom), a copy between two fields of the same name (dst->errstr from src->errstr), declarations and prototypes, #define redefinitions, method calls named like these functions, string literals and comments.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-c-001/",
 	"languages": ["c", "cpp"],
 	"severity": "high",
@@ -220,6 +220,16 @@ _any_measured(lines, i, args) if {
 	_guarded(lines, i, "\u0000", a)
 }
 
+# strcpy(label, kDefault) where kDefault is a const array or const pointer
+# initialised from a literal in this file: its length is fixed and known.
+_named_literal_copy(content, fn, call) if {
+	fn in _copy_fns
+	args := _args(call)
+	count(args) >= 2
+	regex.match(`^[A-Za-z_]\w*$`, args[1])
+	regex.match(concat("", [`\bconst\s+(?:char|wchar_t|TCHAR)\s+(?:\*\s*const\s+)?`, args[1], `\s*(?:\[\s*\])?\s*=\s*(?:L|u8|u|U|_T\(|TEXT\()?\s*"`]), content)
+}
+
 # ── Verdicts ─────────────────────────────────────────────────────────────
 
 _issue(fn, _, _, _) := "gets() reads a line of unlimited length into a fixed buffer and cannot be used safely; use fgets(buf, sizeof buf, stdin)" if fn in _gets_fns
@@ -268,7 +278,9 @@ findings contains finding if {
 	m := regex.find_all_string_submatch_n(_call_re, _mask(line), 1)
 	count(m) > 0
 	_call_prefix_ok(m[0][1])
-	msg := _issue(m[0][2], _call_text(lines, i, m[0][3]), lines, i)
+	call := _call_text(lines, i, m[0][3])
+	msg := _issue(m[0][2], call, lines, i)
+	not _named_literal_copy(content, m[0][2], call)
 	not _in_block_comment(lines, i)
 	finding := {
 		"rule_id": metadata.id,

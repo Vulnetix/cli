@@ -17,7 +17,7 @@ In more severe cases, polluting properties used by template engines, module load
 
 ## What Gets Flagged
 
-A deep merge or path assignment with an argument from the request (`req.body`, `req.query`, `req.params`, `ctx.request.body`, `event.body`, `location.hash`...), directly or through a variable assigned from one in the 15 lines above:
+A deep merge or path assignment with an argument from the request (`req.body`, `req.query`, `req.params`, `await request.json()`, `ctx.request.body`, `event.body`, `location.hash`...), directly or through a variable assigned from one in the 15 lines above:
 
 ```javascript
 // FLAGGED
@@ -33,6 +33,10 @@ lodash.set(doc, req.query.path, req.query.value);
 // FLAGGED: imported deep-merge functions
 import deepmerge from "deepmerge";
 return deepmerge(defaults, req.body);
+
+// FLAGGED: a fetch-style request body (Next.js route handler)
+const patch = await request.json();
+const next = merge(current, patch);
 ```
 
 Not flagged: merges of constants or configuration files, `Object.assign({}, req.body)` and spread (shallow copies do not reach the prototype), arguments filtered through `_.pick(...)`, code that checks for `__proto__`/`constructor` keys in the 10 lines before the call, `_.get`, and `merge` methods of other objects (Immutable maps, wysihtml). Hand-written recursive merge functions are not analysed.

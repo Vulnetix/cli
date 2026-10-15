@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.acme.vault">
+    <permission android:name="com.acme.vault.permission.INTERNAL" android:protectionLevel="signature" />
+    <application
+        android:label="Vault"
+        android:permission="com.acme.vault.permission.INTERNAL">
+        <service android:name=".SyncService" android:exported="true" />
+        <receiver
+            android:name=".TokenReceiver"
+            android:exported="true" />
+    </application>
+</manifest>

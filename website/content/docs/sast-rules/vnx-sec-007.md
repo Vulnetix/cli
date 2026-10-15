@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-007 – Slack Token or Webhook"
-description: "Detects hardcoded Slack bot/user/app tokens (xoxb-, xoxp-, xoxa-) and webhook URLs in source code, which grant access to Slack workspaces and channels."
+description: "Reports a hard-coded Slack token (xoxb-, xoxp-, xoxa-, xoxo-, xoxr-, xoxs- with a numeric id) or incoming-webhook/workflow URL in any file, excluding Slack's documented example webhook, placeholders, configured base URLs, environment references and test files."
 ---
 
 ## Overview
@@ -24,20 +24,26 @@ Token types by prefix:
 
 ## What Gets Flagged
 
+A Slack bot, user, workspace, refresh or legacy token (`xoxb-`, `xoxp-`, `xoxa-`, `xoxo-`, `xoxr-`, `xoxs-` followed by a numeric team or user id and a secret segment), and an incoming-webhook or workflow URL (`https://hooks.slack.com/services/T.../B.../<secret>`, `/workflows/T.../A.../<id>/<secret>`, `/triggers/T.../<id>/<secret>`).
+
 ```python
-# FLAGGED: Slack bot token hardcoded (example pattern for testing)
-from slack_sdk import WebClient
-
-client = WebClient(token="xoxb-EXAMPLE-REDACTED")  # Test pattern, not real token
-response = client.chat_postMessage(channel='#general', text='Hello!')
+# FLAGGED: bot token passed to the SDK
+client = WebClient(token="xoxb-<team id>-<user id>-<secret>")
 ```
 
-```bash
-# FLAGGED: webhook URL in shell script (example pattern for testing)
-curl -X POST -H 'Content-type: application/json' \
-  --data '{"text":"Deploy complete"}' \
-  https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX  # Test pattern, not real URL
+```go
+// FLAGGED: webhook URL in a constant
+const alertWebhook = "https://hooks.slack.com/services/T<id>/B<id>/<secret>"
 ```
+
+Not flagged:
+
+- Slack's documented example webhook (`T00000000/B00000000/XXXXXXXX...`) and other placeholder runs.
+- Tokens without a numeric id (`xoxb-your-token`).
+- A webhook base URL with no secret segment, built from configuration.
+- Prefix lists, environment references (`os.environ["SLACK_BOT_TOKEN"]`), and test, fixture, vendored and generated files.
+
+Configuration-refresh (`xoxe-`) and app-level (`xapp-`) tokens are VNX-SEC-419/420/421.
 
 ## Remediation
 

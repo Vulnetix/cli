@@ -1,0 +1,3 @@
+FROM debian:bookworm-slim
+~>ADD ["https://dl.example.com/sdk/sdk-9.zip", "/opt/sdk.zip"]
+~>add --link https://dl.example.com/cfg/default.yaml /etc/app/

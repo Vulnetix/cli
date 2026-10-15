@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-BASH-005",
 	"name": "Hardcoded secret or password in shell script",
-	"description": "Reports a literal credential written into a shell script or .env file: an assignment (NAME=value, export/local/readonly/declare NAME=value, quoted or bare) whose name ends in PASSWORD, PASSWD, _PASS, SECRET, SECRET_KEY, TOKEN, API_KEY, APIKEY, PRIVATE_KEY or ACCESS_KEY (any case); a literal passed to a credential flag (--password, --passwd, --token, --api-key, --client-secret, mysql -pVALUE, sshpass -p, curl -u user:VALUE); and a user:password@ pair inside a connection URL. The reported snippet has the value masked. Not reported: values that reference a variable, command substitution or backtick, empty values, values shorter than 16 characters drawn from a single character class (postgres, efficacy: local defaults rather than provisioned secrets), placeholders (changeme, your-..., <...>, xxxx, REPLACE_ME, dummy, example, test, password, secret), file paths and URLs held in the variable, values naming an environment variable, numbers and booleans, names that only contain a keyword (PASSWORD_FILE, TOKEN_URL, MAX_TOKENS), --password-stdin, comments, echo/printf text, here-document bodies, test paths, and .env.example/.sample/.template files. Shell files are .sh, .bash, .bats, .ksh, .zsh, extensionless files with a shell shebang, and .env, .envrc and .env.production/staging/local/dev files.",
+	"description": "Reports a literal credential written into a shell script or .env file: an assignment (NAME=value, export/local/readonly/declare NAME=value, quoted or bare) or a command-prefix assignment (PGPASSWORD='...' psql) whose name ends in PASSWORD, PASSWD, _PASS, _PWD, SECRET, SECRET_KEY, TOKEN, API_KEY, APIKEY, PRIVATE_KEY or ACCESS_KEY (any case); a literal passed to a credential flag (--password, --passwd, --token, --api-key, --client-secret, mysql -pVALUE, sshpass -p, curl -u user:VALUE, docker/podman/helm login -p, redis-cli -a); a literal token in an Authorization: Bearer/token/Basic, X-Api-Key, Api-Key, Private-Token or X-Auth-Token header; and a user:password@ pair inside a connection URL. The reported snippet has the value masked. Not reported: values that reference a variable, command substitution or backtick, empty values, values shorter than 16 characters drawn from a single character class (postgres, efficacy: local defaults rather than provisioned secrets), placeholders (changeme, your-..., <...>, xxxx, REPLACE_ME, dummy, example, test, password, secret), file paths and URLs held in the variable, values naming an environment variable, numbers and booleans, names that only contain a keyword (PASSWORD_FILE, TOKEN_URL, MAX_TOKENS), --password-stdin, comments, echo/printf text, here-document bodies, test paths, and .env.example/.sample/.template files. Shell files are .sh, .bash, .bats, .ksh, .zsh, extensionless files with a shell shebang, and .env, .envrc and .env.production/staging/local/dev files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-bash-005/",
 	"languages": ["bash", "shell"],
 	"severity": "high",
@@ -42,7 +42,7 @@ _comment(line) if startswith(trim_space(line), "#")
 
 # ── Shapes ──────────────────────────────────────────────────────────────
 
-_name_kw := `(?:[A-Za-z0-9_]*(?:PASSWORD|PASSWD|_PASS|SECRET|SECRET_KEY|SECRET_ACCESS_KEY|TOKEN|API_?KEY|PRIVATE_KEY|ACCESS_KEY)|PASS)`
+_name_kw := `(?:[A-Za-z0-9_]*(?:PASSWORD|PASSWD|_PASS|_PWD|SECRET|SECRET_KEY|SECRET_ACCESS_KEY|TOKEN|API_?KEY|PRIVATE_KEY|ACCESS_KEY)|PASS)`
 
 # NAME=value at the start of a statement; the value quoted or bare.
 _assign_re := concat("", [
@@ -61,13 +61,27 @@ _curl_user_re := `\bcurl\b.*\s(?:-u|--user)(?:\s+|=)["']?[^\s:"'$]+:([^\s"'@]+)[
 
 _url_re := `[a-z][a-z0-9+.-]*://[^:/\s@"'$]+:([^@\s"'/]+)@`
 
+# NAME=value as a command prefix: PGPASSWORD='...' psql, env MYSQL_PWD=... mysql.
+_prefix_re := concat("", [
+	`^\s*(?:env\s+(?:-\S+\s+)*)?(?:[A-Za-z_]\w*=\S*\s+)*(?i:`, _name_kw,
+	`)=("[^"]*"|'[^']*'|[^\s;#'"]+)\s+[A-Za-z./]`,
+])
+
+# A literal token in an HTTP authentication header.
+_auth_re := `(?i)\b(?:authorization:\s*(?:bearer|token|basic)|x-api-key:|api-key:|private-token:|x-auth-token:)\s*([^\s"'$\\]+)`
+
+# docker/podman/helm login -p VALUE, redis-cli -a VALUE.
+_login_re := `\b(?:docker|podman|nerdctl|buildah|helm(?:\s+registry)?|oras)\s+login\b.*\s-p(?:\s+|=)("[^"]*"|'[^']*'|[^\s;'"-][^\s;]*)`
+
+_redis_re := `\bredis-cli\b.*\s-a\s+("[^"]*"|'[^']*'|[^\s;'"-][^\s;]*)`
+
 _value(line, re) := v if {
 	m := regex.find_all_string_submatch_n(re, line, 1)
 	count(m) > 0
 	v := m[0][1]
 }
 
-_all_res := [_assign_re, _flag_re, _mysql_re, _sshpass_re, _curl_user_re, _url_re]
+_all_res := [_assign_re, _flag_re, _mysql_re, _sshpass_re, _curl_user_re, _url_re, _prefix_re, _auth_re, _login_re, _redis_re]
 
 _cands(line) := {v |
 	some re in _all_res
@@ -158,7 +172,7 @@ _docs(content, lines) := _heredocs(lines) if contains(content, "<<")
 
 _docs(content, _) := [] if not contains(content, "<<")
 
-_prefilter := `(?i)pass|mysql|curl\b.*\s(-u|--user)|secret|token|api_?key|private_key|access_key|sshpass|://[^:/\s@]+:[^@\s]+@`
+_prefilter := `(?i)pass|_pwd|authorization:|api-key:|private-token:|auth-token:|\slogin\s.*\s-p|redis-cli|mysql|curl\b.*\s(-u|--user)|secret|token|api_?key|private_key|access_key|sshpass|://[^:/\s@]+:[^@\s]+@`
 
 findings contains finding if {
 	some path, content in input.file_contents

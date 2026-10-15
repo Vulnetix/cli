@@ -1,0 +1,2 @@
+url: redis://redis.acme.internal:6379/0
+url2: redis://cache:6379

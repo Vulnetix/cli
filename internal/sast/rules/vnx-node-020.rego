@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-020",
 	"name": "Deprecated crypto.createCipher/createDecipher without IV",
-	"description": "Node's crypto.createCipher() or crypto.createDecipher() is called. Both derive the key and IV from the password with a single unsalted MD5 pass (EVP_BytesToKey), so every message encrypted under one password uses the same IV: CTR, GCM and CCM lose confidentiality and integrity outright, and CBC leaks equal prefixes. Both were deprecated in Node 10 and removed in Node 22. Reported, in JavaScript and TypeScript: the call through crypto or any name bound to the crypto/node:crypto module (require, default or namespace import), require('crypto').createCipher(...) inline, and createCipher/createDecipher imported from it by name (including an `as` alias). Not reported: createCipheriv()/createDecipheriv(), node-forge's forge.cipher.createCipher() (which takes its IV in start()), a method or function of the same name defined in the program, comments and string literals. Use createCipheriv() with a key from scrypt/pbkdf2 and a random IV from crypto.randomBytes().",
+	"description": "Node's crypto.createCipher() or crypto.createDecipher() is called. Both derive the key and IV from the password with a single unsalted MD5 pass (EVP_BytesToKey), so every message encrypted under one password uses the same IV: CTR, GCM and CCM lose confidentiality and integrity outright, and CBC leaks equal prefixes. Both were deprecated in Node 10 and removed in Node 22. Reported, in JavaScript and TypeScript: the call through crypto or any name bound to the crypto/node:crypto module (require, default or namespace import), including a member access continued on the next line (nodeCrypto on one line, .createCipher(...) on the next), require('crypto').createCipher(...) inline, and createCipher/createDecipher imported from it by name (including an `as` alias). Not reported: createCipheriv()/createDecipheriv(), node-forge's forge.cipher.createCipher() (which takes its IV in start()), a method or function of the same name defined in the program, comments and string literals. Use createCipheriv() with a key from scrypt/pbkdf2 and a random IV from crypto.randomBytes().",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-020/",
 	"languages": ["javascript", "typescript"],
 	"severity": "high",
@@ -84,6 +84,32 @@ findings contains finding if {
 	not helpers.is_comment_line(line)
 	not _definition(line)
 	regex.match(re, _strip_except_crypto(line))
+	finding := {
+		"rule_id": metadata.id,
+		"message": "crypto.createCipher()/createDecipher() derive the key and IV from the password with one MD5 pass, so every message reuses the same IV; use createCipheriv()/createDecipheriv() with a random IV from crypto.randomBytes()",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+# The member access continues on the next line: nodeCrypto
+#     .createCipher(...)
+findings contains finding if {
+	some path, content in input.file_contents
+	_is_js(path)
+	not endswith(path, ".min.js")
+	regex.match(`(?m)^\s*\.\s*create(?:Cipher|Decipher)\s*\(`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	i > 0
+	regex.match(`^\s*\.\s*create(?:Cipher|Decipher)\s*\(`, line)
+	prev := _strip_except_crypto(lines[i - 1])
+	not helpers.is_comment_line(lines[i - 1])
+	some a in _aliases(lines) | {"__REQ_CRYPTO__"}
+	regex.match(concat("", [`\b`, a, `\s*$`]), prev)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "crypto.createCipher()/createDecipher() derive the key and IV from the password with one MD5 pass, so every message reuses the same IV; use createCipheriv()/createDecipheriv() with a random IV from crypto.randomBytes()",

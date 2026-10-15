@@ -1,0 +1,7 @@
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+~>      DOPPLER_TOKEN: "dp.pt.@@sample:[A-Za-z0-9]{43}@@"
+    steps:
+      - run: doppler secrets download --no-file

@@ -64,9 +64,13 @@ app.register(mercurius, { schema, resolvers, allowBatchedQueries: true });
 ```python
 # FLAGGED: batch=True on a GraphQLView (or a subclass's) as_view()
 app.add_url_rule('/graphql', view_func=GraphQLView.as_view('graphql', schema=schema, batch=True))
+
+# FLAGGED: batch = True as a class attribute of a GraphQLView subclass
+class BatchedGraphQLView(GraphQLView):
+    batch = True
 ```
 
-Not flagged: `false` or an environment-derived value, bounded batching (`batching: { limit: 5 }`), `batching: true` on a non-GraphQL object, and test files. A missing depth or complexity limit is not reported: it cannot be judged from one file.
+Not flagged: `false` or an environment-derived value, bounded batching (`batching: { limit: 5 }`), `batching: true` on a non-GraphQL object or nested in another key (`transport: { batching: true }`), `DataLoader(fn, batch=True)` beside a view, and test files. A missing depth or complexity limit is not reported: it cannot be judged from one file.
 
 ## Remediation
 

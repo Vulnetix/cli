@@ -7,7 +7,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-SEC-007",
 	"name": "Slack token or webhook",
-	"description": "Reports a hard-coded Slack credential in any file: a bot, user, workspace, refresh or legacy token (xoxb-, xoxp-, xoxa-, xoxo-, xoxr-, xoxs- followed by a numeric team/user id and a secret segment) and an incoming-webhook or workflow URL (https://hooks.slack.com/services|workflows|triggers/T…/B…/<secret>). Not reported: Slack's documented example webhook (T00000000/B00000000/XXXX…) and other placeholder runs, tokens without a numeric id (xoxb-your-token), a webhook base URL built from configuration, prefix lists, environment references, and test, fixture, vendored and generated files. Configuration-refresh (xoxe-) and app-level (xapp-) tokens are VNX-SEC-419/420/421.",
+	"description": "Reports a hard-coded Slack credential in any file: a bot, user, workspace, refresh or legacy token (xoxb-, xoxp-, xoxa-, xoxo-, xoxr-, xoxs- followed by a numeric team/user id and a secret segment) and an incoming-webhook or workflow URL (https://hooks.slack.com/services/T…/B…/<secret>, /workflows/T…/A…/<id>/<secret>, /triggers/T…/<id>/<secret>). Not reported: Slack's documented example webhook (T00000000/B00000000/XXXX…) and other placeholder runs, tokens without a numeric id (xoxb-your-token), a webhook base URL built from configuration, prefix lists, environment references, and test, fixture, vendored and generated files. Configuration-refresh (xoxe-) and app-level (xapp-) tokens are VNX-SEC-419/420/421.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-007/",
 	"languages": [],
 	"severity": "high",
@@ -23,13 +23,13 @@ metadata := {
 
 _token := `(?:^|[^A-Za-z0-9_-])(xox[abposr]-[0-9]{8,14}-[0-9A-Za-z-]{20,})`
 
-_webhook := `https://hooks\.slack\.com/(?:services|workflows|triggers)/(T[A-Z0-9]{8,12})/(B[A-Z0-9]{8,12}|[0-9]{8,14})/([A-Za-z0-9]{20,})`
+_webhook := `https://hooks\.slack\.com/(?:services|workflows|triggers)/(T[A-Z0-9]{8,12})/(B[A-Z0-9]{8,12}|A[A-Z0-9]{8,12}/[0-9]{8,20}|[0-9]{8,14})/([A-Za-z0-9]{20,})`
 
 findings contains finding if {
 	some path, content in input.file_contents
 	regex.match(`xox[abposr]-[0-9]{8}`, content)
 	not secrets.skip_path(path)
-	not helpers.is_test_path(path)
+	not _test_path(path)
 	lines := split(content, "\n")
 	some i, line in lines
 	contains(line, "xox")
@@ -52,7 +52,7 @@ findings contains finding if {
 	some path, content in input.file_contents
 	contains(content, "hooks.slack.com/")
 	not secrets.skip_path(path)
-	not helpers.is_test_path(path)
+	not _test_path(path)
 	lines := split(content, "\n")
 	some i, line in lines
 	contains(line, "hooks.slack.com/")
@@ -70,3 +70,9 @@ findings contains finding if {
 		"snippet": secrets.redact(line),
 	}
 }
+
+# Test code beyond helpers.is_test_path: Jest __mocks__ directories and Xcode
+# test targets (AppTests/, FooTests.swift), which hold fake credentials.
+_test_path(path) if helpers.is_test_path(path)
+
+_test_path(path) if regex.match(`(^|/)(__mocks__|[A-Za-z0-9_]*Tests)/|Tests?\.swift$`, path)

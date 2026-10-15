@@ -1,0 +1,9 @@
+name: plan
+on: pull_request
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    env:
+~>      ARM_ACCESS_KEY: "@@sample:[A-Za-z0-9+/]{86}@@=="
+    steps:
+      - run: terraform init && terraform plan

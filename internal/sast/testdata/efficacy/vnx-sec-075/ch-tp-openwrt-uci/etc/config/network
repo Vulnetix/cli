@@ -1,0 +1,9 @@
+config interface 'wg0'
+	option proto 'wireguard'
+~>	option private_key '@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@'
+	list addresses '10.9.0.2/24'
+
+config wireguard_wg0
+	option description 'hq'
+	option endpoint_host 'vpn.acme-corp.io'
+~>	option preshared_key '@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@'

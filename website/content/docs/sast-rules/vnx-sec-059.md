@@ -1,13 +1,33 @@
 ---
 title: "VNX-SEC-059 – Linear API Key"
-description: "Detects Linear API keys (lin_api_ prefix) hardcoded in source code."
+description: "Reports a hard-coded Linear personal API key (lin_api_ + 40 alphanumerics) or OAuth access token (lin_oauth_ + 64 hex), but not bare prefixes, placeholders, lookalike identifiers or keys read from the environment."
 ---
 
 ## Overview
 
-This rule detects linear api key matching the `lin_api_...` pattern hardcoded anywhere in source files. Detects Linear API keys (lin_api_ prefix) hardcoded in source code.
+This rule reports a Linear credential written into a file: a personal API key (`lin_api_` + 40 alphanumerics) or an OAuth access token (`lin_oauth_` + 64 hex), standing alone rather than inside a longer identifier and with enough entropy to be real. The snippet is redacted.
+
+It does not report bare prefixes in a prefix check, placeholder bodies (`xxxx`, `YOUR_KEY_HERE`), identifiers that merely begin `lin_api_`, keys read from the environment, or test, fixture and vendored paths.
 
 **Severity:** Critical | **CWE:** [CWE-798 – Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
+
+## What Gets Flagged
+
+```typescript
+// FLAGGED: API key passed to the SDK
+export const linear = new LinearClient({ apiKey: "lin_api_<40 alphanumerics>" });
+```
+
+```yaml
+# FLAGGED: OAuth token in a workflow
+env:
+  LINEAR_TOKEN: lin_oauth_<64 hex>
+```
+
+```typescript
+// NOT FLAGGED: read from the environment
+export const linear = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+```
 
 ## Why This Matters
 

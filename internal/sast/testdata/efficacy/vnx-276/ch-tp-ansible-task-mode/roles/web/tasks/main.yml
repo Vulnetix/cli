@@ -1,0 +1,16 @@
+---
+- name: Create the upload directory
+  ansible.builtin.file:
+    path: /var/www/uploads
+    state: directory
+    owner: www-data
+~>    mode: '0777'
+
+- name: Install the shared cache file
+  copy:
+    src: cache.db
+    dest: /var/cache/app/cache.db
+~>    mode: 0666
+
+- name: Open the spool
+~>  file: path=/var/spool/app state=directory mode=0777

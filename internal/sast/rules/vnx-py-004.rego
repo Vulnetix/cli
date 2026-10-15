@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PY-004",
 	"name": "yaml.load() without SafeLoader",
-	"description": "PyYAML is asked to construct arbitrary Python objects from a document: yaml.unsafe_load()/unsafe_load_all(), or yaml.load()/load_all() whose Loader (keyword or second positional argument, read across a call broken over several lines) is Loader, UnsafeLoader, CLoader or CUnsafeLoader, or is missing (PyYAML before 5.1 then used the unsafe loader, and 5.1 to 5.4 defaulted to FullLoader, which had code-execution bypasses; 6.0 rejects the call). A !!python/object tag in such a document runs code. Not reported: yaml.safe_load()/safe_load_all(), SafeLoader, CSafeLoader, BaseLoader and CBaseLoader, FullLoader and full_load() (code-execution-free since PyYAML 5.4), a custom loader class whose safety cannot be read from its name, ruamel.yaml and other objects' .load() methods (YAML().load, self.yaml.load), and the names in comments or string literals.",
+	"description": "PyYAML is asked to construct arbitrary Python objects from a document: yaml.unsafe_load()/unsafe_load_all(), or yaml.load()/load_all() (through the module, an `import yaml as y` alias or a name imported with `from yaml import load`) whose Loader (keyword or second positional argument, read across a call broken over several lines) is Loader, UnsafeLoader, CLoader or CUnsafeLoader, or is missing (PyYAML before 5.1 then used the unsafe loader, and 5.1 to 5.4 defaulted to FullLoader, which had code-execution bypasses; 6.0 rejects the call). A !!python/object tag in such a document runs code. Not reported: yaml.safe_load()/safe_load_all(), SafeLoader, CSafeLoader, BaseLoader and CBaseLoader, FullLoader and full_load() (code-execution-free since PyYAML 5.4), a custom loader class whose safety cannot be read from its name, ruamel.yaml and other objects' .load() methods (YAML().load, self.yaml.load), and the names in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-py-004/",
 	"languages": ["python"],
 	"severity": "high",
@@ -23,8 +23,41 @@ metadata := {
 
 _code(line) := regex.replace(regex.replace(line, `"(\\.|[^"\\])*"`, `""`), `'(\\.|[^'\\])*'`, `''`)
 
-# The module function, not a method of another object (self.yaml.load).
-_call_re := `(?:^|[^\w.])yaml\.(load|load_all|unsafe_load|unsafe_load_all)\s*\((.*)$`
+_fn_names := {"load", "load_all", "unsafe_load", "unsafe_load_all"}
+
+# `import yaml as y`
+_aliases(content) := {m[1] |
+	some m in regex.find_all_string_submatch_n(`(?m)^\s*import\s+yaml\s+as\s+(\w+)`, content, -1)
+}
+
+# `from yaml import load, unsafe_load as ul` -> {"load": "load", "ul": "unsafe_load"}
+_from_names(content) := {alias: ws[0] |
+	some m in regex.find_all_string_submatch_n(`(?m)^\s*from\s+yaml\s+import\s+\(?([^\n)#]+)`, content, -1)
+	some part in split(m[1], ",")
+	ws := regex.split(`\s+as\s+`, trim_space(part))
+	ws[0] in _fn_names
+	alias := ws[count(ws) - 1]
+}
+
+# The module function (through the module, an alias or an imported name),
+# not a method of another object (self.yaml.load).
+_call_re(content) := re if {
+	mods := concat("|", array.concat(["yaml"], [a | some a in _aliases(content)]))
+	bare := [concat("", [`(`, a, `)`]) | some a, _ in _from_names(content)]
+	alts := array.concat([concat("", [`(?:`, mods, `)\.(load_all|load|unsafe_load_all|unsafe_load)`])], bare)
+	re := concat("", [`(?:^|[^\w.])(?:`, concat("|", alts), `)\s*\((.*)$`])
+}
+
+# The function a match names (the last group is the argument text).
+_fn_of(m, names) := f if {
+	some k in numbers.range(1, count(m) - 2)
+	m[k] != ""
+	f := _resolve(m[k], names)
+}
+
+_resolve(name, _) := name if name in _fn_names
+
+_resolve(name, names) := names[name] if not name in _fn_names
 
 _unsafe_loaders := {"Loader", "UnsafeLoader", "CLoader", "CUnsafeLoader"}
 
@@ -93,16 +126,19 @@ _message(fn) := "yaml.load() without a safe Loader can construct arbitrary Pytho
 findings contains finding if {
 	some path, content in input.file_contents
 	endswith(path, ".py")
-	contains(content, "yaml.")
-	regex.match(`(?m)(?:^|[^\w.])yaml\.(?:unsafe_)?load`, content)
+	contains(content, "yaml")
+	contains(content, "load")
+	re := _call_re(content)
+	regex.match(concat("", ["(?m)", re]), content)
+	names := _from_names(content)
 	lines := split(content, "\n")
 	some i, line in lines
-	contains(line, "yaml.")
+	contains(line, "load")
 	not helpers.is_comment_line(line)
-	m := regex.find_all_string_submatch_n(_call_re, _code(line), 1)
+	m := regex.find_all_string_submatch_n(re, _code(line), 1)
 	count(m) > 0
-	fn := m[0][1]
-	args := _call_text(lines, i, m[0][2])
+	fn := _fn_of(m[0], names)
+	args := _call_text(lines, i, m[0][count(m[0]) - 1])
 	_unsafe(fn, args)
 	finding := {
 		"rule_id": metadata.id,

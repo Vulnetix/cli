@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tomcat-users xmlns="http://tomcat.apache.org/xml" version="1.0">
+<!--
+  <role rolename="tomcat"/>
+  <user username="tomcat" password="s3cret" roles="tomcat"/>
+  <user username="both" password="b0thUs3r" roles="tomcat,role1"/>
+-->
+  <user username="ops" password="${env.OPS_PASSWORD}" roles="manager-gui"/>
+</tomcat-users>

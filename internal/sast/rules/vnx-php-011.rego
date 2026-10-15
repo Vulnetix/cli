@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-PHP-011",
 	"name": "PHP SQL injection via string concatenation",
-	"description": "User input is concatenated or interpolated into the SQL text handed to a query API. Sinks: mysql_query(), mysqli_query(), mysqli_multi_query(), mysqli_real_query(), pg_query(), pg_send_query(), sqlite_query(), the ->query(), ->exec(), ->multi_query(), ->real_query() and ->prepare() methods (PDO, mysqli, SQLite3), Laravel DB::select/insert/update/delete/statement/unprepared/raw() and the ->whereRaw()/selectRaw()/orderByRaw()/havingRaw()/groupByRaw() builders. User input is a $_GET/$_POST/$_REQUEST/$_COOKIE/$_SERVER/$_FILES element or a Laravel $request->input()/get()/query()/post()/cookie()/header() or request('x') value, appearing in the call's arguments (on the call line or the next two lines of a call broken across lines), through a variable assigned from it within the 25 lines above, or through a query string built from such a variable (assigned or appended with .=) within the same window. Not reported: placeholders with bound parameters (prepare/execute, bind_param, pg_query_params, DB::select with bindings), values passed through intval()/(int)/floatval(), mysqli_real_escape_string(), pg_escape_string/literal(), addslashes() or ->quote(), a value checked with is_numeric()/ctype_digit()/is_int() or a digits-only preg_match() in the same window, user input inside a single-quoted literal (which PHP does not interpolate), constant queries, and the call inside a comment or a string. Escaping that is ineffective because the value is not quoted in the SQL (a numeric context) is deliberately not distinguished.",
+	"description": "User input is concatenated or interpolated into the SQL text handed to a query API. Sinks: mysql_query(), mysqli_query(), mysqli_multi_query(), mysqli_real_query(), pg_query(), pg_send_query(), sqlite_query(), the ->query(), ->exec(), ->multi_query(), ->real_query() and ->prepare() methods (PDO, mysqli, SQLite3), WordPress $wpdb->get_results()/get_row()/get_var()/get_col(), Laravel DB::select/insert/update/delete/statement/unprepared/raw() and the ->whereRaw()/selectRaw()/orderByRaw()/havingRaw()/groupByRaw() builders. User input is a $_GET/$_POST/$_REQUEST/$_COOKIE/$_FILES element, a client-controlled $_SERVER key (HTTP_* headers, PHP_SELF, REQUEST_URI, QUERY_STRING, PATH_INFO, PHP_AUTH_*; not REMOTE_ADDR or SCRIPT_NAME), or a Laravel $request->input()/get()/query()/post()/cookie()/header() or request('x') value, appearing in the call's arguments (on the call line or the next two lines of a call broken across lines), through a variable assigned from it within the 40 lines above, or through a query string built from such a variable (assigned or appended with .=, including a concatenation continued over up to five lines) within the 25 lines above the call. Not reported: placeholders with bound parameters (prepare/execute, bind_param, pg_query_params, DB::select with bindings), values passed through intval()/(int)/floatval(), mysqli_real_escape_string(), pg_escape_string/literal(), addslashes() or ->quote(), a value checked with is_numeric()/ctype_digit()/is_int() or a digits-only preg_match() in the same window, user input inside a single-quoted literal (which PHP does not interpolate), constant queries, and the call inside a comment or a string. Escaping that is ineffective because the value is not quoted in the SQL (a numeric context) is deliberately not distinguished.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-011/",
 	"languages": ["php"],
 	"severity": "critical",
@@ -25,13 +25,15 @@ _proc_re := `(?i)\b(mysql_query|mysqli_query|mysqli_multi_query|mysqli_real_quer
 
 # Methods and builders whose first argument is the SQL; later arguments are
 # bindings or fetch modes and are not SQL text.
-_method_re := `(?i)(->(query|exec|multi_query|real_query|prepare)|\bDB::(select|insert|update|delete|statement|unprepared|raw)|(->|::)(whereRaw|selectRaw|orderByRaw|havingRaw|groupByRaw))\s*\(`
+_method_re := `(?i)(->(query|exec|multi_query|real_query|prepare|get_results|get_row|get_var|get_col)|\bDB::(select|insert|update|delete|statement|unprepared|raw)|(->|::)(whereRaw|selectRaw|orderByRaw|havingRaw|groupByRaw))\s*\(`
 
 _sink_re := concat("|", [_proc_re, _method_re])
 
 _gate_re := `(?i)(mysqli?_|pg_(send_)?query|sqlite_query|->(query|exec|multi_query|real_query|prepare|\w+Raw)\s*\(|DB::)`
 
-_source_re := `\$_(GET|POST|REQUEST|COOKIE|SERVER|FILES)\b|\$request->(input|get|query|post|cookie|header)\s*\(|\brequest\s*\(\s*['"]`
+# $_SERVER counts only for the keys a client controls (request headers, the
+# URL, the HTTP auth credentials), not REMOTE_ADDR or DOCUMENT_ROOT.
+_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"]?(HTTP_\w+|PHP_SELF|REQUEST_URI|QUERY_STRING|PATH_INFO|ORIG_PATH_INFO|PHP_AUTH_USER|PHP_AUTH_PW)\b|\$request->(input|get|query|post|cookie|header)\s*\(|\brequest\s*\(\s*['"]`
 
 _sanitizer_re := `(?i)(\(\s*(int|integer|float|double|bool)\s*\)\s*\$[\w\[\]'"\->]+|\b(intval|floatval|boolval|abs|mysqli_real_escape_string|mysql_real_escape_string|mysql_escape_string|pg_escape_string|pg_escape_literal|pg_escape_identifier|sqlite_escape_string|addslashes|count|sizeof|strlen|is_numeric|ctype_digit|md5|sha1|password_hash|json_encode)\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)|->(quote|escape|real_escape_string|escape_string)\s*\((?:[^()]|\([^()]*\))*\))`
 
@@ -41,7 +43,8 @@ _lit_re := `'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"`
 # does not interpolate them). Literals are tokenised left to right so a single
 # quote inside a double-quoted SQL string stays part of that string.
 _clean(text) := out if {
-	s := regex.replace(text, _sanitizer_re, "0")
+	# Array keys are unquoted first so $_SERVER['HTTP_X'] keeps its key.
+	s := regex.replace(regex.replace(text, _sanitizer_re, "0"), `\[\s*'(\w+)'\s*\]`, "[$1]")
 	out := strings.replace_n(
 		{lit: `''` | some lit in regex.find_n(_lit_re, s, -1); startswith(lit, "'")},
 		s,
@@ -63,7 +66,7 @@ _rhs(line) := r if {
 # Level 0: variables assigned straight from user input, not through a
 # sanitiser, in the window above the sink.
 _level0(lines, i) := {v |
-	some j in numbers.range(max([0, i - 25]), i - 1)
+	some j in numbers.range(max([0, i - 40]), i - 1)
 	prev := lines[j]
 	regex.match(_source_re, prev)
 	not helpers.is_comment_line(prev)
@@ -79,14 +82,14 @@ _level0(lines, i) := {v |
 _squash(s) := regex.replace(s, `\s+`, "")
 
 _digit_checked(lines, i, j, v, rhs) if {
-	w := _squash(helpers.code_window(lines, i, 25, 0))
+	w := _squash(helpers.code_window(lines, i, 40, 0))
 	some expr in _checked_exprs(v, rhs)
 	some f in ["is_numeric(", "ctype_digit(", "is_int("]
 	contains(w, concat("", [f, expr]))
 }
 
 _digit_checked(lines, i, j, v, rhs) if {
-	w := _squash(helpers.code_window(lines, i, 25, 0))
+	w := _squash(helpers.code_window(lines, i, 40, 0))
 	some m in regex.find_all_string_submatch_n(`preg_match\(['"][^'"]*\\d[^'"]*['"],(\$[^,)]*)\)`, w, -1)
 	some expr in _checked_exprs(v, rhs)
 	m[1] == expr
@@ -112,11 +115,27 @@ _level1(lines, i, l0) := {v |
 	not helpers.is_comment_line(prev)
 	v := _assigned(prev)
 	not l0[v]
-	rhs := _clean(_rhs(prev))
+	rhs := _clean(_stmt_rhs(lines, j, i))
 	some u in l0
 	_refs(rhs, u)
 	not _resanitised(lines, i, j, v)
 }
+
+# The right-hand side of an assignment, with the continuation lines of a
+# statement broken across lines (up to five, never reaching the sink line).
+_stmt_rhs(lines, j, _) := _rhs(lines[j]) if contains(lines[j], ";")
+
+_stmt_rhs(lines, j, i) := concat("\n", array.concat([_rhs(lines[j])], cont)) if {
+	not contains(lines[j], ";")
+	end := min([i, j + 6])
+	ends := [k | some k in numbers.range(j + 1, end - 1); contains(lines[k], ";")]
+	stop := _first_or(ends, end - 1)
+	cont := array.slice(lines, j + 1, stop + 1)
+}
+
+_first_or(xs, d) := xs[0] if count(xs) > 0
+
+_first_or(xs, d) := d if count(xs) == 0
 
 _args(lines, i) := a if {
 	regex.match(_proc_re, lines[i])
@@ -167,7 +186,9 @@ findings contains finding if {
 	regex.match(_sink_re, line)
 	not helpers.is_comment_line(line)
 	regex.match(_sink_re, regex.replace(line, _lit_re, `''`))
-	args := _clean(_args(lines, i))
+	raw := _args(lines, i)
+	_sql_text(line, raw)
+	args := _clean(raw)
 	l0 := _level0(lines, i)
 	l1 := _level1(lines, i, l0)
 	_tainted_call(args, l0, l1)
@@ -182,7 +203,32 @@ findings contains finding if {
 	}
 }
 
+# ->query()/->exec()/->prepare() are generic method names (caches, HTTP
+# clients, process runners). When their first argument carries a literal, the
+# literal must read as SQL; a bare variable argument is accepted.
+_generic_re := `(?i)->(query|exec|prepare|get_results|get_row|get_var|get_col)\s*\(`
+
+_sql_kw_re := `(?i)\b(select|insert|update|delete|replace|create|drop|alter|truncate|where|from|into|values|union|limit|order\s+by|group\s+by|call)\b`
+
+_sql_text(line, _) if not regex.match(_generic_re, line)
+
+_sql_text(line, _) if regex.match(_proc_re, line)
+
+_sql_text(line, raw) if {
+	regex.match(_generic_re, line)
+	not regex.match(_proc_re, line)
+	lits := regex.find_n(_lit_re, raw, -1)
+	count(lits) == 0
+}
+
+_sql_text(line, raw) if {
+	regex.match(_generic_re, line)
+	not regex.match(_proc_re, line)
+	some lit in regex.find_n(_lit_re, raw, -1)
+	regex.match(_sql_kw_re, lit)
+}
+
 _gate(content) if {
-	some s in ["query", "Query", "exec(", "prepare(", "Raw(", "DB::"]
+	some s in ["query", "Query", "exec(", "prepare(", "Raw(", "DB::", "->get_"]
 	contains(content, s)
 }

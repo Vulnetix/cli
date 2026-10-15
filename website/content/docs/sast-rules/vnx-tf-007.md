@@ -1,11 +1,11 @@
 ---
 title: "VNX-TF-007 – Terraform AWS EKS Cluster Public API Endpoint Enabled"
-description: "Detect AWS EKS clusters in Terraform with the Kubernetes API server endpoint publicly accessible from the internet, increasing the attack surface for credential brute-force and CVE exploitation."
+description: "Detect EKS clusters in Terraform whose Kubernetes API endpoint is public to the whole internet: endpoint_public_access = true or left at its public default without a restricting public_access_cidrs, or an EKS module with public access turned on."
 ---
 
 ## Overview
 
-This rule flags Terraform `.tf` files where an `aws_eks_cluster` resource either explicitly sets `endpoint_public_access = true` or omits the `endpoint_public_access` attribute in the `vpc_config` block (the default is public access enabled). The EKS API server endpoint is the control plane interface through which `kubectl` commands, CI/CD pipelines, and Kubernetes controllers communicate. When it is publicly accessible, any internet-connected host can attempt to authenticate against it.
+This rule flags Terraform `.tf` files where an `aws_eks_cluster` sets `endpoint_public_access = true`, or omits `endpoint_public_access` (the default is a public endpoint), and does not restrict `public_access_cidrs` to anything narrower than `0.0.0.0/0`; and a terraform-aws-modules EKS module that sets `cluster_endpoint_public_access` or `endpoint_public_access = true` without a restricting `*_public_access_cidrs` list. A public endpoint limited to known CIDRs, a value from a variable, and a module left at its private default are not reported. The EKS API server endpoint is the control plane interface through which `kubectl` commands, CI/CD pipelines, and Kubernetes controllers communicate. When it is publicly accessible, any internet-connected host can attempt to authenticate against it.
 
 A publicly accessible Kubernetes API server is a high-value target for several classes of attack: credential theft via brute-force or social engineering, exploitation of authentication vulnerabilities in the API server itself, and discovery of exposed control plane components via the unauthenticated `/version` and `/healthz` endpoints that leak cluster information.
 
@@ -23,31 +23,27 @@ Public EKS endpoints face automated scanning that discovers new clusters within 
 
 ## What Gets Flagged
 
-The rule matches `.tf` files where `endpoint_public_access = true` is set, or where an `aws_eks_cluster` resource does not include `endpoint_public_access = false` in its configuration.
-
 ```hcl
-# FLAGGED: public API endpoint explicitly enabled
-resource "aws_eks_cluster" "prod" {
-  name     = "production"
-  role_arn = aws_iam_role.eks.arn
-
+resource "aws_eks_cluster" "main" {
   vpc_config {
-    subnet_ids            = var.private_subnet_ids
-    endpoint_public_access = true
+    subnet_ids             = var.private_subnets
+    endpoint_public_access = true     # FLAGGED: no public_access_cidrs
   }
 }
 
-# FLAGGED: missing endpoint_public_access — defaults to true
-resource "aws_eks_cluster" "prod" {
-  name     = "production"
-  role_arn = aws_iam_role.eks.arn
-
+resource "aws_eks_cluster" "dev" {   # FLAGGED: public endpoint by default
   vpc_config {
-    subnet_ids = var.private_subnet_ids
-    # endpoint_public_access not set — defaults to enabled
+    subnet_ids = aws_subnet.private[*].id
   }
+}
+
+module "eks" {
+  source                         = "terraform-aws-modules/eks/aws"
+  cluster_endpoint_public_access = true   # FLAGGED
 }
 ```
+
+Not flagged: `endpoint_public_access = false`, or `endpoint_public_access = true` with `public_access_cidrs = ["203.0.113.10/32"]`.
 
 ## Remediation
 

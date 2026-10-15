@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-022",
 	"name": "Shell injection via shelljs exec()",
-	"description": "shelljs exec(), which hands its whole command string to /bin/sh, is called with a command that carries request data, so shell metacharacters in that data run commands of the caller's choosing. Reported, in JavaScript and TypeScript: exec() called through a name bound to shelljs (require, default or namespace import) or through exec imported from it by name (including an `as` alias), whose command argument (on the line or the next two) contains an Express/Koa/Lambda request value (req.query/body/params/headers/cookies, ctx.request/query/params, event.body/queryStringParameters/pathParameters/headers) directly, or a variable assigned from one within the previous 15 lines, or a variable built from such a variable. Not reported: a constant command or one built only from program data (package.json version in a release script), other shelljs commands (ls, rm, cp take paths, not a command line), RegExp.prototype.exec and other objects' exec methods, child_process (VNX-NODE-003), comments and string literals. Use child_process.execFile() with an argument array, and validate the value against an allowlist.",
+	"description": "shelljs exec(), which hands its whole command string to /bin/sh, is called with a command that carries request data, so shell metacharacters in that data run commands of the caller's choosing. Reported, in JavaScript and TypeScript: exec() called through a name bound to shelljs (require, default or namespace import) or through exec imported from it by name (including an `as` alias), whose command argument (on the line or the next two) contains an Express/Koa/Lambda request value (req.query/body/params/headers/cookies/file/files, ctx.request/query/params, event.body/queryStringParameters/pathParameters/headers) directly, or a variable assigned from one within the previous 15 lines (TypeScript type annotations included), or a variable built from such a variable. Not reported: a constant command or one built only from program data (package.json version in a release script), other shelljs commands (ls, rm, cp take paths, not a command line), RegExp.prototype.exec and other objects' exec methods, child_process (VNX-NODE-003), comments and string literals. Use child_process.execFile() with an argument array, and validate the value against an allowlist.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-022/",
 	"languages": ["javascript", "typescript"],
 	"severity": "critical",
@@ -36,7 +36,7 @@ _named_res := [
 	concat("", [`\b(?:const|let|var)\s*\{([^}]*)\}\s*=\s*require\(\s*`, _mod]),
 ]
 
-_source := `\b(?:req|request)\.(?:body|query|params|headers|cookies|url|originalUrl|path)\b|\bctx\.(?:request|query|params)\b|\bevent\.(?:body|queryStringParameters|pathParameters|headers)\b`
+_source := `\b(?:req|request)\.(?:body|query|params|headers|cookies|url|originalUrl|path|file|files)\b|\bctx\.(?:request|query|params)\b|\bevent\.(?:body|queryStringParameters|pathParameters|headers)\b`
 
 # Single- and double-quoted literals hold no code; template literals keep
 # their ${...} interpolation.
@@ -86,16 +86,33 @@ _continued(lines, i, rest) := concat(" ", array.concat([rest], next)) if {
 }
 
 _tainted(lines, i) := t1 | t2 if {
-	t1 := helpers.tainted_names(lines, i, 15, _source)
+	t1 := _tainted_names(lines, i, 15)
 	t2 := {v |
 		some j in numbers.range(max([0, i - 15]), i - 1)
 		l := lines[j]
 		not helpers.is_comment_line(l)
 		some t in t1
 		regex.match(concat("", [`\b`, t, `\b`]), l)
-		v := helpers.assigned_first(l)
+		v := _assigned(l)
 		not v in t1
 	}
+}
+
+# helpers.assigned_first, plus a TypeScript annotation: const name: string = ...
+_assigned(line) := v if {
+	v := helpers.assigned_first(line)
+} else := v if {
+	m := regex.find_all_string_submatch_n(`^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*:\s*[^=]+=[^=>]`, line, 1)
+	v := m[0][1]
+}
+
+_tainted_names(lines, i, before) := {v |
+	i > 0
+	some j in numbers.range(max([0, i - before]), i - 1)
+	prev := lines[j]
+	not helpers.is_comment_line(prev)
+	regex.match(_source, prev)
+	v := _assigned(prev)
 }
 
 _reaches(_, _, arg) if regex.match(_source, arg)

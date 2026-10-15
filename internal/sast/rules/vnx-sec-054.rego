@@ -6,7 +6,7 @@ import data.vulnetix.lib.secrets
 metadata := {
 	"id": "VNX-SEC-054",
 	"name": "Datadog API / APP key",
-	"description": "Reports a hard-coded Datadog API key (32 lower-case hex characters) or application key (40 hex characters) assigned to a Datadog key name (DD_API_KEY, DD_APP_KEY, datadog_api_key, DATADOG_APPLICATION_KEY), or to a generic api_key/app_key/apiKey/appKey/apiKeyAuth/appKeyAuth when the file is Datadog configuration (a path naming datadog) or a line naming Datadog appears within eight lines above (provider \"datadog\", from datadog import, @datadog/datadog-api-client, a datadog: block). The keys read and write metrics, logs, monitors and dashboards. Not reported: hex values with no Datadog context (commit hashes, other providers' keys), the public RUM client token (pub...), variable or environment references, placeholder bodies, and test, fixture or vendored paths.",
+	"description": "Reports a hard-coded Datadog API key (32 lower-case hex characters) or application key (40 hex characters) assigned to a Datadog key name (DD_API_KEY, DD_APP_KEY, datadog_api_key, DATADOG_APPLICATION_KEY), or to a generic api_key/app_key/apiKey/appKey/apiKeyAuth/appKeyAuth when the file is Datadog configuration (a path naming datadog) or a line naming Datadog appears within eight lines above; the value may follow =, :, a map entry (put(\"apiKeyAuth\", \"...\")) or the Go client's {Key: \"...\"} wrapper (provider \"datadog\", from datadog import, @datadog/datadog-api-client, a datadog: block). The keys read and write metrics, logs, monitors and dashboards. Not reported: hex values with no Datadog context (commit hashes, other providers' keys), the public RUM client token (pub...), variable or environment references, placeholder bodies, and test, fixture or vendored paths.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-054/",
 	"languages": [],
 	"severity": "critical",
@@ -20,7 +20,9 @@ metadata := {
 	"tags": ["secrets", "datadog", "monitoring", "credentials"],
 }
 
-_value := `\s*["']?\s*[:=]\s*["']?([a-f0-9]{40}|[a-f0-9]{32})(?:[^A-Za-z0-9]|$)`
+# The value follows an assignment (=, :), a map entry ("apiKeyAuth", "..." in
+# put/setApiKey) or the Go client's {Key: "..."} wrapper.
+_value := `(?:\s*["']?\s*[:=]|["']\s*,)\s*(?:\{\s*Key\s*:\s*)?["']?([a-f0-9]{40}|[a-f0-9]{32})(?:[^A-Za-z0-9]|$)`
 
 # A key name that is itself Datadog's.
 _named := concat("", [`(?i)\b(?:dd|datadog)[_-]?(?:api|app|application)[_-]?key`, _value])

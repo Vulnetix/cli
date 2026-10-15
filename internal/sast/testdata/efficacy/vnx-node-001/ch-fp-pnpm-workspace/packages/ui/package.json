@@ -1,0 +1,4 @@
+{
+  "name": "@ds/ui",
+  "dependencies": { "clsx": "^2.1.0" }
+}

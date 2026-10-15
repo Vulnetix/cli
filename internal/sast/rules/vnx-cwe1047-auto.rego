@@ -6,7 +6,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-1047",
 	"name": "Modules with Circular Dependencies",
-	"description": "Python or JavaScript/TypeScript modules of the same project that import each other in a cycle. Python imports (absolute, relative, 'from pkg import submodule') and JavaScript require(), import, export-from and import() with a relative specifier are resolved to files of the scanned tree. Reported: two modules that import each other at load time (once, on the import in the file whose path sorts first); three modules in a load-time cycle (once, on the import of the module whose path sorts first); and an import deferred into a function that closes a cycle of any length with load-time imports (on the deferred import, the usual workaround). A partially initialised module is how a validator, logger or auth handler ends up undefined when first used. Not reported: imports under 'if TYPE_CHECKING:', 'import type' and all-type import lists, cycles in which every import is deferred, package and standard-library imports, path aliases, and load-time cycles longer than three modules. Go is not covered: the Go compiler rejects import cycles.",
+	"description": "Python or JavaScript/TypeScript modules of the same project that import each other in a cycle. Python imports (absolute, relative, 'from pkg import submodule') and JavaScript require(), import, export-from and import() with a relative specifier are resolved to files of the scanned tree. Reported: two modules that import each other at load time (once, on the import in the file whose path sorts first); three modules in a load-time cycle (once, on the import of the module whose path sorts first); and an import deferred into a function that closes a cycle of any length with load-time imports (on the deferred import, the usual workaround). A partially initialised module is how a validator, logger or auth handler ends up undefined when first used. Not reported: imports under 'if TYPE_CHECKING:' or 'if __name__ == \"__main__\":', 'import type' and all-type import lists (inline 'type' specifiers included, on one line or several), import text inside a multi-line template literal (generated source), cycles in which every import is deferred, package and standard-library imports, path aliases, and load-time cycles longer than three modules. Go is not covered: the Go compiler rejects import cycles.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1047/",
 	"languages": ["python", "node"],
 	"severity": "low",
@@ -78,6 +78,7 @@ _py_parent_kind(p) := "module" if {
 	_indent(p) == 0
 	regex.match(`^(try|except|else|finally|if|elif|with)\b`, p)
 	not contains(p, "TYPE_CHECKING")
+	not contains(p, "__name__")
 }
 
 # The statement text, with a parenthesised name list joined onto one line.
@@ -126,8 +127,6 @@ _py_abs(path, rel, mod) := {c |
 }
 
 _py_root_ok(_, _, root, _) if not input.file_set[concat("", [root, "__init__.py"])]
-
-_py_root_ok(dparts, k, _, false) if k == count(dparts)
 
 # `from ..x.y import z` -> the files of x.y two directories up
 _py_relmod(path, d, mod) := {c |
@@ -263,18 +262,32 @@ _js_r_dynamic(_, i, line, _) := {[s, "deferred", i] |
 	_js_outside_string(line, x[0])
 }
 
-_js_r_from(_, i, _, t) := {[s, "module", i] |
+_js_r_from(lines, i, _, t) := {[s, "module", i] |
 	regex.match(`^(import|export)\b`, t)
 	not _js_type_only(t)
 	m := regex.find_all_string_submatch_n(concat("", [`\bfrom\s*`, _js_spec]), t, 1)
 	some x in m
 	s := x[1]
+	not _js_in_template(lines, i)
 }
 
-_js_r_side(_, i, _, t) := {[s, "module", i] |
+_js_r_side(lines, i, _, t) := {[s, "module", i] |
 	m := regex.find_all_string_submatch_n(concat("", [`^import\s*`, _js_spec]), t, 1)
 	some x in m
 	s := x[1]
+	not _js_in_template(lines, i)
+}
+
+# the line sits inside a multi-line template literal (generated source text):
+# an odd number of unescaped backticks in the 80 lines above it
+_js_in_template(lines, i) if {
+	i > 0
+	n := sum([d |
+		some k in numbers.range(max([0, i - 80]), i - 1)
+		l := lines[k]
+		d := strings.count(l, "`") - strings.count(l, "\\`")
+	])
+	n % 2 == 1
 }
 
 # the closing line of a multi-line import/export list
@@ -287,7 +300,29 @@ _js_r_close(lines, i, _, t) := {[s, "module", j] |
 	count(starts) > 0
 	j := starts[count(starts) - 1]
 	not _js_type_only(trim_left(lines[j], " \t"))
+	not _js_multi_type_only(lines, j, i)
 }
+
+# `import {\n  type A,\n  type B,\n} from './x'`: every specifier is a type
+_js_multi_type_only(lines, j, i) if {
+	i - j >= 2
+	regex.match(`^\s*import\s*\{\s*$`, lines[j])
+	names := [n |
+		some k in numbers.range(j + 1, i - 1)
+		some p in split(lines[k], ",")
+		n := trim_space(p)
+		n != ""
+	]
+	count(names) > 0
+	every n in names {
+		startswith(n, "type ")
+	}
+}
+
+# a quoted relative specifier ('./x', '../x', '.')
+_js_relref(s) if contains(s, "'.")
+
+_js_relref(s) if contains(s, "\".")
 
 # a top-level require runs at load; one inside a function body is deferred
 _js_require_kind(line) := "module" if _indent(line) == 0
@@ -346,11 +381,11 @@ _js_cand_index(root, rest) := [x |
 _edges contains e if {
 	some path, content in input.file_contents
 	_is_js(path)
-	contains(content, "./")
+	_js_relref(content)
 	not _vendored(path)
 	lines := split(content, "\n")
 	some i, line in lines
-	contains(line, "./")
+	_js_relref(line)
 	t := trim_left(line, " \t")
 	not _js_comment(t)
 	refs := (((_js_r_require(lines, i, line, t) | _js_r_dynamic(lines, i, line, t)) | _js_r_from(lines, i, line, t)) | _js_r_side(lines, i, line, t)) | _js_r_close(lines, i, line, t)

@@ -40,8 +40,9 @@ findings contains finding if {
 	}
 }
 
-# A dependency table header followed (after blank or comment lines) by an entry.
-_dep_table_re := `(?m)^\s*\[(?:[^\]\n]*\.)?(?:dev-|build-)?dependencies\]\s*\n(?:\s*(?:#[^\n]*)?\n)*\s*["A-Za-z0-9_-]+\s*=`
+# A dependency table header (optionally with a trailing comment) followed,
+# after blank or comment lines, by an entry (plain, quoted or dotted key).
+_dep_table_re := `(?m)^\s*\[(?:[^\]\n]*\.)?(?:dev-|build-)?dependencies\][ \t]*(?:#[^\n]*)?\n(?:\s*(?:#[^\n]*)?\n)*\s*["A-Za-z0-9_.-]+\s*=`
 
 # The one-table-per-dependency form: [dependencies.serde].
 _dep_named_table_re := `(?m)^\s*\[(?:[^\]\n]*\.)?(?:dev-|build-)?dependencies\.[^\]\n]+\]`

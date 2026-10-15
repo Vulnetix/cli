@@ -1,0 +1,5 @@
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - run: docker login acme.jfrog.io -u ci-bot -p "${{ secrets.ARTIFACTORY_TOKEN }}"

@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-022",
 	"name": "Use of eval() or dynamic code execution",
-	"description": "Code supplied from outside the program is handed to an embedded interpreter, expression engine or template parser. Reported sinks, each only in a file importing its package: goja vm.RunString / RunScript / goja.Compile / goja.Parse, otto vm.Run / vm.Eval, yaegi i.Eval, gopher-lua L.DoString, govaluate NewEvaluableExpression, expr-lang expr.Compile / expr.Eval, gval.Evaluate, cel-go env.Compile / env.Parse, tengo NewScript, starlark ExecFile / Eval, and html/template or text/template template.New(...).Parse (server-side template injection). The code argument must be an HTTP request value (r.FormValue, r.URL.Query().Get, gin/echo c.Query/c.PostForm), the request body (io.ReadAll(r.Body), a struct decoded from it, c.GetRawData), a variable assigned from one of those (one further assignment is followed), or a parameter of the enclosing function (a helper that runs whatever its caller passes). Not reported: scripts and expressions that are string literals, constants, embedded files or package variables, expressions read from configuration files or loop variables over configured rules, the compiled program passed to expr.Run, calls on the program's own types named Eval or Run in files importing no interpreter, the word eval( in strings and names, comments and test files.",
+	"description": "Code supplied from outside the program is handed to an embedded interpreter, expression engine or template parser. Reported sinks, each only in a file importing its package: goja vm.RunString / RunScript / goja.Compile / goja.Parse, otto vm.Run / vm.Eval, yaegi i.Eval, gopher-lua L.DoString, govaluate NewEvaluableExpression, expr-lang expr.Compile / expr.Eval, gval.Evaluate, cel-go env.Compile / env.Parse, tengo NewScript, starlark ExecFile / Eval, and html/template or text/template template.New(...).Parse, also with .Funcs/.Delims/.Option chained before Parse (server-side template injection). The code argument must be an HTTP request value (r.FormValue, r.URL.Query().Get, gin/echo c.Query/c.PostForm), the request body (io.ReadAll(r.Body), a struct decoded from it, c.GetRawData), a variable assigned from one of those (one further assignment is followed), or a string parameter of the enclosing function passed straight through (a helper that runs whatever its caller passes). Not reported: fields of a parameter (rule.When: the caller loaded it, usually from configuration), scripts and expressions that are string literals, constants, embedded files or package variables, expressions read from configuration files or loop variables over configured rules, the compiled program passed to expr.Run, calls on the program's own types named Eval or Run in files importing no interpreter, the word eval( in strings and names, comments and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-022/",
 	"languages": ["go"],
 	"severity": "high",
@@ -41,13 +41,13 @@ _sinks := [
 	[`\b[a-z]\w*\.(?:Compile|Parse)\(`, 0, `"github.com/google/cel-go/cel"`, true],
 	[`\btengo\.NewScript\(`, 0, `"github.com/d5/tengo`, false],
 	[`\bstarlark\.(?:ExecFile|Eval)\(`, 2, `"go.starlark.net/starlark"`, false],
-	[`\btemplate\.New\([^()]*\)\.Parse\(`, 0, `/template"`, false],
+	[`\btemplate\.New\([^()]*\)(?:\.(?:Funcs|Delims|Option)\([^()]*\))*\.Parse\(`, 0, `/template"`, false],
 ]
 
 # Receivers that are other packages' Compile/Parse/Run, not an interpreter.
 _not_interp_recv := `\b(?:expr|goja|regexp|template|json|yaml|url|time|strconv|filepath|path|flag|cmd|exec|errgroup|g|wg|suite|t|b|m)\.(?:Compile|Parse|Run)\($`
 
-_source_re := `\b(?:r|req|request)\.(?:(?:FormValue|PostFormValue|PathValue|Form\.Get|PostForm\.Get|Header\.Get|Body)\b|URL\.Query\(\))|\b(?:c|ctx)\.(?:Query|DefaultQuery|PostForm|DefaultPostForm|Param|FormValue|QueryParam|GetHeader|GetRawData|Body)\(|\bmux\.Vars\(|\bchi\.URLParam\(|\.ByName\(`
+_source_re := `\b(?:r|req|request|(?:c|ctx)\.Request)\.(?:(?:FormValue|PostFormValue|PathValue|Form\.Get|PostForm\.Get|Header\.Get|Body)\b|URL\.Query\(\))|\b(?:c|ctx)\.(?:Query|DefaultQuery|PostForm|DefaultPostForm|Param|FormValue|QueryParam|GetHeader|GetRawData|Body)\(|\bmux\.Vars\(|\bchi\.URLParam\(|\.ByName\(`
 
 _balanced(pre) if {
 	strings.count(pre, "(") == strings.count(pre, ")")
@@ -142,8 +142,13 @@ _rhs(l) := "" if not regex.match(`(?::=|=)`, l)
 
 _bad_arg(arg, _, _, _) if regex.match(_source_re, arg)
 
+# A string parameter passed straight through (code, string(code)). A field of
+# a parameter (rule.When) is a value the caller loaded, often from
+# configuration, and is not followed.
 _bad_arg(arg, lines, i, _) if {
-	v := _root(arg)
+	m := regex.find_all_string_submatch_n(`^(?:string\(|\[\]byte\()?\s*\*?([A-Za-z_]\w*)\s*\)?$`, arg, 1)
+	count(m) > 0
+	v := m[0][1]
 	v in _params(lines, i)
 }
 

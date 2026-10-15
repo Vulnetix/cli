@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="password_hint">Enter your password</string>
+    <property name="label" value="password"/>
+</resources>

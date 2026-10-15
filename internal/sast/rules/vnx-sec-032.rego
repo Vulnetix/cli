@@ -7,7 +7,7 @@ import data.vulnetix.lib.secrets
 metadata := {
 	"id": "VNX-SEC-032",
 	"name": "PGP private key block hardcoded",
-	"description": "Reports the armour header of a PGP/GPG private key block (-----BEGIN PGP PRIVATE KEY BLOCK-----) when key material follows it: a base64 line of at least 40 characters within the next eight lines (armoured files, YAML block scalars, quoted multi-line .env values), or on the same line after escaped newlines (JSON and single-line strings). A header used as a string constant or prefix check in code, documentation with a placeholder body, PGP public key blocks, and test and fixture paths are not reported.",
+	"description": "Reports the armour header of a PGP/GPG private key block (-----BEGIN PGP PRIVATE KEY BLOCK-----) when key material follows it: a base64 line of at least 40 characters within the next eight lines (armoured files, YAML block scalars, quoted multi-line .env values, Go/JS backtick, Python triple-quoted and heredoc strings that open on the header line), or on the same line after escaped newlines (JSON and single-line strings). A header used as a string constant or prefix check in code, documentation with a placeholder body, PGP public key blocks, and test and fixture paths are not reported.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-032/",
 	"languages": ["generic"],
 	"severity": "critical",
@@ -27,8 +27,9 @@ _header := "-----BEGIN PGP PRIVATE KEY BLOCK-----"
 _inline_re := `-----BEGIN PGP PRIVATE KEY BLOCK-----(?:\\r)?\\n(?:(?:\\r)?\\n|[A-Za-z-]+: [^\\]*(?:\\r)?\\n)*[A-Za-z0-9+/]{40,}`
 
 # Header that opens a block of its own (optionally indented, quoted or
-# assigned, as in KEY="-----BEGIN ...).
-_own_line_re := `^\s*(?:[A-Za-z_][A-Za-z0-9_.-]*\s*[:=]\s*)?["'|>]?\s*-----BEGIN PGP PRIVATE KEY BLOCK-----\s*$`
+# assigned, as in KEY="-----BEGIN ..., const k = `-----BEGIN ... or
+# KEY = """-----BEGIN ...).
+_own_line_re := `^\s*(?:[A-Za-z_][A-Za-z0-9_.\[\]<>]*\s+){0,3}(?:[A-Za-z_][A-Za-z0-9_.-]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_.]*\s*)?(?::=|[:=])\s*)?(?:"""|'''|[@r]?#*["'\x60|>])?\s*-----BEGIN PGP PRIVATE KEY BLOCK-----\s*$`
 
 _body_re := `^\s*["']?[A-Za-z0-9+/]{40,}={0,2}\s*$`
 

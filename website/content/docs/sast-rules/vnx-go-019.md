@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-019 – Go Debug Endpoints (pprof, expvar) Served on All Interfaces"
-description: "Detects pprof and expvar debug handlers served on a listener bound to every interface: the default mux when net/http/pprof or expvar is imported, a mux carrying the debug handlers, or a gin engine with gin-contrib pprof. Loopback and configured addresses, and public listeners without debug handlers, are not reported."
+description: "Detects pprof and expvar debug handlers served on a listener bound to every interface: the default mux when net/http/pprof or expvar is imported, a mux or router carrying the debug handlers (including chi middleware.Profiler), or a gin engine with gin-contrib pprof. An all-interfaces address held in a constant of the same file counts as the literal. Loopback and flag- or config-supplied addresses, and public listeners without debug handlers, are not reported."
 ---
 
 ## Overview
@@ -29,7 +29,7 @@ import _ "net/http/pprof" // registers /debug/pprof/ on the default mux
 // FLAGGED: the default mux, and with it pprof, on every interface
 log.Println(http.ListenAndServe(":6060", nil))
 
-// FLAGGED: a mux carrying the debug handlers, bound publicly
+// FLAGGED: a mux or router carrying the debug handlers (including chi middleware.Profiler), bound publicly
 mux.HandleFunc("/debug/pprof/", pprof.Index)
 return http.ListenAndServe(":6060", mux)
 

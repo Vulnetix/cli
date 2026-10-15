@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-GO-019",
 	"name": "Go debug endpoints (pprof, expvar) served on all interfaces",
-	"description": "Go profiling and runtime-introspection handlers are served on a listener bound to every interface (\":6060\", \"0.0.0.0:8080\", \"[::]:N\"). Reported: http.ListenAndServe/ListenAndServeTLS, an http.Server{Addr: ...} literal, or a net.Listen whose listener is passed to http.Serve, when the handler is the default mux (nil, http.DefaultServeMux, or a Server literal with no Handler) and a non-test file of the project imports net/http/pprof or expvar (whose init registers /debug/pprof/ and /debug/vars on the default mux); the same listeners when the handler is a mux the file registers pprof or expvar handlers on (mux.HandleFunc(\"/debug/pprof/\", pprof.Index), expvar.Handler()); and a gin engine passed to gin-contrib pprof.Register that is started with r.Run() or r.Run(\":N\"). These endpoints expose heap and goroutine dumps, the command line and memstats, and let a caller run CPU profiles. Not reported: a loopback address (localhost, 127.0.0.1, [::1]), an address held in a variable or read from configuration, port 0, a public listener whose handler is a mux without debug handlers (binding a service to every interface on its own is VNX-1327's concern), string literals, comments and test files.",
+	"description": "Go profiling and runtime-introspection handlers are served on a listener bound to every interface (\":6060\", \"0.0.0.0:8080\", \"[::]:N\"). Reported: http.ListenAndServe/ListenAndServeTLS, an http.Server{Addr: ...} literal, or a net.Listen whose listener is passed to http.Serve, when the handler is the default mux (nil, http.DefaultServeMux, or a Server literal with no Handler) and a non-test file of the project imports net/http/pprof or expvar (whose init registers /debug/pprof/ and /debug/vars on the default mux); the same listeners when the handler is a mux the file registers pprof or expvar handlers on (mux.HandleFunc(\"/debug/pprof/\", pprof.Index), expvar.Handler(), a gorilla PathPrefix(\"/debug/pprof/\") route, chi r.Mount(\"/debug\", middleware.Profiler())); and a gin engine passed to gin-contrib pprof.Register that is started with r.Run() or r.Run(\":N\"). These endpoints expose heap and goroutine dumps, the command line and memstats, and let a caller run CPU profiles. Not reported: a loopback address (localhost, 127.0.0.1, [::1]), an address read from a flag or configuration (a constant or variable the same file assigns an all-interfaces literal, const debugAddr = \":6060\", is reported like the literal), port 0, a public listener whose handler is a mux without debug handlers (binding a service to every interface on its own is VNX-1327's concern), string literals, comments and test files.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-go-019/",
 	"languages": ["go"],
 	"severity": "medium",
@@ -24,6 +24,20 @@ metadata := {
 # An address literal that binds every interface on a fixed, non-zero port.
 _wild := `"(?:0\.0\.0\.0|\[::\])?:(?:[1-9]\d*)"`
 
+# Names the file assigns an all-interfaces literal to (const debugAddr =
+# ":6060", addr := ":6060"); a value from a flag or configuration is not one.
+_wild_names(content) := {m[1] |
+	some m in regex.find_all_string_submatch_n(concat("", [`(?m)^\s*(?:const\s+|var\s+)?([A-Za-z_]\w*)\s*(?:string\s*)?:?=\s*`, _wild, `\s*(?://.*)?$`]), content, -1)
+}
+
+# The address of a listener: a literal, or a name holding one.
+_addr(content) := concat("", [`(?:`, _wild, `|\b(?:`, concat("|", names), `)\b)`]) if {
+	names := _wild_names(content)
+	count(names) > 0
+}
+
+_addr(content) := _wild if count(_wild_names(content)) == 0
+
 # A non-test Go file imports net/http/pprof or expvar, whose init functions
 # register their handlers on http.DefaultServeMux.
 _debug_on_default_mux if {
@@ -35,15 +49,25 @@ _debug_on_default_mux if {
 
 _default_handler(h) if h in {"nil", "http.DefaultServeMux"}
 
-# Muxes this file mounts profiling handlers on.
+# Muxes and routers this file mounts profiling handlers on: a /debug/pprof or
+# /debug/vars route on any router (net/http, gorilla PathPrefix, chi Mount,
+# gin/echo groups), a pprof or expvar handler value, or chi's
+# middleware.Profiler().
 _debug_muxes(lines) := {m |
 	some l in lines
-	contains(l, "Handle")
+	regex.match(`/debug/|pprof\.|expvar\.|Profiler\(`, l)
 	not helpers.is_comment_line(l)
-	r := regex.find_all_string_submatch_n(`\b(\w+)\.Handle(?:Func)?\(\s*(?:"/debug/(?:pprof|vars)[^"]*"|[^,]+,\s*(?:pprof\.\w+|expvar\.Handler\(\)))`, l, 1)
+	r := regex.find_all_string_submatch_n(`\b(\w+)\.(?:Handle(?:Func)?|PathPrefix|Path|Mount|Route|Any|GET|Group|HandlerFunc)\(\s*(?:"/debug/(?:pprof|vars)?[^"]*"\s*[,)]|[^,]+,\s*(?:pprof\.\w+|expvar\.Handler\(\)|(?:chimw|middleware)\.Profiler\(\)))`, l, 1)
 	count(r) > 0
+	_debug_route(l)
 	m := r[0][1]
 }
+
+_file_muxes(content, lines) := _debug_muxes(lines) if regex.match(`/debug/|pprof|expvar|Profiler\(`, content)
+
+_file_muxes(content, _) := set() if not regex.match(`/debug/|pprof|expvar|Profiler\(`, content)
+
+_debug_route(l) if regex.match(`"/debug/(?:pprof|vars)|pprof\.\w+|expvar\.Handler\(\)|Profiler\(\)`, l)
 
 _debug_handler(h, _) if {
 	_default_handler(h)
@@ -73,16 +97,17 @@ _go_file(path, content) if {
 # http.ListenAndServe(":6060", handler) / ListenAndServeTLS(addr, cert, key, handler)
 findings contains finding if {
 	some path, content in input.file_contents
-	_go_file(path, content)
 	contains(content, "ListenAndServe")
+	_go_file(path, content)
 	lines := split(content, "\n")
-	muxes := _debug_muxes(lines)
+	addr := _addr(content)
+	muxes := _file_muxes(content, lines)
 	some i, line in lines
 	contains(line, "http.ListenAndServe")
 	not helpers.is_comment_line(line)
 	some re in [
-		concat("", [`\bhttp\.ListenAndServe\(\s*`, _wild, `\s*,\s*([\w\.]+)\s*\)`]),
-		concat("", [`\bhttp\.ListenAndServeTLS\(\s*`, _wild, `\s*,[^,]+,[^,]+,\s*([\w\.]+)\s*\)`]),
+		concat("", [`\bhttp\.ListenAndServe\(\s*`, addr, `\s*,\s*([\w\.]+)\s*\)`]),
+		concat("", [`\bhttp\.ListenAndServeTLS\(\s*`, addr, `\s*,[^,]+,[^,]+,\s*([\w\.]+)\s*\)`]),
 	]
 	m := regex.find_all_string_submatch_n(re, line, 1)
 	count(m) > 0
@@ -93,13 +118,14 @@ findings contains finding if {
 # &http.Server{Addr: ":6060", Handler: h} — no Handler means the default mux.
 findings contains finding if {
 	some path, content in input.file_contents
-	_go_file(path, content)
 	contains(content, "http.Server{")
+	_go_file(path, content)
 	lines := split(content, "\n")
-	muxes := _debug_muxes(lines)
+	addr := _addr(content)
+	muxes := _file_muxes(content, lines)
 	some i, line in lines
 	contains(line, "Addr")
-	regex.match(concat("", [`^\s*(?:.*http\.Server\{\s*)?Addr:\s*`, _wild, `\s*,?\s*(?:\}.*)?$`]), line)
+	regex.match(concat("", [`^\s*(?:.*http\.Server\{\s*)?Addr:\s*`, addr, `\s*,?\s*(?:\}.*)?$`]), line)
 	_server_literal_open(lines, i)
 	h := _server_handler(lines, i)
 	_debug_handler(h, muxes)
@@ -150,14 +176,16 @@ _closes(lines, a, b) if {
 # ln, err := net.Listen("tcp", ":9090") ... http.Serve(ln, handler)
 findings contains finding if {
 	some path, content in input.file_contents
-	_go_file(path, content)
 	contains(content, "http.Serve")
+	contains(content, "net.Listen")
+	_go_file(path, content)
 	lines := split(content, "\n")
-	muxes := _debug_muxes(lines)
+	addr := _addr(content)
+	muxes := _file_muxes(content, lines)
 	some i, line in lines
 	contains(line, "net.Listen")
 	not helpers.is_comment_line(line)
-	m := regex.find_all_string_submatch_n(concat("", [`^\s*(\w+)\s*,\s*\w+\s*:?=\s*net\.Listen\(\s*"tcp[46]?"\s*,\s*`, _wild, `\s*\)`]), line, 1)
+	m := regex.find_all_string_submatch_n(concat("", [`^\s*(\w+)\s*,\s*\w+\s*:?=\s*net\.Listen\(\s*"tcp[46]?"\s*,\s*`, addr, `\s*\)`]), line, 1)
 	count(m) > 0
 	ln := m[0][1]
 	some j in numbers.range(i + 1, min([count(lines) - 1, i + 15]))
@@ -170,9 +198,10 @@ findings contains finding if {
 # gin-contrib/pprof: pprof.Register(r) then r.Run() / r.Run(":8080")
 findings contains finding if {
 	some path, content in input.file_contents
-	_go_file(path, content)
 	contains(content, "github.com/gin-contrib/pprof")
+	_go_file(path, content)
 	lines := split(content, "\n")
+	addr := _addr(content)
 	engines := {e |
 		some l in lines
 		not helpers.is_comment_line(l)
@@ -183,7 +212,7 @@ findings contains finding if {
 	some i, line in lines
 	contains(line, ".Run(")
 	not helpers.is_comment_line(line)
-	m := regex.find_all_string_submatch_n(concat("", [`\b(\w+)\.Run\(\s*(?:`, _wild, `)?\s*\)`]), line, 1)
+	m := regex.find_all_string_submatch_n(concat("", [`\b(\w+)\.Run\(\s*(?:`, addr, `)?\s*\)`]), line, 1)
 	count(m) > 0
 	m[0][1] in engines
 	finding := _finding(path, i, line)

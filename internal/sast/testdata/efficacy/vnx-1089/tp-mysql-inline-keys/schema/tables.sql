@@ -1,0 +1,22 @@
+~>CREATE TABLE `events` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `kind` varchar(32) NOT NULL,
+  `source` varchar(32) NOT NULL,
+  `ts` datetime NOT NULL,
+  `day` date NOT NULL,
+  `session` varchar(64) DEFAULT NULL,
+  `ip` varchar(45) DEFAULT NULL,
+  `ua` varchar(255) DEFAULT NULL,
+  `key` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_kind` (`kind`),
+  INDEX `idx_source` (`source`),
+  UNIQUE KEY `uq_session` (`session`),
+  KEY `idx_ts` (`ts`),
+  KEY `idx_day_kind` (`day`, `kind`),
+  KEY `idx_ip` (`ip`),
+  FULLTEXT KEY `ft_ua` (`ua`),
+  KEY `idx_key` (`key`(32))
+) ENGINE=InnoDB;

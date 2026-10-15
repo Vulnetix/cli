@@ -1,0 +1,10 @@
+- name: App user
+  ansible.builtin.user:
+    name: app
+~>    password_expire_max: 730
+
+- name: login.defs aging
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MAX_DAYS'
+~>    line: 'PASS_MAX_DAYS   365'

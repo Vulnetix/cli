@@ -1,0 +1,18 @@
+on:
+  pull_request:
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "drafting notes"
+      - uses: actions/github-script@v7
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        with:
+          script: |
+            const body = process.env.BODY;
+            console.log(body.length);
+      - uses: some/action@v1
+        with:
+          text: ${{ github.event.pull_request.body }}

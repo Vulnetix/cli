@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1021",
 	"name": "Improper Restriction of Rendered UI Layers (Clickjacking)",
-	"description": "Code or configuration that switches off, weakens or removes the browser's frame protection, so any site can load the application in an invisible frame and steer the user's clicks (clickjacking). Reported: Spring Security frameOptions().disable() and headers().disable() in their chained, lambda and method-reference forms (including the two-line .frameOptions()/.disable() chain); an X-Frame-Options header set to ALLOWALL, ALLOW-FROM (ignored by current browsers) or ALLOW in Java, JavaScript/TypeScript, Python, PHP, Ruby, Go, C# and Web.config; the header removed (removeHeader, header_remove, del, Del, Remove, delete, <remove name=...>) when the same file does not set a restrictive CSP frame-ancestors instead; a CSP frame-ancestors directive whose sources include *, https: or http:; helmet/lusca frameguard: false, xFrameOptions: false or frameguard action allow-from; Django X_FRAME_OPTIONS set to anything other than DENY or SAMEORIGIN and the @xframe_options_exempt decorator; Talisman or Rack::Protection frame_options set to an ALLOW value; Rack::Protection/Sinatra protection with except: :frame_options; secure_headers x_frame_options = OPT_OUT; Rails default_headers emptied; echo SecureConfig XFrameOptions: \"\"; and ASP.NET Core SuppressXFrameOptionsHeader = true. Not reported: DENY and SAMEORIGIN values, frameOptions().sameOrigin()/deny(), frame-ancestors with 'self', 'none' or named hosts, a header removed in a file that sets a restrictive frame-ancestors, the absence of any frame protection (other rules judge missing headers), test and spec code, comments and log strings.",
+	"description": "Code or configuration that switches off, weakens or removes the browser's frame protection, so any site can load the application in an invisible frame and steer the user's clicks (clickjacking). Reported: Spring Security frameOptions().disable() and headers().disable() in their chained, lambda and method-reference forms (including the chain split over two lines, .frameOptions() or http.headers() then .disable()); an X-Frame-Options header set to ALLOWALL, ALLOW-FROM (ignored by current browsers) or ALLOW in Java, JavaScript/TypeScript, Python, PHP, Ruby, Go, C# and Web.config, with quoted or template-literal values and with the header name and value on consecutive lines of one call; the header removed (removeHeader, header_remove, del, Del, Remove, delete, <remove name=...>) when the same file does not set a restrictive CSP frame-ancestors instead; a CSP frame-ancestors directive whose sources include *, https: or http:; helmet/lusca frameguard: false, xFrameOptions: false or frameguard action allow-from; Django X_FRAME_OPTIONS set to anything other than DENY or SAMEORIGIN and the @xframe_options_exempt decorator; Talisman or Rack::Protection frame_options set to an ALLOW value; Rack::Protection/Sinatra protection with except: :frame_options; secure_headers x_frame_options = OPT_OUT; Rails default_headers emptied; echo SecureConfig XFrameOptions: \"\"; and ASP.NET Core SuppressXFrameOptionsHeader = true. Not reported: DENY and SAMEORIGIN values, frameOptions().sameOrigin()/deny(), frame-ancestors with 'self', 'none' or named hosts, a header removed in a file that sets a restrictive frame-ancestors, the absence of any frame protection (other rules judge missing headers), test and spec code, comments and log strings.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1021/",
 	"languages": ["python", "java", "node", "php", "ruby", "go", "csharp"],
 	"severity": "medium",
@@ -90,7 +90,7 @@ _no_strings(line) := regex.replace(line, `"(\\.|[^"\\])*"|'(\\.|[^'\\])*'`, `""`
 # ── Shapes, any language ─────────────────────────────────────────────────
 
 # X-Frame-Options given a value that does not restrict framing.
-_allow_value := `(?i)["']x-frame-options["']\s*(?:,|=>|:|\]\s*=)\s*["']\s*(?:allowall|allow-from|allow\b|\*)`
+_allow_value := "(?i)[\"'`]x-frame-options[\"'`]\\s*(?:,|=>|:|\\]\\s*=)\\s*[\"'`]\\s*(?:allowall|allow-from|allow\\b|\\*)"
 
 _php_allow := `(?i)\bheader\s*\(\s*["']\s*x-frame-options\s*:\s*(?:allowall|allow-from|allow\b|\*)`
 
@@ -227,9 +227,37 @@ findings contains finding if {
 	not _is_test(path)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`^\s*\.(frameOptions|headers)\s*\(\s*\)\s*$`, line)
+	regex.match(`^\s*(?:[\w.]+)?\.(frameOptions|headers)\s*\(\s*\)\s*$`, line)
 	j := helpers.next_code_index(lines, i, 3)
 	regex.match(`^\s*\.disable\s*\(`, lines[j])
+	finding := {
+		"rule_id": metadata.id,
+		"message": _msg,
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+# A header call broken over lines: the header name alone on one line and the
+# permissive value on the next code line.
+_split_name := "(?i)^\\s*[\"'`]x-frame-options[\"'`]\\s*,\\s*$"
+
+_split_value := "(?i)^\\s*[\"'`]\\s*(?:allowall|allow-from|allow\\b|\\*)"
+
+findings contains finding if {
+	some path, content in input.file_contents
+	lang := _lang(path)
+	lang != "config"
+	regex.match(concat("", ["(?m)", _split_name]), content)
+	not _is_test(path)
+	lines := split(content, "\n")
+	some i, line in lines
+	regex.match(_split_name, line)
+	j := helpers.next_code_index(lines, i, 2)
+	regex.match(_split_value, lines[j])
 	finding := {
 		"rule_id": metadata.id,
 		"message": _msg,

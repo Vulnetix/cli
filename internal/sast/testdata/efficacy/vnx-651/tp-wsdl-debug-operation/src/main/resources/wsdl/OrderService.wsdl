@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="OrderService"
+    xmlns="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:tns="http://acme.example/orders"
+    targetNamespace="http://acme.example/orders">
+  <portType name="OrderPortType">
+    <operation name="placeOrder">
+      <input message="tns:PlaceOrderRequest"/>
+      <output message="tns:PlaceOrderResponse"/>
+    </operation>
+~>    <operation name="debugDumpSessions">
+      <input message="tns:DumpRequest"/>
+      <output message="tns:DumpResponse"/>
+    </operation>
+~>    <operation name="executeSql">
+      <input message="tns:SqlRequest"/>
+      <output message="tns:SqlResponse"/>
+    </operation>
+  </portType>
+</definitions>

@@ -61,7 +61,7 @@ findings contains finding if {
 	some path, content in input.file_contents
 	contains(content, "PRIVATE KEY-----")
 	not secrets.skip_path(path)
-	not helpers.is_test_path(path)
+	not _test_path(path)
 	not _is_doc(path)
 	lines := split(content, "\n")
 	some i, line in lines
@@ -86,3 +86,9 @@ findings contains finding if {
 # helpers.is_comment_line treats a leading "--" as a SQL comment, which is
 # every PEM armour line; test the comment syntaxes a key example sits in.
 _is_comment(line) if regex.match(`^\s*(?://|/\*|\*|#)`, line)
+
+# Test code beyond helpers.is_test_path: Jest __mocks__ directories and Xcode
+# test targets (AppTests/, FooTests.swift), which hold fake credentials.
+_test_path(path) if helpers.is_test_path(path)
+
+_test_path(path) if regex.match(`(^|/)(__mocks__|[A-Za-z0-9_]*Tests)/|Tests?\.swift$`, path)

@@ -3,12 +3,14 @@ package vulnetix.rules.vnx_928
 
 import rego.v1
 
+import data.vulnetix.helpers
+
 metadata := {
 	"id": "VNX-928",
-	"name": "CWE-928",
-	"description": "Detects source patterns associated with CWE-928 (CWE-928). Each finding should be manually reviewed for exploitability in context.",
+	"name": "Broken or obsolete cipher (DES, 3DES, RC4, RC2, Blowfish) in Java or Kotlin",
+	"description": "CWE-928 is the OWASP Top Ten 2013 view; this rule reports its most concrete Java/Kotlin manifestation, a broken or obsolete symmetric cipher (A6 Sensitive Data Exposure): Cipher, SecretKeyFactory or KeyGenerator .getInstance with DES, DESede/TripleDES/3DES, RC4/ARCFOUR, RC2 or Blowfish (any mode and padding, the argument possibly on the next line) or a password-based scheme built on one (PBEWithMD5AndDES, PBEWithSHA1AndDESede, PBEWithSHAAnd40BitRC4), Bouncy Castle new DESEngine/DESedeEngine/RC4Engine/RC2Engine/BlowfishEngine(), the same algorithm passed through a String constant assigned in the same file, new SecretKeySpec(key, \"DES\"/\"RC4\"/...), and new DESKeySpec/DESedeKeySpec. Not reported: AES, ChaCha20 and RSA transformations, algorithm names in comments, log messages or other string literals not passed to a crypto API, and identifiers that only start with DES (DESCRIPTOR, DESIGN). A constant defined in another file is not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-928/",
-	"languages": ["java"],
+	"languages": ["java", "kotlin"],
 	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
@@ -17,33 +19,65 @@ metadata := {
 	"attack_technique": ["T1190"],
 	"cvssv4": "",
 	"cwss": "CWSS:1.0/TI:M/AP:RU/AL:S/IC:N/FC:LT/RP:RU/RL:S/AV:L/AS:N/IN:A/SC:A/BI:M/DI:H/EX:M/EC:N/P:C",
-	"tags": ["weak-crypto-mobile", "cwe-928"],
+	"tags": ["weak-crypto-mobile", "crypto", "cwe-928"],
 }
 
-_skip(path) if endswith(path, ".lock")
-_skip(path) if endswith(path, ".sum")
-_skip(path) if endswith(path, ".min.js")
-_skip(path) if endswith(path, ".min.css")
-_skip(path) if endswith(path, ".min.html")
+_ext(path) if endswith(path, ".java")
 
-_is_comment_line(line) if startswith(trim_space(line), "//")
-_is_comment_line(line) if startswith(trim_space(line), "*")
-_is_comment_line(line) if startswith(trim_space(line), "/*")
-_is_comment_line(line) if startswith(trim_space(line), "#")
-_is_comment_line(line) if startswith(trim_space(line), "--")
+_ext(path) if endswith(path, ".kt")
+
+_weak := `"(?i:(?:PBEWith\w*?And)?(?:des|desede|tripledes|3des|rc4|arcfour|rc2|blowfish)|PBEWith\w*?And\d*Bit(?:RC2|RC4)\w*)(/[^"]*)?"`
+
+_factory := `\b(Cipher|SecretKeyFactory|KeyGenerator)\s*\.\s*getInstance\s*\(\s*`
+
+_sink_re := concat("|", [
+	concat("", [_factory, _weak]),
+	concat("", [`\bSecretKeySpec\s*\([^;]*,\s*`, _weak]),
+	`\bDES(ede)?KeySpec\s*\(`,
+	`\bnew\s+(DES|DESede|RC4|RC2|Blowfish)Engine\s*\(`,
+])
+
+# The call joined with the next line when its argument starts there.
+_call_text(line, _) := line if not regex.match(`getInstance\s*\(\s*$`, line)
+
+_call_text(line, next) := concat(" ", [line, trim_space(next)]) if regex.match(`getInstance\s*\(\s*$`, line)
+
+_next(lines, i) := lines[i + 1] if i + 1 < count(lines)
+
+_next(lines, i) := "" if i + 1 >= count(lines)
+
+# String constants in this file whose value is a weak transformation.
+_weak_consts(lines) := {m[0][1] |
+	some l in lines
+	contains(l, "\"")
+	m := regex.find_all_string_submatch_n(concat("", [`\b([A-Za-z_]\w*)\s*(:\s*String\s*)?=\s*`, _weak]), l, 1)
+	count(m) > 0
+}
+
+_hit(line, _) if regex.match(_sink_re, line)
+
+_hit(line, consts) if {
+	count(consts) > 0
+	m := regex.find_all_string_submatch_n(concat("", [_factory, `([A-Za-z_][\w.]*)\s*[,)]`]), line, 1)
+	count(m) > 0
+	parts := split(m[0][2], ".")
+	parts[count(parts) - 1] in consts
+}
 
 findings contains finding if {
-	some path in object.keys(input.file_contents)
-	not _skip(path)
-	endswith(path, ".java")
-	lines := split(input.file_contents[path], "\n")
+	some path, content in input.file_contents
+	_ext(path)
+	regex.match(`getInstance|KeySpec|Engine`, content)
+	regex.match(`(?i)"(des|desede|tripledes|3des|rc4|arcfour|rc2|blowfish)[/"]|"PBEWith\w*(DES|RC2|RC4)|DES(ede)?KeySpec\s*\(|(DES|DESede|RC4|RC2|Blowfish)Engine\s*\(`, content)
+	lines := split(content, "\n")
+	consts := _weak_consts(lines)
 	some i, line in lines
-	not _is_comment_line(line)
-	some _pat in {"DES", "RC4"}
-	contains(line, _pat)
+	regex.match(`getInstance|KeySpec|Engine`, line)
+	not helpers.is_comment_line(line)
+	_hit(_call_text(line, _next(lines, i)), consts)
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Weak cipher in mobile code",
+		"message": "Broken or obsolete cipher (DES, 3DES, RC4, RC2 or Blowfish): data encrypted with it can be recovered. Use AES-GCM or ChaCha20-Poly1305",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

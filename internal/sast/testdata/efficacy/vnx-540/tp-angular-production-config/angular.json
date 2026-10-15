@@ -1,0 +1,20 @@
+{
+  "projects": {
+    "shop": {
+      "architect": {
+        "build": {
+          "configurations": {
+            "production": {
+              "outputHashing": "all",
+~>              "sourceMap": true,
+              "optimization": true
+            },
+            "development": {
+              "sourceMap": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

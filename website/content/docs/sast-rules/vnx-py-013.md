@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-013 – ML/AI Insecure Deserialization"
-description: "Detect Python ML and data science code that loads model or data files using pickle-based deserializers, which can execute arbitrary code embedded in a malicious model file."
+description: "Detect pickle-based deserialization of models and data: pickle/cPickle/dill/cloudpickle load(s) and Unpickler, joblib.load, pandas.read_pickle, numpy.load(allow_pickle=True), torch.load without weights_only=True and Keras load_model(safe_mode=False), including aliases and from-imports."
 ---
 
 ## Overview
@@ -40,8 +40,14 @@ model = dill.load(open("model.dill", "rb"))
 embeddings = numpy.load("embeddings.npy", allow_pickle=True)
 arr = np.load("data.npy", allow_pickle=True)
 
-# FLAGGED: shelve uses pickle for values
-db = shelve.open("cache")
+# FLAGGED: torch.load with weights_only=False, Keras with safe_mode disabled
+model = torch.load(path, weights_only=False)
+model = keras.models.load_model(path, safe_mode=False)
+
+# NOT flagged: safe loaders and round trips
+model = torch.load(path, weights_only=True)
+arr = np.load("data.npy")
+clone = pickle.loads(pickle.dumps(obj))
 ```
 
 ## Remediation

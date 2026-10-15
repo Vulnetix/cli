@@ -1,0 +1,2 @@
+The leaked token was dp.pt.Hq3Lm9... (truncated); it was revoked on 2026-03-02.
+Rotate with: doppler configs tokens create ci --plain

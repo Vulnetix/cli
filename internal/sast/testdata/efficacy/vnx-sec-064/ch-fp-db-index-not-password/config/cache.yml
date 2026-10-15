@@ -1,0 +1,2 @@
+url: redis://redis.acme.internal:6379/0
+sentinel: redis+sentinel://@@sample:s[e]nt[i]ne[l][-]0[.]ac[m]e[.][i]nt[e]rn[a]l@@:26379/mymaster/0

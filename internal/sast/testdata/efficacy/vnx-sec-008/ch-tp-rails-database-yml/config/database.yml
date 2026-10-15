@@ -1,0 +1,4 @@
+production:
+  adapter: postgresql
+~>  url: postgres://shop:N8wq2Zr4Kp@@@sample:s[h]op[-]db[.]c9[x]yz[.]us[-]ea[s]t[-][1][.]r[d]s[.][a]ma[z]on[a]ws[.]co[m]@@:@@sample:5[4]32[/]sh[o]p[_][p]ro[d]uc[t]io[n]@@
+  pool: 10

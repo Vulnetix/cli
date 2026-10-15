@@ -1,0 +1,11 @@
+{
+  "endpoints": [
+    {
+      "type": "wireguard",
+      "tag": "wg-ep",
+      "address": ["172.16.0.2/32"],
+~>      "private_key": "@@sample:[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=@@",
+      "peers": [{ "address": "203.0.113.10", "port": 51820 }]
+    }
+  ]
+}

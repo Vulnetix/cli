@@ -1,6 +1,6 @@
 ---
 title: "VNX-SEC-024 – OAuth Token Stored in localStorage"
-description: "Detect JavaScript/TypeScript code that stores OAuth access tokens, refresh tokens, or ID tokens in localStorage, which is vulnerable to XSS-based theft."
+description: "Detects JavaScript/TypeScript (including script in .vue, .svelte and .html files) that writes an access token, refresh token, ID token, JWT or API key into localStorage, where any script on the origin, including an XSS payload, can read it."
 ---
 
 ## Overview
@@ -22,23 +22,29 @@ Storing OAuth tokens in `localStorage` creates a direct path from XSS to account
 ## What Gets Flagged
 
 ```javascript
-// Flagged: access token stored in localStorage
-localStorage.setItem("access_token", response.data.access_token);
+// Flagged: the key names a token
+localStorage.setItem("access_token", accessToken);
+window.localStorage.setItem(
+  "refresh_token",
+  res.data.refresh_token,
+);
 
-// Flagged: refresh token in localStorage
-localStorage.setItem("refresh_token", tokens.refresh_token);
+// Flagged: property writes
+localStorage.token = auth.token;
+localStorage["auth_token"] = auth.token;
 
-// Flagged: ID token in localStorage
-localStorage.setItem("id_token", oidcResponse.id_token);
+// Flagged: the stored value is a token field, whatever the key
+localStorage.setItem("auth", tokens.access_token);
 
-// Flagged: generic "token" key
-localStorage.setItem("token", jwt);
-
-// Flagged: auth_token key
-localStorage.setItem("auth_token", authResult.token);
+// Flagged: a constant key that names a token in the same file
+const TOKEN_KEY = "auth_token";
+localStorage.setItem(TOKEN_KEY, token);
 ```
 
-The rule skips `.lock`, `.sum`, `.min.js`, and `.min.css` files.
+Not flagged: keys that describe a token rather than hold one (`tokenExpiry`,
+`tokenType`, `hasToken`, `tokenCount`), CSRF and push tokens, preferences
+(`theme`, `lang`), `getItem`/`removeItem`, `sessionStorage` and cookies, the
+call inside a string or a comment, and test, spec and Cypress files.
 
 ## Remediation
 

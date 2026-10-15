@@ -1,6 +1,6 @@
 ---
 title: "VNX-GO-006 – Go Server-Side Request Forgery"
-description: "Reports outbound HTTP requests, reverse proxies and net/tls dials whose URL or address starts with a request value (query, form, path parameter or a decoded JSON body field), directly, via url.Parse or a variable, or behind a prefix that does not pin the host. Fixed hosts, configured destinations, allowlisted values and guarded dialers are not reported."
+description: "Reports outbound HTTP requests, reverse proxies, net/tls dials and websocket dials whose URL or address starts with a request value (query, form, path parameter header, or a decoded or unmarshalled JSON body field), directly, via url.Parse or a variable, or behind a prefix that does not pin the host. Fixed hosts, configured destinations, allowlisted values and guarded dialers are not reported; a HasPrefix test against a bare scheme is normalisation, not a check."
 ---
 
 ## Overview

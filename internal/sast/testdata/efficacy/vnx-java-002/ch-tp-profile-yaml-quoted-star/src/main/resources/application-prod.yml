@@ -1,0 +1,8 @@
+server:
+  port: 8080
+management:
+  endpoints:
+    web:
+      base-path: /manage
+      exposure:
+~>        include: "*"

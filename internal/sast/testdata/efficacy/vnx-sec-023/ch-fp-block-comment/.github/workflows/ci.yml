@@ -1,0 +1,10 @@
+on: pull_request
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          # do not use ${{ github.event.pull_request.title }} here
+          echo "PR #${{ github.event.pull_request.number }}"
+          echo "${{ github.event.pull_request.head.sha }}"
+          echo '${{ toJSON(github.event.pull_request.labels) }}'

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context reloadable="false">
+~>    <Environment name="mail/smtpPassword" type="java.lang.String" value="Smtp-2024-relay" override="false"/>
+~>    <Parameter name="@@sample:l[d]ap[B]in[d]Pa[s]sw[o]rd@@" value="cn-bind-77" override="false"/>
+    <Environment name="mail/smtpHost" type="java.lang.String" value="smtp.internal" override="false"/>
+</Context>

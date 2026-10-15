@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-012 – Server-Side Template Injection (SSTI)"
-description: "Detect Flask and Jinja2 code that passes user-controlled input directly to render_template_string() or Template(), enabling server-side template injection with arbitrary code execution."
+description: "Detect request data (directly, through an assignment, a route parameter or a formatted string) used as the template source of render_template_string(), from_string() or a Jinja2, Mako, Django or Tornado Template(), which lets an attacker run template code on the server."
 ---
 
 ## Overview
@@ -44,10 +44,14 @@ def greet():
 def preview():
     return render_template_string(request.form["template"])
 
-# FLAGGED: Jinja2 Template with f-string
+# FLAGGED: Jinja2 Template with f-string of a route parameter
 from jinja2 import Template
+@app.route("/card/<content>")
 def render_user_content(content):
     return Template(f"<div>{content}</div>").render()
+
+# NOT flagged: constant template, user value passed as context
+return render_template_string("<h1>{{ name }}</h1>", name=request.args["name"])
 
 # FLAGGED: string concatenation in render_template_string
 @app.route("/hello")

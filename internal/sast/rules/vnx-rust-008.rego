@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUST-008",
 	"name": "Rust path traversal in Actix-web or Axum file-serving handler",
-	"description": "A value taken from an axum or actix-web request (a Path(name) / Path((a, b)) / Query(q) / Json / Form extractor, a web::Path<...> / web::Query<...> parameter, or HttpRequest::match_info()), directly or through one let binding such as path.into_inner() or format!(...), reaches a filesystem path or file operation in the same handler: .join(...), Path::new, PathBuf::from, File::open/create, std::fs or tokio::fs read/write/remove/copy/rename, NamedFile::open, ServeFile::new or OpenOptions. A request value containing ../ or an absolute path then reads or writes files outside the intended directory. Not reported: handlers that canonicalize the path and check starts_with against the base, reject \"..\" (contains(\"..\")), keep only file_name(), check Component::ParentDir / Component::Normal, or call a sanitize/safe_join helper; extractors of integer, bool or Uuid type; paths built from configuration rather than the request; comments and string literals. Flows through more than one intermediate binding or across functions are not followed.",
+	"description": "A value taken from an axum or actix-web request (a Path(name) / Path((a, b)) / Query(q) / Json / Form extractor, a web::Path<...> / web::Query<...> parameter, or HttpRequest::match_info()), directly or through one let binding such as path.into_inner() or format!(...), reaches a filesystem path or file operation in the same handler, as code or as an inline format argument (format!(\"/var/log/{service}.log\")): .join(...), Path::new, PathBuf::from, File::open/create, std::fs or tokio::fs read/write/remove/copy/rename, NamedFile::open, ServeFile::new or OpenOptions. A request value containing ../ or an absolute path then reads or writes files outside the intended directory. Not reported: handlers that canonicalize the path and check starts_with against the base, reject \"..\" (contains(\"..\")), keep only file_name(), allow-list the characters (chars().all(...), is_ascii_alphanumeric, a Regex is_match), check Component::ParentDir / Component::Normal, or call a sanitize/safe_join helper; extractors of integer, bool or Uuid type (including tuples of them, Path<(u16, u8)>); Url::join and slice .join(\",\"), which build no filesystem path; paths built from configuration rather than the request; comments and string literals. Flows through more than one intermediate binding or across functions are not followed.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-rust-008/",
 	"languages": ["rust"],
 	"severity": "high",
@@ -23,7 +23,33 @@ metadata := {
 
 _sink_re := `\.join\s*\(|\bPath::new\s*\(|\bPathBuf::from\s*\(|\bFile::(?:open|create)\s*\(|\bfs::(?:read|read_to_string|read_dir|write|remove_file|remove_dir_all|create_dir_all|copy|rename|File)\b|\bNamedFile::open\b|\bServeFile::new\b|\bOpenOptions\b`
 
-_guard_re := `canonicalize[\s\S]*starts_with|starts_with[\s\S]*canonicalize|contains\s*\(\s*"\.\.|contains\s*\(\s*'\.'|ParentDir|Component::Normal|\.file_name\s*\(\s*\)|(?i)sanitiz|safe_join|secure_join|is_safe_path`
+_guard_re := `canonicalize[\s\S]*starts_with|starts_with[\s\S]*canonicalize|contains\s*\(\s*"\.\.|contains\s*\(\s*'\.'|ParentDir|Component::Normal|\.file_name\s*\(\s*\)|\.chars\s*\(\s*\)\s*\.all\s*\(|is_ascii_alphanumeric|\.is_match\s*\(|(?i)sanitiz|safe_join|secure_join|is_safe_path`
+
+# The same sinks without .join, which is checked separately: only its
+# argument is a path component, and Url::join / slice.join(",") are not paths.
+_sink_nojoin_re := `\bPath::new\s*\(|\bPathBuf::from\s*\(|\bFile::(?:open|create)\s*\(|\bfs::(?:read|read_to_string|read_dir|write|remove_file|remove_dir_all|create_dir_all|copy|rename|File)\b|\bNamedFile::open\b|\bServeFile::new\b|\bOpenOptions\b`
+
+_sink_ref(code, raw, v, _) if {
+	regex.match(_sink_nojoin_re, code)
+	_uses(code, raw, v)
+}
+
+_sink_ref(code, raw, v, body) if {
+	regex.match(concat("", [`\.join\s*\(\s*[^)]*(?:^|[^.\w])`, v, `\b`]), code)
+	not regex.match(`\bUrl::|\b\w*url\w*\s*\.join|\.join\s*\(\s*""`, code)
+	not _url_receiver(code, body)
+}
+
+# base.join(...) where base was bound from Url::parse / Url::from... above.
+_url_receiver(code, body) if {
+	some m in regex.find_all_string_submatch_n(`\b([a-z_]\w*)\s*\.join\s*\(`, code, -1)
+	regex.match(concat("", [`\blet\s+(?:mut\s+)?`, m[1], `\b[^;]*\bUrl::`]), body)
+}
+
+# A use in code, or as an inline format argument ("{name}") in a literal.
+_uses(code, raw, v) if _refs(code, v)
+
+_uses(code, raw, v) if regex.match(concat("", [`\{`, v, `(?::[^}]*)?\}`]), raw)
 
 _safe_type_re := `^\s*(?:u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|bool|Uuid|uuid::Uuid)\s*$`
 
@@ -52,7 +78,8 @@ _line_names(line) := {v |
 	not regex.match(_safe_type_re, m[2])
 	v := m[1]
 } | {v |
-	some m in regex.find_all_string_submatch_n(`\bPath\s*\(\s*\(([^)]*)\)\s*\)`, line, -1)
+	some m in regex.find_all_string_submatch_n(`\bPath\s*\(\s*\(([^)]*)\)\s*\)(?:\s*:\s*(?:\w+::)*Path\s*<\s*\(([^)]*)\)\s*>)?`, line, -1)
+	not _all_safe_types(m[2])
 	some part in split(m[1], ",")
 	v := trim_space(part)
 	regex.match(`^[a-z_]\w*$`, v)
@@ -63,6 +90,14 @@ _line_names(line) := {v |
 } | {v |
 	some m in regex.find_all_string_submatch_n(`\b([a-z_]\w*)\s*:\s*&?\s*(?:actix_web::)?HttpRequest\b`, line, -1)
 	v := m[1]
+}
+
+# Path<(u16, u8)>: every element of the tuple is a number, bool or Uuid.
+_all_safe_types(types) if {
+	types != ""
+	every t in split(types, ",") {
+		regex.match(_safe_type_re, t)
+	}
 }
 
 _refs(line, v) if regex.match(concat("", [`(?:^|[^.\w])`, v, `\b`]), line)
@@ -101,9 +136,10 @@ findings contains finding if {
 	regex.match(_sink_re, code)
 	fs := _fn_start(lines, i)
 	some v in _tainted(lines, fs, i)
-	_refs(code, v)
+	body := helpers.code_window(lines, i, i - fs, _fn_end(lines, i) - i)
+	_sink_ref(code, regex.replace(line, `//.*$`, ""), v, body)
 	not _is_declaration(code, v)
-	not regex.match(_guard_re, helpers.code_window(lines, i, i - fs, _fn_end(lines, i) - i))
+	not regex.match(_guard_re, body)
 	finding := {
 		"rule_id": metadata.id,
 		"message": "A request-supplied path component reaches a filesystem path without validation; '../' or an absolute path escapes the base directory. Canonicalize the joined path and require it starts_with the canonical base, or reject anything but a single Component::Normal",

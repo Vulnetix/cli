@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-RUBY-002",
 	"name": "eval() or system() in Ruby",
-	"description": "Request input reaches a Ruby code or shell evaluator: eval, instance_eval, class_eval or module_eval given a string, or a shell command run by system, exec, spawn, Kernel#open, IO.popen, backticks or %x() in its single-string (shell) form. Request input is params, request.params/body/query_string/headers/cookies/env/path/url/referer/user_agent, cookies, Rack env request keys or an upload's original_filename, used on the call line or through a variable assigned from it (up to two assignments) in the 12 lines above. Not reported: constant commands and code strings, the argument-list form (system(\"ping\", \"-c\", \"1\", host), IO.popen([...])), input passed through Shellwords.escape/shellescape or converted with to_i/to_f, block forms (instance_eval do ... end), receivers other than Kernel/Process (File.open, conn.exec), text inside string literals and comments. Metaprogramming that interpolates method names, ARGV and data read from local files are deliberately out of scope; Open3 calls are VNX-RUBY-008.",
+	"description": "Request input reaches a Ruby code or shell evaluator: eval, instance_eval, class_eval or module_eval given a string, or a shell command run by system, exec, spawn, Kernel#open, IO.popen, backticks or %x() in its single-string (shell) form, or in the argument-list form that runs a shell anyway (system(\"sh\", \"-c\", cmd)). Request input is params, request.params/body/query_string/headers/cookies/env/path/url/referer/user_agent, cookies, Rack env request keys or an upload's original_filename, used on the call line or through a variable assigned from it (up to two assignments) in the 12 lines above. Not reported: constant commands and code strings, the argument-list form (system(\"ping\", \"-c\", \"1\", host), IO.popen([...])), input passed through Shellwords.escape/shellescape or converted with to_i/to_f, a variable assigned from a constant table keyed by the input (COMMANDS.fetch(params[:task])), block forms (instance_eval do ... end), receivers other than Kernel/Process (File.open, conn.exec), text inside string literals and comments. Metaprogramming that interpolates method names, ARGV and data read from local files are deliberately out of scope; Open3 calls are VNX-RUBY-008.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-ruby-002/",
 	"languages": ["ruby"],
 	"severity": "high",
@@ -26,6 +26,10 @@ _src_re := `\bparams\b\s*(?:[\[\.\),]|$)|\brequest\.(?:params|query_parameters|r
 
 # A Ruby local, instance or class variable assigned on the line.
 _assign_re := `^\s*(@{0,2}[A-Za-z_]\w*)\s*(?:\|\||\+)?=\s*[^=~>]`
+
+# Input used only as a key into a constant table (TASKS.fetch(params[:task]),
+# COMMANDS[params[:c]]) selects one of the application's own values.
+_allowlist_re := `^\s*@{0,2}\w+\s*(?:\|\|)?=\s*[A-Z][A-Z0-9_]*(?:::[A-Z][A-Z0-9_]*)*(?:\.fetch\(|\[|\.dig\()`
 
 # Input converted to a number cannot carry shell or Ruby syntax.
 _numeric_re := `(?:params\s*\[[^\]]*\]|@?\w+)\.to_(?:i|f|r)\b`
@@ -49,6 +53,7 @@ _tainted(lines, i) := t1 | t2 if {
 		l := lines[j]
 		not helpers.is_comment_line(l)
 		regex.match(_src_re, regex.replace(l, _numeric_re, ""))
+		not regex.match(_allowlist_re, l)
 		v := _assigned(l)
 	}
 	t2 := {w |
@@ -119,6 +124,15 @@ _reportable("shell", tok, args) if {
 	not startswith(tok, "%x")
 	_call_args(args)
 	not _exec_form(args)
+}
+
+# The argument-list form that starts a shell anyway: system("sh", "-c", cmd).
+_sh_c_re := `^\s*\(?\s*["'](?:/usr)?(?:/bin/)?(?:ba|z|da|k)?sh["']\s*,\s*["']-[a-z]*c["']\s*,`
+
+_reportable("shell", tok, args) if {
+	not startswith(tok, "`")
+	not startswith(tok, "%x")
+	regex.match(_sh_c_re, args)
 }
 
 _reportable("shell", tok, _) if startswith(tok, "`")

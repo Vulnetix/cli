@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-KOTLIN-002",
 	"name": "Kotlin RSA, DSA or DH key smaller than 2048 bits",
-	"description": "An RSA, DSA or Diffie-Hellman key pair is generated with a modulus smaller than 2048 bits, which today's factoring and discrete-log computations can break. Reported in Kotlin (.kt, .kts): KeyPairGenerator.initialize(n) and initialize(n, random) on a generator obtained from KeyPairGenerator.getInstance(\"RSA\"/\"DSA\"/\"DH\"/\"DiffieHellman\"/KeyProperties.KEY_ALGORITHM_RSA), through a variable or inside apply/run/also/with; RSAKeyGenParameterSpec(n, ...); setKeySize(n) on an Android KeyGenParameterSpec.Builder that feeds an RSA KeyPairGenerator or on the legacy KeyPairGeneratorSpec.Builder (RSA by default); and Bouncy Castle RSAKeyGenerationParameters(e, random, n, certainty). The size may be a literal, a constant or a parameter default assigned exactly once in the file, and may sit on a continuation line. Not reported: sizes of 2048 or more; EC, EdDSA and symmetric (KeyGenerator, AES/HMAC keystore) sizes; a size variable the file assigns more than once or a generator whose algorithm is not visible (a parameter, a variable algorithm name); unrelated initialize()/setKeySize() calls; test code; and the calls in comments or string literals.",
+	"description": "An RSA, DSA or Diffie-Hellman key pair is generated with a modulus smaller than 2048 bits, which today's factoring and discrete-log computations can break. Reported in Kotlin (.kt, .kts): KeyPairGenerator.initialize(n) and initialize(n, random) on a generator obtained from KeyPairGenerator.getInstance(\"RSA\"/\"DSA\"/\"DH\"/\"DiffieHellman\"/KeyProperties.KEY_ALGORITHM_RSA), through a variable or inside apply/run/also/with (the getInstance chain may span several lines); init(n) on an AlgorithmParameterGenerator for \"DSA\"/\"DH\" domain parameters; RSAKeyGenParameterSpec(n, ...); setKeySize(n) on an Android KeyGenParameterSpec.Builder that feeds an RSA KeyPairGenerator or on the legacy KeyPairGeneratorSpec.Builder (RSA by default); and Bouncy Castle RSAKeyGenerationParameters(e, random, n, certainty). The size may be a literal, a constant or a parameter default assigned exactly once in the file, and may sit on a continuation line or after an inline block comment. Not reported: sizes of 2048 or more; a keystore setKeySize under 512 bits (an AES or EC size, whatever generator sits nearby); EC, EdDSA and symmetric (KeyGenerator, AES/HMAC keystore) sizes; a size variable the file assigns more than once or a generator whose algorithm is not visible (a parameter, a variable algorithm name); unrelated initialize()/setKeySize() calls; test code; and the calls in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-kotlin-002/",
 	"languages": ["kotlin"],
 	"severity": "high",
@@ -39,7 +39,7 @@ _is_test(path) if regex.match(`(^|/)([\w.]+[-_])?test(s|ing)?([-_][\w.-]+)?/`, p
 
 # The line with string-literal contents blanked and any trailing comment cut,
 # so a call written inside a log message or after // is not code.
-_code(line) := regex.replace(regex.replace(line, `"(?:[^"\\]|\\.)*"`, `""`), `//.*$`, "")
+_code(line) := regex.replace(regex.replace(regex.replace(line, `"(?:[^"\\]|\\.)*"`, `""`), `/\*.*?\*/`, " "), `//.*$`, "")
 
 # Line i and the next two lines as code, for calls whose arguments wrap.
 _joined(lines, i) := concat(" ", [_code(l) | some l in array.slice(lines, i, i + 3)])
@@ -86,8 +86,12 @@ _weak_alg(expr, content) if {
 	regex.match(_weak_alg_name, _single_value(content, id))
 }
 
-_kpg_alg_expr(txt) := e if {
-	m := regex.find_all_string_submatch_n(`\bKeyPairGenerator\s*\.\s*getInstance\s*\((.*)$`, txt, 1)
+_kpg_alg_expr(txt) := _gen_alg_expr(txt, "KeyPairGenerator")
+
+# The text after <cls>.getInstance( (KeyPairGenerator, or the DSA/DH
+# AlgorithmParameterGenerator), the algorithm argument first.
+_gen_alg_expr(txt, cls) := e if {
+	m := regex.find_all_string_submatch_n(concat("", [`\b`, cls, `\s*\.\s*getInstance\s*\((.*)$`]), txt, 1)
 	count(m) > 0
 	e := m[0][1]
 }
@@ -110,55 +114,60 @@ _recv_assign(lines, i, recv) := j if {
 
 # The variable holds an RSA/DSA/DH generator: its nearest assignment above,
 # or, for a property declared further up, its only assignment in the file.
-_rsa_var(lines, i, recv, content) if {
+_rsa_var(lines, i, recv, content, cls) if {
 	j := _recv_assign(lines, i, recv)
 	txt := concat(" ", array.slice(lines, j, j + 2))
-	_weak_alg(_kpg_alg_expr(txt), content)
+	_weak_alg(_gen_alg_expr(txt, cls), content)
 }
 
-_rsa_var(lines, i, recv, content) if {
+_rsa_var(lines, i, recv, content, cls) if {
 	not _recv_assign(lines, i, recv)
 	re := concat("", [`\b`, recv, `\s*(?::\s*[\w.?<>]+)?\s*(?:=|by\s+lazy\b)([^=\n][^\n]*)`])
 	ms := regex.find_all_string_submatch_n(re, content, -1)
 	count(ms) == 1
-	_weak_alg(_kpg_alg_expr(ms[0][1]), content)
+	_weak_alg(_gen_alg_expr(ms[0][1], cls), content)
 }
 
-_rsa_generator(lines, i, recv, content) if {
+_rsa_generator(lines, i, recv, content, cls) if {
 	not recv in {"", "it", "this"}
-	_rsa_var(lines, i, recv, content)
+	_rsa_var(lines, i, recv, content, cls)
 }
 
 # initialize() inside KeyPairGenerator.getInstance(...).apply/run/also/let { }
-# or with(KeyPairGenerator.getInstance(...)) { }.
-_rsa_generator(lines, i, recv, content) if {
+# or with(KeyPairGenerator.getInstance(...)) { }, the chain possibly spread
+# over the four lines above.
+_rsa_generator(lines, i, recv, content, cls) if {
 	recv in {"", "it", "this"}
-	some k in numbers.range(max([0, i - 3]), i)
-	l := lines[k]
-	contains(l, "KeyPairGenerator")
-	regex.match(`(\.(apply|run|also|let)\s*\{|\bwith\s*\()`, l)
-	_weak_alg(_kpg_alg_expr(l), content)
+	some k in numbers.range(max([0, i - 4]), i)
+	contains(lines[k], cls)
+	w := concat(" ", [_code_keep(l) | some l in array.slice(lines, k, i + 1)])
+	regex.match(`(\.\s*(apply|run|also|let)\s*\{|\bwith\s*\()`, w)
+	_weak_alg(_gen_alg_expr(w, cls), content)
 }
 
 # ... or inside with(kpg) { } / kpg.apply { } on a generator variable.
-_rsa_generator(lines, i, recv, content) if {
+_rsa_generator(lines, i, recv, content, cls) if {
 	recv in {"", "it", "this"}
 	some k in numbers.range(max([0, i - 3]), i)
 	m := regex.find_all_string_submatch_n(`(?:\bwith\s*\(\s*([A-Za-z_]\w*)\s*\)|\b([A-Za-z_]\w*)\s*\.\s*(?:apply|run|also|let))\s*\{`, lines[k], 1)
 	count(m) > 0
 	v := concat("", [m[0][1], m[0][2]])
-	_rsa_var(lines, k, v, content)
+	_rsa_var(lines, k, v, content, cls)
 }
+
+# A line with a trailing comment cut but string literals kept (the algorithm
+# name is a literal).
+_code_keep(line) := regex.replace(line, `//[^"]*$`, "")
 
 
 findings contains finding if {
 	some path, content in input.file_contents
 	_is_kotlin(path)
-	regex.match(`KeyPairGenerator|RSAKeyGen`, content)
+	regex.match(`KeyPairGenerator|RSAKeyGen|AlgorithmParameterGenerator`, content)
 	not _is_test(path)
 	lines := split(content, "\n")
 	some i, line in lines
-	regex.match(`initialize|RSAKeyGen|setKeySize`, line)
+	regex.match(`init|RSAKeyGen|setKeySize`, line)
 	not helpers.is_comment_line(line)
 	_weak_key(lines, i, line, content)
 	finding := _finding(path, i, line)
@@ -173,7 +182,20 @@ _weak_key(lines, i, line, content) if {
 	a := regex.find_all_string_submatch_n(`\binitialize\s*\(\s*([^,)]*?)\s*[,)]`, _joined(lines, i), 1)
 	count(a) > 0
 	_weak_size(a[0][1], content)
-	_rsa_generator(lines, i, m[0][1], content)
+	_rsa_generator(lines, i, m[0][1], content, "KeyPairGenerator")
+}
+
+# DSA/DH domain parameters: AlgorithmParameterGenerator.getInstance("DH").init(1024)
+_weak_key(lines, i, line, content) if {
+	contains(line, "init")
+	contains(content, "AlgorithmParameterGenerator")
+	code := _code(line)
+	m := regex.find_all_string_submatch_n(`(?:\b([A-Za-z_]\w*)\s*\.\s*)?\binit\s*\(`, code, 1)
+	count(m) > 0
+	a := regex.find_all_string_submatch_n(`\binit\s*\(\s*([^,)]*?)\s*[,)]`, _joined(lines, i), 1)
+	count(a) > 0
+	_weak_size(a[0][1], content)
+	_rsa_generator(lines, i, m[0][1], content, "AlgorithmParameterGenerator")
 }
 
 # RSAKeyGenParameterSpec(1024, F4)
@@ -198,10 +220,27 @@ _weak_key(lines, i, line, content) if {
 	a := regex.find_all_string_submatch_n(`\.setKeySize\s*\(\s*([^,)]*?)\s*\)`, _code(line), 1)
 	count(a) > 0
 	_weak_size(a[0][1], content)
+	not _sub_rsa_size(a[0][1], content)
 	b := _builder_line(lines, i)
 	_rsa_builder(lines, b, i, content)
 }
 
+
+# The keystore refuses RSA keys under 512 bits, so a smaller setKeySize is
+# an AES (128/192/256) or EC (224/256/384/521) size whose spec happens to sit
+# nearest an RSA generator.
+_sub_rsa_size(arg, content) if _size_number(arg, content) < 512
+
+_size_number(arg, _) := to_number(m[0][1]) if {
+	m := regex.find_all_string_submatch_n(`^\s*(\d{1,4})\b`, arg, 1)
+	count(m) > 0
+}
+
+_size_number(arg, content) := to_number(m[0][1]) if {
+	not regex.match(`^\s*\d`, arg)
+	m := regex.find_all_string_submatch_n(`^\s*(\d{1,4})\b`, _single_value(content, regex.replace(arg, `^.*\.`, "")), 1)
+	count(m) > 0
+}
 
 _builder_line(lines, i) := b if {
 	bs := [k |

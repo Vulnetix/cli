@@ -1,0 +1,8 @@
+<% @posts.each do |post| %>
+  <tr>
+    <td><%= post.title %></td>
+    <td><%= link_to 'Show', post %></td>
+~>    <td><%= link_to 'Destroy', post, method: :delete %></td>
+~>    <td><%= link_to "Remove", post_path(post), :method => :delete, class: "btn btn-danger" %></td>
+  </tr>
+<% end %>

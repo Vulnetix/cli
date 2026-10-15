@@ -1,0 +1,7 @@
+<%= raw sanitize(@page.body, tags: %w[p a strong]) %>
+<%= sanitize(@page.footer).html_safe %>
+<%= raw t("pages.about.intro_html") %>
+<%= "&copy; 2026 Acme".html_safe %>
+<%== render "shared/nav" %>
+<% if @page.body.html_safe? %>marked<% end %>
+<%= raw json_escape(@page.data.to_json) %>

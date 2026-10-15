@@ -1,0 +1,4 @@
+- name: Create deploy user
+  ansible.builtin.user:
+    name: deploy
+~>    password_expire_max: 99999

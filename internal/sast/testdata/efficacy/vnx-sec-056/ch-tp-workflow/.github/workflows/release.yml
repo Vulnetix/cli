@@ -1,0 +1,8 @@
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: getsentry/action-release@v1
+        env:
+~>          SENTRY_AUTH_TOKEN: sntryu_@@sample:[0-9a-f]{64}@@
+          SENTRY_ORG: acme

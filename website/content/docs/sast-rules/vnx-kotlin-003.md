@@ -49,6 +49,9 @@ val refresh = ResponseCookie.from("refresh_token", refreshToken)
 
 // FLAGGED: Ktor Sessions with HttpOnly turned off
 cookie<UserSession>("user_session") { cookie.httpOnly = false }
+
+// FLAGGED: Spring Boot Tomcat customizer turning HttpOnly off for the session cookie
+TomcatContextCustomizer { context -> context.useHttpOnly = false }
 ```
 
 Not flagged:
@@ -56,6 +59,8 @@ Not flagged:
 ```kotlin
 response.addCookie(Cookie("theme", theme))                 // not a credential
 Cookie("XSRF-TOKEN", csrfToken).apply { isHttpOnly = false } // double-submit token
+Cookie("ui_theme", value).apply { isHttpOnly = false }       // deliberately script-readable
+storage.addCookie(Url(baseUrl), Cookie("session", token))   // Ktor client-side cookie store
 call.response.cookies.append(Cookie("session", id, httpOnly = true, secure = true))
 ```
 

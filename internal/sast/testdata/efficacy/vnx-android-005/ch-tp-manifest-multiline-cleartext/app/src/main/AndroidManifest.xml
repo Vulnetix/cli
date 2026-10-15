@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.acme.radio">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application
+        android:label="@string/app_name"
+~>        android:usesCleartextTraffic = "true"
+        android:theme="@style/AppTheme">
+    </application>
+</manifest>

@@ -8,7 +8,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-1048",
 	"name": "Invokable Control Element with Large Number of Outward Calls",
-	"description": "A single function or method whose body calls 40 or more distinct functions or methods (CWE-1048, excessive fan-out). A function that reaches that many other units does too many jobs to be reviewed or tested as one, and a security check buried among them is easy to miss or bypass. Counted per function in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby: each distinct callee name (receiver included, so db.Close and store.Close are two) in the body up to its closing brace, dedent or 'end', with string literals and comment lines removed and language keywords ignored; in Ruby a method sent without parentheses counts too. Repeated calls to the same function count once. Not reported: test files, vendored or minified code, functions whose body runs past 300 lines (measured only up to that window), and long functions that call few distinct things (a table-driven switch, a builder repeating one call).",
+	"description": "A single function or method whose body calls 40 or more distinct functions or methods (CWE-1048, excessive fan-out). A function that reaches that many other units does too many jobs to be reviewed or tested as one, and a security check buried among them is easy to miss or bypass. Counted per function in Go, Java, JavaScript/TypeScript, PHP, Python and Ruby: each distinct callee name (receiver included, so db.Close and store.Close are two) in the body up to its closing brace, dedent or 'end', with string literals, PHP/Ruby heredoc text (a SQL query's COUNT( is not a call) and comment lines removed and language keywords ignored; Go and JavaScript/TypeScript signatures split over several lines and Java package-private methods are recognised; in Ruby a method sent without parentheses counts too. Repeated calls to the same function count once. Not reported: test files, vendored or minified code, AMD module wrappers and whole-page DOM-ready wrappers ($(document).ready(function () {, DOMContentLoaded listeners), functions whose body runs past 300 lines (measured only up to that window), and long functions that call few distinct things (a table-driven switch, a builder repeating one call).",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-1048/",
 	"languages": ["go", "java", "node", "php", "python", "ruby"],
 	"severity": "low",
@@ -95,9 +95,64 @@ _decl("java", line) := m[0][1] if {
 	not regex.match(`\s(class|interface|enum|record|new)\s|=`, line)
 }
 
+# package-private method or constructor: `    Report run(Instant since) throws X {`
+_decl("java", line) := m[0][1] if {
+	m := regex.find_all_string_submatch_n(`^([ \t]+)([\w.]+(?:<[^;=()]*>)?(?:\[\])*)[ \t]+(\w+)[ \t]*\([^;=]*\)(?:[ \t]*throws[ \t]+[\w., ]+)?[ \t]*\{\s*$`, line, 1)
+	count(m) > 0
+	not m[0][2] in {"return", "new", "else", "throw", "case", "yield", "await", "assert"}
+	not m[0][3] in _keywords
+}
+
 _decl("js", line) := m[0][1] if {
 	m := regex.find_all_string_submatch_n(`^([ \t]*)(?:export[ \t]+)?(?:default[ \t]+)?(?:async[ \t]+)?function\b[^;]*\{\s*$`, line, 1)
 	count(m) > 0
+}
+
+# a signature split over several lines: the first line ends at the opening
+# parenthesis and the body opens on the line that closes the parameter list
+_ml_start := {
+	"go": `^()func\b[^{]*\(\s*$`,
+	"js": `^([ \t]*)(?:export[ \t]+)?(?:(?:const|let|var)[ \t]+[\w$]+[ \t]*(?::[^=]+)?=[ \t]*(?:async[ \t]+)?|(?:default[ \t]+)?(?:async[ \t]+)?function\b[^(]*)\(\s*$`,
+}
+
+_ml_open := {
+	"go": `^\)[^{]*\{\s*$`,
+	"js": `^\)[^{]*(?:=>)?[ \t]*\{\s*$`,
+}
+
+# A string test that every declaration line passes, so the declaration
+# regexes run on a few lines per file rather than on all of them.
+_maybe_decl("go", line) if startswith(line, "func")
+
+_maybe_decl("py", line) if contains(line, "def")
+
+_maybe_decl("rb", line) if contains(line, "def")
+
+_maybe_decl("php", line) if contains(line, "function")
+
+_maybe_decl("java", line) if {
+	contains(line, "(")
+	not endswith(trim_right(line, " \t\r"), ";")
+}
+
+_maybe_decl("js", line) if endswith(trim_right(line, " \t\r"), "{")
+
+_maybe_decl("js", line) if endswith(trim_right(line, " \t\r"), "(")
+
+_decl_any(l, _, _, line) := ind if {
+	_maybe_decl(l, line)
+	ind := _decl(l, line)
+}
+
+_decl_any(l, lines, i, line) := ind if {
+	_maybe_decl(l, line)
+	not _decl(l, line)
+	m := regex.find_all_string_submatch_n(_ml_start[l], line, 1)
+	count(m) > 0
+	ind := m[0][1]
+	some k in numbers.range(i + 1, min([count(lines) - 1, i + 10]))
+	startswith(lines[k], ind)
+	regex.match(_ml_open[l], trim_prefix(lines[k], ind))
 }
 
 _decl("js", line) := m[0][1] if {
@@ -120,23 +175,35 @@ _decl("js", line) := m[0][1] if {
 	m := regex.find_all_string_submatch_n(`^([ \t]*)[\w$.]+\(.*(?:function[ \t]*[\w$]*[ \t]*\([^)]*\)|\([^)]*\)[ \t]*=>|[\w$]+[ \t]*=>)[ \t]*\{\s*$`, line, 1)
 	count(m) > 0
 	not regex.match(`^\s*([\w$]+\.)?(define|createModule)\(`, line)
+	not _dom_ready(line)
 }
 
 # ── the line that ends a function body ────────────────────────────────────
 
 _last(lines, i) := min([count(lines) - 1, i + _window])
 
-_end(lines, i, ind, l) := e if {
-	l in {"go", "java", "php", "js"}
-	closer := concat("", [ind, "}"])
-	ends := [k |
-		some k in numbers.range(i + 1, _last(lines, i))
-		startswith(lines[k], closer)
+# Lines that open with a closing brace, grouped by the indent before it, in
+# line order. Built once per file, so finding where a function ends is a walk
+# over the closers at its indent rather than a scan of the next 300 lines.
+_closers(lines) := {ind: [k | some p in pairs; p[1] == ind; k := p[0]] |
+	some ind in {p[1] | some p in pairs}
+} if {
+	pairs := [[k, ind] |
+		some k, l in lines
+		t := trim_left(l, " \t")
+		startswith(t, "}")
+		ind := substring(l, 0, count(l) - count(t))
 	]
+}
+
+_end(lines, i, ind, l, cl) := e if {
+	l in {"go", "java", "php", "js"}
+	last := _last(lines, i)
+	ends := [k | some k in object.get(cl, ind, []); k > i; k <= last]
 	e := _first(ends, lines, i)
 }
 
-_end(lines, i, ind, "rb") := e if {
+_end(lines, i, ind, "rb", _) := e if {
 	ends := [k |
 		some k in numbers.range(i + 1, _last(lines, i))
 		regex.match(`^end\b`, trim_prefix(lines[k], ind))
@@ -146,7 +213,7 @@ _end(lines, i, ind, "rb") := e if {
 	e := _first(ends, lines, i)
 }
 
-_end(lines, i, ind, "py") := e if {
+_end(lines, i, ind, "py", _) := e if {
 	ends := [k |
 		some k in numbers.range(i + 1, _last(lines, i))
 		l := lines[k]
@@ -161,7 +228,7 @@ _end(lines, i, ind, "py") := e if {
 }
 
 # a body that runs past the window is measured over the window
-_end(lines, i, ind, "py") := _last(lines, i) + 1 if {
+_end(lines, i, ind, "py", _) := _last(lines, i) + 1 if {
 	every k in numbers.range(i + 1, _last(lines, i)) {
 		_py_inside(lines[k], ind)
 	}
@@ -224,6 +291,39 @@ _sends(body, "rb") := {c |
 
 _sends(_, l) := set() if l != "rb"
 
+# A whole-page DOM-ready wrapper ($(document).ready(function () {, $(function
+# () {, DOMContentLoaded/load listeners) holds a script's functions, like an
+# AMD wrapper; it is not itself a unit of work.
+_dom_ready(line) if regex.match(`^\s*(\$|jQuery)\(\s*(document|window|function|\(\s*\)\s*=>|async)`, line)
+
+_dom_ready(line) if regex.match(`^\s*(document|window)\.addEventListener\(\s*['"](DOMContentLoaded|load)['"]`, line)
+
+# The text of PHP (<<<SQL) and Ruby (<<~SQL, <<-SQL) heredocs: a SQL query's
+# COUNT( and SUM( are not calls. Lines from the opener's next line through the
+# terminator.
+_heredoc_lines(_, _, _, l) := set() if not l in {"php", "rb"}
+
+_heredoc_lines(lines, i, e, l) := {x |
+	l in {"php", "rb"}
+	some k in numbers.range(i + 1, e - 1)
+	contains(lines[k], "<<")
+	m := regex.find_all_string_submatch_n(`<<[~-]?['"]?([A-Z_][A-Z0-9_]*)['"]?`, lines[k], 1)
+	count(m) > 0
+	term := concat("", [`^\s*`, m[0][1], `\b`])
+	ends := [k2 | some k2 in numbers.range(k + 1, e - 1); regex.match(term, lines[k2])]
+	count(ends) > 0
+	some x in numbers.range(k + 1, ends[0])
+}
+
+# Fewer than 40 opening parentheses cannot hold 40 distinct calls. Ruby sends
+# methods without parentheses, so its bodies are always counted.
+_enough_parens(_, _, _, "rb")
+
+_enough_parens(lines, i, e, l) if {
+	l != "rb"
+	count(indexof_n(concat("\n", array.slice(lines, i + 1, e)), "(")) >= _threshold
+}
+
 findings contains finding if {
 	some path, content in input.file_contents
 	l := _lang(path)
@@ -231,11 +331,14 @@ findings contains finding if {
 	not helpers.is_test_path(path)
 	regex.match(_gate[l], content)
 	lines := split(content, "\n")
+	cl := _closers(lines)
 	some i, line in lines
-	ind := _decl(l, line)
-	e := _end(lines, i, ind, l)
+	ind := _decl_any(l, lines, i, line)
+	e := _end(lines, i, ind, l, cl)
 	e - i > _min_body
-	body := regex.replace(concat("\n", [x | some k in numbers.range(i + 1, e - 1); x := lines[k]; not helpers.is_comment_line(x)]), _strings(l), `""`)
+	_enough_parens(lines, i, e, l)
+	skip := _heredoc_lines(lines, i, e, l)
+	body := regex.replace(concat("\n", [x | some k in numbers.range(i + 1, e - 1); not k in skip; x := lines[k]; not helpers.is_comment_line(x)]), _strings(l), `""`)
 	callees := _calls(body, l) | _sends(body, l)
 	n := count(callees)
 	n >= _threshold

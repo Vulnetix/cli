@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-ANDROID-003",
 	"name": "Android component exported without a permission",
-	"description": "An <activity>, <activity-alias>, <service>, <receiver> or <provider> in a production AndroidManifest.xml is reachable by every app on the device and requires no permission. Exported means android:exported=\"true\", or (activity, service, receiver) an <intent-filter> with no android:exported attribute, which exports the component in an app targeting API 30 or lower (API 31+ refuses to build that manifest). Protected means android:permission, or for a provider both android:readPermission and android:writePermission. Not reported: components whose intent filters answer a platform action (android.* or com.google.android.*: the launcher entry, deep links and app links, share targets, system broadcasts, Play-services bindings), which are public by design and cannot require a permission; components with android:exported=\"false\", tools:node=\"remove\" or android:enabled=\"false\"; providers left unexported by default; manifests in debug/test source sets and test, sample, example or demo modules; XML comments. Whether the permission's protection level is strong enough, and how the component validates its input, are not judged.",
+	"description": "An <activity>, <activity-alias>, <service>, <receiver> or <provider> in a production AndroidManifest.xml is reachable by every app on the device and requires no permission. Exported means android:exported=\"true\", or (activity, service, receiver) an <intent-filter> with no android:exported attribute, which exports the component in an app targeting API 30 or lower (API 31+ refuses to build that manifest). Protected means android:permission on the component or on <application> (which covers every component), or for a provider both android:readPermission and android:writePermission. Not reported: components whose intent filters answer a platform action (android.* or com.google.android.*: the launcher entry, deep links and app links, share targets, system broadcasts, Play-services bindings), which are public by design and cannot require a permission; components with android:exported=\"false\", tools:node=\"remove\" or android:enabled=\"false\"; providers left unexported by default; manifests in debug/test source sets and test, sample, example or demo modules; XML comments. Whether the permission's protection level is strong enough, and how the component validates its input, are not judged.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-android-003/",
 	"languages": ["android"],
 	"severity": "high",
@@ -86,6 +86,9 @@ _protected("provider", start) if {
 	regex.match(`android:writePermission\s*=\s*["'][^"']+["']`, start)
 }
 
+# <application android:permission> covers every component that sets none.
+_app_protected(content) if regex.match(`<application\b[^>]*android:permission\s*=\s*["'][^"']+["']`, content)
+
 # An intent filter that answers a platform action is a public contract.
 _public_contract(body) if regex.match(`<action\b[^>]*android:name\s*=\s*["'](android\.|com\.google\.android\.)`, body)
 
@@ -120,6 +123,7 @@ findings contains finding if {
 	body := _body(rest, start, tag)
 	_exported(tag, start, body)
 	not _protected(tag, start)
+	not _app_protected(content)
 	not _public_contract(body)
 	not _inactive(start)
 	finding := {

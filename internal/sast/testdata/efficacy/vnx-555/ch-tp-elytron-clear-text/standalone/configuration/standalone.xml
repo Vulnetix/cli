@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<server xmlns="urn:jboss:domain:20.0">
+  <profile>
+    <subsystem xmlns="urn:jboss:domain:datasources:7.0">
+      <datasources>
+        <datasource jndi-name="java:jboss/datasources/ShopDS" pool-name="ShopDS">
+          <connection-url>jdbc:postgresql://db:5432/shop</connection-url>
+          <security>
+            <user-name>shop</user-name>
+~>            <credential-reference clear-text="Wildfly-Db-Pass9"/>
+          </security>
+        </datasource>
+      </datasources>
+    </subsystem>
+  </profile>
+</server>

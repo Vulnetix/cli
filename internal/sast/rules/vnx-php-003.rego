@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-PHP-003",
 	"name": "PHP file inclusion with variable path",
-	"description": "An include, require, include_once or require_once statement whose path contains a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys), php://input, filter_input() or a Laravel/Symfony request accessor, inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable, so str_replace() blacklists of ../ or http:// still count). That is Local File Inclusion, and Remote File Inclusion where allow_url_include is on, both leading to code execution. Not reported: a path passed through basename() or intval(), a value checked with in_array(), array_key_exists(), isset($map[$v]) or preg_match() before the include, constant paths and __DIR__-relative paths built from constants, variables whose origin is not visible in the file (a value set in another included file or passed as a function parameter is a documented gap), and the keywords in comments or string literals.",
+	"description": "An include, require, include_once or require_once statement whose path contains a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, client-controlled $_SERVER keys), php://input, filter_input() or a Laravel/Symfony request accessor, inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable, so str_replace() blacklists of ../ or http:// still count). That is Local File Inclusion, and Remote File Inclusion where allow_url_include is on, both leading to code execution. The statement may span lines. Not reported: a path passed through basename(), intval() or a preg_replace() that deletes every character outside a letters/digits/_/- class, a file looked up in a map by the request value ($pages[$_GET['p']]; the map variable is still followed), a value checked with in_array(), array_key_exists(), isset($map[$v]) or preg_match() before the include, constant paths and __DIR__-relative paths built from constants, variables whose origin is not visible in the file (a value set in another included file or passed as a function parameter is a documented gap), and the keywords in comments (including trailing // and # comments) or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-003/",
 	"languages": ["php"],
 	"severity": "critical",
@@ -23,16 +23,22 @@ metadata := {
 # method named require.
 _sink_re := `(^|[^\w$>:\\])(include|require)(_once)?\b\s*\(?`
 
-_gate_re := `(?m)\b(include|require)(_once)?\b[^;\n]*\$`
+_gate_re := `\b(include|require)(_once)?\b[^;]{0,300}\$`
 
 _line_re := `\b(include|require)(_once)?\b`
 
-_sanitiser_re := `\b(basename|intval|absint)\s*\((?:[^()]|\([^()]*\))*\)|\((int|integer)\)\s*\$\w+(\s*\[[^\]]*\])*`
+_sanitiser_re := `\b(basename|intval|absint)\s*\((?:[^()]|\([^()]*\))*\)|\((int|integer)\)\s*\$\w+(\s*\[[^\]]*\])*|\bpreg_replace\s*\(\s*(['"])/\[\^[A-Za-z0-9_\\-]*\][+*]?/[a-zA-Z]*['"]\s*,\s*(''|"")\s*,(?:[^()]|\([^()]*\))*\)`
+
+# A lookup in a map ($pages[$_GET['p']]) yields the map's value, not the
+# request value: the index is dropped and only the map variable is followed,
+# so a map that is itself request data ($params = $request->getQueryParams())
+# still counts.
+_unindex(s) := regex.replace(s, `(\$[A-Za-z]\w*)\s*\[(?:[^\[\]]|\[[^\[\]]*\])*\]`, "${1}[]")
 
 # Checks that pin the value to a known set before the include.
 _validators := `in_array|array_key_exists|preg_match|ctype_\w+|is_numeric`
 
-_clean(s) := regex.replace(s, _sanitiser_re, "")
+_clean(s) := _unindex(regex.replace(s, _sanitiser_re, ""))
 
 _strip_sq(s) := regex.replace(s, `(^|[^\[\s])(\s*)'(?:[^'\\]|\\.)*'`, "${1}${2}''")
 
@@ -46,13 +52,14 @@ _code_line(line) if {
 
 findings contains finding if {
 	some path, content in input.file_contents
-	endswith(path, ".php")
+	regex.match(`\.(php\d?|phtml)$`, path)
 	regex.match(_gate_re, content)
 	regex.match(_source_re, content)
 	lines := split(content, "\n")
-	some i, line in lines
-	regex.match(_line_re, line)
-	_code_line(line)
+	some i, raw in lines
+	regex.match(_line_re, raw)
+	_code_line(raw)
+	line := _strip_comment(raw)
 	some expr in _sink_exprs(lines, i, line)
 	_reaches(lines, i, expr)
 	finding := {
@@ -62,9 +69,12 @@ findings contains finding if {
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": raw,
 	}
 }
+
+# The line without a trailing // or # comment (string literals respected).
+_strip_comment(s) := regex.replace(s, `^((?:[^"'/#]|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|/[^/"'#])*)(//|#[^\[]).*$`, "${1}")
 
 _no_strings(s) := regex.replace(s, `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`, `""`)
 
@@ -85,7 +95,7 @@ _statement(lines, i, s) := concat("\n", array.concat([s], [lines[k] | some k in 
 # ── Local one-file taint tracking for PHP ────────────────────────────────
 # A request value: a superglobal, the raw body, a request header, or the
 # Laravel/Symfony request accessors. $_SERVER keys the client controls only.
-_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(`
+_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json|getContent)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(|\$this\s*->\s*input\s*->\s*(get|post|get_post|post_get|cookie|server|request_headers|get_request_header|raw_input_stream)\b|\$this\s*->\s*request\s*->\s*(getVar|getGet|getPost|getGetPost|getPostGet|getCookie|getJSON|getJsonVar|getRawInput|getBody|getHeaderLine)\s*\(|->\s*(getQueryParams|getParsedBody|getCookieParams)\s*\(\s*\)`
 
 # Variables an expression reads, ignoring $this and superglobals.
 _vars(s) := {v |

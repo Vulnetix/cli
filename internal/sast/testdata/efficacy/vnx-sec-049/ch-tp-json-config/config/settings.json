@@ -1,0 +1,5 @@
+{
+  "workspace": "prod",
+~>  "anthropic_admin_key": "sk-ant-admin01-@@sample:[A-Za-z0-9_-]{93}@@AA",
+  "region": "us"
+}

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: coturn
+spec:
+  containers:
+    - name: coturn
+      image: coturn/coturn:4.6
+~>      command: ["sh", "-c", "turnserver -n --allow-loopback-peers --realm=$(REALM)"]
+      env:
+        - name: DESCRIPTION
+          value: "We used to pass allow-loopback-peers here for local debugging"

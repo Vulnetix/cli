@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-PHP-002",
 	"name": "Dangerous function in PHP",
-	"description": "A PHP command or code execution sink (exec(), system(), passthru(), shell_exec(), popen(), proc_open(), pcntl_exec(), the backtick operator, or eval()) receives a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, $_FILES, client-controlled $_SERVER keys), php://input, getallheaders(), filter_input() or a Laravel/Symfony request accessor, either inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable). Not reported: an argument passed through escapeshellarg(), escapeshellcmd(), intval(), an (int)/(float) cast or a numeric filter_var() filter, a variable checked with in_array(), preg_match(), ctype_*(), is_numeric() or filter_var() before the call, constant commands, function parameters and other values whose origin is not visible in the file (no cross-function dataflow), methods named exec/system on an object or class, declarations, and the names in comments or string literals.",
+	"description": "A PHP command or code execution sink (exec(), system(), passthru(), shell_exec(), popen(), proc_open(), pcntl_exec(), the backtick operator, or eval()) receives a request value: a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, $_FILES, client-controlled $_SERVER keys), php://input, getallheaders(), filter_input() or a Laravel/Symfony request accessor, either inline or through a variable assigned from one in the 30 lines above (directly or via one intermediate variable). Not reported: an argument passed through escapeshellarg(), escapeshellcmd(), intval(), an (int)/(float) cast or a numeric filter_var() filter, a variable checked with in_array(), preg_match(), ctype_*(), is_numeric() or filter_var() before the call, constant commands, a command chosen by a match expression whose arms are all literals, function parameters and other values whose origin is not visible in the file (no cross-function dataflow), methods named exec/system on an object or class, declarations, and the names in comments (including a trailing // or # comment) or string literals. .php and .phtml files are scanned.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-002/",
 	"languages": ["php"],
 	"severity": "high",
@@ -49,13 +49,14 @@ _code_line(line) if {
 
 findings contains finding if {
 	some path, content in input.file_contents
-	endswith(path, ".php")
+	regex.match(`\.(php\d?|phtml)$`, path)
 	regex.match(_gate_re, content)
 	regex.match(_source_re, content)
 	lines := split(content, "\n")
-	some i, line in lines
-	regex.match(_line_re, line)
-	_code_line(line)
+	some i, raw in lines
+	regex.match(_line_re, raw)
+	_code_line(raw)
+	line := _strip_comment(raw)
 	some expr in _sink_exprs(lines, i, line)
 	not regex.match(`\bfunction\s+&?\w+\s*\(`, line)
 	_reaches(lines, i, expr)
@@ -66,9 +67,12 @@ findings contains finding if {
 		"severity": metadata.severity,
 		"level": metadata.level,
 		"start_line": i + 1,
-		"snippet": line,
+		"snippet": raw,
 	}
 }
+
+# The line without a trailing // or # comment (string literals respected).
+_strip_comment(s) := regex.replace(s, `^((?:[^"'/#]|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|/[^/"'#])*)(//|#[^\[]).*$`, "${1}")
 
 # Both kinds of string literal blanked: where a sink call may sit.
 _no_strings(s) := regex.replace(s, `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`, `""`)
@@ -97,7 +101,7 @@ _extend(lines, i, s) := t if {
 # ── Local one-file taint tracking for PHP ────────────────────────────────
 # A request value: a superglobal, the raw body, a request header, or the
 # Laravel/Symfony request accessors. $_SERVER keys the client controls only.
-_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(`
+_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json|getContent)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(|\$this\s*->\s*input\s*->\s*(get|post|get_post|post_get|cookie|server|request_headers|get_request_header|raw_input_stream)\b|\$this\s*->\s*request\s*->\s*(getVar|getGet|getPost|getGetPost|getPostGet|getCookie|getJSON|getJsonVar|getRawInput|getBody|getHeaderLine)\s*\(|->\s*(getQueryParams|getParsedBody|getCookieParams)\s*\(\s*\)`
 
 # Variables an expression reads, ignoring $this and superglobals.
 _vars(s) := {v |
@@ -132,15 +136,38 @@ _origin(lines, i, v) := j if {
 _tainted(lines, i, v) if {
 	j := _origin(lines, i, v)
 	regex.match(_source_re, _clean(_rhs(lines[j])))
+	not _literal_match(lines, j)
 }
 
 _tainted(lines, i, v) if {
 	j := _origin(lines, i, v)
 	rhs := _clean(_rhs(lines[j]))
 	not regex.match(_source_re, rhs)
+	not _literal_match(lines, j)
 	some w in _vars(rhs)
 	k := _origin(lines, j, w)
 	regex.match(_source_re, _clean(_rhs(lines[k])))
+}
+
+# $v = match ($x) { 'a' => 'literal', ... }: the request value only selects
+# one of the constant arms, so $v does not carry it.
+_literal_match(lines, j) if {
+	regex.match(`=\s*match\s*\([^)]*\)\s*\{?\s*$`, lines[j])
+	arms := [k |
+		some k in numbers.range(j + 1, min([count(lines) - 1, j + 15]))
+		not regex.match(`^\s*\}`, lines[k])
+		not _closed_before(lines, j, k)
+	]
+	count(arms) > 0
+	every k in arms {
+		regex.match(`^\s*(\{\s*)?[^$]*=>\s*("[^"$]*"|'[^']*'|-?\d+|null|true|false)\s*,?\s*$`, lines[k])
+	}
+}
+
+_closed_before(lines, j, k) if {
+	some m in numbers.range(j + 1, k - 1)
+	m < k
+	regex.match(`^\s*\}`, lines[m])
 }
 
 # The value was checked against an allowlist or a strict pattern between

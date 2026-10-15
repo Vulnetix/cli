@@ -1,11 +1,11 @@
 ---
 title: "VNX-TF-005 – Terraform AWS EBS Volume Unencrypted"
-description: "Detect AWS EBS volumes and launch configurations in Terraform that have encryption disabled or missing, exposing data at rest to anyone who accesses the underlying physical storage or a leaked snapshot."
+description: "Detect EBS volumes in Terraform created without encryption at rest: encrypted = false on volumes, snapshot copies, instance block devices and launch templates, or an aws_ebs_volume that sets neither encrypted nor snapshot_id, unless the account enables EBS encryption by default."
 ---
 
 ## Overview
 
-This rule flags Terraform `.tf` files where an EBS-related resource — `aws_ebs_volume`, `aws_launch_configuration`, or `aws_launch_template` — either explicitly sets `encrypted = false` or omits the `encrypted` attribute entirely (in the case of `aws_ebs_volume`, where the default is unencrypted).
+This rule flags Terraform `.tf` files where `encrypted = false` is set inside an `aws_ebs_volume`, `aws_ebs_snapshot_copy`, an `aws_instance`/`aws_spot_instance_request`/`aws_launch_configuration` block device, or the `ebs` block of an `aws_launch_template`, and an `aws_ebs_volume` that sets neither `encrypted` nor `snapshot_id` (the default is unencrypted, and a commented-out `encrypted` line does not count). Nothing is reported when the project declares `aws_ebs_encryption_by_default` with `enabled = true`, because AWS then encrypts every new volume; a value from a variable and a volume restored from a snapshot are not reported either.
 
 EBS volumes store the persistent data for EC2 instances: operating system files, application data, database files, and log data. An unencrypted EBS volume stores this data in plaintext on the physical disk. AWS personnel with physical data center access, automated backup and snapshot systems, and anyone who obtains a copy of a leaked or misconfigured snapshot can read the data without any further authentication.
 
@@ -23,33 +23,26 @@ For databases running on EBS (MySQL, PostgreSQL, or other self-managed databases
 
 ## What Gets Flagged
 
-The rule matches `.tf` files where an EBS resource has `encrypted = false` explicitly, and also matches `aws_ebs_volume` resources that do not contain the `encrypted` attribute at all.
-
 ```hcl
-# FLAGGED: explicitly disabled encryption
 resource "aws_ebs_volume" "data" {
-  availability_zone = "us-east-1a"
+  availability_zone = "eu-west-1a"
   size              = 100
-  encrypted         = false
+  encrypted         = false           # FLAGGED
 }
 
-# FLAGGED: missing encrypted attribute on aws_ebs_volume
-resource "aws_ebs_volume" "data" {
-  availability_zone = "us-east-1a"
-  size              = 100
-  # encrypted attribute absent — defaults to false
+resource "aws_ebs_volume" "scratch" {   # FLAGGED: no encrypted attribute
+  availability_zone = "eu-west-1b"
+  size              = 50
 }
 
-# FLAGGED: launch template with unencrypted root block device
-resource "aws_launch_template" "app" {
-  block_device_mappings {
-    device_name = "/dev/xvda"
-    ebs {
-      encrypted = false
-    }
+resource "aws_instance" "app" {
+  root_block_device {
+    encrypted = false                 # FLAGGED
   }
 }
 ```
+
+Not flagged: `encrypted = true`, `snapshot_id = aws_ebs_snapshot.encrypted.id`, or `storage_encrypted = false` on a database (a different resource).
 
 ## Remediation
 

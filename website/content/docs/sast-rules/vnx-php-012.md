@@ -1,6 +1,6 @@
 ---
 title: "VNX-PHP-012 – PHP reflected XSS via echo/print of user input"
-description: "Detects request input written into the response without HTML encoding: echo, print, <?= ?>, printf() and die()/exit() of a superglobal or a variable read from one, and an HTML fragment built with such a value (the $html .= pattern). Values passed through htmlspecialchars(), htmlentities(), (int) or json_encode() are not reported."
+description: "Detects request input written into the response without HTML encoding: echo, print, <?= ?>, printf() and die()/exit() of a superglobal or a variable read from one, an HTML fragment built with such a value (the $html .= pattern), and an echoed heredoc that interpolates one. Values passed through htmlspecialchars(), htmlentities(), (int) or json_encode() are not reported."
 ---
 
 ## Overview
@@ -47,6 +47,12 @@ $html .= "<pre>Hello {$name}</pre>";
 
 // FLAGGED: client-controlled $_SERVER keys (headers, PHP_SELF, REQUEST_URI)
 echo '<form action="' . $_SERVER['PHP_SELF'] . '">';
+
+// FLAGGED: a heredoc that interpolates input (reported on the echo line)
+$name = $_GET['name'];
+echo <<<HTML
+<h1>Hello $name</h1>
+HTML;
 ```
 
 Not flagged: `htmlspecialchars()`, `htmlentities()`, `strip_tags()`, `(int)`/`intval()`, `json_encode()` and `urlencode()` around the value, `isset()`/`empty()` tests, server-configured keys such as `$_SERVER['SERVER_NAME']`, and input inside a single-quoted literal. A value passed through a second variable before it is echoed, stored XSS and template engines are not tracked.

@@ -7,7 +7,7 @@ import data.vulnetix.lib.secrets
 metadata := {
 	"id": "VNX-SEC-025",
 	"name": "Azure Storage Account key hardcoded",
-	"description": "Reports an 88-character Azure Storage account key (86 base64 characters and == padding) written literally in a file when the line names it as a storage key: an AccountKey= segment of a connection string, a variable or field such as AZURE_STORAGE_KEY, storage_account_access_key or primary_access_key, the az CLI --account-key flag, or a StorageSharedKeyCredential/StorageCredentials/CloudStorageAccount call (also when the key is on the next lines of a multi-line call). The public Azurite/storage-emulator key, placeholder and low-entropy values, environment or template references, and test and fixture paths are not reported; other 88-character base64 values (sha512 integrity hashes, signatures) without that context are not reported either.",
+	"description": "Reports an 88-character Azure Storage account key (86 base64 characters and == padding) written literally in a file when the line names it as a storage key: an AccountKey= segment of a connection string, a variable or field such as AZURE_STORAGE_KEY, storage_account_access_key, primary_access_key, access_key (the azurerm backend) or ARM_ACCESS_KEY, the az CLI --account-key flag, or a StorageSharedKeyCredential/StorageCredentials/CloudStorageAccount or Blob/Queue/Table/Share/DataLake service-client call (also when the key is on the next lines of a multi-line call, as in BlobServiceClient(url, credential=...)). The public Azurite/storage-emulator key, placeholder and low-entropy values, environment or template references, and test and fixture paths are not reported; other 88-character base64 values (sha512 integrity hashes, signatures) without that context are not reported either.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-sec-025/",
 	"languages": ["generic"],
 	"severity": "critical",
@@ -24,10 +24,10 @@ metadata := {
 _token_re := `(?:^|[^A-Za-z0-9+/])([A-Za-z0-9+/]{86}==)(?:[^A-Za-z0-9+/=]|$)`
 
 # The context that makes an 88-character base64 value a storage key.
-_line_ctx_re := `(?i)(AccountKey\s*=|azure[_.-]?(storage[_.-]?)?(account[_.-]?)?(access[_.-]?)?key|storage[_.-]?(account[_.-]?)?(access[_.-]?)?key|account[_.-]?key|(primary|secondary)[_.-]?access[_.-]?key|--account-key|StorageSharedKeyCredential|StorageCredentials\s*\(|CloudStorageAccount\s*\(|AZURE_STORAGE_ACCESS_KEY)`
+_line_ctx_re := `(?i)(AccountKey\s*=|azure[_.-]?(storage[_.-]?)?(account[_.-]?)?(access[_.-]?)?key|storage[_.-]?(account[_.-]?)?(access[_.-]?)?key|account[_.-]?key|(primary|secondary)[_.-]?access[_.-]?key|--account-key|StorageSharedKeyCredential|StorageCredentials\s*\(|CloudStorageAccount\s*\(|AZURE_STORAGE_ACCESS_KEY|\baccess[_-]?key\b|\bARM_ACCESS_KEY\b|(Blob|Queue|Table|Share|DataLake|File)Service(Client)?\s*\()`
 
 # A multi-line constructor names the API a couple of lines above the key.
-_call_ctx_re := `(StorageSharedKeyCredential|StorageCredentials|AzureNamedKeyCredential|SharedKeyCredential)\s*\(`
+_call_ctx_re := `(StorageSharedKeyCredential|StorageCredentials|AzureNamedKeyCredential|SharedKeyCredential|(Blob|Queue|Table|Share|DataLake|File)Service(Client)?)\s*\(`
 
 # Published Azurite / storage-emulator account key (devstoreaccount1).
 _emulator_key := "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="

@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.16)
+project(parser C)
+
+~>add_compile_options(-w)
+~>set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -w")
+~>add_definitions(-D_CRT_SECURE_NO_WARNINGS @@sample:[-][D]WI[N]32[_]LE[A]N[_][A]ND[_]ME[A]N@@)
+if(MSVC)
+~>  target_compile_options(parser PRIVATE /W0)
+endif()
+add_executable(parser main.c)

@@ -1,6 +1,6 @@
 ---
 title: "VNX-PY-016 – Django Mass Assignment via Request Data Unpacking"
-description: "Detect Django code that creates or updates model instances by unpacking request data (**request.data, **request.POST) or uses fields='__all__' in serializers, enabling mass assignment attacks."
+description: "Detect Python web code that writes the whole request body to a model: **request.data into create/update, SQLAlchemy .values() or a model constructor, Query.update(request body), __dict__.update(request.json), an unguarded setattr loop over request keys, or a ModelSerializer/ModelForm with fields = '__all__'."
 ---
 
 ## Overview
@@ -40,6 +40,21 @@ class UserSerializer(serializers.ModelSerializer):
         # Flagged: exposes every field including is_staff, is_superuser, password
         fields = '__all__'
 ```
+
+**Pattern 3: The body copied onto an object, or written key by key**
+
+```python
+# Flagged
+user.__dict__.update(request.get_json())
+
+for key, value in request.data.items():
+    setattr(customer, key, value)   # flagged: no allowlist test in the loop
+
+payload = request.json
+db.session.add(Order(**payload))    # flagged: model constructor in an ORM file
+```
+
+**Not flagged:** explicit keyword arguments, a dict built from an allowlist, `serializer.validated_data` or `form.cleaned_data`, pydantic or dataclass constructors, a `setattr` loop guarded by `if key in ALLOWED`, and the pattern inside a comment or string.
 
 The rule applies only to `.py` files.
 

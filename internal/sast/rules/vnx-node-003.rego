@@ -7,7 +7,7 @@ import data.vulnetix.helpers
 metadata := {
 	"id": "VNX-NODE-003",
 	"name": "Command injection via child_process",
-	"description": "child_process exec()/execSync() (which run their command through /bin/sh) called with a command built at run time: a template literal with ${...} interpolation, string concatenation, or a variable assigned within the previous 10 lines from such a string or from a request/argv value (req.query/body/params, ctx.request, process.argv). The call must resolve to child_process: a module bound by require/import (cp.exec, child_process.execSync, require('child_process').exec), a destructured or aliased import ({ exec }, { execSync as run }), or a util.promisify(exec) wrapper. Not reported: RegExp.prototype.exec and any other object's exec method (db.exec, re.exec), execFile/spawn with an argument array, constant command strings, and the pattern inside comments or string literals. spawn with shell:true is VNX-NODE-026 and shelljs is VNX-NODE-022.",
+	"description": "child_process exec()/execSync() (which run their command through /bin/sh) called with a command built at run time: a template literal with ${...} interpolation (also one spanning several lines), string concatenation, a request/argv value passed directly, or a variable assigned within the previous 10 lines from such a string or from a request/argv value (req.query/body/params, ctx.request, process.argv). The call must resolve to child_process: a module bound by require/import (cp.exec, child_process.execSync, require('child_process').exec), a destructured or aliased import ({ exec }, { execSync as run }), or a util.promisify(exec) wrapper. Not reported: RegExp.prototype.exec and any other object's exec method (db.exec, re.exec), execFile/spawn with an argument array, constant command strings, and the pattern inside comments or string literals. spawn with shell:true is VNX-NODE-026 and shelljs is VNX-NODE-022.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-node-003/",
 	"languages": ["node"],
 	"severity": "high",
@@ -65,7 +65,7 @@ _bound(p) := p[1] if p[2] == ""
 
 # promisify(exec) / util.promisify(cp.exec) wrappers.
 _promisified(content) := {m[1] |
-	some m in regex.find_all_string_submatch_n(`(\w+)\s*=\s*(?:\w+\.)?promisify\(\s*(?:\w+\.)?exec\s*\)`, content, -1)
+	some m in regex.find_all_string_submatch_n(`(\w+)\s*=\s*(?:\w+\.)?promisify\(\s*(?:require\(\s*['"](?:node:)?child_process['"]\s*\)\.|\w+\.)?exec\s*\)`, content, -1)
 }
 
 _alt(names) := concat("|", sort([n | some n in names]))
@@ -121,6 +121,20 @@ _arg(lines, i, rest) := _strip(lines[i + 1]) if {
 
 # The command is interpolated or concatenated in the call itself.
 _built(_, _, head) if regex.match(`TPLX|\+`, head)
+
+# The command is a request or argv value passed straight in.
+_built(_, _, head) if regex.match(`^\s*(?:\breq\.(?:query|body|params|headers|cookies)|\bctx\.(?:request|query|params)|\bprocess\.argv)\b`, head)
+
+# A template literal left open on this line whose text up to the closing
+# backtick (within 10 lines) interpolates something.
+_built(lines, i, head) if {
+	regex.match(`^\s*\x60[^\x60]*$`, head)
+	open := regex.find_all_string_submatch_n(`\x60[^\x60]*$`, lines[i], 1)
+	count(open) > 0
+	tail := concat("\n", array.concat([open[0][0]], array.slice(lines, i + 1, i + 11)))
+	body := regex.find_all_string_submatch_n(`^\x60([^\x60]*)`, tail, 1)
+	contains(body[0][1], "${")
+}
 
 # The command is a variable assigned from a built string or a request value.
 _built(lines, i, head) if {

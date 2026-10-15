@@ -5,7 +5,7 @@ import rego.v1
 metadata := {
 	"id": "VNX-PHP-007",
 	"name": "PHP extract on superglobal",
-	"description": "Request data is imported as local variables, letting the client overwrite any variable in scope ($is_admin, $authenticated, a file path) and bypass the checks built on them: extract() of a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, $_SERVER, $_FILES), of a Laravel/Symfony request accessor such as $request->all(), or of a variable assigned from one in the 30 lines above (directly or via one intermediate variable); parse_str() or mb_parse_str() with no result array on a request value or $_SERVER['QUERY_STRING']; variable variables ($$key = $value or ${$key} = ...) assigned inside a foreach over a superglobal; and import_request_variables(). Not reported: extract() with EXTR_PREFIX_ALL (every imported name is prefixed; EXTR_SKIP still lets the client define unset variables and is reported), parse_str() with a second argument, extract() of data whose origin is not visible in the file (view data, database rows, function parameters; no cross-function dataflow), methods named extract on an object, and the calls in comments or string literals.",
+	"description": "Request data is imported as local variables, letting the client overwrite any variable in scope ($is_admin, $authenticated, a file path) and bypass the checks built on them: extract() of a superglobal ($_GET, $_POST, $_REQUEST, $_COOKIE, $_SERVER, $_FILES), of a Laravel/Symfony request accessor such as $request->all(), or of a variable assigned from one in the 30 lines above (directly or via one intermediate variable); parse_str() or mb_parse_str() with no result array on a request value or $_SERVER['QUERY_STRING']; variable variables ($$key = $value or ${$key} = ...) and $GLOBALS[$key] = ... assigned inside a foreach over a superglobal; and import_request_variables(). Not reported: extract() with EXTR_PREFIX_ALL, also on a continuation line of the call (every imported name is prefixed; EXTR_SKIP still lets the client define unset variables and is reported), parse_str() with a second argument, extract() of data whose origin is not visible in the file (view data, database rows, function parameters; no cross-function dataflow), methods named extract on an object, and the calls in comments or string literals.",
 	"help_uri": "https://docs.cli.vulnetix.com/docs/sast-rules/vnx-php-007/",
 	"languages": ["php"],
 	"severity": "high",
@@ -19,7 +19,7 @@ metadata := {
 	"tags": ["variable-overwrite", "injection", "php"],
 }
 
-_gate_re := `(?m)(\bextract\s*\(|parse_str\s*\(|\$\$\w|\$\{\s*\$|import_request_variables)`
+_gate_re := `(?m)(\bextract\s*\(|parse_str\s*\(|\$\$\w|\$\{\s*\$|\$GLOBALS\s*\[\s*\$|import_request_variables)`
 
 _line_re := trim_prefix(_gate_re, "(?m)")
 
@@ -46,7 +46,7 @@ _message := "Request data is imported as local variables (variable overwrite); r
 
 findings contains finding if {
 	some path, content in input.file_contents
-	endswith(path, ".php")
+	regex.match(`\.(php\d?|phtml)$`, path)
 	regex.match(_gate_re, content)
 	regex.match(`\$_[A-Z]|request|php://input|getallheaders|filter_input|Input::`, content)
 	lines := split(content, "\n")
@@ -69,9 +69,23 @@ findings contains finding if {
 _imports(lines, i, code, line) if {
 	regex.match(`(^|[^\w$>:\\])\\?extract\s*\(`, code)
 	not regex.match(`\bfunction\s+&?extract\s*\(`, code)
-	not contains(line, "EXTR_PREFIX_ALL")
+	not _prefixed(lines, i)
 	arg := _first_arg(line, `(^|[^\w$>:\\])\\?extract\s*\(\s*`)
 	_request_data(lines, i, arg)
+}
+
+# EXTR_PREFIX_ALL on the call's line or on the continuation lines before the
+# statement ends.
+_prefixed(lines, i) if {
+	some k in numbers.range(i, min([count(lines) - 1, i + 2]))
+	contains(lines[k], "EXTR_PREFIX_ALL")
+	not _ended_before(lines, i, k)
+}
+
+_ended_before(lines, i, k) if {
+	some n in numbers.range(i, k - 1)
+	n < k
+	contains(lines[n], ";")
 }
 
 # parse_str($str) / mb_parse_str($str) with no result argument.
@@ -86,7 +100,7 @@ _imports(_, _, code, _) if regex.match(`(^|[^\w$>:\\])import_request_variables\s
 
 # $$k = ... or ${$k} = ... inside a foreach over request data.
 _imports(lines, i, code, _) if {
-	regex.match(`(\$\$\w+|\$\{\s*\$\w+\s*\})\s*=[^=]`, code)
+	regex.match(`(\$\$\w+|\$\{\s*\$\w+\s*\}|\$GLOBALS\s*\[\s*\$\w+\s*\])\s*=[^=>]`, code)
 	some k in numbers.range(max([0, i - 3]), i)
 	m := regex.find_all_string_submatch_n(`\bforeach\s*\(\s*(.+?)\s+as\s+\$`, lines[k], 1)
 	count(m) > 0
@@ -109,7 +123,7 @@ _first_arg(line, prefix_re) := e if {
 # ── Local one-file taint tracking for PHP ────────────────────────────────
 # A request value: a superglobal, the raw body, a request header, or the
 # Laravel/Symfony request accessors. $_SERVER keys the client controls only.
-_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(`
+_source_re := `\$_(GET|POST|REQUEST|COOKIE|FILES)\b|\$_SERVER\s*\[\s*['"](HTTP_\w+|QUERY_STRING|REQUEST_URI|PATH_INFO|PHP_SELF)|php://input|\$request\s*->\s*(input|get|query|post|all|cookie|header|route|string|json|getContent)\s*\(|\$request\s*->\s*(query|request|cookies|headers)\s*->\s*get\s*\(|\bRequest::(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*\)\s*->\s*(input|get|query|post|all|cookie|header)\s*\(|\brequest\(\s*['"]|\bInput::(get|all)\s*\(|\bfilter_input\s*\(\s*INPUT_(GET|POST|COOKIE|REQUEST|SERVER)|\bgetallheaders\s*\(|\$this\s*->\s*input\s*->\s*(get|post|get_post|post_get|cookie|server|request_headers|get_request_header|raw_input_stream)\b|\$this\s*->\s*request\s*->\s*(getVar|getGet|getPost|getGetPost|getPostGet|getCookie|getJSON|getJsonVar|getRawInput|getBody|getHeaderLine)\s*\(|->\s*(getQueryParams|getParsedBody|getCookieParams)\s*\(\s*\)`
 
 # Variables an expression reads, ignoring $this and superglobals.
 _vars(s) := {v |
