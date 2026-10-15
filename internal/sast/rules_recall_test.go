@@ -52,7 +52,7 @@ func TestFixtureAppRecall(t *testing.T) {
 		{hit{"src/vuln.js", 15, "VNX-NODE-003"}, "execSync with a concatenated request value"},
 		{hit{"src/vuln.py", 13, "VNX-PY-007"}, "shell=True with interpolated input"},
 		{hit{"src/vuln.py", 24, "VNX-PY-003"}, "pickle.loads of attacker data"},
-		{hit{"src/vuln.py", 29, "VNX-327"}, "hashlib.md5 is a broken hash call"},
+		{hit{"src/vuln.py", 29, "VNX-CRYPTO-001"}, "hashlib.md5 is a broken hash call (VNX-327 now reports only password hashing)"},
 	}
 	for _, w := range want {
 		require.Truef(t, got[w.hit], "missed %s at %s:%d (%s)", w.rule, w.file, w.line, w.why)
